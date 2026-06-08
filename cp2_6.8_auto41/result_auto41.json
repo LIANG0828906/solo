@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-08T09:31:41.511Z",
+  "task_name": "auto41",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个在线团队决策加权投票面板的项目，想法是让一群用户可以就某个议题（比如选团建地点）各自打分并添加权重（比如团队角色不同权重不同），最后系统自动计算出加权总分和排名，同时以动态柱状图和环形图实时展示结果变化，并支持一键导出投票报告。希望它能做到：第一，用户无需注册就能在邀请链接下进入投票房间，每个房间有唯一短码，参与者加入时选择角色（如经理权重1.5、组长权重1.2、成员权重1.0），并输入姓名和1-10分的分数，提交后后台立即统计加权总分并更新排名；最多支持20人同时在线投票，当有新投票提交时排行榜前三名的名字和分数用金色高亮闪烁一次（0.5秒内放大1.1倍再恢复），其余条目从下往上平滑插入更新；第二，投票结果展示区左侧是横向柱状图（柱高代表加权总分，柱体颜色从#4caf50到#ff9800渐变，柱体顶部标注具体分数和权重），右侧是环形图（展示每个选项的加权得分占比，分段颜色依次为#3f51b5、#e91e63、#00bcd4、#ff5722、#8bc34a），两个图表在每次数据更新时都伴有0.4秒的缓动动画（柱状图从底部升起，环形图扇区从0度展开），并且图表区域有轻微的阴影脉动效果；第三，页面顶部显示投票剩余倒计时（默认20分钟，可拖动条调整5-60分钟），倒计时最后10秒数字变红并闪烁（每秒缩放1.2倍），结束时自动锁定投票并展示最终排名，排名前三位用烟花粒子动画庆祝（粒子从屏幕底部上升，颜色随机暖色，持续2秒）。界面整体采用深色主题（背景#121212，卡片#1e1e1e，文字#ffffff，强调色#bb86fc），所有按钮和卡片都有hover时0.2秒色调过渡，响应式适配桌面（三栏布局：左侧参与者列表+中间投票区+右侧结果图）和移动端（单列上下堆叠，图表缩小至300px宽）。性能上要求投票提交后全票统计重新计算并UI更新在100ms内完成。实现用TypeScript、React和Tailwind CSS，后端用Express + Node，用WebSocket做实时同步。把代码拆成以下文件：\n - package.json（含依赖：express、ws、react、react-dom、recharts、react-router-dom、typescript、vite、@vitejs/plugin-react、tailwindcss、postcss、autoprefixer、@types/express、@types/ws、@types/react、@types/react-dom，启动脚本：npm run dev）\n - vite.config.js（Vite构建配置，启用React和TypeScript）\n - tsconfig.json（严格模式，ESNext模块）\n - index.html（入口页面，深色背景）\n - server/wsServer.ts（WebSocket服务端，管理投票房间、用户连接、接收投票事件并广播最新统计结果）\n - src/App.tsx（React主应用，路由管理、全局状态通过WebSocket连接）\n - src/components/PollPanel.tsx（投票面板组件，渲染参与者列表、评分输入和角色选择，提交时通过WebSocket发送数据）\n - src/components/ResultCharts.tsx（结果图表组件，包含柱状图和环形图，接收WebSocket推送更新并播放动画）\n - src/utils/voteEngine.ts（投票计算模块，包含加权总分计算、排名排序、结果格式化函数）\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:4065ae2bacab26c3641da06e50e9f6f0_6a268bace8e401d9bc5c75f0.6a268bdae8e401d9bc5c7600.6a268bdaa19932bdc339c586:Trae CN.T(2026/6/8 17:31:06)",
+    "user_id": "98336997115224",
+    "trace_id": "4065ae2bacab26c3641da06e50e9f6f0",
+    "session_id": "6a268bace8e401d9bc5c75f0",
+    "task_id": "6a268bdae8e401d9bc5c7600",
+    "message_id": "6a268bdaa19932bdc339c586",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/8 17:31:06",
+    "format": "full"
+  },
+  "trace": "null"
+}
