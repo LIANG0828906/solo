@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T11:42:20.396Z",
+  "task_name": "auto113",
+  "task_type": "0-1代码生成",
+  "business_domain": "3D/交互可视化",
+  "modification_scope": "模块内多文件",
+  "prompt": "场景：在虚拟的唐代西市胡商开设的香料铺中，各式香球、香囊在烛火上微微加热，散发出袅袅升腾的烟雾，烟雾的流向和扩散形态会随着铺子内的气流（由扇子扇风或门窗开合引起）和香料成分（沉香、檀香、龙脑）而实时改变。\n\n构建一个基于浏览器的古代香料铺中熏香烟雾粒子系统与气流交互模拟的3D可视化应用，让用户像一位唐代西市的香道师一样，在虚拟的铺子中从博山炉（铜质，三足，炉盖镂空，整体用#5d3a1a至#8b4513渐变）上选择不同香料（沉香#3a2a1a、檀香#4a3a2a、龙脑#e6e6d4），通过拖拽调整扇子（蒲扇，扇形，宽60px，用#d4a76a至#c47e3a渐变）的扇风方向和速度（从0到3档），实时观察烟雾粒子（直径2-6px，半透明白至灰色渐变，从炉盖镂空处散发）在三维空间中的运动轨迹——烟雾遇到扇风会偏转、加速并形成涡旋，遇到关闭的门窗（木色#6b4e3a，位于场景左侧和后方，可点击切换开合状态）会积聚并沿墙壁上升，然后从屋顶天窗（开在场景正上方，直径40px）逸出。颜色#1a1a1a背景，铺子内壁用#7a8a7a青砖纹理，地面为#6b5b4b夯土。使用TypeScript、React和Three.js实现。文件结构按职责模块化，并注明各文件间的调用关系和数据流向：\n - package.json（含依赖：react、react-dom@18、typescript、vite、@vitejs/plugin-react、three@0.160、@react-three/fiber@8、@react-three/drei@9、zustand，启动脚本：npm run dev）\n - vite.config.js（声明alias @指向src，配置server端口5173）\n - tsconfig.json（strict模式，moduleResolution bundler）\n - index.html（含div#root，引入script）\n - src/App.tsx（主场景组件，组装SmokeCanvas、ControlPanel和SceneElements，状态管理通过zustand store通信，数据流向：用户操作ControlPanel→更新store→触发SmokeCanvas重绘）\n - src/SceneElements.tsx（静态场景：博山炉、门窗、墙壁、地板、天窗，使用Three.js原生Mesh和@react-three/drei的HTML标签，接收store中门窗开合状态）\n - src/SmokeParticles.tsx（使用Three.js Points和自定义着色器实现烟雾粒子系统，粒子位置、速度、大小和透明度由三维向量数组控制，每帧更新。接收store中扇子方向、速度和香料类型，输出粒子位置数据用于渲染）\n\n功能需求：\n1) 博山炉交互：用户点击炉盖选择香料（沉香、檀香、龙脑），点击后炉盖小幅度开合动画（0.2秒），炉内火焰闪烁（CSS @keyframes + Three.js MeshBasicMaterial颜色渐变），然后烟雾从炉盖镂空处开始散发。\n2) 扇风控制：在炉子右侧显示一把蒲扇，用户拖拽蒲扇可以设置扇风方向（角度从-45度到+45度，从水平方向算起），点击蒲扇切换档位（0关闭，1微风，2中风，3强风），档位不同时蒲扇摆动幅度和速度不同（微风：每秒10度摆幅10度，强风：每秒30度摆幅30度）。\n3) 烟雾粒子行为：粒子从炉盖5个镂空点散发，初始速度0.2单位/秒方向随机偏转 ±30度。扇风开启后，粒子受到指向扇风方向的大于初始速度的加速度（微风：0.5倍，强风：2倍），并在遇到场景中的墙壁和家具（如木架、墙壁）时反弹（反弹系数0.3）。门窗关闭时，粒子无法穿过，会沿墙壁向上飘升；门窗打开时，粒子随气流向外扩散。每个粒子存活时长6秒，之后淡出并重新在原点生成。\n4) 性能监控：在界面右上角显示实时粒子数、帧率（FPS）和扇风档位。当粒子数超过3000时，自动降低粒子生成速率到当前值的80%。\n5) 交互反馈：用户操作时，蒲扇的摆动动画、炉盖开合动画和窗扇的旋转动画（围绕铰链轴，旋转角度从0到90度）都需要使用framer-motion或Three.js的动画循环平滑过渡（过渡时长为0.3秒），并伴有微粒特效（例如蒲扇扇风时从扇面边缘飞出细小的木屑粒子）。\n\n界面方面：整个场景渲染在页面中央（canvas占视口高度90%，宽度自适应），右侧固定宽度200px的侧边栏（深色半透明#1a1a1a，透明度0.85，圆角8px），侧边栏用于显示当前香料名称、扇风档位、门窗状态和性能数据。颜色主题为暖棕色系（地板#6b5b4b，墙壁#7a8a7a，木架#6b4e3a，博山炉#5d3a1a），以营造古雅温馨的铺子氛围。侧边栏采用毛玻璃效果（backdrop-filter: blur(4px)）。页面在移动端下，侧边栏折叠为底部横条（高度60px，显示关键信息并可通过点击展开）。\n\n性能约束：烟雾粒子数最大不超过5000，帧率稳定在30FPS以上。粒子更新和渲染逻辑需在Web Worker或requestAnimationFrame中高效计算，避免主线程阻塞。运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:038fa97d53a2219c73416a35031106a4_6a27fbecc7ea5bd2cc49929a.6a27fc11c7ea5bd2cc4992aa.6a27fc11f4f4f978017c1d41:Trae CN.T(2026/6/9 19:42:09)",
+    "user_id": "98336997115224",
+    "trace_id": "038fa97d53a2219c73416a35031106a4",
+    "session_id": "6a27fbecc7ea5bd2cc49929a",
+    "task_id": "6a27fc11c7ea5bd2cc4992aa",
+    "message_id": "6a27fc11f4f4f978017c1d41",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/9 19:42:09",
+    "format": "full"
+  },
+  "trace": "null"
+}
