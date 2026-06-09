@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T10:58:45.673Z",
+  "task_name": "auto39",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个交互式音波可视化音乐播放器的项目，想法是让用户上传一首歌曲，在播放时能看到根据音频频率实时变化的动态波形图案，沉浸在音画同步的视听氛围里。希望它能做到：第一，主界面中央是一个圆形画布，播放音乐时，画布上会以同心圆或辐射状线条的形式实时渲染频率分布，低频（鼓点）让内圈膨胀收缩，中频（人声）让中间环带波动，高频（镲片）让外圈粒子闪烁，所有动画都要与音乐节拍同步且帧率稳定在60fps；第二，画布下方是一条半透明的进度条，显示播放进度、当前时间戳和总时长，用户可拖动进度条上的圆形滑块跳到任意位置，拖动时滑块旁边会浮出大字号时间提示（如“01:23”），松开后音乐跳转并重新同步波形动画；第三，界面左下角有一个迷你控制台，包含播放/暂停按钮（根据状态切换图标，点击时有0.1秒缩放弹性动画）、上一首/下一首按钮（灰色不可用时置灰）、音量滑块（垂直方向拖动，拖动时显示音量百分比数字）。界面上整体的配色方案采用深色背景（#0f0f23）搭配霓虹蓝紫渐变（#4a00e0到#8e2de2）作为主色调，控制按钮和进度条用半透明毛玻璃样式（背景模糊10px），鼠标悬停时有发光边框动画（0.3秒过渡）。布局要求是画布占主体80%宽度，左右留白均衡，控制台和进度条紧贴底部，所有元素在1366x768分辨率下完美适配，在手机竖屏模式下画布自动缩小到95%宽度，控制台变为横向排列。性能上，波形渲染必须达到稳定60fps，不能因为快速拖拽进度条或切换歌曲造成卡顿，在Chrome和Firefox上都要流畅运行。实现采用TypeScript和纯HTML5 Canvas API（不依赖Three.js或其他3D引擎），所有音视频处理和波形数据提取使用Web Audio API完成。把代码拆成以下文件：\n - package.json（含依赖：typescript、vite，启动脚本：npm run dev）\n - vite.config.js（Vite构建配置，启用TypeScript支持）\n - tsconfig.json（严格模式，ESNext模块解析）\n - index.html（入口页面，全屏深色背景，挂载Canvas和控制元素）\n - src/audio.ts（负责加载音频文件、创建AudioContext、连接AnalyserNode并实时输出频域数据数组，向外暴露start、stop、seek和getFrequencyData方法）\n - src/renderer.ts（负责从audio.ts获取频域数据，在Canvas上绘制同心圆波形动画，处理帧循环和resize事件，将渲染逻辑与音频逻辑解耦）\n - src/player.ts（管理播放/暂停、进度条交互、音量控制和歌曲切换的UI逻辑，调用audio.ts和renderer.ts的接口，作为应用的主控制器）\n\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:39e68a05c88a10e4a35238b8a4392c29_6a27f0dfc4c3352fcd4970e8.6a27f1cac4c3352fcd4971be.6a27f1cac01db10835cce4e4:Trae CN.T(2026/6/9 18:58:18)",
+    "user_id": "98336997115224",
+    "trace_id": "39e68a05c88a10e4a35238b8a4392c29",
+    "session_id": "6a27f0dfc4c3352fcd4970e8",
+    "task_id": "6a27f1cac4c3352fcd4971be",
+    "message_id": "6a27f1cac01db10835cce4e4",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/9 18:58:18",
+    "format": "full"
+  },
+  "trace": "null"
+}
