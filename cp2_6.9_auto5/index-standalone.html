@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="交互式光影雕塑生成器 - 通过放置点光源创建独特的3D球体光照效果">
+  <title>光影雕塑生成器</title>
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: #121212;
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #ffffff;
+  text-align: center;
+}
+
+.app-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.panel {
+  background: #1e1e1e;
+  border: 1px solid #444444;
+  border-radius: 12px;
+  padding: 16px;
+  width: 260px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#mainCanvas {
+  border: 1px solid #444444;
+  border-radius: 8px;
+  cursor: crosshair;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #2d2d2d;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #444444;
+  color: #ffffff;
+}
+
+.light-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.light-item {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.light-item:hover {
+  border-color: #555555;
+}
+
+.light-item.selected {
+  border-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+}
+
+.light-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.light-preview {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+  flex-shrink: 0;
+}
+
+.light-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.delete-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #ff4444;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+}
+
+.slider-group {
+  margin-bottom: 10px;
+}
+
+.slider-group:last-child {
+  margin-bottom: 0;
+}
+
+.slider-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #aaaaaa;
+}
+
+.slider-value {
+  font-weight: 600;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #444444;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #4caf50;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: #66bb6a;
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #4caf50;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s, background 0.2s;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  background: #66bb6a;
+}
+
+.hue-slider {
+  background: linear-gradient(
+    to right,
+    hsl(0, 80%, 50%),
+    hsl(60, 80%, 50%),
+    hsl(120, 80%, 50%),
+    hsl(180, 80%, 50%),
+    hsl(240, 80%, 50%),
+    hsl(300, 80%, 50%),
+    hsl(360, 80%, 50%)
+  );
+}
+
+.light-position {
+  font-size: 11px;
+  color: #888888;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #3a3a3a;
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bg-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #444444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.bg-btn:hover {
+  transform: scale(1.05);
+}
+
+.bg-btn.active {
+  border-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+#saveBtn {
+  width: 100%;
+  max-width: 300px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: #4caf50;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+#saveBtn:hover {
+  background: #388e3c;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+#saveBtn:active {
+  transform: scale(0.98);
+}
+
+.panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel::-webkit-scrollbar-track {
+  background: #1e1e1e;
+  border-radius: 3px;
+}
+
+.panel::-webkit-scrollbar-thumb {
+  background: #444444;
+  border-radius: 3px;
+}
+
+.panel::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+@media (max-width: 1200px) {
+  .panel {
+    width: 220px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .panel {
+    width: 100%;
+    max-width: 600px;
+    max-height: none;
+    order: 2;
+  }
+  
+  .canvas-container {
+    order: 1;
+  }
+  
+  #leftPanel {
+    order: 2;
+  }
+  
+  #rightPanel {
+    order: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 8px;
+  }
+  
+  .app-title {
+    font-size: 20px;
+  }
+  
+  #mainCanvas {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+  }
+  
+  #saveBtn {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}
+  </style>
+</head>
+<body>
+  <h1 class="app-title">光影雕塑生成器</h1>
+  
+  <div class="app-container">
+    <aside id="leftPanel" class="panel"></aside>
+    
+    <main class="canvas-container">
+      <canvas id="mainCanvas" width="600" height="600"></canvas>
+      <button id="saveBtn" type="button">保存为 PNG</button>
+    </main>
+    
+    <aside id="rightPanel" class="panel"></aside>
+  </div>
+
+  <script>
+(function() {
+  const CANVAS_SIZE = 600;
+  const MAX_LIGHTS = 20;
+  const DEFAULT_LIGHT_RADIUS = 8;
+  const DEFAULT_SATURATION = 80;
+  const DEFAULT_BRIGHTNESS = 80;
+
+  const SPHERE_RADIUS = 250;
+  const SPHERE_CENTER = CANVAS_SIZE / 2;
+
+  const sphereCache = [];
+  let cachedImageData = null;
+
+  function precomputeSphereData() {
+    if (sphereCache.length > 0) return;
+    
+    for (let y = 0; y < CANVAS_SIZE; y++) {
+      sphereCache[y] = [];
+      for (let x = 0; x < CANVAS_SIZE; x++) {
+        const dx = x - SPHERE_CENTER;
+        const dy = y - SPHERE_CENTER;
+        const distSq = dx * dx + dy * dy;
+        
+        if (distSq <= SPHERE_RADIUS * SPHERE_RADIUS) {
+          const dz = Math.sqrt(SPHERE_RADIUS * SPHERE_RADIUS - distSq);
+          sphereCache[y][x] = {
+            normalX: dx / SPHERE_RADIUS,
+            normalY: dy / SPHERE_RADIUS,
+            normalZ: dz / SPHERE_RADIUS,
+            isOnSphere: true
+          };
+        } else {
+          sphereCache[y][x] = {
+            normalX: 0,
+            normalY: 0,
+            normalZ: 0,
+            isOnSphere: false
+          };
+        }
+      }
+    }
+  }
+
+  function hslToRgb(h, s, l) {
+    s /= 100;
+    l /= 100;
+    const k = (n) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) =>
+      l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+  }
+
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+      : [45, 45, 45];
+  }
+
+  function render(ctx, lights, config, isDragging = false) {
+    precomputeSphereData();
+    
+    if (!cachedImageData) {
+      cachedImageData = ctx.createImageData(CANVAS_SIZE, CANVAS_SIZE);
+    }
+    
+    const data = cachedImageData.data;
+    const bgRgb = hexToRgb(config.backgroundColor);
+    
+    const step = isDragging ? 2 : 1;
+    const lightCount = lights.length;
+    
+    const lightData = lights.map(light => {
+      const [lr, lg, lb] = hslToRgb(light.hue, DEFAULT_SATURATION, light.brightness);
+      const lx = light.x - SPHERE_CENTER;
+      const ly = light.y - SPHERE_CENTER;
+      return { lr, lg, lb, lx, ly, radius: light.radius, brightness: light.brightness };
+    });
+    
+    const roughness = Math.max(0.001, config.roughness);
+    const shininess = Math.pow(2, 10 * (1 - roughness));
+    const ks = 1 - roughness * 0.5;
+    const kd = 1 - roughness * 0.3;
+    const ambient = config.ambientIntensity;
+    const attenuation = config.attenuation;
+    
+    for (let y = 0; y < CANVAS_SIZE; y++) {
+      for (let x = 0; x < CANVAS_SIZE; x++) {
+        const idx = (y * CANVAS_SIZE + x) * 4;
+        
+        if (y % step !== 0 || x % step !== 0) {
+          data[idx] = bgRgb[0];
+          data[idx + 1] = bgRgb[1];
+          data[idx + 2] = bgRgb[2];
+          data[idx + 3] = 255;
+          continue;
+        }
+        
+        const pixel = sphereCache[y][x];
+        
+        if (!pixel.isOnSphere) {
+          data[idx] = bgRgb[0];
+          data[idx + 1] = bgRgb[1];
+          data[idx + 2] = bgRgb[2];
+          data[idx + 3] = 255;
+          continue;
+        }
+        
+        let r = ambient * 255;
+        let g = ambient * 255;
+        let b = ambient * 255;
+        
+        const nx = pixel.normalX;
+        const ny = pixel.normalY;
+        const nz = pixel.normalZ;
+        
+        for (let i = 0; i < lightCount; i++) {
+          const light = lightData[i];
+          
+          const ldx = light.lx - nx * SPHERE_RADIUS;
+          const ldy = light.ly - ny * SPHERE_RADIUS;
+          const ldz = -nz * SPHERE_RADIUS;
+          
+          const dist = Math.sqrt(ldx * ldx + ldy * ldy + ldz * ldz);
+          if (dist < 1) continue;
+          
+          const invDist = 1 / dist;
+          const ldirX = ldx * invDist;
+          const ldirY = ldy * invDist;
+          const ldirZ = ldz * invDist;
+          
+          const dotNL = nx * ldirX + ny * ldirY + nz * ldirZ;
+          if (dotNL <= 0) continue;
+          
+          const attFactor = 1 / (1 + Math.pow(dist / 200, attenuation));
+          const intensity = attFactor * (light.brightness / 100) * (light.radius / 8);
+          
+          const diffuse = dotNL * kd * intensity;
+          
+          const dotRV = 2 * dotNL * nz - ldirZ;
+          const specular = dotRV > 0 ? Math.pow(dotRV, shininess) * ks * intensity : 0;
+          
+          r += (diffuse + specular) * light.lr;
+          g += (diffuse + specular) * light.lg;
+          b += (diffuse + specular) * light.lb;
+        }
+        
+        data[idx] = Math.min(255, r);
+        data[idx + 1] = Math.min(255, g);
+        data[idx + 2] = Math.min(255, b);
+        data[idx + 3] = 255;
+      }
+    }
+    
+    if (isDragging) {
+      for (let y = 0; y < CANVAS_SIZE - 1; y++) {
+        for (let x = 0; x < CANVAS_SIZE - 1; x++) {
+          if (y % 2 === 1 || x % 2 === 1) {
+            const idx = (y * CANVAS_SIZE + x) * 4;
+            const refIdx = ((y - (y % 2)) * CANVAS_SIZE + (x - (x % 2))) * 4;
+            data[idx] = data[refIdx];
+            data[idx + 1] = data[refIdx + 1];
+            data[idx + 2] = data[refIdx + 2];
+            data[idx + 3] = 255;
+          }
+        }
+      }
+    }
+    
+    ctx.putImageData(cachedImageData, 0, 0);
+  }
+
+  function renderLightMarkers(ctx, lights, selectedId) {
+    for (const light of lights) {
+      const isSelected = light.id === selectedId;
+      const gradient = ctx.createRadialGradient(
+        light.x, light.y, 0,
+        light.x, light.y, light.radius * 2
+      );
+      gradient.addColorStop(0, `hsla(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%, 0.9)`);
+      gradient.addColorStop(0.5, `hsla(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%, 0.4)`);
+      gradient.addColorStop(1, `hsla(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%, 0)`);
+      
+      ctx.beginPath();
+      ctx.arc(light.x, light.y, light.radius * 2, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(light.x, light.y, light.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%)`;
+      ctx.fill();
+      
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(light.x, light.y, light.radius + 4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  function getLightAtPosition(lights, x, y) {
+    for (let i = lights.length - 1; i >= 0; i--) {
+      const light = lights[i];
+      const dx = x - light.x;
+      const dy = y - light.y;
+      if (dx * dx + dy * dy <= (light.radius + 6) * (light.radius + 6)) {
+        return light;
+      }
+    }
+    return null;
+  }
+
+  class LightSculptureUI {
+    constructor(canvas) {
+      this.canvas = canvas;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('无法获取Canvas 2D上下文');
+      this.ctx = ctx;
+      this.canvas.width = CANVAS_SIZE;
+      this.canvas.height = CANVAS_SIZE;
+      this.lights = [];
+      this.config = {
+        attenuation: 2,
+        ambientIntensity: 0.05,
+        roughness: 0.3,
+        backgroundColor: '#2d2d2d'
+      };
+      this.selectedLightId = null;
+      this.isDragging = false;
+      this.dragOffsetX = 0;
+      this.dragOffsetY = 0;
+      this.nextLightId = 0;
+      this.renderPending = false;
+      this.lastRenderTime = 0;
+      this.minRenderInterval = 20;
+    }
+
+    init(initialLights, panels) {
+      this.leftPanel = panels.leftPanel;
+      this.rightPanel = panels.rightPanel;
+      this.saveBtn = panels.saveBtn;
+      
+      this.lights = initialLights.map(l => ({ ...l, id: this.nextLightId++ }));
+      
+      this.bindCanvasEvents();
+      this.buildLeftPanel();
+      this.buildRightPanel();
+      this.bindSaveButton();
+      
+      this.requestRender();
+    }
+
+    bindCanvasEvents() {
+      this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+      this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+      this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+      this.canvas.addEventListener('mouseleave', () => this.handleMouseUp());
+      
+      this.canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.handleMouseDown({ ...touch, button: 0 });
+      }, { passive: false });
+      
+      this.canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.handleMouseMove(touch);
+      }, { passive: false });
+      
+      this.canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.handleMouseUp();
+      }, { passive: false });
+    }
+
+    getCanvasPos(e) {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    handleMouseDown(e) {
+      const pos = this.getCanvasPos(e);
+      const clickedLight = getLightAtPosition(this.lights, pos.x, pos.y);
+      
+      if (clickedLight) {
+        this.selectedLightId = clickedLight.id;
+        this.isDragging = true;
+        this.dragOffsetX = pos.x - clickedLight.x;
+        this.dragOffsetY = pos.y - clickedLight.y;
+        this.updateSelectedHighlight();
+      } else if (this.lights.length < MAX_LIGHTS) {
+        const hue = Math.floor(Math.random() * 360);
+        const newLight = {
+          id: this.nextLightId++,
+          x: pos.x,
+          y: pos.y,
+          hue,
+          brightness: DEFAULT_BRIGHTNESS,
+          radius: DEFAULT_LIGHT_RADIUS
+        };
+        this.lights.push(newLight);
+        this.selectedLightId = newLight.id;
+        this.buildLeftPanel();
+        this.requestRender();
+      }
+    }
+
+    handleMouseMove(e) {
+      if (!this.isDragging || this.selectedLightId === null) return;
+      
+      const pos = this.getCanvasPos(e);
+      const light = this.lights.find(l => l.id === this.selectedLightId);
+      if (!light) return;
+      
+      light.x = Math.max(0, Math.min(CANVAS_SIZE, pos.x - this.dragOffsetX));
+      light.y = Math.max(0, Math.min(CANVAS_SIZE, pos.y - this.dragOffsetY));
+      
+      this.updateSliderPosition(light.id, light.x, light.y);
+      this.requestRender(true);
+    }
+
+    handleMouseUp() {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.requestRender(false);
+      }
+    }
+
+    buildLeftPanel() {
+      this.leftPanel.innerHTML = `
+        <h3 class="panel-title">光源管理 (${this.lights.length}/${MAX_LIGHTS})</h3>
+        <div class="light-list">
+          ${this.lights.map(light => this.createLightItem(light)).join('')}
+        </div>
+      `;
+      
+      this.lights.forEach(light => {
+        const hueSlider = this.leftPanel.querySelector(`#hue-${light.id}`);
+        const brightnessSlider = this.leftPanel.querySelector(`#brightness-${light.id}`);
+        const radiusSlider = this.leftPanel.querySelector(`#radius-${light.id}`);
+        const deleteBtn = this.leftPanel.querySelector(`#delete-${light.id}`);
+        const item = this.leftPanel.querySelector(`#light-item-${light.id}`);
+        
+        if (hueSlider) {
+          hueSlider.addEventListener('input', (e) => {
+            const value = Number(e.target.value);
+            light.hue = value;
+            this.updateLightPreview(light);
+            this.requestRender();
+          });
+        }
+        
+        if (brightnessSlider) {
+          brightnessSlider.addEventListener('input', (e) => {
+            const value = Number(e.target.value);
+            light.brightness = value;
+            this.updateLightPreview(light);
+            this.requestRender();
+          });
+        }
+        
+        if (radiusSlider) {
+          radiusSlider.addEventListener('input', (e) => {
+            const value = Number(e.target.value);
+            light.radius = value;
+            this.updateLightPreview(light);
+            this.requestRender();
+          });
+        }
+        
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            this.lights = this.lights.filter(l => l.id !== light.id);
+            if (this.selectedLightId === light.id) {
+              this.selectedLightId = null;
+            }
+            this.buildLeftPanel();
+            this.requestRender();
+          });
+        }
+        
+        if (item) {
+          item.addEventListener('click', (e) => {
+            if (e.target.closest('button, input')) return;
+            this.selectedLightId = light.id;
+            this.updateSelectedHighlight();
+            this.requestRender();
+          });
+        }
+      });
+      
+      this.updateSelectedHighlight();
+    }
+
+    createLightItem(light) {
+      const color = `hsl(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%)`;
+      const isSelected = this.selectedLightId === light.id;
+      return `
+        <div class="light-item ${isSelected ? 'selected' : ''}" id="light-item-${light.id}">
+          <div class="light-header">
+            <div class="light-preview" id="preview-${light.id}" style="background: ${color}"></div>
+            <span class="light-label">光源 #${light.id + 1}</span>
+            <button class="delete-btn" id="delete-${light.id}" title="删除">×</button>
+          </div>
+          <div class="slider-group">
+            <label>色相 <span class="slider-value">${light.hue}°</span></label>
+            <input type="range" id="hue-${light.id}" min="0" max="360" value="${light.hue}" class="slider hue-slider">
+          </div>
+          <div class="slider-group">
+            <label>亮度 <span class="slider-value">${light.brightness}%</span></label>
+            <input type="range" id="brightness-${light.id}" min="10" max="100" value="${light.brightness}" class="slider">
+          </div>
+          <div class="slider-group">
+            <label>半径 <span class="slider-value">${light.radius}px</span></label>
+            <input type="range" id="radius-${light.id}" min="4" max="16" value="${light.radius}" class="slider">
+          </div>
+          <div class="light-position" id="pos-${light.id}">
+            位置: (${Math.round(light.x)}, ${Math.round(light.y)})
+          </div>
+        </div>
+      `;
+    }
+
+    updateLightPreview(light) {
+      const preview = this.leftPanel.querySelector(`#preview-${light.id}`);
+      const hueValue = this.leftPanel.querySelector(`#hue-${light.id}`)?.parentElement?.querySelector('.slider-value');
+      const brightnessValue = this.leftPanel.querySelector(`#brightness-${light.id}`)?.parentElement?.querySelector('.slider-value');
+      const radiusValue = this.leftPanel.querySelector(`#radius-${light.id}`)?.parentElement?.querySelector('.slider-value');
+      
+      if (preview) {
+        preview.style.background = `hsl(${light.hue}, ${DEFAULT_SATURATION}%, ${light.brightness}%)`;
+      }
+      if (hueValue) hueValue.textContent = `${light.hue}°`;
+      if (brightnessValue) brightnessValue.textContent = `${light.brightness}%`;
+      if (radiusValue) radiusValue.textContent = `${light.radius}px`;
+    }
+
+    updateSliderPosition(id, x, y) {
+      const posEl = this.leftPanel.querySelector(`#pos-${id}`);
+      if (posEl) {
+        posEl.textContent = `位置: (${Math.round(x)}, ${Math.round(y)})`;
+      }
+    }
+
+    updateSelectedHighlight() {
+      const items = this.leftPanel.querySelectorAll('.light-item');
+      items.forEach(item => {
+        const id = Number(item.id.replace('light-item-', ''));
+        if (id === this.selectedLightId) {
+          item.classList.add('selected');
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+    }
+
+    buildRightPanel() {
+      this.rightPanel.innerHTML = `
+        <h3 class="panel-title">全局参数</h3>
+        <div class="slider-group">
+          <label>光照衰减指数 <span class="slider-value">${this.config.attenuation}</span></label>
+          <input type="range" id="attenuation" min="1" max="5" step="0.1" value="${this.config.attenuation}" class="slider">
+        </div>
+        <div class="slider-group">
+          <label>环境光强度 <span class="slider-value">${this.config.ambientIntensity.toFixed(2)}</span></label>
+          <input type="range" id="ambient" min="0" max="0.5" step="0.01" value="${this.config.ambientIntensity}" class="slider">
+        </div>
+        <div class="slider-group">
+          <label>材质粗糙度 <span class="slider-value">${this.config.roughness.toFixed(2)}</span></label>
+          <input type="range" id="roughness" min="0" max="1" step="0.01" value="${this.config.roughness}" class="slider">
+        </div>
+        <div class="slider-group">
+          <label>背景色</label>
+          <div class="bg-selector">
+            <button class="bg-btn ${this.config.backgroundColor === '#2d2d2d' ? 'active' : ''}" data-color="#2d2d2d" style="background: #2d2d2d"></button>
+            <button class="bg-btn ${this.config.backgroundColor === '#000000' ? 'active' : ''}" data-color="#000000" style="background: #000000"></button>
+          </div>
+        </div>
+      `;
+      
+      const attenuationSlider = this.rightPanel.querySelector('#attenuation');
+      const ambientSlider = this.rightPanel.querySelector('#ambient');
+      const roughnessSlider = this.rightPanel.querySelector('#roughness');
+      const bgBtns = this.rightPanel.querySelectorAll('.bg-btn');
+      
+      attenuationSlider.addEventListener('input', (e) => {
+        this.config.attenuation = Number(e.target.value);
+        attenuationSlider.parentElement.querySelector('.slider-value').textContent = this.config.attenuation.toString();
+        this.requestRender();
+      });
+      
+      ambientSlider.addEventListener('input', (e) => {
+        this.config.ambientIntensity = Number(e.target.value);
+        ambientSlider.parentElement.querySelector('.slider-value').textContent = this.config.ambientIntensity.toFixed(2);
+        this.requestRender();
+      });
+      
+      roughnessSlider.addEventListener('input', (e) => {
+        this.config.roughness = Number(e.target.value);
+        roughnessSlider.parentElement.querySelector('.slider-value').textContent = this.config.roughness.toFixed(2);
+        this.requestRender();
+      });
+      
+      bgBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.config.backgroundColor = btn.dataset.color || '#2d2d2d';
+          bgBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.requestRender();
+        });
+      });
+    }
+
+    bindSaveButton() {
+      this.saveBtn.addEventListener('click', () => {
+        this.saveAsPNG();
+      });
+    }
+
+    saveAsPNG() {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = CANVAS_SIZE;
+      tempCanvas.height = CANVAS_SIZE;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+      
+      render(tempCtx, this.lights, this.config, false);
+      
+      const link = document.createElement('a');
+      link.download = `light-sculpture-${Date.now()}.png`;
+      link.href = tempCanvas.toDataURL('image/png');
+      link.click();
+    }
+
+    requestRender(isDragging = false) {
+      if (this.renderPending) return;
+      
+      const now = performance.now();
+      const timeSinceLastRender = now - this.lastRenderTime;
+      
+      if (timeSinceLastRender >= this.minRenderInterval) {
+        this.performRender(isDragging);
+      } else {
+        this.renderPending = true;
+        setTimeout(() => {
+          this.renderPending = false;
+          this.performRender(isDragging);
+        }, this.minRenderInterval - timeSinceLastRender);
+      }
+    }
+
+    performRender(isDragging) {
+      this.lastRenderTime = performance.now();
+      this.canvas.style.background = this.config.backgroundColor;
+      render(this.ctx, this.lights, this.config, isDragging || this.isDragging);
+      renderLightMarkers(this.ctx, this.lights, this.selectedLightId);
+    }
+  }
+
+  function rgbToHue(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+
+    if (max === min) {
+      h = 0;
+    } else if (max === r) {
+      h = ((g - b) / (max - min)) % 6;
+    } else if (max === g) {
+      h = (b - r) / (max - min) + 2;
+    } else {
+      h = (r - g) / (max - min) + 4;
+    }
+
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+    return h;
+  }
+
+  function hexToHue(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return 0;
+    return rgbToHue(
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    );
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('mainCanvas');
+    const leftPanel = document.getElementById('leftPanel');
+    const rightPanel = document.getElementById('rightPanel');
+    const saveBtn = document.getElementById('saveBtn');
+
+    if (!canvas || !leftPanel || !rightPanel || !saveBtn) {
+      console.error('无法找到必要的DOM元素');
+      return;
+    }
+
+    const initialLights = [
+      {
+        id: 0,
+        x: CANVAS_SIZE / 2,
+        y: CANVAS_SIZE / 2,
+        hue: hexToHue('#ff4444'),
+        brightness: DEFAULT_BRIGHTNESS,
+        radius: DEFAULT_LIGHT_RADIUS
+      },
+      {
+        id: 0,
+        x: 100,
+        y: 100,
+        hue: hexToHue('#44ff44'),
+        brightness: DEFAULT_BRIGHTNESS,
+        radius: DEFAULT_LIGHT_RADIUS
+      },
+      {
+        id: 0,
+        x: 500,
+        y: 500,
+        hue: hexToHue('#4444ff'),
+        brightness: DEFAULT_BRIGHTNESS,
+        radius: DEFAULT_LIGHT_RADIUS
+      }
+    ];
+
+    const ui = new LightSculptureUI(canvas);
+    ui.init(initialLights, { leftPanel, rightPanel, saveBtn });
+  });
+})();
+  </script>
+</body>
+</html>
