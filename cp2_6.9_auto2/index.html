@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拓扑流形交互可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0d1117;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #info-panel {
+      position: fixed;
+      left: 20px;
+      top: 20px;
+      background: rgba(26, 26, 46, 0.8);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      border-radius: 12px;
+      padding: 20px;
+      color: #ffffff;
+      min-width: 220px;
+      transition: background-color 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 100;
+    }
+
+    #info-panel.warning {
+      background: rgba(255, 204, 204, 0.8);
+    }
+
+    #info-panel h2 {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #00bfff;
+    }
+
+    .info-item {
+      font-size: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .info-item .label {
+      opacity: 0.8;
+    }
+
+    .info-item .value {
+      font-weight: 600;
+      color: #00bfff;
+    }
+
+    #control-panel {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(26, 26, 46, 0.8);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      border-radius: 12px;
+      padding: 20px;
+      color: #ffffff;
+      min-width: 240px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 100;
+    }
+
+    #control-panel h2 {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #6a0dad;
+    }
+
+    .slider-container {
+      margin-bottom: 20px;
+    }
+
+    .slider-label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .slider-label .value {
+      color: #00bfff;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.2);
+      outline: none;
+      -webkit-appearance: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]:hover {
+      background: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 191, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6a0dad, #00bfff);
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 15px rgba(0, 191, 255, 0.6);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6a0dad, #00bfff);
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      transition: all 0.2s ease;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #6a0dad, #00bfff);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 191, 255, 0.4);
+      border: 1px solid #00bfff;
+    }
+
+    @keyframes flash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .flashing {
+      animation: flash 0.3s ease-in-out 2;
+    }
+
+    @media (max-width: 768px) {
+      #info-panel {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        min-width: auto;
+        padding: 15px;
+      }
+
+      #control-panel {
+        position: fixed;
+        right: 10px;
+        left: 10px;
+        top: auto;
+        bottom: 10px;
+        transform: none;
+        min-width: auto;
+        padding: 15px;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .info-item {
+        margin-bottom: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  
+  <div id="info-panel">
+    <h2>拓扑信息</h2>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="label">拓扑类型:</span>
+        <span class="value" id="topology-type">莫比乌斯带</span>
+      </div>
+      <div class="info-item">
+        <span class="label">粒子总数:</span>
+        <span class="value" id="particle-count">150</span>
+      </div>
+      <div class="info-item">
+        <span class="label">平均速度:</span>
+        <span class="value" id="avg-velocity">0.00</span>
+      </div>
+      <div class="info-item">
+        <span class="label">形变能量:</span>
+        <span class="value" id="deformation-energy">0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="control-panel">
+    <h2>控制面板</h2>
+    <div class="slider-container">
+      <div class="slider-label">
+        <span>扭曲度</span>
+        <span class="value" id="twist-value">0.0</span>
+      </div>
+      <input type="range" id="twist-slider" min="0" max="3" step="0.1" value="0">
+    </div>
+    <button class="btn" id="reset-btn">重置形态</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
