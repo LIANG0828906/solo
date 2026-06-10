@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:14:06.371Z",
+  "task_name": "auto298",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫‘元素斗兽棋’的轻度策略对战游戏，玩家在3x3的棋盘上放置火、水、土、风四种元素的棋子，每类棋子有基础攻击力和相克关系，双方轮流操作，每次移动或攻击后棋子会触发元素光环特效，当一方所有棋子被消灭则输。用TypeScript和Phaser 3来实现。文件结构大概这样：package.json（带上phaser、typescript、vite、@types/phaser，dev用vite，build也写好），tsconfig.json（strict模式，ESNext模块），vite.config.js（简单配置），index.html（入口页面），src/main.ts（游戏入口，初始化Phaser场景），src/scenes/BattleScene.ts（战斗主场景，处理棋盘渲染、棋子放置、移动和攻击逻辑，状态管理），src/scenes/TitleScene.ts（开始界面，包含标题、开始按钮和简易教程），src/scenes/GameOverScene.ts（结算界面，显示胜负和重玩按钮），src/utils/elements.ts（定义棋子类、元素相克表、基础属性）。对了，运行方式就是npm install && npm run dev。界面方面：棋盘用半透明网格，棋子用圆形带元素图标和光晕，布局居中，左上角显示当前回合和分数，右下角有重置按钮。颜色主题走霓虹赛博风：背景深蓝黑#0d1117，火棋用霓虹红#ff0040，水棋用电光蓝#00d4ff，土棋用暗金#ffaa00，风棋用薄荷绿#00ffaa，棋子光晕持续脉动。交互反馈：选中棋子时放大并高亮，拖拽移动时显示路径预览，攻击时触发元素碰撞粒子特效（火爆炸、水溅射、土碎裂、风切割），每次都伴随音效。性能要求：帧率稳定在60fps，移动端触控也要流畅。需求方面：1. 完成主菜单和开局流程，点击开始进入战斗；2. 3x3棋盘上有空位和高亮可放置区，玩家轮流点击空地放置棋子；3. 棋子可拖拽到相邻格子移动，或点击敌方棋子攻击（显示伤害数字和相克加成）；4. 棋子具有血量和攻击力，元素相克：火克风、风克土、土克水、水克火，非克制伤害减半；5. 每回合结束后自动检查胜负，并有胜利特效和结算面板；6. 界面响应式适配手机和桌面布局，按钮足够大，触控区域合理。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:b6d5cdbdf3fa8e2307f8d80a705941c7_6a28c7003d1f29931c78647a.6a28c8633d1f29931c786597.6a28c863de3268ecbba95942:Trae CN.T(2026/6/10 10:13:55)",
+    "user_id": "98336997115224",
+    "trace_id": "b6d5cdbdf3fa8e2307f8d80a705941c7",
+    "session_id": "6a28c7003d1f29931c78647a",
+    "task_id": "6a28c8633d1f29931c786597",
+    "message_id": "6a28c863de3268ecbba95942",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:13:55",
+    "format": "full"
+  },
+  "trace": "null"
+}
