@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:58:25.392Z",
+  "task_name": "auto320",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做个叫‘云种盲盒·时令花园’的全栈web应用，用户扮演一位云游园丁，在虚拟花园里通过点击不同的季节盲盒（春生、夏长、秋收、冬藏），随机开出一种时令花卉或魔法种子，种子自动种植到花园地里后会经历生长动画（发芽、抽枝、开花、结籽），不同组合可触发特殊天气事件（如春雨、夏雷、秋风、冬雪）并伴随粒子特效。用户每天有5次开盒机会，每7天根据花园里已经开放的品种和触发的事件，生成一份《时令周报》，包含种类多样性、花开数量和稀有度统计的图表。用TypeScript和React做前端，后端用FastAPI处理盲盒抽奖逻辑、种子属性生成和评分。文件结构大概这样：- package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom、fastapi、uvicorn，dev脚本用vite，build也写好；后端放在backend目录，有单独的requirements.txt）- tsconfig.json（strict模式，模块ESNext，jsx react-jsx）- vite.config.js（简单配下代理到后端）- index.html（入口页面）- src/App.tsx（主组件，管理路由和全局状态）- src/components/Garden.tsx（花园展示和交互）- src/components/BlindBox.tsx（盲盒开启动画和结果展示）- src/components/Report.tsx（周报渲染图表）- backend/main.py（FastAPI应用，处理抽奖和报告生成）。界面方面：花园背景根据当前季节渐变，花卉有柔光动画，打开盲盒时触发彩色粒子爆炸效果，交互反馈有轻微抖动和音效，整体视觉走森系清新风，主色为#2d5016草绿和#e0f2e9浅绿，按钮用圆角加阴影，响应式适配手机和桌面。性能要求：帧率稳定60fps，盲盒动画流畅。运行方式：前端npm install && npm run dev，后端cd backend && pip install -r requirements.txt && uvicorn main:app --reload。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:cb2db1b8d5145427864b68a6b6621a05_6a28d1ea535b7ed52d3d3511.6a28d2c6535b7ed52d3d35e5.6a28d2c6af4974832961f4cc:Trae CN.T(2026/6/10 10:58:14)",
+    "user_id": "98336997115224",
+    "trace_id": "cb2db1b8d5145427864b68a6b6621a05",
+    "session_id": "6a28d1ea535b7ed52d3d3511",
+    "task_id": "6a28d2c6535b7ed52d3d35e5",
+    "message_id": "6a28d2c6af4974832961f4cc",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:58:14",
+    "format": "full"
+  },
+  "trace": "null"
+}
