@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T01:05:35.980Z",
+  "task_name": "auto259",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'虫语迷踪'的模拟昆虫饲养与进化游戏。玩家扮演一位昆虫学家，在玻璃生态箱里观察和培育不同种类的昆虫（如甲虫、蝴蝶、蚂蚁），通过调配食物、控制温湿度来促使昆虫变异进化，产生新的颜色和形态。玩家可以拖拽昆虫到繁殖区进行交配，有概率产生杂交后代，并解锁图鉴。游戏有昼夜更替和季节变化，影响昆虫活跃度和食物需求。界面布局上，中央是生态箱的3D俯视图，展示昆虫和植物；左侧是昆虫状态面板，显示每只昆虫的品种、变异度和当前行为；右下角是控制面板，包含食物投放、温湿度滑块和季节切换按钮。整体视觉风格走博物学手绘风，颜色采用暖色调——羊皮纸黄#f5e6c8、虫壳黑#2c2c2c、翠绿#4a8c3f、琥珀橙#d48c4b。用JavaScript和Three.js来实现，使用OrbitControls交互，加上防抖和帧率监控保持60fps。文件结构大概这样：package.json（带上three、vite、orbit-controls、stats-js，启动脚本写npm run dev），vite.config.js配置three的扩展库，入口HTML用index.html加载/src/main.ts（TypeScript，附带tsconfig.json），src/App.ts负责场景组装和游戏循环，src/insects/Insect.ts定义昆虫基类和变异逻辑，src/ecosystem/Ecosystem.ts管理温湿度、昼夜更替和季节，src/ui/UIPanel.ts处理左侧状态面板和右下控制面板的DOM绑定。需求方面：1. 生态箱场景渲染：3D俯视视角，带玻璃边框和底部泥土纹理，植物随机分布。2. 昆虫生成与拖拽：点击按钮生成随机昆虫，拖拽昆虫到繁殖区触发交配逻辑，杂交后显示新昆虫。3. 变异进化系统：根据温湿度和食物类型影响变异概率，变异产生颜色和形态变化，图鉴自动解锁新种类。4. 昼夜更替与季节：模拟24小时昼夜循环，光照和昆虫活跃度相应变化；四季更替影响温度、湿度范围和食物需求。5. 控制面板交互：温湿度滑块实时调整，食物投放按钮触发食物下落动画，季节切换按钮改变环境参数。6. 性能优化：控制总昆虫数量（上限30只），拖拽和渲染使用requestAnimationFrame，帧率稳定60fps。运行方式：npm install && npm run dev即可启动",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:1adfd919914915b8e6073e881e73f666_6a28b820ddcde481d7e4db38.6a28b845ddcde481d7e4db48.6a28b84489f60338eca205c7:Trae CN.T(2026/6/10 09:05:09)",
+    "user_id": "98336997115224",
+    "trace_id": "1adfd919914915b8e6073e881e73f666",
+    "session_id": "6a28b820ddcde481d7e4db38",
+    "task_id": "6a28b845ddcde481d7e4db48",
+    "message_id": "6a28b84489f60338eca205c7",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 09:05:09",
+    "format": "full"
+  },
+  "trace": "null"
+}
