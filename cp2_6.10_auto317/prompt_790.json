@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'星尘记忆·时光画廊'的交互式动态画廊页面，用户像一位时空旅人，通过点击和拖拽在画布上排列不同年代的艺术风格卡片（如文艺复兴、印象派、赛博朋克），每张卡片会缓慢自转并浮动，鼠标悬停时放大并播放一段对应风格的粒子动画（如印象派用彩色斑点飘散，赛博朋克用霓虹网格爆发），拖拽卡片到右侧的时间线上可以按年份排序，双击卡片会触发一次全屏的时空扭曲特效（短暂模糊后恢复）。界面布局：中央是Canvas画布（占主要面积，背景深空渐变#0f0c29到#302b63），左上角是风格选择面板（含六个风格按钮和一个随机模式开关），右下角控制面板包含动画速度滑块、重置布局按钮和全屏切换，底部是时间线区域（显示已排序的卡片年份）。整体视觉走复古未来主义风格，主色为复古金#ffd700和未来蓝#00bfff，按钮采用圆角玻璃态设计，交互反馈有微弱的发光和弹性过渡动画。性能要求：帧率稳定在60fps，粒子数量不超过500个。用TypeScript和React来实现。文件结构：package.json（包含react、react-dom、typescript、vite、@types/react、@types/react-dom等依赖，dev脚本用vite，build脚本用tsc && vite build，建议直接npm install && npm run dev跑起来），tsconfig.json（strict模式，ESNext模块），vite.config.js（简单配置），index.html（入口，有根节点#root），src/main.tsx（React入口），src/App.tsx（主组件，管理状态和布局），src/components/Gallery.tsx（画布组件，处理卡片渲染和交互），src/utils/particles.ts（粒子动画逻辑），src/data/cards.ts（卡片数据，包含风格、年份、颜色等信息）。"
+}
