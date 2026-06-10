@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'墨韵算筹'的交互式数据可视化页面，让用户像一位古代运筹学家一样，在虚拟的宣纸上通过拖拽放置不同颜色的算筹来表示数据点，系统会根据放置的数据自动拟合出多项式曲线，并显示拟合的误差和方程。用户可以通过滑块调整多项式的阶数（从线性到五次多项式），拟合曲线和误差会实时更新，同时每个数据点可以编辑或删除，拖拽到新位置后重新拟合。页面布局：中央是宣纸画布（占主要面积），左侧是数据点操作面板（包含添加点、清空、导入示例数据按钮），右侧是拟合结果面板（显示多项式方程、R²值、均方误差）。颜色主题采用水墨云纹风格：云白#f5f5f0、墨灰#3a3a3a、朱红#c0392b、石青#4a7c59，整体风格古朴雅致，算筹放置和曲线拟合时伴有墨迹晕开的动画效果，交互响应要流畅，帧率保持在60fps。使用TypeScript和React实现，配合framer-motion做动画，zustand管理状态。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand，启动脚本写npm run dev），vite.config.ts，tsconfig.json，index.html（入口），src/main.tsx，src/App.tsx，src/store/useCalcStore.ts（状态管理），src/components/Canvas.tsx（画布组件），src/components/Panel.tsx（操作和结果面板组件），src/utils/fitCurve.ts（多项式拟合算法）。这样npm install && npm run dev就能直接跑。"
+}
