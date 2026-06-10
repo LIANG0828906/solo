@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T20:47:53.849Z",
+  "task_name": "auto160",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "想做个虚拟的明代江南书坊互动空间，用户能像一位在金陵书坊游逛的文人，在仿古书架间浏览、翻阅线装书，交互式地品味古籍版式、插图和批注。用TypeScript和React来实现，顺便把package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand这些依赖，启动脚本写npm run dev）、vite.config.js、tsconfig.json（严格模式）、index.html（入口页面，标题设为‘金陵书坊·芸窗雅集’）这些配置都带上，这样我直接npm install && npm run dev就能跑起来。文件结构大概这样：\n- package.json\n- vite.config.js\n- tsconfig.json\n- index.html\n- src/main.tsx\n- src/App.tsx\n- src/components/BookShelf.tsx\n- src/components/BookReader.tsx\n- src/store/useBookStore.ts\n- src/data/books.json\n\n需求方面：\n1. 展示一个仿明式书房风格的交互书架，书架按经史子集四部分类，每个格子放置一本古书，书脊上有书名标签，鼠标悬停时轻微放大并显示书名和作者的小卡片。\n2. 点击一本书进入阅读模式，页面切换到类似线装书展开的双页布局，左侧是古籍版式（带栏线、鱼尾、版心），右侧显示对应的现代译文或批注，书页翻动时有卷曲动画（用framer-motion实现）。\n3. 支持在阅读模式下高亮文本段落并添加弹出式批注（模拟朱笔批点），批注内容可自由编辑，并保存在zustand状态中，刷新后不丢失（本地存储）。\n4. 界面整体采用古纸色主色调（#f5e6c8）和墨色（#2a1a0a），背景是仿宣纸纹理，书架用深褐色木纹，按钮和边框模仿雕版印刷的墨线效果。页面布局分左右两栏：左侧是书架区域（可上下滚动浏览分类），右侧是当前选中书籍的阅读面板，移动端自适应转为上下结构。\n5. 添加平滑的页面过渡动画（书架到阅读器的切换用淡入和缩放），点击书或翻页时有轻微的点击反馈（按压效果和微光闪烁），拖拽书架滚动时带惯性滚动效果。\n6. 性能方面：书架的虚拟滚动只渲染可视区域内的书籍卡片（约20本书，数据源用json文件模拟），阅读器翻页动画帧率保持在60fps，交互反馈响应流畅，不卡顿。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:d8fdf5daaa49a204b97ebb4a69541366_6a287b5e87bd03f49bb1f32c.6a287bef87bd03f49bb1f3c3.6a287bee746a07bdc2a4f162:Trae CN.T(2026/6/10 04:47:43)",
+    "user_id": "98336997115224",
+    "trace_id": "d8fdf5daaa49a204b97ebb4a69541366",
+    "session_id": "6a287b5e87bd03f49bb1f32c",
+    "task_id": "6a287bef87bd03f49bb1f3c3",
+    "message_id": "6a287bee746a07bdc2a4f162",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 04:47:43",
+    "format": "full"
+  },
+  "trace": "null"
+}
