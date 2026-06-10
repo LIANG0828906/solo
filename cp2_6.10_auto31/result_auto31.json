@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T16:53:31.923Z",
+  "task_name": "auto31",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个古代书院学规考核与文会积分排行结算的全栈Web应用，让用户像一位宋代白鹿洞书院的掌书一样，在虚拟的讲堂和书阁中管理生徒的日常课业考核、记录每日学规遵守情况（如晨读迟到、抄书缺页、答问错误），并根据各项表现自动计算每月文会榜单上的积分排行与授奖结果。使用TypeScript、React（前端）和Express（后端）实现。文件结构如下：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand、express、cors、uuid，启动脚本：npm run dev 和 node server.js）\n - vite.config.js（构建配置，支持React和TypeScript）\n - tsconfig.json（严格模式，esnext模块）\n - index.html（入口页面）\n - src/App.tsx（主组件，负责渲染讲堂背景、生徒列表和考核弹窗）\n - src/components/ScoreBoard.tsx（积分看板组件，展示当月生徒积分排行和奖授名单）\n - src/store.ts（全局状态管理，使用zustand管理生徒考核记录和积分数据）\n - src/server.ts（后端服务，提供考核记录存储和积分计算接口）\n\n具体需求：\n1. 讲堂场景采用CSS绘制一座剖面图式的宋代讲堂——正面为朱红色屏风（#a52a2a），两侧各立两扇木格窗（#6b4e3a），中央放置一排矮几（#8b4513，高20px长80px），每张矮几后坐一位生徒（用姓名标签表示）。考核弹窗设计成竹简卷轴样式（古纸色#f5deb3，边缘有磨损效果），从右侧滑入并展示学规条目（晨读/抄书/答问三项）和加减分操作。\n2. 每日考核流程：用户（掌书）在生徒列表中选择一人，弹出考核弹窗，针对晨读（迟到扣2分，准时加1分）、抄书（缺页扣3分，完整加2分）、答问（错误扣5分，正确加3分）三项进行评级——每次评级对应积分自动累加并伴有微小的奖励或警示动画（加分时数字弹跳并闪烁金色#ffd700，扣分时数字抖动并闪烁红色#ff4444）。\n3. 积分看板每月重置，显示前十名生徒的姓名和积分，积分以竖向条形图展示（条柱颜色从底部#3a6b3a渐变至#6b8e23），顶部奖授区域用三枚铜钱图标（#b8860b）表示一、二、三名，点击铜钱可展开对应生徒的详细考核记录（含每日三项得分的时间线）。\n4. 后端提供RESTful API：POST /api/record（提交考核记录）、GET /api/records（获取本月所有记录）、GET /api/ranking（获取排行数据）、POST /api/reset（重置本月数据）。所有接口应返回JSON格式，前端通过fetch调用并使用zustand管理状态。\n5. 整体UI采用南宋书院风格，主色调为木色（#8b4513, #6b4e3a, #a0522d）、古纸色（#f5deb3）和墨色（#3a1a0a），按钮设计为仿古门环样式（铜色#b8860b，圆形，悬停时有轻微放大和光影变化），弹窗打开和关闭有卷轴展开/收拢的过渡动画，页面加载时讲堂背景从底部向上滑动出现。\n6. 所有页面元素需做响应式适配：在宽度小于768px时，讲堂场景缩放为单列，生徒列表改为横向滚动卡片；积分看板缩小为表格形式，条形图自动折叠为数字列表。\n7. 性能上要求在模拟50个生徒同时提交考核记录时，前端页面滚动和弹窗动画不卡顿（保持30fps以上），后端接口响应时间不超过200ms。\n\n运行方式：npm install && npm run dev（前端），在另一终端运行node server.js（后端）。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:d32f6167f62b8c4ecc1717ead52d3f54_6a284463cc392ecb433d0fb1.6a284501cc392ecb433d1085.6a2845010e41775dbfa213fd:Trae CN.T(2026/6/10 00:53:21)",
+    "user_id": "98336997115224",
+    "trace_id": "d32f6167f62b8c4ecc1717ead52d3f54",
+    "session_id": "6a284463cc392ecb433d0fb1",
+    "task_id": "6a284501cc392ecb433d1085",
+    "message_id": "6a2845010e41775dbfa213fd",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 00:53:21",
+    "format": "full"
+  },
+  "trace": "null"
+}
