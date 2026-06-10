@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "全栈web应用",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想做个叫‘灵光笔迹·梦话星球’的全栈web应用，用户扮演一位梦境解读师，在虚拟星球上通过拖拽不同的梦象符号（如飞行、坠落、追逐、迷路）到梦境罗盘中，组合出每日随机生成的梦境片段，系统会根据符号搭配生成一段梦幻般的解梦文案、对应的情绪指数（如兴奋值、焦虑值、宁静值）和一幅AI风格化的梦境插图，成功会触发星环旋转和星光粒子特效，失败则会出现梦境碎片消散的动画。用户每日有7次解梦机会，每完成一次解梦可点亮星球上对应的一颗星；每周日根据解梦数量、情绪指数分布和稀有符号收集情况生成一份《梦境周报》，包含情绪折线图、符号频率统计和成就徽章。用TypeScript和React实现前端，后端用FastAPI处理梦境生成、组合逻辑和评分计算。文件结构大概这样：- package.json：带上react、react-dom、typescript、vite、@types/react、@types/react-dom、axios，脚本dev用vite，build用vite build，再给个preview；- tsconfig.json：严格模式，模块ESNext，jsx用react-jsx；- vite.config.js：简单配置，记得加react插件；- index.html：入口页面，标题设为'灵光笔迹·梦话星球'，加载div#root；- src/main.tsx：React挂载点，引入全局样式和App组件；- src/App.tsx：主布局，分左右两栏——左侧是梦境罗盘区域（支持拖放梦象符号），右侧是结果展示面板（包含解梦文案、情绪指数柱状图、插图缩略图），底部有操作日志区；- src/api/dreamApi.ts：封装FastAPI接口（生成梦镜、保存记录、获取周报）；- src/components/DreamRitual.tsx：拖拽罗盘核心组件，管理梦象符号和组合检测；- src/components/DreamResult.tsx：展示解梦结果，包括动画和统计数据；- src/styles/global.css：全局风格，走梦幻星云风，主色为星蓝#2244aa和梦紫#aa44ff，背景深空渐变，按钮用渐变加发光边框，罗盘区域有半透明毛玻璃效果，交互反馈有星尘粒子和轻微缩放动画；性能要求：帧率稳定在60fps，交互响应流畅。运行方式：npm install && npm run dev。"
+}
