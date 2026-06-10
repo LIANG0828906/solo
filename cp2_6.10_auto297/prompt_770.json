@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘律动回声’的交互式音乐节奏可视化页面，用户像一位节奏导演，通过点击或键盘按键在画布上激发不同的声波脉冲，每个脉冲会以同心圆波纹扩散，波纹频率和颜色根据用户选择的乐器音色（钢琴、吉他、鼓）变化，同时多条波纹叠加会形成复杂的干涉图案。界面布局：中央是Canvas画布（占主要面积），左上角有一个乐器选择下拉框和当前音高显示，右下角是控制面板（包含BPM滑块、重置按钮和录制模式开关），录制模式下可保存回放最近的10次点击序列。整体视觉风格走极简几何+渐变霓虹风：背景深空灰#1a1a2e，波纹用渐变色（钢琴用蓝紫渐变#4a00e0到#8e2de2，吉他用橙红渐变#f12711到#f5af19，鼓用绿青渐变#00b09b到#96c93d），波纹碰撞时有粒子飞散和轻微屏幕震动。响应式适配：画布按窗口大小自适应，控件在移动端时自动折叠成汉堡菜单。性能要求：帧率稳定在60fps，大量波纹叠加时无卡顿。用TypeScript和React来实现，Canvas 2D做渲染。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom，dev脚本用vite，build脚本也写好），tsconfig.json（标准配置，strict模式开，模块用ESNext），vite.config.js（简单配置，无特殊插件），index.html（入口页面），src/main.tsx（React入口），src/App.tsx（主组件，管理状态和布局），src/components/Canvas.tsx（画布渲染组件，处理点击和键盘事件，绘制波纹和粒子），src/components/ControlPanel.tsx（控制面板组件，含下拉框和滑块），src/utils/audioEngine.ts（音频引擎模块，生成不同音色的合成音效）。这样我npm install && npm run dev就能直接跑了。"
+}
