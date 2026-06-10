@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T01:52:46.308Z",
+  "task_name": "auto284",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个叫‘星轨漂流’的太空跑酷游戏，玩家操控一艘小飞船，在一条由动态生成的星轨上躲避障碍（陨石、黑洞、能量风暴），同时收集星尘来加速，每收集一定数量会触发一次‘星爆’特效，清空附近障碍并短暂无敌。游戏节奏会逐渐加快，障碍密度和速度随分数提升。用TypeScript和Phaser 3来实现。页面布局：中央全屏游戏画布，左上角显示分数和星尘数，右下角有一个暂停按钮，游戏结束后弹出结算面板（显示最终分数、星尘数、最高分，并有重玩按钮）。颜色主题走深空霓虹风：背景深蓝黑#0b0f2a，星轨用渐变紫#7b2ff7到粉#ff4b8b，障碍物用暗红#cc0000加发光边框，星尘粒子用金色#ffd700，飞船用亮青#00e5ff。交互反馈要流畅：飞船有尾焰粒子拖尾，碰撞时屏幕闪烁红光并震动，星爆时全屏短暂亮白闪。性能要求帧率稳在60fps。文件结构大概5个：src/main.ts（Phaser游戏配置入口）、src/scenes/BootScene.ts（预加载素材和生成纹理）、src/scenes/GameScene.ts（核心玩法逻辑、障碍生成、碰撞检测、UI覆盖层）、src/scenes/GameOverScene.ts（结算面板、重玩按钮）、src/entities/Player.ts（飞船控制、尾焰粒子、碰撞处理）。另外帮我把package.json带上（依赖phaser、typescript、vite、@types/node，启动脚本npm run dev），还有tsconfig.json（严格模式，esnext模块），vite.config.ts（配置phaser插件或直接简单配置），以及一个index.html入口文件（带max-width:100vw禁止滚动）。这样我npm install && npm run dev就能直接跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:8896aed381ba7e01fe5e6bdf908109ce_6a28c31aa299cf3a1c222451.6a28c363a299cf3a1c2224aa.6a28c363a94bfd6ef8a0952b:Trae CN.T(2026/6/10 09:52:35)",
+    "user_id": "98336997115224",
+    "trace_id": "8896aed381ba7e01fe5e6bdf908109ce",
+    "session_id": "6a28c31aa299cf3a1c222451",
+    "task_id": "6a28c363a299cf3a1c2224aa",
+    "message_id": "6a28c363a94bfd6ef8a0952b",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 09:52:35",
+    "format": "full"
+  },
+  "trace": "null"
+}
