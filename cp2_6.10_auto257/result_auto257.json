@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T00:53:29.693Z",
+  "task_name": "auto257",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个模拟古代'药童辨草'的全栈web应用，用户扮演一位唐代药童，在药圃中根据医书描述采集和鉴定草药，并调制方剂应对随机的'时疫'事件。系统每天会生成一批草药任务：用户需在限时内根据医书中的气味、形态、功效描述，从药圃中拖拽正确的草药到医案上，每次正确采集会增长药草知识，错误则降低；同时要应对药草短缺、药童中毒、药方被虫蛀等随机事件。每旬结束时根据采集准确率、方剂完成度和事件处理生成一份《本草录》评分。用TypeScript和React实现前端，后端用FastAPI处理事件逻辑和评分计算。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、fastapi、uvicorn等依赖，启动脚本写npm run dev和uvicorn main:app）、vite.config.js、tsconfig.json、index.html（入口文件）、src/main.tsx（React挂载入口）、src/App.tsx（主路由和布局）、src/components/Garden.tsx（药圃展示和拖拽交互）、src/components/Recipe.tsx（方剂面板）、src/components/EventModal.tsx（随机事件弹窗）、backend/main.py（FastAPI应用，提供/api/daily-tasks、/api/submit、/api/events、/api/score等接口）、backend/task_generator.py（生成每日草药任务和事件）、backend/scorer.py（计算评分）。需求上：1. 药圃可视化：用flex/grid布局展示6种草药卡片，每种草药有精确的形态、气味、功效描述，用户通过拖拽匹配任务要求；2. 方剂调制：用户从匹配正确的草药中选择组合成一副方剂，方剂需符合医书规定的君臣佐使结构；3. 实时反馈：每次拖拽和提交方剂后显示成功/失败的墨迹浸染动画（使用framer-motion实现），同时更新知识值；4. 随机事件：每2次正确任务后有概率触发事件弹窗（如药草被虫蛀需要重选），用户快速做出选择，影响评分；5. 界面布局：中央为药圃（占主要面积），左侧是任务描述面板（显示当前任务要求），右侧是方剂面板和道具栏（如火炉、药碾）；颜色主题采用唐代壁画风格：土黄#d4a351、松绿#2d5a3d、朱砂红#c0392b、纸白#f5f0e6，整体古朴雅致；6. 性能要求：拖拽交互响应流畅，动画帧率保持在60fps，评分计算和后端请求无感。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:8f98e0021111548b84eb56b233d077cb_6a28b46b30141ed7eff40c62.6a28b56e30141ed7eff40d53.6a28b56ec44939c6a9c5524e:Trae CN.T(2026/6/10 08:53:02)",
+    "user_id": "98336997115224",
+    "trace_id": "8f98e0021111548b84eb56b233d077cb",
+    "session_id": "6a28b46b30141ed7eff40c62",
+    "task_id": "6a28b56e30141ed7eff40d53",
+    "message_id": "6a28b56ec44939c6a9c5524e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 08:53:02",
+    "format": "full"
+  },
+  "trace": "null"
+}
