@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘星尘回响’的3D交互可视化项目，让用户像一位星际考古学家，在三维星云中扫描和收集随机散落的星尘遗迹粒子，每个粒子被拾取后会膨胀成带有纹理的小行星，并触发一段随机生成的宇宙音效，粒子之间会形成动态的引力链接网络，用户可以用鼠标旋转视角和缩放，点击任意链接会高亮并显示粒子间的距离信息。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。界面布局：中央是全屏3D星云场景，左下角有控制面板（包含粒子生成按钮、扫描速度滑块、重置视角按钮），右下角是遗迹日志面板（显示最近拾取的粒子数量、类型和距离数据）。颜色主题采用星云极光风格：深空蓝#0a0e1a、星尘金#ffd700、极光绿#00ff88，整体视觉带动态星芒和渐变光晕。性能方面要保证60fps流畅。文件结构大概这样：src/main.tsx作为入口，src/App.tsx组装场景、控制面板和日志面板，src/scene/NebulaScene.tsx处理3D场景和粒子生成逻辑，src/scene/StarParticle.tsx定义单个粒子的外观和动画，src/ui/ControlPanel.tsx和src/ui/LogPanel.tsx是UI组件。顺便带上package.json（依赖包括react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite等），tsconfig.json配置严格模式，vite.config.js配置好，再给个入口HTML，这样我直接npm install && npm run dev就能跑起来。"
+}
