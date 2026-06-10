@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘量子纠缠之舞’的3D交互可视化项目，让用户像一位量子艺术家，在三维空间中通过点击和拖拽来创建和连接量子节点，每个节点会随机自旋并发射出光晕状的粒子流，节点间的连线会根据用户调节的‘纠缠强度’滑块产生起伏的波形动画，点击节点会触发一次坍缩效果（粒子收缩再爆开），同时播放一段随机音调。界面布局：中央是全屏3D场景（使用Three.js渲染），左下角是控制面板（包含节点生成按钮、纠缠强度滑块、重置视角按钮），右下角是状态日志面板（显示最近5次交互的记录，如节点ID、连接数、能量值）。颜色主题采用赛博朋克风：主色为霓虹紫#b300ff和暗青#00e5ff，背景深黑，节点用渐变发光球体，连线有流动的光线效果。整体交互响应要流畅，帧率保持在60fps。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。文件结构大概这样：src/main.tsx作为入口，src/App.tsx组装场景、控制面板和日志面板，src/scene/QuantumScene.tsx负责3D场景和节点生成逻辑，src/scene/QuantumNode.tsx定义单个节点的外观和动画，src/ui/ControlPanel.tsx实现控制面板组件，src/ui/LogPanel.tsx实现日志面板组件。顺便把package.json（带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three等依赖，启动脚本写npm run dev）、tsconfig.json（严格模式）、vite.config.ts、index.html都带上，这样我npm install && npm run dev就能直接跑。"
+}
