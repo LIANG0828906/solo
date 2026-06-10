@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘梦笔生花·画境’的交互式水墨绘画页面，用户像一位数字时代的文人墨客，在虚拟画轴上通过鼠标拖拽和点击来绘制动态水墨画——画笔落下时墨迹会自然晕开、流淌和渗透，不同笔触速度控制墨色浓淡，点击可触发一朵花或一片叶子的生长动画（从枝头萌发、舒展到绽放），双击可切换画幅主题（如山水、花鸟、竹林）。界面布局：中央是Canvas画布（占主要面积，背景仿宣纸纹理），左上角是画笔工具栏（包含笔刷大小滑块、墨色色盘、主题切换按钮），右下角是创作日志面板（显示最近5次绘制操作的类型、墨色值和坐标点）。整体视觉风格走东方意境与数字融合之路：背景用暖黄#f5f0e1，墨迹用半透明黑#1a1a1a到灰#666，笔触边缘带毛刺效果，按钮和控件用竹简纹理加金线描边，交互反馈有墨点飞溅和涟漪扩散动画。性能要求：帧率稳定在60fps，墨迹晕染计算不卡顿。用TypeScript和React来实现。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom，dev脚本用vite，build脚本也写好），tsconfig.json（标准配置，strict模式开，模块用ESNext），vite.config.js（简单配置，用react插件），index.html（入口页面），src/main.tsx（React入口，渲染App组件），src/components/Canvas.tsx（负责Canvas绘制、墨迹晕染算法和生长动画），src/components/Toolbar.tsx（画笔工具栏，包含滑块和按钮），src/components/LogPanel.tsx（创作日志面板，展示历史记录）。运行方式：npm install && npm run dev，就能在浏览器直接打开看到交互页面。"
+}
