@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T18:46:13.479Z",
+  "task_name": "auto90",
+  "task_type": "0-1代码生成",
+  "business_domain": "3D/交互可视化",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个古代孔明锁（又称鲁班锁）三维拆解与组装交互演示的项目，想法是这样的：在虚拟的明代匠人木案上，摆着六个木条（材质为黄檀色纹理，每根木条截面呈L形，长度40mm，截面宽10mm，分别染成朱红、石青、赭石、藤黄、花青、钛白六色），它们相互榫卯咬合，组合成一个整整齐齐的六方锁。用户可以用鼠标拖拽任意木条，沿三个轴向（X/Y/Z）平移，当锁条完全退出锁体后，会触发清脆的木榫分离音效和木屑粒子特效（20个大小为2-4px的淡黄色粒子飘散）；相反，若将松脱的木条拖回原始位置附近（5px容差内）且角度误差小于5度，木条会自动吸附归位，并发出榫卯紧密咬合的咔哒声。希望它能做到：第一，三维场景构建：用Three.js（通过React Three Fiber）搭建一个等角透视的3D场景，相机初始视角设定为45度俯视，用户可以按住鼠标右键旋转视角（轨道控制，阻尼系数0.8），滚动滚轮缩放（范围0.5到2.5倍），光照使用一组环境光（强度0.4，色温暖色 #fff8e7）加两束定向光（左侧光色暖黄 #ffddaa强度0.6，右侧光色冷白 #ddeeff强度0.3），木案表面刷暗红色生漆（#5c2e1e），背景为青灰色砖墙纹理贴图（砖缝宽度2px，深色#3a3a3a）；第二，交互逻辑与约束：每根木条在自由状态下可以沿本身长轴方向平移（溜出榫卯槽），平移距离限制在0到30mm之间，超出后木条脱离锁体（不再受槽约束，可以任意旋转和平移），但若再次拖拽回槽口10mm内且角度在±3度内则自动吸附回位；第三，拼装完成验证：当六根木条全部归位且每根木条中心坐标与标准位置偏差少于3mm、旋转偏差少于2度时，触发一个完整的锁体发光动画——木条边缘从内向外泛出金色光晕（Three.js中的点光源，颜色#ffcc00强度2.0，半径12mm），持续3秒后渐隐。界面上希望整体风格为明代木作工坊，木案下方有一块刻着年号的木牌（永乐十八年，篆书字体，颜色#4a3520），木案四角各有一个黄铜包角（金属质感，用CubeTextureLoader加载envMap），锁体下方投射一个半透明柔和阴影（shadow map尺寸1024x1024）。主界面左侧设有一块细长的竹简面板（浅竹色#d4c294，边缘烧灼纹理），上面用楷体列出六个木条的名称（如‘天条’‘地条’‘人条’等），当前正在拖拽的木条名称会高亮为金色#ffd700并带有脉动动画（1.5s周期scale 1.0-1.1）。性能上要求锁体交互帧率不低于45fps，木条拖拽响应延迟小于50ms，粒子系统最多100个粒子同时活跃。实现用TypeScript和React（搭配react-three-fiber、@react-three/drei、@react-three/postprocessing），把代码拆成以下文件：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、three、@react-three/fiber、@react-three/drei、@react-three/postprocessing、framer-motion、zustand，启动脚本：npm run dev）\n - vite.config.js（配置React插件，开启glsl文件支持，dev服务器端口3000）\n - tsconfig.json（启用严格模式，moduleResolution设为bundler）\n - index.html（入口页面，标题为“古代孔明锁拆解演示”，加载一个Web字体‘ZCOOL XiaoWei’用于竹简面板的楷体显示）\n - src/App.tsx（主组件，初始化场景、相机、灯光、轨道控制器，并加载锁体3D模型数据）\n - src/components/LockBox.tsx（孔明锁装配体组件，管理六根木条的transform状态，提供addPiece和removePiece方法，暴露lockStatus枚举：ASSEMBLED/DISASSEMBLED/IN_PROGRESS）\n - src/components/Piece.tsx（单根木条组件，支持鼠标拖拽（onPointerDown、onPointerMove、onPointerUp），实现榫卯约束逻辑（withinSlot判断和snapToSlot吸附），发射particle事件）\n - src/utils/constants.ts（木条初始位置、尺寸、颜色、容差参数，以及锁体成功验证的距离/角度阈值）\n\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:cdaa67609a27c9ee472e9d758e0fbe3d_6a285e4e649058863d670fa2.6a285f5a649058863d6710b9.6a285f5a07d9ce73acd3e3eb:Trae CN.T(2026/6/10 02:45:46)",
+    "user_id": "98336997115224",
+    "trace_id": "cdaa67609a27c9ee472e9d758e0fbe3d",
+    "session_id": "6a285e4e649058863d670fa2",
+    "task_id": "6a285f5a649058863d6710b9",
+    "message_id": "6a285f5a07d9ce73acd3e3eb",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 02:45:46",
+    "format": "full"
+  },
+  "trace": "null"
+}
