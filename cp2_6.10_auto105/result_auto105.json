@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T19:15:11.243Z",
+  "task_name": "auto105",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够帮助古代丝绸之路的驿站掌柜管理驼队货物、调配补给并跟踪商队全栈web应用，主要解决在长安至撒马尔罕的漫长路线中，驼队从不同绿洲出发，货物（丝绸、香料、瓷器等）在多个驿站之间流转，需要实时掌握每头骆驼的载重、货物去向以及驿站库存，避免货物积压或短缺导致商队延误的问题。\n\n它应当具备以下能力：\n1) 驼队与货物管理：掌柜在长安总站创建驼队（每队最多10峰骆驼，每峰骆驼多峰驼用黄赭色#b68a5c表示，单峰驼用浅驼色#d2b48c），为每峰骆驼分配货物（丝绸、茶叶、瓷器、香料、宝石等5类），每类货物用不同颜色标签（丝绸#ff6b6b、茶叶#2ecc71、瓷器#3498db、香料#f39c12、宝石#9b59b6），显示载重百分比（如78%），超过90%时驼峰的动画变为剧烈晃动（CSS animation, 0.8s循环）。\n2) 驿站网络与库存跟踪：沿着虚构的丝绸之路（从长安到撒马尔罕共12个驿站，每站用一个圆形节点表示，节点间有虚线路径连接，驿站名称、距前一站里程、当前库存量显示在节点下方），点击驿站节点可查看该站所有货物明细（按类型分组，支持增删改查），当某类货物库存低于5件时，驿站图标变为红色边框并触发抖动提示。\n3) 商队行程与补给规划：掌柜可选择一个驼队，设置起始驿站和目标驿站（自动计算最短路径，用绿色高亮标注路径上的驿站），系统根据路径长度和货物重量自动计算所需补给（水囊、草料、备用蹄铁）数量，在出发前若补给不足则弹出警告对话框并阻止出发，补给充足后点击启程按钮，驼队沿路径逐站移动（每站移动动画耗时2秒，骆驼小步奔跑的gif帧序列效果），到达终点驿站后触发铜铃音效（用Web Audio API生成短促的叮当声，频率约2000Hz）。\n4) 历史行程日志：每次行程结束后自动生成一条日志记录，包含出发时间、到达时间、行程耗时、驼队编号、总重量、消耗补给量、剩余货物量，以时间轴形式展示在页面右侧面板上，日志条背景为羊皮纸色#f4e4c1，每条日志左侧用一个沙漏符号（⌛）标识，鼠标悬停时显示完整JSON格式的行程数据。\n\n界面方面要求：整体采用唐代西域壁画风格配色，主背景为淡赭色#dab28a，辅以土黄#c9a96e和石青#4a6fa5点缀；页面采用三栏布局（左栏驼队列表、中栏地图网格、右栏日志面板），地图区域使用flex-grow占满剩余空间并在大屏幕上自动居中；驼队列表和日志面板用半透明毛玻璃效果（backdrop-filter: blur(8px), background: rgba(255,255,245,0.85)）呈现；所有交互按钮和卡片在hover时使用ease-out缓动函数0.3秒完成scale(1.02)放大与box-shadow加深，点击时触发scale(0.96)回弹效果；地图上的驿站节点和路径在窗口宽度低于768px时自动缩小50%但保持可点击区域不变，日志面板在窄屏时隐藏并可通过汉堡菜单呼出。性能上需要界面滚动帧率稳定在50fps以上，地图路径重绘响应时间低于300ms。\n\n实现采用TypeScript和React（前端）+ Express（后端）的技术栈，按以下文件组织代码：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、express、cors、zustand、framer-motion、@types/react、@types/react-dom、@types/express、@types/cors，启动脚本：npm run dev）\n - vite.config.js（配置React插件和开发服务器端口3000）\n - tsconfig.json（启用严格模式）\n - index.html（入口页面，标题为“丝路驼铃驿站管理系统”）\n - src/App.tsx（主组件，包含三栏布局、状态管理和路由分发，数据流向：接收后端REST API数据 → 通过zustand store分发到各子组件 → 处理用户交互事件后回调）\n - src/components/CamelCaravan.tsx（驼队管理组件，展示驼队列表和每峰骆驼的货物详情，支持创建、编辑、删除驼队，调用后端API /api/caravans）\n - src/components/StationMap.tsx（驿站地图可视化组件，使用SVG绘制节点和路径，支持点击驿站查看库存、规划路径，调用后端API /api/stations和 /api/routes）\n - src/components/HistoryLog.tsx（行程日志组件，以时间轴方式展示历史行程，支持筛选和导出JSON，调用后端API /api/history）\n - src/server/index.ts（Express后端服务，提供三个REST端点：/api/caravans（驼队CRUD）、/api/stations（驿站库存）、/api/history（行程日志），使用内存数组存储数据，返回JSON）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:0ce6bd6476184bb63216f7ce59756cdb_6a28656f8c14a7cb64b42fff.6a2866348c14a7cb64b430cf.6a2866349a31c511ce4b91ee:Trae CN.T(2026/6/10 03:15:00)",
+    "user_id": "98336997115224",
+    "trace_id": "0ce6bd6476184bb63216f7ce59756cdb",
+    "session_id": "6a28656f8c14a7cb64b42fff",
+    "task_id": "6a2866348c14a7cb64b430cf",
+    "message_id": "6a2866349a31c511ce4b91ee",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 03:15:00",
+    "format": "full"
+  },
+  "trace": "null"
+}
