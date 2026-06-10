@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "全栈web应用",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个模拟古代‘药童辨草’的全栈web应用，用户扮演一位唐代药童，在药圃中根据医书描述采集和鉴定草药，并调制方剂应对随机的‘时疫’事件。系统每天会生成一批草药任务：用户需在限时内根据医书中的气味、形态、功效描述，从药圃中拖拽正确的草药到医案上，每次正确采集会增长药草知识，错误则降低；同时要应对药草短缺、药童中毒、药方被虫蛀等随机事件。每旬结束时根据采集准确率、方剂完成度和事件处理生成一份《本草录》评分。用TypeScript和React实现前端，后端用FastAPI处理事件逻辑和评分计算。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、zustand、axios，启动脚本写npm run dev），vite.config.ts，tsconfig.json，index.html（入口），前端主要组件在src/下分几个文件：App.tsx（主入口和路由）、Board.tsx（药圃场景和拖拽交互）、EventPanel.tsx（随机事件弹窗）、ScoreBoard.tsx（评分和等级展示）；后端一个app.py用FastAPI，包含/api/generate_task、/api/submit_answer、/api/get_score等接口。界面布局：中央是药圃画布，草药随机散布，用户可拖拽放置到左侧的医案区域；左上角是医书描述面板；右下角是事件按钮和状态提示。颜色主题采用唐代药师风格：药草绿#3a7d44、宣纸白#efe6d5、朱砂红#b33939、墨黑#2d2d2d，整体古朴自然，拖拽时有药草香气的粒子动画（用framer-motion实现）。性能上帧率保持60fps，交互响应流畅25ms内。要包含完整的运行配置，让用户npm install && npm run dev就能直接跑起来。"
+}
