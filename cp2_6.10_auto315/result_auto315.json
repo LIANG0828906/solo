@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:55:13.997Z",
+  "task_name": "auto315",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫‘极速像素漂移’的竞速游戏，玩家在一条无限生成的赛道上控制一辆霓虹像素赛车，通过左右键躲避障碍物并收集能量方块来加速，赛道两侧有动态光带和随速度变化的色彩闪烁。用TypeScript和Phaser 3来做。文件结构大概这样：package.json（带上phaser、typescript、vite、@types/phaser，dev用vite，build也写好），tsconfig.json（strict模式，ESNext模块），vite.config.js（简单配置），index.html（入口页面），src/main.ts（游戏入口，初始化Phaser和场景管理器），src/scenes/RaceScene.ts（主游戏场景，处理赛车、赛道生成、碰撞和计分），src/scenes/GameOverScene.ts（结束场景，显示得分和重玩选项）。需求方面：1. 赛车由像素块拼成，带拖尾效果和加速时的引擎光效；2. 赛道分段生成，每段有不同宽度和障碍布局，背景色随速度渐变；3. 能量方块随机出现在赛道上，收集后触发屏幕闪烁和得分加成；4. 障碍物包括静态方块和动态移动的激光栅栏，碰撞后赛车爆炸并减速；5. 界面布局：上方显示当前得分和速度，下方有生命值条（3条命），整体用深色背景搭配霓虹绿#00ffaa和洋红#ff00aa；6. 动画方面：赛车加速时轮胎冒火星，碰撞有粒子爆炸，能量收集有光环扩散；7. 性能要求帧率稳定在60fps，颗粒效果控制在50个以内。对了，顺便把package.json和tsconfig.json带上，这样我npm install && npm run dev就能跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:cae72e52d016728de7b0262f020d3750_6a28d1e2535b7ed52d3d3507.6a28d207535b7ed52d3d3517.6a28d207e8fba779315ece0e:Trae CN.T(2026/6/10 10:55:03)",
+    "user_id": "98336997115224",
+    "trace_id": "cae72e52d016728de7b0262f020d3750",
+    "session_id": "6a28d1e2535b7ed52d3d3507",
+    "task_id": "6a28d207535b7ed52d3d3517",
+    "message_id": "6a28d207e8fba779315ece0e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:55:03",
+    "format": "full"
+  },
+  "trace": "null"
+}
