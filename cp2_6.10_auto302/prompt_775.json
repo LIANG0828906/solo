@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'星髓脉动'的3D交互可视化项目，用户像一位星际地质学家，在三维空间中通过点击和拖拽来放置和连接能量节点——每个节点会像一颗微型恒星一样自旋并辐射出脉动的光晕，节点间的连线会随用户调节的'能量流'滑块产生粒子流动动画，点击节点会触发一次能量冲击波扩散并伴有音效反馈。界面布局：中央是全屏3D场景，用Three.js渲染，支持鼠标拖拽旋转视角和滚轮缩放；左下角是半透明控制面板，包含节点生成按钮、能量流滑块、重置视角按钮和全屏切换；右下角是能量日志面板，显示最近5次交互的节点ID、能量值和距离。颜色主题走熔岩星核风：主色为熔岩橙#ff4500和暗红#8b0000，背景从紫黑渐变到暗红，节点用半透明发光球体，连线用流动粒子束。交互反馈：鼠标悬停节点时出现属性标签和微光环绕，点击有冲击波扩散动画，滑块调节时连线粒子速度实时变化，性能要求帧率稳定在60fps。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。文件结构大概这样：package.json（带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three，dev脚本用vite，build脚本也写好），tsconfig.json（标准配置，strict模式开，模块用ESNext），vite.config.js（简单配置），index.html（入口页面），src/main.tsx（React入口，挂载App组件），src/App.tsx（主组件，设置Canvas和场景，包含控制面板和日志面板），src/components/Node.tsx（节点组件，处理自旋、光晕和点击事件），src/components/Connection.tsx（连线组件，处理粒子流动动画和滑块控制），src/hooks/useInteractionLog.ts（自定义hooks，管理交互日志数组和添加日志），一共6个文件。运行方式：npm install && npm run dev，直接就能在浏览器里看效果。"
+}
