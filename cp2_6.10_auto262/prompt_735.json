@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘流光映影’的3D交互可视化项目，让用户像一位光影雕刻师，在三维空间通过放置和拖拽光点来创造动态的光影雕塑——每个光点会向周围发射彩色光线，光线互相交织形成流动的光束网络，用户可以旋转视角、缩放场景，点击光点会触发脉冲动画和一段随机生成的音效。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。文件结构大概这样：src/main.tsx作为入口，src/App.tsx组装场景、控制面板和光影日志面板，src/scene/LightSculpture.tsx负责3D场景和光点生成逻辑，src/scene/PhotonParticle.tsx定义单个光点的外观和动画，src/ui/ControlPanel.tsx实现颜色滑块、发光强度拉杆和重置按钮，src/ui/ShadowLog.tsx显示最近5条光影诗句。运行配置方面：package.json带上react、react-dom、typescript、@react-three/fiber、@react-three/drei、three、@types/three、vite，并添加构建脚本；vite.config.js配置react插件和路径别名；tsconfig.json设置严格模式和esm模块；最后给个index.html作为入口，放到public/下。这样我直接npm install && npm run dev就能跑。需求方面：1. 用户能在3D场景中点击空白处创建彩色光点（每次创建随机生成颜色和大小），用鼠标拖拽可移动光点位置；2. 光点之间会自动检测距离，若小于设定阈值则用渐变彩色光线连接，光线有脉动动画；3. 点击任意光点会触发从该点向外扩散的彩色粒子波纹，并播放一段随机音调的音效（用Web Audio API）；4. 控制面板包含颜色选择器、发光强度滑块（影响所有光点尺寸）和重置按钮，操作实时生效；5. 光影日志面板滚动显示最近5次点击时的诗句（在点击时随机从静态数组中选一句显示）；6. 界面布局：中央全屏3D场景，左下角悬浮控制面板（半透明毛玻璃背景），右下角悬浮日志面板（可折叠收起）；颜色主题采用霓虹光宴风格：深黑#0a0a0a、霓虹蓝#00d4ff、霓虹粉#ff007f、霓虹绿#39ff14，背景有微弱星点纹理；7. 性能要求：光点数量最多支持30个，帧率保持60fps，交互响应流畅，使用react-three-fiber的useFrame优化动画循环。"
+}
