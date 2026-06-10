@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘量子花圃·光谱秘境’的3D交互可视化项目，用户像一位量子园丁，在三维空间里通过点击和拖拽来播种和培育半透明的发光花朵——每朵花由多个花瓣组成，花瓣会随用户调节的‘生长酶’滑块缓缓舒展或闭合，并辐射出可变色的光晕；花朵之间会自动生成流动的粒子连线，连线的颜色和密度随花朵距离变化；点击单朵花会触发一次花粉爆炸特效，扩散出数千颗彩光粒子。界面布局：中央是全屏Three.js 3D场景，支持鼠标拖拽旋转视角和滚轮缩放；左下角是半透明毛玻璃控制面板，包含花朵播种按钮、生长酶滑块、重置视角按钮和花瓣样式切换（单瓣/重瓣/星形）；右下角是生态日志面板，显示最近5次交互的花朵编号、花瓣张角和光色值。颜色主题走极光幻彩风：主色为极光绿#00ff7f和虹彩紫#8a2be2，背景从深蓝渐变到暗紫，按钮用渐变加发光边框，交互反馈有粒子爆炸和光晕扩散。性能要求：帧率稳定在60fps，交互响应流畅无卡顿。\n\n用TypeScript和React来实现，Three.js做3D渲染，react-three-fiber管理场景组件。文件结构大概是这样：\n- package.json：带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three，dev脚本用vite，build也写好\n- tsconfig.json：strict模式，ESNext模块\n- vite.config.js：简单配置\n- index.html：入口页面，带应用根节点\n- src/main.tsx：React应用入口，挂载App组件\n- src/App.tsx：主组件，包含场景布局（Canvas包裹3D场景）和UI控制面板\n- src/components/Flower.tsx：花朵组件，处理花朵的播种、交互、花开动画和粒子特效\n- src/components/ParticleLines.tsx：粒子连线组件，动态生成花朵间流动的粒子连线\n- src/components/UI.tsx：控制面板和日志面板组件\n- src/scene.ts：场景配置，包含光照、相机、背景色等\n- src/types.ts：类型定义\n\n这样我直接npm install && npm run dev就能跑起来了。"
+}
