@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T20:46:03.549Z",
+  "task_name": "auto155",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个古代水傀儡（木偶戏）的交互游戏，让用户像宋代勾栏里的傀儡戏艺人一样，在虚拟的水上舞台通过控制木偶（鱼、龙、虾、蟹）完成一场水上表演。用TypeScript和React来实现，配合framer-motion做动画、zustand管理游戏状态。文件结构大概这样：\n- package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand这些依赖，启动脚本写npm run dev）\n- vite.config.js（配置React插件）\n- tsconfig.json（严格模式）\n- index.html（入口页面，标题设为“汴梁水傀儡”）\n- src/main.tsx（渲染根组件）\n- src/App.tsx（主游戏组件，包含舞台画布、控制面板、得分显示）\n- src/components/Stage.tsx（水上舞台组件，渲染水面波纹动画、木偶位置和运动轨迹）\n- src/components/Controller.tsx（控制面板，包含木偶选择按钮和方向摇杆/鼠标拖拽交互）\n- src/store/gameStore.ts（zustand状态管理，存储木偶位置、当前选中的木偶、得分和表演节奏）\n- src/utils/anims.ts（动画工具函数，用于生成木偶游动、跳跃、喷水等动作的缓动曲线）\n需求方面：\n1. 用户可以选择不同的木偶（金鱼、青龙、红蟹、白虾），每种木偶有独特的动作和攻击方式（金鱼喷水圈、青龙摆尾击水、红蟹钳击、白虾弹跳）。\n2. 在舞台（一个圆形水池，背景为淡蓝#a0d0ea，水面带有正弦波纹动画，池边为灰白石栏#ccc0a0）上用鼠标拖拽控制木偶移动，木偶游动时尾部划出细小水花粒子（粒子数量控制在15-30个，避免性能负担）。\n3. 舞台会随机出现金色光点（目标），用户需操控木偶在3秒内触碰光点得分，触碰成功时有轻微放大闪烁反馈（缩放1.1倍，持续0.2s）并播放“噗”声效（用Web Audio API生成短促音调）。\n4. 每30秒会出现一次“水花表演”挑战，水面中间升起一根水柱（约60px高），用户需在5秒内让木偶跳到水柱顶端并保持平衡2秒，成功后得分翻倍。\n5. 界面采用宋代勾栏风格：主色#e8d5b7（宣纸黄）、#8b4513（栗色木框）、#2f4f4f（墨色文字），按钮模仿木雕纹理（box-shadow内嵌阴影），分数显示在左上角木牌背景上，倒计时显示在右上角铜锣图标旁。\n6. 整体响应式适配，在移动端自动调整为竖屏布局，控制面板移到下方并放大触摸区域（至少44px），帧率保持在60fps，交互响应流畅（点击反馈延迟<100ms）。\n对了，顺便把package.json和配置文件都带上，这样我直接npm install && npm run dev就能跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:0e4142c2fb4c0666611e5df01d034ad3_6a287b5687bd03f49bb1f322.6a287b8087bd03f49bb1f332.6a287b80d63a51679db3a3b7:Trae CN.T(2026/6/10 04:45:52)",
+    "user_id": "98336997115224",
+    "trace_id": "0e4142c2fb4c0666611e5df01d034ad3",
+    "session_id": "6a287b5687bd03f49bb1f322",
+    "task_id": "6a287b8087bd03f49bb1f332",
+    "message_id": "6a287b80d63a51679db3a3b7",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 04:45:52",
+    "format": "full"
+  },
+  "trace": "null"
+}
