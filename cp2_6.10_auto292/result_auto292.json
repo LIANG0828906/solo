@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:09:31.295Z",
+  "task_name": "auto292",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个叫'墨迹潮汐'的交互式动态波浪可视化页面，用户像一位海洋画家，通过鼠标拖拽和点击在画布上生成不同的波浪形态——拖拽速度控制波浪频率，点击位置决定波峰聚集点，双击可以切换波浪模式（如正弦波、锯齿波、随机波）。界面要有实时数据显示当前波浪的频率、幅度和模式名称，以及一个历史记录面板显示最近5次交互。整体风格走水墨与科技融合的路线：背景用渐变灰白#e0e0e0到#f5f5f5，波浪用半透明墨蓝#1a237e和墨绿#004d40，波峰处有微光粒子飞散，按钮和控件用简约圆角设计加柔和阴影，交互反馈有轻微的涟漪扩散动画和波光粼粼效果。用TypeScript和React来实现，Canvas 2D API处理波浪绘制和粒子系统。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom这些，dev脚本用vite，build脚本也写好），tsconfig.json（标准配置，strict模式开，模块用ESNext），vite.config.js（用@vitejs/plugin-react），index.html（入口页面），src/main.tsx（React入口），src/App.tsx（主组件，含布局和画布容器），src/components/WaveCanvas.tsx（波浪绘制和粒子系统），src/components/ControlPanel.tsx（控制面板和数据显示），顺便把配置都带上，这样我npm install && npm run dev就能直接跑。需求方面：1. 核心波浪生成逻辑，支持正弦波、锯齿波、随机波三种模式，用鼠标拖拽和点击控制形态；2. 粒子系统模拟波峰飞溅效果，粒子大小和透明度随鼠标速度动态变化；3. 实时数据显示当前波浪频率、幅度和模式名称，并有一个历史记录面板显示最近5次交互（每次记录时间戳和模式）；4. 交互反馈包括鼠标悬停画布时的波光涟漪动画、双击切换模式时的平滑过渡动画、以及按钮点击时的微缩放动效；5. 布局上画布占中央主要区域（自适应窗口），左下角是控制面板（模式切换按钮、重置按钮、频率/幅度显示），右下角是历史记录面板；6. 性能方面要求帧率稳定在60fps，粒子数量控制在200以内。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:918184bbe992e6e77b1686a1c6ff88d2_6a28c6f73d1f29931c78646e.6a28c7403d1f29931c7864c1.6a28c740a9c0fb4eb8ea8c7e:Trae CN.T(2026/6/10 10:09:04)",
+    "user_id": "98336997115224",
+    "trace_id": "918184bbe992e6e77b1686a1c6ff88d2",
+    "session_id": "6a28c6f73d1f29931c78646e",
+    "task_id": "6a28c7403d1f29931c7864c1",
+    "message_id": "6a28c740a9c0fb4eb8ea8c7e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:09:04",
+    "format": "full"
+  },
+  "trace": "null"
+}
