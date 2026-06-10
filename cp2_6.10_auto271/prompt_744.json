@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "游戏开发",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想做一个叫‘萤火之森’的生态模拟与节奏游戏，用户扮演一位森林守护者，通过点击和拖拽来引导一群萤火虫在夜空中编织光之轨迹，每只萤火虫会依循用户的节奏闪烁，并留下一条渐变的发光尾迹，多条轨迹交织成动态的光网，同时背景会播放与光网变化联动的环境音效。用户可以用鼠标拖拽视角旋转观察整个场景，滚动缩放，按住左键拖动萤火虫可以改变其飞行方向，点击萤火虫会触发一次闪光脉冲并产生短暂的高亮音效。界面中央是全屏3D森林夜景，右下角有一个简洁的控制面板（包含萤火虫数量调节滑块、闪烁速度滑块、重置轨迹按钮），左上角显示当前光网复杂度评分（基于轨迹交织程度）。颜色主题采用暗夜森林风格：深蓝黑#0a0e1a、萤火绿#c8ff80、星光金#ffd700，整体氛围静谧而灵动，所有动画帧率保持在60fps。用TypeScript和React来实现，Three.js做3D渲染，react-three-fiber管理场景和组件。文件结构大概这样：package.json（带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three等依赖，启动脚本写npm run dev）、tsconfig.json（配置严格模式）、vite.config.js、index.html作为入口、src/main.tsx挂载App、src/App.tsx组装场景和控制面板、src/scene/ForestScene.tsx负责3D场景和萤火虫生成逻辑、src/scene/Firefly.tsx定义单只萤火虫的外观和轨迹动画、src/ui/ControlPanel.tsx提供滑块和按钮交互。这样装好依赖后，npm install && npm run dev就能跑起来体验了。"
+}
