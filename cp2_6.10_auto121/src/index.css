@@ -1,0 +1,133 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "华文楷体", "STKaiti", "KaiTi", serif;
+  background: #f5e6c8;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5e6c8;
+}
+
+.jiandu-box {
+  border: 3px solid #4a3728;
+  background: #e8dcc8;
+  border-radius: 4px;
+  box-shadow: 2px 2px 8px rgba(74, 55, 40, 0.3);
+}
+
+.archery-field-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.announcement-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  font-weight: bold;
+  color: #ff8c00;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.game-ui {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  height: 200px;
+}
+
+.score-panel {
+  flex: 1;
+  padding: 12px;
+}
+
+.control-panel {
+  width: 280px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.charge-bar-container {
+  width: 100%;
+  height: 24px;
+  background: #d4c4a8;
+  border: 2px solid #4a3728;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.charge-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6b8e23, #ffd700, #cc3333);
+  transition: width 0.05s linear;
+}
+
+.info-text {
+  font-size: 16px;
+  color: #4a3728;
+  line-height: 1.6;
+}
+
+.instruction {
+  font-size: 14px;
+  color: #6b5344;
+  margin-top: 4px;
+}
+
+button.jiandu-btn {
+  padding: 10px 16px;
+  background: #e8dcc8;
+  border: 2px solid #4a3728;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 16px;
+  color: #4a3728;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button.jiandu-btn:hover {
+  background: #d4c4a8;
+  transform: translateY(-2px);
+}
+
+button.jiandu-btn:active {
+  transform: translateY(0);
+}
+
+button.jiandu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
