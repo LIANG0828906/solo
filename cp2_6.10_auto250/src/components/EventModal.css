@@ -1,0 +1,464 @@
+:root {
+  --ink-primary: #2c2c2c;
+  --ink-secondary: #5a5a5a;
+  --ink-light: #8a8a8a;
+  --ink-bg: #f5f0e6;
+  --ink-paper: #faf8f3;
+  --ink-accent: #4a6741;
+  --ink-danger: #8b0000;
+}
+
+.event-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+  will-change: opacity;
+}
+
+.event-modal-backdrop.open {
+  opacity: 1;
+}
+
+.event-modal-backdrop.closed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.event-modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  background: var(--ink-paper);
+  border-radius: 8px;
+  padding: 32px 28px;
+  font-family: 'Noto Serif SC', 'STSong', serif;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.event-modal.open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.event-modal.closed {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}
+
+.modal-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.deco-line {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ink-light), transparent);
+  opacity: 0.5;
+}
+
+.deco-line.top {
+  top: 60px;
+  animation: lineExpand 0.8s ease-out 0.2s both;
+}
+
+.deco-line.bottom {
+  bottom: 80px;
+  animation: lineExpand 0.8s ease-out 0.4s both;
+}
+
+@keyframes lineExpand {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.ink-splash {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 40px;
+  background: radial-gradient(ellipse at center, rgba(44, 44, 44, 0.1) 0%, transparent 70%);
+  animation: splashFade 1s ease-out;
+}
+
+@keyframes splashFade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.modal-title {
+  font-size: clamp(1.3rem, 4vw, 1.8rem);
+  color: var(--ink-primary);
+  margin: 0 0 16px 0;
+  font-weight: 700;
+  letter-spacing: 3px;
+  animation: titleSlideDown 0.6s ease-out;
+}
+
+@keyframes titleSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ink-primary), transparent);
+  margin: 0 auto;
+  width: 60%;
+  animation: dividerGrow 0.6s ease-out 0.3s both;
+}
+
+@keyframes dividerGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.modal-body {
+  margin-bottom: 28px;
+}
+
+.modal-description {
+  font-size: 1rem;
+  color: var(--ink-secondary);
+  line-height: 1.8;
+  text-align: center;
+  margin: 0 0 24px 0;
+  padding: 0 8px;
+  animation: descFadeIn 0.6s ease-out 0.2s both;
+}
+
+@keyframes descFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.choices-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--ink-bg);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  font-family: inherit;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: choiceSlideIn 0.5s ease-out forwards;
+  will-change: transform, border-color, background-color;
+}
+
+@keyframes choiceSlideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.choice-card:hover:not(:disabled) {
+  border-color: var(--ink-light);
+  background: var(--ink-paper);
+  transform: translateX(8px);
+}
+
+.choice-card.selected {
+  border-color: var(--ink-primary);
+  background: var(--ink-paper);
+  transform: translateX(8px);
+}
+
+.choice-card.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ink-primary);
+  animation: selectedBorder 0.3s ease-out;
+}
+
+@keyframes selectedBorder {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.choice-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.choice-icon {
+  font-size: 1.8rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink-paper);
+  border-radius: 50%;
+  border: 1px solid var(--ink-light);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.choice-card.selected .choice-icon {
+  background: var(--ink-primary);
+  color: var(--ink-paper);
+  transform: scale(1.1);
+}
+
+.choice-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.choice-label {
+  font-size: 1.05rem;
+  color: var(--ink-primary);
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.choice-desc {
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.choice-marker {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--ink-primary);
+  border-radius: 50%;
+  animation: dotPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes dotPop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.confirm-btn {
+  position: relative;
+  padding: 14px 56px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink-paper);
+  background: var(--ink-primary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 2px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.confirm-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.confirm-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.confirm-text {
+  position: relative;
+  z-index: 1;
+}
+
+.confirm-ink {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.5s ease, height 0.5s ease;
+}
+
+.confirm-btn:not(:disabled):hover .confirm-ink {
+  width: 200px;
+  height: 200px;
+}
+
+.modal-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ink-primary);
+  opacity: 0.5;
+}
+
+.modal-corner.tl {
+  top: 8px;
+  left: 8px;
+  border-right: none;
+  border-bottom: none;
+  animation: cornerAppear 0.5s ease-out 0.1s both;
+}
+
+.modal-corner.tr {
+  top: 8px;
+  right: 8px;
+  border-left: none;
+  border-bottom: none;
+  animation: cornerAppear 0.5s ease-out 0.2s both;
+}
+
+.modal-corner.bl {
+  bottom: 8px;
+  left: 8px;
+  border-right: none;
+  border-top: none;
+  animation: cornerAppear 0.5s ease-out 0.3s both;
+}
+
+.modal-corner.br {
+  bottom: 8px;
+  right: 8px;
+  border-left: none;
+  border-top: none;
+  animation: cornerAppear 0.5s ease-out 0.4s both;
+}
+
+@keyframes cornerAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .event-modal {
+    padding: 24px 20px;
+    max-height: 85vh;
+  }
+
+  .choice-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .choice-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.5rem;
+  }
+
+  .confirm-btn {
+    width: 100%;
+    padding: 14px 24px;
+  }
+
+  .deco-line {
+    left: 16px;
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .event-modal-backdrop {
+    backdrop-filter: none;
+  }
+}
