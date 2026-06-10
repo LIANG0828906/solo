@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘墨韵棋谱’的交互页面，让用户像一位古代棋士一样，在虚拟的棋盘上通过落子来生成水墨风格的棋谱动画，并记录每一步的棋局变化。用户点击棋盘交叉点落子，棋子会带有墨滴晕染的效果，落子后周围会浮现一圈水墨涟漪，然后逐渐消散。页面布局：中央是围棋棋盘（19x19网格），左侧是落子记录面板（显示最近10步的坐标和手数），右侧是棋谱导出面板（可导出为图片或SVG）。颜色主题采用水墨丹青风格：宣纸白#f5f0e6、墨黑#2c2c2c、朱砂红#c0392b，棋盘线条为深灰，整体古朴雅致，落子和涟漪动画使用framer-motion实现，棋盘响应式适配屏幕大小。性能上要确保落子和涟漪动画流畅，帧率保持在60fps。用TypeScript和React来实现。文件结构大概这样：- package.json（加上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion等依赖，启动脚本写npm run dev）- tsconfig.json（完整配置，target es2020，jsx react-jsx）- vite.config.ts- index.html（入口，挂载点id为root）- src/main.tsx（ReactDOM渲染）- src/App.tsx（主组件，集成棋盘、记录面板、导出面板的布局）- src/components/GoBoard.tsx（棋盘组件：19x19网格绘制、点击落子、涟漪动画效果）- src/components/RecordPanel.tsx（落子记录展示，滚动列表）- src/components/ExportPanel.tsx（导出图片或svg功能）- src/hooks/useGameState.ts（自定义hook管理落子历史、当前手数、撤销等状态）。运行方式：npm install && npm run dev。"
+}
