@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘星璇流光·幻境浮岛’的3D交互可视化项目，让用户像一位幻境造物主，在三维空间中通过点击和拖拽来生成并连接悬浮的彩色浮岛——每个浮岛由扭曲的几何体构成，表面流动着动态色带，浮岛之间会自动生成半透明的光桥，光桥的宽度和亮度随用户调节的‘流光强度’滑块动态变化；点击浮岛会触发一次星璇爆炸特效，周围粒子被吸入并旋转扩散。界面布局：中央是全屏Three.js 3D场景，支持鼠标拖拽旋转视角和滚轮缩放；左下角是半透明毛玻璃控制面板，包含浮岛生成按钮（每次点击生成一个随机颜色的浮岛）、流光强度滑块、重置视角按钮和全屏切换；右下角是幻境日志面板，显示最近5次交互的浮岛编号、颜色值和流光值。颜色主题走星璇极光风：主色为幻彩蓝#00d2ff和炫光紫#7b2ff7，背景深空渐变#0a0a2e到#1a1a3e，按钮用毛玻璃加霓虹边框，每次交互伴随粒子拖尾和光晕闪烁。性能要求：帧率稳定在60fps，粒子数不超过2000颗。用TypeScript和React来实现。文件结构大概这样：package.json里带上three、@types/three、react、react-dom、react-three-fiber、@react-three/drei、vite、typescript，dev脚本用vite，build也写好；tsconfig.json开strict模式，module用ESNext；vite.config.js简单配置；index.html作为入口；src/main.tsx挂载React根组件；src/Scene.tsx负责渲染Three.js场景，包括浮岛、光桥和粒子系统；src/Controls.tsx实现左下角控制面板；src/Log.tsx显示右下角日志面板；运行方式就是npm install && npm run dev。"
+}
