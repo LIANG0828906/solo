@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T18:10:57.492Z",
+  "task_name": "auto67",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够在浏览器中模拟古代墨斗弹线定位与木料画线切割的交互工具，主要解决传统木匠在拼合榫卯构件时，用墨斗在木料上弹出一条精准的参考线，然后沿该线进行裁切，但墨线受木料纹理、手抖和弹线角度影响容易偏斜，导致榫头与卯眼无法严丝合缝的问题。\n\n它应当具备以下能力：\n1) 墨斗操作：在屏幕上绘制一个木匠工作台（背景为浅木色#d2b48c），左侧放置一只墨斗（主体黑色#1a1a1a，线轮为铜色#b87333，含浸墨棉球），用户通过鼠标拖拽墨斗的线轮拉出墨线至木料（木料为一根长条，纹理用CSS linear-gradient模拟，颜色为#deb887，尺寸约占屏幕宽60%、高80px）上，松手后触发弹线动作——墨线从线轮中心弹出至木料表面（动画要求：墨线先快速摆动0.2秒，然后在木材表面留下一条直线墨痕色#1a1a1a，持续存在），接着自动显示该线与木料边缘的夹角（显示于木料右下角，精度0.5度），夹角偏差以红色#ff0000标注，允许范围内（正负2度内）以绿色#00ff00标注；\n2) 画线与标记：用户可点击木料上的任意位置添加圆形标记点（直径6px，色#333），标记点会吸附到一条预设的网格线（网格间距5px，浅灰色#ccc，透明度0.3）上；用户还可拖动标记点调整位置，最终生成的标记点连线（用白色虚线连接）将作为理论切割线显示在木料上，与墨线实际轨迹对比展示偏差；\n3) 切割模拟与反馈：用户点击木料上的切割按钮后，系统沿理论切割线（白色虚线）将木料一分为二，动画为一条火焰粒子流（色#ff4500至#ffa500渐变，粒子数量30个）沿虚线划过，完成后左右两段木料分离，分离距3px，并显示切割面的平整度评分（评分依据：理论线与实际弹线角度的平均偏差，偏差小于1度得A级，1-2度得B级，2-3度得C级，大于3度得D级）；\n4) 重置与历史记录：界面右下角设置一个重置按钮（色#8b0000，鼠标悬停变#a52a2a，点击后清空所有墨线和标记，恢复初始木料）和一个历史列表（右侧垂直窄面板，色#f5deb3，最多10条记录，每项显示时间轴缩略图和评分等级，点击可回放该次弹线轨迹动画）。\n\n界面方面要求：布局采用主工作区居中（宽度80%，最小宽度600px），左侧工具栏（浅灰色#e0e0e0，宽80px，包含墨斗、标记点和切割的三个图标按钮），右侧历史面板（浅橙色#f5deb3，宽150px）。配色以木匠工坊暖色调为主：背景深棕色#4a2c2a，工作台浅木色#d2b48c，工具图标采用拟物化SVG设计（墨斗为线绳缠绕的梯形，标记为点，切割为锯齿状）。交互中墨斗拉线要有弹簧阻尼感（Framer Motion弹簧动画，刚度200，阻尼20），标记点拖拽吸附到网格时有极小的磁吸震动反馈（0.1秒，色闪烁）。整体需响应式适配：桌面端（宽度>1024px）显示全部三列布局，平板端（768-1024px）隐藏左侧工具栏但可通过右上角汉堡菜单展开，手机端（<768px）将木料和操作区旋转为竖向显示。性能上确保弹线动画帧率不低于45fps，标记点拖拽操作响应时间不超过50ms。\n\n实现采用TypeScript和React，依赖framer-motion管理动画，zustand管理应用状态（木料状态、墨线轨迹、标记点、历史记录）。按以下文件组织代码：\n - package.json（含依赖：react、react-dom@18、typescript@5、vite@5、@vitejs/plugin-react@4、framer-motion@11、zustand@4，启动脚本：npm run dev）\n - vite.config.js（使用React插件，配置resolve.alias为'@'指向'src'）\n - tsconfig.json（严格模式，target ES2020，jsx react-jsx）\n - index.html（入口页面，标题“墨斗弹线模拟器”，引入Main组件）\n - src/types.ts（定义所有TypeScript接口类型——WoodPiece、墨线轨迹MarkedLine、标记点MarkingDot、历史记录HistoryRecord，共5个类型）\n - src/store.ts（用zustand创建全局store，包含状态：woodPieces（木料数组）、currentLine（当前墨线）、markers（标记点列表）、history（历史记录栈）以及actions：setLine、addMarker、reset、saveToHistory，共5个action）\n - src/components/Workbench.tsx（工作台主组件，包含墨斗线定义、木料渲染、标记点交互逻辑，调用store的action）\n - src/components/HistoryPanel.tsx（历史面板组件，从store读取history列表，每个项目包含回放按钮，点击后触发store中的replayHistory动画）\n\n运行方式：npm install && npm run dev，在浏览器中打开即可直接开始弹线和标记操作。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:08b7f6b1c876ddf855f10f0105096d09_6a2856ece6e4965c0cfa6a4f.6a285716e6e4965c0cfa6a5f.6a285716355e1cb2a66baaa0:Trae CN.T(2026/6/10 02:10:30)",
+    "user_id": "98336997115224",
+    "trace_id": "08b7f6b1c876ddf855f10f0105096d09",
+    "session_id": "6a2856ece6e4965c0cfa6a4f",
+    "task_id": "6a285716e6e4965c0cfa6a5f",
+    "message_id": "6a285716355e1cb2a66baaa0",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 02:10:30",
+    "format": "full"
+  },
+  "trace": "null"
+}
