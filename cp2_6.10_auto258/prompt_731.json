@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'光音织锦'的3D交互可视化项目，让用户像一位光的编织者，在三维空间中通过拖拽和连接光点来编织动态的光线网络，每条光线带有渐变的颜色和脉动动画，用户点击光线会触发对应的音效，音调随光线长度和颜色变化。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。文件结构大概这样：src/main.tsx作为入口，src/App.tsx组装场景、控制面板和事件日志面板，src/scene/LoomScene.tsx负责3D场景与光线生成逻辑，src/scene/LightThread.tsx定义单条光线的外观和动画，src/ui/ControlPanel.tsx包含滑块和按钮，src/ui/EventLog.tsx显示最近操作记录，然后根目录放package.json、tsconfig.json和vite.config.js，再加一个index.html。需求方面：1. 用户可通过点击空白区域生成光点，再点击另一光点即可在两者之间创建光线，光线颜色根据两点位置渐变（比如从红到蓝），并带有脉动呼吸动画。2. 每条光线被点击时播放对应音效（用Web Audio API生成），音调正比于光线长度，点击时光线会闪烁一次。3. 左侧控制面板提供：光线宽度滑块、脉动速度滑块、一个彩虹色带用于设置默认新生成光点的颜色、清空按钮。4. 右侧事件日志面板按时间倒序显示最近10条操作（如“连接光点A到光点B”），带淡入效果，点击日志条目可高亮对应的光线。5. 整体视觉走霓虹赛博朋克风格——背景深灰#1a1a2e、光点高亮#e94560、光线默认色从#0f3460到#16c79a渐变，光点周围有辉光粒子效果（使用Three.js的Sprite或Points）。6. 性能要求：光线数量达到50条时帧率仍保持60fps，粒子数量控制在500以内，使用BufferGeometry优化。对了，package.json里把react、react-dom、@react-three/fiber、@react-three/drei、three、typescript、vite、@vitejs/plugin-react都带上，启动脚本写npm run dev。tsconfig.json配置严格模式，vite.config.js用react插件。"
+}
