@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘流光编钟’的3D交互可视化项目，用户像一位数字时代的乐师，在三维空间中通过点击和拖拽来悬挂并敲击一组虚拟编钟——每个编钟会像真实青铜钟一样缓慢自旋，表面有流动的裂纹纹理，敲击后编钟会振动并发出对应频率的金属音，同时触发一圈圈光晕扩散；用户可以用‘音序器’滑块组合多个编钟的敲击顺序和间隔，生成一段旋律并自动循环播放。界面布局：中央是全屏Three.js 3D场景，支持鼠标拖拽旋转视角和滚轮缩放；左下角是半透明毛玻璃控制面板，包含编钟生成按钮、音序器滑块（控制节拍BPM和循环长度）、重置视角按钮和播放/停止开关；右下角是旋律日志面板，显示最近5次敲击的编钟编号、音高和节拍位置。颜色主题走古铜流光风：主色为古铜金#b87333和翡翠绿#00c853，背景从深棕渐变到暗金，编钟表面有青铜氧化纹理，光晕采用暖金色半透明粒子，按钮和控件用圆角金属质感加柔和发光。整体视觉风格融合古代编钟的庄重与现代数字的灵动。交互反馈要求：鼠标悬停时编钟微微增大并泛起涟漪，点击敲击瞬间有震动模糊和音效同步，拖拽编钟位置时有弹性动画。性能要求：帧率稳定在60fps，编钟数量达到30个时仍流畅。用TypeScript和React来实现，Three.js做3D渲染，react-three-fiber管理场景组件，react-three-spring做动画。文件结构大概这样：package.json里带上react、react-dom、three、@react-three/fiber、@react-three/drei、@react-three/spring、typescript、vite、@types/react、@types/react-dom，dev脚本用vite，build也写好；tsconfig.json开strict模式，模块用ESNext；vite.config.js简单配置；index.html作为入口；src/main.tsx作为React入口，挂载App组件；src/App.tsx负责布局和状态管理；src/scene/Bells.tsx负责编钟网格和交互逻辑；src/scene/AudioEngine.ts负责音效合成和播放；src/ui/ControlPanel.tsx负责控制面板和音序器UI。运行方式：npm install && npm run dev，直接打开浏览器就能玩。"
+}
