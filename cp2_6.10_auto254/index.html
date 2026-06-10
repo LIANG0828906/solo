@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星语气泡 - Star Voice Bubbles</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="canvas-container"></div>
+  
+  <div id="control-panel" class="glass-panel">
+    <h2 class="panel-title">✨ 星语控制</h2>
+    <button id="btn-bubble" class="control-btn">🌟 发射新气泡</button>
+    <div class="control-group">
+      <label for="speed-slider">气泡长大速度</label>
+      <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1">
+      <span id="speed-value">1.0x</span>
+    </div>
+    <button id="btn-reset" class="control-btn secondary">🔄 重置星空</button>
+  </div>
+  
+  <div id="log-panel" class="glass-panel">
+    <h2 class="panel-title">📜 星语日志</h2>
+    <div id="log-list"></div>
+  </div>
+  
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
