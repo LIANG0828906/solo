@@ -1,0 +1,32 @@
+[
+  {
+    "id": "bulb",
+    "name": "灯泡",
+    "icon": "💡",
+    "color": "#FFD700"
+  },
+  {
+    "id": "gear",
+    "name": "齿轮",
+    "icon": "⚙️",
+    "color": "#808080"
+  },
+  {
+    "id": "palette",
+    "name": "调色板",
+    "icon": "🎨",
+    "color": "#FF6B6B"
+  },
+  {
+    "id": "note",
+    "name": "音符",
+    "icon": "🎵",
+    "color": "#4ECDC4"
+  },
+  {
+    "id": "leaf",
+    "name": "绿叶",
+    "icon": "🍃",
+    "color": "#95E1A3"
+  }
+]

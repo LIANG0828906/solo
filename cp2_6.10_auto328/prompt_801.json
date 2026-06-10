@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "全栈web应用",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想做个叫'灵感火花·创想工坊'的全栈web应用，用户扮演一位创意发明家，在虚拟工坊里通过点击和拖拽不同的灵感碎片（如灯泡、齿轮、调色板、音符、绿叶）到合成台上，组合出每日随机生成的创意项目（如'智能植物浇水器'需要灯泡+绿叶+齿轮），成功则获得创意积分并触发火花四溅的粒子特效，失败则碎片消散并伴有轻微抖动反馈。系统每天生成5个创意挑战，每个挑战有90秒倒计时，用户需在时限内完成；每完成一个项目可点亮工坊墙上对应的发明灯，每周根据完成数量、积分和稀有成就生成一份《创想周报》，包含完成度统计和成就徽章。用TypeScript和React实现前端，后端用FastAPI处理碎片组合逻辑、项目生成和评分。文件结构大概这样：前端有package.json（带上react、react-dom、react-router-dom、@types/react、@types/react-dom、vite、@vitejs/plugin-react、typescript，dev脚本用vite，build也写好）、tsconfig.json、vite.config.js、index.html作入口、src/main.tsx（React入口挂载App组件）、src/App.tsx（主布局和路由）、src/components/Workshop.tsx（合成台交互组件，支持拖拽碎片到目标区域并触发动画和网络请求）、src/components/ChallengePanel.tsx（显示每日挑战列表和倒计时）、src/components/Report.tsx（周报展示组件，用柱状图展示数据）、src/api.ts（封装后端接口请求）、src/types.ts（定义碎片、项目、积分等TS类型）；后端有requirements.txt（带fastapi、uvicorn、pydantic）、main.py（FastAPI应用，处理碎片组合验证、项目生成和打分）、seed.py（生成初始碎片和挑战数据）。界面方面：整体风格走蒸汽朋克风，主色为黄铜金#b8860b和暗铁灰#3c3c3c，辅以霓虹蓝点缀；合成台区域占中央主要位置，碎片用拖拽交互，合成成功时粒子四散并伴随齿轮旋转动画；左上角显示当前积分和碎片库存，右上角倒计时醒目显示；底部是周报入口按钮，点击弹出半透明毛玻璃窗口显示柱状图和成就。要求响应式适配不同屏幕，帧率保持在60fps，交互反馈流畅。运行方式：npm install && npm run dev启动前端，同时后端起uvicorn main:app --reload。"
+}
