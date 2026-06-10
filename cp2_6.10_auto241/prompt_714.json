@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "游戏开发",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘虫语迷踪’的模拟昆虫饲养与进化游戏。玩家扮演一位昆虫学家，在玻璃生态箱里观察和培育不同种类的昆虫（如甲虫、蝴蝶、蚂蚁），通过调配食物、控制温湿度来促使昆虫变异进化，产生新的颜色和形态。玩家可以拖拽昆虫到繁殖区进行交配，有概率产生杂交后代，并解锁图鉴。游戏有昼夜更替和季节变化，影响昆虫活跃度和食物需求。界面布局上，中央是生态箱的3D俯视图，展示昆虫和植物；左侧是昆虫状态面板，显示每只昆虫的品种、变异度和当前行为；右下角是控制面板，包含食物投放、温湿度滑块和季节切换按钮。整体视觉风格走博物学手绘风，颜色采用暖色调——羊皮纸黄#f5e6c8、虫壳黑#2c2c2c、翠绿#4a8c3f、甲虫蓝#2980b9。交互反馈要流畅，昆虫移动动画帧率保持在60fps，模糊算法优化。用TypeScript和React来开发，配合framer-motion做昆虫爬行和翅膀扇动的动画，zustand管理游戏状态。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand，启动脚本写npm run dev），vite.config.ts，tsconfig.json，index.html（入口，引入React应用），src/main.tsx（应用入口，挂载React根组件），src/App.tsx（主游戏容器，管理生态箱、昆虫列表和面板布局），src/store/gameStore.ts（用zustand定义昆虫数据、温湿度、季节、图鉴解锁状态），src/components/Ecosystem.tsx（3D生态箱组件，渲染昆虫和植物，处理拖拽）。这样你npm install && npm run dev就能直接跑起来。"
+}
