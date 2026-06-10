@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T00:21:18.947Z",
+  "task_name": "auto242",
+  "task_type": "0-1代码生成",
+  "business_domain": "3D/交互可视化",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫‘岩层音痕’的3D交互可视化项目，让用户像一位地质学家一样，在三维岩层剖面场景中通过鼠标点击或拖拽来模拟地质勘探，每个点击会激发一道声波，声波在岩层中传播并反射，反射信号强度会依据岩层密度（随机生成不同颜色和纹理的岩层）变化，最终在右侧生成一个动态的波形图，用户可以通过调整一个频率滑块来改变声波波长，观察波形和反射路径的变化。\n用JavaScript和Three.js来实现，加上一些辅助库比如controls和stats。文件结构大概这样：\n- package.json：带上three、vite、stats-js，启动脚本写npm run dev\n- vite.config.js\n- index.html：入口页面，包含一个全屏canvas容器\n- src/main.js：初始化场景、相机、渲染器，启动动画循环\n- src/scene.js：构建岩层剖面（用多个层叠的平面几何体，每层随机颜色和透明度），声波生成和传播逻辑\n- src/waveform.js：绘制波形图（用Canvas 2D），接收反射信号数据实时更新\n- src/controls.js：定义频率滑块交互，绑定到声波波长参数\n界面布局：中央是岩层3D场景，占大部分面积；右侧是一个竖向波形图面板；左下角有一个频率滑块和一个重置按钮。颜色主题采用地质色谱：岩层深褐#4a3c31、砂岩黄#c6a87c、石灰岩灰#a09888，声波粒子用荧光绿#39ff14，背景用深地幔红#3d1c02。交互反馈要流畅，岩层点击时有轻微震动动画，波形更新频率与声波同步，整体帧率保持在60fps。你帮我写出完整可运行的代码，直接npm install && npm run dev就能跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:a2950720ca45a9f9bbe2f66a57a59318_6a28acc8aa3d63c1ed808f4f.6a28adf4aa3d63c1ed809066.6a28adf4fbe10a54d8b6f1f7:Trae CN.T(2026/6/10 08:21:08)",
+    "user_id": "98336997115224",
+    "trace_id": "a2950720ca45a9f9bbe2f66a57a59318",
+    "session_id": "6a28acc8aa3d63c1ed808f4f",
+    "task_id": "6a28adf4aa3d63c1ed809066",
+    "message_id": "6a28adf4fbe10a54d8b6f1f7",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 08:21:08",
+    "format": "full"
+  },
+  "trace": "null"
+}
