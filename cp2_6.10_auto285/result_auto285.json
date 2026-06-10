@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T01:53:24.556Z",
+  "task_name": "auto285",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'傀儡戏台'的全栈web应用，用户扮演一位中国古代傀儡师，在虚拟戏台上通过拖拽和组合不同角色傀儡（生、旦、净、末、丑）来演绎一段随机生成的折子戏，系统会根据傀儡的走位、动作和台词自动匹配剧情分支，最终生成一段可回放的表演录像。用户可以用鼠标拖拽傀儡到戏台的指定位置，点击傀儡可设置其动作（走、跑、打、唱、念）和情绪（喜、怒、哀、乐），傀儡之间会有互动反应（如碰撞触发斗殴、靠近触发对话），表演完成后可保存为gif或回放录像。用TypeScript和React实现前端，后端用FastAPI处理剧情生成、事件逻辑和评分计算。文件结构大概这样：\n- package.json：带上react、react-dom、typescript、vite、@types/react、@types/react-dom、react-router-dom、axios（前端请求后端）等依赖，启动脚本写npm run dev\n- tsconfig.json：严格模式，配置paths别名\n- vite.config.js：打包配置\n- frontend/src/main.tsx：入口\n- frontend/src/App.tsx：主应用，组装戏台组件、傀儡控制面板和剧情日志面板\n- frontend/src/components/Stage.tsx：戏台组件，用Canvas 2D绘制舞台背景，处理傀儡拖拽和动画\n- frontend/src/components/Puppet.tsx：单个傀儡组件，包含动作和情绪状态\n- backend/main.py：FastAPI后端，处理剧情生成、傀儡互动逻辑、评分计算\n- backend/requirements.txt：FastAPI、uvicorn\n运行方式：先npm install && npm run dev启动前端，再python backend/main.py启动后端。\n需求如下：\n1. 用户从傀儡库中拖拽傀儡到戏台，最多同时激活5个傀儡，每个傀儡有4种动作和4种情绪，拖拽时傀儡跟随鼠标移动，释放后自动对齐到戏台网格点。\n2. 点击傀儡弹出动作选择菜单（走、跑、打、唱、念）和情绪选择菜单（喜、怒、哀、乐），选择后傀儡执行对应动画（如走路时左右摆动，打时挥拳动作），动画帧率保持在30fps以上。\n3. 傀儡之间距离小于50px时触发互动：相同情绪组合（如两个喜）触发对话，生成随机台词并以气泡显示；不同情绪组合（如怒对喜）触发斗殴，产生粒子特效（火星四溅）。\n4. 系统每30秒生成一个随机剧情事件（如‘巡游’、‘比武’、‘吟诗’），用户需在15秒内通过拖拽和设置傀儡完成指定动作组合，成功则获得戏迷喝彩特效（屏幕上方飘落花瓣），失败则降低观众满意度。\n5. 每次表演结束后生成评分：基于动作完成的准确率、互动次数和事件处理成功率，评分以古代‘甲、乙、丙’等级显示，并伴有对应音效反馈。\n6. 界面布局：中央戏台（占70%宽度），左侧傀儡库（可滚动，显示傀儡缩略图和名称），右侧剧情日志面板（显示最近5条事件和操作记录）。颜色主题采用古风红黑：戏台背景古铜色#b87333，傀儡色彩用朱红#e63946和墨黑#1d1c1c，文字用宣纸白#fefae0，按钮用暗金渐变，整体边框做木质纹理效果。\n7. 交互反馈：所有按钮点击有轻微缩放动画（0.95→1），拖拽傀儡时舞台网格高亮显示吸附点，动作设置后傀儡底部光环闪烁3次，事件倒计时开始时有脉搏动效果，满意度低于50%时屏幕边框变红。页面适配宽屏和移动端（戏台自适应缩放）。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:e0a64ecad0c0baddf7934dc9f8b24cd3_6a28c31ba299cf3a1c222453.6a28c379a299cf3a1c2224c3.6a28c379bb6b58b81da27ddb:Trae CN.T(2026/6/10 09:52:57)",
+    "user_id": "98336997115224",
+    "trace_id": "e0a64ecad0c0baddf7934dc9f8b24cd3",
+    "session_id": "6a28c31ba299cf3a1c222453",
+    "task_id": "6a28c379a299cf3a1c2224c3",
+    "message_id": "6a28c379bb6b58b81da27ddb",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 09:52:57",
+    "format": "full"
+  },
+  "trace": "null"
+}
