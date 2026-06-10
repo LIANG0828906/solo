@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T16:54:48.869Z",
+  "task_name": "auto33",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够在浏览器中模拟古代宫廷乐师在编钟架上演奏时，通过击打不同大小和厚度的铜钟来合成多音轨旋律的交互应用，主要解决传统编钟演奏中每口钟的音高（频率）、延音时长和余韵混响在空间中的叠加效果难以像现代合成器一样被灵活编排和实时试听的问题。\n\n它应当具备以下能力：\n1) 编钟管理器：在界面上用CSS绘制一组按音阶排列的青铜编钟（钟体用从#8b5a2b到#3a1a0a的径向渐变模拟铜锈质感，钟钮用深褐#2a1a0a），每口钟上方标记对应的宫商角徵羽或现代音名（C4-B5），点击钟体或按下键盘对应键（A-K排列）触发击打动画（钟体小幅摆动、锤头#4a3a2a短促击打）并发出对应频率的声音。\n2) 旋律录制与回放：用户可通过拖拽建立时间线轨道（时间单位用古代更漏刻度：一刻钟=15秒，分六段），将不同编钟的击打事件按节拍（四拍子，默认BPM=60）排布到轨道上，支持选中后微调击打力度（0-100，影响音量与泛音数量）和触发时间偏移（提前或延迟0-200ms模拟演奏误差），录制完成后可一键回放完整旋律。\n3) 空间混响模拟：用户可在场景中拖拽调整编钟架在虚拟大殿中的位置（横轴0-100%表示从左侧廊柱到右侧廊柱），并调节混响半径（1-5m，影响声音的衰减曲线），使得不同位置的钟声在听感上产生从左到右的声像平移和混响尾音的扩散差异（使用panning与延迟mix算法，混响时长0.3-3秒）。\n4) 随机生成旋律：提供基于宫商角徵羽五声音阶的随机旋律生成按钮，按默认节奏（四拍、8小节）自动在轨道上填充音符，用户可进一步手动替换或修改任意音符，作为创作起点。\n5) 视觉反馈与主题：每次击打时，对应编钟上方浮出一个震荡波纹（半透明圆环#e0c060从钟心向外扩散并渐隐，持续0.5秒），同时钟体表面产生微弱的辉光（box-shadow: 0 0 10px #e0c060），模拟撞击产生的声波视觉化。整个界面采用宋代宫廷风格配色——背景为暗红#3a1a1a，编钟架深色木纹#4a3020，文字用淡金#e0c060，按钮和边框用朱红#b22222，营造皇家祭祀氛围。\n\n界面方面：编钟架占主视区左侧50%，右侧依次是时间线轨道（水平滚动，每刻钟显示一个木色刻度条#6b4e3a）和混响控制面板（垂直排列滑块，标签用隶书体），整体布局响应式，在窗口宽度小于768px时轨道面板自动折行到编钟架下方。编钟的排列从低音到高音从左到右呈弧形分布（类似真实编钟的悬挂方式，使用CSS transform: rotate使钟体略向内倾），击打时锤头从上方落下（动画时长0.1s），钟体左右摆动3度（0.3s），配合波纹扩散，形成多模态反馈。\n\n性能上需要：击打事件到声音播放的延迟（button-to-sound latency）不超过50ms，时间线回放时每120帧内节拍偏移不超过±2帧，确保节拍稳定。\n\n实现采用TypeScript和React，使用Web Audio API（AudioContext, OscillatorNode, GainNode, PannerNode）进行声音合成与空间化处理，文件按以下结构组织代码：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、zustand，启动脚本：npm run dev）\n - vite.config.js（基础Vite配置，resolve.alias设为@/src）\n - tsconfig.json（严格模式，target ES2020）\n - index.html（入口，加载src/main.tsx）\n - src/main.tsx（React DOM渲染入口，包裹App组件）\n - src/App.tsx（根组件，管理全局状态，通过useBellStore分发击打、录制、混响参数给子组件）\n - src/components/BellRack.tsx（编钟架容器：负责绘制17口编钟（C4-B5半音阶），监听键盘/鼠标事件，触发击打动画与声音请求，数据流向：接收store中的activeBells状态→播放声音→更新store中的hitEvents）\n - src/components/Timeline.tsx（时间线轨道：渲染更漏刻度时间轴，支持拖拽放置钟体事件、编辑力度和偏移，数据流向：接收store中的trackEvents→用户编辑→更新store）\n - src/components/MixerPanel.tsx（混响控制面板：渲染声像X轴滑块、混响半径滑块与混响时长滑块，数据流向：读取store中的reverbParams→用户调节→更新store并实时修改AudioContext的PannerNode和ConvolverNode参数）\n - src/utils/audioEngine.ts（音频引擎：单例模式，内部管理AudioContext实例，提供hitBell(freq, volume, pan, reverbTime)方法，通过OscillatorNode生成基频+前三个泛音（2倍、3倍、4倍频，振幅递减50%、30%、15%），经GainNode放大后送入PannerNode和ConvolverNode（用0.2s的衰减冲激响应模拟大殿混响），返回一个停止函数以便回放时精确控制。数据流向：被BellRack和Timeline回放逻辑调用→更新内部AudioParam）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:4e6253d153e935c1d93866ea2ce85bb0_6a284466cc392ecb433d0fb6.6a28453dcc392ecb433d1102.6a28453dfcc1647aee5e754a:Trae CN.T(2026/6/10 00:54:21)",
+    "user_id": "98336997115224",
+    "trace_id": "4e6253d153e935c1d93866ea2ce85bb0",
+    "session_id": "6a284466cc392ecb433d0fb6",
+    "task_id": "6a28453dcc392ecb433d1102",
+    "message_id": "6a28453dfcc1647aee5e754a",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 00:54:21",
+    "format": "full"
+  },
+  "trace": "null"
+}
