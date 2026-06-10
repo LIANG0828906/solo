@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "Web前端",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫‘云间算影’的交互式数据可视化页面，让用户像一位古代的运筹学家一样，在虚拟的云图网格上通过拖拽放置不同颜色的算筹来表示数据点，系统会根据放置的数据自动拟合出多项式曲线，并显示拟合的误差和方程。用户可以通过滑块调整多项式的阶数，从线性到五次多项式实时切换，拟合曲线和误差会同步更新，同时每个数据点可以编辑或删除，拖拽到新位置后重新拟合。页面布局：中央是云图网格画布（占主要面积），左侧是数据点操作面板（包含添加点、清空、导入示例数据按钮），右侧是拟合结果面板（显示多项式方程、R²值、均方误差）。颜色主题采用水墨云纹风格：云白#f5f5f0，墨灰#3a3a3a，朱红#c0392b，石青#4682b4，淡藤黄#f0e68c，网格线用淡墨色半透明，数据点用朱红圆圈，拟合曲线用石青色带发光效果。交互反馈要求顺滑，点拖拽时显示坐标数值，拖拽到位后曲线重新计算和重绘，整个过程帧率保持60fps。用TypeScript和React来做，配合framer-motion做曲线渐变动画和数据点拖拽反馈，zustand管理数据点列表、曲线参数和误差状态。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand、mathjs，启动脚本写npm run dev）、vite.config.ts、tsconfig.json、index.html（入口）、src/main.tsx（React入口）、src/App.tsx（主布局组件）、src/components/GridCanvas.tsx（云图网格画布，拖拽与渲染）、src/components/ControlPanel.tsx（左侧操作面板）、src/components/ResultPanel.tsx（右侧拟合结果面板）、src/store/useStore.ts（zustand状态管理）。运行方式：npm install && npm run dev，依赖完整，开箱即用。"
+}
