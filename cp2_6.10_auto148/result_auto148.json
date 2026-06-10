@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T20:31:26.403Z",
+  "task_name": "auto148",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个宋代茶百戏（茶汤点茶与分茶）的交互模拟与鉴赏工具，让用户像宋代文人一样，在虚拟的茶案前用茶筅击拂茶汤，在茶面上画出花鸟鱼虫等图案，并可以调节汤花（茶沫）的细腻程度和图案的消散速度。用TypeScript和React来实现。文件结构大概这样：\n- package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand这些依赖，启动脚本写npm run dev）\n- vite.config.js（配置React插件）\n- tsconfig.json（严格模式）\n- index.html（入口页面，标题设为“茶百戏·分茶斋”）\n- src/App.tsx（主应用组件，布局左右两栏：左栏为操作面板，右栏为茶汤画布）\n- src/store/teaStore.ts（zustand状态管理，存储茶汤细腻度、图案消散速度、当前茶面图案等全局状态）\n- src/components/TeaCanvas.tsx（核心画布组件，使用canvas模拟茶汤与气泡的物理效果，支持鼠标绘制图案）\n- src/styles/global.css（全局样式，整体采用米白#f5f0e1为主色，搭配墨黑#3a2a1a和茶绿#6b8e23作为点缀，按钮和边框模仿竹简纹理，页面有轻微宣纸颗粒背景）\n具体需求：\n1. 左侧操作面板包含调节滑块：茶汤细腻度（影响气泡密度与持久度）和图案消散速度（从30秒到5分钟可调），以及一个“清盏”按钮重置画布。\n2. 右侧画布区域占据大部分页面（宽高比4:3），初始显示为浅黄绿色茶汤表面，有细微气泡漂浮和消散的动画效果。\n3. 用户可以在画布上用鼠标自由绘制线条（模拟茶筅蘸取茶膏在茶面上作画），线条颜色为深褐#4a3728，粗细随鼠标速度变化（慢速粗，快速细）。\n4. 绘制的图案会随时间逐渐模糊、扩散并向四周消散，消散速度由左侧滑块控制；同时气泡会不断在茶汤表面生成和破裂，营造真实茶汤质感。\n5. 预设四种经典茶百戏图案：“寒梅”、“竹影”、“游鱼”、“飞鹤”一键生成，生成时伴有墨迹扩散的动画（使用framer-motion做缓动）。\n6. 性能方面：canvas动画帧率需保持在60fps，气泡数量控制在100个以内，图案消散计算使用requestAnimationFrame优化。\n7. 界面响应式适配：在移动端时自动切换为上下布局（操作面板在上，画布在下），画布高度自适应屏幕高度。整体视觉风格朴素淡雅，像宋代文人书房的感觉。\n对了，记得把package.json和tsconfig.json、vite.config.js都带上，这样我npm install && npm run dev就能直接运行了。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:8bbd1d24ac8bcb4621e04f3bde894c85_6a2877c5a95c6ae0f0169c58.6a287803a95c6ae0f0169ca3.6a287803383a1f968e98318b:Trae CN.T(2026/6/10 04:30:59)",
+    "user_id": "98336997115224",
+    "trace_id": "8bbd1d24ac8bcb4621e04f3bde894c85",
+    "session_id": "6a2877c5a95c6ae0f0169c58",
+    "task_id": "6a287803a95c6ae0f0169ca3",
+    "message_id": "6a287803383a1f968e98318b",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 04:30:59",
+    "format": "full"
+  },
+  "trace": "null"
+}
