@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T19:00:02.778Z",
+  "task_name": "auto95",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够管理古代敦煌壁画颜料库与调配记录的全栈web应用，主要解决画师在临摹壁画时，需要根据壁画年代（北凉、北魏、西魏、隋、唐）匹配相应的矿物颜料配方，并记录每次调配的色样、比例和用量，同时计算剩余颜料的库存和过期预警的问题。\n\n它应当具备以下能力：\n1) 颜料库存管理：每种颜料记录名称（如石青、石绿、朱砂、赭石、藤黄、花青、钛白、蛤粉、金箔）、产地（如于阗、龟兹、凉州）、入库日期、保质期（矿物颜料5年，植物颜料2年）、当前克数。支持增删改查，表格显示，库存低于10克时行背景变为浅红色并闪烁。\n2) 配方调配与色样记录：用户选择一种壁画风格（如北凉晕染法），系统自动推荐基础颜料组合（如石青+钛白+蛤粉）。用户可手动增减克数（精确到0.1克），点击“调配”后生成一个圆形色样（直径60px，内圈渐变模拟调色效果），并记录调配日期、用量、剩余库存自动扣减。\n3) 批次与调色历史追踪：每次调配生成一条历史记录，包含配方ID、颜色色样、配方比例（如石青:钛白:蛤粉 = 3:2:1）、用量、剩余库存变更。用户可按壁画风格（北凉、北魏等）筛选历史记录。\n4) 库存预警与过期标记：每罐颜料在保质期前30天时，在库存表格顶部弹出黄色横幅提示“XX颜料将于YYYY-MM-DD过期”。过期后，该颜料的可用状态变为灰色并带删除线，无法用于新调配。\n\n界面方面要求：整体采用米黄#f5eedc和赭石#8b5e3c的敦煌土墙色调，卡片边缘带轻微做旧纹理（box-shadow模拟纸张破损），列表行之间的分隔线为细虚线。配色颜料的色样圆盘在鼠标悬停时放大约1.2倍并显示RGB值和HEX色码。库存表格支持按颜料名称排序（点击表头），行交替背景为#faf3e0和#f5eedc。页面顶部有一个动态的飘落壁画颗粒粒子特效（30个半透明3px圆点，随机从顶部飘落，透明度在0.1到0.4之间循环）。所有按钮点击都有轻微按压动画（scale 0.95，持续100ms）。整体响应式适配，在手机端卡片堆叠为单列，表格转为可左右滚动的卡片区块。\n\n性能上需要：颜料列表的搜索与筛选响应时间不超过200ms，历史记录的分页加载（每页20条）首次渲染不超过300ms，颜色色样生成（canvas绘制）的CPU耗时不超过50ms。\n\n实现采用TypeScript、React和Express，按以下文件组织代码：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、express、cors、zustand、framer-motion，启动脚本：npm run dev）\n - vite.config.js（配置React插件和代理/api到后端）\n - tsconfig.json（开启严格模式）\n - index.html（入口页面，标题为“敦煌壁画颜料库·莫高窟画师录”）\n - server.js（Express服务，提供REST API：GET /api/pigments返回颜料列表，POST /api/recipes创建调配记录，GET /api/recipes?style=xxx按风格筛选历史记录，POST /api/pigments/:id/toggle-expire标记过期，返回JSON。跨域用cors中间件）\n - src/App.tsx（主组件，包含颜料库存表格、配方调配面板、历史记录列表三个区域，通过zustand管理全局状态：pigments数组、recipe数组、筛选条件）\n - src/PigmentTable.tsx（颜料库存表格组件，接收pigments列表并渲染，支持排序、过期标记、库存低亮红闪烁，点击颜料行弹窗显示详情）\n - src/RecipePanel.tsx（配方调配面板组件，包含风格下拉选择、颜料多选与克数输入、生成色样canvas绘制、调配按钮，触发POST请求）\n - src/HistoryList.tsx（历史记录列表组件，支持按风格筛选，每项显示配方ID、色样、比例、用量、日期，分页加载）\n\n运行方式：npm install && npm run dev，前端在localhost:5173，代理后端localhost:3001。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:eed799117608c61ae4bac6a82d76bd15_6a2861ebbe9a150e23d26e4f.6a286297be9a150e23d26f0c.6a286297a312261904f85385:Trae CN.T(2026/6/10 02:59:35)",
+    "user_id": "98336997115224",
+    "trace_id": "eed799117608c61ae4bac6a82d76bd15",
+    "session_id": "6a2861ebbe9a150e23d26e4f",
+    "task_id": "6a286297be9a150e23d26f0c",
+    "message_id": "6a286297a312261904f85385",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 02:59:35",
+    "format": "full"
+  },
+  "trace": "null"
+}
