@@ -1,0 +1,63 @@
+[
+  {
+    "id": 1,
+    "type": "drag",
+    "description": "取《论语》一卷并置于案上",
+    "targetItem": "book_lunyu",
+    "targetZone": "desk"
+  },
+  {
+    "id": 2,
+    "type": "sequence",
+    "description": "煮一壶龙井茶送至琴台",
+    "steps": ["wash_teapot", "boil_water", "steep_tea", "serve"]
+  },
+  {
+    "id": 3,
+    "type": "click",
+    "description": "研磨一池松烟墨供我作画"
+  },
+  {
+    "id": 4,
+    "type": "drag",
+    "description": "将宣纸铺于画案之上",
+    "targetItem": "xuan_paper",
+    "targetZone": "painting_desk"
+  },
+  {
+    "id": 5,
+    "type": "sequence",
+    "description": "焚香抚琴一曲《高山流水》",
+    "steps": ["light_incense", "tune_strings", "play_guqin"]
+  },
+  {
+    "id": 6,
+    "type": "click",
+    "description": "提笔在扇面上题诗一首"
+  },
+  {
+    "id": 7,
+    "type": "drag",
+    "description": "取一方端砚置于文房",
+    "targetItem": "duan_inkstone",
+    "targetZone": "study_room"
+  },
+  {
+    "id": 8,
+    "type": "sequence",
+    "description": "以文房四宝书写一幅对联",
+    "steps": ["prepare_ink", "lay_paper", "write_couplet", "seal_stamp"]
+  },
+  {
+    "id": 9,
+    "type": "click",
+    "description": "为画作钤上朱红印章"
+  },
+  {
+    "id": 10,
+    "type": "drag",
+    "description": "将《兰亭序》挂于中堂",
+    "targetItem": "lanting_scroll",
+    "targetZone": "main_hall"
+  }
+]

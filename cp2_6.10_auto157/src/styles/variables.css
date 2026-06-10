@@ -1,0 +1,15 @@
+:root {
+  --paper-color: #f5f0e1;
+  --bamboo-color: #6b8e23;
+  --bamboo-dark: #556b2f;
+  --ink-black: #212121;
+  --wood-brown: #5d4037;
+  --vermilion: #c62828;
+  --jade-green: #2e7d32;
+
+  --shadow-soft: 0 2px 8px rgba(93, 64, 55, 0.15);
+  --shadow-woodcut: 2px 3px 0 rgba(33, 33, 33, 0.3);
+
+  --font-title: 'ZCOOL XiaoWei', serif;
+  --font-body: 'Noto Serif SC', serif;
+}
