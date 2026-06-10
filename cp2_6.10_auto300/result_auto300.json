@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:25:56.043Z",
+  "task_name": "auto300",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'幻境迷宫·光影回廊'的3D迷宫探索游戏，玩家需要在一个不断旋转变化的几何迷宫中，操控一个发光球体寻找出口，沿途收集能量碎片来解锁下一层，同时躲避移动的光柱障碍。每一层迷宫的结构和光柱旋转速度都会变化，玩家需要根据光柱的闪烁节奏规划路径。用TypeScript和React来实现，Three.js做3D渲染，react-three-fiber管理场景组件。文件结构大概这样：\n- package.json：带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three等依赖，dev脚本用vite，build脚本也写好。\n- tsconfig.json：标准配置，strict模式开，模块用ESNext。\n- vite.config.js：简单配置，用react插件。\n- index.html：入口页面，带一个根div。\n- src/main.tsx：React挂载入口。\n- src/App.tsx：主组件，包含场景、相机、控制面板和UI层。\n- src/Maze.tsx：迷宫生成逻辑，负责动态生成墙壁、光柱和能量碎片。\n- src/Player.tsx：玩家小球的控制和碰撞检测。\n- src/UI.tsx：左上角显示当前层数和碎片数，右下角有暂停/重置按钮，通关后弹出结算面板（显示用时和收集率，有重玩按钮）。\n运行方式：npm install && npm run dev。\n需求如下：1. 迷宫每层随机生成，墙壁用半透明发光的几何体，整体色调随层数变化（第一层蓝紫，第二层橙红，第三层青绿）。2. 光柱障碍绕中心旋转，旋转速度和方向每层变化，光柱自身有脉动发光效果，触碰玩家会重置到起点。3. 能量碎片随机分布在迷宫中，收集时触发粒子爆散和音效（可简单用振荡器代替），收集满一定数量开启传送门到下一层。4. 玩家小球用鼠标拖拽控制移动方向，按空格可短暂冲刺（有冷却时间），碰到墙壁会柔和反弹。5. 交互反馈：小球移动时拖尾粒子，收集碎片时屏幕边缘闪烁对应颜色，切换层时有镜头缩放过渡动画。6. 性能要求帧率稳定在60fps，使用react-three-fiber的批量渲染优化。整体视觉风格走赛博幻境风，主色为霓虹紫#9b59b6和青色#00e5ff，背景深空黑，墙壁用半透明渐变，光柱用发光边框。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:45fa9cdaac1e13dcafcae2645233b4ff_6a28cadf8585eef760b490ea.6a28cb298585eef760b49141.6a28cb29844c792f723a646f:Trae CN.T(2026/6/10 10:25:45)",
+    "user_id": "98336997115224",
+    "trace_id": "45fa9cdaac1e13dcafcae2645233b4ff",
+    "session_id": "6a28cadf8585eef760b490ea",
+    "task_id": "6a28cb298585eef760b49141",
+    "message_id": "6a28cb29844c792f723a646f",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:25:45",
+    "format": "full"
+  },
+  "trace": "null"
+}
