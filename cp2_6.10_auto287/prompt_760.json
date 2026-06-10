@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "全栈web应用",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'算筹·天工'的全栈web应用，用户扮演一位古代工匠，在虚拟工坊中通过拖拽不同属性的算筹（木、金、火、水、土）到工坊台面上来构建各种器物（如战车、农具、乐器），系统会根据算筹组合自动计算器物的属性加成（如坚固度、锋利度、音律等），并实时渲染出器物的3D预览。用户可以用鼠标拖拽算筹到工坊的指定格子，点击算筹可翻转或旋转，长按算筹可调出其属性面板，算筹之间会产生相生相克效果（如金克木、木生火），并触发粒子特效和音效反馈。每次构建完成后会生成一份《天工开物》记录，包含器物名称、属性面板、历史评分。界面布局：中央是工坊工作区（3D预览为主，使用Three.js渲染），左侧是算筹仓库（显示所有未使用的算筹，可滚动选择），右侧是器物信息面板（显示当前构建器物的属性、评分和建造日志）。颜色主题采用古代竹简风格：竹黄#e8d5b3、墨黑#2b1e0e、朱红#c0392b，整体视觉带有古朴的纹理和毛边效果。交互反馈：拖拽算筹时有轻微的弹性动画，算筹放置到位后有清脆的木石撞击音效，属性面板弹出和收起伴随柔和的缩放过渡。性能要求：3D场景帧率稳定在60fps，算筹触发动画流畅无卡顿。用TypeScript和React来实现前端，后端用FastAPI处理算筹组合逻辑、属性计算和评分生成。文件结构大概这样：package.json（带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/three、fastapi、uvicorn等依赖，启动脚本写npm run dev），tsconfig.json（严格模式，esnext模块），vite.config.js（配置react插件和基础路径），入口HTML（index.html，挂载div#root），后端文件main.py（FastAPI应用，包含/api/calculus-combine和/api/rating两个接口），前端文件src/App.tsx（主应用组件，管理状态和路由）、src/components/Workshop.tsx（工坊工作区3D场景组件）、src/components/CalculusStore.tsx（算筹仓库组件）、src/components/InfoPanel.tsx（器物信息面板组件）。运行方式：npm install && cd frontend && npm run dev，后端cd backend && uvicorn main:app --reload。"
+}
