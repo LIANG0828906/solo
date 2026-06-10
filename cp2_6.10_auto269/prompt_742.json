@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "游戏开发",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'空灵编钟'的模拟演奏与探索游戏，玩家扮演一位在云端漂浮的古代乐师，需要调整不同大小的虚幻编钟来演奏一首随机的天籁之音。玩家可以拖拽编钟到特定音阶台，碰撞或敲击时产生共鸣音效与粒子光晕，编钟之间还有和声交融效果——当两个音阶相邻时，会自动触发一段旋律。整体氛围宁静空灵。用TypeScript和React来做，Three.js渲染3D场景，react-three-fiber管理场景和组件。文件结构大概这样：package.json（带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite等依赖，启动脚本写npm run dev），tsconfig.json（严格模式），vite.config.ts，index.html入口，src/main.tsx作为React入口，src/App.tsx组装场景、控制面板和乐谱面板，src/scene/CloudScene.tsx负责3D云端场景和编钟生成逻辑，src/scene/Bell.tsx定义单个编钟的3D模型和交互逻辑，src/ui/ControlPanel.tsx包含音阶台选择、力度滑块和重置按钮，src/ui/ScorePanel.tsx显示已演奏的旋律。需求：1. 用户能通过鼠标拖拽编钟到音阶台上，松开后触发敲击音效与粒子光晕动画，粒子颜色随音高变化。2. 编钟之间自动检测距离，若两个编钟音阶相邻且距离小于阈值，触发和声共鸣——两者同时发光并播放一段和谐旋律。3. 玩家可以旋转和缩放视角来观察编钟的全貌，视角平滑跟随鼠标。4. 界面布局：中央是3D场景（占主要面积），左下角是控制面板（包含力度滑块0-100、编钟数量调节、重置按钮），右下角是乐谱面板（显示最近10个敲击的编钟音符和时值。5. 颜色主题采用云雾晨曦风格：天空蓝#b0d4f1、云朵白#f0f8ff、编钟青铜#cd7f32，粒子光晕用半透明渐变。6. 交互响应流畅，帧率稳定在60fps，敲击与共鸣动画无卡顿。别忘了把package.json、tsconfig.json和vite.config.ts都带上，这样直接npm install && npm run dev就能跑起来。"
+}
