@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:08:53.043Z",
+  "task_name": "auto291",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做个'星轨漂移'的太空跑酷游戏，玩家操控飞船在动态生成的星轨上躲避陨石、黑洞和能量风暴，同时收集星尘加速，攒够一定数量能触发'星爆'特效清屏。用TypeScript和Phaser 3来做。\n文件结构大概这样：\n- package.json：带上phaser、typescript、vite、@types/phaser，dev脚本用vite，build脚本也写好。\n- tsconfig.json：标准配置，strict模式开，模块用ESNext。\n- vite.config.js：简单配置，用phaser相关插件。\n- index.html：入口页面。\n- src/main.ts：游戏入口，初始化Phaser配置。\n- src/scenes/GameScene.ts：游戏主场景，处理生成障碍、星星、碰撞逻辑。\n- src/scenes/UI.ts：HUD面板，显示分数、星尘数、暂停按钮。\n- src/scenes/EndScene.ts：游戏结束结算，显示得分和重玩按钮。\n需求方面：\n1. 飞船用键盘方向键或WASD控制上下左右移动，不能用鼠标。\n2. 星轨自动向下滚动，障碍物随机从顶部出现，速度随分数递增。\n3. 收集星尘时触发粒子爆散效果，并播放短促音效（用Web Audio API合成）。\n4. 星爆效果：屏幕闪白，范围内障碍物消失，飞船短暂无敌（2秒）。\n5. 界面布局：中央全屏游戏画布，左上角显示分数和星尘数白色文字，右下角圆形暂停按钮（半透明发光）。\n6. 颜色主题：深空蓝黑#0B0F2A背景，星轨用渐变紫#7B2FF7到粉#FF4B8B，障碍物用暗红#CC0000加发光边框，星尘粒子用金色#FFD700。\n7. 性能要求：帧率稳定在60fps，移动端也流畅。\n对了，加上package.json和tsconfig.json，直接npm install && npm run dev就能跑。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:7a326dda66e2db46c3662b28a2e57e5f_6a28c6f53d1f29931c78646c.6a28c71a3d1f29931c78647c.6a28c71adddca40387c2c133:Trae CN.T(2026/6/10 10:08:26)",
+    "user_id": "98336997115224",
+    "trace_id": "7a326dda66e2db46c3662b28a2e57e5f",
+    "session_id": "6a28c6f53d1f29931c78646c",
+    "task_id": "6a28c71a3d1f29931c78647c",
+    "message_id": "6a28c71adddca40387c2c133",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:08:26",
+    "format": "full"
+  },
+  "trace": "null"
+}
