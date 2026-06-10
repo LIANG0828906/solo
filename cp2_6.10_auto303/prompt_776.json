@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个叫'星脉织镜'的3D交互可视化项目，让用户像一位星际编织者，在三维空间中通过点击和拖拽来放置反射镜面节点——每个镜面会像水晶棱镜一样缓慢旋转并折射出彩色光束，节点间的连线会随用户调节的'光束强度'滑块产生波动的光流动画，点击镜面会触发一次星芒爆裂特效并播放一段空灵的电子音。界面布局：中央是全屏Three.js 3D场景，支持鼠标拖拽旋转视角和滚轮缩放；左下角是半透明毛玻璃控制面板，包含镜面生成按钮、光束强度滑块、重置视角按钮和镜面模式切换（反射/折射/分光）；右下角是交互日志面板，显示最近5次交互的镜面 ID、光束角度和距离。颜色主题走极虹星轨风：主色为极光绿#00ff7f和虹彩紫#8a2be2，背景从深空蓝渐变为星云紫，镜面用半透明彩色棱镜材质，光束用流动的渐变光带，交互反馈有微弱的粒子爆炸和镜面轻微震动动画。性能要求：帧率稳定在60fps，交互响应流畅。用TypeScript和React来实现，Three.js做渲染，react-three-fiber管理场景。文件结构大概这样：\n- package.json: 带上react、react-dom、typescript、three、@react-three/fiber、@react-three/drei、vite、@types/react、@types/react-dom，dev脚本用vite，build脚本也写上。\n- tsconfig.json: 标准配置，strict模式开，模块用ESNext。\n- vite.config.js: 简单配置vite。\n- index.html: 入口页面。\n- src/main.tsx: React入口。\n- src/components/Scene.tsx: 包含Three.js场景、控制面板和日志面板。\n- src/components/MirrorNode.tsx: 镜面节点组件，处理自旋、光束折射和点击特效。\n- src/hooks/useInteractionLog.ts: 管理交互日志的自定义hook。\n运行方式：npm install && npm run dev。"
+}
