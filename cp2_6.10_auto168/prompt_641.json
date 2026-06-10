@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "3D/交互可视化",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个虚拟的宋代“璇玑玉衡”天文观测仪3D交互可视化项目。用户像一位北宋司天监的官员，在三维空间中操作一架铜制璇玑玉衡（包含地平环、子午环、赤道环、黄道环以及窥管），通过鼠标拖拽整体旋转、点击环圈查看对应的天文刻度与节气说明，还能拖动时间滑块（从正月到腊月）观察星空背景中二十八宿与北极星的位置实时变化。界面采用古朴铜绿#6b8e23和深空蓝#1a1a3e的配色，环圈发光以金色粒子动画模拟，交互反馈流畅，帧率保持60fps。用TypeScript、React和Three.js来实现，配置完整，我直接npm install && npm run dev就能跑起来。文件结构大概这样：\n- package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、three、@react-three/fiber、@react-three/drei、framer-motion、zustand这些依赖，启动脚本写npm run dev）\n- vite.config.js（配置React插件）\n- tsconfig.json（严格模式）\n- index.html（入口页面，标题设为“璇玑玉衡·观星台”）\n- src/main.tsx（渲染根组件）\n- src/App.tsx（主场景，包含3D画布和UI控制面板）\n- src/components/Astrolabe.tsx（璇玑玉衡的3D模型及环圈逻辑）\n- src/components/StarBackground.tsx（星空粒子背景，含二十八宿位置）\n- src/components/ControlPanel.tsx（时间滑块与环圈信息弹窗）\n- src/store/useAppStore.ts（zustand状态管理：当前时间、选中环圈、显示信息等）\n需求：1. 核心功能：用户通过鼠标拖拽旋转整个璇玑玉衡，滚动缩放视角，点击环圈弹出说明。\n2. 时间模拟：拖动年历滑块（12个月份），赤道环与黄道环实时旋转，星宿背景同步移动。\n3. 界面布局：左侧为3D场景占满屏幕，右下角浮动控制面板包含滑块和文字说明。\n4. 动画效果：环圈转动时有金色粒子拖尾，点击环圈时高亮发光渐隐。\n5. 交互反馈：鼠标悬停环圈时显示刻度数值，点击弹出悬浮信息框，内容为古代天文术语解释。\n6. 响应式适配：在手机端控制面板折叠为下方固定栏，3D场景自动调整相机视口。\n7. 性能要求：使用Three.js的LOD和帧率限制确保60fps，粒子数量不超过200个。"
+}
