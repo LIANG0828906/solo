@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:27:40.639Z",
+  "task_name": "auto304",
+  "task_type": "0-1代码生成",
+  "business_domain": "游戏开发",
+  "modification_scope": "模块内多文件",
+  "prompt": "想做一个叫‘星轨弹珠’的物理弹射游戏，玩家在星空中拖动一条弹性光轨来瞄准，松手后弹珠沿轨道飞出，撞击漂浮的星尘球、陨石块和能量晶核，不同撞击会触发爆炸、分裂和收集效果，累计得分并解锁下一波障碍。用TypeScript和Phaser 3来做。文件结构大概这样：package.json里带上phaser、typescript、vite和@types/phaser，dev用vite，build写好；tsconfig.json开strict模式，模块用ESNext；vite.config.js简单配下；index.html作为入口；src/main.ts负责Phaser游戏初始化、场景管理和全局配置；src/scenes/GameScene.ts放核心逻辑（弹射物理、碰撞处理、得分更新）；src/objects/Ball.ts封装弹珠的物理行为和渲染（发光拖尾和碰撞粒子）；src/objects/Star.ts管理星尘球、陨石和晶核的生成、行为与销毁动画。需求方面：\n1. 弹珠弹射：玩家在任意位置按下鼠标拖拽出一条弹性光轨（紫色渐变#7b2ff7到#ff4b8b），松手后弹珠沿轨道方向弹射，弹射力度由拖拽长度决定，光轨有拉伸和回弹动画。\n2. 碰撞与特效：撞到星尘球（金色#ffd700）时球体爆裂成散射粒子，加10分；撞到陨石块（暗红#cc0000加发光边框）时弹珠反弹并扣除5分，陨石碎裂成小块；撞到能量晶核（青色#00e5ff）时晶核被吸收，触发全屏脉冲光晕，加50分并解锁下一波障碍。\n3. 界面布局：中央全屏游戏画布，左上角显示当前得分和连击数，右上角有暂停按钮，底部中央显示波次进度条（从紫色渐变到金色），游戏结束时弹出半透明结算面板（显示最终得分、最高分、重玩按钮）。\n4. 视觉风格：深空霓虹风，背景深蓝黑#0b0f2a，星轨用渐变紫到粉，障碍物用暗红加发光，星尘粒子用金色，能量晶核用青色且缓慢自旋。所有物体带投影和发光尾迹。\n5. 交互反馈：弹珠弹射有蓄力音效，碰撞有碎裂音效，得分有递增音高反馈；暂停时画面变暗，粒子暂停运动。\n6. 性能要求：帧率稳定60fps，粒子数量控制在200个以内，碰撞检测用Phaser内置物理引擎。\n   \n运行方式：npm install && npm run dev，直接打开浏览器就能玩。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:48d361f5bc36c698e23dfa0b580e0d20_6a28cae68585eef760b490f2.6a28cb918585eef760b491bd.6a28cb9140cb3a5c7aa758c8:Trae CN.T(2026/6/10 10:27:29)",
+    "user_id": "98336997115224",
+    "trace_id": "48d361f5bc36c698e23dfa0b580e0d20",
+    "session_id": "6a28cae68585eef760b490f2",
+    "task_id": "6a28cb918585eef760b491bd",
+    "message_id": "6a28cb9140cb3a5c7aa758c8",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:27:29",
+    "format": "full"
+  },
+  "trace": "null"
+}
