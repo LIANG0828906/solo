@@ -1,0 +1,6 @@
+{
+    "任务类型": "0-1代码生成",
+    "业务领域": "全栈web应用",
+    "修改范围": "模块内多文件",
+    "提示词内容": "我想开发一个模拟古代西夏黑水城商队贸易路线规划与成本核算的全栈web应用。用户扮演一位西夏商队首领，在虚拟的沙盘上规划从黑水城出发前往西域各城镇的贸易路线，系统根据路线长度、地形（沙漠、绿洲、戈壁）和沿途风险（沙暴、马贼）自动计算运输成本与利润，并生成一份完整的商队账目。界面以羊皮卷风格呈现，主色调为土黄#c2a37a和暗红#8b3a3a，纸质背景有颗粒纹理，按钮和边框模仿墨迹笔触。页面布局分三栏：左侧是城镇列表与货物清单（可拖拽选择货物类型、数量），中间是交互式沙盘地图（SVG绘制，可拖拽缩放，显示路线与地形标记），右侧是实时更新的成本明细与利润预览。添加平滑的页面过渡动画和点击时的反馈效果（如墨迹扩散的波纹）。性能上要求交互响应流畅，沙盘拖拽和缩放帧率不低于60fps。使用TypeScript、React和Express来实现，后端处理成本计算逻辑。文件结构如下：package.json（包含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、express、zustand、framer-motion，启动脚本：npm run dev 启动前端，npm run server 启动后端）、vite.config.js（配置React插件）、tsconfig.json（严格模式）、index.html（入口页面，标题为“黑水城商队账目”）、src/App.tsx（主应用组件，布局切换和路由）、src/store.ts（zustand全局状态管理：路线、货物、成本）、src/components/MapView.tsx（SVG交互式沙盘地图组件，拖拽缩放与路线绘制）、src/components/InventoryPanel.tsx（左侧货物与城镇面板）、src/components/CostPanel.tsx（右侧成本明细组件）、server/index.ts（Express后端：处理成本计算API，接收货物数据与路线返回总成本、利润和风险指数）。顺便把package.json和tsconfig.json写完整，这样我直接npm install && npm run dev就能跑前端，npm run server跑后端。"
+}
