@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T01:40:34.887Z",
+  "task_name": "auto281",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'墨迹云图'的交互式动态天气可视化页面，用户像一位气象艺术家，通过选择不同的城市或拖动地图上的天气标记，在画布上实时生成抽象风的流动轨迹、雨滴密度分布和云层絮状厚度变化，并自动切换对应的氛围色彩主题（如雷暴暗紫、晴空金黄、雪景冰蓝）。界面布局：中央是动态画布（用Canvas 2D绘制流体风场和粒子系统），左上角是城市搜索下拉框和当前天气信息卡片，右下角是控制面板（包含风速滑块、降水强度滑块、云量滑块以及重置按钮）。交互反馈：拖拽标记时画布粒子流会跟随偏移，点击城市卡片触发柔和缩放过渡动画，滑块调整时粒子数量和运动速度实时变化。整体视觉风格偏水墨淡彩与数字科技融合——背景用渐变灰白模拟宣纸质感，风线用半透明青色笔触，雨滴用细长白点，云层用模糊的灰蓝絮状块。性能方面要求帧率稳定在60fps，对低端设备有粒子数量自适应降级。用TypeScript和React来实现，Canvas 2D API负责所有视觉渲染。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom等依赖，启动脚本写npm run dev），tsconfig.json（配置strict模式且jsx为react-jsx），vite.config.ts（用react插件），index.html（挂载div#root），src/main.tsx（渲染App），src/App.tsx（组装布局及状态管理），src/components/WeatherCanvas.tsx（核心画布渲染逻辑，管理粒子系统及动画循环），src/utils/weatherData.ts（模拟天气数据生成及主题色映射函数）。对了，顺便把package.json也带上，这样我直接npm install && npm run dev就能跑。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:dc3d1df81b0f66c34f1f772c4c8c181f_6a28bf979c1b5d7bf230d609.6a28c0779c1b5d7bf230d742.6a28c077e6328c7a219bf8de:Trae CN.T(2026/6/10 09:40:07)",
+    "user_id": "98336997115224",
+    "trace_id": "dc3d1df81b0f66c34f1f772c4c8c181f",
+    "session_id": "6a28bf979c1b5d7bf230d609",
+    "task_id": "6a28c0779c1b5d7bf230d742",
+    "message_id": "6a28c077e6328c7a219bf8de",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 09:40:07",
+    "format": "full"
+  },
+  "trace": "null"
+}
