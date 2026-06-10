@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T17:10:16.924Z",
+  "task_name": "auto41",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个基于浏览器的古代织锦机提花与经纬线交织模拟的Web前端应用，让用户像一位宋代成都锦院的匠人一样，在虚拟的织机前，通过调整花楼上的综片提沉顺序和蹑（脚踏板）的踩踏节奏，控制经线与纬线在梭口处的穿梭位置，实时观察锦面上四季花纹（如蜀葵、牡丹、芙蓉、梅花）的编织生成过程。使用TypeScript和React实现。文件结构如下：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand，启动脚本：npm run dev）\n - vite.config.js（使用React插件）\n - tsconfig.json（严格模式，jsx保留）\n - index.html（入口，标题为“蜀锦织机模拟”）\n - src/App.tsx（主组件，管理织机状态和面板布局，调用织机控制器和锦面渲染器）\n - src/hooks/useLoom.ts（自定义hook，管理综片状态（up/down）、蹑踩踏时序、纬线颜色（红#cc3333/蓝#2a6b8a/绿#3a8a3a/黄#d4a017）和花本图案）\n - src/components/LoomView.tsx（织机可视化组件，CSS绘制花楼、综片、梭子、筘，支持点击综片和拖动梭子）\n - src/components/FabricView.tsx（锦面渲染组件，基于Canvas 2D逐行绘制经纬交织的纹样，中心区域显示编织进度，四周有连续花纹）\n - src/styles/global.css（全局样式，复古底色#f5e6c8，织机部件阴影和过渡动画）\n\n具体需求：\n1. 织机操控：界面左侧用CSS3绘制一架汉代提花织机模型——花楼（木架#e0d0b0，高度300px，顶部有提花综线），花楼下排布16个综片（每个长50px高10px，灰色#a0a0a0，提起状态变为红色#d04040），下方对应8个蹑（脚踏板，木色#8b7355，可点击切换状态，按下时变深#5c4a2e）；点击综片或蹑，触发综片升起/降下动画（transform translateY，duration 0.3s），同时梭子（木梭#a0785a，长80px高15px）在梭口间平移（左右各100px），平移过程中拖曳经线。\n2. 花纹设计：用户可通过界面右侧的“花本编辑器”选择预置花纹（蜀葵—红绿交织、锦鸡—蓝黄相间、四叶草—绿底白纹），每选一种花本，综片提沉序列自动更新，锦面重新编织；花本以4x4矩阵显示，用色块表示综片提起（红）与落下（灰），用户可拖拽色块修改矩阵，自定义花纹。\n3. 编织进度与效果：Canvas（400x400px）从顶部开始逐行绘制锦面，每行织入对应颜色的纬线（经线固定为白#eaeaea，纬线根据花本和蹑状态决定）；纬线排列紧密（每行相隔2px），不同纬线相交处使用混合色（例红经蓝纬显示紫色#8a2be2）；编织进度以百分比显示，每完成1%触发一个进度动画（色条渐变填充）。\n4. 交互反馈：用户点击综片或蹑时，触发微小的震动效果（transform: translateX(2px)后复原，duration 0.15s）；梭子移动时伴随木质“嗒嗒”的CSS动画（背景色#f5deb3区域闪动）；锦面编织完成时，画面闪烁黄金色#ffd700 1秒作为成功庆祝。\n5. 错误提示：如果用户在编织过程中调整了花本或综片（改变当前编织序列），系统弹出文字提示“经纬交织已中断，请重置织机”，并自动将锦面退回至上次保存点（使用useRef记录最近完整的花纹行坐标）。\n\n界面方面：整体采用复古暖色调，背景为仿古绢帛色#f5e6c8，织机组件放置在左侧（宽度60%），锦面预览在右侧（宽度40%）。织机用浅色木质纹理（CSS线性渐变#e0d0b0至#c8b898），综片和蹑带有微弱的阴影（box-shadow），点击和悬停时有柔和的色温变化（hover: #e8dcc8）。锦面Canvas周围有仿木框装饰（#8b7355，10px宽，border-radius 8px）。所有交互部分都配有平滑过渡（transition: all 0.3s ease）。响应式设计：当屏幕宽度小于768px时，织机部分和锦面部分改为上下排列，织机高度减至200px，综片数量改为8个显示。\n\n性能要求：Canvas重绘帧率不低于50FPS（使用requestAnimationFrame驱动，每次仅重新绘制变化的行，而不是全画面刷新）；花本修改后，重新计算综片序列的时间不应超过10ms（使用useMemo缓存计算）。\n\n运行方式：npm install && npm run dev，直接在浏览器打开localhost:5173即可使用。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:ae2bd27bfeb3712d962a1c3e5d797d59_6a2847f815dab8fb1e95d2b1.6a2848dd15dab8fb1e95d39f.6a2848dda9874eb0d1198edd:Trae CN.T(2026/6/10 01:09:49)",
+    "user_id": "98336997115224",
+    "trace_id": "ae2bd27bfeb3712d962a1c3e5d797d59",
+    "session_id": "6a2847f815dab8fb1e95d2b1",
+    "task_id": "6a2848dd15dab8fb1e95d39f",
+    "message_id": "6a2848dda9874eb0d1198edd",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 01:09:49",
+    "format": "full"
+  },
+  "trace": "null"
+}
