@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:28:39.721Z",
+  "task_name": "auto305",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'光织音绘'的交互式动态音频可视化页面，用户像一位声音画家，通过鼠标在画布上绘制曲线或点击不同区域，实时生成对应的波形和频谱动画，同时播放随曲线形状变化的合成音效。不同曲线斜率对应不同音调，绘制速度控制音量，多条曲线可叠加形成和声。界面布局：中央是动态Canvas画布（占主要面积），左下角是控制面板（包含波形选择下拉框、频谱显示开关、重置按钮和音量滑块），右下角是声音日志面板（显示最近5次绘制操作的音高和时长）。整体视觉风格走霓虹赛博朋克风，主色为霓虹紫#b300ff和暗青#00e5ff，背景深黑，按钮用渐变加发光边框，交互反馈有粒子爆炸和震动效果。性能要求：帧率稳定在60fps，交互响应流畅。用TypeScript和React来实现，配合Canvas 2D API处理可视化部分。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom这些，dev脚本用vite，build脚本也写好），tsconfig.json（标准配置，strict模式开，模块用ESNext），vite.config.js（简单配置，用@vitejs/plugin-react插件），index.html（入口页面），src/main.tsx（React入口，渲染App组件），src/App.tsx（主组件，管理状态和布局），src/components/Visualizer.tsx（Canvas画布组件，负责绘制波形和频谱动画，处理鼠标交互），src/components/ControlPanel.tsx（控制面板组件，包含波形选择、频谱开关、重置按钮、音量滑块），src/components/LogPanel.tsx（日志面板组件，显示最近5次操作记录）。这样我直接npm install就能跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:e4425fe2bcb1f604bdcbd9b7004e6b3e_6a28cae78585eef760b490f4.6a28cba88585eef760b491dc.6a28cba7de7ec823f6c4d7c3:Trae CN.T(2026/6/10 10:27:52)",
+    "user_id": "98336997115224",
+    "trace_id": "e4425fe2bcb1f604bdcbd9b7004e6b3e",
+    "session_id": "6a28cae78585eef760b490f4",
+    "task_id": "6a28cba88585eef760b491dc",
+    "message_id": "6a28cba7de7ec823f6c4d7c3",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:27:52",
+    "format": "full"
+  },
+  "trace": "null"
+}
