@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-09T16:07:19.522Z",
+  "task_name": "auto9",
+  "task_type": "0-1代码生成",
+  "business_domain": "3D/交互可视化",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够在浏览器中模拟古代海上丝绸之路的帆船在暴风雨中航行的三维交互避险模拟应用，主要解决传统航海训练中水手难以在岸上安全体验和练习遭遇风暴时的应急操船决策（调整帆角、压舱物分配、舵向修正）对船体摇摆、进水速度及航行方向的影响问题。\n\n它应当具备以下能力：\n1) 场景需用Three.js构建一片动态海洋（深蓝#0a2a3a至墨绿#1a4a2a渐变海面，波浪由顶点着色器实时生成，波高随机在0.3-1.2单位之间，周期2-4秒），中央一艘宋代福船（船长3单位，宽1单位，船体#5d3a1a木色，甲板上设桅杆高2单位、帆布#e6dcc3，船尾有可转动的舵叶宽0.4单位）。用户通过拖拽三个滑块分别控制：帆角（0-90度，从正横风到顺风）、船舵偏转角（-45度到+45度）、压舱物重量（200-800斤），每个滑块变化时实时影响船的横摇角（-30度到+30度）、纵摇角（-20度到+20度）和前进速度（0.2-2.0单位/秒）。\n2) 暴风雨动态系统：当用户点击“起风”按钮后，屏幕左侧出现风向标指示器（圆盘直径80px，白底#f0f0f0，红色指针#cc0000），风级从0-4逐渐增强（0级无风，1级微风叶动，2级和风浪起，3级大风浪涌，4级暴风浪高3单位），海面波浪高度和频率随风级参数线性增加，雨滴粒子（Canvas2D生成，白色半透明#ffffff40，每帧生成200-800颗粒子，大小2-6px，斜向飘落角度与风向一致）从天空倾泻。\n3) 船体安全状态指示：在场景左下角显示一个驾驶台仪表盘（圆形，半径60px，白底#f5f0e0），内含三个指针表盘：左侧为横摇指示（绿色安全区-15度到+15度，黄色预警区±15-25度，红色危险区±25-30度），中间为进水速率（0-100升/秒，指针随船体摆动和水密门状态实时变化），右侧为稳定性评分（0-100分，基础分50，每成功避过一次大浪+5分，每发生一次翻船-15分，分值颜色从红#cc0000到绿#00cc00渐变）。\n4) 碰撞与避险反馈：当船横摇超过25度时，甲板上出现3D货物箱（蓝色#4488cc，0.2单位立方体）从左侧移滑向右的动画（0.5秒内移动1.5单位，带物理碰撞效果），若未及时调整压舱物，箱体可能撞击船舷并引发进水速率上升20%；当船体纵摇超过15度时，船首会压入浪中（甲板浸水部分显示#1a4a2a水花粒子，每帧20颗粒子喷溅），桅杆顶的灯笼（金色#ffd700，半径0.05单位，发光材质）会剧烈晃动并可能熄灭（熄灭后屏幕亮度降低50%）。\n5) 航行日志记录：场景右上角显示一个半透明卷轴（#e6dcc3，宽200px，高150px，背景圆角8px，带麻布纹理CSS渐变），每30秒自动记录当前帆角、舵角、压舱物重量、横摇角、风速、稳定评分等6项参数，用户可点击“保存日志”按钮将数据导出为JSON文件，文件名为“航海日志_YYYYMMDD_HHmmss”。\n\n界面方面要求：整体采用暗色调（背景#0a1a2a，控件底色#1a2a3a，字体色#e6dcc3，按钮色#3a5a4a悬停#4a6b5a）营造暴风雨氛围。三个滑块采用木质纹理渐变（从#5d3a1a到#8b6f47）作为轨道，滑块手柄为锚形图标（FontAwesome锚图标，金色#ffd700）。仪表盘指针带有平滑过渡动画（CSS transition 0.3s ease-in-out）。雨滴粒子系统采用双缓冲防止闪烁，每帧粒子生命周期3-5秒。当船体接近翻覆（横摇超过28度）时，整个场景会添加红色边框闪烁效果（box-shadow: 0 0 20px #ff0000 inset，闪烁频率0.5秒），同时屏幕边缘出现暗角（径向渐变从透明到#00000060）。页面在移动端响应式适配：宽度<768px时，面板改为垂直布局，滑块和仪表盘上下排列，3D场景缩小为窗口高度的60%。\n\n性能上需要：在主流浏览器（Chrome 90+）上，3D场景渲染帧率不低于30fps，粒子系统每帧不超过800颗粒子，滑块变化响应延迟低于100ms。\n\n实现采用TypeScript、React和Three.js（@react-three/fiber和@react-three/drei），按以下文件组织代码：\n - package.json（含依赖：react、react-dom、typescript、vite、@vitejs/plugin-react、three、@react-three/fiber、@react-three/drei、zustand、framer-motion，启动脚本：npm run dev）\n - vite.config.js（基础Vite构建配置，含路径别名@指向src）\n - tsconfig.json（严格模式，strict: true，jsx: react-jsx）\n - index.html（入口HTML，含meta viewport适配和字体引用FontAwesome CDN）\n - src/App.tsx（根组件，组合3D场景和UI面板，用zustand管理全局状态，状态对象含windLevel、sailAngle、rudderAngle、ballastWeight、pitch、roll、speed、floodRate、stabilityScore、logEntries数组等字段）\n - src/components/Scene.tsx（Three.js场景组件，封装船体、海洋、雨滴粒子、货物箱、灯笼等3D对象，从zustand store读取参数并更新位置、旋转、材质等，通过useFrame循环计算物理状态）\n - src/components/UIPanel.tsx（UI面板组件，含三个滑块、仪表盘、日志面板、暴风雨按钮等，用framer-motion实现动画，通过zustand actions更新状态）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:40b7bf11335c023b46d520c2d3baf3de_6a2839354c4c09eb952d99c2.6a283a2c4c4c09eb952d9ab6.6a283a2c5aa19352f90b853e:Trae CN.T(2026/6/10 00:07:08)",
+    "user_id": "98336997115224",
+    "trace_id": "40b7bf11335c023b46d520c2d3baf3de",
+    "session_id": "6a2839354c4c09eb952d99c2",
+    "task_id": "6a283a2c4c4c09eb952d9ab6",
+    "message_id": "6a283a2c5aa19352f90b853e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 00:07:08",
+    "format": "full"
+  },
+  "trace": "null"
+}
