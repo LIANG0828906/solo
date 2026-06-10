@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T00:20:18.498Z",
+  "task_name": "auto240",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'纸间星图'的交互页面，让用户像一位古代星象师一样，在虚拟的宣纸上通过拖拽和连接星点来绘制自定义的星图，然后系统会根据连线自动生成对应的星宿名称和一段简短的星语解读。用户可以旋转和缩放画布，点击星点会弹出该星的典故，长按星点可以拖动调整位置。绘制完成后，可以保存为带有水墨风格的图片。界面布局：中央是宣纸画布（占主要面积），左侧是星点工具面板（包含添加星点、撤销、清空按钮），右侧是星宿解读面板（显示星宿名称、星语文字）。颜色主题采用宋代水墨风格：宣纸白#f5f0e6、墨黑#2c2c2c、朱砂红#c0392b、石青#4a7c59，整体风格古朴雅致，星点连线会有墨迹晕开的动画效果，交互反馈要流畅，帧率保持在60fps。用TypeScript和React来实现，配合framer-motion做星点放置和连线动画，zustand管理星点位置、连线状态和星宿解读。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@vitejs/plugin-react、framer-motion、zustand，启动脚本写npm run dev）、vite.config.ts、tsconfig.json、index.html（入口文件，简单引入React根组件）、src/main.tsx（React入口）、src/App.tsx（主布局组件，整合画布、工具面板、解读面板）、src/store/starStore.ts（zustand状态管理，存星点、连线、解读数据）、src/components/StarCanvas.tsx（宣纸画布组件，处理星点绘制、拖拽、连线逻辑）、src/components/StarToolbar.tsx（星点工具面板组件）、src/components/StarInterpretation.tsx（星宿解读面板组件）。需求：1. 允许用户点击画布添加星点，星点随机分散。2. 用户通过拖拽星点调整位置，连线自动更新。3. 双击星点删除，右键取消连线。4. 连线算法自动寻找最近星点形成星宿模式，并匹配预设的星宿名称和星语。5. 支持导出为高清图片（含宣纸纹理）。6. 撤销/重做操作。7. 页面响应式适配，在手机和电脑上都能用。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:7f9508b2ad6d6421db089a6b90f06a10_6a28acc5aa3d63c1ed808f4b.6a28ada7aa3d63c1ed80901f.6a28ada70c09d4c5980184dd:Trae CN.T(2026/6/10 08:19:51)",
+    "user_id": "98336997115224",
+    "trace_id": "7f9508b2ad6d6421db089a6b90f06a10",
+    "session_id": "6a28acc5aa3d63c1ed808f4b",
+    "task_id": "6a28ada7aa3d63c1ed80901f",
+    "message_id": "6a28ada70c09d4c5980184dd",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 08:19:51",
+    "format": "full"
+  },
+  "trace": "null"
+}
