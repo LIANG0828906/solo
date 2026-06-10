@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T01:37:17.660Z",
+  "task_name": "auto275",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫'声纹画境'的交互式可视化页面，用户像一位声音画家，通过麦克风或上传音频文件来捕捉声音的波形和频谱，实时在画布上生成对应的抽象画——不同频率对应不同色彩，音量控制笔触粗细和透明度，音调变化引发画面扭曲动画。界面风格走赛博朋克风，主色是霓虹紫#b300ff和暗青#00e5ff，背景深黑，按钮和控件用渐变色加发光边框，交互反馈有微小的粒子爆炸动画和震动效果。用TypeScript和React来实现，配合Canvas 2D API（或p5.js）处理实时音频可视化。文件结构大概这样：package.json（带上react、react-dom、typescript、vite、@types/react、@types/react-dom，启动脚本写npm run dev），tsconfig.json（严格模式），vite.config.ts，src/main.tsx作为入口，src/App.tsx组装画布、控制面板和日志面板，src/audio/AudioCapture.tsx负责麦克风/文件输入和音频分析（用Web Audio API），src/canvas/ArtRenderer.tsx负责根据频谱数据绘制抽象画，src/ui/ControlPanel.tsx包含录音按钮、文件上传、颜色/笔触滑块和重置，src/ui/LogPanel.tsx显示当前频率峰值和音量等实时信息。需求方面：1. 支持麦克风实时录音和上传wav/mp3文件两种输入方式，录音时有个脉冲动画的录制按钮；2. 画布实时响应音频的频谱、音量和音调变化，频率映射到色相，音量控制笔触大小，音调变化触发画面扭曲扭曲动画（保持60fps）；3. 提供三档颜色主题预设（霓虹朋克、深海蓝调、熔岩炽热）以及自定义色相滑块；4. 可调节笔触粗细、粒度和扭曲强度，滑块带实时数值显示；5. 支持撤销上一笔和清空画布，以及截图保存为png；6. 界面响应式，适配手机和桌面，按钮在手机上用圆角卡片布局。性能上音频分析要低延迟，绘制帧率稳定60fps。另外，别忘了把入口HTML放在public/index.html，里面加载main.tsx，这样npm install && npm run dev就能直接跑起来。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:3949a1b397373b4c8dd11bdac47a5dad_6a28bf8d9c1b5d7bf230d5fd.6a28bfb29c1b5d7bf230d60d.6a28bfb233ca17766a98581e:Trae CN.T(2026/6/10 09:36:50)",
+    "user_id": "98336997115224",
+    "trace_id": "3949a1b397373b4c8dd11bdac47a5dad",
+    "session_id": "6a28bf8d9c1b5d7bf230d5fd",
+    "task_id": "6a28bfb29c1b5d7bf230d60d",
+    "message_id": "6a28bfb233ca17766a98581e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 09:36:50",
+    "format": "full"
+  },
+  "trace": "null"
+}
