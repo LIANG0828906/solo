@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T02:55:52.254Z",
+  "task_name": "auto316",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想开发一个叫‘幻光食谱·味觉博物馆’的全栈web应用，用户扮演一位美食策展人，在虚拟展馆中通过拖拽不同时代的料理主题（如古法宴、科幻小食、幻想甜点）到烹饪台上，组合出每日随机生成的创意菜谱，系统会根据主题搭配自动生成一段描述文案、建议的食材搭配卡和一道AI风格化菜品插图，成功会触发厨具发光和香气粒子特效，失败则会出现烧焦冒烟的动画。用户每日有6次创作机会，每完成一道菜谱可点亮菜谱墙上对应的区域；每周结束时根据评分、主题覆盖度和创作数量生成一份《味觉周报》，包含综合评分雷达图和成就徽章。用TypeScript和React实现前端，后端用FastAPI处理菜谱生成、组合逻辑和评分计算。文件结构大概这样：- package.json（带上react、react-dom、typescript、fastapi、uvicorn、pydantic、vite、@types/react等依赖，dev用vite启动前端，后端用uvicorn运行main.py，顺便写一个start脚本方便一键启动）；- tsconfig.json（strict模式，ESNext模块，jsx使用react-jsx）；- vite.config.js（配置代理到后端端口）；- index.html（入口HTML，挂载React应用）；- src/main.tsx（React入口，初始化Router和全局状态）；- src/App.tsx（主布局和路由配置）；- src/components/CookingStation.tsx（烹饪台组件，处理拖拽和组合逻辑）；- src/components/RecipeWall.tsx（菜谱墙组件，展示点亮区域和成就）；- backend/main.py（FastAPI应用，包含菜谱生成API和评分接口）。运行方式：npm install && npm run dev同时启动前后端。需求方面：1. 用户登录后可进入虚拟展馆，展馆背景根据每日主题动态变化（如古典红木、科幻蓝光、奇幻星云）；2. 拖拽料理主题到烹饪台时，主题卡片会有弹性和光晕反馈，组合正确时烹饪台中央出现菜品插图生成动画，错误时火焰闪烁和焦味粒子；3. 菜谱墙以网格形式展示已点亮区域，点亮时触发流光填充特效，未点亮区域半透明表示；4. 每周报告页面包含雷达图（展示创造力、主题深度、多样性等维度）和成就徽章列表（如“初代策展人”、“星级主厨”），用Chart.js或ECharts实现图表；5. 界面整体采用暖色调食物主题，主色珊瑚红#ff6b6b和奶油黄#ffe082，背景渐变，按钮有圆角和柔和阴影，交互反馈平滑；6. 性能要求：页面切换流畅，动画帧率保持在60fps，后端响应时间小于200ms。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:253ee0e36e4051cf99142d0cefe171ab_6a28d1e3535b7ed52d3d3509.6a28d21d535b7ed52d3d3559.6a28d21ddd59f61be1d313de:Trae CN.T(2026/6/10 10:55:25)",
+    "user_id": "98336997115224",
+    "trace_id": "253ee0e36e4051cf99142d0cefe171ab",
+    "session_id": "6a28d1e3535b7ed52d3d3509",
+    "task_id": "6a28d21d535b7ed52d3d3559",
+    "message_id": "6a28d21ddd59f61be1d313de",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/10 10:55:25",
+    "format": "full"
+  },
+  "trace": "null"
+}
