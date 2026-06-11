@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古代杠杆式抛石机 3D 交互可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #F5E6CA;
+      font-family: Georgia, 'Times New Roman', serif;
+      color: #2D1B0E;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #scene-container {
+      position: relative;
+      flex: 0 0 70%;
+      width: 100%;
+      background-color: #F5E6CA;
+    }
+
+    #scene-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #control-panel {
+      flex: 0 0 30%;
+      width: 100%;
+      background: linear-gradient(180deg, #F5E6CA 0%, #E8D4A8 100%);
+      border-top: 3px solid #8B5A2B;
+      padding: 16px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sliders-container {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slider-label {
+      font-family: Georgia, serif;
+      font-size: 14px;
+      font-weight: bold;
+      color: #2D1B0E;
+      text-shadow: 0.5px 0.5px 0 #000;
+    }
+
+    .slider-value {
+      font-family: Georgia, serif;
+      font-size: 16px;
+      font-weight: bold;
+      color: #D4A843;
+      text-shadow: 0.5px 0.5px 0 #000;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 200px;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #8B5A2B, #6B4226);
+      outline: none;
+      border: 1px solid #4A4A4A;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #D4A843, #A88432);
+      border: 2px solid #4A4A4A;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #D4A843, #A88432);
+      border: 2px solid #4A4A4A;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .buttons-container {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      font-family: Georgia, serif;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px 20px;
+      border: 2px solid #4A4A4A;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+      color: #fff;
+      text-shadow: 0.5px 0.5px 0 #000;
+    }
+
+    button:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #fire-btn {
+      background: linear-gradient(145deg, #A04040, #8B3A3A);
+    }
+
+    #fire-btn:hover:not(:disabled) {
+      background: linear-gradient(145deg, #B05050, #9B4A4A);
+    }
+
+    #reset-btn {
+      background: linear-gradient(145deg, #707070, #606060);
+    }
+
+    #reset-btn:hover:not(:disabled) {
+      background: linear-gradient(145deg, #808080, #707070);
+    }
+
+    #quick-test-btn {
+      background: linear-gradient(145deg, #8B6914, #6B4914);
+    }
+
+    #quick-test-btn:hover:not(:disabled) {
+      background: linear-gradient(145deg, #9B7924, #7B5924);
+    }
+
+    #info-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 200px;
+      background-color: rgba(26, 15, 8, 0.85);
+      border-radius: 8px;
+      padding: 14px;
+      color: #F5E6CA;
+      font-family: Georgia, serif;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      border: 1px solid #4A4A4A;
+      max-height: calc(70% - 32px);
+      overflow-y: auto;
+    }
+
+    #info-panel h3 {
+      color: #D4A843;
+      font-size: 14px;
+      margin-bottom: 10px;
+      text-shadow: 0.5px 0.5px 0 #000;
+      border-bottom: 1px solid #D4A843;
+      padding-bottom: 6px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      line-height: 1.6;
+    }
+
+    .info-label {
+      color: #C0A080;
+    }
+
+    .info-value {
+      color: #D4A843;
+      font-weight: bold;
+    }
+
+    #history-list {
+      margin-top: 12px;
+      border-top: 1px solid #4A4A4A;
+      padding-top: 10px;
+    }
+
+    #history-list h4 {
+      color: #D4A843;
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-shadow: 0.5px 0.5px 0 #000;
+    }
+
+    .history-item {
+      background-color: rgba(74, 74, 74, 0.4);
+      border-radius: 4px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .history-time {
+      color: #808080;
+      font-size: 10px;
+    }
+
+    .history-params {
+      color: #F5E6CA;
+    }
+
+    .empty-history {
+      color: #808080;
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    #app-title {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      font-weight: bold;
+      color: #D4A843;
+      text-shadow: 1px 1px 2px #000, 0.5px 0.5px 0 #000;
+      z-index: 10;
+    }
+
+    @media (max-width: 768px) {
+      #scene-container {
+        flex: 0 0 60%;
+      }
+
+      #control-panel {
+        flex: 0 0 40%;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      .sliders-container {
+        width: 100%;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .slider-group {
+        width: 100%;
+      }
+
+      #info-panel {
+        top: 8px;
+        right: 8px;
+        width: 160px;
+        font-size: 11px;
+        padding: 10px;
+      }
+
+      #app-title {
+        font-size: 14px;
+        top: 8px;
+        left: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container">
+      <div id="app-title">古代杠杆式抛石机</div>
+      <canvas id="scene-canvas"></canvas>
+      <div id="info-panel">
+        <h3>发射信息</h3>
+        <div id="current-info">
+          <div class="info-row">
+            <span class="info-label">配重重量:</span>
+            <span class="info-value" id="info-weight">--</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">力臂位置:</span>
+            <span class="info-value" id="info-lever">--</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">发射角度:</span>
+            <span class="info-value" id="info-angle">--</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">飞行距离:</span>
+            <span class="info-value" id="info-distance">--</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">落点 X:</span>
+            <span class="info-value" id="info-x">--</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">落点 Z:</span>
+            <span class="info-value" id="info-z">--</span>
+          </div>
+        </div>
+        <div id="history-list">
+          <h4>历史记录</h4>
+          <div id="history-items">
+            <div class="empty-history">暂无发射记录</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="control-panel">
+      <div class="panel-section sliders-container">
+        <div class="slider-group">
+          <span class="slider-label">配重重量 (kg)</span>
+          <input type="range" id="weight-slider" min="100" max="500" step="10" value="300" />
+          <span class="slider-value" id="weight-value">300 kg</span>
+        </div>
+        <div class="slider-group">
+          <span class="slider-label">力臂支点位置</span>
+          <input type="range" id="lever-slider" min="0.4" max="0.7" step="0.01" value="0.5" />
+          <span class="slider-value" id="lever-value">0.50</span>
+        </div>
+        <div class="slider-group">
+          <span class="slider-label">发射角度 (°)</span>
+          <input type="range" id="angle-slider" min="30" max="75" step="1" value="45" />
+          <span class="slider-value" id="angle-value">45°</span>
+        </div>
+      </div>
+      <div class="panel-section buttons-container">
+        <button id="fire-btn">发射</button>
+        <button id="reset-btn">重置</button>
+        <button id="quick-test-btn">快速测试</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
