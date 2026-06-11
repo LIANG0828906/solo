@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T17:03:51.826Z",
+  "task_name": "auto37",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够将用户上传的乐谱PDF或图片自动识别为可编辑的MIDI音符序列，并在在线钢琴卷帘窗中回放与编辑的Web应用，主要解决音乐爱好者手动录入乐谱耗时且易错的问题。\n\n它应当具备以下能力：\n1) 通过文件上传或拖拽区域（支持PDF和PNG/JPG格式，单文件不超过5MB），后端使用基于OpenCV.js的轮廓检测和音符头位置分析算法提取音符（识别高音谱号、低音谱号、四分音符、八分音符），只处理单声部乐谱，音符识别准确率需达80%以上。\n2) 识别结果在页面右侧的钢琴卷帘窗（Canvas，宽度800px，高度根据音符范围自适应）中展示：纵轴为音高（C3-C6共13个半音），横轴为时间（每拍100px），每个音符用一个垂直矩形条表示（矩形宽度表示时值，位置表示音高和起始时间），矩形条默认用蓝色，选中后高亮为橙色，音符信息（音名、八度、时值）悬浮显示。\n3) 支持用户直接在卷帘窗中编辑：点击空白处添加新音符（默认C4四分音符），拖拽音符矩形可改变音高（限制在同一半音内）或时值（步长1/4拍），右键删除音符，按住Ctrl+拖拽可批量选中多个音符并整体移动。\n4) 点击“播放”按钮，通过Web Audio API合成钢琴音色（使用Sawtooth振荡器+包络线模拟钢琴ADSR，每个音符持续到其时值结束），支持BPM调节（60-180，滑块控制），播放时卷帘窗自动滚动跟随当前播放位置（像素滚动，速度平滑），并高亮正在播放的音符。\n5) 提供“导出MIDI”功能：将当前音符序列编码为标准MIDI文件（格式0，单轨道，使用Base64编码下载为.mid文件），并在导出成功时触发全屏飘落音符动画（Canvas粒子系统，持续2秒）。\n\n界面方面要求采用深色主题（背景#1a1a2e，主要面板#16213e，文本#e0e0e0，强调色#e94560），左侧上传区与右侧卷帘窗左右并排布局（上传区固定300px宽，卷帘窗自适应剩余宽度），顶部固定工具栏（宽100%深蓝色渐变背景），包含上传、播放/暂停、BPM滑块、导出按钮。按钮具有悬停放大和点击涟漪动画效果（CSS transition 0.3s），卷帘窗支持水平滚动（触摸屏支持2指开合缩放横轴）。上传PDF时显示进度条（使用CSS渐变进度条动画），识别完成后卷帘窗内容以淡入和向右滑动动画（时长0.5s）展示。响应式适配：手机端（<768px）改为纵向堆叠布局（上传区在上，卷帘窗在下）。性能上要求卷帘窗在编辑200个音符时滚动帧率不低于30fps。\n\n实现采用React（前端）+ Node.js + Express（后端），使用TypeScript编写。按以下文件组织代码：\n - package.json（依赖：react, react-dom, typescript, vite, express, cors, multer, @types/express, @types/multer, uuid；启动脚本：前端npm run dev，后端node server.js）\n - index.html（入口页面，包含根div和元标签）\n - vite.config.js（构建配置，端口5173）\n - tsconfig.json（严格模式，target ES2020）\n - src/main.tsx（React应用入口，渲染App组件）\n - src/App.tsx（主组件，管理上传区、卷帘窗、播放控制的状态和交互，调用后端API）\n - src/pianoRoll.ts（卷帘窗Canvas渲染引擎，处理音符绘制、编辑事件、播放滚动和高亮，输入为音符数组，输出Canvas交互）\n - server/server.ts（Express后端，处理文件上传、调用opencv.js识别音符、提供MIDI下载，使用multer中间件）\n\n运行方式：npm install && npm run dev（前端）和 node server.js（后端）需同时启动。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:7472c3445468a67f8d28e87dd8a7ddba_6a299846f3bef1ced1d04155.6a2998dcf3bef1ced1d041f1.6a2998dc03fa1a685b63c9a4:Trae CN.T(2026/6/11 01:03:24)",
+    "user_id": "98336997115224",
+    "trace_id": "7472c3445468a67f8d28e87dd8a7ddba",
+    "session_id": "6a299846f3bef1ced1d04155",
+    "task_id": "6a2998dcf3bef1ced1d041f1",
+    "message_id": "6a2998dc03fa1a685b63c9a4",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 01:03:24",
+    "format": "full"
+  },
+  "trace": "null"
+}
