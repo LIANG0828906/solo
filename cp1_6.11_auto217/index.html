@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="皮影戏 - 武松打虎 交互式表演">
+  <title>皮影戏 · 武松打虎</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #8B2500;
+      font-family: 'ZCOOL XiaoWei', 'KaiTi', '楷体', serif;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: 
+        radial-gradient(ellipse at center, #A0522D 0%, #8B2500 60%, #5C1A00 100%);
+    }
+    
+    #game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    #game-title {
+      color: #FFD700;
+      font-size: 32px;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+      margin-bottom: 4px;
+    }
+    
+    #game-canvas {
+      display: block;
+      cursor: pointer;
+      border: 4px solid #5C1A00;
+      border-radius: 4px;
+      box-shadow: 
+        0 0 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    #hint-text {
+      color: #DEB887;
+      font-size: 14px;
+      letter-spacing: 2px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <h1 id="game-title">皮影戏 · 武松打虎</h1>
+    <canvas id="game-canvas" width="900" height="660"></canvas>
+    <p id="hint-text">将鼠标移至武松身上，选择动作进行操控 · 拖动油灯改变光影方向</p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
