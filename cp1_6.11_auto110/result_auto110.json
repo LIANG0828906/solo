@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T19:25:10.891Z",
+  "task_name": "auto110",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个在线乐队协作曲谱管理与实时调音辅助Web应用，让乐队成员可以上传、查看和管理各自的乐器分谱，并通过内置的调音器功能在排练前快速校准乐器音准。使用TypeScript、React和Express实现。文件结构如下：\n - package.json（依赖：react, react-dom, express, typescript, vite, @types/react, @types/express, uuid；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（构建配置，入口index.html，端口3000）\n - tsconfig.json（严格模式）\n - src/App.tsx（主应用组件，管理路由和全局状态，调用各子组件）\n - src/pages/Dashboard.tsx（乐队仪表盘，显示成员列表、曲目列表和调音器入口）\n - src/pages/ScoreEditor.tsx（曲谱查看与编辑页面，支持Markdown格式的分谱文本，并附带简单节拍器）\n - src/pages/Tuner.tsx（调音器页面，通过Web Audio API检测麦克风输入，显示音高偏差并给出校准提示）\n - src/server.ts（Express服务器，提供REST API接口：GET /api/songs, POST /api/songs, DELETE /api/songs/:id）\n\n具体需求：\n1. 在Dashboard页面显示乐队的成员名（硬编码3个：主唱、吉他手、鼓手）和曲目列表（从服务器获取），每首曲目显示标题、上次修改时间和一个删除按钮。\n2. 点击曲目进入ScoreEditor页面，页面顶部显示曲目标题和BPM输入框（默认120），下方为一个文本区（宽100%高400px），支持Markdown语法显示分谱（如音符、和弦标记），文本区右侧有一个启动/停止节拍器的按钮，节拍器发出“嘀嗒”声（使用Web Audio API生成方波，频率分别为880Hz和440Hz）。\n3. 调音器页面打开后自动请求麦克风权限，以实时波形显示频率检测结果（Canvas宽300px高150px，背景深灰#2A2A2A，波形线亮绿#00FF88），当检测到的频率偏离目标音高（如吉他E2≈82.4Hz）超过5Hz时，显示红色箭头提示“偏高”或“偏低”，偏差小于5Hz时显示绿色“校准完成”。\n4. 用户可以在Dashboard页面通过表单（曲目标题输入框+确定按钮）新增曲目，新增后列表即时更新。曲目删除需弹窗确认（确认按钮红色#FF4444，取消按钮灰色#888）。\n5. 所有页面使用深邃黑紫色调（主色#1A0033，辅色#6600CC，强调色#FF00AA），字体使用等宽字体Monaco或Consolas，按钮有悬停放大1.05倍并投影的动画，响应式布局：宽屏时左右两栏，窄屏时堆叠为单列。\n\n界面方面：页面布局采用左右分栏，左栏显示Dashboard或曲目列表，右栏显示详情或操作区。颜色主题为黑紫+亮粉的赛博朋克风格，所有过渡（页面切换、按钮悬停、节拍器闪烁）持续0.3s ease-in-out，节拍器指示灯为圆形（直径20px），每拍闪烁对应颜色（重拍红色，轻拍蓝色）。\n\n性能要求：节拍器响应延迟<50ms，调音器频率检测更新率不低于30fps，新增/删除曲目后列表更新时间<100ms。\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:212098b65ab7ed5a3e8b90ffa82739d3_6a29b94611fb49afa24e44cc.6a29ba0c11fb49afa24e4594.6a29ba0c177a403fcb692c5c:Trae CN.T(2026/6/11 03:25:00)",
+    "user_id": "98336997115224",
+    "trace_id": "212098b65ab7ed5a3e8b90ffa82739d3",
+    "session_id": "6a29b94611fb49afa24e44cc",
+    "task_id": "6a29ba0c11fb49afa24e4594",
+    "message_id": "6a29ba0c177a403fcb692c5c",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 03:25:00",
+    "format": "full"
+  },
+  "trace": "null"
+}
