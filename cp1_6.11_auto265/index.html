@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>传统竹编工艺三维可视化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1A1A1A;
+      font-family: 'Noto Sans SC', sans-serif;
+      color: #F5F5DC;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* 顶部菜单栏 */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: rgba(34, 34, 34, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 0.3px dashed rgba(212, 175, 55, 0.3);
+      display: flex;
+      align-items: center;
+      padding: 0 30px;
+      z-index: 100;
+    }
+
+    .top-bar .title {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: #D4AF37;
+      letter-spacing: 4px;
+    }
+
+    .top-bar .subtitle {
+      font-size: 12px;
+      color: rgba(210, 224, 192, 0.6);
+      margin-left: 20px;
+      letter-spacing: 2px;
+    }
+
+    /* 左侧工具栏 */
+    .left-toolbar {
+      position: fixed;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 120px;
+      background: #2E2E2E;
+      border-radius: 8px;
+      padding: 16px 12px;
+      border: 0.3px dashed rgba(212, 175, 55, 0.2);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .toolbar-btn {
+      width: 100%;
+      padding: 12px 8px;
+      background: #3E3E3E;
+      border: 0.3px dashed rgba(212, 175, 55, 0.15);
+      border-radius: 6px;
+      color: #D2B48C;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      font-family: 'Noto Sans SC', sans-serif;
+      letter-spacing: 1px;
+    }
+
+    .toolbar-btn:hover {
+      background: #5A5A5A;
+      color: #FFD700;
+      transform: translateY(-1px);
+    }
+
+    .toolbar-btn:active {
+      transform: scale(0.97);
+      transition: transform 0.1s;
+    }
+
+    .toolbar-btn.active {
+      background: linear-gradient(135deg, #8B6914, #B8860B);
+      color: #FFF8DC;
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    /* 右侧控制面板 */
+    .right-panel {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 220px;
+      background: rgba(34, 34, 34, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 8px;
+      padding: 20px 16px;
+      border: 0.3px dashed rgba(212, 175, 55, 0.2);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel-label {
+      font-size: 12px;
+      color: #D2E0C0;
+      letter-spacing: 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-value {
+      color: #FFD700;
+      font-weight: 500;
+    }
+
+    /* 滑块样式 */
+    .slider-container {
+      position: relative;
+      height: 6px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: #D4AF37;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #FFD700;
+      border-radius: 50%;
+      margin-top: -5px;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      background: #D4AF37;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #FFD700;
+      border-radius: 50%;
+      border: none;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    }
+
+    /* 开关样式 */
+    .toggle-switch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .toggle-track {
+      width: 44px;
+      height: 22px;
+      background: #3E3E3E;
+      border-radius: 11px;
+      position: relative;
+      transition: background 0.3s ease;
+      border: 0.3px dashed rgba(212, 175, 55, 0.2);
+    }
+
+    .toggle-switch.active .toggle-track {
+      background: #8B6914;
+    }
+
+    .toggle-thumb {
+      width: 18px;
+      height: 18px;
+      background: #D2B48C;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .toggle-switch.active .toggle-thumb {
+      left: 24px;
+      background: #FFD700;
+      box-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: #D2E0C0;
+    }
+
+    /* 底部工具栏 */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #1A1A1A;
+      border-top: 0.3px dashed rgba(212, 175, 55, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+    }
+
+    .action-btn {
+      padding: 10px 28px;
+      background: #3E3E3E;
+      border: 0.3px dashed rgba(212, 175, 55, 0.3);
+      border-radius: 6px;
+      color: #D2B48C;
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      cursor: pointer;
+      transition: all 0.25s ease-in-out;
+      letter-spacing: 2px;
+    }
+
+    .action-btn:hover {
+      background: #5A5A5A;
+      color: #FFD700;
+      border-color: rgba(255, 215, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+      transition: transform 0.1s;
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #8B6914, #B8860B);
+      color: #FFF8DC;
+    }
+
+    .action-btn.primary:hover {
+      background: linear-gradient(135deg, #B8860B, #D4AF37);
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      background: #F5F5DC;
+      color: #1A1A1A;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    /* 压叠状态标签 */
+    .overlap-label {
+      position: fixed;
+      background: rgba(255, 215, 0, 0.85);
+      color: #1A1A1A;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      pointer-events: none;
+      z-index: 500;
+      transform: translate(-50%, -50%);
+      letter-spacing: 1px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1440px) {
+      .left-toolbar, .right-panel {
+        display: none;
+      }
+
+      .mobile-menu-btn {
+        display: block;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .top-bar {
+        height: 40px;
+        padding: 0 15px;
+      }
+
+      .top-bar .title {
+        font-size: 14px;
+      }
+
+      .top-bar .subtitle {
+        display: none;
+      }
+
+      .bottom-bar {
+        height: 50px;
+        gap: 10px;
+      }
+
+      .action-btn {
+        padding: 8px 16px;
+        font-size: 12px;
+        background: rgba(62, 62, 62, 0.8);
+        backdrop-filter: blur(8px);
+      }
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 15px;
+      width: 40px;
+      height: 40px;
+      background: rgba(46, 46, 46, 0.9);
+      border: 0.3px dashed rgba(212, 175, 55, 0.3);
+      border-radius: 6px;
+      color: #D4AF37;
+      cursor: pointer;
+      z-index: 100;
+      font-size: 18px;
+    }
+
+    .mobile-settings-btn {
+      display: none;
+      position: fixed;
+      top: 60px;
+      right: 15px;
+      width: 40px;
+      height: 40px;
+      background: rgba(46, 46, 46, 0.9);
+      border: 0.3px dashed rgba(212, 175, 55, 0.3);
+      border-radius: 6px;
+      color: #D4AF37;
+      cursor: pointer;
+      z-index: 100;
+      font-size: 18px;
+    }
+
+    @media (max-width: 1440px) {
+      .mobile-menu-btn, .mobile-settings-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    /* 高亮动画 */
+    @keyframes highlightPulse {
+      0% { box-shadow: 0 0 0 0 rgba(139, 105, 20, 0.7); }
+      50% { box-shadow: 0 0 20px 10px rgba(139, 105, 20, 0.3); }
+      100% { box-shadow: 0 0 0 0 rgba(139, 105, 20, 0); }
+    }
+
+    .highlight-animation {
+      animation: highlightPulse 1.2s ease-in-out;
+    }
+
+    /* 加载提示 */
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #D4AF37;
+      font-size: 16px;
+      letter-spacing: 4px;
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <!-- 顶部菜单栏 -->
+    <div class="top-bar">
+      <span class="title">竹编工艺可视化</span>
+      <span class="subtitle">TRADITIONAL BAMBOO WEAVING</span>
+    </div>
+
+    <!-- 移动端菜单按钮 -->
+    <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+    <button class="mobile-settings-btn" id="mobile-settings-btn">⚙</button>
+
+    <!-- 左侧工具栏 -->
+    <div class="left-toolbar" id="left-toolbar">
+      <button class="toolbar-btn" data-pattern="herringbone" data-tooltip="经线呈人字形交错编织">人字纹</button>
+      <button class="toolbar-btn" data-pattern="meander" data-tooltip="回字形连续纹样">回纹</button>
+      <button class="toolbar-btn" data-pattern="cross" data-tooltip="经纬垂直交错">十字纹</button>
+      <button class="toolbar-btn" data-pattern="diamond" data-tooltip="45度斜向菱形格">菱形纹</button>
+    </div>
+
+    <!-- 右侧控制面板 -->
+    <div class="right-panel" id="right-panel">
+      <div class="panel-section">
+        <label class="panel-label">
+          <span>经线根数</span>
+          <span class="panel-value" id="warp-count-value">12</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="warp-count" min="8" max="24" step="2" value="12" />
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <label class="panel-label">
+          <span>纬线密度</span>
+          <span class="panel-value" id="weft-density-value">1.0</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="weft-density" min="0.5" max="2.0" step="0.1" value="1.0" />
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="toggle-switch" id="jump-pattern-toggle" data-tooltip="开启后鼠标刷过可产生跳花效果">
+          <div class="toggle-track">
+            <div class="toggle-thumb"></div>
+          </div>
+          <span class="toggle-label">跳花模式</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部工具栏 -->
+    <div class="bottom-bar">
+      <button class="action-btn" id="preview-btn" data-tooltip="收紧篾条展示完整成品">编织预览</button>
+      <button class="action-btn primary" id="edge-finish-btn" data-tooltip="外缘篾条收拢形成光滑收口">收边</button>
+      <button class="action-btn" id="reset-btn" data-tooltip="重置所有参数">重置</button>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- 压叠状态标签 -->
+    <div class="overlap-label" id="overlap-label" style="display: none;"></div>
+
+    <!-- 加载提示 -->
+    <div class="loading" id="loading">加载中...</div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
