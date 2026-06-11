@@ -1,0 +1,166 @@
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 60px;
+  height: 60px;
+  background: linear-gradient(180deg, #EDE4D4 0%, #E5DAC8 100%);
+  border-bottom: 2px solid rgba(139, 69, 19, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    right: 0;
+    padding: 0 16px;
+  }
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.logo-seal {
+  width: 36px;
+  height: 36px;
+  background-color: #CC2936;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transform: rotate(-3deg);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.logo-text {
+  font-size: 1.3rem;
+  color: #333;
+  letter-spacing: 3px;
+  font-weight: normal;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 8px 20px;
+  color: #666;
+  text-decoration: none;
+  font-size: 1rem;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nav-link:hover {
+  color: #8B4513;
+  background: rgba(139, 69, 19, 0.08);
+}
+
+.nav-link.active {
+  color: #8B4513;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.user-seal {
+  width: 28px;
+  height: 28px;
+  background-color: #CC2936;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transform: rotate(-3deg);
+}
+
+.username {
+  font-size: 1rem;
+  color: #333;
+}
+
+.balance {
+  padding: 6px 14px;
+  background: rgba(46, 125, 50, 0.1);
+  border: 1px solid rgba(46, 125, 50, 0.3);
+  border-radius: 16px;
+  color: #2E7D32;
+  font-size: 0.9rem;
+}
+
+.balance-icon {
+  margin-right: 4px;
+}
+
+.logout-btn {
+  padding: 6px 16px;
+  border: 1px solid rgba(204, 41, 54, 0.4);
+  border-radius: 12px;
+  color: #CC2936;
+  font-size: 0.85rem;
+  background: rgba(204, 41, 54, 0.05);
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(204, 41, 54, 0.15);
+}
+
+.login-btn {
+  padding: 8px 24px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+  
+  .username {
+    display: none;
+  }
+  
+  .balance {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+  }
+}
