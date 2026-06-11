@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T17:19:21.269Z",
+  "task_name": "auto45",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个在线的团队故事接龙创作应用，想法是让多个团队成员轮流在同一故事上添加段落，每次只能看到上一个人的文字（类似盲写），最后生成一篇完整的协作故事，并展示每个人贡献部分的颜色标记和时间轴。希望它能做到：第一，用户打开页面后输入房间名和昵称加入一个创作房间（最多6人），进入后看到一个纯白的写作区域，上面显示上一个人写的一段文字（最长500字），自己可以在下方文本框中写下一段（100-500字，有字数统计），写完后点击“提交”按钮，文字立刻锁定，轮到下一个在队列中的成员写作；第二，当所有人都完成一轮（比如3轮）后，系统自动生成完整故事页面，每个人的文字用不同颜色高亮（从调色板中随机分配，含6种柔和色），右侧有一个纵向时间轴，每一段按提交时间排列，鼠标悬停在时间轴上某段时，左侧对应正文段落高亮并放大显示；第三，房间内任何时候有新成员加入或提交时，首页列表实时更新，并且页面顶部显示当前轮到谁在写（头像+昵称），如果某成员超过5分钟没写，自动跳过并通知其他人。界面上希望整体走柔和手写风格——背景用浅米色（#F5F0E8），字色用深灰（#2C2C2C），正文区域用纸张纹理背景（通过CSS渐变模拟），提交按钮是圆角小标签样式，点击后有纸页翻动的微动画（一个翻转的卡片效果，持续0.4秒）。房间列表卡片带轻微投影和悬停上浮效果。性能上希望提交后页面重新渲染的延迟不超过200ms，并且每个房间同时可运行6个连接。实现用TypeScript和React（前端）+ Node.js + Express + WebSocket（后端），把代码拆成以下文件：\n - package.json（含依赖：react, react-dom, typescript, vite, express, ws, cors, uuid；启动脚本：npm run dev启动前端，node server.js启动后端）\n - index.html（入口页面，加载文字“创意接龙加载中...”）\n - vite.config.js（构建配置，端口5173，代理/api和/ws到后端的4000端口）\n - tsconfig.json（严格模式，target ES2020，moduleResolution bundler）\n - src/App.tsx（主组件，管理路由和WebSocket连接）\n - src/components/Editor.tsx（写作区组件，显示上一个人文字和输入框）\n - src/components/StoryView.tsx（最终故事展示组件，带颜色标记和时间轴）\n - server/server.ts（Express + WebSocket服务器，管理房间和消息广播）\n跑 npm install && npm run dev 就能直接看到效果，后端需要先起 node server.js。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:f76a95e28da79e1a2cc42ed794363b3c_6a299c070450ec59783defc9.6a299c8e0450ec59783df06e.6a299c8efbe621c41058fb04:Trae CN.T(2026/6/11 01:19:10)",
+    "user_id": "98336997115224",
+    "trace_id": "f76a95e28da79e1a2cc42ed794363b3c",
+    "session_id": "6a299c070450ec59783defc9",
+    "task_id": "6a299c8e0450ec59783df06e",
+    "message_id": "6a299c8efbe621c41058fb04",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 01:19:10",
+    "format": "full"
+  },
+  "trace": "null"
+}
