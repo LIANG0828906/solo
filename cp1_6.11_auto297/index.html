@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>孔明灯 - 夜空天灯模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0B0C10 0%, #2E1A47 100%);
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      color: #e0d8c8;
+    }
+
+    #app-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-width: 800px;
+    }
+
+    #ui-panel {
+      width: 240px;
+      min-width: 240px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      border-right: 1px solid #D4AF37;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow-y: auto;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    #ui-panel.collapsed {
+      transform: translateX(-100%);
+    }
+
+    #toggle-panel-btn {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid #D4AF37;
+      color: #D4AF37;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      min-width: 560px;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      font-size: 13px;
+      color: #D4AF37;
+      letter-spacing: 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-value {
+      color: #FFC107;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #2a2a3a;
+      outline: none;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]:active {
+      transform: scale(1.05);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #D4AF37;
+      cursor: pointer;
+      border: 2px solid #0B0C10;
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .wind-direction-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #wind-direction-ring {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 2px solid #D4AF37;
+      position: relative;
+      background: radial-gradient(circle, rgba(46, 26, 71, 0.4), rgba(11, 12, 16, 0.8));
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    #wind-direction-ring:active {
+      transform: scale(1.05);
+    }
+
+    .wind-needle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 50px;
+      background: linear-gradient(to top, #D4AF37, #FF4500);
+      transform-origin: bottom center;
+      transform: translate(-50%, -100%) rotate(0deg);
+      border-radius: 2px;
+      transition: transform 0.3s ease;
+    }
+
+    .wind-center-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: #FF4500;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .wind-label-n, .wind-label-s, .wind-label-e, .wind-label-w {
+      position: absolute;
+      font-size: 11px;
+      color: #8a7a5a;
+    }
+
+    .wind-label-n { top: 4px; left: 50%; transform: translateX(-50%); }
+    .wind-label-s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .wind-label-e { right: 4px; top: 50%; transform: translateY(-50%); }
+    .wind-label-w { left: 4px; top: 50%; transform: translateY(-50%); }
+
+    #launch-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #FF722F, #FFC107);
+      border: none;
+      border-radius: 12px;
+      color: #1a0a00;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid rgba(212, 175, 55, 0.5);
+    }
+
+    #launch-btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 20px rgba(255, 114, 47, 0.4);
+    }
+
+    #launch-btn:active {
+      transform: scale(0.97);
+    }
+
+    #reset-hint {
+      font-size: 11px;
+      color: #6a6a7a;
+      text-align: center;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    #reset-hint kbd {
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid #D4AF37;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      color: #D4AF37;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #D4AF37;
+      text-align: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+      letter-spacing: 3px;
+    }
+
+    @media (max-width: 1023px) {
+      #app-container {
+        flex-direction: column;
+        min-width: unset;
+      }
+
+      #ui-panel {
+        width: 100%;
+        min-width: unset;
+        height: auto;
+        max-height: 200px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-right: none;
+        border-bottom: 1px solid #D4AF37;
+      }
+
+      #ui-panel.collapsed {
+        transform: translateY(-100%);
+      }
+
+      #canvas-container {
+        min-width: unset;
+        flex: 1;
+      }
+
+      #toggle-panel-btn {
+        display: block;
+      }
+
+      .control-group {
+        flex: 1 1 140px;
+        min-width: 120px;
+      }
+
+      .wind-direction-container {
+        flex: 0 0 auto;
+      }
+
+      #wind-direction-ring {
+        width: 80px;
+        height: 80px;
+      }
+
+      .wind-needle {
+        height: 34px;
+      }
+
+      #launch-btn {
+        flex: 0 0 auto;
+        padding: 10px 20px;
+        width: auto;
+      }
+
+      .panel-title {
+        flex: 0 0 100%;
+        font-size: 14px;
+        padding-bottom: 4px;
+      }
+
+      #reset-hint {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+        flex: 0 0 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="toggle-panel-btn">☰ 控制面板</button>
+  <div id="app-container">
+    <div id="ui-panel">
+      <div class="panel-title">🏮 孔明灯控制台</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>灯笼数量</span>
+          <span class="control-value" id="count-value">5</span>
+        </div>
+        <input type="range" id="lantern-count" min="2" max="15" value="5" step="1" />
+      </div>
+      <div class="control-group wind-direction-container">
+        <div class="control-label">
+          <span>风向角度</span>
+          <span class="control-value" id="direction-value">0°</span>
+        </div>
+        <div id="wind-direction-ring">
+          <span class="wind-label-n">N</span>
+          <span class="wind-label-s">S</span>
+          <span class="wind-label-e">E</span>
+          <span class="wind-label-w">W</span>
+          <div class="wind-needle" id="wind-needle"></div>
+          <div class="wind-center-dot"></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>风速</span>
+          <span class="control-value" id="strength-value">5</span>
+        </div>
+        <input type="range" id="wind-strength" min="1" max="20" value="5" step="1" />
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>浮力系数</span>
+          <span class="control-value" id="buoyancy-value">1.0</span>
+        </div>
+        <input type="range" id="buoyancy-coeff" min="0.5" max="2.0" value="1.0" step="0.1" />
+      </div>
+      <button id="launch-btn">✨ 点亮</button>
+      <div id="reset-hint">按 <kbd>R</kbd> 键重置所有灯笼</div>
+    </div>
+    <div id="canvas-container"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
