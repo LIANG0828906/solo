@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T18:38:07.801Z",
+  "task_name": "auto85",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个在线团队歌词接龙与实时演唱会的项目，想法是让一群朋友在线上创建一个虚拟的K歌房间，主持人播放一首歌的副歌片段（从后端音乐库随机选取），所有参与者必须在倒计时结束前输入下一句歌词的文本，系统自动匹配官方歌词判断正确性并实时计分，每轮得分最高的人成为下一轮主持人，整个房间的聊天框会像演唱会大屏一样滚动显示每位参与者的接龙记录和实时排名。希望它能做到：第一，用户在首页输入昵称和房间名（房间名支持中文），点击创建或加入房间后，页面以深紫色渐变到霓虹粉的渐变背景展示，顶部是带动态流动光效的房间标题条（光效从左到右循环移动，周期4秒），中央是当前歌曲片段播放器（用HTML5 Audio控制，显示进度条和剩余时间倒计时），下方是歌词输入框和提交按钮，输入框获得焦点时边框变成荧光绿并放大1.05倍，提交时按钮有弹性缩放反馈；第二，后端维护一个歌曲库（至少20首流行歌曲，每首包含副歌起始时间戳和完整歌词文本），WebSocket广播播放进度和接龙倒计时（每轮15秒），当用户提交歌词后服务端即时比对（忽略大小写和标点，允许一个错别字），比对正确则该用户头像在房间头像列表上弹跳一次并发出绿色光晕，错误则头像抖动变红0.3秒，所有事件通过Socket.IO实时同步。界面上希望接龙记录区在右侧以半透明毛玻璃卡片形式展示（卡片背景rgba(255,255,255,0.1)，圆角16px，每条记录用渐变色时间戳和用户头像显示，最新的记录置顶，旧记录向下滚动消失，滚动动画持续0.5秒 ease-out），左侧则是环形排名图（用Canvas绘制，前三名扇形分别用金、银、铜色，其余用均匀的冷色调，排名图中心显示当前主持人名字和皇冠图标），整个页面布局在移动端（宽度小于768px）自动切换为单列纵向布局，排名图缩小到左上角小圆环。性能上要求从用户点击提交按钮到所有客户端看到结果更新，端到端延迟不超过300ms。\n\n实现用TypeScript和React（前端）+ Node.js + Express（后端）+ Socket.IO，把代码拆成以下文件：\n - package.json（含依赖：react, react-dom, typescript, vite, @vitejs/plugin-react, express, cors, socket.io, uuid, nodemon；启动脚本：npm run dev启动前端，npm run server启动后端）\n - index.html（入口页面，全屏渐变背景，加载时显示旋转的麦克风loading图标）\n - vite.config.js（构建配置，将index.html作为入口，代理/api和/socket.io到后端3001端口）\n - tsconfig.json（严格模式，target ES2020，jsx react-jsx）\n - server.ts（后端入口：Express + Socket.io，路由：GET /api/songs返回歌曲列表和歌词，WebSocket事件：joinRoom, startRound, submitLyric, broadcastResult, updateRanking）\n - client/src/App.tsx（React组件，管理socket连接和房间状态，按不同阶段渲染Lobby、Room、GameScreen子组件，并实现所有UI布局和响应式适配）\n\n跑 npm install && npm run dev 和 npm run server 分别在两个终端启动，就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:cf798d02f8eb1b4416409e86599cb253_6a29ae006d30134bdb003beb.6a29aef46d30134bdb003c9f.6a29aef497a6389cc085d6b7:Trae CN.T(2026/6/11 02:37:40)",
+    "user_id": "98336997115224",
+    "trace_id": "cf798d02f8eb1b4416409e86599cb253",
+    "session_id": "6a29ae006d30134bdb003beb",
+    "task_id": "6a29aef46d30134bdb003c9f",
+    "message_id": "6a29aef497a6389cc085d6b7",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 02:37:40",
+    "format": "full"
+  },
+  "trace": "null"
+}
