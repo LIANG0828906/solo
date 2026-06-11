@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>竹筏漂流 · 峡谷水文</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #D4E6F1;
+      overflow: hidden;
+      font-family: 'ZCOOL XiaoWei', '楷体', 'KaiTi', serif;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas { display: block; }
+    #hud {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    #pole-ring {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(212, 230, 241, 0.6);
+      border: 3px solid #8B4513;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #pole-ring .force-text {
+      font-size: 22px;
+      color: #2E4A2E;
+      font-weight: bold;
+    }
+    #pole-ring .angle-marks {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
+    #status-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 200px;
+      background: rgba(245, 245, 220, 0.85);
+      border: 2px solid #8B4513;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 13px;
+      color: #2E4A2E;
+      z-index: 10;
+    }
+    #status-panel table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #status-panel td {
+      padding: 3px 4px;
+      border-bottom: 1px solid rgba(139, 69, 19, 0.3);
+    }
+    #status-panel td:first-child {
+      font-weight: bold;
+    }
+    #checkpoint-display {
+      position: fixed;
+      top: 50%;
+      right: 40px;
+      transform: translateY(-50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .checkpoint-stele {
+      width: 60px;
+      height: 120px;
+      background: rgba(46, 74, 46, 0.85);
+      border: 2px solid #8B4513;
+      border-radius: 4px;
+      color: #F5F5DC;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      text-align: center;
+      writing-mode: vertical-rl;
+      animation: steleAppear 1.2s ease forwards;
+    }
+    @keyframes steleAppear {
+      0% { opacity: 0; transform: translateY(20px); }
+      20% { opacity: 1; transform: translateY(0); }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    #finish-scroll {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      display: none;
+      background: rgba(245, 245, 220, 0.95);
+      border: 3px solid #8B4513;
+      border-radius: 8px;
+      padding: 30px 40px;
+      min-width: 360px;
+      color: #2E4A2E;
+      text-align: center;
+      animation: scrollUnroll 0.8s ease forwards;
+    }
+    @keyframes scrollUnroll {
+      0% { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+    #finish-scroll h2 {
+      font-size: 24px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #8B4513;
+      padding-bottom: 8px;
+    }
+    #finish-scroll .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 16px;
+    }
+    #wind-slider-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(212, 230, 241, 0.7);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #8B4513;
+      z-index: 10;
+      color: #2E4A2E;
+      font-size: 13px;
+    }
+    #wind-slider {
+      width: 120px;
+      accent-color: #8B4513;
+    }
+    #mobile-controls {
+      display: none;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      gap: 20px;
+    }
+    #mobile-controls button {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid #8B4513;
+      background: rgba(212, 230, 241, 0.7);
+      color: #2E4A2E;
+      font-size: 16px;
+      font-family: 'ZCOOL XiaoWei', '楷体', serif;
+      cursor: pointer;
+    }
+    #angle-bar {
+      width: 160px;
+      height: 10px;
+      background: rgba(212, 230, 241, 0.7);
+      border-radius: 5px;
+      margin-top: 8px;
+    }
+    #angle-fill {
+      height: 100%;
+      background: #8B4513;
+      border-radius: 5px;
+      width: 0%;
+    }
+    .blur-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 5;
+      box-shadow: inset 0 0 0px rgba(212, 230, 241, 0);
+      transition: box-shadow 0.1s ease;
+    }
+    @media (max-width: 768px) {
+      #pole-ring { display: none; }
+      #mobile-controls { display: flex; flex-direction: row; align-items: center; }
+    }
+    #loading {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #D4E6F1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      font-family: 'ZCOOL XiaoWei', '楷体', 'KaiTi', serif;
+      color: #2E4A2E;
+    }
+    #loading h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    #loading p {
+      font-size: 18px;
+      color: #8B4513;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <h1>竹筏漂流</h1>
+    <p>峡谷水文 · 载入中...</p>
+  </div>
+  <div id="canvas-container"></div>
+  <div class="blur-overlay" id="blur-overlay"></div>
+  <div id="hud">
+    <div id="pole-ring">
+      <span class="force-text" id="force-text">0%</span>
+      <svg class="angle-marks" viewBox="0 0 160 160">
+      </svg>
+    </div>
+  </div>
+  <div id="status-panel">
+    <table>
+      <tr><td>速度</td><td id="stat-speed">0.0</td></tr>
+      <tr><td>方向</td><td id="stat-direction">0°</td></tr>
+      <tr><td>障碍距离</td><td id="stat-obstacle">--</td></tr>
+      <tr><td>碰撞次数</td><td id="stat-collisions">0</td></tr>
+      <tr><td>撑篙次数</td><td id="stat-poles">0</td></tr>
+      <tr><td>已过里程</td><td id="stat-distance">0里</td></tr>
+    </table>
+  </div>
+  <div id="checkpoint-display"></div>
+  <div id="finish-scroll">
+    <h2>漂流终了</h2>
+    <div class="stat-row"><span>总用时</span><span id="fin-time">--</span></div>
+    <div class="stat-row"><span>碰撞次数</span><span id="fin-collisions">--</span></div>
+    <div class="stat-row"><span>撑篙次数</span><span id="fin-poles">--</span></div>
+    <div class="stat-row"><span>总里程</span><span id="fin-distance">--</span></div>
+  </div>
+  <div id="wind-slider-container">
+    <label>风力：<span id="wind-value">0</span>级</label><br/>
+    <input type="range" id="wind-slider" min="0" max="8" value="2" step="1" />
+  </div>
+  <div id="mobile-controls">
+    <button id="btn-left">左撑</button>
+    <div>
+      <div id="angle-bar"><div id="angle-fill"></div></div>
+    </div>
+    <button id="btn-right">右撑</button>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
