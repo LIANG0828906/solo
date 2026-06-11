@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T16:03:23.861Z",
+  "task_name": "auto3",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个在线协作白板应用，支持多用户实时绘制图形和文字标注。使用TypeScript、React和WebSocket实现。文件结构如下：\n - package.json（依赖：react, react-dom, typescript, vite, socket.io-client, uuid；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（构建配置）\n - tsconfig.json（严格模式）\n - src/main.tsx（React根组件，初始化App和WebSocket连接）\n - src/App.tsx（主应用组件，管理画布状态和工具切换）\n - src/components/Canvas.tsx（负责渲染SVG画布，处理鼠标事件绘制图形，接收WebSocket数据更新）\n - src/components/Toolbar.tsx（工具栏组件，包含画笔、矩形、圆形、文字工具和颜色选择器）\n - src/utils/websocket.ts（封装WebSocket连接管理，处理消息收发与重连逻辑）\n\n具体需求：\n1. 支持三种绘图工具：自由画笔、矩形、圆形，用户通过工具栏切换，绘制时实时显示预览图形。\n2. 支持文字标注功能：点击画布任意位置弹出输入框，输入文字后自动添加到画布上。\n3. 实现WebSocket实时同步：每次绘图操作（绘制形状、删除、移动）自动广播到所有连接用户，同步延迟不超过200ms。\n4. 支持撤销/重做功能：每个用户可独立撤销最近5步操作，历史记录存储在本地状态。\n5. 提供清除画布功能：弹窗确认后清空所有内容，并广播清除事件给其他用户。\n\n界面方面：整体采用干净的扁平化设计，顶部固定工具栏（高度60px，浅灰色背景#f5f5f5），工具按钮使用图标+文字标签，选中时高亮为蓝色#1890ff。画布区域占据剩余全部空间，背景为纯白，鼠标悬停时显示十字光标。文字标注使用黑色字体Arial，字号16px；绘制预览时图形显示半透明蓝色（rgba(24,144,255,0.3)），确认绘制后变为实心描边（描边黑#333，填充白色）。工具栏底部有颜色选择器（支持6种预设色：红、蓝、绿、橙、紫、黑）和粗细调节滑块（1-10px）。页面宽度小于768px时，工具栏变为可折叠侧边栏。\n\n性能要求：在同时绘制100个图形时，画布交互保持60fps；文字输入框弹出延迟不超过100ms；WebSocket消息广播到所有客户端平均延迟不超过100ms。\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:7fa6e8303bbea17105c2d8b2feef8cc7_6a298a0a78cdd86d74b47911.6a298ab049dfbdcd69cf17a5.6a298ab0cced2993de3e52d1:Trae CN.T(2026/6/11 00:02:57)",
+    "user_id": "98336997115224",
+    "trace_id": "7fa6e8303bbea17105c2d8b2feef8cc7",
+    "session_id": "6a298a0a78cdd86d74b47911",
+    "task_id": "6a298ab049dfbdcd69cf17a5",
+    "message_id": "6a298ab0cced2993de3e52d1",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 00:02:57",
+    "format": "full"
+  },
+  "trace": "null"
+}
