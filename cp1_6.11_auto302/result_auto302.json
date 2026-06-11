@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-11T01:19:19.497Z",
+  "task_name": "auto302",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "场景：一位古代布庄掌柜需要一种在线方式管理布匹从染坊到成衣铺的完整流通环节，包括布匹染色批次跟踪、不同顾客对同一布料的预约拼购，以及根据库存自动推荐替代布料，但传统手工记账难以应对频繁的拼单与调货操作。\n\n构建一个全栈Web应用，实现古代布料庄的染色批次追踪、顾客拼单预约与库存预警推荐系统。使用TypeScript、React（前端）和Node.js + Express（后端）实现。文件结构按职责模块化，并注明各文件间的调用关系和数据流向：\n - package.json（含依赖：react, express, typescript, vite, @types/react, @types/express, cors, uuid；启动脚本：npm run dev，同时启动前后端）\n - index.html（入口页面，背景为靛蓝#1B3A4B渐变至旧棉白#F5F0E8，标题采用仿宋体）\n - vite.config.js（构建配置，代理后端API到localhost:3001）\n - tsconfig.json（严格模式，target ES2020）\n - src/client/App.tsx（前端主组件，负责渲染织物质感底色为本白#FAF0E6的布匹卡片列表与拼单详情，用户点击卡片切换详情；通过fetch调用后端API获取染色批次与拼单数据）\n - src/client/AdminPanel.tsx（后端管理面板组件，接收App.tsx传递的库存与批次数据，提供添加新批次、修改拼单状态的表单提交逻辑，提交后自动刷新父组件数据）\n - src/server/server.ts（Express服务端，提供GET /api/fabrics（返回布料列表）、POST /api/orders（创建拼单）、PUT /api/inventory（更新库存）三个接口，使用内存数组模拟数据存储，支持CORS）\n\n功能需求：\n1) 布料展示与搜索：页面显示所有布料的缩略卡片，每张卡片展示布料名称（如松江棉、苏州缎）、颜色样本（以色块显示）、库存余量（单位匹），支持按颜色或名称模糊搜索。<br>2) 染色批次详情：点击卡片弹出抽屉面板，显示该布料的染色批次列表（每批包含批次号、染色日期、数量、剩余匹数），同一布料的不同批次颜色略有差异（用色阶区分），并标注已预约数量。<br>3) 顾客拼单预约：用户（模拟顾客）可从布料详情中发起拼单，输入需求匹数和期望到货日期，系统自动计算当前累积订单量与可用库存之比，若超100%则弹出警告并建议替换布料。<br>4) 库存预警与替代推荐：当单品库存低于3匹时，在卡片角标显示红色“库存紧张”徽章，系统根据布料材质和颜色相近度自动推荐同类别替代布料（如苏州缎缺货则推荐杭州绡），替代建议以浮层提示。<br>5) 管理员操作：AdminPanel提供添加新批次（手动输入批次号、数量、染色日期）、修改拼单状态（待处理/已发货/取消）的功能，修改后库存实时更新。<br>6) 数据统计仪表：在AdminPanel顶部显示三条折线（用简单canvas绘制），表示本周不同布料的总预约量、库存量、发货量趋势，横坐标为日期。<br>\n\n界面方面要求：整体采用仿古布庄的暖色调，主背景为靛蓝至旧棉白的渐变，布匹卡片使用本白底色与细麻布纹理（通过CSS repeating-linear-gradient模拟经纬线），卡片边缘有靛蓝#1B3A4B的细描边。搜索框置于顶部居中，背景为米色#FFFDD0，带棕褐色#8B4513的木质感边框（box-shadow模拟凹陷）。抽屉面板弹出时使用缓动动画（transition: transform 0.3s ease-out），背景遮罩半透明黑色。库存预警徽章用朱红#CC2936，并带有1次脉冲缩放动画。替代推荐浮层从卡片右下角飞出，带有渐变透明度。页面在手机宽度（<768px）时卡片变为单列布局，搜索框宽度自适应。\n\n性能约束：页面初始加载时间不超过2秒（使用Vite按需加载），搜索响应时间不超过300毫秒，抽屉面板动画帧率不低于50fps。运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:e4f95db0b652d7206d9a827a4a8ef22f_6a2a0c36bdd5512de501c5b6.6a2a0cfcbdd5512de501c68a.6a2a0cfc1e9be579fc9290f8:Trae CN.T(2026/6/11 09:18:52)",
+    "user_id": "98336997115224",
+    "trace_id": "e4f95db0b652d7206d9a827a4a8ef22f",
+    "session_id": "6a2a0c36bdd5512de501c5b6",
+    "task_id": "6a2a0cfcbdd5512de501c68a",
+    "message_id": "6a2a0cfc1e9be579fc9290f8",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 09:18:52",
+    "format": "full"
+  },
+  "trace": "null"
+}
