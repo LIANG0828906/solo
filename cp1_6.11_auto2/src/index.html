@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dungeon Adventure</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a12;
+      font-family: 'Press Start 2P', monospace;
+      color: #7fff7f;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0514 100%);
+    }
+    #game-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      border: 2px solid #3fff7f;
+      box-shadow: 0 0 20px rgba(63, 255, 127, 0.3);
+    }
+    #hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #joystick {
+      display: none;
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      width: 120px;
+      height: 120px;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .joystick-base {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(63, 255, 127, 0.1);
+      border: 2px solid #3fff7f;
+    }
+    .joystick-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 50px;
+      height: 50px;
+      margin-top: -25px;
+      margin-left: -25px;
+      border-radius: 50%;
+      background: rgba(63, 255, 127, 0.4);
+      border: 2px solid #3fff7f;
+    }
+    #mobile-attack {
+      display: none;
+      position: absolute;
+      bottom: 60px;
+      right: 60px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 80, 80, 0.3);
+      border: 3px solid #ff5050;
+      pointer-events: auto;
+      touch-action: none;
+      font-size: 12px;
+      color: #fff;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      #joystick, #mobile-attack {
+        display: block;
+      }
+      #mobile-attack {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="hud-overlay"></div>
+    <div id="joystick">
+      <div class="joystick-base"></div>
+      <div class="joystick-handle" id="joystick-handle"></div>
+    </div>
+    <div id="mobile-attack">ATK</div>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
