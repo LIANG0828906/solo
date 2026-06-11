@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T18:53:51.390Z",
+  "task_name": "auto94",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个在线团队食谱分享与智能食材替换建议的Web应用项目，想法是让一群朋友在线上创建一个虚拟的食谱分享平台，每个成员可以上传自己拿手菜的详细做法（包括食材清单、步骤和烹饪时间），当其他用户缺少某个食材时，系统自动推荐几种可替换的食材（比如没有牛奶可以用豆浆或杏仁奶代替），替换后自动调整烹饪建议和时间。希望它能做到：第一，用户在首页注册或登录后，看到一个以暖色调（浅米色#FFF8E7到淡橙色#FFE0B2的渐变背景）的食谱瀑布流页面，每张食谱卡片以圆角大图片格式展示（宽280px高380px，圆角12px，有柔和阴影），鼠标悬停时卡片轻微上浮3px并加亮阴影，顶部导航栏固定，包含搜索框（支持按菜名、食材、标签搜索）和“发布食谱”按钮（按钮背景为橙红色#FF7043，圆角6px，点击时有按下动画缩放0.95倍）。第二，点击任意食谱卡片进入详情页，左侧是制作步骤的图文描述（每步骤一个段落，带序号圆点和可选的步骤图片缩略图），右侧是食材清单区域，每个食材项后面有一个“替换”按钮，点击后弹出模态框（模态框背景半透明遮罩#00000066，模态框本身圆角16px，白色背景，宽500px，居中显示），列出该食材的2-3种可选替换方案（如“豆腐”替换“鸡肉”），每种替换方案附上替换后的口感变化和烹饪时间调整说明（比如用豆腐代替鸡肉，烹饪时间减少5分钟）。第三，用户选择替换后，详情页的食材清单立即更新，并用绿色圆点标记被替换的食材项（配色从浅绿#C8E6C9到深绿#388E3C的渐变），同时右侧的烹饪计时器（显示总时间和分步时间）自动根据替换项的调整值更新总时长，更新动画用数字滚动效果（0.3秒内从旧值滚动到新值），页面底部返回瀑布流首页的链接带有渐入渐出动画。第四，性能上要求整个页面的首次加载（包括图片懒加载和食材替换逻辑初始化）控制在2秒以内（用Chrome DevTools的Fast 3G模式测试），所有替换计算和界面更新在用户点击替换按钮后200毫秒内完成。实现用TypeScript和React（以及Express作为简易后端提供食谱数据API，数据存储在内存中），把代码拆成以下文件：\n - package.json（含依赖：react, react-dom, express, typescript, vite, @types/react, @types/express, uuid；启动脚本：npm run dev）\n - index.html（入口页面，设置meta viewport和标题“美味替换”）\n - vite.config.js（构建配置，入口index.html，端口3000，代理/api到Express）\n - tsconfig.json（严格模式，target ES2020，jsx react-jsx）\n - server/index.ts（Express服务器，提供两个端点：GET /api/recipes返回所有食谱，GET /api/substitutions?ingredient=xxx返回替换建议列表）\n - src/main.tsx（React入口，渲染App根组件）\n - src/App.tsx（主组件，包含路由和状态管理，调用后端API获取食谱数据，管理替换状态）\n - src/components/RecipeCard.tsx（单个食谱卡片组件，展示图片、标题、标签，支持点击跳转详情）\n - src/components/RecipeDetail.tsx（详情页组件，展示步骤、食材清单和替换按钮，调用替换API并更新UI）\n - src/components/SubstitutionModal.tsx（替换模态框组件，列表展示替换选项，点击确认后更新食材状态）\n - src/styles.css（全局样式，定义暖色调主题、渐变、阴影、动画）\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:63eeb4e5e40c8d3f41a159e5d11fe7f4_6a29b1d80c2b4be627c3b546.6a29b2a40c2b4be627c3b5fc.6a29b2a47591ab2464f17b1e:Trae CN.T(2026/6/11 02:53:24)",
+    "user_id": "98336997115224",
+    "trace_id": "63eeb4e5e40c8d3f41a159e5d11fe7f4",
+    "session_id": "6a29b1d80c2b4be627c3b546",
+    "task_id": "6a29b2a40c2b4be627c3b5fc",
+    "message_id": "6a29b2a47591ab2464f17b1e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 02:53:24",
+    "format": "full"
+  },
+  "trace": "null"
+}
