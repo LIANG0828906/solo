@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>手写字体风格化实验室</title>
+  <style>
+    :root {
+      --paper-bg: #F9F6EE;
+      --ink-color: #2B1B0E;
+      --grid-color: #E0D5C1;
+      --accent-color: #E6A04C;
+      --fade-color: #AAAAAA;
+      --control-bg: #FBF8F1;
+      --control-border: #E8DFCE;
+      --shadow-soft: 0 4px 20px rgba(43, 27, 14, 0.08);
+      --shadow-hover: 0 8px 28px rgba(43, 27, 14, 0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Georgia', 'SimSun', serif;
+      background: var(--paper-bg);
+    }
+
+    body {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg,
+          transparent 0%,
+          rgba(139, 115, 85, 0.03) 8%,
+          transparent 16%,
+          rgba(139, 115, 85, 0.02) 24%,
+          transparent 32%,
+          rgba(139, 115, 85, 0.03) 40%,
+          transparent 48%
+        ),
+        linear-gradient(270deg,
+          transparent 0%,
+          rgba(139, 115, 85, 0.03) 8%,
+          transparent 16%,
+          rgba(139, 115, 85, 0.02) 24%,
+          transparent 32%,
+          rgba(139, 115, 85, 0.03) 40%,
+          transparent 48%
+        ),
+        var(--paper-bg);
+    }
+
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    body::before {
+      left: 0;
+      background: linear-gradient(90deg,
+        rgba(139, 115, 85, 0.12) 0%,
+        rgba(139, 115, 85, 0.06) 30%,
+        rgba(139, 115, 85, 0.02) 60%,
+        transparent 100%
+      );
+    }
+
+    body::after {
+      right: 0;
+      background: linear-gradient(270deg,
+        rgba(139, 115, 85, 0.12) 0%,
+        rgba(139, 115, 85, 0.06) 30%,
+        rgba(139, 115, 85, 0.02) 60%,
+        transparent 100%
+      );
+    }
+
+    .app-container {
+      display: flex;
+      gap: 32px;
+      padding: 32px 80px;
+      align-items: flex-start;
+      max-width: 1400px;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .canvas-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .canvas-container {
+      position: relative;
+      background: var(--paper-bg);
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .canvas-container canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .tool-btn {
+      padding: 12px 28px;
+      border: 1px solid var(--control-border);
+      background: var(--control-bg);
+      color: var(--ink-color);
+      font-size: 15px;
+      font-family: inherit;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 0 rgba(43, 27, 14, 0.06);
+    }
+
+    .tool-btn:hover:not(:disabled) {
+      background: var(--accent-color);
+      color: #fff;
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--accent-color);
+    }
+
+    .tool-btn:active:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .tool-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .controls-panel {
+      width: 320px;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      padding: 28px 24px;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s ease;
+      position: sticky;
+      top: 32px;
+    }
+
+    .controls-panel.pressed {
+      transform: translateY(2px);
+    }
+
+    .panel-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--ink-color);
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--control-border);
+      letter-spacing: 1px;
+    }
+
+    .slider-group {
+      margin-bottom: 28px;
+    }
+
+    .slider-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .slider-label {
+      font-size: 14px;
+      color: var(--ink-color);
+      font-weight: 500;
+    }
+
+    .slider-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-color);
+      min-width: 48px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider-track {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: var(--control-border);
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+
+    .slider-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--fade-color), var(--accent-color));
+      border-radius: 3px;
+      transition: width 0.1s ease;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 24px;
+      background: transparent;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--paper-bg);
+      border: 2px solid var(--accent-color);
+      border-radius: 50%;
+      margin-top: -7px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230, 160, 76, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb {
+      transform: scale(1.15);
+      box-shadow: 0 3px 10px rgba(230, 160, 76, 0.45);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: var(--paper-bg);
+      border: 2px solid var(--accent-color);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230, 160, 76, 0.3);
+    }
+
+    .color-indicator {
+      height: 4px;
+      border-radius: 2px;
+      transition: background 0.2s ease;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: var(--paper-bg);
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 560px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      transform: scale(0.85);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--ink-color);
+      margin-bottom: 20px;
+    }
+
+    .modal-preview {
+      background: #fff;
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+
+    .modal-preview svg {
+      max-width: 100%;
+      max-height: 260px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: flex-end;
+    }
+
+    .canvas-container.fading {
+      animation: fadeClear 0.5s ease forwards;
+    }
+
+    @keyframes fadeClear {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="canvas-wrapper">
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+      </div>
+      <div class="toolbar" id="toolbar"></div>
+    </div>
+    <div class="controls-panel" id="controlsPanel"></div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <div class="modal-title">SVG 预览与下载</div>
+      <div class="modal-preview" id="modalPreview"></div>
+      <div class="modal-actions">
+        <button class="tool-btn" id="modalCancel">取消</button>
+        <button class="tool-btn" id="modalDownload">下载 SVG</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
