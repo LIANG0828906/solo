@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音频可视化编辑器</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 左侧控制面板 -->
+    <aside class="control-panel">
+      <h2 class="panel-title">控制面板</h2>
+      
+      <div class="upload-section">
+        <label for="fileInput" class="upload-btn">
+          <span>📁 上传音频</span>
+          <span class="upload-hint">MP3 / WAV (≤50MB)</span>
+        </label>
+        <input type="file" id="fileInput" accept="audio/mp3,audio/wav,audio/mpeg,.mp3,.wav" hidden>
+        <div class="drop-zone" id="dropZone">
+          <span>或拖拽文件到此处</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <button id="playPauseBtn" class="btn btn-primary btn-large" disabled>
+          <span id="playIcon">▶</span>
+          <span id="playText">播放</span>
+        </button>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">
+          <span>音量</span>
+          <span id="volumeValue">70%</span>
+        </label>
+        <input type="range" id="volumeSlider" min="0" max="100" value="70" class="slider" disabled>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">
+          <span>速度</span>
+          <span id="speedValue">1.0x</span>
+        </label>
+        <input type="range" id="speedSlider" min="0.5" max="2" step="0.1" value="1" class="slider" disabled>
+      </div>
+
+      <div class="control-group">
+        <button id="loopBtn" class="btn btn-secondary" disabled>
+          🔁 循环播放选区
+        </button>
+        <button id="exportBtn" class="btn btn-secondary" disabled>
+          💾 导出选区
+        </button>
+      </div>
+
+      <div class="control-group">
+        <button id="resetBtn" class="btn btn-danger">
+          重置
+        </button>
+      </div>
+    </aside>
+
+    <!-- 中央波形频谱区域 -->
+    <main class="visualizer-area">
+      <div class="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+        <div class="no-audio-overlay" id="noAudioOverlay">
+          <div class="overlay-content">
+            <div class="overlay-icon">🎵</div>
+            <p>上传音频文件开始可视化</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧信息面板 -->
+    <aside class="info-panel">
+      <h2 class="panel-title">音频信息</h2>
+      
+      <div class="info-group">
+        <div class="info-item">
+          <span class="info-label">文件名</span>
+          <span class="info-value" id="fileName">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">文件大小</span>
+          <span class="info-value" id="fileSize">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">采样率</span>
+          <span class="info-value" id="sampleRate">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">声道数</span>
+          <span class="info-value" id="channels">--</span>
+        </div>
+      </div>
+
+      <div class="info-group">
+        <h3 class="info-subtitle">播放时间</h3>
+        <div class="info-item">
+          <span class="info-label">当前时间</span>
+          <span class="info-value" id="currentTime">00:00.000</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">总时长</span>
+          <span class="info-value" id="totalTime">00:00.000</span>
+        </div>
+      </div>
+
+      <div class="info-group">
+        <h3 class="info-subtitle">选区信息</h3>
+        <div class="info-item">
+          <span class="info-label">开始时间</span>
+          <span class="info-value" id="regionStart">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">结束时间</span>
+          <span class="info-value" id="regionEnd">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">选区时长</span>
+          <span class="info-value" id="regionDuration">--</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
