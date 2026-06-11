@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T16:47:46.480Z",
+  "task_name": "auto27",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个在线团队即时投票与话题讨论应用，让团队成员可以快速发起投票、参与讨论并实时查看结果。使用TypeScript和React（前端）+ Express（后端）实现。文件结构如下：\n - package.json（依赖：react, react-dom, typescript, vite, express, cors, uuid, ws；启动脚本：npm run dev启动前端，node server.js启动后端）\n - index.html（入口页面）\n - vite.config.js（构建配置，端口5173）\n - tsconfig.json（严格模式，target ES2020）\n - server.ts（Express+WebSocket服务器，管理投票房间、用户连接、消息广播）\n - client/src/main.tsx（React入口，挂载App组件）\n - client/src/App.tsx（主应用组件，路由切换投票创建、列表、详情页面）\n - client/src/VoteCard.tsx（投票卡片组件，展示投票标题、选项、实时进度条）\n\n具体需求：\n1. 支持用户输入昵称后进入投票大厅，大厅左侧显示在线用户列表（实时更新，用户离开后5秒内移除），右侧显示所有活跃投票卡片列表（按创建时间倒序）。\n2. 用户可在创建投票页面输入标题（最多50字）、描述（最多200字）和至少2个选项（最多8个），选项显示为可编辑的输入框，支持拖拽调整顺序。投票创建后自动刷新列表，后端存储于内存中。\n3. 投票卡片在列表中实时显示当前进度：每个选项显示为渐变色进度条（颜色按投票比例从蓝色渐变到橙色），进度条上方标注票数和百分比，总票数显示在卡片顶部。投票后进度条和百分比立即更新（延迟不超过100ms）。\n4. 用户点击卡片进入投票详情，详情页显示更详细的统计：饼状图（使用Canvas绘制，每个选项用不同颜色区分，标注百分比和票数），以及历史投票记录列表（每个用户昵称+投票时间+所选选项）。\n5. 投票创建者可以在投票详情页点击“结束投票”按钮，结束后的投票不能再被投票，界面上的进度条和饼图变为灰色并标注“已结束”。结束操作实时通知所有在线用户。\n\n界面方面：整体使用深色主题（#1a1a2e背景，#16213e卡片底色，#e94560作为强调色用于按钮和选中状态），投票卡片采用毛玻璃效果（backdrop-filter: blur, rgba背景，边框半透明），卡片在鼠标悬停时有轻微上浮和阴影放大动画（transition 0.3s ease）。页面布局使用CSS Grid自适应，在手机端（<768px）切换为单列布局，投票卡片宽度占满容器。饼状图在鼠标悬停时弹出详细数据标签（tooltip），悬停选项段放大1.2倍并显示外发光。所有交互操作（投票、创建、结束）都有轻量的触觉反馈：按钮点击时缩放0.95并伴随微小的颜色闪烁，操作成功后显示绿色toast提示“操作成功”。\n\n性能要求：投票卡片列表渲染性能良好，在50个以上投票卡片同时存在时滚动帧率不低于45FPS。运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:e462c2cd04d5cc81c6f5ed597d59e571_6a2994ca61789cd96b9ecbd3.6a29952761789cd96b9ecc3b.6a29952733d1e43bf45dcef5:Trae CN.T(2026/6/11 00:47:35)",
+    "user_id": "98336997115224",
+    "trace_id": "e462c2cd04d5cc81c6f5ed597d59e571",
+    "session_id": "6a2994ca61789cd96b9ecbd3",
+    "task_id": "6a29952761789cd96b9ecc3b",
+    "message_id": "6a29952733d1e43bf45dcef5",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 00:47:35",
+    "format": "full"
+  },
+  "trace": "null"
+}
