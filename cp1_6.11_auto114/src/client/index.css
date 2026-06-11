@@ -1,0 +1,109 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  background: linear-gradient(135deg, #DEB887 0%, #D2A679 100%);
+  min-height: 100vh;
+  color: #5C3317;
+}
+
+:root {
+  --wood-light: #DEB887;
+  --wood-dark: #D2A679;
+  --accent-orange: #FF8C00;
+  --text-brown: #5C3317;
+  --success-green: #4CAF50;
+  --border-wood: #8B4513;
+  --card-bg: #FFF8DC;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease-out;
+  font-family: inherit;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+input, select, textarea {
+  font-family: inherit;
+  outline: none;
+  border: 1px solid #D2A679;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #FFF8DC;
+  color: #5C3317;
+  transition: border-color 0.2s ease-out;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #FF8C00;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #DEB887;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8B4513;
+  border-radius: 4px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #D2A679 25%, #DEB887 50%, #D2A679 75%);
+  background-size: 200% 100%;
+  animation: pulse 1.5s infinite;
+}
