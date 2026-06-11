@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>英雄编队碰撞模拟器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-dark: #0a0418;
+      --bg-deep: #1a0a2e;
+      --accent-gold: #ffd700;
+      --accent-gold-dim: #b8972a;
+      --glass-bg: rgba(20, 10, 40, 0.3);
+      --glass-border: rgba(255, 215, 0, 0.2);
+      --text-primary: #f0e8ff;
+      --text-secondary: #a89cc8;
+      --human: #ffd700;
+      --elf: #4ade80;
+      --orc: #ef4444;
+      --undead: #a855f7;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+    }
+
+    .starfield {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0418 60%, #050210 100%);
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #ffffff;
+      border-radius: 50%;
+      animation: twinkle 3s infinite ease-in-out;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #scene-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #scene-container canvas {
+      display: block;
+    }
+
+    .formation-panel {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 280px;
+      padding: 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      z-index: 10;
+    }
+
+    .panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .panel-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+
+    .formation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .formation-card {
+      padding: 14px;
+      background: rgba(30, 15, 55, 0.5);
+      border: 1px solid rgba(255, 215, 0, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .formation-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 215, 0, 0.15);
+      border-color: rgba(255, 215, 0, 0.4);
+      background: rgba(40, 20, 70, 0.6);
+    }
+
+    .formation-card.active {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+      background: rgba(50, 30, 80, 0.6);
+    }
+
+    .formation-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .formation-icon {
+      font-size: 22px;
+    }
+
+    .formation-name {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .formation-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .race-icons {
+      display: flex;
+      gap: 4px;
+      font-size: 14px;
+    }
+
+    .race-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .race-dot.human { background: var(--human); }
+    .race-dot.elf { background: var(--elf); }
+    .race-dot.orc { background: var(--orc); }
+    .race-dot.undead { background: var(--undead); }
+
+    .bond-info {
+      margin-top: 14px;
+      padding: 10px;
+      background: rgba(255, 215, 0, 0.05);
+      border: 1px solid rgba(255, 215, 0, 0.15);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .bond-info.active {
+      color: var(--accent-gold);
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    .stats-panel {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      padding: 18px 22px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      z-index: 10;
+      min-width: 180px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-gold);
+    }
+
+    .stat-value.warn {
+      color: var(--orc);
+    }
+
+    .countdown-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel', serif;
+      font-size: 120px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      text-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+      z-index: 20;
+      pointer-events: none;
+      animation: pulse 1s ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    }
+
+    .winner-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 40px 60px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 2px solid var(--accent-gold);
+      border-radius: 24px;
+      text-align: center;
+      z-index: 20;
+      animation: winnerFlash 0.8s ease-out;
+    }
+
+    @keyframes winnerFlash {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      50% { box-shadow: 0 0 80px rgba(255, 215, 0, 0.6); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .winner-icon {
+      font-size: 72px;
+      margin-bottom: 12px;
+    }
+
+    .winner-title {
+      font-family: 'Cinzel', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .winner-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 1366px) {
+      .formation-panel {
+        width: 240px;
+        padding: 16px;
+      }
+      .panel-title { font-size: 18px; }
+      .stats-panel {
+        padding: 14px 18px;
+        min-width: 150px;
+      }
+      .stat-value { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="starfield" id="starfield"></div>
+  <div id="app">
+    <div id="scene-container"></div>
+
+    <div class="formation-panel">
+      <div class="panel-title">编队选择</div>
+      <div class="panel-subtitle">选择英雄编队，开始碰撞模拟</div>
+      <div class="formation-list" id="formation-list"></div>
+      <div class="bond-info" id="bond-info">暂无羁绊效果</div>
+    </div>
+
+    <div class="stats-panel">
+      <div class="stat-row">
+        <span class="stat-label">FPS</span>
+        <span class="stat-value" id="fps-value">60</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">碰撞次数</span>
+        <span class="stat-value" id="collision-value">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">存活英雄</span>
+        <span class="stat-value" id="alive-value">0</span>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
