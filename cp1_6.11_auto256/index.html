@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古代水车灌溉系统 - 3D交互式模拟</title>
+  <style>
+    :root {
+      --bg-paper: #E8DCC4;
+      --panel-bg: #F5E6C8;
+      --panel-border: #8B6914;
+      --land-color: #A67B5B;
+      --farm-color: #6B8E23;
+      --water-color: #4A90D9;
+      --water-light: #B0D4F1;
+      --wood-spoke: #6B4226;
+      --wood-bucket: #8B5E3C;
+      --iron-axis: #4A4A4A;
+      --text-primary: #3D2914;
+      --text-secondary: #5C4A2E;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-paper);
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--text-primary);
+    }
+
+    .app-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      flex-direction: row;
+    }
+
+    .scene-container {
+      flex: 7;
+      min-width: 0;
+      position: relative;
+      background-color: var(--bg-paper);
+    }
+
+    .scene-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .scene-title {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "KaiTi", "STKaiti", "楷体", serif;
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--text-primary);
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+      letter-spacing: 4px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .panel-container {
+      flex: 3;
+      min-width: 300px;
+      max-width: 450px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px;
+      background-color: var(--panel-bg);
+      border-left: 4px solid var(--panel-border);
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      background-color: rgba(255, 255, 255, 0.4);
+      border: 2px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(139, 105, 20, 0.15);
+    }
+
+    .panel-title {
+      font-family: "KaiTi", "STKaiti", "楷体", serif;
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px dashed var(--panel-border);
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: block;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .control-value {
+      float: right;
+      color: var(--text-primary);
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .slider {
+      width: 100%;
+      height: 10px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, var(--water-light), var(--water-color));
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+
+    .slider:hover {
+      box-shadow: 0 0 10px rgba(74, 144, 217, 0.5);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--wood-bucket);
+      border: 3px solid var(--panel-border);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--wood-bucket);
+      border: 3px solid var(--panel-border);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--panel-border);
+      border-radius: 8px;
+      background-color: var(--panel-bg);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background-color: var(--wood-bucket);
+      color: white;
+      box-shadow: 0 4px 12px rgba(139, 105, 20, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.active {
+      background-color: var(--water-color);
+      color: white;
+      border-color: var(--water-color);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat-card {
+      background-color: rgba(255, 255, 255, 0.5);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .stat-value .unit {
+      font-size: 12px;
+      font-weight: normal;
+      color: var(--text-secondary);
+      margin-left: 2px;
+    }
+
+    .gauge-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .gauge {
+      position: relative;
+      width: 140px;
+      height: 90px;
+      overflow: hidden;
+    }
+
+    .gauge-bg {
+      position: absolute;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 180deg,
+        #4ade80 0deg,
+        #facc15 60deg,
+        #f87171 120deg,
+        transparent 120deg
+      );
+      clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+    }
+
+    .gauge-inner {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background-color: var(--panel-bg);
+    }
+
+    .gauge-ticks {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 140px;
+      height: 70px;
+    }
+
+    .gauge-tick {
+      position: absolute;
+      width: 2px;
+      height: 8px;
+      background-color: var(--text-secondary);
+      left: 50%;
+      top: 0;
+      transform-origin: 50% 70px;
+    }
+
+    .gauge-pointer {
+      position: absolute;
+      left: 50%;
+      top: 70px;
+      width: 4px;
+      height: 55px;
+      background-color: var(--iron-axis);
+      border-radius: 2px;
+      transform-origin: 50% 0;
+      transform: translateX(-50%) rotate(-90deg);
+      transition: transform 0.3s ease-out;
+    }
+
+    .gauge-center {
+      position: absolute;
+      left: 50%;
+      top: 70px;
+      width: 14px;
+      height: 14px;
+      background-color: var(--wood-spoke);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid var(--panel-border);
+    }
+
+    .gauge-label {
+      text-align: center;
+      font-family: "KaiTi", "STKaiti", "楷体", serif;
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .gauge-label .rpm-value {
+      font-size: 24px;
+      color: var(--water-color);
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+
+      .scene-container {
+        flex: none;
+        height: 60vh;
+      }
+
+      .panel-container {
+        flex: none;
+        min-width: 100%;
+        max-width: 100%;
+        height: 40vh;
+        border-left: none;
+        border-top: 4px solid var(--panel-border);
+      }
+
+      .scene-title {
+        font-size: 22px;
+        letter-spacing: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="scene-container" id="scene-container">
+      <div class="scene-title">古代水车灌溉系统</div>
+    </div>
+
+    <div class="panel-container" id="panel-container">
+      <div class="panel-section">
+        <div class="panel-title">实时监控</div>
+        <div class="gauge-container">
+          <div class="gauge" id="rpm-gauge">
+            <div class="gauge-bg"></div>
+            <div class="gauge-inner"></div>
+            <div class="gauge-ticks" id="gauge-ticks"></div>
+            <div class="gauge-pointer" id="gauge-pointer"></div>
+            <div class="gauge-center"></div>
+          </div>
+        </div>
+        <div class="gauge-label">
+          水车转速 <span class="rpm-value" id="rpm-value">0.0</span> <span style="font-size:14px;color:var(--text-secondary)">RPM</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">运行状态</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">总水流量</div>
+            <div class="stat-value"><span id="water-flow">0</span><span class="unit">L/s</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">已灌溉田块</div>
+            <div class="stat-value"><span id="irrigated-count">0</span><span class="unit">/10</span></div>
+          </div>
+          <div class="stat-card" style="grid-column: span 2;">
+            <div class="stat-label">系统运行时长</div>
+            <div class="stat-value"><span id="run-time">0</span><span class="unit">秒</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">闸门控制</div>
+        <div class="control-group">
+          <label class="control-label">
+            主闸门开度
+            <span class="control-value"><span id="gate-value">50</span>%</span>
+          </label>
+          <input type="range" id="gate-slider" class="slider" min="0" max="100" value="50" />
+        </div>
+        <div class="control-group">
+          <label class="control-label">水流方向</label>
+          <div class="button-group">
+            <button class="btn active" id="btn-left">左渠灌溉</button>
+            <button class="btn" id="btn-right">右渠灌溉</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
