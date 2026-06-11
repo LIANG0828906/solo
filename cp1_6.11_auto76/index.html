@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 城市天际线设计器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a3e 0%, #2d1b4e 50%, #1e3a5f 100%);
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #tip-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.6);
+      color: #ffffff;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.8;
+      backdrop-filter: blur(8px);
+      transition: background-color 0.3s ease;
+      pointer-events: none;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    #tip-bar:hover {
+      background: rgba(0, 0, 0, 0.9);
+    }
+
+    #tip-bar .mode {
+      font-weight: bold;
+      color: #FFD700;
+      margin-right: 16px;
+    }
+
+    #tip-bar .keys {
+      opacity: 0.9;
+    }
+
+    #tip-bar .key {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin: 0 2px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    #counter {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 70px;
+      height: 70px;
+      z-index: 10;
+    }
+
+    #counter svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    #counter .bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.15);
+      stroke-width: 6;
+    }
+
+    #counter .progress {
+      fill: none;
+      stroke: #4fc3f7;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 188.5;
+      stroke-dashoffset: 188.5;
+      transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+    }
+
+    #counter.warning .progress {
+      stroke: #ff4444;
+      animation: blink 0.5s infinite;
+    }
+
+    #counter .text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="tip-bar">
+    <span class="mode" id="mode-text">浏览模式</span>
+    <span class="keys">
+      <span class="key">R</span> 切换模式
+      <span class="key">右键</span> 放置建筑
+      <span class="key">左键</span> 选择/拖拽
+      <span class="key">Delete</span> 删除
+      <span class="key">1-5</span> 换色
+      <span class="key">空格</span> 复位
+      <span class="key">T</span> 鸟瞰
+    </span>
+  </div>
+
+  <div id="counter">
+    <svg viewBox="0 0 70 70">
+      <circle class="bg" cx="35" cy="35" r="30"></circle>
+      <circle class="progress" cx="35" cy="35" r="30"></circle>
+    </svg>
+    <div class="text" id="counter-text">0/50</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
