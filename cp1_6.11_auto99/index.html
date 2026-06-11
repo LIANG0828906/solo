@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>旅行路线规划器</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header class="header">
+    <h1 class="title">旅行路线规划器</h1>
+  </header>
+  <main class="container">
+    <aside class="sidebar">
+      <div class="form-section">
+        <label class="form-label" for="cityInput">输入目的地城市（最多6个，用逗号分隔）</label>
+        <input
+          type="text"
+          id="cityInput"
+          class="city-input"
+          placeholder="例如：北京、上海、成都、西安、广州"
+          maxlength="100"
+        />
+        <button id="planBtn" class="plan-btn">规划路线</button>
+      </div>
+      <div class="route-summary" id="routeSummary">
+        <p class="empty-tip">请输入城市并点击"规划路线"按钮</p>
+      </div>
+    </aside>
+    <section class="map-section">
+      <canvas id="mapCanvas" width="900" height="600"></canvas>
+      <div id="tooltip" class="tooltip"></div>
+    </section>
+  </main>
+  <div id="modal" class="modal-overlay">
+    <div class="modal-content">
+      <button id="modalClose" class="modal-close">×</button>
+      <h2 id="modalTitle" class="modal-title"></h2>
+      <div class="modal-body">
+        <div class="info-section">
+          <h3>推荐景点</h3>
+          <p id="modalAttractions" class="modal-text"></p>
+        </div>
+        <div class="info-section">
+          <h3>当地美食</h3>
+          <ul id="modalFood" class="food-list"></ul>
+        </div>
+        <div class="info-section">
+          <h3>最佳游览季节</h3>
+          <p id="modalSeason" class="modal-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
