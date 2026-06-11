@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T18:22:23.059Z",
+  "task_name": "auto78",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个在线团队知识卡片闪记与记忆曲线复习的项目，想法是让学习小组或备考团队创建数字知识卡片，每张卡片正面是一个问题，背面是答案，系统根据用户每次复习时的自评反馈（记得牢/有点模糊/完全忘了）自动调整每张卡片的下次出现时间，模拟艾宾浩斯记忆曲线的遗忘与复习节奏。希望它能做到：第一，用户在首页可以创建新的卡片组（比如叫“六级词汇”或“数据库原理”），每组包含多张卡片，创建时卡片正反面都支持纯文本或Markdown格式（比如代码块、列表、数学公式），创建界面采用左右布局，左侧是正在编辑的卡片预览（以真实卡片样式展示：圆角12px，正面浅蓝色#E3F2FD，反面浅橙色#FFF3E0，卡片在切换正反面时有0.6秒的3D翻转动画），右侧是表单输入区域；第二，进入复习模式后，页面全屏展示一张卡片，用户先看问题想答案，然后点击“翻转”按钮（按钮在卡片下方居中，背景色#7C4DFF，宽120px高44px，悬停时变为#651FFF并轻微上浮4px），卡片以Y轴旋转动画翻转至背面显示答案，然后用户从三个按钮中选择记忆评价：“记得牢”（绿色#4CAF50）、“有点模糊”（橙色#FF9800）、“完全忘了”（红色#F44336），点击后自动切换到下一张卡片，切换时旧卡片向左滑出（0.4秒），新卡片从右侧滑入（0.4秒）；第三，每个用户的数据存储在服务器上（使用Node.js + Express），用户不需要注册，输入昵称即可开始使用（昵称与卡片组关联），复习进度和卡片状态实时同步到服务端，刷新页面后恢复上次复习的位置（从第几张卡片继续，以及每张卡片的记忆等级和下次复习时间）；第四，在主页面右侧有一个小型的记忆状态可视化面板（宽度240px），展示当前卡片组中所有卡片按记忆等级的分布饼图（用Canvas绘制，三种颜色分别对应高、中、低记忆等级：深绿#2E7D32、橙色#E65100、红色#B71C1C），饼图带计数标签，鼠标悬停在扇形上显示具体卡片数量和分类说明（如“高记忆卡片：15张，预计5天后需要复习”），饼图周围还有一圈弧线进度环，显示今日已完成复习的卡片数量占比，进度环动画为顺时针填充（2秒完成）。界面上希望整体采用毛玻璃风格的UI设计，主色调用深紫罗兰色渐变（从#1A0033到#2D0054），卡片和面板使用半透明毛玻璃效果（背景模糊12px、边框半透明白色1px），所有交互按钮都有0.3秒的弹性缩放过渡效果（active时缩小到0.95倍，释放时弹回1.0倍），页面适配移动端和桌面端（移动端单栏布局，卡片全宽，侧边面板折叠成底部浮窗，用手指上滑展开）。性能上希望卡片翻转动画帧率稳定在55FPS以上，从点击评价按钮到下一张卡片完全展示的总响应时间不超过1.2秒。\n\n实现采用TypeScript（前端）和Node.js+Express（后端）技术栈，不需要数据库，用JSON文件持久化存储数据。把代码拆成以下文件：\n - package.json（含依赖：express, cors, uuid, typescript, vite, @types/express, @types/cors, @types/uuid；启动脚本：前端npm run dev，后端node server.js）\n - index.html（入口，带加载动画，全屏渐变背景，引用所有模块）\n - vite.config.js（构建配置，入口index.html，端口3000，proxy将/api请求转发到后端3001）\n - tsconfig.json（严格模式，target ES2020，module ESNext）\n - server.js（服务端，使用Express提供RESTful API：POST /api/cardgroups创建卡片组，GET /api/cardgroups/:id获取卡片组和复习状态，PUT /api/cards/:id/review更新单张卡片的记忆等级和下次复习时间，数据用JSON文件存储server/data/目录下，每个卡片组一个文件）\n - src/card.ts（卡片模型定义：Card接口有id、front、back、memoryLevel（1-5）、nextReviewDate、createDate；CardGroup接口有id、name、cards数组、owner昵称；排序方法getNextCard：找出所有nextReviewDate <= now的卡片，按memoryLevel升序返回，保证最先复习最不熟悉的）\n - src/review.ts（复习模式核心逻辑：一个ReviewState类，维护当前卡片组索引、当前卡片对象、计时器，方法有flipCard触发翻转动画、recordFeedback(level: 1|2|3)根据反馈更新memoryLevel（记得牢+1上限5、有点模糊不变、完全忘了重置为1）和nextReviewDate（按间隔公式 2^(memoryLevel-1)天 计算），切换卡片时触发EventEmitter派发cardChanged和progressUpdated事件）\n - src/ui.ts（UI渲染模块：renderCard(card)创建卡片DOM元素并附加翻转3D变换，renderProgressPanel(stats)绘制饼图和进度环，setupEventListeners绑定翻转按钮和评价按钮的点击事件，所有DOM操作使用原生API，动画使用requestAnimationFrame）\n - src/api.ts（封装fetch请求：createGroup, getGroup, updateCardReview三个异步函数，自动处理错误和JSON解析，所有请求路径以/api开头，请求头带Content-Type: application/json）\n - src/main.ts（入口，初始化UI，监听路由hash变化加载不同视图：/#create显示创建面板，/#review/组id显示复习模式，默认显示创建面板）\n\n跑 npm install（安装前后端依赖） && 然后开两个终端分别运行 npm run dev（启动前端）和 node server.js（启动后端，端口3001），在浏览器打开 http://localhost:3000 就能看到应用。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:b8562522017afd1d5e18fbf0efa495d4_6a29aa7eb300ad29814fdac9.6a29ab44b300ad29814fdb9a.6a29ab4358642631a517a13c:Trae CN.T(2026/6/11 02:21:56)",
+    "user_id": "98336997115224",
+    "trace_id": "b8562522017afd1d5e18fbf0efa495d4",
+    "session_id": "6a29aa7eb300ad29814fdac9",
+    "task_id": "6a29ab44b300ad29814fdb9a",
+    "message_id": "6a29ab4358642631a517a13c",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 02:21:56",
+    "format": "full"
+  },
+  "trace": "null"
+}
