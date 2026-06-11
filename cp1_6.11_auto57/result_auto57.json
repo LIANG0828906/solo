@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-10T17:46:44.434Z",
+  "task_name": "auto57",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "场景：在线教育平台希望为学生提供可交互的英文单词与自然拼读练习工具，但现有静态卡片学习效果有限，缺乏发音与拼写即时反馈。\n\n构建一个基于Web的语音交互式单词拼读训练应用，使用TypeScript和React（前端）+ Node.js + Express（后端）实现。文件结构按职责模块化，并注明各文件间的调用关系和数据流向：\n - package.json（含依赖：react, react-dom, typescript, vite, express, cors, uuid, howler（用于音频播放）；启动脚本：npm run dev启动前端，node server.js启动后端）\n - vite.config.js（构建配置，将index.html作为入口，端口5173，代理/api到后端端口3001）\n - tsconfig.json（严格模式，模块解析node）\n - index.html（入口页面，浅蓝渐变色背景，加载时显示旋转动画）\n - src/App.tsx（主组件，管理路由和全局状态；接收后端单词列表数据→渲染主界面→根据用户交互切换练习模式）\n - src/components/WordCard.tsx（单词展示卡片组件，接收单词对象并展示拼写、音标、配图URL；点击卡片中的喇叭图标触发howler播放发音→将播放完成信号传给父组件）\n - src/components/SpellingGame.tsx（拼写游戏组件，接收当前单词对象和用户拼写输入→与后端返回的正确拼写比对→返回比对结果和得分）\n - server/server.js（Express后端，提供/api/words接口返回100个基础英文单词列表（每个含id, word, phonetic, definition, imageUrl, difficulty字段）和/api/audio/:word接口返回单词发音MP3文件路径；数据和音频文件预先存储在本地文件系统）\n\n功能需求：\n1) 单词学习模式：用户从主页列表中选择一个分级（初级/中级/高级）后，每页随机展示10个单词卡片，卡片带发音按钮（点击后使用howler播放单词发音）、音标标注、示例句子和对应图片（图片URL来自后端）；用户可翻页浏览，每次刷新后台重新打乱顺序。\n2) 拼写游戏模式：用户进入拼写游戏关卡后，页面中央显示一个随机单词的发音按钮（无文字提示），用户点听后需在文本框中输入拼写，提交后系统比对单词完全正确与否（忽略大小写），正确得10分并自动播放下一个单词，错误显示拼写纠正提示（红色标记错误字母，绿色标记正确字母），连续答对5个单词出现胜利动画（五彩纸屑粒子效果），答错3次则游戏结束并显示本次得分和正确率。\n3) 用户进度追踪：每个用户进入应用后生成唯一会话ID（uuid存储于localStorage），后端记录每个会话的练习历史（单词ID、正确/错误次数、得分），用户可在侧边栏查看个人累计成绩和最近10次练习的趋势折线图（使用Chart.js或原生Canvas绘制）。\n4) 语音识别辅助：在拼写游戏模式中增加可选的语音输入按钮（使用Web Speech API），用户点击后朗读单词，系统自动将语音转为文本填入输入框，辅助听力较弱的学习者，语音识别结果与后端正确拼写比对时统计识别准确率。\n5) 管理员数据管理：增加/admin路由，管理员可通过表单手动添加新单词（含word, phonetic, definition, imageUrl, difficulty, audioFile字段），添加后自动更新本地JSON数据文件和音频文件目录，并显示添加成功通知。\n\n界面要求：整体采用柔和的糖果色系为主色调（如淡紫 #D4A5E8、淡绿 #A8E6CF、淡粉 #FFD6E0），配合白色无衬线字体和圆角卡片（border-radius: 12px；卡片阴影0 4px 12px rgba(0,0,0,0.1)）。单词卡片在鼠标悬停时向上平移4px并阴影加深（transition 0.3s ease），拼写模式的输入框带蓝色聚焦边框动画和微光闪烁，胜利时五彩纸屑粒子持续2秒后自动消散。页面在移动端（<768px）自动切换为单列布局，卡片宽度适应屏幕，顶部导航栏变为汉堡菜单。所有交互操作（点击、翻页、提交）反馈时间不超过200ms。\n\n性能约束：前端首次加载（含React包、Howler、Chart.js）总大小控制在1MB以内，LCP（最大内容绘制）不超过2秒；拼写游戏模式中从点击发音按钮到音频播放延迟不超过300ms；后端/api/words接口响应时间不超过50ms（本地环境）；Canvas绘制的折线图帧率保持在30fps以上，无卡顿。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:133936e625328883dcc3ef04c06d5eb1_6a29a2c44399c46d091e329e.6a29a2e94399c46d091e32ae.6a29a2e9a99cbc1ff3f65eac:Trae CN.T(2026/6/11 01:46:17)",
+    "user_id": "98336997115224",
+    "trace_id": "133936e625328883dcc3ef04c06d5eb1",
+    "session_id": "6a29a2c44399c46d091e329e",
+    "task_id": "6a29a2e94399c46d091e32ae",
+    "message_id": "6a29a2e9a99cbc1ff3f65eac",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/11 01:46:17",
+    "format": "full"
+  },
+  "trace": "null"
+}
