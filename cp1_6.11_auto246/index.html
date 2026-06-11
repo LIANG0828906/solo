@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>榫卯工坊 · 大匠成器</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'KaiTi', '楷体', 'STKaiti', 'ZCOOL XiaoWei', serif;
+      background: radial-gradient(ellipse at center, #D2B48C 0%, #8B4513 100%);
+      color: #3E2723;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #app {
+      width: 100%;
+      height: 100vh;
+      min-width: 960px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    #workshop {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      max-width: 100%;
+      max-height: 100%;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    #gameCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+    #uiLayer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #uiLayer > * { pointer-events: auto; }
+    .game-title {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Ma Shan Zheng', 'KaiTi', '楷体', cursive;
+      font-size: 36px;
+      color: #5D3A1A;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.15), 0 0 20px rgba(218,165,32,0.3);
+      z-index: 20;
+      pointer-events: none;
+    }
+    @media (max-width: 768px) {
+      html, body { min-width: auto; }
+      #app { min-width: 100%; }
+      .game-title { font-size: 22px; letter-spacing: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="workshop">
+      <h1 class="game-title">榫 卯 工 坊</h1>
+      <canvas id="gameCanvas"></canvas>
+      <div id="uiLayer"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/game.ts"></script>
+</body>
+</html>
