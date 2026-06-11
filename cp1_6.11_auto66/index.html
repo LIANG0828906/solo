@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>3D符文阵法 - Rune Array</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      min-width: 800px;
+      min-height: 600px;
+      overflow: hidden;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #1a0a2e 0%, #0d1b2a 50%, #1a0a2e 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #three-canvas {
+      display: block;
+      border-radius: 8px;
+      box-shadow: 
+        0 0 60px rgba(138, 43, 226, 0.3),
+        0 0 120px rgba(75, 0, 130, 0.2),
+        inset 0 0 60px rgba(255, 255, 255, 0.03);
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    #ui-panel {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      padding: 20px 28px;
+      z-index: 100;
+      min-width: 240px;
+    }
+
+    #array-name {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(138, 43, 226, 0.8);
+      margin-bottom: 12px;
+      letter-spacing: 2px;
+    }
+
+    #progress-container {
+      width: 100%;
+    }
+
+    #progress-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #8a2be2, #4b0082, #8a2be2);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    #guide-text {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 15px;
+      text-align: center;
+      z-index: 100;
+      padding: 12px 32px;
+      opacity: 0;
+      animation: fadeInOut 12s ease forwards;
+      letter-spacing: 1px;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    }
+
+    #rune-selector {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      padding: 16px 24px;
+      z-index: 100;
+    }
+
+    .rune-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rune-icon::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: inherit;
+      filter: blur(8px);
+      opacity: 0.5;
+      z-index: -1;
+      transition: opacity 0.3s;
+    }
+
+    .rune-icon:hover {
+      transform: scale(1.15) translateY(-4px);
+    }
+
+    .rune-icon:hover::before {
+      opacity: 0.8;
+    }
+
+    .rune-fire { background: linear-gradient(135deg, #ff6b6b, #ff4444); }
+    .rune-water { background: linear-gradient(135deg, #74b9ff, #4488ff); }
+    .rune-wind { background: linear-gradient(135deg, #81ecec, #44ffff); }
+    .rune-earth { background: linear-gradient(135deg, #d4a574, #aa7744); }
+    .rune-light { background: linear-gradient(135deg, #ffeaa7, #ffdd44); }
+    .rune-dark { background: linear-gradient(135deg, #a29bfe, #aa44ff); }
+
+    .shake {
+      animation: shake 0.2s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-3px, 2px); }
+      50% { transform: translate(2px, -2px); }
+      75% { transform: translate(-2px, -3px); }
+    }
+
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a0a2e 0%, #0d1b2a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.8s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-circle {
+      width: 60px;
+      height: 60px;
+      border: 3px solid rgba(138, 43, 226, 0.2);
+      border-top-color: #8a2be2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      letter-spacing: 3px;
+    }
+
+    #array-switcher {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      gap: 8px;
+    }
+
+    .array-btn {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: 'Noto Sans SC', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    .array-btn:hover {
+      background: rgba(138, 43, 226, 0.3);
+      border-color: rgba(138, 43, 226, 0.5);
+      color: #fff;
+    }
+
+    .array-btn.active {
+      background: rgba(138, 43, 226, 0.5);
+      border-color: #8a2be2;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="loading-circle"></div>
+    <div class="loading-text">召唤阵法中...</div>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="three-canvas"></canvas>
+  </div>
+
+  <div id="ui-panel" class="glass-panel">
+    <div id="array-name">六芒星魔法阵</div>
+    <div id="progress-container">
+      <div id="progress-label">
+        <span>符文放置进度</span>
+        <span id="progress-text">0 / 6</span>
+      </div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="array-switcher">
+    <button class="array-btn active" data-type="hexagram">六芒星</button>
+    <button class="array-btn" data-type="spiral">螺旋阵</button>
+    <button class="array-btn" data-type="ring">圆环阵</button>
+  </div>
+
+  <div id="guide-text">
+    中键拖拽平移 · 滚轮缩放 · 右键旋转 · 点击底部符文飞出 · 拖拽到对应槽位激活
+  </div>
+
+  <div id="rune-selector" class="glass-panel">
+    <div class="rune-icon rune-fire" data-element="fire" title="火符文">◆</div>
+    <div class="rune-icon rune-water" data-element="water" title="水符文">💧</div>
+    <div class="rune-icon rune-wind" data-element="wind" title="风符文">▲</div>
+    <div class="rune-icon rune-earth" data-element="earth" title="土符文">■</div>
+    <div class="rune-icon rune-light" data-element="light" title="光符文">✦</div>
+    <div class="rune-icon rune-dark" data-element="dark" title="暗符文">☾</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
