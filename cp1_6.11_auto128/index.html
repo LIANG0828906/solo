@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>湍流幻境</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 1024px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0A192F 0%, #172A45 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    h1 {
+      color: #64FFDA;
+      font-size: 32px;
+      margin-bottom: 24px;
+      text-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+      letter-spacing: 8px;
+    }
+
+    .canvas-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      border: 2px solid #64FFDA;
+      border-radius: 4px;
+      box-shadow: 0 0 8px #64FFDA, 0 0 16px #64FFDA, 0 0 24px rgba(100, 255, 218, 0.3);
+      cursor: crosshair;
+      display: block;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #172A4544;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(100, 255, 218, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      color: white;
+      min-width: 200px;
+      z-index: 10;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+      opacity: 0;
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .control-group:nth-child(1) { animation-delay: 0.1s; }
+    .control-group:nth-child(2) { animation-delay: 0.2s; }
+    .control-group:nth-child(3) { animation-delay: 0.3s; }
+    .control-group:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #ffffff;
+    }
+
+    .control-value {
+      color: #64FFDA;
+      font-weight: bold;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: linear-gradient(to right, #64FFDA 0%, #64FFDA var(--value, 50%), rgba(100, 255, 218, 0.3) var(--value, 50%), rgba(100, 255, 218, 0.3) 100%);
+      border-radius: 2px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #64FFDA;
+      margin-top: -5px;
+      box-shadow: 0 0 8px #64FFDA;
+      transition: transform 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: rgba(100, 255, 218, 0.3);
+      border-radius: 2px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #64FFDA;
+      border: none;
+      box-shadow: 0 0 8px #64FFDA;
+    }
+
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      background: rgba(10, 25, 47, 0.8);
+      color: white;
+      border: 1px solid #64FFDA;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    select:focus {
+      box-shadow: 0 0 8px #64FFDA;
+    }
+
+    .fps-counter {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: #64FFDA;
+      font-size: 11px;
+      font-family: monospace;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <h1>湍流幻境</h1>
+  <div class="canvas-container">
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div class="control-panel">
+      <div class="control-group">
+        <div class="control-label">
+          <span>粒子数量</span>
+          <span class="control-value" id="particleCountValue">1000</span>
+        </div>
+        <input type="range" id="particleCount" min="500" max="3000" step="100" value="1000">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>粒子大小</span>
+          <span class="control-value" id="particleSizeValue">2</span>
+        </div>
+        <input type="range" id="particleSize" min="1" max="5" step="0.5" value="2">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>流速倍率</span>
+          <span class="control-value" id="flowSpeedValue">1.0</span>
+        </div>
+        <input type="range" id="flowSpeed" min="0.5" max="2.0" step="0.1" value="1.0">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>背景色</span>
+        </div>
+        <select id="backgroundColor">
+          <option value="#0A192F">深蓝</option>
+          <option value="#1A0033">深紫</option>
+          <option value="#0B3D0B">深绿</option>
+        </select>
+      </div>
+    </div>
+    <div class="fps-counter" id="fpsCounter">FPS: 60</div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
