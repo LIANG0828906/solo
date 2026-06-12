@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T08:05:14.419Z",
+  "task_name": "auto109",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我需要一个能够帮助小型团队或个人管理日常待办事项并自动生成每周复盘报告的应用，主要解决在杂乱的任务列表中无法直观看到每周完成了什么、哪些事反复延误、以及高效工作时段的分布情况的问题。\n\n它应当具备以下能力：\n1) 用户登录后可以创建多个待办事项列表，每个列表有自定义名称和颜色标签（预设8种颜色），列表内的任务卡片支持拖拽排序（拖拽时有半透明影子跟随，0.2秒弹性吸附动画），每个任务包含标题、描述、截止日期、优先级（P1红/P2橙/P3蓝/P4灰）和状态（待办/进行中/已完成），点击任务卡片展开详情面板，包含一个小型备忘录文本编辑区和附件上传按钮（仅限图片，通过Base64转为字符串存储）。\n2) 每周复盘报告自动生成模块：系统在每周日22:00或用户手动触发时，基于本周所有列表的任务完成情况生成一份HTML格式的复盘报告，报告中包含本周完成总数/新增数/逾期数、按优先级分布饼图（用Canvas绘制，三块区域分别为完成/逾期/进行中，比例动态绘制于画布上）、每日完成数折线图、以及耗时最多的前三个任务的详细分析（计算每个任务从创建到完成的用时，取前三并用彩色圆角卡片展示，卡片底部显示用时百分比）。报告以全屏模态框展示，包含导出为HTML文件按钮。\n3) 用户个人效率分析：系统根据用户过往30天的任务完成时间数据，按小时和星期几两个维度统计出用户的“高效工作时段”，绘制一个热力图（X轴为周一到周日，Y轴为0-23小时，每个单元格的颜色通过canvas渐变填充，从淡蓝#E0F7FA到深蓝#006064表示完成数多少），热力图下方显示一条简单建议文字，如“您最活跃的时段是周三14:00-16:00，建议将高优先级任务安排在此”。\n\n界面方面要求整体采用深色主题（主背景#1E1E1E，卡片背景#2D2D2D，文字主色#E0E0E0，强调色#64B5F6蓝色），所有卡片有8px圆角、2px边框（#3A3A3A）和微弱的盒子阴影（0 2px 8px rgba(0,0,0,0.3)），按钮悬停时背景亮度变化10%并伴随0.2秒过渡，侧边栏列表项选中时有左侧3px蓝色指示条动画（从0展开到3px，0.3秒过渡）。所有页面在手机屏幕（<768px）以上下滚动布局替代左右分栏，饼图、折线图、热力图自适应canvas宽高比例。视觉上保持统一的Material Design风格，从图标到间距都遵循8px网格系统。性能上需要热力图渲染在200ms内完成，拖拽排序的帧率不低于50fps。\n\n实现采用TypeScript和React搭建前端，Node.js和Express搭建后端，所有API通过RESTful JSON通信，前端使用Redux Toolkit管理任务和报告状态。按以下文件组织代码：\n - package.json（含依赖：react, react-dom, react-beautiful-dnd, react-redux, @reduxjs/toolkit, axios, chart.js, react-chartjs-2, vite, @types/react, @types/react-dom, express, cors, body-parser, uuid, typescript；启动脚本：npm run dev和npm run server）\n - index.html（入口页面，包含root div和加载字体样式）\n - vite.config.js（Vite构建配置，代理 /api 到本地3000端口）\n - tsconfig.json（严格模式，target es2020）\n - src/client/App.tsx（主应用组件，路由配置，全局样式引入）\n - src/client/store/taskSlice.ts（Redux切片，管理任务列表、状态和异步thunk）\n - src/client/components/TaskBoard.tsx（展示所有列表和任务卡片，拖拽排序逻辑）\n - src/client/components/ReportModal.tsx（报告显示模态框，含Canvas绘制饼图、折线图和热力图）\n - src/server/index.ts（Express服务器，提供任务CRUD、报告生成和用户分析API）\n - src/server/reportGenerator.ts（纯函数模块，接收原始任务数据，输出报告需要的统计对象）\n\n运行方式：npm install && npm run dev（启动Vite前端和Express后端，前后端端口分别为5173和3000）。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:591db48730c8fda4f94ff50da8493f2e_6a2bbd297aff0a7b33eef8e2.6a2bbdaf7aff0a7b33eef973.6a2bbdaf5dc56c0e388121b4:Trae CN.T(2026/6/12 16:05:03)",
+    "user_id": "98336997115224",
+    "trace_id": "591db48730c8fda4f94ff50da8493f2e",
+    "session_id": "6a2bbd297aff0a7b33eef8e2",
+    "task_id": "6a2bbdaf7aff0a7b33eef973",
+    "message_id": "6a2bbdaf5dc56c0e388121b4",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 16:05:03",
+    "format": "full"
+  },
+  "trace": "null"
+}
