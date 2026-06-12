@@ -1,0 +1,15 @@
+{
+  "name": "dye-workshop-server",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "init-db": "node initDb.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "*",
+    "cors": "*",
+    "express": "*"
+  }
+}
