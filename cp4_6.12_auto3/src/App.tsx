@@ -43,10 +43,12 @@ function App() {
 }
 
 function RightPanel() {
-  const { params } = useReactorStore()
+  const { params, replayParams, isReplayMode } = useReactorStore()
 
-  const fieldPercent = ((params.magneticField - 1) / (10 - 1)) * 100
-  const densityPercent = ((params.density - 0.1) / (5 - 0.1)) * 100
+  const activeParams = isReplayMode && replayParams ? replayParams : params
+
+  const fieldPercent = ((activeParams.magneticField - 1) / (10 - 1)) * 100
+  const densityPercent = ((activeParams.density - 0.1) / (5 - 0.1)) * 100
 
   const fieldAngle = (fieldPercent / 100) * 180
 
@@ -93,7 +95,7 @@ function RightPanel() {
             </g>
           </svg>
           <div className="gauge-value">
-            <span className="gauge-number">{params.magneticField.toFixed(1)}</span>
+            <span className="gauge-number">{activeParams.magneticField.toFixed(1)}</span>
             <span className="gauge-unit">T</span>
           </div>
         </div>
@@ -112,7 +114,7 @@ function RightPanel() {
             />
           </div>
           <div className="density-info">
-            <span className="density-value">{params.density.toFixed(2)}</span>
+            <span className="density-value">{activeParams.density.toFixed(2)}</span>
             <span className="density-unit">×10²⁰/m³</span>
           </div>
         </div>
@@ -122,20 +124,26 @@ function RightPanel() {
         <h3 className="panel-title">系统状态</h3>
         <div className="status-item">
           <span className="status-label">温度</span>
-          <span className="status-value temp-value">{params.temperature.toFixed(1)} keV</span>
+          <span className="status-value temp-value">{activeParams.temperature.toFixed(1)} keV</span>
         </div>
         <div className="status-item">
           <span className="status-label">约束模式</span>
           <span className="status-value mode-value">
-            {params.magneticField > 6 ? 'H模' : 'L模'}
+            {activeParams.magneticField > 6 ? 'H模' : 'L模'}
           </span>
         </div>
         <div className="status-item">
           <span className="status-label">能量约束</span>
           <span className="status-value">
-            {params.temperature > 80 && params.density > 1 ? '良好' : '一般'}
+            {activeParams.temperature > 80 && activeParams.density > 1 ? '良好' : '一般'}
           </span>
         </div>
+        {isReplayMode && (
+          <div className="status-item">
+            <span className="status-label">模式</span>
+            <span className="status-value" style={{ color: '#00FF66' }}>回放中</span>
+          </div>
+        )}
       </div>
     </div>
   )

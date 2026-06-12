@@ -21,7 +21,8 @@ export function startSimulation() {
     const { temperature, density, magneticField } = params
 
     const fieldSquared = magneticField * magneticField
-    const densityInverse = density > 0 ? 1 / density : 0
+    const safeDensity = density <= 0 ? 0.1 : Math.max(0.1, density)
+    const densityInverse = 1 / safeDensity
 
     const tempChangeRate = fieldSquared - densityInverse
     const newTemperature = Math.max(1, Math.min(150, temperature + tempChangeRate * 0.1))

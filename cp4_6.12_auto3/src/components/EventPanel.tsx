@@ -1,85 +1,135 @@
-import { useState, useEffect } from 'react'
-import { useReactorStore } from '../store'
+import { useState, useEffect, useMemo } from 'react'
+import { useReactorStore, EventState } from '../store'
+
+const EVENT_OPTIONS: Record<string, {
+  category: string
+  choices: string[]
+}[]> = {
+  plasma_rupture: [
+    {
+      category: '功率控制',
+      choices: ['降低功率', '提升功率', '保持功率']
+    },
+    {
+      category: '加热系统',
+      choices: ['启动辅助加热', '关闭辅助加热', '切换冷却模式']
+    },
+    {
+      category: '偏滤器',
+      choices: ['调整偏滤器', '关闭偏滤器', '增强偏滤器磁场']
+    }
+  ],
+  coil_quench: [
+    {
+      category: '电流控制',
+      choices: ['紧急切断电流', '提升电流', '保持电流稳定']
+    },
+    {
+      category: '电源系统',
+      choices: ['启动备用电源', '切换主电源', '关闭所有电源']
+    },
+    {
+      category: '等离子体',
+      choices: ['降低等离子体密度', '提升等离子体密度', '注入杂质气体']
+    }
+  ],
+  impurity_injection: [
+    {
+      category: '排气系统',
+      choices: ['启动排气系统', '关闭排气系统', '切换循环模式']
+    },
+    {
+      category: '磁场控制',
+      choices: ['增强约束磁场', '减弱约束磁场', '保持磁场稳定']
+    },
+    {
+      category: '温度控制',
+      choices: ['提高等离子体温度', '降低等离子体温度', '保持温度稳定']
+    }
+  ]
+}
+
+const CORRECT_ACTIONS: Record<string, string[]> = {
+  plasma_rupture: ['降低功率', '启动辅助加热', '调整偏滤器'],
+  coil_quench: ['紧急切断电流', '启动备用电源', '降低等离子体密度'],
+  impurity_injection: ['启动排气系统', '增强约束磁场', '提高等离子体温度']
+}
 
 function EventPanel() {
-  const { currentEvent, applyEmergencyAction, resolveEvent, isReplayMode, history, replayTime } = useReactorStore()
-  const [selectedActions, setSelectedActions] = useState<string[]>([])
+  const { currentEvent, replayEvent, applyEmergencyAction, resolveEvent, isReplayMode } = useReactorStore()
+  const [selectedActions, setSelectedActions] = useState<(string | null)[]>([null, null, null])
+
+  const activeEvent = isReplayMode ? replayEvent : currentEvent
+  const eventOptions = activeEvent ? (EVENT_OPTIONS[activeEvent.type] || []) : []
+  const correctActions = activeEvent ? (CORRECT_ACTIONS[activeEvent.type] || []) : []
 
   useEffect(() => {
-    if (isReplayMode && history.length > 0 && replayTime > 0) {
-      const replayEvent = history.find(h => h.event && h.timestamp <= replayTime && h.timestamp >= replayTime - 2000)
-      if (replayEvent?.event && !currentEvent) {
-        setSelectedActions([])
-      }
-    }
-  }, [replayTime, isReplayMode, history, currentEvent])
+    setSelectedActions([null, null, null])
+  }, [activeEvent?.type, activeEvent?.isResolved])
 
-  useEffect(() => {
-    setSelectedActions([])
-  }, [currentEvent?.type, currentEvent?.isResolved])
-
-  const handleSelectChange = (category: string, value: string) => {
-    if (!currentEvent || currentEvent.isResolved || isReplayMode) return
-
-    const categoryIndex = currentEvent.options.findIndex(o => o.category === category)
-    if (categoryIndex === -1) return
+  const handleSelectChange = (index: number, value: string) => {
+    if (!activeEvent || activeEvent.isResolved || isReplayMode) return
 
     const newSelected = [...selectedActions]
-    newSelected[categoryIndex] = value
+    newSelected[index] = value || null
     setSelectedActions(newSelected)
   }
 
+  const validateActions = (): boolean => {
+    if (!activeEvent) return false
+
+    const selected = selectedActions.filter(a => a !== null) as string[]
+    if (selected.length !== correctActions.length) return false
+
+    return correctActions.every(action => selected.includes(action))
+  }
+
   const handleConfirm = () => {
-    if (!currentEvent || currentEvent.isResolved || isReplayMode) return
+    if (!activeEvent || activeEvent.isResolved || isReplayMode) return
+
+    const isCorrect = validateActions()
 
     selectedActions.forEach(action => {
-      applyEmergencyAction(action)
+      if (action) {
+        applyEmergencyAction(action)
+      }
     })
 
-    const allCorrect = currentEvent.correctActions.every(correct =>
-      selectedActions.includes(correct)
-    ) && selectedActions.length === currentEvent.correctActions.length
-
-    resolveEvent(allCorrect)
-    setSelectedActions([])
+    resolveEvent(isCorrect)
+    setSelectedActions([null, null, null])
   }
 
-  const getSelectedValue = (category: string) => {
-    if (!currentEvent) return ''
-    const categoryIndex = currentEvent.options.findIndex(o => o.category === category)
-    return selectedActions[categoryIndex] || ''
-  }
-
-  const canConfirm = currentEvent && !currentEvent.isResolved && !isReplayMode &&
-    selectedActions.length === currentEvent.options.length &&
-    selectedActions.every(a => a !== undefined && a !== '')
+  const canConfirm = activeEvent && !activeEvent.isResolved && !isReplayMode &&
+    selectedActions.every(a => a !== null && a !== '')
 
   return (
     <div className="left-panel">
       <div className="panel-card">
         <h3 className="panel-title">突发事件</h3>
 
-        {currentEvent && !currentEvent.isResolved ? (
+        {activeEvent && !activeEvent.isResolved ? (
           <>
             <div className="event-panel-header">
               <span className="event-type-badge">警告</span>
               <span style={{ fontSize: '14px', fontWeight: '600', color: '#FF6666' }}>
-                {currentEvent.name}
+                {activeEvent.name}
               </span>
             </div>
 
             <div className="event-countdown">
-              {(currentEvent.remainingTime / 1000).toFixed(1)}s
+              {(activeEvent.remainingTime / 1000).toFixed(1)}s
             </div>
 
             <div className="event-options">
-              {currentEvent.options.map((option) => (
+              {eventOptions.map((option, index) => (
                 <div key={option.category} className="option-group">
-                  <div className="option-category">{option.category}</div>
+                  <div className="option-category">
+                    {index + 1}. {option.category}
+                  </div>
                   <select
                     className="action-select"
-                    value={getSelectedValue(option.category)}
-                    onChange={(e) => handleSelectChange(option.category, e.target.value)}
+                    value={selectedActions[index] || ''}
+                    onChange={(e) => handleSelectChange(index, e.target.value)}
                     disabled={isReplayMode}
                   >
                     <option value="">-- 请选择操作 --</option>
@@ -96,8 +146,8 @@ function EventPanel() {
             <div className="correct-hint">
               <div className="hint-title">建议操作：</div>
               <ul className="hint-list">
-                {currentEvent.correctActions.map((action, i) => (
-                  <li key={i} className="hint-item">{action}</li>
+                {correctActions.map((action, i) => (
+                  <li key={i} className="hint-item">{i + 1}. {action}</li>
                 ))}
               </ul>
             </div>
@@ -110,15 +160,15 @@ function EventPanel() {
               确认执行
             </button>
           </>
-        ) : currentEvent?.isResolved ? (
+        ) : activeEvent?.isResolved ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: '32px', marginBottom: '8px' }}>
-              {currentEvent.isFailed ? '❌' : '✅'}
+              {activeEvent.isFailed ? '❌' : '✅'}
             </div>
-            <div style={{ fontSize: '14px', color: currentEvent.isFailed ? '#FF6666' : '#00FF66', fontWeight: '600' }}>
-              {currentEvent.isFailed ? '响应失败' : '响应成功'}
+            <div style={{ fontSize: '14px', color: activeEvent.isFailed ? '#FF6666' : '#00FF66', fontWeight: '600' }}>
+              {activeEvent.isFailed ? '响应失败' : '响应成功'}
             </div>
-            {currentEvent.isFailed && (
+            {activeEvent.isFailed && (
               <div style={{ fontSize: '12px', color: '#8a8fa3', marginTop: '8px' }}>
                 反应堆状态严重恶化
               </div>
@@ -142,16 +192,16 @@ function EventPanel() {
         <h3 className="panel-title">操作指南</h3>
         <div style={{ fontSize: '12px', color: '#8a8fa3', lineHeight: '1.8' }}>
           <p style={{ marginBottom: '10px' }}>
-            <strong style={{ color: '#00FF66' }}>1.</strong> 当突发事件发生时，屏幕会出现红色闪烁警告。
+            <strong style={{ color: '#00FF66' }}>1.</strong> 突发事件发生时，屏幕会出现红色闪烁警告。
           </p>
           <p style={{ marginBottom: '10px' }}>
             <strong style={{ color: '#00FF66' }}>2.</strong> 从每个下拉列表中选择一项正确的操作。
           </p>
           <p style={{ marginBottom: '10px' }}>
-            <strong style={{ color: '#00FF66' }}>3.</strong> 必须在5秒倒计时结束前完成所有选择并确认。
+            <strong style={{ color: '#00FF66' }}>3.</strong> 必须在5秒倒计时结束前完成选择并确认。
           </p>
           <p>
-            <strong style={{ color: '#00FF66' }}>4.</strong> 正确的操作组合可参考"建议操作"列表。
+            <strong style={{ color: '#00FF66' }}>4.</strong> 可参考"建议操作"列表进行选择。
           </p>
         </div>
       </div>

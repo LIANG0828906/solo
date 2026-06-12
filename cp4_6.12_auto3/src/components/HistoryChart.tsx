@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import * as d3 from 'd3'
-import { useReactorStore, HistoryRecord } from '../store'
+import { useReactorStore, HistoryRecord, EventState, EventType } from '../store'
 
 const COLORS = {
   temperature: '#FF1493',
@@ -8,13 +8,28 @@ const COLORS = {
   magneticField: '#FFB300'
 }
 
+const EVENT_NAMES: Record<EventType, string> = {
+  plasma_rupture: '等离子体破裂',
+  coil_quench: '磁场线圈失超',
+  impurity_injection: '杂质注入'
+}
+
 function HistoryChart() {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { history, isReplayMode, replaySpeed, toggleReplay, setReplayTime, params } = useReactorStore()
+  const {
+    history,
+    isReplayMode,
+    replaySpeed,
+    toggleReplay,
+    setReplayTime,
+    setReplayParams,
+    setReplayEvent,
+    params
+  } = useReactorStore()
   const [tooltip, setTooltip] = useState<{ x: number; y: number; data: HistoryRecord | null }>({ x: 0, y: 0, data: null })
   const replayRef = useRef<number | null>(null)
-  const lastTimeRef = useRef<number>(0)
+  const lastEventRef = useRef<EventType | null>(null)
 
   const drawChart = useCallback(() => {
     if (!svgRef.current || !containerRef.current || history.length === 0) return
@@ -57,7 +72,7 @@ function HistoryChart() {
     const xAxis = d3.axisBottom(xScale)
       .ticks(5)
       .tickFormat((d) => {
-        const seconds = Math.floor((now - (d as number)) / 1000
+        const seconds = Math.floor((now - (d as number)) / 1000)
         return `-${seconds}s`
       })
 
@@ -134,19 +149,17 @@ function HistoryChart() {
       const [mouseX] = d3.pointer(event)
       const xValue = xScale.invert(mouseX)
 
-      let closestRecord: HistoryRecord | null = null
-      let closestDistance = Infinity
+      const closestRecord = visibleHistory.reduce<HistoryRecord | null>((prev, curr) => {
+        const prevDist = prev ? Math.abs(prev.timestamp - xValue) : Infinity
+        const currDist = Math.abs(curr.timestamp - xValue)
+        return currDist < prevDist ? curr : prev
+      }, null)
 
-      visibleHistory.forEach(record => {
-        const distance = Math.abs(record.timestamp - xValue)
-        if (distance < closestDistance) {
-          closestDistance = distance
-          closestRecord = record
-        }
-      })
+      const closestDistance = closestRecord
+        ? Math.abs(closestRecord.timestamp - xValue)
+        : Infinity
 
       if (closestRecord && closestDistance < 2000) {
-        const rect = container.getBoundingClientRect()
         setTooltip({
           x: xScale(closestRecord.timestamp) + margin.left,
           y: 10,
@@ -162,7 +175,8 @@ function HistoryChart() {
     })
 
     if (isReplayMode) {
-      const replayX = xScale(history[history.length - 1]?.timestamp || now)
+      const { replayTime } = useReactorStore.getState()
+      const replayX = xScale(replayTime || history[history.length - 1]?.timestamp || now)
       g.append('line')
         .attr('x1', replayX)
         .attr('y1', 0)
@@ -189,6 +203,7 @@ function HistoryChart() {
 
   useEffect(() => {
     if (isReplayMode && history.length > 0) {
+      lastEventRef.current = null
       let startTime = performance.now()
       const totalDuration = 60000 / replaySpeed
       const startTimestamp = history[0]?.timestamp || 0
@@ -206,11 +221,39 @@ function HistoryChart() {
         )
 
         setReplayTime(currentTimestamp)
+        setReplayParams({
+          temperature: record.temperature,
+          density: record.density,
+          magneticField: record.magneticField
+        })
+
+        if (record.event && record.event !== lastEventRef.current) {
+          lastEventRef.current = record.event
+          const replayEvent: EventState = {
+            type: record.event,
+            name: EVENT_NAMES[record.event] || '未知事件',
+            startTime: record.timestamp,
+            responseTime: 5000,
+            remainingTime: 5000,
+            correctActions: [],
+            options: [],
+            isResolved: false,
+            isFailed: false
+          }
+          setReplayEvent(replayEvent)
+        } else if (!record.event && lastEventRef.current) {
+          lastEventRef.current = null
+          setReplayEvent(null)
+        }
+
+        drawChart()
 
         if (progress < 1) {
           replayRef.current = requestAnimationFrame(animate)
         } else {
-          toggleReplay()
+          setTimeout(() => {
+            toggleReplay()
+          }, 500)
         }
       }
 
@@ -222,12 +265,12 @@ function HistoryChart() {
         }
       }
     }
-  }, [isReplayMode, history, replaySpeed, setReplayTime, toggleReplay])
+  }, [isReplayMode, history, replaySpeed, setReplayTime, setReplayParams, setReplayEvent, toggleReplay, drawChart])
 
   return (
     <div className="history-panel">
       <div className="history-header">
-        <span className="history-title">历史参数记录</span>
+        <span className="history-title">历史参数记录 (60s)</span>
         <div className="history-controls">
           <div className="legend">
             <div className="legend-item">
@@ -246,8 +289,9 @@ function HistoryChart() {
           <button
             className={`replay-btn ${isReplayMode ? 'active' : ''}`}
             onClick={toggleReplay}
+            disabled={history.length < 10}
           >
-            {isReplayMode ? '停止回放' : '回放'}
+            {isReplayMode ? '停止回放' : '2x回放'}
           </button>
         </div>
       </div>
@@ -274,8 +318,8 @@ function HistoryChart() {
               <span>磁场: {tooltip.data.magneticField.toFixed(1)} T</span>
             </div>
             {tooltip.data.event && (
-              <div style={{ color: '#FF6666', marginTop: '4px' }}>
-                ⚠ 事件发生
+              <div style={{ color: '#FF6666', marginTop: '4px', fontWeight: '600' }}>
+                ⚠ {EVENT_NAMES[tooltip.data.event] || '事件发生'}
               </div>
             )}
           </div>
