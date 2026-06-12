@@ -306,13 +306,16 @@ body {
 }
 
 .color-swatch {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 3px solid transparent;
+  border: 4px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .color-swatch:hover {
@@ -320,15 +323,18 @@ body {
 }
 
 .color-swatch-selected {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.3);
+  border: 4px solid #ffffff;
+  box-shadow:
+    0 0 0 3px #FFD700,
+    0 0 0 5px rgba(255, 215, 0, 0.5),
+    0 0 10px 3px rgba(255, 215, 0, 0.6);
 }
 
 .color-swatch-inner {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .hardware-checkboxes {
@@ -420,33 +426,49 @@ body {
 
 .order-card-cow {
   background: var(--leather-cow);
-  color: #fff;
+  color: #FFFFFF;
   border-left-color: #5D4037;
 }
 
 .order-card-sheep {
   background: var(--leather-sheep);
-  color: #3E2723;
+  color: #2C1810;
   border-left-color: #D4C5A9;
 }
 
 .order-card-croc {
   background: var(--leather-croc);
-  color: #fff;
+  color: #FFFFFF;
   border-left-color: #1B5E20;
 }
 
 .order-card-leather {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 6px;
-  opacity: 0.9;
+}
+
+.order-card-cow .order-card-leather,
+.order-card-croc .order-card-leather {
+  color: #FFFFFF;
+}
+
+.order-card-sheep .order-card-leather {
+  color: #2C1810;
 }
 
 .order-card-details {
   font-size: 12px;
-  opacity: 0.85;
   margin-bottom: 4px;
+}
+
+.order-card-cow .order-card-details,
+.order-card-croc .order-card-details {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.order-card-sheep .order-card-details {
+  color: #4E342E;
 }
 
 .order-card-hardware {
@@ -460,30 +482,52 @@ body {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+}
+
+.order-card-cow .hardware-tag,
+.order-card-croc .hardware-tag {
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
 }
 
 .order-card-sheep .hardware-tag {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(62, 39, 35, 0.12);
+  color: #3E2723;
 }
 
 .order-card-time {
   font-size: 11px;
-  opacity: 0.7;
   margin-top: 8px;
+}
+
+.order-card-cow .order-card-time,
+.order-card-croc .order-card-time {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.order-card-sheep .order-card-time {
+  color: #6D4C41;
 }
 
 .order-card-sub-status {
   font-size: 12px;
+  font-weight: 600;
   margin-top: 8px;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.2);
   border-radius: 6px;
   display: inline-block;
 }
 
+.order-card-cow .order-card-sub-status,
+.order-card-croc .order-card-sub-status {
+  background: rgba(255, 255, 255, 0.28);
+  color: #FFFFFF;
+}
+
 .order-card-sheep .order-card-sub-status {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(62, 39, 35, 0.15);
+  color: #3E2723;
 }
 
 .order-card-actions {
@@ -494,23 +538,34 @@ body {
 
 .order-card-actions .btn-sm {
   font-size: 11px;
-  padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.25);
-  color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.order-card-cow .order-card-actions .btn-sm,
+.order-card-croc .order-card-actions .btn-sm {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.order-card-cow .order-card-actions .btn-sm:hover,
+.order-card-croc .order-card-actions .btn-sm:hover {
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .order-card-sheep .order-card-actions .btn-sm {
-  background: rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-.order-card-actions .btn-sm:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(62, 39, 35, 0.08);
+  color: #3E2723;
+  border-color: rgba(62, 39, 35, 0.18);
 }
 
 .order-card-sheep .order-card-actions .btn-sm:hover {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(62, 39, 35, 0.18);
 }
 
 .material-table-wrapper {
@@ -567,8 +622,13 @@ body {
 }
 
 @keyframes blinkRed {
-  0%, 100% { background-color: #fff; }
-  50% { background-color: #FFCDD2; }
+  0%, 100% { background-color: #ffffff; }
+  50% { background-color: #ff0000; }
+}
+
+.material-row-low td {
+  color: #ffffff !important;
+  font-weight: 600;
 }
 
 .material-actions {

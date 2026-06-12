@@ -41,7 +41,8 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     stock REAL NOT NULL,
-    threshold REAL NOT NULL
+    threshold REAL NOT NULL,
+    consumption_rate REAL NOT NULL DEFAULT 1.2
   );
 
   CREATE TABLE IF NOT EXISTS consumption_logs (
@@ -53,12 +54,17 @@ db.exec(`
   );
 `);
 
+const cols = db.prepare("PRAGMA table_info(materials)").all() as any[];
+if (!cols.find((c: any) => c.name === 'consumption_rate')) {
+  db.exec('ALTER TABLE materials ADD COLUMN consumption_rate REAL NOT NULL DEFAULT 1.2');
+}
+
 const materialCount = db.prepare('SELECT COUNT(*) as count FROM materials').get() as { count: number };
 if (materialCount.count === 0) {
-  const insert = db.prepare('INSERT INTO materials (id, name, stock, threshold) VALUES (?, ?, ?, ?)');
-  insert.run(uuidv4(), '头层牛皮', 50, 10);
-  insert.run(uuidv4(), '羊皮', 30, 8);
-  insert.run(uuidv4(), '鳄鱼皮', 15, 5);
+  const insert = db.prepare('INSERT INTO materials (id, name, stock, threshold, consumption_rate) VALUES (?, ?, ?, ?, ?)');
+  insert.run(uuidv4(), '头层牛皮', 50, 10, 1.2);
+  insert.run(uuidv4(), '羊皮', 30, 8, 1.1);
+  insert.run(uuidv4(), '鳄鱼皮', 15, 5, 1.5);
 }
 
 app.get('/api/orders', (_req, res) => {
@@ -107,9 +113,10 @@ app.patch('/api/orders/:id', (req, res) => {
   }
 
   if (sub_status === '裁料中' && order.sub_status !== '裁料中') {
-    const consumption = order.length * order.width * 1.2;
     const material = db.prepare('SELECT * FROM materials WHERE name = ?').get(order.leather_type) as any;
     if (material) {
+      const rate = material.consumption_rate ?? 1.2;
+      const consumption = order.length * order.width * rate;
       const newStock = Math.max(0, material.stock - consumption);
       db.prepare('UPDATE materials SET stock = ? WHERE id = ?').run(newStock, material.id);
       db.prepare(
@@ -128,25 +135,26 @@ app.get('/api/materials', (_req, res) => {
 });
 
 app.post('/api/materials', (req, res) => {
-  const { name, stock, threshold } = req.body;
+  const { name, stock, threshold, consumption_rate } = req.body;
   if (!name || stock == null || threshold == null) {
     return res.status(400).json({ error: '缺少必填字段' });
   }
+  const rate = consumption_rate ?? 1.2;
   const id = uuidv4();
   try {
-    db.prepare('INSERT INTO materials (id, name, stock, threshold) VALUES (?, ?, ?, ?)').run(id, name, stock, threshold);
+    db.prepare('INSERT INTO materials (id, name, stock, threshold, consumption_rate) VALUES (?, ?, ?, ?, ?)').run(id, name, stock, threshold, rate);
   } catch (err: any) {
     if (err.message?.includes('UNIQUE')) {
       return res.status(400).json({ error: '原料名称已存在' });
     }
     throw err;
   }
-  res.json({ id, name, stock, threshold });
+  res.json({ id, name, stock, threshold, consumption_rate: rate });
 });
 
 app.patch('/api/materials/:id', (req, res) => {
   const { id } = req.params;
-  const { stock, threshold, name } = req.body;
+  const { stock, threshold, name, consumption_rate } = req.body;
 
   const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(id) as any;
   if (!material) {
@@ -161,6 +169,9 @@ app.patch('/api/materials/:id', (req, res) => {
   }
   if (threshold !== undefined) {
     db.prepare('UPDATE materials SET threshold = ? WHERE id = ?').run(threshold, id);
+  }
+  if (consumption_rate !== undefined) {
+    db.prepare('UPDATE materials SET consumption_rate = ? WHERE id = ?').run(consumption_rate, id);
   }
 
   const updated = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);

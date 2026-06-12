@@ -7,6 +7,7 @@ interface Material {
   name: string;
   stock: number;
   threshold: number;
+  consumption_rate: number;
 }
 
 interface ConsumptionLog {
@@ -23,8 +24,8 @@ interface MaterialStore {
   loading: boolean;
   fetchMaterials: () => Promise<void>;
   fetchLogs: () => Promise<void>;
-  addMaterial: (data: { name: string; stock: number; threshold: number }) => Promise<void>;
-  updateMaterial: (id: string, data: { stock?: number; threshold?: number; name?: string }) => Promise<void>;
+  addMaterial: (data: { name: string; stock: number; threshold: number; consumption_rate?: number }) => Promise<void>;
+  updateMaterial: (id: string, data: { stock?: number; threshold?: number; name?: string; consumption_rate?: number }) => Promise<void>;
 }
 
 const useMaterialStore = create<MaterialStore>((set, get) => ({
@@ -58,10 +59,25 @@ const useMaterialStore = create<MaterialStore>((set, get) => ({
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      setDebouncedValue(value);
+      timerRef.current = null;
+    }, delay);
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [value, delay]);
+
   return debouncedValue;
 }
 
@@ -69,6 +85,7 @@ function AddMaterialForm({ onAdded }: { onAdded: () => void }) {
   const [name, setName] = useState('');
   const [stock, setStock] = useState('');
   const [threshold, setThreshold] = useState('');
+  const [consumptionRate, setConsumptionRate] = useState('1.2');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,10 +98,12 @@ function AddMaterialForm({ onAdded }: { onAdded: () => void }) {
         name,
         stock: parseFloat(stock),
         threshold: parseFloat(threshold),
+        consumption_rate: parseFloat(consumptionRate) || 1.2,
       });
       setName('');
       setStock('');
       setThreshold('');
+      setConsumptionRate('1.2');
       onAdded();
     } catch (err: any) {
       setError(err.response?.data?.error || '添加失败');
@@ -130,6 +149,18 @@ function AddMaterialForm({ onAdded }: { onAdded: () => void }) {
               min="0"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">消耗系数</label>
+            <input
+              className="form-input"
+              type="number"
+              step="0.01"
+              min="1"
+              value={consumptionRate}
+              onChange={e => setConsumptionRate(e.target.value)}
               required
             />
           </div>
@@ -261,13 +292,14 @@ function MaterialDashboard() {
               <th>原料名称</th>
               <th>当前库存 (sq ft)</th>
               <th>预警阈值</th>
+              <th>消耗系数</th>
               <th>库存状态</th>
             </tr>
           </thead>
           <tbody>
             {filteredMaterials.length === 0 ? (
               <tr>
-                <td colSpan={4} className="empty-state">暂无匹配原料</td>
+                <td colSpan={5} className="empty-state">暂无匹配原料</td>
               </tr>
             ) : (
               filteredMaterials.map(m => {
@@ -278,7 +310,7 @@ function MaterialDashboard() {
                     <td style={{ fontWeight: 600 }}>{m.name}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ color: low ? 'var(--danger)' : 'var(--text)', fontWeight: low ? 700 : 400 }}>
+                        <span style={{ color: low ? '#ffffff' : 'var(--text)', fontWeight: low ? 700 : 400 }}>
                           {m.stock.toFixed(1)}
                         </span>
                         <div className="stock-bar">
@@ -289,10 +321,13 @@ function MaterialDashboard() {
                         </div>
                       </div>
                     </td>
-                    <td>{m.threshold.toFixed(1)}</td>
+                    <td style={{ color: low ? '#ffffff' : 'var(--text)' }}>{m.threshold.toFixed(1)}</td>
+                    <td style={{ color: low ? '#ffffff' : 'var(--text)', fontFamily: 'monospace' }}>
+                      ×{m.consumption_rate?.toFixed(2) ?? '1.20'}
+                    </td>
                     <td>
                       {low ? (
-                        <span style={{ color: 'var(--danger)', fontWeight: 600, fontSize: 13 }}>
+                        <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 13 }}>
                           ⚠ 库存不足
                         </span>
                       ) : (
