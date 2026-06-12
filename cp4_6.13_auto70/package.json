@@ -1,0 +1,16 @@
+{
+  "name": "library-seat-reservation",
+  "version": "1.0.0",
+  "description": "Online library seat reservation and study duration tracking application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "keywords": ["library", "seat-reservation", "study-tracker"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
