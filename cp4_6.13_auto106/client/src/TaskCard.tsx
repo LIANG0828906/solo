@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Task, TaskPriority } from './types';
 
 interface TaskCardProps {
@@ -6,6 +6,7 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
+  isTouchDragging?: boolean;
 }
 
 const priorityConfig: Record<TaskPriority, { label: string; bg: string; color: string }> = {
@@ -14,64 +15,126 @@ const priorityConfig: Record<TaskPriority, { label: string; bg: string; color: s
   low: { label: '低', bg: '#22c55e', color: '#ffffff' },
 };
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onDelete, onDragStart, onDragEnd }) => {
+const cardBaseStyle: React.CSSProperties = {
+  background: '#2a2a3e',
+  borderRadius: '8px',
+  padding: '14px',
+  marginBottom: '12px',
+  cursor: 'grab',
+  position: 'relative',
+  userSelect: 'none',
+  touchAction: 'none',
+};
+
+const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+  isTouchDragging = false,
+}) => {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePhase, setDeletePhase] = useState<0 | 1 | 2>(0);
   const [isDragging, setIsDragging] = useState(false);
-
-  const handleDelete = () => {
-    setIsDeleting(true);
-    setTimeout(() => {
-      onDelete(task.id);
-    }, 250);
-  };
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    setIsDragging(true);
-    onDragStart(e, task.id);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
-    setIsDragging(false);
-    onDragEnd(e);
-  };
+  const [isHovered, setIsHovered] = useState(false);
 
   const priority = priorityConfig[task.priority];
 
+  const handleDelete = useCallback(() => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeletePhase(1);
+    setTimeout(() => {
+      setDeletePhase(2);
+    }, 150);
+    setTimeout(() => {
+      onDelete(task.id);
+    }, 320);
+  }, [isDeleting, onDelete, task.id]);
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      setIsDragging(true);
+      if (cardRef.current) {
+        try {
+          const rect = cardRef.current.getBoundingClientRect();
+          const ghost = cardRef.current.cloneNode(true) as HTMLElement;
+          ghost.classList.add('dragging-ghost');
+          ghost.style.width = `${rect.width}px`;
+          ghost.style.height = `${rect.height}px`;
+          ghost.style.background = '#2a2a3e';
+          ghost.style.top = '-10000px';
+          ghost.style.left = '-10000px';
+          document.body.appendChild(ghost);
+          e.dataTransfer.setDragImage(ghost, rect.width / 2, rect.height / 2);
+          setTimeout(() => {
+            document.body.removeChild(ghost);
+          }, 0);
+        } catch {
+          // Fallback: default drag image
+        }
+      }
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', task.id);
+      onDragStart(e, task.id);
+    },
+    [onDragStart, task.id]
+  );
+
+  const handleDragEnd = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      setIsDragging(false);
+      onDragEnd(e);
+    },
+    [onDragEnd]
+  );
+
+  let cardScale = 1;
+  let cardOpacity = 1;
+  if (isDeleting) {
+    if (deletePhase === 1) {
+      cardScale = 0.6;
+      cardOpacity = 0.7;
+    } else if (deletePhase === 2) {
+      cardScale = 0;
+      cardOpacity = 0;
+    }
+  } else if (isDragging || isTouchDragging) {
+    cardScale = 0.96;
+    cardOpacity = 0.35;
+  } else if (isHovered) {
+    cardScale = 1;
+  }
+
   return (
     <div
-      draggable
+      ref={cardRef}
+      className={isTouchDragging ? 'touch-dragging-source' : ''}
+      draggable={!isDeleting}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
-        background: '#2a2a3e',
-        borderRadius: '8px',
-        padding: '14px',
-        marginBottom: '12px',
-        boxShadow: isDragging
+        ...cardBaseStyle,
+        transform: `translateY(${isHovered && !isDragging && !isDeleting && !isTouchDragging ? -2 : 0}px) scale(${cardScale}) rotate(${
+          isDragging ? 3 : 0
+        }deg)`,
+        opacity: cardOpacity,
+        boxShadow: isDragging || isTouchDragging
           ? '0 8px 24px rgba(0, 0, 0, 0.4)'
           : '0 2px 8px rgba(0, 0, 0, 0.2)',
-        cursor: 'grab',
-        position: 'relative',
-        opacity: isDragging ? 0.5 : 1,
-        transform: isDragging ? 'rotate(2deg)' : 'none',
         transition: isDeleting
-          ? 'all 0.25s ease-in'
-          : 'box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease',
-        animation: isDeleting ? 'cardOut 0.25s ease-in forwards' : 'dropIn 0.2s ease-out',
+          ? 'transform 0.16s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease'
+          : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, box-shadow 0.2s ease',
       }}
-      onMouseEnter={(e) => {
-        if (!isDragging && !isDeleting) {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isDragging && !isDeleting) {
-          e.currentTarget.style.transform = 'translateY(0)';
-        }
-      }}
+      data-task-id={task.id}
     >
       <button
         onClick={handleDelete}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
           top: '8px',
@@ -80,6 +143,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onDelete, onDragStart, onDrag
           border: 'none',
           color: '#9ca3af',
           fontSize: '18px',
+          lineHeight: 1,
           cursor: 'pointer',
           width: '24px',
           height: '24px',

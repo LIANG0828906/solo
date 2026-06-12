@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Task, TaskStatus, NewTaskData, TaskPriority } from './types';
 import KanbanBoard from './KanbanBoard';
@@ -7,12 +7,13 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [newTask, setNewTask] = useState<NewTaskData>({
     title: '',
     assignee: '',
     priority: 'medium',
   });
-  const [animateCount, setAnimateCount] = useState(false);
+  const [animateCountKey, setAnimateCountKey] = useState(0);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -42,8 +43,7 @@ const App: React.FC = () => {
 
     socket.on('online:count', (count: number) => {
       setOnlineCount(count);
-      setAnimateCount(true);
-      setTimeout(() => setAnimateCount(false), 300);
+      setAnimateCountKey((k) => k + 1);
     });
 
     return () => {
@@ -51,22 +51,38 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleCreateTask = () => {
+  useEffect(() => {
+    if (showModal) {
+      const t = requestAnimationFrame(() => setModalVisible(true));
+      return () => cancelAnimationFrame(t);
+    }
+  }, [showModal]);
+
+  const openModal = useCallback(() => {
+    setShowModal(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+    setTimeout(() => setShowModal(false), 150);
+  }, []);
+
+  const handleCreateTask = useCallback(() => {
     if (!newTask.title.trim() || !newTask.assignee.trim()) {
       return;
     }
     socketRef.current?.emit('task:create', newTask);
     setNewTask({ title: '', assignee: '', priority: 'medium' });
-    setShowModal(false);
-  };
+    closeModal();
+  }, [newTask, closeModal]);
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = useCallback((taskId: string) => {
     socketRef.current?.emit('task:delete', { taskId });
-  };
+  }, []);
 
-  const handleMoveTask = (taskId: string, newStatus: TaskStatus) => {
+  const handleMoveTask = useCallback((taskId: string, newStatus: TaskStatus) => {
     socketRef.current?.emit('task:move', { taskId, newStatus });
-  };
+  }, []);
 
   return (
     <div
@@ -107,6 +123,7 @@ const App: React.FC = () => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
+              margin: 0,
             }}
           >
             团队任务看板
@@ -128,7 +145,7 @@ const App: React.FC = () => {
                 height: '8px',
                 borderRadius: '50%',
                 background: '#22c55e',
-                animation: 'pulse 2s infinite',
+                animation: 'pulseDot 2s infinite',
               }}
             />
             <span
@@ -141,14 +158,12 @@ const App: React.FC = () => {
               在线:
             </span>
             <span
+              key={animateCountKey}
+              className="bounce-count animate"
               style={{
                 fontSize: '14px',
                 color: '#ffffff',
                 fontWeight: 700,
-                minWidth: '18px',
-                textAlign: 'center',
-                display: 'inline-block',
-                animation: animateCount ? 'bounce 0.3s ease' : 'none',
               }}
             >
               {onlineCount}
@@ -157,7 +172,7 @@ const App: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openModal}
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: '#ffffff',
@@ -192,13 +207,15 @@ const App: React.FC = () => {
       {showModal && (
         <>
           <div
-            onClick={() => setShowModal(false)}
+            onClick={closeModal}
             style={{
               position: 'fixed',
               inset: 0,
               background: 'rgba(0, 0, 0, 0.6)',
               zIndex: 100,
-              animation: 'overlayFade 0.2s ease-out',
+              animation: 'overlayFade 0.15s ease-out',
+              opacity: modalVisible ? 1 : 0,
+              transition: 'opacity 0.15s ease',
             }}
           />
           <div
@@ -206,7 +223,9 @@ const App: React.FC = () => {
               position: 'fixed',
               top: '50%',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
+              transformOrigin: 'center center',
+              transform: `translate(-50%, -50%) scale(${modalVisible ? 1 : 0.92})`,
+              opacity: modalVisible ? 1 : 0,
               background: '#2a2a3e',
               borderRadius: '16px',
               padding: '32px',
@@ -214,7 +233,7 @@ const App: React.FC = () => {
               maxWidth: '440px',
               zIndex: 101,
               boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)',
-              animation: 'modalIn 0.2s ease-out',
+              transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease',
             }}
           >
             <h2
@@ -251,6 +270,9 @@ const App: React.FC = () => {
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateTask();
+                  }}
                   placeholder="输入任务标题..."
                   style={{
                     width: '100%',
@@ -269,6 +291,7 @@ const App: React.FC = () => {
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                   }}
+                  autoFocus
                 />
               </div>
 
@@ -288,6 +311,9 @@ const App: React.FC = () => {
                   type="text"
                   value={newTask.assignee}
                   onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateTask();
+                  }}
                   placeholder="输入负责人姓名..."
                   style={{
                     width: '100%',
@@ -338,6 +364,7 @@ const App: React.FC = () => {
                     return (
                       <button
                         key={p}
+                        type="button"
                         onClick={() => setNewTask({ ...newTask, priority: p })}
                         style={{
                           flex: 1,
@@ -369,7 +396,8 @@ const App: React.FC = () => {
                 }}
               >
                 <button
-                  onClick={() => setShowModal(false)}
+                  type="button"
+                  onClick={closeModal}
                   style={{
                     flex: 1,
                     background: 'rgba(255, 255, 255, 0.05)',
@@ -392,6 +420,7 @@ const App: React.FC = () => {
                   取消
                 </button>
                 <button
+                  type="button"
                   onClick={handleCreateTask}
                   style={{
                     flex: 1,
@@ -419,13 +448,6 @@ const App: React.FC = () => {
           </div>
         </>
       )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 };
