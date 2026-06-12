@@ -33,13 +33,40 @@ router.get('/instruments/:type', (req: Request, res: Response) => {
   }
 });
 
+type WoodStatus = 'sufficient' | 'low' | 'out';
+
+function getStockStatus(stock: number): WoodStatus {
+  if (stock < 5) return 'out';
+  if (stock < 10) return 'low';
+  return 'sufficient';
+}
+
 router.get('/woods', (req: Request, res: Response) => {
   try {
     const category = req.query.category as string | undefined;
     const woods = getWoods(category);
-    res.json(woods);
+    const enriched = woods.map(w => ({
+      ...w,
+      stockStatus: getStockStatus(w.stock),
+      selectable: w.stock >= 5,
+    }));
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch woods' });
+  }
+});
+
+router.get('/woods/low-stock', (_req: Request, res: Response) => {
+  try {
+    const lowStockWoods = getLowStockWoods();
+    const enriched = lowStockWoods.map(w => ({
+      ...w,
+      stockStatus: getStockStatus(w.stock),
+      selectable: w.stock >= 5,
+    }));
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch low stock woods' });
   }
 });
 
@@ -51,18 +78,13 @@ router.get('/woods/:id', (req: Request, res: Response) => {
       res.status(404).json({ error: 'Wood not found' });
       return;
     }
-    res.json(wood);
+    res.json({
+      ...wood,
+      stockStatus: getStockStatus(wood.stock),
+      selectable: wood.stock >= 5,
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch wood' });
-  }
-});
-
-router.get('/woods/low-stock', (_req: Request, res: Response) => {
-  try {
-    const lowStockWoods = getLowStockWoods();
-    res.json(lowStockWoods);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch low stock woods' });
   }
 });
 

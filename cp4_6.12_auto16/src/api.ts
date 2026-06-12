@@ -14,6 +14,8 @@ export interface Wood {
   stock: number;
   threshold: number;
   description: string;
+  stockStatus?: 'sufficient' | 'low' | 'out';
+  selectable?: boolean;
 }
 
 export interface Instrument {

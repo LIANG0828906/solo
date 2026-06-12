@@ -1,12 +1,13 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database(path.join(__dirname, '..', 'data.db'));
-db.pragma('journal_mode = WAL');
+let db: SqlJsDatabase;
+const DB_PATH = path.join(__dirname, '..', 'data.db');
 
 export interface Wood {
   id: number;
@@ -55,8 +56,55 @@ export interface TuningRecord {
   createdAt: string;
 }
 
-export const initDB = (): void => {
-  db.exec(`
+export interface ProgressHistoryEntry {
+  id: number;
+  orderId: number;
+  status: number;
+  timestamp: string;
+}
+
+function saveDb(): void {
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  } catch (err) {
+    console.error('Failed to save database:', err);
+  }
+}
+
+function queryAll<T>(sql: string, params?: unknown[]): T[] {
+  const stmt = db.prepare(sql);
+  if (params) stmt.bind(params);
+  const results: T[] = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject() as T);
+  }
+  stmt.free();
+  return results;
+}
+
+function queryOne<T>(sql: string, params?: unknown[]): T | undefined {
+  const results = queryAll<T>(sql, params);
+  return results[0];
+}
+
+function run(sql: string, params?: unknown[]): void {
+  db.run(sql, params);
+  saveDb();
+}
+
+export const initDB = async (): Promise<void> => {
+  const SQL = await initSqlJs();
+
+  if (fs.existsSync(DB_PATH)) {
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+  } else {
+    db = new SQL.Database();
+  }
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS woods (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -67,7 +115,9 @@ export const initDB = (): void => {
       threshold INTEGER NOT NULL DEFAULT 10,
       description TEXT NOT NULL
     );
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS instruments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -76,7 +126,9 @@ export const initDB = (): void => {
       basePrice REAL NOT NULL,
       image TEXT NOT NULL
     );
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       instrumentType TEXT NOT NULL,
@@ -92,40 +144,34 @@ export const initDB = (): void => {
       notes TEXT,
       status INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL,
-      FOREIGN KEY (topWoodId) REFERENCES woods(id),
-      FOREIGN KEY (backWoodId) REFERENCES woods(id),
-      FOREIGN KEY (sideWoodId) REFERENCES woods(id),
-      FOREIGN KEY (fingerboardWoodId) REFERENCES woods(id),
-      FOREIGN KEY (neckWoodId) REFERENCES woods(id)
+      updatedAt TEXT NOT NULL
     );
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS tuning_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       orderId INTEGER NOT NULL,
       tuningDate TEXT NOT NULL,
       pitch INTEGER NOT NULL,
       notes TEXT,
-      createdAt TEXT NOT NULL,
-      FOREIGN KEY (orderId) REFERENCES orders(id)
+      createdAt TEXT NOT NULL
     );
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS progress_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       orderId INTEGER NOT NULL,
       status INTEGER NOT NULL,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (orderId) REFERENCES orders(id)
+      timestamp TEXT NOT NULL
     );
   `);
 
-  const woodCount = db.prepare('SELECT COUNT(*) as count FROM woods').get() as { count: number };
-  if (woodCount.count === 0) {
-    const insertWood = db.prepare(`
-      INSERT INTO woods (name, origin, color, category, stock, threshold, description)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+  saveDb();
 
+  const woodCount = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM woods');
+  if (!woodCount || woodCount.count === 0) {
     const woods = [
       ['雪松', '加拿大', '#CD853F', 'top', 15, 10, '雪松面板音色温暖圆润，低音浑厚，高音清澈，适合古典吉他和民谣吉他。'],
       ['云杉', '德国', '#F5DEB3', 'top', 20, 10, '云杉面板音色明亮通透，动态范围广，是传统吉他面板的首选材料。'],
@@ -144,20 +190,12 @@ export const initDB = (): void => {
       ['胡桃木琴颈', '美国', '#8B5E3C', 'neck', 9, 10, '胡桃木琴颈外观优雅，音色平衡，手感舒适。'],
     ];
 
-    const transaction = db.transaction(() => {
-      for (const wood of woods) {
-        insertWood.run(...wood);
-      }
-    });
-    transaction();
-  }
-
-  const instrumentCount = db.prepare('SELECT COUNT(*) as count FROM instruments').get() as { count: number };
-  if (instrumentCount.count === 0) {
-    const insertInstrument = db.prepare(`
-      INSERT INTO instruments (name, type, description, basePrice, image)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    for (const wood of woods) {
+      db.run(
+        'INSERT INTO woods (name, origin, color, category, stock, threshold, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        wood
+      );
+    }
 
     const instruments = [
       ['古典吉他', 'classical_guitar', '传统尼龙弦古典吉他，适合演奏古典音乐和弗拉门戈。音色温暖圆润，手感舒适。', 8800, ''],
@@ -166,32 +204,34 @@ export const initDB = (): void => {
       ['尤克里里', 'ukulele', '23寸尤克里里，小巧便携，音色清脆欢快，适合入门和休闲演奏。', 1800, ''],
     ];
 
-    const transaction = db.transaction(() => {
-      for (const instrument of instruments) {
-        insertInstrument.run(...instrument);
-      }
-    });
-    transaction();
+    for (const inst of instruments) {
+      db.run(
+        'INSERT INTO instruments (name, type, description, basePrice, image) VALUES (?, ?, ?, ?, ?)',
+        inst
+      );
+    }
+
+    saveDb();
   }
 };
 
 export const getWoods = (category?: string): Wood[] => {
   if (category) {
-    return db.prepare('SELECT * FROM woods WHERE category = ?').all(category) as Wood[];
+    return queryAll<Wood>('SELECT * FROM woods WHERE category = ?', [category]);
   }
-  return db.prepare('SELECT * FROM woods').all() as Wood[];
+  return queryAll<Wood>('SELECT * FROM woods');
 };
 
 export const getWoodById = (id: number): Wood | undefined => {
-  return db.prepare('SELECT * FROM woods WHERE id = ?').get(id) as Wood | undefined;
+  return queryOne<Wood>('SELECT * FROM woods WHERE id = ?', [id]);
 };
 
 export const getInstruments = (): Instrument[] => {
-  return db.prepare('SELECT * FROM instruments').all() as Instrument[];
+  return queryAll<Instrument>('SELECT * FROM instruments');
 };
 
 export const getInstrumentByType = (type: string): Instrument | undefined => {
-  return db.prepare('SELECT * FROM instruments WHERE type = ?').get(type) as Instrument | undefined;
+  return queryOne<Instrument>('SELECT * FROM instruments WHERE type = ?', [type]);
 };
 
 export interface OrderInput {
@@ -210,77 +250,85 @@ export interface OrderInput {
 
 export const createOrder = (input: OrderInput): number => {
   const now = new Date().toISOString();
-  const result = db.prepare(`
-    INSERT INTO orders (
+  db.run(
+    `INSERT INTO orders (
       instrumentType, instrumentName, topWoodId, backWoodId, sideWoodId,
       fingerboardWoodId, neckWoodId, customerName, customerEmail, customerPhone,
       notes, status, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-  `).run(
-    input.instrumentType, input.instrumentName, input.topWoodId, input.backWoodId,
-    input.sideWoodId, input.fingerboardWoodId, input.neckWoodId,
-    input.customerName, input.customerEmail, input.customerPhone,
-    input.notes, now, now
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+    [
+      input.instrumentType, input.instrumentName, input.topWoodId, input.backWoodId,
+      input.sideWoodId, input.fingerboardWoodId, input.neckWoodId,
+      input.customerName, input.customerEmail, input.customerPhone,
+      input.notes, now, now,
+    ]
   );
 
-  db.prepare(`
-    INSERT INTO progress_history (orderId, status, timestamp)
-    VALUES (?, 0, ?)
-  `).run(result.lastInsertRowid, now);
+  const lastInsert = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+  const orderId = lastInsert ? lastInsert.id : 0;
 
-  const decrementWood = db.prepare('UPDATE woods SET stock = stock - 1 WHERE id = ? AND stock > 0');
-  [input.topWoodId, input.backWoodId, input.sideWoodId, input.fingerboardWoodId, input.neckWoodId].forEach(id => {
-    decrementWood.run(id);
-  });
+  db.run(
+    'INSERT INTO progress_history (orderId, status, timestamp) VALUES (?, 0, ?)',
+    [orderId, now]
+  );
 
-  return Number(result.lastInsertRowid);
+  const decrementIds = [input.topWoodId, input.backWoodId, input.sideWoodId, input.fingerboardWoodId, input.neckWoodId];
+  for (const woodId of decrementIds) {
+    db.run('UPDATE woods SET stock = stock - 1 WHERE id = ? AND stock > 0', [woodId]);
+  }
+
+  saveDb();
+  return orderId;
 };
 
 export const getOrders = (): Order[] => {
-  return db.prepare('SELECT * FROM orders ORDER BY createdAt DESC').all() as Order[];
+  return queryAll<Order>('SELECT * FROM orders ORDER BY createdAt DESC');
 };
 
 export const getOrderById = (id: number): Order | undefined => {
-  return db.prepare('SELECT * FROM orders WHERE id = ?').get(id) as Order | undefined;
+  return queryOne<Order>('SELECT * FROM orders WHERE id = ?', [id]);
 };
 
-export interface ProgressHistoryEntry {
-  id: number;
-  orderId: number;
-  status: number;
-  timestamp: string;
-}
-
 export const getProgressHistory = (orderId: number): ProgressHistoryEntry[] => {
-  return db.prepare('SELECT * FROM progress_history WHERE orderId = ? ORDER BY timestamp ASC').all(orderId) as ProgressHistoryEntry[];
+  return queryAll<ProgressHistoryEntry>(
+    'SELECT * FROM progress_history WHERE orderId = ? ORDER BY timestamp ASC',
+    [orderId]
+  );
 };
 
 export const updateOrderStatus = (orderId: number, status: number): void => {
   const now = new Date().toISOString();
-  db.prepare('UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?').run(status, now, orderId);
-  db.prepare(`
-    INSERT INTO progress_history (orderId, status, timestamp)
-    VALUES (?, ?, ?)
-  `).run(orderId, status, now);
+  db.run('UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?', [status, now, orderId]);
+  db.run(
+    'INSERT INTO progress_history (orderId, status, timestamp) VALUES (?, ?, ?)',
+    [orderId, status, now]
+  );
+  saveDb();
 };
 
 export const addTuningRecord = (orderId: number, tuningDate: string, pitch: number, notes: string): number => {
   const now = new Date().toISOString();
-  const result = db.prepare(`
-    INSERT INTO tuning_records (orderId, tuningDate, pitch, notes, createdAt)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(orderId, tuningDate, pitch, notes, now);
-  return Number(result.lastInsertRowid);
+  db.run(
+    'INSERT INTO tuning_records (orderId, tuningDate, pitch, notes, createdAt) VALUES (?, ?, ?, ?, ?)',
+    [orderId, tuningDate, pitch, notes, now]
+  );
+  const lastInsert = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+  saveDb();
+  return lastInsert ? lastInsert.id : 0;
 };
 
 export const getTuningRecords = (orderId: number): TuningRecord[] => {
-  return db.prepare('SELECT * FROM tuning_records WHERE orderId = ? ORDER BY createdAt DESC').all(orderId) as TuningRecord[];
+  return queryAll<TuningRecord>(
+    'SELECT * FROM tuning_records WHERE orderId = ? ORDER BY createdAt DESC',
+    [orderId]
+  );
 };
 
 export const updateWoodStock = (woodId: number, stock: number): void => {
-  db.prepare('UPDATE woods SET stock = ? WHERE id = ?').run(stock, woodId);
+  db.run('UPDATE woods SET stock = ? WHERE id = ?', [stock, woodId]);
+  saveDb();
 };
 
 export const getLowStockWoods = (): Wood[] => {
-  return db.prepare('SELECT * FROM woods WHERE stock < threshold ORDER BY stock ASC').all() as Wood[];
+  return queryAll<Wood>('SELECT * FROM woods WHERE stock < threshold ORDER BY stock ASC');
 };
