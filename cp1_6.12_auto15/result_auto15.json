@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T03:41:24.016Z",
+  "task_name": "auto15",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个智能阅读进度跟踪与笔记速记的项目，想法是帮助读者在阅读网页长文或电子书时，自动记录阅读进度并支持快速标注关键词和段落笔记。希望它能做到：第一，页面左侧显示文章内容（模拟长文本HTML），右侧有一个侧边栏，侧边栏顶部显示当前阅读进度百分比和预计剩余阅读时间（根据滚动速度和文本量动态计算），中间区域是关键词高亮列表（用户双击选中文字后自动添加，带删除按钮和点击跳转到原文位置的功能），底部是笔记输入框和保存按钮，保存的笔记以时间戳列表形式展示在侧边栏底部，点击笔记可滚动定位到原文对应段落；第二，文章内容区域支持亮色/暗色主题一键切换，切换时背景和文字颜色有平滑过渡动画（0.5秒），关键词高亮使用暖色渐变标记（从淡黄到淡橙），笔记条目在添加时有从底部滑入的动效，删除笔记时伴随缩小淡出动画；第三，阅读进度条固定在页面顶部（细条状，颜色跟随主题变化），滚动时进度条填充部分有平滑的宽度过渡动画，同时侧边栏的进度数字实时更新。界面上希望整体采用莫兰迪色系（灰绿、米白、浅灰蓝），侧边栏用半透明毛玻璃效果，卡片式布局带轻微圆角和柔和阴影，在移动端（宽度小于768px）侧边栏自动折叠为底部抽屉，点击浮动按钮展开。性能上要求滚动时进度更新不低于每秒30帧，笔记保存响应时间小于200毫秒。\n\n实现用TypeScript和React（前端）加Node.js（后端模拟数据），把代码拆成以下文件：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, express, body-parser, morgan，启动脚本：npm run dev）\n - index.html（入口页面，挂载React应用）\n - vite.config.js（配置React插件和开发服务器端口）\n - tsconfig.json（严格模式，配置路径别名）\n - src/main.tsx（React根组件，管理主题状态和侧边栏展开状态，协调各子组件数据流）\n - src/components/ArticleReader.tsx（文章内容组件，监听滚动事件，计算进度，管理高亮位置）\n - src/components/SidePanel.tsx（右侧侧边栏组件，显示进度、关键词列表和笔记列表，处理笔记增删和高亮跳转）\n - server/index.ts（Express后端，提供文章文本API和笔记CRUD接口，返回模拟数据）\n\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:2b57686d0ae1c013a9d2b00125c9de94_6a2b7f191fe6d3e73346fe68.6a2b7fc91fe6d3e73346ff02.6a2b7fc82a5792c67d7387c7:Trae CN.T(2026/6/12 11:40:57)",
+    "user_id": "98336997115224",
+    "trace_id": "2b57686d0ae1c013a9d2b00125c9de94",
+    "session_id": "6a2b7f191fe6d3e73346fe68",
+    "task_id": "6a2b7fc91fe6d3e73346ff02",
+    "message_id": "6a2b7fc82a5792c67d7387c7",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 11:40:57",
+    "format": "full"
+  },
+  "trace": "null"
+}
