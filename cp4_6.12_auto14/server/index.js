@@ -44,10 +44,10 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS order_status_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    orderId INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
     status TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (orderId) REFERENCES orders(id)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
   );
 
   CREATE TABLE IF NOT EXISTS customer_preferences (
@@ -58,6 +58,15 @@ db.exec(`
     hardwareColor TEXT,
     engravingText TEXT,
     orderCount INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS restock_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    leatherId INTEGER NOT NULL,
+    suggestedArea REAL NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (leatherId) REFERENCES leathers(id)
   );
 `);
 
@@ -82,135 +91,240 @@ const PRODUCT_AREA = {
   belt: 0.4,
 };
 
+function checkLowStockAndSuggest(leather) {
+  if (leather.area < leather.threshold) {
+    const existing = db
+      .prepare('SELECT * FROM restock_suggestions WHERE leatherId = ? AND status = ?')
+      .get(leather.id, 'pending');
+    if (!existing) {
+      const suggested = Math.max(leather.threshold * 2, 10);
+      db.prepare(
+        'INSERT INTO restock_suggestions (leatherId, suggestedArea, status) VALUES (?, ?, ?)'
+      ).run(leather.id, suggested, 'pending');
+    }
+  }
+}
+
 app.get('/api/orders', (req, res) => {
-  const orders = db.prepare('SELECT * FROM orders ORDER BY createdAt DESC').all();
-  const withHistory = orders.map((order) => {
-    const history = db
-      .prepare('SELECT status, timestamp FROM order_status_history WHERE orderId = ? ORDER BY timestamp ASC')
-      .all(order.id);
-    return { ...order, statusHistory: history };
-  });
-  res.json(withHistory);
+  try {
+    const orders = db.prepare('SELECT * FROM orders ORDER BY createdAt DESC').all();
+    const withHistory = orders.map((order) => {
+      const history = db
+        .prepare(
+          'SELECT status, created_at as timestamp FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC'
+        )
+        .all(order.id);
+      return { ...order, statusHistory: history };
+    });
+    res.json(withHistory);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/orders/:id', (req, res) => {
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
-  const history = db
-    .prepare('SELECT status, timestamp FROM order_status_history WHERE orderId = ? ORDER BY timestamp ASC')
-    .all(order.id);
-  res.json({ ...order, statusHistory: history });
+  try {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    const history = db
+      .prepare(
+        'SELECT status, created_at as timestamp FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC'
+      )
+      .all(order.id);
+    res.json({ ...order, statusHistory: history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/orders', (req, res) => {
-  const {
-    customerName,
-    customerEmail,
-    productType,
-    referenceImage,
-    engravingText,
-    hardwareColor,
-    preferredDeliveryDate,
-  } = req.body;
+  try {
+    const {
+      customerName,
+      customerEmail,
+      productType,
+      referenceImage,
+      engravingText,
+      hardwareColor,
+      preferredDeliveryDate,
+    } = req.body;
 
-  const insertOrder = db.prepare(`
-    INSERT INTO orders (customerName, customerEmail, productType, referenceImage, engravingText, hardwareColor, preferredDeliveryDate)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  const result = insertOrder.run(
-    customerName,
-    customerEmail,
-    productType,
-    referenceImage || null,
-    engravingText || '',
-    hardwareColor,
-    preferredDeliveryDate || ''
-  );
-  const orderId = result.lastInsertRowid;
+    if (!customerName || !customerEmail || !productType || !hardwareColor) {
+      return res.status(400).json({ error: '缺少必要字段' });
+    }
 
-  db.prepare('INSERT INTO order_status_history (orderId, status) VALUES (?, ?)').run(orderId, 'pending');
+    const insertOrder = db.prepare(`
+      INSERT INTO orders (customerName, customerEmail, productType, referenceImage, engravingText, hardwareColor, preferredDeliveryDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = insertOrder.run(
+      customerName,
+      customerEmail,
+      productType,
+      referenceImage || null,
+      engravingText || '',
+      hardwareColor,
+      preferredDeliveryDate || ''
+    );
+    const orderId = result.lastInsertRowid;
 
-  const pref = db.prepare('SELECT * FROM customer_preferences WHERE customerEmail = ?').get(customerEmail);
-  if (pref) {
-    db.prepare(
-      `UPDATE customer_preferences SET 
-        leatherType = COALESCE(?, leatherType),
-        leatherColor = COALESCE(?, leatherColor),
-        hardwareColor = COALESCE(?, hardwareColor),
-        engravingText = COALESCE(NULLIF(?, ''), engravingText),
-        orderCount = orderCount + 1
-      WHERE customerEmail = ?`
-    ).run(null, null, hardwareColor, engravingText, customerEmail);
-  } else {
-    db.prepare(
-      `INSERT INTO customer_preferences (customerEmail, hardwareColor, engravingText, orderCount)
-       VALUES (?, ?, ?, 1)`
-    ).run(customerEmail, hardwareColor, engravingText || '');
+    db.prepare('INSERT INTO order_status_history (order_id, status) VALUES (?, ?)').run(
+      orderId,
+      'pending'
+    );
+
+    const pref = db
+      .prepare('SELECT * FROM customer_preferences WHERE customerEmail = ?')
+      .get(customerEmail);
+    if (pref) {
+      db.prepare(
+        `UPDATE customer_preferences SET 
+          hardwareColor = COALESCE(?, hardwareColor),
+          engravingText = COALESCE(NULLIF(?, ''), engravingText),
+          orderCount = orderCount + 1
+        WHERE customerEmail = ?`
+      ).run(hardwareColor, engravingText, customerEmail);
+    } else {
+      db.prepare(
+        `INSERT INTO customer_preferences (customerEmail, hardwareColor, engravingText, orderCount)
+         VALUES (?, ?, ?, 1)`
+      ).run(customerEmail, hardwareColor, engravingText || '');
+    }
+
+    const newOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    const history = db
+      .prepare(
+        'SELECT status, created_at as timestamp FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC'
+      )
+      .all(orderId);
+
+    res.status(201).json({ ...newOrder, statusHistory: history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  const newOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-  const history = db
-    .prepare('SELECT status, timestamp FROM order_status_history WHERE orderId = ? ORDER BY timestamp ASC')
-    .all(orderId);
-
-  res.status(201).json({ ...newOrder, statusHistory: history });
 });
 
 app.put('/api/orders/:id/status', (req, res) => {
-  const { status } = req.body;
-  const orderId = req.params.id;
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
+  try {
+    const { status } = req.body;
+    const orderId = req.params.id;
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
 
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, orderId);
-  db.prepare('INSERT INTO order_status_history (orderId, status) VALUES (?, ?)').run(orderId, status);
+    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, orderId);
+    db.prepare('INSERT INTO order_status_history (order_id, status) VALUES (?, ?)').run(
+      orderId,
+      status
+    );
 
-  if (status === 'designing' && order.status === 'pending') {
-    const requiredArea = PRODUCT_AREA[order.productType] || 0.3;
-    const leather = db.prepare('SELECT * FROM leathers ORDER BY area DESC LIMIT 1').get();
-    if (leather && leather.area >= requiredArea) {
-      db.prepare('UPDATE leathers SET area = area - ? WHERE id = ?').run(requiredArea, leather.id);
-      db.prepare('UPDATE orders SET leatherId = ? WHERE id = ?').run(leather.id, orderId);
+    if (status === 'designing' && order.status === 'pending') {
+      const requiredArea = PRODUCT_AREA[order.productType] || 0.3;
+      const leather = db
+        .prepare('SELECT * FROM leathers WHERE area >= ? ORDER BY area ASC LIMIT 1')
+        .get(requiredArea);
+      if (leather) {
+        const newArea = leather.area - requiredArea;
+        db.prepare('UPDATE leathers SET area = ? WHERE id = ?').run(newArea, leather.id);
+        db.prepare('UPDATE orders SET leatherId = ? WHERE id = ?').run(leather.id, orderId);
+
+        const updatedLeather = { ...leather, area: newArea };
+        checkLowStockAndSuggest(updatedLeather);
+      }
     }
-  }
 
-  const updatedOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-  const history = db
-    .prepare('SELECT status, timestamp FROM order_status_history WHERE orderId = ? ORDER BY timestamp ASC')
-    .all(orderId);
-  res.json({ ...updatedOrder, statusHistory: history });
+    const updatedOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    const history = db
+      .prepare(
+        'SELECT status, created_at as timestamp FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC'
+      )
+      .all(orderId);
+    res.json({ ...updatedOrder, statusHistory: history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/leathers', (req, res) => {
-  const leathers = db.prepare('SELECT * FROM leathers ORDER BY id ASC').all();
-  res.json(leathers);
+  try {
+    const leathers = db.prepare('SELECT * FROM leathers ORDER BY id ASC').all();
+    res.json(leathers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/leathers', (req, res) => {
-  const { type, color, thickness, area, unitCost, threshold } = req.body;
-  const result = db
-    .prepare(
-      'INSERT INTO leathers (type, color, thickness, area, unitCost, threshold) VALUES (?, ?, ?, ?, ?, ?)'
-    )
-    .run(type, color, thickness, area || 0, unitCost || 0, threshold || 5);
-  const leather = db.prepare('SELECT * FROM leathers WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(leather);
+  try {
+    const { type, color, thickness, area, unitCost, threshold } = req.body;
+    const result = db
+      .prepare(
+        'INSERT INTO leathers (type, color, thickness, area, unitCost, threshold) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(type, color, thickness, area || 0, unitCost || 0, threshold || 5);
+    const leather = db.prepare('SELECT * FROM leathers WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json(leather);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/leathers/:id', (req, res) => {
-  const { area, unitCost, threshold } = req.body;
-  db.prepare(
-    'UPDATE leathers SET area = COALESCE(?, area), unitCost = COALESCE(?, unitCost), threshold = COALESCE(?, threshold) WHERE id = ?'
-  ).run(area, unitCost, threshold, req.params.id);
-  const leather = db.prepare('SELECT * FROM leathers WHERE id = ?').get(req.params.id);
-  if (!leather) return res.status(404).json({ error: '库存不存在' });
-  res.json(leather);
+  try {
+    const { area, unitCost, threshold } = req.body;
+    db.prepare(
+      'UPDATE leathers SET area = COALESCE(?, area), unitCost = COALESCE(?, unitCost), threshold = COALESCE(?, threshold) WHERE id = ?'
+    ).run(area, unitCost, threshold, req.params.id);
+    const leather = db.prepare('SELECT * FROM leathers WHERE id = ?').get(req.params.id);
+    if (!leather) return res.status(404).json({ error: '库存不存在' });
+    checkLowStockAndSuggest(leather);
+    res.json(leather);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/restock-suggestions', (req, res) => {
+  try {
+    const suggestions = db
+      .prepare(
+        `SELECT rs.*, l.type, l.color, l.thickness, l.area as currentArea, l.unitCost
+         FROM restock_suggestions rs
+         JOIN leathers l ON rs.leatherId = l.id
+         WHERE rs.status = 'pending'
+         ORDER BY rs.createdAt DESC`
+      )
+      .all();
+    res.json(suggestions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/restock-suggestions/:id/resolve', (req, res) => {
+  try {
+    const suggestion = db.prepare('SELECT * FROM restock_suggestions WHERE id = ?').get(req.params.id);
+    if (!suggestion) return res.status(404).json({ error: '补货建议不存在' });
+
+    db.prepare('UPDATE restock_suggestions SET status = ? WHERE id = ?').run(
+      'resolved',
+      req.params.id
+    );
+    res.json({ message: '已处理' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/preferences/:email', (req, res) => {
-  const pref = db.prepare('SELECT * FROM customer_preferences WHERE customerEmail = ?').get(req.params.email);
-  if (!pref) return res.json(null);
-  res.json(pref);
+  try {
+    const pref = db
+      .prepare('SELECT * FROM customer_preferences WHERE customerEmail = ?')
+      .get(req.params.email);
+    if (!pref) return res.json(null);
+    res.json(pref);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

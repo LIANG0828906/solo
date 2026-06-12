@@ -42,6 +42,19 @@ export interface Leather {
   threshold: number;
 }
 
+export interface RestockSuggestion {
+  id: number;
+  leatherId: number;
+  suggestedArea: number;
+  createdAt: string;
+  status: string;
+  type: LeatherType;
+  color: LeatherColor;
+  thickness: LeatherThickness;
+  currentArea: number;
+  unitCost: number;
+}
+
 export interface CustomerPreference {
   id?: number;
   customerEmail: string;
@@ -55,16 +68,19 @@ export interface CustomerPreference {
 interface AppState {
   orders: Order[];
   leathers: Leather[];
+  restockSuggestions: RestockSuggestion[];
   preferences: Record<string, CustomerPreference>;
   loading: boolean;
   error: string | null;
   fetchOrders: () => Promise<void>;
   fetchLeathers: () => Promise<void>;
+  fetchRestockSuggestions: () => Promise<void>;
   fetchPreference: (email: string) => Promise<CustomerPreference | null>;
-  createOrder: (data: Omit<Order, 'id' | 'status' | 'statusHistory' | 'createdAt'>) => Promise<Order>;
+  createOrder: (data: Omit<Order, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'leatherId'>) => Promise<Order>;
   updateOrderStatus: (id: number, status: OrderStatus) => Promise<Order | void>;
   addLeather: (data: Omit<Leather, 'id'>) => Promise<Leather | void>;
   updateLeather: (id: number, data: Partial<Pick<Leather, 'area' | 'unitCost' | 'threshold'>>) => Promise<Leather | void>;
+  resolveRestockSuggestion: (id: number) => Promise<void>;
 }
 
 const api = axios.create({ baseURL: '/api' });
@@ -110,6 +126,14 @@ export const PRODUCT_LABELS: Record<ProductType, string> = {
   belt: '皮带',
 };
 
+export const PRODUCT_AREA: Record<ProductType, number> = {
+  wallet: 0.3,
+  cardholder: 0.15,
+  keychain: 0.1,
+  bracelet: 0.08,
+  belt: 0.4,
+};
+
 export const HARDWARE_LABELS: Record<HardwareColor, string> = {
   bronze: '古铜',
   silver: '银色',
@@ -148,12 +172,13 @@ export const LEATHER_COLOR_HEX: Record<LeatherColor, string> = {
 export const useStore = create<AppState>((set, get) => ({
   orders: [],
   leathers: [],
+  restockSuggestions: [],
   preferences: {},
   loading: false,
   error: null,
 
   fetchOrders: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const { data } = await api.get<Order[]>('/orders');
       set({ orders: data, loading: false });
@@ -163,7 +188,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   fetchLeathers: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const { data } = await api.get<Leather[]>('/leathers');
       set({ leathers: data, loading: false });
@@ -172,7 +197,16 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchPreference: async (email: string) => {
+  fetchRestockSuggestions: async () => {
+    try {
+      const { data } = await api.get<RestockSuggestion[]>('/restock-suggestions');
+      set({ restockSuggestions: data });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  fetchPreference: async (email) => {
     try {
       const { data } = await api.get<CustomerPreference | null>(`/preferences/${encodeURIComponent(email)}`);
       if (data) {
@@ -197,6 +231,7 @@ export const useStore = create<AppState>((set, get) => ({
         orders: state.orders.map((o) => (o.id === id ? updated : o)),
       }));
       await get().fetchLeathers();
+      await get().fetchRestockSuggestions();
       return updated;
     } catch (err) {
       set({ error: (err as Error).message });
@@ -220,6 +255,17 @@ export const useStore = create<AppState>((set, get) => ({
         leathers: state.leathers.map((l) => (l.id === id ? leather : l)),
       }));
       return leather;
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  resolveRestockSuggestion: async (id) => {
+    try {
+      await api.put(`/restock-suggestions/${id}/resolve`);
+      set((state) => ({
+        restockSuggestions: state.restockSuggestions.filter((s) => s.id !== id),
+      }));
     } catch (err) {
       set({ error: (err as Error).message });
     }

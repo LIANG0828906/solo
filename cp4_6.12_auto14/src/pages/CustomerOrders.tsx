@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Wallet,
@@ -10,9 +10,13 @@ import {
   Plus,
   X,
   ArrowLeft,
-  User,
   Sparkles,
   Check,
+  Calendar,
+  Palette,
+  Type,
+  User,
+  Mail,
 } from 'lucide-react';
 import {
   useStore,
@@ -59,7 +63,7 @@ function getInitials(name: string): string {
 function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center text-white font-bold shadow-md"
+      className="rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0"
       style={{
         width: size,
         height: size,
@@ -95,7 +99,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
           </div>
         </div>
         <span
-          className="px-3 py-1 rounded-full text-xs font-medium text-white"
+          className="px-3 py-1 rounded-full text-xs font-medium text-white flex-shrink-0"
           style={{ backgroundColor: STATUS_COLORS[order.status] }}
         >
           {STATUS_LABELS[order.status]}
@@ -200,7 +204,7 @@ function OrderDetail({ order, onBack }: { order: Order; onBack: () => void }) {
           <ProgressBar status={order.status} />
         </div>
 
-        {order.statusHistory.length > 0 && (
+        {order.statusHistory && order.statusHistory.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-[#5D4037] mb-3">
               状态时间线
@@ -212,7 +216,7 @@ function OrderDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                   className="flex items-center gap-3 text-sm bg-[#FAF6EC] rounded-lg p-3"
                 >
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ backgroundColor: STATUS_COLORS[h.status] }}
                   >
                     <Check size={14} />
@@ -291,22 +295,21 @@ function OrderDetail({ order, onBack }: { order: Order; onBack: () => void }) {
 function PreferenceCard({
   email,
   onApply,
+  visible,
+  onClose,
 }: {
   email: string;
   onApply: (pref: { hardwareColor: HardwareColor; engravingText: string }) => void;
+  visible: boolean;
+  onClose: () => void;
 }) {
-  const { fetchPreference, preferences } = useStore();
-  const [show, setShow] = useState(false);
+  const { preferences } = useStore();
   const pref = preferences[email];
 
-  useEffect(() => {
-    if (!email) return;
-    fetchPreference(email).then((p) => {
-      if (p) setShow(true);
-    });
-  }, [email, fetchPreference]);
+  if (!visible || !pref) return null;
 
-  if (!show || !pref) return null;
+  const hasAnyPref = pref.hardwareColor || pref.engravingText;
+  if (!hasAnyPref) return null;
 
   return (
     <div className="animate-slide-in-right fixed right-4 top-24 z-50 w-72 bg-[#FFF8E7] border border-[#D2B48C] rounded-xl shadow-2xl overflow-hidden">
@@ -316,7 +319,7 @@ function PreferenceCard({
           为您推荐历史偏好
         </div>
         <button
-          onClick={() => setShow(false)}
+          onClick={onClose}
           className="hover:bg-white/20 rounded p-0.5 transition-colors"
         >
           <X size={14} />
@@ -332,13 +335,428 @@ function PreferenceCard({
             <div className="flex items-center gap-2">
               <div
                 className="w-4 h-4 rounded-full border border-white shadow"
-                style={{ backgroundColor: HARDWARE_COLORS[pref.hardwareColor] }}
+                style={{ backgroundColor: HARDWARE_COLORS[pref.hardwareColor as HardwareColor] }}
               />
               <span className="text-[#8B4513] font-medium">
-                {HARDWARE_LABELS[pref.hardwareColor]}
+                {HARDWARE_LABELS[pref.hardwareColor as HardwareColor]}
               </span>
             </div>
           </div>
         )}
         {pref.engravingText && (
-          <div className="flex items-center justify
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#5D4037]">常用刻字</span>
+            <span className="text-[#8B4513] font-medium">
+              {pref.engravingText}
+            </span>
+          </div>
+        )}
+        <button
+          onClick={() => {
+            onApply({
+              hardwareColor: (pref.hardwareColor as HardwareColor) || 'bronze',
+              engravingText: pref.engravingText || '',
+            });
+          }}
+          className="w-full mt-2 py-2 bg-gradient-to-r from-[#8B4513] to-[#5D4037] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+        >
+          一键应用偏好
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NewOrderForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: (order: Order) => void }) {
+  const { createOrder, fetchPreference } = useStore();
+  const [productType, setProductType] = useState<ProductType>('wallet');
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [engravingText, setEngravingText] = useState('');
+  const [hardwareColor, setHardwareColor] = useState<HardwareColor>('bronze');
+  const [preferredDeliveryDate, setPreferredDeliveryDate] = useState('');
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showPrefCard, setShowPrefCard] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const emailBlurTimeout = useRef<number | null>(null);
+
+  const handleEmailBlur = useCallback(() => {
+    if (emailBlurTimeout.current) {
+      clearTimeout(emailBlurTimeout.current);
+    }
+    emailBlurTimeout.current = window.setTimeout(async () => {
+      if (customerEmail && customerEmail.includes('@')) {
+        const pref = await fetchPreference(customerEmail);
+        if (pref && (pref.hardwareColor || pref.engravingText)) {
+          setShowPrefCard(true);
+        } else {
+          setShowPrefCard(false);
+        }
+      } else {
+        setShowPrefCard(false);
+      }
+    }, 500);
+  }, [customerEmail, fetchPreference]);
+
+  const applyPreference = (pref: { hardwareColor: HardwareColor; engravingText: string }) => {
+    if (pref.hardwareColor) setHardwareColor(pref.hardwareColor);
+    if (pref.engravingText) setEngravingText(pref.engravingText);
+    setShowPrefCard(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setReferenceImage(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!customerName.trim()) {
+      setError('请输入您的姓名');
+      return;
+    }
+    if (!customerEmail.trim() || !customerEmail.includes('@')) {
+      setError('请输入有效的邮箱地址');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const newOrder = await createOrder({
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        productType,
+        engravingText: engravingText.trim(),
+        hardwareColor,
+        preferredDeliveryDate,
+        referenceImage,
+      });
+      onSuccess(newOrder);
+    } catch (err) {
+      setError((err as Error).message || '提交失败，请重试');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <PreferenceCard
+        email={customerEmail}
+        onApply={applyPreference}
+        visible={showPrefCard}
+        onClose={() => setShowPrefCard(false)}
+      />
+
+      <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" onClick={onClose}>
+        <div
+          className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="sticky top-0 bg-gradient-to-r from-[#5D4037] to-[#8B4513] text-white p-5 flex items-center justify-between z-10">
+            <div>
+              <h3 className="text-lg font-bold">提交定制需求</h3>
+              <p className="text-[#D4A574] text-sm">匠心打造，独一无二</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-2">
+                <User size={16} />
+                您的姓名
+              </label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-[#D2B48C] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513]/30 focus:border-[#8B4513] bg-[#FAF6EC] text-[#3E2723]"
+                placeholder="请输入您的姓名"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-2">
+                <Mail size={16} />
+                电子邮箱
+              </label>
+              <input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                onBlur={handleEmailBlur}
+                className="w-full px-4 py-2.5 border border-[#D2B48C] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513]/30 focus:border-[#8B4513] bg-[#FAF6EC] text-[#3E2723]"
+                placeholder="your@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-3">
+                <Wallet size={16} />
+                皮具类型
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {(Object.keys(PRODUCT_LABELS) as ProductType[]).map((type) => {
+                  const Icon = PRODUCT_ICONS[type];
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setProductType(type)}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all duration-200 ${
+                        productType === type
+                          ? 'border-[#8B4513] bg-[#F5F0E1]'
+                          : 'border-[#E8DCC4] bg-white hover:border-[#D2B48C]'
+                      }`}
+                    >
+                      <Icon
+                        size={20}
+                        style={{ color: productType === type ? '#8B4513' : '#8B7355' }}
+                      />
+                      <span
+                        className={`text-xs font-medium ${
+                          productType === type ? 'text-[#5D4037]' : 'text-[#8B7355]'
+                        }`}
+                      >
+                        {PRODUCT_LABELS[type]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-3">
+                <Palette size={16} />
+                五金颜色偏好
+              </label>
+              <div className="flex gap-4">
+                {(Object.keys(HARDWARE_LABELS) as HardwareColor[]).map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setHardwareColor(color)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
+                      hardwareColor === color
+                        ? 'border-[#8B4513] bg-[#F5F0E1]'
+                        : 'border-[#E8DCC4] bg-white hover:border-[#D2B48C]'
+                    }`}
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+                      style={{ backgroundColor: HARDWARE_COLORS[color] }}
+                    />
+                    <span
+                      className={`text-sm font-medium ${
+                        hardwareColor === color ? 'text-[#5D4037]' : 'text-[#8B7355]'
+                      }`}
+                    >
+                      {HARDWARE_LABELS[color]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-2">
+                <Type size={16} />
+                刻字内容（选填）
+              </label>
+              <input
+                type="text"
+                value={engravingText}
+                onChange={(e) => setEngravingText(e.target.value)}
+                maxLength={30}
+                className="w-full px-4 py-2.5 border border-[#D2B48C] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513]/30 focus:border-[#8B4513] bg-[#FAF6EC] text-[#3E2723]"
+                placeholder="请输入要刻的文字，最多30字"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-2">
+                <Calendar size={16} />
+                期望交付日期（选填）
+              </label>
+              <input
+                type="date"
+                value={preferredDeliveryDate}
+                onChange={(e) => setPreferredDeliveryDate(e.target.value)}
+                className="w-full px-4 py-2.5 border border-[#D2B48C] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513]/30 focus:border-[#8B4513] bg-[#FAF6EC] text-[#3E2723]"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-[#5D4037] mb-2">
+                <Upload size={16} />
+                设计参考图（选填）
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-[#D2B48C] rounded-lg p-6 text-center cursor-pointer hover:border-[#8B4513] hover:bg-[#FAF6EC] transition-all duration-200"
+              >
+                {referenceImage ? (
+                  <div className="relative">
+                    <img
+                      src={referenceImage}
+                      alt="参考图"
+                      className="max-h-32 mx-auto rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReferenceImage(null);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-[#8B7355]">
+                    <Upload size={28} className="mx-auto mb-2" />
+                    <p className="text-sm">点击上传参考图片</p>
+                    <p className="text-xs mt-1">支持 JPG、PNG 格式</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 bg-gradient-to-r from-[#8B4513] to-[#5D4037] text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                {submitting ? '提交中...' : '提交定制需求'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function CustomerOrders() {
+  const { orders, fetchOrders, loading } = useStore();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [showForm, setShowForm] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const selectedOrder = id ? orders.find((o) => o.id === Number(id)) : null;
+
+  const handleOrderClick = (orderId: number) => {
+    navigate(`/orders/${orderId}`);
+  };
+
+  const handleBack = () => {
+    navigate('/');
+  };
+
+  const handleOrderCreated = (order: Order) => {
+    setShowForm(false);
+    navigate(`/orders/${order.id}`);
+  };
+
+  if (selectedOrder) {
+    return <OrderDetail order={selectedOrder} onBack={handleBack} />;
+  }
+
+  return (
+    <div ref={containerRef}>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[#5D4037]">我的订单</h1>
+          <p className="text-[#8B7355] text-sm mt-1">
+            共 {orders.length} 个订单
+          </p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#8B4513] to-[#5D4037] text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+        >
+          <Plus size={18} />
+          提交新订单
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-10 h-10 border-4 border-[#D2B48C] border-t-[#8B4513] rounded-full animate-spin" />
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-[#D2B48C]/40">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#F5F0E1] flex items-center justify-center">
+            <Wallet size={28} style={{ color: '#8B4513' }} />
+          </div>
+          <h3 className="text-lg font-medium text-[#5D4037] mb-2">
+            还没有订单
+          </h3>
+          <p className="text-[#8B7355] text-sm mb-5">
+            点击上方按钮，开启您的专属皮具定制之旅
+          </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#8B4513] to-[#5D4037] text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            <Plus size={18} />
+            立即定制
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+          {orders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              onClick={() => handleOrderClick(order.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <NewOrderForm
+          onClose={() => setShowForm(false)}
+          onSuccess={handleOrderCreated}
+        />
+      )}
+    </div>
+  );
+}
