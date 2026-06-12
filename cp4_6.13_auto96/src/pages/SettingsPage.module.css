@@ -1,0 +1,345 @@
+.page {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.pageTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2d5a27;
+  margin-bottom: 4px;
+}
+
+.pageSubtitle {
+  font-size: 14px;
+  color: #888;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.cardHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.calorieBadge {
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.totalBadge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.totalValid {
+  background: #e8f4e8;
+  color: #2d5a27;
+}
+
+.totalInvalid {
+  background: #fde8e8;
+  color: #e74c3c;
+}
+
+.goalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.goalCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 16px;
+  background: #fafaf6;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  transition: all 0.25s ease-out;
+}
+
+.goalCard:hover {
+  background: #f0f0e8;
+  transform: translateY(-2px);
+}
+
+.goalActive {
+  background: linear-gradient(135deg, rgba(45, 90, 39, 0.08) 0%, rgba(61, 122, 53, 0.12) 100%);
+  border-color: var(--primary);
+}
+
+.goalIcon {
+  font-size: 36px;
+}
+
+.goalLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.goalActive .goalLabel {
+  color: var(--primary);
+}
+
+.goalDesc {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.sliderWrapper {
+  margin-bottom: 28px;
+}
+
+.sliderWrapper:last-child {
+  margin-bottom: 0;
+}
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sliderLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+}
+
+.sliderValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sliderContainer {
+  position: relative;
+  padding: 4px 0;
+}
+
+.sliderTrack {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 8px;
+  transform: translateY(-50%);
+  background: #e0d8cc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sliderFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s ease-out;
+}
+
+.sliderInput {
+  position: relative;
+  width: 100%;
+  height: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.sliderInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid currentColor;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.sliderInput::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.sliderInput::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+.sliderInput::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid currentColor;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.floatLabel {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%) translateY(5px);
+  padding: 4px 10px;
+  background: #333;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  z-index: 10;
+}
+
+.floatLabel::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #333;
+}
+
+.floatVisible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.sliderRange {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #bbb;
+}
+
+.macroBar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.macroSegment {
+  height: 100%;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.macroLegend {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  color: #555;
+  font-weight: 500;
+}
+
+.legendValue {
+  color: #333;
+  font-weight: 700;
+}
+
+.hintText {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fafaf6;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.saveBar {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 30px;
+}
+
+.saveBtn {
+  padding: 14px 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2d5a27 0%, #3d7a35 100%);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(45, 90, 39, 0.3);
+  transition: all 0.2s ease-out;
+}
+
+.saveBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(45, 90, 39, 0.4);
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 20px;
+  }
+  .goalGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .macroLegend {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
