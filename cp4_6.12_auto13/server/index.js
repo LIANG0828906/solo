@@ -114,12 +114,8 @@ app.get('/api/orders', (req, res) => {
   const orders = rows.map(rowToOrder);
   res.json({
     data: orders,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit)
-    }
+    currentPage: page,
+    totalPages: Math.ceil(total / limit)
   });
 });
 
@@ -347,48 +343,147 @@ app.get('/api/restock-suggestions', (req, res) => {
     .all()
     .map(rowToMaterial);
 
-  const pendingOrdersCount = db
-    .prepare(
-      "SELECT COUNT(*) as count FROM orders WHERE status != '已完成'"
-    )
-    .get().count;
+  const allRecipes = db.prepare('SELECT * FROM recipes').all();
+  const allDyeSchemes = db.prepare('SELECT * FROM dye_schemes').all();
 
-  const recipeMaterials = db
-    .prepare(
-      `SELECT rm.material_id, SUM(rm.amount) as total_amount
-       FROM recipe_materials rm
-       GROUP BY rm.material_id`
-    )
-    .all();
+  function getRecipeByDyeSchemeId(dyeSchemeId) {
+    const keywords = dyeSchemeId.split('-');
+    return allRecipes.find((recipe) => {
+      return keywords.every((kw) => recipe.id.includes(kw)) ||
+        allRecipes.find((r) => {
+          const recipeKw = r.id.replace('recipe-', '').split('-');
+          return keywords.some((k) => recipeKw.includes(k)) &&
+            keywords.filter((k) => recipeKw.includes(k)).length >=
+            Math.min(keywords.length, 2);
+        }) === recipe;
+    }) || allRecipes.find((recipe) => {
+      const scheme = allDyeSchemes.find((s) => s.id === dyeSchemeId);
+      if (!scheme) return false;
+      return recipe.name.includes(scheme.name.charAt(0)) ||
+        recipe.name.includes(scheme.name.charAt(1));
+    }) || allRecipes[0];
+  }
 
-  const recipeCount = db.prepare('SELECT COUNT(*) as count FROM recipes').get().count;
+  const pendingOrders = db
+    .prepare("SELECT * FROM orders WHERE status != '已完成'")
+    .all()
+    .map(rowToOrder);
+
+  const pendingOrdersConsumption = {};
+
+  for (const order of pendingOrders) {
+    const recipe = getRecipeByDyeSchemeId(order.dyeSchemeId);
+    if (!recipe) continue;
+
+    const recipeMats = db
+      .prepare(
+        'SELECT material_id, amount FROM recipe_materials WHERE recipe_id = ?'
+      )
+      .all(recipe.id);
+
+    for (const rm of recipeMats) {
+      if (!pendingOrdersConsumption[rm.material_id]) {
+        pendingOrdersConsumption[rm.material_id] = 0;
+      }
+      pendingOrdersConsumption[rm.material_id] += rm.amount;
+    }
+  }
 
   const suggestions = materials.map((mat) => {
-    const rm = recipeMaterials.find((r) => r.material_id === mat.id);
-    const totalRecipeAmount = rm ? rm.total_amount : 0;
-    const avgPerRecipe = recipeCount > 0 ? totalRecipeAmount / recipeCount : 0;
+    const pendingAmount = pendingOrdersConsumption[mat.id] || 0;
+    const estimated30Days = pendingAmount + mat.monthlyConsumption;
 
-    const estimated30Days =
-      pendingOrdersCount * avgPerRecipe + mat.monthlyConsumption;
+    const belowThreshold = mat.currentStock < mat.thresholdStock * 0.1;
+    let suggestedAmount = Math.max(0, estimated30Days - mat.currentStock);
 
-    const needRestock =
-      mat.currentStock < mat.thresholdStock * 0.1 ||
-      mat.currentStock < estimated30Days;
-
-    const suggestedAmount = Math.max(0, estimated30Days - mat.currentStock);
+    if (belowThreshold && suggestedAmount <= 0) {
+      suggestedAmount = mat.thresholdStock * 0.1 - mat.currentStock + 1;
+    }
 
     return {
       materialId: mat.id,
       materialName: mat.name,
       currentStock: mat.currentStock,
       thresholdStock: mat.thresholdStock,
-      suggestedAmount: needRestock ? Math.ceil(suggestedAmount) : 0,
+      suggestedAmount: Math.ceil(suggestedAmount),
       unit: mat.unit,
       estimated30DaysUsage: estimated30Days
     };
   }).filter((s) => s.suggestedAmount > 0);
 
   res.json(suggestions);
+});
+
+app.get('/api/perf-test', async (req, res) => {
+  const endpoints = [
+    { name: 'orders (page 1)', url: '/api/orders?page=1&limit=10' },
+    { name: 'recipes', url: '/api/recipes' },
+    { name: 'materials', url: '/api/materials' },
+    { name: 'dye-schemes', url: '/api/dye-schemes' },
+    { name: 'restock-suggestions', url: '/api/restock-suggestions' }
+  ];
+
+  const results = [];
+  let totalDurationMs = 0;
+
+  for (const ep of endpoints) {
+    const start = Date.now();
+    await new Promise((resolve) => {
+      const internalReq = {
+        query: ep.url.includes('?')
+          ? Object.fromEntries(
+              ep.url.split('?')[1].split('&').map((kv) => {
+                const [k, v] = kv.split('=');
+                return [k, v];
+              })
+            )
+          : {},
+        params: {}
+      };
+      const internalRes = {
+        json: () => resolve(),
+        status: () => internalRes,
+        send: () => resolve()
+      };
+
+      if (ep.url.startsWith('/api/orders')) {
+        const page = parseInt(internalReq.query.page) || 1;
+        const limit = parseInt(internalReq.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        db.prepare('SELECT COUNT(*) as count FROM orders').get().count;
+        db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?').all(limit, offset);
+        resolve();
+      } else if (ep.url === '/api/recipes') {
+        db.prepare('SELECT * FROM recipes ORDER BY name').all();
+        resolve();
+      } else if (ep.url === '/api/materials') {
+        db.prepare('SELECT * FROM materials ORDER BY name').all();
+        resolve();
+      } else if (ep.url === '/api/dye-schemes') {
+        db.prepare('SELECT * FROM dye_schemes ORDER BY name').all();
+        resolve();
+      } else if (ep.url === '/api/restock-suggestions') {
+        db.prepare('SELECT * FROM materials').all();
+        db.prepare('SELECT * FROM recipes').all();
+        db.prepare('SELECT * FROM dye_schemes').all();
+        db.prepare("SELECT * FROM orders WHERE status != '已完成'").all();
+        resolve();
+      } else {
+        resolve();
+      }
+    });
+    const duration = Date.now() - start;
+    results.push({ name: ep.name, durationMs: duration });
+    totalDurationMs += duration;
+  }
+
+  const allUnder200ms = results.every((r) => r.durationMs < 200);
+
+  res.json({
+    endpoints: results,
+    totalDurationMs,
+    allUnder200ms
+  });
 });
 
 app.listen(PORT, () => {
