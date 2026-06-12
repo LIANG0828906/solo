@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T04:18:19.992Z",
+  "task_name": "auto29",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我想做一个个性化每日宠物饲料配方的项目，想法是让养宠物的用户可以输入自家宠物的品种、年龄、体重和活动量，系统自动生成一顿营养均衡的饲料配方（包含主粮、肉类、蔬菜和补剂的比例），同时能根据宠物每日进食反馈（吃光、剩多少、呕吐等）动态调整下一餐的推荐配方。希望它能做到：第一，用户填写宠物信息表单（品种下拉框、年龄滑块、体重输入、活动量单选按钮）并提交后，前端调用后端API生成一份配方卡片，卡片以圆角卡片组件展示（深绿色主色调配米白背景，卡片带有淡淡的加载旋转动画），卡片内包含主粮、肉类、蔬菜和补剂四类食材的名称、克数和占总量百分比，百分比用环形进度条直观显示，进度条有从0到目标值的填充动画（0.8秒）；第二，用户每天在喂食后可以记录反馈（吃光/剩50%/剩25%/没怎么吃/呕吐），每条反馈记录以时间轴列表展示在配方卡片下方，列表项左侧显示时间戳（格式：4月10日 18:30），右侧显示反馈结果并配有不同的Emoji图标（吃光配😋、呕吐配😷），点击列表项可以弹出修改弹窗（弹窗从底部滑入，背景有半透明遮罩，弹窗内容有淡入动画）；第三，系统根据近三天的反馈数据（存储在本地localStorage模拟后端，但通过API接口模拟异步获取）自动调整下一餐配方：如果连续两次吃光则增加5%的食材总量，如果有呕吐则减少10%的食材总量并换掉当前肉类（前端配方卡片重新渲染时有淡出旧卡片再淡入新卡片的过渡效果），调整时配方卡片右上角显示一个小徽章（绿色三角形+向上箭头或红色三角形+向下箭头）表示总克数的变化趋势。界面上希望采用干净明快的自然风格——主色调是森林绿和暖米色，标题用圆润的手写字体现温暖感，所有卡片和按钮都有圆角（12px），悬停时微抬升并带阴影，反馈列表采用卡片式布局，每个项目之间有8px间距，页面在移动设备上自动切换为单列布局（现在先做桌面版）。性能上希望API请求响应时间不超过300ms，配方卡片动画帧率保持在30FPS以上。\n\n实现用TypeScript、React前端和Node.js后端，前端用Vite构建，后端用Express提供模拟数据API，配方计算逻辑放在独立的模块中。把代码拆成以下文件：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, express, uuid, cors；启动脚本：npm run dev）\n - index.html（入口页面，含宠物信息表单和配方展示区域）\n - vite.config.js（构建配置，代理/api到后端）\n - tsconfig.json（严格模式）\n - src/api.ts（封装前端API请求，包含fetchPetInfo、generateRecipe、submitFeedback、getFeedbackHistory，数据流向：表单→api.ts→后端→返回配方数据→渲染）\n - src/components/RecipeCard.tsx（配方卡片组件，接收配方数据和反馈数组，渲染卡片、进度条和反馈列表，调用api.ts提交反馈）\n - src/components/FeedbackList.tsx（反馈时间轴组件，渲染反馈项目列表，支持点击弹出修改弹窗）\n - src/recipeEngine.ts（配方计算模块，接收宠物信息和反馈历史，返回新配方对象，包含adjustPortions和calculateNutrients函数）\n - server/index.ts（Express后端，提供/mock/petInfo、/mock/generateRecipe、/mock/submitFeedback、/mock/feedbacks四个路由，返回模拟JSON数据）\n\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:c2fa67b8ccbfec26e96dd1063f855c3f_6a2b880573a3b2fdbe541fbe.6a2b888173a3b2fdbe54201a.6a2b8881d06272124544faf6:Trae CN.T(2026/6/12 12:18:09)",
+    "user_id": "98336997115224",
+    "trace_id": "c2fa67b8ccbfec26e96dd1063f855c3f",
+    "session_id": "6a2b880573a3b2fdbe541fbe",
+    "task_id": "6a2b888173a3b2fdbe54201a",
+    "message_id": "6a2b8881d06272124544faf6",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 12:18:09",
+    "format": "full"
+  },
+  "trace": "null"
+}
