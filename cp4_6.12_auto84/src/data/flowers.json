@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1,
+    "name": "晨曦玫瑰束",
+    "price": 298,
+    "description": "精选厄瓜多尔进口红玫瑰，搭配尤加利叶与银叶菊，浪漫与优雅的完美结合。适合求婚、纪念日与表达爱意的重要时刻。每一朵玫瑰都经过精心挑选，确保花型饱满、花期持久。",
+    "ingredients": ["厄瓜多尔红玫瑰 x11", "尤加利叶", "银叶菊", "缎面包装"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=elegant%20romantic%20red%20rose%20bouquet%20on%20cream%20background%20soft%20lighting%20professional%20florist%20photography&image_size=square_hd"
+  },
+  {
+    "id": 2,
+    "name": "春日花园",
+    "price": 258,
+    "description": "以粉色芍药为主角，搭配洋牡丹与绣球花，仿佛将整个春天捧在手心。温柔的粉白渐变色调，适合送给闺蜜、母亲或庆祝春日的美好。",
+    "ingredients": ["粉色芍药 x5", "洋牡丹 x6", "白色绣球", "常春藤"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=soft%20pink%20peonies%20and%20ranunculus%20spring%20bouquet%20cream%20aesthetic%20background%20floral%20photography&image_size=square_hd"
+  },
+  {
+    "id": 3,
+    "name": "森野绿野",
+    "price": 228,
+    "description": "白色洋桔梗与多种绿叶的自然组合，清新脱俗如漫步森林。简约现代的风格，适合北欧风家居装饰，也是送给喜欢自然风格朋友的佳选。",
+    "ingredients": ["白色洋桔梗 x8", "桉树叶", "蓬莱松", "尤加利果"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=minimalist%20white%20lisianthus%20and%20eucalyptus%20greenery%20bouquet%20natural%20forest%20aesthetic%20soft%20light&image_size=square_hd"
+  },
+  {
+    "id": 4,
+    "name": "落日余晖",
+    "price": 328,
+    "description": "橙色郁金香与焦糖玫瑰的温暖碰撞，如同秋日夕阳般令人沉醉。浓郁温暖的色调，为空间增添一抹温馨，适合乔迁、开业祝贺。",
+    "ingredients": ["橙色郁金香 x10", "焦糖玫瑰 x5", "枫叶", "金色尤加利"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=warm%20orange%20tulips%20and%20caramel%20roses%20autumn%20bouquet%20cozy%20sunset%20lighting%20floral%20arrangement&image_size=square_hd"
+  },
+  {
+    "id": 5,
+    "name": "月光白栀",
+    "price": 268,
+    "description": "纯洁的白色栀子花与铃兰，散发着淡雅清香。极简主义的设计，象征纯粹的美好与祝福，适合婚礼、毕业典礼等庄重场合。",
+    "ingredients": ["白栀子花 x7", "铃兰", "白色满天星", "米白丝绸包装"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pure%20white%20gardenia%20lily%20of%20the%20valley%20elegant%20minimalist%20bouquet%20moonlight%20aesthetic%20soft%20shadow&image_size=square_hd"
+  },
+  {
+    "id": 6,
+    "name": "薰衣草田园",
+    "price": 198,
+    "description": "普罗旺斯薰衣草与干花组合，带着南法乡村的浪漫气息。干燥花束可长久保存，兼具装饰与香氛功能，是送给文艺青年的理想礼物。",
+    "ingredients": ["普罗旺斯薰衣草", "干麦穗", "兔尾草", "满天星干花"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=provence%20lavender%20dried%20flower%20bouquet%20rustic%20french%20countryside%20aesthetic%20cream%20background&image_size=square_hd"
+  },
+  {
+    "id": 7,
+    "name": "珊瑚梦境",
+    "price": 358,
+    "description": "珊瑚粉芍药与朱丽叶玫瑰的奢华组合，层次丰富如印象派画作。独特的渐变色彩令人过目难忘，适合高规格的庆典与送礼。",
+    "ingredients": ["珊瑚芍药 x6", "朱丽叶玫瑰 x4", "银莲花", "雾中情人"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=coral%20pink%20peonies%20juliet%20garden%20roses%20luxury%20bouquet%20dreamy%20soft%20focus%20editorial%20floral&image_size=square_hd"
+  },
+  {
+    "id": 8,
+    "name": "蔚蓝海岸",
+    "price": 278,
+    "description": "蓝色绣球与白玫瑰的清新搭配，如地中海的海风般沁人心脾。宁静治愈的冷色调，为夏日带来一缕清凉，适合家居摆放与探病慰问。",
+    "ingredients": ["蓝色绣球 x2", "白玫瑰 x9", "蓝星花", "橄榄枝"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=blue%20hydrangea%20white%20roses%20mediterranean%20coastal%20style%20bouquet%20serene%20cool%20tones%20elegant&image_size=square_hd"
+  }
+]
