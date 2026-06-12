@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T05:49:07.857Z",
+  "task_name": "auto52",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我想做一个虚拟艺术展策展平台的项目，想法是让用户能够上传自己的数字绘画作品，自由布置在3D展厅中，并邀请朋友在线参观评论。希望它能做到：第一，展品管理模块支持用户上传图片（格式png/jpg，单张不超过5MB），每幅画以悬浮画框展示在3D空间里，画框有金色边框和柔光阴影，用户可以用鼠标拖拽调整画框的位置（在Y轴和X轴平面内移动），旋转画框角度（通过滑块或直接拖拽旋转手柄），展厅的墙壁颜色可以更换（预设5种主题色：暖白、深灰、米黄、墨绿、淡蓝），更换时墙壁颜色有平滑渐变过渡动画（0.5秒）；第二，展厅漫游与社交模块，用户以第一人称视角在展厅内自由行走（WASD控制移动，鼠标拖动旋转视角），按E键与画作交互会弹出信息面板显示标题、作者、创作日期和用户评论列表，访客可以在画作下方发表评论（评论后实时显示，带有轻量级弹入动画），展厅最多支持同时在线4人，每位访客的头像以浮动名字标签显示在头顶上，当两名访客靠近时系统弹出“击掌”互动按钮（点击发送击掌表情动画）；界面上希望整个UI采用极简主义风格，颜色主题以浅灰和白色为主，侧边导航栏使用半透明毛玻璃效果，按钮和交互元素统一使用圆角设计（8px圆角）和淡蓝色高亮（#4A90D9），加载转场使用淡入淡出动画（0.4秒），移动端通过触摸手势实现移动和旋转视角，所有页面元素在768px以下宽度时自动堆叠为竖排布局。性能上希望展厅场景渲染保持在30FPS以上，漫游移动响应时间低于50ms。实现使用TypeScript、React前端和Node.js后端，前端用Three.js渲染3D展厅，后端用Express处理文件上传和评论存储，用socket.io实现多人同步。把代码拆成以下文件：\n - package.json（含依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, three, @types/three, express, socket.io, socket.io-client, multer, uuid, cors；启动脚本：npm run dev 同时启动前端和后端）\n - index.html（入口页面）\n - vite.config.js（构建配置）\n - tsconfig.json（严格模式）\n - client/src/main.tsx（React 入口，初始化 Three.js 场景和 React 组件）\n - client/src/components/ExhibitionHall.tsx（3D展厅渲染模块，负责创建场景、灯光、地板、墙壁、画框模型，监听socket事件同步画作位置和旋转，每帧处理漫游控制）\n - client/src/components/ArtworkManager.tsx（展品管理模块，负责上传图片并转换为纹理，为画框生成悬浮动画，提供位置/旋转调整UI）\n - client/src/components/VisitorPanel.tsx（访客社交模块，管理在线用户列表、评论框、击掌互动，显示浮动名称标签）\n - server/index.ts（Express 和 Socket.io 服务端，处理图片上传（用multer存储到uploads文件夹）、评论增删查、展厅状态同步广播、在线用户管理）\n跑 npm install && npm run dev 就能直接看到效果，首次进入展厅会有一个空展厅，用户可以开始上传画作布置展厅。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:19db8a2dcc5f2ed6d39c199c7bf00f49_6a2b9d46737d873d42617547.6a2b9da8737d873d426175a1.6a2b9da89e88953d681819eb:Trae CN.T(2026/6/12 13:48:24)",
+    "user_id": "98336997115224",
+    "trace_id": "19db8a2dcc5f2ed6d39c199c7bf00f49",
+    "session_id": "6a2b9d46737d873d42617547",
+    "task_id": "6a2b9da8737d873d426175a1",
+    "message_id": "6a2b9da89e88953d681819eb",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 13:48:24",
+    "format": "full"
+  },
+  "trace": "null"
+}
