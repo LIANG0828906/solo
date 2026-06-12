@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T05:48:13.422Z",
+  "task_name": "auto51",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够根据用户输入的股票或基金代码，自动生成交互式K线图并附带技术指标分析的工具，主要解决手动查看多个数据源并分别计算指标效率低下的问题。\n\n它应当具备以下能力：\n1) 用户输入股票代码（如 AAPL）或基金代码后，应用调用后端模拟API生成过去6个月的每日模拟数据（开盘价、收盘价、最高价、最低价、成交量），前端以烛台图（K线）形式渲染，X轴为日期，Y轴为价格，每个烛台用红绿色表示涨跌（收盘高于开盘为绿色，反之为红色），鼠标悬停在任意烛台上时弹出一个浮动信息框，显示该日的完整OHLC数据和成交量。\n2) 支持叠加技术指标：用户可选择显示5日移动平均线（MA5）、20日移动平均线（MA20）和相对强弱指数（RSI，14日周期）。MA线以平滑曲线绘制（浅蓝色为MA5，橙色为MA20），RSI以独立子图显示在K线图下方（横轴与K线图对齐，纵轴0-100，70以上超买区为红色背景，30以下超卖区为绿色背景），切换指标时图表重新渲染并带有0.5秒淡入过渡动画。\n3) 用户可通过鼠标滚轮缩放时间范围（放大显示最近1个月或缩小到6个月），拖拽平移视图，缩放时K线柱体和均线自动重算间隔以避免重叠模糊（当视图显示少于10天时，用分钟级数据替代日级数据以保持清晰）。\n\n界面方面要求：整体采用暗色主题（背景#1a1a2e，卡片#16213e），K线图表区域占页面主体70%，左侧留出窄边栏放置输入框和指标勾选列表，字体使用系统无衬线字体。所有交互（悬停浮窗、缩放拖拽、指标切换）均有平滑过渡动画，响应式适配（桌面端K线图宽度自适应，移动端将边栏折叠为顶部下拉菜单）。页面中图表容器有轻微的阴影和圆角（12px），技术指标子图之间用1px虚线分隔。\n\n性能上需要图表在加载100个交易日数据时，渲染耗时不超过150ms，每次缩放或指标切换后动画流畅无卡顿（维持60fps）。\n\n实现采用TypeScript和React，使用Canvas API或D3.js进行K线图和指标的绘制（不依赖重量级图表库），通过自定义钩子管理数据获取和图表状态。按以下文件组织代码：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, d3, uuid；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（构建配置）\n - tsconfig.json（严格模式）\n - src/types.ts（定义StockData, IndicatorConfig, ChartViewport等类型）\n - src/dataSimulator.ts（模拟生成OHLCV数据，提供日期筛选和MA/RSI计算函数）\n - src/CandlestickChart.tsx（主图表组件，负责渲染K线、MA线、RSI子图和交互处理）\n - src/ControlPanel.tsx（输入框和指标勾选框组件，控制图表数据源和显示选项）\n - src/App.tsx（根组件，组装ControlPanel和CandlestickChart，管理全局状态）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:86cebb4d5e1da13f3d4ba98ad1a8a332_6a2b9d45737d873d42617545.6a2b9d92737d873d42617591.6a2b9d92b65ab536600b0543:Trae CN.T(2026/6/12 13:48:02)",
+    "user_id": "98336997115224",
+    "trace_id": "86cebb4d5e1da13f3d4ba98ad1a8a332",
+    "session_id": "6a2b9d45737d873d42617545",
+    "task_id": "6a2b9d92737d873d42617591",
+    "message_id": "6a2b9d92b65ab536600b0543",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 13:48:02",
+    "format": "full"
+  },
+  "trace": "null"
+}
