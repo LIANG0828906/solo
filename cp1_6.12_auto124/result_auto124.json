@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T08:27:57.886Z",
+  "task_name": "auto124",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我需要一个能够帮助小型团队管理日常会议和行动项的轻量级应用，主要解决会议结束后结论分散在笔记里、任务无人跟进、以及下次会议前难以快速回顾上次决议的问题。\n\n它应当具备以下能力：\n1) 用户可以创建会议议程，添加议程项（每项含标题、负责人、预估讨论时长），支持在会议开始前对议程项拖拽排序（拖拽时有半透明影子跟随，0.2秒弹性吸附动画），会议开始后自动开启计时器，每项倒计时结束时弹出柔和提示（顶部横幅淡入，0.3秒后自动消失）；\n2) 在会议讨论过程中，参与者可以为每个议程项添加备注（纯文本，支持按Ctrl+Enter快速提交），会议结束后系统自动汇总每个议程项的备注为会议纪要，同时提取所有标记为“行动项”的条目（每项带截止日期、负责人），生成一个待办列表，列表中的卡片左侧有状态小圆点（绿色进行中/灰色未开始/红色逾期，逾期时卡片背景变为浅粉#FFF0F0，0.5秒颜色渐变过渡）；\n3) 用户可查看历史会议列表，每场会议以卡片展示（圆角10px，阴影4px rgba(0,0,0,0.1)），卡片显示会议日期、标题、议程项数、行动项完成率百分比（横条从红色渐变到绿色），点击卡片展开详情，包含完整会议纪要和行动项状态（每个行动项右侧有“完成”按钮，点击后圆点变绿，卡片划入已完成区域，0.3秒缩放归位动画）；\n\n界面方面要求：整体采用左右分栏布局，左侧为侧边导航（宽度260px，深色背景#2C3E50，白色文字），包含会议列表入口和用户头像（圆形裁剪，蓝色边框3px）；右侧主区域上方为当前会议标题和状态标签（进行中绿色/已结束灰色，圆角6px），中间为议程项的时间线或卡片流，底部为输入控件。颜色主题使用蓝灰搭配（主色#3498DB，辅助色#2ECC71红色报错用#E74C3C），字体统一使用系统字体（-apple-system, BlinkMacSystemFont），所有交互按钮在hover时背景加深15%并带0.2秒过渡，行动项卡片在鼠标悬停时向上抬起2px并加深阴影。页面需在1280px以上和768px-1280px宽度下自适应（768px以下侧边栏折叠为顶部汉堡菜单，主区域全宽）。\n\n性能上要求：会议列表加载（含20条）在1秒内渲染完成；所有动画帧率不低于55FPS；行动项状态切换后UI更新延迟不超过100ms。\n\n实现采用TypeScript和React（前端）与Node.js和Express（后端），通过RESTful API和WebSocket实现实时会议状态同步。按以下文件组织代码：\n - package.json（依赖：react, react-dom, react-router-dom, axios, socket.io-client, vite, @types/react, @types/react-dom, express, cors, socket.io, uuid, typescript；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（构建配置，代理后端API至http://localhost:3001）\n - tsconfig.json（严格模式，ESNext模块）\n - client/src/App.tsx（应用根组件，使用React Router组织路由，包含会议列表页面和会议详情页面，引入ThemeProvider统一主题色）\n - client/src/components/AgendaTimeline.tsx（议程时间线组件，接收议程项数据，渲染垂直时间线，每个节点显示标题、负责人和倒计时，支持拖拽排序并触发onReorder回调）\n - client/src/components/ActionCard.tsx（行动项卡片组件，显示任务标题、负责人和截止日期，状态小圆点和完成按钮，点击完成时触发onComplete回调并播放卡片划入动画）\n - client/src/hooks/useSocket.ts（自定义Hook，管理与后端的WebSocket连接，提供useSocket返回socket实例和连接状态，事件订阅函数onAgendaUpdate和onActionItemChange）\n - server/src/index.ts（Express服务器入口，设置CORS和静态文件托管，创建Socket.IO服务器，监听3001端口，处理会议数据CRUD API和WebSocket事件广播）\n - server/src/routes/meetings.ts（会议路由模块，实现GET /api/meetings返回会议列表，POST /api/meetings创建会议，GET /api/meetings/:id返回详情，PATCH /api/meetings/:id更新议程和行动项）\n\n运行方式：npm install && npm run dev（使用concurrently同时启动前端和后端）。\n\n注意：前端通过Vite代理将/api请求转发到后端3001端口，WebSocket连接直接连接至localhost:3001。后端使用内存数组存储数据，无需数据库。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:d57749d5d497868ee297ccb93f136a16_6a2bc243a830ecd15e46ecc6.6a2bc2f3a830ecd15e46ed69.6a2bc2f251096118494754bf:Trae CN.T(2026/6/12 16:27:31)",
+    "user_id": "98336997115224",
+    "trace_id": "d57749d5d497868ee297ccb93f136a16",
+    "session_id": "6a2bc243a830ecd15e46ecc6",
+    "task_id": "6a2bc2f3a830ecd15e46ed69",
+    "message_id": "6a2bc2f251096118494754bf",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 16:27:31",
+    "format": "full"
+  },
+  "trace": "null"
+}
