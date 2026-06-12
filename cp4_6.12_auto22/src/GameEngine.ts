@@ -1,6 +1,6 @@
 import { GameMap, CANVAS_WIDTH, CANVAS_HEIGHT, TILE_SIZE } from './Map';
 import { Player, MoveInput } from './Player';
-import { Interactable, FloatingText, Chest, Teleport } from './Interactable';
+import { Interactable, FloatingText, Chest, Teleport, SpatialGrid } from './Interactable';
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -8,6 +8,7 @@ export class GameEngine {
   private map: GameMap;
   private player: Player;
   private interactables: Interactable[] = [];
+  private spatialGrid: SpatialGrid;
   private floatingTexts: FloatingText[] = [];
   private moveInput: MoveInput = { up: false, down: false, left: false, right: false };
   private lastTime: number = 0;
@@ -33,8 +34,10 @@ export class GameEngine {
     this.initialPlayerX = 2 * TILE_SIZE + 16;
     this.initialPlayerY = 2 * TILE_SIZE + 8;
     this.player = new Player(this.initialPlayerX, this.initialPlayerY);
+    this.spatialGrid = new SpatialGrid(128);
 
     this.initInteractables();
+    this.rebuildSpatialGrid();
     this.setupCanvasScaling();
   }
 
@@ -50,6 +53,10 @@ export class GameEngine {
         7 * TILE_SIZE + TILE_SIZE / 2
       )
     ];
+  }
+
+  private rebuildSpatialGrid(): void {
+    this.spatialGrid.build(this.interactables);
   }
 
   private setupCanvasScaling(): void {
@@ -80,7 +87,7 @@ export class GameEngine {
 
   public triggerInteract(): void {
     if (this.isResetting) return;
-    const result = this.player.interact(this.interactables);
+    const result = this.player.interact(this.interactables, this.spatialGrid);
     if (result) {
       this.floatingTexts.push(result);
     }
@@ -115,7 +122,7 @@ export class GameEngine {
   }
 
   private gameLoop = (currentTime: number): void => {
-    const deltaTime = (currentTime - this.lastTime) / 1000;
+    const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 1 / 30);
     this.lastTime = currentTime;
 
     this.frameCount++;
@@ -144,13 +151,17 @@ export class GameEngine {
         item.update(deltaTime);
       }
 
-      for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-        const ft = this.floatingTexts[i];
-        ft.life -= deltaTime;
-        ft.y -= 20 * deltaTime;
-        if (ft.life <= 0) {
-          this.floatingTexts.splice(i, 1);
-        }
+      this.updateFloatingTexts(deltaTime);
+    }
+  }
+
+  private updateFloatingTexts(deltaTime: number): void {
+    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = this.floatingTexts[i];
+      ft.life -= deltaTime;
+      ft.y -= 30 * deltaTime;
+      if (ft.life <= 0) {
+        this.floatingTexts.splice(i, 1);
       }
     }
   }
@@ -158,7 +169,28 @@ export class GameEngine {
   private updateReset(deltaTime: number): void {
     const fadeDuration = 0.15;
     const waitDuration = 0.3;
-    this.resetTimer: number;
+
+    if (this.resetPhase === 'fadeOut') {
+      this.resetAlpha += deltaTime / fadeDuration;
+      if (this.resetAlpha >= 1) {
+        this.resetAlpha = 1;
+        this.doReset();
+        this.resetPhase = 'waiting';
+        this.resetTimer = 0;
+      }
+    } else if (this.resetPhase === 'waiting') {
+      this.resetTimer += deltaTime;
+      if (this.resetTimer >= waitDuration) {
+        this.resetPhase = 'fadeIn';
+      }
+    } else if (this.resetPhase === 'fadeIn') {
+      this.resetAlpha -= deltaTime / fadeDuration;
+      if (this.resetAlpha <= 0) {
+        this.resetAlpha = 0;
+        this.isResetting = false;
+        this.resetPhase = 'idle';
+      }
+    }
   }
 
   private render(): void {
@@ -176,22 +208,22 @@ export class GameEngine {
     this.renderFloatingTexts();
     this.renderUI();
 
-    if (this.isResetting) {
-      this.ctx.fillStyle = `rgba(0, 0, 0, ${this.resetAlpha})`;
+    if (this.isResetting || this.resetAlpha > 0) {
+      this.ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, Math.min(1, this.resetAlpha))})`;
       this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
   }
 
   private renderFloatingTexts(): void {
     for (const ft of this.floatingTexts) {
-      const alpha = Math.min(1, ft.life / ft.maxLife);
+      const alpha = Math.max(0, Math.min(1, ft.life / ft.maxLife));
       const fontWeight = ft.bold ? 'bold' : 'normal';
       this.ctx.font = `${fontWeight} ${ft.size}px system-ui, sans-serif`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
 
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      this.ctx.fillText(ft.text, ft.x + 2, ft.y + 2);
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      this.ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
 
       this.ctx.fillStyle = ft.color;
       this.ctx.globalAlpha = alpha;

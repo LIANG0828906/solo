@@ -10,6 +10,61 @@ export interface FloatingText {
   bold: boolean;
 }
 
+export class SpatialGrid {
+  private cellSize: number;
+  private grid: Map<string, Interactable[]> = new Map();
+
+  constructor(cellSize: number = 128) {
+    this.cellSize = cellSize;
+  }
+
+  private getKey(x: number, y: number): string {
+    const gx = Math.floor(x / this.cellSize);
+    const gy = Math.floor(y / this.cellSize);
+    return `${gx},${gy}`;
+  }
+
+  public clear(): void {
+    this.grid.clear();
+  }
+
+  public insert(item: Interactable): void {
+    const key = this.getKey(item.x, item.y);
+    if (!this.grid.has(key)) {
+      this.grid.set(key, []);
+    }
+    this.grid.get(key)!.push(item);
+  }
+
+  public build(items: Interactable[]): void {
+    this.clear();
+    for (const item of items) {
+      this.insert(item);
+    }
+  }
+
+  public query(x: number, y: number, range: number): Interactable[] {
+    const result: Interactable[] = [];
+    const minGX = Math.floor((x - range) / this.cellSize);
+    const maxGX = Math.floor((x + range) / this.cellSize);
+    const minGY = Math.floor((y - range) / this.cellSize);
+    const maxGY = Math.floor((y + range) / this.cellSize);
+
+    for (let gx = minGX; gx <= maxGX; gx++) {
+      for (let gy = minGY; gy <= maxGY; gy++) {
+        const key = `${gx},${gy}`;
+        const cell = this.grid.get(key);
+        if (cell) {
+          for (const item of cell) {
+            result.push(item);
+          }
+        }
+      }
+    }
+    return result;
+  }
+}
+
 export abstract class Interactable {
   public x: number;
   public y: number;

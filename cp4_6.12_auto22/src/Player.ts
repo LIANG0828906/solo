@@ -1,5 +1,5 @@
 import { GameMap, TILE_SIZE } from './Map';
-import { Interactable, FloatingText, Chest, Teleport } from './Interactable';
+import { Interactable, FloatingText, Chest, Teleport, SpatialGrid } from './Interactable';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -52,26 +52,29 @@ export class Player {
       dy /= len;
     }
 
+    if (this.isMoving) {
+      if (Math.abs(dy) > Math.abs(dx)) {
+        this.direction = dy < 0 ? 'up' : 'down';
+      } else {
+        this.direction = dx < 0 ? 'left' : 'right';
+      }
+    }
+
     const moveX = dx * this.speed;
     const moveY = dy * this.speed;
-
-    if (dy < 0) this.direction = 'up';
-    else if (dy > 0) this.direction = 'down';
-    else if (dx < 0) this.direction = 'left';
-    else if (dx > 0) this.direction = 'right';
 
     const newX = this.x + moveX;
     if (this.canMoveTo(newX, this.y, map)) {
       this.x = newX;
-    } else {
-      this.x = this.clampXToTile(this.x, moveX > 0);
+    } else if (moveX !== 0) {
+      this.x = this.clampXToTile(newX, moveX > 0);
     }
 
     const newY = this.y + moveY;
     if (this.canMoveTo(this.x, newY, map)) {
       this.y = newY;
-    } else {
-      this.y = this.clampYToTile(this.y, moveY > 0);
+    } else if (moveY !== 0) {
+      this.y = this.clampYToTile(newY, moveY > 0);
     }
 
     if (this.isMoving) {
@@ -107,34 +110,43 @@ export class Player {
     return true;
   }
 
-  private clampXToTile(currentX: number, movingRight: boolean): number {
+  private clampXToTile(targetX: number, movingRight: boolean): number {
     if (movingRight) {
-      const tileX = Math.floor((currentX + this.width - 4) / TILE_SIZE);
-      return tileX * TILE_SIZE - this.width + 4;
+      const rightEdge = targetX + this.width - 4;
+      const wallTileLeft = Math.floor(rightEdge / TILE_SIZE) * TILE_SIZE;
+      return wallTileLeft - this.width + 4;
     } else {
-      const tileX = Math.floor((currentX + 4) / TILE_SIZE) + 1;
-      return tileX * TILE_SIZE - 4;
+      const leftEdge = targetX + 4;
+      const wallTileRight = (Math.floor(leftEdge / TILE_SIZE) + 1) * TILE_SIZE;
+      return wallTileRight - 4;
     }
   }
 
-  private clampYToTile(currentY: number, movingDown: boolean): number {
+  private clampYToTile(targetY: number, movingDown: boolean): number {
     if (movingDown) {
-      const tileY = Math.floor((currentY + this.height - 4) / TILE_SIZE);
-      return tileY * TILE_SIZE - this.height + 4;
+      const bottomEdge = targetY + this.height - 4;
+      const wallTileTop = Math.floor(bottomEdge / TILE_SIZE) * TILE_SIZE;
+      return wallTileTop - this.height + 4;
     } else {
-      const tileY = Math.floor((currentY + 8) / TILE_SIZE) + 1;
-      return tileY * TILE_SIZE - 8;
+      const topEdge = targetY + 8;
+      const wallTileBottom = (Math.floor(topEdge / TILE_SIZE) + 1) * TILE_SIZE;
+      return wallTileBottom - 8;
     }
   }
 
-  public interact(interactables: Interactable[]): FloatingText | null {
+  public interact(_interactables: Interactable[], spatialGrid: SpatialGrid): FloatingText | null {
+    const px = this.getCenterX();
+    const py = this.getCenterY();
+    const range = 64;
+    const candidates = spatialGrid.query(px, py, range);
+
     let nearest: Interactable | null = null;
     let nearestDist = Infinity;
 
-    for (const item of interactables) {
-      if (item.isInRange(this.getCenterX(), this.getCenterY())) {
-        const dx = item.x - this.getCenterX();
-        const dy = item.y - this.getCenterY();
+    for (const item of candidates) {
+      if (item.isInRange(px, py)) {
+        const dx = item.x - px;
+        const dy = item.y - py;
         const dist = dx * dx + dy * dy;
         if (dist < nearestDist) {
           nearestDist = dist;
