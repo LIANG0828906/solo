@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T08:28:19.975Z",
+  "task_name": "auto125",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我想做一个烹饪赛事评委评分板项目，想法是组织家庭或朋友间的线上烹饪比赛时，评委对每道菜的评分经常靠喊或者写在纸上，事后统计很耗时，需要一个能实时打分、自动算总分和排名的工具。希望它能做到：第一，评委登录后进入一个简洁的全屏评分界面，左侧是选手列表（每个选手卡片显示头像占位圆图、选手名和参赛菜品名），点击选手卡片后右侧显示详细的评分项（外观、创意、味道、摆盘、口感共5项，每项用滑块打分，范围1-10分，滑块拖动时有实时数值反馈动画，下方自动计算单项平均分；第二，所有评委提交打分后，系统自动汇总并生成排名榜，排名榜用柱状图展示总得分，前3名柱状条用金、银、铜色渐变色填充（金色#FFD700到#FFA500渐变，银色#C0C0C0到#A9A9A9渐变，铜色#CD7F32到#8B4513渐变），并伴有弹入动画效果（0.5秒从底部向上弹出并加弹性阻尼），未进入前三名的柱状条统一为浅灰色。界面上希望整体采用深色主题（背景#1a1a2e，卡片背景#16213e，字体#e0e0e0），评分区域配有微妙的粒子特效背景（缓慢飘动的小圆点，颜色半透明白色），每个评分项滑块下方显示实时的数值变化条，交互反馈包含点击按钮时的波纹扩散效果和错误输入的抖动提示（0.3秒）。性能上要求所有评分提交和排名刷新响应时间不超过500毫秒，滑块操作帧率不低于30fps。实现用TypeScript和React，把代码拆成以下文件：\n - package.json（依赖：react, react-dom, react-router-dom, recharts, vite, @types/react, @types/react-dom, typescript；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（Vite构建配置）\n - tsconfig.json（TypeScript配置，严格模式）\n - src/App.tsx（应用主入口，路由设置）\n - src/components/ScoringPanel.tsx（评分面板组件，包含滑块、实时数值显示、提交按钮）\n - src/components/RankingBoard.tsx（排名榜组件，用柱状图展示总得分和排名）\n - src/hooks/useScoreManager.ts（自定义Hook，管理评分状态、总分计算和排名逻辑）\n - src/styles/global.css（全局样式，深色主题、动画特效）\n跑npm install && npm run dev就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:ec70f8e882330b9a86ec0df1383d6e0b_6a2bc244a830ecd15e46ecc8.6a2bc319a830ecd15e46eda9.6a2bc31947a5d77b5b88b91c:Trae CN.T(2026/6/12 16:28:09)",
+    "user_id": "98336997115224",
+    "trace_id": "ec70f8e882330b9a86ec0df1383d6e0b",
+    "session_id": "6a2bc244a830ecd15e46ecc8",
+    "task_id": "6a2bc319a830ecd15e46eda9",
+    "message_id": "6a2bc31947a5d77b5b88b91c",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 16:28:09",
+    "format": "full"
+  },
+  "trace": "null"
+}
