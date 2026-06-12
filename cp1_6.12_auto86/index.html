@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D平台游戏关卡编辑器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1A1A2E;
+      color: #E0E0E0;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+    #toolbar {
+      width: 220px;
+      min-width: 220px;
+      background: #16213E;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+      overflow-y: auto;
+      border-right: 1px solid #2A2A4E;
+    }
+    #toolbar h2 {
+      font-size: 16px;
+      color: #E94560;
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .tool-section {
+      margin-bottom: 16px;
+    }
+    .tool-section h3 {
+      font-size: 12px;
+      color: #8888AA;
+      margin-bottom: 8px;
+      padding-left: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .tool-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.3s ease, background 0.2s ease, translateY 0.1s ease;
+      user-select: none;
+      margin-bottom: 2px;
+    }
+    .tool-item:hover {
+      background: rgba(255,255,255,0.06);
+      transform: scale(1.1);
+    }
+    .tool-item:active {
+      transform: translateY(2px) scale(1.0);
+    }
+    .tool-item.selected {
+      background: rgba(233, 69, 96, 0.2);
+      border: 1px solid #E94560;
+    }
+    .tool-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .tool-item span {
+      font-size: 13px;
+      color: #CCCCEE;
+    }
+    .icon-ground {
+      background: linear-gradient(180deg, #9B7424, #6B4914);
+      border: 1px solid #000;
+    }
+    .icon-platform {
+      background: #808080;
+      border: 1px solid #555;
+      width: 48px !important;
+    }
+    .icon-spike {
+      width: 0 !important;
+      height: 0 !important;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-bottom: 28px solid #FF0000;
+      background: transparent !important;
+      border-radius: 0 !important;
+    }
+    .icon-enemy {
+      background: #FF69B4;
+      border-radius: 50% !important;
+    }
+    .icon-coin {
+      background: #FFD700;
+      transform: rotate(45deg);
+      width: 22px !important;
+      height: 22px !important;
+      margin: 5px;
+    }
+    .icon-player {
+      background: #4488FF;
+      border-radius: 50% 50% 20% 20%;
+    }
+    .icon-flag {
+      background: linear-gradient(135deg, #00CC00, #008800);
+      clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);
+    }
+    .icon-eraser {
+      background: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #FFF;
+      font-weight: bold;
+    }
+    .platform-length {
+      display: none;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+    }
+    .platform-length.visible {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .platform-length label {
+      font-size: 12px;
+      color: #AAA;
+    }
+    .platform-length button {
+      width: 30px;
+      height: 26px;
+      border: 1px solid #444;
+      background: #1A1A2E;
+      color: #DDD;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .platform-length button:hover {
+      background: #2A2A4E;
+    }
+    .platform-length button.active {
+      background: #E94560;
+      border-color: #E94560;
+    }
+    .action-section {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-btn {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.2s, opacity 0.2s;
+      letter-spacing: 1px;
+    }
+    .action-btn:hover {
+      transform: scale(1.03);
+    }
+    .action-btn:active {
+      transform: translateY(2px);
+    }
+    .btn-save {
+      background: #0F3460;
+      color: #E0E0E0;
+      border: 1px solid #1A5276;
+    }
+    .btn-load {
+      background: #1A1A2E;
+      color: #E0E0E0;
+      border: 1px solid #2A2A4E;
+    }
+    .btn-preview {
+      background: #E94560;
+      color: #FFFFFF;
+    }
+    #game-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    #game-container canvas {
+      display: block;
+    }
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+    .toast.success {
+      background: #27AE60;
+      color: #FFF;
+    }
+    .toast.error {
+      background: #E74C3C;
+      color: #FFF;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="toolbar"></div>
+    <div id="game-area">
+      <div id="game-container"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
