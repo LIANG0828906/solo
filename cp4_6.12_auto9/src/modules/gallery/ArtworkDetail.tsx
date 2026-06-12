@@ -11,6 +11,7 @@ interface ArtworkDetailProps {
 
 const ArtworkDetail: React.FC<ArtworkDetailProps> = ({ artwork, onClose }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [showBuyForm, setShowBuyForm] = useState(false);
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
@@ -19,9 +20,16 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({ artwork, onClose }) => {
 
   useEffect(() => {
     setIsClosing(false);
+    setShowBuyForm(false);
+    setBuyerName('');
+    setBuyerEmail('');
+    requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
   }, [artwork]);
 
   const handleClose = () => {
+    setIsVisible(false);
     setIsClosing(true);
     setTimeout(() => {
       setIsDetailVisible(false);
@@ -55,37 +63,134 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({ artwork, onClose }) => {
     }
   };
 
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 200,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'auto',
+    background: 'rgba(0, 0, 0, 0.3)',
+    opacity: isVisible ? 1 : 0,
+    transition: 'opacity 0.3s ease-in-out',
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+    padding: '24px',
+    width: '360px',
+    maxWidth: '90vw',
+    pointerEvents: 'auto',
+    transform: isClosing ? 'scale(0.8)' : 'scale(1)',
+    opacity: isClosing ? 0 : 1,
+    transition: isClosing
+      ? 'all 0.3s ease-in'
+      : 'all 0.3s ease-out',
+    position: 'relative',
+  };
+
   return (
-    <div className="detail-overlay" onClick={handleOverlayClick}>
-      <div className={`detail-card ${isClosing ? 'closing' : ''}`} style={{ position: 'relative' }}>
-        <button className="detail-close" onClick={handleClose}>
+    <div style={overlayStyle} onClick={handleOverlayClick}>
+      <div style={cardStyle}>
+        <button
+          onClick={handleClose}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '16px',
+            fontSize: '24px',
+            cursor: 'pointer',
+            color: '#666',
+            transition: 'color 0.2s ease',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            lineHeight: 1,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#333')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#666')}
+        >
           ×
         </button>
 
         <img
           src={artwork.imageUrl}
           alt={artwork.title}
-          className="detail-card-image"
-          style={{ filter: `hue-rotate(${artwork.hueShift}deg)` }}
+          style={{
+            width: '100%',
+            height: '200px',
+            objectFit: 'cover',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            filter: `hue-rotate(${artwork.hueShift}deg)`,
+          }}
           onError={(e) => {
             (e.target as HTMLImageElement).style.background = '#E0E0D0';
           }}
         />
 
-        <h2 className="detail-card-title">{artwork.title}</h2>
-        <div className="detail-card-artist">{artwork.artistName}</div>
-
-        <div className="detail-card-info">
-          <span className="detail-card-label">创作年份</span>
-          <span>{artwork.year}</span>
+        <h2
+          style={{
+            fontSize: '22px',
+            fontWeight: 600,
+            marginBottom: '8px',
+            color: '#333',
+          }}
+        >
+          {artwork.title}
+        </h2>
+        <div
+          style={{
+            fontSize: '14px',
+            color: '#666',
+            marginBottom: '12px',
+          }}
+        >
+          {artwork.artistName}
         </div>
 
-        <div className="detail-card-info">
-          <span className="detail-card-label">尺寸</span>
-          <span>{artwork.width} × {artwork.height} cm</span>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '14px',
+            marginBottom: '6px',
+          }}
+        >
+          <span style={{ color: '#666' }}>创作年份</span>
+          <span style={{ color: '#333' }}>{artwork.year}</span>
         </div>
 
-        <div className="detail-card-price">¥{artwork.price.toFixed(2)}</div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '14px',
+            marginBottom: '6px',
+          }}
+        >
+          <span style={{ color: '#666' }}>尺寸</span>
+          <span style={{ color: '#333' }}>
+            {artwork.width} × {artwork.height} cm
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontSize: '28px',
+            fontWeight: 600,
+            color: '#A67C52',
+            margin: '16px 0',
+          }}
+        >
+          ¥{artwork.price.toFixed(2)}
+        </div>
 
         {!showBuyForm ? (
           <button

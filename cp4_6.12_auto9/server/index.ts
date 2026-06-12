@@ -200,12 +200,12 @@ function initSampleData() {
   if (count > 0) return;
 
   const sampleArtworks = [
-    { id: uuidv4(), title: '晨曦之光', artistName: '李明', year: 2023, price: 2800, width: 80, height: 60, imageUrl: '/uploads/sample1.jpg', hueShift: 5 },
-    { id: uuidv4(), title: '山涧溪流', artistName: '王芳', year: 2022, price: 3500, width: 100, height: 70, imageUrl: '/uploads/sample2.jpg', hueShift: -8 },
-    { id: uuidv4(), title: '城市印象', artistName: '张伟', year: 2024, price: 4200, width: 90, height: 65, imageUrl: '/uploads/sample3.jpg', hueShift: 12 },
-    { id: uuidv4(), title: '秋日私语', artistName: '陈静', year: 2023, price: 3200, width: 70, height: 90, imageUrl: '/uploads/sample4.jpg', hueShift: -3 },
-    { id: uuidv4(), title: '海洋深处', artistName: '赵强', year: 2024, price: 5000, width: 120, height: 80, imageUrl: '/uploads/sample5.jpg', hueShift: 8 },
-    { id: uuidv4(), title: '花园小径', artistName: '刘娜', year: 2022, price: 2200, width: 60, height: 80, imageUrl: '/uploads/sample6.jpg', hueShift: -10 },
+    { id: uuidv4(), title: '晨曦之光', artistName: '李明', year: 2023, price: 2800, width: 80, height: 60, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=serene%20landscape%20painting%20morning%20light%20mist%20mountains&image_size=square_hd', hueShift: 5 },
+    { id: uuidv4(), title: '山涧溪流', artistName: '王芳', year: 2022, price: 3500, width: 100, height: 70, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=stream%20flowing%20through%20mountain%20forest%20waterfall%20painting&image_size=square_hd', hueShift: -8 },
+    { id: uuidv4(), title: '城市印象', artistName: '张伟', year: 2024, price: 4200, width: 90, height: 65, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20city%20skyline%20impressionist%20painting%20sunset&image_size=square_hd', hueShift: 12 },
+    { id: uuidv4(), title: '秋日私语', artistName: '陈静', year: 2023, price: 3200, width: 70, height: 90, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=autumn%20garden%20warm%20colors%20leaves%20path%20painting&image_size=square_hd', hueShift: -3 },
+    { id: uuidv4(), title: '海洋深处', artistName: '赵强', year: 2024, price: 5000, width: 120, height: 80, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=deep%20ocean%20blue%20waves%20abstract%20painting&image_size=square_hd', hueShift: 8 },
+    { id: uuidv4(), title: '花园小径', artistName: '刘娜', year: 2022, price: 2200, width: 60, height: 80, imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=flower%20garden%20path%20spring%20blooming%20painting&image_size=square_hd', hueShift: -10 },
   ];
 
   const insertArtwork = db.prepare(`

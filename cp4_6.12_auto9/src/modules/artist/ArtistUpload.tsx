@@ -122,8 +122,8 @@ const ArtistUpload: React.FC = () => {
   return (
     <div className="page-container">
       {showSuccess && (
-        <div className="success-toast">
-          <span className="success-icon">✓</span>
+        <div className="success-toast" style={{ animation: 'successFadeInOut 2s ease forwards' }}>
+          <span className="success-icon" style={{ animation: 'checkmarkPop 0.5s ease forwards' }}>✓</span>
           <span>上传成功，等待审核</span>
         </div>
       )}
@@ -163,7 +163,14 @@ const ArtistUpload: React.FC = () => {
 
           {uploading && (
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${progress}%` }} />
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${progress}%`,
+                  background: '#3498db',
+                  transition: 'width 0.3s linear'
+                }}
+              />
             </div>
           )}
 
