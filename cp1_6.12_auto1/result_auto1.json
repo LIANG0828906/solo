@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T03:19:38.810Z",
+  "task_name": "auto1",
+  "task_type": "0-1代码生成",
+  "business_domain": "3D/交互可视化",
+  "modification_scope": "跨模块多文件",
+  "prompt": "构建一个基于三维地球的全球黑客攻击实时热力图可视化系统，能够在地球上展示不同地区的网络攻击频率分布。使用 TypeScript 和 Three.js 实现，结合 D3.js 做颜色映射与比例尺。文件结构如下：\n - package.json（依赖：three, d3, vite, typescript；启动脚本：npm run dev）\n - vite.config.js\n - tsconfig.json（严格模式）\n - index.html（入口）\n - src/core/earth.ts（核心模块：创建旋转三维地球，加载经纬度网格，负责渲染循环）\n - src/core/data-loader.ts（数据模块：模拟生成各经纬度攻击频率数据，输出 GeoJSON 格式，供其他模块消费）\n - src/visualization/heatmap.ts（可视化模块：接收数据，在三维地球表面生成粒子热点，颜色根据攻击频率映射）\n - src/visualization/ui-panel.ts（UI模块：创建侧边面板，显示攻击统计和切换视图模式）\n - src/main.ts（入口文件：初始化地球、启动数据加载、绑定 UI 事件）\n\n具体需求：\n1. 三维地球使用纹理贴图（带大气层光泽效果），支持鼠标拖拽旋转（OrbitControls），默认自动缓慢旋转。\n2. 攻击数据按国家或区域生成 50-100 个热点，每个热点用不同大小和颜色的发光粒子表示，频率越高粒子越大且颜色从蓝（低）渐变到红（高）。\n3. 热点粒子带呼吸动画效果（大小周期性变化），鼠标悬停时显示悬浮工具提示（Tooltip），展示具体攻击数和国家名。\n4. 侧边面板实时更新攻击总数和排名前五的国家，面板带半透明毛玻璃效果，可折叠收起。\n5. 支持按时间维度切换视图：最近24小时、一周、一月，切换后热点数据平滑过渡（动画补间）。\n\n界面方面：整体暗色科幻风格主题，地球背景为星空粒子背景（动态闪烁），颜色主题采用蓝色到红色渐变，UI面板使用半透明毛玻璃（backdrop-filter: blur），按钮和文字使用霓虹蓝发光效果，所有交互（拖拽、悬停、切换）都带平滑过渡动画（CSS transition 或 Tween），页面能适配 1920x1080 和 1440x900 分辨率。\n\n性能要求：帧率稳定在 55 FPS 以上，热点粒子数不超过 1000 个，使用 BufferGeometry 批量渲染，避免单个 Mesh。\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:6eb88e7d066d061bcf3bcdf074e69f0d_6a2b7a8ba5aa2e9180802078.6a2b7aafa5aa2e9180802088.6a2b7aaf9b3c45095a0ec50d:Trae CN.T(2026/6/12 11:19:11)",
+    "user_id": "98336997115224",
+    "trace_id": "6eb88e7d066d061bcf3bcdf074e69f0d",
+    "session_id": "6a2b7a8ba5aa2e9180802078",
+    "task_id": "6a2b7aafa5aa2e9180802088",
+    "message_id": "6a2b7aaf9b3c45095a0ec50d",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 11:19:11",
+    "format": "full"
+  },
+  "trace": "null"
+}
