@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>平台跳跃游戏关卡编辑器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1E1E2E;
+      color: #FFFFFF;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .toolbar {
+      width: 180px;
+      background-color: #2A2A3A;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+      gap: 12px;
+      border-right: 1px solid #3A3A4A;
+      flex-shrink: 0;
+      transition: opacity 0.3s ease-out;
+    }
+
+    .toolbar h2 {
+      font-size: 16px;
+      color: #4CAF50;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .toolbar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .toolbar-section-title {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .toolbar-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tool-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background-color: #3A3A4A;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      color: #FFFFFF;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+
+    .tool-btn:hover {
+      background-color: #4A4A5A;
+      border-color: #5A5A6A;
+    }
+
+    .tool-btn.active {
+      background-color: rgba(76, 175, 80, 0.2);
+      border-color: #4CAF50;
+      color: #4CAF50;
+    }
+
+    .tool-icon {
+      font-size: 18px;
+      width: 24px;
+      text-align: center;
+    }
+
+    .tool-label {
+      flex: 1;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: auto;
+    }
+
+    .action-btn {
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-preview {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .btn-preview:hover {
+      background-color: #43A047;
+      transform: translateY(-1px);
+    }
+
+    .btn-save {
+      background-color: #2196F3;
+      color: white;
+    }
+
+    .btn-save:hover {
+      background-color: #1976D2;
+    }
+
+    .btn-load {
+      background-color: #FF9800;
+      color: white;
+    }
+
+    .btn-load:hover {
+      background-color: #F57C00;
+    }
+
+    .btn-export {
+      background-color: #9C27B0;
+      color: white;
+    }
+
+    .btn-export:hover {
+      background-color: #7B1FA2;
+    }
+
+    .editor-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: auto;
+      transition: opacity 0.3s ease-out;
+    }
+
+    #editor-canvas {
+      border: 2px solid #3A3A4A;
+      border-radius: 8px;
+      cursor: crosshair;
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .preview-container {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      transition: opacity 0.3s ease-out;
+    }
+
+    .preview-header {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 20px 10px;
+    }
+
+    .btn-back {
+      padding: 8px 16px;
+      background-color: #FF5722;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-back:hover {
+      background-color: #E64A19;
+    }
+
+    #preview-canvas {
+      border: 2px solid #3A3A4A;
+      border-radius: 8px;
+      max-width: 100%;
+      max-height: calc(100vh - 100px);
+      image-rendering: pixelated;
+    }
+
+    .instructions {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background-color: rgba(42, 42, 58, 0.9);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #AAA;
+      max-width: 250px;
+      border: 1px solid #3A3A4A;
+    }
+
+    .instructions h4 {
+      color: #4CAF50;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .instructions p {
+      margin: 3px 0;
+    }
+
+    .instructions kbd {
+      background-color: #3A3A4A;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #FFF;
+    }
+
+    @media (max-width: 850px) {
+      .app-container {
+        flex-direction: column;
+      }
+
+      .app-container.narrow .toolbar {
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 8px;
+        gap: 8px;
+        border-right: none;
+        border-bottom: 1px solid #3A3A4A;
+        flex-shrink: 0;
+      }
+
+      .app-container.narrow .toolbar h2 {
+        display: none;
+      }
+
+      .app-container.narrow .toolbar-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .app-container.narrow .toolbar-section-title {
+        display: none;
+      }
+
+      .app-container.narrow .toolbar-tools {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .app-container.narrow .tool-btn {
+        flex-direction: column;
+        padding: 8px 12px;
+        gap: 4px;
+        font-size: 0;
+        flex: 0 0 auto;
+      }
+
+      .app-container.narrow .tool-icon {
+        font-size: 20px;
+      }
+
+      .app-container.narrow .tool-label {
+        display: none;
+      }
+
+      .app-container.narrow .toolbar-actions {
+        flex-direction: row;
+        margin-top: 0;
+        margin-left: auto;
+      }
+
+      .app-container.narrow .action-btn {
+        padding: 8px 12px;
+        font-size: 11px;
+      }
+
+      .app-container.narrow .editor-container,
+      .app-container.narrow .preview-container {
+        padding: 10px;
+      }
+
+      .instructions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="toolbar">
+      <h2>🎮 关卡编辑器</h2>
+
+      <div class="toolbar-section">
+        <div class="toolbar-section-title">工具</div>
+        <div class="toolbar-tools" id="toolbar-tools">
+        </div>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="action-btn btn-preview" id="btn-preview">▶ 预览</button>
+        <button class="action-btn btn-save" id="btn-save">💾 保存</button>
+        <button class="action-btn btn-load" id="btn-load">📂 加载</button>
+        <button class="action-btn btn-export" id="btn-export">📤 导出JSON</button>
+      </div>
+    </aside>
+
+    <main class="editor-container">
+      <canvas id="editor-canvas"></canvas>
+    </main>
+
+    <main class="preview-container">
+      <div class="preview-header">
+        <button class="btn-back" id="btn-back">← 返回编辑器</button>
+      </div>
+      <canvas id="preview-canvas"></canvas>
+    </main>
+  </div>
+
+  <div class="instructions">
+    <h4>操作说明</h4>
+    <p><kbd>左键</kbd> 放置元素</p>
+    <p><kbd>右键</kbd> 删除元素</p>
+    <p><kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销</p>
+    <p><kbd>1-7</kbd> 切换工具</p>
+    <p><kbd>WASD</kbd> + <kbd>空格</kbd> 移动跳跃</p>
+    <p><kbd>Esc</kbd> 退出预览</p>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
