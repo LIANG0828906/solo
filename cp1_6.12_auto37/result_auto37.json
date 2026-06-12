@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T04:37:58.340Z",
+  "task_name": "auto37",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我需要一个能够实时解析用户手绘草图并转换为可编辑UI组件树的应用，主要解决设计师和开发者之间因手稿与代码脱节而反复修改的问题。\n\n它应当具备以下能力：\n1) 用户通过鼠标或触控笔在画布区域自由绘制矩形、圆形、三角形等基本形状，系统使用笔画方向检测算法实时识别形状类型（矩形识别率需达到95%以上），识别后自动将手绘线条转换为规整的矢量图形（带有平滑吸附动画，持续0.3秒），并在图形下方标注预测的UI组件类型（如Button、Card、Image）。\n2) 识别后的图形支持分组和层级管理：用户可以将多个相邻图形框选（按住Shift拖出矩形选择框，选中后图形边框变为蓝色发光动画），然后一键组合成一个自定义组件组（组内图形保持相对位置），组合后可在侧面面板中重命名组名（如HeaderCard）、调整组内图形顺序（拖拽排序）、删除组内某个图形（删除时该图形缩小至中心点消失）。\n3) 生成的组件树以JSON格式导出，包含每个节点的类型、位置（x, y）、尺寸（width, height）、层级（zIndex）和分组信息，导出按钮点击后显示一个从按钮位置向外扩散的加载波纹动画，然后自动下载JSON文件，节点总数不超过200个时导出耗时需小于0.5秒。\n\n界面方面要求：画布区域占页面宽度的70%，左侧为工具栏（包含画笔、选择、删除、清空按钮，按钮使用圆角图标风格，鼠标悬停时背景变为浅蓝色平移动画），顶部为状态栏（显示当前工具和图形数量），右侧为属性面板（显示选中图形的类型、位置、尺寸输入框以及分组信息），整体采用冷色调主题（画布背景#1e1e2e，工具栏#2a2a3e，选中图形边框#4fc3f7），所有交互元素在触屏设备上间距不小于48px以确保可用性，画布网格线使用CSS图案重复实现（浅灰色#333，间距20px）以提升参考感。\n\n性能上需要：画布支持实时绘制时帧率稳定在40FPS以上（在Chrome浏览器、8GB RAM设备上测试），导出JSON时内存占用不超过50MB。\n\n实现采用TypeScript和React，Webpack作为构建工具，按以下文件组织代码：\n - package.json（依赖：react, react-dom, webpack, webpack-cli, webpack-dev-server, typescript, ts-loader, html-webpack-plugin, css-loader, style-loader；启动脚本：npm run dev）\n - index.html（入口页面，包含<div id=\"root\">容器和画布、工具栏、属性面板的布局骨架）\n - webpack.config.js（构建配置，含TypeScript编译规则和热更新）\n - tsconfig.json（严格模式，target ES2020）\n - src/recognition/sketchParser.ts（职责：接收画布原始笔迹坐标数组，使用Douglas-Peucker算法简化轨迹，然后通过多边形拟合识别形状类型，输出Shape类型枚举和归一化顶点数据，被DrawingCanvas调用）\n - src/drawing/DrawingCanvas.tsx（职责：管理Canvas 2D渲染循环，处理鼠标/触控事件（mousedown/mousemove/mouseup），实时渲染手绘笔迹，识别完成后将形状数据传递给ComponentTree模块，通过props回调更新父组件状态）\n - src/componentTree/ComponentTreeManager.ts（职责：维护一个树状结构的组件节点列表（基于React状态），支持增删改查和分组操作（flat列表+parentId字段实现树形），对外提供addNode、removeNode、groupNodes、ungroup、exportJSON方法，被属性面板和工具栏组件调用）\n - src/ui/Toolbar.tsx（职责：渲染左侧工具栏按钮，使用useState管理当前工具类型，点击时改变父组件的工具模式，工具切换时对应按钮有背景色变换动画（0.2秒ease-in-out））\n - src/ui/PropertyPanel.tsx（职责：渲染右侧属性面板，展示选中节点的详细信息，支持实时输入修改坐标和尺寸，修改后触发componentTree.updateNode方法，面板内部使用React.memo优化渲染）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:3e66ef8c7ec10e398cbbd11589902646_6a2b8c7fc525481252d723a2.6a2b8d0bc525481252d72422.6a2b8d0b084571680b9ce22e:Trae CN.T(2026/6/12 12:37:31)",
+    "user_id": "98336997115224",
+    "trace_id": "3e66ef8c7ec10e398cbbd11589902646",
+    "session_id": "6a2b8c7fc525481252d723a2",
+    "task_id": "6a2b8d0bc525481252d72422",
+    "message_id": "6a2b8d0b084571680b9ce22e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 12:37:31",
+    "format": "full"
+  },
+  "trace": "null"
+}
