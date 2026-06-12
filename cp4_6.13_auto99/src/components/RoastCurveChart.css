@@ -1,0 +1,61 @@
+.roast-curve-chart {
+  position: relative;
+  display: inline-block;
+}
+
+.x-axis path,
+.y-axis path,
+.x-axis line,
+.y-axis line {
+  stroke: #8B7355;
+}
+
+.x-axis text,
+.y-axis text {
+  fill: #6B4F3A;
+  font-size: 11px;
+}
+
+.roast-line {
+  filter: drop-shadow(0 1px 2px rgba(208, 135, 76, 0.3));
+}
+
+.data-point {
+  transition: r 0.15s ease;
+}
+
+.data-point:hover {
+  filter: drop-shadow(0 0 4px rgba(208, 135, 76, 0.6));
+}
+
+.chart-tooltip {
+  position: absolute;
+  background: #5C3A21;
+  color: #FFFFFF;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.chart-tooltip::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-style: solid;
+  border-color: transparent #5C3A21 transparent transparent;
+}
+
+.tooltip-time {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.tooltip-temp {
+  color: #D4A574;
+}
