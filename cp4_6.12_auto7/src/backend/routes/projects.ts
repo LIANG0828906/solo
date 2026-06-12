@@ -16,7 +16,7 @@ const statusLabels: Record<string, string> = {
 
 const sendStatusEmail = async (to: string, projectName: string, status: string) => {
   const statusText = statusLabels[status] || status;
-  console.log(`发送邮件至 ${to}：项目「${projectName}」状态已更新为 ${statusText}`);
+  console.log(`发送邮件至 ${to}：项目状态已更新为 ${statusText}`);
 };
 
 router.get('/', (req: Request, res: Response) => {

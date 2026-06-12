@@ -134,7 +134,6 @@ const ToolMaintenance = () => {
   };
 
   const getMaintenanceStatusColor = (tool: Tool) => {
-    if (tool.is_overdue) return '#FFEBEE';
     if (tool.days_until_maintenance < 7) return '#FFE0B2';
     return 'transparent';
   };
@@ -170,7 +169,12 @@ const ToolMaintenance = () => {
             padding: '12px 20px',
             marginBottom: '24px',
             overflow: 'hidden',
-            position: 'relative'
+            position: 'fixed',
+            top: '0',
+            left: '240px',
+            right: '0',
+            zIndex: '50',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
@@ -198,19 +202,20 @@ const ToolMaintenance = () => {
         </div>
       )}
 
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <p style={{ color: '#616161', margin: 0 }}>
-          共 {tools.length} 台设备
-          {overdueTools.length > 0 && (
-            <span style={{ color: '#D32F2F', marginLeft: '12px' }}>
-              超期 {overdueTools.length} 台
-            </span>
-          )}
-        </p>
-        <button className="btn btn-primary" onClick={() => setShowAddToolModal(true)}>
-          + 添加工具
-        </button>
-      </div>
+      <div style={{ marginTop: overdueTools.length > 0 ? '90px' : '0' }}>
+        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p style={{ color: '#616161', margin: 0 }}>
+            共 {tools.length} 台设备
+            {overdueTools.length > 0 && (
+              <span style={{ color: '#D32F2F', marginLeft: '12px' }}>
+                超期 {overdueTools.length} 台
+              </span>
+            )}
+          </p>
+          <button className="btn btn-primary" onClick={() => setShowAddToolModal(true)}>
+            + 添加工具
+          </button>
+        </div>
 
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -346,6 +351,7 @@ const ToolMaintenance = () => {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       {showMaintenanceModal && selectedTool && (
