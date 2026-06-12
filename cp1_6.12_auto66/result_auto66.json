@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T06:26:15.841Z",
+  "task_name": "auto66",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够帮助用户记录日常情绪波动并自动发现情绪模式的应用，主要解决人们难以从零散的心情笔记中归纳出情绪诱因和规律的问题。\n\n它应当具备以下能力：\n1) 情绪记录：用户可快速记录当前情绪（选择预定义的6种基础情绪：快乐、悲伤、愤怒、焦虑、平静、疲惫，每种情绪配有一个专属emoji和柔和渐变背景色），并添加简短备注（最多100字）和活动标签（如工作、运动、社交、阅读），记录时弹出一个圆角卡片表单，卡片从底部滑入并带有0.3秒的弹性动画，提交后卡片缩小飞入日历视图的对应日期格子中。\n2) 情绪日历与趋势分析：主界面展示一个月视图日历，每天的情绪以彩色圆点表示（情绪对应颜色），点击日期展开当天的完整记录列表，列表项按时间倒序排列并带有渐入动画。日历下方显示本周情绪趋势折线图，折线带有平滑曲线插值和可拖拽的节点，鼠标悬停在节点上弹出该天的情绪摘要。\n3) 模式洞察：系统自动分析过去30天的记录，统计每种情绪的频率、常见活动标签组合、以及情绪在一天中不同时段的分布，生成一个洞察卡片（带圆角阴影，刚加载时旋转90度回正动画），卡片内包含三个数据块：最常出现的情绪对（如“焦虑-工作”）、情绪波动最剧烈的时段、推荐活动以改善情绪（如“尝试周二下午运动，可能提升愉悦度”）。\n\n界面方面：整体采用柔和的暖白色背景（#F5F0EB），情绪卡片使用毛玻璃效果（背景模糊12px，半透明白色），标题使用细圆体字重，正文使用无衬线字体（如Inter）。日历视图的星期标题固定在顶部，滚动时保持可见。所有卡片悬停时有轻微上浮（translateY(-4px)）并增加阴影深度。折线图下方有分布区间滑块可调整日期范围。手机端适配为单列布局，日历单元格缩小为圆形icon，情绪卡片在底部以抽屉形式展示。色彩主题贯穿始终：快乐用柠檬黄（#FFD166）、悲伤用薰衣草紫（#7B68EE）、愤怒用珊瑚红（#EF476F）、焦虑用灰蓝色（#457B9D）、平静用鼠尾草绿（#8CB369）、疲惫用米灰色（#B8B8B8）。\n\n性能上需要：情绪记录提交后列表更新响应不超过300ms，趋势折线图拖动节点时帧率保持50fps以上，日历视图在同时渲染30天记录时不出现滚动卡顿。\n\n实现采用TypeScript、React前端和Node.js后端，使用RESTful API通信，前端用React Router管理页面路由。按以下文件组织代码：\n - package.json（依赖：react, react-dom, react-router-dom, recharts, date-fns, vite, @types/react, @types/react-dom, typescript, express, uuid, cors；启动脚本：npm run dev）\n - index.html（入口页面，加载根组件）\n - vite.config.js（Vite构建配置，配置端口和代理）\n - tsconfig.json（TypeScript严格模式配置）\n - src/App.tsx（主组件，定义路由：情绪记录页/日志列表/洞察页）\n - src/api.ts（封装所有REST API调用，导出fetchEmotions、submitEmotion、getAnalysis等函数）\n - src/components/EmotionCard.tsx（情绪记录表单组件，负责表单渲染、验证和提交，使用useState管理表单数据，通过api.ts调用后端接口）\n - src/components/Calendar.tsx（日历视图组件，接收情绪列表作为props，渲染月视图日历和趋势折线图，使用recharts绘制折线图，用date-fns处理日期）\n - src/components/InsightCard.tsx（洞察卡片组件，从后端获取分析数据，渲染统计和推荐内容，包含数据加载状态和渐入动画）\n - server/index.js（Express后端，提供REST接口：POST /api/emotions 接收情绪记录并存储到内存，GET /api/emotions?start=xxx&end=xxx 返回指定日期范围的情绪记录，GET /api/analysis 返回情绪模式分析结果）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:62814b86372520ddb585012fa3f05d3c_6a2ba63f4677a1b4faa63d8b.6a2ba67d4677a1b4faa63dd4.6a2ba67c0943713b4c8f22e8:Trae CN.T(2026/6/12 14:26:05)",
+    "user_id": "98336997115224",
+    "trace_id": "62814b86372520ddb585012fa3f05d3c",
+    "session_id": "6a2ba63f4677a1b4faa63d8b",
+    "task_id": "6a2ba67d4677a1b4faa63dd4",
+    "message_id": "6a2ba67c0943713b4c8f22e8",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 14:26:05",
+    "format": "full"
+  },
+  "trace": "null"
+}
