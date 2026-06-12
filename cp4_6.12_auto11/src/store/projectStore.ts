@@ -15,6 +15,9 @@ interface ProjectStore {
   currentProject: Project | null;
   isLoading: boolean;
   error: string | null;
+  isSaving: boolean;
+  lastSaved: Date | null;
+  autoSaveEnabled: boolean;
 
   setUser: (user: User | null) => void;
   loadFabrics: () => Promise<void>;
@@ -34,6 +37,9 @@ interface ProjectStore {
   saveCurrentProject: () => Promise<void>;
   calculateUsage: () => { totalCost: number; fabricUsage: FabricUsage[] };
   setError: (error: string | null) => void;
+  startAutoSave: () => void;
+  stopAutoSave: () => void;
+  setAutoSaveEnabled: (enabled: boolean) => void;
 }
 
 const createEmptyLayout = (cols: number, rows: number): LayoutCell[] => {
@@ -42,6 +48,8 @@ const createEmptyLayout = (cols: number, rows: number): LayoutCell[] => {
     .map(() => ({ fabricId: null }));
 };
 
+let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   user: null,
   fabrics: [],
@@ -49,8 +57,36 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   currentProject: null,
   isLoading: false,
   error: null,
+  isSaving: false,
+  lastSaved: null,
+  autoSaveEnabled: true,
 
   setUser: (user) => set({ user }),
+
+  startAutoSave: () => {
+    if (autoSaveInterval) {
+      clearInterval(autoSaveInterval);
+    }
+    autoSaveInterval = setInterval(async () => {
+      const state = get();
+      if (state.autoSaveEnabled && state.currentProject) {
+        try {
+          await state.saveCurrentProject();
+        } catch (err) {
+          console.error('自动保存失败:', err);
+        }
+      }
+    }, 30000);
+  },
+
+  stopAutoSave: () => {
+    if (autoSaveInterval) {
+      clearInterval(autoSaveInterval);
+      autoSaveInterval = null;
+    }
+  },
+
+  setAutoSaveEnabled: (enabled) => set({ autoSaveEnabled: enabled }),
 
   loadFabrics: async () => {
     try {
@@ -72,13 +108,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  setCurrentProject: (project) => set({ currentProject: project }),
-
   loadProject: async (id: number) => {
     try {
       set({ isLoading: true });
       const project = await fetchProjectById(id);
-      set({ currentProject: project, isLoading: false });
+      set({ currentProject: project, isLoading: false, lastSaved: new Date() });
+      get().startAutoSave();
     } catch (err: any) {
       set({ error: err.message || '加载项目失败', isLoading: false });
     }
@@ -101,8 +136,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       currentProject: project,
       projects: [project, ...state.projects],
+      lastSaved: new Date(),
     }));
+    get().startAutoSave();
     return project;
+  },
+
+  setCurrentProject: (project) => {
+    set({ currentProject: project, lastSaved: project ? new Date() : null });
+    if (project) {
+      get().startAutoSave();
+    } else {
+      get().stopAutoSave();
+    }
   },
 
   setCell: (index, fabricId) => {
@@ -179,6 +225,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const state = get();
     if (!state.currentProject) return;
 
+    set({ isSaving: true });
     const { totalCost, fabricUsage } = state.calculateUsage();
 
     try {
@@ -195,9 +242,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set((s) => ({
         currentProject: updated,
         projects: s.projects.map((p) => (p.id === updated.id ? updated : p)),
+        isSaving: false,
+        lastSaved: new Date(),
       }));
     } catch (err: any) {
-      set({ error: err.message || '保存项目失败' });
+      set({ error: err.message || '保存项目失败', isSaving: false });
       throw err;
     }
   },

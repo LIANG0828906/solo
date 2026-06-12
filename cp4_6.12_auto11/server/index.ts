@@ -83,7 +83,7 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
-app.get('/api/fabrics', async (req, res) => {
+app.get('/api/fabrics', authenticate, async (req, res) => {
   try {
     const fabrics = getAllFabrics();
     res.json(fabrics);
@@ -92,7 +92,7 @@ app.get('/api/fabrics', async (req, res) => {
   }
 });
 
-app.get('/api/fabrics/:id', async (req, res) => {
+app.get('/api/fabrics/:id', authenticate, async (req, res) => {
   try {
     const fabric = getFabricById(Number(req.params.id));
     if (!fabric) {
