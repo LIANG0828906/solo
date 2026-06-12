@@ -1,0 +1,265 @@
+.recipe-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.recipe-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #4CAF50;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.recipe-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(76, 175, 80, 0.15);
+}
+
+.recipe-card:hover::before {
+  opacity: 1;
+}
+
+.recipe-card.match-perfect {
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.recipe-card.match-partial {
+  border-color: rgba(255, 152, 0, 0.4);
+}
+
+.recipe-card.match-partial::before {
+  background: #FF9800;
+}
+
+.recipe-card.match-low {
+  border-color: rgba(158, 158, 158, 0.3);
+  opacity: 0.75;
+}
+
+.recipe-card.match-low::before {
+  background: #9E9E9E;
+}
+
+.recipe-card-header {
+  margin-bottom: 12px;
+}
+
+.recipe-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.drag-handle {
+  color: #9E9E9E;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.recipe-name {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2E7D32;
+}
+
+.match-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.match-badge.match-perfect {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2E7D32;
+}
+
+.match-badge.match-partial {
+  background: rgba(255, 152, 0, 0.15);
+  color: #E65100;
+}
+
+.match-badge.match-low {
+  background: rgba(158, 158, 158, 0.15);
+  color: #616161;
+}
+
+.recipe-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #666;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-item.difficulty.difficulty-easy {
+  color: #4CAF50;
+}
+
+.meta-item.difficulty.difficulty-medium {
+  color: #FF9800;
+}
+
+.meta-item.difficulty.difficulty-hard {
+  color: #F44336;
+}
+
+.recipe-ingredients {
+  margin-bottom: 8px;
+}
+
+.ingredients-label {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.ingredients-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ingredient-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.ingredient-item.matched {
+  color: #2E7D32;
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.ingredient-item.missing {
+  color: #F44336;
+  background: rgba(244, 67, 54, 0.06);
+}
+
+.ingredient-item .ingredient-name {
+  flex: 1;
+}
+
+.ingredient-item .ingredient-amount {
+  font-size: 12px;
+  color: #888;
+}
+
+.icon-check {
+  flex-shrink: 0;
+  color: #4CAF50;
+}
+
+.icon-x {
+  flex-shrink: 0;
+  color: #F44336;
+}
+
+.recipe-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  font-size: 12px;
+  color: #4CAF50;
+  cursor: pointer;
+  border-top: 1px solid rgba(76, 175, 80, 0.1);
+  margin-top: 8px;
+  transition: background 0.15s ease;
+  border-radius: 0 0 12px 12px;
+}
+
+.recipe-expand-toggle:hover {
+  background: rgba(76, 175, 80, 0.06);
+}
+
+.recipe-steps {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(76, 175, 80, 0.2);
+  animation: fadeIn 0.3s ease;
+}
+
+.steps-label {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-item {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: #4CAF50;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
