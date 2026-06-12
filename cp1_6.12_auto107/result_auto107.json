@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T08:04:30.464Z",
+  "task_name": "auto107",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "开发一个在线协作代码片段分享与语法标注平台应用，让用户可以编写、分享代码片段，并对他人片段进行语法高亮标注和评论讨论。使用TypeScript和React实现前端，Node.js和Express实现后端，通过RESTful API通信。文件结构如下：\n - package.json（依赖：react, react-dom, react-router-dom, axios, react-syntax-highlighter, vite, @types/react, @types/react-dom, express, cors, uuid, typescript；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（Vite构建配置）\n - tsconfig.json（严格模式）\n - src/App.tsx（主应用组件，包含路由配置，负责状态管理与数据获取）\n - src/components/CodeEditor.tsx（代码编辑器组件，提供语法高亮编辑区，支持实时预览和复制）\n - src/components/CodeSnippetList.tsx（代码片段列表组件，展示所有分享的代码片段，支持按语言和标签筛选）\n - src/components/CommentSection.tsx（评论区域组件，展示和添加评论，评论按时间排序，带有回复功能）\n - src/api.ts（API请求封装，包含所有后端接口调用函数）\n - src/server/index.js（Express服务器入口，定义RESTful接口，处理代码片段和评论的增删改查）\n\n具体需求：\n1. 用户可以在编辑器中编写或粘贴代码，选择语言（JavaScript、Python、Java等10种），并添加标签和描述，提交后生成一个6位分享码，同时自动使用Prism风格高亮显示代码。\n2. 主页以卡片网格展示所有公开代码片段，每个卡片显示代码第一行、语言标签（彩色圆角标签，背景色按语言区分）、作者头像（圆形裁剪，灰色边框2px）和点赞数，悬停时卡片抬起4px并加深阴影，点击进入详情页。\n3. 详情页左侧显示完整代码（高亮，行号，可折叠长代码），右侧显示该片段的所有评论，评论按时间倒序排列，每条评论包含用户头像、昵称、时间和评论内容，用户可在底部输入框添加新评论，提交评论时输入框会有一个0.2秒的弹性放大动画。\n4. 用户可以为喜欢的代码片段点赞，点赞按钮从灰色变为红色（#FF4757）并向外扩散一个小爱心图标（1秒淡出），同时点赞数+1，再次点击取消点赞。\n5. 代码片段详情页顶部显示标签列表（每个标签为一个圆角矩形，背景色浅蓝#E0F4FF，文字深蓝#1E90FF，点击标签可跳转到主页按此标签筛选）。\n\n界面方面：整体采用浅色主题，主背景为白色#FFFFFF，卡片背景色为浅灰#F8F9FA，主要文字深灰#2D3436，强调色为蓝色#1E90FF和红色#FF4757。页面布局采用上下结构，顶部固定导航栏（包含Logo、搜索框和用户头像），主区域左侧为筛选栏，右侧为卡片网格。卡片网格在桌面端为三列，平板为两列，手机端单列，卡片间间距16px，边缘留白24px。所有交互按钮带有0.2秒ease-out过渡效果，侧边栏折叠带有0.3秒平滑滑入动画。\n\n性能要求：页面完全加载时间不超过2秒（通过React.lazy和Suspense实现代码分割），列表滚动时FPS保持60帧，服务端响应时间不超过500ms。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:6870ab2cfc6db535d4cc0ceee6b7269a_6a2bbd267aff0a7b33eef8de.6a2bbd837aff0a7b33eef93d.6a2bbd83729b75dd2071c71e:Trae CN.T(2026/6/12 16:04:19)",
+    "user_id": "98336997115224",
+    "trace_id": "6870ab2cfc6db535d4cc0ceee6b7269a",
+    "session_id": "6a2bbd267aff0a7b33eef8de",
+    "task_id": "6a2bbd837aff0a7b33eef93d",
+    "message_id": "6a2bbd83729b75dd2071c71e",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 16:04:19",
+    "format": "full"
+  },
+  "trace": "null"
+}
