@@ -1,3 +1,12 @@
+import {
+  STATUS_LABELS,
+  STATUS_COLORS,
+  VESSEL_LABELS,
+  CLAY_LABELS,
+  MATERIAL_LABELS,
+  GLAZE_BASE_LABELS,
+} from '@/stores/useAppStore'
+
 export function formatDate(isoString: string): string {
   const date = new Date(isoString)
   const year = date.getFullYear()
@@ -8,61 +17,20 @@ export function formatDate(isoString: string): string {
   return `${year}年${month}月${day}日 ${hours}:${minutes}`
 }
 
-export function clayTypeName(name: string): string {
-  const map: Record<string, string> = {
-    porcelain: '瓷泥',
-    stoneware: '陶泥',
-    red_clay: '紫砂泥',
-    white_clay: '白瓷泥',
-    black_clay: '黑陶泥',
-  }
-  return map[name] || name
+export function clayTypeName(clayType: string): string {
+  return CLAY_LABELS[clayType] || clayType
 }
 
-export function vesselTypeName(name: string): string {
-  const map: Record<string, string> = {
-    teacup: '茶杯',
-    teapot: '茶壶',
-    bowl: '碗',
-    plate: '盘子',
-    vase: '花瓶',
-    jar: '罐子',
-    mug: '马克杯',
-    saucer: '茶托',
-  }
-  return map[name] || name
+export function vesselTypeName(vesselType: string): string {
+  return VESSEL_LABELS[vesselType] || vesselType
 }
 
 export function statusName(status: string): string {
-  const map: Record<string, string> = {
-    pending: '待确认',
-    confirmed: '已确认',
-    preparing: '泥坯准备中',
-    throwing: '拉坯成型',
-    trimming: '修坯干燥',
-    bisque: '素烧',
-    glazing: '釉烧',
-    finishing: '打磨出窑',
-    done: '已完成',
-    cancelled: '已取消',
-  }
-  return map[status] || status
+  return STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status
 }
 
 export function statusColor(status: string): string {
-  const map: Record<string, string> = {
-    pending: '#BDBDBD',
-    confirmed: '#BDBDBD',
-    preparing: '#42A5F5',
-    throwing: '#42A5F5',
-    trimming: '#42A5F5',
-    bisque: '#FF7043',
-    glazing: '#FF7043',
-    finishing: '#FF7043',
-    done: '#66BB6A',
-    cancelled: '#EF5350',
-  }
-  return map[status] || '#BDBDBD'
+  return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#BDBDBD'
 }
 
 export function qualityStars(quality: number): string {
@@ -70,21 +38,25 @@ export function qualityStars(quality: number): string {
   return '★'.repeat(q) + '☆'.repeat(5 - q)
 }
 
-export function materialName(name: string): string {
-  const map: Record<string, string> = {
-    feldspar: '长石',
-    quartz: '石英',
-    kaolin: '高岭土',
-    ball_clay: '球土',
-    limestone: '石灰石',
-    dolomite: '白云石',
-    talc: '滑石',
-    zinc_oxide: '氧化锌',
-    iron_oxide: '氧化铁',
-    copper_oxide: '氧化铜',
-    cobalt_oxide: '氧化钴',
-    manganese_oxide: '氧化锰',
-    titanium_dioxide: '二氧化钛',
-  }
-  return map[name] || name
+export function materialName(material: string): string {
+  return MATERIAL_LABELS[material] || material
+}
+
+export function glazeBaseName(base: string): string {
+  return GLAZE_BASE_LABELS[base] || base
+}
+
+export function getGlazeGradient(name: string): string {
+  if (name.includes('青瓷')) return 'linear-gradient(135deg, #B2DFDB 0%, #80CBC4 100%)'
+  if (name.includes('天目')) return 'linear-gradient(135deg, #4E342E 0%, #3E2723 100%)'
+  if (name.includes('吴须') || name.includes('钴蓝') || name.includes('蓝')) return 'linear-gradient(135deg, #B0BEC5 0%, #78909C 100%)'
+  if (name.includes('铁红') || name.includes('红')) return 'linear-gradient(135deg, #FFAB91 0%, #D84315 100%)'
+  if (name.includes('白')) return 'linear-gradient(135deg, #FAFAFA 0%, #E0E0E0 100%)'
+  return 'linear-gradient(135deg, #D7CCC8 0%, #BCAAA4 100%)'
+}
+
+export function getVesselShape(vesselType: string): string {
+  if (vesselType === 'cup' || vesselType === 'teapot') return 'rounded-full'
+  if (vesselType === 'plate') return 'rounded-none'
+  return 'rounded-sm'
 }

@@ -11,25 +11,7 @@ export type OrderStatus =
 
 export type VesselType = 'cup' | 'bowl' | 'plate' | 'vase' | 'teapot' | 'decor'
 
-export type ClayType =
-  | 'white_porcelain'
-  | 'coarse_pottery'
-  | 'red_clay'
-  | 'stoneware'
-
-export type GlazeBase = 'transparent' | 'opaque' | 'crystalline' | 'metallic'
-
-export type RawMaterial =
-  | 'feldspar'
-  | 'quartz'
-  | 'kaolin'
-  | 'limestone'
-  | 'iron_oxide'
-  | 'cobalt_oxide'
-
-export type ShelfArea = 'A' | 'B' | 'C'
-
-export type QualityRating = 1 | 2 | 3 | 4 | 5
+export type ClayType = 'white_porcelain' | 'coarse_pottery' | 'red_clay' | 'stoneware'
 
 export interface StatusHistoryItem {
   status: OrderStatus
@@ -51,6 +33,16 @@ export interface Order {
   statusHistory: StatusHistoryItem[]
   createdAt: string
 }
+
+export type GlazeBase = 'transparent' | 'opaque' | 'crystalline' | 'metallic'
+
+export type RawMaterial =
+  | 'feldspar'
+  | 'quartz'
+  | 'kaolin'
+  | 'limestone'
+  | 'iron_oxide'
+  | 'cobalt_oxide'
 
 export interface GlazeIngredient {
   material: RawMaterial
@@ -83,11 +75,6 @@ export interface TemperatureRecord {
 
 export type KilnStatus = 'preparing' | 'firing' | 'cooling' | 'completed'
 
-export interface KilnFiringReport {
-  tempDeviation: string
-  colorEffect: string
-}
-
 export interface KilnFiring {
   id: string
   batchNumber: string
@@ -99,8 +86,15 @@ export interface KilnFiring {
   holdingDuration: number
   temperatureRecords: TemperatureRecord[]
   status: KilnStatus
-  report?: KilnFiringReport
+  report?: {
+    tempDeviation: string
+    colorEffect: string
+  }
 }
+
+export type ShelfArea = 'A' | 'B' | 'C'
+
+export type QualityRating = 1 | 2 | 3 | 4 | 5
 
 export interface GreenwareStock {
   id: string
@@ -128,4 +122,18 @@ export interface FinishedProduct {
   qualityRating: QualityRating
   photoUrl: string
   createdAt: string
+}
+
+export interface ApiResponse<T> {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+export interface MaterialWarning {
+  id: string
+  material: RawMaterial
+  materialName: string
+  currentStock: number
+  minThreshold: number
 }
