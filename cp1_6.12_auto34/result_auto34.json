@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T04:36:36.133Z",
+  "task_name": "auto34",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够管理个人小目标习惯追踪的应用，主要解决手动记录和回顾目标进度时缺乏直观数据可视化和激励反馈的问题。\n\n它应当具备以下能力：\n1) 用户创建目标（如“每天阅读30分钟”），设定频率（每日/每周）和持续时间（1天-90天），系统自动生成日历视图，每日完成后点击打卡（打卡时有旋转缩放动画，变灰变绿），打卡后目标进度条更新（从0%到100%的平滑填充动画），并显示连续完成天数（用火焰图标和数字表示 streak）。\n2) 提供统计面板：用折线图展示过去7天/30天的打卡趋势（横轴日期，纵轴打卡次数或完成率），用饼图展示各目标完成比例（用明亮配色：完成部分绿色渐变，未完成浅灰），数据来自后端模拟数据。\n3) 目标到期后，系统自动归档并生成总结报告卡片（包含总完成天数、最长连续天数、平均完成率），卡片上有淡入动画，点击可展开详细时间线（每一天的打卡状态图标）。\n\n界面方面要求：整体采用毛玻璃质感设计，主色为深邃蓝紫渐变色（#2C3E50 到 #3498DB），卡片圆角16px，阴影柔和（box-shadow: 0 8px 32px rgba(0,0,0,0.1)），背景为动态粒子效果（粒子缓慢漂浮，半透明），所有按钮和交互元素在 hover 时放大1.1倍并增加发光边框，打卡按钮点击后有震动反馈（弹出一个小的“+1”文字并上浮消失），页面适配移动端和桌面端（栅格系统），每个目标卡片在加载时从底部向上依次滑入（stagger 动画，间隔0.1秒）。\n\n性能上需要：页面初始加载时间不超过2秒（FCP < 2s），动画帧率稳定在30fps以上。\n\n实现采用 TypeScript 和 React（前端）、Node.js 和 Express（后端），按以下文件组织代码：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, express, uuid, date-fns, chart.js, react-chartjs-2；启动脚本：npm run dev）\n - index.html（入口页面，包含 <div id='root'> 和背景 canvas）\n - vite.config.js（构建配置，代理 /api 到后端 http://localhost:3001）\n - tsconfig.json（严格模式，target: ES2020）\n - src/main.tsx（入口组件，初始化 React 应用）\n - src/App.tsx（主布局组件，包含 Header（应用标题、主题切换按钮）、目标列表区、统计面板区；调用 api.js 获取和提交数据）\n - src/api.ts（封装的 fetch 请求：GET /api/goals, POST /api/goals, PATCH /api/goals/:id/checkin, DELETE /api/goals/:id）\n - src/GoalCard.tsx（单个目标卡片组件，显示目标名、进度条、打卡按钮、连续天数；动画由 CSS transition 控制）\n - src/StatsPanel.tsx（统计面板组件，渲染折线图和饼图，使用 chart.js）\n - server/index.js（Express 后端，提供 RESTful API，用模拟数据存储在内存数组中，支持 CRUD 操作）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:0db270967a833ee709b9e7ac8a0fd7ab_6a2b8c7bc525481252d7239c.6a2b8cb9c525481252d723e6.6a2b8cb9db866f1daf59ca81:Trae CN.T(2026/6/12 12:36:09)",
+    "user_id": "98336997115224",
+    "trace_id": "0db270967a833ee709b9e7ac8a0fd7ab",
+    "session_id": "6a2b8c7bc525481252d7239c",
+    "task_id": "6a2b8cb9c525481252d723e6",
+    "message_id": "6a2b8cb9db866f1daf59ca81",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 12:36:09",
+    "format": "full"
+  },
+  "trace": "null"
+}
