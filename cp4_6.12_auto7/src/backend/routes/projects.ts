@@ -15,11 +15,8 @@ const statusLabels: Record<string, string> = {
 };
 
 const sendStatusEmail = async (to: string, projectName: string, status: string) => {
-  console.log(`[邮件模拟] 发送状态通知邮件至: ${to}`);
-  console.log(`[邮件模拟] 项目: ${projectName}`);
-  console.log(`[邮件模拟] 当前状态: ${statusLabels[status] || status}`);
-  console.log(`[邮件模拟] 邮件内容: 您的定制项目状态已更新为「${statusLabels[status] || status}」，请登录系统查看详情。`);
-  console.log('--------------------------------------------------');
+  const statusText = statusLabels[status] || status;
+  console.log(`发送邮件至 ${to}：项目「${projectName}」状态已更新为 ${statusText}`);
 };
 
 router.get('/', (req: Request, res: Response) => {
