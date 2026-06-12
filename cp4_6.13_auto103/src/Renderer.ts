@@ -349,16 +349,20 @@ export class Renderer {
 
   public toWorldCoords(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const cx = clientX - rect.left;
-    const cy = clientY - rect.top;
-    const scaleX = this.canvas.width / this.worldWidth;
-    const scaleY = this.canvas.height / this.worldHeight;
+    const cssX = clientX - rect.left;
+    const cssY = clientY - rect.top;
+    const cssCanvasW = rect.width;
+    const cssCanvasH = rect.height;
+
+    const scaleX = cssCanvasW / this.worldWidth;
+    const scaleY = cssCanvasH / this.worldHeight;
     const scale = Math.min(scaleX, scaleY);
-    const offsetX = (this.canvas.width - this.worldWidth * scale) / 2;
-    const offsetY = (this.canvas.height - this.worldHeight * scale) / 2;
+    const offsetX = (cssCanvasW - this.worldWidth * scale) / 2;
+    const offsetY = (cssCanvasH - this.worldHeight * scale) / 2;
+
     return {
-      x: (cx - offsetX) / scale,
-      y: (cy - offsetY) / scale,
+      x: (cssX - offsetX) / scale,
+      y: (cssY - offsetY) / scale,
     };
   }
 }

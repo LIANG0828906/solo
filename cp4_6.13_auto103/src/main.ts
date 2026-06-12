@@ -6,6 +6,7 @@ import { Renderer, GameUIState } from './Renderer';
 const BASE_WIDTH = 400;
 const BASE_HEIGHT = 640;
 const HIGH_SCORE_KEY = 'pixel-jumper-highscore';
+const ESTIMATED_PLATFORM_POOL = 30;
 
 interface TouchInput {
   leftTouch: boolean;
@@ -37,8 +38,6 @@ class Game {
 
   private ui: GameUIState;
 
-  private _lastFrameTime: number = 0;
-  private _animFrameId: number = 0;
   private running: boolean = false;
   private firstCoinSyncDone: boolean = false;
 
@@ -113,16 +112,16 @@ class Game {
     this.ui.restartBtn.h = restartBtn.h;
   }
 
-  private computeDifficulty(): number {
-    return Math.floor(this.ui.score / 10);
+  private getContinuousDifficulty(): number {
+    return Math.min(this.ui.score / 10, 10);
   }
 
   private initGame(): void {
     this.platformManager = new PlatformManager(this.worldWidth, this.worldHeight);
-    this.coinManager = new CoinManager(this.worldWidth, this.worldHeight);
+    this.coinManager = new CoinManager(this.worldWidth, this.worldHeight, ESTIMATED_PLATFORM_POOL);
 
-    this.platformManager.setDifficulty(0);
-    this.coinManager.setDifficulty(0);
+    this.platformManager.setScore(0);
+    this.coinManager.setScore(0);
     this.platformManager.generateInitial();
     this.coinManager.generateForPlatforms(this.platformManager.getAll());
     this.firstCoinSyncDone = true;
@@ -303,25 +302,22 @@ class Game {
   }
 
   private syncCoinsWithPlatforms(): void {
-    const existing = this.coinManager.getCoins();
-    if (existing.length < this.platformManager.getAll().length * 0.35) {
-      this.coinManager.generateForPlatforms(this.platformManager.getAll());
-    }
+    this.coinManager.generateForPlatforms(this.platformManager.getAll());
   }
 
-  private update(time: number): void {
+  private update(_time: number): void {
     if (this.ui.gameOver) {
       this.ui.gameOverAlpha = Math.min(1, this.ui.gameOverAlpha + 0.025);
       return;
     }
 
-    const diffLevel = this.computeDifficulty();
-    const speedMul = 1 + diffLevel * 0.08;
+    const diffCont = this.getContinuousDifficulty();
+    const speedMul = 1 + diffCont * 0.08;
     this.player['gravity'] = this.baseGravity * Math.min(speedMul, 1.6);
-    this.player['jumpForce'] = this.baseJumpForce * Math.min(1 + diffLevel * 0.03, 1.3);
-    this.player['moveSpeed'] = this.baseMoveSpeed * Math.min(1 + diffLevel * 0.04, 1.4);
-    this.platformManager.setDifficulty(diffLevel);
-    this.coinManager.setDifficulty(diffLevel);
+    this.player['jumpForce'] = this.baseJumpForce * Math.min(1 + diffCont * 0.03, 1.3);
+    this.player['moveSpeed'] = this.baseMoveSpeed * Math.min(1 + diffCont * 0.04, 1.4);
+    this.platformManager.setScore(this.ui.score);
+    this.coinManager.setScore(this.ui.score);
 
     const effectiveInput: InputState = {
       left: this.input.left || this.touchInput.leftTouch,
@@ -367,8 +363,8 @@ class Game {
       if (this.ui.scoreAnim < 0) this.ui.scoreAnim = 0;
     }
 
-    const playerScreenY = this.player.y - this.cameraY;
-    if (playerScreenY > this.worldHeight + 60) {
+    const playerTopScreenY = this.player.y - this.cameraY;
+    if (playerTopScreenY > this.worldHeight) {
       this.ui.gameOver = true;
       this.ui.gameOverAlpha = 0;
       if (this.ui.score > this.ui.highScore) {
@@ -376,8 +372,6 @@ class Game {
         this.saveHighScore(this.ui.highScore);
       }
     }
-
-    void time;
   }
 
   private render(time: number): void {
@@ -393,18 +387,14 @@ class Game {
 
   private loop = (time: number): void => {
     if (!this.running) return;
-    this._lastFrameTime = time;
-    void this._lastFrameTime;
     this.update(time);
     this.render(time);
-    this._animFrameId = requestAnimationFrame(this.loop);
+    requestAnimationFrame(this.loop);
   };
 
   public start(): void {
     this.running = true;
-    this._lastFrameTime = performance.now();
-    this._animFrameId = requestAnimationFrame(this.loop);
-    void this._animFrameId;
+    requestAnimationFrame(this.loop);
   }
 
   public restart(): void {

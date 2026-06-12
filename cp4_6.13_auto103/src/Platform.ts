@@ -10,8 +10,10 @@ export class PlatformPool {
   private pool: PlatformData[] = [];
   private maxPoolSize: number;
 
-  constructor(initialSize: number = 50, maxPoolSize: number = 100) {
-    this.maxPoolSize = maxPoolSize;
+  constructor(worldHeight: number, avgGap: number) {
+    const visibleEstimate = Math.ceil((worldHeight * 2) / avgGap) + 10;
+    this.maxPoolSize = Math.max(20, visibleEstimate);
+    const initialSize = Math.max(10, Math.floor(visibleEstimate * 0.7));
     for (let i = 0; i < initialSize; i++) {
       this.pool.push(this.createEmpty());
     }
@@ -43,10 +45,6 @@ export class PlatformPool {
     platform.active = false;
   }
 
-  public getActive(): PlatformData[] {
-    return this.pool.filter((p) => p.active);
-  }
-
   public clear(): void {
     this.pool.forEach((p) => (p.active = false));
   }
@@ -59,22 +57,27 @@ export class PlatformManager {
   private maxWidth: number = 120;
   private minGap: number = 80;
   private baseMaxGap: number = 140;
-  private difficulty: number = 0;
+  private scoreForGap: number = 0;
   private worldWidth: number;
   private worldHeight: number;
 
   constructor(worldWidth: number, worldHeight: number) {
     this.worldWidth = worldWidth;
     this.worldHeight = worldHeight;
-    this.pool = new PlatformPool();
+    this.pool = new PlatformPool(worldHeight, (this.minGap + this.baseMaxGap) / 2);
   }
 
-  public setDifficulty(level: number): void {
-    this.difficulty = level;
+  public setScore(score: number): void {
+    this.scoreForGap = score;
   }
 
-  public getMaxGap(): number {
-    return this.baseMaxGap + this.difficulty * 15;
+  private getMaxGap(): number {
+    const extra = Math.min(this.scoreForGap * 1.5, 80);
+    return this.baseMaxGap + extra;
+  }
+
+  private computeGap(): number {
+    return this.minGap + Math.random() * (this.getMaxGap() - this.minGap);
   }
 
   public generateInitial(): void {
@@ -91,15 +94,17 @@ export class PlatformManager {
     let lastX = startPlatform.x;
 
     while (lastY > -this.worldHeight) {
-      const gap = this.minGap + Math.random() * (this.getMaxGap() - this.minGap);
+      const gap = this.computeGap();
       const newY = lastY - gap;
       const width = this.minWidth + Math.random() * (this.maxWidth - this.minWidth);
       const maxX = this.worldWidth - width - 10;
       let newX = 10 + Math.random() * maxX;
 
       const minDistFromLast = 40;
-      while (Math.abs(newX - lastX) < minDistFromLast && maxX > minDistFromLast * 2) {
+      let attempts = 0;
+      while (Math.abs(newX - lastX) < minDistFromLast && maxX > minDistFromLast * 2 && attempts < 5) {
         newX = 10 + Math.random() * maxX;
+        attempts++;
       }
 
       const platform = this.pool.acquire(newX, newY, width);
@@ -131,7 +136,7 @@ export class PlatformManager {
     }
 
     while (topmostY > topThreshold) {
-      const gap = this.minGap + Math.random() * (this.getMaxGap() - this.minGap);
+      const gap = this.computeGap();
       const newY = topmostY - gap;
       const width = this.minWidth + Math.random() * (this.maxWidth - this.minWidth);
       const maxX = this.worldWidth - width - 10;

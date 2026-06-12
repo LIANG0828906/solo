@@ -21,8 +21,9 @@ export class CoinPool {
   private pool: CoinData[] = [];
   private maxPoolSize: number;
 
-  constructor(initialSize: number = 60, maxPoolSize: number = 150) {
-    this.maxPoolSize = maxPoolSize;
+  constructor(platformPoolSize: number) {
+    this.maxPoolSize = Math.max(15, Math.floor(platformPoolSize * 1.2));
+    const initialSize = Math.max(8, Math.floor(this.maxPoolSize * 0.6));
     for (let i = 0; i < initialSize; i++) {
       this.pool.push(this.createEmpty());
     }
@@ -39,7 +40,7 @@ export class CoinPool {
         coin = this.createEmpty();
         this.pool.push(coin);
       } else {
-        coin = this.pool[0];
+        coin = this.pool.find((c) => !c.active) || this.pool[0];
       }
     }
     coin.x = x;
@@ -55,10 +56,6 @@ export class CoinPool {
     coin.collected = false;
   }
 
-  public getActive(): CoinData[] {
-    return this.pool.filter((c) => c.active);
-  }
-
   public clear(): void {
     this.pool.forEach((c) => {
       c.active = false;
@@ -71,9 +68,9 @@ export class FloatingTextPool {
   private pool: FloatingText[] = [];
   private maxPoolSize: number;
 
-  constructor(initialSize: number = 20, maxPoolSize: number = 50) {
-    this.maxPoolSize = maxPoolSize;
-    for (let i = 0; i < initialSize; i++) {
+  constructor() {
+    this.maxPoolSize = 20;
+    for (let i = 0; i < 12; i++) {
       this.pool.push(this.createEmpty());
     }
   }
@@ -127,16 +124,15 @@ export class CoinManager {
   private coins: CoinData[] = [];
   private floatingTextPool: FloatingTextPool;
   private audioContext: AudioContext | null = null;
-  private baseCoinChance: number = 0.55;
-  private difficulty: number = 0;
-  private _worldWidth: number;
-  private _worldHeight: number;
+  private baseCoinChance: number = 0.4;
+  private currentScore: number = 0;
+  private worldHeight: number;
 
-  constructor(worldWidth: number, worldHeight: number) {
-    this._worldWidth = worldWidth;
-    this._worldHeight = worldHeight;
-    this.coinPool = new CoinPool();
+  constructor(worldWidth: number, worldHeight: number, platformPoolCap: number = 30) {
+    this.worldHeight = worldHeight;
+    this.coinPool = new CoinPool(platformPoolCap);
     this.floatingTextPool = new FloatingTextPool();
+    void worldWidth;
   }
 
   private initAudio(): void {
@@ -167,18 +163,20 @@ export class CoinManager {
     osc.stop(now + 0.15);
   }
 
-  public setDifficulty(level: number): void {
-    this.difficulty = level;
+  public setScore(score: number): void {
+    this.currentScore = score;
   }
 
-  public getCoinChance(): number {
-    return Math.min(this.baseCoinChance + this.difficulty * 0.05, 0.9);
+  private getCoinChance(): number {
+    const ramp = Math.min(this.currentScore * 0.005, 0.5);
+    return this.baseCoinChance + ramp;
   }
 
   public generateForPlatforms(platforms: PlatformData[]): void {
+    const chance = this.getCoinChance();
     const existingSet = new Set(this.coins.filter(c => c.active).map(c => `${c.x.toFixed(1)}_${c.y.toFixed(1)}`));
     for (const plat of platforms) {
-      if (Math.random() < this.getCoinChance()) {
+      if (Math.random() < chance) {
         const cx = plat.x + plat.width / 2;
         const cy = plat.y - 24;
         const key = `${cx.toFixed(1)}_${cy.toFixed(1)}`;
@@ -192,8 +190,7 @@ export class CoinManager {
   }
 
   public update(cameraY: number, playerBounds: { left: number; right: number; top: number; bottom: number }): number {
-    const bottomThreshold = cameraY + this._worldHeight * 1.5;
-    void this._worldWidth;
+    const bottomThreshold = cameraY + this.worldHeight * 1.5;
     const playerCX = (playerBounds.left + playerBounds.right) / 2;
     const playerCY = (playerBounds.top + playerBounds.bottom) / 2;
     const collectRadiusX = (playerBounds.right - playerBounds.left) / 2 + 10;
@@ -216,11 +213,7 @@ export class CoinManager {
           scoreGained += 1;
           this.floatingTextPool.acquire(c.x, c.y, '+1');
           this.playCoinSound();
-          setTimeout(() => {
-            if (c.active) {
-              c.active = false;
-            }
-          }, 0);
+          c.active = false;
           return false;
         }
       }
@@ -245,8 +238,7 @@ export class CoinManager {
     this.floatingTextPool.clear();
   }
 
-  public resize(worldWidth: number, worldHeight: number): void {
-    this._worldWidth = worldWidth;
-    this._worldHeight = worldHeight;
+  public resize(_worldWidth: number, worldHeight: number): void {
+    this.worldHeight = worldHeight;
   }
 }
