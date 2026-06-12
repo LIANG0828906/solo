@@ -7,21 +7,34 @@ interface Props {
 }
 
 export default function PlantCard({ plant, onOrder, showAdminBadge }: Props) {
-  const isLowStock = plant.stock < 3;
   const isOutOfStock = plant.stock <= 0;
+  const isLowStock = plant.stock > 0 && plant.stock < 3;
 
   const gradient = getPlantGradient(plant.name);
 
   return (
     <div className={`plant-card card ${isOutOfStock ? 'out-of-stock' : ''}`}>
-      {showAdminBadge && isLowStock && (
-        <span className="card-badge stock-low">
-          <span className="stock-dot red"></span>
-          低库存
+      {showAdminBadge && (isLowStock || isOutOfStock) && (
+        <span className={`card-badge ${isOutOfStock ? 'stock-empty' : 'stock-low'}`}>
+          {isOutOfStock ? (
+            <>
+              <span className="stock-dot gray"></span>
+              已租完
+            </>
+          ) : (
+            <>
+              <span className="stock-dot red"></span>
+              低库存
+            </>
+          )}
         </span>
       )}
-      {isLowStock && !showAdminBadge && (
-        <span className="card-badge-corner stock-dot red" title="库存紧张"></span>
+
+      {!showAdminBadge && (isLowStock || isOutOfStock) && (
+        <span
+          className={`stock-warning-dot ${isOutOfStock ? 'gray' : 'red'}`}
+          title={isOutOfStock ? '已租完' : '库存紧张'}
+        ></span>
       )}
 
       <div className="plant-image" style={{ background: gradient }}>
@@ -37,8 +50,8 @@ export default function PlantCard({ plant, onOrder, showAdminBadge }: Props) {
       <div className="plant-info">
         <div className="plant-header">
           <h3 className="plant-name">{plant.name}</h3>
-          <span className={`stock-badge ${isLowStock ? 'low' : ''}`}>
-            库存: {plant.stock}
+          <span className={`stock-badge ${isOutOfStock ? 'empty' : isLowStock ? 'low' : ''}`}>
+            {isOutOfStock ? '已租完' : `库存: ${plant.stock}`}
           </span>
         </div>
         <p className="plant-desc">{plant.description}</p>
