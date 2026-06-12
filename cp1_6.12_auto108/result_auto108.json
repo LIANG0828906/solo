@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T08:04:52.447Z",
+  "task_name": "auto108",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "场景：许多创业团队和小型企业经常需要在社区活动中展示和交换名片，但纸质名片容易丢失，且难以快速建立联系。\n\n构建一个在线数字名片交换与名片盒管理应用，让用户创建个人数字名片，并在活动现场通过扫码或输入ID快速交换名片，管理自己的名片盒并进行智能分组。使用TypeScript和React实现前端，Node.js和Express实现后端，通过WebSocket实现实时交换通知。文件结构按职责模块化，并注明各文件间的调用关系和数据流向：\n - package.json（含依赖：react, react-dom, vite, @types/react, @types/react-dom, express, cors, ws, uuid, typescript, nodemon；启动脚本：npm run dev）\n - vite.config.js（Vite构建配置）\n - tsconfig.json（严格模式）\n - index.html（入口页面）\n - client/src/App.tsx（前端主组件，包含路由和状态管理，接收后端API和WebSocket数据，将数据分发给子组件）\n - client/src/components/CardEditor.tsx（名片编辑器组件，接收用户输入生成名片数据，通过API发送给后端）\n - client/src/components/CardViewer.tsx（名片展示与扫描组件，通过WebSocket接收实时交换通知）\n - server/src/server.ts（Express服务和WebSocket服务器，处理名片CRUD API和实时交换事件）\n - server/src/controllers/cardController.ts（处理名片创建、读取、分组逻辑，与server.ts交互）\n\n功能需求：\n1) 名片编辑器模块：用户可填写姓名、职位、公司、邮箱、电话、个人简介（最多200字）和头像URL。表单布局采用两列网格，左侧为输入区域，右侧实时预览名片卡片的样式（卡片宽320px，圆角12px，浅灰背景#f9f9f9，深蓝文字#1a237e，头像圆形裁剪带2px蓝色边框）。每次输入变化，预览在0.3秒内以淡入动画更新。\n2) 名片盒管理模块：用户名片盒以网格显示，每张卡片包含头像缩略图、姓名、职位。用户可点击分组标签（朋友、同事、客户、自定义）过滤，点击卡片展开详情（含完整信息和交换时间）。卡片在网格中添加或移除时伴随0.3秒缩放动画。\n3) 智能分组功能：名片盒中新增名片时，系统根据公司域名自动分配分组（如@abc.com归入同事组，@customer.com归入客户组），用户可手动调整分组。分组下拉菜单在点击时以0.2秒下拉动画展开，选项带轻量悬停高亮。\n4) WebSocket实时交换：用户在活动页面输入对方名片ID并点击交换，立即发送WebSocket请求。对方页面在0.5秒内弹出新名片插入动画（卡片从右侧滑入），播放提示音（optional）并在右上角显示未读小红点。\n5) 性能优化：名片列表按最近交换时间排序，前端使用虚拟滚动（仅渲染可见区域的10张卡片），保证在500张名片以内时滚动帧率≥55 FPS。\n\n界面方面：整体采用极简柔和风格，主色为深蓝（#1a237e）和浅灰（#f9f9f9），辅以橙色（#ff6f00）作为强调色用于按钮和交互提示。页面背景为纯白，导航栏固定顶部，左侧为侧边栏（分组标签），右侧为名片网格。所有卡片在悬停时轻微上浮3px并增加阴影深度，点击有0.15秒回弹效果。响应式设计：在宽度小于768px时，侧边栏折叠为顶部下拉菜单，名片网格变为单列布局。\n\n性能要求：页面首次加载时间不超过2秒（无缓存），API响应时间小于200ms，WebSocket消息延迟小于100ms。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:240538a9b7b99909219166bf78c679f3_6a2bbd277aff0a7b33eef8e0.6a2bbd997aff0a7b33eef959.6a2bbd99270814588ca42fa8:Trae CN.T(2026/6/12 16:04:41)",
+    "user_id": "98336997115224",
+    "trace_id": "240538a9b7b99909219166bf78c679f3",
+    "session_id": "6a2bbd277aff0a7b33eef8e0",
+    "task_id": "6a2bbd997aff0a7b33eef959",
+    "message_id": "6a2bbd99270814588ca42fa8",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 16:04:41",
+    "format": "full"
+  },
+  "trace": "null"
+}
