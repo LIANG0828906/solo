@@ -39,7 +39,7 @@ function init(): void {
   });
 
   uiController.initUI(
-    container,
+    document.body,
     handleResetAll,
     handlePositionChange,
     handleScaleChange,
@@ -47,7 +47,7 @@ function init(): void {
     handleRotationSpeedChange
   );
 
-  contextMenu.initContextMenu(container, {
+  contextMenu.initContextMenu(document.body, {
     onCopy: handleCopyObject,
     onDelete: handleDeleteObject,
     onResetPosition: handleResetPosition

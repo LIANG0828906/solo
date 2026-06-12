@@ -77,7 +77,7 @@ function createPanelElements(): void {
     font-size: 14px;
     transition: transform 0.3s ease, opacity 0.3s ease;
     transform-origin: bottom left;
-    z-index: 100;
+    z-index: 9999;
     max-height: calc(100vh - 40px);
     overflow-y: auto;
   `;
@@ -213,7 +213,7 @@ function createPanelElements(): void {
     justify-content: center;
     box-shadow: 0 4px 20px rgba(72, 219, 251, 0.4);
     transition: all 0.3s ease;
-    z-index: 101;
+    z-index: 10000;
   `;
   
   content.appendChild(nameDisplay);

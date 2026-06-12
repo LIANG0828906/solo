@@ -37,7 +37,7 @@ function createMenuElements(): void {
     border-radius: 12px;
     padding: 8px;
     min-width: 160px;
-    z-index: 1000;
+    z-index: 99999;
     display: none;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 14px;

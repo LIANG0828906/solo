@@ -13,9 +13,12 @@ let isRotating = false;
 let rotationSpeed = 60;
 
 let isDragging = false;
+let isShiftDrag = false;
 let dragPlane: THREE.Plane;
 let offset: THREE.Vector3;
 let intersectionPoint: THREE.Vector3;
+let lastMouseY = 0;
+let startYPosition = 0;
 
 let onSelectionChange: ((mesh: THREE.Mesh | null) => void) | null = null;
 let onObjectTransform: (() => void) | null = null;
@@ -89,23 +92,21 @@ function onMouseDown(event: MouseEvent): void {
   if (intersected) {
     selectObject(intersected);
     isDragging = true;
+    isShiftDrag = event.shiftKey;
     
-    raycaster.setFromCamera(mouse, camera);
-    
-    if (event.shiftKey) {
-      dragPlane.setFromNormalAndCoplanarPoint(
-        new THREE.Vector3(0, 1, 0),
-        new THREE.Vector3(0, selectedObject!.position.y, 0)
-      );
+    if (isShiftDrag) {
+      lastMouseY = event.clientY;
+      startYPosition = selectedObject!.position.y;
     } else {
+      raycaster.setFromCamera(mouse, camera);
       dragPlane.setFromNormalAndCoplanarPoint(
         camera.getWorldDirection(new THREE.Vector3()).negate(),
         selectedObject!.position
       );
-    }
-    
-    if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-      offset.copy(selectedObject!.position).sub(intersectionPoint);
+      
+      if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
+        offset.copy(selectedObject!.position).sub(intersectionPoint);
+      }
     }
     
     renderer.domElement.style.cursor = 'grabbing';
@@ -118,25 +119,27 @@ function onMouseMove(event: MouseEvent): void {
   updateMousePosition(event);
   
   if (isDragging && selectedObject) {
-    raycaster.setFromCamera(mouse, camera);
-    
-    if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-      const newPosition = intersectionPoint.add(offset);
+    if (isShiftDrag) {
+      const deltaY = lastMouseY - event.clientY;
+      const moveScale = 0.05;
+      selectedObject.position.y = startYPosition + deltaY * moveScale;
+      selectedObject.position.y = Math.max(0.5, selectedObject.position.y);
+    } else {
+      raycaster.setFromCamera(mouse, camera);
       
-      if (event.shiftKey) {
-        selectedObject.position.y = newPosition.y;
-      } else {
+      if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
+        const newPosition = intersectionPoint.add(offset);
         selectedObject.position.x = newPosition.x;
         selectedObject.position.z = newPosition.z;
       }
-      
-      if (boundingBox) {
-        boundingBox.update();
-      }
-      
-      if (onObjectTransform) {
-        onObjectTransform();
-      }
+    }
+    
+    if (boundingBox) {
+      boundingBox.update();
+    }
+    
+    if (onObjectTransform) {
+      onObjectTransform();
     }
   } else {
     const intersected = getIntersectedObject();
@@ -230,7 +233,7 @@ export function selectObject(mesh: THREE.Mesh): void {
 export function deselectAll(): void {
   if (selectedObject) {
     const material = selectedObject.material as THREE.MeshStandardMaterial;
-    material.emissiveIntensity = 0.3;
+    material.emissiveIntensity = 0.7;
   }
   
   if (boundingBox) {
@@ -288,8 +291,13 @@ export function updateSelection(deltaTime: number): void {
 export function centerObject(mesh: THREE.Mesh): void {
   selectObject(mesh);
   
-  const targetPosition = mesh.position.clone();
-  const startPosition = camera.position.clone();
+  const startObjPosition = mesh.position.clone();
+  const targetObjPosition = new THREE.Vector3(0, mesh.geometry.boundingBox ? mesh.geometry.boundingBox.max.y + 1 : 2, 0);
+  
+  const startCamPosition = camera.position.clone();
+  const targetCamPosition = new THREE.Vector3(0, 15, 25);
+  const camLookTarget = new THREE.Vector3(0, 2, 0);
+  
   const duration = 500;
   const startTime = performance.now();
   
@@ -298,17 +306,17 @@ export function centerObject(mesh: THREE.Mesh): void {
     const progress = Math.min(elapsed / duration, 1);
     const easeProgress = 1 - Math.pow(1 - progress, 3);
     
-    camera.position.lerpVectors(
-      startPosition,
-      new THREE.Vector3(
-        targetPosition.x,
-        targetPosition.y + 15,
-        targetPosition.z + 25
-      ),
-      easeProgress
-    );
+    mesh.position.lerpVectors(startObjPosition, targetObjPosition, easeProgress);
+    camera.position.lerpVectors(startCamPosition, targetCamPosition, easeProgress);
+    camera.lookAt(camLookTarget);
     
-    camera.lookAt(targetPosition);
+    if (boundingBox) {
+      boundingBox.update();
+    }
+    
+    if (onObjectTransform) {
+      onObjectTransform();
+    }
     
     if (progress < 1) {
       requestAnimationFrame(animate);

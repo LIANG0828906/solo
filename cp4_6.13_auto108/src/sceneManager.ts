@@ -99,10 +99,10 @@ export function initScene(containerEl: HTMLElement): {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
   
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
   
-  const pointLight1 = new THREE.PointLight(0xffffff, 1, 100);
+  const pointLight1 = new THREE.PointLight(0xffffff, 1.5, 100);
   pointLight1.position.set(15, 20, 15);
   pointLight1.castShadow = true;
   scene.add(pointLight1);
@@ -168,9 +168,9 @@ export function addObject(config: GeometryConfig): THREE.Mesh | null {
   const material = new THREE.MeshStandardMaterial({
     color: config.color,
     emissive: config.color,
-    emissiveIntensity: 0.3,
-    metalness: 0.3,
-    roughness: 0.4
+    emissiveIntensity: 0.7,
+    metalness: 0.2,
+    roughness: 0.3
   });
   
   const mesh = new THREE.Mesh(geometry, material);
@@ -237,7 +237,7 @@ export function resetAll(): void {
       );
       
       const material = obj.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = 0.3;
+      material.emissiveIntensity = 0.7;
     }
   });
 }
