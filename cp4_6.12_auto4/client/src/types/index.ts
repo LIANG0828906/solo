@@ -42,8 +42,8 @@ export interface Configuration {
 
 export type OrderStatus = 'pending' | 'producing' | 'inspecting' | 'shipped' | 'completed';
 
-export interface StatusHistoryEntry {
-  status: string;
+export interface StatusHistoryItem {
+  status: OrderStatus;
   operator: string;
   timestamp: string;
 }
@@ -53,15 +53,11 @@ export interface Order {
   orderNo: string;
   customerName: string;
   customerEmail: string;
-  productId: string;
-  leatherId: string;
-  threadColorId: string;
-  hardwareId: string;
-  engraving: string;
+  configuration: Configuration;
   configSummary: string;
   totalAmount: number;
   status: OrderStatus;
-  statusHistory: StatusHistoryEntry[];
+  statusHistory: StatusHistoryItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -73,26 +69,14 @@ export interface InventoryAlert {
   minStock: number;
 }
 
+export type NotificationType = 'order_confirm' | 'status_update';
+
 export interface Notification {
   id: string;
   orderId: string;
   recipient: string;
-  type: 'order_confirm' | 'status_update';
+  type: NotificationType;
   subject: string;
   content: string;
   sentAt: string;
 }
-
-export const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
-  pending: { label: '待确认', color: '#FF9800' },
-  producing: { label: '生产中', color: '#2196F3' },
-  inspecting: { label: '质检中', color: '#9C27B0' },
-  shipped: { label: '已发货', color: '#4CAF50' },
-  completed: { label: '已完成', color: '#9E9E9E' },
-};
-
-export const LEATHER_TYPE_LABELS: Record<string, string> = {
-  cowhide: '头层牛皮',
-  sheepskin: '羊皮',
-  vegetable: '植鞣革',
-};
