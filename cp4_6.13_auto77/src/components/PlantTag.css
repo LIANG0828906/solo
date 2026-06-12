@@ -1,0 +1,55 @@
+.plant-tag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 5;
+  max-width: calc(100% - 8px);
+}
+
+.plant-tag .tag-text {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(255, 235, 150, 0.9);
+  color: #5a4a2a;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.plant-tag:hover .tag-text {
+  background: rgba(200, 180, 255, 0.9);
+  color: #4a3a7a;
+  white-space: normal;
+  max-width: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.plant-tag.editing {
+  z-index: 20;
+}
+
+.tag-input {
+  padding: 2px 6px;
+  font-size: 10px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  color: #3d2914;
+  font-weight: 500;
+  width: 80px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(126, 200, 80, 0.5);
+  font-family: inherit;
+}
