@@ -1,0 +1,303 @@
+.book-details-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.book-details-panel {
+  width: 100%;
+  max-width: 520px;
+  height: 100vh;
+  background: #fffaf0;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  padding: 24px 28px 32px;
+  animation: slideIn 0.3s ease;
+  position: relative;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.book-details-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #8b5a2b;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.book-details-close:hover {
+  background: rgba(139, 90, 43, 0.1);
+}
+
+.book-details-content {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.book-details-cover {
+  flex-shrink: 0;
+  width: 160px;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.book-details-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-details-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-details-info h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #3e2723;
+  word-break: break-word;
+}
+
+.book-details-author {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #795548;
+}
+
+.book-details-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin-bottom: 20px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: #a1887f;
+}
+
+.meta-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4e342e;
+}
+
+.meta-value.status-available {
+  color: #4caf50;
+}
+
+.meta-value.status-borrowed {
+  color: #f44336;
+}
+
+.meta-value.status-drifting {
+  color: #ff9800;
+}
+
+.borrow-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #8b5a2b 0%, #a67c52 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.borrow-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 90, 43, 0.3);
+}
+
+.borrow-form {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f5f0e1;
+  border-radius: 8px;
+}
+
+.borrow-form h4 {
+  margin: 0 0 12px;
+  color: #5d4037;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #6d4c41;
+  font-weight: 500;
+}
+
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d7ccc8;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  color: #3e2723;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #8b5a2b;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn-cancel,
+.btn-submit {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-cancel {
+  background: #e0e0e0;
+  color: #555;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #8b5a2b 0%, #a67c52 100%);
+  color: #fff;
+}
+
+.btn-cancel:hover,
+.btn-submit:hover {
+  opacity: 0.85;
+}
+
+.btn-cancel:disabled,
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.borrow-success {
+  margin-top: 16px;
+  padding: 12px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 6px;
+  color: #2e7d32;
+  text-align: center;
+  font-weight: 500;
+}
+
+.book-drift-logs h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  color: #5d4037;
+}
+
+.drift-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drift-log-item {
+  padding: 12px 14px;
+  background: #faf5e6;
+  border-left: 3px solid #a67c52;
+  border-radius: 0 6px 6px 0;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.log-borrower {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4e342e;
+}
+
+.log-rating {
+  font-size: 13px;
+  color: #ff9800;
+}
+
+.log-dates {
+  font-size: 12px;
+  color: #8d6e63;
+}
+
+.no-logs {
+  text-align: center;
+  padding: 24px;
+  color: #a1887f;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .book-details-panel {
+    max-width: 100%;
+    padding: 16px;
+  }
+
+  .book-details-content {
+    flex-direction: column;
+  }
+
+  .book-details-cover {
+    width: 100%;
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+  .book-details-meta {
+    grid-template-columns: 1fr;
+  }
+}
