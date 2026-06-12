@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T07:45:35.520Z",
+  "task_name": "auto100",
+  "task_type": "0-1代码生成",
+  "business_domain": "Web前端",
+  "modification_scope": "跨模块多文件",
+  "prompt": "我需要一个能够帮助用户为电商商品页面快速生成并预览动态视觉差滚动布局的应用，主要解决设计师在手动编写CSS时无法直观看到各区块在滚动时背景位移、透明度变化和缩放效果的协同搭配，导致反复调整样式代码效率低下的问题。\n\n它应当具备以下能力：\n1) 区块编辑器模块：用户可从左侧面板添加最多6种预设区块类型（全屏Banner、三列图文、卡片网格、引用块、产品轮播、页脚），每种区块拖入画布后自动带有默认内容和样式，点击区块会在右侧面板显示其可配置参数——包括背景颜色或图片URL、视差滚动速度系数（-0.5到0.5步长0.01的滑块，正值表示向前，负值表示向后）、初始透明度（0到1）、进入动画类型（淡入、从左滑入、从下方飞入、缩放出现，下拉选择器），所有参数调整后画布内的区块实时更新预览。\n2) 滚动预览与导出模块：画布下方有一条水平滚动进度条（0%-100%），用户拖动滑块时所有区块根据各自视差系数和透明度参数同步渲染滚动效果，滑块位置上方显示当前百分比和模拟的滚动条位置指示器。点击“导出CSS”按钮将每个区块的transform和opacity动画关键帧（包含@media (prefers-reduced-motion: no-preference)查询）打包下载为style.css文件。\n3) 预设主题切换功能：顶部工具栏提供三套预设配色方案（暗夜翡翠：背景#0f1a2c、强调色#00d4a6、文字#e0f2e9；极简白：背景#fafafa、强调色#3b82f6、文字#1e293b；暖阳橙：背景#fffbeb、强调色#f97316、文字#451a03），切换时所有区块的文字颜色和边框色以0.4秒淡出再淡入过渡。\n\n界面方面要求：主区域采用分割式布局，左侧为区块类型工具栏（宽240px，可折叠，折叠时仅显示图标，带hover展开动画0.3秒），中间为画布区（模拟手机竖屏比例390x844px，画布背景浅灰#f1f5f9，带细微点阵网格辅助线每20px一个点），右侧为参数面板（宽280px，输入框和滑块采用圆角8px和柔和阴影）。滚动进度条位于画布下方，滑块为圆形拖拽点直径20px，鼠标悬停时放大至24px并变亮。所有区块在画布内排列时上下间距24px，区块间有虚线分隔，鼠标移入区块右上角显示圆形编辑按钮（直径32px，图标居中，背景色同主题强调色，点击聚焦到右侧面板）。响应式方面，浏览器窗口小于1024px时左右面板折叠为悬浮式抽屉按钮，点击从侧边滑入（宽度320px，遮罩层0.4s淡入）。\n\n性能上要求：拖动滚动进度条滑块时，所有区块的滚动效果更新帧率不低于40fps（使用requestAnimationFrame节流）；切换预设主题时，所有区块颜色属性更新在0.4秒内完成。\n\n实现采用TypeScript和React，不使用任何CSS框架（所有样式须由React内联style或CSS-in-JS实现）。按以下文件组织代码：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, uuid；启动脚本：npm run dev）\n - index.html（入口页面，meta viewport适配移动端）\n - vite.config.js（Vite构建配置，含路径别名@指向src）\n - tsconfig.json（严格模式，jsx: react-jsx）\n - src/main.tsx（应用入口，渲染App根组件）\n - src/components/BlockEditor.tsx（区块编辑器核心逻辑，管理区块列表、拖放排序、参数变更——与App和BlockCanvas交互，通过回调函数传递数据）\n - src/components/BlockCanvas.tsx（画布渲染与滚动预览，接收区块配置数组并渲染每个区块，处理滚动进度拖拽事件，计算并应用视差/透明度动画——与BlockEditor双向通信）\n - src/utils/exportCSS.ts（导出CSS生成工具函数，根据区块配置生成完整style.css字符串，含媒体查询和关键帧，被BlockEditor调用）\n - src/theme/presets.ts（预设主题对象定义，导出暗夜翡翠、极简白、暖阳橙三套颜色变量，被BlockEditor和BlockCanvas引用）\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:5af1427b22ec65a6babb8875092b46d2_6a2bb882a6596f020d5bfa24.6a2bb914a6596f020d5bfab5.6a2bb9147e01763f4ac5af9c:Trae CN.T(2026/6/12 15:45:24)",
+    "user_id": "98336997115224",
+    "trace_id": "5af1427b22ec65a6babb8875092b46d2",
+    "session_id": "6a2bb882a6596f020d5bfa24",
+    "task_id": "6a2bb914a6596f020d5bfab5",
+    "message_id": "6a2bb9147e01763f4ac5af9c",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 15:45:24",
+    "format": "full"
+  },
+  "trace": "null"
+}
