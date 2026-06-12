@@ -286,27 +286,35 @@ export class UIManager {
 
   private setupResponsive(): void {
     if (this.sidebarToggle) {
-      this.sidebarToggle.addEventListener('click', () => {
+      this.sidebarToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.togglePanel();
       });
     }
 
+    let lastIsNarrow = window.innerWidth <= 768;
+
     const checkWidth = () => {
-      if (window.innerWidth <= 768) {
-        if (!this.isCollapsed) {
+      const isNarrow = window.innerWidth <= 768;
+      
+      if (isNarrow !== lastIsNarrow) {
+        if (isNarrow) {
           this.panel.classList.add('collapsed');
           this.isCollapsed = true;
-        }
-      } else {
-        if (this.isCollapsed) {
+        } else {
           this.panel.classList.remove('collapsed');
           this.isCollapsed = false;
         }
+        lastIsNarrow = isNarrow;
       }
     };
 
     window.addEventListener('resize', checkWidth);
-    checkWidth();
+    
+    if (lastIsNarrow) {
+      this.panel.classList.add('collapsed');
+      this.isCollapsed = true;
+    }
   }
 
   private togglePanel(): void {

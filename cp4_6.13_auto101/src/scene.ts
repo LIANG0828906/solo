@@ -52,9 +52,11 @@ export class SceneManager {
   private trailPositions: THREE.Vector3[] = [];
   private trailMaxLength = 20;
 
-  private viewMode: ViewMode = 'top';
+  private viewMode: ViewMode = '' as ViewMode;
   private targetCameraPosition: THREE.Vector3;
   private targetCameraLookAt: THREE.Vector3;
+  private startCameraPosition: THREE.Vector3;
+  private startCameraLookAt: THREE.Vector3;
   private isAnimatingView: boolean = false;
   private animationProgress: number = 0;
   private animationDuration: number = 1.2;
@@ -66,6 +68,8 @@ export class SceneManager {
 
   private clock: THREE.Clock;
   private elapsedTime: number = 0;
+  private lastFrameTime: number = 0;
+  private animationFrameId: number = 0;
   private container: HTMLElement;
   private lightConfig: LightConfig;
   private lastLightTarget: LightConfig;
@@ -110,6 +114,8 @@ export class SceneManager {
 
     this.targetCameraPosition = this.topViewPos.clone();
     this.targetCameraLookAt = this.topViewLookAt.clone();
+    this.startCameraPosition = this.topViewPos.clone();
+    this.startCameraLookAt = this.topViewLookAt.clone();
 
     this.camera.position.copy(this.topViewPos);
     this.camera.lookAt(this.topViewLookAt);
@@ -156,7 +162,7 @@ export class SceneManager {
     this.setupEvents();
     this.updateLightPosition();
     this.setViewMode('top');
-    this.animate();
+    this.startAnimationLoop();
   }
 
   private createRoom(): void {
@@ -644,6 +650,9 @@ export class SceneManager {
     this.isAnimatingView = true;
     this.animationProgress = 0;
 
+    this.startCameraPosition.copy(this.camera.position);
+    this.startCameraLookAt.copy(this.targetCameraLookAt);
+
     if (mode === 'top') {
       this.targetCameraPosition.copy(this.topViewPos);
       this.targetCameraLookAt.copy(this.topViewLookAt);
@@ -668,10 +677,21 @@ export class SceneManager {
     window.dispatchEvent(event);
   }
 
-  private animate(): void {
-    requestAnimationFrame(this.animate.bind(this));
+  private startAnimationLoop(): void {
+    const tick = () => {
+      this.animateFrame();
+      this.animationFrameId = requestAnimationFrame(tick);
+    };
+    setTimeout(() => {
+      this.lastFrameTime = performance.now();
+      this.animationFrameId = requestAnimationFrame(tick);
+    }, 50);
+  }
 
-    const delta = this.clock.getDelta();
+  private animateFrame = (): void => {
+    const now = performance.now();
+    const delta = (now - this.lastFrameTime) / 1000;
+    this.lastFrameTime = now;
     this.elapsedTime += delta;
 
     if (this.isAnimatingView) {
@@ -683,12 +703,9 @@ export class SceneManager {
 
       const t = this.easeInOutCubic(this.animationProgress);
 
-      const startPos = this.viewMode === 'top' ? this.firstPersonPos : this.topViewPos;
-      const startLook = this.viewMode === 'top' ? this.firstPersonLookAt : this.topViewLookAt;
+      this.camera.position.lerpVectors(this.startCameraPosition, this.targetCameraPosition, t);
 
-      this.camera.position.lerpVectors(startPos, this.targetCameraPosition, t);
-
-      const currentLook = startLook.clone().lerp(this.targetCameraLookAt, t);
+      const currentLook = this.startCameraLookAt.clone().lerp(this.targetCameraLookAt, t);
 
       if (this.camera instanceof THREE.PerspectiveCamera) {
         this.camera.lookAt(currentLook);
@@ -725,6 +742,9 @@ export class SceneManager {
   }
 
   dispose(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
     this.renderer.dispose();
     window.removeEventListener('resize', this.onResize.bind(this));
   }
