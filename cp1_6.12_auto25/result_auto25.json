@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T04:16:52.062Z",
+  "task_name": "auto25",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "跨模块多文件",
+  "prompt": "构建一个交互式简历生成与分享平台，支持用户创建、编辑和在线发布个性化简历。使用TypeScript、React前端和Node.js后端实现。文件结构如下：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, express, multer, sharp, puppeteer；启动脚本：npm run dev）\n - index.html（入口页面）\n - vite.config.js（构建配置，代理API到后端）\n - tsconfig.json（严格模式）\n - src/client/ResumeEditor.ts（前端编辑模块：管理简历数据结构、字段增删、拖拽排序）\n - src/client/PreviewPane.ts（前端预览模块：实时渲染简历样式，导出为高清PNG）\n - src/server/resumeApi.ts（后端API模块：处理简历CRUD、头像上传与压缩、生成PDF）\n - src/server/templateEngine.ts（后端模板引擎：根据用户选择模板（简洁/双栏/创意）生成HTML字符串）\n\n具体需求：\n1. 用户在浏览器中拖拽添加/调整模块顺序（个人信息、工作经历、教育背景、技能标签、项目展示），每个模块可折叠/展开并显示编辑表单。\n2. 支持3种视觉模板切换（简洁商务：白底+深灰字体+蓝色强调；双栏布局：左侧深色背景+右侧内容区；创意卡片：圆角卡片+多彩标签+渐变色块），切换时有0.4秒卡片翻转动画。\n3. 实时预览区随编辑区变化同步更新，预览区高度随内容自适应滚动，右侧固定显示“导出PNG”和“导出PDF”按钮，导出时显示进度条和完成提示。\n4. 头像上传功能：点击头像区域打开文件选择器，上传后前端裁剪为圆形（支持拖拽调整大小和位置），后端压缩至200KB以内并返回预览URL。\n5. 用户可保存多个简历版本，每个版本记录编辑时间和模板选择，版本列表以时间线形式呈现在侧边栏，点击切换版本时主编辑区和预览区平滑过渡。\n\n界面方面：左侧编辑区占40%宽度，右侧预览区占60%宽度，两者之间有可拖拽的分隔条。编辑区表单控件统一使用圆角边框和柔和阴影，输入框获得焦点时边框变为品牌色（#4A90D9）并附带0.2秒宽度渐变动画。按钮采用渐变背景和悬停时上浮3px效果。整体响应式：屏幕宽度小于768px时，编辑区与预览区上下排列。\n\n性能要求：编辑内容变化到预览更新延迟不超过100ms，头像上传压缩耗时不超过500ms。\n\n运行方式：npm install && npm run dev。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:54e9332ef20c978f829ffd739a9a014e_6a2b87ff73a3b2fdbe541fb6.6a2b882973a3b2fdbe541fc6.6a2b882921dbe4bf77ddecc8:Trae CN.T(2026/6/12 12:16:41)",
+    "user_id": "98336997115224",
+    "trace_id": "54e9332ef20c978f829ffd739a9a014e",
+    "session_id": "6a2b87ff73a3b2fdbe541fb6",
+    "task_id": "6a2b882973a3b2fdbe541fc6",
+    "message_id": "6a2b882921dbe4bf77ddecc8",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 12:16:41",
+    "format": "full"
+  },
+  "trace": "null"
+}
