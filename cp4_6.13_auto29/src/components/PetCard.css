@@ -1,0 +1,167 @@
+.pet-card {
+  width: 280px;
+  border-radius: 20px;
+  padding: 3px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+  animation: cardAppear 0.5s ease;
+}
+
+@keyframes cardAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pet-card-inner {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 17px;
+  padding: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.pet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pet-name {
+  color: #fff;
+  font-size: 24px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.pet-rarity .star {
+  color: #ffd700;
+  font-size: 16px;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+}
+
+.pet-element-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.pet-sprite {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 140px;
+  margin-bottom: 15px;
+}
+
+.pet-svg {
+  width: 120px;
+  height: 140px;
+  animation: petBounce 2s ease-in-out infinite;
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes petBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.pet-stats {
+  margin-bottom: 15px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.stat-bar {
+  flex: 1;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.stat-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+.mood-fill {
+  background: linear-gradient(90deg, #ff6b6b, #ffd93d);
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.pet-skill {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.skill-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.skill-name {
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.explore-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.explore-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.05);
+}
+
+.explore-btn:active {
+  transform: scale(0.98);
+  transition: transform 0.15s ease;
+}
