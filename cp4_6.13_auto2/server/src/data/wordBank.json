@@ -1,0 +1,484 @@
+{
+  "learning": {
+    "word": "learning",
+    "phonetic": "/ˈlɜːrnɪŋ/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "学习，学会",
+        "examples": [
+          {"english": "She is learning French.", "chinese": "她正在学习法语。", "difficulty": "easy"},
+          {"english": "Learning a new language requires consistent practice over an extended period of time.", "chinese": "学习一门新语言需要长期坚持练习。", "difficulty": "complex"}
+        ]
+      },
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "学习，知识，学问",
+        "examples": [
+          {"english": "Learning is a lifelong process.", "chinese": "学习是一个终身的过程。", "difficulty": "easy"},
+          {"english": "His extensive learning impressed everyone at the academic conference.", "chinese": "他渊博的学识给学术会议上的每个人都留下了深刻印象。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "learned/learnt",
+      "pastParticiple": "learned/learnt",
+      "presentParticiple": "learning"
+    }
+  },
+  "language": {
+    "word": "language",
+    "phonetic": "/ˈlæŋɡwɪdʒ/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "语言，语言文字",
+        "examples": [
+          {"english": "English is a global language.", "chinese": "英语是一门全球性语言。", "difficulty": "easy"},
+          {"english": "Body language plays a crucial role in interpersonal communication.", "chinese": "肢体语言在人际沟通中起着至关重要的作用。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "languages"
+    }
+  },
+  "opportunities": {
+    "word": "opportunity",
+    "phonetic": "/ˌɒpərˈtjuːnəti/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "机会，时机",
+        "examples": [
+          {"english": "This is a great opportunity.", "chinese": "这是一个绝佳的机会。", "difficulty": "easy"},
+          {"english": "The scholarship provided an unprecedented opportunity for students from disadvantaged backgrounds.", "chinese": "这项奖学金为来自弱势背景的学生提供了前所未有的机会。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "opportunities"
+    }
+  },
+  "memorizing": {
+    "word": "memorize",
+    "phonetic": "/ˈmeməraɪz/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "记住，背诵",
+        "examples": [
+          {"english": "You need to memorize these words.", "chinese": "你需要记住这些单词。", "difficulty": "easy"},
+          {"english": "Memorizing vocabulary lists is less effective than learning words in meaningful contexts.", "chinese": "死记硬背单词表不如在有意义的语境中学习单词有效。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "memorized",
+      "pastParticiple": "memorized",
+      "presentParticiple": "memorizing"
+    }
+  },
+  "vocabulary": {
+    "word": "vocabulary",
+    "phonetic": "/vəˈkæbjələri/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "词汇，词汇量",
+        "examples": [
+          {"english": "He has a large vocabulary.", "chinese": "他的词汇量很大。", "difficulty": "easy"},
+          {"english": "Building a rich vocabulary is essential for effective communication in any language.", "chinese": "积累丰富的词汇量对于任何语言的有效沟通都是必不可少的。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "vocabularies"
+    }
+  },
+  "embracing": {
+    "word": "embrace",
+    "phonetic": "/ɪmˈbreɪs/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "拥抱，欣然接受，包含",
+        "examples": [
+          {"english": "She embraced the new idea.", "chinese": "她欣然接受了这个新想法。", "difficulty": "easy"},
+          {"english": "Modern education must embrace technology to prepare students for the digital future.", "chinese": "现代教育必须拥抱技术，为学生迎接数字化未来做好准备。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "embraced",
+      "pastParticiple": "embraced",
+      "presentParticiple": "embracing"
+    }
+  },
+  "inaccessible": {
+    "word": "inaccessible",
+    "phonetic": "/ˌɪnækˈsesəbl/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "难以接近的，无法获得的",
+        "examples": [
+          {"english": "The mountain is inaccessible in winter.", "chinese": "这座山冬天难以接近。", "difficulty": "easy"},
+          {"english": "Without translation, much of the world's cultural heritage remains inaccessible to most people.", "chinese": "如果没有翻译，世界上许多文化遗产对大多数人来说仍然是难以触及的。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "struggle": {
+    "word": "struggle",
+    "phonetic": "/ˈstrʌɡl/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "奋斗，努力，挣扎",
+        "examples": [
+          {"english": "Many students struggle with math.", "chinese": "许多学生在数学上很吃力。", "difficulty": "easy"},
+          {"english": "Despite facing numerous obstacles, she continued to struggle for equal opportunities.", "chinese": "尽管面临无数障碍，她继续为平等机会而奋斗。", "difficulty": "complex"}
+        ]
+      },
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "斗争，努力，难事",
+        "examples": [
+          {"english": "It was a long struggle.", "chinese": "这是一场长期的斗争。", "difficulty": "easy"},
+          {"english": "The struggle for independence shaped the nation's identity and values.", "chinese": "争取独立的斗争塑造了这个国家的身份和价值观。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "struggled",
+      "pastParticiple": "struggled",
+      "presentParticiple": "struggling",
+      "plural": "struggles"
+    }
+  },
+  "immersion": {
+    "word": "immersion",
+    "phonetic": "/ɪˈmɜːʃn/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "沉浸，浸入，沉浸式学习",
+        "examples": [
+          {"english": "Language immersion is very effective.", "chinese": "沉浸式语言学习非常有效。", "difficulty": "easy"},
+          {"english": "Full immersion in a foreign culture accelerates language acquisition dramatically.", "chinese": "完全沉浸在外国文化中会极大地加速语言习得。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "contextual": {
+    "word": "contextual",
+    "phonetic": "/kənˈtekstʃuəl/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "上下文的，语境的，情境的",
+        "examples": [
+          {"english": "Contextual learning helps memory.", "chinese": "情境学习有助于记忆。", "difficulty": "easy"},
+          {"english": "A word's true meaning can only be understood through its contextual usage.", "chinese": "一个词的真正含义只有通过它在上下文中的用法才能理解。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "encounter": {
+    "word": "encounter",
+    "phonetic": "/ɪnˈkaʊntər/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "遇到，遭遇，邂逅",
+        "examples": [
+          {"english": "You may encounter difficulties.", "chinese": "你可能会遇到困难。", "difficulty": "easy"},
+          {"english": "During her travels, she encountered diverse perspectives that challenged her worldview.", "chinese": "在旅途中，她遇到了各种各样的观点，这些观点挑战了她的世界观。", "difficulty": "complex"}
+        ]
+      },
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "相遇，遭遇，经历",
+        "examples": [
+          {"english": "It was a chance encounter.", "chinese": "那是一次偶然的相遇。", "difficulty": "easy"},
+          {"english": "The unexpected encounter with her former teacher left a lasting impression.", "chinese": "与她以前老师的意外邂逅留下了持久的印象。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "encountered",
+      "pastParticiple": "encountered",
+      "presentParticiple": "encountering",
+      "plural": "encounters"
+    }
+  },
+  "isolation": {
+    "word": "isolation",
+    "phonetic": "/ˌaɪsəˈleɪʃn/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "隔离，孤立，孤独",
+        "examples": [
+          {"english": "He lived in isolation.", "chinese": "他过着与世隔绝的生活。", "difficulty": "easy"},
+          {"english": "Learning words in isolation often leads to forgetting them quickly due to lack of contextual connections.", "chinese": "孤立地学习单词往往会因为缺乏语境联系而导致快速遗忘。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "revolutionized": {
+    "word": "revolutionize",
+    "phonetic": "/ˌrevəˈluːʃənaɪz/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "彻底改变，使革命化",
+        "examples": [
+          {"english": "Technology has revolutionized communication.", "chinese": "科技彻底改变了通讯方式。", "difficulty": "easy"},
+          {"english": "The internet has revolutionized how we access information and connect with others globally.", "chinese": "互联网彻底改变了我们在全球范围内获取信息和与他人联系的方式。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "revolutionized",
+      "pastParticiple": "revolutionized",
+      "presentParticiple": "revolutionizing"
+    }
+  },
+  "interactive": {
+    "word": "interactive",
+    "phonetic": "/ˌɪntərˈæktɪv/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "互动的，交互式的",
+        "examples": [
+          {"english": "The museum has interactive exhibits.", "chinese": "博物馆有互动展品。", "difficulty": "easy"},
+          {"english": "Modern educational software provides interactive experiences that adapt to each learner's needs.", "chinese": "现代教育软件提供互动体验，能够适应每个学习者的需求。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "complemented": {
+    "word": "complement",
+    "phonetic": "/ˈkɒmplɪment/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "补充，补足，辅助",
+        "examples": [
+          {"english": "The wine complements the meal.", "chinese": "这款酒和这顿饭很配。", "difficulty": "easy"},
+          {"english": "Digital learning should be complemented by face-to-face interaction for optimal results.", "chinese": "数字学习应该辅以面对面的互动，以获得最佳效果。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "complemented",
+      "pastParticiple": "complemented",
+      "presentParticiple": "complementing"
+    }
+  },
+  "ultimately": {
+    "word": "ultimately",
+    "phonetic": "/ˈʌltɪmətli/",
+    "definitions": {
+      "adverb": {
+        "pos": "副词 (adv.)",
+        "meaning": "最终，根本上",
+        "examples": [
+          {"english": "Ultimately, you must decide.", "chinese": "最终，你必须自己决定。", "difficulty": "easy"},
+          {"english": "Ultimately, the success of any educational program depends on student engagement and motivation.", "chinese": "归根结底，任何教育项目的成功都取决于学生的参与度和积极性。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "frustration": {
+    "word": "frustration",
+    "phonetic": "/frʌˈstreɪʃn/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "挫折，沮丧，失意",
+        "examples": [
+          {"english": "He felt deep frustration.", "chinese": "他感到深深的沮丧。", "difficulty": "easy"},
+          {"english": "The frustration of not being able to express yourself in a foreign language can be overwhelming.", "chinese": "无法用外语表达自己的沮丧感可能是压倒性的。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "frustrations"
+    }
+  },
+  "fluency": {
+    "word": "fluency",
+    "phonetic": "/ˈfluːənsi/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "流利，流畅，熟练",
+        "examples": [
+          {"english": "She speaks English with fluency.", "chinese": "她英语说得很流利。", "difficulty": "easy"},
+          {"english": "Achieving fluency in a second language requires years of consistent practice and immersion.", "chinese": "掌握第二语言的流利度需要多年的持续练习和沉浸。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "victories": {
+    "word": "victory",
+    "phonetic": "/ˈvɪktəri/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "胜利，成功",
+        "examples": [
+          {"english": "They celebrated their victory.", "chinese": "他们庆祝胜利。", "difficulty": "easy"},
+          {"english": "Celebrating small victories along the way helps maintain motivation during the long language learning journey.", "chinese": "在漫长的语言学习旅程中，庆祝每一个小胜利有助于保持动力。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "victories"
+    }
+  },
+  "native": {
+    "word": "native",
+    "phonetic": "/ˈneɪtɪv/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "本地的，土生土长的，母语的",
+        "examples": [
+          {"english": "She is a native speaker.", "chinese": "她是母语使用者。", "difficulty": "easy"},
+          {"english": "Native speakers often don't realize how many idioms they use in everyday conversation.", "chinese": "母语使用者通常没有意识到他们在日常对话中使用了多少习语。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "drilling": {
+    "word": "drill",
+    "phonetic": "/drɪl/",
+    "definitions": {
+      "verb": {
+        "pos": "动词 (v.)",
+        "meaning": "训练，操练，钻孔",
+        "examples": [
+          {"english": "They drill vocabulary every day.", "chinese": "他们每天操练词汇。", "difficulty": "easy"},
+          {"english": "Drilling grammar rules without context fails to develop practical communication skills.", "chinese": "脱离语境操练语法规则无法培养实际的沟通技能。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "pastTense": "drilled",
+      "pastParticiple": "drilled",
+      "presentParticiple": "drilling"
+    }
+  },
+  "neural": {
+    "word": "neural",
+    "phonetic": "/ˈnjʊərəl/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "神经的，神经系统的",
+        "examples": [
+          {"english": "The brain has neural pathways.", "chinese": "大脑有神经通路。", "difficulty": "easy"},
+          {"english": "Language learning creates new neural connections that enhance cognitive flexibility.", "chinese": "语言学习创造新的神经连接，增强认知灵活性。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "pathways": {
+    "word": "pathway",
+    "phonetic": "/ˈpɑːθweɪ/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "路径，途径，通路",
+        "examples": [
+          {"english": "There is a pathway to success.", "chinese": "有一条通往成功的道路。", "difficulty": "easy"},
+          {"english": "Different learning pathways activate different regions of the brain's memory system.", "chinese": "不同的学习路径激活大脑记忆系统的不同区域。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "pathways"
+    }
+  },
+  "extensively": {
+    "word": "extensively",
+    "phonetic": "/ɪkˈstensɪvli/",
+    "definitions": {
+      "adverb": {
+        "pos": "副词 (adv.)",
+        "meaning": "广泛地，大量地",
+        "examples": [
+          {"english": "She reads extensively.", "chinese": "她阅读广泛。", "difficulty": "easy"},
+          {"english": "Students who read extensively tend to develop larger vocabularies and better writing skills.", "chinese": "大量阅读的学生往往会积累更大的词汇量和更好的写作技巧。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "platforms": {
+    "word": "platform",
+    "phonetic": "/ˈplætfɔːm/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "平台，站台，平台软件",
+        "examples": [
+          {"english": "Social platforms connect people.", "chinese": "社交平台连接人们。", "difficulty": "easy"},
+          {"english": "Modern language learning platforms use artificial intelligence to personalize learning paths.", "chinese": "现代语言学习平台使用人工智能来个性化学习路径。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "platforms"
+    }
+  },
+  "genuine": {
+    "word": "genuine",
+    "phonetic": "/ˈdʒenjuɪn/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "真正的，真诚的，名副其实的",
+        "examples": [
+          {"english": "She showed genuine interest.", "chinese": "她表现出真正的兴趣。", "difficulty": "easy"},
+          {"english": "Genuine human interaction remains irreplaceable for developing cultural sensitivity.", "chinese": "真诚的人际互动对于培养文化敏感性仍然是不可替代的。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "remarkable": {
+    "word": "remarkable",
+    "phonetic": "/rɪˈmɑːkəbl/",
+    "definitions": {
+      "adjective": {
+        "pos": "形容词 (adj.)",
+        "meaning": "非凡的，显著的，值得注意的",
+        "examples": [
+          {"english": "She made remarkable progress.", "chinese": "她取得了显著的进步。", "difficulty": "easy"},
+          {"english": "The human brain's ability to acquire language in childhood is nothing short of remarkable.", "chinese": "人类大脑在童年时期习得语言的能力简直是非凡的。", "difficulty": "complex"}
+        ]
+      }
+    }
+  },
+  "destination": {
+    "word": "destination",
+    "phonetic": "/ˌdestɪˈneɪʃn/",
+    "definitions": {
+      "noun": {
+        "pos": "名词 (n.)",
+        "meaning": "目的地，终点，目标",
+        "examples": [
+          {"english": "We reached our destination.", "chinese": "我们到达了目的地。", "difficulty": "easy"},
+          {"english": "Language learning is a journey rather than a destination; there is always more to discover.", "chinese": "语言学习是一段旅程而非终点；总有更多东西等待发现。", "difficulty": "complex"}
+        ]
+      }
+    },
+    "inflections": {
+      "plural": "destinations"
+    }
+  }
+}
