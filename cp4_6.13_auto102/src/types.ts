@@ -12,6 +12,8 @@ export interface BaseShape {
   thickness: number;
   userId: string;
   timestamp: number;
+  version: number;
+  operationId: string;
 }
 
 export interface PenShape extends BaseShape {
@@ -52,19 +54,20 @@ export interface EraserShape extends BaseShape {
 export type Shape = PenShape | RectangleShape | CircleShape | LineShape | TextShape | EraserShape;
 
 export type ServerMessage =
-  | { type: 'init'; shapes: Shape[]; userId: string; onlineUsers: UserInfo[] }
-  | { type: 'draw'; shape: Shape }
-  | { type: 'undo'; userId: string }
-  | { type: 'redo'; userId: string }
+  | { type: 'init'; shapes: Shape[]; userId: string; onlineUsers: UserInfo[]; version: number }
+  | { type: 'draw'; shape: Shape; version: number }
+  | { type: 'undo'; userId: string; operationId: string; shapeId: string; version: number }
+  | { type: 'redo'; userId: string; operationId: string; shapeId: string; version: number; shape: Shape }
   | { type: 'cursor'; userId: string; position: Point | null; color: string }
   | { type: 'user-join'; user: UserInfo }
   | { type: 'user-leave'; userId: string }
-  | { type: 'online-users'; users: UserInfo[] };
+  | { type: 'online-users'; users: UserInfo[] }
+  | { type: 'sync-error'; expectedVersion: number; actualVersion: number; message: string };
 
 export type ClientMessage =
-  | { type: 'draw'; shape: Shape }
-  | { type: 'undo' }
-  | { type: 'redo' }
+  | { type: 'draw'; shape: Shape; lastKnownVersion: number }
+  | { type: 'undo'; lastKnownVersion: number }
+  | { type: 'redo'; lastKnownVersion: number }
   | { type: 'cursor'; position: Point | null; color: string }
   | { type: 'request-history' };
 
@@ -78,4 +81,11 @@ export interface ToolbarState {
   tool: ToolType;
   color: string;
   thickness: number;
+}
+
+export interface DirtyRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
