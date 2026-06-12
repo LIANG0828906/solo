@@ -8,17 +8,21 @@ graph TD
         C["React Router 路由"]
         D["Three.js / @react-three/fiber 3D渲染"]
         E["Recharts 图表"]
+        F["请求缓存层"]
     end
     subgraph "后端层"
-        F["Express.js"]
-        G["RESTful API"]
-        H["CORS 跨域"]
+        G["Express.js"]
+        H["RESTful API"]
+        I["CORS 跨域"]
+        J["SQLite 数据层"]
     end
     subgraph "数据层"
-        I["SQLite (better-sqlite3)"]
+        K["SQLite (better-sqlite3)"]
     end
     A --> F
-    F --> I
+    F --> G
+    G --> J
+    J --> K
 ```
 
 ## 2. 技术栈说明
@@ -26,7 +30,7 @@ graph TD
 - **前端**：React 18 + TypeScript + Vite 5
 - **状态管理**：Zustand（轻量级）
 - **路由**：react-router-dom v6
-- **HTTP客户端**：axios
+- **HTTP客户端**：axios + 请求缓存
 - **3D渲染**：three + @react-three/fiber
 - **图表**：recharts
 - **后端**：Express 4 + Node.js
@@ -64,9 +68,11 @@ interface Work {
 
 // GET /api/works?style=xxx
 // Response: Work[]
+// 缓存策略：5分钟内存缓存
 
 // GET /api/works/:id
 // Response: Work
+// 缓存策略：5分钟内存缓存
 ```
 
 ### 4.2 订单接口
@@ -126,12 +132,13 @@ interface FurnaceRecord {
 // Response: FurnaceRecord | null
 
 // POST /api/furnace/start
-// Request: { targetCurve: [...], orderId?: string }
+// Request: { targetCurve: [...], orderId?: string, estimatedFinish?: string }
 // Response: FurnaceRecord
 
 // POST /api/furnace/record
 // Request: { id: number; time: number; temp: number }
 // Response: FurnaceRecord
+// 说明：服务端自动计算偏差，超过±30°C计入异常
 
 // POST /api/furnace/end
 // Request: { id: number }
@@ -266,16 +273,34 @@ auto18/
 │   ├── furnace/
 │   │   └── FurnaceManager.tsx
 │   ├── components/
-│   │   └── ProgressRing.tsx
+│   │   ├── ProgressRing.tsx
+│   │   └── AlertBanner.tsx
+│   ├── hooks/
+│   │   ├── useLazyImage.ts
+│   │   └── useCache.ts
+│   ├── store/
+│   │   └── index.ts
 │   └── styles/
 │       └── global.css
 └── server/
     └── index.js
 ```
 
-## 8. 性能指标
+## 8. 性能优化措施
 
-- API请求响应延迟 ≤ 300ms
-- 画廊渲染帧率 ≥ 45fps
-- 首屏加载 < 2s
-- 3D场景保持 ≥ 30fps
+| 优化措施 | 实现方式 | 目标 |
+|----------|----------|------|
+| 图片懒加载 | `loading="lazy"` + Intersection Observer | 减少首屏加载时间 |
+| 请求缓存 | axios 拦截器 + 内存缓存 Map | 响应延迟 ≤ 300ms |
+| 虚拟列表 | 画廊超过50件时启用 | 画廊帧率 ≥ 45fps |
+| 代码分割 | React.lazy + Suspense 路由级 | 首屏加载 < 2s |
+| 3D降级 | 检测设备性能，自动降低渲染质量 | 3D场景 ≥ 30fps |
+| 防抖节流 | 手绘板、筛选输入等高频操作 | 减少重渲染 |
+
+## 9. 响应式断点
+
+| 断点 | 设备类型 | 布局方式 | 画廊卡片宽度 |
+|------|----------|----------|--------------|
+| > 768px | 桌面端 | 多列网格 | 280px 固定 |
+| ≤ 768px | 平板端 | 双列网格 | 45% / max-width: 280px |
+| ≤ 480px | 移动端 | 单列堆叠 | 100% / max-width: 100% |
