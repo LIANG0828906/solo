@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T03:20:22.741Z",
+  "task_name": "auto3",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "场景：最近在处理在线教育平台的课程审核流程，发现人工审核耗时且容易遗漏关键内容，尤其是视频课程的幻灯片内容匹配。\n构建一个课程内容智能比对应用，能够上传课程视频和对应的幻灯片PDF，自动提取视频中的关键帧文本并与幻灯片文字进行匹配核对，标记差异点。使用TypeScript、React和Node.js实现，配合Tesseract.js做OCR，pdfjs-dist解析PDF。文件结构按职责模块化，并注明各文件间的调用关系和数据流向：\n - package.json（含依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, pdfjs-dist, tesseract.js；启动脚本：npm run dev）\n - vite.config.js（构建配置，配置react插件和别名）\n - tsconfig.json（严格模式，允许jsx）\n - index.html（入口页面，含根div和title标签）\n - src/App.tsx（主组件，负责渲染上传区域和结果面板，接收来自核心模块的数据）\n - src/core/compareEngine.ts（核心比对引擎，接收OCR结果和PDF文本数组，输出差异列表，数据流向：ocr模块→compareEngine→App）\n - src/core/ocrModule.ts（OCR模块，处理视频关键帧截图，调用Tesseract.js返回文本行，数据流向：上传文件→ocrModule→compareEngine）\n - src/core/pdfParser.ts（PDF解析模块，使用pdfjs-dist提取幻灯片文本，按页返回文本块，数据流向：上传文件→pdfParser→compareEngine）\n - src/components/DiffViewer.tsx（差异展示组件，接收差异列表并以并排对照形式渲染，支持高亮和折叠，数据流向：App→DiffViewer）\n\n功能需求：\n1) 文件上传与预览：支持拖拽上传或点击选择.mp4视频文件和.pdf幻灯片文件，上传后显示文件名、大小和缩略图/页码预览。\n2) 自动提取与OCR：自动从视频中每隔5秒提取一帧，对每帧进行OCR识别，将识别出的文本按时间戳记录。\n3) 智能比对引擎：将OCR文本段落与PDF每一页的文本进行相似度比较（编辑距离或Jaccard相似度），标记缺失、多余或顺序不一致的片段，输出差异统计总数。\n4) 结果可视化展示：以并排布局展示OCR文本（左）和PDF文本（右），差异部分用红色高亮（缺失项在右列用灰色占位），支持按时间轴或页码滚动定位。\n5) 导出报告：将差异结果导出为JSON格式文件，包含每个时间戳/页码的匹配状态和具体差异文本。\n\n界面要求：整体采用左右分栏布局，左窄（上传区+控制按钮）右宽（结果展示），主色调用深蓝色（#1a237e）配浅蓝灰（#cfd8dc）作为背景和文字，上传区域使用虚线边框和拖拽悬停时的渐变色填充动画。结果面板中差异项出现时带淡入和轻微缩放动画，高亮红色使用渐变闪烁以吸引注意。按钮使用圆角矩形，带有按压和悬停阴影效果。整体响应式，在移动端自动将左右分栏改为上下分栏。\n\n性能约束：OCR和PDF解析异步执行，不阻塞UI渲染；单次处理（视频最长3分钟）总时间应控制在30秒以内。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:9bd7ab65dd3a3d2595d92349d8b14b87_6a2b7a8ea5aa2e918080207c.6a2b7aeca5aa2e91808020d1.6a2b7aeb4514dd626a150824:Trae CN.T(2026/6/12 11:20:12)",
+    "user_id": "98336997115224",
+    "trace_id": "9bd7ab65dd3a3d2595d92349d8b14b87",
+    "session_id": "6a2b7a8ea5aa2e918080207c",
+    "task_id": "6a2b7aeca5aa2e91808020d1",
+    "message_id": "6a2b7aeb4514dd626a150824",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 11:20:12",
+    "format": "full"
+  },
+  "trace": "null"
+}
