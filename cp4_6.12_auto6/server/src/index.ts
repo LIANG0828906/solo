@@ -3,6 +3,8 @@ import cors from 'cors';
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +12,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const uploadDir = path.resolve(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadDir));
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, 'review-' + unique + ext);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const dbPath = path.resolve(__dirname, '../../data/bookstore.db');
 const db = new Database(dbPath);
@@ -342,6 +360,16 @@ app.post('/api/books/:id/reviews', (req, res) => {
   review.images = JSON.parse(review.images);
 
   res.status(201).json(review);
+});
+
+// 8b. POST /api/upload - Image upload for reviews
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
+  const imageUrl = '/uploads/' + req.file.filename;
+  res.json({ url: imageUrl });
 });
 
 // 9. GET /api/stats
