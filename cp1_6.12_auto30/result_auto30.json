@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-06-12T04:18:41.899Z",
+  "task_name": "auto30",
+  "task_type": "0-1代码生成",
+  "business_domain": "全栈Web应用",
+  "modification_scope": "模块内多文件",
+  "prompt": "我需要一个能够创建和管理个人知识图谱的应用，主要解决零散信息难以关联和可视化的问题。\n\n它应当具备以下能力：\n1) 用户可以在编辑器中创建节点（节点类型包括概念、文章、问题、人物，每种类型有不同的图标和颜色：概念为蓝色圆形，文章为绿色方形，问题为橙色菱形，人物为紫色六边形），节点之间可以拖拽连线表示关联关系（如“包含”、“引用”、“矛盾”、“灵感来源”），双击节点编辑标题和详情内容（详情在侧边面板中以Markdown形式编辑和展示），删除节点时所有关联连线随之消失并伴有淡出动画。\n2) 图谱以力导向图布局在画布上渲染，节点和连线支持拖拽调整位置，拖拽时长按节点或连线有发光高亮效果，松开后力模拟重新收敛，整体布局保持稳定。用户可通过鼠标滚轮缩放画布，双击空白区域可添加新节点，画布右上角有“重置布局”按钮一键回到初始力导向位置。\n3) 提供搜索和过滤功能：用户输入关键词后，匹配的节点自动高亮并以脉冲动画闪烁，不匹配的节点透明度降低至0.2并暂时禁用交互；过滤条件支持按节点类型和关联类型筛选，筛选切换时节点有平滑的淡入淡出过渡（0.3秒）。\n\n界面方面要求：整体采用深色主题（主背景色#1a1a2e，节点和面板采用#16213e和#0f3460渐变搭配，文字和图标使用#e7e7e7浅色），画布占窗口主体（左右无额外边距），左侧为层级节点列表（可折叠，选中后画布自动定位并放大该节点为中心，定位动画0.5秒缓动），右上角悬浮工具栏（包含添加节点按钮、搜索框和主题切换下拉菜单），右下角为节点详情侧边面板（点击节点弹出，从右侧滑入，宽度占25%，带毛玻璃背景模糊效果）。性能上要求图谱实时更新帧率不低于45fps，碰撞检测与力导向模拟在50个节点内无明显卡顿或布局震荡。\n\n实现用TypeScript和React前端（使用d3-force模拟力导向图，canvas渲染节点和连线），Node.js和Express后端提供简单的数据持久化API（CRUD操作），所有数据以JSON格式存储在后端内存文件中。把代码拆成以下文件：\n - package.json（依赖：react, react-dom, vite, @types/react, @types/react-dom, typescript, express, d3-force, uuid；启动脚本：npm run dev）\n - index.html（入口页面，包含全屏画布容器）\n - vite.config.js（构建配置，代理API到后端端口）\n - tsconfig.json（严格模式）\n - src/main.tsx（React入口，渲染根组件App）\n - src/App.tsx（主组件，管理布局：左侧列表、中央画布、右侧面板、工具栏，协调数据流和事件）\n - src/components/GraphCanvas.tsx（使用canvas和d3-force渲染力导向图，处理节点拖拽、缩放、搜索高亮）\n - src/components/Sidebar.tsx（节点列表，支持选中跳转和过滤）\n - src/components/DetailPanel.tsx（节点详情编辑面板，支持Markdown）\n - src/dataStore.ts（封装数据读写接口，通过fetch调用后端API）\n - src/types.ts（定义节点和连线的类型接口）\n - server/index.ts（Express后端，提供RESTful API：GET/POST/PUT/DELETE节点和连线）\n\n跑 npm install && npm run dev 就能直接看到效果。",
+  "session_id": {
+    "valid": true,
+    "full_id": ".98336997115224:644e74681e15a422a229452daa9c18fb_6a2b880773a3b2fdbe541fc0.6a2b889773a3b2fdbe542021.6a2b8897ef4cfa5915e13a14:Trae CN.T(2026/6/12 12:18:31)",
+    "user_id": "98336997115224",
+    "trace_id": "644e74681e15a422a229452daa9c18fb",
+    "session_id": "6a2b880773a3b2fdbe541fc0",
+    "task_id": "6a2b889773a3b2fdbe542021",
+    "message_id": "6a2b8897ef4cfa5915e13a14",
+    "app_name": "Trae CN",
+    "timestamp": "2026/6/12 12:18:31",
+    "format": "full"
+  },
+  "trace": "null"
+}
