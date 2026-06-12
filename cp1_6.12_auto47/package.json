@@ -1,0 +1,25 @@
+{
+  "name": "air-quality-3d-visualization",
+  "version": "1.0.0",
+  "description": "城市空气质量监测数据3D立体地图可视化应用",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"node --loader ts-node/esm src/dataSimulator.ts\" \"vite\"",
+    "server": "node --loader ts-node/esm src/dataSimulator.ts",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}
