@@ -124,6 +124,12 @@ function loadMoreCards(): void {
 
     if (loadedCount >= filteredCards.length) {
       noMoreEl.style.display = 'block';
+    } else {
+      setTimeout(() => {
+        if (checkShouldLoadMore()) {
+          loadMoreCards();
+        }
+      }, 400);
     }
   }, 300);
 }
@@ -140,6 +146,13 @@ function renderAllCards(): void {
   loadMoreCards();
 }
 
+function checkShouldLoadMore(): boolean {
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const windowHeight = window.innerHeight;
+  const scrollHeight = document.documentElement.scrollHeight;
+  return scrollTop + windowHeight >= scrollHeight - LOAD_THRESHOLD;
+}
+
 function handleScroll(): void {
   const now = Date.now();
   if (now - lastScrollTime < SCROLL_THROTTLE) {
@@ -147,11 +160,7 @@ function handleScroll(): void {
   }
   lastScrollTime = now;
 
-  const scrollTop = window.scrollY || document.documentElement.scrollTop;
-  const windowHeight = window.innerHeight;
-  const scrollHeight = document.documentElement.scrollHeight;
-
-  if (scrollTop + windowHeight >= scrollHeight - LOAD_THRESHOLD) {
+  if (checkShouldLoadMore()) {
     loadMoreCards();
   }
 }

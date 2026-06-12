@@ -53,10 +53,6 @@
       transition: all 0.3s ease;
     }
 
-    .filter-bar.collapsed .filter-content {
-      display: none;
-    }
-
     .filter-header {
       display: none;
       align-items: center;
@@ -73,10 +69,6 @@
     .filter-header-icon {
       font-size: 1.2rem;
       transition: transform 0.3s ease;
-    }
-
-    .filter-bar.collapsed .filter-header-icon {
-      transform: rotate(180deg);
     }
 
     .filter-content {
@@ -283,6 +275,10 @@
 
       .filter-header {
         display: flex;
+      }
+
+      .filter-bar.collapsed .filter-header-icon {
+        transform: rotate(180deg);
       }
 
       .filter-content {
