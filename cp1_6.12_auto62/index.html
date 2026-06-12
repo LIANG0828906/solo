@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>风洞气流模拟器 - Wind Tunnel Simulator</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="scene-canvas"></canvas>
+  
+  <div id="control-panel" class="control-panel">
+    <div class="panel-header">
+      <h2>风洞控制</h2>
+      <button id="panel-close" class="panel-close">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="control-group">
+        <label class="control-label">
+          风速: <span id="wind-speed-value">10</span> m/s
+        </label>
+        <input type="range" id="wind-speed" min="0" max="20" value="10" step="0.5" class="slider" />
+      </div>
+      
+      <div class="control-group">
+        <label class="control-label">
+          物体角度: <span id="rotation-value">0</span>°
+        </label>
+        <input type="range" id="object-rotation" min="0" max="360" value="0" step="1" class="slider" />
+      </div>
+      
+      <div class="control-group">
+        <label class="control-label">粒子密度</label>
+        <select id="particle-density" class="select">
+          <option value="100">100 个</option>
+          <option value="300">300 个</option>
+          <option value="500" selected>500 个</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label class="control-label">测试物体</label>
+        <div class="object-buttons">
+          <button class="obj-btn active" data-type="sphere">球体</button>
+          <button class="obj-btn" data-type="cube">方体</button>
+          <button class="obj-btn" data-type="airfoil">机翼</button>
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <button id="reset-view" class="action-btn">重置视角</button>
+      </div>
+      
+      <div class="info-box">
+        <div class="info-item"><span class="info-label">FPS:</span><span id="fps-value">60</span></div>
+        <div class="info-item"><span class="info-label">粒子数:</span><span id="particle-count">500</span></div>
+      </div>
+    </div>
+  </div>
+  
+  <button id="menu-toggle" class="menu-toggle">☰</button>
+  
+  <div id="object-selector" class="object-selector">
+    <div class="selector-label">点击选择测试物体</div>
+    <div class="selector-icons">
+      <div class="selector-icon active" data-type="sphere" title="球体">
+        <div class="icon-shape sphere-icon"></div>
+        <span>球体</span>
+      </div>
+      <div class="selector-icon" data-type="cube" title="方体">
+        <div class="icon-shape cube-icon"></div>
+        <span>方体</span>
+      </div>
+      <div class="selector-icon" data-type="airfoil" title="机翼截面">
+        <div class="icon-shape airfoil-icon"></div>
+        <span>机翼</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
