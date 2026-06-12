@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 粒子星系可视化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0B0C10;
+        font-family: 'Inter', sans-serif;
+        color: #E0E0E0;
+      }
+
+      #canvas-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+
+      #canvas-container canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0B0C10;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.8s ease-out;
+      }
+
+      #loading-screen.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loading-rings {
+        position: relative;
+        width: 120px;
+        height: 120px;
+      }
+
+      .loading-ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        animation: spin 1.5s linear infinite;
+      }
+
+      .loading-ring:nth-child(1) {
+        width: 120px;
+        height: 120px;
+        top: 0;
+        left: 0;
+        border-top-color: #00CED1;
+        border-right-color: #00CED1;
+      }
+
+      .loading-ring:nth-child(2) {
+        width: 90px;
+        height: 90px;
+        top: 15px;
+        left: 15px;
+        border-bottom-color: #008B8B;
+        border-left-color: #008B8B;
+        animation-direction: reverse;
+        animation-duration: 1.2s;
+      }
+
+      .loading-ring:nth-child(3) {
+        width: 60px;
+        height: 60px;
+        top: 30px;
+        left: 30px;
+        border-top-color: #20B2AA;
+        border-right-color: #20B2AA;
+        animation-duration: 0.9s;
+      }
+
+      .loading-text {
+        margin-top: 32px;
+        font-size: 14px;
+        color: #00CED1;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+
+      #controls-panel {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 300px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 16px;
+        padding: 20px;
+        z-index: 10;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+      }
+
+      #controls-panel::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      #controls-panel::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      #controls-panel::-webkit-scrollbar-thumb {
+        background: #2C3E50;
+        border-radius: 2px;
+      }
+
+      #controls-panel .panel-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #00CED1;
+        margin-bottom: 20px;
+        text-align: center;
+        letter-spacing: 2px;
+      }
+
+      .control-group {
+        margin-bottom: 16px;
+      }
+
+      .control-group:last-child {
+        margin-bottom: 0;
+      }
+
+      .control-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: #E0E0E0;
+        margin-bottom: 8px;
+      }
+
+      .control-value {
+        color: #00CED1;
+        font-weight: 500;
+        font-size: 13px;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        background: #2C3E50;
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #00CED1;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+        box-shadow: 0 0 0 0 rgba(0, 206, 209, 0);
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        width: 24px;
+        height: 24px;
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #00CED1;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease-out;
+      }
+
+      input[type="range"]::-moz-range-thumb:hover {
+        width: 24px;
+        height: 24px;
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+      }
+
+      .color-picker-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .color-picker-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .color-picker-wrapper span {
+        font-size: 11px;
+        color: #888;
+      }
+
+      .color-picker-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .color-picker-btn:hover {
+        transform: scale(1.15);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      .color-picker-btn input[type="color"] {
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 40px;
+        height: 40px;
+        border: none;
+        cursor: pointer;
+        opacity: 0;
+      }
+
+      #toggle-panel-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #00CED1;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 11;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease-out;
+      }
+
+      #toggle-panel-btn:hover {
+        background: rgba(0, 206, 209, 0.15);
+        border-color: #00CED1;
+      }
+
+      .fps-counter {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.3);
+        z-index: 10;
+        font-family: monospace;
+      }
+
+      @media (max-width: 768px) {
+        #controls-panel {
+          top: auto;
+          bottom: 0;
+          right: 0;
+          left: 0;
+          width: 100%;
+          max-height: 60vh;
+          border-radius: 16px 16px 0 0;
+          transform: translateY(100%);
+          opacity: 0;
+        }
+
+        #controls-panel.mobile-open {
+          transform: translateY(0);
+          opacity: 1;
+        }
+
+        #toggle-panel-btn {
+          display: flex;
+        }
+
+        .fps-counter {
+          bottom: 70px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <div class="loading-rings">
+        <div class="loading-ring"></div>
+        <div class="loading-ring"></div>
+        <div class="loading-ring"></div>
+      </div>
+      <div class="loading-text">正在生成星系...</div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <button id="toggle-panel-btn" aria-label="切换控制面板">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+
+    <div id="controls-panel">
+      <div class="panel-title">星系参数控制</div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>旋臂数量</span>
+          <span class="control-value" id="arms-value">4</span>
+        </div>
+        <input type="range" id="arms-slider" min="2" max="8" step="1" value="4" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>粒子总数</span>
+          <span class="control-value" id="count-value">50000</span>
+        </div>
+        <input type="range" id="count-slider" min="10000" max="200000" step="10000" value="50000" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>旋转速度</span>
+          <span class="control-value" id="speed-value">0.02</span>
+        </div>
+        <input type="range" id="speed-slider" min="0" max="0.05" step="0.001" value="0.02" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>扩散程度</span>
+          <span class="control-value" id="spread-value">1.0</span>
+        </div>
+        <input type="range" id="spread-slider" min="0.2" max="2.0" step="0.1" value="1.0" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>颜色渐变</span>
+        </div>
+        <div class="color-picker-group">
+          <div class="color-picker-wrapper">
+            <div class="color-picker-btn" id="color1-btn" style="background: #FFFFFF;">
+              <input type="color" id="color1-input" value="#FFFFFF" />
+            </div>
+            <span>中心色</span>
+          </div>
+          <div class="color-picker-wrapper">
+            <div class="color-picker-btn" id="color2-btn" style="background: #00CED1;">
+              <input type="color" id="color2-input" value="#00CED1" />
+            </div>
+            <span>边缘色</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fps-counter" id="fps-counter">FPS: --</div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
