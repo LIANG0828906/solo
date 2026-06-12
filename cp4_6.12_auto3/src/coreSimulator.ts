@@ -23,7 +23,7 @@ export function startSimulation() {
     const fieldSquared = magneticField * magneticField
     const densityInverse = density > 0 ? 1 / density : 0
 
-    const tempChangeRate = (fieldSquared * 0.02) - (densityInverse * 0.5)
+    const tempChangeRate = fieldSquared - densityInverse
     const newTemperature = Math.max(1, Math.min(150, temperature + tempChangeRate * 0.1))
 
     let newDensity = density

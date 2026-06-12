@@ -33,8 +33,10 @@ export interface EventState {
 
 export interface ReactorStore {
   params: FusionParams
+  replayParams: FusionParams | null
   history: HistoryRecord[]
   currentEvent: EventState | null
+  replayEvent: EventState | null
   eventQueue: EventType[]
   isReplayMode: boolean
   replayTime: number
@@ -50,6 +52,8 @@ export interface ReactorStore {
   updateEventRemainingTime: (time: number) => void
   toggleReplay: () => void
   setReplayTime: (time: number) => void
+  setReplayParams: (params: FusionParams | null) => void
+  setReplayEvent: (event: EventState | null) => void
   triggerShutdown: (reason: string) => void
   resetReactor: () => void
 }
@@ -129,8 +133,10 @@ const MAX_HISTORY = 360
 
 export const useReactorStore = create<ReactorStore>((set, get) => ({
   params: { ...INITIAL_PARAMS },
+  replayParams: null,
   history: [],
   currentEvent: null,
+  replayEvent: null,
   eventQueue: [],
   isReplayMode: false,
   replayTime: 0,
@@ -296,10 +302,16 @@ export const useReactorStore = create<ReactorStore>((set, get) => ({
 
   toggleReplay: () => set((state) => ({
     isReplayMode: !state.isReplayMode,
-    replayTime: state.isReplayMode ? 0 : 0
+    replayTime: 0,
+    replayParams: null,
+    replayEvent: null
   })),
 
   setReplayTime: (time) => set({ replayTime: time }),
+
+  setReplayParams: (params) => set({ replayParams: params }),
+
+  setReplayEvent: (event) => set({ replayEvent: event }),
 
   triggerShutdown: (reason) => set({
     isShutdown: true,
@@ -308,9 +320,13 @@ export const useReactorStore = create<ReactorStore>((set, get) => ({
 
   resetReactor: () => set({
     params: { ...INITIAL_PARAMS },
+    replayParams: null,
     currentEvent: null,
+    replayEvent: null,
     isShutdown: false,
     shutdownReason: null,
-    history: []
+    history: [],
+    isReplayMode: false,
+    replayTime: 0
   })
 }))
