@@ -210,9 +210,9 @@ label {
   padding: 24px;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
   box-shadow: var(--shadow);
-  border: 2px solid transparent;
+  border: 2px solid #8D6E63;
   overflow: hidden;
 }
 
@@ -236,7 +236,7 @@ label {
 
 .formula-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(62, 39, 35, 0.4);
+  border-color: #5D4037;
   box-shadow: var(--shadow-hover);
 }
 
@@ -557,12 +557,18 @@ tr:hover {
 
 tr.low-stock {
   background: rgba(211, 47, 47, 0.08);
-  animation: blink 2s ease;
+  animation: blink 2s ease infinite;
 }
 
 @keyframes blink {
-  0%, 100% { background: rgba(211, 47, 47, 0.08); }
-  50% { background: rgba(211, 47, 47, 0.2); }
+  0%, 100% { 
+    background: rgba(211, 47, 47, 0.08);
+    opacity: 1;
+  }
+  50% { 
+    background: rgba(211, 47, 47, 0.25);
+    opacity: 0.5;
+  }
 }
 
 .stock-bar {
@@ -592,6 +598,7 @@ tr.low-stock {
   flex-direction: column;
   gap: 12px;
   z-index: 999;
+  pointer-events: none;
 }
 
 .suggestion-card {
@@ -600,19 +607,21 @@ tr.low-stock {
   border-radius: var(--radius);
   box-shadow: 0 12px 40px rgba(0,0,0,0.15);
   width: 320px;
-  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
   border-left: 4px solid #D32F2F;
+  pointer-events: auto;
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(100px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.suggestion-card.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.suggestion-card.hiding {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 .suggestion-title {

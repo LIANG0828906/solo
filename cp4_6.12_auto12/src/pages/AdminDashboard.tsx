@@ -11,12 +11,20 @@ export const AdminDashboard: React.FC = () => {
   const [popularFormulas, setPopularFormulas] = useState<any[]>([]);
   const [ordersByStatus, setOrdersByStatus] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<InventoryItem[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionVisible, setSuggestionVisible] = useState(false);
+  const [suggestionMounted, setSuggestionMounted] = useState(false);
+  const [chartsVisible, setChartsVisible] = useState(false);
   const [blinkingRows, setBlinkingRows] = useState<number[]>([]);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (trendData.length > 0 || ordersByStatus.length > 0 || popularFormulas.length > 0) {
+      setTimeout(() => setChartsVisible(true), 100);
+    }
+  }, [trendData, ordersByStatus, popularFormulas]);
 
   useEffect(() => {
     const lowStockItems = inventory.filter(item => item.currentStock < item.safeThreshold);
@@ -43,8 +51,12 @@ export const AdminDashboard: React.FC = () => {
       
       if (purchaseSuggestions.length > 0) {
         setSuggestions(purchaseSuggestions);
-        setShowSuggestions(true);
-        setTimeout(() => setShowSuggestions(false), 5000);
+        setSuggestionMounted(true);
+        setTimeout(() => setSuggestionVisible(true), 100);
+        setTimeout(() => {
+          setSuggestionVisible(false);
+          setTimeout(() => setSuggestionMounted(false), 300);
+        }, 5000);
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -89,7 +101,15 @@ export const AdminDashboard: React.FC = () => {
       <h1 className="page-title">📊 数据仪表盘</h1>
 
       <div className="dashboard-grid">
-        <div className="dashboard-card">
+        <div 
+          className="dashboard-card"
+          style={{
+            opacity: chartsVisible ? 1 : 0,
+            transform: chartsVisible ? 'translateY(0)' : 'translateY(40px)',
+            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
+            transitionDelay: '0.1s'
+          }}
+        >
           <h3>📈 上月订单完成趋势</h3>
           <div style={{ width: '100%', height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -120,13 +140,23 @@ export const AdminDashboard: React.FC = () => {
                   strokeWidth={3}
                   dot={{ fill: '#3E2723', strokeWidth: 2, r: 5 }}
                   activeDot={{ r: 8, fill: '#8D6E63' }}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="dashboard-card">
+        <div 
+          className="dashboard-card"
+          style={{
+            opacity: chartsVisible ? 1 : 0,
+            transform: chartsVisible ? 'translateY(0)' : 'translateY(40px)',
+            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
+            transitionDelay: '0.2s'
+          }}
+        >
           <h3>🥧 订单状态分布</h3>
           <div style={{ width: '100%', height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -141,6 +171,8 @@ export const AdminDashboard: React.FC = () => {
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={{ stroke: '#8D6E63' }}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 >
                   {ordersByStatus.map((entry, index) => (
                     <Cell 
@@ -162,7 +194,16 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="dashboard-card" style={{ gridColumn: '1 / -1' }}>
+        <div 
+          className="dashboard-card" 
+          style={{ 
+            gridColumn: '1 / -1',
+            opacity: chartsVisible ? 1 : 0,
+            transform: chartsVisible ? 'translateY(0)' : 'translateY(40px)',
+            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
+            transitionDelay: '0.3s'
+          }}
+        >
           <h3>🏆 热门染料配方使用频次</h3>
           <div style={{ width: '100%', height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -191,6 +232,8 @@ export const AdminDashboard: React.FC = () => {
                   radius={[8, 8, 0, 0]}
                   label={renderCustomBarLabel}
                   barSize={60}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 >
                   {popularFormulas.map((entry, index) => (
                     <Cell 
@@ -289,9 +332,9 @@ export const AdminDashboard: React.FC = () => {
         </table>
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {suggestionMounted && suggestions.length > 0 && (
         <div className="suggestion-container">
-          <div className="suggestion-card">
+          <div className={`suggestion-card ${suggestionVisible ? 'visible' : 'hiding'}`}>
             <h4 className="suggestion-title">⚠️ 采购建议</h4>
             {suggestions.map((item, index) => (
               <div key={item.id} className="suggestion-item">
