@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Slingshot Battle</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #2C3E50;
+      font-family: 'Arial', sans-serif;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #turn-indicator {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.5);
+      border: 3px solid #FFD700;
+      border-radius: 8px;
+      color: #FFD700;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    #turn-timer {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.5);
+      border: 2px solid #FFFFFF;
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    #player1-hp {
+      position: absolute;
+      top: 20px;
+      left: 180px;
+      width: 120px;
+      height: 15px;
+    }
+    #player2-hp {
+      position: absolute;
+      top: 20px;
+      right: 180px;
+      width: 120px;
+      height: 15px;
+    }
+    #power-bar-container {
+      position: absolute;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 20px;
+      display: none;
+    }
+    #power-bar-bg {
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #FFFFFF;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #power-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(to right, #4CAF50, #FFEB3B, #F44336);
+      transition: width 0.05s linear;
+    }
+    #cooldown-text {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 80px;
+      font-weight: bold;
+      color: #FFD700;
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+      display: none;
+    }
+    #victory-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    #victory-text {
+      font-size: 80px;
+      font-weight: bold;
+      color: #FFD700;
+      text-shadow: 0 0 30px #FFD700, 0 0 60px #FFA500;
+      animation: victoryZoom 1s ease-out forwards;
+    }
+    #restart-btn {
+      margin-top: 30px;
+      padding: 15px 40px;
+      font-size: 24px;
+      background: #FFD700;
+      color: #2C3E50;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      pointer-events: auto;
+    }
+    #restart-btn:hover {
+      background: #FFA500;
+    }
+    @keyframes victoryZoom {
+      0% {
+        transform: scale(0.1);
+        opacity: 0;
+      }
+      60% {
+        transform: scale(1.3);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="hud">
+      <div id="turn-indicator">P1 Turn</div>
+      <div id="turn-timer">--</div>
+      <div id="player1-hp"></div>
+      <div id="player2-hp"></div>
+      <div id="power-bar-container">
+        <div id="power-bar-bg">
+          <div id="power-bar-fill"></div>
+        </div>
+      </div>
+      <div id="cooldown-text"></div>
+    </div>
+    <div id="victory-screen">
+      <div id="victory-text"></div>
+      <button id="restart-btn">Play Again</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
