@@ -22,12 +22,14 @@ export async function saveNotes(notes: Note[]): Promise<void> {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
 }
 
+const TAG_RE_LOCAL = /(^|\s)#([^\s#]+)(?=\s|$|[.,!?;:，。！？；：])/g;
+
 export function extractTags(content: string): string[] {
-  const re = /#(\S+)/g;
+  const re = TAG_RE_LOCAL;
   const set = new Set<string>();
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
-    set.add(m[1]);
+    set.add(m[2]);
   }
   return Array.from(set);
 }

@@ -8,7 +8,8 @@ const QUOTE_RE = /^>\s?(.*)$/gm;
 const LIST_RE = /^[-*]\s+(.*)$/gm;
 const OLIST_RE = /^\d+\.\s+(.*)$/gm;
 const LINK_RE = /\[\[([^\]]+)\]\]/g;
-const TAG_RE = /#(\S+)/g;
+const TAG_RE = /(^|\s)#([^\s#]+)(?=\s|$|[.,!?;:，。！？；：])/g;
+const HEADING_PROTECT_RE = /^(#{1,6})(\s)/gm;
 const INLINE_CODE_RE = /`([^`]+)`/g;
 const HR_RE = /^---+$/gm;
 
@@ -60,6 +61,10 @@ export function renderMarkdown(md: string, opts: RenderOptions): string {
     return `__CODEBLOCK${idx}__`;
   });
 
+  processed = processed.replace(HEADING_PROTECT_RE, (_, hashes, space) => {
+    return `__HEADING${hashes.length}__${space}`;
+  });
+
   processed = processed.replace(LINK_RE, (_m, title) => {
     const titleTrim = title.trim();
     const exists = opts.notes.some((n) => n.title.trim() === titleTrim);
@@ -73,14 +78,18 @@ export function renderMarkdown(md: string, opts: RenderOptions): string {
     return token;
   });
 
-  processed = processed.replace(TAG_RE, (_m, tag) => {
+  processed = processed.replace(TAG_RE, (_m, prefix, tag) => {
     const onClickAttr = opts.onTagClick
       ? ` data-dg-tag="${encodeURIComponent(tag)}"`
       : '';
     const html = `<span class="dg-tag" data-tag="${escapeHtml(tag)}"${onClickAttr} style="display:inline-block;background:#4a90d9;color:#ffffff;padding:1px 8px;border-radius:4px;font-size:12px;margin:0 2px;cursor:pointer;transition:transform 150ms,opacity 150ms" onmouseover="this.style.opacity=0.85;this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity=1;this.style.transform='none'">#${escapeHtml(tag)}</span>`;
     const token = `__TAG${tagTokens.length}__`;
     tagTokens.push({ token, html });
-    return token;
+    return prefix + token;
+  });
+
+  processed = processed.replace(/__HEADING(\d+)__/g, (_m, num) => {
+    return '#'.repeat(parseInt(num, 10));
   });
 
   processed = escapeHtml(processed);
