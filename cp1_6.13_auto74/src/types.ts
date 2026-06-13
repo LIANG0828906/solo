@@ -18,6 +18,20 @@ export interface RGB {
   b: number;
 }
 
+export interface BezierControlPoints {
+  cp1x: number;
+  cp1y: number;
+  cp2x: number;
+  cp2y: number;
+}
+
+export interface SpiralParams {
+  startAngle: number;
+  initialRadius: number;
+  growthRate: number;
+  rotations: number;
+}
+
 export interface Particle {
   id: number;
   x: number;
@@ -37,8 +51,6 @@ export interface Particle {
   delay: number;
   startTime: number;
   duration: number;
-  spiralAngle: number;
-  spiralRadius: number;
   spiralStartAngle: number;
   initialDistance: number;
   size: number;
@@ -50,10 +62,25 @@ export interface Word {
   particles: Particle[];
   centerX: number;
   centerY: number;
+  strokeComplexity: number;
 }
 
 export interface CanvasDimensions {
   width: number;
   height: number;
   dpr: number;
+}
+
+export interface ParticleFrameState {
+  readonly x: number;
+  readonly y: number;
+  readonly color: HSLA;
+  readonly size: number;
+  readonly opacity: number;
+}
+
+export interface EngineFrameOutput {
+  readonly particles: ParticleFrameState[];
+  readonly state: AppState;
+  readonly particleCount: number;
 }

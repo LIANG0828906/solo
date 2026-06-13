@@ -1,6 +1,6 @@
 import type { EngineContext } from './particleEngine';
 import { hslaToString, updateEngine } from './particleEngine';
-import type { CanvasDimensions, Particle } from './types';
+import type { CanvasDimensions, EngineFrameOutput, ParticleFrameState } from './types';
 
 export interface RendererHandle {
   start: () => void;
@@ -8,13 +8,18 @@ export interface RendererHandle {
   setCanvas: (c: HTMLCanvasElement | null) => void;
   updateDimensions: (d: CanvasDimensions) => void;
   getFps: () => number;
+  getLastFrame: () => EngineFrameOutput | null;
 }
 
 export type FpsCallback = (fps: number) => void;
+export type FrameCallback = (output: EngineFrameOutput) => void;
 
 export function createRenderer(
   ctx: EngineContext,
-  onFpsUpdate?: FpsCallback
+  options?: {
+    onFpsUpdate?: FpsCallback;
+    onFrame?: FrameCallback;
+  }
 ): RendererHandle {
   let canvas: HTMLCanvasElement | null = null;
   let cctx: CanvasRenderingContext2D | null = null;
@@ -25,7 +30,9 @@ export function createRenderer(
   let fpsFrames = 0;
   let lastFpsReport = 0;
   let currentFps = 0;
+  let lastFrameOutput: EngineFrameOutput | null = null;
   const dims = { ...ctx.dims };
+  const { onFpsUpdate, onFrame } = options || {};
 
   function updateDimensions(d: CanvasDimensions): void {
     Object.assign(dims, d);
@@ -55,31 +62,33 @@ export function createRenderer(
     cctx.fillRect(0, 0, width, height);
   }
 
-  function drawParticles(): void {
-    if (!cctx) return;
-    const particles: Particle[] = ctx.particles;
+  function drawParticles(particles: readonly ParticleFrameState[]): void {
+    if (!cctx || particles.length === 0) return;
     const n = particles.length;
-    if (n === 0) return;
     cctx.globalCompositeOperation = 'lighter';
-    cctx.beginPath();
     let lastKey = '';
+    let hasOpenPath = false;
     for (let i = 0; i < n; i++) {
       const p = particles[i];
       if (p.opacity <= 0.01) continue;
-      const col = p.currentColor;
-      col.a = p.opacity;
-      const key = `${col.h.toFixed(0)},${col.s.toFixed(0)},${col.l.toFixed(0)},${col.a.toFixed(3)}`;
+      const col = p.color;
+      const key = `${col.h.toFixed(0)},${col.s.toFixed(0)},${col.l.toFixed(0)},${(col.a * p.opacity).toFixed(3)}`;
       if (key !== lastKey) {
-        if (lastKey !== '') cctx.fill();
-        cctx.fillStyle = hslaToString(col);
+        if (hasOpenPath) {
+          cctx.fill();
+          hasOpenPath = false;
+        }
+        const alpha = col.a * p.opacity;
+        cctx.fillStyle = `hsla(${col.h.toFixed(1)}, ${col.s.toFixed(1)}%, ${col.l.toFixed(1)}%, ${alpha.toFixed(3)})`;
         lastKey = key;
         cctx.beginPath();
+        hasOpenPath = true;
       }
       const r = p.size / 2;
       cctx.moveTo(p.x + r, p.y);
       cctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     }
-    if (lastKey !== '') cctx.fill();
+    if (hasOpenPath) cctx.fill();
     cctx.globalCompositeOperation = 'source-over';
   }
 
@@ -100,9 +109,11 @@ export function createRenderer(
       }
     }
     lastFrameTime = now;
-    updateEngine(ctx, now);
+    const frameOutput = updateEngine(ctx, now);
+    lastFrameOutput = frameOutput;
     drawBackground();
-    drawParticles();
+    drawParticles(frameOutput.particles);
+    if (onFrame) onFrame(frameOutput);
     rafId = requestAnimationFrame(frame);
   }
 
@@ -125,5 +136,9 @@ export function createRenderer(
     return currentFps;
   }
 
-  return { start, stop, setCanvas, updateDimensions, getFps };
+  function getLastFrame(): EngineFrameOutput | null {
+    return lastFrameOutput;
+  }
+
+  return { start, stop, setCanvas, updateDimensions, getFps, getLastFrame };
 }
