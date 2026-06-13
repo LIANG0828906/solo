@@ -12,35 +12,23 @@ const PORT = 3001
 
 app.use(cors())
 app.use(express.json())
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 const uploadsDir = path.join(__dirname, '../uploads')
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
+  console.log(`[Server] Created uploads directory: ${uploadsDir}`)
 }
+app.use('/uploads', express.static(uploadsDir))
 
 const dbPath = path.join(__dirname, '../data.json')
 const adapter = new FileSync(dbPath)
 const db = lowdb(adapter)
 
-db.defaults({
-  users: [],
-  items: [],
-  exchanges: [],
-  favorites: []
-}).write()
+const VALID_CONDITIONS = ['全新', '九成新', '七成新', '五成新', '三成新'] as const
+const VALID_CATEGORIES = ['家具', '电器', '书籍', '服饰', '玩具', '厨房用品', '装饰品', '其他'] as const
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir)
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname)
-    cb(null, `${uuidv4()}${ext}`)
-  }
-})
-
-const upload = multer({ storage })
+type ConditionType = typeof VALID_CONDITIONS[number]
+type CategoryType = typeof VALID_CATEGORIES[number]
 
 type User = {
   id: string
@@ -55,8 +43,8 @@ type Item = {
   id: string
   userId: string
   name: string
-  category: string
-  condition: string
+  category: CategoryType
+  condition: ConditionType
   city: string
   photos: string[]
   story: string
@@ -83,10 +71,55 @@ type Favorite = {
   createdAt: string
 }
 
+type DatabaseSchema = {
+  users: User[]
+  items: Item[]
+  exchanges: Exchange[]
+  favorites: Favorite[]
+}
+
+db.defaults<DatabaseSchema>({
+  users: [],
+  items: [],
+  exchanges: [],
+  favorites: []
+}).write()
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    cb(null, `${uuidv4()}${ext}`)
+  }
+})
+
+const upload = multer({ storage })
+
+function sanitizeUser(user: User): Omit<User, 'password'> {
+  const { password, ...rest } = user
+  return rest
+}
+
+function validateCondition(condition: string): condition is ConditionType {
+  return VALID_CONDITIONS.includes(condition as ConditionType)
+}
+
+function validateCategory(category: string): category is CategoryType {
+  return VALID_CATEGORIES.includes(category as CategoryType)
+}
+
 app.post('/api/auth/register', (req, res) => {
   const { username, password, nickname } = req.body
   if (!username || !password || !nickname) {
     return res.status(400).json({ message: '请填写完整信息' })
+  }
+  if (username.length < 3 || username.length > 20) {
+    return res.status(400).json({ message: '用户名长度需在3-20个字符之间' })
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ message: '密码长度不能少于6位' })
   }
   const existing = db.get('users').find({ username }).value() as User | undefined
   if (existing) {
@@ -100,8 +133,7 @@ app.post('/api/auth/register', (req, res) => {
     createdAt: new Date().toISOString()
   }
   db.get('users').push(user).write()
-  const { password: _, ...userWithoutPassword } = user
-  res.json({ user: userWithoutPassword, token: user.id })
+  res.json({ user: sanitizeUser(user), token: user.id })
 })
 
 app.post('/api/auth/login', (req, res) => {
@@ -113,8 +145,7 @@ app.post('/api/auth/login', (req, res) => {
   if (!user) {
     return res.status(400).json({ message: '用户名或密码错误' })
   }
-  const { password: _, ...userWithoutPassword } = user
-  res.json({ user: userWithoutPassword, token: user.id })
+  res.json({ user: sanitizeUser(user), token: user.id })
 })
 
 app.get('/api/auth/me', (req, res) => {
@@ -126,8 +157,14 @@ app.get('/api/auth/me', (req, res) => {
   if (!user) {
     return res.status(401).json({ message: '用户不存在' })
   }
-  const { password: _, ...userWithoutPassword } = user
-  res.json({ user: userWithoutPassword })
+  res.json({ user: sanitizeUser(user) })
+})
+
+app.get('/api/config', (_req, res) => {
+  res.json({
+    conditions: VALID_CONDITIONS,
+    categories: VALID_CATEGORIES
+  })
 })
 
 app.post('/api/items', upload.array('photos', 3), (req, res) => {
@@ -143,20 +180,35 @@ app.post('/api/items', upload.array('photos', 3), (req, res) => {
   if (!name || !category || !condition || !city || !story) {
     return res.status(400).json({ message: '请填写完整信息' })
   }
+  if (!validateCategory(category)) {
+    return res.status(400).json({ message: `物品类别无效，可选值：${VALID_CATEGORIES.join('、')}` })
+  }
+  if (!validateCondition(condition)) {
+    return res.status(400).json({ message: `新旧程度无效，可选值：${VALID_CONDITIONS.join('、')}` })
+  }
   if (story.length < 50 || story.length > 500) {
     return res.status(400).json({ message: '故事长度需在50-500字之间' })
+  }
+  if (name.length < 2 || name.length > 50) {
+    return res.status(400).json({ message: '物品名称长度需在2-50个字符之间' })
+  }
+  if (city.length < 2 || city.length > 30) {
+    return res.status(400).json({ message: '城市名称长度需在2-30个字符之间' })
   }
   const files = req.files as Express.Multer.File[]
   if (!files || files.length === 0) {
     return res.status(400).json({ message: '请至少上传一张照片' })
+  }
+  if (files.length > 3) {
+    return res.status(400).json({ message: '最多只能上传3张照片' })
   }
   const photos = files.map(f => `/uploads/${f.filename}`)
   const item: Item = {
     id: uuidv4(),
     userId: user.id,
     name,
-    category,
-    condition,
+    category: category as CategoryType,
+    condition: condition as ConditionType,
     city,
     photos,
     story,
@@ -184,6 +236,12 @@ app.put('/api/items/:id', upload.array('photos', 3), (req, res) => {
   if (!name || !category || !condition || !city || !story) {
     return res.status(400).json({ message: '请填写完整信息' })
   }
+  if (!validateCategory(category)) {
+    return res.status(400).json({ message: `物品类别无效，可选值：${VALID_CATEGORIES.join('、')}` })
+  }
+  if (!validateCondition(condition)) {
+    return res.status(400).json({ message: `新旧程度无效，可选值：${VALID_CONDITIONS.join('、')}` })
+  }
   if (story.length < 50 || story.length > 500) {
     return res.status(400).json({ message: '故事长度需在50-500字之间' })
   }
@@ -198,8 +256,16 @@ app.put('/api/items/:id', upload.array('photos', 3), (req, res) => {
   if (photos.length === 0) {
     return res.status(400).json({ message: '请至少保留一张照片' })
   }
+  if (photos.length > 3) {
+    return res.status(400).json({ message: '最多只能保留3张照片' })
+  }
   db.get('items').find({ id: req.params.id }).assign({
-    name, category, condition, city, story, photos
+    name,
+    category: category as CategoryType,
+    condition: condition as ConditionType,
+    city,
+    story,
+    photos
   }).write()
   const updated = db.get('items').find({ id: req.params.id }).value() as Item
   res.json({ item: updated })
@@ -222,13 +288,13 @@ app.delete('/api/items/:id', (req, res) => {
   res.json({ success: true })
 })
 
-app.get('/api/items', (req, res) => {
+app.get('/api/items', (_req, res) => {
   const items = db.get('items').sortBy('createdAt').reverse().value() as Item[]
   const result = items.map(item => {
     const user = db.get('users').find({ id: item.userId }).value() as User | undefined
     return {
       ...item,
-      author: user ? { id: user.id, nickname: user.nickname, avatar: user.avatar } : null
+      author: user ? sanitizeUser(user) : null
     }
   })
   res.json({ items: result })
@@ -240,13 +306,14 @@ app.get('/api/items/:id', (req, res) => {
     return res.status(404).json({ message: '物品不存在' })
   }
   const user = db.get('users').find({ id: item.userId }).value() as User | undefined
-  const isFavorited = req.headers.authorization
-    ? !!db.get('favorites').find({ userId: req.headers.authorization.replace('Bearer ', ''), itemId: item.id }).value()
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const isFavorited = token
+    ? !!db.get('favorites').find({ userId: token, itemId: item.id }).value()
     : false
   res.json({
     item: {
       ...item,
-      author: user ? { id: user.id, nickname: user.nickname, avatar: user.avatar } : null,
+      author: user ? sanitizeUser(user) : null,
       isFavorited
     }
   })
@@ -276,14 +343,14 @@ app.get('/api/favorites', (req, res) => {
   if (!token) {
     return res.status(401).json({ message: '未登录' })
   }
-  const favorites = db.get('favorites').filter({ userId: token }).value() as Favorite[]
+  const favorites = db.get('favorites').filter({ userId: token }).sortBy('createdAt').reverse().value() as Favorite[]
   const items = favorites.map(fav => {
     const item = db.get('items').find({ id: fav.itemId }).value() as Item | undefined
     if (!item) return null
     const user = db.get('users').find({ id: item.userId }).value() as User | undefined
     return {
       ...item,
-      author: user ? { id: user.id, nickname: user.nickname, avatar: user.avatar } : null
+      author: user ? sanitizeUser(user) : null
     }
   }).filter(Boolean)
   res.json({ items })
@@ -293,6 +360,10 @@ app.post('/api/favorites/:itemId', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) {
     return res.status(401).json({ message: '未登录' })
+  }
+  const item = db.get('items').find({ id: req.params.itemId }).value() as Item | undefined
+  if (!item) {
+    return res.status(404).json({ message: '物品不存在' })
   }
   const existing = db.get('favorites').find({ userId: token, itemId: req.params.itemId }).value() as Favorite | undefined
   if (existing) {
@@ -337,11 +408,14 @@ app.post('/api/exchanges', (req, res) => {
   if (fromItem.userId === toItem.userId) {
     return res.status(400).json({ message: '不能和自己交换' })
   }
+  if (fromItem.status !== 'available' || toItem.status !== 'available') {
+    return res.status(400).json({ message: '物品已被交换，无法再次交换' })
+  }
   const existing = db.get('exchanges').find({
-    fromItemId, toItemId, status: 'pending'
-  }).value() as Exchange | undefined
+    fromItemId, toItemId
+  }).filter((e: Exchange) => ['pending', 'exchanging'].includes(e.status)).value() as Exchange | undefined
   if (existing) {
-    return res.status(400).json({ message: '已存在待确认的交换请求' })
+    return res.status(400).json({ message: '已存在进行中的交换请求' })
   }
   const exchange: Exchange = {
     id: uuidv4(),
@@ -363,7 +437,7 @@ app.get('/api/exchanges', (req, res) => {
     return res.status(401).json({ message: '未登录' })
   }
   const exchanges = db.get('exchanges')
-    .filter(e => e.fromUserId === token || e.toUserId === token)
+    .filter((e: Exchange) => e.fromUserId === token || e.toUserId === token)
     .sortBy('createdAt')
     .reverse()
     .value() as Exchange[]
@@ -376,8 +450,8 @@ app.get('/api/exchanges', (req, res) => {
       ...ex,
       fromItem: fromItem || null,
       toItem: toItem || null,
-      fromUser: fromUser ? { id: fromUser.id, nickname: fromUser.nickname } : null,
-      toUser: toUser ? { id: toUser.id, nickname: toUser.nickname } : null
+      fromUser: fromUser ? sanitizeUser(fromUser) : null,
+      toUser: toUser ? sanitizeUser(toUser) : null
     }
   })
   res.json({ exchanges: result })
@@ -389,18 +463,21 @@ app.put('/api/exchanges/:id', (req, res) => {
     return res.status(401).json({ message: '未登录' })
   }
   const { status } = req.body
+  if (!['exchanging', 'completed', 'rejected'].includes(status)) {
+    return res.status(400).json({ message: '状态值无效' })
+  }
   const exchange = db.get('exchanges').find({ id: req.params.id }).value() as Exchange | undefined
   if (!exchange) {
     return res.status(404).json({ message: '交换记录不存在' })
   }
   if (status === 'exchanging' && exchange.toUserId !== token) {
-    return res.status(403).json({ message: '无权限操作' })
+    return res.status(403).json({ message: '只有接收方可以确认交换' })
   }
   if (status === 'completed' && exchange.fromUserId !== token) {
-    return res.status(403).json({ message: '无权限操作' })
+    return res.status(403).json({ message: '只有发起方可以标记完成' })
   }
   if (status === 'rejected' && exchange.toUserId !== token) {
-    return res.status(403).json({ message: '无权限操作' })
+    return res.status(403).json({ message: '只有接收方可以拒绝交换' })
   }
   db.get('exchanges').find({ id: req.params.id }).assign({
     status,
@@ -414,6 +491,12 @@ app.put('/api/exchanges/:id', (req, res) => {
   res.json({ exchange: updated })
 })
 
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`[Server] Family Swap Stories API running on http://localhost:${PORT}`)
+  console.log(`[Server] Database: ${dbPath}`)
+  console.log(`[Server] Uploads: ${uploadsDir}`)
 })
