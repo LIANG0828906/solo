@@ -5,7 +5,7 @@
     </div>
     
     <div class="code-container" :style="{ backgroundColor: themeConfig.bgColor }">
-      <div class="line-numbers" :style="{ backgroundColor: themeConfig.lineNumBg, color: themeConfig.lineNumColor }">
+      <div class="line-numbers" :style="{ backgroundColor: themeConfig.lineNumberBg, color: themeConfig.lineNumberColor }">
         <span v-for="n in lineCount" :key="n" class="line-num">{{ n }}</span>
       </div>
       <pre class="code-block" :style="{ backgroundColor: themeConfig.bgColor, color: themeConfig.textColor }">
@@ -163,6 +163,7 @@ function hideTooltipHandler() {
   bottom: 12px;
   right: 12px;
   z-index: 15;
+  display: inline-block;
 }
 
 .copy-btn {

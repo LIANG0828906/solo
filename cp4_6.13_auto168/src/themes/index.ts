@@ -5,6 +5,8 @@ export interface ThemeConfig {
   textColor: string
   lineNumBg: string
   lineNumColor: string
+  lineNumberBg: string
+  lineNumberColor: string
 }
 
 export const themesConfig: ThemeConfig[] = [
@@ -14,7 +16,9 @@ export const themesConfig: ThemeConfig[] = [
     bgColor: '#ffffff',
     textColor: '#24292e',
     lineNumBg: '#eaeef2',
-    lineNumColor: '#6a737d'
+    lineNumColor: '#6a737d',
+    lineNumberBg: '#eaeef2',
+    lineNumberColor: '#6a737d'
   },
   {
     name: 'Dark',
@@ -22,7 +26,9 @@ export const themesConfig: ThemeConfig[] = [
     bgColor: '#24292e',
     textColor: '#e1e4e8',
     lineNumBg: '#14181c',
-    lineNumColor: '#8b949e'
+    lineNumColor: '#8b949e',
+    lineNumberBg: '#14181c',
+    lineNumberColor: '#8b949e'
   },
   {
     name: 'Monokai',
@@ -30,7 +36,9 @@ export const themesConfig: ThemeConfig[] = [
     bgColor: '#272822',
     textColor: '#f8f8f2',
     lineNumBg: '#171815',
-    lineNumColor: '#90908a'
+    lineNumColor: '#90908a',
+    lineNumberBg: '#171815',
+    lineNumberColor: '#90908a'
   },
   {
     name: 'Dracula',
@@ -38,7 +46,9 @@ export const themesConfig: ThemeConfig[] = [
     bgColor: '#282a36',
     textColor: '#f8f8f2',
     lineNumBg: '#1a1b23',
-    lineNumColor: '#6272a4'
+    lineNumColor: '#6272a4',
+    lineNumberBg: '#1a1b23',
+    lineNumberColor: '#6272a4'
   },
   {
     name: 'GitHub',
@@ -46,6 +56,8 @@ export const themesConfig: ThemeConfig[] = [
     bgColor: '#ffffff',
     textColor: '#24292e',
     lineNumBg: '#eaeef2',
-    lineNumColor: '#6a737d'
+    lineNumColor: '#6a737d',
+    lineNumberBg: '#eaeef2',
+    lineNumberColor: '#6a737d'
   }
 ]

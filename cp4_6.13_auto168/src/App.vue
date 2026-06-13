@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import CodeCard from './components/CodeCard.vue'
 import html2canvas from 'html2canvas'
 import hljs from 'highlight.js/lib/core'
@@ -211,6 +211,16 @@ async function captureScreenshot() {
 
 onMounted(() => {
   generateComparison()
+})
+
+watch(isCapturing, (newVal) => {
+  if (newVal) {
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+  } else {
+    document.body.style.overflow = ''
+    document.body.style.touchAction = ''
+  }
 })
 </script>
 
@@ -407,7 +417,8 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
+  pointer-events: auto;
   animation: fadeIn 0.5s ease;
 }
 
