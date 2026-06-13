@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { History, ChevronDown, ChevronUp, RotateCcw, Clock, X } from 'lucide-react';
 import type { Version } from '../hooks/useDocumentSocket';
 
@@ -32,15 +32,32 @@ function VersionItem({
   isSelected,
   onSelect,
   onRestore,
+  onAfterSelect,
 }: {
   version: Version;
   isSelected: boolean;
   onSelect: () => void;
   onRestore: () => void;
+  onAfterSelect?: () => void;
 }) {
+  const handleClick = useCallback(() => {
+    onSelect();
+    if (onAfterSelect) {
+      setTimeout(onAfterSelect, 300);
+    }
+  }, [onSelect, onAfterSelect]);
+
+  const handleRestore = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRestore();
+    },
+    [onRestore],
+  );
+
   return (
     <div
-      onClick={onSelect}
+      onClick={handleClick}
       className={`p-3 rounded-lg cursor-pointer transition-all duration-200 border ${
         isSelected
           ? 'bg-blue-500/15 border-blue-500/40 shadow-md'
@@ -58,10 +75,7 @@ function VersionItem({
       {isSelected && (
         <div className="mt-2 pt-2 border-t border-slate-700/50">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore();
-            }}
+            onClick={handleRestore}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-blue-400 border border-blue-500/40 rounded-md hover:bg-blue-500/20 hover:border-blue-500/60 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -81,7 +95,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const versionListContent = (
+  const handleMobileSelect = useCallback(
+    (versionId: string | null) => {
+      onSelectVersion(versionId);
+    },
+    [onSelectVersion],
+  );
+
+  const closeMobileMenu = useCallback(() => {
+    setMobileOpen(false);
+  }, []);
+
+  const versionListContent = (isMobile: boolean, onAfterSelect?: () => void) => (
     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
       {versions.length === 0 ? (
         <div className="text-center text-slate-500 py-8 text-sm">
@@ -95,9 +120,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             version={version}
             isSelected={selectedVersionId === version.id}
             onSelect={() =>
-              onSelectVersion(selectedVersionId === version.id ? null : version.id)
+              isMobile
+                ? handleMobileSelect(
+                    selectedVersionId === version.id ? null : version.id,
+                  )
+                : onSelectVersion(selectedVersionId === version.id ? null : version.id)
             }
             onRestore={() => onRestoreVersion(version.id)}
+            onAfterSelect={onAfterSelect}
           />
         ))
       )}
@@ -114,7 +144,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             {versions.length}
           </span>
         </div>
-        {versionListContent}
+        {versionListContent(false)}
       </aside>
 
       <div className="md:hidden">
@@ -152,13 +182,13 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 {selectedVersionId ? '点击其他版本切换预览' : '点击版本查看内容'}
               </span>
               <button
-                onClick={() => setMobileOpen(false)}
+                onClick={closeMobileMenu}
                 className="p-1 text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {versionListContent}
+            {versionListContent(true, closeMobileMenu)}
           </div>
         )}
       </div>

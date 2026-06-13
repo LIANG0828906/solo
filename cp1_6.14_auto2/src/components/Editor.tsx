@@ -50,17 +50,29 @@ export const Editor: React.FC<EditorProps> = ({
   onSave,
 }) => {
   const quillRef = useRef<ReactQuill | null>(null);
-  const [isLocalChange, setIsLocalChange] = useState(false);
+  const isLocalChangeRef = useRef(false);
   const [showSaveHint, setShowSaveHint] = useState(false);
+  const lastContentRef = useRef(content);
 
   useEffect(() => {
     if (!quillRef.current) return;
     const editor = quillRef.current.getEditor();
     if (!editor) return;
 
-    if (!isLocalChange) {
+    editor.enable(!readOnly);
+  }, [readOnly]);
+
+  useEffect(() => {
+    if (!quillRef.current) return;
+    const editor = quillRef.current.getEditor();
+    if (!editor) return;
+
+    if (!isLocalChangeRef.current && content !== lastContentRef.current) {
       const currentSelection = editor.getSelection();
-      editor.setContents(editor.clipboard.convert(content));
+      const delta = editor.clipboard.convert(content);
+      editor.setContents(delta, 'silent');
+      lastContentRef.current = content;
+
       if (currentSelection && !readOnly) {
         try {
           editor.setSelection(currentSelection);
@@ -68,13 +80,18 @@ export const Editor: React.FC<EditorProps> = ({
         }
       }
     }
-    setIsLocalChange(false);
+    isLocalChangeRef.current = false;
   }, [content, readOnly]);
 
   const handleChange = useCallback(
-    (value: string) => {
+    (value: string, _delta: unknown, _source: unknown, editor: unknown) => {
       if (readOnly) return;
-      setIsLocalChange(true);
+
+      const quillEditor = editor as { getSelection: () => unknown };
+      if (!quillEditor || !quillEditor.getSelection) return;
+
+      isLocalChangeRef.current = true;
+      lastContentRef.current = value;
       onChange(value);
     },
     [onChange, readOnly],
@@ -148,6 +165,7 @@ export const Editor: React.FC<EditorProps> = ({
             formats={formats}
             readOnly={readOnly}
             className="h-full flex flex-col"
+            preserveWhitespace
           />
         </div>
       </div>
