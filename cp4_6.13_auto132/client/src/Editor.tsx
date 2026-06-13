@@ -82,6 +82,7 @@ export default function Editor({
     mouseX: number;
     mouseY: number;
   } | null>(null);
+  const [pulseTrigger, setPulseTrigger] = useState(0);
 
   const dragRef = useRef<{
     nodeId: string;
@@ -106,6 +107,12 @@ export default function Editor({
       return changed ? next : prev;
     });
   }, [nodes]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      setPulseTrigger((t) => t + 1);
+    }
+  }, [bpm, isPlaying]);
 
   const getSVGCoords = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
@@ -201,7 +208,7 @@ export default function Editor({
 
       const handleMouseMove = (ev: MouseEvent) => {
         const c = getSVGCoords(ev);
-        setConnDrag((prev) => (prev ? { ...prev, mouseX: c.x, mouseY: c.y } : null));
+        setConnDrag((prev) => (prev ? { ...prev, mouseX: c.x, mouseY: c.y } : null);
       };
 
       const handleMouseUp = (ev: MouseEvent) => {
@@ -292,6 +299,8 @@ export default function Editor({
   const editingPos = editingNodeId ? nodePositions[editingNodeId] : null;
   const bpmDuration = 60 / bpm;
 
+  const getGradientId = (connId: string) => `grad-${connId}`;
+
   return (
     <div
       style={{ width: '100%', height: '100%', position: 'relative' }}
@@ -299,7 +308,7 @@ export default function Editor({
       onDrop={handleDrop}
       onClick={handleCanvasClick}
     >
-      <style>{`
+      <style key={`pulse-style-${pulseTrigger}`}>{`
         @keyframes pulse-ring {
           0% { r: ${NODE_RADIUS}; opacity: 0.8; }
           100% { r: 65; opacity: 0; }
@@ -311,11 +320,29 @@ export default function Editor({
           transition: stroke 0.15s, stroke-width 0.15s;
         }
         .connection-line:hover {
-          stroke: white;
+          stroke: white !important;
           stroke-width: 4px;
         }
       `}</style>
       <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block' }}>
+        <defs>
+          {connections.map((conn) => {
+            const color = NODE_COLORS[nodes.find((n) => n.id === conn.fromNodeId)?.type || 'oscillator'];
+            return (
+              <linearGradient
+                key={getGradientId(conn.id)}
+                id={getGradientId(conn.id)}
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+              >
+                <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+              </linearGradient>
+            );
+          })}
+        </defs>
         {connections.map((conn) => {
           const fromPos = nodePositions[conn.fromNodeId];
           const toPos = nodePositions[conn.toNodeId];
@@ -324,15 +351,15 @@ export default function Editor({
           const y1 = fromPos.y;
           const x2 = toPos.x - NODE_RADIUS;
           const y2 = toPos.y;
+          const color = NODE_COLORS[nodes.find((n) => n.id === conn.fromNodeId)?.type || 'oscillator'];
           return (
             <path
               key={conn.id}
               d={buildBezierPath(x1, y1, x2, y2)}
               fill="none"
-              stroke={NODE_COLORS[nodes.find((n) => n.id === conn.fromNodeId)?.type || 'oscillator']}
+              stroke={`url(#${getGradientId(conn.id)})`}
               strokeWidth={2}
               className="connection-line"
-              opacity={isPlaying ? 0.8 : 0.3}
               onContextMenu={(e) => handleContextMenu(e, 'connection', conn.id)}
               style={{ cursor: 'pointer' }}
             />
@@ -354,10 +381,11 @@ export default function Editor({
         {nodes.map((node) => {
           const pos = nodePositions[node.id];
           if (!pos) return null;
-          const isActive = isPlaying && activeNodeIds.includes(node.id);
+          const showPulse = isPlaying;
           return (
             <g
               key={node.id}
+              className="canvas-node"
               style={{
                 cursor: 'grab',
                 transition: dragRef.current?.nodeId === node.id ? 'none' : 'all 0.15s ease-out',
@@ -366,8 +394,9 @@ export default function Editor({
               onDoubleClick={(e) => handleNodeDoubleClick(e, node.id)}
               onContextMenu={(e) => handleContextMenu(e, 'node', node.id)}
             >
-              {isActive && (
+              {showPulse && (
                 <circle
+                  key={`pulse-${node.id}-${pulseTrigger}`}
                   cx={pos.x}
                   cy={pos.y}
                   r={NODE_RADIUS}
@@ -381,20 +410,17 @@ export default function Editor({
                 cx={pos.x}
                 cy={pos.y}
                 r={NODE_RADIUS}
+                className="node-circle"
                 fill={NODE_COLORS[node.type]}
-                stroke={isActive ? 'white' : 'none'}
-                strokeWidth={isActive ? 2 : 0}
+                stroke={isPlaying && activeNodeIds.includes(node.id) ? 'white' : 'none'}
+                strokeWidth={isPlaying && activeNodeIds.includes(node.id) ? 2 : 0}
               />
               <text
                 x={pos.x}
                 y={pos.y}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill="white"
-                fontSize={12}
-                fontWeight="bold"
-                pointerEvents="none"
-                style={{ userSelect: 'none' }}
+                className="node-label"
               >
                 {NODE_LABELS[node.type]}
               </text>
@@ -402,20 +428,14 @@ export default function Editor({
                 cx={pos.x + NODE_RADIUS}
                 cy={pos.y}
                 r={8}
-                fill="white"
-                stroke={NODE_COLORS[node.type]}
-                strokeWidth={2}
-                style={{ cursor: 'crosshair' }}
+                className="node-port output"
                 onMouseDown={(e) => handleOutputPortMouseDown(e, node.id)}
               />
               <circle
                 cx={pos.x - NODE_RADIUS}
                 cy={pos.y}
                 r={8}
-                fill="white"
-                stroke={NODE_COLORS[node.type]}
-                strokeWidth={2}
-                style={{ cursor: 'crosshair' }}
+                className="node-port"
               />
             </g>
           );
@@ -461,72 +481,35 @@ export default function Editor({
       )}
 
       {editingNode && editingPos && (
-        <div
-          style={{
-            position: 'absolute',
-            left: Math.min(editingPos.x + NODE_RADIUS + 16, (svgRef.current?.clientWidth || 800) - 260),
-            top: Math.max(editingPos.y - 80, 8),
-            width: 240,
-            background: 'rgba(20, 20, 35, 0.75)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.15)',
-            padding: 16,
-            color: 'white',
-            fontSize: 13,
-            zIndex: 100,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontWeight: 'bold', fontSize: 15, color: NODE_COLORS[editingNode.type] }}>
+        <div className="property-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="panel-header">
+            <div className="panel-title" style={{ color: NODE_COLORS[editingNode.type] }}>
               {NODE_LABELS[editingNode.type]}
-            </span>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {editingNode.lastEditor && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    background: 'rgba(255,255,255,0.15)',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    color: 'rgba(255,255,255,0.7)',
-                  }}
-                >
+                <span className="panel-editor-tag">
                   {editingNode.lastEditor}
                 </span>
               )}
-              <span
-                style={{ cursor: 'pointer', fontSize: 16, lineHeight: 1, color: 'rgba(255,255,255,0.6)' }}
-                onClick={() => setEditingNodeId(null)}
-              >
-                ✕
-              </span>
             </div>
           </div>
+          <button className="panel-close" onClick={() => setEditingNodeId(null)}>
+            ×
+          </button>
           {(PARAM_CONFIGS[editingNode.type] || []).map((cfg) => {
             if (cfg.key === 'waveform') {
               return (
-                <div key={cfg.key} style={{ marginBottom: 10 }}>
-                  <div style={{ marginBottom: 4, color: 'rgba(255,255,255,0.7)' }}>{cfg.label}</div>
+                <div key={cfg.key} className="property-row">
+                  <label className="property-label">{cfg.label}</label>
                   <select
+                    className="property-select"
                     value={editingNode.params.waveform || 'sine'}
                     onChange={(e) => {
                       onUpdateParams(editingNode.id, {
                         ...editingNode.params,
                         waveform: e.target.value as NodeParams['waveform'],
                       });
-                    }}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: 4,
-                      color: 'white',
-                      padding: '4px 8px',
-                      fontSize: 12,
                     }}
                   >
                     {WAVEFORM_OPTIONS.map((opt) => (
@@ -540,12 +523,13 @@ export default function Editor({
             }
             const val = (editingNode.params[cfg.key] as number) ?? cfg.min;
             return (
-              <div key={cfg.key} style={{ marginBottom: 10 }}>
-                <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.7)' }}>{cfg.label}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.9)' }}>{val}</span>
-                </div>
+              <div key={cfg.key} className="property-row">
+                <label className="property-label">
+                  {cfg.label}
+                  <span className="property-value">{val}</span>
+                </label>
                 <input
+                  className="property-slider"
                   type="range"
                   min={cfg.min}
                   max={cfg.max}
@@ -557,7 +541,6 @@ export default function Editor({
                       [cfg.key]: parseFloat(e.target.value),
                     });
                   }}
-                  style={{ width: '100%' }}
                 />
               </div>
             );

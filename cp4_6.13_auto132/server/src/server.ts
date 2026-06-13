@@ -2,13 +2,23 @@ import express from 'express';
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { RoomManager } from './RoomManager';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DATA_DIR = path.join(__dirname, '..', 'data');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 const roomManager = new RoomManager();
-const savedStates: Map<string, any> = new Map();
 const userRoomMap: Map<string, string> = new Map();
 
 app.use(express.json());
@@ -23,21 +33,41 @@ app.use((_req, res, next) => {
   next();
 });
 
+const getSaveFilePath = (roomCode: string) => path.join(DATA_DIR, `${roomCode}.json`);
+
 app.post('/api/save', (req, res) => {
   const { roomCode, nodes, connections } = req.body;
   if (!roomCode) {
     return res.status(400).json({ error: 'roomCode is required' });
   }
-  savedStates.set(roomCode, { nodes: nodes || [], connections: connections || [] });
-  res.json({ success: true });
+  const state = {
+    roomCode,
+    nodes: nodes || [],
+    connections: connections || [],
+    savedAt: Date.now()
+  };
+  const filePath = getSaveFilePath(roomCode);
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(state, null, 2));
+    res.json({ success: true, savedAt: state.savedAt });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save' });
+  }
 });
 
 app.get('/api/load/:roomCode', (req, res) => {
-  const state = savedStates.get(req.params.roomCode);
-  if (!state) {
+  const roomCode = req.params.roomCode;
+  const filePath = getSaveFilePath(roomCode);
+  if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Room state not found' });
   }
-  res.json(state);
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    const state = JSON.parse(data);
+    res.json(state);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load' });
+  }
 });
 
 wss.on('connection', (ws: WebSocket) => {
@@ -134,8 +164,6 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('close', () => {
     const roomCode = userRoomMap.get(userId);
     if (roomCode) {
-      const users = roomManager.getRoomUsers(roomCode);
-      const user = users.find(u => u.id === userId);
       roomManager.leaveRoom(roomCode, userId);
       userRoomMap.delete(userId);
       roomManager.broadcastToRoom(roomCode, {
@@ -148,4 +176,5 @@ wss.on('connection', (ws: WebSocket) => {
 
 server.listen(3001, () => {
   console.log('Server running on port 3001');
+  console.log(`Data directory: ${DATA_DIR}`);
 });

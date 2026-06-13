@@ -34,6 +34,16 @@ export class RoomManager {
     return code;
   }
 
+  createRoomWithCode(roomCode: string): string {
+    if (!this.rooms.has(roomCode)) {
+      this.rooms.set(roomCode, {
+        users: new Map(),
+        state: { nodes: [], connections: [] }
+      });
+    }
+    return roomCode;
+  }
+
   joinRoom(roomCode: string, userId: string, userName: string, ws: any): boolean {
     const room = this.rooms.get(roomCode);
     if (!room) return false;

@@ -14,6 +14,8 @@ import {
 } from './types';
 
 const NODE_TYPES: NodeType[] = ['oscillator', 'player', 'gain', 'reverb', 'delay', 'output'];
+const HEARTBEAT_INTERVAL = 15000;
+const HEARTBEAT_TIMEOUT = 5000;
 
 export default function App() {
   const [nodes, setNodes] = useState<AudioNodeData[]>([]);
@@ -35,7 +37,8 @@ export default function App() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(1000);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatActiveRef = useRef(false);
   const audioEngineRef = useRef(new AudioEngine());
   const pulseCounterRef = useRef(0);
 
@@ -46,29 +49,45 @@ export default function App() {
   }, []);
 
   const clearHeartbeat = useCallback(() => {
+    heartbeatActiveRef.current = false;
     if (heartbeatTimerRef.current) {
       clearInterval(heartbeatTimerRef.current);
       heartbeatTimerRef.current = null;
     }
-    if (pongTimeoutRef.current) {
-      clearTimeout(pongTimeoutRef.current);
-      pongTimeoutRef.current = null;
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+      heartbeatTimeoutRef.current = null;
     }
   }, []);
 
   const startHeartbeat = useCallback(() => {
     clearHeartbeat();
-    heartbeatTimerRef.current = setInterval(() => {
+    heartbeatActiveRef.current = true;
+
+    const sendPing = () => {
+      if (!heartbeatActiveRef.current) return;
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'ping' }));
-        pongTimeoutRef.current = setTimeout(() => {
-          if (wsRef.current) {
+
+        heartbeatTimeoutRef.current = setTimeout(() => {
+          if (heartbeatActiveRef.current && wsRef.current) {
+            console.warn('Heartbeat timeout, closing connection');
             wsRef.current.close();
           }
-        }, 5000);
+        }, HEARTBEAT_TIMEOUT);
       }
-    }, 30000);
+    };
+
+    sendPing();
+    heartbeatTimerRef.current = setInterval(sendPing, HEARTBEAT_INTERVAL);
   }, [clearHeartbeat]);
+
+  const handlePong = useCallback(() => {
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+      heartbeatTimeoutRef.current = null;
+    }
+  }, []);
 
   const connectWs = useCallback(() => {
     if (wsRef.current) {
@@ -109,10 +128,7 @@ export default function App() {
       }
 
       if (data.type === 'pong') {
-        if (pongTimeoutRef.current) {
-          clearTimeout(pongTimeoutRef.current);
-          pongTimeoutRef.current = null;
-        }
+        handlePong();
         return;
       }
 
@@ -185,7 +201,7 @@ export default function App() {
         }
       }
     };
-  }, [startHeartbeat, clearHeartbeat]);
+  }, [startHeartbeat, clearHeartbeat, handlePong]);
 
   useEffect(() => {
     connectWs();
@@ -369,6 +385,7 @@ export default function App() {
     <div className="app-container">
       <div className="editor-container">
         <div className="toolbox">
+          <div className="toolbox-title">工具箱</div>
           {NODE_TYPES.map((nt) => (
             <div
               key={nt}
@@ -402,7 +419,7 @@ export default function App() {
 
         <div className="room-info">
           <span className="room-code">{roomCode}</span>
-          <span className="room-users">{users.length} 在线</span>
+          <span className="room-users">{users.length}/4 在线</span>
           <div
             className="connection-status"
             style={{ background: wsConnected ? '#1A936F' : '#D81159' }}
