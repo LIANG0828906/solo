@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ResourceType, BuildingType, RESOURCE_COLORS, RESOURCE_NAMES, BUILDING_COSTS, BUILDING_NAMES, ResourceEvent } from '../types'
+import { ResourceType, BuildingType, RESOURCE_COLORS, RESOURCE_NAMES, BUILDING_COSTS, BUILDING_NAMES } from '../types'
 import { resourceManager, ResourceMap } from './resource-manager'
+import { CollectEvent } from '../App'
 
 interface Particle {
   id: number
@@ -22,6 +23,8 @@ interface PendingAnimation {
 interface ResourceUIProps {
   onBuild: (type: BuildingType) => boolean
   chunkAnimKey: number
+  collectEvents: CollectEvent[]
+  onCollectEventConsumed: (timestamp: number) => void
 }
 
 const ResourceIcon: React.FC<{ type: ResourceType; size?: number }> = ({ type, size = 24 }) => {
@@ -62,11 +65,11 @@ const ResourceIcon: React.FC<{ type: ResourceType; size?: number }> = ({ type, s
 const AnimatedNumber: React.FC<{ value: number; color: string; pendingAnim?: PendingAnimation }> = ({ value, color, pendingAnim }) => {
   const [displayValue, setDisplayValue] = useState(value)
   const animRef = useRef<number | null>(null)
-  const lastAnimProcessed = useRef<number>(0)
+  const lastAnimTimestamp = useRef<number>(0)
 
   useEffect(() => {
-    if (pendingAnim && pendingAnim.startTime > lastAnimProcessed.current) {
-      lastAnimProcessed.current = pendingAnim.startTime
+    if (pendingAnim && pendingAnim.startTime > lastAnimTimestamp.current) {
+      lastAnimTimestamp.current = pendingAnim.startTime
 
       if (animRef.current) {
         cancelAnimationFrame(animRef.current)
@@ -114,7 +117,7 @@ const AnimatedNumber: React.FC<{ value: number; color: string; pendingAnim?: Pen
   )
 }
 
-export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey }) => {
+export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey, collectEvents, onCollectEventConsumed }) => {
   const [resources, setResources] = useState<ResourceMap>(resourceManager.getResources())
   const [particles, setParticles] = useState<Particle[]>([])
   const [slideAnim, setSlideAnim] = useState(false)
@@ -126,6 +129,7 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
   const resourceRefs = useRef<Record<ResourceType, HTMLDivElement | null>>({
     wood: null, stone: null, metal: null, food: null
   })
+  const processedTimestamps = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     setSlideAnim(true)
@@ -134,34 +138,43 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
   }, [chunkAnimKey])
 
   useEffect(() => {
-    const unsubscribe = resourceManager.addListener((event: ResourceEvent) => {
+    const unsubscribe = resourceManager.addListener(() => {
       setResources(resourceManager.getResources())
-
-      if (event.type === 'collect') {
-        const animStartTime = performance.now()
-
-        setPendingAnims((prev) => ({
-          ...prev,
-          [event.resource]: {
-            resource: event.resource,
-            from: event.previousValue,
-            to: event.currentValue,
-            startTime: animStartTime
-          }
-        }))
-
-        spawnCollectParticles(event.resource, animStartTime)
-
-        setTimeout(() => {
-          setPendingAnims((prev) => ({
-            ...prev,
-            [event.resource]: undefined
-          }))
-        }, 400)
-      }
     })
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    for (const event of collectEvents) {
+      if (processedTimestamps.current.has(event.timestamp)) continue
+      processedTimestamps.current.add(event.timestamp)
+
+      setPendingAnims((prev) => ({
+        ...prev,
+        [event.resourceType]: {
+          resource: event.resourceType,
+          from: event.from,
+          to: event.to,
+          startTime: event.timestamp
+        }
+      }))
+
+      spawnCollectParticles(event.resourceType, event.timestamp)
+
+      const ts = event.timestamp
+      setTimeout(() => {
+        setPendingAnims((prev) => {
+          const current = prev[event.resourceType]
+          if (current && current.startTime === ts) {
+            return { ...prev, [event.resourceType]: undefined }
+          }
+          return prev
+        })
+        processedTimestamps.current.delete(ts)
+        onCollectEventConsumed(ts)
+      }, 500)
+    }
+  }, [collectEvents])
 
   const spawnCollectParticles = useCallback((resourceType: ResourceType, startTime: number) => {
     const targetEl = resourceRefs.current[resourceType]
@@ -220,7 +233,7 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
       }
       requestAnimationFrame(animate)
     }, startDelay)
-  }, [])
+  }, [onCollectEventConsumed])
 
   const handleBuild = useCallback((type: BuildingType) => {
     setPressedButton(type)

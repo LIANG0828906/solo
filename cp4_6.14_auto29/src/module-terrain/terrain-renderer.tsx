@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TerrainData, ResourcePoint, Building, RESOURCE_COLORS, ResourceType, BuildingType } from '../types'
+import { CollectEvent } from '../App'
 
 interface TerrainMeshProps {
   terrainData: TerrainData
@@ -10,6 +11,8 @@ interface TerrainMeshProps {
 
 function TerrainMesh({ terrainData, opacity }: TerrainMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null)
+
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.Float32BufferAttribute(terrainData.vertices, 3))
@@ -19,9 +22,16 @@ function TerrainMesh({ terrainData, opacity }: TerrainMeshProps) {
     return geo
   }, [terrainData])
 
+  useEffect(() => {
+    if (materialRef.current) {
+      materialRef.current.opacity = opacity
+    }
+  }, [opacity])
+
   return (
     <mesh ref={meshRef} geometry={geometry} receiveShadow>
       <meshStandardMaterial
+        ref={materialRef}
         color="#4a7c59"
         side={THREE.DoubleSide}
         flatShading={false}
@@ -35,13 +45,15 @@ function TerrainMesh({ terrainData, opacity }: TerrainMeshProps) {
 interface ResourceMeshProps {
   point: ResourcePoint
   onClick: (point: ResourcePoint) => void
+  collectTimestamp: number | null
 }
 
-function ResourceMesh({ point, onClick }: ResourceMeshProps) {
+function ResourceMesh({ point, onClick, collectTimestamp }: ResourceMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [scale, setScale] = useState(1)
   const [visible, setVisible] = useState(true)
   const animating = useRef(false)
+  const collectAnimStart = useRef<number | null>(null)
 
   useFrame((_, delta) => {
     if (meshRef.current && visible && !animating.current) {
@@ -50,24 +62,30 @@ function ResourceMesh({ point, onClick }: ResourceMeshProps) {
   })
 
   useEffect(() => {
-    if (point.collected && visible && !animating.current) {
+    if (collectTimestamp && visible && !animating.current) {
       animating.current = true
-      let start = 0
-      const animate = (t: number) => {
-        if (!start) start = t
-        const progress = Math.min((t - start) / 300, 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        setScale(1 - eased * 0.8)
-        if (progress < 1) {
-          requestAnimationFrame(animate)
-        } else {
-          setVisible(false)
-          animating.current = false
+      collectAnimStart.current = collectTimestamp
+
+      const delay = Math.max(0, collectTimestamp - performance.now())
+
+      setTimeout(() => {
+        let start = 0
+        const animate = (t: number) => {
+          if (!start) start = t
+          const progress = Math.min((t - start) / 300, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setScale(1 - eased * 0.8)
+          if (progress < 1) {
+            requestAnimationFrame(animate)
+          } else {
+            setVisible(false)
+            animating.current = false
+          }
         }
-      }
-      requestAnimationFrame(animate)
+        requestAnimationFrame(animate)
+      }, delay)
     }
-  }, [point.collected, visible])
+  }, [collectTimestamp, visible])
 
   if (!visible) return null
 
@@ -120,34 +138,36 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
   const [particlesVisible, setParticlesVisible] = useState(false)
   const particleStartTime = useRef<number>(0)
   const hasAnimated = useRef(false)
-
-  const { positions, velocities } = useMemo(() => {
-    const count = 40
-    const pos = new Float32Array(count * 3)
-    const vel = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = building.position.x
-      pos[i * 3 + 1] = building.position.y + 0.5
-      pos[i * 3 + 2] = building.position.z
-      const theta = Math.random() * Math.PI * 2
-      const phi = Math.random() * Math.PI
-      const speed = 2 + Math.random() * 3
-      vel[i * 3] = Math.sin(phi) * Math.cos(theta) * speed
-      vel[i * 3 + 1] = Math.cos(phi) * speed + 1
-      vel[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * speed
-    }
-    return { positions: pos, velocities: vel }
-  }, [building.id])
+  const particlePositions = useRef<Float32Array | null>(null)
+  const particleVelocities = useRef<Float32Array | null>(null)
 
   useEffect(() => {
     if (isNew && !hasAnimated.current) {
       hasAnimated.current = true
+
+      const count = 40
+      const pos = new Float32Array(count * 3)
+      const vel = new Float32Array(count * 3)
+      for (let i = 0; i < count; i++) {
+        pos[i * 3] = 0
+        pos[i * 3 + 1] = 0.5
+        pos[i * 3 + 2] = 0
+        const theta = Math.random() * Math.PI * 2
+        const phi = Math.random() * Math.PI
+        const speed = 2 + Math.random() * 3
+        vel[i * 3] = Math.sin(phi) * Math.cos(theta) * speed
+        vel[i * 3 + 1] = Math.cos(phi) * speed + 1
+        vel[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * speed
+      }
+      particlePositions.current = pos
+      particleVelocities.current = vel
+
       setParticlesVisible(true)
     }
   }, [isNew])
 
   useFrame((state, delta) => {
-    if (particlesRef.current && particlesVisible) {
+    if (particlesRef.current && particlesVisible && particlePositions.current && particleVelocities.current) {
       if (!particleStartTime.current) {
         particleStartTime.current = state.clock.elapsedTime
       }
@@ -156,20 +176,35 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
         setParticlesVisible(false)
         return
       }
-      const posAttr = particlesRef.current.geometry.getAttribute('position') as THREE.BufferAttribute
-      const posArray = posAttr.array as Float32Array
+      const posArray = particlePositions.current
+      const velArray = particleVelocities.current
       const alpha = 1 - elapsed / 1.5
+
+      const posAttr = particlesRef.current.geometry.getAttribute('position') as THREE.BufferAttribute
+      const posAttrArray = posAttr.array as Float32Array
+
       for (let i = 0; i < 40; i++) {
-        posArray[i * 3] += velocities[i * 3] * delta
-        posArray[i * 3 + 1] += velocities[i * 3 + 1] * delta
-        posArray[i * 3 + 2] += velocities[i * 3 + 2] * delta
-        velocities[i * 3 + 1] -= 3 * delta
+        posAttrArray[i * 3] = posArray[i * 3] + velArray[i * 3] * elapsed
+        posAttrArray[i * 3 + 1] = posArray[i * 3 + 1] + velArray[i * 3 + 1] * elapsed - 1.5 * elapsed * elapsed
+        posAttrArray[i * 3 + 2] = posArray[i * 3 + 2] + velArray[i * 3 + 2] * elapsed
       }
       posAttr.needsUpdate = true
+
       const material = particlesRef.current.material as THREE.PointsMaterial
       material.opacity = alpha
+      material.size = 0.15 * (1 + elapsed * 0.5)
     }
   })
+
+  const particleInitPositions = useMemo(() => {
+    const pos = new Float32Array(40 * 3)
+    for (let i = 0; i < 40; i++) {
+      pos[i * 3] = 0
+      pos[i * 3 + 1] = 0.5
+      pos[i * 3 + 2] = 0
+    }
+    return pos
+  }, [])
 
   const renderBuilding = (type: BuildingType) => {
     switch (type) {
@@ -331,7 +366,7 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
             <bufferAttribute
               attach="attributes-position"
               count={40}
-              array={positions}
+              array={particleInitPositions}
               itemSize={3}
             />
           </bufferGeometry>
@@ -431,6 +466,41 @@ interface TerrainRendererProps {
   newBuildingIds: Set<string>
   onCollectResource: (point: ResourcePoint) => void
   transitionOpacity: number
+  collectEvents: CollectEvent[]
+  onCollectEventConsumed: (timestamp: number) => void
+}
+
+function ResourcePointWrapper({
+  point,
+  onClick,
+  collectEvents,
+  onCollectEventConsumed
+}: {
+  point: ResourcePoint
+  onClick: (point: ResourcePoint) => void
+  collectEvents: CollectEvent[]
+  onCollectEventConsumed: (timestamp: number) => void
+}) {
+  const matchedEvent = collectEvents.find(
+    (e) => e.resourceType === point.type && e.timestamp > performance.now() - 1000
+  )
+  const collectTimestamp = point.collected && matchedEvent ? matchedEvent.timestamp : null
+
+  useEffect(() => {
+    if (collectTimestamp) {
+      setTimeout(() => {
+        onCollectEventConsumed(collectTimestamp)
+      }, 500)
+    }
+  }, [collectTimestamp, onCollectEventConsumed])
+
+  return (
+    <ResourceMesh
+      point={point}
+      onClick={onClick}
+      collectTimestamp={collectTimestamp}
+    />
+  )
 }
 
 export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
@@ -440,7 +510,9 @@ export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
   buildings,
   newBuildingIds,
   onCollectResource,
-  transitionOpacity
+  transitionOpacity,
+  collectEvents,
+  onCollectEventConsumed
 }) => {
   const fadeOutOpacity = 1 - transitionOpacity
 
@@ -486,10 +558,12 @@ export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
       )}
 
       {resourcePoints.map((point) => (
-        <ResourceMesh
+        <ResourcePointWrapper
           key={point.id}
           point={point}
           onClick={onCollectResource}
+          collectEvents={collectEvents}
+          onCollectEventConsumed={onCollectEventConsumed}
         />
       ))}
 
