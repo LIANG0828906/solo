@@ -22,6 +22,7 @@ interface SimulationState {
   particleStartPos: Vec2 | null;
   playbackTime: number;
   maxTrajectoryTime: number;
+  globalMaxSpeed: number;
   addGravitySource: (pos: Vec2) => void;
   removeGravitySource: (id: string) => void;
   updateSourceMass: (id: string, mass: number) => void;
@@ -38,6 +39,7 @@ interface SimulationState {
   setParticleStartPos: (pos: Vec2 | null) => void;
   setPlaybackTime: (t: number) => void;
   setMaxTrajectoryTime: (t: number) => void;
+  setGlobalMaxSpeed: (s: number) => void;
   reset: () => void;
 }
 
@@ -53,6 +55,7 @@ const useSimulationStore = create<SimulationState>((set) => ({
   particleStartPos: null,
   playbackTime: 0,
   maxTrajectoryTime: 0,
+  globalMaxSpeed: 1,
 
   addGravitySource: (pos) =>
     set((state) => ({
@@ -147,12 +150,15 @@ const useSimulationStore = create<SimulationState>((set) => ({
 
   setMaxTrajectoryTime: (t) => set({ maxTrajectoryTime: t }),
 
+  setGlobalMaxSpeed: (s) => set({ globalMaxSpeed: s }),
+
   reset: () =>
     set({
       particles: [],
       isRunning: false,
       playbackTime: 0,
       maxTrajectoryTime: 0,
+      globalMaxSpeed: 1,
     }),
 }));
 

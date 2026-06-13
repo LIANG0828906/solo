@@ -9,14 +9,16 @@ export interface GravitySource {
 export function computeNetForce(position: Vec2, sources: GravitySource[]): Vec2 {
   let fx = 0;
   let fy = 0;
+  const softening = 0.01;
 
   for (const source of sources) {
     const dx = source.position[0] - position[0];
     const dy = source.position[1] - position[1];
-    const r = Math.max(Math.sqrt(dx * dx + dy * dy), 0.5);
-    const f = source.mass / (r * r);
-    fx += f * (dx / r);
-    fy += f * (dy / r);
+    const r2 = dx * dx + dy * dy;
+    const rSoft = Math.sqrt(r2 + softening * softening);
+    const f = source.mass / (rSoft * rSoft);
+    fx += f * (dx / rSoft);
+    fy += f * (dy / rSoft);
   }
 
   return [fx, fy];
@@ -69,11 +71,12 @@ export function rk4Step(
 
 export function computePotential(position: Vec2, sources: GravitySource[]): number {
   let v = 0;
+  const softening = 0.01;
 
   for (const source of sources) {
     const dx = source.position[0] - position[0];
     const dy = source.position[1] - position[1];
-    const r = Math.sqrt(dx * dx + dy * dy);
+    const r = Math.sqrt(dx * dx + dy * dy + softening * softening);
     v += -source.mass / r;
   }
 
