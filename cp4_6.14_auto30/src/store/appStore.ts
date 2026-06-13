@@ -18,6 +18,9 @@ interface AppState {
   ambientIntensity: number
   directionalIntensity: number
   showHelpModal: boolean
+  projectToScreen:
+    | ((pos: [number, number, number]) => { x: number; y: number } | null)
+    | null
 
   uploadModel: (file: File) => void
   setCurrentPreset: (id: string) => void
@@ -28,6 +31,11 @@ interface AppState {
   setSplitRatio: (ratio: number) => void
   addMarkPoint: (point: MarkPoint) => void
   removeMarkPoint: (id: string) => void
+  moveMarkPoint: (
+    id: string,
+    position: [number, number, number],
+    worldPosition: { x: number; y: number }
+  ) => void
   clearAllMarks: () => void
   addPreset: (preset: LightPreset) => void
   removePreset: (id: string) => void
@@ -38,6 +46,9 @@ interface AppState {
   setAmbientIntensity: (val: number) => void
   setDirectionalIntensity: (val: number) => void
   setShowHelpModal: (show: boolean) => void
+  setProjectToScreen: (
+    fn: (pos: [number, number, number]) => { x: number; y: number } | null
+  ) => void
   applyPresetToCurrent: (preset: LightPreset) => void
 }
 
@@ -57,6 +68,7 @@ export const useAppStore = create<AppState>((set) => ({
   ambientIntensity: 1,
   directionalIntensity: 2,
   showHelpModal: false,
+  projectToScreen: null,
 
   uploadModel: (file: File) => {
     const url = URL.createObjectURL(file)
@@ -78,6 +90,12 @@ export const useAppStore = create<AppState>((set) => ({
     set((s) => ({ markPoints: [...s.markPoints, point] })),
   removeMarkPoint: (id) =>
     set((s) => ({ markPoints: s.markPoints.filter((p) => p.id !== id) })),
+  moveMarkPoint: (id, position, worldPosition) =>
+    set((s) => ({
+      markPoints: s.markPoints.map((p) =>
+        p.id === id ? { ...p, position, worldPosition } : p
+      ),
+    })),
   clearAllMarks: () => set({ markPoints: [] }),
 
   addPreset: (preset) =>
@@ -104,6 +122,8 @@ export const useAppStore = create<AppState>((set) => ({
   setDirectionalIntensity: (val) => set({ directionalIntensity: val }),
 
   setShowHelpModal: (show) => set({ showHelpModal: show }),
+
+  setProjectToScreen: (fn) => set({ projectToScreen: fn }),
 
   applyPresetToCurrent: (preset) => {
     set({
