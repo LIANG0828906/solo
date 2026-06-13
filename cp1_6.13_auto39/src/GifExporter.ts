@@ -25,182 +25,174 @@ export function validateTimeRange(range: TimeRange, duration: number): TimeRange
   return { start, end };
 }
 
-export function createGifWorker(): Worker {
+function createEncoderWorker(): Worker {
   const workerCode = `
-    self.onmessage = async function(e) {
-      const { frames, width, height, fps } = e.data;
-      try {
-        importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
-      } catch (err) {}
-      
-      self.postMessage({ type: 'progress', stage: 'encoding', percent: 50 });
-      
-      const quantize = (pixels, width, height) => {
-        const palette = [];
-        const paletteMap = new Map();
-        const reduced = new Uint8Array(width * height);
-        for (let i = 0; i < pixels.length; i += 4) {
-          const r = pixels[i] >> 5;
-          const g = pixels[i + 1] >> 5;
-          const b = pixels[i + 2] >> 6;
-          const key = (r << 5) | (g << 2) | b;
-          let idx = paletteMap.get(key);
-          if (idx === undefined) {
-            idx = palette.length;
-            if (idx < 256) {
-              palette.push([pixels[i], pixels[i + 1], pixels[i + 2]]);
-              paletteMap.set(key, idx);
-            } else {
-              let best = 0, bestDist = Infinity;
-              for (let p = 0; p < palette.length; p++) {
-                const dr = palette[p][0] - pixels[i];
-                const dg = palette[p][1] - pixels[i + 1];
-                const db = palette[p][2] - pixels[i + 2];
-                const d = dr*dr + dg*dg + db*db;
-                if (d < bestDist) { bestDist = d; best = p; }
-              }
-              idx = best;
-            }
+self.onmessage = function(e) {
+  const { frames, width, height, fps } = e.data;
+
+  const byte = (n) => n & 0xFF;
+  const word = (n) => [byte(n), byte(n >> 8)];
+
+  function quantize(pixels, w, h) {
+    var palette = [];
+    var paletteMap = {};
+    var reduced = new Uint8Array(w * h);
+    for (var i = 0; i < pixels.length; i += 4) {
+      var r5 = pixels[i] >> 5;
+      var g5 = pixels[i + 1] >> 5;
+      var b6 = pixels[i + 2] >> 6;
+      var key = (r5 << 5) | (g5 << 2) | b6;
+      var idx = paletteMap[key];
+      if (idx === undefined) {
+        idx = palette.length;
+        if (idx < 256) {
+          palette.push([pixels[i], pixels[i + 1], pixels[i + 2]]);
+          paletteMap[key] = idx;
+        } else {
+          var best = 0, bestDist = 999999999;
+          for (var p = 0; p < palette.length; p++) {
+            var dr = palette[p][0] - pixels[i];
+            var dg = palette[p][1] - pixels[i + 1];
+            var db = palette[p][2] - pixels[i + 2];
+            var d = dr*dr + dg*dg + db*db;
+            if (d < bestDist) { bestDist = d; best = p; }
           }
-          reduced[i / 4] = idx;
+          idx = best;
         }
-        while (palette.length < 2) palette.push([0, 0, 0]);
-        return { palette, reduced };
-      };
-
-      const lzwEncode = (indices, minCodeSize) => {
-        if (indices.length === 0) return new Uint8Array(0);
-        const dict = new Map();
-        let codeSize = minCodeSize + 1;
-        let clearCode = 1 << minCodeSize;
-        let eoiCode = clearCode + 1;
-        let nextCode = eoiCode + 1;
-        for (let i = 0; i < clearCode; i++) dict.set(String(i), i);
-        const outputBits = [];
-        let bitBuffer = 0, bitCount = 0;
-        const writeCode = (code, size) => {
-          bitBuffer |= code << bitCount;
-          bitCount += size;
-          while (bitCount >= 8) {
-            outputBits.push(bitBuffer & 0xFF);
-            bitBuffer >>= 8;
-            bitCount -= 8;
-          }
-        };
-        writeCode(clearCode, codeSize);
-        let w = String(indices[0]);
-        for (let i = 1; i < indices.length; i++) {
-          const c = String(indices[i]);
-          const wc = w + ',' + c;
-          if (dict.has(wc)) {
-            w = wc;
-          } else {
-            writeCode(dict.get(w), codeSize);
-            if (nextCode < 4096) {
-              dict.set(wc, nextCode++);
-              if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
-            } else {
-              writeCode(clearCode, codeSize);
-              dict.clear();
-              codeSize = minCodeSize + 1;
-              for (let j = 0; j < clearCode; j++) dict.set(String(j), j);
-              nextCode = eoiCode + 1;
-            }
-            w = c;
-          }
-        }
-        writeCode(dict.get(w), codeSize);
-        writeCode(eoiCode, codeSize);
-        if (bitCount > 0) outputBits.push(bitBuffer & 0xFF);
-        const subBlocks = [];
-        for (let i = 0; i < outputBits.length; i += 255) {
-          const chunk = outputBits.slice(i, i + 255);
-          subBlocks.push(chunk.length, ...chunk);
-        }
-        subBlocks.push(0);
-        return new Uint8Array(subBlocks);
-      };
-
-      const byte = (n) => n & 0xFF;
-      const word = (n) => [byte(n), byte(n >> 8)];
-
-      let gifBytes = [];
-      gifBytes.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
-      gifBytes.push(...word(width), ...word(height));
-      gifBytes.push(0xF7, 0, 0);
-
-      const globalPalette = [];
-      for (let i = 0; i < 256; i++) {
-        const hue = i * 360 / 256;
-        const s = 0.6, l = 0.5;
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-        const m = l - c / 2;
-        let r=0,g=0,b=0;
-        if (hue < 60) { r=c;g=x;b=0; }
-        else if (hue < 120) { r=x;g=c;b=0; }
-        else if (hue < 180) { r=0;g=c;b=x; }
-        else if (hue < 240) { r=0;g=x;b=c; }
-        else if (hue < 300) { r=x;g=0;b=c; }
-        else { r=c;g=0;b=x; }
-        globalPalette.push(Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255));
       }
-      gifBytes.push(...globalPalette);
+      reduced[i / 4] = idx;
+    }
+    while (palette.length < 2) palette.push([0, 0, 0]);
+    return { palette: palette, reduced: reduced };
+  }
 
-      const delay = Math.max(2, Math.round(100 / fps));
-      const disposalMethod = 2;
-      const packed = (disposalMethod << 2) | 0x01;
-
-      for (let f = 0; f < frames.length; f++) {
-        self.postMessage({ type: 'progress', stage: 'encoding', percent: 50 + Math.floor((f / frames.length) * 45) });
-        const frame = frames[f];
-        const pixels = new Uint8ClampedArray(frame);
-        const { palette, reduced } = quantize(pixels, width, height);
-        const lzwMinSize = Math.max(2, Math.ceil(Math.log2(palette.length)));
-        const lzwData = lzwEncode(reduced, lzwMinSize);
-
-        gifBytes.push(0x21, 0xFF, 0x0B, 0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30, 0x03, 0x01, 0x00, 0x00, 0x00);
-        break;
+  function lzwEncode(indices, minCodeSize) {
+    if (indices.length === 0) return new Uint8Array(0);
+    var dict = {};
+    var codeSize = minCodeSize + 1;
+    var clearCode = 1 << minCodeSize;
+    var eoiCode = clearCode + 1;
+    var nextCode = eoiCode + 1;
+    for (var i = 0; i < clearCode; i++) dict[String(i)] = i;
+    var outputBits = [];
+    var bitBuffer = 0, bitCount = 0;
+    function writeCode(code, size) {
+      bitBuffer |= code << bitCount;
+      bitCount += size;
+      while (bitCount >= 8) {
+        outputBits.push(bitBuffer & 0xFF);
+        bitBuffer >>= 8;
+        bitCount -= 8;
       }
-
-      let netscapeWritten = false;
-      for (let f = 0; f < frames.length; f++) {
-        const frame = frames[f];
-        const pixels = new Uint8ClampedArray(frame);
-        const { palette, reduced } = quantize(pixels, width, height);
-        const lzwMinSize = Math.max(2, palette.length > 1 ? Math.ceil(Math.log2(palette.length)) : 2);
-        const lzwData = lzwEncode(reduced, lzwMinSize);
-
-        if (!netscapeWritten) {
-          gifBytes.push(0x21, 0xFF, 0x0B, 0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30, 0x03, 0x01, 0x00, 0x00, 0x00);
-          netscapeWritten = true;
+    }
+    writeCode(clearCode, codeSize);
+    var w = String(indices[0]);
+    for (var i = 1; i < indices.length; i++) {
+      var c = String(indices[i]);
+      var wc = w + ',' + c;
+      if (dict[wc] !== undefined) {
+        w = wc;
+      } else {
+        writeCode(dict[w], codeSize);
+        if (nextCode < 4096) {
+          dict[wc] = nextCode++;
+          if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+        } else {
+          writeCode(clearCode, codeSize);
+          dict = {};
+          codeSize = minCodeSize + 1;
+          for (var j = 0; j < clearCode; j++) dict[String(j)] = j;
+          nextCode = eoiCode + 1;
         }
-
-        gifBytes.push(0x21, 0xF9, 0x04, packed, ...word(delay), 0, 0);
-        gifBytes.push(0x2C);
-        gifBytes.push(...word(0), ...word(0), ...word(width), ...word(height));
-        const lctFlag = palette.length > 0 ? 0x80 : 0;
-        const lctSize = palette.length > 0 ? Math.max(0, Math.ceil(Math.log2(palette.length)) - 1) : 0;
-        gifBytes.push(lctFlag | lctSize);
-
-        const lct = [];
-        for (let i = 0; i < (1 << (lctSize + 1)); i++) {
-          if (i < palette.length) {
-            lct.push(palette[i][0], palette[i][1], palette[i][2]);
-          } else {
-            lct.push(0, 0, 0);
-          }
-        }
-        gifBytes.push(...lct);
-        gifBytes.push(lzwMinSize);
-        gifBytes.push(...lzwData);
+        w = c;
       }
-      gifBytes.push(0x3B);
+    }
+    writeCode(dict[w], codeSize);
+    writeCode(eoiCode, codeSize);
+    if (bitCount > 0) outputBits.push(bitBuffer & 0xFF);
+    var subBlocks = [];
+    for (var i = 0; i < outputBits.length; i += 255) {
+      var chunk = outputBits.slice(i, i + 255);
+      subBlocks.push(chunk.length);
+      for (var j = 0; j < chunk.length; j++) subBlocks.push(chunk[j]);
+    }
+    subBlocks.push(0);
+    return new Uint8Array(subBlocks);
+  }
 
-      const blob = new Blob([new Uint8Array(gifBytes)], { type: 'image/gif' });
-      self.postMessage({ type: 'done', blob: blob });
-    };
-  `;
+  self.postMessage({ type: 'progress', stage: 'encoding', percent: 52 });
+
+  var gifBytes = [];
+  // Header
+  gifBytes.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
+  // Logical Screen Descriptor
+  gifBytes.push.apply(gifBytes, word(width));
+  gifBytes.push.apply(gifBytes, word(height));
+  // GCT flag=0, color resolution=7, sort=0, GCT size=0
+  gifBytes.push(0x70, 0, 0);
+
+  // Netscape Application Extension (loop)
+  gifBytes.push(
+    0x21, 0xFF, 0x0B,
+    0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45,
+    0x32, 0x2E, 0x30,
+    0x03, 0x01, 0x00, 0x00
+  );
+
+  var delay = Math.max(2, Math.round(100 / fps));
+
+  for (var f = 0; f < frames.length; f++) {
+    var pct = 52 + Math.floor((f / frames.length) * 45);
+    self.postMessage({ type: 'progress', stage: 'encoding', percent: pct });
+
+    var frame = frames[f];
+    var pixels = new Uint8ClampedArray(frame);
+    var result = quantize(pixels, width, height);
+    var palette = result.palette;
+    var reduced = result.reduced;
+    var lzwMinSize = Math.max(2, Math.ceil(Math.log2(Math.max(2, palette.length))));
+    var lzwData = lzwEncode(reduced, lzwMinSize);
+
+    // Graphic Control Extension
+    gifBytes.push(0x21, 0xF9, 0x04, 0x09); // disposal=1, transparent=1
+    gifBytes.push.apply(gifBytes, word(delay));
+    gifBytes.push(0, 0); // transparent color index, block terminator
+
+    // Image Descriptor
+    gifBytes.push(0x2C);
+    gifBytes.push.apply(gifBytes, word(0));
+    gifBytes.push.apply(gifBytes, word(0));
+    gifBytes.push.apply(gifBytes, word(width));
+    gifBytes.push.apply(gifBytes, word(height));
+    // Local Color Table flag=1, interlace=0, sort=0, LCT size
+    var lctSize = Math.max(0, Math.ceil(Math.log2(Math.max(2, palette.length))) - 1);
+    gifBytes.push(0x80 | lctSize);
+
+    // Local Color Table
+    var lctCount = 1 << (lctSize + 1);
+    for (var i = 0; i < lctCount; i++) {
+      if (i < palette.length) {
+        gifBytes.push(palette[i][0], palette[i][1], palette[i][2]);
+      } else {
+        gifBytes.push(0, 0, 0);
+      }
+    }
+
+    // LZW Minimum Code Size
+    gifBytes.push(lzwMinSize);
+    // Image Data (sub-blocks)
+    for (var i = 0; i < lzwData.length; i++) {
+      gifBytes.push(lzwData[i]);
+    }
+  }
+
+  // Trailer
+  gifBytes.push(0x3B);
+
+  var blob = new Blob([new Uint8Array(gifBytes)], { type: 'image/gif' });
+  self.postMessage({ type: 'done', blob: blob, percent: 100 });
+};
+`;
 
   const blob = new Blob([workerCode], { type: 'application/javascript' });
   const url = URL.createObjectURL(blob);
@@ -209,7 +201,7 @@ export function createGifWorker(): Worker {
 
 export async function exportGif(
   videoEl: HTMLVideoElement,
-  canvasEl: HTMLCanvasElement,
+  _canvasEl: HTMLCanvasElement,
   filterConfigs: FilterConfig[],
   range: TimeRange,
   applyFilterFn: (ctx: CanvasRenderingContext2D, w: number, h: number, filters: FilterConfig[]) => void,
@@ -242,14 +234,15 @@ export async function exportGif(
     const originalPaused = videoEl.paused;
     videoEl.pause();
 
-    const frames: Uint8ClampedArray[] = [];
+    const frames: number[][] = [];
     onProgress({ stage: 'capturing', percent: 6 });
 
     for (let i = 0; i < totalFrames; i++) {
       const t = validRange.start + i * step;
       videoEl.currentTime = Math.min(t, videoEl.duration - 0.001);
+
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => resolve(), 300);
+        const timeout = setTimeout(() => resolve(), 500);
         const onSeeked = () => {
           clearTimeout(timeout);
           videoEl.removeEventListener('seeked', onSeeked);
@@ -266,14 +259,15 @@ export async function exportGif(
         videoEl.addEventListener('error', onErrorFn, { once: true });
       });
 
+      await new Promise((r) => requestAnimationFrame(() => r()));
+
       workCtx.drawImage(videoEl, 0, 0, targetWidth, targetHeight);
       applyFilterFn(workCtx, targetWidth, targetHeight, filterConfigs);
       const imageData = workCtx.getImageData(0, 0, targetWidth, targetHeight);
-      frames.push(new Uint8ClampedArray(imageData.data));
+      frames.push(Array.from(imageData.data));
 
       const capPercent = 6 + Math.floor((i / totalFrames) * 44);
       onProgress({ stage: 'capturing', percent: capPercent });
-      await new Promise((r) => requestAnimationFrame(() => r()));
     }
 
     videoEl.currentTime = originalTime;
@@ -281,28 +275,28 @@ export async function exportGif(
       videoEl.play().catch(() => {});
     }
 
-    onProgress({ stage: 'encoding', percent: 52 });
+    onProgress({ stage: 'encoding', percent: 50 });
 
-    const worker = createGifWorker();
+    const worker = createEncoderWorker();
 
-    worker.onerror = (e) => {
+    worker.onerror = (ev) => {
       worker.terminate();
-      onError(new Error(e.message || 'Worker 编码失败'));
+      onError(new Error(ev.message || 'Worker 编码失败'));
     };
 
-    worker.onmessage = (e) => {
-      if (e.data.type === 'progress') {
-        onProgress(e.data as ExportProgress);
-      } else if (e.data.type === 'done') {
+    worker.onmessage = (ev) => {
+      const msg = ev.data;
+      if (msg.type === 'progress') {
+        onProgress({ stage: msg.stage, percent: msg.percent });
+      } else if (msg.type === 'done') {
         worker.terminate();
         onProgress({ stage: 'done', percent: 100 });
-        setTimeout(() => onComplete(e.data.blob as Blob), 300);
+        setTimeout(() => onComplete(msg.blob as Blob), 200);
       }
     };
 
-    const frameData = frames.map((f) => Array.from(f));
     worker.postMessage({
-      frames: frameData,
+      frames,
       width: targetWidth,
       height: targetHeight,
       fps: FPS
