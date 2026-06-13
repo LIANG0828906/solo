@@ -15,14 +15,6 @@ export default function ItemCard({ item }: ItemCardProps) {
 
   const storyText = item.story.length > 50 ? item.story.slice(0, 50) + '...' : item.story
 
-  const conditionLabel: Record<string, string> = {
-    '全新': '全新',
-    '95新': '95新',
-    '9成新': '9成新',
-    '8成新': '8成新',
-    '有使用痕迹': '有使用痕迹'
-  }
-
   return (
     <div
       className="card"
@@ -86,7 +78,7 @@ export default function ItemCard({ item }: ItemCardProps) {
             backdropFilter: 'blur(8px)'
           }}
         >
-          {conditionLabel[item.condition] || item.condition}
+          {item.condition}
         </div>
       </div>
       <div style={{ padding: '16px 20px 20px' }}>
