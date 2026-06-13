@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useMemo } from 'react';
 import { Send, User } from 'lucide-react';
 import type { Comment } from '@/data/mockData';
 import { formatDate, MAX_COMMENT_LENGTH } from '@/data/mockData';
@@ -35,6 +35,10 @@ export function CommentSection({ comments, onSubmit }: CommentSectionProps) {
   const [content, setContent] = useState('');
   const [newestId, setNewestId] = useState<string | null>(null);
 
+  const sortedComments = useMemo(() => {
+    return [...comments].sort((a, b) => b.createdAt - a.createdAt);
+  }, [comments]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedUsername = username.trim();
@@ -46,7 +50,7 @@ export function CommentSection({ comments, onSubmit }: CommentSectionProps) {
     setTimeout(() => setNewestId(null), 1500);
   };
 
-  const newestCommentId = comments.length > 0 ? comments[0].id : null;
+  const newestCommentId = sortedComments.length > 0 ? sortedComments[0].id : null;
   if (newestCommentId && newestCommentId !== newestId) {
     queueMicrotask(() => setNewestId(newestCommentId));
   }
@@ -54,7 +58,7 @@ export function CommentSection({ comments, onSubmit }: CommentSectionProps) {
   return (
     <div className="comment-section">
       <div className="comment-section__header">
-        <h4>评论 <span className="comment-section__count">({comments.length})</span></h4>
+        <h4>评论 <span className="comment-section__count">({sortedComments.length})</span></h4>
       </div>
 
       <form className="comment-form" onSubmit={handleSubmit}>
@@ -94,12 +98,12 @@ export function CommentSection({ comments, onSubmit }: CommentSectionProps) {
       </form>
 
       <div className="comment-list">
-        {comments.length === 0 ? (
+        {sortedComments.length === 0 ? (
           <div className="comment-list__empty">
             暂无评论，来做第一位评论者吧~
           </div>
         ) : (
-          comments.map((comment) => (
+          sortedComments.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}

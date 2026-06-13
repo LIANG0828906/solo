@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { Plus, AlertCircle } from 'lucide-react';
@@ -20,7 +20,7 @@ function useResponsiveColumns() {
 
   const [columns, setColumns] = useState(getColumns);
 
-  useMemo(() => {
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const onResize = () => setColumns(getColumns());
     window.addEventListener('resize', onResize);
@@ -177,24 +177,19 @@ export function ExhibitionPage() {
               </button>
             </div>
           ) : (
-            <div
-              className="artwork-grid-wrapper"
-              style={{
-                height: rowCount * getRowHeight() + gap,
-                width: '100%',
-              }}
-            >
+            <div className="virtual-grid-container">
               <Grid
+                className="virtual-grid"
                 columnCount={columns}
                 columnWidth={getColumnWidth}
                 rowCount={rowCount}
                 rowHeight={getRowHeight}
                 width={columns * getColumnWidth()}
-                height={rowCount * getRowHeight() + 40}
+                height={720}
                 itemData={{}}
-                overscanRowCount={2}
+                overscanRowCount={3}
                 overscanColumnCount={0}
-                style={{ overflow: 'visible', width: '100% !important' }}
+                key={columns}
               >
                 {Cell}
               </Grid>

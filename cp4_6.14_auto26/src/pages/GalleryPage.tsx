@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { VariableSizeGrid as Grid } from 'react-window';
 import { Search, Plus, SortAsc } from 'lucide-react';
 import { useGalleryStore } from '@/store/galleryStore';
 import { ExhibitionCard } from '@/components/ExhibitionCard';
@@ -7,10 +8,32 @@ import { CreateExhibitionModal } from '@/components/CreateExhibitionModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { SortKey, Exhibition } from '@/data/mockData';
 
+function useResponsiveColumns() {
+  const getColumns = useCallback((): number => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    if (w < 560) return 1;
+    if (w < 900) return 2;
+    return 3;
+  }, []);
+
+  const [columns, setColumns] = useState(getColumns);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setColumns(getColumns());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [getColumns]);
+
+  return columns;
+}
+
 export function GalleryPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
+  const gridRef = useRef<Grid | null>(null);
+  const columns = useResponsiveColumns();
 
   const exhibitions = useGalleryStore((s) => s.exhibitions);
   const addExhibition = useGalleryStore((s) => s.addExhibition);
@@ -53,6 +76,48 @@ export function GalleryPage() {
     const newExh = addExhibition(data);
     setCreateOpen(false);
     navigate(`/exhibition/${newExh.id}`);
+  };
+
+  const gap = 28;
+  const cardWidth = typeof window !== 'undefined'
+    ? Math.min(1200 - (columns - 1) * gap, window.innerWidth - 48) / columns
+    : 380;
+  const cardHeight = cardWidth * 0.625 + 140;
+
+  const rowCount = Math.ceil(filteredExhibitions.length / columns);
+
+  const getColumnWidth = () => cardWidth + gap;
+  const getRowHeight = () => cardHeight + gap;
+
+  const Cell = ({
+    columnIndex,
+    rowIndex,
+    style,
+  }: {
+    columnIndex: number;
+    rowIndex: number;
+    style: React.CSSProperties;
+  }) => {
+    const index = rowIndex * columns + columnIndex;
+    const exhibition = filteredExhibitions[index];
+    if (!exhibition) return null;
+
+    return (
+      <div
+        style={{
+          ...style,
+          left: Number(style.left) + gap / 2,
+          top: Number(style.top) + gap / 2,
+          width: cardWidth,
+          height: cardHeight,
+        }}
+      >
+        <ExhibitionCard
+          exhibition={exhibition}
+          onClick={() => navigate(`/exhibition/${exhibition.id}`)}
+        />
+      </div>
+    );
   };
 
   return (
@@ -141,14 +206,23 @@ export function GalleryPage() {
               )}
             </div>
           ) : (
-            <div className="exhibition-grid">
-              {filteredExhibitions.map((exhibition) => (
-                <ExhibitionCard
-                  key={exhibition.id}
-                  exhibition={exhibition}
-                  onClick={() => navigate(`/exhibition/${exhibition.id}`)}
-                />
-              ))}
+            <div className="virtual-grid-container">
+              <Grid
+                ref={gridRef}
+                className="virtual-grid"
+                columnCount={columns}
+                columnWidth={getColumnWidth}
+                rowCount={rowCount}
+                rowHeight={getRowHeight}
+                width={columns * getColumnWidth()}
+                height={600}
+                itemData={{}}
+                overscanRowCount={3}
+                overscanColumnCount={0}
+                key={columns}
+              >
+                {Cell}
+              </Grid>
             </div>
           )}
         </div>
