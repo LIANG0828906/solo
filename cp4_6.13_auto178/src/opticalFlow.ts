@@ -9,13 +9,15 @@ export interface MotionVector {
 interface FeaturePoint {
   x: number;
   y: number;
+  quality: number;
 }
 
 const WINDOW_SIZE = 15;
-const PYR_LEVELS = 3;
 const MAX_CORNERS = 500;
 const QUALITY_LEVEL = 0.01;
 const MIN_DISTANCE = 10;
+const MIN_FEATURE_RATIO = 0.2;
+const REDETECT_INTERVAL = 30;
 
 export class OpticalFlow {
   private video: HTMLVideoElement;
@@ -28,6 +30,10 @@ export class OpticalFlow {
   private processWidth: number = 320;
   private processHeight: number = 240;
   public sensitivity: number = 0.5;
+  private frameCount: number = 0;
+  private lastRedetectFrame: number = 0;
+  private sobelCache: Float32Array | null = null;
+  private sobelCacheKey: string = '';
 
   constructor(video: HTMLVideoElement) {
     this.video = video;
@@ -37,6 +43,7 @@ export class OpticalFlow {
     this.canvas.height = this.processHeight;
     this.width = this.processWidth;
     this.height = this.processHeight;
+    console.log('[OpticalFlow] 初始化完成, 处理分辨率: 320x240');
   }
 
   private rgbaToGray(imageData: ImageData): Float32Array {
@@ -49,43 +56,40 @@ export class OpticalFlow {
     return gray;
   }
 
-  private sobelX(gray: Float32Array, x: number, y: number): number {
-    let sum = 0;
-    for (let j = -1; j <= 1; j++) {
-      for (let i = -1; i <= 1; i++) {
-        const px = Math.min(Math.max(x + i, 0), this.width - 1);
-        const py = Math.min(Math.max(y + j, 0), this.height - 1);
-        const kernel = i === -1 ? -1 : i === 0 ? 0 : 1;
-        const weight = j === 0 ? 2 : 1;
-        sum += gray[py * this.width + px] * kernel * weight;
+  private computeSobel(gray: Float32Array): Float32Array {
+    const key = (gray as any)._key || '';
+    if (this.sobelCache && this.sobelCacheKey === key) return this.sobelCache;
+
+    const out = new Float32Array(this.width * this.height * 2);
+    for (let y = 1; y < this.height - 1; y++) {
+      for (let x = 1; x < this.width - 1; x++) {
+        const idx = y * this.width + x;
+        const gx =
+          -gray[(y - 1) * this.width + (x - 1)] + gray[(y - 1) * this.width + (x + 1)]
+          - 2 * gray[y * this.width + (x - 1)] + 2 * gray[y * this.width + (x + 1)]
+          - gray[(y + 1) * this.width + (x - 1)] + gray[(y + 1) * this.width + (x + 1)];
+        const gy =
+          -gray[(y - 1) * this.width + (x - 1)] - 2 * gray[(y - 1) * this.width + x] - gray[(y - 1) * this.width + (x + 1)]
+          + gray[(y + 1) * this.width + (x - 1)] + 2 * gray[(y + 1) * this.width + x] + gray[(y + 1) * this.width + (x + 1)];
+        out[idx * 2] = gx;
+        out[idx * 2 + 1] = gy;
       }
     }
-    return sum;
+    this.sobelCache = out;
+    this.sobelCacheKey = key;
+    return out;
   }
 
-  private sobelY(gray: Float32Array, x: number, y: number): number {
-    let sum = 0;
-    for (let j = -1; j <= 1; j++) {
-      for (let i = -1; i <= 1; i++) {
-        const px = Math.min(Math.max(x + i, 0), this.width - 1);
-        const py = Math.min(Math.max(y + j, 0), this.height - 1);
-        const kernel = j === -1 ? -1 : j === 0 ? 0 : 1;
-        const weight = i === 0 ? 2 : 1;
-        sum += gray[py * this.width + px] * kernel * weight;
-      }
-    }
-    return sum;
-  }
-
-  private harrisCornerResponse(gray: Float32Array, x: number, y: number): number {
+  private harrisCornerResponse(sobel: Float32Array, x: number, y: number): number {
     const windowSize = 3;
     let sumXX = 0, sumYY = 0, sumXY = 0;
     for (let j = -windowSize; j <= windowSize; j++) {
       for (let i = -windowSize; i <= windowSize; i++) {
         const px = Math.min(Math.max(x + i, 0), this.width - 1);
         const py = Math.min(Math.max(y + j, 0), this.height - 1);
-        const ix = this.sobelX(gray, px, py);
-        const iy = this.sobelY(gray, px, py);
+        const idx = py * this.width + px;
+        const ix = sobel[idx * 2];
+        const iy = sobel[idx * 2 + 1];
         sumXX += ix * ix;
         sumYY += iy * iy;
         sumXY += ix * iy;
@@ -97,12 +101,13 @@ export class OpticalFlow {
   }
 
   private detectGoodFeatures(gray: Float32Array): FeaturePoint[] {
+    const sobel = this.computeSobel(gray);
     const responses: { x: number; y: number; r: number }[] = [];
     const step = 2;
 
     for (let y = MIN_DISTANCE; y < this.height - MIN_DISTANCE; y += step) {
       for (let x = MIN_DISTANCE; x < this.width - MIN_DISTANCE; x += step) {
-        const r = this.harrisCornerResponse(gray, x, y);
+        const r = this.harrisCornerResponse(sobel, x, y);
         if (r > 0) {
           responses.push({ x, y, r });
         }
@@ -128,10 +133,11 @@ export class OpticalFlow {
       }
       if (!overlap) {
         grid.add(`${gx},${gy}`);
-        features.push({ x: pt.x, y: pt.y });
+        features.push({ x: pt.x, y: pt.y, quality: pt.r });
       }
     }
 
+    console.log(`[OpticalFlow] 特征点检测完成, 检测到 ${features.length} 个特征点`);
     return features;
   }
 
@@ -155,7 +161,7 @@ export class OpticalFlow {
     prevGray: Float32Array,
     currGray: Float32Array,
     point: FeaturePoint
-  ): { vx: number; vy: number } {
+  ): { vx: number; vy: number; valid: boolean } {
     const halfWin = Math.floor(WINDOW_SIZE / 2);
     let vx = 0;
     let vy = 0;
@@ -174,6 +180,10 @@ export class OpticalFlow {
           const qx = px + vx;
           const qy = py + vy;
 
+          if (qx < 0 || qx >= this.width - 1 || qy < 0 || qy >= this.height - 1) {
+            return { vx: 0, vy: 0, valid: false };
+          }
+
           const iPrev = this.bilinearSample(prevGray, px, py);
           const iCurr = this.bilinearSample(currGray, qx, qy);
 
@@ -190,7 +200,7 @@ export class OpticalFlow {
       }
 
       const det = sumXX * sumYY - sumXY * sumXY;
-      if (Math.abs(det) < 1e-6) break;
+      if (Math.abs(det) < 1e-6) return { vx: 0, vy: 0, valid: false };
 
       const u = (sumYY * sumXT - sumXY * sumYT) / det;
       const v = (sumXX * sumYT - sumXY * sumXT) / det;
@@ -198,56 +208,106 @@ export class OpticalFlow {
       vx -= u;
       vy -= v;
 
+      if (vx * vx + vy * vy > 100) return { vx: 0, vy: 0, valid: false };
+
       if (u * u + v * v < 1e-4) break;
     }
 
-    return { vx, vy };
+    return { vx, vy, valid: true };
+  }
+
+  private evaluateFeatureQuality(point: FeaturePoint, gray: Float32Array): number {
+    const px = Math.round(point.x);
+    const py = Math.round(point.y);
+    if (px < 2 || px >= this.width - 2 || py < 2 || py >= this.height - 2) return 0;
+
+    let gradSum = 0;
+    const step = 2;
+    for (let j = -step; j <= step; j++) {
+      for (let i = -step; i <= step; i++) {
+        const gx = gray[(py + j) * this.width + (px + i + 1)] - gray[(py + j) * this.width + (px + i - 1)];
+        const gy = gray[(py + j + 1) * this.width + (px + i)] - gray[(py + j - 1) * this.width + (px + i)];
+        gradSum += gx * gx + gy * gy;
+      }
+    }
+    return gradSum;
+  }
+
+  private needsRedetection(): boolean {
+    if (this.prevFeatures.length === 0) return true;
+    if (this.prevFeatures.length < MAX_CORNERS * MIN_FEATURE_RATIO) return true;
+    if (this.frameCount - this.lastRedetectFrame >= REDETECT_INTERVAL) return true;
+
+    let lowQualityCount = 0;
+    if (this.prevGray) {
+      for (const f of this.prevFeatures) {
+        const q = this.evaluateFeatureQuality(f, this.prevGray);
+        if (q < 100) lowQualityCount++;
+      }
+      if (lowQualityCount / this.prevFeatures.length > 0.5) return true;
+    }
+
+    return false;
   }
 
   public calculate(): MotionVector[] {
     if (this.video.readyState < 2) return [];
 
+    this.frameCount++;
+
     this.ctx.drawImage(this.video, 0, 0, this.width, this.height);
     const imageData = this.ctx.getImageData(0, 0, this.width, this.height);
     const currGray = this.rgbaToGray(imageData);
+    (currGray as any)._key = `f${this.frameCount}`;
 
     const vectors: MotionVector[] = [];
 
     if (this.prevGray === null) {
       this.prevGray = currGray;
       this.prevFeatures = this.detectGoodFeatures(currGray);
+      this.lastRedetectFrame = this.frameCount;
       return vectors;
     }
 
     const threshold = (1.1 - this.sensitivity) * 1.5;
 
-    if (this.prevFeatures.length === 0) {
-      this.prevFeatures = this.detectGoodFeatures(this.prevGray);
+    if (this.needsRedetection()) {
+      this.prevFeatures = this.detectGoodFeatures(currGray);
+      this.lastRedetectFrame = this.frameCount;
+      this.prevGray = currGray;
+      return vectors;
     }
 
+    const validFeatures: FeaturePoint[] = [];
+
     for (const pt of this.prevFeatures) {
-      const { vx, vy } = this.lucasKanade(this.prevGray, currGray, pt);
-      const magnitude = Math.sqrt(vx * vx + vy * vy);
+      const result = this.lucasKanade(this.prevGray, currGray, pt);
+      if (!result.valid) continue;
+
+      const magnitude = Math.sqrt(result.vx * result.vx + result.vy * result.vy);
+      const newPt: FeaturePoint = {
+        x: Math.min(Math.max(pt.x + result.vx, 0), this.width - 1),
+        y: Math.min(Math.max(pt.y + result.vy, 0), this.height - 1),
+        quality: pt.quality
+      };
+      validFeatures.push(newPt);
 
       if (magnitude >= threshold) {
         vectors.push({
           x: (pt.x / this.width) * 2 - 1,
           y: -((pt.y / this.height) * 2 - 1),
-          vx,
-          vy,
+          vx: result.vx,
+          vy: result.vy,
           magnitude
         });
       }
     }
 
+    this.prevFeatures = validFeatures;
     this.prevGray = currGray;
-    if (vectors.length === 0 || Math.random() < 0.02) {
-      this.prevFeatures = this.detectGoodFeatures(currGray);
-    } else {
-      for (let i = 0; i < this.prevFeatures.length && i < vectors.length; i++) {
-        this.prevFeatures[i].x = Math.min(Math.max(this.prevFeatures[i].x + vectors[i].vx, 0), this.width - 1);
-        this.prevFeatures[i].y = Math.min(Math.max(this.prevFeatures[i].y + vectors[i].vy, 0), this.height - 1);
-      }
+
+    if (this.frameCount % 60 === 0) {
+      console.log(`[OpticalFlow] 帧#${this.frameCount}, 特征点: ${this.prevFeatures.length}, 运动向量: ${vectors.length}`);
     }
 
     return vectors;
@@ -256,5 +316,10 @@ export class OpticalFlow {
   public reset(): void {
     this.prevGray = null;
     this.prevFeatures = [];
+    this.sobelCache = null;
+    this.sobelCacheKey = '';
+    this.frameCount = 0;
+    this.lastRedetectFrame = 0;
+    console.log('[OpticalFlow] 已重置');
   }
 }

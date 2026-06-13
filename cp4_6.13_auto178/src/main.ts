@@ -16,6 +16,9 @@ class App {
   private cameraAngle: number = 0;
   private cameraRadius: number = 6;
   private animationId: number | null = null;
+  private lastVideoFrameTime: number = 0;
+  private videoFrameInterval: number = 1000 / 30;
+  private cameraReady: boolean = false;
 
   constructor() {
     this.canvasContainer = document.getElementById('canvas-container') as HTMLDivElement;
@@ -54,6 +57,8 @@ class App {
 
     this.initCamera();
     this.requestCameraAccess();
+
+    console.log('[App] 应用初始化完成');
   }
 
   private createScene(): THREE.Scene {
@@ -122,10 +127,13 @@ class App {
         audio: false
       });
       this.video.srcObject = stream;
+      this.cameraReady = true;
       this.ui.hidePermissionPrompt();
+      console.log('[App] 摄像头权限已获取, 视频流启动');
       this.start();
     } catch (err) {
-      console.warn('Camera access denied or unavailable:', err);
+      console.warn('[App] 摄像头权限被拒绝或不可用:', err);
+      this.cameraReady = false;
       this.ui.showPermissionPrompt();
       this.ui.onPermissionRequest(() => {
         this.requestCameraAccess();
@@ -137,6 +145,7 @@ class App {
   private resetSystem(): void {
     this.opticalFlow.reset();
     this.particleSystem.reset();
+    console.log('[App] 系统已重置');
   }
 
   private handleResize(): void {
@@ -166,8 +175,11 @@ class App {
     );
     this.camera.lookAt(0, 0, 0);
 
-    const vectors = this.opticalFlow.calculate();
-    this.particleSystem.update(vectors, deltaTime);
+    if (this.cameraReady && currentTime - this.lastVideoFrameTime >= this.videoFrameInterval) {
+      this.lastVideoFrameTime = currentTime - ((currentTime - this.lastVideoFrameTime) % this.videoFrameInterval);
+      const vectors = this.opticalFlow.calculate();
+      this.particleSystem.update(vectors, deltaTime);
+    }
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -186,5 +198,6 @@ class App {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  console.log('[App] DOM加载完成, 启动应用...');
   new App();
 });

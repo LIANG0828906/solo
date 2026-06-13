@@ -42,26 +42,43 @@ export class UIController {
     this.fpsCounter = document.getElementById('fps-counter') as HTMLDivElement;
 
     this.bindEvents();
+    console.log('[UI] 控制面板初始化完成');
   }
 
   private bindEvents(): void {
     this.sensitivitySlider.addEventListener('input', (e) => {
+      if (this.isDragging) return;
       const value = parseFloat((e.target as HTMLInputElement).value);
       this.sensitivityValue.textContent = value.toFixed(2);
       this.callbacks.onSensitivityChange(value);
     });
 
     this.particleSlider.addEventListener('input', (e) => {
+      if (this.isDragging) return;
       const value = parseInt((e.target as HTMLInputElement).value);
       this.particleValue.textContent = value.toString();
       this.callbacks.onParticleCountChange(value);
     });
 
     this.resetButton.addEventListener('click', () => {
+      if (this.isDragging) return;
       this.callbacks.onReset();
     });
 
+    this.resetButton.addEventListener('mousedown', (e) => {
+      if (this.isDragging) { e.preventDefault(); return; }
+    });
+
+    this.sensitivitySlider.addEventListener('mousedown', (e) => {
+      if (this.isDragging) { e.preventDefault(); e.stopPropagation(); }
+    });
+
+    this.particleSlider.addEventListener('mousedown', (e) => {
+      if (this.isDragging) { e.preventDefault(); e.stopPropagation(); }
+    });
+
     this.dragHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
       this.startDrag(e);
     });
 
@@ -91,6 +108,7 @@ export class UIController {
   private startDrag(e: MouseEvent): void {
     this.isDragging = true;
     this.panel.classList.add('dragging');
+    this.panel.classList.add('no-anim');
 
     const rect = this.panel.getBoundingClientRect();
     this.dragOffsetX = e.clientX - rect.left;
@@ -113,8 +131,16 @@ export class UIController {
   }
 
   private endDrag(): void {
+    if (!this.isDragging) return;
     this.isDragging = false;
     this.panel.classList.remove('dragging');
+    requestAnimationFrame(() => {
+      this.panel.classList.remove('no-anim');
+    });
+  }
+
+  public get dragging(): boolean {
+    return this.isDragging;
   }
 
   public showPermissionPrompt(): void {

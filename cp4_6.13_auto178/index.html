@@ -244,6 +244,17 @@
       transform: scale(0.95);
       transition: transform 0.1s ease;
     }
+
+    #control-panel.no-anim .reset-btn,
+    #control-panel.no-anim input[type="range"]::-webkit-slider-thumb,
+    #control-panel.no-anim input[type="range"]::-moz-range-thumb {
+      transition: none !important;
+      transform: none !important;
+    }
+
+    #control-panel.no-anim .reset-btn:hover {
+      transform: none;
+    }
   </style>
 </head>
 <body>
