@@ -2,7 +2,7 @@ import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import ideasRouter from './routes/ideas.js';
-import { initDb } from './db.js';
+import './db.js';
 
 const app = express();
 app.use(express.json());
@@ -112,12 +112,6 @@ function broadcastToRoom(roomCode: string, data: object) {
 }
 
 const PORT = 3001;
-
-async function start() {
-  await initDb();
-  server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-start();
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
