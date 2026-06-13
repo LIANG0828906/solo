@@ -210,11 +210,14 @@ function generateMockPosts(keyword: string, timeRange: string = '24h'): Post[] {
     '数码爱好者', '时尚博主', '美食家', '旅行达人', '职场达人'
   ];
 
+  const validTimeRanges = ['24h', '7d', '30d'];
+  const safeTimeRange = validTimeRanges.includes(timeRange) ? timeRange : '24h';
+
   const posts: Post[] = [];
   const now = Date.now();
 
   let hoursBack = 24;
-  switch (timeRange) {
+  switch (safeTimeRange) {
     case '24h':
       hoursBack = 24;
       break;
@@ -228,8 +231,10 @@ function generateMockPosts(keyword: string, timeRange: string = '24h'): Post[] {
       hoursBack = 24;
   }
 
+  const totalMsBack = hoursBack * 60 * 60 * 1000;
+
   for (let i = 0; i < 25; i++) {
-    const timestamp = new Date(now - Math.random() * hoursBack * 60 * 60 * 1000);
+    const timestamp = new Date(now - Math.random() * totalMsBack);
     const sentimentRandom = Math.random();
     let sentiment: string;
     if (sentimentRandom < 0.4) sentiment = 'positive';
@@ -272,6 +277,8 @@ function generateMockPosts(keyword: string, timeRange: string = '24h'): Post[] {
     const commentCount = Math.floor(Math.random() * 6) + 3;
     const comments = [];
     const commentSentiments = ['positive', 'neutral', 'negative'];
+    const postTimeMs = timestamp.getTime();
+    const maxCommentDelay = Math.min(now - postTimeMs, hoursBack > 24 * 2 ? 12 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000);
 
     for (let j = 0; j < commentCount; j++) {
       const commentSentiment = commentSentiments[Math.floor(Math.random() * commentSentiments.length)];
@@ -299,11 +306,13 @@ function generateMockPosts(keyword: string, timeRange: string = '24h'): Post[] {
         ]
       };
 
+      const commentDelay = Math.random() * maxCommentDelay;
+
       comments.push({
         id: `comment-${i}-${j}`,
         username: usernames[Math.floor(Math.random() * usernames.length)],
         content: commentContents[commentSentiment][Math.floor(Math.random() * commentContents[commentSentiment].length)],
-        timestamp: new Date(timestamp.getTime() + Math.random() * 60 * 60 * 1000).toISOString(),
+        timestamp: new Date(postTimeMs + commentDelay).toISOString(),
         likes: Math.floor(Math.random() * 100),
         sentiment: commentSentiment
       });

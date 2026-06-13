@@ -18,23 +18,31 @@ const negativeWords: string[] = [
   '粗糙', '简陋', '廉价', '低档', '没质感', '华而不实', '名不副实', '上当受骗'
 ];
 
-const negationWords: string[] = ['不', '没', '无', '非', '别', '莫', '未', '否', '不是', '没有'];
+const negationWords: string[] = ['不', '没', '无', '非', '别', '莫', '未', '否', '不是', '没有', '不曾', '未必', '并未', '绝不', '从不'];
 
 const degreeAdverbs: Array<{ word: string; multiplier: number }> = [
-  { word: '非常', multiplier: 1.8 },
-  { word: '极其', multiplier: 2.0 },
-  { word: '特别', multiplier: 1.6 },
-  { word: '十分', multiplier: 1.5 },
-  { word: '相当', multiplier: 1.4 },
-  { word: '很', multiplier: 1.3 },
-  { word: '挺', multiplier: 1.2 },
-  { word: '蛮', multiplier: 1.2 },
-  { word: '比较', multiplier: 1.1 },
-  { word: '有点', multiplier: 0.7 },
-  { word: '稍微', multiplier: 0.6 },
-  { word: '略微', multiplier: 0.6 },
-  { word: '不大', multiplier: 0.5 },
-  { word: '不太', multiplier: 0.5 }
+  { word: '极其', multiplier: 2.5 },
+  { word: '极端', multiplier: 2.5 },
+  { word: '万分', multiplier: 2.3 },
+  { word: '非常', multiplier: 2.0 },
+  { word: '特别', multiplier: 1.9 },
+  { word: '格外', multiplier: 1.8 },
+  { word: '异常', multiplier: 1.8 },
+  { word: '十分', multiplier: 1.7 },
+  { word: '相当', multiplier: 1.6 },
+  { word: '很', multiplier: 1.5 },
+  { word: '挺', multiplier: 1.3 },
+  { word: '蛮', multiplier: 1.25 },
+  { word: '还', multiplier: 1.2 },
+  { word: '比较', multiplier: 1.15 },
+  { word: '较', multiplier: 1.1 },
+  { word: '有点', multiplier: 0.5 },
+  { word: '有些', multiplier: 0.5 },
+  { word: '稍微', multiplier: 0.4 },
+  { word: '略微', multiplier: 0.4 },
+  { word: '稍许', multiplier: 0.35 },
+  { word: '不大', multiplier: 0.3 },
+  { word: '不太', multiplier: 0.3 }
 ];
 
 interface MatchedWord {

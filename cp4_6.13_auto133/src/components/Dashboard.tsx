@@ -158,7 +158,9 @@ function Dashboard({ posts, keyword }: DashboardProps) {
                     outerRadius={55}
                     paddingAngle={2}
                     dataKey="value"
-                    isAnimationActive={false}
+                    isAnimationActive={true}
+                    animationDuration={500}
+                    animationEasing="ease-out"
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />

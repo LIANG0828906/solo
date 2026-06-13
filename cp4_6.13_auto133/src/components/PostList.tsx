@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Post } from '../types';
 import { analyzeSentiment, getSentimentLabelText } from '../utils/sentimentAnalyzer';
 import PostCard from './PostCard';
@@ -17,12 +17,17 @@ function PostList({ posts, loading, onTagToggle, availableTags }: PostListProps)
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const [sentimentExpandedId, setSentimentExpandedId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const prevPostsRef = useRef(posts);
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-    setExpandedPostId(null);
-    setSentimentExpandedId(null);
-  }, [posts.length]);
+    const hasDataChanged = prevPostsRef.current !== posts;
+    if (hasDataChanged) {
+      setVisibleCount(PAGE_SIZE);
+      setExpandedPostId(null);
+      setSentimentExpandedId(null);
+      prevPostsRef.current = posts;
+    }
+  }, [posts]);
 
   const postsWithSentiment = useMemo(() => {
     const visiblePosts = posts.slice(0, visibleCount);
