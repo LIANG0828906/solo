@@ -57,12 +57,6 @@ h4 {
   color: var(--text-primary);
 }
 
-.app-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-
 .btn-primary,
 .btn-secondary {
   display: inline-flex;
@@ -948,4 +942,34 @@ h4 {
     transform: none;
   }
 
-  .timeline
+  .timeline-card {
+    width: calc(100% - 48px);
+    margin-left: 48px !important;
+    margin-right: 0 !important;
+  }
+
+  .timeline-item {
+    margin-bottom: 24px;
+  }
+
+  .report-title,
+  .shared-report-title {
+    font-size: 20px;
+  }
+
+  .chart-container {
+    height: 260px;
+  }
+
+  .report-chart-card,
+  .report-summary-card,
+  .report-markdown-card {
+    padding: 16px;
+  }
+
+  .chart-title,
+  .summary-title,
+  .markdown-title {
+    font-size: 16px;
+  }
+}
