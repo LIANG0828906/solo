@@ -3,18 +3,33 @@ import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './Sidebar';
 import Editor from './Editor';
 import DiffViewer from './DiffViewer';
-import type { Chapter, VersionSnapshot, User } from './types';
+import { generateUserId, getRandomColor, generateExportContent } from './utils';
+import type { Chapter, VersionSnapshot, User, SyncMessage } from './types';
 
 const SCRIPT_TITLE = '我的剧本';
 const AUTO_SAVE_INTERVAL = 30000;
-
-const mockUsers: User[] = [
-  { id: 'user-1', name: '张三', color: '#e74c3c', cursorPosition: 0 },
-  { id: 'user-2', name: '李四', color: '#3498db', cursorPosition: 0 },
-  { id: 'user-3', name: '王五', color: '#2ecc71', cursorPosition: 0 },
-];
+const CHANNEL_NAME = 'script-collab-sync';
+const USER_TIMEOUT = 5000;
 
 function App() {
+  const getInitialUser = (): User => {
+    const saved = localStorage.getItem('current-user');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    const newUser: User = {
+      id: generateUserId(),
+      name: `用户${Math.floor(Math.random() * 1000)}`,
+      color: getRandomColor(),
+      cursorPosition: 0,
+      lastActive: Date.now(),
+    };
+    localStorage.setItem('current-user', JSON.stringify(newUser));
+    return newUser;
+  };
+
+  const currentUserRef = useRef<User>(getInitialUser());
+
   const [chapters, setChapters] = useState<Chapter[]>(() => {
     const saved = localStorage.getItem('script-chapters');
     if (saved) {
@@ -48,6 +63,7 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [onlineUsers, setOnlineUsers] = useState<Map<string, User>>(new Map());
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
   const [showDiff, setShowDiff] = useState(false);
   const [diffHeight, setDiffHeight] = useState(300);
@@ -56,11 +72,17 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
 
+  const channelRef = useRef<BroadcastChannel | null>(null);
   const lastAutoSaveRef = useRef<number>(Date.now());
+  const lastContentSyncRef = useRef<number>(0);
+  const isApplyingRemoteChangeRef = useRef(false);
 
   const activeChapter = chapters.find((c) => c.id === activeChapterId) || null;
-  const currentUser = mockUsers[0];
-  const remoteUsers = mockUsers.slice(1);
+  const currentUser = currentUserRef.current;
+
+  const remoteUsers = Array.from(onlineUsers.values()).filter(
+    (u) => u.id !== currentUser.id
+  );
 
   useEffect(() => {
     if (chapters.length > 0 && !activeChapterId) {
@@ -80,6 +102,269 @@ function App() {
     localStorage.setItem('script-versions', JSON.stringify(versions));
   }, [versions]);
 
+  useEffect(() => {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    channelRef.current = channel;
+
+    const sendMessage = (type: SyncMessage['type'], payload?: any) => {
+      try {
+        const message: SyncMessage = {
+          type,
+          senderId: currentUser.id,
+          timestamp: Date.now(),
+          payload,
+        };
+        channel.postMessage(message);
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const handleMessage = (event: MessageEvent<SyncMessage>) => {
+      const msg = event.data;
+      if (msg.senderId === currentUser.id) return;
+
+      switch (msg.type) {
+        case 'hello':
+          sendMessage('state-response', {
+            chapters,
+            versions,
+            activeChapterId,
+            user: currentUser,
+          });
+          setOnlineUsers((prev) => {
+            const next = new Map(prev);
+            if (msg.payload?.user) {
+              next.set(msg.payload.user.id, {
+                ...msg.payload.user,
+                lastActive: Date.now(),
+              });
+            }
+            return next;
+          });
+          break;
+
+        case 'state-request':
+          sendMessage('state-response', {
+            chapters,
+            versions,
+            activeChapterId,
+            user: currentUser,
+          });
+          break;
+
+        case 'state-response':
+          if (msg.payload?.chapters && chapters.length === 0) {
+            isApplyingRemoteChangeRef.current = true;
+            setChapters(msg.payload.chapters);
+            setVersions(msg.payload.versions || []);
+            if (msg.payload.activeChapterId) {
+              setActiveChapterId(msg.payload.activeChapterId);
+            }
+            setTimeout(() => {
+              isApplyingRemoteChangeRef.current = false;
+            }, 100);
+          }
+          if (msg.payload?.user) {
+            setOnlineUsers((prev) => {
+              const next = new Map(prev);
+              next.set(msg.payload.user.id, {
+                ...msg.payload.user,
+                lastActive: Date.now(),
+              });
+              return next;
+            });
+          }
+          break;
+
+        case 'content-update':
+          if (msg.payload?.chapterId && msg.payload?.content !== undefined) {
+            isApplyingRemoteChangeRef.current = true;
+            setChapters((prev) =>
+              prev.map((ch) =>
+                ch.id === msg.payload.chapterId
+                  ? { ...ch, content: msg.payload.content, updatedAt: msg.timestamp }
+                  : ch
+              )
+            );
+            if (msg.payload.chapterId === activeChapterId) {
+              setEditorKey((prev) => prev + 1);
+            }
+            setTimeout(() => {
+              isApplyingRemoteChangeRef.current = false;
+            }, 50);
+          }
+          break;
+
+        case 'cursor-update':
+          if (msg.payload?.userId && msg.payload?.chapterId === activeChapterId) {
+            setOnlineUsers((prev) => {
+              const next = new Map(prev);
+              const user = next.get(msg.payload.userId);
+              if (user) {
+                next.set(msg.payload.userId, {
+                  ...user,
+                  cursorPosition: msg.payload.position || 0,
+                  selectionStart: msg.payload.selectionStart,
+                  selectionEnd: msg.payload.selectionEnd,
+                  lastActive: Date.now(),
+                });
+              }
+              return next;
+            });
+          }
+          break;
+
+        case 'chapter-add':
+          if (msg.payload?.chapter) {
+            isApplyingRemoteChangeRef.current = true;
+            setChapters((prev) => {
+              if (prev.some((c) => c.id === msg.payload.chapter.id)) {
+                return prev;
+              }
+              return [...prev, msg.payload.chapter];
+            });
+            setTimeout(() => {
+              isApplyingRemoteChangeRef.current = false;
+            }, 50);
+          }
+          break;
+
+        case 'chapter-rename':
+          if (msg.payload?.chapterId && msg.payload?.title) {
+            isApplyingRemoteChangeRef.current = true;
+            setChapters((prev) =>
+              prev.map((ch) =>
+                ch.id === msg.payload.chapterId
+                  ? { ...ch, title: msg.payload.title, updatedAt: msg.timestamp }
+                  : ch
+              )
+            );
+            setTimeout(() => {
+              isApplyingRemoteChangeRef.current = false;
+            }, 50);
+          }
+          break;
+
+        case 'chapter-delete':
+          if (msg.payload?.chapterId) {
+            isApplyingRemoteChangeRef.current = true;
+            setChapters((prev) => prev.filter((ch) => ch.id !== msg.payload.chapterId));
+            setVersions((prev) => prev.filter((v) => v.chapterId !== msg.payload.chapterId));
+            if (activeChapterId === msg.payload.chapterId) {
+              setActiveChapterId(null);
+            }
+            setTimeout(() => {
+              isApplyingRemoteChangeRef.current = false;
+            }, 50);
+          }
+          break;
+
+        case 'version-add':
+          if (msg.payload?.version) {
+            setVersions((prev) => {
+              if (prev.some((v) => v.id === msg.payload.version.id)) {
+                return prev;
+              }
+              return [...prev, msg.payload.version];
+            });
+          }
+          break;
+
+        case 'user-join':
+          if (msg.payload?.user) {
+            setOnlineUsers((prev) => {
+              const next = new Map(prev);
+              next.set(msg.payload.user.id, {
+                ...msg.payload.user,
+                lastActive: Date.now(),
+              });
+              return next;
+            });
+          }
+          break;
+
+        case 'user-leave':
+          if (msg.payload?.userId) {
+            setOnlineUsers((prev) => {
+              const next = new Map(prev);
+              next.delete(msg.payload.userId);
+              return next;
+            });
+          }
+          break;
+      }
+    };
+
+    channel.addEventListener('message', handleMessage);
+
+    sendMessage('user-join', { user: currentUser });
+    setTimeout(() => sendMessage('state-request'), 100);
+
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      setOnlineUsers((prev) => {
+        const next = new Map(prev);
+        for (const [id, user] of next) {
+          if (now - (user.lastActive || 0) > USER_TIMEOUT) {
+            next.delete(id);
+          }
+        }
+        return next;
+      });
+    }, 1000);
+
+    const heartbeatInterval = setInterval(() => {
+      sendMessage('hello', { user: currentUser });
+    }, 2000);
+
+    const handleBeforeUnload = () => {
+      const leaveMessage: SyncMessage = {
+        type: 'user-leave',
+        senderId: currentUser.id,
+        timestamp: Date.now(),
+        payload: { userId: currentUser.id },
+      };
+      try {
+        channel.postMessage(leaveMessage);
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      const leaveMessage: SyncMessage = {
+        type: 'user-leave',
+        senderId: currentUser.id,
+        timestamp: Date.now(),
+        payload: { userId: currentUser.id },
+      };
+      try {
+        channel.postMessage(leaveMessage);
+      } catch (e) {
+        // ignore
+      }
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+      clearInterval(cleanupInterval);
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  const sendMessage = useCallback((type: SyncMessage['type'], payload?: any) => {
+    if (channelRef.current) {
+      const message: SyncMessage = {
+        type,
+        senderId: currentUser.id,
+        timestamp: Date.now(),
+        payload,
+      };
+      channelRef.current.postMessage(message);
+    }
+  }, [currentUser.id]);
+
   const createVersionSnapshot = useCallback(() => {
     if (!activeChapter) return;
 
@@ -95,7 +380,8 @@ function App() {
     };
 
     setVersions((prev) => [...prev, snapshot]);
-  }, [activeChapter, versions]);
+    sendMessage('version-add', { version: snapshot });
+  }, [activeChapter, versions, sendMessage]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -125,6 +411,7 @@ function App() {
     setChapters((prev) => [...prev, newChapter]);
     setActiveChapterId(newChapter.id);
     setEditorKey((prev) => prev + 1);
+    sendMessage('chapter-add', { chapter: newChapter });
   };
 
   const handleRenameChapter = (id: string, newTitle: string) => {
@@ -133,6 +420,7 @@ function App() {
         ch.id === id ? { ...ch, title: newTitle, updatedAt: Date.now() } : ch
       )
     );
+    sendMessage('chapter-rename', { chapterId: id, title: newTitle });
   };
 
   const handleDeleteChapter = (id: string) => {
@@ -140,11 +428,14 @@ function App() {
       alert('至少保留一个章节');
       return;
     }
-    setChapters((prev) => prev.filter((ch) => ch.id !== id));
-    setVersions((prev) => prev.filter((v) => v.chapterId !== id));
-    if (activeChapterId === id) {
-      const remaining = chapters.filter((ch) => ch.id !== id);
-      setActiveChapterId(remaining[0]?.id || null);
+    if (confirm('确定要删除这个章节吗？')) {
+      setChapters((prev) => prev.filter((ch) => ch.id !== id));
+      setVersions((prev) => prev.filter((v) => v.chapterId !== id));
+      if (activeChapterId === id) {
+        const remaining = chapters.filter((ch) => ch.id !== id);
+        setActiveChapterId(remaining[0]?.id || null);
+      }
+      sendMessage('chapter-delete', { chapterId: id });
     }
   };
 
@@ -154,9 +445,16 @@ function App() {
     setShowDiff(false);
     setSelectedVersions([]);
     setSidebarOpen(false);
+    sendMessage('chapter-select', { chapterId: id });
   };
 
   const handleContentChange = (content: string) => {
+    if (isApplyingRemoteChangeRef.current) return;
+
+    const now = Date.now();
+    if (now - lastContentSyncRef.current < 100) return;
+    lastContentSyncRef.current = now;
+
     setChapters((prev) =>
       prev.map((ch) =>
         ch.id === activeChapterId
@@ -164,6 +462,31 @@ function App() {
           : ch
       )
     );
+    sendMessage('content-update', {
+      chapterId: activeChapterId,
+      content,
+    });
+  };
+
+  const handleCursorUpdate = (position: number, selectionStart?: number, selectionEnd?: number) => {
+    currentUserRef.current.cursorPosition = position;
+    currentUserRef.current.selectionStart = selectionStart;
+    currentUserRef.current.selectionEnd = selectionEnd;
+    currentUserRef.current.lastActive = Date.now();
+
+    setOnlineUsers((prev) => {
+      const next = new Map(prev);
+      next.set(currentUser.id, currentUserRef.current);
+      return next;
+    });
+
+    sendMessage('cursor-update', {
+      userId: currentUser.id,
+      chapterId: activeChapterId,
+      position,
+      selectionStart,
+      selectionEnd,
+    });
   };
 
   const handleRestoreVersion = (versionId: string) => {
@@ -179,6 +502,13 @@ function App() {
         )
       );
       setEditorKey((prev) => prev + 1);
+
+      sendMessage('content-update', {
+        chapterId: version.chapterId,
+        content: version.content,
+      });
+
+      lastAutoSaveRef.current = Date.now();
     }
   };
 
@@ -208,65 +538,43 @@ function App() {
     setShowDownloadProgress(true);
     setDownloadProgress(0);
 
-    const totalSteps = 20;
-    const stepDuration = 50;
+    try {
+      const exportChapters = chapters.map((ch) => ({
+        title: ch.title,
+        content: ch.content,
+      }));
 
-    for (let i = 0; i <= totalSteps; i++) {
-      await new Promise((resolve) => setTimeout(resolve, stepDuration));
-      setDownloadProgress(Math.round((i / totalSteps) * 100));
-    }
+      const content = await generateExportContent(
+        SCRIPT_TITLE,
+        exportChapters,
+        (progress) => {
+          setDownloadProgress(progress);
+        }
+      );
 
-    let content = `${SCRIPT_TITLE}\n${'='.repeat(SCRIPT_TITLE.length * 2)}\n\n`;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setDownloadProgress(100);
 
-    chapters.forEach((chapter, index) => {
-      content += `\n---\n\n`;
-      content += `${chapter.title}\n`;
-      content += `${'-'.repeat(chapter.title.length)}\n\n`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${SCRIPT_TITLE}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-      const textContent = chapter.content
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n')
-        .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n')
-        .replace(/<b>(.*?)<\/b>/gi, '$1')
-        .replace(/<strong>(.*?)<\/strong>/gi, '$1')
-        .replace(/<i>(.*?)<\/i>/gi, '$1')
-        .replace(/<em>(.*?)<\/em>/gi, '$1')
-        .replace(/<u>(.*?)<\/u>/gi, '$1')
-        .replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, inner) => {
-          return inner.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n');
-        })
-        .replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, inner) => {
-          let count = 1;
-          return inner.replace(/<li[^>]*>(.*?)<\/li>/gi, () => {
-            return `${count++}. ` + arguments[1] + '\n';
-          });
-        })
-        .replace(/<li[^>]*>(.*?)<\/li>/gi, '$1\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-
-      content += textContent + '\n';
-    });
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${SCRIPT_TITLE}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setTimeout(() => {
+      setTimeout(() => {
+        setShowDownloadProgress(false);
+        setDownloadProgress(0);
+      }, 500);
+    } catch (error) {
+      console.error('Export failed:', error);
       setShowDownloadProgress(false);
       setDownloadProgress(0);
-    }, 500);
+      alert('导出失败，请重试');
+    }
   };
 
   const getChapterVersions = () => {
@@ -281,6 +589,8 @@ function App() {
     const v2 = versions.find((v) => v.id === selectedVersions[1]);
     return { v1, v2 };
   };
+
+  const allUsers = [currentUser, ...remoteUsers];
 
   return (
     <div className="app-container">
@@ -311,7 +621,7 @@ function App() {
         onToggleVersionSelect={handleToggleVersionSelect}
         onCompare={handleCompare}
         onExport={handleExport}
-        onlineUsers={mockUsers}
+        onlineUsers={allUsers}
         currentUserId={currentUser.id}
         isMobileOpen={sidebarOpen}
       />
@@ -324,7 +634,9 @@ function App() {
               content={activeChapter.content}
               chapterTitle={activeChapter.title}
               onChange={handleContentChange}
+              onCursorUpdate={handleCursorUpdate}
               remoteUsers={remoteUsers}
+              chapterId={activeChapterId}
             />
 
             {showDiff && (

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { sanitizeHtml } from './utils';
 import type { User } from './types';
 
 interface EditorProps {
   content: string;
   chapterTitle: string;
+  chapterId: string | null;
   onChange: (content: string) => void;
+  onCursorUpdate: (position: number, selectionStart?: number, selectionEnd?: number) => void;
   remoteUsers: User[];
 }
 
-function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
+function Editor({ content, chapterTitle, chapterId, onChange, onCursorUpdate, remoteUsers }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
@@ -18,6 +21,7 @@ function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
 
   const rafIdRef = useRef<number | null>(null);
   const lastContentRef = useRef(content);
+  const cursorUpdateTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -30,64 +34,126 @@ function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
     setIsFading(true);
     const timer = setTimeout(() => setIsFading(false), 400);
     return () => clearTimeout(timer);
-  }, [chapterTitle]);
+  }, [chapterId]);
 
-  useEffect(() => {
-    const updateCursors = () => {
-      const newCursors = new Map<string, { top: number; left: number; height: number }>();
-      const editor = editorRef.current;
-      if (!editor) return;
+  const getCaretPosition = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return 0;
 
-      remoteUsers.forEach((user) => {
-        const textLength = editor.innerText.length;
-        if (textLength === 0) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return 0;
 
-        const seed = parseInt(user.id.replace(/\D/g, '').slice(0, 5) || '1', 10);
-        const timeOffset = (Date.now() / 1000 + seed) % textLength;
-        const offset = Math.floor(timeOffset);
+    const range = selection.getRangeAt(0);
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(editor);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+    return preCaretRange.toString().length;
+  }, []);
 
-        try {
-          const range = document.createRange();
-          const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-          let currentPos = 0;
-          let targetNode: Node | null = null;
-          let targetOffset = 0;
+  const getSelectionOffsets = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return { start: 0, end: 0 };
 
-          while (walker.nextNode()) {
-            const node = walker.currentNode;
-            const nodeLength = node.textContent?.length || 0;
-            if (currentPos + nodeLength >= offset) {
-              targetNode = node;
-              targetOffset = offset - currentPos;
-              break;
-            }
-            currentPos += nodeLength;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return { start: 0, end: 0 };
+
+    const range = selection.getRangeAt(0);
+    const preStartRange = range.cloneRange();
+    const preEndRange = range.cloneRange();
+
+    preStartRange.selectNodeContents(editor);
+    preStartRange.setEnd(range.startContainer, range.startOffset);
+    const start = preStartRange.toString().length;
+
+    preEndRange.selectNodeContents(editor);
+    preEndRange.setEnd(range.endContainer, range.endOffset);
+    const end = preEndRange.toString().length;
+
+    return { start, end };
+  }, []);
+
+  const sendCursorUpdate = useCallback(() => {
+    const position = getCaretPosition();
+    const { start, end } = getSelectionOffsets();
+    onCursorUpdate(position, start, end);
+  }, [getCaretPosition, getSelectionOffsets, onCursorUpdate]);
+
+  const debouncedCursorUpdate = useCallback(() => {
+    if (cursorUpdateTimeoutRef.current) {
+      clearTimeout(cursorUpdateTimeoutRef.current);
+    }
+    cursorUpdateTimeoutRef.current = window.setTimeout(() => {
+      sendCursorUpdate();
+    }, 50);
+  }, [sendCursorUpdate]);
+
+  const calculateRemoteCursorPositions = useCallback(() => {
+    const newCursors = new Map<string, { top: number; left: number; height: number }>();
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    remoteUsers.forEach((user) => {
+      if (user.cursorPosition === undefined) return;
+
+      const textLength = editor.innerText.length;
+      if (textLength === 0) return;
+
+      const targetOffset = Math.min(Math.max(0, user.cursorPosition), textLength);
+
+      try {
+        const range = document.createRange();
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let currentPos = 0;
+        let targetNode: Node | null = null;
+        let targetNodeOffset = 0;
+
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const nodeLength = node.textContent?.length || 0;
+          if (currentPos + nodeLength >= targetOffset) {
+            targetNode = node;
+            targetNodeOffset = targetOffset - currentPos;
+            break;
           }
+          currentPos += nodeLength;
+        }
 
-          if (targetNode) {
-            range.setStart(targetNode, targetOffset);
-            range.setEnd(targetNode, targetOffset);
-            const rect = range.getBoundingClientRect();
-            const editorRect = editor.getBoundingClientRect();
+        if (targetNode) {
+          range.setStart(targetNode, Math.min(targetNodeOffset, targetNode.textContent?.length || 0));
+          range.setEnd(targetNode, Math.min(targetNodeOffset, targetNode.textContent?.length || 0));
+          const rect = range.getBoundingClientRect();
+          const editorRect = editor.getBoundingClientRect();
 
+          if (rect.width === 0 && rect.height === 0) {
+            const tempRange = document.createRange();
+            tempRange.selectNodeContents(targetNode);
+            const tempRect = tempRange.getBoundingClientRect();
+            newCursors.set(user.id, {
+              top: tempRect.top - editorRect.top + editor.scrollTop,
+              left: tempRect.left - editorRect.left,
+              height: tempRect.height || 20,
+            });
+          } else {
             newCursors.set(user.id, {
               top: rect.top - editorRect.top + editor.scrollTop,
               left: rect.left - editorRect.left,
               height: rect.height || 20,
             });
           }
-        } catch (e) {
-          // ignore
         }
-      });
+      } catch (e) {
+        // ignore
+      }
+    });
 
-      setRemoteCursors(newCursors);
-    };
-
-    updateCursors();
-    const interval = setInterval(updateCursors, 1500);
-    return () => clearInterval(interval);
+    setRemoteCursors(newCursors);
   }, [remoteUsers]);
+
+  useEffect(() => {
+    calculateRemoteCursorPositions();
+    const interval = setInterval(calculateRemoteCursorPositions, 300);
+    return () => clearInterval(interval);
+  }, [calculateRemoteCursorPositions]);
 
   const handleInput = useCallback(() => {
     if (isComposing) return;
@@ -104,10 +170,34 @@ function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
           onChange(newContent);
         }
         updateActiveFormats();
+        debouncedCursorUpdate();
       }
       rafIdRef.current = null;
     });
-  }, [isComposing, onChange]);
+  }, [isComposing, onChange, debouncedCursorUpdate]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+
+    const text = e.clipboardData.getData('text/plain');
+    const html = e.clipboardData.getData('text/html');
+
+    let cleanContent: string;
+
+    if (html) {
+      cleanContent = sanitizeHtml(html);
+    } else {
+      cleanContent = text.replace(/\n/g, '<br>');
+    }
+
+    try {
+      document.execCommand('insertHTML', false, cleanContent);
+    } catch (err) {
+      document.execCommand('insertText', false, text);
+    }
+
+    handleInput();
+  }, [handleInput]);
 
   const updateActiveFormats = useCallback(() => {
     const formats = new Set<string>();
@@ -155,10 +245,16 @@ function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
 
   const handleKeyUp = () => {
     updateActiveFormats();
+    debouncedCursorUpdate();
   };
 
   const handleMouseUp = () => {
     updateActiveFormats();
+    debouncedCursorUpdate();
+  };
+
+  const handleClick = () => {
+    debouncedCursorUpdate();
   };
 
   return (
@@ -224,10 +320,12 @@ function Editor({ content, chapterTitle, onChange, remoteUsers }: EditorProps) {
               className="editor"
               contentEditable
               onInput={handleInput}
+              onPaste={handlePaste}
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               onKeyUp={handleKeyUp}
               onMouseUp={handleMouseUp}
+              onClick={handleClick}
               suppressContentEditableWarning
             />
             <div className="remote-cursors">

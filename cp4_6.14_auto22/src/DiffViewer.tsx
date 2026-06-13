@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import * as Diff from 'diff';
 
 interface DiffViewerProps {
@@ -17,6 +17,11 @@ function stripHtml(html: string): string {
   return tmp.textContent || tmp.innerText || '';
 }
 
+interface DiffLine {
+  text: string;
+  type: 'normal' | 'added' | 'removed' | 'modified';
+}
+
 function DiffViewer({
   oldVersion,
   newVersion,
@@ -32,61 +37,63 @@ function DiffViewer({
   const startHeight = useRef(0);
 
   const [diffResult, setDiffResult] = useState<{
-    oldLines: Array<{ text: string; type: 'normal' | 'added' | 'removed' | 'modified' }>;
-    newLines: Array<{ text: string; type: 'normal' | 'added' | 'removed' | 'modified' }>;
+    oldLines: DiffLine[];
+    newLines: DiffLine[];
   }>({ oldLines: [], newLines: [] });
 
   useEffect(() => {
     const startTime = performance.now();
 
     const oldText = stripHtml(oldVersion);
+    const oldLines = oldText.split('\n');
     const newText = stripHtml(newVersion);
+    const newLines = newText.split('\n');
 
-    const diff = Diff.diffLines(oldText, newText);
-
-    const oldLines: Array<{ text: string; type: 'normal' | 'added' | 'removed' | 'modified' }> = [];
-    const newLines: Array<{ text: string; type: 'normal' | 'added' | 'removed' | 'modified' }> = [];
-
-    diff.forEach((part) => {
-      const lines = part.value.split('\n');
-      if (lines[lines.length - 1] === '') {
-        lines.pop();
-      }
-
-      lines.forEach((line) => {
-        if (part.added) {
-          newLines.push({ text: line, type: 'added' });
-        } else if (part.removed) {
-          oldLines.push({ text: line, type: 'removed' });
-        } else {
-          oldLines.push({ text: line, type: 'normal' });
-          newLines.push({ text: line, type: 'normal' });
-        }
-      });
-    });
+    const oldResult: DiffLine[] = [];
+    const newResult: DiffLine[] = [];
 
     const maxLen = Math.max(oldLines.length, newLines.length);
-    while (oldLines.length < maxLen) {
-      oldLines.push({ text: '', type: 'normal' });
-    }
-    while (newLines.length < maxLen) {
-      newLines.push({ text: '', type: 'normal' });
-    }
 
     for (let i = 0; i < maxLen; i++) {
-      const oldLine = oldLines[i];
-      const newLine = newLines[i];
+      const oldLine = oldLines[i] || '';
+      const newLine = newLines[i] || '';
 
-      if (oldLine.type === 'removed' && newLine.type === 'added') {
-        oldLine.type = 'modified';
-        newLine.type = 'modified';
+      if (oldLine === newLine) {
+        oldResult.push({ text: oldLine, type: 'normal' });
+        newResult.push({ text: newLine, type: 'normal' });
+      } else if (oldLine && !newLine) {
+        oldResult.push({ text: oldLine, type: 'removed' });
+        newResult.push({ text: newLine, type: 'added' });
+      } else if (oldLine && newLine) {
+        const charDiff = Diff.diffChars(oldLine, newLine);
+        let hasChanges = false;
+        for (const part of charDiff) {
+          if (part.added || part.removed) {
+            hasChanges = true;
+            break;
+          }
+        }
+
+        if (hasChanges) {
+          oldResult.push({ text: oldLine, type: 'modified' });
+          newResult.push({ text: newLine, type: 'modified' });
+        } else {
+          oldResult.push({ text: oldLine, type: 'normal' });
+          newResult.push({ text: newLine, type: 'normal' });
+        }
+      } else if (!oldLine && newLine) {
+        oldResult.push({ text: '', type: 'normal' });
+        newResult.push({ text: newLine, type: 'added' });
+      } else if (oldLine && !newLine) {
+        oldResult.push({ text: oldLine, type: 'removed' });
+        newResult.push({ text: '', type: 'normal' });
       }
     }
 
     const endTime = performance.now();
     console.log(`Diff generated in ${(endTime - startTime).toFixed(2)}ms`);
 
-    setDiffResult({ oldLines, newLines });
+    setDiffResult({ oldLines: oldResult, newLines: newResult });
   }, [oldVersion, newVersion]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -133,6 +140,48 @@ function DiffViewer({
     }
   };
 
+  const renderDiffText = (line: DiffLine, isOld: boolean) => {
+    if (line.type === 'normal') {
+      return <span>{line.text || '\u00A0'}</span>;
+    }
+
+    if (line.type === 'added' && !isOld) {
+      return <span style={{ backgroundColor: '#d4edda' }}>{line.text || '\u00A0'}</span>;
+    }
+
+    if (line.type === 'removed' && isOld) {
+      return <span style={{ backgroundColor: '#f8d7da' }}>{line.text || '\u00A0'}</span>;
+    }
+
+    if (line.type === 'modified') {
+      const otherText = isOld
+        ? diffResult.newLines[diffResult.oldLines.indexOf(line)]?.text || ''
+        : diffResult.oldLines[diffResult.newLines.indexOf(line)]?.text || '';
+
+      const charDiff = Diff.diffChars(line.text, otherText);
+
+      return (
+        <>
+          {charDiff.map((part, idx) => {
+          if (part.added) {
+            return isOld ? null : (
+              <span key={idx} style={{ backgroundColor: '#d4edda' }}>{part.value}</span>
+            );
+          }
+          if (part.removed) {
+            return isOld ? (
+              <span key={idx} style={{ backgroundColor: '#f8d7da' }}>{part.value}</span>
+            ) : null;
+          }
+          return <span key={idx}>{part.value}</span>;
+        })}
+        </>
+      );
+    }
+
+    return <span>{line.text || '\u00A0'}</span>;
+  };
+
   return (
     <div
       ref={containerRef}
@@ -155,7 +204,7 @@ function DiffViewer({
           </div>
           {diffResult.oldLines.map((line, index) => (
             <div key={index} className={getLineClass(line.type)}>
-              {line.text || '\u00A0'}
+              {renderDiffText(line, true)}
             </div>
           ))}
         </div>
@@ -165,7 +214,7 @@ function DiffViewer({
           </div>
           {diffResult.newLines.map((line, index) => (
             <div key={index} className={getLineClass(line.type)}>
-              {line.text || '\u00A0'}
+              {renderDiffText(line, false)}
             </div>
           ))}
         </div>
