@@ -1,4 +1,4 @@
-import type { FrequencyBand, AudioAnalysis } from './audioEngine';
+import type { AudioAnalysis } from './audioEngine';
 
 export interface NoteVisual {
   id: number;
@@ -44,6 +44,9 @@ const LANE_COLORS = [
   '#1e90ff', '#a55eea', '#ff4757'
 ];
 
+const TRAIL_TIME = 500;
+const MAX_TRAIL_OFFSET = 30;
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -52,7 +55,8 @@ export class Renderer {
   private dpr = 1;
 
   private waveHistory: WaveFrame[] = [];
-  private readonly trailTime = 500;
+  private readonly trailTime = TRAIL_TIME;
+  private readonly maxTrailOffset = MAX_TRAIL_OFFSET;
 
   private readonly maxParticles = 300;
   private particlePool: Particle[] = [];
@@ -74,14 +78,17 @@ export class Renderer {
   private frameCount = 0;
   private fpsUpdateTime = 0;
 
+  private handleResize: () => void;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Cannot get 2D context');
     this.ctx = ctx;
     this.initParticlePool();
+    this.handleResize = () => this.resize();
+    window.addEventListener('resize', this.handleResize);
     this.resize();
-    window.addEventListener('resize', () => this.resize());
   }
 
   private initParticlePool(): void {
@@ -100,6 +107,7 @@ export class Renderer {
 
     this.canvas.width = this.width * this.dpr;
     this.canvas.height = this.height * this.dpr;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(this.dpr, this.dpr);
 
     this.judgeLineY = this.height * 0.85;
@@ -131,7 +139,7 @@ export class Renderer {
     this.updateParticles(deltaTime);
     this.updateHitEffects(currentTime);
     this.updateFireworks(currentTime);
-    this.draw(notes, analysis, currentTime);
+    this.draw(notes, currentTime);
   }
 
   private calculateFPS(currentTime: number): void {
@@ -157,13 +165,9 @@ export class Renderer {
     while (this.waveHistory.length > 0 && now - this.waveHistory[0].timestamp > this.trailTime) {
       this.waveHistory.shift();
     }
-
-    while (this.waveHistory.length > 30) {
-      this.waveHistory.shift();
-    }
   }
 
-  private spawnSpectrumParticles(bands: FrequencyBand, currentTime: number): void {
+  private spawnSpectrumParticles(bands: { low: number; mid: number; high: number }, currentTime: number): void {
     const spawnLow = Math.floor(bands.low * 4);
     const spawnMid = Math.floor(bands.mid * 3);
     const spawnHigh = Math.floor(bands.high * 3);
@@ -298,7 +302,7 @@ export class Renderer {
     }
   }
 
-  private draw(notes: NoteVisual[], analysis: AudioAnalysis | null, currentTime: number): void {
+  private draw(notes: NoteVisual[], currentTime: number): void {
     this.ctx.fillStyle = '#0a0a1a';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
@@ -371,14 +375,13 @@ export class Renderer {
     const now = performance.now();
     const baseY = this.height * 0.35;
     const amplitude = this.height * 0.12;
-    const totalFrames = this.waveHistory.length;
 
-    for (let i = 0; i < totalFrames; i++) {
+    for (let i = 0; i < this.waveHistory.length; i++) {
       const frame = this.waveHistory[i];
       const age = now - frame.timestamp;
       const ageRatio = age / this.trailTime;
       const alpha = Math.max(0, (1 - ageRatio)) * 0.8;
-      const offset = (totalFrames - 1 - i) * 2;
+      const offset = ageRatio * this.maxTrailOffset;
 
       this.drawWaveform(frame.left, baseY - 40 + offset, amplitude, 'low', frame.bands.low, alpha);
       this.drawWaveform(frame.right, baseY + offset, amplitude, 'mid', frame.bands.mid, alpha);
@@ -554,6 +557,6 @@ export class Renderer {
   }
 
   destroy(): void {
-    window.removeEventListener('resize', () => this.resize());
+    window.removeEventListener('resize', this.handleResize);
   }
 }

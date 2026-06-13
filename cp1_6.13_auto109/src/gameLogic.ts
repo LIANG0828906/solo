@@ -48,6 +48,7 @@ const GOOD_SCORE = 50;
 const MIN_BPM = 100;
 const MAX_BPM = 200;
 const BASE_FALL_DURATION = 2000;
+const BASE_BPM = 120;
 
 export class GameLogic {
   private state: GameState = {
@@ -74,27 +75,35 @@ export class GameLogic {
 
   private pressedKeys = new Set<number>();
 
+  private onKeyDownHandler: (e: KeyboardEvent) => void;
+  private onKeyUpHandler: (e: KeyboardEvent) => void;
+
   constructor() {
+    this.onKeyDownHandler = (e: KeyboardEvent) => this.handleKeyDown(e);
+    this.onKeyUpHandler = (e: KeyboardEvent) => this.handleKeyUp(e);
     this.setupKeyListeners();
   }
 
   private setupKeyListeners(): void {
-    window.addEventListener('keydown', (e) => {
-      if (!this.state.isPlaying) return;
+    window.addEventListener('keydown', this.onKeyDownHandler);
+    window.addEventListener('keyup', this.onKeyUpHandler);
+  }
 
-      const lane = KEY_MAP[e.key];
-      if (lane !== undefined && !this.pressedKeys.has(lane)) {
-        this.pressedKeys.add(lane);
-        this.handleKeyPress(lane, performance.now());
-      }
-    });
+  private handleKeyDown(e: KeyboardEvent): void {
+    if (!this.state.isPlaying) return;
 
-    window.addEventListener('keyup', (e) => {
-      const lane = KEY_MAP[e.key];
-      if (lane !== undefined) {
-        this.pressedKeys.delete(lane);
-      }
-    });
+    const lane = KEY_MAP[e.key];
+    if (lane !== undefined && !this.pressedKeys.has(lane)) {
+      this.pressedKeys.add(lane);
+      this.handleKeyPress(lane, performance.now());
+    }
+  }
+
+  private handleKeyUp(e: KeyboardEvent): void {
+    const lane = KEY_MAP[e.key];
+    if (lane !== undefined) {
+      this.pressedKeys.delete(lane);
+    }
   }
 
   setCanvasParams(judgeLineY: number, canvasHeight: number, noteHeight: number): void {
@@ -134,14 +143,17 @@ export class GameLogic {
   }
 
   private getFallDuration(bpm: number): number {
-    const duration = BASE_FALL_DURATION * 120 / bpm;
-    return Math.max(1200, Math.min(2400, duration));
+    const clampedBPM = Math.max(MIN_BPM, Math.min(MAX_BPM, bpm));
+    const duration = BASE_FALL_DURATION * BASE_BPM / clampedBPM;
+    const minDuration = BASE_FALL_DURATION * BASE_BPM / MAX_BPM;
+    const maxDuration = BASE_FALL_DURATION * BASE_BPM / MIN_BPM;
+    return Math.max(minDuration, Math.min(maxDuration, duration));
   }
 
   handleBeat(beat: BeatEvent): void {
     if (!this.state.isPlaying) return;
 
-    this.currentBPM = beat.bpm;
+    this.currentBPM = Math.max(MIN_BPM, Math.min(MAX_BPM, beat.bpm));
 
     const fallDuration = this.getFallDuration(beat.bpm);
     const lane = Math.floor(Math.random() * 6);
@@ -166,15 +178,13 @@ export class GameLogic {
   private handleKeyPress(lane: number, currentTimeMs: number): void {
     if (!this.state.isPlaying) return;
 
-    const currentAudioTimeMs = currentTimeMs;
-
     let bestNote: Note | null = null;
     let bestDiff = Infinity;
 
     for (const note of this.notes) {
       if (note.lane !== lane || note.hit || note.missed) continue;
 
-      const diff = Math.abs(note.hitTime - currentAudioTimeMs);
+      const diff = Math.abs(note.hitTime - currentTimeMs);
       if (diff < bestDiff && diff <= MISS_WINDOW) {
         bestDiff = diff;
         bestNote = note;
@@ -213,102 +223,4 @@ export class GameLogic {
       if (note.hit) continue;
 
       const timeUntilHit = note.hitTime - currentAudioTimeMs;
-      const progress = 1 - (timeUntilHit / note.fallDuration);
-
-      note.y = progress * this.judgeLineY;
-
-      if (!note.missed && timeUntilHit < -MISS_WINDOW) {
-        note.missed = true;
-        this.state.combo = 0;
-        this.state.health = Math.max(0, this.state.health - 5);
-        this.notifyStateChange();
-        this.notifyMiss();
-        this.notifyJudge('miss', note.lane, 0);
-      }
-
-      if (note.y >= -this.noteHeight && note.y <= this.canvasHeight && !note.missed) {
-        const alpha = Math.max(0, Math.min(1, 1 - Math.abs(timeUntilHit) / note.fallDuration + 0.3));
-        visibleNotes.push({
-          id: note.id,
-          y: note.y,
-          lane: note.lane,
-          alpha
-        });
-      }
-    }
-
-    this.notes = this.notes.filter(n => {
-      if (n.hit) return false;
-      if (n.missed && n.y > this.canvasHeight + 100) return false;
-      return true;
-    });
-
-    return visibleNotes;
-  }
-
-  private checkFirework(): void {
-    const combo = this.state.combo;
-    if ((combo === 50 || combo === 100 || (combo > 100 && combo % 100 === 0)) && combo !== this.lastFireworkCombo) {
-      this.lastFireworkCombo = combo;
-      if (this.onFireworkCallback) {
-        this.onFireworkCallback();
-      }
-    }
-  }
-
-  private notifyJudge(result: JudgeResult, lane: number, score: number): void {
-    if (this.onJudgeCallback) {
-      this.onJudgeCallback({
-        result,
-        lane,
-        score,
-        combo: this.state.combo
-      });
-    }
-  }
-
-  private notifyMiss(): void {
-    if (this.onMissCallback) {
-      this.onMissCallback();
-    }
-  }
-
-  private notifyStateChange(): void {
-    if (this.onStateChangeCallback) {
-      this.onStateChangeCallback({ ...this.state });
-    }
-  }
-
-  getState(): GameState {
-    return { ...this.state };
-  }
-
-  getBPM(): number {
-    return this.currentBPM;
-  }
-
-  isKeyPressed(lane: number): boolean {
-    return this.pressedKeys.has(lane);
-  }
-
-  setOnJudgeCallback(callback: (event: JudgeEvent) => void): void {
-    this.onJudgeCallback = callback;
-  }
-
-  setOnMissCallback(callback: () => void): void {
-    this.onMissCallback = callback;
-  }
-
-  setOnFireworkCallback(callback: () => void): void {
-    this.onFireworkCallback = callback;
-  }
-
-  setOnStateChangeCallback(callback: (state: GameState) => void): void {
-    this.onStateChangeCallback = callback;
-  }
-
-  destroy(): void {
-    window.removeEventListener('keydown', () => {});
-    window.removeEventListener('keyup', () => {});
-  }
-}
+      const progress = 1 - (time
