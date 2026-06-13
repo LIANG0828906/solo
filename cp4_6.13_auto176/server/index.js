@@ -55,7 +55,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.post('/api/upload', upload.single('image'), async (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
@@ -96,14 +96,15 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
       }
     });
 
-    if (data.words && data.words.length > 0) {
-      for (const word of data.words) {
+    if (data.lines && data.lines.length > 0) {
+      for (const line of data.lines) {
+        if (line.confidence < 30) continue;
         const blockId = uuidv4();
-        const { x0, y0, x1, y1 } = word.bbox;
+        const { x0, y0, x1, y1 } = line.bbox;
         textBlocks.push({
           id: blockId,
           document_id: docId,
-          text: word.text,
+          text: line.text,
           x: x0,
           y: y0,
           width: x1 - x0,
@@ -114,9 +115,19 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 
     insertMany(textBlocks);
 
+    const responseTextBlocks = textBlocks.map((block) => ({
+      id: block.id,
+      text: block.text,
+      x: block.x,
+      y: block.y,
+      width: block.width,
+      height: block.height,
+    }));
+
     res.json({
-      document: { id: docId, filename, created_at: createdAt },
-      textBlocks,
+      documentId: docId,
+      textBlocks: responseTextBlocks,
+      imageUrl: `/uploads/${filename}`,
       imageWidth: data.imageWidth,
       imageHeight: data.imageHeight,
     });
@@ -128,12 +139,18 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 
 app.post('/api/export', async (req, res) => {
   try {
-    const { documentId, annotations, imageFilename } = req.body;
+    const { documentId, annotations } = req.body;
 
-    if (!documentId || !imageFilename) {
-      return res.status(400).json({ error: 'Missing documentId or imageFilename' });
+    if (!documentId) {
+      return res.status(400).json({ error: 'Missing documentId' });
     }
 
+    const doc = db.prepare('SELECT filename FROM documents WHERE id = ?').get(documentId);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const imageFilename = doc.filename;
     const imagePath = path.join(uploadsDir, imageFilename);
     if (!fs.existsSync(imagePath)) {
       return res.status(404).json({ error: 'Image file not found' });
@@ -164,29 +181,50 @@ app.post('/api/export', async (req, res) => {
 
         switch (ann.type) {
           case 'highlight':
-            pdf.setFillColor(255, 255, 0);
-            pdf.setGState(new pdf.GState({ opacity: 0.3 }));
-            pdf.rect(x, y, w, h, 'F');
-            pdf.setGState(new pdf.GState({ opacity: 1 }));
+            pdf.setFillColor(255, 235, 59);
+            pdf.setDrawColor(255, 235, 59);
+            pdf.setLineWidth(0.1);
+            const highlightLines = 8;
+            for (let i = 0; i < highlightLines; i++) {
+              const lineY = y + (h * i) / highlightLines;
+              const lineH = h / highlightLines * 0.5;
+              pdf.rect(x, lineY, w, lineH, 'FD');
+            }
             break;
           case 'underline':
-            pdf.setDrawColor(255, 0, 0);
-            pdf.setLineWidth(0.5);
-            pdf.line(x, y + h, x + w, y + h);
+            pdf.setDrawColor(33, 150, 243);
+            pdf.setLineWidth(0.4);
+            const waveAmp = 0.8;
+            const waveLen = 3;
+            let prevX = x;
+            let prevY = y + h;
+            for (let px = waveLen; px <= w; px += waveLen / 4) {
+              const py = y + h + Math.sin((px / waveLen) * Math.PI * 2) * waveAmp;
+              pdf.line(prevX, prevY, x + px, py);
+              prevX = x + px;
+              prevY = py;
+            }
+            if (prevX < x + w) {
+              pdf.line(prevX, prevY, x + w, y + h);
+            }
             break;
           case 'strikethrough':
-            pdf.setDrawColor(255, 0, 0);
-            pdf.setLineWidth(0.5);
+            pdf.setDrawColor(229, 57, 53);
+            pdf.setLineWidth(0.6);
             pdf.line(x, y + h / 2, x + w, y + h / 2);
             break;
           case 'comment':
-            pdf.setFillColor(0, 120, 255);
-            pdf.circle(x + w, y, 3, 'F');
-            if (ann.comment) {
-              pdf.setFontSize(8);
-              pdf.setTextColor(0, 0, 0);
-              pdf.text(ann.comment, x + w + 4, y + 3);
-            }
+            const bubbleR = 3;
+            const bubbleX = x + w + bubbleR * 0.5;
+            const bubbleY = y - bubbleR * 0.3;
+            pdf.setFillColor(229, 57, 53);
+            pdf.setDrawColor(229, 57, 53);
+            pdf.circle(bubbleX, bubbleY, bubbleR, 'FD');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(6);
+            pdf.setFont(undefined, 'bold');
+            pdf.text(String(ann.commentNumber || 1), bubbleX, bubbleY + 1, { align: 'center', baseline: 'middle' });
+            pdf.setFont(undefined, 'normal');
             break;
         }
       }
