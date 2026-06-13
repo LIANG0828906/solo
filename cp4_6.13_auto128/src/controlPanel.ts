@@ -167,9 +167,11 @@ export class ControlPanel {
 
   updateStats(): void {
     const stats = this.simulator.getStats();
+    const hungryColor = stats.hungryCount > 0 ? 'style="color: #ff6b6b;"' : 'style="color: #a0f0d0;"';
     this.statsDisplay.innerHTML =
       `生物总数: <span>${stats.count}</span> | ` +
-      `平均攻击性: <span>${stats.avgAggression.toFixed(3)}</span>`;
+      `平均攻击性: <span>${stats.avgAggression.toFixed(3)}</span> | ` +
+      `饥饿: <span ${hungryColor}>${stats.hungryCount}</span>`;
   }
 
   getSpeedMultiplier(): number {

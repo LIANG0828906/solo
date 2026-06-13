@@ -114,24 +114,20 @@ export class Simulator {
         if (!a.alive || !b.alive) continue;
         if (!a.collidesWith(b)) continue;
 
-        const sizeScoreA = a.genes.size / 15;
-        const sizeScoreB = b.genes.size / 15;
-        const speedEvadeA = a.genes.speed / 3;
-        const speedEvadeB = b.genes.speed / 3;
+        const powerA = a.powerScore + (Math.random() - 0.5) * 0.15;
+        const powerB = b.powerScore + (Math.random() - 0.5) * 0.15;
 
-        const powerA = a.genes.aggression * 0.6 + sizeScoreA * 0.35 + (Math.random() - 0.5) * 0.15;
-        const powerB = b.genes.aggression * 0.6 + sizeScoreB * 0.35 + (Math.random() - 0.5) * 0.15;
-
-        const evadeA = speedEvadeA * 0.4;
-        const evadeB = speedEvadeB * 0.4;
+        const evadeA = a.evadeBonus;
+        const evadeB = b.evadeBonus;
 
         const effectiveA = powerA - evadeB;
         const effectiveB = powerB - evadeA;
 
         const diff = Math.abs(effectiveA - effectiveB);
         const baseEnergy = 5 + diff * 15;
-        const energyGain = Math.max(3, Math.min(25, baseEnergy));
-        const energyLoss = Math.max(3, Math.min(20, baseEnergy * 0.8));
+        const sizeFactor = Math.max(a.genes.size, b.genes.size) / 10;
+        const energyGain = Math.max(3, Math.min(25, baseEnergy + sizeFactor * 3));
+        const energyLoss = Math.max(3, Math.min(20, baseEnergy * 0.8 + sizeFactor * 2));
 
         if (effectiveA > effectiveB) {
           a.energy += energyGain;
@@ -163,6 +159,7 @@ export class Simulator {
   }
 
   private handleEating(dt: number): void {
+    let eatenCount = 0;
     for (const creature of this.creatures) {
       if (!creature.alive) continue;
       for (const food of this.foods) {
@@ -173,10 +170,28 @@ export class Simulator {
         if (dist < FOOD_PICKUP_RANGE) {
           food.eaten = true;
           creature.energy += FOOD_ENERGY;
+          eatenCount++;
         }
       }
     }
     this.foods = this.foods.filter(f => !f.eaten);
+
+    if (eatenCount > 0) {
+      this.maintainFoodCount();
+    }
+  }
+
+  private maintainFoodCount(): void {
+    const needed = FOOD_SPAWN_COUNT - this.foods.length;
+    for (let i = 0; i < needed; i++) {
+      const margin = 15;
+      this.foods.push({
+        x: Math.random() * (this.canvasWidth - margin * 2) + margin,
+        y: Math.random() * (this.canvasHeight - margin * 2) + margin,
+        pulsePhase: Math.random() * Math.PI * 2,
+        eaten: false,
+      });
+    }
   }
 
   private handleReproduction(): void {
@@ -258,10 +273,11 @@ export class Simulator {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life -= dt;
-      p.vx *= 0.98;
-      p.vy *= 0.98;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.size *= 0.99;
     }
-    this.particles = this.particles.filter(p => p.life > 0);
+    this.particles = this.particles.filter(p => p.life > 0 && p.size > 0.1);
   }
 
   private updateFood(dt: number): void {
@@ -337,19 +353,25 @@ export class Simulator {
   drawParticles(ctx: CanvasRenderingContext2D): void {
     for (const p of this.particles) {
       const lifeRatio = p.life / p.maxLife;
-      const alpha = lifeRatio;
-      const size = p.size * (0.5 + lifeRatio * 0.5);
-      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 2);
-      gradient.addColorStop(0, `hsla(${p.hue}, 100%, 70%, ${alpha})`);
-      gradient.addColorStop(0.5, `hsla(${p.hue}, 100%, 55%, ${alpha * 0.6})`);
+      const fadeOut = lifeRatio * lifeRatio;
+      const alpha = fadeOut;
+      const size = p.size * (0.3 + lifeRatio * 0.7);
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 3);
+      gradient.addColorStop(0, `hsla(${p.hue}, 100%, 75%, ${alpha})`);
+      gradient.addColorStop(0.4, `hsla(${p.hue}, 100%, 60%, ${alpha * 0.6})`);
       gradient.addColorStop(1, `hsla(${p.hue}, 100%, 50%, 0)`);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, size * 2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, size * 3, 0, Math.PI * 2);
       ctx.fillStyle = gradient;
       ctx.shadowColor = `hsla(${p.hue}, 100%, 60%, ${alpha})`;
-      ctx.shadowBlur = 10 * lifeRatio;
+      ctx.shadowBlur = 15 * lifeRatio;
       ctx.fill();
       ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 80%, ${alpha})`;
+      ctx.fill();
     }
   }
 

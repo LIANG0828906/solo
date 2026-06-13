@@ -53,9 +53,23 @@ export class Creature {
     return this.energy < HUNGER_THRESHOLD ? this.genes.speed * SLOW_FACTOR : this.genes.speed;
   }
 
+  get evadeBonus(): number {
+    return (this.genes.speed / 3) * 0.4;
+  }
+
+  get powerScore(): number {
+    const sizeScore = this.genes.size / 15;
+    return this.genes.aggression * 0.6 + sizeScore * 0.35;
+  }
+
+  get hungerSpeedFactor(): number {
+    return this.energy < HUNGER_THRESHOLD ? SLOW_FACTOR : 1.0;
+  }
+
   update(dt: number, speedMultiplier: number): void {
-    const spd = this.effectiveSpeed;
-    const ratio = spd / (this.genes.speed || 0.01);
+    const hungerFactor = this.hungerSpeedFactor;
+    const actualSpeed = this.genes.speed * hungerFactor;
+    const ratio = actualSpeed / (this.genes.speed || 0.01);
     this.x += this.vx * ratio * dt * speedMultiplier;
     this.y += this.vy * ratio * dt * speedMultiplier;
 
@@ -81,14 +95,15 @@ export class Creature {
     this.drawBody(ctx);
   }
 
-  private getHungryFlashHue(): { hue: number; isHungry: boolean } {
+  private getHungryFlashHue(): { hue: number; isHungry: boolean; isFlashing: boolean } {
     const isHungry = this.energy < HUNGER_THRESHOLD;
     if (!isHungry) {
-      return { hue: this.genes.colorHue, isHungry: false };
+      return { hue: this.genes.colorHue, isHungry: false, isFlashing: false };
     }
-    const flashOn = Math.sin(this.hungerFlashTimer * 6) > 0;
-    const hue = flashOn ? 0 : this.genes.colorHue;
-    return { hue, isHungry: true };
+    const flashSpeed = 4;
+    const isFlashing = Math.sin(this.hungerFlashTimer * Math.PI * flashSpeed) > 0;
+    const hue = isFlashing ? 0 : this.genes.colorHue;
+    return { hue, isHungry: true, isFlashing };
   }
 
   private drawTail(ctx: CanvasRenderingContext2D): void {
@@ -99,7 +114,7 @@ export class Creature {
       const alpha = 0.6 * (1 - progress);
       const radius = this.genes.size * (1 - progress * 0.7);
       const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
-      const saturation = isHungry ? 100 : 100;
+      const saturation = 100;
       const lightness = isHungry ? 50 : 60;
       gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`);
       gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, 0)`);
@@ -111,9 +126,10 @@ export class Creature {
   }
 
   private drawBody(ctx: CanvasRenderingContext2D): void {
-    const { hue, isHungry } = this.getHungryFlashHue();
+    const { hue, isHungry, isFlashing } = this.getHungryFlashHue();
     const saturation = 100;
-    const lightness = isHungry ? 55 : 60;
+    const lightness = isFlashing ? 50 : (isHungry ? 55 : 60);
+    const glowIntensity = isFlashing ? 25 : (isHungry ? 18 : 12);
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -133,12 +149,19 @@ export class Creature {
     ctx.closePath();
 
     ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    ctx.shadowBlur = isHungry ? 18 : 12;
+    ctx.shadowBlur = glowIntensity;
     ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     ctx.fill();
-    ctx.strokeStyle = `hsl(${hue}, 80%, ${isHungry ? 70 : 80}%)`;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = `hsl(${hue}, 90%, ${isFlashing ? 80 : (isHungry ? 70 : 80)}%)`;
+    ctx.lineWidth = isFlashing ? 2 : 1;
     ctx.stroke();
+
+    if (isHungry) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = isFlashing ? 'rgba(255, 80, 80, 0.8)' : `hsla(${hue}, 100%, 70%, 0.5)`;
+      ctx.fill();
+    }
 
     ctx.restore();
   }
