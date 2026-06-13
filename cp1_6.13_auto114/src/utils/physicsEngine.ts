@@ -9,16 +9,32 @@ export interface GravitySource {
 export function computeNetForce(position: Vec2, sources: GravitySource[]): Vec2 {
   let fx = 0;
   let fy = 0;
-  const softening = 0.01;
+  const softeningInner = 0.01;
+  const softeningOuter = 0.5;
+
+  function smoothstep(edge0: number, edge1: number, x: number): number {
+    const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+    return t * t * (3 - 2 * t);
+  }
 
   for (const source of sources) {
     const dx = source.position[0] - position[0];
     const dy = source.position[1] - position[1];
-    const r2 = dx * dx + dy * dy;
-    const rSoft = Math.sqrt(r2 + softening * softening);
-    const f = source.mass / (rSoft * rSoft);
-    fx += f * (dx / rSoft);
-    fy += f * (dy / rSoft);
+    const r = Math.sqrt(dx * dx + dy * dy);
+    if (r < 1e-8) continue;
+
+    const r2 = r * r;
+    const rSoft2 = r2 + softeningInner * softeningInner;
+    const rSoft = Math.sqrt(rSoft2);
+
+    const fNewton = source.mass / (r2 * r);
+    const fPlummer = source.mass / (rSoft2 * rSoft);
+
+    const t = smoothstep(softeningInner, softeningOuter, r);
+    const fMag = fPlummer + t * (fNewton - fPlummer);
+
+    fx += fMag * dx;
+    fy += fMag * dy;
   }
 
   return [fx, fy];
@@ -71,13 +87,26 @@ export function rk4Step(
 
 export function computePotential(position: Vec2, sources: GravitySource[]): number {
   let v = 0;
-  const softening = 0.01;
+  const softeningInner = 0.01;
+  const softeningOuter = 0.5;
+
+  function smoothstep(edge0: number, edge1: number, x: number): number {
+    const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+    return t * t * (3 - 2 * t);
+  }
 
   for (const source of sources) {
     const dx = source.position[0] - position[0];
     const dy = source.position[1] - position[1];
-    const r = Math.sqrt(dx * dx + dy * dy + softening * softening);
-    v += -source.mass / r;
+    const r = Math.sqrt(dx * dx + dy * dy);
+    if (r < 1e-8) continue;
+
+    const rSoft = Math.sqrt(r * r + softeningInner * softeningInner);
+    const vNewton = -source.mass / r;
+    const vPlummer = -source.mass / rSoft;
+
+    const t = smoothstep(softeningInner, softeningOuter, r);
+    v += vPlummer + t * (vNewton - vPlummer);
   }
 
   return v;

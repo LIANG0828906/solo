@@ -12,8 +12,9 @@ export default function SimulationLoop() {
     if (activeParticles.length === 0) return;
 
     const minStepsPerFrame = 10;
+    const baseDt = 0.01;
     const stepsPerFrame = Math.max(minStepsPerFrame, Math.ceil(speedScale * 10));
-    const dt = 0.01 * speedScale;
+    const dt = baseDt / speedScale;
     const subDt = dt / stepsPerFrame;
 
     for (const particle of activeParticles) {

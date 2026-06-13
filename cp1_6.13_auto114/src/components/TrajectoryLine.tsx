@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { speedToColor } from '@/utils/physicsEngine';
 import type { Particle } from '@/store/useSimulationStore';

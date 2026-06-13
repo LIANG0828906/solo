@@ -8,12 +8,14 @@ import PotentialGrid from './PotentialGrid';
 import FieldIndicator from './FieldIndicator';
 import GroundGrid from './GroundGrid';
 import SimulationLoop from './SimulationLoop';
+import GroundClickHandler from './GroundClickHandler';
 import useSimulationStore from '@/store/useSimulationStore';
 
 export default function SimulationCanvas() {
   const gravitySources = useSimulationStore((s) => s.gravitySources);
   const particles = useSimulationStore((s) => s.particles);
   const selectedSourceId = useSimulationStore((s) => s.selectedSourceId);
+  const globalMaxSpeed = useSimulationStore((s) => s.globalMaxSpeed);
 
   return (
     <Canvas camera={{ position: [0, 30, 30], fov: 50 }} style={{ background: '#1a1a2e' }}>
@@ -26,6 +28,7 @@ export default function SimulationCanvas() {
         maxPolarAngle={Math.PI / 2.1}
       />
       <GroundGrid />
+      <GroundClickHandler />
       {gravitySources.map((source) => (
         <GravitySourceMesh
           key={source.id}
@@ -37,7 +40,7 @@ export default function SimulationCanvas() {
       {particles.map((particle) => (
         <group key={particle.id}>
           <ParticleMesh particle={particle} />
-          <TrajectoryLine particle={particle} />
+          <TrajectoryLine particle={particle} maxSpeed={globalMaxSpeed} />
           <VelocityArrow particle={particle} />
         </group>
       ))}

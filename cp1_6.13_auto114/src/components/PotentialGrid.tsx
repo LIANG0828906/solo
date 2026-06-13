@@ -52,6 +52,9 @@ export default function PotentialGrid() {
   useEffect(() => {
     if (!materialRef.current) return;
     const mat = materialRef.current;
+    if (gravitySources.length > MAX_SOURCES) {
+      console.warn(`[PotentialGrid] 引力源数量 (${gravitySources.length}) 超过着色器支持的最大数量 ${MAX_SOURCES}，超出部分将被忽略。请减少引力源数量或提高 MAX_SOURCES 常量。`);
+    }
     const arr = mat.uniforms.sources.value as THREE.Vector3[];
     for (let i = 0; i < gravitySources.length && i < MAX_SOURCES; i++) {
       arr[i].set(gravitySources[i].position[0], gravitySources[i].position[1], gravitySources[i].mass);
@@ -59,8 +62,8 @@ export default function PotentialGrid() {
     for (let i = gravitySources.length; i < MAX_SOURCES; i++) {
       arr[i].set(0, 0, 0);
     }
-    mat.uniforms.sourceCount.value = gravitySources.length;
-    mat.uniforms.sources.needsUpdate = true;
+    mat.uniforms.sourceCount.value = Math.min(gravitySources.length, MAX_SOURCES);
+    (mat.uniforms as unknown as Record<string, { needsUpdate?: boolean }>).sources.needsUpdate = true;
   }, [gravitySources]);
 
   if (!showPotentialGrid) return null;

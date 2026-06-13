@@ -1,6 +1,5 @@
 import useSimulationStore from '@/store/useSimulationStore';
 import {
-  Plus,
   Trash2,
   Play,
   Pause,
@@ -24,7 +23,6 @@ export default function ControlPanel() {
     showFieldIndicators,
     panelCollapsed,
     selectedSourceId,
-    addGravitySource,
     removeGravitySource,
     updateSourceMass,
     setSelectedSourceId,
@@ -36,12 +34,6 @@ export default function ControlPanel() {
     toggleFieldIndicators,
     togglePanel,
   } = useSimulationStore();
-
-  const handleAddSource = () => {
-    const x = Math.random() * 20 - 10;
-    const z = Math.random() * 20 - 10;
-    addGravitySource([x, z]);
-  };
 
   return (
     <div
@@ -84,12 +76,9 @@ export default function ControlPanel() {
               <span className="text-sm font-semibold text-white/80 uppercase tracking-wider">
                 引力源
               </span>
-              <button
-                onClick={handleAddSource}
-                className="p-1.5 rounded-xl transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)] text-[#00d4ff] hover:text-white"
-              >
-                <Plus size={16} />
-              </button>
+              <span className="text-[10px] text-white/40 uppercase tracking-wider">
+                点击场景添加
+              </span>
             </div>
 
             <div className="space-y-2">
@@ -261,13 +250,6 @@ export default function ControlPanel() {
             className="p-2 rounded-xl transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)] text-[#00d4ff] hover:text-white"
           >
             <ChevronRight size={18} />
-          </button>
-          <button
-            onClick={handleAddSource}
-            className="p-2 rounded-xl transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)] text-[#00d4ff] hover:text-white"
-            title="添加引力源"
-          >
-            <Plus size={18} />
           </button>
           <button
             onClick={releaseParticle}
