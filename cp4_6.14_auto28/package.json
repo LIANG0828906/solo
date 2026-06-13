@@ -2,7 +2,6 @@
   "name": "collab-mindmap",
   "version": "1.0.0",
   "description": "Multi-user real-time collaborative mind map application",
-  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx server/index.ts",

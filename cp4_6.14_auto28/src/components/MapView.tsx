@@ -24,6 +24,9 @@ const VERTICAL_PADDING = 14;
 const NODE_RADIUS = 12;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
+const SPRING_STIFFNESS = 0.18;
+const DAMPING = 0.85;
+const VELOCITY_THRESHOLD = 0.3;
 
 export const MapView: React.FC<MapViewProps> = ({
   mindMap,
@@ -54,8 +57,24 @@ export const MapView: React.FC<MapViewProps> = ({
   const [nodeBounds, setNodeBounds] = useState<Record<string, NodeBounds>>({});
 
   const animationFrameRef = useRef<number>();
-  const nodeVelocitiesRef = useRef<Record<string, { vx: number; vy: number }>>({});
-  const mouseMoveThrottleRef = useRef<number>();
+  const velocitiesRef = useRef<Record<string, { vx: number; vy: number }>>({});
+  const restOffsetsRef = useRef<Record<string, { dx: number; dy: number }>>({});
+  const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const lastFrameTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    const offsets: Record<string, { dx: number; dy: number }> = {};
+    Object.values(mindMap.nodes).forEach((node) => {
+      positions[node.id] = { x: node.x, y: node.y };
+      if (node.parentId && mindMap.nodes[node.parentId]) {
+        const parent = mindMap.nodes[node.parentId];
+        offsets[node.id] = { dx: node.x - parent.x, dy: node.y - parent.y };
+      }
+    });
+    localPositionsRef.current = positions;
+    restOffsetsRef.current = offsets;
+  }, [mindMap.rootId]);
 
   const getLuminance = (hex: string): number => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -95,8 +114,8 @@ export const MapView: React.FC<MapViewProps> = ({
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerX = canvas.width / (window.devicePixelRatio || 1) / 2;
+    const centerY = canvas.height / (window.devicePixelRatio || 1) / 2;
     return {
       x: (screenX - centerX - offset.x) / scale,
       y: (screenY - centerY - offset.y) / scale
@@ -126,25 +145,22 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const drawConnection = useCallback((
     ctx: CanvasRenderingContext2D,
-    fromNode: MindMapNode,
-    toNode: MindMapNode,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
     s: number,
     isHovered: boolean
   ) => {
-    const fromX = fromNode.x * s;
-    const fromY = fromNode.y * s;
-    const toX = toNode.x * s;
-    const toY = toNode.y * s;
-
-    const dx = toX - fromX;
-    const dy = toY - fromY;
     const midX = (fromX + toX) / 2;
     const midY = (fromY + toY) / 2;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
 
-    const cp1x = midX - dx * 0.1 + (dy !== 0 ? 0 : Math.sign(dx || 1) * 50);
-    const cp1y = midY - dy * 0.1 + (dx !== 0 ? 0 : 0);
+    const cp1x = midX - dx * 0.1;
+    const cp1y = midY - dy * 0.1 + (Math.abs(dx) > Math.abs(dy) ? 0 : 30 * s);
     const cp2x = midX + dx * 0.1;
-    const cp2y = midY + dy * 0.1;
+    const cp2y = midY + dy * 0.1 - (Math.abs(dx) > Math.abs(dy) ? 0 : 30 * s);
 
     ctx.beginPath();
     ctx.moveTo(fromX, fromY);
@@ -174,6 +190,8 @@ export const MapView: React.FC<MapViewProps> = ({
   const drawNode = useCallback((
     ctx: CanvasRenderingContext2D,
     node: MindMapNode,
+    posX: number,
+    posY: number,
     s: number,
     isSelected: boolean,
     isHovered: boolean
@@ -182,10 +200,18 @@ export const MapView: React.FC<MapViewProps> = ({
     const lineHeight = effectiveFontSize * 1.3;
 
     ctx.font = `600 ${effectiveFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
-    const bounds = measureNode(ctx, node, s);
 
-    const drawX = bounds.x;
-    const drawY = bounds.y;
+    const iconWidth = node.icon ? effectiveFontSize * 1.5 : 0;
+    const titleMetrics = ctx.measureText(node.title);
+    const subtitleMetrics = node.subtitle ? ctx.measureText(node.subtitle) : { width: 0 };
+    const maxTextWidth = Math.max(titleMetrics.width, subtitleMetrics.width);
+    const contentWidth = iconWidth + maxTextWidth + (node.icon ? HORIZONTAL_PADDING * 0.5 : 0);
+    const width = contentWidth + HORIZONTAL_PADDING * 2;
+    const lines = node.subtitle ? 2 : 1;
+    const height = lines * lineHeight + VERTICAL_PADDING * 2;
+
+    const drawX = posX - width / 2;
+    const drawY = posY - height / 2;
 
     if (isSelected) {
       ctx.shadowColor = '#4fc3f7';
@@ -198,7 +224,7 @@ export const MapView: React.FC<MapViewProps> = ({
       ctx.shadowBlur = 8 * s;
     }
 
-    drawRoundedRect(ctx, drawX, drawY, bounds.width, bounds.height, NODE_RADIUS * s);
+    drawRoundedRect(ctx, drawX, drawY, width, height, NODE_RADIUS * s);
     ctx.fillStyle = node.color;
     ctx.fill();
 
@@ -218,7 +244,7 @@ export const MapView: React.FC<MapViewProps> = ({
       ctx.stroke();
       ctx.lineWidth = 1 * s;
       ctx.strokeStyle = isSelected ? '#81d4fa' : 'rgba(255, 255, 255, 0.1)';
-      drawRoundedRect(ctx, drawX + 3 * s, drawY + 3 * s, bounds.width - 6 * s, bounds.height - 6 * s, (NODE_RADIUS - 3) * s);
+      drawRoundedRect(ctx, drawX + 3 * s, drawY + 3 * s, width - 6 * s, height - 6 * s, (NODE_RADIUS - 3) * s);
     }
     ctx.stroke();
     ctx.setLineDash([]);
@@ -233,7 +259,7 @@ export const MapView: React.FC<MapViewProps> = ({
       const iconSize = effectiveFontSize * 1.4;
       ctx.font = `${iconSize}px serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(node.icon, textX, drawY + bounds.height / 2);
+      ctx.fillText(node.icon, textX, drawY + height / 2);
       textX += iconSize + HORIZONTAL_PADDING * 0.5 * s;
     }
 
@@ -242,12 +268,12 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const titleY = node.subtitle
       ? drawY + VERTICAL_PADDING * s + lineHeight * 0.5
-      : drawY + bounds.height / 2;
+      : drawY + height / 2;
 
-    const maxTextWidth = bounds.width - HORIZONTAL_PADDING * 2 * s - (node.icon ? effectiveFontSize * 1.5 : 0);
+    const maxTextWidth2 = width - HORIZONTAL_PADDING * 2 * s - (node.icon ? effectiveFontSize * 1.5 : 0);
     let displayTitle = node.title;
-    if (ctx.measureText(displayTitle).width > maxTextWidth) {
-      while (displayTitle.length > 1 && ctx.measureText(displayTitle + '…').width > maxTextWidth) {
+    if (ctx.measureText(displayTitle).width > maxTextWidth2) {
+      while (displayTitle.length > 1 && ctx.measureText(displayTitle + '…').width > maxTextWidth2) {
         displayTitle = displayTitle.slice(0, -1);
       }
       displayTitle += '…';
@@ -259,15 +285,74 @@ export const MapView: React.FC<MapViewProps> = ({
       ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(26, 26, 46, 0.6)';
       const subtitleY = drawY + VERTICAL_PADDING * s + lineHeight + lineHeight * 0.5;
       let displaySubtitle = node.subtitle;
-      if (ctx.measureText(displaySubtitle).width > maxTextWidth) {
-        while (displaySubtitle.length > 1 && ctx.measureText(displaySubtitle + '…').width > maxTextWidth) {
+      if (ctx.measureText(displaySubtitle).width > maxTextWidth2) {
+        while (displaySubtitle.length > 1 && ctx.measureText(displaySubtitle + '…').width > maxTextWidth2) {
           displaySubtitle = displaySubtitle.slice(0, -1);
         }
         displaySubtitle += '…';
       }
       ctx.fillText(displaySubtitle, textX, subtitleY);
     }
-  }, [measureNode]);
+  }, []);
+
+  const physicsStep = useCallback(() => {
+    const positions = localPositionsRef.current;
+    const velocities = velocitiesRef.current;
+    const offsets = restOffsetsRef.current;
+    const moves: Array<{ nodeId: string; x: number; y: number }> = [];
+    let hasActiveVelocity = false;
+
+    const updateChildren = (parentId: string) => {
+      const node = mindMap.nodes[parentId];
+      if (!node) return;
+
+      node.children.forEach((childId) => {
+        const child = mindMap.nodes[childId];
+        if (!child) return;
+
+        const restOffset = offsets[childId] || { dx: child.x - node.x, dy: child.y - node.y };
+        const targetX = positions[parentId].x + restOffset.dx;
+        const targetY = positions[parentId].y + restOffset.dy;
+
+        const currentPos = positions[childId] || { x: child.x, y: child.y };
+        const vel = velocities[childId] || { vx: 0, vy: 0 };
+
+        const ax = (targetX - currentPos.x) * SPRING_STIFFNESS;
+        const ay = (targetY - currentPos.y) * SPRING_STIFFNESS;
+
+        const newVx = (vel.vx + ax) * DAMPING;
+        const newVy = (vel.vy + ay) * DAMPING;
+
+        const newX = currentPos.x + newVx;
+        const newY = currentPos.y + newVy;
+
+        positions[childId] = { x: newX, y: newY };
+        velocities[childId] = { vx: newVx, vy: newVy };
+
+        if (Math.abs(newVx) > VELOCITY_THRESHOLD || Math.abs(newVy) > VELOCITY_THRESHOLD) {
+          hasActiveVelocity = true;
+        } else {
+          velocities[childId] = { vx: 0, vy: 0 };
+        }
+
+        moves.push({ nodeId: childId, x: newX, y: newY });
+
+        updateChildren(childId);
+      });
+    };
+
+    if (draggingNodeId && mindMap.nodes[draggingNodeId]) {
+      const node = mindMap.nodes[draggingNodeId];
+      positions[draggingNodeId] = { x: node.x, y: node.y };
+      updateChildren(draggingNodeId);
+    }
+
+    if (moves.length > 0) {
+      onMoveNodes(moves);
+    }
+
+    return hasActiveVelocity || isDragging;
+  }, [mindMap, draggingNodeId, isDragging, onMoveNodes]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -276,16 +361,20 @@ export const MapView: React.FC<MapViewProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = canvas.width / dpr;
+    const cssHeight = canvas.height / dpr;
+
     ctx.save();
 
     ctx.fillStyle = '#1e1e2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const gridSize = 40 * scale;
+    const gridSize = 40 * scale * dpr;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.lineWidth = 1;
-    const offsetModX = ((offset.x % gridSize) + gridSize) % gridSize;
-    const offsetModY = ((offset.y % gridSize) + gridSize) % gridSize;
+    const offsetModX = ((offset.x * dpr) % gridSize + gridSize) % gridSize;
+    const offsetModY = ((offset.y * dpr) % gridSize + gridSize) % gridSize;
     for (let x = offsetModX; x < canvas.width; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -299,32 +388,37 @@ export const MapView: React.FC<MapViewProps> = ({
       ctx.stroke();
     }
 
-    const centerX = canvas.width / 2 + offset.x;
-    const centerY = canvas.height / 2 + offset.y;
-    ctx.translate(centerX, centerY);
+    const centerX = cssWidth / 2 + offset.x;
+    const centerY = cssHeight / 2 + offset.y;
+    ctx.translate(centerX * dpr, centerY * dpr);
+
+    const positions = localPositionsRef.current;
 
     const nodes = Object.values(mindMap.nodes);
     const newBounds: Record<string, NodeBounds> = {};
-    nodes.forEach((node) => {
-      newBounds[node.id] = measureNode(ctx, node, scale);
-    });
-    setNodeBounds(newBounds);
 
-    const connections: Array<{ from: MindMapNode; to: MindMapNode }> = [];
+    const connections: Array<{ from: MindMapNode; to: MindMapNode; fromX: number; fromY: number; toX: number; toY: number }> = [];
     nodes.forEach((node) => {
       if (node.parentId && mindMap.nodes[node.parentId]) {
+        const fromNode = mindMap.nodes[node.parentId];
+        const fromPos = positions[node.parentId] || { x: fromNode.x, y: fromNode.y };
+        const toPos = positions[node.id] || { x: node.x, y: node.y };
         connections.push({
-          from: mindMap.nodes[node.parentId],
-          to: node
+          from: fromNode,
+          to: node,
+          fromX: fromPos.x * scale * dpr,
+          fromY: fromPos.y * scale * dpr,
+          toX: toPos.x * scale * dpr,
+          toY: toPos.y * scale * dpr
         });
       }
     });
 
-    connections.forEach(({ from, to }) => {
+    connections.forEach(({ fromX, fromY, toX, toY, from, to }) => {
       const isHovered =
         (hoveredConnection?.from === from.id && hoveredConnection?.to === to.id) ||
         (hoveredConnection?.from === to.id && hoveredConnection?.to === from.id);
-      drawConnection(ctx, from, to, scale, isHovered);
+      drawConnection(ctx, fromX, fromY, toX, toY, scale * dpr, isHovered);
     });
 
     const sortedNodes = [...nodes].sort((a, b) => {
@@ -334,77 +428,74 @@ export const MapView: React.FC<MapViewProps> = ({
     });
 
     sortedNodes.forEach((node) => {
-      drawNode(ctx, node, scale, node.id === selectedNodeId, node.id === hoveredNodeId);
+      const pos = positions[node.id] || { x: node.x, y: node.y };
+      const px = pos.x * scale * dpr;
+      const py = pos.y * scale * dpr;
+
+      const bounds = measureNode(ctx, node, scale * dpr);
+      newBounds[node.id] = {
+        x: px - bounds.width / 2,
+        y: py - bounds.height / 2,
+        width: bounds.width,
+        height: bounds.height
+      };
+
+      drawNode(
+        ctx,
+        node,
+        px,
+        py,
+        scale * dpr,
+        node.id === selectedNodeId,
+        node.id === hoveredNodeId
+      );
     });
+
+    setNodeBounds(newBounds);
 
     users.forEach((user) => {
       if (user.id !== currentUserId && cursors[user.id]) {
         const cursor = cursors[user.id];
-        const cx = cursor.x * scale;
-        const cy = cursor.y * scale;
+        const cx = cursor.x * scale * dpr;
+        const cy = cursor.y * scale * dpr;
+        const s = scale * dpr;
 
         ctx.fillStyle = user.color;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + 12 * scale, cy + 18 * scale);
-        ctx.lineTo(cx + 6 * scale, cy + 22 * scale);
-        ctx.lineTo(cx - 2 * scale, cy + 12 * scale);
+        ctx.lineTo(cx + 12 * s, cy + 18 * s);
+        ctx.lineTo(cx + 6 * s, cy + 22 * s);
+        ctx.lineTo(cx - 2 * s, cy + 12 * s);
         ctx.closePath();
         ctx.fill();
 
-        ctx.font = `${Math.max(10, 12 * scale)}px sans-serif`;
+        ctx.font = `${Math.max(10, 12 * s)}px sans-serif`;
         const textWidth = ctx.measureText(user.nickname).width;
-        const tagWidth = textWidth + 12 * scale;
-        const tagHeight = 20 * scale;
-        const tagX = cx + 8 * scale;
-        const tagY = cy + 22 * scale;
+        const tagWidth = textWidth + 12 * s;
+        const tagHeight = 20 * s;
+        const tagX = cx + 8 * s;
+        const tagY = cy + 22 * s;
 
         ctx.fillStyle = user.color;
-        drawRoundedRect(ctx, tagX, tagY, tagWidth, tagHeight, 4 * scale);
+        drawRoundedRect(ctx, tagX, tagY, tagWidth, tagHeight, 4 * s);
         ctx.fill();
 
         ctx.fillStyle = getContrastTextColor(user.color);
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(user.nickname, tagX + 6 * scale, tagY + tagHeight / 2);
+        ctx.fillText(user.nickname, tagX + 6 * s, tagY + tagHeight / 2);
       }
     });
 
     ctx.restore();
 
-    if (Object.keys(nodeVelocitiesRef.current).length > 0) {
-      animationFrameRef.current = requestAnimationFrame(() => {
-        const velocities = nodeVelocitiesRef.current;
-        const moves: Array<{ nodeId: string; x: number; y: number }> = [];
-        const damping = 0.85;
-        const threshold = 0.5;
-
-        Object.keys(velocities).forEach((nodeId) => {
-          const v = velocities[nodeId];
-          if (Math.abs(v.vx) > threshold || Math.abs(v.vy) > threshold) {
-            const node = mindMap.nodes[nodeId];
-            if (node) {
-              const newX = node.x + v.vx;
-              const newY = node.y + v.vy;
-              velocities[nodeId] = {
-                vx: v.vx * damping,
-                vy: v.vy * damping
-              };
-              if (Math.abs(velocities[nodeId].vx) < threshold) velocities[nodeId].vx = 0;
-              if (Math.abs(velocities[nodeId].vy) < threshold) velocities[nodeId].vy = 0;
-              moves.push({ nodeId, x: newX, y: newY });
-            }
-          }
-        });
-
-        if (moves.length > 0) {
-          onMoveNodes(moves);
-        } else {
-          nodeVelocitiesRef.current = {};
-        }
-      });
+    const shouldContinue = physicsStep();
+    if (shouldContinue) {
+      animationFrameRef.current = requestAnimationFrame(render);
+    } else {
+      animationFrameRef.current = undefined;
     }
-  }, [mindMap, selectedNodeId, hoveredNodeId, hoveredConnection, scale, offset, users, currentUserId, cursors, measureNode, drawConnection, drawNode, onMoveNodes]);
+  }, [mindMap, selectedNodeId, hoveredNodeId, hoveredConnection, scale, offset, users, currentUserId, cursors, measureNode, drawConnection, drawNode, physicsStep]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -418,8 +509,6 @@ export const MapView: React.FC<MapViewProps> = ({
       canvas.height = rect.height * dpr;
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
-      const ctx = canvas.getContext('2d');
-      if (ctx) ctx.scale(dpr, dpr);
       render();
     });
 
@@ -428,13 +517,20 @@ export const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   useEffect(() => {
-    render();
+    if (!animationFrameRef.current) {
+      animationFrameRef.current = requestAnimationFrame(render);
+    }
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
+      }
+    };
   }, [render]);
 
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (mouseMoveThrottleRef.current) clearTimeout(mouseMoveThrottleRef.current);
     };
   }, []);
 
@@ -445,24 +541,29 @@ export const MapView: React.FC<MapViewProps> = ({
     const y = e.clientY - rect.top;
     const world = screenToWorld(x, y);
 
-    let clickedNodeId: string | null = null;
+    const dpr = window.devicePixelRatio || 1;
     const canvasCtx = canvasRef.current.getContext('2d');
+    let clickedNodeId: string | null = null;
+
     if (canvasCtx) {
+      const canvasCenterX = canvasRef.width / dpr / 2;
+      const canvasCenterY = canvasRef.height / dpr / 2;
+      const positions = localPositionsRef.current;
+
       const sortedNodes = Object.values(mindMap.nodes).sort((a, b) => {
-        const la = Object.keys(mindMap.nodes[a.parentId || ''] ? 1 : 0);
-        const lb = Object.keys(mindMap.nodes[b.parentId || ''] ? 1 : 0);
-        return (lb as any) - (la as any);
+        const levelA = a.parentId ? 1 : 0;
+        const levelB = b.parentId ? 1 : 0;
+        return levelB - levelA;
       });
 
       for (const node of sortedNodes) {
+        const pos = positions[node.id] || { x: node.x, y: node.y };
         const bounds = measureNode(canvasCtx, node, scale);
-        const canvasCenterX = canvasRef.current.width / (window.devicePixelRatio || 1) / 2;
-        const canvasCenterY = canvasRef.current.height / (window.devicePixelRatio || 1) / 2;
         const screenBounds = {
-          left: canvasCenterX + offset.x + bounds.x,
-          right: canvasCenterX + offset.x + bounds.x + bounds.width,
-          top: canvasCenterY + offset.y + bounds.y,
-          bottom: canvasCenterY + offset.y + bounds.y + bounds.height
+          left: canvasCenterX + offset.x + pos.x * scale - bounds.width / 2,
+          right: canvasCenterX + offset.x + pos.x * scale + bounds.width / 2,
+          top: canvasCenterY + offset.y + pos.y * scale - bounds.height / 2,
+          bottom: canvasCenterY + offset.y + pos.y * scale + bounds.height / 2
         };
 
         if (x >= screenBounds.left && x <= screenBounds.right && y >= screenBounds.top && y <= screenBounds.bottom) {
@@ -488,6 +589,27 @@ export const MapView: React.FC<MapViewProps> = ({
         setDraggingNodeId(clickedNodeId);
         setDragStart({ x, y });
         setNodeStartPos({ x: node.x, y: node.y });
+
+        const velocities = velocitiesRef.current;
+        const offsets = restOffsetsRef.current;
+        const positions = localPositionsRef.current;
+
+        const collectChildren = (parentId: string) => {
+          const parent = mindMap.nodes[parentId];
+          if (!parent) return;
+          parent.children.forEach((childId) => {
+            const child = mindMap.nodes[childId];
+            if (child) {
+              velocities[childId] = { vx: 0, vy: 0 };
+              if (node) {
+                offsets[childId] = { dx: child.x - node.x, dy: child.y - node.y };
+              }
+              positions[childId] = { x: child.x, y: child.y };
+              collectChildren(childId);
+            }
+          });
+        };
+        collectChildren(clickedNodeId);
       }
     } else {
       onSelectNode(null);
@@ -509,26 +631,12 @@ export const MapView: React.FC<MapViewProps> = ({
       const targetX = nodeStartPos.x + dx;
       const targetY = nodeStartPos.y + dy;
 
-      const moves: Array<{ nodeId: string; x: number; y: number }> = [];
-      const applyToChildren = (parentId: string, px: number, py: number) => {
-        const node = mindMap.nodes[parentId];
-        if (!node) return;
-        node.children.forEach((childId) => {
-          const child = mindMap.nodes[childId];
-          if (child) {
-            const cdx = child.x - node.x;
-            const cdy = child.y - node.y;
-            const childTargetX = px + cdx;
-            const childTargetY = py + cdy;
-            moves.push({ nodeId: childId, x: childTargetX, y: childTargetY });
-            applyToChildren(childId, childTargetX, childTargetY);
-          }
-        });
-      };
+      localPositionsRef.current[draggingNodeId] = { x: targetX, y: targetY };
+      onMoveNodes([{ nodeId: draggingNodeId, x: targetX, y: targetY }]);
 
-      moves.push({ nodeId: draggingNodeId, x: targetX, y: targetY });
-      applyToChildren(draggingNodeId, targetX, targetY);
-      onMoveNodes(moves);
+      if (!animationFrameRef.current) {
+        animationFrameRef.current = requestAnimationFrame(render);
+      }
     } else if (isPanning) {
       setOffset({
         x: offsetStart.x + (x - panStart.x),
@@ -536,19 +644,22 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     } else {
       const canvasCtx = canvasRef.current.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
       if (canvasCtx) {
-        const canvasCenterX = canvasRef.current.width / (window.devicePixelRatio || 1) / 2;
-        const canvasCenterY = canvasRef.current.height / (window.devicePixelRatio || 1) / 2;
+        const canvasCenterX = canvasRef.current.width / dpr / 2;
+        const canvasCenterY = canvasRef.current.height / dpr / 2;
+        const positions = localPositionsRef.current;
 
         let hoveredNode: string | null = null;
         const sortedNodes = Object.values(mindMap.nodes);
         for (const node of sortedNodes) {
+          const pos = positions[node.id] || { x: node.x, y: node.y };
           const bounds = measureNode(canvasCtx, node, scale);
           const screenBounds = {
-            left: canvasCenterX + offset.x + bounds.x,
-            right: canvasCenterX + offset.x + bounds.x + bounds.width,
-            top: canvasCenterY + offset.y + bounds.y,
-            bottom: canvasCenterY + offset.y + bounds.y + bounds.height
+            left: canvasCenterX + offset.x + pos.x * scale - bounds.width / 2,
+            right: canvasCenterX + offset.x + pos.x * scale + bounds.width / 2,
+            top: canvasCenterY + offset.y + pos.y * scale - bounds.height / 2,
+            bottom: canvasCenterY + offset.y + pos.y * scale + bounds.height / 2
           };
           if (x >= screenBounds.left && x <= screenBounds.right && y >= screenBounds.top && y <= screenBounds.bottom) {
             hoveredNode = node.id;
@@ -562,11 +673,12 @@ export const MapView: React.FC<MapViewProps> = ({
         for (const node of nodes) {
           if (node.parentId && mindMap.nodes[node.parentId]) {
             const fromNode = mindMap.nodes[node.parentId];
-            const toNode = node;
-            const fromX = canvasCenterX + offset.x + fromNode.x * scale;
-            const fromY = canvasCenterY + offset.y + fromNode.y * scale;
-            const toX = canvasCenterX + offset.x + toNode.x * scale;
-            const toY = canvasCenterY + offset.y + toNode.y * scale;
+            const fromPos = positions[node.parentId] || { x: fromNode.x, y: fromNode.y };
+            const toPos = positions[node.id] || { x: node.x, y: node.y };
+            const fromX = canvasCenterX + offset.x + fromPos.x * scale;
+            const fromY = canvasCenterY + offset.y + fromPos.y * scale;
+            const toX = canvasCenterX + offset.x + toPos.x * scale;
+            const toY = canvasCenterY + offset.y + toPos.y * scale;
             const midX = (fromX + toX) / 2;
             const midY = (fromY + toY) / 2;
             const dist = Math.sqrt((x - midX) ** 2 + (y - midY) ** 2);
@@ -581,10 +693,9 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   };
 
-  const handleCanvasMouseUp = (e: React.MouseEvent) => {
-    if (isDragging && draggingNodeId) {
+  const handleCanvasMouseUp = () => {
+    if (isDragging) {
       setIsDragging(false);
-      setDraggingNodeId(null);
     }
     if (isPanning) {
       setIsPanning(false);
@@ -597,19 +708,22 @@ export const MapView: React.FC<MapViewProps> = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const canvasCtx = canvasRef.current.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
     if (!canvasCtx) return;
 
-    const canvasCenterX = canvasRef.current.width / (window.devicePixelRatio || 1) / 2;
-    const canvasCenterY = canvasRef.current.height / (window.devicePixelRatio || 1) / 2;
+    const canvasCenterX = canvasRef.current.width / dpr / 2;
+    const canvasCenterY = canvasRef.current.height / dpr / 2;
+    const positions = localPositionsRef.current;
     const sortedNodes = Object.values(mindMap.nodes);
 
     for (const node of sortedNodes) {
+      const pos = positions[node.id] || { x: node.x, y: node.y };
       const bounds = measureNode(canvasCtx, node, scale);
       const screenBounds = {
-        left: canvasCenterX + offset.x + bounds.x,
-        right: canvasCenterX + offset.x + bounds.x + bounds.width,
-        top: canvasCenterY + offset.y + bounds.y,
-        bottom: canvasCenterY + offset.y + bounds.y + bounds.height
+        left: canvasCenterX + offset.x + pos.x * scale - bounds.width / 2,
+        right: canvasCenterX + offset.x + pos.x * scale + bounds.width / 2,
+        top: canvasCenterY + offset.y + pos.y * scale - bounds.height / 2,
+        bottom: canvasCenterY + offset.y + pos.y * scale + bounds.height / 2
       };
       if (x >= screenBounds.left && x <= screenBounds.right && y >= screenBounds.top && y <= screenBounds.bottom) {
         onNodeDoubleClick(node.id);

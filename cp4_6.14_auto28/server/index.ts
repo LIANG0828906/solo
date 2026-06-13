@@ -91,7 +91,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server });
 
 const createInitialMindMap = (): MindMap => {
   const rootId = uuidv4();

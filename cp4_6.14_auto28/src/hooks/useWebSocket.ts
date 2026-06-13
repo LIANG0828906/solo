@@ -50,7 +50,7 @@ export const useWebSocket = (onMessage?: (message: WSMessage) => void): UseWebSo
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const wsUrl = `${protocol}//${host}:3001/ws`;
+    const wsUrl = `${protocol}//${host}:3001`;
 
     try {
       const ws = new WebSocket(wsUrl);
