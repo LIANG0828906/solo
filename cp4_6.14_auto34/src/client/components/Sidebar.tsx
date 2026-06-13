@@ -43,6 +43,7 @@ const formatTime = (timestamp: number) => {
 export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
   const [activeTab, setActiveTab] = useState<TabType>('tools');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<NodeType | 'all'>('all');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [shareCode, setShareCode] = useState<string | null>(null);
@@ -136,16 +137,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
     
     setIsExporting(true);
     setExportProgress(0);
+    setIsRestoreAnimating(false);
     
     progressIntervalRef.current = setInterval(() => {
       setExportProgress((prev) => Math.min(prev + 10, 90));
     }, 200);
 
+    let styleTag: HTMLStyleElement | null = null;
+
     try {
+      styleTag = document.createElement('style');
+      styleTag.textContent = '.export-mode * { animation: none !important; transition: none !important; }';
+      document.body.appendChild(styleTag);
+
+      document.querySelectorAll('*').forEach((el) => {
+        el.setAttribute('data-export-mode', 'true');
+      });
+      document.body.classList.add('export-mode');
+      canvasRef.current.classList.add('export-mode');
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       const canvas = await html2canvas(canvasRef.current, {
         backgroundColor: '#2a2a3e',
         scale: 2,
         useCORS: true,
+        onclone: (clonedDoc) => {
+          const clonedNodes = clonedDoc.querySelectorAll('*');
+          clonedNodes.forEach((el) => {
+            const classList = (el as HTMLElement).classList;
+            if (classList) {
+              for (let i = classList.length - 1; i >= 0; i--) {
+                const cls = classList[i];
+                if (cls.includes('animate') || cls.includes('transition') || cls.includes('pulse') || cls.includes('spin')) {
+                  classList.remove(cls);
+                }
+              }
+            }
+          });
+        },
       });
       
       setExportProgress(100);
@@ -157,6 +187,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
+      if (styleTag && styleTag.parentNode) {
+        styleTag.parentNode.removeChild(styleTag);
+      }
+      document.body.classList.remove('export-mode');
+      if (canvasRef.current) {
+        canvasRef.current.classList.remove('export-mode');
+      }
+      document.querySelectorAll('[data-export-mode]').forEach((el) => {
+        el.removeAttribute('data-export-mode');
+      });
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
@@ -213,9 +253,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
     setPreviewSnapshot(null);
   };
 
-  const filteredNodeTypes = nodeTypes.filter((nt) =>
-    nt.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNodeTypes = nodeTypes.filter((nt) => {
+    const matchesSearch =
+      nt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      nt.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = activeTypeFilter === 'all' || nt.type === activeTypeFilter;
+    return matchesSearch && matchesType;
+  });
 
   const renderToolsTab = () => (
     <div className="p-4 space-y-4">
@@ -227,6 +271,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-bg-tertiary text-white placeholder-gray-400 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue"
         />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveTypeFilter('all')}
+          className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+            activeTypeFilter === 'all'
+              ? 'bg-accent-blue text-white'
+              : 'bg-bg-tertiary text-gray-300 hover:bg-bg-tertiary/80'
+          }`}
+        >
+          全部
+        </button>
+        {nodeTypes.map((nt) => (
+          <button
+            key={nt.type}
+            onClick={() => setActiveTypeFilter(nt.type)}
+            className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors flex items-center gap-1 ${
+              activeTypeFilter === nt.type
+                ? 'bg-accent-blue text-white'
+                : 'bg-bg-tertiary text-gray-300 hover:bg-bg-tertiary/80'
+            }`}
+          >
+            <span className="scale-75">{nt.icon}</span>
+            {nt.name}
+          </button>
+        ))}
       </div>
       
       <div className="grid grid-cols-2 gap-3">

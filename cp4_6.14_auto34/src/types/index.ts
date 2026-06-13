@@ -11,6 +11,7 @@ export interface FlowNode {
   description: string;
   color: string;
   createdAt: number;
+  version: number;
 }
 
 export interface FlowEdge {
@@ -19,6 +20,7 @@ export interface FlowEdge {
   targetId: string;
   label?: string;
   createdAt: number;
+  version: number;
 }
 
 export interface User {
@@ -44,15 +46,15 @@ export interface CursorPosition {
 }
 
 export type ClientMessage =
-  | { type: 'join'; roomId: string; userId: string; userName: string }
-  | { type: 'leave'; roomId: string; userId: string }
-  | { type: 'node-add'; data: FlowNode }
-  | { type: 'node-update'; data: Partial<FlowNode> & { id: string } }
-  | { type: 'node-delete'; id: string }
-  | { type: 'edge-add'; data: FlowEdge }
-  | { type: 'edge-update'; data: Partial<FlowEdge> & { id: string } }
-  | { type: 'edge-delete'; id: string }
-  | { type: 'cursor-move'; userId: string; x: number; y: number };
+  | { type: 'join'; roomId: string; userId: string; userName: string; opId?: string }
+  | { type: 'leave'; roomId: string; userId: string; opId?: string }
+  | { type: 'node-add'; data: FlowNode; opId?: string }
+  | { type: 'node-update'; data: Partial<FlowNode> & { id: string }; opId?: string }
+  | { type: 'node-delete'; id: string; opId?: string }
+  | { type: 'edge-add'; data: FlowEdge; opId?: string }
+  | { type: 'edge-update'; data: Partial<FlowEdge> & { id: string }; opId?: string }
+  | { type: 'edge-delete'; id: string; opId?: string }
+  | { type: 'cursor-move'; userId: string; x: number; y: number; opId?: string };
 
 export type ServerMessage =
   | { type: 'init-state'; nodes: FlowNode[]; edges: FlowEdge[]; users: User[] }

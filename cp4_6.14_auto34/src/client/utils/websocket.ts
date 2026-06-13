@@ -1,6 +1,10 @@
 import type { ClientMessage, ServerMessage, FlowNode, FlowEdge } from '../../types';
 import { useFlowStore } from '../store/useFlowStore';
 
+function generateOpId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
@@ -109,7 +113,12 @@ class WebSocketClient {
 
   send(message: ClientMessage): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+      const opTypes = ['node-add', 'node-update', 'node-delete', 'edge-add', 'edge-update', 'edge-delete'];
+      let msgToSend: ClientMessage = message;
+      if (opTypes.includes(message.type) && !message.opId) {
+        msgToSend = { ...message, opId: generateOpId() };
+      }
+      this.ws.send(JSON.stringify(msgToSend));
     }
   }
 

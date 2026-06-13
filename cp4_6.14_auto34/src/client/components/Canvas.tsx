@@ -74,6 +74,24 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
   const [animatingNodes, setAnimatingNodes] = useState<Set<string>>(new Set());
   const rafRef = useRef<number | null>(null);
   const cursorUpdateRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const dragStateRef = useRef<DragState>({
+    isDragging: false,
+    nodeId: null,
+    startX: 0,
+    startY: 0,
+    nodeStartX: 0,
+    nodeStartY: 0,
+  });
+  const connectStateRef = useRef<ConnectState>({
+    isConnecting: false,
+    sourceId: null,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+  });
+  const pendingEdgeRef = useRef<PendingEdge | null>(null);
 
   const {
     nodes,
@@ -93,6 +111,7 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
   const effectiveReadOnly = readOnly || storeReadOnly;
 
   useEffect(() => {
+    if (!isMountedRef.current) return;
     nodes.forEach((node) => {
       if (!animatingNodes.has(node.id)) {
         setAnimatingNodes((prev) => new Set(prev).add(node.id));
@@ -110,89 +129,138 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
   }, [viewport]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isMountedRef.current) return;
     const worldPos = screenToWorld(e.clientX, e.clientY);
 
     if (cursorUpdateRef.current) {
       cancelAnimationFrame(cursorUpdateRef.current);
     }
     cursorUpdateRef.current = requestAnimationFrame(() => {
-      if (!effectiveReadOnly && wsClient.isConnected()) {
+      if (isMountedRef.current && !effectiveReadOnly && wsClient.isConnected()) {
         wsClient.updateCursor(worldPos.x, worldPos.y);
       }
     });
 
-    if (dragState.isDragging && dragState.nodeId && !effectiveReadOnly) {
-      const dx = (e.clientX - dragState.startX) / viewport.scale;
-      const dy = (e.clientY - dragState.startY) / viewport.scale;
-      const newX = dragState.nodeStartX + dx;
-      const newY = dragState.nodeStartY + dy;
+    const currentDragState = dragStateRef.current;
+    if (currentDragState.isDragging && currentDragState.nodeId && !effectiveReadOnly) {
+      const dx = (e.clientX - currentDragState.startX) / viewport.scale;
+      const dy = (e.clientY - currentDragState.startY) / viewport.scale;
+      const newX = currentDragState.nodeStartX + dx;
+      const newY = currentDragState.nodeStartY + dy;
 
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
       rafRef.current = requestAnimationFrame(() => {
-        updateNode(dragState.nodeId!, { x: newX, y: newY });
+        if (!isMountedRef.current) return;
+        updateNode(currentDragState.nodeId!, { x: newX, y: newY });
         if (wsClient.isConnected()) {
-          wsClient.updateNode(dragState.nodeId!, { x: newX, y: newY });
+          wsClient.updateNode(currentDragState.nodeId!, { x: newX, y: newY });
         }
       });
     }
 
-    if (connectState.isConnecting) {
-      setConnectState((prev) => ({
-        ...prev,
-        currentX: worldPos.x,
-        currentY: worldPos.y,
-      }));
+    if (connectStateRef.current.isConnecting) {
+      connectStateRef.current.currentX = worldPos.x;
+      connectStateRef.current.currentY = worldPos.y;
+      if (isMountedRef.current) {
+        setConnectState((prev) => ({
+          ...prev,
+          currentX: worldPos.x,
+          currentY: worldPos.y,
+        }));
+      }
     }
-  }, [dragState, connectState, viewport, effectiveReadOnly, screenToWorld, updateNode]);
+  }, [viewport, effectiveReadOnly, screenToWorld, updateNode]);
 
   const handleMouseUp = useCallback(() => {
+    if (!isMountedRef.current) return;
+
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    if (cursorUpdateRef.current) {
+      cancelAnimationFrame(cursorUpdateRef.current);
+      cursorUpdateRef.current = null;
+    }
 
-    setDragState({
+    const resetDragState: DragState = {
       isDragging: false,
       nodeId: null,
       startX: 0,
       startY: 0,
       nodeStartX: 0,
       nodeStartY: 0,
-    });
+    };
+    dragStateRef.current = resetDragState;
+    setDragState(resetDragState);
 
-    if (connectState.isConnecting && pendingEdge) {
+    const currentConnectState = connectStateRef.current;
+    const currentPendingEdge = pendingEdgeRef.current;
+    if (currentConnectState.isConnecting && currentPendingEdge) {
       const newEdge: FlowEdge = {
         id: uuidv4(),
-        sourceId: pendingEdge.sourceId,
-        targetId: pendingEdge.targetId,
+        sourceId: currentPendingEdge.sourceId,
+        targetId: currentPendingEdge.targetId,
         createdAt: Date.now(),
+        version: 0,
       };
       if (wsClient.isConnected()) {
         wsClient.addEdge(newEdge);
       }
     }
 
-    setConnectState({
+    const resetConnectState: ConnectState = {
       isConnecting: false,
       sourceId: null,
       startX: 0,
       startY: 0,
       currentX: 0,
       currentY: 0,
-    });
+    };
+    connectStateRef.current = resetConnectState;
+    setConnectState(resetConnectState);
+
+    pendingEdgeRef.current = null;
     setPendingEdge(null);
-  }, [connectState.isConnecting, pendingEdge]);
+  }, []);
 
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    isMountedRef.current = true;
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    const handleBeforeUnload = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (cursorUpdateRef.current) {
+        cancelAnimationFrame(cursorUpdateRef.current);
+        cursorUpdateRef.current = null;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
+      isMountedRef.current = false;
+
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (cursorUpdateRef.current) cancelAnimationFrame(cursorUpdateRef.current);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (cursorUpdateRef.current) {
+        cancelAnimationFrame(cursorUpdateRef.current);
+        cursorUpdateRef.current = null;
+      }
     };
   }, [handleMouseMove, handleMouseUp]);
 
@@ -204,14 +272,16 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
 
-    setDragState({
+    const newDragState: DragState = {
       isDragging: true,
       nodeId,
       startX: e.clientX,
       startY: e.clientY,
       nodeStartX: node.x,
       nodeStartY: node.y,
-    });
+    };
+    dragStateRef.current = newDragState;
+    setDragState(newDragState);
   };
 
   const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portType: 'output' | 'input') => {
@@ -222,26 +292,31 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
     if (!node) return;
 
     const port = getNodePort(node, portType);
-    setConnectState({
+    const newConnectState: ConnectState = {
       isConnecting: true,
       sourceId: nodeId,
       startX: port.x,
       startY: port.y,
       currentX: port.x,
       currentY: port.y,
-    });
+    };
+    connectStateRef.current = newConnectState;
+    setConnectState(newConnectState);
   };
 
   const handlePortMouseEnter = (nodeId: string, portType: 'output' | 'input') => {
-    if (connectState.isConnecting && portType === 'input' && connectState.sourceId !== nodeId) {
-      setPendingEdge({
-        sourceId: connectState.sourceId!,
+    if (connectStateRef.current.isConnecting && portType === 'input' && connectStateRef.current.sourceId !== nodeId) {
+      const newPendingEdge: PendingEdge = {
+        sourceId: connectStateRef.current.sourceId!,
         targetId: nodeId,
-      });
+      };
+      pendingEdgeRef.current = newPendingEdge;
+      setPendingEdge(newPendingEdge);
     }
   };
 
   const handlePortMouseLeave = () => {
+    pendingEdgeRef.current = null;
     setPendingEdge(null);
   };
 
@@ -294,6 +369,7 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
       description: '',
       color: COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)],
       createdAt: Date.now(),
+      version: 0,
     };
 
     if (wsClient.isConnected()) {
