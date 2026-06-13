@@ -62,18 +62,18 @@ function ensureDefs(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) 
 }
 
 function updateGradient(defs: d3.Selection<SVGDefsElement, unknown, null, undefined>) {
-  let grad = defs.select<SVGLinearGradientElement>('linearGradient.radar-grad')
+  let grad = defs.select<SVGLinearGradientElement>('#radar-grad')
   if (grad.empty()) {
     grad = defs
       .append('linearGradient')
-      .attr('class', 'radar-grad')
+      .attr('id', 'radar-grad')
       .attr('x1', '0%')
       .attr('y1', '0%')
       .attr('x2', '100%')
       .attr('y2', '100%')
   }
 
-  const stops = grad.selectAll('stop').data([
+  const stops = grad.selectAll<SVGStopElement, { offset: string; color: string }>('stop').data([
     { offset: '0%', color: props.gradientColors[0] },
     { offset: '100%', color: props.gradientColors[1] }
   ])
@@ -81,7 +81,7 @@ function updateGradient(defs: d3.Selection<SVGDefsElement, unknown, null, undefi
   stops
     .enter()
     .append('stop')
-    .merge(stops)
+    .merge(stops as d3.Selection<SVGStopElement, { offset: string; color: string }, SVGLinearGradientElement, unknown>)
     .attr('offset', (d) => d.offset)
     .attr('stop-color', (d) => d.color)
 
@@ -177,9 +177,9 @@ function updateArea(g: d3.Selection<SVGGElement, unknown, null, undefined>, tota
 
   poly
     .attr('points', pts)
-    .attr('fill', 'url(.radar-grad)')
+    .attr('fill', 'url(#radar-grad)')
     .attr('fill-opacity', 0.3)
-    .attr('stroke', props.gradientColors[0])
+    .attr('stroke', 'url(#radar-grad)')
     .attr('stroke-opacity', 0.8)
     .attr('stroke-width', 2)
 }
