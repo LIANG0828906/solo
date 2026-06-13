@@ -11,9 +11,9 @@ export interface ForceField {
   strength: number;
   lifetime: number;
   maxLifetime: number;
-  hasBurst: boolean;
   spiralAngle: number;
   isActive: boolean;
+  isDecaying: boolean;
 }
 
 const COLOR_ATTRACT = new THREE.Color(0x00ff66);
@@ -50,9 +50,9 @@ export class ForceManager {
       strength: fieldType === 'attract' ? 8 : -8,
       lifetime: 0,
       maxLifetime: 2,
-      hasBurst: false,
       spiralAngle: 0,
       isActive: true,
+      isDecaying: false,
     };
     this.forceFields.push(field);
     this.createSphereHelper(field);
@@ -69,9 +69,9 @@ export class ForceManager {
       strength: 6,
       lifetime: 0,
       maxLifetime: 3,
-      hasBurst: false,
       spiralAngle: 0,
       isActive: true,
+      isDecaying: false,
     };
     this.forceFields.push(this.activeSpiral);
     this.createSpiralHelper(this.activeSpiral);
@@ -99,10 +99,10 @@ export class ForceManager {
 
   public endSpiral(): void {
     if (this.activeSpiral) {
+      this.activeSpiral.isDecaying = true;
       this.activeSpiral.lifetime = 0;
       this.activeSpiral = null;
     }
-    this.spiralPathPoints = [];
     this.spiralGenerateTimer = 0;
   }
 
@@ -123,19 +123,29 @@ export class ForceManager {
     count: number,
     dt: number,
   ): void {
-    const decayFields: number[] = [];
+    const removeFields: number[] = [];
 
     for (let f = 0; f < this.forceFields.length; f++) {
       const field = this.forceFields[f];
 
-      if (!field.isActive && this.activeSpiral !== field) {
+      if (field.type !== 'spiral') {
         field.lifetime += dt;
         const alpha = Math.max(0, 1 - field.lifetime / field.maxLifetime);
         this.updateHelperOpacity(field, alpha);
         if (field.lifetime >= field.maxLifetime) {
-          decayFields.push(f);
+          removeFields.push(f);
+          continue;
         }
-        if (alpha <= 0) continue;
+      } else {
+        if (field.isDecaying) {
+          field.lifetime += dt;
+          const alpha = Math.max(0, 1 - field.lifetime / field.maxLifetime);
+          this.updateHelperOpacity(field, alpha);
+          if (field.lifetime >= field.maxLifetime) {
+            removeFields.push(f);
+            continue;
+          }
+        }
       }
 
       if (field.type === 'spiral') {
@@ -145,8 +155,8 @@ export class ForceManager {
       }
     }
 
-    for (let i = decayFields.length - 1; i >= 0; i--) {
-      const idx = decayFields[i];
+    for (let i = removeFields.length - 1; i >= 0; i--) {
+      const idx = removeFields[i];
       this.removeHelper(this.forceFields[idx]);
       this.forceFields.splice(idx, 1);
     }
@@ -164,6 +174,7 @@ export class ForceManager {
     const fz = field.position.z;
     const radiusSq = field.radius * field.radius;
     const isAttract = field.type === 'attract';
+    const decayFactor = Math.max(0, 1 - field.lifetime / field.maxLifetime);
 
     for (let i = 0; i < count; i++) {
       const ix = i * 3;
@@ -176,13 +187,13 @@ export class ForceManager {
 
       const dist = Math.sqrt(distSq) + 0.0001;
 
-      if (isAttract && dist < 0.15 && !field.hasBurst) {
-        const angle1 = Math.random() * Math.PI * 2;
-        const angle2 = Math.acos(2 * Math.random() - 1);
+      if (isAttract && dist < 0.2) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
         const speed = 2 + Math.random() * 2;
-        velocities[ix] = Math.sin(angle2) * Math.cos(angle1) * speed;
-        velocities[ix + 1] = Math.sin(angle2) * Math.sin(angle1) * speed;
-        velocities[ix + 2] = Math.cos(angle2) * speed;
+        velocities[ix] = Math.sin(phi) * Math.cos(theta) * speed;
+        velocities[ix + 1] = Math.sin(phi) * Math.sin(theta) * speed;
+        velocities[ix + 2] = Math.cos(phi) * speed;
         continue;
       }
 
@@ -190,31 +201,22 @@ export class ForceManager {
       const ny = dy / dist;
       const nz = dz / dist;
       const t = 1 - dist / field.radius;
-      const accel = field.strength * t * t;
+      const accel = field.strength * t * t * decayFactor;
 
       const currentSpeed = Math.sqrt(
         velocities[ix] ** 2 + velocities[ix + 1] ** 2 + velocities[ix + 2] ** 2,
       );
       const maxSpeed = 3;
+
       if (isAttract && currentSpeed < maxSpeed) {
-        const speedBoost = (maxSpeed - currentSpeed) * t * 0.5;
-        velocities[ix] += nx * (accel * dt + speedBoost * dt * 2);
-        velocities[ix + 1] += ny * (accel * dt + speedBoost * dt * 2);
-        velocities[ix + 2] += nz * (accel * dt + speedBoost * dt * 2);
+        const speedBoost = (maxSpeed - currentSpeed) * t;
+        velocities[ix] += nx * (accel * dt + speedBoost * dt);
+        velocities[ix + 1] += ny * (accel * dt + speedBoost * dt);
+        velocities[ix + 2] += nz * (accel * dt + speedBoost * dt);
       } else {
         velocities[ix] += nx * accel * dt;
         velocities[ix + 1] += ny * accel * dt;
         velocities[ix + 2] += nz * accel * dt;
-      }
-    }
-
-    if (isAttract) {
-      field.hasBurst = true;
-      (field as ForceField & { _burstTimer?: number })._burstTimer =
-        ((field as ForceField & { _burstTimer?: number })._burstTimer || 0) + dt;
-      if (((field as ForceField & { _burstTimer?: number })._burstTimer || 0) > 0.1) {
-        field.hasBurst = false;
-        (field as ForceField & { _burstTimer?: number })._burstTimer = 0;
       }
     }
   }
@@ -230,6 +232,9 @@ export class ForceManager {
 
     const path = field.path;
     const angularVel = Math.PI;
+    const decayFactor = field.isDecaying
+      ? Math.max(0, 1 - field.lifetime / field.maxLifetime)
+      : 1;
 
     for (let i = 0; i < count; i++) {
       const ix = i * 3;
@@ -291,7 +296,7 @@ export class ForceManager {
       const perpZ = tangentX * radialY - tangentY * radialX;
       const perpLen = Math.sqrt(perpX * perpX + perpY * perpY + perpZ * perpZ) + 0.0001;
 
-      const distFactor = 1 - radialDist / influenceRadius;
+      const distFactor = (1 - radialDist / influenceRadius) * decayFactor;
       const targetRadius = 0.5;
       const pullStrength = (targetRadius - radialDist) * 4 * distFactor;
 
@@ -348,13 +353,13 @@ export class ForceManager {
     const helper = this.helperMap.get(field.id);
     if (!helper || !(helper instanceof THREE.Line) || !field.path) return;
 
-    const positions: number[] = [];
+    const posArr: number[] = [];
     for (const p of field.path) {
-      positions.push(p.x, p.y, p.z);
+      posArr.push(p.x, p.y, p.z);
     }
     helper.geometry.setAttribute(
       'position',
-      new THREE.Float32BufferAttribute(positions, 3),
+      new THREE.Float32BufferAttribute(posArr, 3),
     );
     helper.geometry.computeBoundingSphere();
   }
