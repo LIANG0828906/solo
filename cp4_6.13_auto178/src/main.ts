@@ -1,0 +1,190 @@
+import * as THREE from 'three';
+import { OpticalFlow } from './opticalFlow';
+import { ParticleSystem } from './particleSystem';
+import { UIController } from './ui';
+
+class App {
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private video: HTMLVideoElement;
+  private canvasContainer: HTMLDivElement;
+  private opticalFlow: OpticalFlow;
+  private particleSystem: ParticleSystem;
+  private ui: UIController;
+  private clock: THREE.Clock;
+  private cameraAngle: number = 0;
+  private cameraRadius: number = 6;
+  private animationId: number | null = null;
+
+  constructor() {
+    this.canvasContainer = document.getElementById('canvas-container') as HTMLDivElement;
+    this.video = document.getElementById('video-element') as HTMLVideoElement;
+    this.clock = new THREE.Clock();
+
+    this.scene = this.createScene();
+    this.camera = this.createCamera();
+    this.renderer = this.createRenderer();
+    this.createGridGround();
+    this.addLighting();
+
+    const initialConfig = {
+      sensitivity: 0.5,
+      particleCount: 2000
+    };
+
+    this.opticalFlow = new OpticalFlow(this.video);
+    this.opticalFlow.sensitivity = initialConfig.sensitivity;
+    this.particleSystem = new ParticleSystem(this.scene, initialConfig.particleCount);
+
+    this.ui = new UIController({
+      onSensitivityChange: (value: number) => {
+        this.opticalFlow.sensitivity = value;
+      },
+      onParticleCountChange: (value: number) => {
+        this.particleSystem.resizeParticleCount(value);
+      },
+      onReset: () => {
+        this.resetSystem();
+      }
+    });
+
+    this.handleResize = this.handleResize.bind(this);
+    window.addEventListener('resize', this.handleResize);
+
+    this.initCamera();
+    this.requestCameraAccess();
+  }
+
+  private createScene(): THREE.Scene {
+    const scene = new THREE.Scene();
+    return scene;
+  }
+
+  private createCamera(): THREE.PerspectiveCamera {
+    const aspect = window.innerWidth / window.innerHeight;
+    const camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+    return camera;
+  }
+
+  private initCamera(): void {
+    const angle = this.cameraAngle;
+    const height = this.cameraRadius;
+    this.camera.position.set(
+      Math.cos(angle) * this.cameraRadius * 0.7,
+      Math.sin(angle) * this.cameraRadius * 0.7,
+      height
+    );
+    this.camera.lookAt(0, 0, 0);
+  }
+
+  private createRenderer(): THREE.WebGLRenderer {
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    this.canvasContainer.appendChild(renderer.domElement);
+    return renderer;
+  }
+
+  private createGridGround(): void {
+    const gridHelper = new THREE.GridHelper(20, 40, 0xffffff, 0xffffff);
+    gridHelper.rotation.x = Math.PI / 2;
+    gridHelper.position.z = -1.5;
+
+    const material = gridHelper.material as THREE.Material;
+    material.transparent = true;
+    material.opacity = 0.1;
+
+    this.scene.add(gridHelper);
+  }
+
+  private addLighting(): void {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    this.scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0x1e90ff, 0.5, 20);
+    pointLight.position.set(0, 0, 5);
+    this.scene.add(pointLight);
+  }
+
+  private async requestCameraAccess(): Promise<void> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user'
+        },
+        audio: false
+      });
+      this.video.srcObject = stream;
+      this.ui.hidePermissionPrompt();
+      this.start();
+    } catch (err) {
+      console.warn('Camera access denied or unavailable:', err);
+      this.ui.showPermissionPrompt();
+      this.ui.onPermissionRequest(() => {
+        this.requestCameraAccess();
+      });
+      this.start();
+    }
+  }
+
+  private resetSystem(): void {
+    this.opticalFlow.reset();
+    this.particleSystem.reset();
+  }
+
+  private handleResize(): void {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  private start(): void {
+    this.animate();
+  }
+
+  private animate(): void {
+    this.animationId = requestAnimationFrame(() => this.animate());
+
+    const deltaTime = Math.min(this.clock.getDelta(), 0.1);
+    const currentTime = performance.now();
+
+    this.ui.updateFps(currentTime);
+
+    this.cameraAngle += 0.2 * deltaTime;
+    const height = this.cameraRadius;
+    this.camera.position.set(
+      Math.cos(this.cameraAngle) * this.cameraRadius * 0.7,
+      Math.sin(this.cameraAngle) * this.cameraRadius * 0.7,
+      height
+    );
+    this.camera.lookAt(0, 0, 0);
+
+    const vectors = this.opticalFlow.calculate();
+    this.particleSystem.update(vectors, deltaTime);
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  public dispose(): void {
+    if (this.animationId !== null) {
+      cancelAnimationFrame(this.animationId);
+    }
+    window.removeEventListener('resize', this.handleResize);
+    if (this.video.srcObject) {
+      const stream = this.video.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    this.renderer.dispose();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  new App();
+});
