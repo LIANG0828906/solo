@@ -7,6 +7,7 @@
   --text-primary: #1A1A1A;
   --text-secondary: #666666;
   --text-tertiary: #999999;
+  --accent: #667eea;
 
   --day-1: #E53935;
   --day-2: #1E88E5;
@@ -16,13 +17,14 @@
   --day-6: #00ACC1;
   --day-7: #F4511E;
 
-  --food: #FF6B6B;
-  --history: #9C27B0;
-  --nature: #4CAF50;
-  --shopping: #FF9800;
+  --cat-food: #FF6B6B;
+  --cat-history: #9C27B0;
+  --cat-nature: #4CAF50;
+  --cat-shopping: #FF9800;
 
   --radius-card: 16px;
   --radius-spot: 12px;
+  --radius-sm: 8px;
 
   --transition-fast: 200ms ease;
   --transition-normal: 250ms ease;
@@ -60,7 +62,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 14px 24px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -70,6 +72,13 @@ body {
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-title-icon {
+  font-size: 24px;
 }
 
 .export-btn {
@@ -80,7 +89,7 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -98,18 +107,12 @@ body {
   transform: none;
 }
 
-.main-content {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
 .input-panel {
-  padding: 16px 24px;
+  padding: 14px 24px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 16px;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -125,20 +128,24 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .input-field {
   padding: 10px 14px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   background-color: var(--bg-primary);
   transition: border-color var(--transition-fast);
   outline: none;
+  width: 160px;
 }
 
 .input-field:focus {
-  border-color: #667eea;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .days-selector {
@@ -151,7 +158,7 @@ body {
   height: 36px;
   border: 1px solid var(--border-color);
   background-color: var(--bg-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -160,14 +167,14 @@ body {
 }
 
 .day-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .day-btn.active {
-  background-color: #667eea;
+  background-color: var(--accent);
   color: white;
-  border-color: #667eea;
+  border-color: var(--accent);
 }
 
 .preferences {
@@ -189,17 +196,22 @@ body {
   background-color: var(--bg-primary);
   transition: all var(--transition-fast);
   color: var(--text-secondary);
+  user-select: none;
 }
 
 .pref-chip:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .pref-chip.active {
-  background-color: #667eea;
+  background-color: var(--accent);
   color: white;
-  border-color: #667eea;
+  border-color: var(--accent);
+}
+
+.pref-icon {
+  font-size: 14px;
 }
 
 .generate-btn {
@@ -207,7 +219,7 @@ body {
   background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -218,6 +230,12 @@ body {
 .generate-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);
+}
+
+.generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .content-split {
@@ -257,6 +275,8 @@ body {
 .day-card.drag-over {
   box-shadow: var(--shadow-drag);
   transform: scale(1.01);
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
 }
 
 .day-header {
@@ -267,6 +287,11 @@ body {
   cursor: pointer;
   border-left: 4px solid var(--day-color);
   user-select: none;
+  transition: background-color var(--transition-fast);
+}
+
+.day-header:hover {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .day-header-left {
@@ -286,6 +311,7 @@ body {
   color: white;
   font-size: 14px;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .day-title {
@@ -309,6 +335,7 @@ body {
   border-radius: 50%;
   transition: all var(--transition-fast);
   color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .day-toggle:hover {
@@ -322,7 +349,7 @@ body {
 .day-content {
   overflow: hidden;
   max-height: 0;
-  transition: max-height var(--transition-normal);
+  transition: max-height 250ms ease;
 }
 
 .day-content.expanded {
@@ -341,7 +368,7 @@ body {
   border-radius: var(--radius-spot);
   padding: 14px 16px;
   cursor: grab;
-  transition: all var(--transition-drag);
+  transition: transform var(--transition-drag), box-shadow var(--transition-drag), opacity var(--transition-drag);
   border: 2px solid transparent;
   position: relative;
 }
@@ -358,8 +385,8 @@ body {
   transform: scale(0.98);
 }
 
-.spot-card.drag-over {
-  border-color: #667eea;
+.spot-card.drag-over-spot {
+  border-color: var(--accent);
   background-color: rgba(102, 126, 234, 0.05);
 }
 
@@ -389,12 +416,14 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .spot-category-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -407,6 +436,9 @@ body {
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spot-duration {
@@ -419,12 +451,27 @@ body {
   padding: 4px 10px;
   background-color: var(--bg-card);
   border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .spot-description {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
+  cursor: pointer;
+}
+
+.spot-expand-btn {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.spot-expand-btn:hover {
+  text-decoration: underline;
 }
 
 .spot-detail {
@@ -475,6 +522,7 @@ body {
   font-size: 14px;
   color: var(--text-tertiary);
   line-height: 1.6;
+  max-width: 300px;
 }
 
 .map-placeholder {
@@ -486,6 +534,76 @@ body {
   background-color: var(--bg-primary);
 }
 
+.map-placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.map-placeholder-text {
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+
+.export-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  background: white;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.export-overlay-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.export-overlay-map {
+  width: 100%;
+  height: 500px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+}
+
+.export-overlay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.export-overlay-table th {
+  background-color: var(--bg-primary);
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.export-overlay-table td {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.export-overlay-table .day-row {
+  background-color: rgba(102, 126, 234, 0.05);
+  font-weight: 700;
+}
+
+.leaflet-container {
+  z-index: 1;
+}
+
 @media (max-width: 900px) {
   .content-split {
     flex-direction: column;
@@ -494,14 +612,15 @@ body {
   .left-panel,
   .right-panel {
     width: 100%;
-    border-left: none;
   }
 
   .left-panel {
     max-height: 50vh;
+    border-left: none;
   }
 
   .right-panel {
+    border-left: none;
     border-top: 2px solid var(--border-color);
     height: 50vh;
   }
@@ -511,10 +630,16 @@ body {
     gap: 12px;
   }
 
+  .input-field {
+    width: 120px;
+  }
+
   .generate-btn {
     width: 100%;
     margin-left: 0;
   }
-}
 
-.export
+  .app-header {
+    padding: 12px 16px;
+  }
+}
