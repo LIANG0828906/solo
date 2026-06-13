@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生态系统沙盒模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #ffffff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      padding: 20px;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .canvas-wrapper {
+      width: 65%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      border-radius: 12px;
+      display: block;
+    }
+
+    .stats-panel {
+      width: 30%;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 12px;
+      padding: 15px;
+      color: #ffffff;
+    }
+
+    .stats-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #ffffff;
+    }
+
+    .stats-section {
+      margin-bottom: 20px;
+    }
+
+    .stats-section h3 {
+      font-size: 14px;
+      color: #cccccc;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .counts-display {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .count-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .count-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .count-dot.plant { background: #4CAF50; }
+    .count-dot.herbivore { background: #2196F3; }
+    .count-dot.carnivore { background: #F44336; }
+
+    .count-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .bar-chart-container {
+      height: 80px;
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
