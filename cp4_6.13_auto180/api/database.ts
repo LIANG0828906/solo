@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const dbPath = path.join(__dirname, '..', 'data', 'workflow.db')
+const dbPath = path.join(__dirname, 'data', 'workflow.db')
 
 const db = new Database(dbPath)
 
@@ -61,6 +61,7 @@ export function getRecords(days: number = 30): Record[] {
     SELECT * FROM records
     WHERE date >= date('now', '-' || ? || ' days')
     ORDER BY date DESC
+    LIMIT 1000
   `)
   return stmt.all(days) as Record[]
 }
@@ -96,10 +97,10 @@ export function deleteRecord(id: string): boolean {
 
 export function getLeaves(status?: string): Leave[] {
   if (status) {
-    const stmt = db.prepare('SELECT * FROM leaves WHERE status = ? ORDER BY createdAt DESC')
+    const stmt = db.prepare('SELECT * FROM leaves WHERE status = ? ORDER BY createdAt DESC LIMIT 1000')
     return stmt.all(status) as Leave[]
   }
-  const stmt = db.prepare('SELECT * FROM leaves ORDER BY createdAt DESC')
+  const stmt = db.prepare('SELECT * FROM leaves ORDER BY createdAt DESC LIMIT 1000')
   return stmt.all() as Leave[]
 }
 

@@ -1,22 +1,46 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Clock, Calendar, CheckCircle, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import ChartBar from '@/components/ChartBar'
 import type { Summary, LeaveRequest } from '../../shared/types'
 
+function CardSkeleton() {
+  return (
+    <div
+      className="card bg-white rounded-xl p-5 flex items-center gap-4 animate-pulse"
+      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.06)', minWidth: 320 }}
+    >
+      <div className="rounded-xl w-12 h-12 bg-gray-200" />
+      <div className="flex-1">
+        <div className="h-3 w-16 bg-gray-200 rounded mb-2" />
+        <div className="h-6 w-20 bg-gray-200 rounded mt-2" />
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
-  const { summary, leaves, period, setSummary, setLeaves, setPeriod } = useStore()
+  const { summary, leaves, period, setSummary, setLeaves, setPeriod, showToast } = useStore()
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/summary?period=${period}`)
-      .then((r) => r.json())
-      .then((data: Summary) => setSummary(data))
-    fetch('/api/leaves?status=待审批')
-      .then((r) => r.json())
-      .then((data: { leaves: LeaveRequest[] }) => setLeaves(data.leaves))
+    setLoading(true)
+    Promise.all([
+      fetch(`/api/summary?period=${period}`).then((r) => r.json()),
+      fetch('/api/leaves?status=待审批').then((r) => r.json()),
+    ])
+      .then(([summaryData, leavesData]: [Summary, { leaves: LeaveRequest[] }]) => {
+        setSummary(summaryData)
+        setLeaves(leavesData.leaves)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [period, setSummary, setLeaves])
 
-  const pendingLeaves = useMemo(() => leaves.filter((l) => l.status === '待审批'), [leaves])
+  const pendingLeaves = useMemo(
+    () => leaves.filter((l) => l.status === '待审批'),
+    [leaves],
+  )
 
   const handleApprove = async (id: string, status: '已通过' | '已拒绝') => {
     const res = await fetch(`/api/leaves/${id}`, {
@@ -26,6 +50,7 @@ export default function Dashboard() {
     })
     if (res.ok) {
       setLeaves(leaves.map((l) => (l.id === id ? { ...l, status } : l)))
+      showToast(status === '已通过' ? '已通过' : '已驳回')
     }
   }
 
@@ -68,35 +93,37 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, i) => (
-          <div
-            key={i}
-            className="card bg-white rounded-xl p-5 flex items-center gap-4"
-            style={{
-              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-              minWidth: 320,
-            }}
-          >
-            <div
-              className="flex items-center justify-center rounded-xl w-12 h-12"
-              style={{ backgroundColor: '#e3f2fd' }}
-            >
-              <card.icon size={24} style={{ color: '#1976d2' }} />
-            </div>
-            <div>
-              <div className="text-xs text-gray-400 mb-0.5">{card.label}</div>
-              <div className="flex items-baseline gap-1">
-                <span
-                  className="font-bold"
-                  style={{ color: '#1976d2', fontSize: i === 0 ? 80 : 28 }}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />
+          : cards.map((card, i) => (
+              <div
+                key={i}
+                className="card bg-white rounded-xl p-5 flex items-center gap-4"
+                style={{
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                  minWidth: 320,
+                }}
+              >
+                <div
+                  className="flex items-center justify-center rounded-xl w-12 h-12"
+                  style={{ backgroundColor: '#e3f2fd' }}
                 >
-                  {card.value}
-                </span>
-                <span className="text-sm text-gray-400">{card.unit}</span>
+                  <card.icon size={24} style={{ color: '#1976d2' }} />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 mb-0.5">{card.label}</div>
+                  <div className="flex items-baseline gap-1">
+                    <span
+                      className="font-bold"
+                      style={{ color: '#1976d2', fontSize: i === 0 ? 80 : 28 }}
+                    >
+                      {card.value}
+                    </span>
+                    <span className="text-sm text-gray-400">{card.unit}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            ))}
       </div>
 
       <div
@@ -106,7 +133,11 @@ export default function Dashboard() {
         <h3 className="text-base font-semibold mb-4" style={{ color: '#333' }}>
           每日工时分布
         </h3>
-        {summary ? (
+        {loading ? (
+          <div className="animate-pulse" style={{ height: 280 }}>
+            <div className="h-full bg-gray-100 rounded-lg" />
+          </div>
+        ) : summary ? (
           <ChartBar data={summary.dailyHours} period={period} />
         ) : (
           <div className="text-center text-gray-400 py-8">加载中...</div>
@@ -120,7 +151,27 @@ export default function Dashboard() {
         <h3 className="text-base font-semibold mb-4" style={{ color: '#333' }}>
           待审批请假
         </h3>
-        {pendingLeaves.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse p-4 rounded-lg border border-gray-100"
+              >
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <div className="h-4 w-16 bg-gray-200 rounded mb-2" />
+                    <div className="h-3 w-32 bg-gray-100 rounded mt-2" />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="w-14 h-8 bg-gray-200 rounded" />
+                    <div className="w-14 h-8 bg-gray-200 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : pendingLeaves.length === 0 ? (
           <div className="text-center text-gray-400 py-8">暂无待审批请假</div>
         ) : (
           <div className="space-y-3">

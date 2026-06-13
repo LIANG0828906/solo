@@ -5,6 +5,7 @@ import express, {
 } from 'express'
 import cors from 'cors'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import recordsRoutes from './routes/records.js'
 import leavesRoutes from './routes/leaves.js'
@@ -12,6 +13,11 @@ import summaryRoutes from './routes/summary.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const dataDir = path.join(__dirname, 'data')
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true })
+}
 
 const app: express.Application = express()
 
