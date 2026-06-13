@@ -6,6 +6,7 @@ import {
   getProject,
   createProject,
   updateProject,
+  saveProject,
   deleteProject,
   copyProject
 } from './store';
@@ -67,6 +68,24 @@ app.put('/api/projects/:id', async (req, res) => {
     res.json(project);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
+app.post('/api/projects/:id/save', async (req, res) => {
+  try {
+    const { elements, colorPalette, thumbnail } = req.body;
+    if (!elements || !colorPalette) {
+      res.status(400).json({ error: 'elements and colorPalette are required' });
+      return;
+    }
+    const project = await saveProject(req.params.id, elements, colorPalette, thumbnail);
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save project' });
   }
 });
 

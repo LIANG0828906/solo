@@ -54,11 +54,50 @@ export interface ColorSwatch {
   count: number;
 }
 
+export interface Materials {
+  images: {
+    id: string;
+    src: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    name: string;
+    note?: string;
+  }[];
+  texts: {
+    id: string;
+    x: number;
+    y: number;
+    text: string;
+    fontSize: number;
+    fontFamily: string;
+    color: string;
+    name: string;
+    note?: string;
+  }[];
+  drawings: {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    dataUrl: string;
+    paths: { x: number; y: number }[];
+    color: string;
+    size: number;
+    name: string;
+    note?: string;
+  }[];
+}
+
 export interface Project {
   id: string;
   name: string;
   thumbnail?: string;
   elements: CanvasElement[];
+  materials: Materials;
   colorPalette: ColorSwatch[];
   createdAt: number;
   updatedAt: number;
