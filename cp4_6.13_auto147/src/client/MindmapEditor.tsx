@@ -8,6 +8,7 @@ interface MindmapEditorProps {
   onNodeDragEnd: () => void;
   onNodeTextChange: (nodeId: string, text: string) => void;
   onNodeDelete: (nodeId: string) => void;
+  isUndoRedoTransition?: boolean;
 }
 
 const GRID_SIZE = 20;
@@ -16,22 +17,38 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
 const SCALE_STEP = 0.1;
 
+const LEVEL_COLORS: Record<number, string> = {
+  0: '#ffffff',
+  1: '#4A90D9',
+  2: '#7B61FF',
+  3: '#50C878',
+};
+
+function getLevelColor(level: number): string {
+  return LEVEL_COLORS[level] || LEVEL_COLORS[3] || '#50C878';
+}
+
 function MindmapEditor({
   data,
   onNodeDrag,
   onNodeDragEnd,
   onNodeTextChange,
   onNodeDelete,
+  isUndoRedoTransition,
 }: MindmapEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const transformRef = useRef(transform);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, transformX: 0, transformY: 0 });
-  const [isExporting, setIsExporting] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const initialCenterRef = useRef(false);
+
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
 
   const centerCanvas = useCallback(() => {
     if (!containerRef.current || !data) return;
@@ -146,18 +163,21 @@ function MindmapEditor({
 
       let lastX = e.clientX;
       let lastY = e.clientY;
+      let currentX = node.x;
+      let currentY = node.y;
 
       const handleMove = (moveEvent: PointerEvent) => {
-        const dx = (moveEvent.clientX - lastX) / transform.scale;
-        const dy = (moveEvent.clientY - lastY) / transform.scale;
+        const currentScale = transformRef.current.scale;
+        const dx = (moveEvent.clientX - lastX) / currentScale;
+        const dy = (moveEvent.clientY - lastY) / currentScale;
 
         lastX = moveEvent.clientX;
         lastY = moveEvent.clientY;
 
-        const newX = node.x + dx;
-        const newY = node.y + dy;
+        currentX += dx;
+        currentY += dy;
 
-        onNodeDrag(node.id, newX, newY);
+        onNodeDrag(node.id, currentX, currentY);
       };
 
       const handleUp = () => {
@@ -173,7 +193,7 @@ function MindmapEditor({
       target.addEventListener('pointerup', handleUp);
       target.addEventListener('pointercancel', handleUp);
     },
-    [transform.scale, onNodeDrag, onNodeDragEnd]
+    [onNodeDrag, onNodeDragEnd]
   );
 
   const handleNodeDoubleClick = useCallback(
@@ -226,7 +246,7 @@ function MindmapEditor({
         const controlOffset = Math.abs(endX - startX) * 0.5;
         const path = `M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`;
 
-        const strokeColor = child.color || '#4A90D9';
+        const strokeColor = getLevelColor(child.level);
 
         elements.push(
           <path
@@ -249,17 +269,20 @@ function MindmapEditor({
   const renderNodes = useCallback(
     (node: MindMapNode): JSX.Element[] => {
       const elements: JSX.Element[] = [];
-      const levelClass = node.level === 0 ? 'root-node' : `level-${node.level}`;
+      const levelClass = node.level === 0 ? 'root-node' : `level-${Math.min(node.level, 3)}`;
+      const bgColor = getLevelColor(node.level);
+      const isRoot = node.level === 0;
 
       elements.push(
         <div
           key={node.id}
-          className={`mindmap-node ${levelClass} ${isDraggingNode ? 'dragging' : ''}`}
+          className={`mindmap-node ${levelClass}`}
           style={{
             left: node.x,
             top: node.y,
-            backgroundColor: node.level === 0 ? 'white' : node.color,
-            borderColor: node.level === 0 ? '#4A90D9' : 'transparent',
+            backgroundColor: bgColor,
+            borderColor: isRoot ? '#4A90D9' : 'transparent',
+            color: isRoot ? '#333' : 'white',
           }}
           onPointerDown={(e) => handleNodePointerDown(e, node)}
           onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
@@ -283,7 +306,7 @@ function MindmapEditor({
 
       return elements;
     },
-    [handleNodePointerDown, handleNodeDoubleClick, handleDeleteNode, isDraggingNode]
+    [handleNodePointerDown, handleNodeDoubleClick, handleDeleteNode]
   );
 
   const generateGrid = useCallback(() => {
@@ -331,23 +354,58 @@ function MindmapEditor({
   }, [showGrid]);
 
   useEffect(() => {
-    const handleExport = async () => {
-      if (!isExporting || !canvasRef.current) return;
+    const handleExportEvent = async () => {
+      if (!containerRef.current || !canvasRef.current || !data) return;
 
       try {
         setShowGrid(false);
 
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
-        const dataUrl = await htmlToImage.toPng(canvasRef.current, {
+        const container = containerRef.current;
+        const savedTransform = { ...transformRef.current };
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        const traverse = (node: MindMapNode) => {
+          minX = Math.min(minX, node.x - 120);
+          maxX = Math.max(maxX, node.x + 120);
+          minY = Math.min(minY, node.y - 40);
+          maxY = Math.max(maxY, node.y + 40);
+          node.children.forEach(traverse);
+        };
+        traverse(data);
+
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+        const padding = 40;
+
+        const canvasEl = canvasRef.current;
+        const savedStyle = canvasEl.style.cssText;
+
+        canvasEl.style.transform = 'none';
+        canvasEl.style.left = `${-minX + padding}px`;
+        canvasEl.style.top = `${-minY + padding}px`;
+        canvasEl.style.width = `${contentWidth + padding * 2}px`;
+        canvasEl.style.height = `${contentHeight + padding * 2}px`;
+        canvasEl.style.transition = 'none';
+
+        const wrapperEl = container;
+        const savedWrapperStyle = wrapperEl.style.cssText;
+        wrapperEl.style.width = `${contentWidth + padding * 2}px`;
+        wrapperEl.style.height = `${contentHeight + padding * 2}px`;
+        wrapperEl.style.overflow = 'visible';
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const dataUrl = await htmlToImage.toPng(canvasEl, {
           backgroundColor: '#ffffff',
           pixelRatio: 2,
           cacheBust: true,
-          style: {
-            transform: `scale(${transform.scale})`,
-            transformOrigin: 'top left',
-          } as any,
         });
+
+        canvasEl.style.cssText = savedStyle;
+        wrapperEl.style.cssText = savedWrapperStyle;
+        setShowGrid(true);
 
         const link = document.createElement('a');
         link.download = `mindmap-${Date.now()}.png`;
@@ -355,25 +413,13 @@ function MindmapEditor({
         link.click();
       } catch (error) {
         console.error('Export failed:', error);
-      } finally {
         setShowGrid(true);
-        setIsExporting(false);
       }
-    };
-
-    if (isExporting) {
-      handleExport();
-    }
-  }, [isExporting, transform.scale]);
-
-  useEffect(() => {
-    const handleExportEvent = () => {
-      setIsExporting(true);
     };
 
     window.addEventListener('export-mindmap', handleExportEvent);
     return () => window.removeEventListener('export-mindmap', handleExportEvent);
-  }, []);
+  }, [data]);
 
   return (
     <div className="mindmap-canvas-wrapper">
@@ -391,7 +437,7 @@ function MindmapEditor({
         {data ? (
           <div
             ref={canvasRef}
-            className={`canvas-content ${isPanning || isDraggingNode ? 'no-transition' : ''}`}
+            className={`canvas-content ${isPanning || isDraggingNode ? 'no-transition' : ''} ${isUndoRedoTransition ? 'undo-redo-transition' : ''}`}
             style={{
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             }}

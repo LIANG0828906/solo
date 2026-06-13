@@ -22,11 +22,17 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [history, setHistory] = useState<MindMapNode[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [isUndoRedoTransition, setIsUndoRedoTransition] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const isRemoteUpdateRef = useRef(false);
+  const undoStackRef = useRef<MindMapNode[]>([]);
+  const redoStackRef = useRef<MindMapNode[]>([]);
+  const mindmapDataRef = useRef<MindMapNode | null>(null);
+
+  useEffect(() => {
+    mindmapDataRef.current = mindmapData;
+  }, [mindmapData]);
 
   const showToastMessage = useCallback((message: string) => {
     setToastMessage(message);
@@ -34,60 +40,72 @@ function App() {
     setTimeout(() => setShowToast(false), 2000);
   }, []);
 
-  const pushHistory = useCallback((data: MindMapNode) => {
+  const pushToUndoStack = useCallback(() => {
     if (isRemoteUpdateRef.current) return;
-    const newData = deepClone(data);
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(newData);
-      if (newHistory.length > MAX_HISTORY) {
-        newHistory.shift();
-        return newHistory;
-      }
-      return newHistory;
-    });
-    setHistoryIndex((prev) => Math.min(prev + 1, MAX_HISTORY - 1));
-  }, [historyIndex]);
+    const current = mindmapDataRef.current;
+    if (!current) return;
+    undoStackRef.current.push(deepClone(current));
+    if (undoStackRef.current.length > MAX_HISTORY) {
+      undoStackRef.current.shift();
+    }
+    redoStackRef.current = [];
+  }, []);
 
   const undo = useCallback(() => {
-    if (historyIndex > 0 && history[historyIndex - 1]) {
-      isRemoteUpdateRef.current = true;
-      const prevData = deepClone(history[historyIndex - 1]);
-      setMindmapData(prevData);
-      setHistoryIndex((prev) => prev - 1);
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && prevData) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'mindmap_full_update',
-            data: { mindmapData: prevData },
-          })
-        );
-      }
-      setTimeout(() => {
-        isRemoteUpdateRef.current = false;
-      }, 300);
+    if (undoStackRef.current.length === 0) return;
+    const current = mindmapDataRef.current;
+    if (!current) return;
+
+    redoStackRef.current.push(deepClone(current));
+
+    const prevData = undoStackRef.current.pop()!;
+
+    setIsUndoRedoTransition(true);
+    isRemoteUpdateRef.current = true;
+    setMindmapData(prevData);
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'mindmap_full_update',
+          data: { mindmapData: prevData },
+        })
+      );
     }
-  }, [history, historyIndex]);
+
+    setTimeout(() => {
+      setIsUndoRedoTransition(false);
+      isRemoteUpdateRef.current = false;
+    }, 300);
+  }, []);
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1 && history[historyIndex + 1]) {
-      isRemoteUpdateRef.current = true;
-      const nextData = deepClone(history[historyIndex + 1]);
-      setMindmapData(nextData);
-      setHistoryIndex((prev) => prev + 1);
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && nextData) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'mindmap_full_update',
-            data: { mindmapData: nextData },
-          })
-        );
-      }
-      setTimeout(() => {
-        isRemoteUpdateRef.current = false;
-      }, 300);
+    if (redoStackRef.current.length === 0) return;
+    const current = mindmapDataRef.current;
+    if (!current) return;
+
+    undoStackRef.current.push(deepClone(current));
+
+    const nextData = redoStackRef.current.pop()!;
+
+    setIsUndoRedoTransition(true);
+    isRemoteUpdateRef.current = true;
+    setMindmapData(nextData);
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'mindmap_full_update',
+          data: { mindmapData: nextData },
+        })
+      );
     }
-  }, [history, historyIndex]);
+
+    setTimeout(() => {
+      setIsUndoRedoTransition(false);
+      isRemoteUpdateRef.current = false;
+    }, 300);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,8 +181,8 @@ function App() {
         if (data.mindmapData) {
           isRemoteUpdateRef.current = true;
           setMindmapData(data.mindmapData);
-          setHistory([deepClone(data.mindmapData)]);
-          setHistoryIndex(0);
+          undoStackRef.current = [];
+          redoStackRef.current = [];
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
           }, 100);
@@ -273,8 +291,8 @@ function App() {
 
       const data = (await response.json()) as MindMapNode;
       isRemoteUpdateRef.current = true;
+      pushToUndoStack();
       setMindmapData(data);
-      pushHistory(data);
 
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(
@@ -318,13 +336,15 @@ function App() {
   );
 
   const handleNodeDragEnd = useCallback(() => {
-    if (mindmapData && !isRemoteUpdateRef.current) {
-      pushHistory(mindmapData);
+    if (mindmapDataRef.current && !isRemoteUpdateRef.current) {
+      pushToUndoStack();
     }
-  }, [mindmapData, pushHistory]);
+  }, [pushToUndoStack]);
 
   const handleNodeTextChange = useCallback(
     (nodeId: string, text: string) => {
+      pushToUndoStack();
+
       setMindmapData((prev) => {
         if (!prev) return prev;
         const newData = deepClone(prev);
@@ -341,11 +361,13 @@ function App() {
         );
       }
     },
-    []
+    [pushToUndoStack]
   );
 
   const handleNodeDelete = useCallback(
     (nodeId: string) => {
+      pushToUndoStack();
+
       setMindmapData((prev) => {
         if (!prev) return prev;
         if (prev.id === nodeId) return prev;
@@ -362,12 +384,8 @@ function App() {
           })
         );
       }
-
-      if (mindmapData) {
-        setTimeout(() => pushHistory(mindmapData), 0);
-      }
     },
-    [mindmapData, pushHistory]
+    [pushToUndoStack]
   );
 
   const handleExport = () => {
@@ -405,6 +423,7 @@ function App() {
           onNodeDragEnd={handleNodeDragEnd}
           onNodeTextChange={handleNodeTextChange}
           onNodeDelete={handleNodeDelete}
+          isUndoRedoTransition={isUndoRedoTransition}
         />
         <UserAvatars users={users} currentUserId={currentUserId} />
       </div>
