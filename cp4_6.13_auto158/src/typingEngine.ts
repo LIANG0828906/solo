@@ -235,36 +235,67 @@ export class TypingEngine {
 
   private generateSentence(): string {
     let wordCount: number;
-    let wordPool: string[];
+    const words: string[] = [];
 
     switch (this.difficulty) {
       case 'easy':
         wordCount = 6 + Math.floor(Math.random() * 3);
-        wordPool = [...WORD_LIBRARY.common];
+        for (let i = 0; i < wordCount; i++) {
+          const idx = Math.floor(Math.random() * WORD_LIBRARY.common.length);
+          let w = WORD_LIBRARY.common[idx];
+          if (i === 0) w = w.charAt(0).toUpperCase() + w.slice(1);
+          words.push(w);
+        }
         break;
       case 'normal':
         wordCount = 10 + Math.floor(Math.random() * 3);
-        wordPool = [...WORD_LIBRARY.common, ...WORD_LIBRARY.medium.slice(0, 200)];
+        const mediumCount = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < Math.min(mediumCount, wordCount); i++) {
+          const idx = Math.floor(Math.random() * WORD_LIBRARY.medium.length);
+          words.push(WORD_LIBRARY.medium[idx]);
+        }
+        while (words.length < wordCount) {
+          const idx = Math.floor(Math.random() * (WORD_LIBRARY.common.length + WORD_LIBRARY.medium.length));
+          const pool = idx < WORD_LIBRARY.common.length ? WORD_LIBRARY.common : WORD_LIBRARY.medium;
+          const wIdx = idx < WORD_LIBRARY.common.length ? idx : idx - WORD_LIBRARY.common.length;
+          words.push(pool[wIdx]);
+        }
         break;
       case 'hard':
       default:
         wordCount = 14 + Math.floor(Math.random() * 3);
-        wordPool = [...WORD_LIBRARY.common, ...WORD_LIBRARY.medium, ...WORD_LIBRARY.complex];
+        const complexCount = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < Math.min(complexCount, wordCount); i++) {
+          const idx = Math.floor(Math.random() * WORD_LIBRARY.complex.length);
+          words.push(WORD_LIBRARY.complex[idx]);
+        }
+        const hardMediumCount = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < hardMediumCount && words.length < wordCount; i++) {
+          const idx = Math.floor(Math.random() * WORD_LIBRARY.medium.length);
+          words.push(WORD_LIBRARY.medium[idx]);
+        }
+        while (words.length < wordCount) {
+          const r = Math.random();
+          let pool: string[];
+          if (r < 0.3) pool = WORD_LIBRARY.complex;
+          else if (r < 0.6) pool = WORD_LIBRARY.medium;
+          else pool = WORD_LIBRARY.common;
+          const idx = Math.floor(Math.random() * pool.length);
+          words.push(pool[idx]);
+        }
         break;
     }
 
-    const words: string[] = [];
-    for (let i = 0; i < wordCount; i++) {
-      const idx = Math.floor(Math.random() * wordPool.length);
-      let w = wordPool[idx];
-      if (i === 0) {
-        w = w.charAt(0).toUpperCase() + w.slice(1);
-      }
-      words.push(w);
+    for (let i = words.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [words[i], words[j]] = [words[j], words[i]];
     }
 
-    const sentence = words.join(' ');
-    return sentence + '.';
+    if (words.length > 0) {
+      words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    }
+
+    return words.join(' ') + '.';
   }
 
   startTimer(): void {
