@@ -61,7 +61,8 @@ export function getNodeSize(referenceCount: number): number {
   const minSize = 40;
   const maxSize = 80;
   const maxRef = 5;
-  const size = minSize + ((maxSize - minSize) * Math.min(referenceCount, maxRef)) / maxRef;
+  const t = Math.min(referenceCount, maxRef) / maxRef;
+  const size = minSize + (maxSize - minSize) * t * t;
   return Math.round(size);
 }
 

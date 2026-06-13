@@ -1,6 +1,28 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo, memo } from 'react';
 import { useAppStore, getOutgoingEdges } from '@/store/useAppStore';
 import { X, Send, ArrowRight, MessageSquare } from 'lucide-react';
+import type { Comment, WireframeEdge } from '@/data/sampleData';
+
+interface CommentItemProps {
+  comment: Comment;
+  isNew: boolean;
+  index: number;
+}
+
+const CommentItem = memo(function CommentItem({ comment, isNew, index }: CommentItemProps) {
+  return (
+    <div
+      className={`bg-gray-50 rounded-lg p-3 ${isNew ? 'comment-fade-in' : ''}`}
+      style={{ animationDelay: isNew ? '0ms' : `${index * 30}ms` }}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-gray-700">{comment.username}</span>
+        <span className="text-[10px] text-gray-400">{comment.timestamp}</span>
+      </div>
+      <p className="text-xs text-gray-600 leading-relaxed">{comment.content}</p>
+    </div>
+  );
+});
 
 export default function NodeDetailModal() {
   const modalNodeId = useAppStore((s) => s.modalNodeId);
@@ -11,21 +33,43 @@ export default function NodeDetailModal() {
   const navigateToNode = useAppStore((s) => s.navigateToNode);
 
   const [commentText, setCommentText] = useState('');
-  const [rippleKey, setRippleKey] = useState(0);
+  const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const node = nodes.find((n) => n.id === modalNodeId);
-  const outgoingEdges = node ? getOutgoingEdges(node.id, edges) : [];
+  const node = useMemo(
+    () => nodes.find((n) => n.id === modalNodeId) || null,
+    [nodes, modalNodeId]
+  );
+
+  const outgoingEdges: WireframeEdge[] = useMemo(
+    () => (node ? getOutgoingEdges(node.id, edges) : []),
+    [node, edges]
+  );
+
+  const targetNodes = useMemo(() => {
+    return outgoingEdges.map((edge) => {
+      const targetId = typeof edge.target === 'string' ? edge.target : edge.target;
+      return nodes.find((n) => n.id === targetId) || null;
+    }).filter(Boolean);
+  }, [outgoingEdges, nodes]);
 
   const handleSubmitComment = useCallback(() => {
     if (!commentText.trim() || !node) return;
+    const tempId = `temp-${Date.now()}`;
+    setNewCommentIds((prev) => new Set(prev).add(tempId));
     addComment(node.id, commentText.trim());
     setCommentText('');
-    setRippleKey((k) => k + 1);
+    setTimeout(() => {
+      setNewCommentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tempId);
+        return next;
+      });
+    }, 500);
   }, [commentText, node, addComment]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmitComment();
@@ -69,7 +113,6 @@ export default function NodeDetailModal() {
         className="modal-enter bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-2xl max-h-[85vh] mx-4 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0"
           style={{ background: `linear-gradient(135deg, ${node.color}15, ${node.color}05)` }}
@@ -99,9 +142,7 @@ export default function NodeDetailModal() {
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Wireframe SVG placeholder */}
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-2">线框图预览</h3>
             <div
@@ -127,19 +168,15 @@ export default function NodeDetailModal() {
             </div>
           </div>
 
-          {/* Related links */}
-          {outgoingEdges.length > 0 && (
+          {targetNodes.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-600 mb-2">关联跳转</h3>
               <div className="flex flex-wrap gap-2">
-                {outgoingEdges.map((edge) => {
-                  const targetId = typeof edge.target === 'string' ? edge.target : edge.target;
-                  const targetNode = nodes.find((n) => n.id === targetId);
-                  if (!targetNode) return null;
-                  return (
+                {targetNodes.map((targetNode) =>
+                  targetNode ? (
                     <button
-                      key={targetId}
-                      onClick={() => handleNavigateToNode(targetId)}
+                      key={targetNode.id}
+                      onClick={() => handleNavigateToNode(targetNode.id)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:shadow-sm"
                       style={{
                         background: `${targetNode.color}10`,
@@ -150,13 +187,12 @@ export default function NodeDetailModal() {
                       <ArrowRight size={12} />
                       {targetNode.title}
                     </button>
-                  );
-                })}
+                  ) : null
+                )}
               </div>
             </div>
           )}
 
-          {/* Comments */}
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-1.5">
               <MessageSquare size={14} />
@@ -167,23 +203,17 @@ export default function NodeDetailModal() {
                 <p className="text-xs text-gray-400 py-4 text-center">暂无评论，来说点什么吧</p>
               )}
               {node.comments.map((comment, idx) => (
-                <div
+                <CommentItem
                   key={comment.id}
-                  className="comment-fade-in bg-gray-50 rounded-lg p-3"
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-700">{comment.username}</span>
-                    <span className="text-[10px] text-gray-400">{comment.timestamp}</span>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{comment.content}</p>
-                </div>
+                  comment={comment}
+                  isNew={newCommentIds.size > 0 && idx === node.comments.length - 1}
+                  index={idx}
+                />
               ))}
             </div>
           </div>
         </div>
 
-        {/* Comment input */}
         <div className="p-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -209,7 +239,6 @@ export default function NodeDetailModal() {
             </div>
             <button
               ref={btnRef}
-              key={rippleKey}
               onClick={(e) => {
                 handleRipple(e);
                 handleSubmitComment();

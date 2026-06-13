@@ -1,3 +1,5 @@
+import type * as d3 from 'd3-force';
+
 export interface Comment {
   id: string;
   username: string;
@@ -30,7 +32,10 @@ export interface SimNode extends d3.SimulationNodeDatum {
   y: number;
 }
 
-import type * as d3 from 'd3-force';
+export interface SimLink extends d3.SimulationLinkDatum<SimNode> {
+  source: string | SimNode;
+  target: string | SimNode;
+}
 
 const nodeColors = [
   '#3B82F6', '#8B5CF6', '#EC4899', '#10B981',

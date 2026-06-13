@@ -87,23 +87,24 @@ body {
   pointer-events: none;
   position: absolute;
   inset: 0;
+  z-index: 5;
 }
 
 .canvas-edge-mask-top {
-  background: linear-gradient(to bottom, var(--bg-primary), transparent 40px);
-  top: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to bottom, var(--bg-primary) 0%, rgba(245,247,250,0.8) 30%, transparent 70%);
+  top: 0; left: 0; right: 0; height: 80px;
 }
 .canvas-edge-mask-bottom {
-  background: linear-gradient(to top, var(--bg-primary), transparent 40px);
-  bottom: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to top, var(--bg-primary) 0%, rgba(245,247,250,0.8) 30%, transparent 70%);
+  bottom: 0; left: 0; right: 0; height: 80px;
 }
 .canvas-edge-mask-left {
-  background: linear-gradient(to right, var(--bg-primary), transparent 40px);
-  top: 0; bottom: 0; left: 0; width: 60px;
+  background: linear-gradient(to right, var(--bg-primary) 0%, rgba(245,247,250,0.8) 30%, transparent 70%);
+  top: 0; bottom: 0; left: 0; width: 80px;
 }
 .canvas-edge-mask-right {
-  background: linear-gradient(to left, var(--bg-primary), transparent 40px);
-  top: 0; bottom: 0; right: 0; width: 60px;
+  background: linear-gradient(to left, var(--bg-primary) 0%, rgba(245,247,250,0.8) 30%, transparent 70%);
+  top: 0; bottom: 0; right: 0; width: 80px;
 }
 
 @media (max-width: 767px) {
