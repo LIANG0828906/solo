@@ -163,6 +163,10 @@ html, body {
   animation: colorFlash 0.3s ease;
 }
 
+.color-picker-wrapper.pulse {
+  animation: colorPulse 2s ease-in-out infinite;
+}
+
 @keyframes colorFlash {
   0%, 100% {
     box-shadow: 0 0 12px rgba(74, 158, 255, 0.15);
@@ -170,6 +174,16 @@ html, body {
   50% {
     box-shadow: 0 0 24px rgba(74, 158, 255, 0.6);
     border-color: rgba(74, 158, 255, 0.7);
+  }
+}
+
+@keyframes colorPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(74, 158, 255, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.4);
+    border-color: rgba(74, 158, 255, 0.4);
   }
 }
 
@@ -207,32 +221,78 @@ html, body {
 }
 
 @media (max-width: 768px) {
+  #canvas-container {
+    padding-bottom: 280px;
+  }
+
   .control-panel {
-    position: absolute;
+    position: fixed;
     top: auto;
     bottom: 0;
     left: 0;
     right: 0;
     transform: none;
     width: 100%;
+    max-height: 45vh;
+    overflow-y: auto;
     border-radius: 20px 20px 0 0;
-    padding: 20px;
+    padding: 16px 20px 24px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: none;
+    box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(74, 158, 255, 0.1) inset;
   }
 
   .material-buttons {
     flex-direction: row;
+    flex-wrap: nowrap;
   }
 
   .material-btn {
     flex: 1;
+    font-size: 12px;
+    padding: 10px 8px;
   }
 
   .panel-title {
-    margin-bottom: 16px;
-    font-size: 16px;
+    margin-bottom: 14px;
+    font-size: 15px;
   }
 
   .control-section {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+  }
+
+  .control-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .control-label {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .toggle-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .color-picker-wrapper {
+    padding: 8px 12px;
+  }
+
+  .color-value {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .material-btn {
+    font-size: 11px;
+    padding: 8px 6px;
+  }
+
+  .control-panel {
+    padding: 14px 16px 20px 16px;
   }
 }

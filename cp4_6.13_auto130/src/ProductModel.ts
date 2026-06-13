@@ -249,11 +249,19 @@ export class ProductModel {
       material.opacity = index === 4 ? state.opacity * 0.7 : state.opacity;
       material.transparent = state.transparent || index === 4;
       
-      if (isMeshPhysicalMaterial(material) && state.transmission !== undefined) {
-        material.transmission = state.transmission;
-        material.thickness = state.thickness || 0.5;
-        material.ior = state.ior || 1.5;
+      if (isMeshPhysicalMaterial(material)) {
+        if (state.transmission !== undefined) {
+          material.transmission = state.transmission;
+        }
+        if (state.thickness !== undefined) {
+          material.thickness = state.thickness;
+        }
+        if (state.ior !== undefined) {
+          material.ior = state.ior;
+        }
       }
+      
+      material.needsUpdate = true;
     });
   }
 
@@ -294,10 +302,12 @@ export class ProductModel {
 
   private replaceMaterials(state: MaterialState): void {
     this.meshes.forEach((mesh, index) => {
+      const oldMaterial = mesh.material as THREE.Material;
       const newState = index === 4
         ? { ...state, opacity: state.opacity * 0.7, transparent: true }
         : state;
       mesh.material = this.createMaterial(newState);
+      oldMaterial.dispose();
     });
   }
 
