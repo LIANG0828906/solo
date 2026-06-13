@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Edit2, Trash2, Check, X, Plus } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
-import { ExpenseService, CATEGORY_LIST, type Category, type Expense } from '../services/ExpenseService';
+import { ExpenseService, CATEGORY_LIST, type Expense } from '../services/ExpenseService';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -141,28 +141,7 @@ export default function Dashboard() {
 
             <div className="relative h-64 mb-4">
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(val: number) => ExpenseService.formatMoney(val)}
-                      contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <ChartWithPerf data={chartData} />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center" style={{ color: '#9CA3AF' }}>
                   <div className="text-5xl mb-3">📭</div>
@@ -354,5 +333,87 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ChartWithPerf({ data }: { data: { name: string; value: number; icon: string; color: string }[] }) {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  const dataWithPct = data.map((d) => ({
+    ...d,
+    percentage: total > 0 ? ((d.value / total) * 100).toFixed(0) : '0',
+  }));
+
+  useEffect(() => {
+    console.time('Dashboard: 环形图渲染');
+    return () => {
+      console.timeEnd('Dashboard: 环形图渲染');
+    };
+  }, [data]);
+
+  const renderCustomLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    name,
+    value,
+    color,
+  }: {
+    cx: number;
+    cy: number;
+    midAngle: number;
+    innerRadius: number;
+    outerRadius: number;
+    name: string;
+    value: number;
+    color: string;
+  }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 12;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const pct = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill={color}
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight="bold"
+      >
+        {`${name} ${pct}%`}
+      </text>
+    );
+  };
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={dataWithPct}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={80}
+          paddingAngle={2}
+          dataKey="value"
+          strokeWidth={0}
+          label={renderCustomLabel}
+          labelLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+        >
+          {dataWithPct.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          formatter={(val: number) => ExpenseService.formatMoney(val)}
+          contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
   );
 }

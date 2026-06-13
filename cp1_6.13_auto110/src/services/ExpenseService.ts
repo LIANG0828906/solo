@@ -88,25 +88,40 @@ const getSampleData = (): Expense[] => {
 };
 
 const getAllExpenses = (): Expense[] => {
+  console.time('ExpenseService: 读取全部数据');
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
+  if (!raw) {
+    console.timeEnd('ExpenseService: 读取全部数据');
+    return [];
+  }
   try {
-    return JSON.parse(raw) as Expense[];
+    const result = JSON.parse(raw) as Expense[];
+    console.timeEnd('ExpenseService: 读取全部数据');
+    return result;
   } catch {
+    console.timeEnd('ExpenseService: 读取全部数据');
     return [];
   }
 };
 
 const saveAllExpenses = (list: Expense[]): void => {
+  console.time('ExpenseService: 写入全部数据');
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  console.timeEnd('ExpenseService: 写入全部数据');
 };
 
 const initializeIfNeeded = (): void => {
-  if (localStorage.getItem(INIT_FLAG_KEY)) return;
+  console.time('ExpenseService: 初始化数据读取');
   const existing = getAllExpenses();
+  console.timeEnd('ExpenseService: 初始化数据读取');
+
   if (existing.length === 0) {
+    console.time('ExpenseService: 示例数据写入');
     saveAllExpenses(getSampleData());
+    console.timeEnd('ExpenseService: 示例数据写入');
+    console.log('[ExpenseService] 首次使用，已自动填充3条示例数据');
   }
+
   localStorage.setItem(INIT_FLAG_KEY, '1');
 };
 
@@ -161,6 +176,7 @@ export const ExpenseService = {
   },
 
   getMonthlySummary(year: number, month: number): MonthlySummary {
+    console.time('ExpenseService: 月度汇总计算');
     const expenses = this.getByMonth(year, month);
 
     const byCategory: Record<Category, number> = {
@@ -194,7 +210,7 @@ export const ExpenseService = {
       }
     }
 
-    return {
+    const result = {
       year,
       month,
       total,
@@ -205,6 +221,8 @@ export const ExpenseService = {
       highestDate,
       categoryPercentages,
     };
+    console.timeEnd('ExpenseService: 月度汇总计算');
+    return result;
   },
 
   getAvailableMonths(): { year: number; month: number }[] {

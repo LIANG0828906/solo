@@ -19,6 +19,7 @@ export default function AddExpense() {
   const [success, setSuccess] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const [rustleKey, setRustleKey] = useState(0);
+  const [activeCatKey, setActiveCatKey] = useState<string | null>(null);
 
   const resetForm = () => {
     setAmount('');
@@ -129,23 +130,32 @@ export default function AddExpense() {
             <div className="mb-5">
               <label className="block text-sm font-semibold mb-2" style={{ color: '#374151' }}>类别</label>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {CATEGORY_LIST.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => { setCategory(c.name); triggerRustle(); }}
-                    className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200"
-                    style={{
-                      background: category === c.name ? c.color + '22' : '#FFFCF7',
-                      border: `2px solid ${category === c.name ? c.color : 'transparent'}`,
-                      transform: category === c.name ? 'scale(1.05)' : 'scale(1)',
-                      boxShadow: category === c.name ? `0 4px 10px ${c.color}33` : 'none',
-                    }}
-                  >
-                    <span className="text-xl">{c.icon}</span>
-                    <span className="text-xs font-medium" style={{ color: c.color }}>{c.name}</span>
-                  </button>
-                ))}
+                {CATEGORY_LIST.map((c) => {
+                  const isActive = category === c.name;
+                  const isRustling = activeCatKey === c.name;
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        setCategory(c.name);
+                        triggerRustle();
+                        setActiveCatKey(c.name);
+                        setTimeout(() => setActiveCatKey(null), 350);
+                      }}
+                      className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200 ${isRustling ? 'rustle-animation' : ''}`}
+                      style={{
+                        background: isActive ? c.color + '22' : '#FFFCF7',
+                        border: `2px solid ${isActive ? c.color : 'transparent'}`,
+                        transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: isActive ? `0 4px 10px ${c.color}33` : 'none',
+                      }}
+                    >
+                      <span className="text-xl">{c.icon}</span>
+                      <span className="text-xs font-medium" style={{ color: c.color }}>{c.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
