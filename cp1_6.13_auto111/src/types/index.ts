@@ -19,11 +19,3 @@ export interface HistoryState {
   wallMaterial: WallMaterial
   lightPreset: LightPreset
 }
-
-export interface ScenePainting {
-  id: string
-  group: THREE.Group
-  frameColor: FrameColor
-  aspectRatio: number
-  pulseMaterial?: THREE.MeshBasicMaterial
-}
