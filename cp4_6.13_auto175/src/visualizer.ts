@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export type BlendMode = 'normal' | 'overlay' | 'softLight';
 export type ThemeType = 'japanese' | 'cyberpunk' | 'darkTech';
 
@@ -22,7 +21,7 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
-  size: number;
+  baseSize: number;
   color: string;
   alpha: number;
 }
@@ -39,38 +38,38 @@ interface VisualizerOptions {
 
 const themes: Record<ThemeType, ThemeConfig> = {
   japanese: {
-    particleDensity: 50,
+    particleDensity: 150,
     particleSpeed: 0.5,
     particleSize: 3,
     colors: {
-      background: '#e8f4f8',
+      background: '#2a3a4a',
       leftChannel: '#a8d8ea',
       rightChannel: '#ffb7c5',
-      barColors: ['#ffb7c5', '#c9b1ff', '#a8d8ea', '#7dd3fc'],
+      barColors: ['#ff6b6b', '#c9b1ff', '#7dd3fc', '#00d2ff'],
       particleColors: ['#ffb7c5', '#c9b1ff', '#a8d8ea', '#7dd3fc', '#fde68a']
     }
   },
   cyberpunk: {
-    particleDensity: 100,
+    particleDensity: 400,
     particleSpeed: 3,
     particleSize: 2,
     colors: {
       background: '#0a0a1a',
-      leftChannel: '#ff00ff',
-      rightChannel: '#00ffff',
-      barColors: ['#ff0000', '#ff00ff', '#00ffff', '#00ff00'],
+      leftChannel: '#00d2ff',
+      rightChannel: '#ff6b6b',
+      barColors: ['#ff0000', '#ff00ff', '#9d00ff', '#00d2ff'],
       particleColors: ['#ff00ff', '#00ffff', '#ffff00', '#ff0000', '#00ff00']
     }
   },
   darkTech: {
-    particleDensity: 25,
+    particleDensity: 80,
     particleSpeed: 1,
     particleSize: 5,
     colors: {
       background: '#0a0a0a',
       leftChannel: '#00ff00',
       rightChannel: '#ffffff',
-      barColors: ['#00ff00', '#00cc00', '#009900', '#ffffff'],
+      barColors: ['#ff0000', '#9900ff', '#00ff88', '#ffffff'],
       particleColors: ['#00ff00', '#ffffff', '#008800', '#66ff66']
     }
   }
@@ -85,6 +84,10 @@ export class Visualizer {
   private particles: Particle[] = [];
   private particleDensity: number;
   private particleSpeed: number;
+  private particleSize: number;
+  private targetParticleDensity: number;
+  private targetParticleSpeed: number;
+  private targetParticleSize: number;
   private spectrumSensitivity: number;
   private blendMode: BlendMode;
   private currentTheme: ThemeType;
@@ -93,9 +96,10 @@ export class Visualizer {
   private readonly themeTransitionDuration = 500;
   private themeTransitionStart = 0;
   private spectrumData: Float32Array = new Float32Array(64);
-  private waveformData: Float32Array = new Float32Array(256);
   private leftWaveform: Float32Array = new Float32Array(256);
   private rightWaveform: Float32Array = new Float32Array(256);
+  private hasAudioData = false;
+  private idleTime = 0;
 
   constructor(canvas: HTMLCanvasElement, options: VisualizerOptions = {}) {
     this.canvas = canvas;
@@ -107,11 +111,15 @@ export class Visualizer {
 
     this.width = options.width || canvas.width;
     this.height = options.height || canvas.height;
-    this.particleDensity = options.particleDensity || 50;
+    this.particleDensity = options.particleDensity || 200;
     this.particleSpeed = options.particleSpeed || 1;
+    this.particleSize = 3;
+    this.targetParticleDensity = this.particleDensity;
+    this.targetParticleSpeed = this.particleSpeed;
+    this.targetParticleSize = this.particleSize;
     this.spectrumSensitivity = options.spectrumSensitivity || 1;
     this.blendMode = options.blendMode || 'normal';
-    this.currentTheme = options.theme || 'japanese';
+    this.currentTheme = options.theme || 'darkTech';
     this.targetTheme = this.currentTheme;
 
     this.resize(this.width, this.height);
@@ -141,35 +149,45 @@ export class Visualizer {
       x: Math.random() * this.width,
       y: Math.random() * this.height,
       vx: (Math.random() - 0.5) * config.particleSpeed,
-      vy: (Math.random() - 0.5) * config.particleSpeed + config.particleSpeed * 0.5,
-      size: Math.random() * config.particleSize + 1,
+      vy: (Math.random() - 0.5) * config.particleSpeed + config.particleSpeed * 0.3,
+      baseSize: Math.random() * config.particleSize + 1,
       color: config.colors.particleColors[colorIndex],
       alpha: Math.random() * 0.5 + 0.3
     };
   }
 
   setSpectrumData(data: Float32Array): void {
+    this.hasAudioData = true;
     if (data.length >= 64) {
       this.spectrumData = data.slice(0, 64);
+    } else {
+      const expanded = new Float32Array(64);
+      for (let i = 0; i < 64; i++) {
+        expanded[i] = data[Math.floor(i * data.length / 64)] || 0;
+      }
+      this.spectrumData = expanded;
     }
   }
 
   setWaveformData(left: Float32Array, right: Float32Array): void {
+    this.hasAudioData = true;
     this.leftWaveform = left;
     this.rightWaveform = right;
   }
 
   setParticleDensity(density: number): void {
-    this.particleDensity = Math.max(0, Math.min(200, density));
+    this.targetParticleDensity = Math.max(50, Math.min(500, density));
+    this.particleDensity = this.targetParticleDensity;
     this.adjustParticleCount();
   }
 
   setParticleSpeed(speed: number): void {
-    this.particleSpeed = Math.max(0.1, Math.min(5, speed));
+    this.targetParticleSpeed = Math.max(0.1, Math.min(5, speed));
+    this.particleSpeed = this.targetParticleSpeed;
   }
 
   setSpectrumSensitivity(sensitivity: number): void {
-    this.spectrumSensitivity = Math.max(0.1, Math.min(3, sensitivity));
+    this.spectrumSensitivity = Math.max(0.5, Math.min(3, sensitivity));
   }
 
   setBlendMode(mode: BlendMode): void {
@@ -181,16 +199,22 @@ export class Visualizer {
     this.targetTheme = theme;
     this.themeTransitionStart = performance.now();
     this.themeTransitionProgress = 0;
+    this.targetParticleDensity = themes[theme].particleDensity;
+    this.targetParticleSpeed = themes[theme].particleSpeed;
+    this.targetParticleSize = themes[theme].particleSize;
   }
 
   private adjustParticleCount(): void {
-    const config = themes[this.currentTheme];
     while (this.particles.length < this.particleDensity) {
-      this.particles.push(this.createParticle(config));
+      this.particles.push(this.createParticle(themes[this.currentTheme]));
     }
     while (this.particles.length > this.particleDensity) {
       this.particles.pop();
     }
+  }
+
+  private lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
   }
 
   private lerpColor(color1: string, color2: string, t: number): string {
@@ -264,26 +288,46 @@ export class Visualizer {
     }
   }
 
+  private getIdleSpectrum(index: number, total: number, time: number): number {
+    const base = Math.sin(time * 2 + index * 0.3) * 0.3 + 0.4;
+    const wave = Math.sin(time * 3 + index * 0.15) * 0.2;
+    const envelope = Math.exp(-Math.pow((index / total - 0.3) * 3, 2));
+    return Math.max(0, Math.min(1, (base + wave) * envelope));
+  }
+
+  private getIdleWaveform(index: number, total: number, time: number, channel: number): number {
+    const freq = channel === 0 ? 3 : 4;
+    const phase = channel === 0 ? 0 : Math.PI / 2;
+    return Math.sin(time * freq + (index / total) * Math.PI * 4 + phase) * 0.6;
+  }
+
   drawWaveform(): void {
     const ctx = this.ctx;
-    const colors = this.getInterpolatedColors();
     const centerY = this.height / 2;
-    const leftY = centerY - this.height * 0.1;
-    const rightY = centerY + this.height * 0.1;
+    const leftY = centerY - this.height * 0.08;
+    const rightY = centerY + this.height * 0.08;
+    const colors = this.getInterpolatedColors();
 
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    const sampleCount = Math.max(this.leftWaveform.length, this.rightWaveform.length, 256);
+    const stepX = this.width / (sampleCount - 1);
+
     ctx.beginPath();
-    ctx.strokeStyle = '#00d2ff';
-    const leftStep = this.width / (this.leftWaveform.length - 1);
-
-    for (let i = 0; i < this.leftWaveform.length; i++) {
-      const x = i * leftStep;
-      const amplitude = this.leftWaveform[i] * this.spectrumSensitivity;
-      const y = leftY + amplitude * this.height * 0.2;
-
+    ctx.strokeStyle = this.hasAudioData ? colors.leftChannel : '#00d2ff';
+    for (let i = 0; i < sampleCount; i++) {
+      let amplitude: number;
+      if (this.hasAudioData && this.leftWaveform.length > 0) {
+        const idx = Math.floor(i * this.leftWaveform.length / sampleCount);
+        amplitude = this.leftWaveform[idx] || 0;
+      } else {
+        amplitude = this.getIdleWaveform(i, sampleCount, this.idleTime, 0);
+      }
+      amplitude *= this.spectrumSensitivity;
+      const x = i * stepX;
+      const y = leftY + amplitude * this.height * 0.25;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -293,13 +337,18 @@ export class Visualizer {
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.strokeStyle = '#ff6b6b';
-
-    for (let i = 0; i < this.rightWaveform.length; i++) {
-      const x = i * leftStep;
-      const amplitude = this.rightWaveform[i] * this.spectrumSensitivity;
-      const y = rightY - amplitude * this.height * 0.2;
-
+    ctx.strokeStyle = this.hasAudioData ? colors.rightChannel : '#ff6b6b';
+    for (let i = 0; i < sampleCount; i++) {
+      let amplitude: number;
+      if (this.hasAudioData && this.rightWaveform.length > 0) {
+        const idx = Math.floor(i * this.rightWaveform.length / sampleCount);
+        amplitude = this.rightWaveform[idx] || 0;
+      } else {
+        amplitude = this.getIdleWaveform(i, sampleCount, this.idleTime, 1);
+      }
+      amplitude *= this.spectrumSensitivity;
+      const x = i * stepX;
+      const y = rightY - amplitude * this.height * 0.25;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -315,31 +364,35 @@ export class Visualizer {
     const barCount = 64;
     const gap = 2;
     const barWidth = (this.width - gap * (barCount + 1)) / barCount;
-    const maxBarHeight = this.height * 0.6;
-    const startY = this.height * 0.35;
+    const maxBarHeight = this.height * 0.55;
+    const startY = this.height * 0.38;
 
     for (let i = 0; i < barCount; i++) {
-      const value = this.spectrumData[i] || 0;
-      const barHeight = Math.min(value * this.spectrumSensitivity * maxBarHeight * 3, maxBarHeight);
+      let value: number;
+      if (this.hasAudioData) {
+        value = this.spectrumData[i] || 0;
+      } else {
+        value = this.getIdleSpectrum(i, barCount, this.idleTime);
+      }
+      const barHeight = Math.min(value * this.spectrumSensitivity * maxBarHeight * 2.5, maxBarHeight);
       const x = gap + i * (barWidth + gap);
       const y = startY + (maxBarHeight - barHeight);
-      const radius = barWidth / 2;
-
-      const gradient = ctx.createLinearGradient(x, y + barHeight, x, y);
-      const colorCount = colors.barColors.length;
-      for (let j = 0; j < colorCount; j++) {
-        gradient.addColorStop(j / (colorCount - 1), colors.barColors[j]);
-      }
+      const radius = Math.min(barWidth / 2, 6);
 
       ctx.fillStyle = this.getGradientColor(colors.barColors, i, barCount);
       ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + barWidth - radius, y);
-      ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
-      ctx.lineTo(x + barWidth, y + barHeight);
-      ctx.lineTo(x, y + barHeight);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
+      if (barHeight > radius * 2) {
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + barWidth - radius, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+        ctx.lineTo(x + barWidth, y + barHeight);
+        ctx.lineTo(x, y + barHeight);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+      } else {
+        const r = barHeight / 2;
+        ctx.arc(x + barWidth / 2, y + r, r, 0, Math.PI * 2);
+      }
       ctx.closePath();
       ctx.fill();
     }
@@ -348,27 +401,31 @@ export class Visualizer {
   drawParticles(): void {
     const ctx = this.ctx;
     const colors = this.getInterpolatedColors();
+    const t = this.themeTransitionProgress;
+    const currentSpeed = this.lerp(this.particleSpeed, this.targetParticleSpeed, t);
+    const currentSize = this.lerp(this.particleSize, this.targetParticleSize, t);
 
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
 
-      p.x += p.vx * this.particleSpeed;
-      p.y += p.vy * this.particleSpeed;
+      p.x += p.vx * currentSpeed;
+      p.y += p.vy * currentSpeed;
 
-      if (p.x < 0) p.x = this.width;
-      if (p.x > this.width) p.x = 0;
-      if (p.y > this.height) {
-        p.y = -p.size;
+      if (p.x < -10) p.x = this.width + 10;
+      if (p.x > this.width + 10) p.x = -10;
+      if (p.y > this.height + 10) {
+        p.y = -10;
         p.x = Math.random() * this.width;
       }
-      if (p.y < -p.size) p.y = this.height;
+      if (p.y < -10) p.y = this.height + 10;
 
       const colorIndex = i % colors.particleColors.length;
       ctx.fillStyle = colors.particleColors[colorIndex];
       ctx.globalAlpha = p.alpha;
 
+      const size = p.baseSize * currentSize / 2;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, Math.max(0.5, size), 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -383,10 +440,13 @@ export class Visualizer {
 
     if (this.themeTransitionProgress >= 1) {
       this.currentTheme = this.targetTheme;
+      this.particleSpeed = this.targetParticleSpeed;
+      this.particleSize = this.targetParticleSize;
     }
   }
 
   private render(now: number): void {
+    this.idleTime = now * 0.001;
     this.updateThemeTransition(now);
 
     const colors = this.getInterpolatedColors();
@@ -442,7 +502,9 @@ export class Visualizer {
     const timestamp = Date.now();
     link.download = `waveform_${timestamp}.png`;
     link.href = dataUrl;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   }
 
   destroy(): void {

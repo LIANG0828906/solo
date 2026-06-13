@@ -40,30 +40,38 @@
     .upload-area {
       width: 400px;
       height: 100px;
-      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border: 2px dashed rgba(255, 255, 255, 0.5);
       border-radius: 12px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       transition: all 0.2s ease;
       background: rgba(255, 255, 255, 0.05);
+      gap: 6px;
     }
 
     .upload-area:hover {
       transform: scale(1.05);
-      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 25px rgba(0, 210, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.8);
     }
 
     .upload-area.dragover {
-      border-color: #667eea;
-      background: rgba(102, 126, 234, 0.1);
+      border-style: solid;
+      border-color: #00d2ff;
+      background: rgba(0, 210, 255, 0.1);
     }
 
     .upload-area p {
       color: rgba(255, 255, 255, 0.7);
       font-size: 14px;
+    }
+
+    .upload-area .file-name {
+      color: #00d2ff;
+      font-size: 12px;
     }
 
     .upload-area input {
@@ -72,10 +80,12 @@
 
     canvas {
       width: 800px;
+      max-width: 100%;
       height: 450px;
       border-radius: 12px;
       background: rgba(0, 0, 0, 0.3);
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      display: block;
     }
 
     .controls {
@@ -133,6 +143,7 @@
       color: #fff;
       cursor: pointer;
       transition: all 0.2s ease;
+      outline: none;
     }
 
     .control-group select:hover {
@@ -156,6 +167,8 @@
       cursor: pointer;
       transition: all 0.2s ease;
       font-size: 14px;
+      flex: 1;
+      min-width: 120px;
     }
 
     .preset-btn:hover {
@@ -163,37 +176,109 @@
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
     }
 
-    .preset-japanese {
+    .preset-btn.active {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+
+    #presetJapanese {
       background: #87ceeb;
       color: #333;
     }
 
-    .preset-cyberpunk {
+    #presetCyberpunk {
       background: #ff00ff;
       color: #fff;
     }
 
-    .preset-darktech {
+    #presetDarkTech {
       background: #0a0a0a;
       color: #fff;
       border: 1px solid #333;
     }
 
-    .progress-container {
+    .progress-wrap {
       width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
       height: 30px;
+    }
+
+    .progress-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       overflow: hidden;
-      cursor: pointer;
     }
 
-    .progress-bar {
+    #progressBar {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      cursor: pointer;
+      outline: none;
+    }
+
+    #progressBar::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+    }
+
+    #progressBar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 4px;
+      height: 100%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+    }
+
+    #progressBar::-moz-range-track {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+    }
+
+    #progressBar::-moz-range-thumb {
+      width: 4px;
+      height: 100%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+      border-radius: 0;
+    }
+
+    .progress-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
       height: 100%;
       background: linear-gradient(90deg, #667eea, #764ba2);
       border-radius: 8px;
       width: 0%;
+      pointer-events: none;
       transition: width 0.1s linear;
+    }
+
+    .time-display {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      font-variant-numeric: tabular-nums;
+      min-width: 110px;
+      text-align: center;
     }
 
     .action-buttons {
@@ -252,10 +337,11 @@
 <body>
   <div class="container">
     <h1>🎵 音乐可视化播放器</h1>
-    
+
     <div class="upload-area" id="uploadArea">
-      <input type="file" id="fileInput" accept="audio/*">
-      <p>拖拽音频文件到此处，或点击选择文件</p>
+      <input type="file" id="fileInput" accept="audio/mp3,audio/wav,audio/mpeg,audio/x-wav,audio/*">
+      <p>拖拽 MP3 / WAV 文件到此处，或点击选择文件</p>
+      <span class="file-name" id="fileNameDisplay"></span>
     </div>
 
     <canvas id="visualizer" width="800" height="450"></canvas>
@@ -263,7 +349,7 @@
     <div class="controls">
       <div class="control-group">
         <label>粒子密度</label>
-        <input type="range" id="density" min="50" max="500" value="200">
+        <input type="range" id="density" min="50" max="500" step="1" value="200">
         <span class="value-display" id="densityValue">200</span>
       </div>
       <div class="control-group">
@@ -274,260 +360,33 @@
       <div class="control-group">
         <label>混合模式</label>
         <select id="blendMode">
-          <option value="lighter">叠加 (Lighter)</option>
-          <option value="screen">滤色 (Screen)</option>
-          <option value="overlay">叠加 (Overlay)</option>
-          <option value="source-over">正常 (Normal)</option>
+          <option value="normal">正常</option>
+          <option value="overlay">叠加</option>
+          <option value="softLight">柔光</option>
         </select>
       </div>
     </div>
 
     <div class="presets">
-      <button class="preset-btn preset-japanese" data-theme="japanese">日系清新</button>
-      <button class="preset-btn preset-cyberpunk" data-theme="cyberpunk">赛博朋克</button>
-      <button class="preset-btn preset-darktech" data-theme="darktech">暗黑科技</button>
+      <button class="preset-btn active" id="presetJapanese">日系清新</button>
+      <button class="preset-btn" id="presetCyberpunk">赛博朋克</button>
+      <button class="preset-btn" id="presetDarkTech">暗黑科技</button>
     </div>
 
-    <div class="progress-container" id="progressContainer">
-      <div class="progress-bar" id="progressBar"></div>
+    <div class="progress-wrap">
+      <div class="progress-container">
+        <div class="progress-fill" id="progressFill"></div>
+        <input type="range" id="progressBar" min="0" max="1" step="0.001" value="0">
+      </div>
+      <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
     </div>
 
     <div class="action-buttons">
-      <button class="action-btn" id="playPauseBtn">⏸️ 暂停</button>
+      <button class="action-btn" id="playPauseBtn">▶️ 播放</button>
       <button class="action-btn" id="screenshotBtn">📸 截图保存</button>
     </div>
   </div>
 
-  <script>
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const canvas = document.getElementById('visualizer');
-    const ctx = canvas.getContext('2d');
-    const densitySlider = document.getElementById('density');
-    const densityValue = document.getElementById('densityValue');
-    const sensitivitySlider = document.getElementById('sensitivity');
-    const sensitivityValue = document.getElementById('sensitivityValue');
-    const blendModeSelect = document.getElementById('blendMode');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const screenshotBtn = document.getElementById('screenshotBtn');
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const presetBtns = document.querySelectorAll('.preset-btn');
-
-    let audioContext;
-    let analyser;
-    let source;
-    let audioElement;
-    let isPlaying = false;
-    let particles = [];
-    let themeColors = {
-      primary: '#667eea',
-      secondary: '#764ba2',
-      background: 'rgba(26, 26, 46, 0.1)'
-    };
-
-    const themes = {
-      japanese: { primary: '#87ceeb', secondary: '#e0f7fa', background: 'rgba(135, 206, 235, 0.1)' },
-      cyberpunk: { primary: '#ff00ff', secondary: '#00ffff', background: 'rgba(255, 0, 255, 0.1)' },
-      darktech: { primary: '#00ff88', secondary: '#004422', background: 'rgba(10, 10, 10, 0.1)' }
-    };
-
-    class Particle {
-      constructor() {
-        this.reset();
-      }
-      reset() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 3 + 1;
-        this.speedX = (Math.random() - 0.5) * 2;
-        this.speedY = (Math.random() - 0.5) * 2;
-        this.opacity = Math.random() * 0.5 + 0.3;
-      }
-      update(frequencyValue) {
-        const sensitivity = parseFloat(sensitivitySlider.value);
-        this.x += this.speedX * (1 + frequencyValue * sensitivity * 0.01);
-        this.y += this.speedY * (1 + frequencyValue * sensitivity * 0.01);
-        this.size = Math.max(1, Math.min(8, this.size + (frequencyValue * sensitivity * 0.001 - 0.005)));
-        
-        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-      }
-      draw() {
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-        gradient.addColorStop(0, themeColors.primary);
-        gradient.addColorStop(1, themeColors.secondary);
-        ctx.fillStyle = gradient;
-        ctx.globalAlpha = this.opacity;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-    }
-
-    function initParticles() {
-      const count = parseInt(densitySlider.value);
-      particles = [];
-      for (let i = 0; i < count; i++) {
-        particles.push(new Particle());
-      }
-    }
-
-    function handleFile(file) {
-      if (!file.type.startsWith('audio/')) {
-        alert('请选择音频文件');
-        return;
-      }
-
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.src = '';
-      }
-
-      audioElement = new Audio();
-      audioElement.src = URL.createObjectURL(file);
-      
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        source = audioContext.createMediaElementSource(audioElement);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-      }
-
-      audioElement.play().then(() => {
-        isPlaying = true;
-        playPauseBtn.textContent = '⏸️ 暂停';
-        animate();
-      }).catch(err => console.log('播放失败:', err));
-
-      audioElement.addEventListener('timeupdate', updateProgress);
-      audioElement.addEventListener('ended', () => {
-        isPlaying = false;
-        playPauseBtn.textContent = '▶️ 播放';
-      });
-    }
-
-    function updateProgress() {
-      if (audioElement && audioElement.duration) {
-        const percent = (audioElement.currentTime / audioElement.duration) * 100;
-        progressBar.style.width = percent + '%';
-      }
-    }
-
-    function animate() {
-      if (!isPlaying) return;
-      requestAnimationFrame(animate);
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
-
-      ctx.fillStyle = themeColors.background;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.globalCompositeOperation = blendModeSelect.value;
-
-      const avgFrequency = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-
-      particles.forEach(particle => {
-        particle.update(avgFrequency);
-        particle.draw();
-      });
-
-      const barWidth = canvas.width / bufferLength;
-      for (let i = 0; i < bufferLength; i++) {
-        const barHeight = dataArray[i] * parseFloat(sensitivitySlider.value) * 0.5;
-        const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
-        gradient.addColorStop(0, themeColors.primary);
-        gradient.addColorStop(1, themeColors.secondary);
-        ctx.fillStyle = gradient;
-        ctx.globalAlpha = 0.6;
-        ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth - 1, barHeight);
-      }
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('dragover');
-    });
-    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
-      }
-    });
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length) {
-        handleFile(e.target.files[0]);
-      }
-    });
-
-    densitySlider.addEventListener('input', () => {
-      densityValue.textContent = densitySlider.value;
-      initParticles();
-    });
-    sensitivitySlider.addEventListener('input', () => {
-      sensitivityValue.textContent = sensitivitySlider.value;
-    });
-
-    presetBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const theme = themes[btn.dataset.theme];
-        themeColors = { ...theme };
-      });
-    });
-
-    playPauseBtn.addEventListener('click', () => {
-      if (!audioElement) return;
-      if (isPlaying) {
-        audioElement.pause();
-        isPlaying = false;
-        playPauseBtn.textContent = '▶️ 播放';
-      } else {
-        audioElement.play();
-        isPlaying = true;
-        playPauseBtn.textContent = '⏸️ 暂停';
-        animate();
-      }
-    });
-
-    screenshotBtn.addEventListener('click', () => {
-      const link = document.createElement('a');
-      link.download = `visualizer-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    });
-
-    progressContainer.addEventListener('click', (e) => {
-      if (!audioElement || !audioElement.duration) return;
-      const rect = progressContainer.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
-      audioElement.currentTime = percent * audioElement.duration;
-    });
-
-    initParticles();
-
-    function drawIdle() {
-      ctx.fillStyle = 'rgba(26, 26, 46, 0.1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.globalCompositeOperation = blendModeSelect.value;
-      
-      particles.forEach(particle => {
-        particle.update(50);
-        particle.draw();
-      });
-      
-      ctx.globalCompositeOperation = 'source-over';
-      if (!isPlaying) requestAnimationFrame(drawIdle);
-    }
-    drawIdle();
-  </script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

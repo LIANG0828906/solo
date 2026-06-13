@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Visualizer, BlendMode, ThemeType } from './visualizer';
 import { AudioEngine } from './audioEngine';
 
@@ -9,6 +8,7 @@ interface ControlsOptions {
   themeButtonIds?: Record<ThemeType, string>;
   playPauseButtonId?: string;
   progressBarId?: string;
+  progressFillId?: string;
   timeDisplayId?: string;
   screenshotButtonId?: string;
   fileInputId?: string;
@@ -37,6 +37,7 @@ export class Controls {
   };
   private playPauseButton: HTMLElement | null = null;
   private progressBar: HTMLInputElement | null = null;
+  private progressFill: HTMLElement | null = null;
   private timeDisplay: HTMLElement | null = null;
   private screenshotButton: HTMLElement | null = null;
   private fileInput: HTMLInputElement | null = null;
@@ -46,6 +47,7 @@ export class Controls {
   private readonly easingDuration: number;
   private animationFrameId: number | null = null;
   private isDragging = false;
+  private lastPlayState = false;
 
   constructor(
     visualizer: Visualizer,
@@ -57,18 +59,18 @@ export class Controls {
     this.easingDuration = options.easingDuration || 300;
 
     this.particleDensityEasing = {
-      current: 50,
-      target: 50,
-      start: 50,
+      current: 200,
+      target: 200,
+      start: 200,
       startTime: 0,
       duration: this.easingDuration,
       animating: false
     };
 
     this.spectrumSensitivityEasing = {
-      current: 1,
-      target: 1,
-      start: 1,
+      current: 1.5,
+      target: 1.5,
+      start: 1.5,
       startTime: 0,
       duration: this.easingDuration,
       animating: false
@@ -113,6 +115,10 @@ export class Controls {
 
     if (options.progressBarId) {
       this.progressBar = document.getElementById(options.progressBarId) as HTMLInputElement;
+    }
+
+    if (options.progressFillId) {
+      this.progressFill = document.getElementById(options.progressFillId);
     }
 
     if (options.timeDisplayId) {
@@ -170,17 +176,25 @@ export class Controls {
         this.isDragging = true;
       });
 
-      this.progressBar.addEventListener('mouseup', (e) => {
+      this.progressBar.addEventListener('touchstart', () => {
+        this.isDragging = true;
+      });
+
+      const handleSeek = (e: Event) => {
         if (this.isDragging) {
           const value = parseFloat((e.target as HTMLInputElement).value);
           this.seekTo(value);
           this.isDragging = false;
         }
-      });
+      };
+
+      this.progressBar.addEventListener('mouseup', handleSeek);
+      this.progressBar.addEventListener('touchend', handleSeek);
 
       this.progressBar.addEventListener('input', (e) => {
         if (this.isDragging) {
           const value = parseFloat((e.target as HTMLInputElement).value);
+          this.updateProgressVisual(value);
           this.updateTimeDisplay(value);
         }
       });
@@ -259,6 +273,12 @@ export class Controls {
   private setTheme(theme: ThemeType): void {
     this.visualizer.setTheme(theme);
     this.updateThemeButtonStates(theme);
+    this.visualizer.setParticleDensity(themes[theme].particleDensity);
+    if (this.particleDensitySlider) {
+      this.particleDensitySlider.value = String(themes[theme].particleDensity);
+      const display = document.getElementById('densityValue');
+      if (display) display.textContent = String(themes[theme].particleDensity);
+    }
   }
 
   private updateThemeButtonStates(activeTheme: ThemeType): void {
@@ -275,6 +295,10 @@ export class Controls {
   }
 
   private togglePlayPause(): void {
+    if (!this.audioEngine.getAudioData()) {
+      this.fileInput?.click();
+      return;
+    }
     this.audioEngine.togglePlay();
     this.updatePlayPauseButton();
   }
@@ -283,14 +307,24 @@ export class Controls {
     if (!this.playPauseButton) return;
 
     const isPlaying = this.audioEngine.getIsPlaying();
-    this.playPauseButton.textContent = isPlaying ? '暂停' : '播放';
-    this.playPauseButton.dataset.playing = String(isPlaying);
+    if (isPlaying !== this.lastPlayState) {
+      this.lastPlayState = isPlaying;
+      this.playPauseButton.textContent = isPlaying ? '⏸️ 暂停' : '▶️ 播放';
+      this.playPauseButton.dataset.playing = String(isPlaying);
+    }
   }
 
   private seekTo(progress: number): void {
     const duration = this.audioEngine.getDuration();
     const time = progress * duration;
     this.audioEngine.seek(time);
+    this.updateProgressVisual(progress);
+  }
+
+  private updateProgressVisual(progress: number): void {
+    if (this.progressFill) {
+      this.progressFill.style.width = `${progress * 100}%`;
+    }
   }
 
   private updateProgressBar(): void {
@@ -302,6 +336,7 @@ export class Controls {
     if (duration > 0) {
       const progress = currentTime / duration;
       this.progressBar.value = String(progress);
+      this.updateProgressVisual(progress);
       this.updateTimeDisplay(progress);
     }
 
@@ -334,12 +369,13 @@ export class Controls {
   private async loadAudioFile(file: File): Promise<void> {
     try {
       await this.audioEngine.decodeFile(file);
-      this.updateProgressBar();
+      this.audioEngine.play();
+      this.updatePlayPauseButton();
 
       this.audioEngine.setOnDataCallback((spectrum, waveform) => {
         const audioData = this.audioEngine.getAudioData();
         if (audioData) {
-          const samples = waveform.length;
+          const samples = 256;
           const currentSample = Math.floor(
             this.audioEngine.getCurrentTime() * audioData.sampleRate
           );
@@ -349,7 +385,7 @@ export class Controls {
           const rightSamples = new Float32Array(samples);
 
           for (let i = 0; i < samples; i++) {
-            const idx = startSample + i;
+            const idx = Math.floor(startSample + i * (audioData.length / samples));
             leftSamples[i] = idx < audioData.leftChannel.length ? audioData.leftChannel[idx] : 0;
             rightSamples[i] = idx < audioData.rightChannel.length ? audioData.rightChannel[idx] : 0;
           }
@@ -360,6 +396,7 @@ export class Controls {
       });
     } catch (error) {
       console.error('音频文件加载失败:', error);
+      alert('音频文件加载失败，请尝试其他文件');
     }
   }
 
@@ -368,42 +405,11 @@ export class Controls {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-
-    if (this.particleDensitySlider) {
-      this.particleDensitySlider.removeEventListener('input', () => {});
-    }
-
-    if (this.spectrumSensitivitySlider) {
-      this.spectrumSensitivitySlider.removeEventListener('input', () => {});
-    }
-
-    if (this.blendModeSelect) {
-      this.blendModeSelect.removeEventListener('change', () => {});
-    }
-
-    (Object.keys(this.themeButtons) as ThemeType[]).forEach((theme) => {
-      const button = this.themeButtons[theme];
-      if (button) {
-        button.removeEventListener('click', () => {});
-      }
-    });
-
-    if (this.playPauseButton) {
-      this.playPauseButton.removeEventListener('click', () => {});
-    }
-
-    if (this.progressBar) {
-      this.progressBar.removeEventListener('mousedown', () => {});
-      this.progressBar.removeEventListener('mouseup', () => {});
-      this.progressBar.removeEventListener('input', () => {});
-    }
-
-    if (this.screenshotButton) {
-      this.screenshotButton.removeEventListener('click', () => {});
-    }
-
-    if (this.fileInput) {
-      this.fileInput.removeEventListener('change', () => {});
-    }
   }
 }
+
+const themes: Record<ThemeType, { particleDensity: number }> = {
+  japanese: { particleDensity: 150 },
+  cyberpunk: { particleDensity: 400 },
+  darkTech: { particleDensity: 80 }
+};

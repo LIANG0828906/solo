@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 interface AudioEngineOptions {
   fftSize?: number;
   smoothingTimeConstant?: number;
   workerPath?: string;
 }
 
-interface AudioData {
+export interface AudioData {
   leftChannel: Float32Array;
   rightChannel: Float32Array;
   sampleRate: number;
@@ -23,46 +22,43 @@ export class AudioEngine {
   private audioContext: AudioContext | null = null;
   private sourceNode: AudioBufferSourceNode | null = null;
   private gainNode: GainNode | null = null;
-  private analyser: AnalyserNode | null = null;
   private worker: Worker | null = null;
   private audioBuffer: AudioBuffer | null = null;
   private audioData: AudioData | null = null;
   private isPlaying = false;
   private startTime = 0;
   private pauseTime = 0;
-  private spectrumData: Float32Array = new Float32Array(1024);
-  private waveformData: Float32Array = new Float32Array(2048);
+  private spectrumData: Float32Array = new Float32Array(64);
+  private waveformData: Float32Array = new Float32Array(256);
   private animationFrameId: number | null = null;
   private lastUpdateTime = 0;
   private readonly maxLatency = 200;
-  private fftSize: number;
-  private smoothingTimeConstant: number;
+  private readonly fftSize: number;
   private workerPath: string;
   private onDataCallback: ((spectrum: Float32Array, waveform: Float32Array) => void) | null = null;
 
   constructor(options: AudioEngineOptions = {}) {
     this.fftSize = options.fftSize || 2048;
-    this.smoothingTimeConstant = options.smoothingTimeConstant || 0.8;
-    this.workerPath = options.workerPath || './worker.js';
+    this.workerPath = options.workerPath || '';
   }
 
   async init(): Promise<void> {
     if (this.audioContext) return;
 
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-
-    this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = this.fftSize;
-    this.analyser.smoothingTimeConstant = this.smoothingTimeConstant;
-
+    this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = 1;
+    this.gainNode.connect(this.audioContext.destination);
 
-    this.worker = new Worker(this.workerPath);
+    if (this.workerPath) {
+      this.worker = new Worker(this.workerPath, { type: 'module' });
+    } else {
+      this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    }
     this.worker.onmessage = this.handleWorkerMessage.bind(this);
 
-    this.spectrumData = new Float32Array(this.fftSize / 2);
-    this.waveformData = new Float32Array(this.fftSize);
+    this.spectrumData = new Float32Array(64);
+    this.waveformData = new Float32Array(256);
   }
 
   private handleWorkerMessage(e: MessageEvent<WorkerResult>): void {
@@ -87,17 +83,26 @@ export class AudioEngine {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    const copyBuffer = arrayBuffer.slice(0);
+    this.audioBuffer = await this.audioContext.decodeAudioData(copyBuffer);
 
     const numberOfChannels = this.audioBuffer.numberOfChannels;
     const sampleRate = this.audioBuffer.sampleRate;
     const length = this.audioBuffer.length;
     const duration = this.audioBuffer.duration;
 
-    const leftChannel = this.audioBuffer.getChannelData(0);
-    const rightChannel = numberOfChannels > 1
-      ? this.audioBuffer.getChannelData(1)
-      : new Float32Array(leftChannel);
+    const leftRaw = this.audioBuffer.getChannelData(0);
+    const leftChannel = new Float32Array(leftRaw.length);
+    leftChannel.set(leftRaw);
+
+    let rightChannel: Float32Array;
+    if (numberOfChannels > 1) {
+      const rightRaw = this.audioBuffer.getChannelData(1);
+      rightChannel = new Float32Array(rightRaw.length);
+      rightChannel.set(rightRaw);
+    } else {
+      rightChannel = new Float32Array(leftChannel);
+    }
 
     this.audioData = {
       leftChannel,
@@ -106,6 +111,8 @@ export class AudioEngine {
       length,
       duration
     };
+
+    this.pauseTime = 0;
   }
 
   play(): void {
@@ -117,9 +124,7 @@ export class AudioEngine {
 
     this.sourceNode = this.audioContext.createBufferSource();
     this.sourceNode.buffer = this.audioBuffer;
-    this.sourceNode.connect(this.analyser!);
-    this.analyser!.connect(this.gainNode!);
-    this.gainNode!.connect(this.audioContext.destination);
+    this.sourceNode.connect(this.gainNode!);
 
     const offset = this.pauseTime;
     this.startTime = this.audioContext.currentTime - offset;
@@ -140,7 +145,11 @@ export class AudioEngine {
     if (!this.isPlaying || !this.sourceNode || !this.audioContext) return;
 
     this.pauseTime = this.audioContext.currentTime - this.startTime;
-    this.sourceNode.stop();
+    try {
+      this.sourceNode.stop();
+    } catch (_e) {
+      // ignore
+    }
     this.sourceNode.disconnect();
     this.sourceNode = null;
     this.isPlaying = false;
@@ -205,8 +214,8 @@ export class AudioEngine {
   }
 
   private startAnalysisLoop(): void {
-    const loop = (timestamp: number) => {
-      if (!this.isPlaying || !this.analyser || !this.worker || !this.audioData) {
+    const loop = (_timestamp: number) => {
+      if (!this.isPlaying || !this.worker || !this.audioData) {
         return;
       }
 
@@ -217,25 +226,29 @@ export class AudioEngine {
         const currentTime = this.getCurrentTime();
         const sampleIndex = Math.floor(currentTime * this.audioData.sampleRate);
         const samplesToRead = this.fftSize;
-        const startIndex = Math.max(0, sampleIndex - samplesToRead / 2);
+        const startIndex = Math.max(0, Math.min(this.audioData.length - samplesToRead, sampleIndex - Math.floor(samplesToRead / 2)));
 
         const monoData = new Float32Array(samplesToRead);
         for (let i = 0; i < samplesToRead; i++) {
           const idx = startIndex + i;
           if (idx < this.audioData.leftChannel.length) {
-            monoData[i] = (this.audioData.leftChannel[idx] + this.audioData.rightChannel[idx]) / 2;
-          } else {
-            monoData[i] = 0;
+            const l = this.audioData.leftChannel[idx] || 0;
+            const r = this.audioData.rightChannel[idx] || 0;
+            monoData[i] = (l + r) * 0.5;
           }
         }
 
         const latency = performance.now() - now;
         if (latency < this.maxLatency) {
-          this.worker.postMessage({
-            type: 'analyze',
-            data: monoData,
-            samples: 64
-          });
+          try {
+            this.worker.postMessage({
+              type: 'analyze',
+              data: monoData,
+              samples: 256
+            });
+          } catch (_e) {
+            // ignore
+          }
         }
 
         this.lastUpdateTime = now;
@@ -260,16 +273,11 @@ export class AudioEngine {
     if (this.sourceNode) {
       try {
         this.sourceNode.stop();
-      } catch (e) {
+      } catch (_e) {
         // ignore
       }
       this.sourceNode.disconnect();
       this.sourceNode = null;
-    }
-
-    if (this.analyser) {
-      this.analyser.disconnect();
-      this.analyser = null;
     }
 
     if (this.gainNode) {
@@ -283,7 +291,7 @@ export class AudioEngine {
     }
 
     if (this.audioContext) {
-      this.audioContext.close();
+      this.audioContext.close().catch(() => {});
       this.audioContext = null;
     }
 
