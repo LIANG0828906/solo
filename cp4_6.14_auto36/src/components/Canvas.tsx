@@ -12,7 +12,6 @@ import type { WireframeNode, WireframeEdge } from '@/data/sampleData';
 
 interface SimNode extends SimulationNodeDatum {
   id: string;
-  index?: number;
   x: number;
   y: number;
   vx?: number;
@@ -30,16 +29,16 @@ interface NodePositions {
   [id: string]: { x: number; y: number };
 }
 
-interface NodeProps {
+interface GraphNodeProps {
   node: WireframeNode;
   x: number;
   y: number;
   size: number;
   isSelected: boolean;
   isHovered: boolean;
-  onMouseDown: (e: React.MouseEvent, nodeId: string) => void;
+  onMouseDown: (e: React.MouseEvent<SVGGElement>, nodeId: string) => void;
   onDoubleClick: (nodeId: string) => void;
-  onMouseEnter: (nodeId: string, e: React.MouseEvent) => void;
+  onMouseEnter: (nodeId: string, e: React.MouseEvent<SVGGElement>) => void;
   onMouseLeave: () => void;
   onClick: (nodeId: string) => void;
 }
@@ -56,8 +55,9 @@ const GraphNode = memo(function GraphNode({
   onMouseEnter,
   onMouseLeave,
   onClick,
-}: NodeProps) {
+}: GraphNodeProps) {
   const scale = isHovered ? 1.15 : 1;
+  const thumbnailSize = Math.min(size - 6, 64);
 
   return (
     <g
@@ -73,34 +73,34 @@ const GraphNode = memo(function GraphNode({
         transition: 'transform 0.3s ease-out',
       }}
     >
-      <circle
-        r={size / 2}
-        fill="white"
-        stroke={isSelected ? '#F59E0B' : node.color}
-        strokeWidth={isSelected ? 3 : 2}
-        className={isSelected ? 'node-breathe' : ''}
-        style={{
-          filter: isHovered
-            ? 'drop-shadow(0 6px 16px rgba(0,0,0,0.25))'
-            : isSelected
-            ? 'drop-shadow(0 0 10px rgba(245,158,11,0.6))'
-            : 'drop-shadow(0 2px 6px rgba(0,0,0,0.08))',
-        }}
-      />
       <defs>
         <clipPath id={`clip-${node.id}`}>
           <circle r={size / 2 - 3} />
         </clipPath>
       </defs>
+      <circle
+        r={size / 2}
+        fill="white"
+        stroke={isSelected ? '#F59E0B' : node.color}
+        strokeWidth={isSelected ? 4 : 2.5}
+        className={isSelected ? 'node-breathe' : ''}
+        style={{
+          filter: isHovered
+            ? 'drop-shadow(0 6px 20px rgba(0,0,0,0.28))'
+            : isSelected
+            ? 'drop-shadow(0 0 14px rgba(245,158,11,0.65))'
+            : 'drop-shadow(0 2px 8px rgba(0,0,0,0.1))',
+        }}
+      />
       <image
         href={node.thumbnail}
-        x={-size / 2 + 3}
-        y={-size / 2 + 3}
-        width={size - 6}
-        height={size - 6}
+        x={-thumbnailSize / 2}
+        y={-thumbnailSize / 2}
+        width={thumbnailSize}
+        height={thumbnailSize}
         clipPath={`url(#clip-${node.id})`}
         preserveAspectRatio="xMidYMid slice"
-        opacity={0.9}
+        opacity={0.92}
       />
       <text
         y={size / 2 + 16}
@@ -120,7 +120,7 @@ const GraphNode = memo(function GraphNode({
   );
 });
 
-interface EdgeProps {
+interface GraphEdgeProps {
   sourceId: string;
   targetId: string;
   sourcePos: { x: number; y: number };
@@ -142,7 +142,7 @@ const GraphEdge = memo(function GraphEdge({
   sourceColor,
   targetColor,
   index,
-}: EdgeProps) {
+}: GraphEdgeProps) {
   const dx = targetPos.x - sourcePos.x;
   const dy = targetPos.y - sourcePos.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -156,11 +156,11 @@ const GraphEdge = memo(function GraphEdge({
   const endX = targetPos.x - nx * (targetSize / 2 + 8);
   const endY = targetPos.y - ny * (targetSize / 2 + 8);
 
-  const arrowSize = 7;
-  const arrowLeftX = endX - nx * arrowSize - ny * 4;
-  const arrowLeftY = endY - ny * arrowSize + nx * 4;
-  const arrowRightX = endX - nx * arrowSize + ny * 4;
-  const arrowRightY = endY - ny * arrowSize - nx * 4;
+  const arrowSize = 8;
+  const arrowLeftX = endX - nx * arrowSize - ny * 5;
+  const arrowLeftY = endY - ny * arrowSize + nx * 5;
+  const arrowRightX = endX - nx * arrowSize + ny * 5;
+  const arrowRightY = endY - ny * arrowSize - nx * 5;
 
   const gradId = `edge-grad-${sourceId}-${targetId}-${index}`;
 
@@ -168,8 +168,8 @@ const GraphEdge = memo(function GraphEdge({
     <g>
       <defs>
         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={sourceColor} stopOpacity="0.5" />
-          <stop offset="100%" stopColor={targetColor} stopOpacity="0.5" />
+          <stop offset="0%" stopColor={sourceColor} stopOpacity="0.65" />
+          <stop offset="100%" stopColor={targetColor} stopOpacity="0.65" />
         </linearGradient>
       </defs>
       <line
@@ -178,12 +178,13 @@ const GraphEdge = memo(function GraphEdge({
         x2={endX}
         y2={endY}
         stroke={`url(#${gradId})`}
-        strokeWidth={2}
+        strokeWidth={2.5}
+        style={{ transition: 'opacity 0.3s' }}
       />
       <polygon
         points={`${endX},${endY} ${arrowLeftX},${arrowLeftY} ${arrowRightX},${arrowRightY}`}
         fill={targetColor}
-        opacity="0.55"
+        opacity="0.7"
       />
     </g>
   );
@@ -193,6 +194,7 @@ export default function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<Simulation<SimNode, SimLink> | null>(null);
   const simNodesRef = useRef<SimNode[]>([]);
+  const simLinksRef = useRef<SimLink[]>([]);
   const animFrameRef = useRef<number>(0);
   const isDraggingNodeRef = useRef(false);
   const isPanningRef = useRef(false);
@@ -228,7 +230,7 @@ export default function Canvas() {
 
     const simNodes: SimNode[] = nodes.map((n) => {
       const angle = Math.random() * Math.PI * 2;
-      const radius = 100 + Math.random() * 180;
+      const radius = 80 + Math.random() * 120;
       return {
         id: n.id,
         x: width / 2 + Math.cos(angle) * radius,
@@ -242,36 +244,26 @@ export default function Canvas() {
       source: e.source,
       target: e.target,
     }));
+    simLinksRef.current = simLinks;
 
     const linkForce = forceLink<SimNode, SimLink>(simLinks)
       .id((d: SimNode) => d.id)
-      .distance((d) => {
-        const srcNode = nodeMap.get(typeof d.source === 'string' ? d.source : d.source.id);
-        const tgtNode = nodeMap.get(typeof d.target === 'string' ? d.target : d.target.id);
-        const srcRef = srcNode?.referenceCount ?? 2;
-        const tgtRef = tgtNode?.referenceCount ?? 2;
-        return 130 + (srcRef + tgtRef) * 8;
-      })
-      .strength((d) => {
-        const srcNode = nodeMap.get(typeof d.source === 'string' ? d.source : d.source.id);
-        const tgtNode = nodeMap.get(typeof d.target === 'string' ? d.target : d.target.id);
-        const maxRef = Math.max(srcNode?.referenceCount ?? 1, tgtNode?.referenceCount ?? 1);
-        return 0.4 + maxRef * 0.05;
-      });
+      .distance(140)
+      .strength(0.55);
 
     const chargeForce = forceManyBody<SimNode>().strength((d) => {
       const node = nodeMap.get(d.id);
       const refCount = node?.referenceCount ?? 2;
-      return -250 - refCount * 60;
+      return -280 - refCount * 50;
     });
 
     const collideForce = forceCollide<SimNode>().radius((d) => {
       const node = nodeMap.get(d.id);
       const refCount = node?.referenceCount ?? 1;
-      return getNodeSize(refCount) / 2 + 15;
-    }).strength(0.8);
+      return getNodeSize(refCount) / 2 + 18;
+    }).strength(0.9);
 
-    const centerForce = forceCenter(width / 2, height / 2).strength(0.08);
+    const centerForce = forceCenter(width / 2, height / 2).strength(0.12);
 
     const simulation = forceSimulation<SimNode>(simNodes)
       .force('link', linkForce)
@@ -279,8 +271,8 @@ export default function Canvas() {
       .force('center', centerForce)
       .force('collide', collideForce)
       .alpha(1)
-      .alphaDecay(0.025)
-      .velocityDecay(0.4)
+      .alphaDecay(0.02)
+      .velocityDecay(0.45)
       .on('tick', () => {
         const positions: NodePositions = {};
         for (let i = 0; i < simNodes.length; i++) {
@@ -291,7 +283,7 @@ export default function Canvas() {
       });
 
     simulationRef.current = simulation;
-    return { simNodes, simulation };
+    return { simNodes, simLinks, simulation };
   }, [nodes, edges, nodeMap]);
 
   useEffect(() => {
@@ -412,7 +404,7 @@ export default function Canvas() {
   }, []);
 
   const handleNodeMouseDown = useCallback(
-    (e: React.MouseEvent, nodeId: string) => {
+    (e: React.MouseEvent<SVGGElement>, nodeId: string) => {
       e.stopPropagation();
       isDraggingNodeRef.current = true;
       const sim = simulationRef.current;
@@ -446,7 +438,7 @@ export default function Canvas() {
           simNode.fx = null;
           simNode.fy = null;
         }
-        sim.alphaTarget(0);
+        if (sim) sim.alphaTarget(0);
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
@@ -465,7 +457,7 @@ export default function Canvas() {
   );
 
   const handleNodeMouseEnter = useCallback(
-    (nodeId: string, e: React.MouseEvent) => {
+    (nodeId: string, e: React.MouseEvent<SVGGElement>) => {
       setHoveredNodeId(nodeId);
       const container = containerRef.current;
       if (!container) return;
@@ -613,12 +605,13 @@ export default function Canvas() {
       <div
         className="absolute bottom-5 right-5 flex items-center gap-1.5 z-10"
         style={{
-          background: 'rgba(255,255,255,0.9)',
+          background: 'rgba(255,255,255,0.92)',
           borderRadius: 10,
-          padding: '6px 10px',
+          padding: '6px 12px',
           fontSize: 11,
           color: '#6B7280',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+          backdropFilter: 'blur(4px)',
         }}
       >
         <span>缩放: {Math.round(k * 100)}%</span>

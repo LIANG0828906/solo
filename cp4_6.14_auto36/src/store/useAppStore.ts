@@ -58,12 +58,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 }));
 
 export function getNodeSize(referenceCount: number): number {
-  const minSize = 40;
-  const maxSize = 80;
-  const maxRef = 5;
-  const t = Math.min(referenceCount, maxRef) / maxRef;
-  const size = minSize + (maxSize - minSize) * t * t;
-  return Math.round(size);
+  return Math.max(40, Math.min(80, referenceCount * 16));
 }
 
 export function getConnectedNodeIds(nodeId: string, edges: WireframeEdge[]): string[] {
