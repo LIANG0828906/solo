@@ -48,6 +48,11 @@ export class GameEngine {
   private displayedScore: number = 0;
   private resultAnimationStart: number = 0;
   private resultAnimationDuration: number = 1500;
+  private resultAnimationProgress: number = 0;
+  private finalScore: number = 0;
+  private finalSyncRate: number = 100;
+
+  private lastEnemyExplosionCount: number = 0;
 
   constructor(canvas: HTMLCanvasElement, settingsManager: SettingsManager) {
     this.canvas = canvas;
@@ -150,6 +155,11 @@ export class GameEngine {
     this.lastBeatIndex = -1;
     this.displayedSyncRate = 100;
     this.displayedScore = 0;
+    this.resultAnimationStart = 0;
+    this.resultAnimationProgress = 0;
+    this.finalScore = 0;
+    this.finalSyncRate = 100;
+    this.lastEnemyExplosionCount = 0;
     
     this.entityManager.reset();
   }
@@ -315,7 +325,20 @@ export class GameEngine {
       right: inputState.actions.has(GameAction.MOVE_RIGHT)
     };
 
+    const stateBeforeUpdate = this.entityManager.getState();
+    const explosionsBefore = stateBeforeUpdate.explosions.length;
+
     this.entityManager.update(deltaTime, currentTime, playerInput);
+
+    const stateAfterUpdate = this.entityManager.getState();
+    const explosionsAfter = stateAfterUpdate.explosions.length;
+    const newExplosions = explosionsAfter - explosionsBefore;
+
+    if (newExplosions > 0) {
+      this.enemiesDefeated += newExplosions;
+      this.score += newExplosions * 50;
+      this.musicAnalyzer.playExplosionSound();
+    }
 
     if (this.isOverheated) {
       this.heatLevel -= this.heatCooldownRate * 2 * deltaTime;
@@ -326,22 +349,6 @@ export class GameEngine {
       this.heatLevel -= this.heatCooldownRate * deltaTime;
     }
     this.heatLevel = Math.max(0, Math.min(this.maxHeat, this.heatLevel));
-
-    const previousEnemyCount = this.entityManager.getState().enemies.length;
-    const previousExplosionCount = this.entityManager.getState().explosions.length;
-    
-    if (previousExplosionCount < this.entityManager.getState().explosions.length) {
-    }
-
-    const state = this.entityManager.getState();
-    const explosionsThisFrame = state.explosions.filter(e => 
-      (currentTime - e.startTime) / 1000 < deltaTime * 2
-    ).length;
-    
-    if (explosionsThisFrame > 0) {
-      this.enemiesDefeated += explosionsThisFrame;
-      this.musicAnalyzer.playExplosionSound();
-    }
 
     if (elapsed >= this.gameDuration) {
       this.endGame(true);

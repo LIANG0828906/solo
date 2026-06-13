@@ -13,6 +13,9 @@ export interface GameUIState {
   gameTime: number;
   gameDuration: number;
   showBeatIndicator: boolean;
+  resultAnimationProgress: number;
+  finalScore: number;
+  finalSyncRate: number;
 }
 
 export type GameScene = 'menu' | 'levelSelect' | 'playing' | 'paused' | 'gameOver' | 'victory';
@@ -87,16 +90,21 @@ export class Renderer {
   }
 
   private drawBackground(): void {
-    const gradient = this.ctx.createRadialGradient(
-      this.width / 2, this.height / 2, 0,
-      this.width / 2, this.height / 2, Math.max(this.width, this.height) / 1.5
+    const ctx = this.ctx;
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+    const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+    
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, maxRadius
     );
     gradient.addColorStop(0, '#0f0c29');
-    gradient.addColorStop(0.5, '#302b63');
+    gradient.addColorStop(0.6, '#302b63');
     gradient.addColorStop(1, '#24243e');
     
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, this.width, this.height);
   }
 
   private drawStars(stars: Star[]): void {
@@ -165,17 +173,40 @@ export class Renderer {
     
     for (const p of particles) {
       const stretch = 1.5;
-      const gradient = ctx.createLinearGradient(p.x, p.y, p.x - p.size * stretch * 3, p.y);
-      gradient.addColorStop(0, p.color);
-      gradient.addColorStop(1, 'transparent');
+      const particleWidth = p.size * stretch * 2;
+      const particleHeight = p.size * 0.8;
       
+      const gradient = ctx.createLinearGradient(
+        p.x, p.y,
+        p.x - particleWidth * 1.5, p.y
+      );
+      gradient.addColorStop(0, p.color);
+      gradient.addColorStop(0.5, this.interpolateColor(p.color, '#ffa502', 0.5));
+      gradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
+      
+      ctx.save();
+      ctx.globalAlpha = p.alpha * 0.9;
       ctx.fillStyle = gradient;
-      ctx.globalAlpha = p.alpha;
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y, p.size * stretch, p.size * 0.6, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y, particleWidth, particleHeight, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.restore();
     }
+  }
+
+  private interpolateColor(color1: string, color2: string, factor: number): string {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    const r = Math.round(r1 + (r2 - r1) * factor);
+    const g = Math.round(g1 + (g2 - g1) * factor);
+    const b = Math.round(b1 + (b2 - b1) * factor);
+    
+    return `rgb(${r}, ${g}, ${b})`;
   }
 
   private drawEnemies(enemies: Enemy[]): void {
@@ -218,69 +249,102 @@ export class Renderer {
 
   private drawDiamondEnemy(enemy: Enemy): void {
     const ctx = this.ctx;
+    const size = 10;
     
     ctx.fillStyle = '#ff4757';
     ctx.beginPath();
-    ctx.moveTo(0, -enemy.radius);
-    ctx.lineTo(enemy.radius, 0);
-    ctx.lineTo(0, enemy.radius);
-    ctx.lineTo(-enemy.radius, 0);
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size, 0);
+    ctx.lineTo(0, size);
+    ctx.lineTo(-size, 0);
     ctx.closePath();
     ctx.fill();
 
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     if (this.enemyDetailLevel >= 2) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillStyle = 'rgba(255, 107, 129, 0.7)';
       ctx.beginPath();
-      ctx.moveTo(0, -enemy.radius * 0.6);
-      ctx.lineTo(enemy.radius * 0.4, 0);
-      ctx.lineTo(0, enemy.radius * 0.6);
-      ctx.lineTo(-enemy.radius * 0.4, 0);
+      ctx.moveTo(0, -size * 0.6);
+      ctx.lineTo(size * 0.4, 0);
+      ctx.lineTo(0, size * 0.6);
+      ctx.lineTo(-size * 0.4, 0);
       ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   private drawCircleEnemy(enemy: Enemy): void {
     const ctx = this.ctx;
+    const radius = 12;
     
     const gradient = ctx.createRadialGradient(
-      -enemy.radius * 0.3, -enemy.radius * 0.3, 0,
-      0, 0, enemy.radius
+      -radius * 0.3, -radius * 0.3, 0,
+      0, 0, radius
     );
     gradient.addColorStop(0, '#ffcc00');
-    gradient.addColorStop(1, '#ffa502');
+    gradient.addColorStop(0.7, '#ffa502');
+    gradient.addColorStop(1, '#ff8c00');
     
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
 
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     if (this.enemyDetailLevel >= 2) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.beginPath();
-      ctx.arc(-enemy.radius * 0.3, -enemy.radius * 0.3, enemy.radius * 0.3, 0, Math.PI * 2);
+      ctx.arc(-radius * 0.3, -radius * 0.3, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255, 71, 87, 0.8)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   private drawTriangleEnemy(enemy: Enemy): void {
     const ctx = this.ctx;
+    const sideLength = 18;
+    const radius = sideLength / 2;
     
     ctx.fillStyle = '#2ed573';
     ctx.beginPath();
-    ctx.moveTo(-enemy.radius, -enemy.radius);
-    ctx.lineTo(-enemy.radius, enemy.radius);
-    ctx.lineTo(enemy.radius, 0);
+    ctx.moveTo(-radius, -radius * 0.866);
+    ctx.lineTo(-radius, radius * 0.866);
+    ctx.lineTo(radius, 0);
     ctx.closePath();
     ctx.fill();
 
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     if (this.enemyDetailLevel >= 2) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillStyle = 'rgba(123, 237, 159, 0.6)';
       ctx.beginPath();
-      ctx.moveTo(-enemy.radius * 0.5, -enemy.radius * 0.5);
-      ctx.lineTo(-enemy.radius * 0.5, enemy.radius * 0.5);
-      ctx.lineTo(enemy.radius * 0.3, 0);
+      ctx.moveTo(-radius * 0.7, -radius * 0.5);
+      ctx.lineTo(-radius * 0.7, radius * 0.5);
+      ctx.lineTo(radius * 0.3, 0);
       ctx.closePath();
+      ctx.fill();
+
+      const eyeAngle = Math.sin(performance.now() / 200) * 0.3;
+      ctx.fillStyle = 'rgba(255, 71, 87, 0.9)';
+      ctx.beginPath();
+      ctx.arc(-radius * 0.3 + eyeAngle, 0, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -689,10 +753,15 @@ export class Renderer {
     ctx.textBaseline = 'top';
     ctx.fillText(titleText, centerX, centerY - cardHeight / 2 + 30);
 
+    const progress = uiState.resultAnimationProgress;
+    const easedProgress = this.easeOutCubic(progress);
+    const animatedScore = Math.floor(uiState.finalScore * easedProgress);
+    const animatedSyncRate = Math.floor(uiState.finalSyncRate * easedProgress);
+
     const statsY = centerY - cardHeight / 2 + 80;
     const stats = [
-      { label: '最终得分', value: uiState.score.toString() },
-      { label: '节拍同步率', value: `${Math.floor(uiState.syncRate)}%` }
+      { label: '最终得分', value: animatedScore.toString() },
+      { label: '节拍同步率', value: `${animatedSyncRate}%` }
     ];
 
     stats.forEach((stat, index) => {
@@ -708,24 +777,32 @@ export class Renderer {
     });
 
     let message = '';
-    if (isVictory) {
-      if (uiState.syncRate >= 80) {
-        message = '你是节奏大师！';
-      } else if (uiState.syncRate >= 60) {
-        message = '不错，再有几次就完美了';
+    if (progress >= 0.8) {
+      if (isVictory) {
+        if (uiState.finalSyncRate >= 80) {
+          message = '你是节奏大师！';
+        } else if (uiState.finalSyncRate >= 60) {
+          message = '不错，再有几次就完美了';
+        } else {
+          message = '继续练习，节奏在等你';
+        }
       } else {
-        message = '继续练习，节奏在等你';
+        message = '再接再厉，节奏与你同在';
       }
-    } else {
-      message = '再接再厉，节奏与你同在';
     }
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    const messageAlpha = Math.max(0, Math.min(1, (progress - 0.8) / 0.2));
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.7 * messageAlpha})`;
     ctx.font = '16px "Spectral", serif';
     ctx.fillText(message, centerX, statsY + 80);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    const footerAlpha = Math.max(0, Math.min(1, (progress - 0.9) / 0.1));
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * footerAlpha})`;
     ctx.font = '14px "Exo 2", sans-serif';
     ctx.fillText('按 Enter 返回选关 | 按 R 重新开始', centerX, centerY + cardHeight / 2 - 40);
+  }
+
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
   }
 }
