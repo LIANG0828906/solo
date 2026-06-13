@@ -1,0 +1,23 @@
+{
+  "name": "starfield-scape",
+  "version": "1.0.0",
+  "description": "StarfieldScape - 交互式三维星空生成与漫游工具",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "serve": "npx http-server -p 8080 -c-1"
+  },
+  "cdnDependencies": {
+    "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/",
+    "gsap": "https://unpkg.com/gsap@3.12.2/index.js",
+    "stats.js": "https://unpkg.com/stats.js@0.17.0/build/stats.module.js"
+  },
+  "keywords": [
+    "three.js",
+    "webgl",
+    "starfield",
+    "3d",
+    "interactive"
+  ],
+  "license": "MIT"
+}
