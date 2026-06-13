@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/craftresult.tsx","./src/components/inventorygrid.tsx","./src/components/particlecanvas.tsx","./src/components/resourcedepot.tsx","./src/data/recipes.ts","./src/types/index.ts","./src/utils/audioutils.ts","./src/utils/recipeengine.ts","./src/utils/storageutils.ts"],"version":"5.8.3"}
