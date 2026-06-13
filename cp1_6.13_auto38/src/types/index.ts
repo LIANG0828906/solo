@@ -5,6 +5,9 @@ export const EVOLUTION_KILLS_REQUIRED = 3;
 export const CHEST_REWARD_CHANCE = 0.7;
 export const MAX_LOG_ENTRIES = 10;
 export const TARGET_FPS = 30;
+export const EVOLUTION_DURATION = 2000;
+export const ATTACK_ANIMATION_DURATION = 200;
+export const HIT_ANIMATION_DURATION = 300;
 
 export interface Position {
   x: number;
@@ -19,9 +22,10 @@ export interface SpeciesStats {
   name: string;
   color: string;
   trapImmune?: boolean;
+  blinkRange?: number;
 }
 
-export type SkillEffectType = 'aura' | 'passive';
+export type SkillEffectType = 'aura' | 'passive' | 'active';
 
 export interface SkillEffectBase {
   type: SkillEffectType;
@@ -32,26 +36,37 @@ export interface AuraSkillEffect extends SkillEffectBase {
   type: 'aura';
   range: number;
   damage: number;
+  tickInterval?: number;
 }
 
 export interface PassiveSkillEffect extends SkillEffectBase {
   type: 'passive';
   description?: string;
   damageReduction?: number;
+  trapImmune?: boolean;
 }
 
-export type SkillEffect = AuraSkillEffect | PassiveSkillEffect;
+export interface ActiveSkillEffect extends SkillEffectBase {
+  type: 'active';
+  description?: string;
+  range?: number;
+  cooldown?: number;
+}
+
+export type SkillEffect = AuraSkillEffect | PassiveSkillEffect | ActiveSkillEffect;
 
 export const SPECIES_STATS: Record<SpeciesType, SpeciesStats> = {
   dragon: { hp: 150, attack: 25, defense: 15, speed: 1, name: '龙', color: '#ff4757' },
-  elf: { hp: 80, attack: 15, defense: 5, speed: 3, name: '精灵', color: '#2ed573' },
+  elf: { hp: 80, attack: 15, defense: 5, speed: 3, name: '精灵', color: '#2ed573', blinkRange: 2 },
   gargoyle: { hp: 120, attack: 18, defense: 10, speed: 2, name: '石像鬼', color: '#a55eea', trapImmune: true },
 };
 
 export const SKILL_EFFECTS: Record<SkillType, SkillEffect> = {
-  flameAura: { type: 'aura', range: 1, damage: 3, name: '火焰光环' },
-  multiTeleport: { type: 'passive', name: '多重瞬移', description: '一次可瞬移两个方向' },
-  stoneSkin: { type: 'passive', damageReduction: 0.2, name: '石肤' },
+  flameAura: { type: 'aura', range: 1, damage: 3, name: '火焰光环', tickInterval: 1000 },
+  multiTeleport: { type: 'active', name: '多重瞬移', description: '一次可瞬移两个方向', range: 2 },
+  stoneSkin: { type: 'passive', damageReduction: 0.2, name: '石肤', description: '减免20%所受伤害' },
+  blink: { type: 'active', name: '瞬移', description: '瞬移两格', range: 2 },
+  trap_immunity: { type: 'passive', name: '陷阱免疫', description: '对陷阱免疫', trapImmune: true },
 };
 
 export interface AIDecision {
@@ -75,7 +90,7 @@ export interface ChestReward {
 
 export type SpeciesType = 'dragon' | 'elf' | 'gargoyle';
 
-export type SkillType = 'flameAura' | 'multiTeleport' | 'stoneSkin';
+export type SkillType = 'flameAura' | 'multiTeleport' | 'stoneSkin' | 'blink' | 'trap_immunity';
 
 export interface Skill {
   id: SkillType;
@@ -84,9 +99,15 @@ export interface Skill {
   description: string;
 }
 
+export type AnimationType = 'idle' | 'moving' | 'attacking' | 'hit' | 'evolving';
+
 export interface AnimationState {
-  type: 'idle' | 'moving' | 'attacking' | 'hit' | 'evolving';
+  type: AnimationType;
   progress: number;
+  timer?: number;
+  duration?: number;
+  direction?: 'left' | 'right';
+  flashColor?: string;
 }
 
 export interface Creature {
@@ -105,7 +126,7 @@ export interface Creature {
   userControlled: boolean;
   kills: number;
   skills: SkillType[];
-  visitedTiles: Set<Position>;
+  visitedTiles: Set<string>;
   isEvolving: boolean;
   evolutionTimer: number;
   animation: AnimationState;
@@ -190,6 +211,18 @@ export const SKILLS: Record<SkillType, Skill> = {
     icon: '🛡️',
     description: '减免20%所受伤害',
   },
+  blink: {
+    id: 'blink',
+    name: '瞬移',
+    icon: '✨',
+    description: '瞬移两格',
+  },
+  trap_immunity: {
+    id: 'trap_immunity',
+    name: '陷阱免疫',
+    icon: '🔮',
+    description: '对陷阱免疫',
+  },
 };
 
 export const SPECIES_INFO: Record<SpeciesType, { name: string; icon: string; color: string }> = {
@@ -197,3 +230,12 @@ export const SPECIES_INFO: Record<SpeciesType, { name: string; icon: string; col
   elf: { name: '精灵', icon: '🧝', color: '#2ed573' },
   gargoyle: { name: '石像鬼', icon: '👹', color: '#a55eea' },
 };
+
+export function posKey(pos: Position): string {
+  return `${pos.x},${pos.y}`;
+}
+
+export function parsePosKey(key: string): Position {
+  const [x, y] = key.split(',').map(Number);
+  return { x, y };
+}

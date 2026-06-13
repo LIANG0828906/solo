@@ -9,7 +9,8 @@ import type {
 import {
   MAP_SIZE,
   MAX_PATHFINDING_TIME,
-  SKILL_EFFECTS
+  SKILL_EFFECTS,
+  posKey
 } from '../types';
 
 interface PathNode {
@@ -20,7 +21,17 @@ interface PathNode {
   parent: PathNode | null;
 }
 
+interface PathCacheEntry {
+  path: Position[];
+  timestamp: number;
+  targetKey: string;
+}
+
 export class AIStrategy {
+  private pathCache: Map<string, PathCacheEntry> = new Map();
+  private readonly CACHE_TTL = 2000;
+  private readonly CACHE_MAX_SIZE = 100;
+
   decideAction(creature: Creature, gameState: GameState): AIDecision {
     if (creature.hp <= 0 || creature.isEvolving) {
       return { action: 'explore' };
@@ -81,42 +92,26 @@ export class AIStrategy {
   }
 
   private shouldFight(creature: Creature, powerRatio: number): boolean {
-    if (creature.species === 'dragon') {
-      return powerRatio >= 0.7;
-    }
-    if (creature.species === 'gargoyle') {
-      return powerRatio >= 0.8;
-    }
+    if (creature.species === 'dragon') return powerRatio >= 0.7;
+    if (creature.species === 'gargoyle') return powerRatio >= 0.8;
     return powerRatio >= 0.8;
   }
 
   private shouldEngage(creature: Creature, powerRatio: number): boolean {
-    if (creature.species === 'dragon') {
-      return powerRatio >= 0.6;
-    }
-    if (creature.species === 'elf') {
-      return powerRatio >= 0.9;
-    }
+    if (creature.species === 'dragon') return powerRatio >= 0.6;
+    if (creature.species === 'elf') return powerRatio >= 0.9;
     return powerRatio >= 0.7;
   }
 
   private shouldFlee(creature: Creature, powerRatio: number): boolean {
-    if (creature.species === 'elf') {
-      return powerRatio < 0.7;
-    }
-    if (creature.species === 'dragon') {
-      return powerRatio < 0.4;
-    }
+    if (creature.species === 'elf') return powerRatio < 0.7;
+    if (creature.species === 'dragon') return powerRatio < 0.4;
     return powerRatio < 0.5;
   }
 
   private getAggroRange(creature: Creature): number {
-    if (creature.species === 'dragon') {
-      return 4;
-    }
-    if (creature.species === 'elf') {
-      return 3;
-    }
+    if (creature.species === 'dragon') return 4;
+    if (creature.species === 'elf') return 3;
     return 3;
   }
 
@@ -126,6 +121,7 @@ export class AIStrategy {
 
     for (const other of creatures) {
       if (other.id === creature.id || other.hp <= 0) continue;
+      if (other.species === creature.species) continue;
       const distance = this.getManhattanDistance(creature.position, other.position);
       if (distance < minDistance && distance <= 5) {
         minDistance = distance;
@@ -186,7 +182,7 @@ export class AIStrategy {
     if (creature.species !== 'elf') return null;
 
     const hasMultiTeleport = creature.skills.includes('multiTeleport');
-    const blinkRange = hasMultiTeleport ? 2 : 1;
+    const blinkRange = hasMultiTeleport ? 2 : (SKILL_EFFECTS.blink.type === 'active' && SKILL_EFFECTS.blink.range ? SKILL_EFFECTS.blink.range : 1);
 
     const directions = [
       { x: 0, y: -1 },
@@ -224,9 +220,9 @@ export class AIStrategy {
       for (let x = 0; x < MAP_SIZE; x++) {
         if (map[y][x].type === 'wall') continue;
         const pos = { x, y };
-        const key = `${x},${y}`;
+        const key = posKey(pos);
 
-        if (!creature.visitedTiles.has(key as any)) {
+        if (!creature.visitedTiles.has(key)) {
           unvisitedTiles.push(pos);
         }
 
@@ -296,8 +292,44 @@ export class AIStrategy {
     ];
   }
 
+  private getCacheKey(start: Position, end: Position, excludeId?: string): string {
+    return `${posKey(start)}|${posKey(end)}|${excludeId || 'none'}`;
+  }
+
+  private cleanupCache(now: number): void {
+    if (this.pathCache.size > this.CACHE_MAX_SIZE) {
+      let oldestKey: string | null = null;
+      let oldestTime = Infinity;
+
+      for (const [key, entry] of this.pathCache) {
+        if (entry.timestamp < oldestTime) {
+          oldestTime = entry.timestamp;
+          oldestKey = key;
+        }
+      }
+
+      if (oldestKey) {
+        this.pathCache.delete(oldestKey);
+      }
+    }
+
+    for (const [key, entry] of this.pathCache) {
+      if (now - entry.timestamp > this.CACHE_TTL) {
+        this.pathCache.delete(key);
+      }
+    }
+  }
+
   findPath(start: Position, end: Position, map: Tile[][], creatures: Creature[], excludeId?: string): Position[] {
     const startTime = performance.now();
+    const cacheKey = this.getCacheKey(start, end, excludeId);
+
+    this.cleanupCache(startTime);
+
+    const cached = this.pathCache.get(cacheKey);
+    if (cached && startTime - cached.timestamp < this.CACHE_TTL) {
+      return cached.path;
+    }
 
     const endTile = map[end.y]?.[end.x];
     if (!endTile || endTile.type === 'wall') {
@@ -317,7 +349,7 @@ export class AIStrategy {
     };
 
     openList.push(startNode);
-    cameFrom.set(`${start.x},${start.y}`, startNode);
+    cameFrom.set(posKey(start), startNode);
 
     while (openList.length > 0) {
       if (performance.now() - startTime > MAX_PATHFINDING_TIME) {
@@ -327,7 +359,9 @@ export class AIStrategy {
             bestNode = node;
           }
         }
-        return this.reconstructPath(bestNode);
+        const result = this.reconstructPath(bestNode);
+        this.pathCache.set(cacheKey, { path: result, timestamp: startTime, targetKey: posKey(end) });
+        return result;
       }
 
       let minIndex = 0;
@@ -338,16 +372,18 @@ export class AIStrategy {
       }
 
       const current = openList.splice(minIndex, 1)[0];
-      const currentKey = `${current.position.x},${current.position.y}`;
+      const currentKey = posKey(current.position);
 
       if (current.position.x === end.x && current.position.y === end.y) {
-        return this.reconstructPath(current);
+        const result = this.reconstructPath(current);
+        this.pathCache.set(cacheKey, { path: result, timestamp: startTime, targetKey: posKey(end) });
+        return result;
       }
 
       closedSet.add(currentKey);
 
       for (const neighbor of this.getNeighbors(current.position)) {
-        const neighborKey = `${neighbor.x},${neighbor.y}`;
+        const neighborKey = posKey(neighbor);
 
         if (closedSet.has(neighborKey)) continue;
 
@@ -394,7 +430,7 @@ export class AIStrategy {
     if (creature.species !== 'elf') return null;
 
     const hasMultiTeleport = creature.skills.includes('multiTeleport');
-    const blinkRange = hasMultiTeleport ? 2 : 1;
+    const blinkRange = hasMultiTeleport ? 2 : (SKILL_EFFECTS.blink.type === 'active' && SKILL_EFFECTS.blink.range ? SKILL_EFFECTS.blink.range : 2);
 
     const directions = [
       { x: 0, y: -1 },
