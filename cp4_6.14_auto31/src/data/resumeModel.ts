@@ -146,6 +146,121 @@ export function validateRequired(value: string): boolean {
   return value.trim().length > 0;
 }
 
+export function validateWorkCount(workList: WorkExperience[]): { valid: boolean; error?: string } {
+  if (workList.length > MAX_WORK_EXPERIENCE) {
+    return { valid: false, error: `工作经历最多${MAX_WORK_EXPERIENCE}条` };
+  }
+  return { valid: true };
+}
+
+export function validateEducationCount(eduList: Education[]): { valid: boolean; error?: string } {
+  if (eduList.length > MAX_EDUCATION) {
+    return { valid: false, error: `教育背景最多${MAX_EDUCATION}条` };
+  }
+  return { valid: true };
+}
+
+export function validateSkillsCount(skills: Skill[]): { valid: boolean; error?: string } {
+  if (skills.length > MAX_SKILLS) {
+    return { valid: false, error: `技能标签最多${MAX_SKILLS}个` };
+  }
+  return { valid: true };
+}
+
+export function validateProjectsCount(projects: Project[]): { valid: boolean; error?: string } {
+  if (projects.length > MAX_PROJECTS) {
+    return { valid: false, error: `项目经历最多${MAX_PROJECTS}条` };
+  }
+  return { valid: true };
+}
+
+export function validateResumeData(data: ResumeData): { valid: boolean; errors: Record<string, string> } {
+  const errors: Record<string, string> = {};
+
+  if (!validateRequired(data.personal.name)) {
+    errors['personal.name'] = '姓名不能为空';
+  }
+
+  if (!validateRequired(data.personal.email)) {
+    errors['personal.email'] = '邮箱不能为空';
+  } else if (!validateEmail(data.personal.email)) {
+    errors['personal.email'] = '邮箱格式不正确';
+  }
+
+  if (!validateRequired(data.personal.phone)) {
+    errors['personal.phone'] = '手机号不能为空';
+  } else if (!validatePhone(data.personal.phone)) {
+    errors['personal.phone'] = '手机号格式不正确';
+  }
+
+  const workCountResult = validateWorkCount(data.work);
+  if (!workCountResult.valid) {
+    errors['work'] = workCountResult.error!;
+  }
+
+  data.work.forEach((work, index) => {
+    if (!validateRequired(work.company)) {
+      errors[`work[${index}].company`] = '公司名称不能为空';
+    }
+    if (!validateRequired(work.position)) {
+      errors[`work[${index}].position`] = '职位不能为空';
+    }
+    if (work.startDate && work.endDate && !validateDateRange(work.startDate, work.endDate)) {
+      errors[`work[${index}].date`] = '开始日期不能晚于结束日期';
+    }
+  });
+
+  const eduCountResult = validateEducationCount(data.education);
+  if (!eduCountResult.valid) {
+    errors['education'] = eduCountResult.error!;
+  }
+
+  data.education.forEach((edu, index) => {
+    if (!validateRequired(edu.school)) {
+      errors[`education[${index}].school`] = '学校名称不能为空';
+    }
+    if (!validateRequired(edu.degree)) {
+      errors[`education[${index}].degree`] = '学历不能为空';
+    }
+    if (edu.startDate && edu.endDate && !validateDateRange(edu.startDate, edu.endDate)) {
+      errors[`education[${index}].date`] = '开始日期不能晚于结束日期';
+    }
+  });
+
+  const skillsCountResult = validateSkillsCount(data.skills);
+  if (!skillsCountResult.valid) {
+    errors['skills'] = skillsCountResult.error!;
+  }
+
+  data.skills.forEach((skill, index) => {
+    if (!validateRequired(skill.name)) {
+      errors[`skills[${index}].name`] = '技能名称不能为空';
+    }
+  });
+
+  const projectsCountResult = validateProjectsCount(data.projects);
+  if (!projectsCountResult.valid) {
+    errors['projects'] = projectsCountResult.error!;
+  }
+
+  data.projects.forEach((project, index) => {
+    if (!validateRequired(project.name)) {
+      errors[`projects[${index}].name`] = '项目名称不能为空';
+    }
+    if (!validateRequired(project.role)) {
+      errors[`projects[${index}].role`] = '担任角色不能为空';
+    }
+    if (project.startDate && project.endDate && !validateDateRange(project.startDate, project.endDate)) {
+      errors[`projects[${index}].date`] = '开始日期不能晚于结束日期';
+    }
+  });
+
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors
+  };
+}
+
 export function createEmptyResume(): ResumeData {
   return {
     personal: {

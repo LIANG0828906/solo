@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas'
 import { saveAs } from 'file-saver'
+import jsPDF from 'jspdf'
 import axios from 'axios'
 
 const HTML2CANVAS_OPTIONS = {
@@ -46,16 +47,62 @@ export async function exportToPDF(element: HTMLElement, onLoadingChange?: (loadi
   try {
     onLoadingChange?.(true)
 
+    // 步骤1：使用 html2canvas 将 HTML 元素转换为 canvas 图像
+    // scale: 2 保证图片清晰度
     const canvas = await html2canvas(element, {
       ...HTML2CANVAS_OPTIONS,
       width: 1200,
       windowWidth: 1200,
     })
 
-    const dataUrl = canvas.toDataURL('image/png', 1.0)
-    const fileName = generateFileName('pdf')
+    // 步骤2：获取 canvas 的图像数据（PNG 格式）
+    const imgData = canvas.toDataURL('image/png')
 
-    saveAs(dataUrl, fileName)
+    // 步骤3：创建 A4 尺寸的 PDF 文档
+    // orientation: 'portrait' 纵向
+    // unit: 'mm' 单位为毫米
+    // format: 'a4' A4 纸张尺寸
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    // A4 页面尺寸（单位：mm）
+    const pageWidth = 210
+    const pageHeight = 297
+
+    // 步骤4：计算图片在 PDF 中的尺寸，保持宽高比例
+    // 图片宽度撑满页面宽度
+    const imgWidth = pageWidth
+    // 按比例计算图片高度
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+    // 步骤5：分页处理
+    // position 表示图片在当前 PDF 页面中的 y 轴偏移量
+    let position = 0
+    // 剩余未绘制的图片高度
+    let heightLeft = imgHeight
+
+    // 添加第一页的图片
+    // addImage(imageData, format, x, y, width, height)
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+
+    // 如果内容超过一页，循环添加新页面
+    while (heightLeft > 0) {
+      // 计算下一页图片的起始位置（负值表示图片向上偏移）
+      position -= pageHeight
+      // 添加新页面
+      pdf.addPage()
+      // 在新页面中绘制图片的下一部分
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+
+    // 步骤6：保存 PDF 文件
+    const fileName = generateFileName('pdf')
+    pdf.save(fileName)
   } finally {
     onLoadingChange?.(false)
   }
