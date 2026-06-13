@@ -74,3 +74,63 @@ class SocketService {
 
   onUserJoin(handler: EventHandler<User>): () => void {
     return this.subscribe('user:join', handler);
+  }
+
+  onUserLeave(handler: EventHandler<string>): () => void {
+    return this.subscribe('user:leave', handler);
+  }
+
+  onShapeAdd(handler: EventHandler<Shape>): () => void {
+    return this.subscribe('shape:add', handler);
+  }
+
+  onShapeUpdate(handler: EventHandler<Shape>): () => void {
+    return this.subscribe('shape:update', handler);
+  }
+
+  onShapeDelete(handler: EventHandler<string>): () => void {
+    return this.subscribe('shape:delete', handler);
+  }
+
+  onStickyAdd(handler: EventHandler<StickyNote>): () => void {
+    return this.subscribe('sticky:add', handler);
+  }
+
+  onStickyUpdate(handler: EventHandler<StickyNote>): () => void {
+    return this.subscribe('sticky:update', handler);
+  }
+
+  onStickyDelete(handler: EventHandler<string>): () => void {
+    return this.subscribe('sticky:delete', handler);
+  }
+
+  addShape(shape: Shape): void {
+    this.emit('shape:add', shape);
+  }
+
+  updateShape(shape: Shape): void {
+    this.emit('shape:update', shape);
+  }
+
+  deleteShape(shapeId: string): void {
+    this.emit('shape:delete', shapeId);
+  }
+
+  addSticky(sticky: StickyNote): void {
+    this.emit('sticky:add', sticky);
+  }
+
+  updateSticky(sticky: StickyNote): void {
+    this.emit('sticky:update', sticky);
+  }
+
+  deleteSticky(stickyId: string): void {
+    this.emit('sticky:delete', stickyId);
+  }
+
+  isConnected(): boolean {
+    return this.socket?.connected ?? false;
+  }
+}
+
+export const socketService = new SocketService();

@@ -13,6 +13,9 @@ const io = new Server(server, {
 });
 
 const rooms: Map<string, RoomState> = new Map();
+const roomTimers: Map<string, NodeJS.Timeout> = new Map();
+
+const ROOM_CLEANUP_DELAY = 5 * 60 * 1000;
 
 const userColors = [
   '#89b4fa',
@@ -24,6 +27,27 @@ const userColors = [
   '#94e2d5',
   '#f5c2e7',
 ];
+
+function scheduleRoomCleanup(roomId: string): void {
+  clearRoomCleanup(roomId);
+  const timer = setTimeout(() => {
+    const room = rooms.get(roomId);
+    if (room && room.users.length === 0) {
+      rooms.delete(roomId);
+      roomTimers.delete(roomId);
+      console.log(`Room ${roomId} cleaned up due to inactivity`);
+    }
+  }, ROOM_CLEANUP_DELAY);
+  roomTimers.set(roomId, timer);
+}
+
+function clearRoomCleanup(roomId: string): void {
+  const timer = roomTimers.get(roomId);
+  if (timer) {
+    clearTimeout(timer);
+    roomTimers.delete(roomId);
+  }
+}
 
 function getNextColor(roomId: string): string {
   const room = rooms.get(roomId);
@@ -47,7 +71,15 @@ function getOrCreateRoom(roomId: string): RoomState {
     };
     rooms.set(roomId, room);
   }
+  clearRoomCleanup(roomId);
   return room;
+}
+
+function tryCleanupRoom(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (room && room.users.length === 0) {
+    scheduleRoomCleanup(roomId);
+  }
 }
 
 app.get('/api/room/:roomId', (req, res) => {
@@ -58,6 +90,19 @@ app.get('/api/room/:roomId', (req, res) => {
   } else {
     res.json(room);
   }
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    roomsCount: rooms.size,
+    rooms: Array.from(rooms.keys()).map((id) => ({
+      id,
+      users: rooms.get(id)?.users.length ?? 0,
+      shapes: rooms.get(id)?.shapes.length ?? 0,
+      stickies: rooms.get(id)?.stickyNotes.length ?? 0,
+    })),
+  });
 });
 
 io.on('connection', (socket) => {
@@ -162,13 +207,22 @@ io.on('connection', (socket) => {
       socket.to(currentRoomId).emit('user:leave', currentUserId);
     }
 
-    if (room.users.length === 0) {
-      rooms.delete(currentRoomId);
-    }
+    tryCleanupRoom(currentRoomId);
   });
 });
 
 const PORT = 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, cleaning up...');
+  roomTimers.forEach((timer) => clearTimeout(timer));
+  roomTimers.clear();
+  rooms.clear();
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
