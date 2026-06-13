@@ -55,15 +55,20 @@ function generateGalaxyStars(
       z = Math.sin(angle) * clampedR + gaussianRandom(0, 4);
       y = heightNoise;
 
-      const orbitalSpeed = 0.8 * Math.sqrt(clampedR + 2) * rotSign;
-      const tangent = angle + Math.PI / 2;
-      const vx = Math.cos(tangent) * orbitalSpeed;
-      const vz = Math.sin(tangent) * orbitalSpeed;
+      const tangentAngle = angle + Math.PI / 2;
+      const softening = 2;
+      const K = 5;
+      const orbitalSpeed = K / Math.sqrt(clampedR + softening);
+      const vx = rotSign * Math.cos(tangentAngle) * orbitalSpeed + gaussianRandom(0, 0.3);
+      const vz = rotSign * Math.sin(tangentAngle) * orbitalSpeed + gaussianRandom(0, 0.3);
       const vy = gaussianRandom(0, 0.3);
+      const radialDispersion = gaussianRandom(0, 0.15 * orbitalSpeed);
 
       stars.push({
         x: x + centerX, y: y + centerY, z: z + centerZ,
-        vx, vy, vz,
+        vx: vx + radialDispersion * Math.cos(angle),
+        vy,
+        vz: vz + radialDispersion * Math.sin(angle),
         mass, galaxy: galaxyId,
       });
     } else {
@@ -76,15 +81,27 @@ function generateGalaxyStars(
       y = clampedR * Math.sin(phi) * Math.sin(theta) * 0.6;
       z = clampedR * Math.cos(phi);
 
-      const orbitalSpeed = 0.6 * Math.sqrt(clampedR + 2) * rotSign;
-      const perpAngle = theta + Math.PI / 2;
-      const vx = Math.cos(perpAngle) * orbitalSpeed * Math.sin(phi);
-      const vz = Math.sin(perpAngle) * orbitalSpeed * Math.sin(phi);
-      const vy = gaussianRandom(0, 0.5) * rotSign;
+      const dist = Math.sqrt(x * x + y * y + z * z);
+      const xzDist = Math.sqrt(x * x + z * z);
+      const softening = 2;
+      const K = 5;
+      const orbitalSpeed = K / Math.sqrt(dist + softening);
+      let tangentX = 0;
+      let tangentZ = 0;
+      if (xzDist > 1e-6) {
+        tangentX = -z / xzDist;
+        tangentZ = x / xzDist;
+      }
+      const vx = rotSign * tangentX * orbitalSpeed;
+      const vz = rotSign * tangentZ * orbitalSpeed;
+      const vy = gaussianRandom(0, 0.2 * orbitalSpeed);
+      const dispersion = 0.2 * orbitalSpeed;
 
       stars.push({
         x: x + centerX, y: y + centerY, z: z + centerZ,
-        vx, vy, vz,
+        vx: vx + gaussianRandom(0, dispersion),
+        vy,
+        vz: vz + gaussianRandom(0, dispersion),
         mass, galaxy: galaxyId,
       });
     }

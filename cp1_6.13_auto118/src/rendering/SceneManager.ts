@@ -10,6 +10,30 @@ const COLOR_COOL = new THREE.Color(60 / 255, 120 / 255, 255 / 255);
 const BG_STAR_COUNT = 200;
 const TRAIL_FRAMES = 300;
 
+const VERT_SHADER = `
+attribute float size;
+attribute vec3 color;
+varying vec3 vColor;
+uniform float u_pixelRatio;
+void main() {
+  vColor = color;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = size * u_pixelRatio * (300.0 / length(mvPosition.xyz));
+  gl_PointSize = clamp(gl_PointSize, 1.0, 40.0);
+  gl_Position = projectionMatrix * mvPosition;
+}
+`;
+
+const FRAG_SHADER = `
+varying vec3 vColor;
+void main() {
+  float d = length(gl_PointCoord - vec2(0.5));
+  if (d > 0.5) discard;
+  float alpha = smoothstep(0.5, 0.15, d) * exp(-d * 4.0);
+  gl_FragColor = vec4(vColor, alpha);
+}
+`;
+
 export class SceneManager {
   private container: HTMLElement;
   private scene: THREE.Scene;
@@ -19,17 +43,20 @@ export class SceneManager {
 
   private starPoints: THREE.Points | null = null;
   private starGeometry: THREE.BufferGeometry | null = null;
-  private starMaterial: THREE.PointsMaterial | null = null;
+  private starMaterial: THREE.ShaderMaterial | null = null;
   private trailLines: THREE.Line[] = [];
   private trailGeometries: THREE.BufferGeometry[] = [];
   private bgStars: THREE.Points | null = null;
 
   private trailMode = false;
   private trailHistory: Float32Array[] = [];
+  private trailVelocityHistory: Float32Array[] = [];
   private trailHead = 0;
   private trailCount = 0;
   private galaxyAssignments: Uint8Array | null = null;
   private initialSizes: Float32Array | null = null;
+  private lastStarCount = 0;
+  private lastVelocities: Float32Array | null = null;
 
   private targetLookAt = new THREE.Vector3();
   private currentLookAt = new THREE.Vector3();
@@ -110,6 +137,7 @@ export class SceneManager {
   buildStars(stars: StarData[]) {
     this.clearStars();
     const count = stars.length;
+    this.lastStarCount = count;
 
     this.galaxyAssignments = new Uint8Array(count);
     this.initialSizes = new Float32Array(count);
@@ -137,50 +165,48 @@ export class SceneManager {
     this.starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.starGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-    this.starMaterial = new THREE.PointsMaterial({
-      size: 3,
-      vertexColors: true,
+    this.starMaterial = new THREE.ShaderMaterial({
+      vertexShader: VERT_SHADER,
+      fragmentShader: FRAG_SHADER,
+      uniforms: {
+        u_pixelRatio: { value: this.renderer.getPixelRatio() },
+      },
       transparent: true,
-      opacity: 1.0,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      sizeAttenuation: true,
     });
-    (this.starMaterial as unknown as { onBeforeCompile: (shader: unknown) => void }).onBeforeCompile = (shader: { vertexShader: string }) => {
-      shader.vertexShader = shader.vertexShader
-        .replace('attribute vec3 color;', 'attribute vec3 color;\nattribute float size;')
-        .replace('gl_PointSize = size;', 'gl_PointSize = size * 3.0;');
-    };
 
     this.starPoints = new THREE.Points(this.starGeometry, this.starMaterial);
     this.starPoints.frustumCulled = false;
     this.scene.add(this.starPoints);
 
     this.trailHistory = [];
+    this.trailVelocityHistory = [];
     this.trailHead = 0;
     this.trailCount = 0;
+    this.lastVelocities = null;
     this.clearTrails();
-    this.buildTrails(count);
-    this.updateTrails(positions);
+    if (this.trailMode) {
+      this.buildTrails(count);
+    }
   }
 
   private buildTrails(count: number) {
-    this.trailLines = [];
-    this.trailGeometries = [];
+    this.clearTrails();
     if (!this.trailMode) return;
 
     for (let i = 0; i < count; i++) {
       const geom = new THREE.BufferGeometry();
-      const positions = new Float32Array(TRAIL_FRAMES * 3);
-      const colors = new Float32Array(TRAIL_FRAMES * 3);
-      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const posArr = new Float32Array(TRAIL_FRAMES * 3);
+      const colArr = new Float32Array(TRAIL_FRAMES * 3);
+      geom.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+      geom.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
       geom.setDrawRange(0, 0);
 
       const mat = new THREE.LineBasicMaterial({
         vertexColors: true,
         transparent: true,
-        opacity: 0.6,
+        opacity: 1.0,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
@@ -220,6 +246,8 @@ export class SceneManager {
     this.trailHead = 0;
     this.trailCount = 0;
     this.trailHistory = [];
+    this.trailVelocityHistory = [];
+    this.lastVelocities = null;
 
     if (this.starPoints) {
       const count = this.galaxyAssignments?.length ?? 0;
@@ -230,6 +258,28 @@ export class SceneManager {
 
   updatePositions(positions: Float32Array, velocities: Float32Array) {
     if (!this.starGeometry || !this.galaxyAssignments || !this.initialSizes) return;
+
+    const currentStarCount = positions.length / 3;
+
+    if (currentStarCount !== this.lastStarCount) {
+      this.galaxyAssignments = new Uint8Array(currentStarCount);
+      this.initialSizes = new Float32Array(currentStarCount);
+      for (let i = 0; i < currentStarCount; i++) {
+        this.galaxyAssignments[i] = i < currentStarCount / 2 ? 0 : 1;
+        this.initialSizes[i] = 2;
+      }
+      this.trailHead = 0;
+      this.trailCount = 0;
+      this.trailHistory = [];
+      this.trailVelocityHistory = [];
+      if (this.trailMode) {
+        this.clearTrails();
+        this.buildTrails(currentStarCount);
+      }
+      this.lastStarCount = currentStarCount;
+    }
+
+    this.lastVelocities = new Float32Array(velocities);
 
     const posAttr = this.starGeometry.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = this.starGeometry.getAttribute('color') as THREE.BufferAttribute;
@@ -273,15 +323,17 @@ export class SceneManager {
     }
 
     if (this.trailMode) {
-      this.updateTrails(positions);
+      this.updateTrails(positions, velocities);
     }
   }
 
-  private updateTrails(positions: Float32Array) {
+  private updateTrails(positions: Float32Array, velocities: Float32Array) {
     if (!this.trailMode || !this.galaxyAssignments) return;
 
     const snap = new Float32Array(positions);
+    const velSnap = new Float32Array(velocities);
     this.trailHistory[this.trailHead] = snap;
+    this.trailVelocityHistory[this.trailHead] = velSnap;
     this.trailHead = (this.trailHead + 1) % TRAIL_FRAMES;
     this.trailCount = Math.min(this.trailCount + 1, TRAIL_FRAMES);
 
@@ -295,18 +347,41 @@ export class SceneManager {
       for (let t = 0; t < this.trailCount; t++) {
         const histIdx = (this.trailHead - this.trailCount + t + TRAIL_FRAMES) % TRAIL_FRAMES;
         const history = this.trailHistory[histIdx];
+        const velHistory = this.trailVelocityHistory[histIdx];
         if (!history) continue;
+
         posArr[t * 3] = history[i * 3];
         posArr[t * 3 + 1] = history[i * 3 + 1];
         posArr[t * 3 + 2] = history[i * 3 + 2];
 
-        const alphaT = t / Math.max(this.trailCount - 1, 1);
-        const r = base.r * (1 - alphaT) + COLOR_WARM.r * alphaT;
-        const g = base.g * (1 - alphaT * 0.5) + COLOR_WARM.g * (alphaT * 0.5);
-        const b = COLOR_COOL.b * (1 - alphaT) + base.b * alphaT;
-        colArr[t * 3] = r * alphaT;
-        colArr[t * 3 + 1] = g * alphaT;
-        colArr[t * 3 + 2] = b * alphaT;
+        const ageT = t / Math.max(this.trailCount - 1, 1);
+
+        let velNorm = 0;
+        if (velHistory) {
+          const vx = velHistory[i * 3];
+          const vy = velHistory[i * 3 + 1];
+          const vz = velHistory[i * 3 + 2];
+          velNorm = Math.min(Math.sqrt(vx * vx + vy * vy + vz * vz) / 100, 1);
+        }
+        const effectiveT = ageT * (0.5 + 0.5 * velNorm);
+
+        let cr: number, cg: number, cb: number;
+        if (effectiveT < 0.5) {
+          const lt = effectiveT * 2;
+          cr = COLOR_COOL.r * (1 - lt) + base.r * lt;
+          cg = COLOR_COOL.g * (1 - lt) + base.g * lt;
+          cb = COLOR_COOL.b * (1 - lt) + base.b * lt;
+        } else {
+          const lt = (effectiveT - 0.5) * 2;
+          cr = base.r * (1 - lt) + COLOR_WARM.r * lt;
+          cg = base.g * (1 - lt) + COLOR_WARM.g * lt;
+          cb = base.b * (1 - lt) + COLOR_WARM.b * lt;
+        }
+
+        const fadeAlpha = ageT;
+        colArr[t * 3] = cr * fadeAlpha;
+        colArr[t * 3 + 1] = cg * fadeAlpha;
+        colArr[t * 3 + 2] = cb * fadeAlpha;
       }
       (geom.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
       (geom.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
@@ -329,6 +404,9 @@ export class SceneManager {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    if (this.starMaterial) {
+      this.starMaterial.uniforms.u_pixelRatio.value = this.renderer.getPixelRatio();
+    }
   };
 
   private easeInOut(t: number) {

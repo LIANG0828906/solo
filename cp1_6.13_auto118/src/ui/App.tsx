@@ -11,8 +11,9 @@ import {
 type SimStatus = 'idle' | 'running' | 'paused' | 'finished';
 
 type WorkerMsg =
-  | { type: 'frame'; positions: Float32Array; velocities: Float32Array; elapsed: number }
-  | { type: 'finished' };
+  | { type: 'frame'; positions: Float32Array; velocities: Float32Array; elapsed: number; timestamp: number; frameId: number }
+  | { type: 'finished'; elapsed: number }
+  | { type: 'error'; message: string };
 
 const defaultGalaxyA: GalaxyParams = {
   starCount: 250,
@@ -56,29 +57,46 @@ export const App: React.FC = () => {
     const scene = new SceneManager(canvasRef.current);
     sceneRef.current = scene;
 
-    const worker = new Worker(
-      new URL('@/core/CollisionSimulator.ts', import.meta.url),
-      { type: 'module' }
-    );
-    workerRef.current = worker;
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(
+        new URL('@/core/physicsWorker.ts', import.meta.url),
+        { type: 'module' }
+      );
+      workerRef.current = worker;
+    } catch (err) {
+      console.error('Failed to create physics Worker:', err);
+    }
 
-    worker.onmessage = (e: MessageEvent<WorkerMsg>) => {
-      const msg = e.data;
-      if (msg.type === 'frame') {
-        if (sceneRef.current) {
-          sceneRef.current.updatePositions(msg.positions, msg.velocities);
+    if (worker) {
+      worker.onmessage = (e: MessageEvent<WorkerMsg>) => {
+        const msg = e.data;
+        if (msg.type === 'frame') {
+          if (sceneRef.current) {
+            sceneRef.current.updatePositions(msg.positions, msg.velocities);
+          }
+          setElapsed(msg.elapsed);
+        } else if (msg.type === 'finished') {
+          setSimStatus('finished');
+          setElapsed(msg.elapsed);
+        } else if (msg.type === 'error') {
+          console.error('Worker error:', msg.message);
+          setSimStatus('idle');
         }
-        setElapsed(msg.elapsed);
-      } else if (msg.type === 'finished') {
-        setSimStatus('finished');
-      }
-    };
+      };
+
+      worker.onerror = (err) => {
+        console.error('Worker runtime error:', err);
+      };
+    }
 
     regenerate(defaultGalaxyA, defaultGalaxyB, defaultSimParams);
 
     return () => {
-      worker.postMessage({ type: 'pause' });
-      worker.terminate();
+      if (worker) {
+        worker.postMessage({ type: 'terminate' });
+        worker.terminate();
+      }
       workerRef.current = null;
       scene.dispose();
       sceneRef.current = null;
@@ -106,15 +124,21 @@ export const App: React.FC = () => {
       regenerate(galaxyA, galaxyB, simParams);
       setElapsed(0);
     }
-    workerRef.current?.postMessage({ type: 'start' });
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'start' });
+    }
     setSimStatus('running');
   };
   const handlePause = () => {
-    workerRef.current?.postMessage({ type: 'pause' });
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'pause' });
+    }
     setSimStatus('paused');
   };
   const handleReset = () => {
-    workerRef.current?.postMessage({ type: 'pause' });
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'pause' });
+    }
     regenerate(galaxyA, galaxyB, simParams);
     setElapsed(0);
     setSimStatus('idle');
