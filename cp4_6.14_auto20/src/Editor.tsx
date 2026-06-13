@@ -16,15 +16,34 @@ interface EditorProps {
   onCursorUpdate?: (position: number | null) => void;
 }
 
-const CANVAS_PADDING_LEFT = 100;
-const CANVAS_PADDING_RIGHT = 80;
-const STAFF_LINE_SPACING = 10;
-const STAFF_TOP_TREBLE = 120;
-const STAFF_TOP_BASS = 260;
+const PADDING_LEFT = 100;
+const PADDING_RIGHT = 80;
+const LINE_SPACING = 10;
+const TREBLE_TOP = 120;
+const BASS_TOP = 260;
 const BEAT_WIDTH = 70;
 const MIN_BEATS = 32;
+const NOTE_HEAD_RX = 7;
+const NOTE_HEAD_RY = 5;
+const NOTE_ROTATION = -0.3;
+
+const TREBLE_BASE_MIDI = 67;
+const BASS_BASE_MIDI = 50;
 
 const PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const COLLAB_COLOR_POOL = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
+];
+
+const DURATION_MAP: Record<string, number> = {
+  whole: 4,
+  half: 2,
+  quarter: 1,
+  eighth: 0.5,
+  sixteenth: 0.25
+};
 
 const Editor: React.FC<EditorProps> = ({
   score,
@@ -42,29 +61,37 @@ const Editor: React.FC<EditorProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
   const [hoverInfo, setHoverInfo] = useState<{
     position: number;
     pitch: number;
     octave: number;
+    staff: 'treble' | 'bass';
     x: number;
     y: number;
   } | null>(null);
-  const [draggingNote, setDraggingNote] = useState<{
+
+  const [dragging, setDragging] = useState<{
     noteId: string;
     startX: number;
     startY: number;
     origPosition: number;
     origPitch: number;
     origOctave: number;
+    origStaff: 'treble' | 'bass';
   } | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 450 });
+
+  const [canvasSize, setCanvasSize] = useState({ width: 1400, height: 480 });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const lastCursorSentRef = useRef<number>(-1);
+
+  const lastSentPositionRef = useRef<number>(-999);
+  const animFrameRef = useRef<number | null>(null);
+  const highlightAnimRef = useRef(0);
 
   const totalBeats = useMemo(() => {
     if (score.notes.length === 0) return MIN_BEATS;
-    const maxBeat = Math.max(...score.notes.map(n => n.position + n.duration));
-    return Math.max(MIN_BEATS, Math.ceil(maxBeat) + 4);
+    const maxEnd = Math.max(...score.notes.map(n => n.position + n.duration));
+    return Math.max(MIN_BEATS, Math.ceil(maxEnd) + 4);
   }, [score.notes]);
 
   useEffect(() => {
@@ -72,8 +99,8 @@ const Editor: React.FC<EditorProps> = ({
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         setCanvasSize({
-          width: Math.max(1200, CANVAS_PADDING_LEFT + totalBeats * BEAT_WIDTH + CANVAS_PADDING_RIGHT),
-          height: Math.max(450, rect.height - 20)
+          width: Math.max(1400, PADDING_LEFT + totalBeats * BEAT_WIDTH + PADDING_RIGHT),
+          height: Math.max(480, Math.floor(rect.height) - 20)
         });
       }
     };
@@ -82,70 +109,191 @@ const Editor: React.FC<EditorProps> = ({
     return () => window.removeEventListener('resize', updateSize);
   }, [totalBeats]);
 
-  const getPitchY = useCallback((pitch: number, octave: number, staff: 'treble' | 'bass') => {
-    const staffTop = staff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
-    const baseMIDI = staff === 'treble' ? 67 : 50;
-    const targetMIDI = octave * 12 + pitch;
-    const halfSteps = targetMIDI - baseMIDI;
-    const staffPositions = halfSteps / 2;
-    return staffTop + 4 * STAFF_LINE_SPACING - staffPositions * (STAFF_LINE_SPACING / 2);
-  }, []);
-
-  const getPitchFromY = useCallback((y: number, staff: 'treble' | 'bass') => {
-    const staffTop = staff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
-    const baseMIDI = staff === 'treble' ? 67 : 50;
-    const staffPositions = (staffTop + 4 * STAFF_LINE_SPACING - y) / (STAFF_LINE_SPACING / 2);
-    const halfSteps = Math.round(staffPositions * 2);
-    const midi = baseMIDI + halfSteps;
-    return {
-      pitch: ((midi % 12) + 12) % 12,
-      octave: Math.floor(midi / 12)
+  useEffect(() => {
+    let start = performance.now();
+    const loop = (now: number) => {
+      highlightAnimRef.current = (Math.sin((now - start) / 180) + 1) / 2;
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+    animFrameRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
     };
   }, []);
 
-  const drawStaff = useCallback((ctx: CanvasRenderingContext2D, staffTop: number, startX: number, endX: number) => {
+  const getStaffTop = (staff: 'treble' | 'bass'): number => {
+    return staff === 'treble' ? TREBLE_TOP : BASS_TOP;
+  };
+
+  const getBaseMIDI = (staff: 'treble' | 'bass'): number => {
+    return staff === 'treble' ? TREBLE_BASE_MIDI : BASS_BASE_MIDI;
+  };
+
+  const midiToY = useCallback((midi: number, staff: 'treble' | 'bass'): number => {
+    const staffTop = getStaffTop(staff);
+    const baseMIDI = getBaseMIDI(staff);
+    const halfSteps = midi - baseMIDI;
+    const staffPositions = halfSteps / 2;
+    return staffTop + 4 * LINE_SPACING - staffPositions * (LINE_SPACING / 2);
+  }, []);
+
+  const yToMIDI = useCallback((y: number, staff: 'treble' | 'bass'): number => {
+    const staffTop = getStaffTop(staff);
+    const baseMIDI = getBaseMIDI(staff);
+    const staffPositions = (staffTop + 4 * LINE_SPACING - y) / (LINE_SPACING / 2);
+    const halfSteps = Math.round(staffPositions * 2);
+    return baseMIDI + halfSteps;
+  }, []);
+
+  const midiToPitchOctave = (midi: number): { pitch: number; octave: number } => {
+    const m = ((midi % 12) + 12) % 12;
+    return { pitch: m, octave: Math.floor(midi / 12) };
+  };
+
+  const drawRoundedRect = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+  ) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+
+  const drawStaffLines = useCallback((ctx: CanvasRenderingContext2D) => {
+    const startX = PADDING_LEFT;
+    const endX = PADDING_LEFT + totalBeats * BEAT_WIDTH;
+
     ctx.strokeStyle = '#d0d0d0';
     ctx.lineWidth = 1;
+    ctx.lineCap = 'round';
+
     for (let i = 0; i < 5; i++) {
-      const y = staffTop + i * STAFF_LINE_SPACING;
+      const yT = TREBLE_TOP + i * LINE_SPACING;
       ctx.beginPath();
-      ctx.moveTo(startX, y);
-      ctx.lineTo(endX, y);
+      ctx.moveTo(startX, yT);
+      ctx.lineTo(endX, yT);
+      ctx.stroke();
+
+      const yB = BASS_TOP + i * LINE_SPACING;
+      ctx.beginPath();
+      ctx.moveTo(startX, yB);
+      ctx.lineTo(endX, yB);
       ctx.stroke();
     }
-  }, []);
+  }, [totalBeats]);
 
-  const drawClef = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, type: 'treble' | 'bass') => {
-    ctx.font = '48px serif';
-    ctx.fillStyle = '#333';
+  const drawClefs = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.textBaseline = 'middle';
-    ctx.fillText(type === 'treble' ? '𝄞' : '𝄢', x, y);
+    ctx.fillStyle = '#2a2a3e';
+
+    ctx.font = '52px "Times New Roman", serif';
+    ctx.fillText('𝄞', PADDING_LEFT - 55, TREBLE_TOP + 20);
+
+    ctx.font = '42px "Times New Roman", serif';
+    ctx.fillText('𝄢', PADDING_LEFT - 55, BASS_TOP + 20);
   }, []);
 
-  const drawTimeSignature = useCallback((ctx: CanvasRenderingContext2D, x: number, top: number, bottom: number) => {
-    ctx.font = 'bold 28px serif';
+  const drawTimeSignatures = useCallback((ctx: CanvasRenderingContext2D) => {
+    const { numerator, denominator } = score.timeSignature;
+    ctx.font = 'bold 24px "Georgia", serif';
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(top), x, top - 15);
-    ctx.fillText(String(bottom), x, top + 15);
-    ctx.textAlign = 'left';
-  }, []);
 
-  const drawBarLines = useCallback((ctx: CanvasRenderingContext2D, beatsPerBar: number, startX: number, endX: number, staffTop: number) => {
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1;
-    const totalWidth = endX - startX;
+    const x = PADDING_LEFT - 10;
+    ctx.fillText(String(numerator), x, TREBLE_TOP + 8);
+    ctx.fillText(String(denominator), x, TREBLE_TOP + 32);
+    ctx.fillText(String(numerator), x, BASS_TOP + 8);
+    ctx.fillText(String(denominator), x, BASS_TOP + 32);
+
+    ctx.textAlign = 'left';
+  }, [score.timeSignature]);
+
+  const drawBarLines = useCallback((ctx: CanvasRenderingContext2D) => {
+    const beatsPerBar = score.timeSignature.numerator;
+    const totalWidth = totalBeats * BEAT_WIDTH;
     const bars = Math.ceil(totalWidth / (BEAT_WIDTH * beatsPerBar));
+
+    ctx.strokeStyle = '#9a9aa8';
+    ctx.lineWidth = 1;
+
     for (let i = 0; i <= bars; i++) {
-      const x = startX + i * BEAT_WIDTH * beatsPerBar;
-      if (x > endX) break;
+      const x = PADDING_LEFT + i * BEAT_WIDTH * beatsPerBar;
+      if (x > PADDING_LEFT + totalWidth) break;
+
       ctx.beginPath();
-      ctx.moveTo(x, staffTop);
-      ctx.lineTo(x, staffTop + 4 * STAFF_LINE_SPACING);
+      ctx.moveTo(x, TREBLE_TOP);
+      ctx.lineTo(x, TREBLE_TOP + 4 * LINE_SPACING);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x, BASS_TOP);
+      ctx.lineTo(x, BASS_TOP + 4 * LINE_SPACING);
       ctx.stroke();
     }
-  }, []);
+  }, [score.timeSignature.numerator, totalBeats]);
+
+  const drawLedgerLines = useCallback((
+    ctx: CanvasRenderingContext2D,
+    noteCenterX: number,
+    midiNote: number,
+    staff: 'treble' | 'bass'
+  ) => {
+    const staffTop = getStaffTop(staff);
+    const baseMIDI = getBaseMIDI(staff);
+    const halfSteps = midiNote - baseMIDI;
+
+    const topLineMIDI = baseMIDI + 8;
+    const bottomLineMIDI = baseMIDI - 8;
+
+    const ledgerHalf = 10;
+
+    if (midiNote > topLineMIDI) {
+      const stepsAbove = midiNote - topLineMIDI;
+      const numLedgers = Math.floor(stepsAbove / 2);
+      for (let i = 1; i <= numLedgers; i++) {
+        const ledgerMIDI = topLineMIDI + i * 2;
+        if (ledgerMIDI <= midiNote) {
+          const y = midiToY(ledgerMIDI, staff);
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(noteCenterX - ledgerHalf, y);
+          ctx.lineTo(noteCenterX + ledgerHalf, y);
+          ctx.stroke();
+        }
+      }
+    } else if (midiNote < bottomLineMIDI) {
+      const stepsBelow = bottomLineMIDI - midiNote;
+      const numLedgers = Math.floor(stepsBelow / 2);
+      for (let i = 1; i <= numLedgers; i++) {
+        const ledgerMIDI = bottomLineMIDI - i * 2;
+        if (ledgerMIDI >= midiNote) {
+          const y = midiToY(ledgerMIDI, staff);
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(noteCenterX - ledgerHalf, y);
+          ctx.lineTo(noteCenterX + ledgerHalf, y);
+          ctx.stroke();
+        }
+      }
+    }
+  }, [midiToY]);
 
   const drawNoteHead = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -154,84 +302,86 @@ const Editor: React.FC<EditorProps> = ({
     duration: number,
     isHighlighted: boolean,
     isSelected: boolean,
-    highlightIntensity: number = 1
+    highlightPulse: number,
+    isPreview: boolean = false
   ) => {
     ctx.save();
+
     if (isHighlighted) {
-      ctx.shadowColor = `rgba(74, 158, 255, ${highlightIntensity})`;
-      ctx.shadowBlur = 15 * highlightIntensity;
+      const intensity = 0.5 + 0.5 * highlightPulse;
+      ctx.shadowColor = `rgba(74, 158, 255, ${intensity})`;
+      ctx.shadowBlur = 15;
     } else if (isSelected) {
-      ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+      ctx.shadowColor = 'rgba(255, 200, 0, 0.7)';
       ctx.shadowBlur = 10;
     }
 
-    ctx.fillStyle = isHighlighted
-      ? `rgba(74, 158, 255, ${0.6 + 0.4 * highlightIntensity})`
-      : (isSelected ? '#FFD700' : '#1a1a1a');
+    ctx.translate(x, y);
+    ctx.rotate(NOTE_ROTATION);
+
+    const filled = duration < 2;
+
+    if (isHighlighted) {
+      const intensity = 0.6 + 0.4 * highlightPulse;
+      ctx.fillStyle = `rgba(74, 158, 255, ${intensity})`;
+    } else if (isSelected) {
+      ctx.fillStyle = '#e6b800';
+    } else if (isPreview) {
+      ctx.fillStyle = 'rgba(74, 158, 255, 0.6)';
+    } else {
+      ctx.fillStyle = '#1a1a2e';
+    }
+
     ctx.beginPath();
-    ctx.ellipse(x, y, 7, 5, -0.3, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, NOTE_HEAD_RX, NOTE_HEAD_RY, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    if (duration >= 2) {
+    if (!filled) {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0,0,0,1)';
       ctx.beginPath();
-      ctx.ellipse(x, y, 4, 2.5, -0.3, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, NOTE_HEAD_RX - 2.5, NOTE_HEAD_RY - 2, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
     }
+
     ctx.restore();
   }, []);
 
-  const drawNote = useCallback((
+  const drawSingleNote = useCallback((
     ctx: CanvasRenderingContext2D,
     note: Note,
     isHighlighted: boolean,
     isSelected: boolean,
-    highlightIntensity: number = 1
+    highlightPulse: number,
+    isPreview: boolean = false
   ) => {
-    const x = CANVAS_PADDING_LEFT + note.position * BEAT_WIDTH;
-    const y = getPitchY(note.pitch, note.octave, note.staff);
-    const staffTop = note.staff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
+    const x = PADDING_LEFT + note.position * BEAT_WIDTH;
+    const midiNote = note.octave * 12 + note.pitch;
+    const y = midiToY(midiNote, note.staff);
+    const staffTop = getStaffTop(note.staff);
 
-    const needsLedger = (() => {
-      if (note.staff === 'treble') {
-        return y < staffTop - STAFF_LINE_SPACING || y > staffTop + 5 * STAFF_LINE_SPACING;
-      }
-      return y < staffTop - STAFF_LINE_SPACING || y > staffTop + 5 * STAFF_LINE_SPACING;
-    })();
+    drawLedgerLines(ctx, x, midiNote, note.staff);
 
-    if (needsLedger) {
-      ctx.strokeStyle = '#888';
-      ctx.lineWidth = 1;
-      const ledgerLines = Math.ceil(Math.abs(y - (staffTop + 2 * STAFF_LINE_SPACING)) / STAFF_LINE_SPACING);
-      for (let i = 1; i <= ledgerLines; i++) {
-        let ledgerY: number;
-        if (y < staffTop) {
-          ledgerY = staffTop - i * STAFF_LINE_SPACING;
-          if (ledgerY < y - STAFF_LINE_SPACING / 2) continue;
-        } else {
-          ledgerY = staffTop + (4 + i) * STAFF_LINE_SPACING;
-          if (ledgerY > y + STAFF_LINE_SPACING / 2) continue;
-        }
-        ctx.beginPath();
-        ctx.moveTo(x - 10, ledgerY);
-        ctx.lineTo(x + 10, ledgerY);
-        ctx.stroke();
-      }
-    }
-
-    drawNoteHead(ctx, x, y, note.duration, isHighlighted, isSelected, highlightIntensity);
+    drawNoteHead(ctx, x, y, note.duration, isHighlighted, isSelected, highlightPulse, isPreview);
 
     if (note.duration < 4) {
       const stemColor = isHighlighted
-        ? `rgba(74, 158, 255, ${0.6 + 0.4 * highlightIntensity})`
-        : (isSelected ? '#FFD700' : '#1a1a1a');
-      ctx.strokeStyle = stemColor;
-      ctx.lineWidth = 2;
-      const stemUp = y > staffTop + 2 * STAFF_LINE_SPACING;
-      const stemX = stemUp ? x - 7 : x + 7;
+        ? `rgba(74, 158, 255, ${0.7 + 0.3 * highlightPulse})`
+        : isSelected
+          ? '#e6b800'
+          : isPreview
+            ? 'rgba(74, 158, 255, 0.6)'
+            : '#1a1a2e';
+
+      const stemUp = y > staffTop + 2 * LINE_SPACING;
+      const stemX = stemUp ? x - NOTE_HEAD_RX : x + NOTE_HEAD_RX;
       const stemStartY = y;
-      const stemEndY = stemUp ? y - 35 : y + 35;
+      const stemLen = 35;
+      const stemEndY = stemUp ? y - stemLen : y + stemLen;
+
+      ctx.strokeStyle = stemColor;
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(stemX, stemStartY);
       ctx.lineTo(stemX, stemEndY);
@@ -239,145 +389,139 @@ const Editor: React.FC<EditorProps> = ({
 
       if (note.duration < 1) {
         const flagCount = note.duration <= 0.25 ? 2 : 1;
+        const flagSpacing = 10;
+
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
         for (let f = 0; f < flagCount; f++) {
+          const baseY = stemUp
+            ? stemEndY + f * flagSpacing
+            : stemEndY - f * flagSpacing;
+
+          const c1x = stemX;
+          const c1y = baseY;
+          const c2x = stemX + (stemUp ? 14 : -14);
+          const c2y = baseY + (stemUp ? 4 : -4);
+          const c3x = stemX + (stemUp ? 8 : -8);
+          const c3y = baseY + (stemUp ? 16 : -16);
+
+          ctx.strokeStyle = stemColor;
           ctx.beginPath();
-          ctx.moveTo(stemX, stemUp ? stemEndY + f * 10 : stemEndY - f * 10);
-          ctx.quadraticCurveTo(
-            stemX + (stemUp ? 12 : -12),
-            (stemUp ? stemEndY : stemEndY) + (stemUp ? 5 + f * 10 : -5 - f * 10),
-            stemX + (stemUp ? 8 : -8),
-            (stemUp ? stemEndY : stemEndY) + (stemUp ? 15 + f * 10 : -15 - f * 10)
-          );
+          ctx.moveTo(c1x, c1y);
+          ctx.quadraticCurveTo(c2x, c2y, c3x, c3y);
           ctx.stroke();
         }
       }
     }
+  }, [midiToY, drawLedgerLines, drawNoteHead]);
 
-    if (note.accidental) {
-      ctx.font = '16px serif';
-      ctx.fillStyle = '#333';
-      ctx.textBaseline = 'middle';
-      const symbol = note.accidental === 'sharp' ? '♯' : note.accidental === 'flat' ? '♭' : '♮';
-      ctx.fillText(symbol, x - 18, y);
-    }
-  }, [getPitchY, drawNoteHead]);
+  const drawPlaybackIndicator = useCallback((ctx: CanvasRenderingContext2D, position: number, height: number) => {
+    if (!isPlaying && position <= 0) return;
 
-  const drawPlaybackCursor = useCallback((ctx: CanvasRenderingContext2D, position: number, height: number) => {
-    if (!isPlaying) return;
-    const x = CANVAS_PADDING_LEFT + position * BEAT_WIDTH;
+    const x = PADDING_LEFT + position * BEAT_WIDTH;
 
-    const gradient = ctx.createLinearGradient(x - 15, 0, x + 15, 0);
+    const glowWidth = 36;
+    const gradient = ctx.createLinearGradient(x - glowWidth, 0, x + glowWidth, 0);
     gradient.addColorStop(0, 'rgba(74, 158, 255, 0)');
-    gradient.addColorStop(0.5, 'rgba(74, 158, 255, 0.18)');
+    gradient.addColorStop(0.4, 'rgba(74, 158, 255, 0.12)');
+    gradient.addColorStop(0.5, 'rgba(74, 158, 255, 0.22)');
+    gradient.addColorStop(0.6, 'rgba(74, 158, 255, 0.12)');
     gradient.addColorStop(1, 'rgba(74, 158, 255, 0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(x - 15, 0, 30, height);
+    ctx.fillRect(x - glowWidth, 0, glowWidth * 2, height);
 
-    ctx.strokeStyle = 'rgba(74, 158, 255, 0.85)';
+    ctx.strokeStyle = 'rgba(74, 158, 255, 0.9)';
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x, 40);
-    ctx.lineTo(x, height - 40);
+    ctx.moveTo(x, 30);
+    ctx.lineTo(x, height - 30);
     ctx.stroke();
   }, [isPlaying]);
 
-  const drawCollaboratorCursor = useCallback((ctx: CanvasRenderingContext2D, collab: Collaborator) => {
-    if (collab.cursorPosition === null) return;
-    const x = CANVAS_PADDING_LEFT + collab.cursorPosition * BEAT_WIDTH;
+  const drawCollaboratorCursorInternal = useCallback((ctx: CanvasRenderingContext2D, collab: Collaborator) => {
+    if (collab.cursorPosition === null || collab.cursorPosition < 0) return;
 
-    const staffTop = selectedStaff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
-    const staffBottom = (selectedStaff === 'treble' ? STAFF_TOP_BASS : STAFF_TOP_BASS) + 4 * STAFF_LINE_SPACING;
-    const cursorTop = Math.min(STAFF_TOP_TREBLE, staffTop) - 20;
-    const cursorBottom = Math.max(STAFF_TOP_TREBLE + 4 * STAFF_LINE_SPACING, staffBottom) + 40;
+    const x = PADDING_LEFT + collab.cursorPosition * BEAT_WIDTH;
+    const cursorTop = TREBLE_TOP - 30;
+    const cursorBottom = BASS_TOP + 4 * LINE_SPACING + 25;
 
     ctx.save();
+
     ctx.strokeStyle = collab.color;
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
     ctx.lineDashOffset = 0;
     ctx.beginPath();
     ctx.moveTo(x, cursorTop);
-    ctx.lineTo(x, cursorBottom - 48);
+    ctx.lineTo(x, cursorBottom);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.font = 'bold 12px sans-serif';
-    const labelWidth = Math.max(50, ctx.measureText(collab.name).width + 20);
+    ctx.font = 'bold 12px "Microsoft YaHei", "PingFang SC", sans-serif';
+    const nameText = collab.name;
+    const textMetrics = ctx.measureText(nameText);
+    const labelPaddingH = 10;
+    const labelPaddingV = 4;
+    const labelWidth = Math.max(48, textMetrics.width + labelPaddingH * 2);
+    const labelHeight = 22;
     const labelX = x + 4;
     const labelY = cursorTop;
-    const labelHeight = 22;
 
-    const roundedRect = (rx: number, ry: number, rw: number, rh: number, rr: number) => {
-      ctx.beginPath();
-      ctx.moveTo(rx + rr, ry);
-      ctx.lineTo(rx + rw - rr, ry);
-      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
-      ctx.lineTo(rx + rw, ry + rh - rr);
-      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
-      ctx.lineTo(rx + rr, ry + rh);
-      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
-      ctx.lineTo(rx, ry + rr);
-      ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
-      ctx.closePath();
-    };
-
-    roundedRect(labelX, labelY, labelWidth, labelHeight, 4);
+    drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
     ctx.fillStyle = collab.color + 'E6';
     ctx.fill();
-    ctx.strokeStyle = collab.color;
-    ctx.lineWidth = 1;
-    ctx.stroke();
 
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText(collab.name, labelX + 10, labelY + labelHeight / 2);
+    ctx.fillText(nameText, labelX + labelPaddingH, labelY + labelHeight / 2);
 
+    const arrowTipX = x;
+    const arrowTipY = labelY + labelHeight + 1;
+    const arrowSize = 5;
     ctx.beginPath();
-    ctx.moveTo(x, cursorTop + labelHeight + 2);
-    ctx.lineTo(x - 5, cursorTop + labelHeight + 8);
-    ctx.lineTo(x + 5, cursorTop + labelHeight + 8);
+    ctx.moveTo(arrowTipX, arrowTipY);
+    ctx.lineTo(arrowTipX - arrowSize, arrowTipY + arrowSize);
+    ctx.lineTo(arrowTipX + arrowSize, arrowTipY + arrowSize);
     ctx.closePath();
     ctx.fillStyle = collab.color + 'E6';
     ctx.fill();
 
     ctx.restore();
-  }, [selectedStaff]);
+  }, []);
 
-  const drawHoverPreview = useCallback((ctx: CanvasRenderingContext2D) => {
-    if (!hoverInfo || draggingNote) return;
-    const x = hoverInfo.x;
-    const y = hoverInfo.y;
+  const drawHoverPreviewInternal = useCallback((ctx: CanvasRenderingContext2D) => {
+    if (!hoverInfo || dragging) return;
 
     ctx.save();
-    ctx.globalAlpha = 0.45;
+    ctx.globalAlpha = 0.4;
 
-    const durationMap: Record<string, number> = {
-      whole: 4, half: 2, quarter: 1, eighth: 0.5, sixteenth: 0.25
-    };
+    const previewDuration = DURATION_MAP[selectedTool] ?? 1;
     const previewNote: Note = {
-      id: 'preview',
+      id: '__preview__',
       pitch: hoverInfo.pitch,
       octave: hoverInfo.octave,
-      duration: durationMap[selectedTool] || 1,
+      duration: previewDuration,
       position: hoverInfo.position,
-      staff: selectedStaff
+      staff: hoverInfo.staff
     };
-    drawNote(ctx, previewNote, false, false);
+    drawSingleNote(ctx, previewNote, false, false, 0, true);
 
+    ctx.globalAlpha = 0.6;
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = currentUser.color + '90';
+    ctx.strokeStyle = currentUser.color + '80';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, STAFF_TOP_TREBLE - 40);
-    ctx.lineTo(x, STAFF_TOP_BASS + 4 * STAFF_LINE_SPACING + 60);
+    ctx.moveTo(hoverInfo.x, TREBLE_TOP - 45);
+    ctx.lineTo(hoverInfo.x, BASS_TOP + 4 * LINE_SPACING + 55);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.restore();
-  }, [hoverInfo, draggingNote, selectedTool, selectedStaff, currentUser.color, drawNote]);
+  }, [hoverInfo, dragging, selectedTool, currentUser.color, drawSingleNote]);
 
-  useEffect(() => {
+  const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -388,180 +532,239 @@ const Editor: React.FC<EditorProps> = ({
     canvas.height = canvasSize.height * dpr;
     canvas.style.width = `${canvasSize.width}px`;
     canvas.style.height = `${canvasSize.height}px`;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-    const startX = CANVAS_PADDING_LEFT;
-    const endX = CANVAS_PADDING_LEFT + totalBeats * BEAT_WIDTH;
+    drawStaffLines(ctx);
+    drawClefs(ctx);
+    drawTimeSignatures(ctx);
+    drawBarLines(ctx);
 
-    drawStaff(ctx, STAFF_TOP_TREBLE, startX, endX);
-    drawStaff(ctx, STAFF_TOP_BASS, startX, endX);
+    drawPlaybackIndicator(ctx, currentPlayPosition, canvasSize.height);
 
-    drawClef(ctx, CANVAS_PADDING_LEFT - 50, STAFF_TOP_TREBLE + 20, 'treble');
-    drawClef(ctx, CANVAS_PADDING_LEFT - 50, STAFF_TOP_BASS + 20, 'bass');
-
-    drawTimeSignature(ctx, CANVAS_PADDING_LEFT - 10, STAFF_TOP_TREBLE + 20,
-      score.timeSignature.numerator, score.timeSignature.denominator);
-    drawTimeSignature(ctx, CANVAS_PADDING_LEFT - 10, STAFF_TOP_BASS + 20,
-      score.timeSignature.numerator, score.timeSignature.denominator);
-
-    drawBarLines(ctx, score.timeSignature.numerator, startX, endX, STAFF_TOP_TREBLE);
-    drawBarLines(ctx, score.timeSignature.numerator, startX, endX, STAFF_TOP_BASS);
-
-    drawPlaybackCursor(ctx, currentPlayPosition, canvasSize.height);
-
-    score.notes.forEach(note => {
+    for (const note of score.notes) {
       const isHighlighted = note.id === highlightedNoteId;
       const isSelected = note.id === selectedNoteId;
-      const isDragging = draggingNote?.noteId === note.id;
+      const isDragging = dragging?.noteId === note.id;
       if (!isDragging) {
-        drawNote(ctx, note, isHighlighted, isSelected);
+        drawSingleNote(ctx, note, isHighlighted, isSelected, highlightAnimRef.current);
       }
-    });
+    }
 
-    if (draggingNote) {
-      const note = score.notes.find(n => n.id === draggingNote.noteId);
+    if (dragging && hoverInfo) {
+      const note = score.notes.find(n => n.id === dragging.noteId);
       if (note) {
         ctx.save();
-        ctx.globalAlpha = 0.75;
-        const deltaX = (hoverInfo?.x ?? 0) - draggingNote.startX;
-        const deltaY = (hoverInfo?.y ?? 0) - draggingNote.startY;
-        const newPosition = Math.max(0, Math.round((draggingNote.origPosition * BEAT_WIDTH + deltaX) / BEAT_WIDTH * 2) / 2);
-        const pitchResult = getPitchFromY(draggingNote.startY + deltaY, note.staff);
+        ctx.globalAlpha = 0.7;
+
+        const deltaX = hoverInfo.x - dragging.startX;
+        const deltaY = hoverInfo.y - dragging.startY;
+
+        const newPosPx = dragging.origPosition * BEAT_WIDTH + deltaX;
+        const newPosition = Math.max(0, Math.round(newPosPx / BEAT_WIDTH * 2) / 2);
+
+        const origMIDI = dragging.origOctave * 12 + dragging.origPitch;
+        const origY = midiToY(origMIDI, dragging.origStaff);
+        const newY = origY + deltaY;
+        const newMIDI = yToMIDI(newY, dragging.origStaff);
+        const { pitch: newPitch, octave: newOctave } = midiToPitchOctave(newMIDI);
+
         const draggedNote: Note = {
           ...note,
           position: newPosition,
-          pitch: pitchResult.pitch,
-          octave: pitchResult.octave
+          pitch: newPitch,
+          octave: newOctave
         };
-        drawNote(ctx, draggedNote, false, true);
+        drawSingleNote(ctx, draggedNote, false, true, highlightAnimRef.current);
         ctx.restore();
       }
     }
 
-    collaborators.forEach(c => drawCollaboratorCursor(ctx, c));
-    drawHoverPreview(ctx);
+    for (const c of collaborators) {
+      drawCollaboratorCursorInternal(ctx, c);
+    }
 
+    drawHoverPreviewInternal(ctx);
   }, [
-    score, canvasSize, totalBeats, hoverInfo, draggingNote, selectedNoteId,
-    highlightedNoteId, currentPlayPosition, collaborators, selectedStaff, currentUser,
-    drawStaff, drawClef, drawTimeSignature, drawBarLines, drawNote,
-    drawPlaybackCursor, drawCollaboratorCursor, drawHoverPreview, getPitchFromY
+    canvasSize,
+    drawStaffLines,
+    drawClefs,
+    drawTimeSignatures,
+    drawBarLines,
+    drawPlaybackIndicator,
+    drawSingleNote,
+    drawCollaboratorCursorInternal,
+    drawHoverPreviewInternal,
+    score.notes,
+    highlightedNoteId,
+    selectedNoteId,
+    dragging,
+    hoverInfo,
+    currentPlayPosition,
+    collaborators,
+    midiToY,
+    yToMIDI
   ]);
 
-  const getCanvasCoords = useCallback((e: React.MouseEvent) => {
+  useEffect(() => {
+    let rafId: number;
+    const loop = () => {
+      render();
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [render]);
+
+  const getCanvasXY = useCallback((e: React.MouseEvent): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: (e.clientX - rect.left) * (canvas.width / rect.width) / (window.devicePixelRatio || 1),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height) / (window.devicePixelRatio || 1)
     };
   }, []);
 
-  const getInfoFromCoords = useCallback((x: number, y: number) => {
-    const position = Math.max(0, Math.round((x - CANVAS_PADDING_LEFT) / BEAT_WIDTH * 2) / 2);
-    const staff: 'treble' | 'bass' = y < (STAFF_TOP_TREBLE + STAFF_TOP_BASS) / 2 + 40 ? 'treble' : 'bass';
-    const { pitch, octave } = getPitchFromY(y, staff);
-    return { position, pitch, octave, staff };
-  }, [getPitchFromY]);
+  const coordsToInfo = useCallback((x: number, y: number) => {
+    const rawPosition = (x - PADDING_LEFT) / BEAT_WIDTH;
+    const snappedPosition = Math.max(0, Math.round(rawPosition * 2) / 2);
 
-  const findNoteAtPosition = useCallback((x: number, y: number): Note | null => {
-    for (const note of score.notes) {
-      const noteX = CANVAS_PADDING_LEFT + note.position * BEAT_WIDTH;
-      const noteY = getPitchY(note.pitch, note.octave, note.staff);
-      if (Math.abs(x - noteX) < 14 && Math.abs(y - noteY) < 12) {
+    const staffDivideY = (TREBLE_TOP + BASS_TOP) / 2 + 2 * LINE_SPACING;
+    const staff: 'treble' | 'bass' = y < staffDivideY ? 'treble' : 'bass';
+
+    const midi = yToMIDI(y, staff);
+    const { pitch, octave } = midiToPitchOctave(midi);
+
+    return { position: snappedPosition, pitch, octave, staff };
+  }, [yToMIDI]);
+
+  const findNoteAt = useCallback((x: number, y: number): Note | null => {
+    for (let i = score.notes.length - 1; i >= 0; i--) {
+      const note = score.notes[i];
+      const noteX = PADDING_LEFT + note.position * BEAT_WIDTH;
+      const midiNote = note.octave * 12 + note.pitch;
+      const noteY = midiToY(midiNote, note.staff);
+      const dx = x - noteX;
+      const dy = y - noteY;
+      const distSq = dx * dx + dy * dy;
+      if (distSq <= 260) {
         return note;
       }
     }
     return null;
-  }, [score.notes, getPitchY]);
+  }, [score.notes, midiToY]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const { x, y } = getCanvasCoords(e);
-    const info = getInfoFromCoords(x, y);
+    const { x, y } = getCanvasXY(e);
+    const info = coordsToInfo(x, y);
     setHoverInfo({ ...info, x, y });
 
-    if (onCursorUpdate && !draggingNote) {
-      if (Math.abs(info.position - lastCursorSentRef.current) > 0.25) {
-        lastCursorSentRef.current = info.position;
+    if (onCursorUpdate && !dragging) {
+      if (Math.abs(info.position - lastSentPositionRef.current) > 0.25) {
+        lastSentPositionRef.current = info.position;
         onCursorUpdate(info.position);
       }
     }
-
-    if (draggingNote) {
-      e.preventDefault();
-    }
-  }, [getCanvasCoords, getInfoFromCoords, draggingNote, onCursorUpdate]);
+  }, [getCanvasXY, coordsToInfo, onCursorUpdate, dragging]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverInfo(null);
     if (onCursorUpdate) {
+      lastSentPositionRef.current = -999;
       onCursorUpdate(null);
-      lastCursorSentRef.current = -1;
     }
   }, [onCursorUpdate]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    const { x, y } = getCanvasCoords(e);
-    const clickedNote = findNoteAtPosition(x, y);
+    if (e.button !== 0) return;
 
-    if (clickedNote) {
-      setSelectedNoteId(clickedNote.id);
-      setDraggingNote({
-        noteId: clickedNote.id,
+    const { x, y } = getCanvasXY(e);
+    const hitNote = findNoteAt(x, y);
+
+    if (hitNote) {
+      setSelectedNoteId(hitNote.id);
+      setDragging({
+        noteId: hitNote.id,
         startX: x,
         startY: y,
-        origPosition: clickedNote.position,
-        origPitch: clickedNote.pitch,
-        origOctave: clickedNote.octave
+        origPosition: hitNote.position,
+        origPitch: hitNote.pitch,
+        origOctave: hitNote.octave,
+        origStaff: hitNote.staff
       });
     } else {
       setSelectedNoteId(null);
     }
-  }, [getCanvasCoords, findNoteAtPosition]);
+  }, [getCanvasXY, findNoteAt]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    const { x, y } = getCanvasCoords(e);
+    if (e.button !== 0) return;
 
-    if (draggingNote) {
-      const note = score.notes.find(n => n.id === draggingNote.noteId);
+    const { x, y } = getCanvasXY(e);
+
+    if (dragging) {
+      const note = score.notes.find(n => n.id === dragging.noteId);
       if (note) {
-        const deltaX = x - draggingNote.startX;
-        const deltaY = y - draggingNote.startY;
-        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-          const newPosition = Math.max(0, Math.round((draggingNote.origPosition * BEAT_WIDTH + deltaX) / BEAT_WIDTH * 2) / 2);
-          const pitchResult = getPitchFromY(draggingNote.startY + deltaY, note.staff);
-          if (newPosition !== draggingNote.origPosition || pitchResult.pitch !== draggingNote.origPitch || pitchResult.octave !== draggingNote.origOctave) {
-            const newMidiPitch = pitchResult.octave * 12 + pitchResult.pitch;
-            onMoveNote(draggingNote.noteId, newPosition, newMidiPitch);
+        const deltaX = x - dragging.startX;
+        const deltaY = y - dragging.startY;
+        const moved = Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5;
+
+        if (moved) {
+          const newPosPx = dragging.origPosition * BEAT_WIDTH + deltaX;
+          const newPosition = Math.max(0, Math.round(newPosPx / BEAT_WIDTH * 2) / 2);
+
+          const origMIDI = dragging.origOctave * 12 + dragging.origPitch;
+          const origY = midiToY(origMIDI, dragging.origStaff);
+          const newY = origY + deltaY;
+          const newMIDI = yToMIDI(newY, dragging.origStaff);
+
+          const posChanged = newPosition !== dragging.origPosition;
+          const pitchChanged = newMIDI !== origMIDI;
+
+          if (posChanged || pitchChanged) {
+            onMoveNote(dragging.noteId, newPosition, newMIDI);
           }
         }
       }
-      setDraggingNote(null);
+      setDragging(null);
     } else {
-      const info = getInfoFromCoords(x, y);
-      const clickedNote = findNoteAtPosition(x, y);
-      if (!clickedNote) {
-        onAddNote(info.pitch, info.octave, info.position);
+      const hitNote = findNoteAt(x, y);
+      if (!hitNote) {
+        const info = coordsToInfo(x, y);
+        const effectiveStaff = selectedStaff;
+        const midi = yToMIDI(y, effectiveStaff);
+        const { pitch, octave } = midiToPitchOctave(midi);
+        onAddNote(pitch, octave, info.position);
       }
     }
-  }, [getCanvasCoords, draggingNote, score.notes, getInfoFromCoords, findNoteAtPosition, getPitchFromY, onAddNote, onMoveNote]);
+  }, [
+    getCanvasXY,
+    findNoteAt,
+    coordsToInfo,
+    dragging,
+    score.notes,
+    midiToY,
+    yToMIDI,
+    onAddNote,
+    onMoveNote,
+    selectedStaff
+  ]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    const { x, y } = getCanvasCoords(e);
-    const clickedNote = findNoteAtPosition(x, y);
-    if (clickedNote) {
-      onDeleteNote(clickedNote.id);
-      if (selectedNoteId === clickedNote.id) {
+    const { x, y } = getCanvasXY(e);
+    const hitNote = findNoteAt(x, y);
+    if (hitNote) {
+      onDeleteNote(hitNote.id);
+      if (selectedNoteId === hitNote.id) {
         setSelectedNoteId(null);
       }
     }
-  }, [getCanvasCoords, findNoteAtPosition, onDeleteNote, selectedNoteId]);
+  }, [getCanvasXY, findNoteAt, onDeleteNote, selectedNoteId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteId) {
@@ -579,7 +782,8 @@ const Editor: React.FC<EditorProps> = ({
         overflow: 'auto',
         padding: 20,
         backgroundColor: '#ffffff',
-        outline: 'none'
+        outline: 'none',
+        boxSizing: 'border-box'
       }}
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -588,8 +792,9 @@ const Editor: React.FC<EditorProps> = ({
         ref={canvasRef}
         style={{
           display: 'block',
-          cursor: draggingNote ? 'grabbing' : 'crosshair',
-          userSelect: 'none'
+          cursor: dragging ? 'grabbing' : 'crosshair',
+          userSelect: 'none',
+          WebkitUserSelect: 'none'
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -597,35 +802,41 @@ const Editor: React.FC<EditorProps> = ({
         onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
       />
+
       <div style={{
         marginTop: 20,
         padding: '12px 16px',
         backgroundColor: '#f9fafb',
         borderRadius: 8,
         fontSize: 13,
-        color: '#666',
+        color: '#555',
         borderLeft: '3px solid #4a9eff'
       }}>
-        <strong>操作提示：</strong>
-        <span style={{ marginLeft: 12 }}>
-          左键单击空白处添加音符 · 左键拖动音符移动位置 · 右键单击或按 Delete 删除音符
+        <strong style={{ color: '#333' }}>操作提示：</strong>
+        <span style={{ marginLeft: 10 }}>
+          左键单击空白处添加音符 · 左键拖动音符移动位置/音高 · 右键单击或按 Delete 删除
         </span>
         {hoverInfo && (
-          <span style={{ marginLeft: 16, color: '#4a9eff', fontWeight: 500 }}>
-            | 位置: {hoverInfo.position} · 音高: {PITCH_NAMES[hoverInfo.pitch]}{hoverInfo.octave}
+          <span style={{
+            marginLeft: 14,
+            color: '#4a9eff',
+            fontWeight: 600,
+            fontFamily: 'monospace'
+          }}>
+            | 位置: {hoverInfo.position.toFixed(1)} · 音高: {PITCH_NAMES[hoverInfo.pitch]}{hoverInfo.octave} · {hoverInfo.staff === 'treble' ? '高音谱' : '低音谱'}
           </span>
         )}
         {collaborators.length > 0 && (
           <span style={{
-            marginLeft: 16,
-            padding: '2px 8px',
+            marginLeft: 14,
+            padding: '3px 10px',
             backgroundColor: 'rgba(76, 205, 196, 0.12)',
-            borderRadius: 4,
-            color: '#4ECDC4',
-            fontWeight: 500,
+            borderRadius: 5,
+            color: '#2fa89f',
+            fontWeight: 600,
             fontSize: 12
           }}>
-            👥 {collaborators.length} 人正在协作
+            👥 {collaborators.length} 人协作中
           </span>
         )}
       </div>

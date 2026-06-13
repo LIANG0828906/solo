@@ -10,6 +10,11 @@ interface PlayerProps {
   onPositionUpdate: (position: number) => void;
 }
 
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const FADE_IN_DURATION = 200;
+const FADE_OUT_DURATION = 400;
+
 const Player: React.FC<PlayerProps> = ({
   score,
   isPlaying,
@@ -19,117 +24,150 @@ const Player: React.FC<PlayerProps> = ({
 }) => {
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const partRef = useRef<Tone.Part | null>(null);
-  const transportRef = useRef<Tone.Transport | null>(null);
-  const scheduledHighlightsRef = useRef<Array<{ id: number; noteId: string }>>([]);
+  const drawEventsRef = useRef<number[]>([]);
   const animationFrameRef = useRef<number | null>(null);
-  const startPositionRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
 
-  const [totalDuration, setTotalDuration] = useState(0);
+  const highlightStateRef = useRef<{
+    currentId: string | null;
+    targetId: string | null;
+    opacity: number;
+    fadeStart: number;
+    fadeFrom: number;
+    fadeTo: number;
+    fadeDuration: number;
+  }>({
+    currentId: null,
+    targetId: null,
+    opacity: 0,
+    fadeStart: 0,
+    fadeFrom: 0,
+    fadeTo: 0,
+    fadeDuration: 0
+  });
+
+  const [totalDurationBeats, setTotalDurationBeats] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [isAudioReady, setIsAudioReady] = useState(false);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [highlightOpacity, setHighlightOpacity] = useState(0);
-  const highlightFadeTimerRef = useRef<number | null>(null);
+  const [, forceRender] = useState(0);
+
+  const beatsToSeconds = useCallback((beats: number): number => {
+    return beats * (60 / score.tempo);
+  }, [score.tempo]);
+
+  const secondsToBeats = useCallback((seconds: number): number => {
+    return seconds * (score.tempo / 60);
+  }, [score.tempo]);
 
   useEffect(() => {
     if (score.notes.length === 0) {
-      setTotalDuration(8);
+      setTotalDurationBeats(8);
       return;
     }
     const maxEnd = Math.max(...score.notes.map(n => n.position + n.duration));
-    setTotalDuration(Math.max(maxEnd, 8));
+    setTotalDurationBeats(Math.max(maxEnd, 8));
   }, [score.notes]);
 
-  const initAudio = useCallback(async () => {
-    if (!isAudioReady) {
-      await Tone.start();
-      synthRef.current = new Tone.PolySynth(Tone.Synth, {
-        oscillator: {
-          type: 'triangle'
-        },
-        envelope: {
-          attack: 0.02,
-          decay: 0.3,
-          sustain: 0.4,
-          release: 1.2
-        }
-      }).toDestination();
-
-      synthRef.current.volume.value = -8;
-      setIsAudioReady(true);
+  const initAudio = useCallback(async (): Promise<Tone.PolySynth | null> => {
+    if (synthRef.current) {
+      return synthRef.current;
     }
-    return synthRef.current;
-  }, [isAudioReady]);
+    await Tone.start();
+    const synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: {
+        type: 'triangle'
+      },
+      envelope: {
+        attack: 0.02,
+        decay: 0.3,
+        sustain: 0.4,
+        release: 1.2
+      }
+    }).toDestination();
+    synth.volume.value = -8;
+    synthRef.current = synth;
+    setIsAudioReady(true);
+    return synth;
+  }, []);
 
   const midiToNoteName = (pitch: number, octave: number): string => {
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    return `${noteNames[pitch]}${octave}`;
+    const safePitch = Math.max(0, Math.min(11, Math.floor(pitch)));
+    return `${NOTE_NAMES[safePitch]}${octave}`;
   };
 
-  const doHighlight = useCallback((noteId: string | null) => {
-    if (highlightFadeTimerRef.current) {
-      clearTimeout(highlightFadeTimerRef.current);
-      highlightFadeTimerRef.current = null;
+  const clearDrawEvents = useCallback(() => {
+    drawEventsRef.current.forEach(id => Tone.Draw.clear(id));
+    drawEventsRef.current = [];
+  }, []);
+
+  const runHighlightAnimation = useCallback(() => {
+    const state = highlightStateRef.current;
+    const now = performance.now();
+    const elapsed = now - state.fadeStart;
+
+    if (elapsed >= state.fadeDuration) {
+      state.opacity = state.fadeTo;
+    } else {
+      const t = elapsed / state.fadeDuration;
+      state.opacity = state.fadeFrom + (state.fadeTo - state.fadeFrom) * t;
     }
+
+    forceRender(x => x + 1);
+
+    if (elapsed < state.fadeDuration) {
+      requestAnimationFrame(runHighlightAnimation);
+    } else {
+      if (state.fadeTo === 0) {
+        state.currentId = null;
+        onHighlightNote(null);
+      }
+    }
+  }, [onHighlightNote]);
+
+  const doHighlight = useCallback((noteId: string | null) => {
+    const state = highlightStateRef.current;
+    const now = performance.now();
 
     if (noteId) {
-      setHighlightedId(noteId);
+      if (state.currentId === noteId) return;
+      state.targetId = noteId;
+      state.currentId = noteId;
       onHighlightNote(noteId);
-
-      requestAnimationFrame(() => {
-        setHighlightOpacity(0);
-        let start = performance.now();
-        const fadeIn = (now: number) => {
-          const elapsed = now - start;
-          const progress = Math.min(1, elapsed / 200);
-          setHighlightOpacity(progress);
-          if (progress < 1) {
-            requestAnimationFrame(fadeIn);
-          }
-        };
-        requestAnimationFrame(fadeIn);
-      });
+      state.fadeFrom = state.opacity;
+      state.fadeTo = 1;
+      state.fadeStart = now;
+      state.fadeDuration = FADE_IN_DURATION;
+      requestAnimationFrame(runHighlightAnimation);
     } else {
-      let start = performance.now();
-      const startOpacity = highlightOpacity;
-      const fadeOut = (now: number) => {
-        const elapsed = now - start;
-        const progress = Math.min(1, elapsed / 400);
-        const newOpacity = startOpacity * (1 - progress);
-        setHighlightOpacity(newOpacity);
-        if (progress < 1) {
-          requestAnimationFrame(fadeOut);
-        } else {
-          setHighlightedId(null);
-          onHighlightNote(null);
-          setHighlightOpacity(0);
-        }
-      };
-      requestAnimationFrame(fadeOut);
+      if (state.opacity <= 0.001) return;
+      state.targetId = null;
+      state.fadeFrom = state.opacity;
+      state.fadeTo = 0;
+      state.fadeStart = now;
+      state.fadeDuration = FADE_OUT_DURATION;
+      requestAnimationFrame(runHighlightAnimation);
     }
-  }, [onHighlightNote, highlightOpacity]);
+  }, [onHighlightNote, runHighlightAnimation]);
 
   const buildAndSchedulePart = useCallback(async (startBeat: number) => {
-    if (!synthRef.current) {
-      await initAudio();
-    }
-    if (!synthRef.current) return;
+    const synth = await initAudio();
+    if (!synth) return;
 
     if (partRef.current) {
+      partRef.current.stop();
       partRef.current.dispose();
       partRef.current = null;
     }
+    clearDrawEvents();
 
-    scheduledHighlightsRef.current = [];
-
+    const startSeconds = beatsToSeconds(startBeat);
     const partEvents: Array<{ time: number; note: Note }> = [];
 
-    const beatDuration = 60 / score.tempo;
     score.notes.forEach(note => {
-      if (note.position + note.duration > startBeat) {
+      const noteStartBeat = note.position;
+      const noteEndBeat = note.position + note.duration;
+      if (noteEndBeat > startBeat) {
         partEvents.push({
-          time: note.position - startBeat,
+          time: beatsToSeconds(noteStartBeat) - startSeconds,
           note
         });
       }
@@ -137,44 +175,36 @@ const Player: React.FC<PlayerProps> = ({
 
     if (partEvents.length === 0) return;
 
+    const totalDurationSeconds = beatsToSeconds(totalDurationBeats);
+
     partRef.current = new Tone.Part((time, value: { note: Note }) => {
       const { note } = value;
       const noteName = midiToNoteName(note.pitch, note.octave);
-      const durationSec = note.duration * beatDuration;
+      const durationSec = beatsToSeconds(note.duration);
 
-      if (synthRef.current) {
-        synthRef.current.triggerAttackRelease(noteName, durationSec, time, 0.8);
-      }
+      synth.triggerAttackRelease(noteName, durationSec, time, 0.8);
 
-      const scheduledTime = Tone.immediate() + (time - Tone.now());
-      const delayMs = Math.max(0, scheduledTime * 1000 - Tone.now() * 1000);
-
-      const highlightStartId = window.setTimeout(() => {
+      const highlightStartId = Tone.Draw.schedule(() => {
         doHighlight(note.id);
-      }, Math.max(0, delayMs - 20));
+      }, time);
+      drawEventsRef.current.push(highlightStartId);
 
-      const durationMs = durationSec * 1000;
-      const highlightEndId = window.setTimeout(() => {
+      const highlightEndTime = time + durationSec * 0.7;
+      const highlightEndId = Tone.Draw.schedule(() => {
         doHighlight(null);
-      }, Math.max(0, delayMs + durationMs * 0.7));
-
-      scheduledHighlightsRef.current.push(
-        { id: highlightStartId, noteId: note.id },
-        { id: highlightEndId, noteId: note.id }
-      );
+      }, highlightEndTime);
+      drawEventsRef.current.push(highlightEndId);
     }, partEvents.map(e => [e.time, e]));
 
+    const endId = Tone.Draw.schedule(() => {
+      handleStopInternal();
+    }, totalDurationSeconds - startSeconds + 0.5);
+    drawEventsRef.current.push(endId);
+
     partRef.current.start(0);
-  }, [score.notes, score.tempo, initAudio, doHighlight]);
+  }, [score.notes, score.tempo, totalDurationBeats, beatsToSeconds, initAudio, doHighlight, clearDrawEvents]);
 
   useEffect(() => {
-    const getCurrentPos = () => {
-      if (!isPlaying) return startPositionRef.current;
-      const elapsedMs = performance.now() - startTimeRef.current;
-      const beatsElapsed = (elapsedMs / 1000) * (score.tempo / 60);
-      return startPositionRef.current + beatsElapsed;
-    };
-
     if (!isPlaying) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -184,15 +214,10 @@ const Player: React.FC<PlayerProps> = ({
     }
 
     const tick = () => {
-      const pos = getCurrentPos();
-      onPositionUpdate(pos);
-      setCurrentProgress(Math.min(1, pos / totalDuration));
-
-      if (pos >= totalDuration + 0.5) {
-        handleStopInternal();
-        return;
-      }
-
+      const transportSeconds = Tone.Transport.seconds;
+      const posBeats = secondsToBeats(transportSeconds);
+      onPositionUpdate(posBeats);
+      setCurrentProgress(Math.min(1, posBeats / totalDurationBeats));
       animationFrameRef.current = requestAnimationFrame(tick);
     };
 
@@ -201,60 +226,59 @@ const Player: React.FC<PlayerProps> = ({
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [isPlaying, score.tempo, onPositionUpdate, totalDuration]);
-
-  const handlePlay = async () => {
-    await initAudio();
-
-    let startBeat = currentProgress * totalDuration;
-    if (startBeat >= totalDuration - 0.1) {
-      startBeat = 0;
-      setCurrentProgress(0);
-      onPositionUpdate(0);
-    }
-
-    startPositionRef.current = startBeat;
-    startTimeRef.current = performance.now();
-
-    await buildAndSchedulePart(startBeat);
-    Tone.Transport.bpm.value = score.tempo;
-    Tone.Transport.start();
-
-    setIsPlaying(true);
-  };
-
-  const handlePause = () => {
-    Tone.Transport.pause();
-    if (partRef.current) {
-      partRef.current.stop();
-    }
-
-    scheduledHighlightsRef.current.forEach(s => clearTimeout(s.id));
-    scheduledHighlightsRef.current = [];
-    doHighlight(null);
-
-    setIsPlaying(false);
-  };
+  }, [isPlaying, secondsToBeats, onPositionUpdate, totalDurationBeats]);
 
   const handleStopInternal = useCallback(() => {
     Tone.Transport.stop();
+    Tone.Transport.seconds = 0;
+
     if (partRef.current) {
       partRef.current.stop();
       partRef.current.dispose();
       partRef.current = null;
     }
 
-    scheduledHighlightsRef.current.forEach(s => clearTimeout(s.id));
-    scheduledHighlightsRef.current = [];
+    clearDrawEvents();
     doHighlight(null);
 
     setIsPlaying(false);
     setCurrentProgress(0);
     onPositionUpdate(0);
-    startPositionRef.current = 0;
-  }, [setIsPlaying, onPositionUpdate, doHighlight]);
+  }, [setIsPlaying, onPositionUpdate, doHighlight, clearDrawEvents]);
+
+  const handlePlay = async () => {
+    await initAudio();
+
+    let startBeat = currentProgress * totalDurationBeats;
+    if (startBeat >= totalDurationBeats - 0.1) {
+      startBeat = 0;
+      setCurrentProgress(0);
+      onPositionUpdate(0);
+    }
+
+    Tone.Transport.bpm.value = score.tempo;
+    Tone.Transport.seconds = beatsToSeconds(startBeat);
+
+    await buildAndSchedulePart(startBeat);
+
+    Tone.Transport.start();
+    setIsPlaying(true);
+  };
+
+  const handlePause = () => {
+    Tone.Transport.pause();
+
+    if (partRef.current) {
+      partRef.current.stop();
+    }
+
+    clearDrawEvents();
+    doHighlight(null);
+    setIsPlaying(false);
+  };
 
   const handleStop = () => {
     handleStopInternal();
@@ -265,53 +289,58 @@ const Player: React.FC<PlayerProps> = ({
     const rect = bar.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
-    const newPosition = ratio * totalDuration;
+    const newPositionBeats = ratio * totalDurationBeats;
+    const newPositionSeconds = beatsToSeconds(newPositionBeats);
 
     const wasPlaying = isPlaying;
+
     if (wasPlaying) {
       Tone.Transport.pause();
-      if (partRef.current) {
-        partRef.current.stop();
-        partRef.current.dispose();
-        partRef.current = null;
-      }
-      scheduledHighlightsRef.current.forEach(s => clearTimeout(s.id));
-      scheduledHighlightsRef.current = [];
-      doHighlight(null);
     }
 
+    if (partRef.current) {
+      partRef.current.stop();
+      partRef.current.dispose();
+      partRef.current = null;
+    }
+
+    clearDrawEvents();
+    doHighlight(null);
+
+    Tone.Transport.seconds = newPositionSeconds;
     setCurrentProgress(ratio);
-    onPositionUpdate(newPosition);
+    onPositionUpdate(newPositionBeats);
 
     if (wasPlaying) {
-      startPositionRef.current = newPosition;
-      startTimeRef.current = performance.now();
-
-      await buildAndSchedulePart(newPosition);
       Tone.Transport.bpm.value = score.tempo;
+      await buildAndSchedulePart(newPositionBeats);
       Tone.Transport.start();
     }
   };
 
   const formatTime = (beats: number): string => {
-    const seconds = beats * (60 / score.tempo);
+    const seconds = beatsToSeconds(beats);
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentBeats = currentProgress * totalDuration;
+  const currentBeats = currentProgress * totalDurationBeats;
+  const highlightState = highlightStateRef.current;
 
   return (
     <div style={styles.playerContainer}>
       <div style={{ display: 'none' }}>
-        <span data-highlight={highlightedId || ''} data-opacity={highlightOpacity} />
+        <span
+          data-highlight={highlightState.currentId || ''}
+          data-opacity={highlightState.opacity}
+        />
       </div>
 
       <div style={styles.progressInfo}>
         <span style={styles.timeText}>{formatTime(currentBeats)}</span>
         <span style={styles.timeDivider}>/</span>
-        <span style={styles.timeText}>{formatTime(totalDuration)}</span>
+        <span style={styles.timeText}>{formatTime(totalDurationBeats)}</span>
         <span style={{ ...styles.tempoBadge, marginLeft: 'auto' }}>
           ♩ = {score.tempo}
         </span>

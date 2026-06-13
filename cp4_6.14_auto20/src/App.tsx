@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 import Editor from './Editor';
 import VersionManager from './VersionManager';
 import Player from './Player';
@@ -208,6 +207,18 @@ const App: React.FC = () => {
     setVersionLoading(false);
   }, [versions, socket, versionLoading]);
 
+  const encodeVariableLength = useCallback((value: number): number[] => {
+    const buffer: number[] = [];
+    let v = value & 0x0FFFFFFF;
+    buffer.unshift(v & 0x7F);
+    v >>= 7;
+    while (v > 0) {
+      buffer.unshift((v & 0x7F) | 0x80);
+      v >>= 7;
+    }
+    return buffer;
+  }, []);
+
   const generateMIDIFile = useCallback((scoreData: Score): Uint8Array => {
     const noteNames = [0, 2, 4, 5, 7, 9, 11];
     const midiNotes: Array<{ note: number; time: number; duration: number }> = [];
@@ -251,15 +262,20 @@ const App: React.FC = () => {
       const eventTick = Math.floor(mn.time * ticksPerBeat);
       const endTick = Math.floor((mn.time + mn.duration) * ticksPerBeat);
 
-      pendingOff: for (const [activeNote, activeEnd] of Array.from(activeNotes.entries())) {
-        if (activeEnd <= eventTick) {
-          const deltaOff = Math.max(0, activeEnd - lastTime);
-          const encodedOff = encodeVariableLength(deltaOff);
-          trackEvents.push(...encodedOff);
-          trackEvents.push(0x80, activeNote, 0x00);
-          lastTime = activeEnd;
-          activeNotes.delete(activeNote);
-          break pendingOff;
+      let hasClosed = true;
+      while (hasClosed) {
+        hasClosed = false;
+        for (const [activeNote, activeEnd] of Array.from(activeNotes.entries())) {
+          if (activeEnd <= eventTick) {
+            const deltaOff = Math.max(0, activeEnd - lastTime);
+            const encodedOff = encodeVariableLength(deltaOff);
+            trackEvents.push(...encodedOff);
+            trackEvents.push(0x80, activeNote, 0x00);
+            lastTime = activeEnd;
+            activeNotes.delete(activeNote);
+            hasClosed = true;
+            break;
+          }
         }
       }
 
@@ -292,19 +308,7 @@ const App: React.FC = () => {
     ];
 
     return new Uint8Array([...headerChunk, ...trackChunk]);
-
-    function encodeVariableLength(value: number): number[] {
-      const buffer: number[] = [];
-      let v = value & 0x0FFFFFFF;
-      buffer.unshift(v & 0x7F);
-      v >>= 7;
-      while (v > 0) {
-        buffer.unshift((v & 0x7F) | 0x80);
-        v >>= 7;
-      }
-      return buffer;
-    }
-  }, []);
+  }, [encodeVariableLength]);
 
   const generateSVGFile = useCallback((scoreData: Score): string => {
     const width = Math.max(1400, 200 + scoreData.notes.length * 90);
@@ -444,7 +448,7 @@ const App: React.FC = () => {
           setExportProgress(prev => prev ? { ...prev, done: true, progress: 100 } : null);
           setTimeout(() => {
             const midiContent = generateMIDIFile(score);
-            const blob = new Blob([midiContent], { type: 'audio/midi' });
+            const blob = new Blob([midiContent.buffer as ArrayBuffer], { type: 'audio/midi' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -508,6 +512,24 @@ const App: React.FC = () => {
 
   const allCollaborators = [currentCollaborator, ...collaborators];
 
+  const mobileToggleStyle: React.CSSProperties = isMobile ? {
+    padding: 10,
+    backgroundColor: '#f3f4f6',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    fontSize: 20,
+    display: 'block'
+  } : {
+    padding: 10,
+    backgroundColor: '#f3f4f6',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    fontSize: 20,
+    display: 'none'
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -552,7 +574,7 @@ const App: React.FC = () => {
             💾 保存版本
           </button>
           <button
-            style={styles.mobileToggle}
+            style={mobileToggleStyle}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             ⚙️
@@ -658,7 +680,6 @@ const App: React.FC = () => {
             <VersionManager
               versions={versions}
               onRestore={handleRestoreVersion}
-              isLoading={versionLoading}
             />
 
             <div style={styles.section}>
@@ -776,7 +797,6 @@ const styles: Record<string, React.CSSProperties> = {
   titleInput: {
     fontSize: 17,
     fontWeight: 600,
-    border: 'none',
     outline: 'none',
     padding: '7px 14px',
     borderRadius: 8,
@@ -820,15 +840,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     boxShadow: '0 2px 8px rgba(74, 158, 255, 0.3)',
     transition: 'all 0.2s ease'
-  },
-  mobileToggle: {
-    padding: 10,
-    backgroundColor: '#f3f4f6',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontSize: 20,
-    ...(typeof window !== 'undefined' && window.innerWidth >= 768 ? { display: 'none' } : { display: 'block' })
   },
   mainContent: {
     flex: 1,

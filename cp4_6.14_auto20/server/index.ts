@@ -40,7 +40,7 @@ const createDefaultScore = (scoreId: string): Score => ({
   notes: [
     {
       id: uuidv4(),
-      pitch: 4,
+      pitch: 0,
       octave: 5,
       duration: 1,
       position: 0,
@@ -48,7 +48,7 @@ const createDefaultScore = (scoreId: string): Score => ({
     },
     {
       id: uuidv4(),
-      pitch: 6,
+      pitch: 2,
       octave: 5,
       duration: 1,
       position: 1,
@@ -56,7 +56,7 @@ const createDefaultScore = (scoreId: string): Score => ({
     },
     {
       id: uuidv4(),
-      pitch: 7,
+      pitch: 4,
       octave: 5,
       duration: 1,
       position: 2,
@@ -64,7 +64,7 @@ const createDefaultScore = (scoreId: string): Score => ({
     },
     {
       id: uuidv4(),
-      pitch: 9,
+      pitch: 5,
       octave: 5,
       duration: 1,
       position: 3,
@@ -72,7 +72,7 @@ const createDefaultScore = (scoreId: string): Score => ({
     },
     {
       id: uuidv4(),
-      pitch: 11,
+      pitch: 7,
       octave: 5,
       duration: 1,
       position: 4,
@@ -82,24 +82,24 @@ const createDefaultScore = (scoreId: string): Score => ({
       id: uuidv4(),
       pitch: 9,
       octave: 5,
-      duration: 0.5,
+      duration: 1,
       position: 5,
       staff: 'treble'
     },
     {
       id: uuidv4(),
-      pitch: 7,
+      pitch: 11,
       octave: 5,
-      duration: 0.5,
-      position: 5.5,
+      duration: 1,
+      position: 6,
       staff: 'treble'
     },
     {
       id: uuidv4(),
-      pitch: 6,
-      octave: 5,
-      duration: 2,
-      position: 6,
+      pitch: 0,
+      octave: 6,
+      duration: 1,
+      position: 7,
       staff: 'treble'
     }
   ],
