@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
+import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 import type { Task, TeamMember } from '@/utils/types';
 import { PRIORITY_LABELS, PRIORITY_COLORS } from '@/utils/types';
@@ -10,6 +11,7 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   style?: React.CSSProperties;
+  isDragging?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -35,12 +37,20 @@ function formatDate(dateStr: string): string {
   return `${month}月${day}日`;
 }
 
+const springConfig = {
+  type: 'spring',
+  stiffness: 300,
+  damping: 21,
+  mass: 0.8,
+};
+
 export const TaskCard = memo(function TaskCard({
   task,
   members,
   index,
   onEdit,
   style,
+  isDragging = false,
 }: TaskCardProps) {
   const assignee = members.find((m) => m.id === task.assigneeId);
   const priorityClass = `priority-${task.priority}`;
@@ -54,10 +64,20 @@ export const TaskCard = memo(function TaskCard({
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
-        <div
+        <motion.div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
+          initial={false}
+          animate={{
+            scale: snapshot.isDragging ? 1.03 : 1,
+            rotate: snapshot.isDragging ? 1 : 0,
+            zIndex: snapshot.isDragging ? 1000 : 1,
+            boxShadow: snapshot.isDragging
+              ? '0 20px 40px -12px rgba(0, 0, 0, 0.25)'
+              : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          }}
+          transition={springConfig}
           style={{
             ...style,
             ...provided.draggableProps.style,
@@ -66,7 +86,7 @@ export const TaskCard = memo(function TaskCard({
             task-card ${priorityClass} hover-scale
             bg-white rounded-lg shadow-sm p-3 mb-3
             cursor-pointer select-none
-            ${snapshot.isDragging ? 'dragging opacity-90' : ''}
+            ${snapshot.isDragging ? 'dragging opacity-95' : ''}
             ${isOverdue ? 'ring-1 ring-red-300' : ''}
           `}
           onDoubleClick={() => onEdit(task)}
@@ -116,7 +136,7 @@ export const TaskCard = memo(function TaskCard({
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </Draggable>
   );
