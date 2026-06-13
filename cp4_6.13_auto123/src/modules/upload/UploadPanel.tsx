@@ -1,21 +1,22 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import type { ImageItem, ColorSwatch } from '../../types';
-import { ColorAnalyzer } from '../analyzer/ColorAnalyzer';
 import styles from './UploadPanel.module.css';
 
-interface UploadPanelProps {
-  onImagesAdded: (images: ImageItem[]) => void;
-  activeColorFilter: string | null;
-  onColorFilterChange: (color: string | null) => void;
-}
-
-interface UploadingItem {
+export interface PendingImage {
   id: string;
   name: string;
+  url: string;
+  file: File;
   progress: number;
   status: 'uploading' | 'analyzing' | 'done' | 'error';
-  thumbnail?: string;
   errorMessage?: string;
+}
+
+interface UploadPanelProps {
+  onFileReady: (file: File, dataUrl: string, tempId: string) => void;
+  onAnalysisProgress: (id: string, progress: number, status: PendingImage['status']) => void;
+  pendingImages: PendingImage[];
+  activeColorFilter: string | null;
+  onColorFilterChange: (color: string | null) => void;
 }
 
 const COLOR_FILTERS = [
@@ -28,115 +29,123 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
 const UploadPanel: React.FC<UploadPanelProps> = ({
-  onImagesAdded,
+  onFileReady,
+  onAnalysisProgress,
+  pendingImages,
   activeColorFilter,
   onColorFilterChange,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadingItems, setUploadingItems] = useState<UploadingItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const uploadingItemsRef = useRef<Map<string, UploadingItem>>(new Map());
+  const progressTimersRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    uploadingItemsRef.current = new Map(uploadingItems.map(item => [item.id, item]));
-  }, [uploadingItems]);
+    return () => {
+      progressTimersRef.current.forEach(timer => clearInterval(timer));
+    };
+  }, []);
 
   const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return '仅支持 JPG/PNG 格式';
+      const ext = file.name.split('.').pop()?.toUpperCase();
+      return `${ext || '该'}格式不支持，仅支持 JPG/PNG 格式`;
     }
     if (file.size > MAX_FILE_SIZE) {
-      return '文件大小不能超过 5MB';
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      return `文件 ${sizeMB}MB 超过限制，最大支持 5MB`;
     }
     return null;
   };
 
-  const updateItemProgress = (id: string, updates: Partial<UploadingItem>) => {
-    setUploadingItems(prev =>
-      prev.map(item => (item.id === id ? { ...item, ...updates } : item))
-    );
-  };
+  const startProgressAnimation = useCallback((id: string, startPct: number, endPct: number, duration: number, onComplete?: () => void) => {
+    const existingTimer = progressTimersRef.current.get(id);
+    if (existingTimer) clearInterval(existingTimer);
+
+    const startTime = Date.now();
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(endPct, startPct + (endPct - startPct) * Math.min(1, elapsed / duration));
+      onAnalysisProgress(id, pct, pct >= endPct && !onComplete ? 'uploading' : 'uploading');
+      if (elapsed >= duration) {
+        clearInterval(timer);
+        progressTimersRef.current.delete(id);
+        if (onComplete) onComplete();
+      }
+    }, 30);
+
+    progressTimersRef.current.set(id, timer);
+    return timer;
+  }, [onAnalysisProgress]);
 
   const processFile = useCallback(async (file: File) => {
     const id = generateId();
     const error = validateFile(file);
 
-    const uploadItem: UploadingItem = {
-      id,
-      name: file.name,
-      progress: 0,
-      status: error ? 'error' : 'uploading',
-      errorMessage: error || undefined,
-    };
+    if (error) {
+      onAnalysisProgress(id, 0, 'error');
+      const pending: PendingImage = {
+        id,
+        name: file.name,
+        url: '',
+        file,
+        progress: 0,
+        status: 'error',
+        errorMessage: error,
+      };
+      onFileReady(file, '', id);
+      return;
+    }
 
-    setUploadingItems(prev => [...prev, uploadItem]);
-
-    if (error) return;
+    onAnalysisProgress(id, 0, 'uploading');
 
     const reader = new FileReader();
+
+    reader.onloadstart = () => {
+      startProgressAnimation(id, 0, 60, 600);
+    };
 
     reader.onprogress = (e) => {
       if (e.lengthComputable) {
         const progress = Math.round((e.loaded / e.total) * 60);
-        updateItemProgress(id, { progress });
+        onAnalysisProgress(id, progress, 'uploading');
       }
     };
 
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       if (!dataUrl) {
-        updateItemProgress(id, { status: 'error', errorMessage: '读取文件失败' });
+        onAnalysisProgress(id, 60, 'error');
         return;
       }
 
-      const img = new Image();
-      img.onload = async () => {
-        updateItemProgress(id, {
-          progress: 70,
-          status: 'analyzing',
-          thumbnail: dataUrl,
-        });
+      const existingTimer = progressTimersRef.current.get(id);
+      if (existingTimer) clearInterval(existingTimer);
+      onAnalysisProgress(id, 60, 'uploading');
 
-        try {
-          const colors: ColorSwatch[] = await ColorAnalyzer.analyze(dataUrl);
-
-          updateItemProgress(id, { progress: 100, status: 'done' });
-
-          const newImage: ImageItem = {
-            id,
-            name: file.name,
-            url: dataUrl,
-            width: img.width,
-            height: img.height,
-            colors,
-            uploadedAt: Date.now(),
-            progress: 100,
-          };
-
-          onImagesAdded([newImage]);
-        } catch (err) {
-          updateItemProgress(id, {
-            status: 'error',
-            errorMessage: '颜色分析失败',
-          });
-        }
-      };
-
-      img.onerror = () => {
-        updateItemProgress(id, { status: 'error', errorMessage: '图片加载失败' });
-      };
-
-      img.src = dataUrl;
+      startProgressAnimation(id, 60, 75, 300, () => {
+        onAnalysisProgress(id, 75, 'analyzing');
+        onFileReady(file, dataUrl, id);
+      });
     };
 
     reader.onerror = () => {
-      updateItemProgress(id, { status: 'error', errorMessage: '文件读取失败' });
+      onAnalysisProgress(id, 60, 'error');
     };
 
+    const pending: PendingImage = {
+      id,
+      name: file.name,
+      url: '',
+      file,
+      progress: 0,
+      status: 'uploading',
+    };
+    onFileReady(file, '', id);
+
     reader.readAsDataURL(file);
-  }, [onImagesAdded]);
+  }, [onFileReady, onAnalysisProgress, startProgressAnimation]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -160,6 +169,7 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -189,6 +199,8 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
       >
         <div className={styles.dropZoneContent}>
           <span className={styles.icon}>🎨</span>
@@ -208,12 +220,12 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
         />
       </div>
 
-      {uploadingItems.length > 0 && (
+      {pendingImages.length > 0 && (
         <div className={styles.uploadList}>
-          {uploadingItems.map(item => (
+          {pendingImages.map(item => (
             <div key={item.id} className={styles.uploadItem}>
-              {item.thumbnail && (
-                <img src={item.thumbnail} alt="" className={styles.uploadThumb} />
+              {item.url && (
+                <img src={item.url} alt="" className={styles.uploadThumb} />
               )}
               <div className={styles.uploadInfo}>
                 <div className={styles.uploadName}>{item.name}</div>
@@ -232,8 +244,8 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
                       : ''
                   }`}
                 >
-                  {item.status === 'uploading' && `上传中 ${item.progress}%`}
-                  {item.status === 'analyzing' && '分析配色中...'}
+                  {item.status === 'uploading' && `上传中 ${Math.round(item.progress)}%`}
+                  {item.status === 'analyzing' && `分析配色 ${Math.round(item.progress)}%`}
                   {item.status === 'done' && '✓ 分析完成'}
                   {item.status === 'error' && `✗ ${item.errorMessage}`}
                 </div>

@@ -1,156 +1,53 @@
 import type { ColorSwatch } from '../../types';
 
-interface RGB {
-  r: number;
-  g: number;
-  b: number;
+interface WorkerMessage {
+  type: 'analyze';
+  pixelData: Uint8ClampedArray;
+  width: number;
+  height: number;
+  samplePoints: number;
+  kClusters: number;
+  topColors: number;
+}
+
+interface WorkerResponse {
+  type: 'result' | 'error';
+  payload: any;
 }
 
 const SAMPLE_POINTS = 2000;
 const TOP_COLORS = 5;
-const K_CLUSTERS = 8;
+const K_CLUSTERS = 12;
+
+let workerPool: Worker[] = [];
+const MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 6);
+
+function getOrCreateWorker(): Worker {
+  for (const worker of workerPool) {
+    if ((worker as any)._busy === false) {
+      (worker as any)._busy = true;
+      return worker;
+    }
+  }
+
+  if (workerPool.length < MAX_WORKERS) {
+    const worker = new Worker(
+      new URL('./colorAnalyzer.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    (worker as any)._busy = true;
+    workerPool.push(worker);
+    return worker;
+  }
+
+  return workerPool[Math.floor(Math.random() * workerPool.length)];
+}
+
+function releaseWorker(worker: Worker) {
+  (worker as any)._busy = false;
+}
 
 export class ColorAnalyzer {
-  private static getImageData(imageUrl: string): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('无法获取Canvas上下文'));
-          return;
-        }
-        const maxDim = 400;
-        let { width, height } = img;
-        if (width > height) {
-          if (width > maxDim) {
-            height = (height * maxDim) / width;
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = (width * maxDim) / height;
-            height = maxDim;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        try {
-          const imageData = ctx.getImageData(0, 0, width, height);
-          resolve(imageData);
-        } catch (e) {
-          reject(e);
-        }
-      };
-      img.onerror = () => reject(new Error('图片加载失败'));
-      img.src = imageUrl;
-    });
-  }
-
-  private static samplePixels(imageData: ImageData): RGB[] {
-    const { data, width, height } = imageData;
-    const totalPixels = width * height;
-    const pixels: RGB[] = [];
-    const step = Math.max(1, Math.floor(totalPixels / SAMPLE_POINTS));
-
-    for (let i = 0; i < totalPixels; i += step) {
-      const idx = i * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const a = data[idx + 3];
-      if (a > 128) {
-        pixels.push({ r, g, b });
-      }
-    }
-    return pixels;
-  }
-
-  private static kMeansClustering(pixels: RGB[], k: number): { centers: RGB[]; counts: number[] } {
-    if (pixels.length === 0) {
-      return { centers: [], counts: [] };
-    }
-
-    const actualK = Math.min(k, pixels.length);
-    const centers: RGB[] = [];
-    const usedIndices = new Set<number>();
-    for (let i = 0; i < actualK; i++) {
-      let idx: number;
-      let attempts = 0;
-      do {
-        idx = Math.floor(Math.random() * pixels.length);
-        attempts++;
-      } while (usedIndices.has(idx) && attempts < 100);
-      usedIndices.add(idx);
-      centers.push({ ...pixels[idx] });
-    }
-
-    const assignments = new Array(pixels.length).fill(0);
-    const maxIterations = 12;
-
-    for (let iter = 0; iter < maxIterations; iter++) {
-      let changed = false;
-      for (let i = 0; i < pixels.length; i++) {
-        let minDist = Infinity;
-        let bestCluster = 0;
-        for (let j = 0; j < centers.length; j++) {
-          const dist = this.euclideanDistance(pixels[i], centers[j]);
-          if (dist < minDist) {
-            minDist = dist;
-            bestCluster = j;
-          }
-        }
-        if (assignments[i] !== bestCluster) {
-          assignments[i] = bestCluster;
-          changed = true;
-        }
-      }
-
-      const sums = centers.map(() => ({ r: 0, g: 0, b: 0, count: 0 }));
-      for (let i = 0; i < pixels.length; i++) {
-        const c = assignments[i];
-        sums[c].r += pixels[i].r;
-        sums[c].g += pixels[i].g;
-        sums[c].b += pixels[i].b;
-        sums[c].count++;
-      }
-
-      for (let j = 0; j < centers.length; j++) {
-        if (sums[j].count > 0) {
-          centers[j].r = Math.round(sums[j].r / sums[j].count);
-          centers[j].g = Math.round(sums[j].g / sums[j].count);
-          centers[j].b = Math.round(sums[j].b / sums[j].count);
-        }
-      }
-
-      if (!changed) break;
-    }
-
-    const counts = new Array(centers.length).fill(0);
-    for (let i = 0; i < assignments.length; i++) {
-      counts[assignments[i]]++;
-    }
-
-    return { centers, counts };
-  }
-
-  private static euclideanDistance(a: RGB, b: RGB): number {
-    const dr = a.r - b.r;
-    const dg = a.g - b.g;
-    const db = a.b - b.b;
-    return Math.sqrt(dr * dr + dg * dg + db * db);
-  }
-
-  private static rgbToHex(r: number, g: number, b: number): string {
-    return '#' + [r, g, b].map(v => {
-      const hex = Math.max(0, Math.min(255, Math.round(v))).toString(16);
-      return hex.length === 1 ? '0' + hex : hex;
-    }).join('').toUpperCase();
-  }
-
   public static cie76DeltaE(hex1: string, hex2: string): number {
     const rgb1 = this.hexToRgb(hex1);
     const rgb2 = this.hexToRgb(hex2);
@@ -166,16 +63,18 @@ export class ColorAnalyzer {
     return Math.sqrt(dL * dL + dA * dA + dB * dB);
   }
 
-  private static hexToRgb(hex: string): RGB | null {
+  private static hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16),
-    } : null;
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
   }
 
-  private static rgbToXyz(rgb: RGB): { X: number; Y: number; Z: number } {
+  private static rgbToXyz(rgb: { r: number; g: number; b: number }): { X: number; Y: number; Z: number } {
     let r = rgb.r / 255;
     let g = rgb.g / 255;
     let b = rgb.b / 255;
@@ -195,10 +94,10 @@ export class ColorAnalyzer {
     };
   }
 
-  private static rgbToLab(rgb: RGB): { L: number; a: number; b: number } {
+  private static rgbToLab(rgb: { r: number; g: number; b: number }): { L: number; a: number; b: number } {
     const xyz = this.rgbToXyz(rgb);
     const refX = 95.047;
-    const refY = 100.000;
+    const refY = 100.0;
     const refZ = 108.883;
 
     let x = xyz.X / refX;
@@ -219,71 +118,116 @@ export class ColorAnalyzer {
     };
   }
 
-  private static areColorsSimilar(c1: RGB, c2: RGB, threshold = 30): boolean {
-    return this.euclideanDistance(c1, c2) < threshold;
-  }
-
-  public static async analyze(imageUrl: string): Promise<ColorSwatch[]> {
-    const startTime = performance.now();
-    try {
-      const imageData = await this.getImageData(imageUrl);
-      const pixels = this.samplePixels(imageData);
-
-      if (pixels.length === 0) {
-        return [];
-      }
-
-      const { centers, counts } = this.kMeansClustering(pixels, K_CLUSTERS);
-
-      const validClusters: { center: RGB; count: number }[] = [];
-      for (let i = 0; i < centers.length; i++) {
-        if (counts[i] > 0) {
-          validClusters.push({ center: centers[i], count: counts[i] });
+  private static getImageData(imageUrl: string): Promise<{
+    imageData: ImageData;
+    naturalWidth: number;
+    naturalHeight: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('无法获取Canvas上下文'));
+          return;
         }
-      }
 
-      const merged: { center: RGB; count: number }[] = [];
-      for (const cluster of validClusters) {
-        let mergedInto = false;
-        for (const existing of merged) {
-          if (this.areColorsSimilar(cluster.center, existing.center, 45)) {
-            const totalCount = existing.count + cluster.count;
-            existing.center.r = Math.round(
-              (existing.center.r * existing.count + cluster.center.r * cluster.count) / totalCount
-            );
-            existing.center.g = Math.round(
-              (existing.center.g * existing.count + cluster.center.g * cluster.count) / totalCount
-            );
-            existing.center.b = Math.round(
-              (existing.center.b * existing.count + cluster.center.b * cluster.count) / totalCount
-            );
-            existing.count = totalCount;
-            mergedInto = true;
-            break;
+        const maxDim = 500;
+        let { naturalWidth: width, naturalHeight: height } = img;
+        let scaledWidth = width;
+        let scaledHeight = height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            scaledHeight = (height * maxDim) / width;
+            scaledWidth = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            scaledWidth = (width * maxDim) / height;
+            scaledHeight = maxDim;
           }
         }
-        if (!mergedInto) {
-          merged.push({ center: { ...cluster.center }, count: cluster.count });
+
+        canvas.width = scaledWidth;
+        canvas.height = scaledHeight;
+        ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+
+        try {
+          const imageData = ctx.getImageData(0, 0, scaledWidth, scaledHeight);
+          resolve({
+            imageData,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+          });
+        } catch (e) {
+          reject(e);
         }
-      }
+      };
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.src = imageUrl;
+    });
+  }
 
-      merged.sort((a, b) => b.count - a.count);
-      const topClusters = merged.slice(0, TOP_COLORS);
-      const totalCount = topClusters.reduce((sum, c) => sum + c.count, 0);
+  public static async analyze(imageUrl: string): Promise<{
+    colors: ColorSwatch[];
+    width: number;
+    height: number;
+  }> {
+    const { imageData, naturalWidth, naturalHeight } = await this.getImageData(imageUrl);
+    const { data, width, height } = imageData;
 
-      const elapsed = performance.now() - startTime;
-      if (elapsed < 50) {
-        await new Promise(r => setTimeout(r, 50 - elapsed));
-      }
+    const pixelData = new Uint8ClampedArray(data);
 
-      return topClusters.map(c => ({
-        hex: this.rgbToHex(c.center.r, c.center.g, c.center.b),
-        rgb: { r: c.center.r, g: c.center.g, b: c.center.b },
-        ratio: totalCount > 0 ? Math.round((c.count / totalCount) * 1000) / 10 : 0,
-      }));
-    } catch (error) {
-      console.error('颜色分析失败:', error);
-      return [];
+    return new Promise((resolve, reject) => {
+      const worker = getOrCreateWorker();
+
+      const handleMessage = (e: MessageEvent<WorkerResponse>) => {
+        releaseWorker(worker);
+        worker.removeEventListener('message', handleMessage);
+        worker.removeEventListener('error', handleError);
+
+        if (e.data.type === 'result') {
+          resolve({
+            colors: e.data.payload,
+            width: naturalWidth,
+            height: naturalHeight,
+          });
+        } else {
+          reject(new Error(e.data.payload));
+        }
+      };
+
+      const handleError = (err: ErrorEvent) => {
+        releaseWorker(worker);
+        worker.removeEventListener('message', handleMessage);
+        worker.removeEventListener('error', handleError);
+        reject(new Error(err.message));
+      };
+
+      worker.addEventListener('message', handleMessage);
+      worker.addEventListener('error', handleError);
+
+      const message: WorkerMessage = {
+        type: 'analyze',
+        pixelData,
+        width,
+        height,
+        samplePoints: SAMPLE_POINTS,
+        kClusters: K_CLUSTERS,
+        topColors: TOP_COLORS,
+      };
+
+      worker.postMessage(message, [pixelData.buffer]);
+    });
+  }
+
+  public static terminateAllWorkers() {
+    for (const worker of workerPool) {
+      worker.terminate();
     }
+    workerPool = [];
   }
 }
