@@ -27,8 +27,7 @@
     "express-session": "^1.18.0",
     "lowdb": "^7.0.1",
     "uuid": "^9.0.1",
-    "multer": "^1.4.5-lts.1",
-    "sharp": "^0.32.6"
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -39,7 +38,6 @@
     "@types/node": "^22.15.30",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@types/sharp": "^0.32.0",
     "@types/uuid": "^9.0.8",
     "@vitejs/plugin-react": "^4.4.1",
     "@vercel/node": "^5.3.6",
