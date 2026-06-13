@@ -1,25 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-
-export interface TextBlock {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface Annotation {
-  id: string;
-  textBlockId: string;
-  type: 'highlight' | 'underline' | 'strikethrough' | 'comment';
-  comment?: string;
-  commentNumber?: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import type { TextBlock, Annotation } from '../types';
 
 interface AnnotationCanvasProps {
   imageUrl: string;
@@ -44,15 +24,17 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   onAnnotationAdd,
   onTextBlockSelect,
   selectedTextBlockId,
-  nextCommentNumber,
+  nextCommentNumber: _nextCommentNumber,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scrollTargetRef = useRef<HTMLDivElement>(null);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [activeCommentBlockId, setActiveCommentBlockId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
   const [scale, setScale] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
 
   const getScaledCoords = useCallback((block: TextBlock) => {
     return {
@@ -72,11 +54,15 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     amplitude: number,
     wavelength: number
   ) => {
+    if (width <= 0 || amplitude <= 0) return;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, 1.5 * scale);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     let started = false;
-    for (let px = 0; px <= width; px += 1) {
+    const step = Math.max(1, scale);
+    for (let px = 0; px <= width; px += step) {
       const py = y + Math.sin((px / wavelength) * Math.PI * 2) * amplitude;
       if (!started) {
         ctx.moveTo(x + px, py);
@@ -85,8 +71,10 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         ctx.lineTo(x + px, py);
       }
     }
-    ctx.stroke();
-  }, []);
+    if (started) {
+      ctx.stroke();
+    }
+  }, [scale]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -94,17 +82,22 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const displayWidth = imageWidth * scale;
-    const displayHeight = imageHeight * scale;
+    const displayWidth = Math.max(1, imageWidth * scale);
+    const displayHeight = Math.max(1, imageHeight * scale);
 
-    canvas.width = displayWidth;
-    canvas.height = displayHeight;
+    if (canvas.width !== displayWidth) canvas.width = displayWidth;
+    if (canvas.height !== displayHeight) canvas.height = displayHeight;
 
     ctx.clearRect(0, 0, displayWidth, displayHeight);
 
     textBlocks.forEach((block) => {
       const { x, y, width, height } = getScaledCoords(block);
       const padding = 2 * scale;
+
+      if (hoveredBlockId === block.id) {
+        ctx.fillStyle = 'rgba(252, 243, 207, 0.6)';
+        ctx.fillRect(x - padding, y - padding, width + padding * 2, height + padding * 2);
+      }
 
       if (selectedTextBlockId === block.id) {
         ctx.strokeStyle = '#2196f3';
@@ -114,11 +107,6 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         ctx.strokeStyle = '#a2d9ff';
         ctx.lineWidth = 1;
         ctx.strokeRect(x - padding, y - padding, width + padding * 2, height + padding * 2);
-      }
-
-      if (hoveredBlockId === block.id) {
-        ctx.fillStyle = 'rgba(252, 243, 207, 0.5)';
-        ctx.fillRect(x - padding, y - padding, width + padding * 2, height + padding * 2);
       }
     });
 
@@ -133,11 +121,19 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
           ctx.fillRect(x, y, width, height);
           break;
         case 'underline':
-          drawWavyLine(ctx, x, y + height - 2 * scale, width, '#2196f3', 2 * scale, 8 * scale);
+          drawWavyLine(
+            ctx,
+            x,
+            y + height - 1,
+            width,
+            '#2196f3',
+            2 * scale,
+            8 * scale
+          );
           break;
         case 'strikethrough':
           ctx.strokeStyle = '#e53935';
-          ctx.lineWidth = 2 * scale;
+          ctx.lineWidth = Math.max(1.5, 2 * scale);
           ctx.beginPath();
           ctx.moveTo(x, y + height / 2);
           ctx.lineTo(x + width, y + height / 2);
@@ -145,7 +141,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
           break;
         case 'comment':
           if (ann.commentNumber !== undefined) {
-            const bubbleRadius = 10 * scale;
+            const bubbleRadius = Math.max(8, 10 * scale);
             const bubbleX = x + width + bubbleRadius * 0.3;
             const bubbleY = y - bubbleRadius * 0.3;
 
@@ -153,12 +149,16 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             ctx.beginPath();
             ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.strokeStyle = 'rgba(229, 57, 53, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = `bold ${Math.round(10 * scale)}px sans-serif`;
+            const fontSize = Math.max(8, Math.round(10 * scale));
+            ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(String(ann.commentNumber), bubbleX, bubbleY + 0.5 * scale);
+            ctx.fillText(String(ann.commentNumber), bubbleX, bubbleY + 0.5);
           }
           break;
       }
@@ -166,13 +166,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   }, [textBlocks, annotations, hoveredBlockId, selectedTextBlockId, scale, getScaledCoords, drawWavyLine, imageWidth, imageHeight]);
 
   useEffect(() => {
-    let animationId: number;
-    const render = () => {
-      draw();
-      animationId = requestAnimationFrame(render);
-    };
-    animationId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationId);
+    draw();
   }, [draw]);
 
   useEffect(() => {
@@ -180,7 +174,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
         setContainerWidth(w);
-        if (imageWidth > 0) {
+        if (imageWidth > 0 && w > 0) {
           setScale(w / imageWidth);
         }
       }
@@ -197,9 +191,10 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     const x = clientX - rect.left;
     const y = clientY - rect.top;
 
-    for (const block of textBlocks) {
+    for (let i = textBlocks.length - 1; i >= 0; i--) {
+      const block = textBlocks[i];
       const scaled = getScaledCoords(block);
-      const padding = 2 * scale;
+      const padding = Math.max(4, 6 * scale);
       if (
         x >= scaled.x - padding &&
         x <= scaled.x + scaled.width + padding &&
@@ -214,11 +209,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const block = getBlockAtPosition(e.clientX, e.clientY);
-    if (block) {
-      setHoveredBlockId(block.id);
-    } else {
-      setHoveredBlockId(null);
-    }
+    setHoveredBlockId(block ? block.id : null);
   }, [getBlockAtPosition]);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -232,6 +223,8 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     if (activeTool === 'comment') {
       setActiveCommentBlockId(block.id);
       setCommentInput('');
+      setShowCommentPopup(false);
+      requestAnimationFrame(() => setShowCommentPopup(true));
       return;
     }
 
@@ -248,13 +241,20 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   }, [activeTool, onAnnotationAdd, onTextBlockSelect, getBlockAtPosition]);
 
   const handleCommentSubmit = useCallback(() => {
-    if (!activeCommentBlockId || !commentInput.trim()) {
+    if (!activeCommentBlockId) {
+      setShowCommentPopup(false);
+      return;
+    }
+    const trimmed = commentInput.trim();
+    if (!trimmed) {
       setActiveCommentBlockId(null);
+      setShowCommentPopup(false);
       return;
     }
     const block = textBlocks.find((b) => b.id === activeCommentBlockId);
     if (!block) {
       setActiveCommentBlockId(null);
+      setShowCommentPopup(false);
       return;
     }
 
@@ -262,35 +262,69 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       textBlockId: block.id,
       type: 'comment',
-      comment: commentInput.trim(),
+      comment: trimmed,
       x: block.x,
       y: block.y,
       width: block.width,
       height: block.height,
     };
     onAnnotationAdd(newAnnotation);
-    setActiveCommentBlockId(null);
-    setCommentInput('');
+    setShowCommentPopup(false);
+    setTimeout(() => {
+      setActiveCommentBlockId(null);
+      setCommentInput('');
+    }, 200);
   }, [activeCommentBlockId, commentInput, textBlocks, onAnnotationAdd]);
 
+  const handleCancelComment = useCallback(() => {
+    setShowCommentPopup(false);
+    setTimeout(() => {
+      setActiveCommentBlockId(null);
+      setCommentInput('');
+    }, 200);
+  }, []);
+
   useEffect(() => {
-    if (!selectedTextBlockId) return;
+    if (!selectedTextBlockId || !containerRef.current) return;
     const block = textBlocks.find((b) => b.id === selectedTextBlockId);
-    if (!block || !containerRef.current) return;
+    if (!block) return;
 
     const scaledY = block.y * scale;
     const containerHeight = containerRef.current.clientHeight;
     const blockHeight = block.height * scale;
+    const targetScrollTop = Math.max(0, scaledY - containerHeight / 2 + blockHeight / 2);
 
-    if (scaledY < containerRef.current.scrollTop || scaledY + blockHeight > containerRef.current.scrollTop + containerHeight) {
+    if (
+      scaledY < containerRef.current.scrollTop ||
+      scaledY + blockHeight > containerRef.current.scrollTop + containerHeight
+    ) {
       containerRef.current.scrollTo({
-        top: Math.max(0, scaledY - containerHeight / 2 + blockHeight / 2),
+        top: targetScrollTop,
         behavior: 'smooth',
       });
     }
   }, [selectedTextBlockId, textBlocks, scale]);
 
   const activeCommentBlock = textBlocks.find((b) => b.id === activeCommentBlockId);
+  const commentPopupStyle: React.CSSProperties = activeCommentBlock ? {
+    position: 'absolute',
+    left: Math.max(8, Math.min(
+      getScaledCoords(activeCommentBlock).x + getScaledCoords(activeCommentBlock).width / 2 - 120,
+      containerWidth - 256
+    )),
+    top: getScaledCoords(activeCommentBlock).y + getScaledCoords(activeCommentBlock).height + 6,
+    width: 240,
+    background: '#ffffff',
+    border: '1px solid #ddd',
+    borderRadius: 6,
+    padding: 12,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+    zIndex: 20,
+    opacity: showCommentPopup ? 1 : 0,
+    transform: showCommentPopup ? 'translateY(0)' : 'translateY(12px)',
+    transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+    pointerEvents: showCommentPopup ? 'auto' : 'none',
+  } : { display: 'none' };
 
   return (
     <div
@@ -301,9 +335,26 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         overflow: 'auto',
         background: '#f8f9fa',
         borderRadius: 12,
+        maxHeight: 'calc(100vh - 120px)',
       }}
     >
+      <style>{`
+        .ann-comment-popup {
+          animation: ann-slide-up 0.3s ease-out forwards;
+        }
+        @keyframes ann-slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
       <div
+        ref={scrollTargetRef}
         style={{
           position: 'relative',
           width: containerWidth,
@@ -319,6 +370,8 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             height: 'auto',
             display: 'block',
             borderRadius: 8,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
           }}
           draggable={false}
         />
@@ -334,40 +387,12 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             width: '100%',
             height: '100%',
             cursor: activeTool ? 'crosshair' : 'pointer',
+            touchAction: 'none',
           }}
         />
 
         {activeCommentBlock && (
-          <div
-            style={{
-              position: 'absolute',
-              left: Math.min(
-                getScaledCoords(activeCommentBlock).x + getScaledCoords(activeCommentBlock).width / 2 - 120,
-                containerWidth - 260
-              ),
-              top: getScaledCoords(activeCommentBlock).y + getScaledCoords(activeCommentBlock).height + 6,
-              width: 240,
-              background: '#ffffff',
-              border: '1px solid #ddd',
-              borderRadius: 6,
-              padding: 12,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              zIndex: 10,
-              animation: 'slideUp 0.3s ease-out',
-            }}
-          >
-            <style>{`
-              @keyframes slideUp {
-                from {
-                  opacity: 0;
-                  transform: translateY(10px);
-                }
-                to {
-                  opacity: 1;
-                  transform: translateY(0);
-                }
-              }
-            `}</style>
+          <div style={commentPopupStyle}>
             <textarea
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
@@ -388,7 +413,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
               <button
-                onClick={() => setActiveCommentBlockId(null)}
+                onClick={handleCancelComment}
                 style={{
                   padding: '6px 14px',
                   border: '1px solid #ddd',
@@ -397,6 +422,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                   cursor: 'pointer',
                   fontSize: 12,
                   transition: 'all 0.2s',
+                  fontFamily: 'inherit',
                 }}
               >
                 取消
@@ -412,6 +438,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                   cursor: 'pointer',
                   fontSize: 12,
                   transition: 'all 0.2s',
+                  fontFamily: 'inherit',
                 }}
               >
                 确认

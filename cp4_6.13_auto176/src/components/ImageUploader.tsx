@@ -1,13 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-
-interface TextBlock {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import type { TextBlock } from '../types';
 
 interface ImageUploaderProps {
   onUploadComplete: (data: {

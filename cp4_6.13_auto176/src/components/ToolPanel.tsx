@@ -1,17 +1,5 @@
 import React from 'react';
-
-export interface Annotation {
-  id: string;
-  textBlockId: string;
-  type: 'highlight' | 'underline' | 'strikethrough' | 'comment';
-  comment?: string;
-  commentNumber?: number;
-  textPreview?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import type { Annotation } from '../types';
 
 interface ToolPanelProps {
   activeTool: 'highlight' | 'underline' | 'strikethrough' | 'comment' | null;
@@ -43,6 +31,7 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
   };
 
   const truncateText = (text: string, maxLen: number = 20) => {
+    if (!text) return '';
     if (text.length <= maxLen) return text;
     return text.slice(0, maxLen) + '...';
   };
@@ -59,6 +48,7 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
         flexDirection: 'column',
         height: '100%',
         boxSizing: 'border-box',
+        borderRadius: '0 12px 12px 0',
       }}
     >
       <div>
@@ -83,7 +73,7 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
                   width: '100%',
                   padding: '10px 16px',
                   borderRadius: 8,
-                  background: isActive ? `${tool.color}15` : '#f8f9fa',
+                  background: isActive ? `${tool.color}20` : '#f8f9fa',
                   border: isActive ? `2px solid ${tool.color}` : '2px solid transparent',
                   cursor: 'pointer',
                   display: 'flex',
@@ -94,9 +84,11 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
                   transform: isActive ? 'scale(1.05)' : 'scale(1)',
                   transition: 'all 0.2s ease',
                   fontFamily: 'inherit',
+                  fontWeight: isActive ? 600 : 400,
+                  outline: 'none',
                 }}
               >
-                <span style={{ fontSize: 18 }}>{tool.emoji}</span>
+                <span style={{ fontSize: 18, width: 22, textAlign: 'center' }}>{tool.emoji}</span>
                 <span>{tool.label}</span>
               </button>
             );
@@ -121,17 +113,19 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
             overflowY: 'auto',
             maxHeight: 300,
             scrollbarWidth: 'thin',
+            border: '1px solid #f0f0f0',
+            borderRadius: 6,
           }}
         >
           {annotations.length === 0 ? (
-            <p style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: '20px 0' }}>
-              暂无标记
+            <p style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: '24px 12px', margin: 0 }}>
+              暂无标记，请选择工具后点击文本块
             </p>
           ) : (
-            annotations.map((ann, index) => {
+            annotations.map((ann) => {
               const typeInfo = getTypeLabel(ann.type);
               const displayText = ann.comment || ann.textPreview || '';
-              const blockNumber = ann.commentNumber !== undefined ? ann.commentNumber : index + 1;
+              const blockNumber = ann.commentNumber !== undefined ? ann.commentNumber : ann.type !== 'comment' ? '-' : 1;
               return (
                 <div
                   key={ann.id}
@@ -140,22 +134,17 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
                     padding: '8px 12px',
                     borderBottom: '1px solid #f0f0f0',
                     cursor: 'pointer',
-                    transition: 'background 0.2s',
+                    transition: 'background-color 0.2s',
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 8,
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f0f0f0';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
+                  className="annotation-list-item"
                 >
                   <span style={{ fontSize: 14, flexShrink: 0, marginTop: 2 }}>{typeInfo.emoji}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#2c3e50' }}>
-                      文本块 #{blockNumber} · {typeInfo.label}
+                      #{blockNumber} · {typeInfo.label}
                     </div>
                     <div
                       style={{
@@ -199,21 +188,24 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
           boxShadow: isExporting ? 'none' : '0 2px 8px rgba(102, 126, 234, 0.3)',
           fontFamily: 'inherit',
           opacity: isExporting ? 0.8 : 1,
+          outline: 'none',
         }}
         onMouseEnter={(e) => {
           if (!isExporting) {
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(102, 126, 234, 0.45)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isExporting) {
             e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+            e.currentTarget.style.transform = 'translateY(0)';
           }
         }}
       >
         {isExporting ? (
           <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'ann-spin 1s linear infinite' }}>
               <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="8" />
             </svg>
             生成中...
@@ -231,9 +223,12 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
       </button>
 
       <style>{`
-        @keyframes spin {
+        @keyframes ann-spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        .annotation-list-item:hover {
+          background-color: #f0f0f0;
         }
       `}</style>
     </div>

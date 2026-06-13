@@ -96,20 +96,108 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       }
     });
 
-    if (data.lines && data.lines.length > 0) {
+    const extractLineText = (line) => {
+      if (line.text && typeof line.text === 'string' && line.text.trim().length > 0) {
+        return line.text.trim();
+      }
+      if (line.words && Array.isArray(line.words) && line.words.length > 0) {
+        return line.words.map((w) => w.text || '').join(' ').trim();
+      }
+      return '';
+    };
+
+    const getLineConfidence = (line) => {
+      if (typeof line.confidence === 'number') return line.confidence;
+      if (line.words && Array.isArray(line.words) && line.words.length > 0) {
+        const valid = line.words.filter((w) => typeof w.confidence === 'number');
+        if (valid.length > 0) {
+          return valid.reduce((sum, w) => sum + w.confidence, 0) / valid.length;
+        }
+      }
+      return 0;
+    };
+
+    const MIN_CONFIDENCE = 50;
+
+    if (data.lines && Array.isArray(data.lines) && data.lines.length > 0) {
       for (const line of data.lines) {
-        if (line.confidence < 30) continue;
-        const blockId = uuidv4();
+        if (!line || !line.bbox) continue;
+        const confidence = getLineConfidence(line);
+        if (confidence < MIN_CONFIDENCE) continue;
+
+        const text = extractLineText(line);
+        if (text.length === 0) continue;
+
         const { x0, y0, x1, y1 } = line.bbox;
+        if (typeof x0 !== 'number' || typeof y0 !== 'number' ||
+            typeof x1 !== 'number' || typeof y1 !== 'number') continue;
+        if (x1 <= x0 || y1 <= y0) continue;
+
+        const blockId = uuidv4();
         textBlocks.push({
           id: blockId,
           document_id: docId,
-          text: line.text,
+          text,
           x: x0,
           y: y0,
           width: x1 - x0,
           height: y1 - y0,
         });
+      }
+    }
+
+    if (textBlocks.length === 0 && data.words && Array.isArray(data.words) && data.words.length > 0) {
+      console.warn('No valid lines found, falling back to merged words by y-coordinate proximity');
+      const MIN_WORD_CONFIDENCE = 45;
+      const LINE_Y_GAP_THRESHOLD = 10;
+
+      const validWords = data.words.filter(
+        (w) => w && w.bbox &&
+               typeof w.confidence === 'number' && w.confidence >= MIN_WORD_CONFIDENCE &&
+               typeof w.text === 'string' && w.text.trim().length > 0
+      );
+
+      if (validWords.length > 0) {
+        validWords.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+
+        const lines = [];
+        let currentLine = null;
+        for (const word of validWords) {
+          const wordMidY = (word.bbox.y0 + word.bbox.y1) / 2;
+          if (!currentLine || wordMidY - currentLine.midY > LINE_Y_GAP_THRESHOLD) {
+            currentLine = {
+              words: [word],
+              midY: wordMidY,
+              minY: word.bbox.y0,
+              maxY: word.bbox.y1,
+              minX: word.bbox.x0,
+              maxX: word.bbox.x1,
+            };
+            lines.push(currentLine);
+          } else {
+            currentLine.words.push(word);
+            currentLine.midY = (currentLine.midY * (currentLine.words.length - 1) + wordMidY) / currentLine.words.length;
+            currentLine.minY = Math.min(currentLine.minY, word.bbox.y0);
+            currentLine.maxY = Math.max(currentLine.maxY, word.bbox.y1);
+            currentLine.maxX = Math.max(currentLine.maxX, word.bbox.x1);
+            currentLine.minX = Math.min(currentLine.minX, word.bbox.x0);
+          }
+        }
+
+        for (const line of lines) {
+          const text = line.words.map((w) => w.text).join(' ').trim();
+          if (text.length === 0) continue;
+          const blockId = uuidv4();
+          textBlocks.push({
+            id: blockId,
+            document_id: docId,
+            text,
+            x: line.minX,
+            y: line.minY,
+            width: line.maxX - line.minX,
+            height: line.maxY - line.minY,
+          });
+        }
       }
     }
 

@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ImageUploader from './ImageUploader';
-import AnnotationCanvas, { TextBlock, Annotation as AnnotationType } from './AnnotationCanvas';
-import ToolPanel, { Annotation } from './ToolPanel';
+import AnnotationCanvas from './AnnotationCanvas';
+import ToolPanel from './ToolPanel';
+import type { TextBlock, Annotation } from '../types';
 
 const App: React.FC = () => {
   const [documentId, setDocumentId] = useState<string | null>(null);
@@ -13,7 +14,7 @@ const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<'highlight' | 'underline' | 'strikethrough' | 'comment' | null>(null);
   const [selectedTextBlockId, setSelectedTextBlockId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [commentCounter, setCommentCounter] = useState(0);
+  const commentCounterRef = useRef(0);
 
   const handleUploadComplete = useCallback((data: {
     documentId: string;
@@ -30,21 +31,20 @@ const App: React.FC = () => {
     setAnnotations([]);
     setActiveTool(null);
     setSelectedTextBlockId(null);
-    setCommentCounter(0);
+    commentCounterRef.current = 0;
   }, []);
 
-  const handleAnnotationAdd = useCallback((ann: Omit<AnnotationType, 'commentNumber'>) => {
+  const handleAnnotationAdd = useCallback((ann: Omit<Annotation, 'commentNumber'>) => {
     setAnnotations((prev) => {
       const existingIndex = prev.findIndex(
         (a) => a.textBlockId === ann.textBlockId && a.type === ann.type
       );
 
       if (ann.type === 'comment') {
-        const newCommentNum = commentCounter + 1;
-        setCommentCounter(newCommentNum);
+        commentCounterRef.current = commentCounterRef.current + 1;
         const newAnn: Annotation = {
           ...ann,
-          commentNumber: newCommentNum,
+          commentNumber: commentCounterRef.current,
           textPreview: ann.comment || '',
         };
         return [...prev, newAnn];
@@ -62,7 +62,7 @@ const App: React.FC = () => {
       };
       return [...prev, newAnn];
     });
-  }, [commentCounter, textBlocks]);
+  }, [textBlocks]);
 
   const handleTextBlockSelect = useCallback((textBlockId: string) => {
     setSelectedTextBlockId(textBlockId);
@@ -212,7 +212,7 @@ const App: React.FC = () => {
                 onAnnotationAdd={handleAnnotationAdd}
                 onTextBlockSelect={handleTextBlockSelect}
                 selectedTextBlockId={selectedTextBlockId}
-                nextCommentNumber={commentCounter + 1}
+                nextCommentNumber={commentCounterRef.current + 1}
               />
             </div>
 
@@ -234,6 +234,7 @@ const App: React.FC = () => {
         @media (max-width: 768px) {
           main > div {
             flex-direction: column !important;
+            height: auto !important;
           }
           main > div > div:first-child {
             width: 100% !important;
