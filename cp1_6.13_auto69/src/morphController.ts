@@ -16,7 +16,10 @@ export class MorphController {
   private transitionDuration: number = 0.2;
   private transitionProgress: number = 1;
   private isTransitioning: boolean = false;
+  private frameCount: number = 0;
+  private totalFrames: number = 10;
   
+  private startWeights: Weights = [0.25, 0.25, 0.25, 0.25];
   private shapeNames: ShapeName[] = ['sphere', 'cube', 'torus', 'octahedron'];
   private positionAttr!: THREE.BufferAttribute;
   private colorAttr!: THREE.BufferAttribute;
@@ -143,11 +146,16 @@ export class MorphController {
 
   setTargetWeights(w1: number, w2: number, w3: number, w4: number, duration?: number): void {
     this.targetWeights = [w1, w2, w3, w4];
+    this.startWeights = [...this.currentWeights] as Weights;
     
     if (duration !== undefined) {
       this.transitionDuration = duration;
+      this.totalFrames = Math.max(6, Math.min(12, Math.round(duration * 60)));
+    } else {
+      this.totalFrames = 10;
     }
     
+    this.frameCount = 0;
     this.transitionProgress = 0;
     this.isTransitioning = true;
   }
@@ -167,16 +175,17 @@ export class MorphController {
   update(deltaTime: number): void {
     if (!this.isTransitioning) return;
 
-    this.transitionProgress += deltaTime / this.transitionDuration;
+    this.frameCount++;
+    this.transitionProgress = this.frameCount / this.totalFrames;
     
-    if (this.transitionProgress >= 1) {
+    if (this.transitionProgress >= 1 || this.frameCount >= this.totalFrames) {
       this.transitionProgress = 1;
       this.isTransitioning = false;
       this.currentWeights = [...this.targetWeights] as Weights;
     } else {
       const t = this.easeInOutQuad(this.transitionProgress);
       this.currentWeights = this.lerpWeights(
-        this.currentWeights,
+        this.startWeights,
         this.targetWeights,
         t
       );
