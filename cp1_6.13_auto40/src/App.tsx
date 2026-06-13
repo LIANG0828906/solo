@@ -1,15 +1,25 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import FileUploader from './FileUploader';
 import SearchResult from './SearchResult';
 import './App.css';
-import type { DocInfoDto, SearchMatchDto, SearchResultDto, ApiTypes } from './apiTypes';
+import type { DocInfoDto, SearchMatchDto, SearchResultDto, ApiTypes, ParagraphInfoDto } from './apiTypes';
+import { escapeHtml, escapeRegExp } from './utils/helpers';
 
 export type DocInfo = DocInfoDto;
 export type SearchMatch = SearchMatchDto;
 export type SearchResultItem = SearchResultDto;
 
-const HIGHLIGHT_COLORS = ['#FFD54F', '#4DD0E1', '#FF9800', '#81C784', '#BA68C8'];
+const HIGHLIGHT_COLORS = [
+  '#FFD54F',
+  '#4DD0E1',
+  '#FF9800',
+  '#81C784',
+  '#BA68C8',
+  '#F06292',
+  '#64B5F6',
+  '#AED581',
+];
 const HISTORY_KEY = 'docsearch_history_v1';
 const MAX_HISTORY = 10;
 
@@ -35,7 +45,10 @@ const App: React.FC = () => {
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
-        setSearchHistory(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setSearchHistory(parsed);
+        }
       }
     } catch (e) {
       console.warn('Failed to load search history:', e);
@@ -133,7 +146,9 @@ const App: React.FC = () => {
   const loadDocumentDetail = async (docId: string) => {
     if (docDetail?.id === docId) return docDetail;
     try {
-      const response = await axios.get<ApiTypes['getDocument']['response']>(`/api/documents/${docId}`);
+      const response = await axios.get<ApiTypes['getDocument']['response']>(
+        `/api/documents/${docId}`
+      );
       setDocDetail(response.data);
       setSelectedDocId(docId);
       return response.data;
@@ -160,10 +175,10 @@ const App: React.FC = () => {
     const detail = await loadDocumentDetail(match.documentId);
     if (!detail) return;
 
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     const paraElement = document.getElementById(`paragraph-${match.paragraphIndex}`);
-    if (paraElement) {
+    if (paraElement && previewRef.current) {
       paraElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       setHighlightParagraph(null);
@@ -176,10 +191,12 @@ const App: React.FC = () => {
           setHighlightParagraph(null);
           return;
         }
-        setHighlightParagraph((prev) => (prev === match.paragraphIndex ? null : match.paragraphIndex));
+        setHighlightParagraph((prev) =>
+          prev === match.paragraphIndex ? null : match.paragraphIndex
+        );
         setTimeout(doBlink, 500);
       };
-      setTimeout(doBlink, 100);
+      setTimeout(doBlink, 150);
     }
   };
 
@@ -188,83 +205,99 @@ const App: React.FC = () => {
     return HIGHLIGHT_COLORS[Math.max(0, index) % HIGHLIGHT_COLORS.length];
   };
 
-  const renderHighlightedText = (text: string) => {
-    if (keywords.length === 0) return text;
+  const renderHighlightedText = useCallback(
+    (text: string) => {
+      if (keywords.length === 0) return <span dangerouslySetInnerHTML={{ __html: escapeHtml(text) }} />;
 
-    const allMatches: Array<{ start: number; end: number; keyword: string; color: string }> = [];
-    const lowerText = text.toLowerCase();
+      const escapedText = escapeHtml(text);
+      const lowerText = text.toLowerCase();
 
-    keywords.forEach((keyword) => {
-      const color = getKeywordColor(keyword);
-      const lowerKeyword = keyword.toLowerCase();
-      let searchPos = 0;
+      const allMatches: Array<{
+        start: number;
+        end: number;
+        keyword: string;
+        color: string;
+      }> = [];
 
-      while (true) {
-        const pos = lowerText.indexOf(lowerKeyword, searchPos);
-        if (pos === -1) break;
-        allMatches.push({
-          start: pos,
-          end: pos + keyword.length,
-          keyword,
-          color,
-        });
-        searchPos = pos + keyword.length;
-      }
-    });
+      keywords.forEach((keyword) => {
+        const color = getKeywordColor(keyword);
+        const lowerKeyword = keyword.toLowerCase();
+        const escapedKeyword = escapeRegExp(lowerKeyword);
 
-    if (allMatches.length === 0) return text;
+        if (escapedKeyword.length === 0) return;
 
-    allMatches.sort((a, b) => a.start - b.start);
+        const regex = new RegExp(escapedKeyword, 'gi');
+        let match: RegExpExecArray | null;
 
-    const merged: typeof allMatches = [];
-    allMatches.forEach((m) => {
-      if (merged.length === 0 || m.start >= merged[merged.length - 1].end) {
-        merged.push(m);
-      } else {
-        const last = merged[merged.length - 1];
-        if (m.end > last.end) {
-          last.end = m.end;
+        while ((match = regex.exec(lowerText)) !== null) {
+          allMatches.push({
+            start: match.index,
+            end: match.index + keyword.length,
+            keyword,
+            color,
+          });
         }
+      });
+
+      if (allMatches.length === 0) {
+        return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
       }
-    });
 
-    const result: React.ReactNode[] = [];
-    let lastEnd = 0;
+      allMatches.sort((a, b) => a.start - b.start);
 
-    merged.forEach((match, idx) => {
-      if (match.start > lastEnd) {
+      const merged: typeof allMatches = [];
+      allMatches.forEach((m) => {
+        if (merged.length === 0 || m.start >= merged[merged.length - 1].end) {
+          merged.push(m);
+        } else {
+          const last = merged[merged.length - 1];
+          if (m.end > last.end) {
+            last.end = m.end;
+          }
+        }
+      });
+
+      const result: React.ReactNode[] = [];
+      let lastEnd = 0;
+
+      merged.forEach((match, idx) => {
+        if (match.start > lastEnd) {
+          const plainText = escapedText.slice(lastEnd, match.start);
+          result.push(
+            <span key={`text-${idx}`} dangerouslySetInnerHTML={{ __html: plainText }} />
+          );
+        }
+        const highlightedHtml = `<span class="highlight-breath" style="background-color:${match.color};color:#1A1A2E;font-weight:600;padding:1px 3px;border-radius:2px;">${escapedText.slice(
+          match.start,
+          match.end
+        )}</span>`;
         result.push(
-          <span key={`text-${idx}`}>{text.slice(lastEnd, match.start)}</span>
+          <span
+            key={`hl-${idx}`}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        );
+        lastEnd = match.end;
+      });
+
+      if (lastEnd < escapedText.length) {
+        const remaining = escapedText.slice(lastEnd);
+        result.push(
+          <span key="text-end" dangerouslySetInnerHTML={{ __html: remaining }} />
         );
       }
-      result.push(
-        <span
-          key={`hl-${idx}`}
-          className="highlight-breath"
-          style={{
-            backgroundColor: match.color,
-            color: '#1A1A2E',
-            fontWeight: 600,
-            padding: '1px 3px',
-            borderRadius: '2px',
-          }}
-        >
-          {text.slice(match.start, match.end)}
-        </span>
-      );
-      lastEnd = match.end;
-    });
 
-    if (lastEnd < text.length) {
-      result.push(<span key="text-end">{text.slice(lastEnd)}</span>);
-    }
+      return <>{result}</>;
+    },
+    [keywords]
+  );
 
-    return <>{result}</>;
-  };
-
-  const filteredHistory = searchQuery.length >= 2
-    ? searchHistory.filter((h) => h.toLowerCase().includes(searchQuery.toLowerCase()))
-    : searchHistory;
+  const filteredHistory = useMemo(() => {
+    if (searchQuery.length < 2) return searchHistory;
+    return searchHistory.filter((h) =>
+      h.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, searchHistory]);
 
   return (
     <div className="app-container">
@@ -318,7 +351,10 @@ const App: React.FC = () => {
                       }}
                     >
                       {doc.preview && (
-                        <div className="doc-preview-text">{doc.preview}...</div>
+                        <div
+                          className="doc-preview-text"
+                          dangerouslySetInnerHTML={{ __html: escapeHtml(doc.preview) + '...' }}
+                        />
                       )}
                     </div>
                   </div>
@@ -362,9 +398,7 @@ const App: React.FC = () => {
                     ✕
                   </button>
                 )}
-                {isSearching && (
-                  <span className="searching-indicator">⟳</span>
-                )}
+                {isSearching && <span className="searching-indicator">⟳</span>}
 
                 {showSuggestions && (filteredHistory.length > 0 || searchHistory.length > 0) && (
                   <div className="suggestions-dropdown">

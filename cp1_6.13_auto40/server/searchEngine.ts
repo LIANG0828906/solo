@@ -4,23 +4,23 @@ import type { SearchMatchDto, SearchResultDto, DocInfoDto } from '../src/apiType
 
 export type InvertedIndexEntry = {
   paragraphIndex: number;
+  paragraphStartOffset: number;
+  paragraphEndOffset: number;
   positions: number[];
 };
 
 export type DocInvertedIndex = Map<string, InvertedIndexEntry[]>;
-
 export type GlobalInvertedIndex = Map<string, Map<string, InvertedIndexEntry[]>>;
 
 const globalInvertedIndex: GlobalInvertedIndex = new Map();
-
 const docWordIndexCache = new Map<string, DocInvertedIndex>();
 
 export function buildDocumentIndex(doc: Document): DocInvertedIndex {
   const docIndex: DocInvertedIndex = new Map();
 
-  doc.paragraphs.forEach((paragraph, pIdx) => {
+  doc.paragraphInfos.forEach((paraInfo, pIdx) => {
     const wordPositions = new Map<string, number[]>();
-    const lowerPara = paragraph.toLowerCase();
+    const lowerPara = paraInfo.text.toLowerCase();
 
     const tokens = extractTokens(lowerPara);
     tokens.forEach(({ token, position }) => {
@@ -36,6 +36,8 @@ export function buildDocumentIndex(doc: Document): DocInvertedIndex {
       }
       docIndex.get(word)!.push({
         paragraphIndex: pIdx,
+        paragraphStartOffset: paraInfo.startOffset,
+        paragraphEndOffset: paraInfo.endOffset,
         positions,
       });
     });
@@ -69,6 +71,10 @@ export function registerDocumentToIndex(doc: Document): void {
     }
     globalInvertedIndex.get(word)!.set(doc.id, entries);
   });
+
+  console.log(
+    `[Index] Registered "${doc.name}": ${docIndex.size} unique words, ${doc.paragraphInfos.length} paragraphs`
+  );
 }
 
 export function removeDocumentFromIndex(docId: string): void {
@@ -115,6 +121,8 @@ export function searchKeywordsInGlobalIndex(keywords: string[]): Map<string, Sea
               documentId: docId,
               documentName: doc.name,
               paragraphIndex: entry.paragraphIndex,
+              paragraphStartOffset: entry.paragraphStartOffset,
+              paragraphEndOffset: entry.paragraphEndOffset,
               paragraph,
               context: getContext(paragraph, idx, idx + keyword.length),
               startIndex: idx,
@@ -190,12 +198,15 @@ export function searchHandler(req: Request, res: Response): void {
     results.sort((a, b) => b.matchCount - a.matchCount);
 
     const elapsed = Date.now() - startTime;
-    console.log(`[Search] Query="${q}", Found ${results.length} docs, ${results.reduce((s, r) => s + r.matchCount, 0)} matches in ${elapsed}ms`);
+    const totalMatches = results.reduce((s, r) => s + r.matchCount, 0);
+    console.log(
+      `[Search] Query="${q}", Found ${results.length} docs, ${totalMatches} matches in ${elapsed}ms`
+    );
 
     res.json({
       results,
       keywords,
-      totalMatches: results.reduce((sum, r) => sum + r.matchCount, 0),
+      totalMatches,
     });
   } catch (error) {
     console.error('Search error:', error);
@@ -235,6 +246,7 @@ export function getDocumentHandler(req: Request, res: Response): void {
       name: doc.name,
       pageCount: doc.pageCount,
       paragraphs: doc.paragraphs,
+      paragraphInfos: doc.paragraphInfos,
       text: doc.text,
     });
   } catch (error) {

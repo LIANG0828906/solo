@@ -1,3 +1,9 @@
+export interface ParagraphInfoDto {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+}
+
 export interface ApiTypes {
   upload: {
     request: FormData;
@@ -46,6 +52,7 @@ export interface ApiTypes {
       name: string;
       pageCount: number;
       paragraphs: string[];
+      paragraphInfos: ParagraphInfoDto[];
       text: string;
     };
     error: {
@@ -67,6 +74,8 @@ export interface SearchMatchDto {
   documentId: string;
   documentName: string;
   paragraphIndex: number;
+  paragraphStartOffset: number;
+  paragraphEndOffset: number;
   paragraph: string;
   context: string;
   startIndex: number;

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SearchResultItem, SearchMatch } from './App';
+import { escapeHtml, escapeRegExp } from './utils/helpers';
 
 interface SearchResultProps {
   results: SearchResultItem[];
@@ -7,7 +8,16 @@ interface SearchResultProps {
   onResultClick: (match: SearchMatch) => void;
 }
 
-const HIGHLIGHT_COLORS = ['#FFD54F', '#4DD0E1', '#FF9800', '#81C784', '#BA68C8'];
+const HIGHLIGHT_COLORS = [
+  '#FFD54F',
+  '#4DD0E1',
+  '#FF9800',
+  '#81C784',
+  '#BA68C8',
+  '#F06292',
+  '#64B5F6',
+  '#AED581',
+];
 
 const SearchResult: React.FC<SearchResultProps> = ({ results, keywords, onResultClick }) => {
   const getKeywordColor = (keyword: string): string => {
@@ -16,30 +26,38 @@ const SearchResult: React.FC<SearchResultProps> = ({ results, keywords, onResult
   };
 
   const renderHighlightedContext = (context: string) => {
-    if (keywords.length === 0) return context;
+    if (keywords.length === 0) {
+      return <span dangerouslySetInnerHTML={{ __html: escapeHtml(context) }} />;
+    }
 
-    const allMatches: Array<{ start: number; end: number; keyword: string; color: string }> = [];
+    const escapedContext = escapeHtml(context);
     const lowerContext = context.toLowerCase();
 
-    keywords.forEach((keyword) => {
-      const lowerKeyword = keyword.toLowerCase();
-      const color = getKeywordColor(keyword);
-      let searchPos = 0;
+    const allMatches: Array<{ start: number; end: number; keyword: string; color: string }> = [];
 
-      while (true) {
-        const pos = lowerContext.indexOf(lowerKeyword, searchPos);
-        if (pos === -1) break;
+    keywords.forEach((keyword) => {
+      const color = getKeywordColor(keyword);
+      const lowerKeyword = keyword.toLowerCase();
+      const escapedKeyword = escapeRegExp(lowerKeyword);
+
+      if (escapedKeyword.length === 0) return;
+
+      const regex = new RegExp(escapedKeyword, 'gi');
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(lowerContext)) !== null) {
         allMatches.push({
-          start: pos,
-          end: pos + keyword.length,
+          start: match.index,
+          end: match.index + keyword.length,
           keyword,
           color,
         });
-        searchPos = pos + keyword.length;
       }
     });
 
-    if (allMatches.length === 0) return context;
+    if (allMatches.length === 0) {
+      return <span dangerouslySetInnerHTML={{ __html: escapedContext }} />;
+    }
 
     allMatches.sort((a, b) => a.start - b.start);
 
@@ -60,43 +78,40 @@ const SearchResult: React.FC<SearchResultProps> = ({ results, keywords, onResult
 
     merged.forEach((match, idx) => {
       if (match.start > lastEnd) {
-        const text = context.slice(lastEnd, match.start);
-        const displayText =
-          lastEnd === 0 && idx === 0
-            ? text.length > 30
-              ? '...' + text.slice(-30)
-              : text
-            : text;
-        result.push(
-          <span key={`text-${idx}`} className="context-text">
-            {displayText}
-          </span>
-        );
+        let text = escapedContext.slice(lastEnd, match.start);
+        if (lastEnd === 0 && idx === 0 && text.length > 30) {
+          text = '...' + text.slice(-30);
+        }
+        if (text.length > 0) {
+          result.push(
+            <span
+              key={`text-${idx}`}
+              className="context-text"
+              dangerouslySetInnerHTML={{ __html: text }}
+            />
+          );
+        }
       }
+
+      const highlightedText = escapedContext.slice(match.start, match.end);
+      const highlightedHtml = `<span class="highlight-breath" style="background-color:${match.color};color:#1A1A2E;font-weight:600;padding:1px 3px;border-radius:2px;">${highlightedText}</span>`;
       result.push(
-        <span
-          key={`hl-${idx}`}
-          className="highlight-breath"
-          style={{
-            backgroundColor: match.color,
-            color: '#1A1A2E',
-            fontWeight: 600,
-            padding: '1px 3px',
-            borderRadius: '2px',
-          }}
-        >
-          {context.slice(match.start, match.end)}
-        </span>
+        <span key={`hl-${idx}`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
       );
       lastEnd = match.end;
     });
 
-    if (lastEnd < context.length) {
-      const remaining = context.slice(lastEnd);
+    if (lastEnd < escapedContext.length) {
+      let remaining = escapedContext.slice(lastEnd);
+      if (remaining.length > 30) {
+        remaining = remaining.slice(0, 30) + '...';
+      }
       result.push(
-        <span key="text-end" className="context-text">
-          {remaining.length > 30 ? remaining.slice(0, 30) + '...' : remaining}
-        </span>
+        <span
+          key="text-end"
+          className="context-text"
+          dangerouslySetInnerHTML={{ __html: remaining }}
+        />
       );
     }
 
@@ -125,7 +140,10 @@ const SearchResult: React.FC<SearchResultProps> = ({ results, keywords, onResult
                 onClick={() => onResultClick(match)}
               >
                 <div className="match-paragraph">{renderHighlightedContext(match.context)}</div>
-                <div className="match-location">段落 #{match.paragraphIndex + 1}</div>
+                <div className="match-location">
+                  段落 #{match.paragraphIndex + 1} · 偏移 {match.paragraphStartOffset}-
+                  {match.paragraphEndOffset}
+                </div>
               </div>
             ))}
             {result.matches.length > 5 && (

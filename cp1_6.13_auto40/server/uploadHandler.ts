@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import pdfParse from 'pdf-parse';
 
+export interface ParagraphInfo {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+}
+
 export interface Document {
   id: string;
   name: string;
@@ -8,6 +14,7 @@ export interface Document {
   text: string;
   pages: string[];
   paragraphs: string[];
+  paragraphInfos: ParagraphInfo[];
   uploadedAt: number;
 }
 
@@ -25,11 +32,42 @@ function generateId(): string {
   return 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-function splitIntoParagraphs(text: string): string[] {
-  return text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+function splitIntoParagraphsWithOffsets(text: string): ParagraphInfo[] {
+  const result: ParagraphInfo[] = [];
+  const regex = /\n\s*\n/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const segment = text.slice(lastIndex, match.index).trim();
+    if (segment.length > 0) {
+      result.push({
+        text: segment,
+        startOffset: lastIndex,
+        endOffset: match.index,
+      });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  const finalSegment = text.slice(lastIndex).trim();
+  if (finalSegment.length > 0) {
+    result.push({
+      text: finalSegment,
+      startOffset: lastIndex,
+      endOffset: text.length,
+    });
+  }
+
+  if (result.length === 0 && text.trim().length > 0) {
+    result.push({
+      text: text.trim(),
+      startOffset: 0,
+      endOffset: text.length,
+    });
+  }
+
+  return result;
 }
 
 export async function uploadHandler(req: Request, res: Response): Promise<void> {
@@ -73,7 +111,8 @@ export async function uploadHandler(req: Request, res: Response): Promise<void> 
     }
 
     const docId = generateId();
-    const paragraphs = splitIntoParagraphs(data.text);
+    const paragraphInfos = splitIntoParagraphsWithOffsets(data.text);
+    const paragraphs = paragraphInfos.map((p) => p.text);
 
     const document: Document = {
       id: docId,
@@ -82,6 +121,7 @@ export async function uploadHandler(req: Request, res: Response): Promise<void> 
       text: data.text,
       pages: pagesText,
       paragraphs,
+      paragraphInfos,
       uploadedAt: Date.now(),
     };
 
