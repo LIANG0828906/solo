@@ -39,9 +39,15 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     row: number;
     col: number;
   } | null>(null);
-  const [animatingCells, setAnimatingCells] = useState<Set<string>>(new Set());
+  const [cellColorMap, setCellColorMap] = useState<Map<string, string>>(new Map());
   const [currentColor, setCurrentColor] = useState(palette[0]);
   const [eyedropperActive, setEyedropperActive] = useState(false);
+
+  useEffect(() => {
+    const newMap = new Map<string, string>();
+    cells.forEach((cell) => newMap.set(cell.id, cell.color));
+    setCellColorMap(newMap);
+  }, [cells]);
 
   const rows = useMemo(() => {
     return Math.floor(density * (canvasHeight / canvasWidth));
@@ -158,12 +164,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
           selectedCell.col,
           color
         );
-        setAnimatingCells(new Set([selectedCell.id]));
         onCellsChange(newCells);
-
-        setTimeout(() => {
-          setAnimatingCells(new Set());
-        }, 200);
       }
       setSelectedCell(null);
     },
@@ -255,12 +256,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
             }
           }
 
-          setAnimatingCells(affectedIds);
           onCellsChange(newCells);
-
-          setTimeout(() => {
-            setAnimatingCells(new Set());
-          }, 200);
         } else {
           const cell = getCellAtPosition(e.clientX, e.clientY);
           if (cell) {
