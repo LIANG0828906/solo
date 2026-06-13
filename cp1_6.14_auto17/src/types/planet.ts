@@ -13,4 +13,5 @@ export interface Planet {
   description: string;
   tilt: number;
   rotationPeriod: number;
+  orbitalInclination: number;
 }

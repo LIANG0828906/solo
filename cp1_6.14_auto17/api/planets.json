@@ -13,7 +13,8 @@
     "textureUrl": "/textures/sun.jpg",
     "description": "太阳是太阳系的中心恒星，占据了太阳系总质量的99.86%。它是一颗黄矮星，通过核聚变反应将氢转化为氦，为地球提供光和热。",
     "tilt": 7.25,
-    "rotationPeriod": 609.12
+    "rotationPeriod": 609.12,
+    "orbitalInclination": 0
   },
   {
     "id": "mercury",
@@ -29,7 +30,8 @@
     "textureUrl": "/textures/mercury.jpg",
     "description": "水星是太阳系中最小的行星，也是距离太阳最近的行星。它的表面布满了陨石坑，没有大气层保护，昼夜温差极大。",
     "tilt": 0.03,
-    "rotationPeriod": 1407.6
+    "rotationPeriod": 1407.6,
+    "orbitalInclination": 7.0
   },
   {
     "id": "venus",
@@ -45,7 +47,8 @@
     "textureUrl": "/textures/venus.jpg",
     "description": "金星是太阳系中最热的行星，表面温度可达465°C。它拥有浓厚的二氧化碳大气层，产生强烈的温室效应。金星的自转方向与大多数行星相反。",
     "tilt": 177.4,
-    "rotationPeriod": 5832.5
+    "rotationPeriod": 5832.5,
+    "orbitalInclination": 3.4
   },
   {
     "id": "earth",
@@ -61,7 +64,8 @@
     "textureUrl": "/textures/earth.jpg",
     "description": "地球是太阳系中唯一已知存在生命的行星。它拥有液态水、适宜的大气层和磁场，为生命提供了完美的生存环境。",
     "tilt": 23.4,
-    "rotationPeriod": 23.93
+    "rotationPeriod": 23.93,
+    "orbitalInclination": 0.0
   },
   {
     "id": "mars",
@@ -77,7 +81,8 @@
     "textureUrl": "/textures/mars.jpg",
     "description": "火星被称为红色星球，因其表面富含氧化铁而呈现红色。它拥有太阳系最高的山峰（奥林帕斯山）和最深的峡谷（水手谷）。",
     "tilt": 25.2,
-    "rotationPeriod": 24.62
+    "rotationPeriod": 24.62,
+    "orbitalInclination": 1.85
   },
   {
     "id": "jupiter",
@@ -93,7 +98,8 @@
     "textureUrl": "/textures/jupiter.jpg",
     "description": "木星是太阳系中最大的行星，质量是其他七颗行星总和的2.5倍。它的大红斑是一个持续了数百年的巨型风暴系统。",
     "tilt": 3.1,
-    "rotationPeriod": 9.93
+    "rotationPeriod": 9.93,
+    "orbitalInclination": 1.31
   },
   {
     "id": "saturn",
@@ -109,7 +115,8 @@
     "textureUrl": "/textures/saturn.jpg",
     "description": "土星以其壮观的光环系统而闻名，这些光环主要由冰和岩石碎片组成。土星的密度非常低，如果有足够大的海洋，它甚至可以漂浮起来。",
     "tilt": 26.7,
-    "rotationPeriod": 10.66
+    "rotationPeriod": 10.66,
+    "orbitalInclination": 2.49
   },
   {
     "id": "uranus",
@@ -125,7 +132,8 @@
     "textureUrl": "/textures/uranus.jpg",
     "description": "天王星是一颗冰巨星，其独特之处在于它的自转轴几乎与公转轨道平行，像是'躺着'旋转。它的大气中含有甲烷，使其呈现蓝绿色。",
     "tilt": 97.8,
-    "rotationPeriod": 17.24
+    "rotationPeriod": 17.24,
+    "orbitalInclination": 0.77
   },
   {
     "id": "neptune",
@@ -141,6 +149,7 @@
     "textureUrl": "/textures/neptune.jpg",
     "description": "海王星是太阳系最远的行星，拥有太阳系中最强的风暴，风速可达2100公里/小时。它深邃的蓝色来自大气中的甲烷。",
     "tilt": 28.3,
-    "rotationPeriod": 16.11
+    "rotationPeriod": 16.11,
+    "orbitalInclination": 1.77
   }
 ]

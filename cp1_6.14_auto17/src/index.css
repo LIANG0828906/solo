@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
-
 :root {
   --deep-space-bg: #0a0e1a;
   --deep-space-gradient-start: #0a0e1a;
@@ -16,6 +14,32 @@
   --text-muted: #64748b;
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
+
+  --star-density: 3;
+  --star-speed: 8s;
+  --star-opacity-min: 0.3;
+  --star-opacity-max: 1;
+  --star-drift: 0.5;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --star-density: 2;
+    --star-speed: 12s;
+    --star-opacity-min: 0.2;
+    --star-opacity-max: 0.8;
+    --star-drift: 0.3;
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --star-density: 5;
+    --star-speed: 6s;
+    --star-opacity-min: 0.4;
+    --star-opacity-max: 1;
+    --star-drift: 0.8;
+  }
 }
 
 * {
@@ -47,22 +71,32 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
-    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 40% 20%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 80% 50%, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1px 1px at 10% 80%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(2px 2px at 70% 10%, rgba(255, 255, 255, 0.3), transparent);
-  background-size: 200% 200%;
+  background-image:
+    radial-gradient(calc(var(--star-density) * 0.5px) calc(var(--star-density) * 0.5px) at 10% 15%, rgba(255,255,255, var(--star-opacity-max)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.4px) calc(var(--star-density) * 0.4px) at 25% 45%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.7)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.6px) calc(var(--star-density) * 0.6px) at 40% 10%, rgba(255,255,255, var(--star-opacity-min)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.3px) calc(var(--star-density) * 0.3px) at 55% 75%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.6)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.5px) calc(var(--star-density) * 0.5px) at 70% 30%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.8)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.4px) calc(var(--star-density) * 0.4px) at 85% 60%, rgba(255,255,255, var(--star-opacity-min)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.7px) calc(var(--star-density) * 0.7px) at 95% 85%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.5)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.3px) calc(var(--star-density) * 0.3px) at 15% 90%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.4)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.5px) calc(var(--star-density) * 0.5px) at 50% 50%, rgba(255,255,255, calc(var(--star-opacity-max) * 0.9)), transparent),
+    radial-gradient(calc(var(--star-density) * 0.6px) calc(var(--star-density) * 0.6px) at 30% 65%, rgba(255,255,255, var(--star-opacity-min)), transparent);
+  background-size: calc(100% + calc(var(--star-drift) * 20px)) calc(100% + calc(var(--star-drift) * 20px));
   pointer-events: none;
   z-index: 0;
-  animation: twinkle 8s ease-in-out infinite;
+  animation: twinkle var(--star-speed) ease-in-out infinite, star-drift calc(var(--star-speed) * 4) linear infinite;
 }
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: var(--star-opacity-min); }
+  50% { opacity: var(--star-opacity-max); }
+}
+
+@keyframes star-drift {
+  0% { background-position: 0% 0%; }
+  50% { background-position: calc(var(--star-drift) * 10px) calc(var(--star-drift) * -5px); }
+  100% { background-position: 0% 0%; }
 }
 
 .font-mono-data {
@@ -183,6 +217,10 @@ h1, h2, h3, h4, h5, h6 {
     animation: shimmer 2s infinite;
   }
 
+  .animate-slide-in-right {
+    animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
   .transition-smooth {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -212,6 +250,17 @@ h1, h2, h3, h4, h5, h6 {
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
