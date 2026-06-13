@@ -18,7 +18,7 @@ function init(): void {
   const container = document.getElementById('canvas-container')!;
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x1a2a4a, 150, 400);
+  scene.fog = new THREE.Fog(0x87ceeb, 200, 400);
 
   camera = new THREE.PerspectiveCamera(
     60,
@@ -43,7 +43,8 @@ function init(): void {
     renderer,
     visualizer,
     audioEngine,
-    container
+    container,
+    scene
   );
 
   clock = new THREE.Clock();
@@ -66,7 +67,7 @@ function onWindowResize(): void {
 function animate(): void {
   requestAnimationFrame(animate);
 
-  const deltaTime = clock.getDelta();
+  const deltaTime = Math.min(clock.getDelta(), 0.1);
 
   visualizer.update(deltaTime);
   interactionManager.update(deltaTime);

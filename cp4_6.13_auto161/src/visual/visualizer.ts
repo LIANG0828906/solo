@@ -1,54 +1,83 @@
 import * as THREE from 'three';
 import { buildingData, BUILDING_COLORS, gridConfig, BuildingData, BuildingFunction } from '../data/buildingData';
 
-interface BuildingMeshGroup extends THREE.Group {
+type BuildingMeshGroup = THREE.Group & {
   buildingId: string;
   baseColor: number;
   originalColor: number;
-  highlightTarget: number;
+  originalEmissive: number;
   windows: THREE.Mesh[];
-  windowLights: boolean;
+  isHighlighting: boolean;
+  buildingMeshes: THREE.Mesh[];
+  materials: THREE.MeshStandardMaterial[];
 }
 
-interface Particle {
+interface PooledParticle {
   mesh: THREE.Mesh;
   velocity: THREE.Vector3;
   life: number;
   maxLife: number;
   buildingId: string;
+  active: boolean;
+}
+
+interface HighlightTween {
+  buildingId: string;
+  startTime: number;
+  duration: number;
+  fromColor: THREE.Color;
+  toColor: THREE.Color;
+  fromEmissive: THREE.Color;
+  toEmissive: THREE.Color;
+  onComplete?: () => void;
 }
 
 export class Visualizer {
   private scene: THREE.Scene;
   private buildings: Map<string, BuildingMeshGroup> = new Map();
-  private particles: Particle[] = [];
-  private ground: THREE.Mesh | null = null;
-  private streets: THREE.Mesh | null = null;
-  private buildingHeightAnimations: Map<string, { startTime: number; duration: number; type: 'highlight' | 'reset' }> = new Map();
+  private particles: PooledParticle[] = [];
+  private particlePool: PooledParticle[] = [];
+  private readonly MAX_PARTICLES = 400;
+  private readonly PARTICLE_LIFETIME = 1.5;
+  private readonly PARTICLES_PER_BUILDING = 10;
+
   private particleGeometry: THREE.SphereGeometry;
+  private particleMaterialTemplate: THREE.MeshBasicMaterial;
+
   private timeOfDay: number = 12;
   private ambientLight: THREE.AmbientLight | null = null;
   private directionalLight: THREE.DirectionalLight | null = null;
   private hemisphereLight: THREE.HemisphereLight | null = null;
-  private dayColor: THREE.Color = new THREE.Color(0xfff4e0);
-  private nightColor: THREE.Color = new THREE.Color(0x1a2a4a);
   private sunLight: THREE.DirectionalLight | null = null;
-  private windowMaterialTemplate: THREE.MeshBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0 });
-  private windowOffMaterial: THREE.MeshBasicMaterial = new THREE.MeshBasicMaterial({ color: 0x1a2a3a });
+
+  private daySkyColor: THREE.Color = new THREE.Color(0x87ceeb);
+  private nightSkyColor: THREE.Color = new THREE.Color(0x0a1628);
+  private dayAmbientColor: THREE.Color = new THREE.Color(0xfff4e0);
+  private nightAmbientColor: THREE.Color = new THREE.Color(0x1a2a4a);
+
+  private highlightTweens: Map<string, HighlightTween> = new Map();
+  private buildingObjectsCache: THREE.Object3D[] = [];
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
-    this.particleGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+    this.particleGeometry = new THREE.SphereGeometry(0.25, 6, 6);
+    this.particleMaterialTemplate = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
     this.initLights();
     this.createGround();
+    this.initParticlePool();
     this.createBuildings();
+    this.cacheBuildingObjects();
   }
 
   private initLights(): void {
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    this.ambientLight = new THREE.AmbientLight(this.dayAmbientColor, 0.5);
     this.scene.add(this.ambientLight);
 
-    this.hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.3);
+    this.hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.4);
     this.scene.add(this.hemisphereLight);
 
     this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -59,11 +88,40 @@ export class Visualizer {
     this.directionalLight.shadow.camera.right = 150;
     this.directionalLight.shadow.camera.top = 150;
     this.directionalLight.shadow.camera.bottom = -150;
+    this.directionalLight.shadow.bias = -0.0005;
     this.scene.add(this.directionalLight);
     
-    this.sunLight = new THREE.DirectionalLight(0xffeedd, 0.5);
+    this.sunLight = new THREE.DirectionalLight(0xffeedd, 0.4);
     this.sunLight.position.set(-30, 50, -30);
     this.scene.add(this.sunLight);
+  }
+
+  private initParticlePool(): void {
+    for (let i = 0; i < this.MAX_PARTICLES; i++) {
+      const material = this.particleMaterialTemplate.clone();
+      const mesh = new THREE.Mesh(this.particleGeometry, material);
+      mesh.visible = false;
+      mesh.renderOrder = 1000;
+      mesh.frustumCulled = true;
+
+      this.particlePool.push({
+        mesh,
+        velocity: new THREE.Vector3(),
+        life: 0,
+        maxLife: this.PARTICLE_LIFETIME,
+        buildingId: '',
+        active: false,
+      });
+
+      this.scene.add(mesh);
+    }
+  }
+
+  private cacheBuildingObjects(): void {
+    this.buildingObjectsCache = [];
+    for (const building of this.buildings.values()) {
+      this.buildingObjectsCache.push(building);
+    }
   }
 
   private createGround(): void {
@@ -75,11 +133,11 @@ export class Visualizer {
       roughness: 0.9,
       metalness: 0.1
     });
-    this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    this.ground.rotation.x = -Math.PI / 2;
-    this.ground.position.y = -0.1;
-    this.ground.receiveShadow = true;
-    this.scene.add(this.ground);
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
 
     this.createStreets();
   }
@@ -132,9 +190,11 @@ export class Visualizer {
     group.buildingId = data.id;
     group.baseColor = BUILDING_COLORS[data.function];
     group.originalColor = BUILDING_COLORS[data.function];
-    group.highlightTarget = BUILDING_COLORS[data.function];
+    group.originalEmissive = 0x000000;
     group.windows = [];
-    group.windowLights = false;
+    group.buildingMeshes = [];
+    group.materials = [];
+    group.isHighlighting = false;
 
     const width = gridConfig.buildingSpacing * 0.7;
     const depth = gridConfig.buildingSpacing * 0.7;
@@ -145,12 +205,15 @@ export class Visualizer {
       color: BUILDING_COLORS[data.function],
       roughness: 0.7,
       metalness: 0.3,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
     });
     const mainMesh = new THREE.Mesh(mainGeometry, mainMaterial);
     mainMesh.position.y = height / 2;
     mainMesh.castShadow = true;
     mainMesh.receiveShadow = true;
-    (group as any).mainMesh = mainMesh;
+    group.buildingMeshes.push(mainMesh);
+    group.materials.push(mainMaterial);
     group.add(mainMesh);
 
     this.addWindows(group, width, height, depth, data.function);
@@ -174,9 +237,9 @@ export class Visualizer {
     const windowHeight = height * 0.08;
     const windowDepth = 0.1;
 
-    const windowRowsV = windowHeight;
     const windowSpacingV = (height * 0.7) / windowRows;
     const windowSpacingH = (width * 0.6) / (windowCols - 1);
+    const windowDepthSpacing = (depth * 0.6) / (windowCols - 1);
 
     for (let row = 0; row < windowRows; row++) {
       for (let col = 0; col < windowCols; col++) {
@@ -190,15 +253,15 @@ export class Visualizer {
             })
           : new THREE.MeshBasicMaterial({ color: 0x1a2a3a });
 
+        const yPos = height * 0.2 + row * windowSpacingV;
+        const xPos = -width * 0.3 + col * windowSpacingH;
+        const zPos = -depth * 0.3 + col * windowDepthSpacing;
+
         const frontWindow = new THREE.Mesh(
           new THREE.BoxGeometry(windowWidth, windowHeight, windowDepth),
           winMat
         );
-        frontWindow.position.set(
-          -width * 0.3 + col * windowSpacingH,
-          height * 0.2 + row * windowSpacingV,
-          depth / 2 + 0.05
-        );
+        frontWindow.position.set(xPos, yPos, depth / 2 + 0.05);
         group.add(frontWindow);
         if (isLit) group.windows.push(frontWindow);
 
@@ -206,11 +269,7 @@ export class Visualizer {
           new THREE.BoxGeometry(windowWidth, windowHeight, windowDepth),
           isLit ? winMat.clone() : winMat
         );
-        backWindow.position.set(
-          -width * 0.3 + col * windowSpacingH,
-          height * 0.2 + row * windowSpacingV,
-          -depth / 2 - 0.05
-        );
+        backWindow.position.set(xPos, yPos, -depth / 2 - 0.05);
         group.add(backWindow);
         if (isLit) group.windows.push(backWindow);
 
@@ -218,11 +277,7 @@ export class Visualizer {
           new THREE.BoxGeometry(windowDepth, windowHeight, windowWidth),
           isLit ? winMat.clone() : winMat
         );
-        leftWindow.position.set(
-          -width / 2 - 0.05,
-          height * 0.2 + row * windowSpacingV,
-          -depth * 0.3 + col * (depth * 0.6 / (windowCols - 1))
-        );
+        leftWindow.position.set(-width / 2 - 0.05, yPos, zPos);
         group.add(leftWindow);
         if (isLit) group.windows.push(leftWindow);
 
@@ -230,11 +285,7 @@ export class Visualizer {
           new THREE.BoxGeometry(windowDepth, windowHeight, windowWidth),
           isLit ? winMat.clone() : winMat
         );
-        rightWindow.position.set(
-          width / 2 + 0.05,
-          height * 0.2 + row * windowSpacingV,
-          -depth * 0.3 + col * (depth * 0.6 / (windowCols - 1))
-        );
+        rightWindow.position.set(width / 2 + 0.05, yPos, zPos);
         group.add(rightWindow);
         if (isLit) group.windows.push(rightWindow);
       }
@@ -260,11 +311,15 @@ export class Visualizer {
         color: roofColor,
         roughness: 0.6,
         metalness: 0.4,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
       });
       const spire = new THREE.Mesh(spireGeometry, spireMaterial);
       spire.position.y = height + height * 0.15;
       spire.rotation.y = data.roofRotation;
       spire.castShadow = true;
+      group.buildingMeshes.push(spire);
+      group.materials.push(spireMaterial);
       group.add(spire);
     } else {
       const flatGeometry = new THREE.BoxGeometry(
@@ -276,10 +331,14 @@ export class Visualizer {
         color: roofColor,
         roughness: 0.8,
         metalness: 0.2,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
       });
       const flatRoof = new THREE.Mesh(flatGeometry, flatMaterial);
       flatRoof.position.y = height + 0.75;
       flatRoof.castShadow = true;
+      group.buildingMeshes.push(flatRoof);
+      group.materials.push(flatMaterial);
       group.add(flatRoof);
 
       const decorCount = Math.floor(Math.random() * 3) + 1;
@@ -295,6 +354,8 @@ export class Visualizer {
           color: roofColor,
           roughness: 0.5,
           metalness: 0.5,
+          emissive: 0x000000,
+          emissiveIntensity: 0,
         });
         const decor = new THREE.Mesh(decorGeometry, decorMaterial);
         decor.position.set(
@@ -303,6 +364,8 @@ export class Visualizer {
           (Math.random() - 0.5) * depth * 0.5
         );
         decor.castShadow = true;
+        group.buildingMeshes.push(decor);
+        group.materials.push(decorMaterial);
         group.add(decor);
       }
     }
@@ -312,13 +375,26 @@ export class Visualizer {
     const building = this.buildings.get(buildingId);
     if (!building) return;
 
-    building.highlightTarget = 0xffffff;
-    this.buildingHeightAnimations.set(buildingId, {
+    if (this.highlightTweens.has(buildingId)) {
+      this.highlightTweens.delete(buildingId);
+    }
+
+    const startColor = new THREE.Color(building.baseColor);
+    const startEmissive = new THREE.Color(building.originalEmissive);
+    const targetColor = new THREE.Color(0xffffff);
+    const targetEmissive = new THREE.Color(0xffffff);
+
+    this.highlightTweens.set(buildingId, {
+      buildingId,
       startTime: performance.now(),
       duration: 300,
-      type: 'highlight'
+      fromColor: startColor,
+      toColor: targetColor,
+      fromEmissive: startEmissive,
+      toEmissive: targetEmissive,
     });
 
+    building.isHighlighting = true;
     this.spawnParticles(buildingId);
   }
 
@@ -326,11 +402,27 @@ export class Visualizer {
     const building = this.buildings.get(buildingId);
     if (!building) return;
 
-    building.highlightTarget = building.originalColor;
-    this.buildingHeightAnimations.set(buildingId, {
+    if (this.highlightTweens.has(buildingId)) {
+      this.highlightTweens.delete(buildingId);
+    }
+
+    const startColor = new THREE.Color(building.baseColor);
+    const startEmissive = new THREE.Color(0xffffff);
+    const targetColor = new THREE.Color(building.originalColor);
+    const targetEmissive = new THREE.Color(0x000000);
+
+    this.highlightTweens.set(buildingId, {
+      buildingId,
       startTime: performance.now(),
       duration: 300,
-      type: 'reset'
+      fromColor: startColor,
+      toColor: targetColor,
+      fromEmissive: startEmissive,
+      toEmissive: targetEmissive,
+      onComplete: () => {
+        building.isHighlighting = false;
+        building.baseColor = building.originalColor;
+      },
     });
   }
 
@@ -339,116 +431,150 @@ export class Visualizer {
     const data = buildingData.find(b => b.id === buildingId);
     if (!building || !data) return;
 
-    const color = BUILDING_COLORS[data.function];
-    const particleCount = 15;
+    const colorHex = BUILDING_COLORS[data.function];
+    const color = new THREE.Color(colorHex);
+    const particleCount = this.PARTICLES_PER_BUILDING;
 
-    for (let i = 0; i < particleCount; i++) {
-      const material = new THREE.MeshBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 0.7,
-      });
+    let spawned = 0;
+    const halfWidth = gridConfig.buildingSpacing * 0.3;
 
-      const mesh = new THREE.Mesh(this.particleGeometry, material);
-      const width = gridConfig.buildingSpacing * 0.3;
-      mesh.position.set(
-        building.position.x + (Math.random() - 0.5) * width,
-        0,
-        building.position.z + (Math.random() - 0.5) * width
-      );
-      mesh.scale.setScalar(0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5);
+    for (let i = 0; i < this.particlePool.length && spawned < particleCount; i++) {
+      const particle = this.particlePool[i];
+      if (!particle.active) {
+        const material = particle.mesh.material as THREE.MeshBasicMaterial;
+        material.color.copy(color);
+        material.opacity = 0.6;
 
-      const particle: Particle = {
-        mesh,
-        velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.5,
-          8 + Math.random() * 5,
-          (Math.random() - 0.5) * 0.5
-        ),
-        life: 1.5,
-        maxLife: 1.5,
-        buildingId,
-      };
+        particle.mesh.position.set(
+          building.position.x + (Math.random() - 0.5) * halfWidth,
+          1,
+          building.position.z + (Math.random() - 0.5) * halfWidth
+        );
 
-      this.particles.push(particle);
-      this.scene.add(mesh);
+        const scale = 0.35 + Math.random() * 0.35;
+        particle.mesh.scale.setScalar(scale);
+
+        particle.velocity.set(
+          (Math.random() - 0.5) * 0.25,
+          6 + Math.random() * 4,
+          (Math.random() - 0.5) * 0.25
+        );
+        particle.life = this.PARTICLE_LIFETIME;
+        particle.maxLife = this.PARTICLE_LIFETIME;
+        particle.buildingId = buildingId;
+        particle.active = true;
+        particle.mesh.visible = true;
+
+        this.particles.push(particle);
+        spawned++;
+      }
     }
   }
 
   update(deltaTime: number): void {
     const now = performance.now();
 
-    for (const [buildingId, anim] of this.buildingHeightAnimations) {
+    for (const [buildingId, tween] of this.highlightTweens) {
       const building = this.buildings.get(buildingId);
       if (!building) continue;
 
-      const elapsed = now - anim.startTime;
-      const progress = Math.min(elapsed / anim.duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const elapsed = now - tween.startTime;
+      const progress = Math.min(elapsed / tween.duration, 1);
+      const eased = this.easeOutCubic(progress);
 
-      const startColor = new THREE.Color(building.baseColor);
-      const targetColor = new THREE.Color(building.highlightTarget);
-      const currentColor = startColor.clone().lerp(targetColor, eased);
+      const currentColor = tween.fromColor.clone().lerp(tween.toColor, eased);
+      const currentEmissive = tween.fromEmissive.clone().lerp(tween.toEmissive, eased);
 
-      this.setBuildingColor(building, currentColor);
+      this.setBuildingColor(building, currentColor, currentEmissive);
 
       if (progress >= 1) {
-        building.baseColor = building.highlightTarget;
-        this.buildingHeightAnimations.delete(buildingId);
+        building.baseColor = tween.toColor.getHex();
+        this.highlightTweens.delete(buildingId);
+        if (tween.onComplete) {
+          tween.onComplete();
+        }
       }
     }
 
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const particle = this.particles[i];
-      particle.life -= deltaTime;
-
-      if (particle.life <= 0) {
-        this.scene.remove(particle.mesh);
-        (particle.mesh.material as THREE.Material).dispose();
-        this.particles.splice(i, 1);
+    const activeParticles = this.particles;
+    for (let i = activeParticles.length - 1; i >= 0; i--) {
+      const particle = activeParticles[i];
+      if (!particle.active) {
+        activeParticles.splice(i, 1);
         continue;
       }
 
-      particle.mesh.position.add(
-        particle.velocity.clone().multiplyScalar(deltaTime)
-      );
+      particle.life -= deltaTime;
 
-      const opacity = (particle.life / particle.maxLife) * 0.7;
-      (particle.mesh.material as THREE.MeshBasicMaterial).opacity = opacity;
+      if (particle.life <= 0) {
+        this.returnParticleToPool(particle);
+        activeParticles.splice(i, 1);
+        continue;
+      }
+
+      const vel = particle.velocity;
+      const pos = particle.mesh.position;
+      pos.x += vel.x * deltaTime;
+      pos.y += vel.y * deltaTime;
+      pos.z += vel.z * deltaTime;
+
+      const lifeRatio = particle.life / particle.maxLife;
+      const material = particle.mesh.material as THREE.MeshBasicMaterial;
+      material.opacity = lifeRatio * 0.6;
     }
   }
 
-  private setBuildingColor(building: BuildingMeshGroup, color: THREE.Color): void {
-    building.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        const mat = child.material as THREE.MeshStandardMaterial;
-        if (mat.isMeshStandardMaterial && mat.color) {
-          if (building.windows.includes(child)) return;
-          mat.color.copy(color);
-        }
+  private returnParticleToPool(particle: PooledParticle): void {
+    particle.active = false;
+    particle.life = 0;
+    particle.buildingId = '';
+    particle.mesh.visible = false;
+    const material = particle.mesh.material as THREE.MeshBasicMaterial;
+    material.opacity = 0;
+  }
+
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  private setBuildingColor(building: BuildingMeshGroup, color: THREE.Color, emissive: THREE.Color): void {
+    for (let i = 0; i < building.materials.length; i++) {
+      const mat = building.materials[i];
+      if (mat.isMeshStandardMaterial) {
+        mat.color.copy(color);
+        mat.emissive.copy(emissive);
+        mat.emissiveIntensity = emissive.r > 0 ? 0.4 : 0;
       }
-    });
+    }
   }
 
   setTimeOfDay(hour: number): void {
     this.timeOfDay = hour;
 
     const dayFactor = this.calculateDayFactor(hour);
+    const nightFactor = 1 - dayFactor;
 
     if (this.ambientLight) {
-      this.ambientLight.intensity = 0.2 + dayFactor * 0.3;
+      const ambientColor = this.dayAmbientColor.clone().lerp(this.nightAmbientColor, nightFactor);
+      this.ambientLight.color.copy(ambientColor);
+      this.ambientLight.intensity = 0.3 + dayFactor * 0.4;
     }
 
     if (this.directionalLight) {
-      this.directionalLight.intensity = 0.3 + dayFactor * 0.7;
+      this.directionalLight.intensity = 0.2 + dayFactor * 0.8;
+      const lightColor = new THREE.Color(0xffffff).lerp(new THREE.Color(0x4466aa), nightFactor * 0.5);
+      this.directionalLight.color.copy(lightColor);
     }
 
     if (this.hemisphereLight) {
       this.hemisphereLight.intensity = 0.2 + dayFactor * 0.3;
     }
 
-    const skyColor = this.nightColor.clone().lerp(this.dayColor, dayFactor);
+    const skyColor = this.daySkyColor.clone().lerp(this.nightSkyColor, nightFactor);
     this.scene.background = skyColor;
+    if (this.scene.fog) {
+      (this.scene.fog as THREE.Fog).color.copy(skyColor);
+    }
 
     if (this.directionalLight) {
       const sunAngle = (hour - 6) / 12 * Math.PI;
@@ -457,7 +583,7 @@ export class Visualizer {
       this.directionalLight.position.set(sunDist, Math.max(10, sunHeight), 50);
     }
 
-    const windowLightIntensity = 1 - dayFactor;
+    const windowLightIntensity = Math.max(0, (nightFactor - 0.3) / 0.7);
     this.updateWindowLights(windowLightIntensity);
   }
 
@@ -467,20 +593,22 @@ export class Visualizer {
       const dist = Math.abs(hour - midday) / 6;
       return 1 - dist * 0.3;
     } else if (hour > 18 && hour < 20) {
-      return (20 - hour) / 2 * 0.7;
+      return (20 - hour) / 2 * 0.9;
     } else if (hour >= 5 && hour < 6) {
-      return (hour - 5) / 1 * 0.7;
+      return (hour - 5) / 1 * 0.9;
     } else {
-      return 0.1;
+      return 0.05;
     }
   }
 
   private updateWindowLights(intensity: number): void {
     for (const building of this.buildings.values()) {
-      for (const window of building.windows) {
+      for (let i = 0; i < building.windows.length; i++) {
+        const window = building.windows[i];
         const mat = window.material as THREE.MeshBasicMaterial;
         if (mat.opacity !== undefined) {
-          mat.opacity = Math.max(0.1, intensity * 0.9);
+          const targetOpacity = Math.max(0.05, intensity * 0.95);
+          mat.opacity += (targetOpacity - mat.opacity) * 0.08;
         }
       }
     }
@@ -489,8 +617,8 @@ export class Visualizer {
   getBuildingByMesh(mesh: THREE.Object3D): string | null {
     let current: THREE.Object3D | null = mesh;
     while (current) {
-      if ((current as any).buildingId) {
-        return (current as any).buildingId;
+      if ((current as BuildingMeshGroup).buildingId) {
+        return (current as BuildingMeshGroup).buildingId;
       }
       current = current.parent;
     }
@@ -506,5 +634,20 @@ export class Visualizer {
   getBuildingHeight(buildingId: string): number {
     const data = buildingData.find(b => b.id === buildingId);
     return data?.height || 30;
+  }
+
+  getAllBuildingObjects(): THREE.Object3D[] {
+    return this.buildingObjectsCache;
+  }
+
+  setFirstPersonBlur(_enabled: boolean): void {
+  }
+
+  dispose(): void {
+    this.particleGeometry.dispose();
+    this.particleMaterialTemplate.dispose();
+    for (const particle of this.particlePool) {
+      (particle.mesh.material as THREE.Material).dispose();
+    }
   }
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Visualizer } from '../visual/visualizer';
 import { AudioEngine } from '../audio/audioEngine';
-import { getBuildingById, buildingData, BuildingFunction, BUILDING_COLORS } from '../data/buildingData';
+import { getBuildingById, buildingData, BuildingFunction } from '../data/buildingData';
 
 type ViewMode = 'topdown' | 'firstperson';
 
@@ -26,6 +26,7 @@ export class InteractionManager {
   private audioEngine: AudioEngine;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
+  private scene: THREE.Scene;
 
   private viewMode: ViewMode = 'topdown';
   private isDragging: boolean = false;
@@ -40,7 +41,6 @@ export class InteractionManager {
 
   private firstPersonTarget: THREE.Vector3 | null = null;
   private firstPersonLookAt: THREE.Vector3 | null = null;
-  private firstPersonProgress: number = 0;
   private transitioning: boolean = false;
   private transitionStartPos: THREE.Vector3 = new THREE.Vector3();
   private transitionStartLookAt: THREE.Vector3 = new THREE.Vector3();
@@ -64,21 +64,27 @@ export class InteractionManager {
   private trackNameEl: HTMLElement;
   private volumeFillEl: HTMLElement;
   private heatmapEl: HTMLElement;
+  private volumeAnimFrame: number | null = null;
+  private currentVolume: number = 0;
+  private targetVolume: number = 0;
 
   private onBuildingSelectCallback: ((buildingId: string | null) => void) | null = null;
+  private buildingObjects: THREE.Object3D[] = [];
 
   constructor(
     camera: THREE.PerspectiveCamera,
     renderer: THREE.WebGLRenderer,
     visualizer: Visualizer,
     audioEngine: AudioEngine,
-    container: HTMLElement
+    container: HTMLElement,
+    scene: THREE.Scene
   ) {
     this.camera = camera;
     this.renderer = renderer;
     this.visualizer = visualizer;
     this.audioEngine = audioEngine;
     this.container = container;
+    this.scene = scene;
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -90,16 +96,19 @@ export class InteractionManager {
     this.volumeFillEl = document.getElementById('panel-volume-fill')!;
     this.heatmapEl = document.getElementById('panel-heatmap')!;
 
+    this.buildingObjects = this.visualizer.getAllBuildingObjects();
+
     this.initHeatmap();
     this.bindEvents();
     this.updateCameraPosition();
+    this.startVolumeAnimation();
   }
 
   private initHeatmap(): void {
     this.heatmapData = [];
     for (let i = 0; i < 24; i++) {
       const baseIntensity = this.getTimeIntensity(i);
-      this.heatmapData.push(baseIntensity + (Math.random() - 0.5) * 0.2);
+      this.heatmapData.push(Math.max(0.1, Math.min(1, baseIntensity + (Math.random() - 0.5) * 0.2)));
     }
     this.renderHeatmap();
   }
@@ -124,6 +133,15 @@ export class InteractionManager {
     }
   }
 
+  private startVolumeAnimation(): void {
+    const animate = () => {
+      this.currentVolume += (this.targetVolume - this.currentVolume) * 0.15;
+      this.volumeFillEl.style.width = `${this.currentVolume * 100}%`;
+      this.volumeAnimFrame = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+
   private bindEvents(): void {
     this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
     this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
@@ -132,7 +150,7 @@ export class InteractionManager {
     this.renderer.domElement.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
     this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
     this.renderer.domElement.addEventListener('dblclick', this.onDoubleClick.bind(this));
-    this.renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.renderer.domElement.addEventListener('contextmenu', (e: MouseEvent) => e.preventDefault());
 
     const toggleBtn = document.getElementById('toggle-btn')!;
     const controlBar = document.getElementById('control-bar')!;
@@ -280,6 +298,7 @@ export class InteractionManager {
         this.visualizer.resetHighlight(this.activeBuildingId);
         this.audioEngine.stopSound(this.activeBuildingId);
         this.activeBuildingId = null;
+        this.targetVolume = 0;
         this.hideInfoPanel();
       }
       return;
@@ -289,6 +308,7 @@ export class InteractionManager {
       this.visualizer.resetHighlight(buildingId);
       this.audioEngine.stopSound(buildingId);
       this.activeBuildingId = null;
+      this.targetVolume = 0;
       this.hideInfoPanel();
       return;
     }
@@ -301,6 +321,7 @@ export class InteractionManager {
     this.activeBuildingId = buildingId;
     this.visualizer.highlightBuilding(buildingId);
     this.audioEngine.playSound(buildingId);
+    this.targetVolume = 1;
     this.showInfoPanel(buildingId);
 
     if (this.onBuildingSelectCallback) {
@@ -311,11 +332,22 @@ export class InteractionManager {
   private onDoubleClick(e: MouseEvent): void {
     const buildingId = this.getBuildingUnderMouse(e);
     if (buildingId) {
+      if (this.clickTimeout) {
+        clearTimeout(this.clickTimeout);
+        this.clickTimeout = null;
+      }
+
       this.activeBuildingId = buildingId;
       this.visualizer.highlightBuilding(buildingId);
       this.audioEngine.playSound(buildingId);
+      this.targetVolume = 1;
       this.showInfoPanel(buildingId);
       this.enterFirstPerson(buildingId);
+
+      const btnFirstPerson = document.getElementById('btn-firstperson')!;
+      const btnTopView = document.getElementById('btn-topview')!;
+      btnFirstPerson.classList.add('active');
+      btnTopView.classList.remove('active');
     }
   }
 
@@ -326,15 +358,12 @@ export class InteractionManager {
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
     
-    const intersects = this.raycaster.intersectObjects(this.camera.children, true);
+    const intersects = this.raycaster.intersectObjects(this.buildingObjects, true);
     
     for (const intersect of intersects) {
-      let obj: THREE.Object3D | null = intersect.object;
-      while (obj) {
-        if ((obj as any).buildingId) {
-          return (obj as any).buildingId;
-        }
-        obj = obj.parent;
+      const buildingId = this.visualizer.getBuildingByMesh(intersect.object);
+      if (buildingId) {
+        return buildingId;
       }
     }
     
@@ -364,8 +393,17 @@ export class InteractionManager {
     if (mode === 'topdown') {
       this.exitFirstPerson();
     } else {
-      const firstBuilding = buildingData[Math.floor(buildingData.length / 2)];
+      const firstBuilding = this.activeBuildingId 
+        ? getBuildingById(this.activeBuildingId)
+        : buildingData[Math.floor(buildingData.length / 2)];
+      
       if (firstBuilding) {
+        if (!this.activeBuildingId) {
+          this.activeBuildingId = firstBuilding.id;
+          this.audioEngine.playSound(firstBuilding.id);
+          this.targetVolume = 1;
+          this.showInfoPanel(firstBuilding.id);
+        }
         this.enterFirstPerson(firstBuilding.id);
       }
     }
@@ -375,9 +413,14 @@ export class InteractionManager {
     const building = getBuildingById(buildingId);
     if (!building) return;
 
+    const canvasContainer = document.getElementById('canvas-container')!;
+    canvasContainer.classList.add('blurred');
+
+    this.infoPanel.classList.add('firstperson');
+
     this.transitionStartPos.copy(this.camera.position);
     
-    const lookAt = new THREE.Vector3(0, 0, 0);
+    const lookAt = new THREE.Vector3(0, 30, 0);
     if (this.viewMode === 'topdown') {
       lookAt.set(0, 30, 0);
     } else {
@@ -395,13 +438,17 @@ export class InteractionManager {
 
     this.firstPersonTarget = targetPos;
     this.firstPersonLookAt = new THREE.Vector3(building.x, building.height * 0.5, building.z);
-    this.firstPersonProgress = 0;
     this.transitioning = true;
     this.transitionProgress = 0;
     this.viewMode = 'firstperson';
   }
 
   private exitFirstPerson(): void {
+    const canvasContainer = document.getElementById('canvas-container')!;
+    canvasContainer.classList.remove('blurred');
+
+    this.infoPanel.classList.remove('firstperson');
+
     this.transitionStartPos.copy(this.camera.position);
     
     const currentLookAt = this.firstPersonLookAt || new THREE.Vector3(0, 30, 0);
@@ -410,6 +457,14 @@ export class InteractionManager {
     this.viewMode = 'topdown';
     this.transitioning = true;
     this.transitionProgress = 0;
+
+    if (this.activeBuildingId) {
+      this.visualizer.resetHighlight(this.activeBuildingId);
+      this.audioEngine.stopSound(this.activeBuildingId);
+      this.activeBuildingId = null;
+      this.targetVolume = 0;
+      this.hideInfoPanel();
+    }
   }
 
   update(deltaTime: number): void {
@@ -455,7 +510,7 @@ export class InteractionManager {
 
     if (this.activeBuildingId) {
       const level = this.audioEngine.getSoundLevel(this.activeBuildingId);
-      this.volumeFillEl.style.width = `${level * 100}%`;
+      this.targetVolume = level;
     }
   }
 
@@ -469,6 +524,7 @@ export class InteractionManager {
     bars.forEach((bar, i) => {
       const height = Math.max(5, Math.min(100, this.heatmapData[i] * 100));
       (bar as HTMLElement).style.height = `${height}%`;
+      (bar as HTMLElement).style.opacity = `${0.5 + this.heatmapData[i] * 0.5}`;
     });
   }
 
@@ -495,5 +551,11 @@ export class InteractionManager {
 
   getViewMode(): ViewMode {
     return this.viewMode;
+  }
+
+  dispose(): void {
+    if (this.volumeAnimFrame) {
+      cancelAnimationFrame(this.volumeAnimFrame);
+    }
   }
 }
