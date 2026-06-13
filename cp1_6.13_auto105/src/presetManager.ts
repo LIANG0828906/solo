@@ -11,6 +11,7 @@ export class PresetManager {
   private readonly GRID_SIZE = 30;
   private readonly HALF = 15;
   private readonly MAX_VOXELS = 800;
+  private readonly COLOR_COUNT = 7;
 
   generatePreset(type: PresetType): PresetVoxel[] {
     let voxels: PresetVoxel[] = [];
@@ -45,12 +46,12 @@ export class PresetManager {
         for (let z = -radius; z <= radius; z++) {
           const dist = Math.sqrt(x * x + y * y + z * z);
           if (dist <= radius && dist >= radius - 1.5) {
-            const gx = this.HALF + x;
-            const gy = this.HALF + y;
-            const gz = this.HALF + z;
+            const gx = Math.round(this.HALF + x);
+            const gy = Math.round(this.HALF + y);
+            const gz = Math.round(this.HALF + z);
             if (this.isValidPos(gx, gy, gz)) {
               const hue = Math.atan2(y, x) / (Math.PI * 2) + 0.5;
-              const colorIdx = Math.floor(hue * 12) % 12;
+              const colorIdx = Math.floor(hue * this.COLOR_COUNT) % this.COLOR_COUNT;
               voxels.push({ x: gx, y: gy, z: gz, colorIndex: colorIdx });
             }
           }
@@ -66,43 +67,58 @@ export class PresetManager {
     const turns = 6;
     const heightScale = 8;
     const radiusMax = 9;
-    const step = 0.08;
+    const totalPoints = 200;
 
     const placed = new Set<string>();
 
-    for (let t = 0; t <= turns * Math.PI * 2; t += step) {
-      const progress = t / (turns * Math.PI * 2);
+    for (let i = 0; i <= totalPoints; i++) {
+      const progress = i / totalPoints;
+      const t = progress * turns * Math.PI * 2;
       const r = radiusMax * Math.sqrt(progress);
+
+      const arcLength = r * t;
+      const minStep = 0.8;
+      const adaptiveStep = Math.max(minStep, minStep * (1 + progress * 0.5));
+      if (i > 0) {
+        const prevProgress = (i - 1) / totalPoints;
+        const prevT = prevProgress * turns * Math.PI * 2;
+        const prevR = radiusMax * Math.sqrt(prevProgress);
+        const deltaArc = Math.abs(r * t - prevR * prevT);
+        if (deltaArc < adaptiveStep) continue;
+      }
+
       const x = Math.round(r * Math.cos(t));
       const z = Math.round(r * Math.sin(t));
       const y = Math.round(-heightScale + progress * heightScale * 2);
 
-      const gx = this.HALF + x;
-      const gy = this.HALF + y;
-      const gz = this.HALF + z;
+      const gx = Math.round(this.HALF + x);
+      const gy = Math.round(this.HALF + y);
+      const gz = Math.round(this.HALF + z);
 
       const key = `${gx},${gy},${gz}`;
       if (placed.has(key)) continue;
 
       if (this.isValidPos(gx, gy, gz)) {
         placed.add(key);
-        const colorIdx = Math.floor(progress * 12) % 12;
+        const colorIndex = Math.floor(progress * this.COLOR_COUNT) % this.COLOR_COUNT;
         voxels.push({ x: gx, y: gy, z: gz, colorIndex });
       }
 
-      for (let ring = 0; ring < 1; ring++) {
-        const t2 = t + ring * step * 1.5;
-        const r2 = radiusMax * Math.sqrt(progress + 0.02 * (ring + 1));
-        const x2 = Math.round(r2 * Math.cos(t2 + 0.3 * (ring + 1)));
-        const z2 = Math.round(r2 * Math.sin(t2 + 0.3 * (ring + 1)));
-        const y2 = Math.round(-heightScale + (progress + 0.01 * ring) * heightScale * 2);
-        const gx2 = this.HALF + x2;
-        const gy2 = this.HALF + y2;
-        const gz2 = this.HALF + z2;
+      for (let offset = 1; offset <= 1; offset++) {
+        const offsetAngle = t + offset * 0.6;
+        const offsetR = r + offset * 0.8;
+        const x2 = Math.round(offsetR * Math.cos(offsetAngle));
+        const z2 = Math.round(offsetR * Math.sin(offsetAngle));
+        const y2 = Math.round(-heightScale + (progress + 0.015 * offset) * heightScale * 2);
+
+        const gx2 = Math.round(this.HALF + x2);
+        const gy2 = Math.round(this.HALF + y2);
+        const gz2 = Math.round(this.HALF + z2);
         const key2 = `${gx2},${gy2},${gz2}`;
+
         if (!placed.has(key2) && this.isValidPos(gx2, gy2, gz2)) {
           placed.add(key2);
-          const colorIdx2 = Math.floor(((progress + 0.08) % 1) * 12) % 12;
+          const colorIdx2 = Math.floor(((progress + 0.12 * offset) % 1) * this.COLOR_COUNT) % this.COLOR_COUNT;
           voxels.push({ x: gx2, y: gy2, z: gz2, colorIndex: colorIdx2 });
         }
       }
@@ -122,7 +138,6 @@ export class PresetManager {
         const xHeart = 16 * Math.pow(Math.sin(u), 3);
         const yHeart = 13 * Math.cos(u) - 5 * Math.cos(2 * u)
           - 2 * Math.cos(3 * u) - Math.cos(4 * u);
-        const zHeart = 8 * Math.sin(v) * Math.cos(u / 2);
 
         for (let t = -thickness; t <= thickness; t++) {
           const tv = v + t * 0.1;
@@ -132,9 +147,9 @@ export class PresetManager {
           const y = Math.round(yHeart * scale);
           const z = Math.round(zT * scale);
 
-          const gx = this.HALF + x;
-          const gy = this.HALF + y;
-          const gz = this.HALF + z;
+          const gx = Math.round(this.HALF + x);
+          const gy = Math.round(this.HALF + y);
+          const gz = Math.round(this.HALF + z);
 
           const key = `${gx},${gy},${gz}`;
           if (placed.has(key)) continue;
@@ -142,7 +157,7 @@ export class PresetManager {
           if (this.isValidPos(gx, gy, gz)) {
             placed.add(key);
             const normY = (yHeart + 20) / 40;
-            const colorIdx = Math.floor(normY * 4 + 8) % 12;
+            const colorIndex = Math.floor(normY * 3 + 4) % this.COLOR_COUNT;
             voxels.push({ x: gx, y: gy, z: gz, colorIndex });
           }
         }
@@ -177,9 +192,9 @@ export class PresetManager {
           const y = Math.round(yOffset);
           const z = Math.round(r * Math.sin(a));
 
-          const gx = this.HALF + x;
-          const gy = this.HALF + y;
-          const gz = this.HALF + z;
+          const gx = Math.round(this.HALF + x);
+          const gy = Math.round(this.HALF + y);
+          const gz = Math.round(this.HALF + z);
 
           const key = `${gx},${gy},${gz}`;
           if (placed.has(key)) continue;
@@ -187,7 +202,7 @@ export class PresetManager {
           if (this.isValidPos(gx, gy, gz)) {
             placed.add(key);
             const hueFromAngle = (angle + Math.PI) / (Math.PI * 2);
-            const colorIdx = Math.floor(hueFromAngle * 12) % 12;
+            const colorIndex = Math.floor(hueFromAngle * this.COLOR_COUNT) % this.COLOR_COUNT;
             voxels.push({ x: gx, y: gy, z: gz, colorIndex });
           }
         }
@@ -203,16 +218,16 @@ export class PresetManager {
       const y = Math.round(r * Math.sin(phi) * Math.sin(theta));
       const z = Math.round(r * Math.cos(phi));
 
-      const gx = this.HALF + x;
-      const gy = this.HALF + y;
-      const gz = this.HALF + z;
+      const gx = Math.round(this.HALF + x);
+      const gy = Math.round(this.HALF + y);
+      const gz = Math.round(this.HALF + z);
 
       const key = `${gx},${gy},${gz}`;
       if (placed.has(key)) continue;
 
       if (this.isValidPos(gx, gy, gz)) {
         placed.add(key);
-        const colorIdx = Math.floor(Math.random() * 12);
+        const colorIndex = Math.floor(Math.random() * this.COLOR_COUNT);
         voxels.push({ x: gx, y: gy, z: gz, colorIndex });
       }
     }
@@ -236,9 +251,9 @@ export class PresetManager {
       const y = Math.round(gaussianRandom() * 6);
       const z = Math.round(gaussianRandom() * 7);
 
-      const gx = this.HALF + x;
-      const gy = this.HALF + y;
-      const gz = this.HALF + z;
+      const gx = Math.round(this.HALF + x);
+      const gy = Math.round(this.HALF + y);
+      const gz = Math.round(this.HALF + z);
 
       const key = `${gx},${gy},${gz}`;
       if (placed.has(key)) continue;
@@ -246,7 +261,7 @@ export class PresetManager {
       if (this.isValidPos(gx, gy, gz)) {
         placed.add(key);
         const hue = Math.atan2(y, x) / (Math.PI * 2) + 0.5;
-        const colorIdx = Math.floor(hue * 12) % 12;
+        const colorIndex = Math.floor(hue * this.COLOR_COUNT) % this.COLOR_COUNT;
         voxels.push({ x: gx, y: gy, z: gz, colorIndex });
       }
     }

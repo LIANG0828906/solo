@@ -7,7 +7,7 @@ export interface VoxelColor {
 export class ColorSystem {
   private presetColors: VoxelColor[] = [];
   private currentColorIndex: number = 0;
-  private currentCustomColor: string = '#FF3D3D';
+  private currentCustomColor: string = '#FF6B6B';
   private useCustomColor: boolean = false;
   private emissiveIntensity: number = 1.0;
   private listeners: Set<() => void> = new Set();
@@ -17,12 +17,14 @@ export class ColorSystem {
   }
 
   private hslToHex(h: number, s: number, l: number): string {
-    s /= 100;
-    l /= 100;
+    const sat = 85;
+    const light = 90;
+    const sNorm = sat / 100;
+    const lNorm = light / 100;
     const k = (n: number) => (n + h / 30) % 12;
-    const a = s * Math.min(l, 1 - l);
+    const a = sNorm * Math.min(lNorm, 1 - lNorm);
     const f = (n: number) =>
-      l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      lNorm - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     const toHex = (x: number) => {
       const hex = Math.round(255 * x).toString(16);
       return hex.length === 1 ? '0' + hex : hex;
@@ -31,13 +33,10 @@ export class ColorSystem {
   }
 
   private generateRainbowColors(): void {
-    const hueSteps = [0, 30, 55, 110, 160, 195, 220, 255, 285, 315, 340, 355];
+    const hueSteps = [0, 30, 60, 120, 210, 240, 270];
     const saturation = 85;
     const lightness = 90;
-    const names = [
-      '深红', '橙红', '金黄', '翠绿', '青蓝',
-      '天蓝', '靛蓝', '蓝紫', '洋红', '品红', '玫红', '绯红'
-    ];
+    const names = ['红', '橙', '黄', '绿', '蓝', '靛', '紫'];
 
     this.presetColors = hueSteps.map((h, i) => ({
       hex: this.hslToHex(h, saturation, lightness),
