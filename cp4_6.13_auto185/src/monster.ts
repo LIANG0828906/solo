@@ -3,6 +3,13 @@ import { distance } from './tower';
 
 export type MonsterType = 'zombie' | 'ghost' | 'golem';
 
+export interface Wall {
+  gridX: number;
+  gridY: number;
+  hp: number;
+  maxHp: number;
+}
+
 export interface MonsterConfig {
   hp: number;
   speed: number;
@@ -11,6 +18,7 @@ export interface MonsterConfig {
   color: string;
   radius: number;
   canBreakWalls: boolean;
+  wallDamage: number;
 }
 
 export interface Monster {
@@ -30,6 +38,8 @@ export interface Monster {
   slowTimer: number;
   slowFactor: number;
   canBreakWalls: boolean;
+  wallDamage: number;
+  attackingWall: Point | null;
   pathRecalcTimer: number;
 }
 
@@ -41,7 +51,8 @@ export const MONSTER_CONFIGS: Record<MonsterType, MonsterConfig> = {
     goldDrop: 10,
     color: '#e74c3c',
     radius: 10,
-    canBreakWalls: false
+    canBreakWalls: false,
+    wallDamage: 0
   },
   ghost: {
     hp: 30,
@@ -50,7 +61,8 @@ export const MONSTER_CONFIGS: Record<MonsterType, MonsterConfig> = {
     goldDrop: 5,
     color: '#9b59b6',
     radius: 8,
-    canBreakWalls: false
+    canBreakWalls: false,
+    wallDamage: 0
   },
   golem: {
     hp: 200,
@@ -59,11 +71,15 @@ export const MONSTER_CONFIGS: Record<MonsterType, MonsterConfig> = {
     goldDrop: 30,
     color: '#34495e',
     radius: 14,
-    canBreakWalls: true
+    canBreakWalls: true,
+    wallDamage: 25
   }
 };
 
 export const MAX_MONSTERS_PER_ROOM = 30;
+export const WALL_MAX_HP = 100;
+
+const wallHpMap = new Map<string, number>();
 
 let nextMonsterId = 1;
 
@@ -90,7 +106,20 @@ export function createMonster(
     slowTimer: 0,
     slowFactor: 1,
     canBreakWalls: cfg.canBreakWalls,
+    wallDamage: cfg.wallDamage,
+    attackingWall: null,
     pathRecalcTimer: 0
+  };
+}
+
+export function getWallHp(gx: number, gy: number): Wall {
+  const key = `${gx},${gy}`;
+  const hp = wallHpMap.get(key) ?? WALL_MAX_HP;
+  return {
+    gridX: gx,
+    gridY: gy,
+    hp,
+    maxHp: WALL_MAX_HP
   };
 }
 
@@ -113,6 +142,7 @@ export function recalculatePath(
     monster.path = findPathBreakWalls(start, targetGrid, room);
   }
   monster.pathIndex = 0;
+  monster.attackingWall = null;
   monster.pathRecalcTimer = 0;
 }
 
@@ -196,9 +226,34 @@ export function updateMonster(
     const gx = nextNode.x;
     const gy = nextNode.y;
     if (room.walls[gy] && room.walls[gy][gx]) {
-      breakWallCallback(gx, gy);
+      if (dist > CELL_SIZE * 0.6) {
+        if (dist <= moveAmount) {
+          monster.x = targetX;
+          monster.y = targetY;
+        } else {
+          monster.x += (dx / dist) * moveAmount;
+          monster.y += (dy / dist) * moveAmount;
+        }
+        monster.attackingWall = null;
+      } else {
+        monster.attackingWall = { x: gx, y: gy };
+        const key = `${gx},${gy}`;
+        let wallHp = wallHpMap.get(key) ?? WALL_MAX_HP;
+        wallHp -= monster.wallDamage * dt;
+        if (wallHp <= 0) {
+          wallHpMap.delete(key);
+          breakWallCallback(gx, gy);
+          monster.attackingWall = null;
+          monster.pathIndex++;
+        } else {
+          wallHpMap.set(key, wallHp);
+        }
+      }
+      return;
     }
   }
+
+  monster.attackingWall = null;
 
   if (dist <= moveAmount) {
     monster.x = targetX;

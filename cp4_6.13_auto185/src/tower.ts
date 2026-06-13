@@ -8,6 +8,10 @@ export interface TowerStats {
   attackSpeed: number;
   special?: string;
   color: string;
+  slowAmount?: number;
+  slowDuration?: number;
+  healAmount?: number;
+  aoeRadius?: number;
 }
 
 export interface Tower {
@@ -44,17 +48,17 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
   ice: {
     basePrice: 200,
     name: '冰冻塔',
-    baseStats: { damage: 8, range: 3, attackSpeed: 1.0, special: 'slow', color: '#3498db' }
+    baseStats: { damage: 8, range: 3, attackSpeed: 1.0, special: 'slow', color: '#3498db', slowAmount: 0.5, slowDuration: 2 }
   },
   cannon: {
     basePrice: 300,
     name: '火炮塔',
-    baseStats: { damage: 50, range: 3, attackSpeed: 0.5, special: 'aoe', color: '#e74c3c' }
+    baseStats: { damage: 50, range: 3, attackSpeed: 0.5, special: 'aoe', color: '#e74c3c', aoeRadius: 1.5 }
   },
   heal: {
     basePrice: 150,
     name: '治疗塔',
-    baseStats: { damage: 0, range: 4, attackSpeed: 0.5, special: 'heal', color: '#2ecc71' }
+    baseStats: { damage: 0, range: 4, attackSpeed: 0.5, special: 'heal', color: '#2ecc71', healAmount: 2 }
   }
 };
 
@@ -62,6 +66,13 @@ export const TOWER_ORDER: TowerType[] = ['arrow', 'magic', 'ice', 'cannon', 'hea
 
 let nextTowerId = 1;
 
+/**
+ * 计算塔的升级价格
+ * 升级价格规则：
+ * - 1级 → 2级：基础价 × 50%
+ * - 2级 → 3级：基础价 × 100%（即基础价全额）
+ * - 3级及以上：无法升级，返回 null
+ */
 export function getUpgradePrice(type: TowerType, currentLevel: number): number | null {
   if (currentLevel >= 3) return null;
   const base = TOWER_CONFIGS[type].basePrice;
@@ -90,11 +101,62 @@ export function createTower(type: TowerType, gridX: number, gridY: number): Towe
 export function upgradeTower(tower: Tower): void {
   if (tower.level >= 3) return;
   tower.level = (tower.level + 1) as 1 | 2 | 3;
-  const multiplier = 1 + (tower.level - 1) * 0.6;
-  tower.stats.damage = Math.floor(TOWER_CONFIGS[tower.type].baseStats.damage * multiplier);
-  tower.stats.range = TOWER_CONFIGS[tower.type].baseStats.range * (1 + (tower.level - 1) * 0.15);
-  tower.stats.attackSpeed = TOWER_CONFIGS[tower.type].baseStats.attackSpeed * (1 + (tower.level - 1) * 0.2);
+  const baseStats = TOWER_CONFIGS[tower.type].baseStats;
+  const levelFactor = tower.level - 1;
+
+  const dmgMultiplier = 1 + levelFactor * 0.6;
+  tower.stats.damage = Math.floor(baseStats.damage * dmgMultiplier);
+  tower.stats.range = baseStats.range * (1 + levelFactor * 0.15);
+  tower.stats.attackSpeed = baseStats.attackSpeed * (1 + levelFactor * 0.2);
+
+  if (baseStats.slowAmount !== undefined) {
+    tower.stats.slowAmount = baseStats.slowAmount / (1 + levelFactor * 0.25);
+  }
+  if (baseStats.slowDuration !== undefined) {
+    tower.stats.slowDuration = baseStats.slowDuration * (1 + levelFactor * 0.2);
+  }
+  if (baseStats.healAmount !== undefined) {
+    tower.stats.healAmount = baseStats.healAmount * (1 + levelFactor * 0.6);
+  }
+  if (baseStats.aoeRadius !== undefined) {
+    tower.stats.aoeRadius = baseStats.aoeRadius * (1 + levelFactor * 0.15);
+  }
+
   tower.upgradeFlash = 0.5;
+}
+
+/**
+ * 根据塔类型和等级计算完整属性
+ * 便于在不实际升级塔的情况下预览或计算属性
+ */
+export function getTowerStatsAtLevel(type: TowerType, level: 1 | 2 | 3): TowerStats {
+  const baseStats = TOWER_CONFIGS[type].baseStats;
+  const levelFactor = level - 1;
+
+  const stats: TowerStats = {
+    damage: Math.floor(baseStats.damage * (1 + levelFactor * 0.6)),
+    range: baseStats.range * (1 + levelFactor * 0.15),
+    attackSpeed: baseStats.attackSpeed * (1 + levelFactor * 0.2),
+    color: baseStats.color
+  };
+
+  if (baseStats.special !== undefined) {
+    stats.special = baseStats.special;
+  }
+  if (baseStats.slowAmount !== undefined) {
+    stats.slowAmount = baseStats.slowAmount / (1 + levelFactor * 0.25);
+  }
+  if (baseStats.slowDuration !== undefined) {
+    stats.slowDuration = baseStats.slowDuration * (1 + levelFactor * 0.2);
+  }
+  if (baseStats.healAmount !== undefined) {
+    stats.healAmount = baseStats.healAmount * (1 + levelFactor * 0.6);
+  }
+  if (baseStats.aoeRadius !== undefined) {
+    stats.aoeRadius = baseStats.aoeRadius * (1 + levelFactor * 0.15);
+  }
+
+  return stats;
 }
 
 export function distance(ax: number, ay: number, bx: number, by: number): number {

@@ -20,12 +20,22 @@ export interface Room {
   walls: boolean[][];
 }
 
-export const GRID_COLS = 15;
-export const GRID_ROWS = 15;
-export const CELL_SIZE = 30;
+// 网格配置常量
+export const CELL_SIZE = 30;       // 每格像素大小
+export const GRID_COLS = 15;       // 房间横向格子数
+export const GRID_ROWS = 15;       // 房间纵向格子数
+// 房间总像素尺寸: 15 * 30 = 450 x 450 像素
+
 export const ROOM_GRID_SIZE = 6;
 export const START_ROOM_X = 3;
 export const START_ROOM_Y = 3;
+
+export function getRoomPixelSize(): { width: number; height: number } {
+  return {
+    width: GRID_COLS * CELL_SIZE,
+    height: GRID_ROWS * CELL_SIZE
+  };
+}
 
 export class GameMap {
   rooms: Room[][] = [];
@@ -38,6 +48,24 @@ export class GameMap {
 
   private rand(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  private getRandomWalkablePosition(
+    walls: boolean[][],
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+    maxAttempts: number = 100
+  ): Point | null {
+    for (let i = 0; i < maxAttempts; i++) {
+      const x = this.rand(minX, maxX);
+      const y = this.rand(minY, maxY);
+      if (!walls[y][x]) {
+        return { x, y };
+      }
+    }
+    return null;
   }
 
   private generateRooms(): void {
@@ -62,10 +90,10 @@ export class GameMap {
     fragmentRooms.forEach(pos => {
       const room = this.rooms[pos.y][pos.x];
       room.hasKeyFragment = true;
-      room.keyPosition = {
-        x: this.rand(3, GRID_COLS - 4),
-        y: this.rand(3, GRID_ROWS - 4)
-      };
+      const keyPos = this.getRandomWalkablePosition(room.walls, 3, GRID_COLS - 4, 3, GRID_ROWS - 4);
+      if (keyPos) {
+        room.keyPosition = keyPos;
+      }
     });
   }
 
@@ -94,6 +122,7 @@ export class GameMap {
       }
     }
 
+    // 生成四周墙壁
     for (let rx = 0; rx < GRID_COLS; rx++) {
       walls[0][rx] = true;
       walls[GRID_ROWS - 1][rx] = true;
@@ -103,6 +132,15 @@ export class GameMap {
       walls[ry][GRID_COLS - 1] = true;
     }
 
+    // 留出门口位置（四个方向中间）
+    const midX = Math.floor(GRID_COLS / 2);
+    const midY = Math.floor(GRID_ROWS / 2);
+    walls[0][midX] = false;
+    walls[GRID_ROWS - 1][midX] = false;
+    walls[midY][0] = false;
+    walls[midY][GRID_COLS - 1] = false;
+
+    // 生成内部随机墙壁
     const wallCount = this.rand(3, 8);
     for (let i = 0; i < wallCount; i++) {
       const wx = this.rand(2, GRID_COLS - 3);
@@ -118,6 +156,7 @@ export class GameMap {
       }
     }
 
+    // 生成怪物生成点（确保不在墙上）
     const spawnCount = this.rand(2, 4);
     const spawnPoints: Point[] = [];
     const corners = [
@@ -126,9 +165,29 @@ export class GameMap {
       { x: 2, y: GRID_ROWS - 3 },
       { x: GRID_COLS - 3, y: GRID_ROWS - 3 }
     ];
-    for (let i = 0; i < spawnCount && i < corners.length; i++) {
-      const idx = this.rand(0, corners.length - 1);
-      spawnPoints.push(corners.splice(idx, 1)[0]);
+
+    const shuffledCorners = [...corners].sort(() => Math.random() - 0.5);
+    for (const corner of shuffledCorners) {
+      if (spawnPoints.length >= spawnCount) break;
+      if (!walls[corner.y][corner.x]) {
+        spawnPoints.push(corner);
+      }
+    }
+
+    while (spawnPoints.length < spawnCount) {
+      const pos = this.getRandomWalkablePosition(walls, 2, GRID_COLS - 3, 2, GRID_ROWS - 3);
+      if (pos && !spawnPoints.some(p => p.x === pos.x && p.y === pos.y)) {
+        spawnPoints.push(pos);
+      } else {
+        break;
+      }
+    }
+
+    // 确保玩家出生点（中心位置）不在墙上
+    const playerSpawnX = Math.floor(GRID_COLS / 2);
+    const playerSpawnY = Math.floor(GRID_ROWS / 2);
+    if (walls[playerSpawnY][playerSpawnX]) {
+      walls[playerSpawnY][playerSpawnX] = false;
     }
 
     return {
