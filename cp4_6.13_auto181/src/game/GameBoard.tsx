@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { COLORS, COLS, ROWS, cloneGrid, countBubbles } from '../generator/gridGenerator';
-import { addParticles, updateParticles, getParticles, clearParticles, Particle } from '../utils/particles';
+import { addParticles, updateParticles, getParticles, clearParticles } from '../utils/particles';
 
 const BUBBLE_RADIUS = 12;
 const BUBBLE_DIAMETER = BUBBLE_RADIUS * 2;
@@ -9,16 +9,14 @@ const COL_WIDTH = BUBBLE_DIAMETER * Math.sqrt(3) / 2;
 
 const BUBBLE_SPEED = 600;
 const FALL_SPEED_INITIAL = 100;
-const GRAVITY = 300;
-const COLLISION_PRECISION = 0.5;
+const GRAVITY_ACCEL = 300;
+const COLLISION_THRESHOLD = BUBBLE_DIAMETER - 0.5;
 
 interface FallingBubble {
   x: number;
   y: number;
   vy: number;
   color: number;
-  row: number;
-  col: number;
 }
 
 interface ActiveBubble {
@@ -46,9 +44,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [grid, setGrid] = useState<number[][]>([]);
-  const [nextBubbleColor, setNextBubbleColor] = useState(1);
-  const [aimAngle, setAimAngle] = useState(-Math.PI / 2);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
   const gridRef = useRef<number[][]>([]);
@@ -56,28 +51,24 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const aimAngleRef = useRef(-Math.PI / 2);
   const nextColorRef = useRef(1);
   const fallingBubblesRef = useRef<FallingBubble[]>([]);
-  const mousePosRef = useRef({ x: 0, y: 0 });
   const animationRef = useRef<number>(0);
   const lastTimeRef = useRef(0);
-  const levelStartTimeRef = useRef(0);
   const gameActiveRef = useRef(false);
 
   const offsetXRef = useRef(0);
   const offsetYRef = useRef(40);
+  const shooterXRef = useRef(400);
+  const shooterYRef = useRef(580);
 
   useEffect(() => {
     gridRef.current = cloneGrid(levelData);
-    setGrid(cloneGrid(levelData));
     clearParticles();
     fallingBubblesRef.current = [];
     activeBubbleRef.current = null;
-    levelStartTimeRef.current = Date.now();
-    
+
     const colors = [...new Set(levelData.flat().filter(c => c > 0))];
     if (colors.length > 0) {
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      setNextBubbleColor(randomColor);
-      nextColorRef.current = randomColor;
+      nextColorRef.current = colors[Math.floor(Math.random() * colors.length)];
     }
   }, [levelData]);
 
@@ -89,12 +80,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const updateSize = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        setCanvasSize({ width: rect.width, height: rect.height });
-        
+        const w = Math.floor(rect.width);
+        const h = Math.floor(rect.height);
+        setCanvasSize({ width: w, height: h });
+
         const gridWidth = COLS * COL_WIDTH + BUBBLE_RADIUS;
-        const gridHeight = ROWS * ROW_HEIGHT * 0.75 + BUBBLE_RADIUS;
-        offsetXRef.current = Math.max(0, (rect.width - gridWidth) / 2);
+        offsetXRef.current = Math.max(BUBBLE_RADIUS, (w - gridWidth) / 2);
         offsetYRef.current = 40;
+
+        shooterXRef.current = w / 2;
+        shooterYRef.current = h - BUBBLE_DIAMETER - 10;
       }
     };
 
@@ -110,24 +105,30 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return { x, y: y + offset };
   }, []);
 
-  const getGridPosition = useCallback((x: number, y: number): { row: number; col: number } | null => {
-    const adjX = x - offsetXRef.current - BUBBLE_RADIUS;
-    const adjY = y - offsetYRef.current - BUBBLE_RADIUS;
+  const pixelToHex = useCallback((px: number, py: number): { row: number; col: number } | null => {
+    let bestDist = Infinity;
+    let bestRow = -1;
+    let bestCol = -1;
 
-    const col = Math.round(adjX / COL_WIDTH);
-    let row = Math.round(adjY / (ROW_HEIGHT * 0.75));
-    
-    const offset = col % 2 === 1 ? ROW_HEIGHT * 0.375 : 0;
-    const expectedY = row * ROW_HEIGHT * 0.75 + offset;
-    if (Math.abs(adjY - expectedY) > ROW_HEIGHT * 0.5) {
-      row = adjY > expectedY ? row + 1 : row - 1;
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const pos = getHexPosition(row, col);
+        const dx = px - pos.x;
+        const dy = py - pos.y;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestRow = row;
+          bestCol = col;
+        }
+      }
     }
 
-    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-      return { row, col };
+    if (bestRow >= 0 && bestCol >= 0) {
+      return { row: bestRow, col: bestCol };
     }
     return null;
-  }, []);
+  }, [getHexPosition]);
 
   const getNeighborsHex = useCallback((row: number, col: number): Array<{ row: number; col: number }> => {
     const neighbors: Array<{ row: number; col: number }> = [];
@@ -221,33 +222,42 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return falling;
   }, [findConnectedToTop]);
 
-  const snapToGrid = useCallback((x: number, y: number, color: number, g: number[][]): boolean => {
+  const isAdjacentToOccupied = useCallback((row: number, col: number, g: number[][]): boolean => {
+    if (row === 0) return true;
+
+    const neighbors = getNeighborsHex(row, col);
+    for (const n of neighbors) {
+      if (g[n.row][n.col] > 0) return true;
+    }
+    return false;
+  }, [getNeighborsHex]);
+
+  const findSnapPosition = useCallback((px: number, py: number, g: number[][]): { row: number; col: number } | null => {
     let bestDist = Infinity;
     let bestPos: { row: number; col: number } | null = null;
 
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
-        if (g[row][col] === 0) {
-          const pos = getHexPosition(row, col);
-          const dist = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-          if (dist < bestDist && dist < BUBBLE_DIAMETER) {
-            bestDist = dist;
-            bestPos = { row, col };
-          }
+        if (g[row][col] !== 0) continue;
+
+        const pos = getHexPosition(row, col);
+        const dx = px - pos.x;
+        const dy = py - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < BUBBLE_DIAMETER && dist < bestDist && isAdjacentToOccupied(row, col, g)) {
+          bestDist = dist;
+          bestPos = { row, col };
         }
       }
     }
 
-    if (bestPos) {
-      g[bestPos.row][bestPos.col] = color;
-      return true;
-    }
-    return false;
-  }, [getHexPosition]);
+    return bestPos;
+  }, [getHexPosition, isAdjacentToOccupied]);
 
-  const checkCollision = useCallback((bx: number, by: number, g: number[][]): { hit: boolean; x: number; y: number } => {
+  const checkHexCollision = useCallback((bx: number, by: number, g: number[][]): boolean => {
     if (by <= offsetYRef.current + BUBBLE_RADIUS) {
-      return { hit: true, x: bx, y: offsetYRef.current + BUBBLE_RADIUS };
+      return true;
     }
 
     for (let row = 0; row < ROWS; row++) {
@@ -257,14 +267,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
           const dx = bx - pos.x;
           const dy = by - pos.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist <= BUBBLE_DIAMETER - COLLISION_PRECISION) {
-            return { hit: true, x: bx, y: by };
+          if (dist <= COLLISION_THRESHOLD) {
+            return true;
           }
         }
       }
     }
 
-    return { hit: false, x: bx, y: by };
+    return false;
   }, [getHexPosition]);
 
   const getAvailableColors = useCallback((): number[] => {
@@ -283,15 +293,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!gameActiveRef.current || activeBubbleRef.current) return;
 
     const angle = aimAngleRef.current;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const startX = canvas.width / 2;
-    const startY = canvas.height - BUBBLE_DIAMETER - 10;
 
     activeBubbleRef.current = {
-      x: startX,
-      y: startY,
+      x: shooterXRef.current,
+      y: shooterYRef.current,
       vx: Math.cos(angle) * BUBBLE_SPEED,
       vy: Math.sin(angle) * BUBBLE_SPEED,
       color: nextColorRef.current,
@@ -301,9 +306,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
     const availableColors = getAvailableColors();
     if (availableColors.length > 0) {
-      const newColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-      setNextBubbleColor(newColor);
-      nextColorRef.current = newColor;
+      nextColorRef.current = availableColors[Math.floor(Math.random() * availableColors.length)];
     }
   }, [onShotFired, getAvailableColors]);
 
@@ -312,63 +315,105 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    mousePosRef.current = { x, y };
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
-    const startX = canvas.width / 2;
-    const startY = canvas.height - BUBBLE_DIAMETER - 10;
-    let angle = Math.atan2(y - startY, x - startX);
+    const sx = shooterXRef.current;
+    const sy = shooterYRef.current;
+    let angle = Math.atan2(y - sy, x - sx);
 
     if (angle > -0.1) angle = -0.1;
     if (angle < -Math.PI + 0.1) angle = -Math.PI + 0.1;
 
-    setAimAngle(angle);
     aimAngleRef.current = angle;
   }, []);
 
-  const drawBubble = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, color: number) => {
-    const colorHex = COLORS[color - 1] || '#ffffff';
-    
+  const drawBubble = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, colorIdx: number, radius: number = BUBBLE_RADIUS) => {
+    const colorHex = COLORS[colorIdx - 1] || '#ffffff';
+
     const gradient = ctx.createRadialGradient(
-      x - BUBBLE_RADIUS * 0.3,
-      y - BUBBLE_RADIUS * 0.3,
+      x - radius * 0.3,
+      y - radius * 0.3,
       0,
       x,
       y,
-      BUBBLE_RADIUS
+      radius
     );
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
     gradient.addColorStop(0.3, colorHex);
     gradient.addColorStop(1, colorHex);
 
     ctx.beginPath();
-    ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = gradient;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
     ctx.stroke();
   }, []);
 
-  const drawAimLine = useCallback((ctx: CanvasRenderingContext2D, startX: number, startY: number, angle: number) => {
-    const length = 300;
-    const endX = startX + Math.cos(angle) * length;
-    const endY = startY + Math.sin(angle) * length;
-
+  const drawAimLine = useCallback((ctx: CanvasRenderingContext2D, startX: number, startY: number, angle: number, canvasWidth: number) => {
     ctx.save();
-    ctx.setLineDash([8, 8]);
+    ctx.setLineDash([6, 6]);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
+
+    let x = startX;
+    let y = startY;
+    let dx = Math.cos(angle);
+    let dy = Math.sin(angle);
+    const stepSize = 4;
+    const maxSteps = 300;
+
+    ctx.moveTo(x, y);
+
+    for (let i = 0; i < maxSteps; i++) {
+      x += dx * stepSize;
+      y += dy * stepSize;
+
+      if (x < BUBBLE_RADIUS) {
+        x = BUBBLE_RADIUS;
+        dx = Math.abs(dx);
+      } else if (x > canvasWidth - BUBBLE_RADIUS) {
+        x = canvasWidth - BUBBLE_RADIUS;
+        dx = -Math.abs(dx);
+      }
+
+      if (y <= offsetYRef.current + BUBBLE_RADIUS) {
+        ctx.lineTo(x, y);
+        break;
+      }
+
+      let hitBubble = false;
+      const g = gridRef.current;
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          if (g[row][col] > 0) {
+            const pos = getHexPosition(row, col);
+            const distSq = (x - pos.x) ** 2 + (y - pos.y) ** 2;
+            if (distSq <= COLLISION_THRESHOLD * COLLISION_THRESHOLD) {
+              hitBubble = true;
+              break;
+            }
+          }
+        }
+        if (hitBubble) break;
+      }
+
+      ctx.lineTo(x, y);
+
+      if (hitBubble) break;
+    }
+
     ctx.stroke();
     ctx.restore();
-  }, []);
+  }, [getHexPosition]);
 
   const render = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -399,19 +444,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
     const particles = getParticles();
     for (const p of particles) {
+      if (p.radius <= 0) continue;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
     if (!activeBubbleRef.current && gameActiveRef.current) {
-      const startX = width / 2;
-      const startY = height - BUBBLE_DIAMETER - 10;
-      drawAimLine(ctx, startX, startY, aimAngleRef.current);
-      drawBubble(ctx, startX, startY, nextColorRef.current);
+      const sx = shooterXRef.current;
+      const sy = shooterYRef.current;
+      drawAimLine(ctx, sx, sy, aimAngleRef.current, width);
+      drawBubble(ctx, sx, sy, nextColorRef.current);
     }
   }, [getHexPosition, drawBubble, drawAimLine]);
 
@@ -422,7 +468,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const deltaTime = lastTimeRef.current ? (timestamp - lastTimeRef.current) / 1000 : 0.016;
+    const rawDelta = lastTimeRef.current ? (timestamp - lastTimeRef.current) / 1000 : 0.016;
+    const deltaTime = Math.min(rawDelta, 0.05);
     lastTimeRef.current = timestamp;
 
     const width = canvas.width;
@@ -430,75 +477,80 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
     if (activeBubbleRef.current) {
       const ab = activeBubbleRef.current;
-      
-      ab.x += ab.vx * deltaTime;
-      ab.y += ab.vy * deltaTime;
 
-      if (ab.x < BUBBLE_RADIUS) {
-        ab.x = BUBBLE_RADIUS;
-        ab.vx = Math.abs(ab.vx);
-      }
-      if (ab.x > width - BUBBLE_RADIUS) {
-        ab.x = width - BUBBLE_RADIUS;
-        ab.vx = -Math.abs(ab.vx);
+      const steps = Math.ceil(BUBBLE_SPEED * deltaTime / 2);
+      const subDt = deltaTime / steps;
+      let collided = false;
+
+      for (let s = 0; s < steps; s++) {
+        ab.x += ab.vx * subDt;
+        ab.y += ab.vy * subDt;
+
+        if (ab.x < BUBBLE_RADIUS) {
+          ab.x = BUBBLE_RADIUS;
+          ab.vx = Math.abs(ab.vx);
+        }
+        if (ab.x > width - BUBBLE_RADIUS) {
+          ab.x = width - BUBBLE_RADIUS;
+          ab.vx = -Math.abs(ab.vx);
+        }
+
+        if (checkHexCollision(ab.x, ab.y, gridRef.current)) {
+          collided = true;
+          break;
+        }
       }
 
-      const collision = checkCollision(ab.x, ab.y, gridRef.current);
-      if (collision.hit) {
-        const snapped = snapToGrid(ab.x, ab.y, ab.color, gridRef.current);
-        
-        if (snapped) {
-          const gridPos = getGridPosition(ab.x, ab.y);
-          if (gridPos) {
-            const connected = findConnectedSameColor(gridPos.row, gridPos.col, gridRef.current);
-            
-            if (connected.length >= 3) {
-              const bubblesForParticles = connected.map(c => {
-                const pos = getHexPosition(c.row, c.col);
-                return { x: pos.x, y: pos.y, color: COLORS[gridRef.current[c.row][c.col] - 1] };
+      if (collided) {
+        const snapPos = findSnapPosition(ab.x, ab.y, gridRef.current);
+
+        if (snapPos) {
+          gridRef.current[snapPos.row][snapPos.col] = ab.color;
+
+          const connected = findConnectedSameColor(snapPos.row, snapPos.col, gridRef.current);
+
+          if (connected.length >= 3) {
+            const bubblesForParticles = connected.map(c => {
+              const pos = getHexPosition(c.row, c.col);
+              return { x: pos.x, y: pos.y, color: COLORS[gridRef.current[c.row][c.col] - 1] };
+            });
+            addParticles(bubblesForParticles);
+
+            for (const c of connected) {
+              gridRef.current[c.row][c.col] = 0;
+            }
+
+            const points = connected.length * 10 + (connected.length - 3) * 5;
+            onScoreUpdate(points);
+
+            const falling = findFallingBubbles(gridRef.current);
+            for (const f of falling) {
+              const pos = getHexPosition(f.row, f.col);
+              fallingBubblesRef.current.push({
+                x: pos.x,
+                y: pos.y,
+                vy: FALL_SPEED_INITIAL,
+                color: gridRef.current[f.row][f.col],
               });
-              addParticles(bubblesForParticles);
+              gridRef.current[f.row][f.col] = 0;
+            }
 
-              for (const c of connected) {
-                gridRef.current[c.row][c.col] = 0;
-              }
-
-              const points = connected.length * 10 + (connected.length - 3) * 5;
-              onScoreUpdate(points);
-
-              const falling = findFallingBubbles(gridRef.current);
-              for (const f of falling) {
-                const pos = getHexPosition(f.row, f.col);
-                fallingBubblesRef.current.push({
-                  x: pos.x,
-                  y: pos.y,
-                  vy: FALL_SPEED_INITIAL,
-                  color: gridRef.current[f.row][f.col],
-                  row: f.row,
-                  col: f.col,
-                });
-                gridRef.current[f.row][f.col] = 0;
-              }
-
-              setGrid(cloneGrid(gridRef.current));
-
-              if (countBubbles(gridRef.current) === 0) {
-                setTimeout(() => {
-                  onLevelComplete();
-                }, 500);
-              }
+            if (countBubbles(gridRef.current) === 0) {
+              setTimeout(() => {
+                onLevelComplete();
+              }, 500);
             }
           }
         }
-        
+
         activeBubbleRef.current = null;
       }
     }
 
     fallingBubblesRef.current = fallingBubblesRef.current.filter(fb => {
-      fb.vy += GRAVITY * deltaTime;
+      fb.vy += GRAVITY_ACCEL * deltaTime;
       fb.y += fb.vy * deltaTime;
-      
+
       if (fb.y > height + BUBBLE_DIAMETER) {
         onScoreUpdate(5);
         return false;
@@ -510,7 +562,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     render(ctx, width, height);
 
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [checkCollision, snapToGrid, getGridPosition, findConnectedSameColor, findFallingBubbles, getHexPosition, onScoreUpdate, onLevelComplete, render]);
+  }, [checkHexCollision, findSnapPosition, findConnectedSameColor, findFallingBubbles, getHexPosition, onScoreUpdate, onLevelComplete, render]);
 
   useEffect(() => {
     animationRef.current = requestAnimationFrame(gameLoop);
@@ -542,6 +594,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
         style={{
           cursor: 'crosshair',
           display: 'block',
+          width: '100%',
+          height: '100%',
         }}
       />
       {!gameActive && (

@@ -19,6 +19,8 @@ interface BubbleForParticles {
 
 const MAX_PARTICLES = 200;
 const PARTICLES_PER_BUBBLE = 8;
+const PARTICLE_INITIAL_RADIUS = 12;
+const PARTICLE_DURATION = 0.4;
 
 let particles: Particle[] = [];
 let idCounter = 0;
@@ -27,35 +29,40 @@ function generateId(): string {
   return `p_${Date.now()}_${idCounter++}`;
 }
 
+function enforceParticleLimit(): void {
+  if (particles.length > MAX_PARTICLES) {
+    const excess = particles.length - MAX_PARTICLES;
+    particles = particles.slice(excess);
+  }
+}
+
 export function addParticles(bubbles: BubbleForParticles[]): void {
   const now = performance.now();
 
+  const newParticles: Particle[] = [];
+
   for (const bubble of bubbles) {
     for (let i = 0; i < PARTICLES_PER_BUBBLE; i++) {
-      const angle = (i / PARTICLES_PER_BUBBLE) * Math.PI * 2 + Math.random() * 0.5;
-      const speed = 80 + Math.random() * 60;
+      const angle = (i / PARTICLES_PER_BUBBLE) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+      const speed = 60 + Math.random() * 80;
 
-      const particle: Particle = {
+      newParticles.push({
         id: generateId(),
         x: bubble.x,
         y: bubble.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         color: bubble.color,
-        radius: 12,
-        life: 0.4,
-        maxLife: 0.4,
+        radius: PARTICLE_INITIAL_RADIUS,
+        life: PARTICLE_DURATION,
+        maxLife: PARTICLE_DURATION,
         createdAt: now,
-      };
-
-      particles.push(particle);
+      });
     }
   }
 
-  if (particles.length > MAX_PARTICLES) {
-    const excess = particles.length - MAX_PARTICLES;
-    particles = particles.slice(excess);
-  }
+  particles.push(...newParticles);
+  enforceParticleLimit();
 }
 
 export function updateParticles(deltaTime: number): void {
@@ -71,12 +78,14 @@ export function updateParticles(deltaTime: number): void {
     particle.y += particle.vy * deltaTime;
     particle.vy += 150 * deltaTime;
 
-    const lifeRatio = 1 - elapsed / particle.maxLife;
-    particle.radius = 12 * lifeRatio;
+    const lifeRatio = Math.max(0, 1 - elapsed / particle.maxLife);
+    particle.radius = PARTICLE_INITIAL_RADIUS * lifeRatio;
     particle.life = particle.maxLife - elapsed;
 
     return true;
   });
+
+  enforceParticleLimit();
 }
 
 export function getParticles(): Particle[] {
@@ -85,6 +94,7 @@ export function getParticles(): Particle[] {
 
 export function clearParticles(): void {
   particles = [];
+  idCounter = 0;
 }
 
 export function getParticleCount(): number {
