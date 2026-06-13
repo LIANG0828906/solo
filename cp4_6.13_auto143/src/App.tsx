@@ -15,7 +15,6 @@ import type { SpawnedCat, CatCollection, SpotType, CatBehavior } from './data/ca
 const MAX_CATS = 15;
 const SPAWN_CHANCE = 0.2;
 const MOVE_CHANCE = 0.3;
-const BEHAVIOR_INTERVAL = 5000;
 
 const App: React.FC = () => {
   const [spawnedCats, setSpawnedCats] = useState<SpawnedCat[]>([]);
@@ -23,7 +22,6 @@ const App: React.FC = () => {
   const [highlightedCatId, setHighlightedCatId] = useState<string | null>(null);
   const [newlyUnlockedBreedId, setNewlyUnlockedBreedId] = useState<string | null>(null);
   const [removingCatIds, setRemovingCatIds] = useState<string[]>([]);
-  const behaviorTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const initialCollection: CatCollection = {};
@@ -35,24 +33,6 @@ const App: React.FC = () => {
     });
     setCatCollection(initialCollection);
   }, []);
-
-  const updateCatBehavior = useCallback(() => {
-    setSpawnedCats(prev =>
-      prev.map(cat => ({
-        ...cat,
-        behavior: getRandomBehavior()
-      }))
-    );
-  }, []);
-
-  useEffect(() => {
-    behaviorTimerRef.current = window.setInterval(updateCatBehavior, BEHAVIOR_INTERVAL);
-    return () => {
-      if (behaviorTimerRef.current) {
-        clearInterval(behaviorTimerRef.current);
-      }
-    };
-  }, [updateCatBehavior]);
 
   const handleSpotClick = useCallback((spot: SpotType) => {
     if (Math.random() > SPAWN_CHANCE) {
@@ -73,16 +53,12 @@ const App: React.FC = () => {
     };
 
     setSpawnedCats(prev => {
-      let newCats = [...prev, newCat];
+      const newCats = [...prev, newCat];
       
       if (newCats.length > MAX_CATS) {
         const catsToRemove = newCats.slice(0, newCats.length - MAX_CATS);
-        setRemovingCatIds(catsToRemove.map(c => c.id));
-        setTimeout(() => {
-          setRemovingCatIds([]);
-          setSpawnedCats(current => current.filter(c => !catsToRemove.some(r => r.id === c.id)));
-        }, 800);
-        newCats = newCats.slice(newCats.length - MAX_CATS);
+        setRemovingCatIds(prev => [...prev, ...catsToRemove.map(c => c.id)]);
+        return newCats.slice(newCats.length - MAX_CATS);
       }
       
       return newCats;
@@ -109,48 +85,55 @@ const App: React.FC = () => {
   }, []);
 
   const handleCatAnimationComplete = useCallback((catId: string) => {
-    setTimeout(() => {
-      setSpawnedCats(prev => {
-        const cat = prev.find(c => c.id === catId);
-        if (!cat) return prev;
+    setSpawnedCats(prev => {
+      const cat = prev.find(c => c.id === catId);
+      if (!cat) return prev;
 
-        if (Math.random() < MOVE_CHANCE) {
-          const newSpot = getRandomAdjacentSpot(cat.position);
-          return prev.map(c =>
-            c.id === catId ? { ...c, position: newSpot, behavior: getRandomBehavior() } : c
-          );
-        } else {
-          return prev.map(c =>
-            c.id === catId ? { ...c, behavior: getRandomBehavior() } : c
-          );
-        }
-      });
-    }, 100);
+      if (Math.random() < MOVE_CHANCE) {
+        const newSpot = getRandomAdjacentSpot(cat.position);
+        return prev.map(c =>
+          c.id === catId ? { ...c, position: newSpot, behavior: getRandomBehavior() } : c
+        );
+      } else {
+        return prev.map(c =>
+          c.id === catId ? { ...c, behavior: getRandomBehavior() } : c
+        );
+      }
+    });
   }, []);
 
   const handleCatMove = useCallback((catId: string, newSpot: SpotType) => {
     setSpawnedCats(prev =>
       prev.map(c =>
-        c.id === catId ? { ...c, position: newSpot, behavior: getRandomBehavior() } : c
+        c.id === catId ? { ...c, position: newSpot } : c
       )
     );
   }, []);
 
-  const handleCardClick = useCallback((breedId: string) => {
-    setSpawnedCats(prev => {
-      const catsOfBreed = prev.filter(c => c.breedId === breedId);
-      if (catsOfBreed.length === 0) return prev;
-      
-      const randomCat = catsOfBreed[Math.floor(Math.random() * catsOfBreed.length)];
-      setHighlightedCatId(randomCat.id);
-      
-      setTimeout(() => {
-        setHighlightedCatId(null);
-      }, 5000);
-      
-      return prev;
-    });
+  const handleCatBehaviorChange = useCallback((catId: string, behavior: CatBehavior) => {
+    setSpawnedCats(prev =>
+      prev.map(c =>
+        c.id === catId ? { ...c, behavior } : c
+      )
+    );
   }, []);
+
+  const handleCatRemovalComplete = useCallback((catId: string) => {
+    setRemovingCatIds(prev => prev.filter(id => id !== catId));
+    setSpawnedCats(prev => prev.filter(c => c.id !== catId));
+  }, []);
+
+  const handleCardClick = useCallback((breedId: string) => {
+    const catsOfBreed = spawnedCats.filter(c => c.breedId === breedId);
+    if (catsOfBreed.length === 0) return;
+    
+    const randomCat = catsOfBreed[Math.floor(Math.random() * catsOfBreed.length)];
+    setHighlightedCatId(randomCat.id);
+    
+    setTimeout(() => {
+      setHighlightedCatId(null);
+    }, 5000);
+  }, [spawnedCats]);
 
   const handleStatusPanelCatClick = useCallback((catId: string) => {
     setHighlightedCatId(prev => prev === catId ? null : catId);
@@ -177,6 +160,8 @@ const App: React.FC = () => {
             onCatMove={handleCatMove}
             onCatAnimationComplete={handleCatAnimationComplete}
             removingCatIds={removingCatIds}
+            onCatBehaviorChange={handleCatBehaviorChange}
+            onCatRemovalComplete={handleCatRemovalComplete}
           />
         </section>
 
