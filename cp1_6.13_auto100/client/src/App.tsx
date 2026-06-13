@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import axios from 'axios';
-import QuestionRenderer from './component/QuestionRenderer';
+import QuestionRenderer from './components/QuestionRenderer';
 import { QuestionnaireModel, Answers, AnswerValue, SkipLogic } from './types';
 
 const App: React.FC = () => {

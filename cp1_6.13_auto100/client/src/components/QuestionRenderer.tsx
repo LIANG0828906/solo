@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Question, AnswerValue } from '../types';
 
 interface QuestionRendererProps {
@@ -20,6 +20,37 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
 }) => {
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [textValue, setTextValue] = useState<string>('');
+  const [shouldRender, setShouldRender] = useState<boolean>(isVisible);
+  const [animateState, setAnimateState] = useState<'entering' | 'entered' | 'exiting' | 'exited'>(
+    isVisible ? 'entered' : 'exited'
+  );
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    if (isVisible) {
+      setShouldRender(true);
+      setAnimateState('entering');
+      timerRef.current = setTimeout(() => {
+        setAnimateState('entered');
+      }, 200);
+    } else {
+      setAnimateState('exiting');
+      timerRef.current = setTimeout(() => {
+        setShouldRender(false);
+        setAnimateState('exited');
+      }, 300);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [isVisible]);
 
   useEffect(() => {
     if (question.type === 'text' && answer !== null && answer !== undefined) {
@@ -60,6 +91,20 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   };
 
   const badge = getTypeBadge();
+
+  const getAnimationClass = () => {
+    switch (animateState) {
+      case 'entering':
+        return 'question-anim entering';
+      case 'entered':
+        return 'question-anim entered';
+      case 'exiting':
+        return 'question-anim exiting';
+      case 'exited':
+      default:
+        return 'question-anim exited';
+    }
+  };
 
   const renderSingleChoice = () => (
     <div className="options-container">
@@ -141,29 +186,41 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
     }
   };
 
+  if (!shouldRender && animateState === 'exited') {
+    return (
+      <div
+        className="question-card question-hidden"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+    );
+  }
+
   return (
     <div
-      className={`question-card ${isActive ? 'highlight' : ''} ${isVisible ? 'expand' : 'collapse'}`}
-      style={{ pointerEvents: isVisible ? 'auto' : 'none' }}
+      className={`question-card ${isActive ? 'highlight' : ''} ${getAnimationClass()}`}
+      style={{ pointerEvents: animateState === 'entered' ? 'auto' : 'none' }}
     >
-      {badge && (
-        <span className={`question-type-badge ${badge.className}`}>
-          {badge.text}
-        </span>
-      )}
-      <div className="question-header">
-        <div className="question-number">{questionNumber}</div>
-        <div>
-          <div className="question-title">
-            {question.title}
-            {question.required && <span className="required-mark">*</span>}
+      <div className="question-inner">
+        {badge && (
+          <span className={`question-type-badge ${badge.className}`}>
+            {badge.text}
+          </span>
+        )}
+        <div className="question-header">
+          <div className="question-number">{questionNumber}</div>
+          <div>
+            <div className="question-title">
+              {question.title}
+              {question.required && <span className="required-mark">*</span>}
+            </div>
+            {question.description && (
+              <div className="question-description">{question.description}</div>
+            )}
           </div>
-          {question.description && (
-            <div className="question-description">{question.description}</div>
-          )}
         </div>
+        {renderQuestionContent()}
       </div>
-      {renderQuestionContent()}
     </div>
   );
 };
