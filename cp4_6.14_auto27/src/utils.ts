@@ -139,7 +139,7 @@ const adjustColor = (
 ): string => {
   const hsl = hexToHsl(hex);
   const newHsl: HSL = {
-    h: (hsl.h + hDelta + 360) % 360,
+    h: ((hsl.h + hDelta) % 360 + 360) % 360,
     s: clamp(hsl.s + sDelta, 0, 100),
     l: clamp(hsl.l + lDelta, 0, 100),
   };
