@@ -47,10 +47,14 @@ const SUBTYPE_OPTIONS: Record<ActivityCategory, { label: string; value: string }
   ]
 };
 
+const ESTIMATED_ITEM_HEIGHT = 130;
+const VISIBLE_WINDOW = 10;
+const BUFFER_ITEMS = 3;
+
 const generateSampleData = (): Activity[] => {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
-  const samples: Activity[] = [
+  return [
     { id: generateActivityId(), category: 'transport', subType: 'car', amount: 45, unit: 'km', date: new Date(now - 2 * day).toISOString(), timestamp: now - 2 * day },
     { id: generateActivityId(), category: 'transport', subType: 'subway', amount: 12, unit: 'km', date: new Date(now - 1 * day).toISOString(), timestamp: now - 1 * day },
     { id: generateActivityId(), category: 'diet', subType: 'meat', amount: 0.5, unit: 'kg', date: new Date(now - 1 * day).toISOString(), timestamp: now - 1 * day },
@@ -64,7 +68,6 @@ const generateSampleData = (): Activity[] => {
     { id: generateActivityId(), category: 'energy', subType: 'electricity', amount: 45, unit: 'kWh', date: new Date(now - 40 * day).toISOString(), timestamp: now - 40 * day },
     { id: generateActivityId(), category: 'transport', subType: 'walk', amount: 5, unit: 'km', date: new Date(now - 45 * day).toISOString(), timestamp: now - 45 * day }
   ];
-  return samples;
 };
 
 export default function App() {
@@ -75,7 +78,7 @@ export default function App() {
   const [amount, setAmount] = useState<string>('');
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
   const [selectedBarItem, setSelectedBarItem] = useState<BarChartData | null>(null);
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [historyScrollTop, setHistoryScrollTop] = useState(0);
   const historyContainerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -105,6 +108,12 @@ export default function App() {
       setSubType(options[0].value);
     }
   }, [category]);
+
+  useEffect(() => {
+    setHistoryScrollTop(0);
+    setSelectedPieCategory(null);
+    setSelectedBarItem(null);
+  }, [currentPage]);
 
   const carbonResult: CarbonResult = useMemo(() => {
     const start = performance.now();
@@ -136,23 +145,23 @@ export default function App() {
     [activities]
   );
 
-  const visibleActivities = useMemo(() =>
-    sortedActivities.slice(0, visibleCount),
-    [sortedActivities, visibleCount]
+  const virtualRange = useMemo(() => {
+    const total = sortedActivities.length;
+    const firstVisible = Math.max(0, Math.floor(historyScrollTop / ESTIMATED_ITEM_HEIGHT) - BUFFER_ITEMS);
+    const lastVisible = Math.min(total, firstVisible + VISIBLE_WINDOW + 2 * BUFFER_ITEMS);
+    const topPadding = firstVisible * ESTIMATED_ITEM_HEIGHT;
+    const totalHeight = total * ESTIMATED_ITEM_HEIGHT;
+    return { firstVisible, lastVisible, topPadding, totalHeight, total };
+  }, [historyScrollTop, sortedActivities.length]);
+
+  const renderedActivities = useMemo(() =>
+    sortedActivities.slice(virtualRange.firstVisible, virtualRange.lastVisible),
+    [sortedActivities, virtualRange.firstVisible, virtualRange.lastVisible]
   );
 
-  const handleScroll = useCallback(() => {
-    const container = historyContainerRef.current;
-    if (!container) return;
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    if (scrollTop + clientHeight >= scrollHeight - 50) {
-      setVisibleCount(prev => Math.min(prev + 10, sortedActivities.length));
-    }
-  }, [sortedActivities.length]);
-
-  useEffect(() => {
-    setVisibleCount(10);
-  }, [currentPage]);
+  const handleHistoryScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setHistoryScrollTop(e.currentTarget.scrollTop);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,13 +201,21 @@ export default function App() {
     downloadCSV(csvContent, `碳足迹记录_${dateStr}.csv`);
   };
 
-  const handlePieClick = (data: PieChartData) => {
-    setSelectedPieCategory(prev => prev === data.category ? null : data.category);
+  const handlePieClick = (entry: { payload?: PieChartData; category?: string }) => {
+    const clickedCategory = entry?.payload?.category ?? entry?.category ?? null;
+    if (clickedCategory) {
+      setSelectedPieCategory(prev => prev === clickedCategory ? null : clickedCategory);
+    } else {
+      setSelectedPieCategory(null);
+    }
     setSelectedBarItem(null);
   };
 
-  const handleBarClick = (data: BarChartData) => {
-    setSelectedBarItem(prev => prev?.subType === data.subType ? null : data);
+  const handleBarClick = (entry: { payload?: BarChartData; subType?: string }) => {
+    const barItem = entry?.payload ?? null;
+    if (barItem) {
+      setSelectedBarItem(prev => prev?.subType === barItem.subType ? null : barItem);
+    }
   };
 
   const getActivitySummary = (activity: Activity): string => {
@@ -210,38 +227,109 @@ export default function App() {
     transport: '🚗', diet: '🍽️', energy: '⚡'
   };
 
+  const renderTimelineItem = (activity: Activity, globalIndex: number) => {
+    const emission = calculateEmission(activity);
+    const date = new Date(activity.timestamp);
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    const isFirstOfDay = globalIndex === 0 ||
+      new Date(sortedActivities[globalIndex - 1].timestamp).toDateString() !== date.toDateString();
+
+    return (
+      <React.Fragment key={activity.id}>
+        {isFirstOfDay && (
+          <div style={styles.dateMarker}>
+            <span style={styles.dateMarkerText}>{dateStr}</span>
+          </div>
+        )}
+        <div style={styles.timelineItem}>
+          <div style={styles.timelineDot}>
+            {CATEGORY_EMOJI[activity.category]}
+          </div>
+          <div style={styles.timelineLine} />
+          <div style={styles.activityCard}>
+            <div style={styles.cardHeader}>
+              <div style={styles.cardTime}>{timeStr}</div>
+              <span style={{
+                ...styles.categoryBadge,
+                backgroundColor: activity.category === 'transport' ? '#e8f5ee' :
+                  activity.category === 'diet' ? '#fff5e6' : '#eef7ff',
+                color: activity.category === 'transport' ? '#2d6a4f' :
+                  activity.category === 'diet' ? '#b45309' : '#1e40af'
+              }}>
+                {getCategoryName(activity.category)}
+              </span>
+            </div>
+            <div style={styles.cardBody}>
+              <div style={styles.cardSummary}>
+                {getActivitySummary(activity)}
+              </div>
+              <div style={styles.cardEmission}>
+                {emission.toFixed(4)} <span style={styles.cardEmissionUnit}>kg CO₂e</span>
+              </div>
+            </div>
+            <div style={styles.cardFooter}>
+              <div style={styles.cardDesc}>
+                {getFactor(activity.category, activity.subType)?.description || ''}
+              </div>
+              <button
+                onClick={() => handleDelete(activity.id)}
+                style={styles.deleteBtn}
+              >
+                🗑️ 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      </React.Fragment>
+    );
+  };
+
   return (
     <div style={styles.app}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         .pulse-in { animation: pulseIn 0.3s ease-out; }
         input:focus, select:focus { outline: none; border-color: #2d6a4f !important; transition: border-color 0.3s ease; }
-        button:active { transform: scale(0.95); transition: transform 0.1s ease; }
+        .submit-btn:active { transform: scale(0.95); transition: transform 0.1s ease; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f0faf5; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #52b788; border-radius: 3px; }
-        @media (max-width: 768px) {
-          .two-column-layout { flex-direction: column !important; }
-          .form-panel { width: 100% !important; margin-right: 0 !important; margin-bottom: 16px !important; }
-          .chart-panel { width: 100% !important; }
-          .nav-item { padding: 8px 12px !important; font-size: 13px !important; }
-          .page-title { font-size: 20px !important; }
-        }
-        .recharts-pie-sector { cursor: pointer; transition: transform 0.2s ease; }
-        .recharts-pie-sector:hover { transform: scale(1.03); }
+        .recharts-pie-sector { cursor: pointer; transition: transform 0.2s ease, filter 0.2s ease; }
+        .recharts-pie-sector:hover { filter: brightness(1.1); }
         .recharts-bar-rectangle { cursor: pointer; transition: opacity 0.2s ease; }
         .recharts-bar-rectangle:hover { opacity: 0.85; }
+
+        @media (max-width: 768px) {
+          .two-column-layout { flex-direction: column !important; }
+          .form-panel { flex: none !important; width: 100% !important; max-width: 100% !important; margin-right: 0 !important; margin-bottom: 16px !important; }
+          .chart-panel { width: 100% !important; }
+          .nav-links { gap: 4px !important; }
+          .nav-item { padding: 8px 12px !important; font-size: 13px !important; }
+          .page-title { font-size: 20px !important; }
+          .total-card { flex-direction: column !important; align-items: flex-start !important; padding: 20px !important; }
+          .total-value { font-size: 28px !important; }
+          .stats-row { gap: 12px !important; }
+          .monthly-cards { grid-template-columns: 1fr !important; }
+          .history-header { flex-direction: column !important; align-items: flex-start !important; }
+          .history-actions { width: 100% !important; justify-content: space-between !important; }
+          .form-card { padding: 16px !important; }
+          .chart-card { padding: 16px !important; }
+          .navbar-inner { padding: 0 16px !important; }
+          .main-content { padding: 16px !important; }
+        }
       `}</style>
 
       <nav style={styles.navbar}>
-        <div style={styles.navbarInner}>
+        <div style={styles.navbarInner} className="navbar-inner">
           <div style={styles.logo}>
             <span style={{ fontSize: '24px', marginRight: '8px' }}>🌱</span>
             <span style={styles.logoText}>碳足迹追踪器</span>
           </div>
-          <div style={styles.navLinks}>
+          <div style={styles.navLinks} className="nav-links">
             {[
               { key: 'input', label: '📝 记录' },
               { key: 'history', label: '📋 历史' },
@@ -263,16 +351,16 @@ export default function App() {
         </div>
       </nav>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="main-content">
         {currentPage === 'input' && (
           <div>
             <h1 className="page-title" style={styles.pageTitle}>记录活动碳足迹</h1>
-            <div style={styles.totalCard} className="fade-in">
+            <div style={styles.totalCard} className="total-card fade-in">
               <div>
                 <div style={styles.totalLabel}>累计总碳排放量</div>
-                <div style={styles.totalValue}>{carbonResult.totalEmission.toFixed(2)} <span style={styles.totalUnit}>kg CO₂e</span></div>
+                <div style={styles.totalValue} className="total-value">{carbonResult.totalEmission.toFixed(2)} <span style={styles.totalUnit}>kg CO₂e</span></div>
               </div>
-              <div style={styles.statsRow}>
+              <div style={styles.statsRow} className="stats-row">
                 {carbonResult.breakdown.map(b => (
                   <div key={b.category} style={styles.statItem}>
                     <div style={{ ...styles.statDot, backgroundColor: PIE_COLORS[carbonResult.breakdown.indexOf(b) % PIE_COLORS.length] }} />
@@ -285,68 +373,70 @@ export default function App() {
 
             <div className="two-column-layout" style={styles.twoColumnLayout}>
               <div className="form-panel" style={styles.formPanel}>
-                <form onSubmit={handleSubmit} style={styles.form}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>活动分类</label>
-                    <select
-                      value={category}
-                      onChange={e => setCategory(e.target.value as ActivityCategory)}
-                      style={styles.select}
-                    >
-                      {CATEGORY_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>具体类型</label>
-                    <select
-                      value={subType}
-                      onChange={e => setSubType(e.target.value)}
-                      style={styles.select}
-                    >
-                      {SUBTYPE_OPTIONS[category].map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      用量 ({getUnitBySubType(subType as TransportType | DietType | EnergyType)})
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={amount}
-                      onChange={e => setAmount(e.target.value)}
-                      placeholder="请输入数量"
-                      style={styles.input}
-                    />
-                  </div>
-
-                  {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
-                    <div style={styles.previewBox} className="pulse-in">
-                      <div style={styles.previewLabel}>预计碳排放</div>
-                      <div style={styles.previewValue}>
-                        {(parseFloat(amount) * (getFactor(category, subType)?.factor || 0)).toFixed(4)} kg CO₂e
-                      </div>
-                      <div style={styles.previewDesc}>
-                        {getFactor(category, subType)?.description || ''}
-                      </div>
+                <div className="form-card" style={styles.formCard}>
+                  <form onSubmit={handleSubmit} style={styles.form}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>活动分类</label>
+                      <select
+                        value={category}
+                        onChange={e => setCategory(e.target.value as ActivityCategory)}
+                        style={styles.select}
+                      >
+                        {CATEGORY_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                     </div>
-                  )}
 
-                  <button type="submit" style={styles.submitButton}>
-                    ✓ 添加记录
-                  </button>
-                </form>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>具体类型</label>
+                      <select
+                        value={subType}
+                        onChange={e => setSubType(e.target.value)}
+                        style={styles.select}
+                      >
+                        {SUBTYPE_OPTIONS[category].map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        用量 ({getUnitBySubType(subType as TransportType | DietType | EnergyType)})
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        placeholder="请输入数量"
+                        style={styles.input}
+                      />
+                    </div>
+
+                    {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
+                      <div style={styles.previewBox} className="pulse-in">
+                        <div style={styles.previewLabel}>预计碳排放</div>
+                        <div style={styles.previewValue}>
+                          {(parseFloat(amount) * (getFactor(category, subType)?.factor || 0)).toFixed(4)} kg CO₂e
+                        </div>
+                        <div style={styles.previewDesc}>
+                          {getFactor(category, subType)?.description || ''}
+                        </div>
+                      </div>
+                    )}
+
+                    <button type="submit" className="submit-btn" style={styles.submitButton}>
+                      ✓ 添加记录
+                    </button>
+                  </form>
+                </div>
               </div>
 
               <div className="chart-panel" style={styles.chartPanel}>
-                <div style={styles.chartCard} className="fade-in" id="pie-chart-container">
+                <div style={styles.chartCard} className="chart-card fade-in" id="pie-chart-container">
                   <div style={styles.chartHeader}>
                     <h3 style={styles.chartTitle}>🥧 分类排放占比</h3>
                     <button
@@ -368,7 +458,7 @@ export default function App() {
                             innerRadius={55}
                             dataKey="value"
                             onClick={handlePieClick}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                            label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(1)}%`}
                             labelLine={{ stroke: '#95d5b2' }}
                           >
                             {pieData.map((_, index) => (
@@ -377,6 +467,7 @@ export default function App() {
                                 fill={PIE_COLORS[index % PIE_COLORS.length]}
                                 stroke={selectedPieCategory === pieData[index].category ? '#1b4332' : '#fff'}
                                 strokeWidth={selectedPieCategory === pieData[index].category ? 3 : 2}
+                                style={{ cursor: 'pointer' }}
                               />
                             ))}
                           </Pie>
@@ -393,15 +484,21 @@ export default function App() {
                   )}
                   {selectedPieCategory && (
                     <div style={styles.drillHint}>
-                      💡 {getCategoryName(selectedPieCategory as ActivityCategory)} 已选中，查看下方明细
+                      💡 {getCategoryName(selectedPieCategory as ActivityCategory)} 已选中，查看下方子类明细柱状图
+                      <button
+                        onClick={() => { setSelectedPieCategory(null); setSelectedBarItem(null); }}
+                        style={styles.drillBackBtn}
+                      >
+                        ↩ 返回总览
+                      </button>
                     </div>
                   )}
                 </div>
 
-                <div style={styles.chartCard} className="fade-in" id="bar-chart-container">
+                <div style={styles.chartCard} className="chart-card fade-in" id="bar-chart-container">
                   <div style={styles.chartHeader}>
                     <h3 style={styles.chartTitle}>
-                      📊 {selectedBreakdown ? `${selectedBreakdown.categoryName} 明细` : '子类明细柱状图'}
+                      📊 {selectedBreakdown ? `${selectedBreakdown.categoryName} 子类明细` : '子类明细柱状图'}
                     </h3>
                     <button
                       onClick={() => exportChartAsImage('bar-chart-container', '子类明细柱状图.png')}
@@ -434,6 +531,7 @@ export default function App() {
                                   fill={BAR_COLORS[index % BAR_COLORS.length]}
                                   stroke={selectedBarItem?.subType === entry.subType ? '#1b4332' : 'none'}
                                   strokeWidth={selectedBarItem?.subType === entry.subType ? 2 : 0}
+                                  style={{ cursor: 'pointer' }}
                                 />
                               ))}
                             </Bar>
@@ -458,7 +556,7 @@ export default function App() {
                     <div style={styles.emptyState}>
                       {selectedPieCategory
                         ? '该分类暂无记录'
-                        : '点击上方饼图的某个分类，即可查看子类明细'}
+                        : '👆 点击上方饼图的某个分类，即可钻取查看子类明细柱状图'}
                     </div>
                   )}
                 </div>
@@ -469,9 +567,9 @@ export default function App() {
 
         {currentPage === 'history' && (
           <div>
-            <div style={styles.historyHeader}>
+            <div style={styles.historyHeader} className="history-header">
               <h1 className="page-title" style={styles.pageTitle}>历史记录时间线</h1>
-              <div style={styles.historyActions}>
+              <div style={styles.historyActions} className="history-actions">
                 <span style={styles.recordCount}>共 {activities.length} 条记录</span>
                 <button onClick={handleExportCSV} style={styles.exportCsvBtn}>
                   📥 导出 CSV
@@ -481,79 +579,29 @@ export default function App() {
 
             <div
               ref={historyContainerRef}
-              onScroll={handleScroll}
+              onScroll={handleHistoryScroll}
               style={styles.timelineContainer}
               className="custom-scrollbar fade-in"
             >
-              {visibleActivities.map((activity, index) => {
-                const emission = calculateEmission(activity);
-                const date = new Date(activity.timestamp);
-                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                const isLastDay = index === 0 ||
-                  new Date(sortedActivities[index - 1].timestamp).toDateString() !== date.toDateString();
-
-                return (
-                  <React.Fragment key={activity.id}>
-                    {isLastDay && (
-                      <div style={styles.dateMarker}>
-                        <span style={styles.dateMarkerText}>{dateStr}</span>
-                      </div>
-                    )}
-                    <div style={styles.timelineItem} className="pulse-in">
-                      <div style={styles.timelineDot}>
-                        {CATEGORY_EMOJI[activity.category]}
-                      </div>
-                      <div style={styles.timelineLine} />
-                      <div style={styles.activityCard}>
-                        <div style={styles.cardHeader}>
-                          <div style={styles.cardTime}>{timeStr}</div>
-                          <span style={{
-                            ...styles.categoryBadge,
-                            backgroundColor: activity.category === 'transport' ? '#e8f5ee' :
-                              activity.category === 'diet' ? '#fff5e6' : '#eef7ff',
-                            color: activity.category === 'transport' ? '#2d6a4f' :
-                              activity.category === 'diet' ? '#b45309' : '#1e40af'
-                          }}>
-                            {getCategoryName(activity.category)}
-                          </span>
-                        </div>
-                        <div style={styles.cardBody}>
-                          <div style={styles.cardSummary}>
-                            {getActivitySummary(activity)}
-                          </div>
-                          <div style={styles.cardEmission}>
-                            {emission.toFixed(4)} <span style={styles.cardEmissionUnit}>kg CO₂e</span>
-                          </div>
-                        </div>
-                        <div style={styles.cardFooter}>
-                          <div style={styles.cardDesc}>
-                            {getFactor(activity.category, activity.subType)?.description || ''}
-                          </div>
-                          <button
-                            onClick={() => handleDelete(activity.id)}
-                            style={styles.deleteBtn}
-                          >
-                            🗑️ 删除
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-
-              {visibleCount < sortedActivities.length && (
-                <div style={styles.loadMoreIndicator}>
-                  <div style={styles.spinner} />
-                  <span>滚动加载更多...</span>
+              {sortedActivities.length > 0 ? (
+                <div style={{ height: virtualRange.totalHeight, position: 'relative' }}>
+                  <div style={{ transform: `translateY(${virtualRange.topPadding}px)` }}>
+                    {renderedActivities.map((activity, idx) => {
+                      const globalIndex = virtualRange.firstVisible + idx;
+                      return renderTimelineItem(activity, globalIndex);
+                    })}
+                  </div>
                 </div>
-              )}
-
-              {sortedActivities.length === 0 && (
+              ) : (
                 <div style={styles.emptyState}>暂无历史记录，去"记录"页面添加第一条吧！</div>
               )}
             </div>
+
+            {sortedActivities.length > 0 && (
+              <div style={styles.virtualInfo}>
+                渲染 {renderedActivities.length} / {sortedActivities.length} 条（虚拟化）
+              </div>
+            )}
           </div>
         )}
 
@@ -561,9 +609,9 @@ export default function App() {
           <div>
             <h1 className="page-title" style={styles.pageTitle}>月度统计分析</h1>
 
-            <div style={styles.monthlyCards} className="fade-in">
-              {monthlyData.slice(-3).reverse().map((m, idx) => (
-                <div key={m.month} style={{ ...styles.monthCard, animationDelay: `${idx * 0.1}s` }} className="fade-in">
+            <div style={styles.monthlyCards} className="monthly-cards fade-in">
+              {monthlyData.slice(-3).reverse().map((m) => (
+                <div key={m.month} style={styles.monthCard} className="fade-in">
                   <div style={styles.monthCardTitle}>{m.month}</div>
                   <div style={styles.monthCardValue}>{m.total.toFixed(1)} <span style={styles.monthCardUnit}>kg</span></div>
                   <div style={styles.monthCardBreakdown}>
@@ -575,7 +623,7 @@ export default function App() {
               ))}
             </div>
 
-            <div style={styles.chartCard} className="fade-in" id="line-chart-container">
+            <div style={styles.chartCard} className="chart-card fade-in" id="line-chart-container">
               <div style={styles.chartHeader}>
                 <h3 style={styles.chartTitle}>📈 月度总碳量趋势</h3>
                 <button
@@ -614,7 +662,7 @@ export default function App() {
               )}
             </div>
 
-            <div style={styles.chartCard} className="fade-in" id="area-chart-container">
+            <div style={styles.chartCard} className="chart-card fade-in" id="area-chart-container">
               <div style={styles.chartHeader}>
                 <h3 style={styles.chartTitle}>🗓️ 月度各分类占比堆叠面积图</h3>
                 <button
@@ -750,8 +798,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formPanel: {
     flex: '0 0 380px',
-    width: '380px',
-    marginRight: '0'
+    width: '380px'
+  },
+  formCard: {
+    background: '#fff',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 16px rgba(45, 106, 79, 0.08)'
   },
   chartPanel: {
     flex: 1,
@@ -811,18 +864,6 @@ const styles: Record<string, React.CSSProperties> = {
   statValue: {
     fontSize: '14px',
     fontWeight: 600
-  },
-  formCard: {
-    background: '#fff',
-    borderRadius: '16px',
-    padding: '24px',
-    boxShadow: '0 4px 16px rgba(45, 106, 79, 0.08)'
-  },
-  formPanelInner: {
-    background: '#fff',
-    borderRadius: '16px',
-    padding: '24px',
-    boxShadow: '0 4px 16px rgba(45, 106, 79, 0.08)'
   },
   form: {
     display: 'flex',
@@ -927,7 +968,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     fontSize: '13px',
     color: '#40916c',
-    borderLeft: '3px solid #52b788'
+    borderLeft: '3px solid #52b788',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  drillBackBtn: {
+    border: 'none',
+    background: 'rgba(45, 106, 79, 0.1)',
+    color: '#2d6a4f',
+    padding: '4px 10px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 600
   },
   emptyState: {
     padding: '48px 24px',
@@ -1010,6 +1064,13 @@ const styles: Record<string, React.CSSProperties> = {
     overflowY: 'auto',
     padding: '8px 0 8px 4px',
     position: 'relative'
+  },
+  virtualInfo: {
+    textAlign: 'center',
+    padding: '8px',
+    fontSize: '12px',
+    color: '#95d5b2',
+    marginTop: '8px'
   },
   dateMarker: {
     position: 'relative',
@@ -1125,24 +1186,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     transition: 'all 0.2s ease',
     whiteSpace: 'nowrap'
-  },
-  loadMoreIndicator: {
-    padding: '20px',
-    textAlign: 'center',
-    color: '#95d5b2',
-    fontSize: '13px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px'
-  },
-  spinner: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid #d8f3dc',
-    borderTopColor: '#52b788',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite'
   },
   monthlyCards: {
     display: 'grid',
