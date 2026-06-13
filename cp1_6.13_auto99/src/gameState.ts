@@ -147,36 +147,46 @@ export function createSlots(faction: Faction, canvasWidth: number, canvasHeight:
   const backOffsetX = faction === 'blue' ? -320 : 320;
   const centerX = canvasWidth / 2;
 
+  const defaultR = 255;
+  const defaultG = 255;
+  const defaultB = 255;
+  const defaultA = 0.25;
+
+  const createSlotData = (index: number, row: 'front' | 'back', x: number, y: number): Slot => ({
+    index,
+    row,
+    position: { x, y },
+    ship: null,
+    faction,
+    hovered: false,
+    scale: 1,
+    targetScale: 1,
+    borderColorR: defaultR,
+    borderColorG: defaultG,
+    borderColorB: defaultB,
+    borderColorA: defaultA,
+    targetBorderColorR: defaultR,
+    targetBorderColorG: defaultG,
+    targetBorderColorB: defaultB,
+    targetBorderColorA: defaultA,
+  });
+
   for (let i = 0; i < 3; i++) {
-    slots.push({
-      index: i,
-      row: 'front',
-      position: {
-        x: centerX + frontOffsetX,
-        y: centerY + (i - 1) * slotSpacing,
-      },
-      ship: null,
-      faction,
-      hovered: false,
-      scale: 1,
-      targetScale: 1,
-    });
+    slots.push(createSlotData(
+      i,
+      'front',
+      centerX + frontOffsetX,
+      centerY + (i - 1) * slotSpacing
+    ));
   }
 
   for (let i = 0; i < 2; i++) {
-    slots.push({
-      index: i + 3,
-      row: 'back',
-      position: {
-        x: centerX + backOffsetX,
-        y: centerY + (i - 0.5) * slotSpacing,
-      },
-      ship: null,
-      faction,
-      hovered: false,
-      scale: 1,
-      targetScale: 1,
-    });
+    slots.push(createSlotData(
+      i + 3,
+      'back',
+      centerX + backOffsetX,
+      centerY + (i - 0.5) * slotSpacing
+    ));
   }
 
   return slots;
