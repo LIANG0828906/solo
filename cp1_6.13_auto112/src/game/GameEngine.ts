@@ -113,7 +113,10 @@ export class GameEngine {
     if (spellIndex === -1) return this.getState();
     const spell = player.hand[spellIndex];
     const storedEffect = (this.state as any)._pendingEffect as SpellEffect | undefined;
-    const effect: SpellEffect = storedEffect || this.calculateSpellEffect(spell, target);
+    if (!storedEffect) {
+      return this.getState();
+    }
+    const effect: SpellEffect = storedEffect;
     delete (this.state as any)._pendingEffect;
     player.hand.splice(spellIndex, 1);
     let logMessage = `${player.name} 使用了 ${spell.name}${spell.emoji}`;

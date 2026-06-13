@@ -190,7 +190,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onSpellSelect, 
         ? 'linear-gradient(90deg, #ff4444, #cc0000, #ff6666)'
         : 'linear-gradient(90deg, #4488ff, #0044cc, #6699ff)',
       transition: 'width 0.4s ease',
-      animation: isLow ? 'hpBlink 1s ease-in-out infinite' : undefined,
+      animation: isLow ? 'hpBlink 1s steps(2, end) infinite' : undefined,
     };
     return (
       <div key={player.id} style={barStyle}>
@@ -337,18 +337,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onSpellSelect, 
     }}>
       <style>{`
         @keyframes hpBlink {
-          0%, 100% {
-            filter: brightness(1);
+          0%, 49% {
+            filter: brightness(1.8);
+            box-shadow: inset 0 0 16px rgba(255,255,255,0.3);
+          }
+          50%, 100% {
+            filter: brightness(0.7);
             box-shadow: inset 0 0 0 rgba(255,255,255,0);
-          }
-          25% {
-            filter: brightness(1.7);
-          }
-          50% {
-            filter: brightness(0.85);
-          }
-          75% {
-            filter: brightness(1.5);
           }
         }
         @keyframes pulseGlow {
@@ -480,11 +475,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onSpellSelect, 
           }}>
             ⚔️ VS ⚔️
           </div>
-          {flyingCard && flyingStyle && (
-            <div style={flyingStyle}>
-              {flyingCard.spell.emoji}
-            </div>
-          )}
           {gameState.gameOver && (
             <div style={{
               position: 'absolute',
@@ -560,6 +550,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onSpellSelect, 
             </div>
           )}
         </div>
+        {flyingCard && flyingStyle && (
+          <div style={flyingStyle}>
+            {flyingCard.spell.emoji}
+          </div>
+        )}
         <div style={{
           position: 'absolute',
           bottom: 0,
@@ -627,7 +622,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onSpellSelect, 
             key={i}
             style={{
               opacity: 0.45 + (i / 6) * 0.55,
-              paddingLeft: 4,
               borderLeft: i === 5 ? '2px solid #FFD700' : '2px solid transparent',
               paddingLeft: i === 5 ? 10 : 12,
             }}
