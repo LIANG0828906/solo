@@ -45,8 +45,9 @@ export class Renderer {
   private drawTrail(ctx: CanvasRenderingContext2D, trail: { x: number; y: number }[]): void {
     for (let i = trail.length - 1; i >= 0; i--) {
       const point = trail[i];
-      const alpha = (1 - i / trail.length) * 0.3;
-      const size = 12 * (1 - i / trail.length * 0.5);
+      const normalizedIndex = i / Math.max(1, trail.length - 1);
+      const alpha = Math.pow(1 - normalizedIndex, 2) * 0.5;
+      const size = 12 * (1 - normalizedIndex * 0.7);
       ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.beginPath();
       ctx.arc(point.x, point.y, size / 2, 0, Math.PI * 2);
@@ -97,8 +98,9 @@ export class Renderer {
 
   private drawParticles(ctx: CanvasRenderingContext2D, particles: Particle[]): void {
     for (const p of particles) {
+      const lifeRatio = Math.max(0, p.life / p.maxLife);
       ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.globalAlpha = lifeRatio * lifeRatio;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
       ctx.fill();

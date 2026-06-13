@@ -194,11 +194,22 @@ export class GameLogic {
       p.x += p.vx * deltaTime;
       p.y += p.vy * deltaTime;
       p.life -= deltaTime;
-      p.size = 4 * (p.life / p.maxLife);
+      const lifeRatio = Math.max(0, p.life / p.maxLife);
+      p.size = 4 * lifeRatio * lifeRatio;
       if (p.life <= 0) {
         particles.splice(i, 1);
       }
     }
+    if (particles.length > MAX_PARTICLES) {
+      particles.splice(0, particles.length - MAX_PARTICLES);
+    }
+  }
+
+  private easeOutElastic(t: number): number {
+    const c4 = (2 * Math.PI) / 3;
+    if (t === 0) return 0;
+    if (t === 1) return 1;
+    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
   }
 
   private updateEffects(deltaTime: number): void {
@@ -219,7 +230,7 @@ export class GameLogic {
         this.state.scoreAnimation.scale = 1;
       } else {
         const t = 1 - this.state.scoreAnimation.timer / 0.5;
-        this.state.scoreAnimation.scale = 1 + 0.2 * Math.sin(t * Math.PI);
+        this.state.scoreAnimation.scale = 1 + 0.2 * (1 - this.easeOutElastic(t));
       }
     }
   }
@@ -246,18 +257,20 @@ export class GameLogic {
   private checkPaddleCollision(paddle: Paddle, side: 'left' | 'right'): void {
     const ball = this.state.ball;
 
-    const paddleRight = side === 'left' ? paddle.x + paddle.width : paddle.x;
-    const paddleLeft = side === 'left' ? paddle.x : paddle.x;
-
     if (
       ball.y + ball.radius >= paddle.y &&
       ball.y - ball.radius <= paddle.y + paddle.height
     ) {
-      if (side === 'left' && ball.x - ball.radius <= paddleRight && ball.x - ball.radius >= paddle.x - 10) {
-        this.handlePaddleHit(paddle, side);
-      }
-      if (side === 'right' && ball.x + ball.radius >= paddleLeft && ball.x + ball.radius <= paddle.x + paddle.width + 10) {
-        this.handlePaddleHit(paddle, side);
+      if (side === 'left') {
+        const paddleFrontX = paddle.x + paddle.width;
+        if (ball.x - ball.radius <= paddleFrontX && ball.x - ball.radius >= paddle.x - ball.radius && ball.vx < 0) {
+          this.handlePaddleHit(paddle, side);
+        }
+      } else {
+        const paddleFrontX = paddle.x;
+        if (ball.x + ball.radius >= paddleFrontX && ball.x + ball.radius <= paddle.x + paddle.width + ball.radius && ball.vx > 0) {
+          this.handlePaddleHit(paddle, side);
+        }
       }
     }
   }
@@ -265,11 +278,15 @@ export class GameLogic {
   private handlePaddleHit(paddle: Paddle, side: 'left' | 'right'): void {
     const ball = this.state.ball;
 
-    const hitPosition = (ball.y - paddle.y) / paddle.height;
-    const angleOffset = (hitPosition - 0.5) * Math.PI * 0.6;
+    const paddleCenterY = paddle.y + paddle.height / 2;
+    const normalizedHit = (ball.y - paddleCenterY) / (paddle.height / 2);
+    const clampedHit = Math.max(-1, Math.min(1, normalizedHit));
+    const maxAngle = Math.PI / 3;
+    const angleOffset = clampedHit * maxAngle;
 
     const currentSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-    const newSpeed = Math.min(currentSpeed * 1.1, INITIAL_BALL_SPEED * MAX_SPEED_MULTIPLIER);
+    const baseSpeed = Math.max(currentSpeed, INITIAL_BALL_SPEED);
+    const newSpeed = Math.min(baseSpeed * 1.1, INITIAL_BALL_SPEED * MAX_SPEED_MULTIPLIER);
 
     const direction = side === 'left' ? 1 : -1;
     ball.vx = direction * newSpeed * Math.cos(angleOffset);

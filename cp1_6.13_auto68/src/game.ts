@@ -5,7 +5,9 @@ import { renderer } from './render';
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
 const TARGET_FPS = 60;
-const FRAME_TIME = 1000 / TARGET_FPS;
+const FIXED_DELTA_TIME = 1 / TARGET_FPS;
+const FRAME_TIME_MS = 1000 / TARGET_FPS;
+const MAX_DELTA_TIME_MS = 100;
 
 class Game {
   private canvas: HTMLCanvasElement | null = null;
@@ -15,6 +17,7 @@ class Game {
   private accumulator: number = 0;
   private animationFrameId: number = 0;
   private spaceKeyPressed: boolean = false;
+  private boundHandleKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
   constructor() {
     this.logic = new GameLogic();
@@ -36,7 +39,8 @@ class Game {
 
     input.setup();
 
-    window.addEventListener('keydown', this.handleKeyDown.bind(this));
+    this.boundHandleKeyDown = this.handleKeyDown.bind(this);
+    window.addEventListener('keydown', this.boundHandleKeyDown);
 
     this.start();
   }
@@ -51,6 +55,7 @@ class Game {
 
     if (e.key === ' ' && !this.spaceKeyPressed) {
       this.spaceKeyPressed = true;
+      e.preventDefault();
       if (state.status === 'playing') {
         this.logic.setStatus('paused');
       } else if (state.status === 'paused') {
@@ -65,23 +70,30 @@ class Game {
 
   start(): void {
     this.lastTime = performance.now();
+    this.accumulator = 0;
     this.loop();
   }
 
   private loop(): void {
     const currentTime = performance.now();
-    let deltaTime = currentTime - this.lastTime;
+    let deltaTimeMs = currentTime - this.lastTime;
     this.lastTime = currentTime;
 
-    if (deltaTime > 100) {
-      deltaTime = FRAME_TIME;
+    if (deltaTimeMs > MAX_DELTA_TIME_MS) {
+      deltaTimeMs = FRAME_TIME_MS;
     }
 
-    this.accumulator += deltaTime;
+    this.accumulator += deltaTimeMs;
 
-    while (this.accumulator >= FRAME_TIME) {
-      this.update(FRAME_TIME / 1000);
-      this.accumulator -= FRAME_TIME;
+    let updateCount = 0;
+    while (this.accumulator >= FRAME_TIME_MS && updateCount < 5) {
+      this.update(FIXED_DELTA_TIME);
+      this.accumulator -= FRAME_TIME_MS;
+      updateCount++;
+    }
+
+    if (this.accumulator >= FRAME_TIME_MS) {
+      this.accumulator = 0;
     }
 
     this.render();
@@ -98,7 +110,7 @@ class Game {
   }
 
   private update(deltaTime: number): void {
-    this.logic.update(deltaTime, input.isKeyPressed.bind(input));
+    this.logic.update(deltaTime, (key: string) => input.isKeyPressed(key));
   }
 
   private render(): void {
@@ -111,6 +123,9 @@ class Game {
   destroy(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+    }
+    if (this.boundHandleKeyDown) {
+      window.removeEventListener('keydown', this.boundHandleKeyDown);
     }
     input.destroy();
   }
