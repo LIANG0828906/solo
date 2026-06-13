@@ -622,3 +622,72 @@ html, body {
   color: var(--color-primary);
   font-variant-numeric: tabular-nums;
 }
+
+.upload-zone.loaded {
+  border-color: #4CAF50;
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.upload-zone.loaded .upload-icon {
+  color: #4CAF50;
+}
+
+.upload-zone.loaded .ripple-effect::before,
+.upload-zone.loaded .ripple-effect::after {
+  border-color: #4CAF50;
+}
+
+.layer-btn:focus,
+.select:focus,
+.slider:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.4);
+  transition: box-shadow var(--transition-normal);
+}
+
+.toggle input:focus + .toggle-slider {
+  box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.4);
+}
+
+.depth-label {
+  position: absolute;
+  left: -60px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.control-panel.visible-anim {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.upload-zone.processing {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.upload-zone.processing::after {
+  content: '解析中...';
+  position: absolute;
+  bottom: 12px;
+  font-size: 12px;
+  color: var(--color-primary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
