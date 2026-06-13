@@ -24,6 +24,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
   const [uploader, setUploader] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
+  const [isTooShort, setIsTooShort] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -35,6 +36,9 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const animationRef = useRef<number | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const startTimeRef = useRef<number>(0)
+  const pausedDurationRef = useRef<number>(0)
+  const isForcedStopRef = useRef(false)
 
   const drawWaveform = useCallback(() => {
     if (!analyserRef.current || !canvasRef.current) return
@@ -78,8 +82,41 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
     draw()
   }, [])
 
+  const getElapsedSeconds = useCallback(() => {
+    if (startTimeRef.current === 0) return 0
+    const now = Date.now()
+    return Math.floor((now - startTimeRef.current - pausedDurationRef.current) / 1000)
+  }, [])
+
+  const forceStopIfNeeded = useCallback(() => {
+    const elapsed = getElapsedSeconds()
+    if (elapsed >= MAX_DURATION) {
+      isForcedStopRef.current = true
+      stopRecordingInternal()
+    }
+  }, [getElapsedSeconds])
+
+  const stopRecordingInternal = useCallback(() => {
+    const recorder = mediaRecorderRef.current
+    if (recorder && (recorder.state === 'recording' || recorder.state === 'paused')) {
+      recorder.stop()
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+  }, [])
+
   const startRecording = async () => {
     setError('')
+    setIsTooShort(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -95,12 +132,36 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
+      isForcedStopRef.current = false
 
       mediaRecorder.ondataavailable = (e) => {
+        const elapsed = getElapsedSeconds()
+        if (elapsed > MAX_DURATION) {
+          return
+        }
         audioChunksRef.current.push(e.data)
       }
 
       mediaRecorder.onstop = () => {
+        const finalElapsed = getElapsedSeconds()
+
+        if (finalElapsed < MIN_DURATION) {
+          audioChunksRef.current = []
+          audioBlobRef.current = null
+          if (audioUrlRef.current) {
+            URL.revokeObjectURL(audioUrlRef.current)
+            audioUrlRef.current = null
+          }
+          setRecordingState('idle')
+          setDuration(0)
+          setIsTooShort(true)
+          setError(`录音时长不足${MIN_DURATION}秒（当前${finalElapsed}秒），已自动丢弃。请重新录制。`)
+          return
+        }
+
+        const clampedDuration = Math.min(finalElapsed, MAX_DURATION)
+        setDuration(clampedDuration)
+
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         audioBlobRef.current = blob
         if (audioUrlRef.current) {
@@ -108,24 +169,24 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
         }
         audioUrlRef.current = URL.createObjectURL(blob)
         setRecordingState('finished')
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current)
+
+        if (isForcedStopRef.current) {
+          setError(`录音已达${MAX_DURATION}秒上限，已自动停止。`)
         }
       }
 
-      mediaRecorder.start()
+      mediaRecorder.start(1000)
       setRecordingState('recording')
       setDuration(0)
+      startTimeRef.current = Date.now()
+      pausedDurationRef.current = 0
       drawWaveform()
 
-      const startTime = Date.now()
       timerRef.current = window.setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000)
+        const elapsed = getElapsedSeconds()
         setDuration(elapsed)
-        if (elapsed >= MAX_DURATION) {
-          stopRecording()
-        }
-      }, 100)
+        forceStopIfNeeded()
+      }, 200)
     } catch (err) {
       setError('无法访问麦克风，请检查权限设置')
       console.error('Recording error:', err)
@@ -133,17 +194,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && recordingState === 'recording') {
-      mediaRecorderRef.current.stop()
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-        streamRef.current = null
-      }
-    }
+    stopRecordingInternal()
   }
 
   const pauseRecording = () => {
@@ -154,6 +205,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
         clearInterval(timerRef.current)
         timerRef.current = null
       }
+      pausedDurationRef.current += Date.now() - startTimeRef.current - pausedDurationRef.current - getElapsedSeconds() * 1000
     }
   }
 
@@ -162,14 +214,11 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
       mediaRecorderRef.current.resume()
       setRecordingState('recording')
 
-      const startTime = Date.now() - duration * 1000
       timerRef.current = window.setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000)
+        const elapsed = getElapsedSeconds()
         setDuration(elapsed)
-        if (elapsed >= MAX_DURATION) {
-          stopRecording()
-        }
-      }, 100)
+        forceStopIfNeeded()
+      }, 200)
     }
   }
 
@@ -217,7 +266,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
       formData.append('category', category)
       formData.append('lat', String(position.lat))
       formData.append('lng', String(position.lng))
-      formData.append('duration', String(duration))
+      formData.append('duration', String(Math.min(duration, MAX_DURATION)))
       formData.append('uploader', uploader || '匿名用户')
       formData.append('description', description)
       tags.forEach((tag) => formData.append('tags', tag))
@@ -240,6 +289,8 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
   const handleReset = () => {
     setRecordingState('idle')
     setDuration(0)
+    setError('')
+    setIsTooShort(false)
     audioBlobRef.current = null
     if (audioUrlRef.current) {
       URL.revokeObjectURL(audioUrlRef.current)
@@ -248,6 +299,8 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
+    startTimeRef.current = 0
+    pausedDurationRef.current = 0
   }
 
   useEffect(() => {
@@ -268,6 +321,8 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const progressPercent = Math.min((duration / MAX_DURATION) * 100, 100)
+
   return (
     <div className="recorder-modal-overlay" onClick={onClose}>
       <div className="recorder-modal" onClick={(e) => e.stopPropagation()}>
@@ -278,20 +333,16 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
           </button>
         </div>
 
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
-          📍 位置: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
+        <p className="recorder-location">
+          📍 {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
         </p>
 
         <div className="waveform-container">
-          {recordingState === 'idle' || recordingState === 'finished' ? (
-            <canvas ref={canvasRef} width={400} height={100} style={{ display: 'none' }} />
-          ) : (
-            <canvas ref={canvasRef} width={400} height={100} />
+          {recordingState === 'idle' && !isTooShort && (
+            <span className="waveform-placeholder">点击下方按钮开始录音</span>
           )}
-          {recordingState === 'idle' && (
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              点击下方按钮开始录音
-            </span>
+          {(recordingState === 'recording' || recordingState === 'paused') && (
+            <canvas ref={canvasRef} width={400} height={100} />
           )}
           {recordingState === 'finished' && audioUrlRef.current && (
             <audio
@@ -300,13 +351,25 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
               style={{ width: '90%' }}
             />
           )}
+          {isTooShort && (
+            <span className="waveform-placeholder" style={{ color: 'var(--accent-red)' }}>
+              ⚠️ 录音时长不足，已丢弃
+            </span>
+          )}
         </div>
+
+        {(recordingState === 'recording' || recordingState === 'paused') && (
+          <div className="recording-progress">
+            <div className="recording-progress-bar" style={{ width: `${progressPercent}%` }} />
+          </div>
+        )}
 
         <div className="recording-info">
           <div className="info-item">
             <div className="info-label">录音时长</div>
             <div className={`info-value ${recordingState === 'recording' ? 'recording' : ''}`}>
               {formatDuration(duration)}
+              <span className="duration-limit"> / {MAX_DURATION}s</span>
             </div>
           </div>
           <div className="info-item">
@@ -358,14 +421,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
         </div>
 
         {error && (
-          <div
-            style={{
-              color: 'var(--accent-red)',
-              fontSize: '0.85rem',
-              marginBottom: '12px',
-              textAlign: 'center',
-            }}
-          >
+          <div className="recorder-error">
             {error}
           </div>
         )}
@@ -389,11 +445,11 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
                 value={category}
                 onChange={(e) => setCategory(e.target.value as SoundCategory)}
               >
-                <option value="traffic">交通</option>
-                <option value="nature">自然</option>
-                <option value="crowd">人群</option>
-                <option value="machinery">机械</option>
-                <option value="other">其他</option>
+                <option value="traffic">🚗 交通</option>
+                <option value="nature">🌿 自然</option>
+                <option value="crowd">👥 人群</option>
+                <option value="machinery">⚙️ 机械</option>
+                <option value="other">🔊 其他</option>
               </select>
             </div>
 
@@ -459,14 +515,7 @@ function SoundRecorder({ position, onClose, onUploaded }: SoundRecorderProps) {
             </button>
 
             {duration < MIN_DURATION && (
-              <p
-                style={{
-                  color: 'var(--accent-orange)',
-                  fontSize: '0.8rem',
-                  marginTop: '8px',
-                  textAlign: 'center',
-                }}
-              >
+              <p className="recorder-warning">
                 录音时长不足{MIN_DURATION}秒，请重新录制
               </p>
             )}

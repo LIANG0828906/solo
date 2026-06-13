@@ -42,6 +42,14 @@ html, body, #root {
   z-index: 1;
 }
 
+.map-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
 .app-header {
   position: absolute;
   top: 20px;
@@ -67,6 +75,7 @@ html, body, #root {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
 }
 
 .filter-bar {
@@ -121,20 +130,181 @@ html, body, #root {
   width: 220px;
 }
 
-.sound-marker {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  transform: translate(-50%, -50%);
-  cursor: pointer;
-}
-
-.marker-pulse {
-  position: absolute;
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+.confirm-modal {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 32px;
+  width: 90%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.confirm-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.confirm-location {
+  font-size: 0.9rem;
+  color: var(--accent-teal-light);
+  margin-bottom: 12px;
+}
+
+.confirm-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-btn.cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+}
+
+.confirm-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.confirm-btn.start {
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-teal-light));
+  color: white;
+  box-shadow: 0 4px 16px rgba(45, 138, 126, 0.3);
+}
+
+.confirm-btn.start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 138, 126, 0.4);
+}
+
+.sound-marker-container {
+  background: none !important;
+  border: none !important;
+}
+
+.sound-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  will-change: transform, opacity;
+}
+
+.marker-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes marker-breathe {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0.2;
+  }
+}
+
+.marker-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+}
+
+.marker-wave-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@keyframes wave-expand {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3);
+    opacity: 0;
+  }
 }
 
 .marker-dot {
@@ -142,50 +312,16 @@ html, body, #root {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.85);
   z-index: 2;
+  transition: transform 0.2s ease;
 }
 
-.marker-wave {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  animation: wave-expand 3s ease-out infinite;
-}
-
-.marker-wave:nth-child(2) {
-  animation-delay: 1s;
-}
-
-.marker-wave:nth-child(3) {
-  animation-delay: 2s;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1.8);
-    opacity: 0;
-  }
-}
-
-@keyframes wave-expand {
-  0% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(2.5);
-    opacity: 0;
-  }
+.sound-marker:hover .marker-dot {
+  transform: translate(-50%, -50%) scale(1.3);
 }
 
 .marker-fade-in {
@@ -199,22 +335,22 @@ html, body, #root {
 @keyframes markerFadeIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
+    transform: scale(0.3);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes markerFadeOut {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
+    transform: scale(0.3);
   }
 }
 
@@ -243,6 +379,8 @@ html, body, #root {
   padding: 32px;
   width: 90%;
   max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -267,13 +405,19 @@ html, body, #root {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .recorder-header h2 {
   font-size: 1.4rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.recorder-location {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
 }
 
 .close-btn {
@@ -301,7 +445,7 @@ html, body, #root {
   height: 100px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
-  margin: 20px 0;
+  margin: 16px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -309,27 +453,32 @@ html, body, #root {
   position: relative;
 }
 
-.waveform-bars {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 100%;
-  padding: 10px;
+.waveform-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
-.waveform-bar {
-  width: 4px;
-  background: linear-gradient(180deg, var(--accent-teal-light), var(--accent-teal));
+.recording-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
-  transition: height 0.1s ease;
-  min-height: 4px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.recording-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-teal), var(--accent-teal-light));
+  border-radius: 2px;
+  transition: width 0.2s ease;
 }
 
 .recording-info {
   display: flex;
   justify-content: center;
   gap: 32px;
-  margin: 20px 0;
+  margin: 16px 0;
 }
 
 .info-item {
@@ -352,11 +501,17 @@ html, body, #root {
   color: var(--accent-red);
 }
 
+.duration-limit {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
 .recorder-controls {
   display: flex;
   justify-content: center;
   gap: 20px;
-  margin: 24px 0;
+  margin: 20px 0;
 }
 
 .record-btn {
@@ -380,16 +535,28 @@ html, body, #root {
   transform: scale(1.05);
 }
 
+.record-btn.recording::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-red);
+  animation: record-pulse 1.5s ease-in-out infinite;
+}
+
 .record-btn.recording::after {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
+  top: -14px;
+  left: -14px;
+  right: -14px;
+  bottom: -14px;
   border-radius: 50%;
-  border: 2px solid var(--accent-red);
-  animation: record-pulse 1.5s ease-in-out infinite;
+  border: 2px solid rgba(231, 76, 60, 0.4);
+  animation: record-pulse 1.5s ease-in-out 0.5s infinite;
 }
 
 @keyframes record-pulse {
@@ -398,8 +565,8 @@ html, body, #root {
     opacity: 1;
   }
   50% {
-    transform: scale(1.2);
-    opacity: 0.5;
+    transform: scale(1.15);
+    opacity: 0.3;
   }
 }
 
@@ -535,6 +702,24 @@ html, body, #root {
 .upload-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.recorder-error {
+  color: var(--accent-red);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  text-align: center;
+  padding: 8px;
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.recorder-warning {
+  color: var(--accent-orange);
+  font-size: 0.8rem;
+  margin-top: 8px;
+  text-align: center;
 }
 
 .detail-modal-overlay {
@@ -769,6 +954,13 @@ audio::-webkit-media-controls-panel {
   color: var(--text-primary);
 }
 
+.drawer-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 20px;
+  font-size: 0.9rem;
+}
+
 .sound-list-item {
   padding: 12px;
   background: rgba(255, 255, 255, 0.05);
@@ -795,8 +987,23 @@ audio::-webkit-media-controls-panel {
   font-size: 0.8rem;
   color: var(--text-secondary);
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 }
+
+.category-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.category-dot-traffic { background: #e67e22; }
+.category-dot-nature { background: #27ae60; }
+.category-dot-crowd { background: #3498db; }
+.category-dot-machinery { background: #9b59b6; }
+.category-dot-other { background: #7f8c8d; }
 
 .leaflet-container {
   background: var(--primary-dark) !important;
@@ -827,7 +1034,6 @@ audio::-webkit-media-controls-panel {
 
 .leaflet-popup-tip {
   background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px);
 }
 
 .leaflet-popup-content {
@@ -888,7 +1094,8 @@ audio::-webkit-media-controls-panel {
   }
 
   .recorder-modal,
-  .detail-modal {
+  .detail-modal,
+  .confirm-modal {
     max-width: 95%;
     padding: 20px;
   }
