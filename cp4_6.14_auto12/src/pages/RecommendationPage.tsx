@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -25,6 +25,8 @@ import { useRecommendation, Book, User, ExchangeRequest } from '../hooks/useReco
 
 type SortOption = 'score' | 'title' | 'author';
 
+const SORT_STORAGE_KEY = 'bookExchange_sortBy';
+
 interface Props {
   user: User | null;
   onRequestsChange: () => void;
@@ -34,11 +36,27 @@ export default function RecommendationPage({ user, onRequestsChange }: Props) {
   const userPrefs = user?.preferences || [];
   const recentlyRead = user?.recentlyRead || [];
   const { recommendations, loading, error, refresh } = useRecommendation(userPrefs, recentlyRead);
-  const [sortBy, setSortBy] = useState<SortOption>('score');
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    return (saved as SortOption) || 'score';
+  });
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [selectedOfferedBookId, setSelectedOfferedBookId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
   const requestModal = useDisclosure();
+
+  useEffect(() => {
+    localStorage.setItem(SORT_STORAGE_KEY, sortBy);
+  }, [sortBy]);
+
+  const handleSortChange = (newSort: SortOption) => {
+    setSortBy(newSort);
+    refresh(newSort);
+  };
+
+  const handleRefresh = () => {
+    refresh(sortBy);
+  };
 
   const sortedRecommendations = useMemo(() => {
     const list = [...recommendations];
@@ -103,7 +121,7 @@ export default function RecommendationPage({ user, onRequestsChange }: Props) {
             borderColor="#E2C9AD"
             size="sm"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => handleSortChange(e.target.value as SortOption)}
           >
             <option value="score">按匹配度</option>
             <option value="title">按书名 A-Z</option>
@@ -115,7 +133,7 @@ export default function RecommendationPage({ user, onRequestsChange }: Props) {
             _hover={{ bg: 'brand.300', color: 'white' }}
             _active={{ transform: 'scale(0.96)' }}
             transition="all 0.2s ease"
-            onClick={refresh}
+            onClick={handleRefresh}
             isLoading={loading}
             size="sm"
           >

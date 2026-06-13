@@ -48,7 +48,7 @@ interface UseRecommendationResult {
   recommendations: Book[];
   loading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: (sortBy?: string) => void;
 }
 
 export function useRecommendation(userPreferences: string[], recentlyRead: string[]): UseRecommendationResult {
@@ -56,12 +56,14 @@ export function useRecommendation(userPreferences: string[], recentlyRead: strin
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRecommendations = useCallback(async () => {
+  const fetchRecommendations = useCallback(async (sortBy?: string) => {
     setLoading(true);
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 200));
-      const response = await axios.get<{ recommendations: Book[] }>('/api/recommendations');
+      const params = new URLSearchParams();
+      if (sortBy) params.set('sortBy', sortBy);
+      const response = await axios.get<{ recommendations: Book[] }>(`/api/recommendations?${params.toString()}`);
       setRecommendations(response.data.recommendations);
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取推荐失败');

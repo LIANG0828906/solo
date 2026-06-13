@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Text,
@@ -6,7 +6,6 @@ import {
   Flex,
   HStack,
   VStack,
-  Avatar,
   Badge,
   Tabs,
   TabList,
@@ -25,15 +24,50 @@ interface Props {
   onRequestsChange: () => void;
 }
 
+const AVATAR_LIGHT_COLORS = [
+  '#FFB6C1', '#FFC3A0', '#FFDAB9', '#FFE4B5', '#F0E68C',
+  '#B0E0E6', '#ADD8E6', '#87CEEB', '#B0C4DE', '#C8A2C8',
+  '#DDA0DD', '#D8BFD8', '#E6E6FA', '#98FB98', '#90EE90',
+];
+
+function getRandomLightColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_LIGHT_COLORS[Math.abs(hash) % AVATAR_LIGHT_COLORS.length];
+}
+
+function AvatarPlaceholder({ name }: { name: string }) {
+  const bgColor = useMemo(() => getRandomLightColor(name), [name]);
+  return (
+    <Box
+      w="40px"
+      h="40px"
+      borderRadius="50%"
+      bg={bgColor}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      color="#4A3728"
+      fontWeight={700}
+      fontSize="16px"
+      flexShrink={0}
+    >
+      {name.charAt(0)}
+    </Box>
+  );
+}
+
 export default function ExchangeRequestPage({ user, requests, onRequestsChange }: Props) {
-  const [animatingId, setAnimatingId] = useState<{ [key: string]: 'accept' | 'reject' | null }>({});
+  const [animatingId, setAnimatingId] = useState<{ [key: string]: 'accepted' | 'rejected' | 'cancelled' | null }>({});
 
   const receivedRequests = requests.filter((r) => r.toUserId === user?.id);
   const sentRequests = requests.filter((r) => r.fromUserId === user?.id);
 
-  const handleAction = async (requestId: string, status: 'accepted' | 'rejected') => {
+  const handleAction = async (requestId: string, status: 'accepted' | 'rejected' | 'cancelled') => {
     setAnimatingId((prev) => ({ ...prev, [requestId]: status }));
-    await new Promise((r) => setTimeout(r, status === 'accept' ? 500 : 400));
+    await new Promise((r) => setTimeout(r, status === 'accepted' ? 500 : 400));
     await axios.put(`/api/exchange-requests/${requestId}/status`, { status });
     setAnimatingId((prev) => ({ ...prev, [requestId]: null }));
     onRequestsChange();
@@ -69,9 +103,9 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
           key={animType || 'normal'}
           initial={{ opacity: 1, x: 0 }}
           animate={
-            animType === 'reject'
+            animType === 'rejected'
               ? { opacity: 0, x: -20 }
-              : animType === 'accept'
+              : animType === 'accepted'
               ? { opacity: 1, x: 0 }
               : { opacity: 1, x: 0 }
           }
@@ -86,14 +120,7 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
             boxShadow="0 2px 8px rgba(0,0,0,0.08)"
           >
             <Flex gap={4} align="center">
-              <Avatar
-                size="md"
-                name={isReceived ? req.fromUserName : user?.name}
-                bg={isReceived ? req.fromUserAvatar : user?.avatar || '#D4A373'}
-                color="white"
-                w="40px"
-                h="40px"
-              />
+              <AvatarPlaceholder name={isReceived ? req.fromUserName : user?.name || ''} />
               <Box flex="1" minW={0}>
                 <Flex justify="space-between" align="center" mb={1}>
                   <HStack spacing={2}>
@@ -126,8 +153,8 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
                 {isReceived && req.status === 'pending' && (
                   <HStack spacing={3} mt={4} justify="flex-end">
                     <motion.div
-                      whileHover={animType !== 'reject' ? { scale: 1.05 } : {}}
-                      animate={animType === 'reject' ? { opacity: 0, x: -10 } : {}}
+                      whileHover={animType !== 'rejected' ? { scale: 1.05 } : {}}
+                      animate={animType === 'rejected' ? { opacity: 0, x: -10 } : {}}
                       transition={{ duration: 0.3 }}
                     >
                       <Button
@@ -138,7 +165,7 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
                         _hover={{ bg: '#F7E7CE', borderColor: '#D4A373' }}
                         _active={{ transform: 'scale(0.96)' }}
                         onClick={() => handleAction(req.id, 'rejected')}
-                        isLoading={animType === 'reject'}
+                        isLoading={animType === 'rejected'}
                       >
                         拒绝
                       </Button>
@@ -146,7 +173,7 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
                     <motion.div
                       whileHover={{ scale: 1.05 }}
                       animate={
-                        animType === 'accept'
+                        animType === 'accepted'
                           ? { scale: [1, 1.2, 1], transition: { duration: 0.4 } }
                           : {}
                       }
@@ -158,7 +185,7 @@ export default function ExchangeRequestPage({ user, requests, onRequestsChange }
                         _hover={{ bg: '#38A169' }}
                         _active={{ transform: 'scale(0.96)' }}
                         onClick={() => handleAction(req.id, 'accepted')}
-                        isLoading={animType === 'accept'}
+                        isLoading={animType === 'accepted'}
                       >
                         ✓ 接受
                       </Button>

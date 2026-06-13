@@ -20,7 +20,6 @@ import {
   Input,
   Stack,
   VStack,
-  useDisclosure,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -39,7 +38,6 @@ export default function App() {
   const [showPrefModal, setShowPrefModal] = useState(false);
   const [tempPrefs, setTempPrefs] = useState<string[]>([]);
   const [tempBooks, setTempBooks] = useState(['', '']);
-  const prefsDisclosure = useDisclosure();
 
   useEffect(() => {
     axios.get<{ user: User }>('/api/user').then((res) => {
@@ -114,25 +112,37 @@ export default function App() {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1400,
-              padding: '12px 24px',
               borderRadius: 12,
-              background: 'linear-gradient(90deg, #48BB78 0%, rgba(72,187,120,0.6) 50%, white 100%)',
-              color: 'white',
-              fontWeight: 600,
+              overflow: 'hidden',
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             }}
           >
-            <Flex align="center" gap={2}>
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-                style={{ fontSize: 20 }}
-              >
-                ✓
-              </motion.span>
-              {visibleNotif.message}
-            </Flex>
+            <motion.div
+              initial={{ backgroundPosition: '0% 50%' }}
+              animate={{ backgroundPosition: '100% 50%' }}
+              transition={{ duration: 2, ease: 'linear' }}
+              style={{
+                padding: '12px 24px',
+                background: 'linear-gradient(90deg, #48BB78 0%, rgba(72,187,120,0.7) 40%, rgba(255,255,255,0.9) 75%, white 100%)',
+                backgroundSize: '200% 100%',
+                color: 'white',
+                fontWeight: 600,
+              }}
+            >
+              <Flex align="center" gap={2}>
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  style={{ fontSize: 20 }}
+                >
+                  ✓
+                </motion.span>
+                <Text color="white" fontWeight={600} fontSize="sm">
+                  {visibleNotif.message}
+                </Text>
+              </Flex>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

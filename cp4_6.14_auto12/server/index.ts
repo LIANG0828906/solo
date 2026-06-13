@@ -128,36 +128,74 @@ let notifications: Notification[] = [];
 
 const currentUserId = 'user-1';
 
-function computeMatchScore(user: User, book: Book): number {
-  if (book.ownerId === user.id || book.isExchanged) return 0;
+function computeBookSimilarity(book: Book, recentlyRead: string[]): number {
+  let similarity = 0;
+  for (const readTitle of recentlyRead) {
+    for (const u of users) {
+      const readBook = u.books.find((b) => b.title === readTitle);
+      if (readBook) {
+        const sharedTags = book.tags.filter((t) => readBook.tags.includes(t));
+        similarity += sharedTags.length * 12;
+        if (book.author === readBook.author) {
+          similarity += 15;
+        }
+      }
+    }
+    if (book.title.includes(readTitle) || readTitle.includes(book.title)) {
+      similarity += 8;
+    }
+  }
+  return similarity;
+}
 
-  let score = 0;
+function recommendBooks(user: User): { book: Book; score: number }[] {
   const userPrefs = new Set(user.preferences);
 
-  for (const tag of book.tags) {
-    if (userPrefs.has(tag)) {
-      score += 25;
+  const tagWeights: { [tag: string]: number } = {};
+  for (const tag of userPrefs) {
+    tagWeights[tag] = 1.0;
+  }
+  for (const tag of Object.keys(user.clickedTags)) {
+    const clickCount = user.clickedTags[tag];
+    tagWeights[tag] = (tagWeights[tag] || 1.0) * Math.pow(0.95, clickCount);
+  }
+
+  const allBooks: Book[] = [];
+  for (const u of users) {
+    if (u.id !== user.id) {
+      for (const book of u.books) {
+        if (!book.isExchanged) {
+          allBooks.push(book);
+        }
+      }
     }
   }
 
-  for (const tag of book.tags) {
-    const clickCount = user.clickedTags[tag] || 0;
-    score -= clickCount * 5;
-  }
+  const scored = allBooks.map((book) => {
+    let score = 0;
 
-  const owner = users.find((u) => u.id === book.ownerId);
-  if (owner) {
-    const sharedPrefs = owner.preferences.filter((p) => userPrefs.has(p));
-    score += sharedPrefs.length * 5;
-  }
-
-  for (const bookTitle of user.recentlyRead) {
-    if (book.title.includes(bookTitle) || bookTitle.includes(book.title)) {
-      score += 10;
+    for (const tag of book.tags) {
+      const weight = tagWeights[tag];
+      if (weight !== undefined) {
+        score += 30 * weight;
+      } else {
+        score += 5;
+      }
     }
-  }
 
-  return Math.max(0, Math.min(100, Math.round(score)));
+    score += computeBookSimilarity(book, user.recentlyRead);
+
+    const owner = users.find((u) => u.id === book.ownerId);
+    if (owner) {
+      const sharedPrefs = owner.preferences.filter((p) => userPrefs.has(p));
+      score += sharedPrefs.length * 5;
+    }
+
+    return { book, score: Math.max(0, Math.min(100, Math.round(score))) };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
 }
 
 app.get('/api/tags', (_req: Request, res: Response) => {
@@ -179,32 +217,23 @@ app.put('/api/user/preferences', (req: Request, res: Response) => {
   res.json({ user });
 });
 
-app.get('/api/recommendations', (_req: Request, res: Response) => {
+app.get('/api/recommendations', (req: Request, res: Response) => {
   const user = users.find((u) => u.id === currentUserId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
 
-  const allBooks: Book[] = [];
-  for (const u of users) {
-    if (u.id !== user.id) {
-      for (const book of u.books) {
-        if (!book.isExchanged) {
-          allBooks.push(book);
-        }
-      }
-    }
+  const sortBy = (req.query.sortBy as string) || 'score';
+  const scored = recommendBooks(user);
+  const top20 = scored.slice(0, 20);
+
+  if (sortBy === 'title') {
+    top20.sort((a, b) => a.book.title.localeCompare(b.book.title, 'zh'));
+  } else if (sortBy === 'author') {
+    top20.sort((a, b) => a.book.author.localeCompare(b.book.author, 'zh'));
   }
 
-  const scored = allBooks.map((book) => ({
-    book,
-    score: computeMatchScore(user, book),
-  }));
-
-  scored.sort((a, b) => b.score - a.score);
-  const top20 = scored.slice(0, 20).map((s) => ({ ...s.book, matchScore: s.score }));
-
-  res.json({ recommendations: top20 });
+  res.json({ recommendations: top20.map((s) => ({ ...s.book, matchScore: s.score })) });
 });
 
 app.post('/api/books/click', (req: Request, res: Response) => {
