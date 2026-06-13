@@ -38,10 +38,13 @@ export class InputController {
   private lastDragWorldPos = new THREE.Vector3();
   private hasLastDragPos = false;
 
+  private dragStartWorldPos: THREE.Vector3 | null = null;
+
   public onSpeedChange: ((speed: number) => void) | null = null;
   public onMouseActivity: (() => void) | null = null;
 
   private pendingForces: TerrainForce[] = [];
+  private lastDragEndPos: { x: number; z: number } | null = null;
 
   constructor(
     container: HTMLElement,
@@ -75,6 +78,12 @@ export class InputController {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  private mercatorProject(lon: number, lat: number): { x: number; z: number } {
+    const x = lon;
+    const z = Math.log(Math.tan(Math.PI / 4 + lat / 2));
+    return { x, z };
+  }
+
   private getTerrainHit(): THREE.Vector3 | null {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const hits = this.raycaster.intersectObject(this.terrain.mesh);
@@ -87,6 +96,8 @@ export class InputController {
   private onMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
 
+    this.controls.enabled = false;
+
     this.updateMouse(event);
     this.mouseDownPos.set(event.clientX, event.clientY);
     this.mouseDownTime = performance.now();
@@ -95,6 +106,11 @@ export class InputController {
     this.lastMouseTime = this.mouseDownTime;
     this.currentSpeed = 0;
     this.hasLastDragPos = false;
+
+    const hit = this.getTerrainHit();
+    if (hit) {
+      this.dragStartWorldPos = hit.clone();
+    }
 
     const now = performance.now();
     const timeSinceLastClick = now - this.lastClickTime;
@@ -132,12 +148,13 @@ export class InputController {
 
     this.pressure = this.isDragging ? Math.min(1, pixelSpeed * 5) : 0;
 
-    if (this.isDragging && event.button === 0) {
+    if (this.isDragging) {
       const hit = this.getTerrainHit();
       if (hit) {
+        const mercator = this.mercatorProject(hit.x / 25, hit.z / 25);
         const force: TerrainForce = {
-          x: hit.x,
-          z: hit.z,
+          x: mercator.x * 25,
+          z: mercator.z * 25,
           strength: Math.min(10, this.smoothedSpeed * 10),
           radius: 2.5,
           isSink: false,
@@ -151,9 +168,10 @@ export class InputController {
             const t = s / steps;
             const ix = this.lastDragWorldPos.x + (hit.x - this.lastDragWorldPos.x) * t;
             const iz = this.lastDragWorldPos.z + (hit.z - this.lastDragWorldPos.z) * t;
+            const interpMercator = this.mercatorProject(ix / 25, iz / 25);
             this.pendingForces.push({
-              x: ix,
-              z: iz,
+              x: interpMercator.x * 25,
+              z: interpMercator.z * 25,
               strength: Math.min(10, this.smoothedSpeed * 10) * 0.7,
               radius: 2,
               isSink: false,
@@ -175,7 +193,7 @@ export class InputController {
   private onMouseUp(event: MouseEvent): void {
     if (event.button !== 0 && event.type !== 'mouseleave') return;
 
-    if (this.isDragging && event.button === 0) {
+    if (this.isDragging && (event.button === 0 || event.type === 'mouseleave')) {
       const now = performance.now();
       const moveDist = Math.hypot(
         event.clientX - this.mouseDownPos.x,
@@ -183,19 +201,82 @@ export class InputController {
       );
       const holdDuration = now - this.mouseDownTime;
 
-      if (moveDist < 5 && holdDuration < 200) {
-        // single click handled in doubleClick check
-      } else if (moveDist > 5) {
+      if (moveDist > 5) {
         const hit = this.getTerrainHit();
-        if (hit) {
-          this.terrain.registerSinkArea(hit.x, hit.z, 2.5);
+        if (hit && this.dragStartWorldPos) {
+          const midX = (this.dragStartWorldPos.x + hit.x) / 2;
+          const midZ = (this.dragStartWorldPos.z + hit.z) / 2;
+          this.lastDragEndPos = { x: midX, z: midZ };
+          this.terrain.registerSinkArea(midX, midZ, 3);
         }
       }
     }
 
     this.isDragging = false;
     this.currentSpeed = 0;
+    this.smoothedSpeed = 0;
     this.hasLastDragPos = false;
+    this.dragStartWorldPos = null;
+    this.controls.enabled = true;
+
+    if (this.onSpeedChange) {
+      this.onSpeedChange(0);
+    }
   }
 
-  private
+  private onWheel(event: WheelEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  private handleDoubleClick(): void {
+    const hit = this.getTerrainHit();
+    if (hit) {
+      this.terrain.createPool(hit.x, hit.z, 3);
+      this.particleSystem.spawnPoolEdgeFountains(hit.x, hit.z, 3);
+    }
+  }
+
+  public getSmoothedSpeed(): number {
+    return this.smoothedSpeed;
+  }
+
+  public getPressure(): number {
+    return this.pressure;
+  }
+
+  public consumePendingForces(): TerrainForce[] {
+    const forces = [...this.pendingForces];
+    this.pendingForces = [];
+    return forces;
+  }
+
+  public getLastDragEndPos(): { x: number; z: number } | null {
+    return this.lastDragEndPos;
+  }
+
+  public broadcastEvents(): InputEvent[] {
+    const events: InputEvent[] = [];
+    if (this.isDragging) {
+      const hit = this.getTerrainHit();
+      if (hit) {
+        events.push({
+          type: 'drag',
+          x: hit.x,
+          z: hit.z,
+          speed: this.smoothedSpeed,
+          pressure: this.pressure,
+        });
+      }
+    }
+    return events;
+  }
+
+  public dispose(): void {
+    this.container.removeEventListener('mousedown', this.onMouseDown.bind(this));
+    this.container.removeEventListener('mousemove', this.onMouseMove.bind(this));
+    this.container.removeEventListener('mouseup', this.onMouseUp.bind(this));
+    this.container.removeEventListener('mouseleave', this.onMouseUp.bind(this));
+    this.container.removeEventListener('wheel', this.onWheel.bind(this));
+  }
+}

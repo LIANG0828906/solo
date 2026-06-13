@@ -54,14 +54,20 @@ export const LavaFragmentShader = `
 
   void main() {
     float flowSpeed = 0.02;
+    vec2 flowDir = vec2(0.0, 1.0);
+    
     if (vHeight > 5.0) {
       flowSpeed = 0.05;
+      flowDir = vec2(0.3, 0.95);
     } else if (vHeight < 1.0) {
       flowSpeed = 0.01;
+      flowDir = vec2(-0.2, 0.98);
     }
+    
+    flowDir = normalize(flowDir + vec2(sin(vHeight * 0.5) * 0.1, cos(vHeight * 0.3) * 0.1));
 
     vec2 scrollUv = vUv;
-    scrollUv.y += uTime * flowSpeed;
+    scrollUv += flowDir * uTime * flowSpeed;
     scrollUv.x += sin(uTime * 0.3 + vHeight * 0.5) * 0.01;
 
     float n1 = fbm(scrollUv * 4.0);
@@ -99,6 +105,7 @@ export const LavaFragmentShader = `
 `;
 
 export interface LavaMaterialUniforms {
+  [key: string]: THREE.IUniform<any>;
   uTime: { value: number };
   uFadeIn: { value: number };
   uNoiseTexture: { value: THREE.Texture | null };
