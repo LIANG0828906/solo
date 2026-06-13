@@ -7,18 +7,78 @@ export interface StyleConfig {
   uniforms: Record<string, { value: unknown }>;
 }
 
-const LOWPOLY_VERT = `
+const VERTEX_HEADER = `
+uniform float uDetailIntensity;
+uniform float uTransitionProgress;
+uniform float uTime;
+
+attribute vec3 aBarycentric;
+
 varying vec3 vNormal;
 varying vec3 vPosition;
 varying vec3 vWorldPosition;
+varying vec3 vBarycentric;
+varying vec2 vUv;
+varying float vDisplacement;
 
-void main() {
+vec3 computeSmoothNormal(vec3 pos) {
+  return normalize(normalMatrix * normal);
+}
+
+float hash(vec3 p) {
+  p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float noise3(vec3 x) {
+  vec3 p = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(p + vec3(0,0,0)), hash(p + vec3(1,0,0)), f.x),
+                 mix(hash(p + vec3(0,1,0)), hash(p + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash(p + vec3(0,0,1)), hash(p + vec3(1,0,1)), f.x),
+                 mix(hash(p + vec3(0,1,1)), hash(p + vec3(1,1,1)), f.x), f.y), f.z);
+}
+`;
+
+const VERTEX_DISPLACEMENT = `
+  vec3 transformedNormal = normalize(normalMatrix * normal);
+  
+  float intensityNorm = uDetailIntensity / 100.0;
+  
+  float edgeFactor = 0.0;
+  float bcMin = min(min(aBarycentric.x, aBarycentric.y), aBarycentric.z);
+  if (bcMin < 0.1) {
+    edgeFactor = 1.0 - bcMin / 0.1;
+  }
+  
+  float displacement = 0.0;
+  
+  if (intensityNorm < 0.5) {
+    float smoothAmount = (0.5 - intensityNorm) * 2.0;
+    float n = noise3(position * 4.0 + uTime * 0.1);
+    displacement = -smoothAmount * 0.06 * (0.5 + n * 0.5);
+  } else {
+    float edgeAmount = (intensityNorm - 0.5) * 2.0;
+    float n = noise3(position * 12.0);
+    displacement = edgeAmount * 0.08 * (edgeFactor * 0.7 + n * 0.3);
+  }
+  
+  vec3 displaced = position + transformedNormal * displacement;
+  vDisplacement = displacement;
+  
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+`;
+
+const VERTEX_MAIN = `
   vNormal = normalize(normalMatrix * normal);
   vPosition = position;
   vec4 worldPos = modelMatrix * vec4(position, 1.0);
   vWorldPosition = worldPos.xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
+  vBarycentric = aBarycentric;
+  vUv = uv;
+  ${VERTEX_DISPLACEMENT}
 `;
 
 const LOWPOLY_FRAG = `
@@ -30,37 +90,31 @@ uniform float uTransitionProgress;
 varying vec3 vNormal;
 varying vec3 vPosition;
 varying vec3 vWorldPosition;
+varying vec3 vBarycentric;
+varying float vDisplacement;
 
 void main() {
   vec3 lightDir = normalize(vec3(1.0, 1.0, 0.5));
   float NdotL = dot(vNormal, lightDir);
   
-  float steps = mix(2.0, 8.0, uDetailIntensity / 100.0);
+  float intensityNorm = uDetailIntensity / 100.0;
+  float steps = mix(2.0, 7.0, intensityNorm);
   float quantized = floor(NdotL * steps) / steps;
-  quantized = max(quantized, 0.1);
+  quantized = max(quantized, 0.15);
   
-  vec3 color = mix(uBaseColor, uAccentColor, quantized * 0.6);
-  color *= quantized;
+  vec3 color = mix(uBaseColor, uAccentColor, quantized * 0.5 + intensityNorm * 0.2);
+  color *= (0.4 + quantized * 0.6);
   
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
   float edge = dot(vNormal, viewDir);
-  if (edge < 0.15) {
-    color = uAccentColor * 0.3;
+  if (edge < 0.2 + intensityNorm * 0.1) {
+    color = uAccentColor * 0.4;
   }
   
+  float dispHighlight = abs(vDisplacement) * 8.0;
+  color += uAccentColor * dispHighlight * intensityNorm;
+  
   gl_FragColor = vec4(color, 1.0);
-}
-`;
-
-const TOON_VERT = `
-varying vec3 vNormal;
-varying vec3 vWorldPosition;
-
-void main() {
-  vNormal = normalize(normalMatrix * normal);
-  vec4 worldPos = modelMatrix * vec4(position, 1.0);
-  vWorldPosition = worldPos.xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
@@ -71,42 +125,34 @@ uniform float uTransitionProgress;
 
 varying vec3 vNormal;
 varying vec3 vWorldPosition;
+varying vec3 vBarycentric;
+varying float vDisplacement;
 
 void main() {
   vec3 lightDir = normalize(vec3(1.0, 1.0, 0.5));
   float NdotL = max(dot(vNormal, lightDir), 0.0);
   
-  float levels = mix(3.0, 6.0, uDetailIntensity / 100.0);
+  float intensityNorm = uDetailIntensity / 100.0;
+  float levels = mix(3.0, 6.0, intensityNorm);
   float toon = floor(NdotL * levels) / levels;
+  toon = max(toon, 0.2);
   
-  vec3 color = uBaseColor * toon;
+  vec3 color = uBaseColor * (0.3 + toon * 0.7);
   
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
   float edge = dot(vNormal, viewDir);
-  if (edge < 0.2) {
-    color = vec3(0.05);
+  if (edge < 0.18 + intensityNorm * 0.15) {
+    color = vec3(0.03, 0.02, 0.08);
   }
   
-  float highlight = pow(max(dot(reflect(-lightDir, vNormal), viewDir), 0.0), 32.0);
-  color += uBaseColor * highlight * 0.4;
+  vec3 halfDir = normalize(lightDir + viewDir);
+  float spec = pow(max(dot(vNormal, halfDir), 0.0), 48.0);
+  color += vec3(1.0, 0.95, 0.85) * spec * 0.5 * intensityNorm;
+  
+  float dispHighlight = abs(vDisplacement) * 10.0;
+  color += uBaseColor * dispHighlight * intensityNorm * 0.5;
   
   gl_FragColor = vec4(color, 1.0);
-}
-`;
-
-const WIREFRAME_VERT = `
-varying vec3 vNormal;
-varying vec3 vWorldPosition;
-varying vec3 vBarycentric;
-
-attribute vec3 aBarycentric;
-
-void main() {
-  vNormal = normalize(normalMatrix * normal);
-  vec4 worldPos = modelMatrix * vec4(position, 1.0);
-  vWorldPosition = worldPos.xyz;
-  vBarycentric = aBarycentric;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
@@ -118,127 +164,137 @@ uniform float uTransitionProgress;
 varying vec3 vNormal;
 varying vec3 vWorldPosition;
 varying vec3 vBarycentric;
+varying float vDisplacement;
 
-float edgeFactor() {
+float edgeFactorTri() {
   vec3 d = fwidth(vBarycentric);
   vec3 a3 = smoothstep(vec3(0.0), d * 1.5, vBarycentric);
   return min(min(a3.x, a3.y), a3.z);
 }
 
 void main() {
-  float edge = 1.0 - edgeFactor();
-  float wireWidth = mix(0.5, 2.0, uDetailIntensity / 100.0);
+  float intensityNorm = uDetailIntensity / 100.0;
+  float edgeThickness = mix(0.8, 3.0, intensityNorm);
+  float edge = 1.0 - edgeFactorTri();
+  edge = smoothstep(0.0, edgeThickness / 3.0, edge);
   
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
   float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.0);
   
-  vec3 color = uBaseColor * fresnel * 0.6;
-  color += uBaseColor * edge * wireWidth;
+  vec3 color = uBaseColor * fresnel * (0.4 + intensityNorm * 0.4);
+  color += uBaseColor * edge * (0.6 + intensityNorm * 0.6);
   
-  if (edge < 0.01 && fresnel < 0.1) {
-    color = uBaseColor * 0.05;
-  }
+  float alpha = 0.15 + edge * 0.75 + fresnel * 0.15;
+  alpha = min(alpha, 1.0);
   
-  gl_FragColor = vec4(color, 0.3 + edge * 0.7 + fresnel * 0.3);
-}
-`;
-
-const WATERCOLOR_VERT = `
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec3 vWorldPosition;
-varying vec2 vUv;
-
-void main() {
-  vNormal = normalize(normalMatrix * normal);
-  vPosition = position;
-  vec4 worldPos = modelMatrix * vec4(position, 1.0);
-  vWorldPosition = worldPos.xyz;
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  float dispGlow = abs(vDisplacement) * 12.0;
+  color += uBaseColor * dispGlow * intensityNorm;
+  
+  gl_FragColor = vec4(color, alpha);
 }
 `;
 
 const WATERCOLOR_FRAG = `
 uniform vec3 uBaseColor;
 uniform vec3 uAccentColor;
-uniform float uDetailIntensity;
-uniform float uTransitionProgress;
 uniform float uTime;
 
 varying vec3 vNormal;
 varying vec3 vPosition;
 varying vec3 vWorldPosition;
+varying vec3 vBarycentric;
 varying vec2 vUv;
+varying float vDisplacement;
+varying float uDetailIntensity;
+varying float uTransitionProgress;
 
-float hash(vec2 p) {
+float hash2(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-float noise(vec2 p) {
+float noise2(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
+  float a = hash2(i);
+  float b = hash2(i + vec2(1.0, 0.0));
+  float c = hash2(i + vec2(0.0, 1.0));
+  float d = hash2(i + vec2(1.0, 1.0));
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 void main() {
+  float intensityNorm = uDetailIntensity / 100.0;
+  
   vec3 lightDir = normalize(vec3(1.0, 1.0, 0.5));
   float NdotL = max(dot(vNormal, lightDir), 0.0);
   
-  vec2 noiseCoord = vWorldPosition.xz * 2.0 + uTime * 0.1;
-  float n = noise(noiseCoord) * noise(noiseCoord * 2.3);
+  vec2 coord1 = vWorldPosition.xz * (1.5 + intensityNorm * 3.0) + uTime * 0.08;
+  vec2 coord2 = vWorldPosition.xy * (2.0 + intensityNorm * 4.0) + uTime * 0.12;
+  float n1 = noise2(coord1);
+  float n2 = noise2(coord2);
+  float combinedNoise = n1 * 0.6 + n2 * 0.4;
   
-  float detailScale = mix(1.0, 4.0, uDetailIntensity / 100.0);
-  n *= detailScale;
+  vec3 color = mix(uAccentColor, uBaseColor, NdotL * 0.55 + combinedNoise * 0.45);
   
-  vec3 color = mix(uAccentColor, uBaseColor, NdotL * 0.7 + n * 0.3);
-  
-  float bleeding = noise(vWorldPosition.xz * 8.0 + uTime * 0.05);
-  if (bleeding > 0.6) {
-    color = mix(color, uAccentColor, (bleeding - 0.6) * 2.0);
+  float bleedingThreshold = 0.55 - intensityNorm * 0.15;
+  if (combinedNoise > bleedingThreshold) {
+    float bleedAmount = (combinedNoise - bleedingThreshold) / (1.0 - bleedingThreshold);
+    color = mix(color, uAccentColor, bleedAmount * 0.5);
   }
   
-  float alpha = 0.7 + NdotL * 0.2 + n * 0.1;
-  
+  float edgeNoise = noise2(vWorldPosition.yz * 20.0);
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-  float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
-  color += uAccentColor * fresnel * 0.3;
+  float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.5);
+  color += uAccentColor * fresnel * 0.35;
+  
+  float paperGrain = noise2(vWorldPosition.xz * 80.0) * 0.08 - 0.04;
+  color += paperGrain;
+  
+  float alpha = 0.65 + NdotL * 0.15 + combinedNoise * 0.2;
+  alpha = min(alpha, 0.95);
+  
+  float dispTint = abs(vDisplacement) * 6.0;
+  color += mix(uBaseColor, uAccentColor, 0.5) * dispTint * intensityNorm;
   
   gl_FragColor = vec4(color, alpha);
 }
 `;
 
-const STYLE_CONFIGS: Record<StyleType, { baseColor: THREE.Color; accentColor: THREE.Color; vert: string; frag: string }> = {
+const STYLE_CONFIGS: Record<StyleType, {
+  baseColor: THREE.Color;
+  accentColor: THREE.Color;
+  frag: string;
+}> = {
   lowpoly: {
     baseColor: new THREE.Color('#ff6f00'),
     accentColor: new THREE.Color('#ffab00'),
-    vert: LOWPOLY_VERT,
     frag: LOWPOLY_FRAG,
   },
   toon: {
     baseColor: new THREE.Color('#7c4dff'),
     accentColor: new THREE.Color('#b388ff'),
-    vert: TOON_VERT,
     frag: TOON_FRAG,
   },
   wireframe: {
     baseColor: new THREE.Color('#ffffff'),
     accentColor: new THREE.Color('#b0bec5'),
-    vert: WIREFRAME_VERT,
     frag: WIREFRAME_FRAG,
   },
   watercolor: {
     baseColor: new THREE.Color('#00bcd4'),
     accentColor: new THREE.Color('#448aff'),
-    vert: WATERCOLOR_VERT,
     frag: WATERCOLOR_FRAG,
   },
 };
+
+const VERTEX_SHADER = `
+${VERTEX_HEADER}
+
+void main() {
+  ${VERTEX_MAIN}
+}
+`;
 
 export function processStyle(
   style: StyleType,
@@ -248,29 +304,25 @@ export function processStyle(
   const config = STYLE_CONFIGS[style];
 
   const uniforms: Record<string, { value: unknown }> = {
-    uBaseColor: { value: config.baseColor },
-    uAccentColor: { value: config.accentColor },
+    uBaseColor: { value: config.baseColor.clone() },
+    uAccentColor: { value: config.accentColor.clone() },
     uDetailIntensity: { value: detailIntensity },
     uTransitionProgress: { value: transitionProgress },
     uTime: { value: 0 },
   };
 
   return {
-    vertexShader: config.vert,
+    vertexShader: VERTEX_SHADER,
     fragmentShader: config.frag,
     uniforms,
   };
 }
 
 export function addBarycentricCoordinates(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
-  const positionAttr = geometry.getAttribute('position');
-  const count = positionAttr.count;
-  const faceCount = count / 3;
-
   if (geometry.index) {
     const indexAttr = geometry.index;
     const indexCount = indexAttr.count;
-    const faceCountFromIndex = indexCount / 3;
+    const faceCountFromIndex = Math.floor(indexCount / 3);
     const barycentricArray = new Float32Array(indexCount * 3);
 
     for (let i = 0; i < faceCountFromIndex; i++) {
@@ -284,6 +336,9 @@ export function addBarycentricCoordinates(geometry: THREE.BufferGeometry): THREE
 
     geometry.setAttribute('aBarycentric', new THREE.BufferAttribute(barycentricArray, 3));
   } else {
+    const positionAttr = geometry.getAttribute('position');
+    const count = positionAttr.count;
+    const faceCount = Math.floor(count / 3);
     const barycentricArray = new Float32Array(count * 3);
 
     for (let i = 0; i < faceCount; i++) {
@@ -304,43 +359,22 @@ export function addBarycentricCoordinates(geometry: THREE.BufferGeometry): THREE
   return geometry;
 }
 
-export function applyDetailToGeometry(
-  originalGeometry: THREE.BufferGeometry,
-  detailIntensity: number
-): THREE.BufferGeometry {
-  const geometry = originalGeometry.clone();
-
-  if (detailIntensity < 50) {
-    geometry.computeVertexNormals();
-    const normalAttr = geometry.getAttribute('normal');
-    const smoothFactor = 1.0 - (detailIntensity / 50.0);
-
-    for (let i = 0; i < normalAttr.count; i++) {
-      const nx = normalAttr.getX(i);
-      const ny = normalAttr.getY(i);
-      const nz = normalAttr.getZ(i);
-      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-      const safeLen = Math.max(len, 0.001);
-      const blend = smoothFactor * 0.5;
-      normalAttr.setXYZ(
-        i,
-        nx / safeLen * (1.0 - blend) + nx / safeLen * blend,
-        ny / safeLen * (1.0 - blend) + ny / safeLen * blend,
-        nz / safeLen * (1.0 - blend) + nz / safeLen * blend
-      );
-    }
-    normalAttr.needsUpdate = true;
-  }
-
-  return geometry;
-}
-
 export function getStyleColor(style: StyleType): string {
   const colors: Record<StyleType, string> = {
     lowpoly: '#ff8f00',
     toon: '#7c4dff',
     wireframe: '#ffffff',
     watercolor: '#00bcd4',
+  };
+  return colors[style];
+}
+
+export function getStyleHex(style: StyleType): number {
+  const colors: Record<StyleType, number> = {
+    lowpoly: 0xff8f00,
+    toon: 0x7c4dff,
+    wireframe: 0xffffff,
+    watercolor: 0x00bcd4,
   };
   return colors[style];
 }
