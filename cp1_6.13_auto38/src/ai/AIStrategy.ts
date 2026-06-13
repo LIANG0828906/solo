@@ -4,7 +4,7 @@ import type {
   Tile,
   GameState,
   AIDecision,
-  Species
+  SpeciesType
 } from '../types';
 import {
   MAP_SIZE,
@@ -42,33 +42,82 @@ export class AIStrategy {
       const powerRatio = this.calculatePowerRatio(creature, nearbyEnemy);
 
       if (distance <= 1) {
-        if (powerRatio >= 0.8 || creature.species === 'dragon') {
+        if (this.shouldFight(creature, powerRatio)) {
           return { action: 'attack', targetCreatureId: nearbyEnemy.id, targetPosition: nearbyEnemy.position };
         } else {
           return this.getFleeDecision(creature, nearbyEnemy.position, gameState.map, gameState.creatures);
         }
       }
 
-      if (distance <= 3 && powerRatio >= 0.7) {
-        if (creature.species === 'elf' && distance <= 3 && distance >= 2) {
+      if (distance <= this.getAggroRange(creature) && this.shouldEngage(creature, powerRatio)) {
+        if (creature.species === 'elf' && distance >= 2) {
           const blinkPosition = this.getBlinkTarget(creature, nearbyEnemy.position, gameState.map, gameState.creatures);
           if (blinkPosition) {
             return { action: 'move', targetPosition: blinkPosition };
           }
         }
+
+        const path = this.findPath(creature.position, nearbyEnemy.position, gameState.map, gameState.creatures, creature.id);
+        if (path.length > 1) {
+          return { action: 'move', targetPosition: path[1] };
+        }
         return { action: 'move', targetPosition: nearbyEnemy.position };
       }
 
-      if (powerRatio < 0.5) {
+      if (this.shouldFlee(creature, powerRatio)) {
         return this.getFleeDecision(creature, nearbyEnemy.position, gameState.map, gameState.creatures);
       }
     }
 
     if (gameState.selectedCreatureId === creature.id && gameState.userTarget) {
+      const path = this.findPath(creature.position, gameState.userTarget, gameState.map, gameState.creatures, creature.id);
+      if (path.length > 1) {
+        return { action: 'move', targetPosition: path[1] };
+      }
       return { action: 'move', targetPosition: gameState.userTarget };
     }
 
     return this.getExploreDecision(creature, gameState.map, gameState.creatures);
+  }
+
+  private shouldFight(creature: Creature, powerRatio: number): boolean {
+    if (creature.species === 'dragon') {
+      return powerRatio >= 0.7;
+    }
+    if (creature.species === 'gargoyle') {
+      return powerRatio >= 0.8;
+    }
+    return powerRatio >= 0.8;
+  }
+
+  private shouldEngage(creature: Creature, powerRatio: number): boolean {
+    if (creature.species === 'dragon') {
+      return powerRatio >= 0.6;
+    }
+    if (creature.species === 'elf') {
+      return powerRatio >= 0.9;
+    }
+    return powerRatio >= 0.7;
+  }
+
+  private shouldFlee(creature: Creature, powerRatio: number): boolean {
+    if (creature.species === 'elf') {
+      return powerRatio < 0.7;
+    }
+    if (creature.species === 'dragon') {
+      return powerRatio < 0.4;
+    }
+    return powerRatio < 0.5;
+  }
+
+  private getAggroRange(creature: Creature): number {
+    if (creature.species === 'dragon') {
+      return 4;
+    }
+    if (creature.species === 'elf') {
+      return 3;
+    }
+    return 3;
   }
 
   private findNearbyEnemy(creature: Creature, creatures: Creature[]): Creature | null {
@@ -94,6 +143,13 @@ export class AIStrategy {
   }
 
   private getFleeDecision(creature: Creature, threatPosition: Position, map: Tile[][], creatures: Creature[]): AIDecision {
+    if (creature.species === 'elf') {
+      const blinkAway = this.getBlinkAwayTarget(creature, threatPosition, map, creatures);
+      if (blinkAway) {
+        return { action: 'flee', targetPosition: blinkAway };
+      }
+    }
+
     const directions = [
       { x: 0, y: -1 },
       { x: 0, y: 1 },
@@ -126,6 +182,40 @@ export class AIStrategy {
     return { action: 'explore' };
   }
 
+  private getBlinkAwayTarget(creature: Creature, threatPosition: Position, map: Tile[][], creatures: Creature[]): Position | null {
+    if (creature.species !== 'elf') return null;
+
+    const hasMultiTeleport = creature.skills.includes('multiTeleport');
+    const blinkRange = hasMultiTeleport ? 2 : 1;
+
+    const directions = [
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 }
+    ];
+
+    let bestPosition: Position | null = null;
+    let maxDistance = 0;
+
+    for (const dir of directions) {
+      const blinkPos: Position = {
+        x: creature.position.x + dir.x * blinkRange,
+        y: creature.position.y + dir.y * blinkRange
+      };
+
+      if (this.isValidPosition(blinkPos, map, creatures, creature.id)) {
+        const distance = this.getManhattanDistance(blinkPos, threatPosition);
+        if (distance > maxDistance) {
+          maxDistance = distance;
+          bestPosition = blinkPos;
+        }
+      }
+    }
+
+    return bestPosition;
+  }
+
   private getExploreDecision(creature: Creature, map: Tile[][], creatures: Creature[]): AIDecision {
     const unvisitedTiles: Position[] = [];
     const nearbyTiles: Position[] = [];
@@ -136,7 +226,7 @@ export class AIStrategy {
         const pos = { x, y };
         const key = `${x},${y}`;
 
-        if (!creature.visitedTiles.has(key)) {
+        if (!creature.visitedTiles.has(key as any)) {
           unvisitedTiles.push(pos);
         }
 
@@ -175,9 +265,136 @@ export class AIStrategy {
     return { action: 'explore' };
   }
 
+  getManhattanDistance(a: Position, b: Position): number {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  }
+
+  isValidPosition(pos: Position, map: Tile[][], creatures: Creature[], excludeId?: string): boolean {
+    if (pos.x < 0 || pos.x >= MAP_SIZE || pos.y < 0 || pos.y >= MAP_SIZE) {
+      return false;
+    }
+    if (map[pos.y][pos.x].type === 'wall') {
+      return false;
+    }
+    for (const creature of creatures) {
+      if (creature.id !== excludeId &&
+          creature.position.x === pos.x &&
+          creature.position.y === pos.y &&
+          creature.hp > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private getNeighbors(pos: Position): Position[] {
+    return [
+      { x: pos.x, y: pos.y - 1 },
+      { x: pos.x, y: pos.y + 1 },
+      { x: pos.x - 1, y: pos.y },
+      { x: pos.x + 1, y: pos.y }
+    ];
+  }
+
+  findPath(start: Position, end: Position, map: Tile[][], creatures: Creature[], excludeId?: string): Position[] {
+    const startTime = performance.now();
+
+    const endTile = map[end.y]?.[end.x];
+    if (!endTile || endTile.type === 'wall') {
+      return [start];
+    }
+
+    const openList: PathNode[] = [];
+    const closedSet = new Set<string>();
+    const cameFrom = new Map<string, PathNode>();
+
+    const startNode: PathNode = {
+      position: { ...start },
+      g: 0,
+      h: this.getManhattanDistance(start, end),
+      f: this.getManhattanDistance(start, end),
+      parent: null
+    };
+
+    openList.push(startNode);
+    cameFrom.set(`${start.x},${start.y}`, startNode);
+
+    while (openList.length > 0) {
+      if (performance.now() - startTime > MAX_PATHFINDING_TIME) {
+        let bestNode = openList[0];
+        for (const node of openList) {
+          if (node.f < bestNode.f) {
+            bestNode = node;
+          }
+        }
+        return this.reconstructPath(bestNode);
+      }
+
+      let minIndex = 0;
+      for (let i = 1; i < openList.length; i++) {
+        if (openList[i].f < openList[minIndex].f) {
+          minIndex = i;
+        }
+      }
+
+      const current = openList.splice(minIndex, 1)[0];
+      const currentKey = `${current.position.x},${current.position.y}`;
+
+      if (current.position.x === end.x && current.position.y === end.y) {
+        return this.reconstructPath(current);
+      }
+
+      closedSet.add(currentKey);
+
+      for (const neighbor of this.getNeighbors(current.position)) {
+        const neighborKey = `${neighbor.x},${neighbor.y}`;
+
+        if (closedSet.has(neighborKey)) continue;
+
+        const isTarget = neighbor.x === end.x && neighbor.y === end.y;
+        if (!isTarget && !this.isValidPosition(neighbor, map, creatures, excludeId)) {
+          continue;
+        }
+
+        const tentativeG = current.g + 1;
+
+        const existing = cameFrom.get(neighborKey);
+        if (!existing || tentativeG < existing.g) {
+          const h = this.getManhattanDistance(neighbor, end);
+          const neighborNode: PathNode = {
+            position: { ...neighbor },
+            g: tentativeG,
+            h,
+            f: tentativeG + h,
+            parent: current
+          };
+
+          cameFrom.set(neighborKey, neighborNode);
+          openList.push(neighborNode);
+        }
+      }
+    }
+
+    return [start];
+  }
+
+  private reconstructPath(node: PathNode): Position[] {
+    const path: Position[] = [];
+    let current: PathNode | null = node;
+
+    while (current) {
+      path.unshift({ ...current.position });
+      current = current.parent;
+    }
+
+    return path;
+  }
+
   private getBlinkTarget(creature: Creature, targetPos: Position, map: Tile[][], creatures: Creature[]): Position | null {
-    const effect = SKILL_EFFECTS['blink'];
-    if (!effect || effect.type !== 'active' || !effect.range) return null;
+    if (creature.species !== 'elf') return null;
+
+    const hasMultiTeleport = creature.skills.includes('multiTeleport');
+    const blinkRange = hasMultiTeleport ? 2 : 1;
 
     const directions = [
       { x: 0, y: -1 },
@@ -186,14 +403,28 @@ export class AIStrategy {
       { x: 1, y: 0 }
     ];
 
+    let bestPosition: Position | null = null;
+    let bestDistance = Infinity;
+
     for (const dir of directions) {
       const blinkPos: Position = {
-        x: creature.position.x + dir.x * effect.range,
-        y: creature.position.y + dir.y * effect.range
+        x: creature.position.x + dir.x * blinkRange,
+        y: creature.position.y + dir.y * blinkRange
       };
 
       if (this.isValidPosition(blinkPos, map, creatures, creature.id)) {
         const targetDist = this.getManhattanDistance(blinkPos, targetPos);
-        if (targetDist <= 1) {
-          return blinkPos;
+        if (targetDist < bestDistance) {
+          bestDistance = targetDist;
+          bestPosition = blinkPos;
         }
+      }
+    }
+
+    if (bestPosition && bestDistance <= 2) {
+      return bestPosition;
+    }
+
+    return null;
+  }
+}

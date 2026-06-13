@@ -33,6 +33,9 @@ export class InfoPanel {
   private boundOnCombatEnded: (payload: { winnerId: string; loserId: string; damage: number }) => void;
   private boundOnCreatureEvolved: (payload: { creatureId: string; newSkill: SkillType }) => void;
 
+  private resizeHandler: (() => void) | null = null;
+  private clickHandler: (() => void) | null = null;
+
   constructor(container: HTMLElement, eventBus: EventBus) {
     this.container = container;
     this.eventBus = eventBus;
@@ -65,6 +68,7 @@ export class InfoPanel {
     this.buildPanel();
     this.attachEventListeners();
     this.container.appendChild(this.panel);
+    this.checkResponsive();
   }
 
   private injectStyles(): void {
@@ -243,6 +247,17 @@ export class InfoPanel {
         background: rgba(233, 69, 96, 0.2);
       }
 
+      .skill-icon.locked {
+        opacity: 0.4;
+        filter: grayscale(100%);
+        cursor: not-allowed;
+      }
+
+      .skill-icon.locked:hover {
+        transform: none;
+        background: rgba(233, 69, 96, 0.1);
+      }
+
       .skill-badge {
         position: absolute;
         top: -4px;
@@ -365,4 +380,381 @@ export class InfoPanel {
       }
 
       .logs-container::-webkit-scrollbar-thumb,
-      .info-panel-content::-webkit-scrollbar-
+      .info-panel-content::-webkit-scrollbar-thumb {
+        background: rgba(233, 69, 96, 0.5);
+        border-radius: 3px;
+      }
+
+      .logs-container::-webkit-scrollbar-thumb:hover,
+      .info-panel-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(233, 69, 96, 0.7);
+      }
+
+      .section-content {
+        min-height: 20px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  private buildPanel(): void {
+    this.panel.className = 'info-panel';
+
+    this.header.className = 'info-panel-header';
+
+    const titleWrapper = document.createElement('div');
+    titleWrapper.className = 'info-panel-header-title';
+
+    const headerIcon = document.createElement('span');
+    headerIcon.className = 'info-panel-header-icon';
+    headerIcon.textContent = '📊';
+
+    this.headerTitle.textContent = '信息面板';
+
+    titleWrapper.appendChild(headerIcon);
+    titleWrapper.appendChild(this.headerTitle);
+
+    const toggleBtn = document.createElement('div');
+    toggleBtn.className = 'info-panel-toggle';
+    toggleBtn.textContent = '▼';
+    toggleBtn.dataset.toggleIcon = 'true';
+
+    this.header.appendChild(titleWrapper);
+    this.header.appendChild(toggleBtn);
+
+    this.content.className = 'info-panel-content';
+
+    const statsSection = document.createElement('div');
+    statsSection.className = 'section';
+
+    const statsTitle = document.createElement('div');
+    statsTitle.className = 'section-title';
+    statsTitle.textContent = '属性';
+    statsSection.appendChild(statsTitle);
+
+    const statsContent = document.createElement('div');
+    statsContent.className = 'section-content';
+
+    const hpRow = document.createElement('div');
+    hpRow.className = 'stat-row';
+    const hpLabel = document.createElement('div');
+    hpLabel.className = 'stat-label';
+    hpLabel.textContent = '生命';
+    hpRow.appendChild(hpLabel);
+    hpRow.appendChild(this.hpBar);
+    hpRow.appendChild(this.hpText);
+    statsContent.appendChild(hpRow);
+
+    const attackRow = document.createElement('div');
+    attackRow.className = 'stat-row';
+    const attackLabel = document.createElement('div');
+    attackLabel.className = 'stat-label';
+    attackLabel.textContent = '攻击';
+    attackRow.appendChild(attackLabel);
+    attackRow.appendChild(this.attackBar);
+    attackRow.appendChild(this.attackText);
+    statsContent.appendChild(attackRow);
+
+    const speedRow = document.createElement('div');
+    speedRow.className = 'stat-row';
+    const speedLabel = document.createElement('div');
+    speedLabel.className = 'stat-label';
+    speedLabel.textContent = '速度';
+    speedRow.appendChild(speedLabel);
+    speedRow.appendChild(this.speedBar);
+    speedRow.appendChild(this.speedText);
+    statsContent.appendChild(speedRow);
+
+    statsSection.appendChild(statsContent);
+    this.content.appendChild(statsSection);
+
+    const skillsSection = document.createElement('div');
+    skillsSection.className = 'section';
+
+    const skillsTitle = document.createElement('div');
+    skillsTitle.className = 'section-title';
+    skillsTitle.textContent = '技能';
+    skillsSection.appendChild(skillsTitle);
+
+    this.skillsContainer.className = 'skills-container';
+    skillsSection.appendChild(this.skillsContainer);
+    this.content.appendChild(skillsSection);
+
+    const coordsSection = document.createElement('div');
+    coordsSection.className = 'section';
+
+    const coordsTitle = document.createElement('div');
+    coordsTitle.className = 'section-title';
+    coordsTitle.textContent = '坐标';
+    coordsSection.appendChild(coordsTitle);
+
+    this.coordinates.className = 'coordinates';
+    coordsSection.appendChild(this.coordinates);
+    this.content.appendChild(coordsSection);
+
+    const logsSection = document.createElement('div');
+    logsSection.className = 'section';
+
+    const logsTitle = document.createElement('div');
+    logsTitle.className = 'section-title';
+    logsTitle.textContent = '日志';
+    logsSection.appendChild(logsTitle);
+
+    this.logsContainer.className = 'logs-container';
+    logsSection.appendChild(this.logsContainer);
+    this.content.appendChild(logsSection);
+
+    this.panel.appendChild(this.header);
+    this.panel.appendChild(this.content);
+
+    this.updateSkills();
+    this.updateStats();
+    this.coordinates.innerHTML = '<span class="coordinates-label">位置:</span><span class="coordinates-value">--, --</span>';
+
+    const emptyState = document.createElement('div');
+    emptyState.className = 'empty-state';
+    emptyState.textContent = '选择一个单位查看详情';
+    this.content.insertBefore(emptyState, statsSection);
+    emptyState.style.display = 'block';
+  }
+
+  private createProgressBar(type: 'hp' | 'attack' | 'speed'): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'progress-bar-container';
+
+    const bar = document.createElement('div');
+    bar.className = `progress-bar ${type}`;
+    bar.style.width = '0%';
+
+    container.appendChild(bar);
+    return container;
+  }
+
+  private createTextElement(): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'stat-text';
+    el.textContent = '--';
+    return el;
+  }
+
+  private attachEventListeners(): void {
+    this.eventBus.on('CREATURE_SELECTED', this.boundOnCreatureSelected);
+    this.eventBus.on('LOG_ADDED', this.boundOnLogAdded);
+    this.eventBus.on('CREATURE_MOVED', this.boundOnCreatureMoved);
+    this.eventBus.on('COMBAT_ENDED', this.boundOnCombatEnded);
+    this.eventBus.on('CREATURE_EVOLVED', this.boundOnCreatureEvolved);
+
+    this.resizeHandler = this.checkResponsive.bind(this);
+    window.addEventListener('resize', this.resizeHandler);
+
+    this.clickHandler = this.toggleMobilePanel.bind(this);
+    this.header.addEventListener('click', this.clickHandler);
+  }
+
+  private onCreatureSelected(payload: { creatureId: string | null }): void {
+    const { creatureId } = payload;
+
+    if (!creatureId) {
+      this.selectedCreature = null;
+      this.headerTitle.textContent = '信息面板';
+      this.updateStats();
+      this.updateSkills();
+      this.coordinates.innerHTML = '<span class="coordinates-label">位置:</span><span class="coordinates-value">--, --</span>';
+
+      const emptyState = this.content.querySelector('.empty-state');
+      if (emptyState) {
+        (emptyState as HTMLElement).style.display = 'block';
+      }
+      return;
+    }
+
+    const creatures = (this as any).getCreatures?.() || [];
+    const creature = creatures.find((c: Creature) => c.id === creatureId);
+
+    if (creature) {
+      this.selectedCreature = creature;
+      const speciesInfo = SPECIES_INFO[creature.species];
+      this.headerTitle.textContent = `${speciesInfo.icon} ${speciesInfo.name}`;
+      this.updateStats();
+      this.updateSkills();
+      this.coordinates.innerHTML = `<span class="coordinates-label">位置:</span><span class="coordinates-value">${creature.position.x}, ${creature.position.y}</span>`;
+
+      const emptyState = this.content.querySelector('.empty-state');
+      if (emptyState) {
+        (emptyState as HTMLElement).style.display = 'none';
+      }
+    }
+  }
+
+  private onLogAdded(payload: { message: string; timestamp: number }): void {
+    this.addLog(payload.message, payload.timestamp);
+  }
+
+  private onCreatureMoved(payload: { creatureId: string; from: { x: number; y: number }; to: { x: number; y: number } }): void {
+    if (this.selectedCreature && this.selectedCreature.id === payload.creature) {
+      this.selectedCreature.position = { ...payload.to };
+      this.coordinates.innerHTML = `<span class="coordinates-label">位置:</span><span class="coordinates-value">${payload.to.x}, ${payload.to.y}</span>`;
+    }
+  }
+
+  private onCombatEnded(payload: { winnerId: string; loserId: string; damage: number }): void {
+    if (this.selectedCreature) {
+      if (this.selectedCreature.id === payload.winnerId || this.selectedCreature.id === payload.loserId) {
+        this.updateStats();
+      }
+    }
+  }
+
+  private onCreatureEvolved(payload: { creatureId: string; newSkill: SkillType }): void {
+    if (this.selectedCreature && this.selectedCreature.id === payload.creature) {
+      if (!this.selectedCreature.skills.includes(payload.newSkill)) {
+        this.selectedCreature.skills.push(payload.newSkill);
+      }
+      this.updateSkills();
+    }
+  }
+
+  private updateStats(): void {
+    if (!this.selectedCreature) {
+      const hpBarInner = this.hpBar.querySelector('.progress-bar');
+      if (hpBarInner) hpBarInner.style.width = '0%';
+      const attackBarInner = this.attackBar.querySelector('.progress-bar');
+      if (attackBarInner) attackBarInner.style.width = '0%';
+      const speedBarInner = this.speedBar.querySelector('.progress-bar');
+      if (speedBarInner) speedBarInner.style.width = '0%';
+
+      this.hpText.textContent = '--';
+      this.attackText.textContent = '--';
+      this.speedText.textContent = '--';
+      return;
+    }
+
+    const { hp, maxHp, attack, speed } = this.selectedCreature;
+
+    const hpPercent = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+    const hpBarInner = this.hpBar.querySelector('.progress-bar');
+    if (hpBarInner) hpBarInner.style.width = `${hpPercent}%`;
+    this.hpText.textContent = `${Math.floor(hp)}/${maxHp}`;
+
+    const attackPercent = Math.max(0, Math.min(100, (attack / 100) * 100));
+    const attackBarInner = this.attackBar.querySelector('.progress-bar');
+    if (attackBarInner) attackBarInner.style.width = `${attackPercent}%`;
+    this.attackText.textContent = `${attack}`;
+
+    const speedPercent = Math.max(0, Math.min(100, (speed / 10) * 100));
+    const speedBarInner = this.speedBar.querySelector('.progress-bar');
+    if (speedBarInner) speedBarInner.style.width = `${speedPercent}%`;
+    this.speedText.textContent = `${speed}`;
+  }
+
+  private updateSkills(): void {
+    this.skillsContainer.innerHTML = '';
+
+    const skillTypes = Object.keys(SKILLS) as SkillType[];
+
+    for (const skillType of skillTypes) {
+      const skill = SKILLS[skillType];
+      const hasSkill = this.selectedCreature ? this.selectedCreature.skills.includes(skillType) : false;
+
+      const skillIcon = document.createElement('div');
+      skillIcon.className = `skill-icon${hasSkill ? '' : ' locked'}`;
+      skillIcon.textContent = skill.icon;
+
+      if (hasSkill) {
+        const badge = document.createElement('div');
+        badge.className = 'skill-badge';
+        badge.textContent = '✓';
+        skillIcon.appendChild(badge);
+      }
+
+      const tooltip = document.createElement('div');
+      tooltip.className = 'skill-tooltip';
+
+      const tooltipName = document.createElement('div');
+      tooltipName.className = 'skill-tooltip-name';
+      tooltipName.textContent = skill.name;
+
+      const tooltipDesc = document.createElement('div');
+      tooltipDesc.className = 'skill-tooltip-desc';
+      tooltipDesc.textContent = skill.description;
+
+      tooltip.appendChild(tooltipName);
+      tooltip.appendChild(tooltipDesc);
+
+      skillIcon.appendChild(tooltip);
+      this.skillsContainer.appendChild(skillIcon);
+    }
+  }
+
+  private addLog(message: string, timestamp: number): void {
+    const logEntry: LogEntry = { message, timestamp };
+    this.logs.push(logEntry);
+
+    if (this.logs.length > 10) {
+      this.logs.shift();
+    }
+
+    this.renderLogs();
+  }
+
+  private renderLogs(): void {
+    this.logsContainer.innerHTML = '';
+
+    for (const log of this.logs) {
+      const logEl = document.createElement('div');
+      logEl.className = 'log-entry';
+      logEl.textContent = log.message;
+      this.logsContainer.appendChild(logEl);
+    }
+
+    this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
+  }
+
+  private checkResponsive(): void {
+    if (window.innerWidth >= 768) {
+      this.panel.classList.remove('mobile', 'expanded');
+      this.panel.classList.add('desktop');
+      this.isCollapsed = false;
+    } else {
+      this.panel.classList.remove('desktop');
+      this.panel.classList.add('mobile');
+      if (this.isCollapsed) {
+        this.panel.classList.remove('expanded');
+      }
+    }
+  }
+
+  private toggleMobilePanel(): void {
+    if (this.panel.classList.contains('mobile')) {
+      this.isCollapsed = !this.isCollapsed;
+      this.panel.classList.toggle('expanded');
+
+      const toggleIcon = this.header.querySelector('[data-toggle-icon="true"]');
+      if (toggleIcon) {
+        toggleIcon.textContent = this.isCollapsed ? '▲' : '▼';
+      }
+    }
+  }
+
+  destroy(): void {
+    this.eventBus.off('CREATURE_SELECTED', this.boundOnCreatureSelected);
+    this.eventBus.off('LOG_ADDED', this.boundOnLogAdded);
+    this.eventBus.off('CREATURE_MOVED', this.boundOnCreatureMoved);
+    this.eventBus.off('COMBAT_ENDED', this.boundOnCombatEnded);
+    this.eventBus.off('CREATURE_EVOLVED', this.boundOnCreatureEvolved);
+
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    if (this.clickHandler) {
+      this.header.removeEventListener('click', this.clickHandler);
+      this.clickHandler = null;
+    }
+
+    if (this.panel && this.panel.parentNode) {
+      this.panel.parentNode.removeChild(this.panel);
+    }
+  }
+}
