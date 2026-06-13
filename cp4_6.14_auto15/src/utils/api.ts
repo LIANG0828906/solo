@@ -43,9 +43,8 @@ export function getComments(recipeId: string): Promise<Comment[]> {
 }
 
 export interface PostCommentData {
-  author: string;
+  username: string;
   content: string;
-  rating: number;
 }
 
 export function postComment(recipeId: string, data: PostCommentData): Promise<Comment> {
@@ -57,11 +56,11 @@ export function postRating(recipeId: string, rating: number): Promise<{ rating: 
 }
 
 export function getIngredientDetail(name: string): Promise<IngredientDetail> {
-  return api.get('/ingredients/detail', { params: { name } });
+  return api.get(`/ingredients/${encodeURIComponent(name)}`);
 }
 
 export function getRecommendations(recipeId: string): Promise<Recipe[]> {
-  return api.get(`/recipes/${recipeId}/recommendations`);
+  return api.get(`/recipes/${recipeId}/recommend`);
 }
 
 export default api;

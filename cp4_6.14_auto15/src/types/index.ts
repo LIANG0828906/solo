@@ -1,8 +1,12 @@
 export type Cuisine = 'chinese' | 'western' | 'japanese' | 'korean' | 'italian' | 'french' | 'other';
-
 export type Difficulty = 'easy' | 'medium' | 'hard';
+export type ToastType = 'success' | 'error' | 'info';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export interface Toast {
+  id: string;
+  type: ToastType;
+  message: string;
+}
 
 export interface IngredientItem {
   name: string;
@@ -63,10 +67,4 @@ export interface RecipeListResponse {
   page: number;
   pageSize: number;
   hasMore: boolean;
-}
-
-export interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
 }

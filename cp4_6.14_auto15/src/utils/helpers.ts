@@ -17,9 +17,9 @@ const difficultyLabels: Record<Difficulty, string> = {
 };
 
 const difficultyColors: Record<Difficulty, string> = {
-  easy: '#22c55e',
-  medium: '#f97316',
-  hard: '#ef4444',
+  easy: '#4CAF50',
+  medium: '#FF9800',
+  hard: '#F44336',
 };
 
 const softColors = [
