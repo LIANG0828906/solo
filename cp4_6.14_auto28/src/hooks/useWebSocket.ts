@@ -77,11 +77,14 @@ export const useWebSocket = (onMessage?: (message: WSMessage) => void): UseWebSo
 
           switch (message.type) {
             case 'room_state':
-              const state = message.payload as RoomState;
+              const state = message.payload as RoomState & { yourUserId?: string };
               setMindMap(state.mindMap);
               setUsers(state.users);
+              if (state.yourUserId) {
+                setCurrentUserId(state.yourUserId);
+              }
               if (joinResolverRef.current) {
-                joinResolverRef.current(state);
+                joinResolverRef.current(state as RoomState);
                 joinResolverRef.current = null;
               }
               break;
