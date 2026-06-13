@@ -1,238 +1,275 @@
-import { v4 as uuidv4 } from 'uuid';
+import {
+  createEvent,
+  getEventById,
+  getEventByCode,
+  getAllEvents,
+  getEventStatus,
+  getCheckInCount,
+  getEventCheckIns,
+  hasParticipantCheckedIn,
+  createCheckIn,
+  getAllCheckIns,
+} from '../store';
+import type { Event, CheckInRecord } from '../store';
 
-export interface Event {
-  id: string;
-  code: string;
+export interface CreateEventDTO {
   title: string;
   description: string;
   startTime: string;
   endTime: string;
   location: string;
   maxParticipants: number;
-  createdAt: string;
+}
+
+export interface EventWithStats extends Event {
+  checkInCount: number;
   status: 'upcoming' | 'ongoing' | 'ended';
 }
 
-export interface CheckIn {
-  id: string;
-  eventId: string;
-  participantName: string;
-  checkInTime: string;
+export interface EventDetail extends EventWithStats {
+  participants: CheckInRecord[];
 }
 
-const events: Event[] = [];
-const checkins: CheckIn[] = [];
-
-function generateEventCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+export interface ValidationResult {
+  valid: boolean;
+  message?: string;
 }
 
-function determineStatus(startTime: string, endTime: string): Event['status'] {
-  const now = new Date();
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  if (now < start) return 'upcoming';
-  if (now >= start && now <= end) return 'ongoing';
-  return 'ended';
-}
-
-export function createEvent(data: {
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  maxParticipants: number;
-}): Event {
-  if (!data.title || data.title.trim() === '') {
-    throw new Error('活动标题不能为空');
-  }
-  if (data.maxParticipants <= 0) {
-    throw new Error('最大参与人数必须大于0');
+export function validateCreateEventData(data: CreateEventDTO): ValidationResult {
+  if (!data.title || typeof data.title !== 'string' || !data.title.trim()) {
+    return { valid: false, message: '活动标题不能为空' };
   }
 
-  const event: Event = {
-    id: uuidv4(),
-    code: generateEventCode(),
+  if (!data.description || typeof data.description !== 'string' || !data.description.trim()) {
+    return { valid: false, message: '活动描述不能为空' };
+  }
+
+  if (!data.startTime || typeof data.startTime !== 'string') {
+    return { valid: false, message: '请提供活动开始时间' };
+  }
+
+  if (!data.endTime || typeof data.endTime !== 'string') {
+    return { valid: false, message: '请提供活动结束时间' };
+  }
+
+  if (!data.location || typeof data.location !== 'string' || !data.location.trim()) {
+    return { valid: false, message: '活动地点不能为空' };
+  }
+
+  const maxParticipantsNum = Number(data.maxParticipants);
+  if (
+    !data.maxParticipants ||
+    typeof data.maxParticipants === 'boolean' ||
+    isNaN(maxParticipantsNum) ||
+    !Number.isInteger(maxParticipantsNum) ||
+    maxParticipantsNum <= 0
+  ) {
+    return { valid: false, message: '最大参与人数必须为正整数' };
+  }
+
+  const startTime = new Date(data.startTime).getTime();
+  const endTime = new Date(data.endTime).getTime();
+  const now = Date.now();
+
+  if (isNaN(startTime)) {
+    return { valid: false, message: '活动开始时间格式无效' };
+  }
+
+  if (isNaN(endTime)) {
+    return { valid: false, message: '活动结束时间格式无效' };
+  }
+
+  if (startTime <= now) {
+    return { valid: false, message: '活动开始时间必须晚于当前时间' };
+  }
+
+  if (endTime <= startTime) {
+    return { valid: false, message: '活动结束时间必须晚于开始时间' };
+  }
+
+  return { valid: true };
+}
+
+export function createNewEvent(data: CreateEventDTO): EventWithStats {
+  const event = createEvent({
     title: data.title.trim(),
-    description: data.description || '',
+    description: data.description.trim(),
     startTime: data.startTime,
     endTime: data.endTime,
-    location: data.location || '',
-    maxParticipants: data.maxParticipants,
-    createdAt: new Date().toISOString(),
-    status: determineStatus(data.startTime, data.endTime),
-  };
-
-  events.push(event);
-  return event;
+    location: data.location.trim(),
+    maxParticipants: Number(data.maxParticipants),
+  });
+  return enrichEventWithStats(event);
 }
 
-export function getEvents(filters?: {
-  status?: string;
-  keyword?: string;
-  page?: number;
-  limit?: number;
-}): { data: Event[]; total: number; page: number; totalPages: number } {
-  let result = [...events];
+export function enrichEventWithStats(event: Event): EventWithStats {
+  return {
+    ...event,
+    checkInCount: getCheckInCount(event.id),
+    status: getEventStatus(event),
+  };
+}
 
-  if (filters?.status) {
-    result = result.filter((e) => e.status === filters.status);
+export function listEvents(
+  page: number = 1,
+  pageSize: number = 20,
+  status?: string,
+  keyword?: string
+): { events: EventWithStats[]; total: number; hasMore: boolean } {
+  let allEvents = getAllEvents().map(enrichEventWithStats);
+
+  if (status && status !== 'all') {
+    allEvents = allEvents.filter(e => e.status === status);
   }
 
-  if (filters?.keyword) {
-    const kw = filters.keyword.toLowerCase();
-    result = result.filter(
-      (e) =>
+  if (keyword && keyword.trim()) {
+    const kw = keyword.trim().toLowerCase();
+    allEvents = allEvents.filter(
+      e =>
         e.title.toLowerCase().includes(kw) ||
-        e.description.toLowerCase().includes(kw)
+        e.description.toLowerCase().includes(kw) ||
+        e.location.toLowerCase().includes(kw) ||
+        e.code.toLowerCase().includes(kw)
     );
   }
 
-  result.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const total = allEvents.length;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const events = allEvents.slice(start, end);
+  const hasMore = end < total;
 
-  const total = result.length;
-  const page = filters?.page || 1;
-  const limit = filters?.limit || 20;
-  const totalPages = Math.ceil(total / limit);
-  const start = (page - 1) * limit;
-  const data = result.slice(start, start + limit);
-
-  return { data, total, page, totalPages };
+  return { events, total, hasMore };
 }
 
-export function getEventById(id: string): Event | null {
-  return events.find((e) => e.id === id) || null;
+export function getEventDetail(id: string): EventDetail | null {
+  const event = getEventById(id);
+  if (!event) return null;
+  const stats = enrichEventWithStats(event);
+  const participants = getEventCheckIns(id);
+  return { ...stats, participants };
 }
 
-export function getEventByCode(code: string): Event | null {
-  return events.find((e) => e.code === code) || null;
+export function getEventQRCode(id: string): { code: string; qrCode: string } | null {
+  const event = getEventById(id);
+  if (!event) return null;
+  return { code: event.code, qrCode: event.qrCode };
 }
 
-export function checkIn(
-  eventId: string,
+export function submitCheckIn(
+  eventCode: string,
   participantName: string
-): { success: boolean; message: string; checkin?: CheckIn } {
-  const event = getEventById(eventId);
-  if (!event) {
-    return { success: false, message: '活动不存在' };
-  }
-
-  const duplicate = checkins.find(
-    (c) => c.eventId === eventId && c.participantName === participantName
-  );
-  if (duplicate) {
-    return { success: false, message: '已签到，不可重复签到' };
-  }
-
-  const record: CheckIn = {
-    id: uuidv4(),
-    eventId,
-    participantName,
-    checkInTime: new Date().toISOString(),
-  };
-
-  checkins.push(record);
-  return { success: true, message: '签到成功', checkin: record };
-}
-
-export function getCheckinsByEvent(eventId: string): CheckIn[] {
-  return checkins
-    .filter((c) => c.eventId === eventId)
-    .sort(
-      (a, b) =>
-        new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
-    );
-}
-
-export function getCheckinStats(eventId: string): {
-  total: number;
-  checkedIn: number;
-  rate: number;
-  recent10: CheckIn[];
-  trend: { hour: string; count: number }[];
+): {
+  success: boolean;
+  alreadyChecked: boolean;
+  record?: CheckInRecord;
+  message?: string;
 } {
-  const event = getEventById(eventId);
-  const total = event ? event.maxParticipants : 0;
-  const eventCheckins = checkins.filter((c) => c.eventId === eventId);
-  const checkedIn = eventCheckins.length;
-  const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
-
-  const sorted = [...eventCheckins].sort(
-    (a, b) =>
-      new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
-  );
-  const recent10 = sorted.slice(0, 10);
-
-  const hourMap = new Map<string, number>();
-  for (const c of eventCheckins) {
-    const d = new Date(c.checkInTime);
-    const hour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
-    hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+  if (!eventCode || typeof eventCode !== 'string') {
+    return { success: false, alreadyChecked: false, message: '活动编码不能为空' };
   }
 
-  const trend = Array.from(hourMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([hour, count]) => ({ hour, count }));
-
-  return { total, checkedIn, rate, recent10, trend };
-}
-
-export function updateEventStatuses(): void {
-  for (const event of events) {
-    event.status = determineStatus(event.startTime, event.endTime);
+  if (!participantName || typeof participantName !== 'string' || !participantName.trim()) {
+    return { success: false, alreadyChecked: false, message: '参与者姓名不能为空' };
   }
+
+  const event = getEventByCode(eventCode.toUpperCase());
+  if (!event) {
+    return { success: false, alreadyChecked: false, message: '活动编码无效' };
+  }
+
+  const status = getEventStatus(event);
+  if (status === 'ended') {
+    return { success: false, alreadyChecked: false, message: '活动已结束' };
+  }
+
+  if (hasParticipantCheckedIn(event.id, participantName)) {
+    const existing = getEventCheckIns(event.id).find(
+      r => r.participantName.trim().toLowerCase() === participantName.trim().toLowerCase()
+    );
+    return {
+      success: false,
+      alreadyChecked: true,
+      record: existing,
+      message: '已签到，不可重复签到',
+    };
+  }
+
+  const currentCount = getCheckInCount(event.id);
+  if (currentCount >= event.maxParticipants) {
+    return { success: false, alreadyChecked: false, message: '活动参与人数已满' };
+  }
+
+  const record = createCheckIn(event.id, participantName);
+  return { success: true, alreadyChecked: false, record };
 }
 
-export function seedData(): void {
+export function getCheckInList(eventId?: string, limit?: number): CheckInRecord[] {
+  if (eventId) {
+    let records = getEventCheckIns(eventId);
+    if (limit) records = records.slice(0, limit);
+    return records;
+  }
+  return getAllCheckIns(limit);
+}
+
+export interface CheckInTrend {
+  time: string;
+  count: number;
+}
+
+export interface DashboardStatsData {
+  totalEvents: number;
+  ongoingEvents: number;
+  totalCheckIns: number;
+  averageCheckInRate: number;
+  trend: CheckInTrend[];
+  recentCheckIns: CheckInRecord[];
+}
+
+export function getDashboardStats(): DashboardStatsData {
+  const allEvents = getAllEvents();
+  const enrichedEvents = allEvents.map(enrichEventWithStats);
+
+  const totalEvents = enrichedEvents.length;
+  const ongoingEvents = enrichedEvents.filter(e => e.status === 'ongoing').length;
+  const recentCheckIns = getAllCheckIns(10);
+  const totalCheckIns = getAllCheckIns().length;
+
+  let averageCheckInRate = 0;
+  if (totalEvents > 0) {
+    const rates = enrichedEvents.map(e =>
+      e.maxParticipants > 0 ? (e.checkInCount / e.maxParticipants) * 100 : 0
+    );
+    averageCheckInRate = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
+  }
+
+  const trend: CheckInTrend[] = [];
   const now = new Date();
+  for (let i = 23; i >= 0; i--) {
+    const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
+    const hourStart = new Date(hour);
+    hourStart.setMinutes(0, 0, 0);
+    const hourEnd = new Date(hour);
+    hourEnd.setMinutes(59, 59, 999);
 
-  const event1 = createEvent({
-    title: '2026前端技术峰会',
-    description: '探索前端最新技术趋势，包括AI辅助开发、WebAssembly、边缘渲染等热门话题',
-    startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-    location: '北京国际会议中心A厅',
-    maxParticipants: 200,
-  });
+    const count = getAllCheckIns().filter(r => {
+      const t = new Date(r.checkInTime).getTime();
+      return t >= hourStart.getTime() && t <= hourEnd.getTime();
+    }).length;
 
-  const event2 = createEvent({
-    title: 'React 19新特性Workshop',
-    description: '深入实战React 19新特性，包括Server Components、Actions等核心概念',
-    startTime: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(now.getTime() + 26 * 60 * 60 * 1000).toISOString(),
-    location: '上海张江科技园B栋3楼',
-    maxParticipants: 50,
-  });
-
-  const event3 = createEvent({
-    title: '开源项目贡献者聚会',
-    description: '开源社区年度聚会，分享开源项目运营经验和贡献者故事',
-    startTime: new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(now.getTime() - 46 * 60 * 60 * 1000).toISOString(),
-    location: '深圳南山软件产业基地',
-    maxParticipants: 100,
-  });
-
-  const names1 = ['张伟', '李娜', '王芳', '刘洋', '陈明', '赵雪', '周强', '吴丽', '郑磊', '孙静'];
-  for (let i = 0; i < 10; i++) {
-    checkins.push({
-      id: uuidv4(),
-      eventId: event1.id,
-      participantName: names1[i],
-      checkInTime: new Date(now.getTime() - (10 - i) * 5 * 60 * 1000).toISOString(),
+    trend.push({
+      time: `${hour.getHours().toString().padStart(2, '0')}:00`,
+      count,
     });
   }
 
-  const names3 = ['黄鹏', '林涛', '何敏'];
-  for (let i = 0; i < 3; i++) {
-    checkins.push({
-      id: uuidv4(),
-      eventId: event3.id,
-      participantName: names3[i],
-      checkInTime: new Date(now.getTime() - 47 * 60 * 60 * 1000 + i * 10 * 60 * 1000).toISOString(),
-    });
-  }
+  return {
+    totalEvents,
+    ongoingEvents,
+    totalCheckIns,
+    averageCheckInRate,
+    trend,
+    recentCheckIns,
+  };
 }
