@@ -19,6 +19,11 @@ interface ParticleData {
   explodeVelocity: THREE.Vector3;
   explodeLife: number;
   fadeTween: gsap.core.Tween | null;
+  opacityTarget: number;
+}
+
+interface SpatialHash {
+  [key: string]: number[];
 }
 
 export class ParticleSystem {
@@ -30,7 +35,7 @@ export class ParticleSystem {
   private baseSize: number = 1.0;
   private baseHue: number = 210;
   private lineThreshold: number = 30;
-  private maxLines: number = 8000;
+  private maxLines: number = 10000;
 
   private points!: THREE.Points;
   private positions!: Float32Array;
@@ -51,6 +56,10 @@ export class ParticleSystem {
 
   private lineUpdateAccumulator: number = 0;
   private lineUpdateInterval: number = 0.05;
+  private cellSize: number = 30;
+  private spatialHash: SpatialHash = {};
+
+  private initialized: boolean = false;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -65,6 +74,11 @@ export class ParticleSystem {
     this.initParticles();
     this.initPoints();
     this.initLines();
+
+    setTimeout(() => {
+      this.initialized = true;
+      this.fadeInAllParticles();
+    }, 100);
   }
 
   private initParticles(): void {
@@ -122,7 +136,8 @@ export class ParticleSystem {
       exploding: false,
       explodeVelocity: new THREE.Vector3(),
       explodeLife: 0,
-      fadeTween: null
+      fadeTween: null,
+      opacityTarget: 0
     };
   }
 
@@ -211,7 +226,7 @@ export class ParticleSystem {
     this.positions[i3 + 1] = p.position.y;
     this.positions[i3 + 2] = p.position.z;
 
-    const alpha = p.fadeOpacity;
+    const alpha = Math.max(0, Math.min(1, p.fadeOpacity));
     this.colors[i3] = p.color.r * alpha;
     this.colors[i3 + 1] = p.color.g * alpha;
     this.colors[i3 + 2] = p.color.b * alpha;
@@ -230,8 +245,7 @@ export class ParticleSystem {
       if (p.exploding) {
         p.explodeLife -= delta;
         if (p.explodeLife <= 0) {
-          p.exploding = false;
-          this.resetParticleAfterExplode(i);
+          this.handleExplosionComplete(i);
         } else {
           p.position.x += p.explodeVelocity.x * delta;
           p.position.y += p.explodeVelocity.y * delta;
@@ -239,8 +253,8 @@ export class ParticleSystem {
 
           p.explodeVelocity.multiplyScalar(0.98);
 
-          const explodeAlpha = p.explodeLife / 2;
-          p.fadeOpacity = Math.max(0, explodeAlpha);
+          const explodeAlpha = Math.max(0, p.explodeLife / 2);
+          p.fadeOpacity = explodeAlpha;
           p.color.setHSL(0.08 + explodeAlpha * 0.1, 1, 0.5 + explodeAlpha * 0.3);
         }
       } else {
@@ -250,11 +264,13 @@ export class ParticleSystem {
           this.updateEllipsoidMode(p, adjustedDelta, delta);
         }
 
-        p.wasInView = p.inView;
-        p.inView = this.isParticleInView(p);
+        if (this.initialized) {
+          p.wasInView = p.inView;
+          p.inView = this.isParticleInView(p);
 
-        if (p.inView !== p.wasInView) {
-          this.triggerFadeAnimation(p, p.inView);
+          if (p.inView !== p.wasInView) {
+            this.triggerFadeAnimation(p, p.inView);
+          }
         }
       }
 
@@ -268,7 +284,7 @@ export class ParticleSystem {
     this.lineUpdateAccumulator += delta;
     if (this.lineUpdateAccumulator >= this.lineUpdateInterval) {
       this.lineUpdateAccumulator = 0;
-      this.updateLines();
+      this.updateLinesWithSpatialHash();
     }
   }
 
@@ -281,6 +297,17 @@ export class ParticleSystem {
     return this.frustum.containsPoint(p.position);
   }
 
+  private fadeInAllParticles(): void {
+    for (let i = 0; i < this.particleCount; i++) {
+      const p = this.particles[i];
+      p.inView = this.isParticleInView(p);
+      p.wasInView = p.inView;
+      if (p.inView) {
+        this.triggerFadeAnimation(p, true);
+      }
+    }
+  }
+
   private triggerFadeAnimation(p: ParticleData, fadeIn: boolean): void {
     if (p.fadeTween) {
       p.fadeTween.kill();
@@ -288,7 +315,8 @@ export class ParticleSystem {
     }
 
     const targetOpacity = fadeIn ? 1 : 0;
-    const duration = fadeIn ? 0.8 : 0.5;
+    p.opacityTarget = targetOpacity;
+    const duration = fadeIn ? 0.8 : 0.6;
 
     p.fadeTween = gsap.to(p, {
       fadeOpacity: targetOpacity,
@@ -300,12 +328,16 @@ export class ParticleSystem {
     });
   }
 
-  private resetParticleAfterExplode(index: number): void {
+  private handleExplosionComplete(index: number): void {
     const p = this.particles[index];
+    p.exploding = false;
     p.color.copy(p.baseColor);
     p.fadeOpacity = 0;
-    p.inView = false;
-    p.wasInView = false;
+
+    if (p.fadeTween) {
+      p.fadeTween.kill();
+      p.fadeTween = null;
+    }
 
     if (this.mode === 'ellipsoid') {
       p.ellipsoidAngle.set(
@@ -327,6 +359,13 @@ export class ParticleSystem {
         (Math.random() - 0.5) * 2,
         (Math.random() - 0.5) * 2
       );
+    }
+
+    p.inView = this.isParticleInView(p);
+    p.wasInView = p.inView;
+
+    if (p.inView) {
+      this.triggerFadeAnimation(p, true);
     }
   }
 
@@ -377,12 +416,50 @@ export class ParticleSystem {
     p.position.lerp(p.targetPosition, delta * 3);
   }
 
-  private updateLines(): void {
+  private getCellKey(x: number, y: number, z: number): string {
+    return `${Math.floor(x / this.cellSize)}_${Math.floor(y / this.cellSize)}_${Math.floor(z / this.cellSize)}`;
+  }
+
+  private buildSpatialHash(): void {
+    this.spatialHash = {};
+    const threshold = this.lineThreshold;
+
+    for (let i = 0; i < this.particleCount; i++) {
+      const p = this.particles[i];
+      if (p.fadeOpacity < 0.2 || p.exploding) continue;
+
+      const key = this.getCellKey(p.position.x, p.position.y, p.position.z);
+      if (!this.spatialHash[key]) {
+        this.spatialHash[key] = [];
+      }
+      this.spatialHash[key].push(i);
+    }
+  }
+
+  private getNearbyCells(px: number, py: number, pz: number): string[] {
+    const cells: string[] = [];
+    const cx = Math.floor(px / this.cellSize);
+    const cy = Math.floor(py / this.cellSize);
+    const cz = Math.floor(pz / this.cellSize);
+
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          cells.push(`${cx + dx}_${cy + dy}_${cz + dz}`);
+        }
+      }
+    }
+    return cells;
+  }
+
+  private updateLinesWithSpatialHash(): void {
     if (this.lineThreshold <= 0) {
       this.linesGeometry.setDrawRange(0, 0);
       this.lineCount = 0;
       return;
     }
+
+    this.buildSpatialHash();
 
     const threshold = this.lineThreshold;
     const thresholdSq = threshold * threshold;
@@ -404,50 +481,61 @@ export class ParticleSystem {
       const p1b = p1.color.b;
       const p1a = p1.fadeOpacity;
 
-      for (let j = i + 1; j < this.particleCount; j++) {
-        if (vertexIndex >= maxLineVertices - 2) break;
+      const cellKey = this.getCellKey(p1x, p1y, p1z);
+      const nearbyCells = this.getNearbyCells(p1x, p1y, p1z);
+
+      for (const nCellKey of nearbyCells) {
+        const cellParticles = this.spatialHash[nCellKey];
+        if (!cellParticles) continue;
+
+        for (const j of cellParticles) {
+          if (j <= i) continue;
+          if (vertexIndex >= maxLineVertices - 2) break;
+          if (lineIndex >= this.maxLines) break;
+
+          const p2 = this.particles[j];
+          if (p2.fadeOpacity < 0.2 || p2.exploding) continue;
+
+          const dx = p1x - p2.position.x;
+          if (dx > threshold || dx < -threshold) continue;
+
+          const dy = p1y - p2.position.y;
+          if (dy > threshold || dy < -threshold) continue;
+
+          const dz = p1z - p2.position.z;
+          if (dz > threshold || dz < -threshold) continue;
+
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq >= thresholdSq) continue;
+
+          const dist = Math.sqrt(distSq);
+          const alpha = (1 - dist * invThreshold) * 0.4;
+
+          const vi = vertexIndex * 3;
+          this.linePositions[vi] = p1x;
+          this.linePositions[vi + 1] = p1y;
+          this.linePositions[vi + 2] = p1z;
+
+          const a1 = alpha * p1a;
+          this.lineColors[vi] = p1r * a1;
+          this.lineColors[vi + 1] = p1g * a1;
+          this.lineColors[vi + 2] = p1b * a1;
+
+          const vi2 = (vertexIndex + 1) * 3;
+          this.linePositions[vi2] = p2.position.x;
+          this.linePositions[vi2 + 1] = p2.position.y;
+          this.linePositions[vi2 + 2] = p2.position.z;
+
+          const a2 = alpha * p2.fadeOpacity;
+          this.lineColors[vi2] = p2.color.r * a2;
+          this.lineColors[vi2 + 1] = p2.color.g * a2;
+          this.lineColors[vi2 + 2] = p2.color.b * a2;
+
+          vertexIndex += 2;
+          lineIndex++;
+        }
+
         if (lineIndex >= this.maxLines) break;
-
-        const p2 = this.particles[j];
-        if (p2.fadeOpacity < 0.2 || p2.exploding) continue;
-
-        const dx = p1x - p2.position.x;
-        if (dx > threshold || dx < -threshold) continue;
-
-        const dy = p1y - p2.position.y;
-        if (dy > threshold || dy < -threshold) continue;
-
-        const dz = p1z - p2.position.z;
-        if (dz > threshold || dz < -threshold) continue;
-
-        const distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq >= thresholdSq) continue;
-
-        const dist = Math.sqrt(distSq);
-        const alpha = (1 - dist * invThreshold) * 0.4;
-
-        const vi = vertexIndex * 3;
-        this.linePositions[vi] = p1x;
-        this.linePositions[vi + 1] = p1y;
-        this.linePositions[vi + 2] = p1z;
-
-        const a1 = alpha * p1a;
-        this.lineColors[vi] = p1r * a1;
-        this.lineColors[vi + 1] = p1g * a1;
-        this.lineColors[vi + 2] = p1b * a1;
-
-        const vi2 = (vertexIndex + 1) * 3;
-        this.linePositions[vi2] = p2.position.x;
-        this.linePositions[vi2 + 1] = p2.position.y;
-        this.linePositions[vi2 + 2] = p2.position.z;
-
-        const a2 = alpha * p2.fadeOpacity;
-        this.lineColors[vi2] = p2.color.r * a2;
-        this.lineColors[vi2 + 1] = p2.color.g * a2;
-        this.lineColors[vi2 + 2] = p2.color.b * a2;
-
-        vertexIndex += 2;
-        lineIndex++;
       }
 
       if (lineIndex >= this.maxLines) break;
@@ -525,6 +613,14 @@ export class ParticleSystem {
         particle.inView = false;
         particle.wasInView = false;
         this.particles.push(particle);
+
+        if (this.initialized) {
+          particle.inView = this.isParticleInView(particle);
+          particle.wasInView = particle.inView;
+          if (particle.inView) {
+            this.triggerFadeAnimation(particle, true);
+          }
+        }
       }
     } else {
       for (let i = count; i < oldCount; i++) {
@@ -587,6 +683,7 @@ export class ParticleSystem {
 
   public setLineThreshold(threshold: number): void {
     this.lineThreshold = threshold;
+    this.cellSize = Math.max(threshold, 20);
   }
 
   public explode(position: THREE.Vector3, radius: number = 15): void {
