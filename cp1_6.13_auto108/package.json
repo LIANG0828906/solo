@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "ts-node --project server/tsconfig.json server/index.ts",
+    "server": "tsx server/index.ts",
     "client": "vite",
     "build": "vite build"
   },
@@ -28,6 +28,7 @@
     "@types/uuid": "^9.0.7",
     "@vitejs/plugin-react": "^4.2.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
   }

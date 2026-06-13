@@ -213,16 +213,24 @@ button.secondary:hover {
   transform: translateY(-1px);
 }
 
-.card.dragging {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
-  transform: scale(1.02) !important;
-  opacity: 0.9;
+.card.card-dragging {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: scale(1.03);
+  opacity: 0.95;
+}
+
+.card.filtered-dimmed {
+  filter: grayscale(100%);
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .card.filtered-out {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+}
+
+.card-header { transition: opacity 0.3s ease;
 }
 
 .card.filtered-dimmed {
