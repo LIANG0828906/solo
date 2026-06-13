@@ -1,4 +1,4 @@
-import type { HexCoord, TowerConfig, MonsterConfig, WaveConfig, TowerType } from './types';
+import type { HexCoord, TowerConfig, MonsterConfig, WaveConfig, TowerType, TowerLevel } from './types';
 
 export const GRID_WIDTH = 10;
 export const GRID_HEIGHT = 8;
@@ -11,6 +11,8 @@ export const INITIAL_ENERGY = 150;
 export const TOTAL_WAVES = 10;
 export const WAVE_PREP_TIME = 5;
 export const TRAIL_LENGTH = 8;
+export const UPGRADE_MULTIPLIER = 1.2;
+export const SELL_REFUND_RATIO = 0.7;
 
 export const COLORS = {
   backgroundStart: '#0a0a2e',
@@ -67,6 +69,29 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
   }
 };
 
+export function getTowerDamage(type: TowerType, level: TowerLevel): number {
+  const base = TOWER_CONFIGS[type].damage;
+  return Math.floor(base * Math.pow(UPGRADE_MULTIPLIER, level - 1));
+}
+
+export function getTowerRange(type: TowerType, level: TowerLevel): number {
+  const base = TOWER_CONFIGS[type].range;
+  return base * Math.pow(UPGRADE_MULTIPLIER, level - 1);
+}
+
+export function getTowerUpgradeCost(type: TowerType, currentLevel: TowerLevel): number | null {
+  if (currentLevel >= 3) return null;
+  return TOWER_CONFIGS[type].upgradeCosts[currentLevel - 1];
+}
+
+export function getTowerSellValue(type: TowerType, level: TowerLevel): number {
+  let totalCost = TOWER_CONFIGS[type].cost;
+  for (let i = 1; i < level; i++) {
+    totalCost += TOWER_CONFIGS[type].upgradeCosts[i - 1];
+  }
+  return Math.floor(totalCost * SELL_REFUND_RATIO);
+}
+
 export const MONSTER_CONFIGS: Record<'normal' | 'elite', MonsterConfig> = {
   normal: {
     health: 100,
@@ -92,14 +117,21 @@ export const WAVE_CONFIGS: WaveConfig[] = Array.from({ length: TOTAL_WAVES }, (_
 }));
 
 export const DEFAULT_PATH: HexCoord[] = [
-  { q: 0, r: 4 },
-  { q: 1, r: 4 },
+  { q: 0, r: 3 },
+  { q: 1, r: 3 },
   { q: 2, r: 3 },
-  { q: 3, r: 3 },
+  { q: 2, r: 4 },
+  { q: 3, r: 4 },
   { q: 4, r: 4 },
-  { q: 5, r: 4 },
+  { q: 4, r: 3 },
+  { q: 4, r: 2 },
+  { q: 5, r: 2 },
+  { q: 6, r: 2 },
   { q: 6, r: 3 },
-  { q: 7, r: 3 },
+  { q: 6, r: 4 },
+  { q: 6, r: 5 },
+  { q: 7, r: 5 },
+  { q: 8, r: 5 },
   { q: 8, r: 4 },
   { q: 9, r: 4 },
 ];
@@ -162,4 +194,23 @@ export function getGridOffset(): { x: number; y: number } {
     x: (CANVAS_WIDTH - gridPixelWidth) / 2 + HEX_SIZE * Math.sqrt(3) / 2,
     y: (CANVAS_HEIGHT - gridPixelHeight) / 2 + HEX_SIZE
   };
+}
+
+export function getPositionOnPath(progress: number, path: HexCoord[], hexSize: number): { x: number; y: number } {
+  const totalSegments = path.length - 1;
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  const segment = Math.min(Math.floor(clampedProgress * totalSegments), totalSegments - 1);
+  const segmentProgress = (clampedProgress * totalSegments) - segment;
+  
+  const start = hexToPixel(path[segment], hexSize);
+  const end = hexToPixel(path[segment + 1], hexSize);
+  
+  return {
+    x: start.x + (end.x - start.x) * segmentProgress,
+    y: start.y + (end.y - start.y) * segmentProgress
+  };
+}
+
+export function generateId(): string {
+  return Math.random().toString(36).substring(2, 11);
 }
