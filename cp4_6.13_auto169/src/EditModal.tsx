@@ -27,6 +27,14 @@ interface EditModalProps {
   initialStyle: ComponentStyle;
 }
 
+const typeLabels: Record<string, string> = {
+  hero: '英雄区',
+  feature: '功能卡片',
+  pricing: '价格表',
+  testimonial: '用户评价',
+  footer: '页脚CTA',
+};
+
 const EditModal: React.FC<EditModalProps> = ({
   isOpen,
   onClose,
@@ -58,6 +66,18 @@ const EditModal: React.FC<EditModalProps> = ({
     setStyle((prev) => ({ ...prev, [field]: value }));
   };
 
+  const renderImageField = (label: string = '图片URL', field: keyof ComponentContent = 'imageUrl', placeholder: string = 'https://...') => (
+    <div className="form-group">
+      <label>{label}</label>
+      <input
+        type="text"
+        value={(content[field] as string) || ''}
+        onChange={(e) => handleContentChange(field, e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+
   const renderContentFields = () => {
     switch (componentType) {
       case 'hero':
@@ -80,15 +100,7 @@ const EditModal: React.FC<EditModalProps> = ({
                 placeholder="输入描述文字"
               />
             </div>
-            <div className="form-group">
-              <label>图片URL</label>
-              <input
-                type="text"
-                value={content.imageUrl || ''}
-                onChange={(e) => handleContentChange('imageUrl', e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
+            {renderImageField('图片URL', 'imageUrl')}
             <div className="form-group">
               <label>按钮文字</label>
               <input
@@ -129,15 +141,7 @@ const EditModal: React.FC<EditModalProps> = ({
                 placeholder="功能描述"
               />
             </div>
-            <div className="form-group">
-              <label>图标URL</label>
-              <input
-                type="text"
-                value={content.imageUrl || ''}
-                onChange={(e) => handleContentChange('imageUrl', e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
+            {renderImageField('图标URL', 'imageUrl')}
           </>
         );
       case 'pricing':
@@ -183,6 +187,7 @@ const EditModal: React.FC<EditModalProps> = ({
                 placeholder="特性1, 特性2, 特性3"
               />
             </div>
+            {renderImageField('图片URL', 'imageUrl')}
           </>
         );
       case 'testimonial':
@@ -205,15 +210,7 @@ const EditModal: React.FC<EditModalProps> = ({
                 placeholder="张三"
               />
             </div>
-            <div className="form-group">
-              <label>头像URL</label>
-              <input
-                type="text"
-                value={content.avatar || ''}
-                onChange={(e) => handleContentChange('avatar', e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
+            {renderImageField('头像URL', 'avatar')}
           </>
         );
       case 'footer':
@@ -254,6 +251,7 @@ const EditModal: React.FC<EditModalProps> = ({
                 placeholder="#"
               />
             </div>
+            {renderImageField('图片URL', 'imageUrl')}
           </>
         );
       default:
@@ -265,7 +263,7 @@ const EditModal: React.FC<EditModalProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>编辑组件</h3>
+          <h3>编辑{typeLabels[componentType] || '组件'}</h3>
           <button className="modal-close" onClick={onClose}>
             ×
           </button>
@@ -277,7 +275,7 @@ const EditModal: React.FC<EditModalProps> = ({
           <label>背景色</label>
           <input
             type="color"
-            value={style.backgroundColor || '#ffffff'}
+            value={style.backgroundColor || '#2d3436'}
             onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
           />
         </div>

@@ -42,6 +42,17 @@ db.exec(`
   )
 `);
 
+const columns = db.prepare("PRAGMA table_info(components)").all() as { name: string }[];
+const columnNames = columns.map((c) => c.name);
+
+if (!columnNames.includes('width')) {
+  db.exec(`ALTER TABLE components ADD COLUMN width TEXT NOT NULL DEFAULT '100%'`);
+}
+
+if (!columnNames.includes('order_index')) {
+  db.exec(`ALTER TABLE components ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0`);
+}
+
 export function getAllComponents(): Component[] {
   const rows = db.prepare('SELECT * FROM components ORDER BY order_index ASC').all() as Component[];
   return rows;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import EditModal, { ComponentContent, ComponentStyle } from './EditModal';
 
 export interface ComponentData {
@@ -36,26 +36,45 @@ const PageCanvas: React.FC<PageCanvasProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<ComponentData | null>(null);
+  const dragCounterRef = useRef(0);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const type = e.dataTransfer.getData('componentType');
-    if (type) {
-      onDrop(type);
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDragOver(true);
     }
-  };
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+      const type = e.dataTransfer.getData('componentType');
+      if (type) {
+        onDrop(type);
+      }
+    },
+    [onDrop]
+  );
 
   const handleDoubleClick = (comp: ComponentData) => {
     if (isPreview) return;
@@ -196,7 +215,10 @@ const PageCanvas: React.FC<PageCanvasProps> = ({
         )}
         <div
           className={`canvas-component ${selectedId === comp.id && !isPreview ? 'selected' : ''}`}
-          onClick={() => !isPreview && onSelect(comp.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isPreview) onSelect(comp.id);
+          }}
           onDoubleClick={() => handleDoubleClick(comp)}
         >
           {componentBody}
@@ -207,24 +229,43 @@ const PageCanvas: React.FC<PageCanvasProps> = ({
 
   const sortedComponents = [...components].sort((a, b) => a.order_index - b.order_index);
 
+  const dragProps = {
+    onDragEnter: handleDragEnter,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
+    onDrop: handleDrop,
+  };
+
   return (
     <>
       <div
         className={`drop-zone ${isDragOver ? 'drag-over' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        {...dragProps}
         onClick={() => onSelect(null)}
       >
         {sortedComponents.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📋</div>
-            <div className="empty-state-text">从左侧拖拽组件到这里开始构建</div>
+            <div className="empty-state-text">
+              {isDragOver ? '释放以添加组件' : '从左侧拖拽组件到这里开始构建'}
+            </div>
           </div>
         ) : (
-          <div className="components-grid" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="components-grid"
+            {...dragProps}
+            onClick={(e) => e.stopPropagation()}
+          >
             {sortedComponents.map(renderComponent)}
+            {isDragOver && (
+              <div className="drop-indicator">
+                <span>释放以放置组件</span>
+              </div>
+            )}
           </div>
+        )}
+        {isDragOver && sortedComponents.length > 0 && (
+          <div className="drop-overlay-hint">释放以放置组件</div>
         )}
       </div>
 

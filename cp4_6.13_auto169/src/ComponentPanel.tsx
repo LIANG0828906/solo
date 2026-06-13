@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface ComponentItem {
   type: string;
@@ -31,6 +31,39 @@ const ComponentPanel: React.FC<ComponentPanelProps> = ({
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(panelWidth);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const ghost = document.createElement('div');
+    ghost.style.cssText = `
+      position: fixed;
+      top: -1000px;
+      left: -1000px;
+      padding: 12px 20px;
+      background: rgba(108, 92, 231, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0.7;
+      box-shadow: 0 8px 32px rgba(108, 92, 231, 0.5);
+      transform: rotate(-2deg);
+    `;
+    document.body.appendChild(ghost);
+    ghostRef.current = ghost;
+
+    return () => {
+      if (ghostRef.current && ghostRef.current.parentNode) {
+        ghostRef.current.parentNode.removeChild(ghostRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -69,15 +102,20 @@ const ComponentPanel: React.FC<ComponentPanelProps> = ({
     document.body.style.userSelect = 'none';
   };
 
-  const handleDragStart = (e: React.DragEvent, type: string) => {
-    e.dataTransfer.setData('componentType', type);
+  const handleDragStart = (e: React.DragEvent, item: ComponentItem) => {
+    e.dataTransfer.setData('componentType', item.type);
     e.dataTransfer.effectAllowed = 'copy';
+
+    if (ghostRef.current) {
+      ghostRef.current.textContent = `${item.icon} ${item.label}`;
+      e.dataTransfer.setDragImage(ghostRef.current, 60, 20);
+    }
   };
 
   return (
     <div
       className={`component-panel ${collapsed ? 'collapsed' : ''}`}
-      style={{ width: collapsed ? undefined : `${panelWidth}px` }}
+      style={{ width: collapsed ? undefined : `${panelWidth}px`, position: 'relative' }}
     >
       <div className="panel-header">
         {!collapsed && <span className="panel-title">组件库</span>}
@@ -92,7 +130,7 @@ const ComponentPanel: React.FC<ComponentPanelProps> = ({
               key={item.type}
               className="component-item"
               draggable
-              onDragStart={(e) => handleDragStart(e, item.type)}
+              onDragStart={(e) => handleDragStart(e, item)}
             >
               <div className="component-item-icon">{item.icon}</div>
               <span className="component-item-label">{item.label}</span>

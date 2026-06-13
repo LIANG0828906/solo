@@ -8,7 +8,6 @@ function App() {
   const [components, setComponents] = useState<ComponentData[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [isFlipping, setIsFlipping] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = useState(240);
   const [loading, setLoading] = useState(true);
@@ -40,36 +39,6 @@ function App() {
       localStorage.setItem('landingPageComponents', JSON.stringify(components));
     }
   }, [components, loading]);
-
-  const handleDrop = async (type: string) => {
-    try {
-      const response = await fetch('/api/components', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type, width: '100%' }),
-      });
-      if (response.ok) {
-        const newComponent = await response.json();
-        setComponents((prev) => [...prev, newComponent]);
-        setSelectedId(newComponent.id);
-      }
-    } catch (error) {
-      console.error('添加组件失败:', error);
-      const localComponents = JSON.parse(localStorage.getItem('landingPageComponents') || '[]');
-      const newComponent: ComponentData = {
-        id: `local-${Date.now()}`,
-        type,
-        order_index: localComponents.length,
-        content: JSON.stringify(getDefaultContent(type)),
-        style: JSON.stringify(getDefaultStyle(type)),
-        width: '100%',
-      };
-      setComponents((prev) => [...prev, newComponent]);
-      setSelectedId(newComponent.id);
-    }
-  };
 
   const getDefaultContent = (type: string): ComponentContent => {
     switch (type) {
@@ -129,6 +98,34 @@ function App() {
     }
   };
 
+  const handleDrop = async (type: string) => {
+    try {
+      const response = await fetch('/api/components', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, width: '100%' }),
+      });
+      if (response.ok) {
+        const newComponent = await response.json();
+        setComponents((prev) => [...prev, newComponent]);
+        setSelectedId(newComponent.id);
+      }
+    } catch (error) {
+      console.error('添加组件失败:', error);
+      const localComponents = JSON.parse(localStorage.getItem('landingPageComponents') || '[]');
+      const newComponent: ComponentData = {
+        id: `local-${Date.now()}`,
+        type,
+        order_index: localComponents.length,
+        content: JSON.stringify(getDefaultContent(type)),
+        style: JSON.stringify(getDefaultStyle(type)),
+        width: '100%',
+      };
+      setComponents((prev) => [...prev, newComponent]);
+      setSelectedId(newComponent.id);
+    }
+  };
+
   const handleUpdateComponent = async (
     id: string,
     content: ComponentContent,
@@ -137,9 +134,7 @@ function App() {
     try {
       const response = await fetch(`/api/components/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: JSON.stringify(content),
           style: JSON.stringify(style),
@@ -165,9 +160,7 @@ function App() {
     try {
       const response = await fetch(`/api/components/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ width }),
       });
       if (response.ok) {
@@ -197,13 +190,7 @@ function App() {
   };
 
   const handleTogglePreview = () => {
-    setIsFlipping(true);
-    setTimeout(() => {
-      setIsPreviewMode((prev) => !prev);
-      setTimeout(() => {
-        setIsFlipping(false);
-      }, 100);
-    }, 250);
+    setIsPreviewMode((prev) => !prev);
   };
 
   const handleExport = async () => {
@@ -248,7 +235,7 @@ function App() {
         )}
         <div className="page-canvas">
           <div className="canvas-container">
-            <div className={`canvas-3d-wrapper ${isFlipping ? 'flipped' : ''}`}>
+            <div className={`canvas-3d-wrapper ${isPreviewMode ? 'flipped' : ''}`}>
               <div className="canvas-face front">
                 {loading ? (
                   <div className="empty-state">加载中...</div>
@@ -261,7 +248,7 @@ function App() {
                     onUpdateComponent={handleUpdateComponent}
                     onUpdateWidth={handleUpdateWidth}
                     onDeleteComponent={handleDeleteComponent}
-                    isPreview={isPreviewMode}
+                    isPreview={false}
                   />
                 )}
               </div>
