@@ -13,10 +13,12 @@ interface ParticleData {
   baseColor: THREE.Color;
   size: number;
   fadeOpacity: number;
-  visible: boolean;
+  inView: boolean;
+  wasInView: boolean;
   exploding: boolean;
   explodeVelocity: THREE.Vector3;
   explodeLife: number;
+  fadeTween: gsap.core.Tween | null;
 }
 
 export class ParticleSystem {
@@ -28,6 +30,7 @@ export class ParticleSystem {
   private baseSize: number = 1.0;
   private baseHue: number = 210;
   private lineThreshold: number = 30;
+  private maxLines: number = 8000;
 
   private points!: THREE.Points;
   private positions!: Float32Array;
@@ -41,13 +44,13 @@ export class ParticleSystem {
 
   private bounds: THREE.Box3;
   private ellipsoidRadii: THREE.Vector3;
+  private frustum: THREE.Frustum;
+  private matrix: THREE.Matrix4;
 
   public lineCount: number = 0;
 
   private lineUpdateAccumulator: number = 0;
-  private lineUpdateInterval: number = 0.033;
-  private gridCellSize: number = 30;
-  private spatialGrid: Map<string, number[]> = new Map();
+  private lineUpdateInterval: number = 0.05;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -56,6 +59,8 @@ export class ParticleSystem {
       new THREE.Vector3(80, 60, 80)
     );
     this.ellipsoidRadii = new THREE.Vector3(60, 40, 50);
+    this.frustum = new THREE.Frustum();
+    this.matrix = new THREE.Matrix4();
 
     this.initParticles();
     this.initPoints();
@@ -64,12 +69,12 @@ export class ParticleSystem {
 
   private initParticles(): void {
     for (let i = 0; i < this.particleCount; i++) {
-      const particle = this.createParticle(i);
+      const particle = this.createParticle();
       this.particles.push(particle);
     }
   }
 
-  private createParticle(_index: number): ParticleData {
+  private createParticle(): ParticleData {
     const hue = (this.baseHue + Math.random() * 40 - 20) / 360;
     const color = new THREE.Color().setHSL(hue, 0.8, 0.6 + Math.random() * 0.3);
     const baseColor = color.clone();
@@ -112,10 +117,12 @@ export class ParticleSystem {
       baseColor,
       size: 0.8 + Math.random() * 0.4,
       fadeOpacity: 0,
-      visible: true,
+      inView: false,
+      wasInView: false,
       exploding: false,
       explodeVelocity: new THREE.Vector3(),
-      explodeLife: 0
+      explodeLife: 0,
+      fadeTween: null
     };
   }
 
@@ -176,9 +183,9 @@ export class ParticleSystem {
   }
 
   private initLines(): void {
-    const maxLines = this.particleCount * 2;
-    this.linePositions = new Float32Array(maxLines * 6);
-    this.lineColors = new Float32Array(maxLines * 6);
+    const maxLineVertices = this.maxLines * 2;
+    this.linePositions = new Float32Array(maxLineVertices * 3);
+    this.lineColors = new Float32Array(maxLineVertices * 3);
 
     this.linesGeometry = new THREE.BufferGeometry();
     this.linesGeometry.setAttribute('position', new THREE.BufferAttribute(this.linePositions, 3));
@@ -187,8 +194,9 @@ export class ParticleSystem {
     const lineMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.5,
-      depthWrite: false
+      opacity: 1,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
     });
 
     this.lines = new THREE.LineSegments(this.linesGeometry, lineMaterial);
@@ -203,7 +211,7 @@ export class ParticleSystem {
     this.positions[i3 + 1] = p.position.y;
     this.positions[i3 + 2] = p.position.z;
 
-    const alpha = p.visible ? p.fadeOpacity : 0;
+    const alpha = p.fadeOpacity;
     this.colors[i3] = p.color.r * alpha;
     this.colors[i3 + 1] = p.color.g * alpha;
     this.colors[i3 + 2] = p.color.b * alpha;
@@ -214,6 +222,8 @@ export class ParticleSystem {
   public update(delta: number, camera: THREE.Camera): void {
     const adjustedDelta = delta * this.speed;
 
+    this.updateFrustum(camera);
+
     for (let i = 0; i < this.particleCount; i++) {
       const p = this.particles[i];
 
@@ -221,14 +231,17 @@ export class ParticleSystem {
         p.explodeLife -= delta;
         if (p.explodeLife <= 0) {
           p.exploding = false;
-          p.visible = true;
-          p.fadeOpacity = 0;
-          this.resetParticlePosition(i);
+          this.resetParticleAfterExplode(i);
         } else {
-          p.position.add(p.explodeVelocity.clone().multiplyScalar(delta));
+          p.position.x += p.explodeVelocity.x * delta;
+          p.position.y += p.explodeVelocity.y * delta;
+          p.position.z += p.explodeVelocity.z * delta;
+
           p.explodeVelocity.multiplyScalar(0.98);
+
           const explodeAlpha = p.explodeLife / 2;
-          p.color.setHSL(0.1 + explodeAlpha * 0.1, 1, 0.5 + explodeAlpha * 0.3);
+          p.fadeOpacity = Math.max(0, explodeAlpha);
+          p.color.setHSL(0.08 + explodeAlpha * 0.1, 1, 0.5 + explodeAlpha * 0.3);
         }
       } else {
         if (this.mode === 'random') {
@@ -237,7 +250,12 @@ export class ParticleSystem {
           this.updateEllipsoidMode(p, adjustedDelta, delta);
         }
 
-        this.updateFade(p, camera);
+        p.wasInView = p.inView;
+        p.inView = this.isParticleInView(p);
+
+        if (p.inView !== p.wasInView) {
+          this.triggerFadeAnimation(p, p.inView);
+        }
       }
 
       this.updateParticleBuffer(i);
@@ -251,6 +269,64 @@ export class ParticleSystem {
     if (this.lineUpdateAccumulator >= this.lineUpdateInterval) {
       this.lineUpdateAccumulator = 0;
       this.updateLines();
+    }
+  }
+
+  private updateFrustum(camera: THREE.Camera): void {
+    this.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.matrix);
+  }
+
+  private isParticleInView(p: ParticleData): boolean {
+    return this.frustum.containsPoint(p.position);
+  }
+
+  private triggerFadeAnimation(p: ParticleData, fadeIn: boolean): void {
+    if (p.fadeTween) {
+      p.fadeTween.kill();
+      p.fadeTween = null;
+    }
+
+    const targetOpacity = fadeIn ? 1 : 0;
+    const duration = fadeIn ? 0.8 : 0.5;
+
+    p.fadeTween = gsap.to(p, {
+      fadeOpacity: targetOpacity,
+      duration,
+      ease: fadeIn ? 'power2.out' : 'power2.in',
+      onComplete: () => {
+        p.fadeTween = null;
+      }
+    });
+  }
+
+  private resetParticleAfterExplode(index: number): void {
+    const p = this.particles[index];
+    p.color.copy(p.baseColor);
+    p.fadeOpacity = 0;
+    p.inView = false;
+    p.wasInView = false;
+
+    if (this.mode === 'ellipsoid') {
+      p.ellipsoidAngle.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI
+      );
+      p.position.copy(this.getEllipsoidPosition(p.ellipsoidAngle));
+    } else {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const radius = 40 + Math.random() * 30;
+      p.position.set(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi)
+      );
+      p.velocity.set(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2
+      );
     }
   }
 
@@ -271,7 +347,9 @@ export class ParticleSystem {
   }
 
   private updateRandomMode(p: ParticleData, delta: number): void {
-    p.position.add(p.velocity.clone().multiplyScalar(delta * 10));
+    p.position.x += p.velocity.x * delta * 10;
+    p.position.y += p.velocity.y * delta * 10;
+    p.position.z += p.velocity.z * delta * 10;
 
     if (p.position.x < this.bounds.min.x || p.position.x > this.bounds.max.x) {
       p.velocity.x *= -1;
@@ -299,21 +377,6 @@ export class ParticleSystem {
     p.position.lerp(p.targetPosition, delta * 3);
   }
 
-  private updateFade(p: ParticleData, camera: THREE.Camera): void {
-    const distance = p.position.distanceTo(camera.position);
-    const far = 180;
-    const near = 20;
-
-    if (distance > far) {
-      p.visible = false;
-    } else if (distance < near) {
-      p.visible = true;
-    }
-
-    const targetOpacity = p.visible ? Math.min(1, (far - distance) / (far - 80)) : 0;
-    p.fadeOpacity += (targetOpacity - p.fadeOpacity) * 0.05;
-  }
-
   private updateLines(): void {
     if (this.lineThreshold <= 0) {
       this.linesGeometry.setDrawRange(0, 0);
@@ -321,56 +384,73 @@ export class ParticleSystem {
       return;
     }
 
-    const thresholdSq = this.lineThreshold * this.lineThreshold;
+    const threshold = this.lineThreshold;
+    const thresholdSq = threshold * threshold;
+    const invThreshold = 1 / threshold;
+
     let lineIndex = 0;
     let vertexIndex = 0;
-    const maxVertices = this.linePositions.length / 3;
+    const maxLineVertices = this.linePositions.length / 3;
 
     for (let i = 0; i < this.particleCount; i++) {
       const p1 = this.particles[i];
-      if (!p1.visible || p1.fadeOpacity < 0.1 || p1.exploding) continue;
+      if (p1.fadeOpacity < 0.2 || p1.exploding) continue;
+
+      const p1x = p1.position.x;
+      const p1y = p1.position.y;
+      const p1z = p1.position.z;
+      const p1r = p1.color.r;
+      const p1g = p1.color.g;
+      const p1b = p1.color.b;
+      const p1a = p1.fadeOpacity;
 
       for (let j = i + 1; j < this.particleCount; j++) {
-        if (vertexIndex >= maxVertices - 2) break;
+        if (vertexIndex >= maxLineVertices - 2) break;
+        if (lineIndex >= this.maxLines) break;
 
         const p2 = this.particles[j];
-        if (!p2.visible || p2.fadeOpacity < 0.1 || p2.exploding) continue;
+        if (p2.fadeOpacity < 0.2 || p2.exploding) continue;
 
-        const dx = p1.position.x - p2.position.x;
-        const dy = p1.position.y - p2.position.y;
-        const dz = p1.position.z - p2.position.z;
+        const dx = p1x - p2.position.x;
+        if (dx > threshold || dx < -threshold) continue;
+
+        const dy = p1y - p2.position.y;
+        if (dy > threshold || dy < -threshold) continue;
+
+        const dz = p1z - p2.position.z;
+        if (dz > threshold || dz < -threshold) continue;
+
         const distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq >= thresholdSq) continue;
 
-        if (distSq < thresholdSq) {
-          const dist = Math.sqrt(distSq);
-          const alpha = (1 - dist / this.lineThreshold) * 0.5;
+        const dist = Math.sqrt(distSq);
+        const alpha = (1 - dist * invThreshold) * 0.4;
 
-          const vi = vertexIndex * 3;
-          this.linePositions[vi] = p1.position.x;
-          this.linePositions[vi + 1] = p1.position.y;
-          this.linePositions[vi + 2] = p1.position.z;
+        const vi = vertexIndex * 3;
+        this.linePositions[vi] = p1x;
+        this.linePositions[vi + 1] = p1y;
+        this.linePositions[vi + 2] = p1z;
 
-          const mixedColor1 = p1.color.clone().multiplyScalar(alpha * p1.fadeOpacity);
-          this.lineColors[vi] = mixedColor1.r;
-          this.lineColors[vi + 1] = mixedColor1.g;
-          this.lineColors[vi + 2] = mixedColor1.b;
+        const a1 = alpha * p1a;
+        this.lineColors[vi] = p1r * a1;
+        this.lineColors[vi + 1] = p1g * a1;
+        this.lineColors[vi + 2] = p1b * a1;
 
-          const vi2 = (vertexIndex + 1) * 3;
-          this.linePositions[vi2] = p2.position.x;
-          this.linePositions[vi2 + 1] = p2.position.y;
-          this.linePositions[vi2 + 2] = p2.position.z;
+        const vi2 = (vertexIndex + 1) * 3;
+        this.linePositions[vi2] = p2.position.x;
+        this.linePositions[vi2 + 1] = p2.position.y;
+        this.linePositions[vi2 + 2] = p2.position.z;
 
-          const mixedColor2 = p2.color.clone().multiplyScalar(alpha * p2.fadeOpacity);
-          this.lineColors[vi2] = mixedColor2.r;
-          this.lineColors[vi2 + 1] = mixedColor2.g;
-          this.lineColors[vi2 + 2] = mixedColor2.b;
+        const a2 = alpha * p2.fadeOpacity;
+        this.lineColors[vi2] = p2.color.r * a2;
+        this.lineColors[vi2 + 1] = p2.color.g * a2;
+        this.lineColors[vi2 + 2] = p2.color.b * a2;
 
-          vertexIndex += 2;
-          lineIndex++;
-        }
+        vertexIndex += 2;
+        lineIndex++;
       }
 
-      if (vertexIndex >= maxVertices - 2) break;
+      if (lineIndex >= this.maxLines) break;
     }
 
     this.lineCount = lineIndex;
@@ -385,6 +465,12 @@ export class ParticleSystem {
 
     for (let i = 0; i < this.particleCount; i++) {
       const p = this.particles[i];
+      if (p.exploding) continue;
+
+      if (p.fadeTween) {
+        p.fadeTween.kill();
+        p.fadeTween = null;
+      }
 
       if (mode === 'ellipsoid') {
         p.ellipsoidAngle.set(
@@ -434,11 +520,18 @@ export class ParticleSystem {
 
     if (count > oldCount) {
       for (let i = oldCount; i < count; i++) {
-        const particle = this.createParticle(i);
+        const particle = this.createParticle();
         particle.fadeOpacity = 0;
+        particle.inView = false;
+        particle.wasInView = false;
         this.particles.push(particle);
       }
     } else {
+      for (let i = count; i < oldCount; i++) {
+        if (this.particles[i].fadeTween) {
+          this.particles[i].fadeTween?.kill();
+        }
+      }
       this.particles.length = count;
     }
 
@@ -461,9 +554,9 @@ export class ParticleSystem {
     geometry.setAttribute('size', new THREE.BufferAttribute(this.sizes, 1));
     this.points.geometry = geometry;
 
-    const maxLines = this.particleCount * 2;
-    this.linePositions = new Float32Array(maxLines * 6);
-    this.lineColors = new Float32Array(maxLines * 6);
+    const maxLineVertices = this.maxLines * 2;
+    this.linePositions = new Float32Array(maxLineVertices * 3);
+    this.lineColors = new Float32Array(maxLineVertices * 3);
 
     this.linesGeometry.dispose();
     this.linesGeometry = new THREE.BufferGeometry();
@@ -512,6 +605,11 @@ export class ParticleSystem {
         const dist = Math.sqrt(distSq);
         const force = (1 - dist / radius) * 80;
 
+        if (p.fadeTween) {
+          p.fadeTween.kill();
+          p.fadeTween = null;
+        }
+
         p.exploding = true;
         p.explodeLife = 2;
         p.explodeVelocity.set(dx, dy, dz).normalize().multiplyScalar(force);
@@ -529,6 +627,12 @@ export class ParticleSystem {
   }
 
   public dispose(): void {
+    for (const p of this.particles) {
+      if (p.fadeTween) {
+        p.fadeTween.kill();
+      }
+    }
+
     this.points.geometry.dispose();
     (this.points.material as THREE.Material).dispose();
     this.scene.remove(this.points);
