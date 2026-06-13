@@ -1,6 +1,5 @@
-import Database from 'better-sqlite3'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { initDatabase } from './db/init.js';
 
-const __filename = fileURLToPath(import.meta.url)
-const
+initDatabase();
+
+export { default } from './db/connection.js';
