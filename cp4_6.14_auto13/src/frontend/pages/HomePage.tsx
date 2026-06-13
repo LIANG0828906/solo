@@ -103,7 +103,7 @@ export default function HomePage() {
   return (
     <div>
       <Hero>
-        <HeroTitle>🍽️ 家味编排</HeaderTitle>
+        <HeroTitle>🍽️ 家味编排</HeroTitle>
         <HeroSubtitle>
           根据每位家人的口味偏好、饮食禁忌与可用时间，智能编排一周三餐，
           自动生成采购清单，让家庭用餐省时省心更美味。

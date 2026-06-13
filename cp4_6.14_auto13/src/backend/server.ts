@@ -31,11 +31,11 @@ export interface MealPlan {
 }
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
     credentials: true,
   })
 );
@@ -82,11 +82,11 @@ let members: Member[] = [
 
 let mealPlans: MealPlan[] = [];
 
-app.get('/members', (_req, res) => {
+app.get('/api/members', (_req, res) => {
   res.json(members);
 });
 
-app.post('/members', (req, res) => {
+app.post('/api/members', (req, res) => {
   const { name, restrictions, cuisinePrefs, availability } = req.body;
   if (!name) {
     return res.status(400).json({ error: '姓名必填' });
@@ -104,7 +104,7 @@ app.post('/members', (req, res) => {
   res.status(201).json(newMember);
 });
 
-app.put('/members/:id', (req, res) => {
+app.put('/api/members/:id', (req, res) => {
   const { id } = req.params;
   const idx = members.findIndex((m) => m.id === id);
   if (idx === -1) {
@@ -114,7 +114,7 @@ app.put('/members/:id', (req, res) => {
   res.json(members[idx]);
 });
 
-app.delete('/members/:id', (req, res) => {
+app.delete('/api/members/:id', (req, res) => {
   const { id } = req.params;
   const idx = members.findIndex((m) => m.id === id);
   if (idx === -1) {
@@ -124,11 +124,11 @@ app.delete('/members/:id', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/history', (_req, res) => {
+app.get('/api/history', (_req, res) => {
   res.json(mealPlans);
 });
 
-app.post('/history', (req, res) => {
+app.post('/api/history', (req, res) => {
   const { weekStart, meals } = req.body;
   if (!weekStart || !meals) {
     return res.status(400).json({ error: '参数不完整' });
@@ -142,10 +142,26 @@ app.post('/history', (req, res) => {
   res.status(201).json(plan);
 });
 
-app.get('/health', (_req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
 app.listen(PORT, () => {
   console.log(`[backend] listening on http://localhost:${PORT}`);
+}).on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    const newPort = PORT + 1;
+    console.log(`[backend] Port ${PORT} in use, trying ${newPort}...`);
+    setTimeout(() => {
+      try {
+        app.listen(newPort, () => {
+          console.log(`[backend] listening on http://localhost:${newPort}`);
+        });
+      } catch (e) {
+        console.error('[backend] failed to start', e);
+      }
+    }, 500);
+  } else {
+    console.error('[backend] error:', err);
+  }
 });

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import axios from 'axios';
 import type { Member, MealGrid } from './types';
 import { generateWeekPlan } from './utils/mealPlanner';
+import { membersApi } from './api/members';
 
 interface AppState {
   members: Member[];
@@ -23,7 +23,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   fetchMembers: async () => {
     try {
-      const { data } = await axios.get('http://localhost:3001/members');
+      const data = await membersApi.getAll();
       set({ members: data });
     } catch (e) {
       console.warn('无法加载成员列表:', e);
@@ -31,19 +31,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addMember: async (m) => {
-    const { data } = await axios.post('http://localhost:3001/members', m);
+    const data = await membersApi.create(m);
     set((s) => ({ members: [...s.members, data] }));
   },
 
   updateMember: async (id, patch) => {
-    const { data } = await axios.put(`http://localhost:3001/members/${id}`, patch);
+    const data = await membersApi.update(id, patch);
     set((s) => ({
       members: s.members.map((m) => (m.id === id ? data : m)),
     }));
   },
 
   deleteMember: async (id) => {
-    await axios.delete(`http://localhost:3001/members/${id}`);
+    await membersApi.remove(id);
     set((s) => ({ members: s.members.filter((m) => m.id !== id) }));
   },
 
