@@ -1,0 +1,33 @@
+{
+  "name": "live-quiz",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "tsx watch server/quizServer.ts",
+    "dev:client": "vite",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/express": "^4.17.21",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@types/ws": "^8.5.10",
+    "better-sqlite3": "^9.4.3",
+    "express": "^4.18.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.12.0",
+    "typescript": "^5.3.3",
+    "uuid": "^9.0.1",
+    "vite": "^5.1.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "tsx": "^4.7.1"
+  }
+}
