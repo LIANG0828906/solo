@@ -305,19 +305,30 @@ class SceneManager {
       rec.light.distance = patch.distance;
       if (rec.light instanceof THREE.SpotLight && rec.light.shadow) {
         rec.light.shadow.camera.far = Math.max(patch.distance + 2, 6);
-        rec.light.shadow.camera.updateProjectionMatrix();
       }
+      this.invalidateShadow(rec);
     }
     if (patch.decay !== undefined) rec.light.decay = patch.decay;
     if (rec.light instanceof THREE.SpotLight) {
       if (patch.angle !== undefined) {
         rec.light.angle = THREE.MathUtils.degToRad(patch.angle);
-        const mat = (rec.halo.material as THREE.MeshBasicMaterial);
-        mat.needsUpdate = true;
+        this.invalidateShadow(rec);
       }
       if (patch.penumbra !== undefined) rec.light.penumbra = patch.penumbra;
     }
+    if (this.instance) this.instance.needsShadowUpdate = true;
     this.emit({ type: 'light-updated', id, record: rec });
+  }
+
+  private invalidateShadow(rec: LightRecord) {
+    if (!rec.light.castShadow) return;
+    const shadow = rec.light.shadow;
+    if (shadow.map) {
+      shadow.needsUpdate = true;
+    }
+    if (shadow.camera) {
+      shadow.camera.updateProjectionMatrix();
+    }
   }
 
   private setHelperColor(rec: LightRecord, color: string) {
@@ -497,9 +508,11 @@ class SceneManager {
           rec.helper.position.copy(newPos);
           if (rec.type !== 'spot') rec.halo.position.copy(newPos);
           if (rec.light instanceof THREE.SpotLight) {
-            const prev = rec.light.position.clone().sub(new THREE.Vector3().copy(newPos));
-            rec.light.target.position.sub(prev);
+            rec.light.target.position.set(newPos.x, 0.1, newPos.z - 1.5);
+            rec.light.target.updateMatrixWorld();
           }
+          this.invalidateShadow(rec);
+          this.instance.needsShadowUpdate = true;
           this.emit({ type: 'light-updated', id: rec.id, record: rec });
         }
       }

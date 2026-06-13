@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { sceneManager } from './sceneManager.js';
 
 export type LightType = 'point' | 'spot';
@@ -53,6 +55,7 @@ interface SceneInstance {
   raycaster: THREE.Raycaster;
   pointer: THREE.Vector2;
   getGroundIntersection: (x: number, y: number) => THREE.Vector3 | null;
+  needsShadowUpdate: boolean;
 }
 
 let sceneInstance: SceneInstance | null = null;
@@ -62,22 +65,6 @@ const loadingProgress = (pct: number) => {
   const bar = document.getElementById('loading-progress');
   if (bar) bar.style.width = `${pct}%`;
 };
-
-function createGeometry(type: string, scale: [number, number, number]): THREE.BufferGeometry {
-  const [sx, sy, sz] = scale;
-  switch (type) {
-    case 'plane':
-      return new THREE.PlaneGeometry(sx, sz);
-    case 'box':
-      return new THREE.BoxGeometry(sx, sy, sz);
-    case 'cylinder':
-      return new THREE.CylinderGeometry(sx * 0.5, sx * 0.5, sy, 24);
-    case 'sphere':
-      return new THREE.SphereGeometry(sx * 0.5, 32, 24);
-    default:
-      return new THREE.BoxGeometry(sx, sy, sz);
-  }
-}
 
 function createMaterial(
   type: string,
@@ -114,11 +101,27 @@ function createMaterial(
   });
 }
 
+function createGeometry(type: string, scale: [number, number, number]): THREE.BufferGeometry {
+  const [sx, sy, sz] = scale;
+  switch (type) {
+    case 'plane':
+      return new THREE.PlaneGeometry(sx, sz);
+    case 'box':
+      return new THREE.BoxGeometry(sx, sy, sz);
+    case 'cylinder':
+      return new THREE.CylinderGeometry(sx * 0.5, sx * 0.5, sy, 24);
+    case 'sphere':
+      return new THREE.SphereGeometry(sx * 0.5, 32, 24);
+    default:
+      return new THREE.BoxGeometry(sx, sy, sz);
+  }
+}
+
 async function fetchSceneData(): Promise<SceneData> {
   try {
     const res = await fetch('/api/scene');
     if (res.ok) return (await res.json()) as SceneData;
-  } catch (_err) { /* fallthrough to fallback */ }
+  } catch (_err) { /* fallthrough */ }
   return buildFallbackScene();
 }
 
@@ -144,6 +147,9 @@ function buildFallbackScene(): SceneData {
       { id: 'glass', type: 'glass', color: '#cfe2ff', roughness: 0.04, metalness: 0 },
       { id: 'accent', type: 'standard', color: '#8a6a4a', roughness: 0.6, metalness: 0.1 },
       { id: 'rug', type: 'standard', color: '#5c4a3a', roughness: 0.98, metalness: 0 },
+      { id: 'chrome', type: 'metal', color: '#e8eaed', roughness: 0.08, metalness: 1.0 },
+      { id: 'marble', type: 'standard', color: '#e8e4de', roughness: 0.35, metalness: 0.02 },
+      { id: 'cushion', type: 'standard', color: '#9b7e5e', roughness: 0.9, metalness: 0 },
     ],
     meshes: [
       { id: 'floor', geometry: 'plane', materialId: 'floor', position: [0, 0, 0], rotation: [-Math.PI / 2, 0, 0], scale: [14, 1, 10], castShadow: false, receiveShadow: true },
@@ -151,39 +157,38 @@ function buildFallbackScene(): SceneData {
       { id: 'wall-back', geometry: 'box', materialId: 'wall', position: [0, 2.1, -5], rotation: [0, 0, 0], scale: [14, 4.2, 0.15], castShadow: false, receiveShadow: true },
       { id: 'wall-left', geometry: 'box', materialId: 'wall', position: [-7, 2.1, 0], rotation: [0, 0, 0], scale: [0.15, 4.2, 10], castShadow: false, receiveShadow: true },
       { id: 'wall-right', geometry: 'box', materialId: 'wall', position: [7, 2.1, 0], rotation: [0, 0, 0], scale: [0.15, 4.2, 10], castShadow: false, receiveShadow: true },
-      { id: 'window-frame-l', geometry: 'box', materialId: 'metal', position: [-4.5, 2.4, -4.9], rotation: [0, 0, 0], scale: [2.8, 2.2, 0.1], castShadow: true, receiveShadow: true },
+      { id: 'window-frame-l', geometry: 'box', materialId: 'chrome', position: [-4.5, 2.4, -4.9], rotation: [0, 0, 0], scale: [2.8, 2.2, 0.1], castShadow: true, receiveShadow: true },
       { id: 'window-glass-l', geometry: 'box', materialId: 'glass', position: [-4.5, 2.4, -4.88], rotation: [0, 0, 0], scale: [2.5, 1.9, 0.03], castShadow: false, receiveShadow: false },
-      { id: 'window-frame-r', geometry: 'box', materialId: 'metal', position: [4.5, 2.4, -4.9], rotation: [0, 0, 0], scale: [2.8, 2.2, 0.1], castShadow: true, receiveShadow: true },
+      { id: 'window-frame-r', geometry: 'box', materialId: 'chrome', position: [4.5, 2.4, -4.9], rotation: [0, 0, 0], scale: [2.8, 2.2, 0.1], castShadow: true, receiveShadow: true },
       { id: 'window-glass-r', geometry: 'box', materialId: 'glass', position: [4.5, 2.4, -4.88], rotation: [0, 0, 0], scale: [2.5, 1.9, 0.03], castShadow: false, receiveShadow: false },
       { id: 'rug', geometry: 'box', materialId: 'rug', position: [0, 0.02, 0.6], rotation: [0, 0, 0], scale: [8, 0.02, 6.5], castShadow: false, receiveShadow: true },
       { id: 'sofa-base', geometry: 'box', materialId: 'upholstery', position: [-1.8, 0.55, 2.8], rotation: [0, 0, 0], scale: [3.6, 0.7, 1.3], castShadow: true, receiveShadow: true },
       { id: 'sofa-back', geometry: 'box', materialId: 'upholstery', position: [-1.8, 1.3, 3.35], rotation: [0, 0, 0], scale: [3.6, 1.0, 0.25], castShadow: true, receiveShadow: true },
       { id: 'sofa-arm-l', geometry: 'box', materialId: 'upholstery', position: [-3.5, 1.0, 2.8], rotation: [0, 0, 0], scale: [0.25, 0.9, 1.3], castShadow: true, receiveShadow: true },
       { id: 'sofa-arm-r', geometry: 'box', materialId: 'upholstery', position: [-0.1, 1.0, 2.8], rotation: [0, 0, 0], scale: [0.25, 0.9, 1.3], castShadow: true, receiveShadow: true },
-      { id: 'sofa-cush-1', geometry: 'box', materialId: 'fabric2', position: [-2.7, 0.95, 2.6], rotation: [0, 0, 0], scale: [1.5, 0.2, 1.0], castShadow: true, receiveShadow: true },
-      { id: 'sofa-cush-2', geometry: 'box', materialId: 'fabric2', position: [-0.9, 0.95, 2.6], rotation: [0, 0, 0], scale: [1.5, 0.2, 1.0], castShadow: true, receiveShadow: true },
+      { id: 'cushion-1', geometry: 'box', materialId: 'cushion', position: [-2.7, 0.95, 2.6], rotation: [0, 0.1, 0], scale: [1.5, 0.2, 1.0], castShadow: true, receiveShadow: true },
+      { id: 'cushion-2', geometry: 'box', materialId: 'cushion', position: [-0.9, 0.95, 2.6], rotation: [0, -0.08, 0], scale: [1.5, 0.2, 1.0], castShadow: true, receiveShadow: true },
       { id: 'coffee-table-top', geometry: 'box', materialId: 'wood', position: [-1.5, 0.45, 0.6], rotation: [0, 0, 0], scale: [1.8, 0.06, 0.9], castShadow: true, receiveShadow: true },
-      { id: 'coffee-leg-1', geometry: 'cylinder', materialId: 'metal', position: [-2.3, 0.22, 1.0], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
-      { id: 'coffee-leg-2', geometry: 'cylinder', materialId: 'metal', position: [-0.7, 0.22, 1.0], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
-      { id: 'coffee-leg-3', geometry: 'cylinder', materialId: 'metal', position: [-2.3, 0.22, 0.2], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
-      { id: 'coffee-leg-4', geometry: 'cylinder', materialId: 'metal', position: [-0.7, 0.22, 0.2], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
+      { id: 'coffee-leg-1', geometry: 'cylinder', materialId: 'chrome', position: [-2.3, 0.22, 1.0], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
+      { id: 'coffee-leg-2', geometry: 'cylinder', materialId: 'chrome', position: [-0.7, 0.22, 1.0], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
+      { id: 'coffee-leg-3', geometry: 'cylinder', materialId: 'chrome', position: [-2.3, 0.22, 0.2], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
+      { id: 'coffee-leg-4', geometry: 'cylinder', materialId: 'chrome', position: [-0.7, 0.22, 0.2], rotation: [0, 0, 0], scale: [0.06, 0.44, 0.06], castShadow: true, receiveShadow: true },
       { id: 'vase', geometry: 'cylinder', materialId: 'accent', position: [-1.5, 0.62, 0.6], rotation: [0, 0, 0], scale: [0.18, 0.28, 0.18], castShadow: true, receiveShadow: true },
       { id: 'armchair-seat', geometry: 'box', materialId: 'fabric2', position: [3.2, 0.55, 2.4], rotation: [0, -0.5, 0], scale: [1.1, 0.4, 1.1], castShadow: true, receiveShadow: true },
       { id: 'armchair-back', geometry: 'box', materialId: 'fabric2', position: [3.6, 1.15, 2.85], rotation: [0.2, -0.5, 0], scale: [1.1, 0.9, 0.2], castShadow: true, receiveShadow: true },
-      { id: 'armchair-leg-1', geometry: 'cylinder', materialId: 'metal', position: [2.75, 0.15, 1.95], rotation: [0, 0, 0], scale: [0.05, 0.3, 0.05], castShadow: true, receiveShadow: true },
-      { id: 'armchair-leg-2', geometry: 'cylinder', materialId: 'metal', position: [3.65, 0.15, 1.95], rotation: [0, 0, 0], scale: [0.05, 0.3, 0.05], castShadow: true, receiveShadow: true },
-      { id: 'armchair-leg-3', geometry: 'cylinder', materialId: 'metal', position: [2.75, 0.15, 2.85], rotation: [0, 0, 0], scale: [0.05, 0.3, 0.05], castShadow: true, receiveShadow: true },
-      { id: 'armchair-leg-4', geometry: 'cylinder', materialId: 'metal', position: [3.65, 0.15, 2.85], rotation: [0, 0, 0], scale: [0.05, 0.3, 0.05], castShadow: true, receiveShadow: true },
       { id: 'bookshelf', geometry: 'box', materialId: 'wood', position: [5.8, 1.6, -3.2], rotation: [0, 0, 0], scale: [2.2, 2.8, 0.4], castShadow: true, receiveShadow: true },
       { id: 'shelf-1', geometry: 'box', materialId: 'wood', position: [5.8, 0.9, -3.1], rotation: [0, 0, 0], scale: [2.1, 0.03, 0.36], castShadow: true, receiveShadow: true },
       { id: 'shelf-2', geometry: 'box', materialId: 'wood', position: [5.8, 1.6, -3.1], rotation: [0, 0, 0], scale: [2.1, 0.03, 0.36], castShadow: true, receiveShadow: true },
       { id: 'shelf-3', geometry: 'box', materialId: 'wood', position: [5.8, 2.3, -3.1], rotation: [0, 0, 0], scale: [2.1, 0.03, 0.36], castShadow: true, receiveShadow: true },
-      { id: 'book-1', geometry: 'box', materialId: 'accent', position: [5.2, 0.5, -3.1], rotation: [0, 0.15, 0], scale: [0.1, 0.5, 0.3], castShadow: true, receiveShadow: true },
-      { id: 'book-2', geometry: 'box', materialId: 'upholstery', position: [5.5, 0.5, -3.1], rotation: [0, -0.1, 0], scale: [0.08, 0.46, 0.3], castShadow: true, receiveShadow: true },
-      { id: 'book-3', geometry: 'box', materialId: 'metal', position: [5.8, 1.25, -3.1], rotation: [0, 0, 0], scale: [0.12, 0.55, 0.3], castShadow: true, receiveShadow: true },
-      { id: 'floor-lamp-base', geometry: 'cylinder', materialId: 'metal', position: [-5.6, 0.08, 3.0], rotation: [0, 0, 0], scale: [0.3, 0.08, 0.3], castShadow: true, receiveShadow: true },
-      { id: 'floor-lamp-pole', geometry: 'cylinder', materialId: 'metal', position: [-5.6, 0.8, 3.0], rotation: [0, 0, 0], scale: [0.04, 1.4, 0.04], castShadow: true, receiveShadow: true },
+      { id: 'floor-lamp-base', geometry: 'cylinder', materialId: 'chrome', position: [-5.6, 0.08, 3.0], rotation: [0, 0, 0], scale: [0.3, 0.08, 0.3], castShadow: true, receiveShadow: true },
+      { id: 'floor-lamp-pole', geometry: 'cylinder', materialId: 'chrome', position: [-5.6, 0.8, 3.0], rotation: [0, 0, 0], scale: [0.04, 1.4, 0.04], castShadow: true, receiveShadow: true },
       { id: 'floor-lamp-head', geometry: 'cylinder', materialId: 'accent', position: [-5.6, 1.6, 3.0], rotation: [0, 0, 0], scale: [0.4, 0.35, 0.4], castShadow: true, receiveShadow: true },
+      { id: 'side-table', geometry: 'cylinder', materialId: 'marble', position: [5.2, 0.35, 1.8], rotation: [0, 0, 0], scale: [0.6, 0.7, 0.6], castShadow: true, receiveShadow: true },
+      { id: 'tv-stand', geometry: 'box', materialId: 'wood', position: [0, 0.3, -4.2], rotation: [0, 0, 0], scale: [3.0, 0.6, 0.45], castShadow: true, receiveShadow: true },
+      { id: 'tv-screen', geometry: 'box', materialId: 'glass', position: [0, 1.25, -4.35], rotation: [0, 0, 0], scale: [2.4, 1.4, 0.04], castShadow: false, receiveShadow: false },
+      { id: 'tv-frame', geometry: 'box', materialId: 'chrome', position: [0, 1.25, -4.36], rotation: [0, 0, 0], scale: [2.5, 1.5, 0.02], castShadow: true, receiveShadow: true },
+      { id: 'plant-pot', geometry: 'cylinder', materialId: 'accent', position: [-5.8, 0.22, -3.5], rotation: [0, 0, 0], scale: [0.28, 0.44, 0.28], castShadow: true, receiveShadow: true },
+      { id: 'plant-foliage', geometry: 'sphere', materialId: 'upholstery', position: [-5.8, 0.9, -3.5], rotation: [0, 0, 0], scale: [0.7, 0.65, 0.7], castShadow: true, receiveShadow: true },
     ],
   };
 }
@@ -192,23 +197,13 @@ function buildFallbackPresets(): LightingPresets {
   return {
     day: {
       ambient: { color: '#fff5e6', intensity: 0.55 },
-      directional: {
-        color: '#fff2d6',
-        intensity: 2.4,
-        position: [-6, 10, -4],
-        shadowSoftness: 0.6,
-      },
+      directional: { color: '#fff2d6', intensity: 2.4, position: [-6, 10, -4], shadowSoftness: 0.6 },
       backgroundTint: '#1e293b',
       artificialLightsActive: false,
     },
     night: {
       ambient: { color: '#c4d4ff', intensity: 0.22 },
-      directional: {
-        color: '#9eb8ff',
-        intensity: 0.25,
-        position: [4, 8, -6],
-        shadowSoftness: 0.9,
-      },
+      directional: { color: '#9eb8ff', intensity: 0.25, position: [4, 8, -6], shadowSoftness: 0.9 },
       backgroundTint: '#0a0f1e',
       artificialLightsActive: true,
     },
@@ -243,61 +238,48 @@ function buildEnvTexture(): THREE.Texture {
   return tex;
 }
 
-async function init(): Promise<void> {
-  const canvas = document.getElementById('scene-canvas') as HTMLCanvasElement;
-  if (!canvas) throw new Error('Canvas not found');
+async function tryLoadGLTF(scene: THREE.Scene, objects: Map<string, THREE.Object3D>): Promise<boolean> {
+  const modelUrls = ['/models/room.glb', '/models/interior.glb', '/api/models/room.glb'];
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
 
-  loadingProgress(10);
+  for (const url of modelUrls) {
+    try {
+      const gltf = await new Promise<{ scene: THREE.Group }>((resolve, reject) => {
+        gltfLoader.load(url, resolve, undefined, reject);
+      });
+      const model = gltf.scene;
+      model.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.envMapIntensity = 1.0;
+              }
+            });
+          }
+        }
+      });
+      model.scale.setScalar(1);
+      scene.add(model);
+      objects.set('gltf-model', model);
+      return true;
+    } catch (_e) { continue; }
+  }
+  return false;
+}
 
-  const [sceneData, presets] = await Promise.all([fetchSceneData(), fetchPresets()]);
-  loadingProgress(35);
-
-  const scene = new THREE.Scene();
-  const envTex = buildEnvTexture();
-  scene.environment = envTex;
-  scene.background = new THREE.Color(presets.day.backgroundTint);
-  scene.fog = new THREE.Fog(presets.day.backgroundTint, 20, 40);
-
-  const camera = new THREE.PerspectiveCamera(
-    50,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    200
-  );
-  camera.position.set(9, 7.5, 10);
-  camera.lookAt(0, 1.5, 0);
-
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-    powerPreference: 'high-performance',
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
-
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance = 3;
-  controls.maxDistance = 25;
-  controls.maxPolarAngle = Math.PI * 0.495;
-  controls.minPolarAngle = Math.PI * 0.08;
-  controls.target.set(0, 1.4, 0);
-
-  loadingProgress(50);
-
+function buildSceneFromData(scene: THREE.Scene, sceneData: SceneData, objects: Map<string, THREE.Object3D>) {
   const materialCache = new Map<string, THREE.Material>();
   for (const m of sceneData.materials) {
     materialCache.set(m.id, createMaterial(m.type, m.color, m.roughness, m.metalness));
   }
-
-  const objects = new Map<string, THREE.Object3D>();
   for (const meshDef of sceneData.meshes) {
     const mat = materialCache.get(meshDef.materialId);
     if (!mat) continue;
@@ -311,19 +293,61 @@ async function init(): Promise<void> {
     scene.add(mesh);
     objects.set(meshDef.id, mesh);
   }
+}
+
+async function init(): Promise<void> {
+  const t0 = performance.now();
+  const canvas = document.getElementById('scene-canvas') as HTMLCanvasElement;
+  if (!canvas) throw new Error('Canvas not found');
+
+  loadingProgress(10);
+
+  const [sceneData, presets] = await Promise.all([fetchSceneData(), fetchPresets()]);
+  loadingProgress(30);
+
+  const scene = new THREE.Scene();
+  const envTex = buildEnvTexture();
+  scene.environment = envTex;
+  scene.background = new THREE.Color(presets.day.backgroundTint);
+  scene.fog = new THREE.Fog(presets.day.backgroundTint, 20, 40);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(9, 7.5, 10);
+  camera.lookAt(0, 1.5, 0);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.info.autoReset = false;
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 3;
+  controls.maxDistance = 25;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minPolarAngle = Math.PI * 0.08;
+  controls.target.set(0, 1.4, 0);
+
+  loadingProgress(45);
+
+  const objects = new Map<string, THREE.Object3D>();
+  const gltfLoaded = await tryLoadGLTF(scene, objects);
+  if (!gltfLoaded) {
+    buildSceneFromData(scene, sceneData, objects);
+  }
 
   loadingProgress(70);
 
-  const ambientLight = new THREE.AmbientLight(
-    presets.day.ambient.color,
-    presets.day.ambient.intensity
-  );
+  const ambientLight = new THREE.AmbientLight(presets.day.ambient.color, presets.day.ambient.intensity);
   scene.add(ambientLight);
 
-  const directionalLight = new THREE.DirectionalLight(
-    presets.day.directional.color,
-    presets.day.directional.intensity
-  );
+  const directionalLight = new THREE.DirectionalLight(presets.day.directional.color, presets.day.directional.intensity);
   directionalLight.position.set(...presets.day.directional.position);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.set(2048, 2048);
@@ -342,7 +366,6 @@ async function init(): Promise<void> {
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
-
   const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   sceneInstance = {
@@ -355,6 +378,7 @@ async function init(): Promise<void> {
     objects,
     raycaster,
     pointer,
+    needsShadowUpdate: false,
     getGroundIntersection: (x: number, y: number): THREE.Vector3 | null => {
       pointer.x = (x / window.innerWidth) * 2 - 1;
       pointer.y = -(y / window.innerHeight) * 2 + 1;
@@ -370,6 +394,8 @@ async function init(): Promise<void> {
     },
   };
 
+  (window as any).__sceneInstance = sceneInstance;
+
   sceneManager.bindInstance(sceneInstance, presets);
   sceneManager.bootstrap();
 
@@ -379,6 +405,7 @@ async function init(): Promise<void> {
   let frameCount = 0;
   let lastFpsTime = performance.now();
   let resizeRaf = 0;
+  let memoryCheckInterval = 0;
 
   function onResize() {
     cancelAnimationFrame(resizeRaf);
@@ -391,18 +418,36 @@ async function init(): Promise<void> {
   }
   window.addEventListener('resize', onResize);
 
+  memoryCheckInterval = window.setInterval(() => {
+    const mem = (performance as any).memory;
+    if (mem && fpsBadge) {
+      const usedMB = Math.round(mem.usedJSHeapSize / 1048576);
+      if (usedMB > 180) {
+        console.warn(`[Lumen] Memory usage: ${usedMB}MB approaching limit`);
+      }
+    }
+  }, 5000);
+
   const clock = new THREE.Clock();
   function tick() {
     const dt = clock.getDelta();
     controls.update();
     sceneManager.update(dt);
+
+    renderer.info.reset();
     renderer.render(scene, camera);
+
+    if (sceneInstance!.needsShadowUpdate) {
+      sceneInstance!.needsShadowUpdate = false;
+    }
 
     frameCount++;
     const now = performance.now();
     if (now - lastFpsTime >= 500 && fpsBadge) {
       const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
-      fpsBadge.textContent = `${fps} FPS`;
+      const drawCalls = renderer.info.render.calls;
+      const triangles = renderer.info.render.triangles;
+      fpsBadge.textContent = `${fps} FPS | ${drawCalls} DC | ${(triangles / 1000).toFixed(1)}K△`;
       fpsBadge.classList.toggle('low', fps < 40 && fps >= 30);
       fpsBadge.classList.toggle('critical', fps < 30);
       frameCount = 0;
@@ -412,6 +457,9 @@ async function init(): Promise<void> {
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
+
+  const loadTime = performance.now() - t0;
+  console.log(`[Lumen Studio] Scene loaded in ${loadTime.toFixed(0)}ms`);
 
   setTimeout(() => {
     document.getElementById('loading-overlay')?.classList.add('hidden');
