@@ -19,11 +19,20 @@ export default function RentalForm({ instrument, isLoggedIn }: Props) {
 
   const today = new Date().toISOString().split('T')[0];
 
+  function calcDaysBetween(startStr: string, endStr: string): number {
+    const [sy, sm, sd] = startStr.split('-').map(Number);
+    const [ey, em, ed] = endStr.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+    const end = new Date(ey, em - 1, ed, 0, 0, 0, 0);
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return 0;
+    return Math.round(diffMs / MS_PER_DAY) + 1;
+  }
+
   const { totalDays, totalRent } = useMemo(() => {
     if (!startDate || !endDate) return { totalDays: 0, totalRent: 0 };
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const days = calcDaysBetween(startDate, endDate);
     if (days <= 0) return { totalDays: 0, totalRent: 0 };
     return { totalDays: days, totalRent: days * instrument.dailyRate };
   }, [startDate, endDate, instrument.dailyRate]);

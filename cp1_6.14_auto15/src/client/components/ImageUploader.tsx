@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 interface Props {
   images: string[];
@@ -11,19 +13,35 @@ interface Props {
 export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState('');
 
   const processFiles = (files: FileList | File[]) => {
-    const fileArray = Array.from(files).slice(0, maxFiles - images.length);
+    setError('');
+    const fileArray = Array.from(files);
     const remainingSlots = maxFiles - images.length;
+    const validFiles: File[] = [];
 
-    fileArray.slice(0, remainingSlots).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      if (file.size > 5 * 1024 * 1024) return;
+    for (const file of fileArray) {
+      if (validFiles.length >= remainingSlots) break;
+      if (!file.type.startsWith('image/')) {
+        setError('仅支持上传图片文件');
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`单张图片大小不能超过 2MB，已跳过过大的文件`);
+        continue;
+      }
+      validFiles.push(file);
+    }
 
+    validFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        onChange([...images, result]);
+        onChange((prev) => {
+          if (prev.length >= maxFiles) return prev;
+          return [...prev, result];
+        });
       };
       reader.readAsDataURL(file);
     });
@@ -103,8 +121,15 @@ export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props)
         className="hidden"
       />
 
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <p className="text-xs text-gray-500">
-        支持 JPG/PNG 格式，单张不超过 5MB，最多 {maxFiles} 张
+        支持 JPG/PNG 格式，单张不超过 2MB，最多 {maxFiles} 张
       </p>
     </div>
   );

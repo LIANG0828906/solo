@@ -275,7 +275,7 @@ export async function deleteInstrument(id: string): Promise<boolean> {
 
 export async function updateInstrumentStatus(
   id: string,
-  status: 'available' | 'rented',
+  status: 'available' | 'rented' | 'pending',
 ): Promise<Instrument | null> {
   await db.read();
   const inst = db.data.instruments.find((i) => i.id === id);

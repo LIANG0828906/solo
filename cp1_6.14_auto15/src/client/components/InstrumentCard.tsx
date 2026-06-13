@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Tag } from 'lucide-react';
 import type { Instrument } from '../types';
-import { CATEGORY_LABELS } from '../types';
+import { CATEGORY_LABELS, INSTRUMENT_STATUS_LABELS } from '../types';
 import { cn } from '@/lib/utils';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
@@ -45,10 +45,12 @@ export default function InstrumentCard({ instrument, onDelete, showDelete }: Pro
                 'px-2.5 py-1 rounded-full text-xs font-medium',
                 instrument.status === 'available'
                   ? 'bg-green-100 text-green-700'
+                  : instrument.status === 'pending'
+                  ? 'bg-orange-100 text-orange-700'
                   : 'bg-gray-200 text-gray-600'
               )}
             >
-              {instrument.status === 'available' ? '可租' : '已租出'}
+              {INSTRUMENT_STATUS_LABELS[instrument.status]}
             </span>
           </div>
         </div>

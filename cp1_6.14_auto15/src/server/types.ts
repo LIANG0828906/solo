@@ -9,6 +9,8 @@ export interface User {
 
 export type InstrumentCategory = 'guitar' | 'keyboard' | 'wind' | 'string' | 'percussion' | 'other';
 
+export type InstrumentStatus = 'available' | 'rented' | 'pending';
+
 export interface Instrument {
   id: string;
   ownerId: string;
@@ -20,7 +22,7 @@ export interface Instrument {
   deposit: number;
   description: string;
   images: string[];
-  status: 'available' | 'rented';
+  status: InstrumentStatus;
   createdAt: string;
 }
 

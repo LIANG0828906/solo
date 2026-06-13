@@ -1,12 +1,3 @@
-export interface User {
-  id: string;
-  username: string;
-  passwordHash: string;
-  nickname: string;
-  avatar?: string;
-  createdAt: string;
-}
-
 export type SessionUser = {
   id: string;
   username: string;
@@ -22,7 +13,39 @@ export type InstrumentCategory =
   | 'percussion'
   | 'other';
 
-export type InstrumentStatus = 'available' | 'rented';
+export type InstrumentStatus = 'available' | 'rented' | 'pending';
+
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'rejected';
+
+export const INSTRUMENT_STATUS_LABELS: Record<InstrumentStatus, string> = {
+  available: '可租',
+  rented: '已租出',
+  pending: '待确认',
+};
+
+export const CATEGORY_LABELS: Record<InstrumentCategory, string> = {
+  guitar: '吉他',
+  keyboard: '键盘',
+  wind: '管乐',
+  string: '弦乐',
+  percussion: '打击乐',
+  other: '其他',
+};
+
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: '待确认',
+  confirmed: '已确认',
+  active: '进行中',
+  completed: '已完成',
+  cancelled: '已取消',
+  rejected: '已拒绝',
+};
 
 export interface Instrument {
   id: string;
@@ -39,14 +62,6 @@ export interface Instrument {
   createdAt: string;
 }
 
-export type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'active'
-  | 'completed'
-  | 'cancelled'
-  | 'rejected';
-
 export interface Order {
   id: string;
   instrumentId: string;
@@ -62,6 +77,15 @@ export interface Order {
   instrument?: Instrument;
   renter?: SessionUser;
   owner?: SessionUser;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  passwordHash: string;
+  nickname: string;
+  avatar?: string;
+  createdAt: string;
 }
 
 export interface GetInstrumentsParams {
