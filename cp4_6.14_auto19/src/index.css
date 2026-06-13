@@ -124,3 +124,42 @@ input, textarea, select {
 .animate-pulse {
   animation: pulse 2s infinite;
 }
+
+.poll-code-input:focus {
+  animation: breathe 2s infinite alternate !important;
+  border-color: var(--accent-blue) !important;
+}
+
+@media (max-width: 768px) {
+  .vote-options-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .results-panel-card {
+    padding: 20px !important;
+  }
+
+  .results-panel-card h3 {
+    font-size: 18px !important;
+  }
+
+  .results-canvas-container canvas {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .vote-options-grid {
+    gap: 12px !important;
+  }
+
+  .option-card {
+    padding: 18px !important;
+    min-height: 60px !important;
+  }
+
+  .results-panel-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+}
