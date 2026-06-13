@@ -10,17 +10,26 @@ function RecipeList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [likedRecipes, setLikedRecipes] = useState<Set<string>>(new Set());
   const [bouncingId, setBouncingId] = useState<string | null>(null);
+  const [bouncingCountId, setBouncingCountId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const debounceRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchRecipes = useCallback(async (search?: string) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       setLoading(true);
       const data = await getRecipes(search);
       setRecipes(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load recipes');
+      if ((err as Error).name !== 'AbortError') {
+        setError(err instanceof Error ? err.message : 'Failed to load recipes');
+      }
     } finally {
       setLoading(false);
     }
@@ -28,25 +37,32 @@ function RecipeList() {
 
   useEffect(() => {
     fetchRecipes();
-  }, [fetchRecipes]);
-
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = window.setTimeout(() => {
-      fetchRecipes(searchTerm || undefined);
-    }, 500);
-
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
-  }, [searchTerm, fetchRecipes]);
+  }, [fetchRecipes]);
+
+  const debouncedSearch = useCallback((value: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      fetchRecipes(value || undefined);
+      debounceTimerRef.current = null;
+    }, 500);
+  }, [fetchRecipes]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+    const value = e.target.value;
+    setSearchTerm(value);
+    debouncedSearch(value);
   };
 
   const handleLike = async (e: React.MouseEvent, id: string) => {
@@ -57,14 +73,20 @@ function RecipeList() {
 
     try {
       setBouncingId(id);
+      setBouncingCountId(id);
       const result = await likeRecipe(id);
       setRecipes(prev =>
         prev.map(r => (r.id === id ? { ...r, likes: result.likes } : r))
       );
       setLikedRecipes(prev => new Set(prev).add(id));
-      setTimeout(() => setBouncingId(null), 200);
+      setTimeout(() => {
+        setBouncingId(null);
+        setBouncingCountId(null);
+      }, 200);
     } catch (err) {
       console.error('Failed to like recipe:', err);
+      setBouncingId(null);
+      setBouncingCountId(null);
     }
   };
 
@@ -129,7 +151,11 @@ function RecipeList() {
                     >
                       {likedRecipes.has(recipe.id) ? '♥' : '♡'}
                     </span>
-                    <span className="like-count">{recipe.likes}</span>
+                    <span
+                      className={`like-count ${bouncingCountId === recipe.id ? 'bounce' : ''}`}
+                    >
+                      {recipe.likes}
+                    </span>
                   </button>
                 </div>
               </div>
