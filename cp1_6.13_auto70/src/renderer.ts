@@ -11,18 +11,18 @@ export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private gridEngine: GridEngine;
-  private nodeRadius: number = 6;
+  private nodeRadius: number = 5;
   private isoScaleX: number = 1;
   private isoScaleY: number = 0.5;
   private heightScale: number = 15;
-  private cellWidth: number = 30;
-  private cellHeight: number = 30;
+  private cellWidth: number = 28;
+  private cellHeight: number = 28;
   private offsetX: number = 0;
   private offsetY: number = 0;
 
   private colorStops: ColorStop[] = [
     { position: -3, r: 10, g: 61, b: 98 },
-    { position: 0, r: 70, g: 130, b: 160 },
+    { position: 0, r: 130, g: 204, b: 221 },
     { position: 3, r: 240, g: 248, b: 255 }
   ];
 
@@ -47,7 +47,7 @@ export class Renderer {
     this.canvas.style.width = rect.width + 'px';
     this.canvas.style.height = rect.height + 'px';
 
-    this.ctx.scale(dpr, dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.calculateLayout();
   }
 
@@ -59,31 +59,25 @@ export class Renderer {
 
     this.cellWidth = 28;
     this.cellHeight = 28;
+    this.heightScale = 15;
 
-    const maxColRowDiff = (cols - 1) - 0;
-    const minColRowDiff = 0 - (rows - 1);
-    const gridWidth = (maxColRowDiff - minColRowDiff) * this.cellWidth * this.isoScaleX;
+    const gridIsoWidth = (cols + rows - 1) * this.cellWidth * this.isoScaleX;
+    const gridIsoHeight = (cols + rows - 2) * this.cellHeight * this.isoScaleY;
+    const heightMargin = this.heightScale * 6;
+    const totalHeight = gridIsoHeight + heightMargin;
 
-    const maxColRowSum = (cols - 1) + (rows - 1);
-    const minColRowSum = 0 + 0;
-    const gridHeight = (maxColRowSum - minColRowSum) * this.cellHeight * this.isoScaleY;
-
-    const totalHeight = gridHeight + this.heightScale * 6;
-
-    const scaleX = (width * 0.9) / gridWidth;
+    const scaleX = (width * 0.9) / gridIsoWidth;
     const scaleY = (height * 0.85) / totalHeight;
-    const scale = Math.min(scaleX, scaleY, 1.5);
+    const scale = Math.min(scaleX, scaleY, 2);
 
     this.cellWidth *= scale;
     this.cellHeight *= scale;
     this.heightScale *= scale;
 
-    const finalGridHeight = gridHeight * scale;
+    const centerOffsetY = ((cols + rows - 2) / 2) * this.cellHeight * this.isoScaleY;
 
     this.offsetX = width / 2;
-
-    const centerY = (maxColRowSum + minColRowSum) / 2 * this.cellHeight * this.isoScaleY;
-    this.offsetY = height / 2 - centerY + finalGridHeight * 0.1;
+    this.offsetY = height / 2 - centerOffsetY + this.heightScale * 2;
   }
 
   gridToScreen(row: number, col: number, height: number = 0): { x: number; y: number } {
@@ -126,8 +120,16 @@ export class Renderer {
     const { min, max } = this.gridEngine.getHeightRange();
     const t = (height - min) / (max - min);
     const clampedT = Math.max(0, Math.min(1, t));
-
     const pos = min + clampedT * (max - min);
+
+    if (pos <= this.colorStops[0].position) {
+      return `rgb(${this.colorStops[0].r}, ${this.colorStops[0].g}, ${this.colorStops[0].b})`;
+    }
+
+    if (pos >= this.colorStops[this.colorStops.length - 1].position) {
+      const last = this.colorStops[this.colorStops.length - 1];
+      return `rgb(${last.r}, ${last.g}, ${last.b})`;
+    }
 
     for (let i = 0; i < this.colorStops.length - 1; i++) {
       const stop1 = this.colorStops[i];
@@ -135,7 +137,7 @@ export class Renderer {
 
       if (pos >= stop1.position && pos <= stop2.position) {
         const range = stop2.position - stop1.position;
-        const localT = (pos - stop1.position) / range;
+        const localT = range === 0 ? 0 : (pos - stop1.position) / range;
 
         const r = Math.round(stop1.r + (stop2.r - stop1.r) * localT);
         const g = Math.round(stop1.g + (stop2.g - stop1.g) * localT);
@@ -145,12 +147,25 @@ export class Renderer {
       }
     }
 
-    if (pos <= this.colorStops[0].position) {
-      return `rgb(${this.colorStops[0].r}, ${this.colorStops[0].g}, ${this.colorStops[0].b})`;
-    }
-
     const last = this.colorStops[this.colorStops.length - 1];
     return `rgb(${last.r}, ${last.g}, ${last.b})`;
+  }
+
+  private getAverageColor(heights: number[]): string {
+    let rSum = 0, gSum = 0, bSum = 0;
+    
+    for (const h of heights) {
+      const color = this.getColorForHeight(h);
+      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (match) {
+        rSum += parseInt(match[1]);
+        gSum += parseInt(match[2]);
+        bSum += parseInt(match[3]);
+      }
+    }
+
+    const count = heights.length;
+    return `rgb(${Math.round(rSum / count)}, ${Math.round(gSum / count)}, ${Math.round(bSum / count)})`;
   }
 
   private drawTriangles(): void {
@@ -159,7 +174,7 @@ export class Renderer {
     const cols = this.gridEngine.getCols();
 
     this.ctx.lineWidth = 0.5;
-    this.ctx.strokeStyle = 'rgba(130, 204, 221, 0.15)';
+    this.ctx.strokeStyle = 'rgba(130, 204, 221, 0.2)';
 
     for (let row = 0; row < rows - 1; row++) {
       for (let col = 0; col < cols - 1; col++) {
@@ -173,8 +188,7 @@ export class Renderer {
         const p3 = this.gridToScreen(n3.y, n3.x, n3.height);
         const p4 = this.gridToScreen(n4.y, n4.x, n4.height);
 
-        const avgHeight1 = (n1.height + n2.height + n3.height) / 3;
-        const color1 = this.getColorForHeight(avgHeight1);
+        const color1 = this.getAverageColor([n1.height, n2.height, n3.height]);
         
         this.ctx.fillStyle = color1;
         this.ctx.beginPath();
@@ -185,8 +199,7 @@ export class Renderer {
         this.ctx.fill();
         this.ctx.stroke();
 
-        const avgHeight2 = (n2.height + n4.height + n3.height) / 3;
-        const color2 = this.getColorForHeight(avgHeight2);
+        const color2 = this.getAverageColor([n2.height, n4.height, n3.height]);
         
         this.ctx.fillStyle = color2;
         this.ctx.beginPath();
@@ -205,7 +218,7 @@ export class Renderer {
     const rows = this.gridEngine.getRows();
     const cols = this.gridEngine.getCols();
 
-    this.ctx.strokeStyle = 'rgba(130, 204, 221, 0.4)';
+    this.ctx.strokeStyle = 'rgba(130, 204, 221, 0.5)';
     this.ctx.lineWidth = 1;
 
     for (let row = 0; row < rows; row++) {
@@ -249,17 +262,15 @@ export class Renderer {
         this.ctx.beginPath();
         this.ctx.arc(pos.x, pos.y, this.nodeRadius, 0, Math.PI * 2);
         this.ctx.fillStyle = color;
-        this.ctx.fill();
-
         this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = node.isDragging ? 12 : 6;
+        this.ctx.shadowBlur = node.isDragging ? 10 : 4;
         this.ctx.fill();
         this.ctx.shadowBlur = 0;
 
         if (node.isDragging) {
           this.ctx.beginPath();
           this.ctx.arc(pos.x, pos.y, this.nodeRadius + 3, 0, Math.PI * 2);
-          this.ctx.strokeStyle = 'rgba(240, 248, 255, 0.6)';
+          this.ctx.strokeStyle = 'rgba(240, 248, 255, 0.7)';
           this.ctx.lineWidth = 2;
           this.ctx.stroke();
         }

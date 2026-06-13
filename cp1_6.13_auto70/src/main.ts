@@ -17,7 +17,6 @@ class GridTideApp {
 
   private animationId: number = 0;
   private lastTime: number = 0;
-  private frameCount: number = 0;
 
   constructor() {
     const app = document.getElementById('app');
@@ -34,6 +33,12 @@ class GridTideApp {
     this.startAnimation();
 
     window.addEventListener('resize', () => {
+      if (this.renderer) {
+        this.renderer.resize();
+      }
+    });
+
+    requestAnimationFrame(() => {
       if (this.renderer) {
         this.renderer.resize();
       }
@@ -180,15 +185,10 @@ class GridTideApp {
   private startAnimation(): void {
     const animate = (time: number) => {
       if (!this.lastTime) this.lastTime = time;
-      const delta = time - this.lastTime;
+      const deltaTime = (time - this.lastTime) / 1000;
       this.lastTime = time;
 
-      this.frameCount++;
-      if (delta >= 1000) {
-        this.frameCount = 0;
-      }
-
-      this.gridEngine.update();
+      this.gridEngine.update(deltaTime);
 
       if (this.renderer) {
         this.renderer.render();
