@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import objectivesRouter from './routes/objectives';
+import objectivesRouter from './routes/objectives.ts';
 
 const app = express();
 const PORT = 3001;

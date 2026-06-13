@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
+const Router = express.Router;
 import {
   getAllObjectives,
   getObjectiveById,
@@ -6,8 +7,8 @@ import {
   updateObjective,
   deleteObjective,
   addCheckIn
-} from '../data';
-import type { CreateObjectiveRequest, UpdateObjectiveRequest, CheckInRequest, ApiResponse, Objective } from '../../types';
+} from '../data.ts';
+import type { CreateObjectiveRequest, UpdateObjectiveRequest, CheckInRequest, ApiResponse, Objective } from '../../types.ts';
 
 const router = Router();
 

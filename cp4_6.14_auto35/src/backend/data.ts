@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Objective, KeyResult, CheckInRecord, CreateObjectiveRequest, UpdateObjectiveRequest, CheckInRequest } from '../types';
+import type { Objective, KeyResult, CheckInRecord, CreateObjectiveRequest, UpdateObjectiveRequest, CheckInRequest } from '../types.ts';
 
 const generateId = (): string => uuidv4();
 

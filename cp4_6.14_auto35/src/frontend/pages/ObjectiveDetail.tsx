@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, Plus, Star, Edit, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Plus, Star, Edit, Trash2, Save, X, Clock, AlertTriangle } from 'lucide-react';
 import ProgressRing from '../components/ProgressRing';
 import ProgressChart from '../components/ProgressChart';
-import type { Objective, CheckInRequest } from '../../types';
+import type { Objective, CheckInRequest, CheckInRecord } from '../../types';
 import { objectivesApi } from '../utils/api';
-import { calculateObjectiveProgress, calculateKRProgress, getStatusInfo, getProgressColor, getAvatarColor, getInitials, formatDate } from '../utils/helpers';
+import { calculateObjectiveProgress, calculateKRProgress, getStatusInfo, getProgressColor, getAvatarColor, getInitials, formatDate, getQuarterWeeks, getWeekNumber } from '../utils/helpers';
 import Toast from '../components/Toast';
 
 interface ObjectiveDetailProps {
@@ -25,6 +25,8 @@ const ObjectiveDetail: React.FC<ObjectiveDetailProps> = ({ onObjectiveUpdate }) 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [fadeKey, setFadeKey] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -44,6 +46,34 @@ const ObjectiveDetail: React.FC<ObjectiveDetailProps> = ({ onObjectiveUpdate }) 
     } finally {
       setLoading(false);
     }
+  };
+
+  const weeks = useMemo(() => {
+    if (!objective) return [];
+    return getQuarterWeeks(objective.quarter, objective.year);
+  }, [objective]);
+
+  const weekCheckIns = useMemo(() => {
+    if (!objective) return [];
+    const allCheckIns: (CheckInRecord & { krTitle: string })[] = [];
+    objective.checkIns.forEach(checkin => {
+      const weekNum = getWeekNumber(checkin.date, objective.quarter, objective.year);
+      if (weekNum === selectedWeek) {
+        const kr = objective.keyResults.find(k => k.id === checkin.keyResultId);
+        allCheckIns.push({
+          ...checkin,
+          krTitle: kr?.title || ''
+        });
+      }
+    });
+    return allCheckIns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [objective, selectedWeek]);
+
+  const handleWeekChange = (week: number) => {
+    setFadeKey(prev => prev + 1);
+    setTimeout(() => {
+      setSelectedWeek(week);
+    }, 200);
   };
 
   const handleCheckIn = async () => {
@@ -312,10 +342,11 @@ const ObjectiveDetail: React.FC<ObjectiveDetailProps> = ({ onObjectiveUpdate }) 
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
                   <div
-                    className="h-full rounded-full progress-animate"
+                    className="h-full rounded-full"
                     style={{
                       width: `${krProgress}%`,
-                      backgroundColor: getProgressColor(krProgress)
+                      backgroundColor: getProgressColor(krProgress),
+                      animation: 'progressFill 1s ease-in forwards'
                     }}
                   />
                 </div>
@@ -337,8 +368,75 @@ const ObjectiveDetail: React.FC<ObjectiveDetailProps> = ({ onObjectiveUpdate }) 
 
       <ProgressChart objective={objective} />
 
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Clock size={20} className="text-[#1a237e]" />
+            周期检视
+          </h3>
+        </div>
+        <div className="flex">
+          <div className="w-48 border-r border-gray-100 bg-gray-50">
+            {weeks.map((weekLabel, index) => (
+              <button
+                key={index}
+                onClick={() => handleWeekChange(index + 1)}
+                className={`w-full px-4 py-3 text-left text-sm transition-all ${
+                  selectedWeek === index + 1
+                    ? 'bg-[#1a237e] text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {weekLabel}
+              </button>
+            ))}
+          </div>
+          <div key={fadeKey} className="flex-1 p-5 min-h-[300px] fade-enter">
+            {weekCheckIns.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <Clock size={48} className="mb-2" />
+                <p>本周暂无检视记录</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {weekCheckIns.map((checkin) => {
+                  const kr = objective.keyResults.find(k => k.id === checkin.keyResultId);
+                  return (
+                    <div key={checkin.id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-medium text-gray-800">
+                            {kr?.title || checkin.keyResultId}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {formatDate(checkin.date)} · {checkin.updatedBy}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div
+                            className="text-lg font-bold"
+                            style={{ color: getProgressColor(checkin.percentComplete) }}
+                          >
+                            {checkin.percentComplete}%
+                          </div>
+                        </div>
+                      </div>
+                      {checkin.note && (
+                        <p className="text-sm text-gray-600 bg-white p-3 rounded">
+                          {checkin.note}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-md p-5">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">进度更新记录</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">全部更新记录</h3>
         {sortedCheckIns.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <p>暂无更新记录</p>
