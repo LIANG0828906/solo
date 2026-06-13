@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>太空战舰对战</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0b1a;
+      font-family: 'Orbitron', monospace;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    #ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #help-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(10, 11, 26, 0.8);
+      border: 1px solid rgba(0, 200, 255, 0.3);
+      box-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
+      padding: 15px 20px;
+      color: #88ccff;
+      font-size: 12px;
+      line-height: 1.8;
+      border-radius: 4px;
+    }
+    #help-panel span.key {
+      display: inline-block;
+      min-width: 24px;
+      padding: 2px 6px;
+      margin-right: 4px;
+      background: rgba(0, 200, 255, 0.15);
+      border: 1px solid rgba(0, 200, 255, 0.4);
+      color: #00d4ff;
+      text-align: center;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+    #game-title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00d4ff;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-shadow: 0 0 10px rgba(0, 200, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="ui-container">
+    <div id="game-title">SPACE WARFARE</div>
+    <div id="help-panel">
+      <div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移动战舰</div>
+      <div><span class="key">鼠标左键</span> 发射激光</div>
+      <div><span class="key">Shift</span> 激活护盾 (消耗30能量)</div>
+    </div>
+  </div>
+  <script type="module" src="/src/Game.ts"></script>
+</body>
+</html>
