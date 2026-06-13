@@ -1,0 +1,14 @@
+:root {
+  --bg-space: #0a0a2e;
+  --bg-panel: rgba(10, 10, 46, 0.7);
+  --border-panel: rgba(255, 255, 255, 0.2);
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-accent: #00e5ff;
+  --radius: 12px;
+  --transition: all 0.3s ease;
+
+  --spectral-O: #9bb0ff;
+  --spectral-B: #aabfff;
+  --spectral-A: #cad8ff;
+  --spectral-F
