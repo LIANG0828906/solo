@@ -4,8 +4,98 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import type { Card, Difficulty, ReviewStats, ReviewRecord } from '../src/types';
-import { calculateNextInterval, getDifficultyScore, formatDate, addDays, getInitialInterval, isOverdue } from '../src/utils/spacedRepetition';
+
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+interface ReviewRecord {
+  date: string;
+  difficulty: Difficulty;
+  score: number;
+}
+
+interface Card {
+  id: string;
+  front: string;
+  back: string;
+  tags: string[];
+  initialDifficulty: Difficulty;
+  currentInterval: number;
+  nextReviewDate: string;
+  reviewHistory: ReviewRecord[];
+  createdAt: string;
+}
+
+interface ReviewStats {
+  todayReviewed: number;
+  averageRecallScore: number;
+  dueCardsCount: number;
+  dailyReviewCounts: { date: string; count: number }[];
+}
+
+const BASE_INTERVAL = 1.5;
+
+function getInitialInterval(difficulty: Difficulty): number {
+  switch (difficulty) {
+    case 'easy':
+      return 1;
+    case 'medium':
+      return 1.5;
+    case 'hard':
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function calculateNextInterval(
+  currentInterval: number,
+  difficulty: Difficulty,
+  initialDifficulty: Difficulty
+): number {
+  const initialInterval = getInitialInterval(initialDifficulty);
+  
+  switch (difficulty) {
+    case 'easy':
+      return Math.max(currentInterval * 2, initialInterval * BASE_INTERVAL);
+    case 'medium':
+      return Math.max(currentInterval * BASE_INTERVAL, initialInterval);
+    case 'hard':
+      return initialInterval;
+    default:
+      return initialInterval;
+  }
+}
+
+function getDifficultyScore(difficulty: Difficulty): number {
+  switch (difficulty) {
+    case 'easy':
+      return 5;
+    case 'medium':
+      return 3;
+    case 'hard':
+      return 1;
+    default:
+      return 3;
+  }
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + Math.ceil(days));
+  return result;
+}
+
+function isOverdue(nextReviewDate: string): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const reviewDate = new Date(nextReviewDate);
+  reviewDate.setHours(0, 0, 0, 0);
+  return reviewDate < today;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -223,13 +313,15 @@ app.get('/api/stats', (_req, res) => {
     const past7Days = getPast7Days();
 
     let todayReviewed = 0;
-    let totalScore = 0;
-    let totalReviews = 0;
     let dueCardsCount = 0;
     const dailyCounts: { date: string; count: number }[] = past7Days.map(date => ({
       date,
       count: 0
     }));
+
+    const alpha = 0.3;
+    let weightedAverage = 0;
+    const sortedReviews: ReviewRecord[] = [];
 
     cards.forEach(card => {
       if (isOverdue(card.nextReviewDate)) {
@@ -246,17 +338,10 @@ app.get('/api/stats', (_req, res) => {
           dailyCounts[dayIndex].count++;
         }
 
-        totalScore += record.score;
-        totalReviews++;
+        sortedReviews.push(record);
       });
     });
 
-    const alpha = 0.3;
-    let weightedAverage = 0;
-    const sortedReviews: ReviewRecord[] = [];
-    cards.forEach(card => {
-      card.reviewHistory.forEach(record => sortedReviews.push(record));
-    });
     sortedReviews.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     if (sortedReviews.length > 0) {
@@ -268,7 +353,7 @@ app.get('/api/stats', (_req, res) => {
 
     const stats: ReviewStats = {
       todayReviewed,
-      averageRecallScore: totalReviews > 0 ? weightedAverage : 0,
+      averageRecallScore: sortedReviews.length > 0 ? weightedAverage : 0,
       dueCardsCount,
       dailyReviewCounts: dailyCounts
     };
