@@ -7,7 +7,8 @@ interface DiffPanelProps {
   onSelectSegment: (segmentId: string | null) => void;
   onUpdateStatus: (segmentId: string, status: ReviewStatus) => void;
   leftRatio: number;
-  dividerPosition: number;
+  onLeftRatioChange: (ratio: number) => void;
+  isSmallScreen: boolean;
 }
 
 const DiffPanel: React.FC<DiffPanelProps> = ({
@@ -16,17 +17,47 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
   onSelectSegment,
   onUpdateStatus,
   leftRatio,
-  dividerPosition
+  onLeftRatioChange,
+  isSmallScreen
 }) => {
-  const getHighlightColor = (type: DiffSegment['type'], isSelected: boolean) => {
-    let bg = 'transparent';
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const isDraggingRef = React.useRef(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const commentWidth = isSmallScreen ? 0 : 296;
+      const availableWidth = rect.width - commentWidth - 24;
+      let ratio = ((ev.clientX - rect.left) / availableWidth) * 100;
+      ratio = Math.max(30, Math.min(60, ratio));
+      onLeftRatioChange(ratio);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const getHighlightColor = (type: DiffSegment['type']) => {
     switch (type) {
-      case 'added': bg = '#E6F7E6'; break;
-      case 'removed': bg = '#FFE6E6'; break;
-      case 'modified': bg = '#FFF3E0'; break;
-      default: bg = '#FFFFFF';
+      case 'added': return '#E6F7E6';
+      case 'removed': return '#FFE6E6';
+      case 'modified': return '#FFF3E0';
+      default: return '#FFFFFF';
     }
-    return isSelected ? bg : bg;
   };
 
   const getStatusBadge = (status: ReviewStatus) => {
@@ -164,8 +195,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
     minWidth: 0
   };
 
-  const columnStyle = (width: string): React.CSSProperties => ({
-    width,
+  const columnStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     background: '#FFFFFF',
@@ -173,7 +203,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     overflow: 'hidden',
     minWidth: 0
-  });
+  };
 
   const columnHeader = (title: string, subtitle: string): React.CSSProperties => ({
     padding: '14px 20px',
@@ -186,7 +216,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
 
   if (segments.length === 0) {
     return (
-      <div style={panelStyle}>
+      <div style={panelStyle} ref={containerRef}>
         <div style={{
           flex: 1,
           display: 'flex',
@@ -207,10 +237,16 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
     );
   }
 
+  const dividerWidth = Math.max(100 - leftRatio * 2, 4);
+
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} ref={containerRef}>
       {/* 左侧原版 */}
-      <div style={{ ...columnStyle('100%'), width: `${leftRatio}%`, minWidth: 300 }}>
+      <div style={{
+        ...columnStyle,
+        width: isSmallScreen ? '50%' : `${leftRatio}%`,
+        minWidth: 250
+      }}>
         <div style={columnHeader('原版文档', 'Original')}>
           <span style={{ color: '#6B7280', fontSize: 12 }}>共 {segments.length} 段</span>
         </div>
@@ -228,7 +264,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
                   margin: '6px 10px',
                   borderRadius: 8,
                   overflow: 'hidden',
-                  background: showOriginal ? getHighlightColor(seg.type, isSelected) : '#FAFAFC',
+                  background: showOriginal ? getHighlightColor(seg.type) : '#FAFAFC',
                   border: isSelected ? '2px solid #4A90D9' : '1px solid transparent',
                   boxShadow: isSelected
                     ? '0 2px 8px rgba(74,144,217,0.3)'
@@ -282,28 +318,65 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
         </div>
       </div>
 
-      {/* 中间空白分隔 */}
-      <div
-        style={{
-          width: `${100 - leftRatio * 2}%`,
-          minWidth: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          cursor: 'default'
-        }}
-      >
-        <div style={{
-          width: 2,
-          height: '60%',
-          background: 'linear-gradient(180deg, transparent 0%, #D1D5DB 20%, #D1D5DB 80%, transparent 100%)',
-          borderRadius: 2
-        }} />
-      </div>
+      {/* 拖拽手柄分隔区 */}
+      {!isSmallScreen && (
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            width: `${dividerWidth}%`,
+            minWidth: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            cursor: 'ew-resize'
+          }}
+        >
+          <div
+            style={{
+              width: 4,
+              height: 60,
+              background: '#D1D5DB',
+              borderRadius: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              padding: '8px 2px',
+              cursor: 'ew-resize',
+              transition: 'all 0.2s ease',
+              backgroundImage: 'radial-gradient(circle, #9CA3AF 1px, transparent 1px)',
+              backgroundSize: '100% 8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#4A90D9';
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(74,144,217,0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#D1D5DB';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.backgroundImage = 'radial-gradient(circle, #9CA3AF 1px, transparent 1px)';
+            }}
+          >
+            <div style={{ width: 2, height: 2, background: '#fff', borderRadius: '50%' }} />
+            <div style={{ width: 2, height: 2, background: '#fff', borderRadius: '50%' }} />
+            <div style={{ width: 2, height: 2, background: '#fff', borderRadius: '50%' }} />
+          </div>
+        </div>
+      )}
+
+      {/* 小屏幕简单分隔 */}
+      {isSmallScreen && (
+        <div style={{ width: 8, flexShrink: 0 }} />
+      )}
 
       {/* 右侧修订版 */}
-      <div style={{ ...columnStyle('100%'), width: `${leftRatio}%`, minWidth: 300 }}>
+      <div style={{
+        ...columnStyle,
+        width: isSmallScreen ? '50%' : `${leftRatio}%`,
+        minWidth: 250
+      }}>
         <div style={columnHeader('修订文档', 'Revised')}>
           <span style={{ color: '#6B7280', fontSize: 12 }}>差异分析结果</span>
         </div>
@@ -321,7 +394,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({
                   margin: '6px 10px',
                   borderRadius: 8,
                   overflow: 'hidden',
-                  background: showRevised ? getHighlightColor(seg.type, isSelected) : '#FAFAFC',
+                  background: showRevised ? getHighlightColor(seg.type) : '#FAFAFC',
                   border: isSelected ? '2px solid #4A90D9' : '1px solid transparent',
                   boxShadow: isSelected
                     ? '0 2px 8px rgba(74,144,217,0.3)'
