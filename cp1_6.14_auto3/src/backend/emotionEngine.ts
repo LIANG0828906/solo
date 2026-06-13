@@ -26,7 +26,32 @@ const FACE_PIXEL_RULES: Array<{ range: [number, number]; emotion: EmotionTag; we
 ]
 
 export function detectFromEmoji(emoji: string): { primary: EmotionTag; tags: EmotionTag[]; confidence: number } {
-  const direct = EMOJI_TO_EMOTION[emoji]
+  const trimmed = (emoji || '').trim()
+  let direct = EMOJI_TO_EMOTION[trimmed]
+  if (!direct) {
+    for (const key of Object.keys(EMOJI_TO_EMOTION)) {
+      if (trimmed.includes(key) || key.includes(trimmed)) {
+        direct = EMOJI_TO_EMOTION[key]
+        break
+      }
+    }
+  }
+  if (!direct) {
+    const codeMap: Array<[RegExp, EmotionTag]> = [
+      [/smile|happy|joy|laugh|blush|angel|\+1|thumbsup/i, 'happy'],
+      [/love|heart|romance|kiss|couple|date/i, 'romantic'],
+      [/excited|star|party|tada|sunglass|cool|rocket|boom/i, 'excited'],
+      [/sad|cry|tear|disappointed|broken|hurt|pensive/i, 'sad'],
+      [/angry|rage|mad|devil|imp|swear|hiss|fire/i, 'angry'],
+      [/sleep|tired|yawn|sleepy|zzz|bed|teddy/i, 'tired'],
+      [/fear|scared|shock|anxious|worry|sweat|cold|ohm|meditation|yoga|tea|coffee|moon|night/i, 'anxious'],
+      [/calm|relieved|satisfied|peace|zen|breathe/i, 'calm']
+    ]
+    for (const [re, tag] of codeMap) {
+      const cp = Array.from(trimmed).map(c => c.codePointAt(0)?.toString(16) || '').join(' ')
+      if (re.test(trimmed) || re.test(cp)) { direct = tag; break }
+    }
+  }
   if (direct) {
     const secondary = pickSecondary(direct)
     return {

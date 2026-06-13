@@ -193,7 +193,7 @@ const EmotionDetector: React.FC<Props> = ({ onAnalyzing, onResult, currentEmotio
   const currentEmotionRef = useRef<EmotionResult | null>(currentEmotion)
   currentEmotionRef.current = currentEmotion
 
-  const extractPixelSamples = useCallback(canvas: HTMLCanvasElement) => {
+  const extractPixelSamples = useCallback((canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return []
     const { width, height } = canvas
