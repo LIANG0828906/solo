@@ -61,13 +61,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSave, card, def
     const handleKey = (e: KeyboardEvent) => {
       if (!isOpen) return;
       if (e.key === 'Escape') onClose();
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmit(e);
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleKeySubmit(e);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [isOpen, title, description, assignee, priority, dueDate]);
 
-  const handleSubmit = (e: React.MouseEvent | React.KeyboardEvent | KeyboardEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     const newCard: KanbanCard = {
@@ -83,6 +83,12 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSave, card, def
       lastEditTime: Date.now()
     };
     onSave(newCard);
+  };
+
+  const handleKeySubmit = (e: React.KeyboardEvent | KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      handleSubmit(e as unknown as React.FormEvent);
+    }
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
