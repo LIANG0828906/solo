@@ -28,12 +28,16 @@ export class ExtrusionManager {
   private isSmooth: boolean = false;
   private materialTransition: MaterialTransition | null = null;
   private geometryInfo: GeometryInfo | null = null;
+  private currentDepth: number = 3;
+  private currentVertices: THREE.Vector2[] | null = null;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
   }
 
   public extrude(vertices: THREE.Vector2[], depth: number): void {
+    this.currentVertices = vertices;
+    this.currentDepth = depth;
     this.clear();
 
     if (vertices.length < 3) return;
@@ -105,6 +109,11 @@ export class ExtrusionManager {
       volume: this.calculateVolume(geometry),
       timestamp: new Date()
     };
+  }
+
+  public updateDepth(depth: number): void {
+    if (!this.currentVertices) return;
+    this.extrude(this.currentVertices, depth);
   }
 
   private calculateVolume(geometry: THREE.ExtrudeGeometry): number {
@@ -189,4 +198,66 @@ export class ExtrusionManager {
     const material = this.currentMesh.material as THREE.MeshPhysicalMaterial;
     const t = this.materialTransition;
 
-    material.opacity = t.startOpacity +
+    material.opacity = t.startOpacity + (t.endOpacity - t.startOpacity) * eased;
+    material.roughness = t.startRoughness + (t.endRoughness - t.startRoughness) * eased;
+    material.metalness = t.startMetalness + (t.endMetalness - t.startMetalness) * eased;
+    material.clearcoat = t.startClearcoat + (t.endClearcoat - t.startClearcoat) * eased;
+
+    if (progress >= 1) {
+      this.materialTransition = null;
+    }
+  }
+
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  public getGeometryInfo(): GeometryInfo | null {
+    return this.geometryInfo;
+  }
+
+  public hasGeometry(): boolean {
+    return this.currentGroup !== null;
+  }
+
+  public clear(): void {
+    if (this.currentGroup) {
+      this.scene.remove(this.currentGroup);
+      this.currentGroup = null;
+    }
+    if (this.currentMesh) {
+      if (this.currentMesh.geometry) {
+        this.currentMesh.geometry.dispose();
+      }
+      if (this.currentMesh.material) {
+        const mat = this.currentMesh.material as THREE.Material;
+        mat.dispose();
+      }
+      this.currentMesh = null;
+    }
+    if (this.currentEdges) {
+      if (this.currentEdges.geometry) {
+        this.currentEdges.geometry.dispose();
+      }
+      if (this.currentEdges.material) {
+        const mat = this.currentEdges.material as THREE.Material;
+        mat.dispose();
+      }
+      this.currentEdges = null;
+    }
+    this.geometryInfo = null;
+    this.materialTransition = null;
+  }
+
+  public getIsSmooth(): boolean {
+    return this.isSmooth;
+  }
+
+  public getDepth(): number {
+    return this.currentDepth;
+  }
+
+  public dispose(): void {
+    this.clear();
+  }
+}
