@@ -16,16 +16,27 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [usernameField, setUsernameField] = useState<string>('');
   const [passwordField, setPasswordField] = useState<string>('');
-  const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [isMobile, setIsMobile] = useState<boolean>(
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(max-width: 767px)').matches
+      : false
+  );
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const rippleIdRef = useRef<number>(0);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    if (mql.addEventListener) {
+      mql.addEventListener('change', handleChange);
+      return () => mql.removeEventListener('change', handleChange);
+    } else {
+      mql.addListener(handleChange);
+      return () => mql.removeListener(handleChange);
+    }
   }, []);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {

@@ -27,8 +27,8 @@ const MOODS: MoodConfig[] = [
   { key: 'angry', label: '愤怒', color: '#DC143C', desc: '怒火中烧，需要宣泄' },
 ];
 
-const CANVAS_SIZE = 380;
-const WHEEL_RADIUS = 150;
+const BASE_CANVAS_SIZE = 380;
+const BASE_WHEEL_RADIUS = 150;
 const SLICE_ANGLE = (2 * Math.PI) / MOODS.length;
 const START_ANGLE = -Math.PI / 2 - SLICE_ANGLE / 2;
 
@@ -47,10 +47,14 @@ const lightenColor = (hex: string, percent: number): string => {
 };
 
 const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedMood, setSelectedMood] = useState<MoodConfig | null>(null);
+  const [canvasSize, setCanvasSize] = useState<number>(BASE_CANVAS_SIZE);
   const displayMood = hoveredIndex !== null ? MOODS[hoveredIndex] : selectedMood;
+
+  const wheelRadius = (canvasSize / BASE_CANVAS_SIZE) * BASE_WHEEL_RADIUS;
 
   const bounceRef = useRef<{
     active: boolean;
@@ -68,6 +72,28 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
   } | null>(null);
 
   const animFrameRef = useRef<number>(0);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleResize = (entries: ResizeObserverEntry[]) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const size = Math.max(200, Math.min(BASE_CANVAS_SIZE, width - 32));
+      setCanvasSize(Math.floor(size));
+    };
+
+    resizeObserverRef.current = new ResizeObserver(handleResize);
+    resizeObserverRef.current.observe(container);
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const getMousePosition = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
@@ -85,13 +111,13 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
   );
 
   const hitTest = useCallback(
-    (x: number, y: number): number | null => {
-      const cx = CANVAS_SIZE / 2;
-      const cy = CANVAS_SIZE / 2;
+    (x: number, y: number, size: number, radius: number): number | null => {
+      const cx = size / 2;
+      const cy = size / 2;
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > WHEEL_RADIUS || dist < 10) return null;
+      if (dist > radius || dist < 10) return null;
 
       let angle = Math.atan2(dy, dx) - START_ANGLE;
       while (angle < 0) angle += 2 * Math.PI;
@@ -146,10 +172,13 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    const size = canvasSize;
+    const radius = wheelRadius;
 
-    const cx = CANVAS_SIZE / 2;
-    const cy = CANVAS_SIZE / 2;
+    ctx.clearRect(0, 0, size, size);
+
+    const cx = size / 2;
+    const cy = size / 2;
 
     let bounceScale = 1;
     let bounceIdx = -1;
@@ -166,11 +195,11 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
       const end = start + SLICE_ANGLE;
       const isHovered = hoveredIndex === i;
       const scale = bounceIdx === i ? bounceScale : 1;
-      drawSlice(ctx, cx, cy, WHEEL_RADIUS, start, end, mood.color, isHovered, scale);
+      drawSlice(ctx, cx, cy, radius, start, end, mood.color, isHovered, scale);
     });
 
     ctx.beginPath();
-    ctx.arc(cx, cy, WHEEL_RADIUS * 0.28, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius * 0.28, 0, Math.PI * 2);
     ctx.fillStyle = '#1a1a2e';
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -178,8 +207,9 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
     ctx.stroke();
 
     const centerText = displayMood ? displayMood.label : '选择心情';
+    const fontSize = Math.max(14, Math.floor(size * 0.058));
     ctx.save();
-    ctx.font = 'bold 22px "Microsoft YaHei", sans-serif';
+    ctx.font = `bold ${fontSize}px "Microsoft YaHei", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -197,7 +227,7 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
 
       particles.forEach((p) => {
         const angle = p.angle + rotationProgress + p.speed * progress;
-        const pr = WHEEL_RADIUS * 1.3 + p.radius * (1 - progress);
+        const pr = radius * 1.3 + p.radius * (1 - progress);
         const px = cx + Math.cos(angle) * pr;
         const py = cy + Math.sin(angle) * pr;
         ctx.beginPath();
@@ -208,10 +238,12 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
         ctx.globalAlpha = 1;
       });
     }
-  }, [hoveredIndex, displayMood, drawSlice]);
+  }, [canvasSize, wheelRadius, hoveredIndex, displayMood, drawSlice]);
 
   useEffect(() => {
+    let running = true;
     const loop = () => {
+      if (!running) return;
       if (bounceRef.current && bounceRef.current.active) {
         const elapsed = performance.now() - bounceRef.current.startTime;
         if (elapsed >= bounceRef.current.duration) {
@@ -228,13 +260,16 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
       animFrameRef.current = requestAnimationFrame(loop);
     };
     animFrameRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animFrameRef.current);
+    return () => {
+      running = false;
+      cancelAnimationFrame(animFrameRef.current);
+    };
   }, [render]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getMousePosition(e);
     if (!pos) return;
-    const idx = hitTest(pos.x, pos.y);
+    const idx = hitTest(pos.x, pos.y, canvasSize, wheelRadius);
     setHoveredIndex(idx);
   };
 
@@ -245,7 +280,7 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getMousePosition(e);
     if (!pos) return;
-    const idx = hitTest(pos.x, pos.y);
+    const idx = hitTest(pos.x, pos.y, canvasSize, wheelRadius);
     if (idx === null) return;
 
     const mood = MOODS[idx];
@@ -258,6 +293,10 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
       startTime: performance.now(),
       duration: 300,
     };
+
+    if (particlesRef.current && particlesRef.current.active) {
+      particlesRef.current.active = false;
+    }
 
     const count = 40 + Math.floor(Math.random() * 21);
     const particles: Particle[] = Array.from({ length: count }, () => ({
@@ -279,16 +318,18 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: `${CANVAS_SIZE}px`,
+        maxWidth: `${BASE_CANVAS_SIZE + 32}px`,
         margin: '0 auto',
-        aspectRatio: `${CANVAS_SIZE} / ${CANVAS_SIZE}`,
+        aspectRatio: `${BASE_CANVAS_SIZE} / ${BASE_CANVAS_SIZE}`,
         background: 'linear-gradient(135deg, #16213e 0%, #0f3460 100%)',
         borderRadius: '20px',
         padding: '16px',
         boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+        boxSizing: 'border-box',
       }}
     >
       {hoveredIndex !== null && (
@@ -339,8 +380,8 @@ const MoodWheel: React.FC<MoodWheelProps> = ({ onMoodSelect }) => {
       )}
       <canvas
         ref={canvasRef}
-        width={CANVAS_SIZE}
-        height={CANVAS_SIZE}
+        width={canvasSize}
+        height={canvasSize}
         style={{
           width: '100%',
           height: '100%',

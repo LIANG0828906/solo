@@ -41,8 +41,31 @@ const slideInKeyframes = `
   }
 }
 
+@keyframes flipIconY {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(-90deg);
+  }
+  100% {
+    transform: rotateY(-180deg);
+  }
+}
+
 .song-card:active {
   transform: scale(1.05);
+}
+
+.vote-btn {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.vote-icon {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: inline-block;
 }
 `;
 
@@ -60,6 +83,17 @@ const SongList: React.FC<SongListProps> = ({ songs, moodColor, onLike, onDislike
       Object.values(intervalRefs.current).forEach(clearInterval);
     };
   }, []);
+
+  useEffect(() => {
+    const songIds = new Set(songs.map((s) => s.id));
+    const allIds = Object.keys(intervalRefs.current);
+    allIds.forEach((id) => {
+      if (!songIds.has(id) && intervalRefs.current[id]) {
+        clearInterval(intervalRefs.current[id]);
+        delete intervalRefs.current[id];
+      }
+    });
+  }, [songs]);
 
   const startPlayback = (song: Song) => {
     if (playingId === song.id) {
@@ -303,13 +337,24 @@ const SongList: React.FC<SongListProps> = ({ songs, moodColor, onLike, onDislike
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '16px',
-                    transition: 'background-color 0.15s ease, color 0.15s ease',
+                    transition: 'background-color 0.15s ease, color 0.15s ease, transform 0.2s ease',
                     transform: likeFlippingState ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transformStyle: 'preserve-3d',
                     padding: 0,
                     opacity: isLoggedIn ? 1 : 0.5,
                   }}
                 >
-                  👍
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      transform: likeFlippingState ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                      transition: 'transform 0.2s ease',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                    }}
+                  >
+                    👍
+                  </span>
                 </button>
 
                 <button
@@ -331,13 +376,24 @@ const SongList: React.FC<SongListProps> = ({ songs, moodColor, onLike, onDislike
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '16px',
-                    transition: 'background-color 0.15s ease, color 0.15s ease',
+                    transition: 'background-color 0.15s ease, color 0.15s ease, transform 0.2s ease',
                     transform: dislikeFlippingState ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transformStyle: 'preserve-3d',
                     padding: 0,
                     opacity: isLoggedIn ? 1 : 0.5,
                   }}
                 >
-                  👎
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      transform: dislikeFlippingState ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                      transition: 'transform 0.2s ease',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                    }}
+                  >
+                    👎
+                  </span>
                 </button>
               </div>
 
