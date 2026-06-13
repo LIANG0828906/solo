@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppContext } from '../App';
+import { useApp } from '../App';
 import { Booking, PracticeTask } from '../types';
 
 const COLORS = {
@@ -597,10 +597,10 @@ const BookingCard: React.FC<{
 };
 
 export default function TeacherSchedule() {
-  const { currentUser, bookings, teachers, refreshBookings } = React.useContext(AppContext);
+  const { currentUser, bookings, teachers, refreshBookings } = useApp();
   const [filter, setFilter] = useState<string>('all');
 
-  const teacherBookings = bookings.filter((b: Booking) => b.teacherId === currentUser.id);
+  const teacherBookings = (Array.isArray(bookings) ? bookings : []).filter((b: Booking) => b.teacherId === currentUser.id);
   const teacherCourses = teachers.find((t) => t.id === currentUser.id)?.courses ?? [];
 
   const filteredBookings = filter === 'all'

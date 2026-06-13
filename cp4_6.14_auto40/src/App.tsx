@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { UserRole, User, WSMessage, Teacher, Student, Booking } from './types';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -24,8 +24,14 @@ interface AppContextType {
   setSelectedBooking: (b: Booking | null) => void;
 }
 
-export const AppContext = createContext<AppContextType>(null!);
-export const useApp = () => useContext(AppContext);
+export const AppContext = createContext<AppContextType | null>(null);
+export const useApp = () => {
+  const ctx = useContext(AppContext);
+  if (!ctx) {
+    throw new Error('useApp must be used within AppProvider');
+  }
+  return ctx;
+};
 
 const sampleTeachers: Teacher[] = [
   {

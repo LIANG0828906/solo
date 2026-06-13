@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppContext } from '../App';
+import { useApp } from '../App';
 import { Teacher, Course, TimeSlot, Booking } from '../types';
 
 const COURSE_TYPES = ['全部', '钢琴', '吉他', '声乐'] as const;
@@ -7,7 +7,7 @@ const DAYS = ['一', '二', '三', '四', '五', '六', '日'];
 const TIME_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '19:00'];
 
 export default function SearchTeachers() {
-  const { currentUser, teachers, bookings, setBookings, refreshBookings } = React.useContext(AppContext);
+  const { currentUser, teachers, bookings, setBookings, refreshBookings } = useApp();
   const [nameQuery, setNameQuery] = useState('');
   const [courseType, setCourseType] = useState<string>('全部');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -39,7 +39,7 @@ export default function SearchTeachers() {
   const bookedSlots = useMemo(() => {
     if (!selectedTeacher) return new Set<string>();
     const set = new Set<string>();
-    bookings
+    (Array.isArray(bookings) ? bookings : [])
       .filter(b => b.teacherId === selectedTeacher.id && b.status !== 'cancelled')
       .forEach(b => set.add(`${b.date}_${b.startTime}`));
     return set;
@@ -510,7 +510,8 @@ export default function SearchTeachers() {
                       position: 'absolute',
                       top: '100%',
                       left: '50%',
-                      transform: 'translateX(-50%)',
+                      transform: 'translateX(-50%) scale(0.95)',
+                      transformOrigin: 'top center',
                       marginTop: 8,
                       background: '#fff',
                       borderRadius: 10,
@@ -518,7 +519,7 @@ export default function SearchTeachers() {
                       boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                       zIndex: 10,
                       minWidth: 200,
-                      animation: 'tooltipIn 0.2s ease-out',
+                      animation: 'tooltipIn 0.2s ease-out forwards',
                     }}
                   >
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1F2937' }}>

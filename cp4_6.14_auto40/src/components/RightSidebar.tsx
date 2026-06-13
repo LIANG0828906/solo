@@ -1,16 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { format, parseISO, isAfter } from 'date-fns';
-import { AppContext } from '../App';
+import { useApp } from '../App';
 import { Booking, Teacher, PracticeTask } from '../types';
 
 type MobileTab = 'list' | 'detail';
 
 export default function RightSidebar() {
-  const { currentUser, bookings, selectedBooking, setSelectedBooking, teachers, refreshBookings } = React.useContext(AppContext);
+  const { currentUser, bookings, selectedBooking, setSelectedBooking, teachers, refreshBookings } = useApp();
+  const [uploadError, setUploadError] = useState<Record<string, string>>({});
   const [mobileTab, setMobileTab] = useState<MobileTab>('list');
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const upcomingBookings = bookings
+  const upcomingBookings = (Array.isArray(bookings) ? bookings : [])
     .filter(b => b.status !== 'cancelled' && isAfter(parseISO(b.date), new Date()))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
@@ -44,22 +45,58 @@ export default function RightSidebar() {
   };
 
   const handleToggleTask = async (task: PracticeTask) => {
+    const endpoint = task.isCompleted
+      ? `/api/tasks/${task.id}/uncomplete`
+      : `/api/tasks/${task.id}/complete`;
     try {
-      await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isCompleted: !task.isCompleted }),
-      });
+      await fetch(endpoint, { method: 'PUT' });
       refreshBookings();
     } catch {}
   };
 
   const handleRecordingUpload = async (taskId: string, file: File) => {
+    if (!file.name.toLowerCase().endsWith('.wav')) {
+      setUploadError(prev => ({ ...prev, [taskId]: '仅支持 WAV 格式' }));
+      setTimeout(() => {
+        setUploadError(prev => {
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+      }, 3000);
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError(prev => ({ ...prev, [taskId]: '文件大小不能超过 2MB' }));
+      setTimeout(() => {
+        setUploadError(prev => {
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+      }, 3000);
+      return;
+    }
     const formData = new FormData();
     formData.append('recording', file);
+    formData.append('recordingName', file.name);
     try {
-      await fetch(`/api/tasks/${taskId}/recording`, { method: 'POST', body: formData });
-      refreshBookings();
+      const res = await fetch(`/api/tasks/${taskId}/recording`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordingUrl: URL.createObjectURL(file),
+          recordingName: file.name,
+        }),
+      });
+      if (res.ok) {
+        setUploadError(prev => {
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+        refreshBookings();
+      }
     } catch {}
   };
 
@@ -118,12 +155,15 @@ export default function RightSidebar() {
         <div style={{ flexShrink: 0 }}>
           <input
             type="file"
-            accept="audio/*,video/*"
+            accept=".wav"
             ref={el => { fileInputRefs.current[task.id] = el; }}
             style={{ display: 'none' }}
             onChange={e => {
               const file = e.target.files?.[0];
-              if (file) handleRecordingUpload(task.id, file);
+              if (file) {
+                handleRecordingUpload(task.id, file);
+                e.target.value = '';
+              }
             }}
           />
           <button
@@ -145,6 +185,11 @@ export default function RightSidebar() {
           >
             {task.recordingUrl ? '✓ 录音' : '🎤 上传'}
           </button>
+          {uploadError[task.id] && (
+            <div style={{ fontSize: 10, color: '#EF4444', marginTop: 4, textAlign: 'right' }}>
+              {uploadError[task.id]}
+            </div>
+          )}
         </div>
       </div>
     </div>

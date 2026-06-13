@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AppContext } from '../App';
+import { useApp } from '../App';
 import { Booking, Teacher, Student, PracticeTask, Course } from '../types';
 
 const COLORS = {
@@ -379,12 +379,17 @@ function TaskItem({
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('recording', file);
-      await fetch(`/api/tasks/${task.id}/recording`, {
+      const res = await fetch(`/api/tasks/${task.id}/recording`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordingUrl: URL.createObjectURL(file),
+          recordingName: file.name,
+        }),
       });
+      if (res.ok) {
+        refreshBookings();
+      }
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -488,9 +493,9 @@ function TaskItem({
 export default function BookingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentUser, bookings, teachers, setBookings } = React.useContext(AppContext);
+  const { currentUser, bookings, teachers, setBookings, refreshBookings } = useApp();
 
-  const booking: Booking | undefined = bookings.find((b) => b.id === id);
+  const booking: Booking | undefined = (Array.isArray(bookings) ? bookings : []).find((b) => b.id === id);
 
   const isTeacher = currentUser.role === 'teacher';
 

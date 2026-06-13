@@ -1,9 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
-} from 'recharts';
-import { AppContext } from '../App';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { useApp } from '../App';
 import { StudentProgress, Booking } from '../types';
 
 const COLORS = {
@@ -79,9 +76,10 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 };
 
 export default function StudentDashboard() {
-  const { currentUser, bookings } = React.useContext(AppContext);
+  const { currentUser, bookings } = useApp();
   const [progress, setProgress] = useState<StudentProgress | null>(null);
   const [visible, setVisible] = useState(false);
+  const [chartImageUrl, setChartImageUrl] = useState<string>('');
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -98,13 +96,115 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!progress || !chartCanvasRef.current) return;
+    const t0 = performance.now();
     const canvas = chartCanvasRef.current;
-    const offscreen = canvas.transferControlToOffscreen
-      ? null
-      : null;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || 480;
+    const displayHeight = 260;
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    ctx.scale(dpr, dpr);
+
+    const data = progress.ratingHistory;
+    const padding = { top: 20, right: 20, bottom: 35, left: 40 };
+    const chartWidth = displayWidth - padding.left - padding.right;
+    const chartHeight = displayHeight - padding.top - padding.bottom;
+
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+    if (data.length > 0) {
+      const minY = 0;
+      const maxY = 5;
+      const xStep = data.length > 1 ? chartWidth / (data.length - 1) : chartWidth;
+
+      ctx.strokeStyle = '#E5E7EB';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const y = padding.top + (chartHeight * (maxY - i)) / (maxY - minY);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(displayWidth - padding.right, y);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#9CA3AF';
+      ctx.font = '12px Poppins, sans-serif';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 5; i++) {
+        const y = padding.top + (chartHeight * (maxY - i)) / (maxY - minY) + 4;
+        ctx.fillText(String(i), padding.left - 8, y);
+      }
+
+      ctx.fillStyle = '#9CA3AF';
+      ctx.textAlign = 'center';
+      data.forEach((d, i) => {
+        const x = padding.left + i * xStep;
+        const date = d.date.slice(5);
+        if (i % Math.max(1, Math.floor(data.length / 5)) === 0 || i === data.length - 1) {
+          ctx.fillText(date, x, displayHeight - padding.bottom + 20);
+        }
+      });
+
+      const points = data.map((d, i) => ({
+        x: padding.left + i * xStep,
+        y: padding.top + (chartHeight * (maxY - d.rating)) / (maxY - minY),
+      }));
+
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, displayHeight - padding.bottom);
+      gradient.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+      gradient.addColorStop(1, 'rgba(245, 158, 11, 0.02)');
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, displayHeight - padding.bottom);
+      points.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(points[points.length - 1].x, displayHeight - padding.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      points.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else {
+          const prev = points[i - 1];
+          const cpX = (prev.x + p.x) / 2;
+          ctx.bezierCurveTo(cpX, prev.y, cpX, p.y, p.x, p.y);
+        }
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#F59E0B';
+      points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fill();
+        ctx.fillStyle = '#F59E0B';
+      });
+    } else {
+      ctx.fillStyle = '#9CA3AF';
+      ctx.font = '14px Poppins, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('暂无评价数据', displayWidth / 2, displayHeight / 2);
+    }
+
+    const renderTime = performance.now() - t0;
+    console.log('Line chart rendered in', renderTime.toFixed(2), 'ms');
+    setChartImageUrl(canvas.toDataURL('image/png'));
   }, [progress]);
 
-  const completedBookings = bookings.filter((b: Booking) => b.status === 'completed' && b.review);
+  const completedBookings = Array.isArray(bookings)
+    ? bookings.filter((b: Booking) => b.status === 'completed' && b.review)
+    : [];
   const recentReviews = completedBookings
     .filter((b) => b.review)
     .sort((a, b) => new Date(b.review!.createdAt).getTime() - new Date(a.review!.createdAt).getTime())
@@ -115,8 +215,6 @@ export default function StudentDashboard() {
     { name: '已完成', value: completionRate },
     { name: '未完成', value: 100 - completionRate },
   ];
-
-  const ratingHistory = progress?.ratingHistory ?? [];
 
   return (
     <div style={{ padding: 24, background: COLORS.bg, minHeight: '100%', color: COLORS.text }}>
@@ -168,39 +266,30 @@ export default function StudentDashboard() {
           <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, color: COLORS.text }}>
             评价趋势 (折线图)
           </h3>
-          <canvas ref={chartCanvasRef} style={{ display: 'none' }} />
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={ratingHistory}>
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                axisLine={{ stroke: '#E5E7EB' }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 5]}
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                axisLine={{ stroke: '#E5E7EB' }}
-                tickLine={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#fff',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: 8,
-                  fontSize: 13,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="rating"
-                stroke={COLORS.primary}
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: COLORS.primary, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: COLORS.primary, stroke: '#fff', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <canvas
+            ref={chartCanvasRef}
+            style={{
+              position: 'absolute',
+              left: -9999,
+              top: -9999,
+              width: '500px',
+              height: '260px',
+            }}
+          />
+          {chartImageUrl ? (
+            <img
+              src={chartImageUrl}
+              alt="评价趋势图"
+              style={{
+                width: '100%',
+                height: 260,
+                display: 'block',
+                animation: 'fadeIn 0.3s ease',
+              }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: 260, background: '#fafafa', borderRadius: 8 }} />
+          )}
         </div>
 
         <div

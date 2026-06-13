@@ -50,21 +50,23 @@ export default function CalendarView() {
   const allDays = eachDayOfInterval({ start: calStart, end: calEnd });
   const totalWeeks = Math.ceil(allDays.length / 7);
 
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, Booking[]>();
-    for (const b of bookings) {
+    for (const b of safeBookings) {
       const existing = map.get(b.date) ?? [];
       existing.push(b);
       map.set(b.date, existing);
     }
     return map;
-  }, [bookings]);
+  }, [safeBookings]);
 
   const sortedBookings = useMemo(() => {
-    return [...bookings]
+    return [...safeBookings]
       .filter(b => b.status !== 'cancelled')
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-  }, [bookings]);
+  }, [safeBookings]);
 
   const switchView = useCallback((mode: ViewMode) => {
     if (mode !== viewMode) {
@@ -100,12 +102,14 @@ export default function CalendarView() {
   const visibleDays = useMemo(() => {
     const start = visibleWeekRange[0] * 7;
     const end = (visibleWeekRange[1] + 1) * 7;
-    const bufferBefore = 7;
-    const bufferAfter = 7;
-    const from = Math.max(0, start - bufferBefore);
-    const to = Math.min(allDays.length, end + bufferAfter);
-    return allDays.slice(from, to);
+    return allDays.slice(start, end);
   }, [allDays, visibleWeekRange]);
+
+  const virtualPadding = useMemo(() => {
+    const paddingTop = visibleWeekRange[0] * 7 * (80 + 1) - 1;
+    const paddingBottom = (totalWeeks - visibleWeekRange[1] - 1) * 7 * (80 + 1);
+    return { paddingTop, paddingBottom };
+  }, [visibleWeekRange, totalWeeks]);
 
   const renderDayCell = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -234,11 +238,11 @@ export default function CalendarView() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
+                paddingTop: virtualPadding.paddingTop,
+                paddingBottom: virtualPadding.paddingBottom,
               }}
             >
-              {totalWeeks <= 6
-                ? allDays.map(renderDayCell)
-                : visibleDays.map(renderDayCell)}
+              {visibleDays.map(renderDayCell)}
             </div>
           </div>
         ) : (

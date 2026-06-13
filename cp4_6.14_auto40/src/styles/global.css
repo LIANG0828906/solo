@@ -207,6 +207,16 @@ body {
   outline: none;
 }
 
+input {
+  transition: border-color 0.2s ease;
+  border: 1.5px solid #D1D5DB;
+}
+
+input:focus {
+  border-color: #F59E0B !important;
+  outline: none;
+}
+
 .input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);

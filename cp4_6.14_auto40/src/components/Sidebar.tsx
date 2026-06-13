@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AppContext } from '../App';
+import { useApp } from '../App';
 import { UserRole } from '../types';
 
 interface NavItem {
@@ -79,7 +79,7 @@ const navMap: Record<UserRole, NavItem[]> = {
 
 export default function Sidebar() {
   const { currentUser, setCurrentUser, mobileMenuOpen, setMobileMenuOpen } =
-    React.useContext(AppContext);
+    useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
