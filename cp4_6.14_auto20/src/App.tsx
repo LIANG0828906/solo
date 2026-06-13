@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 import Editor from './Editor';
 import VersionManager from './VersionManager';
 import Player from './Player';
 import { Score, Note, Collaborator, VersionSnapshot, ExportProgress } from './types';
 
-const COLLAB_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
-const DEFAULT_USER_NAMES = ['小明', '小红', '小刚', '小丽', '小华', '阿强', '阿美'];
+const COLLAB_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+const DEFAULT_USER_NAMES = ['小明', '小红', '小刚', '小丽', '小华', '阿强', '阿美', '小芳'];
 
 const App: React.FC = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -25,27 +26,21 @@ const App: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<string>('quarter');
   const [selectedStaff, setSelectedStaff] = useState<'treble' | 'bass'>('treble');
+  const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [versionLoading, setVersionLoading] = useState(false);
 
   const scoreIdRef = useRef<string>('default-score');
-  const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const createDefaultScore = useCallback((): Score => ({
-    id: scoreIdRef.current,
-    title: '未命名乐谱',
-    tempo: 120,
-    timeSignature: { numerator: 4, denominator: 4 },
-    notes: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  }), []);
 
   useEffect(() => {
     const newSocket = io('http://localhost:3001', {
@@ -89,7 +84,12 @@ const App: React.FC = () => {
     newSocket.on('note-moved', ({ noteId, newPosition, newPitch }) => {
       setScore(prev => prev ? {
         ...prev,
-        notes: prev.notes.map(n => n.id === noteId ? { ...n, position: newPosition, pitch: newPitch } : n),
+        notes: prev.notes.map(n => n.id === noteId ? {
+          ...n,
+          position: newPosition,
+          octave: Math.floor(newPitch / 12),
+          pitch: newPitch % 12
+        } : n),
         updatedAt: Date.now()
       } : prev);
     });
@@ -113,6 +113,16 @@ const App: React.FC = () => {
       newSocket.disconnect();
     };
   }, [userId, userName, userColor]);
+
+  const handleCursorUpdate = useCallback((position: number | null) => {
+    if (socket) {
+      socket.emit('cursor-update', {
+        userId,
+        position,
+        roomId: scoreIdRef.current
+      });
+    }
+  }, [socket, userId]);
 
   const handleAddNote = useCallback((pitch: number, octave: number, position: number) => {
     if (!socket || !score) return;
@@ -157,7 +167,12 @@ const App: React.FC = () => {
     socket.emit('move-note', { roomId: scoreIdRef.current, noteId, newPosition, newPitch, userId });
     setScore(prev => prev ? {
       ...prev,
-      notes: prev.notes.map(n => n.id === noteId ? { ...n, position: newPosition, pitch: newPitch } : n),
+      notes: prev.notes.map(n => n.id === noteId ? {
+        ...n,
+        position: newPosition,
+        octave: Math.floor(newPitch / 12),
+        pitch: newPitch % 12
+      } : n),
       updatedAt: Date.now()
     } : prev);
   }, [socket, userId]);
@@ -173,75 +188,316 @@ const App: React.FC = () => {
     });
   }, [socket, score, userId, userName]);
 
-  const handleRestoreVersion = useCallback((versionId: string) => {
+  const handleRestoreVersion = useCallback(async (versionId: string) => {
     const version = versions.find(v => v.id === versionId);
-    if (!version) return;
+    if (!version || versionLoading) return;
 
+    setVersionLoading(true);
     setVersionTransition(true);
-    setTimeout(() => {
-      setScore({ ...version.score, updatedAt: Date.now() });
-      setVersionTransition(false);
-      if (socket) {
-        socket.emit('restored-version', { roomId: scoreIdRef.current, score: version.score });
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    setScore({ ...version.score, updatedAt: Date.now() });
+
+    if (socket) {
+      socket.emit('restored-version', { roomId: scoreIdRef.current, score: version.score });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    setVersionTransition(false);
+    setVersionLoading(false);
+  }, [versions, socket, versionLoading]);
+
+  const generateMIDIFile = useCallback((scoreData: Score): Uint8Array => {
+    const noteNames = [0, 2, 4, 5, 7, 9, 11];
+    const midiNotes: Array<{ note: number; time: number; duration: number }> = [];
+
+    scoreData.notes.forEach(n => {
+      const baseNote = noteNames[n.pitch % 7] || 0;
+      const octaveSemitones = n.octave * 12;
+      const midiPitch = Math.min(127, Math.max(0, octaveSemitones + baseNote + 12));
+      midiNotes.push({
+        note: midiPitch,
+        time: n.position,
+        duration: n.duration
+      });
+    });
+
+    const microsecondsPerBeat = Math.floor(60000000 / scoreData.tempo);
+
+    const headerChunk = [
+      0x4D, 0x54, 0x68, 0x64,
+      0x00, 0x00, 0x00, 0x06,
+      0x00, 0x00,
+      0x00, 0x01,
+      0x00, 0x60
+    ];
+
+    const trackEvents: number[] = [];
+
+    trackEvents.push(0x00);
+    trackEvents.push(0xFF, 0x51, 0x03);
+    trackEvents.push((microsecondsPerBeat >> 16) & 0xFF);
+    trackEvents.push((microsecondsPerBeat >> 8) & 0xFF);
+    trackEvents.push(microsecondsPerBeat & 0xFF);
+
+    midiNotes.sort((a, b) => a.time - b.time);
+
+    let lastTime = 0;
+    const activeNotes: Map<number, number> = new Map();
+
+    midiNotes.forEach(mn => {
+      const ticksPerBeat = 96;
+      const eventTick = Math.floor(mn.time * ticksPerBeat);
+      const endTick = Math.floor((mn.time + mn.duration) * ticksPerBeat);
+
+      pendingOff: for (const [activeNote, activeEnd] of Array.from(activeNotes.entries())) {
+        if (activeEnd <= eventTick) {
+          const deltaOff = Math.max(0, activeEnd - lastTime);
+          const encodedOff = encodeVariableLength(deltaOff);
+          trackEvents.push(...encodedOff);
+          trackEvents.push(0x80, activeNote, 0x00);
+          lastTime = activeEnd;
+          activeNotes.delete(activeNote);
+          break pendingOff;
+        }
       }
-    }, 300);
-  }, [versions, socket]);
+
+      const deltaOn = Math.max(0, eventTick - lastTime);
+      const encodedOn = encodeVariableLength(deltaOn);
+      trackEvents.push(...encodedOn);
+      trackEvents.push(0x90, mn.note, 0x60);
+      lastTime = eventTick;
+      activeNotes.set(mn.note, endTick);
+    });
+
+    for (const [activeNote, activeEnd] of Array.from(activeNotes.entries())) {
+      const deltaOff = Math.max(0, activeEnd - lastTime);
+      const encodedOff = encodeVariableLength(deltaOff);
+      trackEvents.push(...encodedOff);
+      trackEvents.push(0x80, activeNote, 0x00);
+      lastTime = activeEnd;
+    }
+
+    trackEvents.push(0x00, 0xFF, 0x2F, 0x00);
+
+    const trackLength = trackEvents.length;
+    const trackChunk = [
+      0x4D, 0x54, 0x72, 0x6B,
+      (trackLength >> 24) & 0xFF,
+      (trackLength >> 16) & 0xFF,
+      (trackLength >> 8) & 0xFF,
+      trackLength & 0xFF,
+      ...trackEvents
+    ];
+
+    return new Uint8Array([...headerChunk, ...trackChunk]);
+
+    function encodeVariableLength(value: number): number[] {
+      const buffer: number[] = [];
+      let v = value & 0x0FFFFFFF;
+      buffer.unshift(v & 0x7F);
+      v >>= 7;
+      while (v > 0) {
+        buffer.unshift((v & 0x7F) | 0x80);
+        v >>= 7;
+      }
+      return buffer;
+    }
+  }, []);
+
+  const generateSVGFile = useCallback((scoreData: Score): string => {
+    const width = Math.max(1400, 200 + scoreData.notes.length * 90);
+    const height = 500;
+    const trebleStaffTop = 130;
+    const bassStaffTop = 270;
+    const lineSpacing = 12;
+    const paddingLeft = 100;
+    const beatWidth = 80;
+
+    const noteNamesSemitones = [0, 2, 4, 5, 7, 9, 11];
+    const semitoneNames = ['C', '', 'D', '', 'E', 'F', '', 'G', '', 'A', '', 'B'];
+
+    let svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fafbff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="${width}" height="${height}" fill="url(#bgGrad)" rx="8"/>
+  <text x="${width/2}" y="45" text-anchor="middle" font-family="'Georgia', serif" font-size="26" fill="#2a2a3e" font-weight="bold">${scoreData.title || 'Untitled Score'}</text>
+  <text x="${width/2}" y="72" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#888">♩=${scoreData.tempo}   ${scoreData.timeSignature.numerator}/${scoreData.timeSignature.denominator}</text>
+`;
+
+    const drawStaff = (topY: number) => {
+      let s = '';
+      for (let i = 0; i < 5; i++) {
+        const y = topY + i * lineSpacing;
+        s += `  <line x1="${paddingLeft}" y1="${y}" x2="${width - 50}" y2="${y}" stroke="#c8c8d0" stroke-width="1" stroke-linecap="round"/>\n`;
+      }
+      return s;
+    };
+
+    svg += drawStaff(trebleStaffTop);
+    svg += drawStaff(bassStaffTop);
+
+    svg += `  <text x="${paddingLeft - 55}" y="${trebleStaffTop + 28}" font-family="serif" font-size="56" fill="#333">𝄞</text>\n`;
+    svg += `  <text x="${paddingLeft - 55}" y="${bassStaffTop + 28}" font-family="serif" font-size="42" fill="#333">𝄢</text>\n`;
+
+    svg += `  <text x="${paddingLeft - 12}" y="${trebleStaffTop + 18}" font-family="serif" font-size="22" font-weight="bold" fill="#555" text-anchor="middle">${scoreData.timeSignature.numerator}</text>\n`;
+    svg += `  <text x="${paddingLeft - 12}" y="${trebleStaffTop + 42}" font-family="serif" font-size="22" font-weight="bold" fill="#555" text-anchor="middle">${scoreData.timeSignature.denominator}</text>\n`;
+    svg += `  <text x="${paddingLeft - 12}" y="${bassStaffTop + 18}" font-family="serif" font-size="22" font-weight="bold" fill="#555" text-anchor="middle">${scoreData.timeSignature.numerator}</text>\n`;
+    svg += `  <text x="${paddingLeft - 12}" y="${bassStaffTop + 42}" font-family="serif" font-size="22" font-weight="bold" fill="#555" text-anchor="middle">${scoreData.timeSignature.denominator}</text>\n`;
+
+    const totalBeats = Math.max(32, Math.ceil(Math.max(...scoreData.notes.map(n => n.position + n.duration))));
+    const beatsPerBar = scoreData.timeSignature.numerator;
+    const bars = Math.ceil(totalBeats / beatsPerBar);
+    for (let i = 0; i <= bars; i++) {
+      const x = paddingLeft + i * beatsPerBar * beatWidth;
+      if (x > width - 50) break;
+      svg += `  <line x1="${x}" y1="${trebleStaffTop}" x2="${x}" y2="${trebleStaffTop + 4 * lineSpacing}" stroke="#aaa" stroke-width="1.2"/>\n`;
+      svg += `  <line x1="${x}" y1="${bassStaffTop}" x2="${x}" y2="${bassStaffTop + 4 * lineSpacing}" stroke="#aaa" stroke-width="1.2"/>\n`;
+    }
+
+    scoreData.notes.forEach(note => {
+      const staffTop = note.staff === 'treble' ? trebleStaffTop : bassStaffTop;
+      const baseSemitone = note.staff === 'treble' ? 67 : 50;
+      const semitoneOffset = (note.octave * 12 + noteNamesSemitones[note.pitch % 7]) - baseSemitone;
+      const staffPositions = semitoneOffset / 2;
+      const y = staffTop + 4 * lineSpacing - staffPositions * (lineSpacing / 2);
+      const x = paddingLeft + note.position * beatWidth;
+
+      const ledgerCheck = semitoneOffset > 4 || semitoneOffset < -6;
+      if (ledgerCheck) {
+        const ledgerLines = Math.ceil(Math.abs(semitoneOffset / 2) - 2);
+        for (let i = 1; i <= ledgerLines + 2; i++) {
+          let ledgerY: number;
+          if (semitoneOffset > 4) {
+            ledgerY = staffTop - i * lineSpacing;
+            if (ledgerY > y + 2) continue;
+          } else {
+            ledgerY = staffTop + (4 + i) * lineSpacing;
+            if (ledgerY < y - 2) continue;
+          }
+          if (Math.abs(ledgerY - y) < lineSpacing * 0.6) {
+            svg += `  <line x1="${x - 12}" y1="${ledgerY}" x2="${x + 12}" y2="${ledgerY}" stroke="#888" stroke-width="1"/>\n`;
+          }
+        }
+      }
+
+      const noteFill = note.duration >= 2 ? '#ffffff' : '#2a2a3e';
+      const noteStroke = '#2a2a3e';
+      const stemUp = y > staffTop + 2 * lineSpacing;
+      const stemX = stemUp ? x - 8 : x + 8;
+
+      svg += `  <ellipse cx="${x}" cy="${y}" rx="8" ry="6" transform="rotate(-18 ${x} ${y})" fill="${noteFill}" stroke="${noteStroke}" stroke-width="1.5"/>\n`;
+
+      if (note.duration < 4) {
+        const stemTop = stemUp ? y - 38 : y + 38;
+        svg += `  <line x1="${stemX}" y1="${y}" x2="${stemX}" y2="${stemTop}" stroke="#2a2a3e" stroke-width="1.8" stroke-linecap="round"/>\n`;
+
+        if (note.duration < 1) {
+          const flags = note.duration <= 0.25 ? 2 : 1;
+          for (let f = 0; f < flags; f++) {
+            const flagBaseY = stemUp ? stemTop + f * 11 : stemTop - f * 11;
+            const curveX1 = stemX;
+            const curveY1 = flagBaseY;
+            const curveX2 = stemX + (stemUp ? 16 : -16);
+            const curveY2 = flagBaseY + (stemUp ? 5 : -5);
+            const curveX3 = stemX + (stemUp ? 10 : -10);
+            const curveY3 = flagBaseY + (stemUp ? 18 : -18);
+            svg += `  <path d="M${curveX1},${curveY1} Q${curveX2},${curveY2} ${curveX3},${curveY3}" fill="none" stroke="#2a2a3e" stroke-width="1.8" stroke-linecap="round"/>\n`;
+          }
+        }
+      }
+
+      const noteLetter = semitoneNames[noteNamesSemitones[note.pitch % 7]];
+      if (noteLetter) {
+        svg += `  <text x="${x + 2}" y="${y + staffTop + 70}" font-family="sans-serif" font-size="9" fill="#bbb" text-anchor="middle">${noteLetter}${note.octave}</text>\n`;
+      }
+    });
+
+    svg += `</svg>`;
+    return svg;
+  }, []);
 
   const handleExportMIDI = useCallback(() => {
     if (!score) return;
     setExportProgress({ type: 'midi', progress: 0, done: false });
 
     let progress = 0;
+    let time = 0;
+    const step = 16;
+    const totalTime = 1200;
+
     const interval = setInterval(() => {
-      progress += Math.random() * 15 + 5;
-      if (progress >= 100) {
+      time += step;
+      const t = Math.min(1, time / totalTime);
+      progress = Math.min(100, 100 * (1 - Math.pow(1 - t, 2.5)));
+
+      if (progress >= 100 || time >= totalTime) {
         progress = 100;
         clearInterval(interval);
         setTimeout(() => {
-          setExportProgress(prev => prev ? { ...prev, done: true } : null);
-          setTimeout(() => setExportProgress(null), 1000);
-
-          const midiContent = generateMockMIDI(score);
-          const blob = new Blob([midiContent], { type: 'audio/midi' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${score.title || 'score'}.mid`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }, 300);
+          setExportProgress(prev => prev ? { ...prev, done: true, progress: 100 } : null);
+          setTimeout(() => {
+            const midiContent = generateMIDIFile(score);
+            const blob = new Blob([midiContent], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${(score.title || 'score').replace(/[^\w\u4e00-\u9fa5-]/g, '_')}.mid`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setTimeout(() => setExportProgress(null), 600);
+          }, 400);
+        }, 200);
       }
-      setExportProgress(prev => prev ? { ...prev, progress: Math.min(progress, 100) } : null);
-    }, 80);
-  }, [score]);
+      setExportProgress(prev => prev ? { ...prev, progress } : null);
+    }, step);
+  }, [score, generateMIDIFile]);
 
   const handleExportSVG = useCallback(() => {
     if (!score) return;
     setExportProgress({ type: 'svg', progress: 0, done: false });
 
     let progress = 0;
+    let time = 0;
+    const step = 12;
+    const totalTime = 1000;
+
     const interval = setInterval(() => {
-      progress += Math.random() * 12 + 4;
-      if (progress >= 100) {
+      time += step;
+      const t = Math.min(1, time / totalTime);
+      progress = Math.min(100, 100 * (1 - Math.pow(1 - t, 2)));
+
+      if (progress >= 100 || time >= totalTime) {
         progress = 100;
         clearInterval(interval);
         setTimeout(() => {
-          setExportProgress(prev => prev ? { ...prev, done: true } : null);
-          setTimeout(() => setExportProgress(null), 1000);
-
-          const svgContent = generateScoreSVG(score);
-          const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${score.title || 'score'}.svg`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }, 300);
+          setExportProgress(prev => prev ? { ...prev, done: true, progress: 100 } : null);
+          setTimeout(() => {
+            const svgContent = generateSVGFile(score);
+            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${(score.title || 'score').replace(/[^\w\u4e00-\u9fa5-]/g, '_')}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setTimeout(() => setExportProgress(null), 600);
+          }, 400);
+        }, 200);
       }
-      setExportProgress(prev => prev ? { ...prev, progress: Math.min(progress, 100) } : null);
-    }, 80);
-  }, [score]);
+      setExportProgress(prev => prev ? { ...prev, progress } : null);
+    }, step);
+  }, [score, generateSVGFile]);
 
   const currentCollaborator: Collaborator = {
     id: userId,
@@ -264,24 +520,35 @@ const App: React.FC = () => {
             placeholder="乐谱标题..."
           />
           <div style={styles.collaboratorAvatars}>
-            {allCollaborators.slice(0, 6).map(c => (
+            {allCollaborators.slice(0, 6).map((c, idx) => (
               <div
                 key={c.id}
                 style={{
                   ...styles.avatar,
                   backgroundColor: c.color,
-                  marginLeft: c.id === userId ? 0 : -8,
-                  zIndex: c.id === userId ? 10 : 1
+                  marginLeft: idx === 0 ? 0 : -8,
+                  zIndex: 100 - idx
                 }}
-                title={c.name}
+                title={c.name + (c.id === userId ? ' (你)' : '')}
               >
                 {c.name.charAt(0)}
               </div>
             ))}
+            {allCollaborators.length > 6 && (
+              <div style={{ ...styles.avatar, backgroundColor: '#666', marginLeft: -8, zIndex: 1 }}>
+                +{allCollaborators.length - 6}
+              </div>
+            )}
           </div>
         </div>
         <div style={styles.headerRight}>
-          <button style={styles.saveBtn} onClick={() => handleSaveVersion('手动保存')}>
+          <button
+            style={{
+              ...styles.saveBtn,
+              ...(versionLoading ? { opacity: 0.6, pointerEvents: 'none' } : {})
+            }}
+            onClick={() => handleSaveVersion('手动保存')}
+          >
             💾 保存版本
           </button>
           <button
@@ -298,7 +565,7 @@ const App: React.FC = () => {
           style={{
             ...styles.editorWrapper,
             opacity: versionTransition ? 0 : 1,
-            transition: 'opacity 300ms ease'
+            transition: 'opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           {score && (
@@ -314,6 +581,7 @@ const App: React.FC = () => {
               onAddNote={handleAddNote}
               onDeleteNote={handleDeleteNote}
               onMoveNote={handleMoveNote}
+              onCursorUpdate={handleCursorUpdate}
             />
           )}
         </div>
@@ -330,11 +598,11 @@ const App: React.FC = () => {
               <h3 style={styles.sectionTitle}>🎹 音符选择</h3>
               <div style={styles.noteGrid}>
                 {[
-                  { key: 'whole', label: '𝅝', name: '全音符' },
-                  { key: 'half', label: '𝅗𝅥', name: '二分音符' },
-                  { key: 'quarter', label: '♩', name: '四分音符' },
-                  { key: 'eighth', label: '♪', name: '八分音符' },
-                  { key: 'sixteenth', label: '𝅘𝅥𝅯', name: '十六分音符' }
+                  { key: 'whole', label: '𝅝', name: '全音符 (4拍)' },
+                  { key: 'half', label: '𝅗𝅥', name: '二分音符 (2拍)' },
+                  { key: 'quarter', label: '♩', name: '四分音符 (1拍)' },
+                  { key: 'eighth', label: '♪', name: '八分音符 (½拍)' },
+                  { key: 'sixteenth', label: '𝅘𝅥𝅯', name: '十六分音符 (¼拍)' }
                 ].map(note => (
                   <button
                     key={note.key}
@@ -349,6 +617,18 @@ const App: React.FC = () => {
                   </button>
                 ))}
               </div>
+              <div style={styles.selectedToolLabel}>
+                当前：
+                <strong style={{ color: '#4a9eff' }}>
+                  {({
+                    whole: '全音符 (4拍)',
+                    half: '二分音符 (2拍)',
+                    quarter: '四分音符 (1拍)',
+                    eighth: '八分音符 (½拍)',
+                    sixteenth: '十六分音符 (¼拍)'
+                  } as Record<string, string>)[selectedTool] || '四分音符'}
+                </strong>
+              </div>
             </div>
 
             <div style={styles.section}>
@@ -361,7 +641,7 @@ const App: React.FC = () => {
                   }}
                   onClick={() => setSelectedStaff('treble')}
                 >
-                  高音谱
+                  𝄞 高音谱
                 </button>
                 <button
                   style={{
@@ -370,7 +650,7 @@ const App: React.FC = () => {
                   }}
                   onClick={() => setSelectedStaff('bass')}
                 >
-                  低音谱
+                  𝄢 低音谱
                 </button>
               </div>
             </div>
@@ -378,17 +658,23 @@ const App: React.FC = () => {
             <VersionManager
               versions={versions}
               onRestore={handleRestoreVersion}
+              isLoading={versionLoading}
             />
 
             <div style={styles.section}>
               <h3 style={styles.sectionTitle}>📤 导出</h3>
               <div style={styles.exportBtns}>
                 <button style={styles.exportBtn} onClick={handleExportMIDI}>
-                  🎵 导出 MIDI
+                  <span>🎵</span>
+                  <span style={{ marginLeft: 8 }}>导出 MIDI 文件</span>
                 </button>
                 <button style={styles.exportBtn} onClick={handleExportSVG}>
-                  🖼️ 导出 SVG
+                  <span>🖼️</span>
+                  <span style={{ marginLeft: 8 }}>导出 SVG 图片</span>
                 </button>
+              </div>
+              <div style={styles.exportHint}>
+                支持标准MIDI 1.0格式和矢量SVG图片
               </div>
             </div>
           </div>
@@ -415,20 +701,39 @@ const App: React.FC = () => {
       {exportProgress && (
         <div style={styles.exportProgressOverlay}>
           <div style={styles.exportProgressBox}>
-            <h4 style={{ color: '#fff', marginBottom: 16 }}>
-              正在导出 {exportProgress.type === 'midi' ? 'MIDI' : 'SVG'}...
+            <div style={{
+              fontSize: 40,
+              marginBottom: 16
+            }}>
+              {exportProgress.type === 'midi' ? '🎵' : '🖼️'}
+            </div>
+            <h4 style={{ color: '#fff', marginBottom: 8, fontSize: 18 }}>
+              正在导出{exportProgress.type === 'midi' ? 'MIDI' : 'SVG'}文件
             </h4>
+            <div style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 24, fontSize: 13 }}>
+              {exportProgress.done ? '导出完成！' : '请稍候...'}
+            </div>
             <div style={styles.progressBarBg}>
               <div
                 style={{
                   ...styles.progressBarFill,
                   width: `${exportProgress.progress}%`,
-                  transition: 'width 80ms ease-out'
+                  transition: 'width 40ms ease-out'
                 }}
               />
             </div>
-            <div style={{ color: '#fff', marginTop: 8, fontSize: 14 }}>
-              {Math.floor(exportProgress.progress)}% {exportProgress.done ? '✓ 完成' : ''}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: 10,
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: 13,
+              fontFamily: 'monospace'
+            }}>
+              <span>{Math.floor(exportProgress.progress)}%</span>
+              {exportProgress.done && (
+                <span style={{ color: '#4ECDC4', fontWeight: 600 }}>✓ 完成</span>
+              )}
             </div>
           </div>
         </div>
@@ -436,62 +741,6 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-function generateMockMIDI(score: Score): Uint8Array {
-  const header = [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x01, 0x00, 0x60];
-  const events: number[] = [];
-  events.push(0x4D, 0x54, 0x72, 0x6B);
-  const trackContent: number[] = [];
-
-  score.notes.forEach(note => {
-    const midiNote = note.octave * 12 + note.pitch + 12;
-    const deltaTime = Math.max(0, Math.floor(note.position * 192));
-    if (deltaTime > 0) {
-      trackContent.push(deltaTime & 0x7F);
-    }
-    trackContent.push(0x90, Math.min(127, Math.max(0, midiNote)), 0x64);
-    const duration = Math.floor(note.duration * 192);
-    trackContent.push(duration & 0x7F);
-    trackContent.push(0x80, Math.min(127, Math.max(0, midiNote)), 0x00);
-  });
-
-  trackContent.push(0x00, 0xFF, 0x2F, 0x00);
-
-  const length = trackContent.length;
-  events.push((length >> 24) & 0xFF, (length >> 16) & 0xFF, (length >> 8) & 0xFF, length & 0xFF);
-  events.push(...trackContent);
-
-  return new Uint8Array([...header, ...events]);
-}
-
-function generateScoreSVG(score: Score): string {
-  const width = 1200;
-  const height = 400;
-  const staffTop = 80;
-  const lineSpacing = 12;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-  svg += `<rect width="${width}" height="${height}" fill="#ffffff"/>`;
-
-  for (let i = 0; i < 5; i++) {
-    const y = staffTop + i * lineSpacing;
-    svg += `<line x1="50" y1="${y}" x2="${width - 50}" y2="${y}" stroke="#d0d0d0" stroke-width="1"/>`;
-  }
-
-  svg += `<text x="60" y="${staffTop + 35}" font-family="serif" font-size="40" fill="#333">𝄞</text>`;
-
-  score.notes.forEach(note => {
-    const x = 120 + note.position * 80;
-    const y = staffTop + (72 - note.octave * 12 - note.pitch) * (lineSpacing / 2);
-    svg += `<ellipse cx="${x}" cy="${y}" rx="8" ry="6" fill="#333"/>`;
-    if (note.duration < 4) {
-      svg += `<line x1="${x + 7}" y1="${y}" x2="${x + 7}" y2="${y - 35}" stroke="#333" stroke-width="2"/>`;
-    }
-  });
-
-  svg += `<text x="${width / 2}" y="40" text-anchor="middle" font-size="24" fill="#333" font-weight="bold">${score.title}</text>`;
-  svg += `</svg>`;
-  return svg;
-}
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -502,73 +751,83 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f0f2f5'
   },
   header: {
-    height: 60,
+    height: 64,
     backgroundColor: '#fff',
     borderBottom: '1px solid #e5e7eb',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 20px',
+    padding: '0 24px',
     flexShrink: 0,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    zIndex: 10
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
     gap: 16,
-    flex: 1
+    flex: 1,
+    minWidth: 0
   },
   logo: {
-    fontSize: 28
+    fontSize: 30,
+    flexShrink: 0
   },
   titleInput: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 600,
     border: 'none',
     outline: 'none',
-    padding: '6px 12px',
-    borderRadius: 6,
+    padding: '7px 14px',
+    borderRadius: 8,
     backgroundColor: '#f9fafb',
-    minWidth: 200
+    minWidth: 180,
+    transition: 'all 0.2s ease',
+    border: '1px solid transparent'
   },
   collaboratorAvatars: {
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexShrink: 0
   },
   avatar: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#fff',
     fontSize: 13,
-    fontWeight: 600,
-    border: '2px solid #fff'
+    fontWeight: 700,
+    border: '2px solid #fff',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12
+    gap: 12,
+    flexShrink: 0
   },
   saveBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#4a9eff',
+    padding: '9px 18px',
+    background: 'linear-gradient(135deg, #4a9eff, #6b8eff)',
     color: '#fff',
     border: 'none',
-    borderRadius: 8,
+    borderRadius: 10,
     cursor: 'pointer',
     fontSize: 14,
-    fontWeight: 500
+    fontWeight: 600,
+    boxShadow: '0 2px 8px rgba(74, 158, 255, 0.3)',
+    transition: 'all 0.2s ease'
   },
   mobileToggle: {
-    padding: 8,
+    padding: 10,
     backgroundColor: '#f3f4f6',
     border: 'none',
-    borderRadius: 8,
+    borderRadius: 10,
     cursor: 'pointer',
-    fontSize: 18,
+    fontSize: 20,
     ...(typeof window !== 'undefined' && window.innerWidth >= 768 ? { display: 'none' } : { display: 'block' })
   },
   mainContent: {
@@ -584,40 +843,42 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'auto'
   },
   sidebar: {
-    width: 340,
+    width: 360,
     backgroundColor: '#2a2a3e',
     borderRadius: '12px 0 0 0',
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    boxShadow: '-4px 0 20px rgba(0,0,0,0.1)'
+    boxShadow: '-4px 0 24px rgba(0,0,0,0.12)'
   },
   sidebarMobileOpen: {
     position: 'fixed',
     right: 0,
-    top: 60,
+    top: 64,
     bottom: 0,
     zIndex: 100,
     width: '100%',
-    maxWidth: 360
+    maxWidth: 380,
+    borderRadius: '12px 0 0 0'
   },
   sidebarContent: {
     flex: 1,
     overflowY: 'auto',
-    padding: 20
+    padding: '20px 20px 0 20px'
   },
   section: {
-    marginBottom: 24
+    marginBottom: 28
   },
   sectionTitle: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: 600,
-    marginBottom: 12,
+    fontWeight: 700,
+    marginBottom: 14,
     display: 'flex',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
+    letterSpacing: 0.3
   },
   noteGrid: {
     display: 'grid',
@@ -625,21 +886,34 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 10
   },
   noteBtn: {
-    padding: '16px 8px',
+    padding: '14px 8px',
     backgroundColor: 'rgba(255,255,255,0.06)',
     border: '2px solid transparent',
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: 'pointer',
     color: '#fff',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   noteBtnSelected: {
     borderColor: '#4a9eff',
-    boxShadow: '0 0 6px #4a9eff',
-    backgroundColor: 'rgba(74, 158, 255, 0.15)'
+    boxShadow: '0 0 10px rgba(74, 158, 255, 0.5), inset 0 0 15px rgba(74, 158, 255, 0.15)',
+    backgroundColor: 'rgba(74, 158, 255, 0.18)',
+    transform: 'translateY(-1px)'
   },
   noteIcon: {
-    fontSize: 28
+    fontSize: 28,
+    lineHeight: 1
+  },
+  selectedToolLabel: {
+    marginTop: 12,
+    padding: '8px 12px',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 8,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)'
   },
   staffSelector: {
     display: 'grid',
@@ -650,16 +924,16 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 8px',
     backgroundColor: 'rgba(255,255,255,0.06)',
     border: '2px solid transparent',
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: 'pointer',
     color: '#fff',
     fontSize: 14,
-    fontWeight: 500,
+    fontWeight: 600,
     transition: 'all 0.2s ease'
   },
   staffBtnSelected: {
     borderColor: '#4a9eff',
-    boxShadow: '0 0 6px #4a9eff',
+    boxShadow: '0 0 10px rgba(74, 158, 255, 0.4)',
     backgroundColor: 'rgba(74, 158, 255, 0.15)'
   },
   exportBtns: {
@@ -668,22 +942,32 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 10
   },
   exportBtn: {
-    padding: '12px 16px',
+    padding: '13px 16px',
     backgroundColor: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 12,
     cursor: 'pointer',
     color: '#fff',
     fontSize: 14,
-    transition: 'all 0.2s ease'
+    fontWeight: 500,
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  exportHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    textAlign: 'center'
   },
   mobileOverlay: {
     position: 'fixed',
-    top: 60,
+    top: 64,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(2px)',
     zIndex: 99
   },
   exportProgressOverlay: {
@@ -692,28 +976,31 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000
   },
   exportProgressBox: {
-    backgroundColor: '#2a2a3e',
-    padding: 32,
-    borderRadius: 16,
-    minWidth: 320,
-    textAlign: 'center'
+    background: 'linear-gradient(160deg, #2a2a3e 0%, #3a3a54 100%)',
+    padding: '40px 48px',
+    borderRadius: 20,
+    minWidth: 340,
+    textAlign: 'center',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+    border: '1px solid rgba(255,255,255,0.08)'
   },
   progressBarBg: {
     height: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 5,
     overflow: 'hidden'
   },
   progressBarFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #4a9eff, #7c3aed)',
+    background: 'linear-gradient(90deg, #4a9eff 0%, #7c3aed 50%, #a855f7 100%)',
     borderRadius: 5
   }
 };

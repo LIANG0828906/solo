@@ -13,6 +13,7 @@ interface EditorProps {
   onAddNote: (pitch: number, octave: number, position: number) => void;
   onDeleteNote: (noteId: string) => void;
   onMoveNote: (noteId: string, newPosition: number, newPitch: number) => void;
+  onCursorUpdate?: (position: number | null) => void;
 }
 
 const CANVAS_PADDING_LEFT = 100;
@@ -29,13 +30,15 @@ const Editor: React.FC<EditorProps> = ({
   score,
   collaborators,
   currentUser,
+  selectedTool,
   selectedStaff,
   highlightedNoteId,
   currentPlayPosition,
   isPlaying,
   onAddNote,
   onDeleteNote,
-  onMoveNote
+  onMoveNote,
+  onCursorUpdate
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,6 +59,7 @@ const Editor: React.FC<EditorProps> = ({
   } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 450 });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const lastCursorSentRef = useRef<number>(-1);
 
   const totalBeats = useMemo(() => {
     if (score.notes.length === 0) return MIN_BEATS;
@@ -149,18 +153,21 @@ const Editor: React.FC<EditorProps> = ({
     y: number,
     duration: number,
     isHighlighted: boolean,
-    isSelected: boolean
+    isSelected: boolean,
+    highlightIntensity: number = 1
   ) => {
     ctx.save();
     if (isHighlighted) {
-      ctx.shadowColor = '#4a9eff';
-      ctx.shadowBlur = 15;
+      ctx.shadowColor = `rgba(74, 158, 255, ${highlightIntensity})`;
+      ctx.shadowBlur = 15 * highlightIntensity;
     } else if (isSelected) {
-      ctx.shadowColor = '#FFD700';
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
       ctx.shadowBlur = 10;
     }
 
-    ctx.fillStyle = isHighlighted ? '#4a9eff' : (isSelected ? '#FFD700' : '#1a1a1a');
+    ctx.fillStyle = isHighlighted
+      ? `rgba(74, 158, 255, ${0.6 + 0.4 * highlightIntensity})`
+      : (isSelected ? '#FFD700' : '#1a1a1a');
     ctx.beginPath();
     ctx.ellipse(x, y, 7, 5, -0.3, 0, Math.PI * 2);
     ctx.fill();
@@ -179,7 +186,8 @@ const Editor: React.FC<EditorProps> = ({
     ctx: CanvasRenderingContext2D,
     note: Note,
     isHighlighted: boolean,
-    isSelected: boolean
+    isSelected: boolean,
+    highlightIntensity: number = 1
   ) => {
     const x = CANVAS_PADDING_LEFT + note.position * BEAT_WIDTH;
     const y = getPitchY(note.pitch, note.octave, note.staff);
@@ -212,10 +220,13 @@ const Editor: React.FC<EditorProps> = ({
       }
     }
 
-    drawNoteHead(ctx, x, y, note.duration, isHighlighted, isSelected);
+    drawNoteHead(ctx, x, y, note.duration, isHighlighted, isSelected, highlightIntensity);
 
     if (note.duration < 4) {
-      ctx.strokeStyle = isHighlighted ? '#4a9eff' : (isSelected ? '#FFD700' : '#1a1a1a');
+      const stemColor = isHighlighted
+        ? `rgba(74, 158, 255, ${0.6 + 0.4 * highlightIntensity})`
+        : (isSelected ? '#FFD700' : '#1a1a1a');
+      ctx.strokeStyle = stemColor;
       ctx.lineWidth = 2;
       const stemUp = y > staffTop + 2 * STAFF_LINE_SPACING;
       const stemX = stemUp ? x - 7 : x + 7;
@@ -257,12 +268,12 @@ const Editor: React.FC<EditorProps> = ({
 
     const gradient = ctx.createLinearGradient(x - 15, 0, x + 15, 0);
     gradient.addColorStop(0, 'rgba(74, 158, 255, 0)');
-    gradient.addColorStop(0.5, 'rgba(74, 158, 255, 0.15)');
+    gradient.addColorStop(0.5, 'rgba(74, 158, 255, 0.18)');
     gradient.addColorStop(1, 'rgba(74, 158, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(x - 15, 0, 30, height);
 
-    ctx.strokeStyle = 'rgba(74, 158, 255, 0.8)';
+    ctx.strokeStyle = 'rgba(74, 158, 255, 0.85)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x, 40);
@@ -273,27 +284,64 @@ const Editor: React.FC<EditorProps> = ({
   const drawCollaboratorCursor = useCallback((ctx: CanvasRenderingContext2D, collab: Collaborator) => {
     if (collab.cursorPosition === null) return;
     const x = CANVAS_PADDING_LEFT + collab.cursorPosition * BEAT_WIDTH;
-    const topY = selectedStaff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
 
+    const staffTop = selectedStaff === 'treble' ? STAFF_TOP_TREBLE : STAFF_TOP_BASS;
+    const staffBottom = (selectedStaff === 'treble' ? STAFF_TOP_BASS : STAFF_TOP_BASS) + 4 * STAFF_LINE_SPACING;
+    const cursorTop = Math.min(STAFF_TOP_TREBLE, staffTop) - 20;
+    const cursorBottom = Math.max(STAFF_TOP_TREBLE + 4 * STAFF_LINE_SPACING, staffBottom) + 40;
+
+    ctx.save();
     ctx.strokeStyle = collab.color;
     ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([5, 4]);
+    ctx.lineDashOffset = 0;
     ctx.beginPath();
-    ctx.moveTo(x, topY - 20);
-    ctx.lineTo(x, topY + 4 * STAFF_LINE_SPACING + 20);
+    ctx.moveTo(x, cursorTop);
+    ctx.lineTo(x, cursorBottom - 48);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const labelWidth = ctx.measureText(collab.name).width + 16;
-    ctx.fillStyle = collab.color + 'cc';
+    ctx.font = 'bold 12px sans-serif';
+    const labelWidth = Math.max(50, ctx.measureText(collab.name).width + 20);
+    const labelX = x + 4;
+    const labelY = cursorTop;
+    const labelHeight = 22;
+
+    const roundedRect = (rx: number, ry: number, rw: number, rh: number, rr: number) => {
+      ctx.beginPath();
+      ctx.moveTo(rx + rr, ry);
+      ctx.lineTo(rx + rw - rr, ry);
+      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+      ctx.lineTo(rx + rw, ry + rh - rr);
+      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+      ctx.lineTo(rx + rr, ry + rh);
+      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+      ctx.lineTo(rx, ry + rr);
+      ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+      ctx.closePath();
+    };
+
+    roundedRect(labelX, labelY, labelWidth, labelHeight, 4);
+    ctx.fillStyle = collab.color + 'E6';
+    ctx.fill();
+    ctx.strokeStyle = collab.color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(collab.name, labelX + 10, labelY + labelHeight / 2);
+
     ctx.beginPath();
-    ctx.roundRect(x, topY - 48, labelWidth, 24, 4);
+    ctx.moveTo(x, cursorTop + labelHeight + 2);
+    ctx.lineTo(x - 5, cursorTop + labelHeight + 8);
+    ctx.lineTo(x + 5, cursorTop + labelHeight + 8);
+    ctx.closePath();
+    ctx.fillStyle = collab.color + 'E6';
     ctx.fill();
 
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(collab.name, x + 8, topY - 36);
+    ctx.restore();
   }, [selectedStaff]);
 
   const drawHoverPreview = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -302,7 +350,7 @@ const Editor: React.FC<EditorProps> = ({
     const y = hoverInfo.y;
 
     ctx.save();
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.45;
 
     const durationMap: Record<string, number> = {
       whole: 4, half: 2, quarter: 1, eighth: 0.5, sixteenth: 0.25
@@ -317,12 +365,12 @@ const Editor: React.FC<EditorProps> = ({
     };
     drawNote(ctx, previewNote, false, false);
 
-    ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = currentUser.color + '80';
-    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = currentUser.color + '90';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, STAFF_TOP_TREBLE - 30);
-    ctx.lineTo(x, STAFF_TOP_BASS + 4 * STAFF_LINE_SPACING + 30);
+    ctx.moveTo(x, STAFF_TOP_TREBLE - 40);
+    ctx.lineTo(x, STAFF_TOP_BASS + 4 * STAFF_LINE_SPACING + 60);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -378,7 +426,7 @@ const Editor: React.FC<EditorProps> = ({
       const note = score.notes.find(n => n.id === draggingNote.noteId);
       if (note) {
         ctx.save();
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = 0.75;
         const deltaX = (hoverInfo?.x ?? 0) - draggingNote.startX;
         const deltaY = (hoverInfo?.y ?? 0) - draggingNote.startY;
         const newPosition = Math.max(0, Math.round((draggingNote.origPosition * BEAT_WIDTH + deltaX) / BEAT_WIDTH * 2) / 2);
@@ -425,7 +473,7 @@ const Editor: React.FC<EditorProps> = ({
     for (const note of score.notes) {
       const noteX = CANVAS_PADDING_LEFT + note.position * BEAT_WIDTH;
       const noteY = getPitchY(note.pitch, note.octave, note.staff);
-      if (Math.abs(x - noteX) < 12 && Math.abs(y - noteY) < 10) {
+      if (Math.abs(x - noteX) < 14 && Math.abs(y - noteY) < 12) {
         return note;
       }
     }
@@ -437,14 +485,25 @@ const Editor: React.FC<EditorProps> = ({
     const info = getInfoFromCoords(x, y);
     setHoverInfo({ ...info, x, y });
 
+    if (onCursorUpdate && !draggingNote) {
+      if (Math.abs(info.position - lastCursorSentRef.current) > 0.25) {
+        lastCursorSentRef.current = info.position;
+        onCursorUpdate(info.position);
+      }
+    }
+
     if (draggingNote) {
       e.preventDefault();
     }
-  }, [getCanvasCoords, getInfoFromCoords, draggingNote]);
+  }, [getCanvasCoords, getInfoFromCoords, draggingNote, onCursorUpdate]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverInfo(null);
-  }, []);
+    if (onCursorUpdate) {
+      onCursorUpdate(null);
+      lastCursorSentRef.current = -1;
+    }
+  }, [onCursorUpdate]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const { x, y } = getCanvasCoords(e);
@@ -548,10 +607,25 @@ const Editor: React.FC<EditorProps> = ({
         borderLeft: '3px solid #4a9eff'
       }}>
         <strong>操作提示：</strong>
-        <span style={{ marginLeft: 12 }}>左键单击空白处添加音符 · 左键拖动音符移动位置 · 右键单击或按 Delete 删除音符 · 先在右侧面板选择音符时值</span>
+        <span style={{ marginLeft: 12 }}>
+          左键单击空白处添加音符 · 左键拖动音符移动位置 · 右键单击或按 Delete 删除音符
+        </span>
         {hoverInfo && (
           <span style={{ marginLeft: 16, color: '#4a9eff', fontWeight: 500 }}>
             | 位置: {hoverInfo.position} · 音高: {PITCH_NAMES[hoverInfo.pitch]}{hoverInfo.octave}
+          </span>
+        )}
+        {collaborators.length > 0 && (
+          <span style={{
+            marginLeft: 16,
+            padding: '2px 8px',
+            backgroundColor: 'rgba(76, 205, 196, 0.12)',
+            borderRadius: 4,
+            color: '#4ECDC4',
+            fontWeight: 500,
+            fontSize: 12
+          }}>
+            👥 {collaborators.length} 人正在协作
           </span>
         )}
       </div>
