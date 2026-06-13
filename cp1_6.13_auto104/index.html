@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiffReview - 文档差异实时校对平台</title>
+</head>
+<body>
+  <div id="root">
+    <div class="app-skeleton">
+      <header class="skeleton-toolbar"></header>
+      <div class="skeleton-main">
+        <div class="skeleton-left"></div>
+        <div class="skeleton-divider"></div>
+        <div class="skeleton-right"></div>
+        <aside class="skeleton-comment"></aside>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F6FA; }
+    .app-skeleton { width: 100vw; height: 100vh; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .skeleton-toolbar { height: 64px; background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); animation: pulse 1.5s ease-in-out infinite; }
+    .skeleton-main { flex: 1; display: flex; gap: 2%; }
+    .skeleton-left, .skeleton-right { width: 45%; background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); animation: pulse 1.5s ease-in-out infinite 0.2s; }
+    .skeleton-divider { width: 8%; background: transparent; }
+    .skeleton-comment { width: 280px; background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); animation: pulse 1.5s ease-in-out infinite 0.4s; }
+    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
+  </style>
+</body>
+</html>
