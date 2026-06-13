@@ -14,7 +14,7 @@ function useResponsiveColumns() {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
     if (w < 480) return 1;
     if (w < 768) return 2;
-    if (w < 1200) return 3;
+    if (w < 1024) return 3;
     return 4;
   }, []);
 
@@ -94,6 +94,10 @@ export function ExhibitionPage() {
 
   const getColumnWidth = () => cardWidth + gap;
   const getRowHeight = () => cardHeight + gap;
+
+  const gridHeight = typeof window !== 'undefined'
+    ? Math.max(400, window.innerHeight - 200)
+    : 720;
 
   const Cell = ({
     columnIndex,
@@ -177,7 +181,7 @@ export function ExhibitionPage() {
               </button>
             </div>
           ) : (
-            <div className="virtual-grid-container">
+            <div className="virtual-grid-container" style={{ height: 'calc(100vh - 200px)', minHeight: 400 }}>
               <Grid
                 className="virtual-grid"
                 columnCount={columns}
@@ -185,7 +189,7 @@ export function ExhibitionPage() {
                 rowCount={rowCount}
                 rowHeight={getRowHeight}
                 width={columns * getColumnWidth()}
-                height={720}
+                height={gridHeight}
                 itemData={{}}
                 overscanRowCount={3}
                 overscanColumnCount={0}

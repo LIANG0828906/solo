@@ -206,7 +206,7 @@ export function GalleryPage() {
               )}
             </div>
           ) : (
-            <div className="virtual-grid-container">
+            <div className="virtual-grid-container" style={{ height: 'calc(100vh - 200px)', minHeight: 400 }}>
               <Grid
                 ref={gridRef}
                 className="virtual-grid"
@@ -215,7 +215,7 @@ export function GalleryPage() {
                 rowCount={rowCount}
                 rowHeight={getRowHeight}
                 width={columns * getColumnWidth()}
-                height={600}
+                height={typeof window !== 'undefined' ? Math.max(400, window.innerHeight - 200) : 600}
                 itemData={{}}
                 overscanRowCount={3}
                 overscanColumnCount={0}

@@ -742,6 +742,12 @@ img {
   animation: backdropFade 0.3s var(--ease-out);
 }
 
+@supports not (backdrop-filter: blur(1px)) {
+  .modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+}
+
 @keyframes backdropFade {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -36,7 +36,9 @@ export function CommentSection({ comments, onSubmit }: CommentSectionProps) {
   const [newestId, setNewestId] = useState<string | null>(null);
 
   const sortedComments = useMemo(() => {
-    return [...comments].sort((a, b) => b.createdAt - a.createdAt);
+    return comments
+      .map((c) => ({ ...c }))
+      .sort((a, b) => b.createdAt - a.createdAt);
   }, [comments]);
 
   const handleSubmit = (e: React.FormEvent) => {
