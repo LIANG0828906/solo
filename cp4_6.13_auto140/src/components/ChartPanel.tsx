@@ -23,10 +23,12 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
   const [config, setConfig] = useState<ChartConfig | null>(null);
   const [turningPoints, setTurningPoints] = useState<TurningPoint[]>([]);
   const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
+  const [xDropdownOpen, setXDropdownOpen] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
+  const xDropdownRef = useRef<HTMLDivElement>(null);
 
   const timeFields = data.headers.filter(h => h.type === 'time').map(h => h.name);
   const numericFields = data.headers.filter(h => h.type === 'numeric').map(h => h.name);
@@ -44,6 +46,17 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
     });
     setFieldColors(colors);
   }, [data.headers]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (xDropdownRef.current && !xDropdownRef.current.contains(e.target as Node)) {
+        setXDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleYFieldToggle = useCallback((field: string) => {
     setYFields(prev => {
@@ -86,6 +99,8 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
       allTurningPoints.push(...points);
     });
     
+    console.log(`检测到 ${allTurningPoints.length} 个转折点`, allTurningPoints);
+    
     const newTrendLines: TrendLine[] = [];
     yFields.forEach(field => {
       const trend = calculateTrendLine(data, xField, field, fieldColors[field]);
@@ -124,10 +139,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
       });
     };
     
-    const startTime = performance.now();
     render();
-    const endTime = performance.now();
-    console.log(`图表渲染耗时: ${(endTime - startTime).toFixed(2)}ms`);
     
     const handleResize = () => {
       if (animationFrameRef.current) {
@@ -167,45 +179,65 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
       <div className="field-selection">
         <div className="field-group">
           <label className="field-label">时间字段 (X轴)</label>
-          <select 
-            className="field-select"
-            value={xField}
-            onChange={(e) => setXField(e.target.value)}
-          >
-            <option value="">请选择时间字段</option>
-            {timeFields.map(field => (
-              <option key={field} value={field}>{field}</option>
-            ))}
-          </select>
+          <div className="custom-select" ref={xDropdownRef}>
+            <div 
+              className="select-trigger"
+              onClick={() => setXDropdownOpen(!xDropdownOpen)}
+            >
+              <span className="select-value">{xField || '请选择时间字段'}</span>
+              <span className="select-arrow">▾</span>
+            </div>
+            {xDropdownOpen && (
+              <div className="select-dropdown">
+                {timeFields.map(field => (
+                  <div
+                    key={field}
+                    className={`select-option ${xField === field ? 'selected' : ''}`}
+                    onClick={() => {
+                      setXField(field);
+                      setXDropdownOpen(false);
+                    }}
+                  >
+                    <span className="option-dot time-dot" />
+                    <span className="option-label">{field}</span>
+                    {xField === field && <span className="option-check">✓</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="field-group">
           <label className="field-label">
             数值字段 (Y轴) 
-            <span className="field-count">({yFields.length}/3)</span>
+            <span className="field-count">({yFields.length}/3) - 点击选择</span>
           </label>
-          <div className="field-tags">
-            {numericFields.map(field => (
-              <button
-                key={field}
-                className={`field-tag ${yFields.includes(field) ? 'selected' : ''}`}
-                style={{
-                  '--tag-color': fieldColors[field] || '#666'
-                } as React.CSSProperties}
-                onClick={() => handleYFieldToggle(field)}
-                disabled={!yFields.includes(field) && yFields.length >= 3}
-              >
-                <span 
-                  className="tag-dot" 
-                  style={{ backgroundColor: fieldColors[field] || '#666' }}
-                />
-                <span className="tag-name">{field}</span>
-                {yFields.includes(field) && (
-                  <span className="tag-remove">×</span>
-                )}
-              </button>
-            ))}
+          <div className="y-field-selector">
+            {numericFields.map(field => {
+              const isSelected = yFields.includes(field);
+              const isDisabled = !isSelected && yFields.length >= 3;
+              
+              return (
+                <button
+                  key={field}
+                  className={`y-field-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                  onClick={() => !isDisabled && handleYFieldToggle(field)}
+                  disabled={isDisabled}
+                >
+                  <span 
+                    className="field-color-indicator"
+                    style={{ backgroundColor: fieldColors[field] || '#666' }}
+                  />
+                  <span className="field-name-text">{field}</span>
+                  <span className="field-toggle-icon">
+                    {isSelected ? '−' : '+'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+          <p className="field-hint">最多选择 3 个字段，第一个使用左Y轴，第二、三个使用右Y轴</p>
         </div>
         
         <button
@@ -213,18 +245,36 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
           onClick={handleGenerate}
           disabled={!xField || yFields.length === 0}
         >
+          <span className="btn-icon">✨</span>
           生成数据故事
         </button>
       </div>
       
       {showChart && config && (
         <div className="chart-container" ref={containerRef}>
+          <div className="chart-header">
+            <h3 className="chart-title">数据趋势图</h3>
+            <div className="chart-legend-hint">
+              <span className="legend-dot" />
+              点击图例切换显示
+            </div>
+          </div>
           <canvas
             ref={canvasRef}
             onClick={handleCanvasClick}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', width: '100%' }}
           />
-          <p className="chart-hint">点击右上角图例可切换线条显示</p>
+          <div className="chart-stats">
+            <span className="stat-item">
+              <strong>{data.rowCount}</strong> 个数据点
+            </span>
+            <span className="stat-item">
+              <strong>{turningPoints.length}</strong> 个转折点
+            </span>
+            <span className="stat-item">
+              <strong>{trendLines.length}</strong> 条趋势线
+            </span>
+          </div>
         </div>
       )}
       
@@ -237,6 +287,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
         
         .field-selection {
           background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
           border-radius: 16px;
           padding: 28px;
           margin-bottom: 24px;
@@ -254,148 +305,93 @@ const ChartPanel: React.FC<ChartPanelProps> = ({ data, onGenerate }) => {
           display: block;
           font-size: 14px;
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba(255, 255, 255, 0.85);
           margin-bottom: 12px;
           font-family: 'Space Grotesk', sans-serif;
+          letter-spacing: 0.3px;
         }
         
         .field-count {
           color: rgba(255, 255, 255, 0.4);
           font-weight: 400;
-          margin-left: 4px;
+          margin-left: 8px;
+          font-size: 12px;
         }
         
-        .field-select {
-          width: 100%;
-          padding: 12px 16px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 14px;
-          font-family: 'Inter', sans-serif;
-          cursor: pointer;
-          transition: all 0.2s ease;
+        .custom-select {
+          position: relative;
         }
         
-        .field-select:focus {
-          outline: none;
-          border-color: #3357FF;
-          background: rgba(51, 87, 255, 0.05);
-        }
-        
-        .field-select option {
-          background: #1a1a2e;
-          color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .field-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        
-        .field-tag {
+        .select-trigger {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 14px;
-          background: rgba(255, 255, 255, 0.05);
+          justify-content: space-between;
+          padding: 14px 18px;
+          background: rgba(255, 255, 255, 0.04);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 13px;
+          border-radius: 10px;
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 14px;
           cursor: pointer;
           transition: all 0.2s ease;
-          font-family: 'Inter', sans-serif;
         }
         
-        .field-tag:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-1px);
+        .select-trigger:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(51, 87, 255, 0.5);
         }
         
-        .field-tag:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
+        .select-value {
+          font-weight: 500;
         }
         
-        .field-tag.selected {
-          background: color-mix(in srgb, var(--tag-color) 15%, transparent);
-          border-color: var(--tag-color);
-          color: rgba(255, 255, 255, 0.9);
+        .select-arrow {
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 10px;
+          transition: transform 0.2s ease;
         }
         
-        .tag-dot {
+        .custom-select.open .select-arrow {
+          transform: rotate(180deg);
+        }
+        
+        .select-dropdown {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          right: 0;
+          background: rgba(20, 20, 40, 0.98);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          z-index: 50;
+          overflow: hidden;
+          backdrop-filter: blur(10px);
+        }
+        
+        .select-option {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 18px;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+        
+        .select-option:hover {
+          background: rgba(51, 87, 255, 0.1);
+        }
+        
+        .select-option.selected {
+          background: rgba(51, 87, 255, 0.15);
+        }
+        
+        .option-dot {
           width: 10px;
           height: 10px;
           border-radius: 50%;
           flex-shrink: 0;
         }
         
-        .tag-name {
-          white-space: nowrap;
-        }
-        
-        .tag-remove {
-          font-size: 16px;
-          line-height: 1;
-          opacity: 0.6;
-          margin-left: 2px;
-        }
-        
-        .field-tag.selected:hover .tag-remove {
-          opacity: 1;
-        }
-        
-        .generate-btn {
-          width: 100%;
-          padding: 16px 32px;
-          background: linear-gradient(135deg, #FF5733 0%, #FF33A6 100%);
-          border: none;
-          border-radius: 10px;
-          color: white;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-family: 'Space Grotesk', sans-serif;
-          letter-spacing: 0.5px;
-        }
-        
-        .generate-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 32px rgba(255, 87, 51, 0.4);
-        }
-        
-        .generate-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-          transform: none;
-        }
-        
-        .chart-container {
-          background: #1a1a2e;
-          border-radius: 16px;
-          padding: 20px;
-          overflow: hidden;
-        }
-        
-        .chart-container canvas {
-          display: block;
-          width: 100%;
-          border-radius: 8px;
-        }
-        
-        .chart-hint {
-          text-align: center;
-          color: rgba(255, 255, 255, 0.4);
-          font-size: 12px;
-          margin: 12px 0 0 0;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-export default ChartPanel;
+        .time-dot {
+          background: #3357FF;

@@ -10,8 +10,25 @@ export function calculateDimensions(containerWidth: number): ChartDimensions {
   return {
     width: containerWidth,
     height: 450,
-    margin: { top: 40, right: 80, bottom: 60, left: 80 }
+    margin: { top: 50, right: 90, bottom: 70, left: 90 }
   };
+}
+
+function smoothData(values: { x: number; y: number }[], windowSize: number = 5): { x: number; y: number }[] {
+  if (values.length < windowSize) return values;
+  
+  const smoothed: { x: number; y: number }[] = [];
+  const halfWindow = Math.floor(windowSize / 2);
+  
+  for (let i = 0; i < values.length; i++) {
+    const start = Math.max(0, i - halfWindow);
+    const end = Math.min(values.length, i + halfWindow + 1);
+    const window = values.slice(start, end);
+    const avgY = window.reduce((sum, v) => sum + v.y, 0) / window.length;
+    smoothed.push({ x: values[i].x, y: avgY });
+  }
+  
+  return smoothed;
 }
 
 export function detectTurningPoints(
@@ -24,63 +41,74 @@ export function detectTurningPoints(
     .map(row => ({ x: row[xField] as Date, y: row[yField] as number }))
     .filter(d => d.x !== null && d.y !== null && !isNaN(d.y));
   
-  if (values.length < 5) return [];
+  if (values.length < 10) return [];
+  
+  const sortedValues = values.sort((a, b) => a.x.getTime() - b.x.getTime());
+  
+  const numericValues = sortedValues.map(v => ({
+    x: v.x.getTime() / (1000 * 60 * 60 * 24 * 30),
+    y: v.y
+  }));
+  
+  const smoothed = smoothData(numericValues, 7);
   
   const slopes: number[] = [];
-  for (let i = 1; i < values.length; i++) {
-    const dx = (values[i].x.getTime() - values[i - 1].x.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    const dy = values[i].y - values[i - 1].y;
+  const slopeWindow = 3;
+  
+  for (let i = slopeWindow; i < smoothed.length - slopeWindow; i++) {
+    const startIdx = i - slopeWindow;
+    const endIdx = i + slopeWindow;
+    const startPoint = smoothed[startIdx];
+    const endPoint = smoothed[endIdx];
+    
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    
     slopes.push(dx > 0 ? dy / dx : 0);
   }
   
   const turningPoints: TurningPoint[] = [];
-  const smoothedSlopes: number[] = [];
+  const minGap = Math.max(6, Math.floor(smoothed.length / 8));
   
-  for (let i = 0; i < slopes.length; i++) {
-    const start = Math.max(0, i - 2);
-    const end = Math.min(slopes.length, i + 3);
-    const window = slopes.slice(start, end);
-    smoothedSlopes.push(window.reduce((a, b) => a + b, 0) / window.length);
-  }
-  
-  for (let i = 1; i < smoothedSlopes.length; i++) {
-    const prevSlope = smoothedSlopes[i - 1];
-    const currSlope = smoothedSlopes[i];
+  for (let i = 1; i < slopes.length - 1; i++) {
+    const prevSlope = slopes[i - 1];
+    const currSlope = slopes[i];
     
-    if (Math.abs(prevSlope) < 0.01) continue;
+    const avgAbsSlope = (Math.abs(prevSlope) + Math.abs(currSlope)) / 2;
+    if (avgAbsSlope < 0.01) continue;
     
-    const change = Math.abs((currSlope - prevSlope) / prevSlope);
+    const slopeDiff = Math.abs(currSlope - prevSlope);
+    const slopeChangeRatio = slopeDiff / avgAbsSlope;
     
-    if (change >= threshold) {
-      const dataIndex = i + 1;
-      if (dataIndex < values.length) {
+    if (slopeChangeRatio >= threshold) {
+      const dataIndex = i + slopeWindow;
+      if (dataIndex >= 0 && dataIndex < sortedValues.length) {
         const direction = currSlope > prevSlope ? '上升' : '下降';
-        const dateStr = values[dataIndex].x.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+        const dateStr = sortedValues[dataIndex].x.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
         
         turningPoints.push({
           index: dataIndex,
-          xValue: values[dataIndex].x,
-          yValue: values[dataIndex].y,
+          xValue: sortedValues[dataIndex].x,
+          yValue: sortedValues[dataIndex].y,
           field: yField,
-          slopeChange: change,
+          slopeChange: slopeChangeRatio,
           description: `从${dateStr}开始，${yField}曲线迎来一个明显${direction}拐点`
         });
       }
     }
   }
   
-  const uniquePoints: TurningPoint[] = [];
-  const seenIndices = new Set<number>();
+  const filteredPoints: TurningPoint[] = [];
+  let lastIndex = -minGap;
   
   for (const point of turningPoints) {
-    const roundedIndex = Math.round(point.index / 3) * 3;
-    if (!seenIndices.has(roundedIndex)) {
-      seenIndices.add(roundedIndex);
-      uniquePoints.push(point);
+    if (point.index - lastIndex >= minGap) {
+      filteredPoints.push(point);
+      lastIndex = point.index;
     }
   }
   
-  return uniquePoints.slice(0, 2);
+  return filteredPoints.slice(0, 2);
 }
 
 export function calculateTrendLine(
@@ -95,9 +123,10 @@ export function calculateTrendLine(
   
   if (values.length < 2) return null;
   
-  const minX = values[0].x.getTime();
-  const xs = values.map(v => (v.x.getTime() - minX) / (1000 * 60 * 60 * 24 * 30));
-  const ys = values.map(v => v.y);
+  const sortedValues = values.sort((a, b) => a.x.getTime() - b.x.getTime());
+  const minX = sortedValues[0].x.getTime();
+  const xs = sortedValues.map(v => (v.x.getTime() - minX) / (1000 * 60 * 60 * 24 * 30));
+  const ys = sortedValues.map(v => v.y);
   
   const n = xs.length;
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
@@ -119,7 +148,7 @@ function formatDate(date: Date, dataLength: number): string {
   if (dataLength <= 24) {
     return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' });
   } else if (dataLength <= 60) {
-    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit' });
+    return date.toLocaleDateString('zh-CN', { year: '2-digit', month: '2-digit' });
   } else {
     return date.toLocaleDateString('zh-CN', { year: 'numeric' });
   }
@@ -130,10 +159,10 @@ function getTickIndices(count: number, maxTicks: number = 8): number[] {
     return Array.from({ length: count }, (_, i) => i);
   }
   
-  const step = Math.ceil(count / maxTicks);
+  const step = Math.floor(count / (maxTicks - 1));
   const indices: number[] = [];
   
-  for (let i = 0; i < count; i += step) {
+  for (let i = 0; i < count - 1; i += step) {
     indices.push(i);
   }
   
@@ -142,6 +171,41 @@ function getTickIndices(count: number, maxTicks: number = 8): number[] {
   }
   
   return indices;
+}
+
+function niceNumber(range: number, round: boolean): number {
+  const exponent = Math.floor(Math.log10(range));
+  const fraction = range / Math.pow(10, exponent);
+  let niceFraction: number;
+  
+  if (round) {
+    if (fraction < 1.5) niceFraction = 1;
+    else if (fraction < 3) niceFraction = 2;
+    else if (fraction < 7) niceFraction = 5;
+    else niceFraction = 10;
+  } else {
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
+  }
+  
+  return niceFraction * Math.pow(10, exponent);
+}
+
+interface NiceScale {
+  min: number;
+  max: number;
+  tickSpacing: number;
+}
+
+function getNiceScale(min: number, max: number, maxTicks: number = 5): NiceScale {
+  const range = niceNumber(max - min, false);
+  const tickSpacing = niceNumber(range / (maxTicks - 1), true);
+  const niceMin = Math.floor(min / tickSpacing) * tickSpacing;
+  const niceMax = Math.ceil(max / tickSpacing) * tickSpacing;
+  
+  return { min: niceMin, max: niceMax, tickSpacing };
 }
 
 export interface DrawChartOptions {
@@ -214,23 +278,16 @@ export function drawChart(options: DrawChartOptions): void {
     });
   });
   
-  if (yMinLeft === Infinity) yMinLeft = 0;
-  if (yMaxLeft === -Infinity) yMaxLeft = 100;
-  if (yMinRight === Infinity) yMinRight = 0;
-  if (yMaxRight === -Infinity) yMaxRight = 100;
+  if (yMinLeft === Infinity) { yMinLeft = 0; yMaxLeft = 100; }
+  if (yMinRight === Infinity) { yMinRight = 0; yMaxRight = 100; }
   
-  const yPaddingLeft = (yMaxLeft - yMinLeft) * 0.1 || 10;
-  const yPaddingRight = (yMaxRight - yMinRight) * 0.1 || 10;
+  const leftScale = getNiceScale(yMinLeft, yMaxLeft, 5);
+  const rightScale = getNiceScale(yMinRight, yMaxRight, 5);
   
-  yMinLeft -= yPaddingLeft;
-  yMaxLeft += yPaddingLeft;
-  yMinRight -= yPaddingRight;
-  yMaxRight += yPaddingRight;
+  const yScaleLeft = (v: number) => margin.top + chartHeight - ((v - leftScale.min) / (leftScale.max - leftScale.min || 1)) * chartHeight;
+  const yScaleRight = (v: number) => margin.top + chartHeight - ((v - rightScale.min) / (rightScale.max - rightScale.min || 1)) * chartHeight;
   
-  const yScaleLeft = (v: number) => margin.top + chartHeight - ((v - yMinLeft) / (yMaxLeft - yMinLeft || 1)) * chartHeight;
-  const yScaleRight = (v: number) => margin.top + chartHeight - ((v - yMinRight) / (yMaxRight - yMinRight || 1)) * chartHeight;
-  
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 1;
   
   const yTickCount = 5;
@@ -240,17 +297,27 @@ export function drawChart(options: DrawChartOptions): void {
     ctx.moveTo(margin.left, y);
     ctx.lineTo(width - margin.right, y);
     ctx.stroke();
-    
-    const leftVal = yMaxLeft - ((yMaxLeft - yMinLeft) / yTickCount) * i;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(leftVal.toFixed(1), margin.left - 10, y + 4);
-    
-    if (yFieldsRight.length > 0) {
-      const rightVal = yMaxRight - ((yMaxRight - yMinRight) / yTickCount) * i;
-      ctx.textAlign = 'left';
-      ctx.fillText(rightVal.toFixed(1), width - margin.right + 10, y + 4);
+  }
+  
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  
+  for (let i = 0; i <= yTickCount; i++) {
+    const t = i / yTickCount;
+    const y = margin.top + chartHeight * t;
+    const val = leftScale.max - (leftScale.max - leftScale.min) * t;
+    ctx.fillText(val.toFixed(0), margin.left - 12, y);
+  }
+  
+  ctx.textAlign = 'left';
+  if (yFieldsRight.length > 0) {
+    for (let i = 0; i <= yTickCount; i++) {
+      const t = i / yTickCount;
+      const y = margin.top + chartHeight * t;
+      const val = rightScale.max - (rightScale.max - rightScale.min) * t;
+      ctx.fillText(val.toFixed(0), width - margin.right + 12, y);
     }
   }
   
@@ -259,23 +326,35 @@ export function drawChart(options: DrawChartOptions): void {
   ctx.beginPath();
   ctx.moveTo(margin.left, margin.top);
   ctx.lineTo(margin.left, height - margin.bottom);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(width - margin.right, margin.top);
+  ctx.lineTo(width - margin.right, height - margin.bottom);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(margin.left, height - margin.bottom);
   ctx.lineTo(width - margin.right, height - margin.bottom);
   ctx.stroke();
   
   const tickIndices = getTickIndices(xValues.length, 8);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.font = '11px Inter, sans-serif';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
   
   tickIndices.forEach(idx => {
     const x = xScale(xValues[idx]);
     const label = formatDate(xValues[idx], xValues.length);
-    ctx.fillText(label, x, height - margin.bottom + 20);
+    ctx.fillText(label, x, height - margin.bottom + 12);
   });
   
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
   ctx.font = 'bold 12px Inter, sans-serif';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  
   if (yFieldsLeft.length > 0) {
     ctx.save();
     ctx.translate(20, height / 2);
@@ -299,9 +378,7 @@ export function drawChart(options: DrawChartOptions): void {
     const yScale = useRightAxis ? yScaleRight : yScaleLeft;
     const lineWidth = fieldIndex === 0 ? 3 : 2;
     
-    if (!isVisible) {
-      ctx.globalAlpha = 0.3;
-    }
+    const alpha = isVisible ? 1 : 0.3;
     
     const points: { x: number; y: number }[] = [];
     validData.forEach(row => {
@@ -314,6 +391,7 @@ export function drawChart(options: DrawChartOptions): void {
     
     if (points.length < 2) return;
     
+    ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
@@ -371,6 +449,9 @@ export function drawChart(options: DrawChartOptions): void {
     const fieldIndex = config.yFields.indexOf(point.field);
     if (fieldIndex === -1) return;
     
+    const isVisible = visibility[point.field] !== false;
+    if (!isVisible) return;
+    
     const useRightAxis = fieldIndex > 0;
     const yScale = useRightAxis ? yScaleRight : yScaleLeft;
     const color = config.fieldColors[point.field];
@@ -379,9 +460,9 @@ export function drawChart(options: DrawChartOptions): void {
     const y = yScale(point.yValue);
     
     ctx.fillStyle = '#FF3333';
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.25;
     ctx.beginPath();
-    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.arc(x, y, 16, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     
@@ -389,7 +470,7 @@ export function drawChart(options: DrawChartOptions): void {
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     
@@ -399,25 +480,72 @@ export function drawChart(options: DrawChartOptions): void {
     ctx.fill();
   });
   
-  const legendX = width - margin.right - 10;
-  const legendY = margin.top + 10;
+  const legendX = width - margin.right - 15;
+  const legendY = margin.top - 10;
+  const legendItemHeight = 26;
+  const legendPaddingX = 12;
+  const legendPaddingY = 8;
+  
+  const legendWidth = 130;
+  const legendHeight = config.yFields.length * legendItemHeight + legendPaddingY * 2;
+  
+  ctx.fillStyle = 'rgba(20, 20, 40, 0.92)';
+  ctx.beginPath();
+  ctx.roundRect(legendX - legendWidth, legendY - legendPaddingY, legendWidth, legendHeight, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
   
   config.yFields.forEach((field, i) => {
     const isVisible = visibility[field] !== false;
     const color = config.fieldColors[field];
-    const y = legendY + i * 28;
-    
-    ctx.fillStyle = 'rgba(26, 26, 46, 0.9)';
-    ctx.fillRect(legendX - 120, y - 5, 120, 22);
+    const y = legendY + i * legendItemHeight + legendPaddingY;
     
     ctx.fillStyle = isVisible ? color : `${color}4D`;
-    ctx.fillRect(legendX - 110, y, 24, 12);
+    ctx.fillRect(legendX - legendWidth + 12, y + 4, 22, 10);
     
     ctx.fillStyle = isVisible ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.4)';
     ctx.font = '12px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(field, legendX - 80, y + 10);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(field, legendX - legendWidth + 42, y + 9);
   });
+}
+
+export interface LegendArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function getLegendArea(
+  config: ChartConfig,
+  dimensions: ChartDimensions
+): { x: number; y: number; width: number; height: number; items: { field: string; y: number; height: number }[] } {
+  const { margin } = dimensions;
+  const legendX = dimensions.width - margin.right - 15;
+  const legendY = margin.top - 10;
+  const legendItemHeight = 26;
+  const legendPaddingY = 8;
+  
+  const legendWidth = 130;
+  const legendHeight = config.yFields.length * legendItemHeight + legendPaddingY * 2;
+  
+  const items = config.yFields.map((field, i) => ({
+    field,
+    y: legendY + i * legendItemHeight + legendPaddingY,
+    height: legendItemHeight
+  }));
+  
+  return {
+    x: legendX - legendWidth,
+    y: legendY - legendPaddingY,
+    width: legendWidth,
+    height: legendHeight,
+    items
+  };
 }
 
 export function handleLegendClick(
@@ -432,14 +560,14 @@ export function handleLegendClick(
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   
-  const { margin } = dimensions;
-  const legendX = dimensions.width - margin.right - 10;
-  const legendY = margin.top + 10;
+  const legendArea = getLegendArea(config, dimensions);
   
-  config.yFields.forEach((field, i) => {
-    const itemY = legendY + i * 28;
-    if (x >= legendX - 120 && x <= legendX && y >= itemY - 5 && y <= itemY + 17) {
-      onToggle(field);
-    }
-  });
+  if (x >= legendArea.x && x <= legendArea.x + legendArea.width &&
+      y >= legendArea.y && y <= legendArea.y + legendArea.height) {
+    legendArea.items.forEach(item => {
+      if (y >= item.y && y <= item.y + item.height) {
+        onToggle(item.field);
+      }
+    });
+  }
 }
