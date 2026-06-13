@@ -2,10 +2,13 @@ import { useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 
 import * as PIXI from 'pixi.js';
 import { PatternParams, BaseShape, SymmetryType } from '@/types/pattern';
 import { generateColorPalette } from '@/utils/colorSchemes';
+import { generateSVG } from '@/utils/svgGenerator';
 
 export interface PatternCanvasRef {
   exportPNG: () => Promise<string | null>;
+  exportSVG: () => string;
   getCanvas: () => HTMLCanvasElement | null;
+  generateThumbnail: () => string;
   resize: (width: number, height: number) => void;
 }
 
@@ -23,7 +26,11 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
   const isDraggingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
   const viewportRef = useRef({ scale: 1, x: 0, y: 0 });
-  const lastParamsRef = useRef<PatternParams | null>(null);
+  const paramsRef = useRef<PatternParams>(params);
+
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   const drawShape = useCallback((
     graphics: PIXI.Graphics,
@@ -34,7 +41,6 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
   ) => {
     graphics.clear();
     graphics.beginFill(color);
-    graphics.rotation = rotation * Math.PI / 180;
 
     switch (shape) {
       case 'circle':
@@ -90,17 +96,11 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
     complexity: number,
     size: number
   ) => {
-    while (container.children.length > 0) {
-      const child = container.children[0];
-      container.removeChild(child);
-      if (child instanceof PIXI.Graphics) {
-        graphicsPoolRef.current.push(child);
-      }
-    }
-
     const getGraphics = (): PIXI.Graphics => {
       if (graphicsPoolRef.current.length > 0) {
-        return graphicsPoolRef.current.pop()!;
+        const g = graphicsPoolRef.current.pop()!;
+        g.clear();
+        return g;
       }
       return new PIXI.Graphics();
     };
@@ -162,36 +162,16 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
     }
   }, []);
 
-  const redrawPattern = useCallback(() => {
+  const redrawPattern = useCallback((currentParams: PatternParams) => {
     if (!appRef.current || !patternContainerRef.current) return;
 
-    const { symmetryType, baseShape, colorScheme, complexity, baseColors } = params;
+    const { symmetryType, baseShape, colorScheme, complexity, baseColors } = currentParams;
 
     const canvasWidth = appRef.current.screen.width;
     const canvasHeight = appRef.current.screen.height;
     const size = Math.min(canvasWidth, canvasHeight) * 0.4;
 
     const palette = generateColorPalette(baseColors, colorScheme, Math.max(complexity * 2, 5));
-
-    const baseGraphics = new PIXI.Graphics();
-    const layers = Math.min(complexity, 15);
-
-    const tempContainer = new PIXI.Container();
-
-    for (let i = 0; i < layers; i++) {
-      const t = i / Math.max(layers - 1, 1);
-      const shapeSize = size * (1 - t * 0.7);
-      const colorHex = palette[i % palette.length];
-      const colorNum = parseInt(colorHex.replace('#', ''), 16);
-      const rotation = t * 180;
-
-      const g = new PIXI.Graphics();
-      drawShape(g, baseShape, Math.max(shapeSize, 5), colorNum, rotation);
-
-      applySymmetry(tempContainer, g, symmetryType, complexity, size);
-
-      g.destroy();
-    }
 
     while (patternContainerRef.current.children.length > 0) {
       const child = patternContainerRef.current.children[0];
@@ -201,14 +181,27 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
       }
     }
 
+    const layers = Math.min(complexity, 15);
+    const tempContainer = new PIXI.Container();
+
+    for (let i = 0; i < layers; i++) {
+      const t = i / Math.max(layers - 1, 1);
+      const shapeSize = size * (1 - t * 0.7);
+      const colorHex = palette[i % palette.length];
+      const colorNum = parseInt(colorHex.replace('#', ''), 16);
+
+      const g = new PIXI.Graphics();
+      drawShape(g, baseShape, Math.max(shapeSize, 5), colorNum, t * 180);
+      applySymmetry(tempContainer, g, symmetryType, complexity, size);
+      g.destroy();
+    }
+
     while (tempContainer.children.length > 0) {
       const child = tempContainer.children[0];
       tempContainer.removeChild(child);
       patternContainerRef.current.addChild(child);
     }
-
-    lastParamsRef.current = { ...params };
-  }, [params, drawShape, applySymmetry]);
+  }, [drawShape, applySymmetry]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -236,6 +229,12 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
 
     viewportRef.current = { scale: 1, x: width / 2, y: height / 2 };
 
+    redrawPattern(params);
+
+    const canvas = app.view as HTMLCanvasElement;
+    canvas.style.cursor = 'grab';
+    canvas.style.touchAction = 'none';
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (!appRef.current || !patternContainerRef.current) return;
@@ -259,12 +258,13 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
       patternContainerRef.current.y = viewportRef.current.y;
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       isDraggingRef.current = true;
       lastPosRef.current = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = 'grabbing';
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current || !patternContainerRef.current) return;
 
       const dx = e.clientX - lastPosRef.current.x;
@@ -278,28 +278,30 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
       lastPosRef.current = { x: e.clientX, y: e.clientY };
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       isDraggingRef.current = false;
+      canvas.style.cursor = 'grab';
     };
 
-    const canvas = app.view as HTMLCanvasElement;
-    canvas.style.cursor = 'grab';
     canvas.addEventListener('wheel', handleWheel, { passive: false });
-    canvas.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
 
-    let lastTime = 0;
+    let lastTime = performance.now();
     const animate = (time: number) => {
       animationFrameRef.current = requestAnimationFrame(animate);
 
-      if (patternContainerRef.current && params.rotationSpeed > 0) {
+      if (patternContainerRef.current && paramsRef.current.rotationSpeed > 0) {
         const deltaTime = (time - lastTime) / 1000;
         lastTime = time;
 
-        const degreesPerSecond = params.rotationSpeed * 72;
+        const degreesPerSecond = paramsRef.current.rotationSpeed * 72;
         rotationRef.current += degreesPerSecond * deltaTime;
         patternContainerRef.current.rotation = rotationRef.current * Math.PI / 180;
+      } else {
+        lastTime = time;
       }
     };
     animationFrameRef.current = requestAnimationFrame(animate);
@@ -309,7 +311,15 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
       const newWidth = containerRef.current.clientWidth;
       const newHeight = containerRef.current.clientHeight;
       appRef.current.renderer.resize(newWidth, newHeight);
-      redrawPattern();
+
+      if (patternContainerRef.current) {
+        viewportRef.current.x = newWidth / 2;
+        viewportRef.current.y = newHeight / 2;
+        patternContainerRef.current.x = viewportRef.current.x;
+        patternContainerRef.current.y = viewportRef.current.y;
+      }
+
+      redrawPattern(paramsRef.current);
     };
 
     window.addEventListener('resize', handleResize);
@@ -317,16 +327,22 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
     return () => {
       window.removeEventListener('resize', handleResize);
       canvas.removeEventListener('wheel', handleWheel);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
 
-      app.destroy(true);
+      app.destroy(true, {
+        children: true,
+        texture: true,
+        baseTexture: true,
+      });
       appRef.current = null;
+      patternContainerRef.current = null;
       graphicsPoolRef.current = [];
     };
   }, []);
@@ -342,18 +358,42 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      redrawPattern();
+      redrawPattern(params);
     }, 16);
 
     return () => clearTimeout(timer);
-  }, [params.symmetryType, params.baseShape, params.colorScheme, params.complexity, params.baseColors, redrawPattern]);
+  }, [
+    params.symmetryType,
+    params.baseShape,
+    params.colorScheme,
+    params.complexity,
+    params.baseColors,
+    redrawPattern,
+  ]);
 
   useImperativeHandle(ref, () => ({
     exportPNG: async (): Promise<string | null> => {
-      if (!appRef.current) return null;
+      if (!appRef.current || !patternContainerRef.current) return null;
+
+      try {
+        const extract = appRef.current.renderer.plugins.extract;
+        if (extract) {
+          const image = await extract.image(appRef.current.stage);
+          return image.src;
+        }
+      } catch (e) {
+        console.warn('Extract plugin failed, falling back to canvas.toDataURL');
+      }
 
       const canvas = appRef.current.view as HTMLCanvasElement;
       return canvas.toDataURL('image/png');
+    },
+
+    exportSVG: (): string => {
+      if (!appRef.current) return '';
+      const width = appRef.current.screen.width;
+      const height = appRef.current.screen.height;
+      return generateSVG(paramsRef.current, width, height);
     },
 
     getCanvas: (): HTMLCanvasElement | null => {
@@ -361,10 +401,32 @@ const PatternCanvas = forwardRef<PatternCanvasRef, PatternCanvasProps>(({ params
       return appRef.current.view as HTMLCanvasElement;
     },
 
+    generateThumbnail: (): string => {
+      if (!appRef.current) return '';
+      const canvas = appRef.current.view as HTMLCanvasElement;
+      const thumbSize = 200;
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = thumbSize;
+      thumbCanvas.height = thumbSize;
+      const ctx = thumbCanvas.getContext('2d');
+
+      if (ctx) {
+        const scale = Math.min(thumbSize / canvas.width, thumbSize / canvas.height);
+        const x = (thumbSize - canvas.width * scale) / 2;
+        const y = (thumbSize - canvas.height * scale) / 2;
+        ctx.fillStyle = paramsRef.current.backgroundColor;
+        ctx.fillRect(0, 0, thumbSize, thumbSize);
+        ctx.drawImage(canvas, x, y, canvas.width * scale, canvas.height * scale);
+        return thumbCanvas.toDataURL('image/png').split(',')[1];
+      }
+
+      return '';
+    },
+
     resize: (width: number, height: number) => {
       if (appRef.current) {
         appRef.current.renderer.resize(width, height);
-        redrawPattern();
+        redrawPattern(paramsRef.current);
       }
     },
   }));
