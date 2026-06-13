@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EchoPhase - 回合制潜行对战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0f;
+      font-family: 'Courier New', monospace;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 50%, #0a0a0f 100%);
+    }
+
+    #game-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 60px rgba(74, 144, 217, 0.15), 0 0 120px rgba(217, 74, 74, 0.1);
+      border-radius: 8px;
+    }
+
+    .ui-overlay {
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .ui-panel {
+      background: rgba(15, 15, 25, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #ffffff;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    #player1-panel {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      padding: 16px;
+      pointer-events: auto;
+    }
+
+    #player2-panel {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      padding: 16px;
+      pointer-events: auto;
+    }
+
+    #bottom-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 16px 32px;
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      text-shadow: 0 0 10px currentColor;
+      letter-spacing: 2px;
+    }
+
+    .player1-color {
+      color: #4A90D9;
+    }
+
+    .player2-color {
+      color: #D94A4A;
+    }
+
+    .hp-bar {
+      width: 100%;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hp-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+      border-radius: 8px;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .hp-text {
+      font-size: 14px;
+      margin-bottom: 12px;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
+
+    .status-icon {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 6px;
+      opacity: 0.9;
+    }
+
+    .inventory {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .inventory-title {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 8px;
+    }
+
+    .inventory-slots {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .inventory-slot {
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .stats {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .turn-indicator {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-shadow: 0 0 15px currentColor;
+      letter-spacing: 3px;
+    }
+
+    .controls-hint {
+      font-size: 12px;
+      opacity: 0.6;
+      margin-top: 8px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.3), rgba(217, 74, 74, 0.3));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
+
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.5), rgba(217, 74, 74, 0.5));
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(74, 144, 217, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    #end-turn-btn {
+      margin-top: 10px;
+    }
+
+    #alert-action-btn {
+      display: none;
+      background: linear-gradient(135deg, rgba(255, 68, 68, 0.4), rgba(255, 170, 0, 0.4));
+      margin-left: 10px;
+      animation: alertPulse 0.5s infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      from { box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+      to { box-shadow: 0 0 25px rgba(255, 68, 68, 0.8); }
+    }
+
+    #hero-select {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 50%, #0a0a0f 100%);
+      z-index: 100;
+      pointer-events: auto;
+    }
+
+    .hero-select-title {
+      font-size: 48px;
+      color: #fff;
+      margin-bottom: 20px;
+      text-shadow: 0 0 30px rgba(74, 144, 217, 0.8), 0 0 60px rgba(217, 74, 74, 0.5);
+      letter-spacing: 8px;
+      font-weight: bold;
+    }
+
+    .hero-select-subtitle {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 60px;
+      letter-spacing: 4px;
+    }
+
+    .hero-cards {
+      display: flex;
+      gap: 60px;
+      margin-bottom: 60px;
+    }
+
+    .hero-card {
+      width: 200px;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .hero-card:hover {
+      transform: translateY(-10px);
+      border-color: rgba(74, 144, 217, 0.5);
+      box-shadow: 0 20px 60px rgba(74, 144, 217, 0.3);
+    }
+
+    .hero-card.selected {
+      border-color: #4A90D9;
+      box-shadow: 0 0 30px rgba(74, 144, 217, 0.6);
+    }
+
+    .hero-preview {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+    }
+
+    .hero-name {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+
+    .hero-desc {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.6;
+    }
+
+    #start-game-btn {
+      padding: 16px 60px;
+      font-size: 18px;
+      letter-spacing: 4px;
+    }
+
+    #countdown {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    .countdown-number {
+      font-size: 200px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 0 50px rgba(74, 144, 217, 0.8), 0 0 100px rgba(217, 74, 74, 0.6);
+      animation: countdownAnim 0.5s ease-out forwards;
+    }
+
+    @keyframes countdownAnim {
+      0% {
+        opacity: 0;
+        transform: scale(2);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+    }
+
+    #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 150;
+      pointer-events: auto;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+
+    #game-over.visible {
+      opacity: 1;
+    }
+
+    .game-over-content {
+      text-align: center;
+      padding: 60px;
+      background: rgba(15, 15, 25, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      min-width: 500px;
+    }
+
+    .victory-text {
+      font-size: 56px;
+      font-weight: bold;
+      margin-bottom: 30px;
+      text-shadow: 0 0 30px currentColor;
+      letter-spacing: 6px;
+    }
+
+    .winner-label {
+      font-size: 24px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 10px;
+      letter-spacing: 4px;
+    }
+
+    .game-stats {
+      margin: 40px 0;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px 40px;
+    }
+
+    .stat-item {
+      text-align: left;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .stat-value.player1 {
+      color: #4A90D9;
+    }
+
+    .stat-value.player2 {
+      color: #D94A4A;
+    }
+
+    #toast {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 30px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 16px;
+      display: none;
+      z-index: 50;
+      pointer-events: none;
+      animation: toastIn 0.3s ease;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .item-heal {
+      background: rgba(76, 175, 80, 0.3);
+      border-color: rgba(76, 175, 80, 0.5);
+      color: #4CAF50;
+    }
+
+    .item-attack {
+      background: rgba(244, 67, 54, 0.3);
+      border-color: rgba(244, 67, 54, 0.5);
+      color: #F44336;
+    }
+
+    .item-action {
+      background: rgba(255, 193, 7, 0.3);
+      border-color: rgba(255, 193, 7, 0.5);
+      color: #FFC107;
+    }
+
+    @media (max-width: 1400px) {
+      #player1-panel, #player2-panel {
+        width: 160px;
+        padding: 12px;
+      }
+
+      .panel-title {
+        font-size: 16px;
+      }
+
+      #bottom-panel {
+        padding: 12px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="1080" height="1080"></canvas>
+
+    <div id="player1-panel" class="ui-overlay ui-panel">
+      <div class="panel-title player1-color">玩家 1</div>
+      <div class="hp-bar">
+        <div class="hp-fill player1-color" id="p1-hp-fill" style="width: 100%"></div>
+      </div>
+      <div class="hp-text">生命值: <span id="p1-hp">100</span>/100</div>
+      <div class="status-row">
+        <span class="status-icon" id="p1-stealth-icon" style="background: #9C27B0; display: none;"></span>
+        <span id="p1-stealth-text">潜行状态: 未潜行</span>
+      </div>
+      <div class="status-row">
+        <span class="status-icon" id="p1-reveal-icon" style="background: #FF5722; display: none;"></span>
+        <span id="p1-reveal-text">位置: 隐藏</span>
+      </div>
+      <div class="status-row">
+        <span>攻击力: <span id="p1-attack">10</span></span>
+      </div>
+      <div class="inventory">
+        <div class="inventory-title">背包</div>
+        <div class="inventory-slots" id="p1-inventory"></div>
+      </div>
+      <div class="stats">
+        <div class="stat-row"><span>移动步数</span><span id="p1-moves">0</span></div>
+        <div class="stat-row"><span>攻击次数</span><span id="p1-attacks">0</span></div>
+        <div class="stat-row"><span>宝箱拾取</span><span id="p1-chests">0</span></div>
+      </div>
+    </div>
+
+    <div id="player2-panel" class="ui-overlay ui-panel">
+      <div class="panel-title player2-color">玩家 2</div>
+      <div class="hp-bar">
+        <div class="hp-fill player2-color" id="p2-hp-fill" style="width: 100%"></div>
+      </div>
+      <div class="hp-text">生命值: <span id="p2-hp">100</span>/100</div>
+      <div class="status-row">
+        <span class="status-icon" id="p2-stealth-icon" style="background: #9C27B0; display: none;"></span>
+        <span id="p2-stealth-text">潜行状态: 未潜行</span>
+      </div>
+      <div class="status-row">
+        <span class="status-icon" id="p2-reveal-icon" style="background: #FF5722; display: none;"></span>
+        <span id="p2-reveal-text">位置: 隐藏</span>
+      </div>
+      <div class="status-row">
+        <span>攻击力: <span id="p2-attack">10</span></span>
+      </div>
+      <div class="inventory">
+        <div class="inventory-title">背包</div>
+        <div class="inventory-slots" id="p2-inventory"></div>
+      </div>
+      <div class="stats">
+        <div class="stat-row"><span>移动步数</span><span id="p2-moves">0</span></div>
+        <div class="stat-row"><span>攻击次数</span><span id="p2-attacks">0</span></div>
+        <div class="stat-row"><span>宝箱拾取</span><span id="p2-chests">0</span></div>
+      </div>
+    </div>
+
+    <div id="bottom-panel" class="ui-overlay ui-panel">
+      <div class="turn-indicator" id="turn-indicator">玩家 1 回合</div>
+      <div class="controls-hint">
+        玩家1: WASD移动 | 空格攻击 &nbsp;&nbsp;|&nbsp;&nbsp; 玩家2: 方向键移动 | 空格攻击
+      </div>
+      <div>
+        <button class="btn" id="end-turn-btn">结束回合</button>
+        <button class="btn" id="alert-action-btn">警报行动!</button>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="hero-select">
+      <div class="hero-select-title">ECHOPHASE</div>
+      <div class="hero-select-subtitle">回合制潜行对战</div>
+      <div class="hero-cards">
+        <div class="hero-card" data-hero="1">
+          <div class="hero-preview" style="background: linear-gradient(135deg, rgba(74, 144, 217, 0.3), rgba(74, 144, 217, 0.1));">
+            <span>🗡️</span>
+          </div>
+          <div class="hero-name player1-color">暗影刺客</div>
+          <div class="hero-desc">迅捷如风<br>擅长隐匿突袭</div>
+        </div>
+        <div class="hero-card" data-hero="2">
+          <div class="hero-preview" style="background: linear-gradient(135deg, rgba(217, 74, 74, 0.3), rgba(217, 74, 74, 0.1));">
+            <span>⚔️</span>
+          </div>
+          <div class="hero-name player2-color">烈焰杀手</div>
+          <div class="hero-desc">刚猛霸道<br>正面压制对手</div>
+        </div>
+      </div>
+      <button class="btn" id="start-game-btn">开始游戏</button>
+    </div>
+
+    <div id="countdown">
+      <div class="countdown-number" id="countdown-number">3</div>
+    </div>
+
+    <div id="game-over">
+      <div class="game-over-content">
+        <div class="winner-label">胜利</div>
+        <div class="victory-text" id="victory-text">玩家 1 获胜!</div>
+        <div class="game-stats">
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-label">移动步数 (P1/P2)</div>
+              <div class="stat-value">
+                <span class="player1" id="final-p1-moves">0</span> / <span class="player2" id="final-p2-moves">0</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">攻击次数 (P1/P2)</div>
+              <div class="stat-value">
+                <span class="player1" id="final-p1-attacks">0</span> / <span class="player2" id="final-p2-attacks">0</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">宝箱拾取 (P1/P2)</div>
+              <div class="stat-value">
+                <span class="player1" id="final-p1-chests">0</span> / <span class="player2" id="final-p2-chests">0</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">回合数</div>
+              <div class="stat-value" id="final-turns">0</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn" id="restart-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
