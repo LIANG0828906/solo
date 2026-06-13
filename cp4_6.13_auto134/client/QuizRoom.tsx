@@ -24,10 +24,8 @@ interface QuizRoomProps {
 interface ChartDataPoint {
   option: string;
   count: number;
-  full: number;
 }
 
-const PRIMARY_COLOR = '#4A90D9';
 const CORRECT_COLOR = '#52C41A';
 const OPTION_COLORS = ['#4A90D9', '#6BA8E8', '#8FBCEE', '#B3D0F3'];
 
@@ -44,7 +42,6 @@ const StatsChart: React.FC<{ stats: QuestionStatsData; question: PublicQuestion 
   const chartData: ChartDataPoint[] = stats.options.map(opt => ({
     option: opt.option,
     count: opt.count,
-    full: maxCount,
   }));
 
   const total = stats.totalParticipants;
@@ -164,6 +161,12 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
 
         switch (msg.type) {
           case 'room_created':
+            if (msg.questionSummaries) {
+              setQuestionSummaries(msg.questionSummaries);
+            }
+            showToast(`房间已创建，房间码：${msg.code}`, 'success');
+            break;
+
           case 'room_joined':
             if (msg.questionSummaries) {
               setQuestionSummaries(msg.questionSummaries);
@@ -175,12 +178,7 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
                 setSubmitted(true);
               }
             }
-            if (role === 'teacher' && msg.code) {
-              showToast(`房间已创建，房间码：${msg.code}`, 'success');
-            }
-            if (role === 'student') {
-              showToast('已加入房间', 'success');
-            }
+            showToast('已加入房间', 'success');
             break;
 
           case 'question_list_updated':
@@ -202,10 +200,13 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
             setActiveQuestion(msg.question);
             if (role === 'teacher' && msg.stats) {
               setStats(msg.stats);
-            } else if (role === 'student') {
+              lastStatsUpdateRef.current = Date.now();
+            }
+            if (role === 'student') {
               setSelectedOption(null);
               setSubmitted(false);
               setStudentResult(null);
+              setClassCorrectRate(0);
             }
             break;
 
@@ -216,6 +217,7 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
           case 'question_stats_view':
             setActiveQuestion(msg.question);
             setStats(msg.stats);
+            lastStatsUpdateRef.current = Date.now();
             setActiveViewQuestionId(msg.question.id);
             break;
 
@@ -228,6 +230,7 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
             if (role === 'teacher') {
               if (msg.stats) {
                 setStats(msg.stats);
+                lastStatsUpdateRef.current = Date.now();
               }
               showToast('答题已结束', 'info');
             } else {
@@ -235,9 +238,11 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
               setClassCorrectRate(msg.correctRate ?? 0);
               const isCorrect = msg.studentResult?.isCorrect;
               showToast(isCorrect ? '回答正确！🎉' : '回答错误', isCorrect ? 'success' : 'error');
-              if (activeQuestion) {
-                setActiveQuestion({ ...activeQuestion, isEnded: true, correctOption: msg.studentResult?.correctOption });
-              }
+              setActiveQuestion(prev =>
+                prev
+                  ? { ...prev, isEnded: true, correctOption: msg.studentResult?.correctOption }
+                  : prev
+              );
             }
             break;
 
@@ -256,7 +261,7 @@ const QuizRoom: React.FC<QuizRoomProps> = ({ ws, role, nickname, roomCode, roomI
 
     ws.addEventListener('message', onMessage);
     return () => ws.removeEventListener('message', onMessage);
-  }, [ws, role, showToast, activeQuestion, updateStatsThrottled]);
+  }, [ws, role, showToast, updateStatsThrottled]);
 
   const handleAddQuestion = () => {
     if (!qText.trim() || !optA.trim() || !optB.trim() || !optC.trim() || !optD.trim()) {
