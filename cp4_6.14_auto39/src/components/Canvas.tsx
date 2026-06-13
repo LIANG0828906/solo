@@ -3,7 +3,8 @@ import type {
   CanvasComponent,
   Connection,
   HandlePosition,
-  DragState
+  DragState,
+  ComponentType
 } from '../types';
 
 type Selection =
@@ -18,6 +19,7 @@ interface Props {
   onSelect: (sel: Selection) => void;
   onUpdateComponents: (comps: CanvasComponent[]) => void;
   onAddConnection: (fromId: string, toId: string) => void;
+  onAddComponent: (type: ComponentType, pos: { x: number; y: number }) => void;
 }
 
 interface BoundingBox {
@@ -104,20 +106,21 @@ function getEdgePoint(comp: CanvasComponent, target: { x: number; y: number }): 
 
 function CanvasComponentView({
   comp,
-  isSelected
+  isSelected,
+  isHovered
 }: {
   comp: CanvasComponent;
   isSelected: boolean;
+  isHovered: boolean;
 }) {
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: comp.x,
-    top: comp.y,
+    left: 0,
+    top: 0,
     width: comp.width,
     height: comp.height,
     transform: `rotate(${comp.rotation}deg)`,
     transformOrigin: 'center center',
-    zIndex: comp.zIndex,
     boxSizing: 'border-box',
     userSelect: 'none'
   };
@@ -133,7 +136,9 @@ function CanvasComponentView({
       style.borderRadius = '50%';
     }
     if (isSelected) {
-      style.boxShadow = '0 0 0 2px rgba(59,130,246,0.4)';
+      style.boxShadow = '0 0 0 2px rgba(59,130,246,0.45)';
+    } else if (isHovered) {
+      style.boxShadow = '0 0 0 1.5px rgba(59,130,246,0.25), 0 2px 6px rgba(0,0,0,0.08)';
     } else {
       style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
     }
@@ -157,8 +162,8 @@ function CanvasComponentView({
             wordBreak: 'break-word',
             lineHeight: 1.4,
             overflow: 'hidden',
-            outline: isSelected ? '2px dashed rgba(59,130,246,0.5)' : 'none',
-            borderRadius: 2
+            outline: isSelected ? '2px dashed rgba(59,130,246,0.5)' : isHovered ? '1.5px dashed rgba(59,130,246,0.25)' : 'none',
+            borderRadius: 3
           }}
         >
           {comp.content || '文本'}
@@ -167,7 +172,7 @@ function CanvasComponentView({
     }
     if (comp.type === 'image') {
       return (
-        <div style={{ width: '100%', height: '100%', borderRadius: comp.type !== 'circle' ? (style.borderRadius as any) : '50%', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '100%', borderRadius: comp.type !== 'circle' ? (style.borderRadius as any) || 0 : '50%', overflow: 'hidden' }}>
           {comp.style.src ? (
             <img
               src={comp.style.src}
@@ -235,7 +240,8 @@ const Canvas: React.FC<Props> = ({
   selection,
   onSelect,
   onUpdateComponents,
-  onAddConnection
+  onAddConnection,
+  onAddComponent
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -245,6 +251,9 @@ const Canvas: React.FC<Props> = ({
   const [editingConnId, setEditingConnId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
   const [hoveredCompId, setHoveredCompId] = useState<string | null>(null);
+  const [hoveredConnId, setHoveredConnId] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const editingInputRef = useRef<HTMLInputElement>(null);
 
   const sortedComponents = useMemo(
     () => [...components].sort((a, b) => a.zIndex - b.zIndex),
@@ -255,6 +264,8 @@ const Canvas: React.FC<Props> = ({
     selection?.kind === 'component'
       ? components.find(c => c.id === selection.id) || null
       : null;
+  const selectedConnectionId =
+    selection?.kind === 'connection' ? selection.id : null;
 
   const selectedBBox: BoundingBox | null = selectedComponent
     ? {
@@ -263,7 +274,7 @@ const Canvas: React.FC<Props> = ({
         width: selectedComponent.width,
         height: selectedComponent.height
       }
-    : null;
+      : null;
 
   const screenToWorld = (sx: number, sy: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -354,11 +365,11 @@ const Canvas: React.FC<Props> = ({
         const comp = components.find(c => c.id === dragState.componentId);
         if (!comp) return;
         const origR = dragState.originalRotation ?? 0;
-        const center = getComponentCenter({
-          ...comp,
-          x: dragState.originalX ?? comp.x,
-          y: dragState.originalY ?? comp.y
-        });
+        const origX = dragState.originalX ?? comp.x;
+        const origY = dragState.originalY ?? comp.y;
+        const origW = dragState.originalWidth ?? comp.width;
+        const origH = dragState.originalHeight ?? comp.height;
+        const center = { x: origX + origW / 2, y: origY + origH / 2 };
         const world = screenToWorld(e.clientX, e.clientY);
         const angleRad = Math.atan2(world.y - center.y, world.x - center.x);
         let angleDeg = (angleRad * 180) / Math.PI + 90;
@@ -411,7 +422,8 @@ const Canvas: React.FC<Props> = ({
   };
 
   const onCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.target !== e.currentTarget && !(e.target as HTMLElement).classList.contains('canvas-inner')) return;
+    const target = e.target as HTMLElement;
+    if (!(target.classList.contains('canvas-root') || target.classList.contains('canvas-inner'))) return;
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setDragState({
         type: 'pan',
@@ -462,6 +474,8 @@ const Canvas: React.FC<Props> = ({
       componentId: comp.id,
       originalX: comp.x,
       originalY: comp.y,
+      originalWidth: comp.width,
+      originalHeight: comp.height,
       originalRotation: comp.rotation
     });
   };
@@ -471,7 +485,6 @@ const Canvas: React.FC<Props> = ({
     const fromComp = components.find(c => c.id === fromId);
     if (!fromComp) return;
     const world = screenToWorld(e.clientX, e.clientY);
-    const center = getComponentCenter(fromComp);
     const edgePoint = getEdgePoint(fromComp, world);
     setDragState({
       type: 'connect',
@@ -483,6 +496,36 @@ const Canvas: React.FC<Props> = ({
     });
   };
 
+  const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/x-protoflow-type')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    }
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const type = e.dataTransfer.getData('application/x-protoflow-type') as ComponentType;
+    if (!type) return;
+    const world = screenToWorld(e.clientX, e.clientY);
+    onAddComponent(type, { x: Math.round(world.x), y: Math.round(world.y) });
+  };
+
+  useEffect(() => {
+    if (editingConnId && editingInputRef.current) {
+      editingInputRef.current.focus();
+      editingInputRef.current.select();
+    }
+  }, [editingConnId]);
+
   const gridSize = 20;
   const gridSpacing = gridSize * scale;
 
@@ -492,8 +535,8 @@ const Canvas: React.FC<Props> = ({
     const w = rect.width;
     const h = rect.height;
     const lines: JSX.Element[] = [];
-    const ox = offset.x % gridSpacing;
-    const oy = offset.y % gridSpacing;
+    const ox = ((offset.x % gridSpacing) + gridSpacing) % gridSpacing;
+    const oy = ((offset.y % gridSpacing) + gridSpacing) % gridSpacing;
 
     for (let x = ox; x < w; x += gridSpacing) {
       lines.push(
@@ -578,7 +621,8 @@ const Canvas: React.FC<Props> = ({
     setEditingConnId(null);
   };
 
-  const handleDeleteConnection = (connId: string) => {
+  const handleDeleteConnection = (e: React.MouseEvent, connId: string) => {
+    e.stopPropagation();
     const evt = new CustomEvent('__delete_connection__', { detail: { id: connId } });
     window.dispatchEvent(evt);
   };
@@ -586,17 +630,43 @@ const Canvas: React.FC<Props> = ({
   return (
     <div
       ref={containerRef}
+      className="canvas-root"
       onMouseDown={onCanvasMouseDown}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       style={{
         width: '100%',
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
-        cursor: dragState?.type === 'pan' ? 'grabbing' : 'default',
-        background: '#f3f4f6'
+        cursor: dragState?.type === 'pan' ? 'grabbing' : isDragOver ? 'copy' : 'default',
+        background: isDragOver ? 'rgba(59,130,246,0.06)' : '#f3f4f6'
       }}
     >
       {renderGrid()}
+
+      {isDragOver && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 12,
+            border: '2px dashed #3b82f6',
+            borderRadius: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#3b82f6',
+            fontSize: 14,
+            fontWeight: 600,
+            pointerEvents: 'none',
+            zIndex: 50,
+            background: 'rgba(59,130,246,0.04)'
+          }}
+        >
+          释放以添加组件到画布
+        </div>
+      )}
 
       <div
         className="canvas-inner"
@@ -624,45 +694,67 @@ const Canvas: React.FC<Props> = ({
           }}
         >
           <defs>
-            <marker id="arrow-default" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <marker id="arrow-default" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
             </marker>
-            <marker id="arrow-selected" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <marker id="arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#f97316" />
             </marker>
-            <marker id="arrow-hover" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <marker id="arrow-hover" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
             </marker>
           </defs>
 
           {connections.map(conn => {
             const { from, to, midX, midY } = getConnectionPoints(conn);
-            const isSel = selection?.kind === 'connection' && selection.id === conn.id;
+            const isSel = selectedConnectionId === conn.id;
+            const isHover = hoveredConnId === conn.id;
             const isEdit = editingConnId === conn.id;
             const dx = to.x - from.x;
             const dy = to.y - from.y;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len < 1) return null;
-            const offX = (dx / len) * 40;
-            const offY = (dy / len) * 40;
+            const offX = (dx / len) * 50;
+            const offY = (dy / len) * 50;
             const cp1x = from.x + offX;
             const cp1y = from.y + offY;
             const cp2x = to.x - offX;
             const cp2y = to.y - offY;
             const d = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`;
-            const stroke = isSel ? '#f97316' : '#6b7280';
-            const strokeW = isSel ? 2.5 : 1.8;
-            const marker = isSel ? 'url(#arrow-selected)' : 'url(#arrow-default)';
+
+            let stroke: string;
+            let strokeW: number;
+            let marker: string;
+            if (isSel) {
+              stroke = '#f97316';
+              strokeW = 3;
+              marker = 'url(#arrow-selected)';
+            } else if (isHover) {
+              stroke = '#3b82f6';
+              strokeW = 2.2;
+              marker = 'url(#arrow-hover)';
+            } else {
+              stroke = '#6b7280';
+              strokeW = 1.8;
+              marker = 'url(#arrow-default)';
+            }
+
+            const circleRadius = isSel ? 6 : isHover ? 5 : 4.5;
+            const circleStroke = isSel ? '#f97316' : isHover ? '#3b82f6' : '#6b7280';
+            const circleFill = '#ffffff';
+
             return (
               <g key={conn.id} style={{ pointerEvents: 'auto' }}>
                 <path
                   d={d}
                   stroke="transparent"
-                  strokeWidth={16}
+                  strokeWidth={18}
                   fill="none"
                   style={{ cursor: 'pointer' }}
                   onClick={e => handleConnectionClick(e, conn.id)}
                   onDoubleClick={e => handleConnectionDoubleClick(e, conn)}
+                  onMouseEnter={() => setHoveredConnId(conn.id)}
+                  onMouseLeave={() => setHoveredConnId(cid => cid === conn.id ? null : cid)}
                 />
                 <path
                   d={d}
@@ -670,39 +762,54 @@ const Canvas: React.FC<Props> = ({
                   strokeWidth={strokeW}
                   fill="none"
                   markerEnd={marker}
-                  style={{ pointerEvents: 'none' }}
+                  style={{ pointerEvents: 'none', transition: 'all 0.15s' }}
                 />
-                <circle cx={from.x} cy={from.y} r={5} fill={stroke} stroke="#fff" strokeWidth={1.5} />
+                <circle
+                  cx={from.x}
+                  cy={from.y}
+                  r={circleRadius}
+                  fill={circleFill}
+                  stroke={circleStroke}
+                  strokeWidth={2}
+                  style={{ pointerEvents: 'none', transition: 'all 0.15s' }}
+                />
 
-                {isEdit ? null : (
+                {!isEdit && (
                   <foreignObject
-                    x={midX - 60}
-                    y={midY - 14}
-                    width={120}
-                    height={28}
+                    x={midX - 80}
+                    y={midY - 18}
+                    width={160}
+                    height={36}
                     style={{ overflow: 'visible', pointerEvents: 'none' }}
                   >
                     <div
                       onDoubleClick={e => handleConnectionDoubleClick(e, conn)}
                       onClick={e => handleConnectionClick(e, conn.id)}
+                      onMouseEnter={() => setHoveredConnId(conn.id)}
+                      onMouseLeave={() => setHoveredConnId(cid => cid === conn.id ? null : cid)}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '3px 10px',
-                        background: isSel ? '#fff7ed' : '#f9fafb',
-                        color: isSel ? '#c2410c' : '#374151',
-                        border: `1px solid ${isSel ? '#fdba74' : '#e5e7eb'}`,
-                        borderRadius: 6,
+                        padding: '4px 12px',
+                        background: isSel ? '#fff7ed' : isHover ? '#eff6ff' : '#f9fafb',
+                        color: isSel ? '#c2410c' : isHover ? '#1d4ed8' : '#374151',
+                        border: `1.5px solid ${isSel ? '#fdba74' : isHover ? '#93c5fd' : '#e5e7eb'}`,
+                        borderRadius: 8,
                         fontSize: 11,
-                        fontWeight: 500,
-                        maxWidth: 120,
+                        fontWeight: 600,
+                        maxWidth: 160,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         cursor: 'pointer',
                         pointerEvents: 'auto',
-                        boxShadow: isSel ? '0 2px 6px rgba(249,115,22,0.15)' : '0 1px 2px rgba(0,0,0,0.04)'
+                        boxShadow: isSel
+                          ? '0 3px 10px rgba(249,115,22,0.2)'
+                          : isHover
+                          ? '0 2px 6px rgba(59,130,246,0.15)'
+                          : '0 1px 3px rgba(0,0,0,0.05)',
+                        transition: 'all 0.15s'
                       }}
                     >
                       {conn.label || '跳转'}
@@ -711,49 +818,54 @@ const Canvas: React.FC<Props> = ({
                 )}
 
                 {isSel && !isEdit && (
-                  <g style={{ pointerEvents: 'auto' }}>
-                    <foreignObject x={midX + 42} y={midY - 16} width={28} height={28}>
-                      <div
-                        onClick={e => { e.stopPropagation(); handleDeleteConnection(conn.id); }}
-                        title="删除连线"
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          background: '#ffffff',
-                          color: '#ef4444',
-                          border: '1px solid #fecaca',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          fontSize: 16,
-                          boxShadow: '0 2px 6px rgba(239,68,68,0.2)',
-                          lineHeight: 1
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#ef4444')}
-                        onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </div>
-                    </foreignObject>
-                  </g>
+                  <foreignObject x={midX + 52} y={midY - 20} width={36} height={36} style={{ overflow: 'visible', pointerEvents: 'auto' }}>
+                    <div
+                      onClick={e => handleDeleteConnection(e, conn.id)}
+                      title="删除连线"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: '#ffffff',
+                        color: '#ef4444',
+                        border: '1.5px solid #fecaca',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 3px 10px rgba(239,68,68,0.25)',
+                        transition: 'all 0.15s',
+                        lineHeight: 1
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#ef4444';
+                        e.currentTarget.style.color = '#ffffff';
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.color = '#ef4444';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </div>
+                  </foreignObject>
                 )}
 
                 {isEdit && (
                   <foreignObject
-                    x={midX - 80}
-                    y={midY - 18}
-                    width={160}
-                    height={36}
+                    x={midX - 100}
+                    y={midY - 20}
+                    width={200}
+                    height={40}
                     style={{ overflow: 'visible', pointerEvents: 'auto' }}
                   >
                     <input
-                      autoFocus
+                      ref={editingInputRef}
                       value={editingLabel}
                       onChange={e => setEditingLabel(e.target.value)}
                       onBlur={finishEditingLabel}
@@ -761,15 +873,18 @@ const Canvas: React.FC<Props> = ({
                         if (e.key === 'Enter') finishEditingLabel();
                         if (e.key === 'Escape') { setEditingConnId(null); }
                       }}
+                      placeholder="输入标签文字..."
                       style={{
                         width: '100%',
-                        padding: '5px 10px',
+                        padding: '7px 12px',
                         border: '2px solid #3b82f6',
-                        borderRadius: 6,
+                        borderRadius: 8,
                         fontSize: 12,
                         outline: 'none',
                         background: '#fff',
-                        boxShadow: '0 2px 8px rgba(59,130,246,0.2)'
+                        boxShadow: '0 4px 12px rgba(59,130,246,0.25)',
+                        fontWeight: 500,
+                        color: '#1f2937'
                       }}
                     />
                   </foreignObject>
@@ -790,21 +905,26 @@ const Canvas: React.FC<Props> = ({
               const dx = effectiveTo.x - from.x;
               const dy = effectiveTo.y - from.y;
               const len = Math.sqrt(dx * dx + dy * dy);
-              const offX = len > 0 ? (dx / len) * 40 : 0;
-              const offY = len > 0 ? (dy / len) * 40 : 0;
+              const offX = len > 0 ? (dx / len) * 50 : 0;
+              const offY = len > 0 ? (dy / len) * 50 : 0;
               const d = `M ${from.x} ${from.y} C ${from.x + offX} ${from.y + offY}, ${effectiveTo.x - offX} ${effectiveTo.y - offY}, ${effectiveTo.x} ${effectiveTo.y}`;
+              const strokeColor = targetComp ? '#10b981' : '#3b82f6';
               return (
-                <g>
+                <g style={{ pointerEvents: 'none' }}>
                   <path
                     d={d}
-                    stroke={targetComp ? '#10b981' : '#3b82f6'}
-                    strokeWidth={2}
-                    strokeDasharray="6 4"
+                    stroke={strokeColor}
+                    strokeWidth={2.2}
+                    strokeDasharray="8 5"
                     fill="none"
-                    markerEnd={targetComp ? 'url(#arrow-hover)' : 'url(#arrow-hover)'}
+                    markerEnd="url(#arrow-hover)"
+                    opacity={0.9}
                   />
-                  <circle cx={from.x} cy={from.y} r={5} fill={targetComp ? '#10b981' : '#3b82f6'} stroke="#fff" strokeWidth={2} />
-                  <circle cx={effectiveTo.x} cy={effectiveTo.y} r={targetComp ? 9 : 6} fill="none" stroke={targetComp ? '#10b981' : '#3b82f6'} strokeWidth={2} strokeDasharray="3 2" />
+                  <circle cx={from.x} cy={from.y} r={6} fill="#ffffff" stroke={strokeColor} strokeWidth={2.2} />
+                  <circle cx={effectiveTo.x} cy={effectiveTo.y} r={targetComp ? 11 : 7} fill="none" stroke={strokeColor} strokeWidth={2.2} strokeDasharray={targetComp ? '0' : '3 2'} />
+                  {targetComp && (
+                    <circle cx={effectiveTo.x} cy={effectiveTo.y} r={4} fill={strokeColor} />
+                  )}
                 </g>
               );
             })()
@@ -814,6 +934,7 @@ const Canvas: React.FC<Props> = ({
         <div style={{ position: 'absolute', left: 0, top: 0, width: 4000, height: 3000, zIndex: 20 }}>
           {sortedComponents.map(comp => {
             const isSel = selectedComponent?.id === comp.id;
+            const isHover = hoveredCompId === comp.id;
             return (
               <div
                 key={comp.id}
@@ -822,56 +943,67 @@ const Canvas: React.FC<Props> = ({
                 onMouseLeave={() => setHoveredCompId(cid => cid === comp.id ? null : cid)}
                 style={{
                   position: 'absolute',
-                  left: comp.x - 6,
-                  top: comp.y - 30,
-                  width: comp.width + 12,
-                  height: comp.height + 60,
+                  left: comp.x - 8,
+                  top: comp.y - 40,
+                  width: comp.width + 16,
+                  height: comp.height + 80,
                   zIndex: isSel ? 99999 : comp.zIndex
                 }}
               >
-                <CanvasComponentView comp={comp} isSelected={isSel} />
+                <div style={{ position: 'absolute', left: 8, top: 40 }}>
+                  <CanvasComponentView comp={comp} isSelected={isSel} isHovered={isHover} />
+                </div>
 
-                {(isSel || hoveredCompId === comp.id) && (
-                  <div
-                    onMouseDown={e => startConnect(e, comp.id)}
-                    title="拖拽到其他组件创建跳转连线"
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      top: -14,
-                      transform: 'translateX(-50%)',
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      background: isSel ? '#f97316' : 'rgba(59,130,246,0.8)',
-                      border: '2px solid #ffffff',
-                      boxShadow: '0 2px 6px rgba(249,115,22,0.3)',
-                      cursor: 'crosshair',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 500
-                    }}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
-                )}
-
-                {(isSel || hoveredCompId === comp.id) && (
+                {(isSel || isHover) && (
                   <>
                     <div
                       onMouseDown={e => startConnect(e, comp.id)}
-                      style={{ position: 'absolute', left: -4, top: comp.height / 2 + 30 - 8, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500 }}
+                      title="拖拽到其他组件创建跳转连线"
+                      style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: -2,
+                        transform: 'translateX(-50%)',
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        background: isSel ? '#f97316' : 'rgba(59,130,246,0.9)',
+                        border: '2.5px solid #ffffff',
+                        boxShadow: isSel ? '0 3px 10px rgba(249,115,22,0.4)' : '0 2px 6px rgba(59,130,246,0.3)',
+                        cursor: 'crosshair',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 500,
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateX(-50%) scale(1.15)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+                      }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </div>
+
+                    <div
+                      onMouseDown={e => startConnect(e, comp.id)}
+                      title="拖拽创建跳转"
+                      style={{ position: 'absolute', left: -2, top: comp.height / 2 + 32, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500, boxShadow: '0 2px 5px rgba(59,130,246,0.3)' }}
                     />
                     <div
                       onMouseDown={e => startConnect(e, comp.id)}
-                      style={{ position: 'absolute', right: -4, top: comp.height / 2 + 30 - 8, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500 }}
+                      title="拖拽创建跳转"
+                      style={{ position: 'absolute', right: -2, top: comp.height / 2 + 32, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500, boxShadow: '0 2px 5px rgba(59,130,246,0.3)' }}
                     />
                     <div
                       onMouseDown={e => startConnect(e, comp.id)}
-                      style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: comp.height + 30 - 2, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500 }}
+                      title="拖拽创建跳转"
+                      style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: comp.height + 46, width: 16, height: 16, borderRadius: '50%', background: '#3b82f6', border: '2px solid #fff', cursor: 'crosshair', zIndex: 500, boxShadow: '0 2px 5px rgba(59,130,246,0.3)' }}
                     />
                   </>
                 )}
@@ -911,16 +1043,16 @@ const Canvas: React.FC<Props> = ({
                   onMouseDown={e => startResize(e, selectedComponent, h)}
                   style={{
                     position: 'absolute',
-                    left: pos.x - 5,
-                    top: pos.y - 5,
-                    width: 10,
-                    height: 10,
-                    borderRadius: 2,
+                    left: pos.x - 6,
+                    top: pos.y - 6,
+                    width: 12,
+                    height: 12,
+                    borderRadius: 3,
                     background: isHover ? 'rgb(59, 130, 246)' : '#ffffff',
-                    border: `1.5px solid ${isHover ? 'rgb(59, 130, 246)' : 'rgb(59, 130, 246)'}`,
+                    border: `2px solid ${isHover ? 'rgb(59, 130, 246)' : 'rgb(59, 130, 246)'}`,
                     cursor: getCursor(h),
                     pointerEvents: 'auto',
-                    boxShadow: isHover ? '0 0 0 3px rgba(59,130,246,0.2)' : 'none',
+                    boxShadow: isHover ? '0 0 0 4px rgba(59,130,246,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
                     transition: 'all 0.12s'
                   }}
                 />
@@ -931,35 +1063,39 @@ const Canvas: React.FC<Props> = ({
               style={{
                 position: 'absolute',
                 left: '50%',
-                top: -30,
+                top: -38,
                 transform: 'translateX(-50%)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center'
               }}
             >
-              <div style={{ width: 1, height: 14, background: 'rgb(59, 130, 246)', marginBottom: 2 }} />
+              <div style={{ width: 1.5, height: 16, background: 'rgb(59, 130, 246)', marginBottom: 2 }} />
               <div
                 onMouseDown={e => startRotate(e, selectedComponent)}
-                title={`旋转: ${selectedComponent.rotation}° (按住以15°为增量吸附)`}
+                title={`旋转 ${selectedComponent.rotation}°（按住拖拽，以15°为增量吸附）`}
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 26,
+                  height: 26,
                   borderRadius: '50%',
                   background: 'rgb(59, 130, 246)',
-                  border: '2px solid #ffffff',
-                  boxShadow: '0 3px 8px rgba(59,130,246,0.35)',
+                  border: '2.5px solid #ffffff',
+                  boxShadow: '0 4px 12px rgba(59,130,246,0.4)',
                   cursor: 'grab',
                   pointerEvents: 'auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 9
+                  color: '#fff'
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
                 }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 4v6h-6" />
                   <path d="M1 20v-6h6" />
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -967,15 +1103,16 @@ const Canvas: React.FC<Props> = ({
               </div>
               <div
                 style={{
-                  marginTop: 4,
-                  padding: '2px 8px',
+                  marginTop: 5,
+                  padding: '3px 9px',
                   background: '#1f2937',
                   color: '#fff',
                   fontSize: 10,
-                  fontWeight: 600,
-                  borderRadius: 4,
+                  fontWeight: 700,
+                  borderRadius: 5,
                   whiteSpace: 'nowrap',
-                  letterSpacing: 0.3
+                  letterSpacing: 0.3,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                 }}
               >
                 {selectedComponent.rotation}°
@@ -994,36 +1131,36 @@ const Canvas: React.FC<Props> = ({
           alignItems: 'center',
           gap: 2,
           padding: 6,
-          background: 'rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(4px)',
-          borderRadius: 10,
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(6px)',
+          borderRadius: 12,
           border: '1px solid #e5e7eb',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
           zIndex: 100,
           userSelect: 'none'
         }}
       >
         <button
           onClick={() => setScale(s => Math.max(0.2, s - 0.1))}
-          style={{ width: 30, height: 30, borderRadius: 6, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontWeight: 700 }}
+          style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontWeight: 700, fontSize: 16 }}
           onMouseEnter={e => (e.currentTarget.style.background = '#e5e7eb')}
           onMouseLeave={e => (e.currentTarget.style.background = '#f3f4f6')}
-          title="缩小"
+          title="缩小（Ctrl+滚轮）"
         >−</button>
-        <div style={{ padding: '0 10px', fontSize: 12, fontWeight: 600, color: '#374151', minWidth: 50, textAlign: 'center' }}>
+        <div style={{ padding: '0 12px', fontSize: 12, fontWeight: 700, color: '#374151', minWidth: 52, textAlign: 'center' }}>
           {Math.round(scale * 100)}%
         </div>
         <button
           onClick={() => setScale(s => Math.min(3, s + 0.1))}
-          style={{ width: 30, height: 30, borderRadius: 6, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontWeight: 700 }}
+          style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontWeight: 700, fontSize: 16 }}
           onMouseEnter={e => (e.currentTarget.style.background = '#e5e7eb')}
           onMouseLeave={e => (e.currentTarget.style.background = '#f3f4f6')}
-          title="放大"
+          title="放大（Ctrl+滚轮）"
         >+</button>
         <div style={{ width: 1, height: 22, background: '#e5e7eb', margin: '0 4px' }} />
         <button
           onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }}
-          style={{ padding: '0 12px', height: 30, borderRadius: 6, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontSize: 12, fontWeight: 500 }}
+          style={{ padding: '0 14px', height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontSize: 12, fontWeight: 600 }}
           onMouseEnter={e => (e.currentTarget.style.background = '#e5e7eb')}
           onMouseLeave={e => (e.currentTarget.style.background = '#f3f4f6')}
           title="重置缩放和位置"
@@ -1035,19 +1172,20 @@ const Canvas: React.FC<Props> = ({
           position: 'absolute',
           left: 16,
           bottom: 16,
-          padding: '6px 12px',
-          background: 'rgba(255,255,255,0.9)',
-          borderRadius: 8,
+          padding: '8px 14px',
+          background: 'rgba(255,255,255,0.92)',
+          borderRadius: 10,
           border: '1px solid #e5e7eb',
           fontSize: 11,
           color: '#6b7280',
           zIndex: 100,
           pointerEvents: 'none',
-          backdropFilter: 'blur(4px)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          backdropFilter: 'blur(6px)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          fontWeight: 500
         }}
       >
-        <b style={{ color: '#374151' }}>{components.length}</b> 个组件 · <b style={{ color: '#374151' }}>{connections.length}</b> 条连线 · 按住 <b>Ctrl</b> + 滚轮缩放
+        <b style={{ color: '#1f2937', fontSize: 12 }}>{components.length}</b> 个组件 · <b style={{ color: '#1f2937', fontSize: 12 }}>{connections.length}</b> 条连线 · 按住 <b>Ctrl</b> + 滚轮缩放
       </div>
     </div>
   );
