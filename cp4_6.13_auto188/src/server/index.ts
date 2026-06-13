@@ -13,7 +13,7 @@ import {
   updateNodeContent,
   type User,
   type MindMapNode,
-} from './roomManager.js';
+} from './roomManager';
 
 const app = express();
 const httpServer = createServer(app);

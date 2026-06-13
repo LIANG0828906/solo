@@ -2,9 +2,8 @@
   "name": "collaborative-mindmap",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"ts-node --esm src/server/index.ts\"",
+    "dev": "concurrently \"vite\" \"ts-node src/server/index.ts\"",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

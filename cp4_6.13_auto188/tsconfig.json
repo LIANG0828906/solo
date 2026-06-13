@@ -15,7 +15,8 @@
   },
   "include": ["src"],
   "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
   }
 }
