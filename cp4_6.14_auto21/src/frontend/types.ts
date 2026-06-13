@@ -29,6 +29,7 @@ export interface Course {
   chapters: Chapter[];
   assessment: Question[];
   createdAt: string;
+  instructor?: Instructor;
 }
 
 export interface Enrollment {
@@ -63,12 +64,12 @@ export interface CreateCourseResponse {
   message?: string;
 }
 
-export interface UpdateChapterRequest {
-  completed: boolean;
-}
-
-export interface SubmitAssessmentRequest {
-  answers: number[];
+export interface LearnerProgress {
+  course: Course;
+  enrollment: Enrollment;
+  progress: number;
+  remainingChapters: number;
+  status: 'enrolled' | 'in_progress' | 'completed' | 'assessed';
 }
 
 export interface AssessmentResponse {
@@ -76,14 +77,6 @@ export interface AssessmentResponse {
   total: number;
   percentage: number;
   passed: boolean;
-}
-
-export interface LearnerProgress {
-  course: Course;
-  enrollment: Enrollment;
-  progress: number;
-  remainingChapters: number;
-  status: 'enrolled' | 'in_progress' | 'completed' | 'assessed';
 }
 
 export interface AnalyticsStats {
