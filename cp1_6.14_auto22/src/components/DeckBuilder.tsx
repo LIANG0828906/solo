@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Card, DeckCard } from '../types';
 import { useAppContext } from '../App';
 import { deckApi } from '../api';
@@ -6,7 +6,21 @@ import { deckApi } from '../api';
 interface DragItem {
   card: Card;
   fromSide: 'left' | 'right';
+  startX: number;
+  startY: number;
 }
+
+interface BounceCard {
+  cardId: string;
+  direction: 'in' | 'out';
+  timestamp: number;
+}
+
+const easeOutBack = (t: number): number => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
 
 const DeckBuilder: React.FC = () => {
   const { cards, decks, setCurrentDeck, currentDeck, refreshDecks } = useAppContext();
@@ -17,12 +31,13 @@ const DeckBuilder: React.FC = () => {
   const [costFilter, setCostFilter] = useState('all');
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
-  const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
-  const [bouncingCards, setBouncingCards] = useState<Set<string>>(new Set());
+  const [ghostState, setGhostState] = useState({ x: 0, y: 0, rotation: 0, scale: 1, opacity: 0 });
+  const [bouncingCards, setBouncingCards] = useState<Map<string, BounceCard>>(new Map());
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
-  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const ghostAnimRef = useRef<number | null>(null);
+  const bounceAnimRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (currentDeck) {
@@ -77,16 +92,21 @@ const DeckBuilder: React.FC = () => {
 
   const maxBar = Math.max(...costDistribution, 1);
 
-  const triggerBounce = (cardId: string) => {
-    setBouncingCards((prev) => new Set(prev).add(cardId));
+  const triggerBounce = useCallback((cardId: string, direction: 'in' | 'out' = 'in') => {
+    const bounce: BounceCard = { cardId, direction, timestamp: Date.now() };
+    setBouncingCards((prev) => {
+      const next = new Map(prev);
+      next.set(cardId, bounce);
+      return next;
+    });
     setTimeout(() => {
       setBouncingCards((prev) => {
-        const next = new Set(prev);
+        const next = new Map(prev);
         next.delete(cardId);
         return next;
       });
-    }, 400);
-  };
+    }, 500);
+  }, []);
 
   const addCard = (card: Card) => {
     const existing = deckCards.find((dc) => dc.cardId === card.id);
@@ -103,7 +123,7 @@ const DeckBuilder: React.FC = () => {
     } else {
       setDeckCards([...deckCards, { cardId: card.id, count: 1 }]);
     }
-    triggerBounce(card.id);
+    triggerBounce(card.id, 'in');
   };
 
   const removeCard = (cardId: string) => {
@@ -192,32 +212,95 @@ const DeckBuilder: React.FC = () => {
   };
 
   const handleDragStart = (e: React.DragEvent, card: Card, fromSide: 'left' | 'right') => {
-    setDragItem({ card, fromSide });
+    setDragItem({
+      card,
+      fromSide,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', card.id);
     const img = new Image();
     img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     e.dataTransfer.setDragImage(img, 0, 0);
+    setGhostState({
+      x: e.clientX,
+      y: e.clientY,
+      rotation: -5,
+      scale: 1.1,
+      opacity: 0,
+    });
+    requestAnimationFrame(() => {
+      setGhostState((prev) => ({ ...prev, opacity: 0.9 }));
+    });
   };
 
   useEffect(() => {
-    if (!dragItem) return;
-    const handleMove = (e: MouseEvent) => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        setGhostPos({ x: e.clientX, y: e.clientY });
+    if (!dragItem) {
+      setGhostState((prev) => ({ ...prev, opacity: 0 }));
+      setTimeout(() => {
+        setGhostState({ x: 0, y: 0, rotation: 0, scale: 1, opacity: 0 });
+      }, 200);
+      return;
+    }
+
+    let targetX = dragItem.startX;
+    let targetY = dragItem.startY;
+    let currentX = targetX;
+    let currentY = targetY;
+    let rotation = -5;
+    let targetRotation = -5;
+    let velX = 0;
+    let velY = 0;
+    let lastX = targetX;
+    let lastY = targetY;
+
+    const animate = () => {
+      velX = targetX - currentX;
+      velY = targetY - currentY;
+      currentX += velX * 0.2;
+      currentY += velY * 0.2;
+      
+      const speed = Math.sqrt(velX * velX + velY * velY);
+      targetRotation = Math.max(-15, Math.min(15, -5 + velX * 0.3));
+      rotation += (targetRotation - rotation) * 0.15;
+
+      const scale = 1.05 + Math.min(0.05, speed * 0.002);
+
+      setGhostState({
+        x: currentX,
+        y: currentY,
+        rotation,
+        scale,
+        opacity: 0.9,
       });
+
+      ghostAnimRef.current = requestAnimationFrame(animate);
     };
+
+    const handleMove = (e: MouseEvent) => {
+      targetX = e.clientX;
+      targetY = e.clientY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    };
+
     const handleEnd = () => {
+      if (ghostAnimRef.current) cancelAnimationFrame(ghostAnimRef.current);
       setDragItem(null);
       setIsDragOver(false);
     };
+
+    ghostAnimRef.current = requestAnimationFrame(animate);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('dragend', handleEnd);
+
     return () => {
+      if (ghostAnimRef.current) cancelAnimationFrame(ghostAnimRef.current);
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleEnd);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('dragend', handleEnd);
     };
   }, [dragItem]);
 
