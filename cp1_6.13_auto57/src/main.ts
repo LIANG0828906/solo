@@ -76,6 +76,7 @@ class StellarGardenApp {
     const z = Math.sin(this.cameraAngle) * this.cameraDistance;
     this.camera.position.set(x, this.cameraHeight, z);
     this.camera.lookAt(0, 0, 0);
+    this.uiOverlay.updatePlaneFromCamera();
   }
 
   private animate(): void {

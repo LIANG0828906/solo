@@ -15,7 +15,7 @@ const MAX_SIZE = 0.2;
 export class ParticleSystem {
   public points: THREE.Points;
   public geometry: THREE.BufferGeometry;
-  public material: THREE.PointsMaterial;
+  public material: THREE.ShaderMaterial;
 
   public count: number = 0;
 
@@ -247,8 +247,8 @@ export class ParticleSystem {
 
   private updateSize(i: number, speedSq: number, sizeArr: Float32Array): void {
     const speed = Math.sqrt(speedSq);
-    const speedFactor = 1 - Math.min(1, speed / MAX_SPEED) * 0.6;
-    sizeArr[i] = this.baseSizes[i] * (0.4 + speedFactor * 0.6);
+    const normalizedSpeed = Math.min(1, speed / MAX_SPEED);
+    sizeArr[i] = MAX_SIZE - normalizedSpeed * (MAX_SIZE - MIN_SIZE);
   }
 
   public getParticleCount(): number {

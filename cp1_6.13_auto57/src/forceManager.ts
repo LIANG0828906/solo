@@ -175,6 +175,8 @@ export class ForceManager {
     const radiusSq = field.radius * field.radius;
     const isAttract = field.type === 'attract';
     const decayFactor = Math.max(0, 1 - field.lifetime / field.maxLifetime);
+    const burstWindow = 0.8;
+    const inBurstPhase = field.lifetime < burstWindow;
 
     for (let i = 0; i < count; i++) {
       const ix = i * 3;
@@ -187,7 +189,7 @@ export class ForceManager {
 
       const dist = Math.sqrt(distSq) + 0.0001;
 
-      if (isAttract && dist < 0.2) {
+      if (isAttract && inBurstPhase && dist < 0.25) {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         const speed = 2 + Math.random() * 2;
