@@ -18,6 +18,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/client"],
-  "references": [{ "path": "./tsconfig.server.json" }]
+  "include": ["src/client"]
 }

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "client": "vite",
-    "server": "npx ts-node src/server/server.ts",
+    "server": "npx ts-node --transpile-only --project tsconfig.node.json src/server/server.ts",
     "dev": "concurrently \"npm run client\" \"npm run server\"",
     "build": "vite build"
   },
