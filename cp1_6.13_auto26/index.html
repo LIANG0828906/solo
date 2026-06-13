@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WindGlobe - 全球风场可视化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background: #0a0a1a;
+      color: #ffffff;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+    }
+
+    .text-glow {
+      text-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+    }
+
+    #info-panel {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 24px;
+      width: 240px;
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+
+    #info-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #a8b4ff;
+      letter-spacing: 0.5px;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(100, 150, 255, 0.5), transparent);
+      margin: 12px 0;
+    }
+
+    .info-item {
+      margin-bottom: 16px;
+    }
+
+    .info-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 6px;
+      font-weight: 400;
+    }
+
+    .info-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 0 15px rgba(100, 150, 255, 0.4);
+    }
+
+    .info-value small {
+      font-size: 14px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.6);
+      margin-left: 4px;
+    }
+
+    #altitude-panel {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      padding: 16px;
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+
+    #altitude-panel h3 {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .altitude-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .altitude-btn {
+      padding: 10px 20px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.8);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 90px;
+    }
+
+    .altitude-btn:hover {
+      background: rgba(100, 150, 255, 0.2);
+      border-color: rgba(100, 150, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(100, 150, 255, 0.2);
+    }
+
+    .altitude-btn.active {
+      border-color: #4a8eff;
+      background: rgba(74, 142, 255, 0.2);
+      color: #ffffff;
+      box-shadow: 0 0 20px rgba(74, 142, 255, 0.3);
+    }
+
+    .panel-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding-bottom: 8px;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+    }
+
+    .collapse-icon {
+      width: 20px;
+      height: 20px;
+      transition: transform 0.3s ease;
+    }
+
+    .panel-collapsed .panel-content {
+      display: none;
+    }
+
+    .panel-collapsed .collapse-icon {
+      transform: rotate(180deg);
+    }
+
+    #speed-control {
+      position: absolute;
+      left: 24px;
+      bottom: 24px;
+      padding: 16px 20px;
+      z-index: 10;
+    }
+
+    #speed-control label {
+      display: block;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 8px;
+    }
+
+    .speed-slider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .speed-slider input[type="range"] {
+      width: 120px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .speed-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #4a8eff;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(74, 142, 255, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    .speed-slider input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .speed-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #a8b4ff;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    @media (max-width: 768px) {
+      #info-panel {
+        left: 50%;
+        top: auto;
+        bottom: 90px;
+        transform: translateX(-50%);
+        width: calc(100% - 32px);
+        max-width: 360px;
+        padding: 16px;
+      }
+
+      #info-panel.panel-collapsed {
+        transform: translateX(-50%);
+        bottom: 90px;
+      }
+
+      .panel-header {
+        display: flex;
+      }
+
+      .info-items {
+        display: flex;
+        justify-content: space-around;
+        gap: 12px;
+      }
+
+      .info-item {
+        margin-bottom: 0;
+        text-align: center;
+      }
+
+      .info-value {
+        font-size: 20px;
+      }
+
+      #altitude-panel {
+        right: 50%;
+        bottom: 16px;
+        transform: translateX(50%);
+        width: calc(100% - 32px);
+        max-width: 360px;
+      }
+
+      #altitude-panel .altitude-buttons {
+        justify-content: center;
+      }
+
+      .altitude-btn {
+        flex: 1;
+        min-width: auto;
+      }
+
+      #speed-control {
+        display: none;
+      }
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      font-size: 18px;
+      color: #a8b4ff;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div id="info-panel" class="glass-panel">
+      <div class="panel-header" id="info-panel-header">
+        <h3>实时数据</h3>
+        <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+      <div class="panel-content">
+        <h2 class="text-glow">风场监测</h2>
+        <div class="divider"></div>
+        <div class="info-items">
+          <div class="info-item">
+            <div class="info-label">高度层</div>
+            <div class="info-value" id="altitude-display">1000<small>米</small></div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">平均风速</div>
+            <div class="info-value" id="avg-wind-speed">--<small>m/s</small></div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">最高温度</div>
+            <div class="info-value" id="max-temp">--<small>°C</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="speed-control" class="glass-panel">
+      <label>地球自转速度</label>
+      <div class="speed-slider">
+        <input type="range" id="rotation-speed" min="0" max="2" step="0.1" value="0.5">
+        <span class="speed-value" id="speed-value">0.5x</span>
+      </div>
+    </div>
+
+    <div id="altitude-panel" class="glass-panel">
+      <h3>高度层切换</h3>
+      <div class="altitude-buttons">
+        <button class="altitude-btn active" data-altitude="1000">1000米</button>
+        <button class="altitude-btn" data-altitude="5000">5000米</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
