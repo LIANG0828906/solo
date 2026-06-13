@@ -5,6 +5,16 @@ export interface Position {
   col: number;
 }
 
+export interface DualColorRenderData {
+  color1: ParticleColor;
+  color2: ParticleColor;
+  alpha1: number;
+  alpha2: number;
+  splitRatio: number;
+  floatPhase: number;
+  glowPhase: number;
+}
+
 export interface SuperpositionParticle {
   id: string;
   color1: ParticleColor;
@@ -16,6 +26,7 @@ export interface SuperpositionParticle {
   collapsedPos?: Position;
   owner: number;
   animProgress?: number;
+  renderData: DualColorRenderData;
 }
 
 export interface ShockwaveResult {
@@ -134,7 +145,16 @@ export function placeParticle(
     pos2: pair[1],
     state: 'superposition',
     owner,
-    animProgress: 0
+    animProgress: 0,
+    renderData: {
+      color1,
+      color2,
+      alpha1: 0.6,
+      alpha2: 0.6,
+      splitRatio: 0.5,
+      floatPhase: Math.random() * Math.PI * 2,
+      glowPhase: Math.random() * Math.PI * 2
+    }
   };
 
   particles.push(particle);
