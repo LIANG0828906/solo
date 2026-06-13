@@ -46,6 +46,20 @@ export interface Effect {
   chainTargets?: Position[];
 }
 
+export interface WaveConfig {
+  waveNumber: number;
+  totalMonsters: number;
+  normalCount: number;
+  fastCount: number;
+  eliteCount: number;
+  spawnInterval: number;
+  hpMultiplier: number;
+  speedMultiplier: number;
+  hasBoss: boolean;
+  scoreThreshold?: number;
+  timeBonus?: number;
+}
+
 export interface GameState {
   gameId: string;
   phase: GamePhase;
@@ -60,6 +74,8 @@ export interface GameState {
   waveStartTime: number | null;
   score: number;
   pendingMonsterCount: number;
+  gameStartTime: number;
+  currentWaveConfig?: WaveConfig;
 }
 
 export interface ScoreEntry {

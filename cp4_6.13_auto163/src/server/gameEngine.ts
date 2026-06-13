@@ -7,12 +7,62 @@ import {
   INITIAL_GOLD, INITIAL_LIVES, PREPARATION_TIME, KILL_GOLD_REWARD
 } from '../shared/types';
 
+export interface WaveConfig {
+  waveNumber: number;
+  totalMonsters: number;
+  normalCount: number;
+  fastCount: number;
+  eliteCount: number;
+  spawnInterval: number;
+  hpMultiplier: number;
+  speedMultiplier: number;
+  hasBoss: boolean;
+  scoreThreshold?: number;
+  timeBonus?: number;
+}
+
 function getDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
 function isOnPath(x: number, y: number): boolean {
   return PATH.some(p => p.x === x && p.y === y);
+}
+
+export function generateWaveConfig(wave: number, totalKills: number, gameTime: number): WaveConfig {
+  const baseCount = 5 + (wave - 1) * 5;
+  const killBonus = Math.min(5, Math.floor(totalKills / 50));
+  const timeBonus = Math.min(3, Math.floor(gameTime / 60000));
+
+  let normalCount = Math.floor(baseCount * 0.6);
+  let fastCount = Math.floor(baseCount * 0.25) + killBonus;
+  let eliteCount = Math.floor(baseCount * 0.15) + timeBonus;
+
+  if (wave % 5 === 0) {
+    eliteCount += 2;
+  }
+  if (wave >= 3) {
+    fastCount += Math.floor(wave / 3);
+  }
+
+  const total = normalCount + fastCount + eliteCount;
+  const spawnInterval = Math.max(400, 800 - wave * 30);
+  const hpMultiplier = 1 + (wave - 1) * 0.15 + killBonus * 0.05;
+  const speedMultiplier = 1 + Math.min(0.5, wave * 0.02);
+
+  return {
+    waveNumber: wave,
+    totalMonsters: total,
+    normalCount,
+    fastCount,
+    eliteCount,
+    spawnInterval,
+    hpMultiplier,
+    speedMultiplier,
+    hasBoss: wave % 10 === 0,
+    scoreThreshold: wave * 500,
+    timeBonus,
+  };
 }
 
 export function createInitialState(gameId: string): GameState {
@@ -30,6 +80,7 @@ export function createInitialState(gameId: string): GameState {
     waveStartTime: null,
     score: 0,
     pendingMonsterCount: 0,
+    gameStartTime: Date.now(),
   };
 }
 
@@ -40,7 +91,7 @@ export function canBuildTower(state: GameState, x: number, y: number, type: Towe
   if (isOnPath(x, y)) {
     return { success: false, reason: '不能在路径上建造' };
   }
-  if (state.towers.some(t => t.position.x === x && t.position.y === y) {
+  if (state.towers.some(t => t.position.x === x && t.position.y === y)) {
     return { success: false, reason: '该位置已有塔' };
   }
   const cost = TOWER_CONFIGS[type][1].buildCost;
@@ -66,7 +117,7 @@ export function buildTower(state: GameState, x: number, y: number, type: TowerTy
   const buildEffect: Effect = {
     id: uuidv4(),
     type: 'buildFlash',
-    from: { x: x * CELL_SIZE + CELL_SIZE / 2, y: y * CELL_SIZE + CELL_SIZE / 2,
+    from: { x: x * CELL_SIZE + CELL_SIZE / 2, y: y * CELL_SIZE + CELL_SIZE / 2 },
     startTime: Date.now(),
     duration: 500,
   };
@@ -88,7 +139,7 @@ export function canUpgradeTower(state: GameState, x: number, y: number): { succe
     return { success: false, reason: '已达最高等级' };
   }
   const cfg = TOWER_CONFIGS[tower.type][tower.level];
-  if (state.gold < (cfg.upgradeCost ?? Infinity) {
+  if (state.gold < (cfg.upgradeCost ?? Infinity)) {
     return { success: false, reason: '金币不足' };
   }
   return { success: true };
@@ -105,7 +156,7 @@ export function upgradeTower(state: GameState, x: number, y: number): GameState 
   const cfg = TOWER_CONFIGS[tower.type][tower.level];
   const upgradeCost = cfg.upgradeCost ?? 0;
 
-  const newTowers = [...state.towers.slice();
+  const newTowers = [...state.towers];
   newTowers[towerIdx] = {
     ...tower,
     level: (tower.level + 1) as 1 | 2 | 3,
@@ -127,68 +178,78 @@ export function upgradeTower(state: GameState, x: number, y: number): GameState 
   };
 }
 
-function generateWaveMonsters(wave: number): Monster[] {
-  const count = 5 + (wave - 1) * 5;
+function generateWaveMonsters(waveConfig: WaveConfig): Monster[] {
   const monsters: Monster[] = [];
-  const hasElite = wave % 5 === 0;
+  let spawnTime = 0;
 
-  for (let i = 0; i < count; i++) {
-    let type: MonsterType = 'normal';
-    const rand = Math.random();
-
-    if (hasElite && i >= count - 2) {
-      type = 'elite';
-    } else if (rand < 0.25) {
-      type = 'fast';
-    } else if (rand < 0.35 && wave >= 3) {
-      type = 'fast';
-    }
-
-    let hp = 50;
-    let speed = 1;
-    let hasShield = false;
-
-    if (type === 'fast') {
-      hp = 30;
-      speed = 2;
-    } else if (type === 'elite') {
-      hp = 150;
-      speed = 0.8;
-      hasShield = true;
-    }
-
-    const waveMultiplier = 1 + (wave - 1) * 0.15;
-    hp = Math.floor(hp * waveMultiplier);
-
-    monsters.push({
-      id: uuidv4(),
-      type,
-      hp,
-      maxHp: hp,
-      position: {
-        x: PATH[0].x * CELL_SIZE + CELL_SIZE / 2,
-        y: PATH[0].y * CELL_SIZE + CELL_SIZE / 2,
-      },
-      pathIndex: 0,
-      baseSpeed: speed,
-      slowEndTime: 0,
-      slowFactor: 1,
-      hasShield,
-      isDying: false,
-      deathStartTime: 0,
-      spawnDelay: i * 800,
-      spawned: false,
-    });
+  for (let i = 0; i < waveConfig.normalCount; i++) {
+    monsters.push(createMonster('normal', waveConfig, spawnTime));
+    spawnTime += waveConfig.spawnInterval;
   }
 
+  for (let i = 0; i < waveConfig.fastCount; i++) {
+    monsters.push(createMonster('fast', waveConfig, spawnTime));
+    spawnTime += waveConfig.spawnInterval;
+  }
+
+  for (let i = 0; i < waveConfig.eliteCount; i++) {
+    monsters.push(createMonster('elite', waveConfig, spawnTime));
+    spawnTime += waveConfig.spawnInterval;
+  }
+
+  monsters.sort(() => Math.random() - 0.5);
+  monsters.forEach((m, idx) => {
+    m.spawnDelay = idx * waveConfig.spawnInterval;
+  });
+
   return monsters;
+}
+
+function createMonster(type: MonsterType, waveConfig: WaveConfig, spawnDelay: number): Monster {
+  let hp = 50;
+  let speed = 1;
+  let hasShield = false;
+
+  if (type === 'fast') {
+    hp = 30;
+    speed = 2;
+  } else if (type === 'elite') {
+    hp = 150;
+    speed = 0.8;
+    hasShield = true;
+  }
+
+  hp = Math.floor(hp * waveConfig.hpMultiplier);
+  speed = speed * waveConfig.speedMultiplier;
+
+  return {
+    id: uuidv4(),
+    type,
+    hp,
+    maxHp: hp,
+    position: {
+      x: PATH[0].x * CELL_SIZE + CELL_SIZE / 2,
+      y: PATH[0].y * CELL_SIZE + CELL_SIZE / 2,
+    },
+    pathIndex: 0,
+    baseSpeed: speed,
+    slowEndTime: 0,
+    slowFactor: 1,
+    hasShield,
+    isDying: false,
+    deathStartTime: 0,
+    spawnDelay,
+    spawned: false,
+  };
 }
 
 export function startWave(state: GameState): GameState {
   if (state.phase !== 'preparation') return state;
 
   const newWave = state.wave + 1;
-  const monsters = generateWaveMonsters(newWave);
+  const gameTime = Date.now() - (state.gameStartTime ?? Date.now());
+  const waveConfig = generateWaveConfig(newWave, state.kills, gameTime);
+  const monsters = generateWaveMonsters(waveConfig);
 
   return {
     ...state,
@@ -198,6 +259,7 @@ export function startWave(state: GameState): GameState {
     waveStartTime: Date.now(),
     preparationEndTime: null,
     pendingMonsterCount: monsters.length,
+    currentWaveConfig: waveConfig,
   };
 }
 
@@ -236,7 +298,7 @@ function updateMonsters(state: GameState, now: number): Monster[] {
   const elapsed = now - waveStart;
 
   return state.monsters.map(monster => {
-    let m = { ...monster };
+    const m = { ...monster };
 
     if (!m.spawned) {
       if (elapsed >= m.spawnDelay) {
@@ -285,7 +347,7 @@ function updateMonsters(state: GameState, now: number): Monster[] {
 function updateTowers(state: GameState, now: number): GameState {
   let newState = { ...state };
   const newEffects: Effect[] = [];
-  const updatedTowers = [...state.towers.map(t => ({ ...t }));
+  const updatedTowers = state.towers.map(t => ({ ...t }));
 
   const aliveMonsters = newState.monsters.filter(m => m.spawned && !m.isDying);
 
@@ -342,7 +404,7 @@ function updateTowers(state: GameState, now: number): GameState {
           newMonsters[midx] = {
             ...newMonsters[midx],
             slowFactor: 1 - (cfg.slowFactor ?? 0),
-            slowEndTime: now + (cfg.slowDuration ?? 0,
+            slowEndTime: now + (cfg.slowDuration ?? 0),
           };
           newState = { ...newState, monsters: newMonsters };
         }
@@ -352,7 +414,7 @@ function updateTowers(state: GameState, now: number): GameState {
         id: uuidv4(),
         type: 'frost',
         from: towerCenter,
-        to: inRangeMonsters.map(m => ({ x: m.position.x, y: m.position.y }),
+        to: inRangeMonsters.map(m => ({ x: m.position.x, y: m.position.y })),
         startTime: now,
         duration: 400,
         towerId: tower.id,
@@ -376,7 +438,8 @@ function updateTowers(state: GameState, now: number): GameState {
         remaining = remaining.filter(m => !hitIds.has(m.id));
         if (remaining.length > 0) {
           remaining.sort((a, b) =>
-            getDistance(current.position, a.position) - getDistance(current.position, b.position));
+            getDistance(current.position, a.position) - getDistance(current.position, b.position)
+          );
           current = remaining[0];
         } else {
           break;
@@ -427,8 +490,7 @@ function applyDamage(state: GameState, monsterId: string, baseDamage: number): {
   const newMonsters = [...state.monsters];
 
   if (newHp <= 0) {
-    newMonsters[idx] = {
-      ...monster, hp: 0, isDying: true, deathStartTime: Date.now() };
+    newMonsters[idx] = { ...monster, hp: 0, isDying: true, deathStartTime: Date.now() };
     return {
       state: {
         ...state,
@@ -469,7 +531,9 @@ function checkWaveEnd(state: GameState, now: number): GameState {
   const allSpawned = state.monsters.every(m => m.spawned);
   const allDeadOrFinished = state.monsters.every(m => m.isDying || m.pathIndex >= PATH.length - 1);
 
-  const livesLost = state.monsters.filter(m => m.pathIndex >= PATH.length - 1 && !m.isDying && m.spawned);
+  const livesLost = state.monsters.filter(
+    m => m.pathIndex >= PATH.length - 1 && !m.isDying && m.spawned
+  );
   let newLives = state.lives;
   let monsters = [...state.monsters];
 
@@ -478,7 +542,10 @@ function checkWaveEnd(state: GameState, now: number): GameState {
     monsters = monsters.filter(m => !livesLost.includes(m));
   }
 
-  const allDone = allSpawned && (state.monsters.length === 0 || (allSpawned && allDeadOrFinished && state.monsters.filter(m => !m.isDying).length === 0);
+  const allDone =
+    allSpawned &&
+    (state.monsters.length === 0 ||
+      (allSpawned && allDeadOrFinished && state.monsters.filter(m => !m.isDying).length === 0));
 
   if (state.phase === 'wave' && allDone) {
     const finalScore = state.kills * 10 + newLives * 50;

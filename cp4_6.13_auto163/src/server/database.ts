@@ -17,6 +17,7 @@ export function initDatabase(): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_scores (
       id TEXT PRIMARY KEY,
+      user_id TEXT DEFAULT 'anonymous',
       score INTEGER NOT NULL,
       kills INTEGER NOT NULL,
       wave INTEGER NOT NULL,
@@ -25,7 +26,7 @@ export function initDatabase(): void {
 
     CREATE TABLE IF NOT EXISTS tower_configs (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
+      type TEXT NOT NULL UNIQUE,
       level INTEGER NOT NULL,
       damage INTEGER,
       slow_factor REAL,
@@ -36,6 +37,11 @@ export function initDatabase(): void {
       build_cost INTEGER NOT NULL,
       upgrade_cost INTEGER
     );
+
+    CREATE INDEX IF NOT EXISTS idx_user_scores_user_score ON user_scores (user_id, score DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_scores_score ON user_scores (score DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_scores_created ON user_scores (created_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tower_configs_type_level ON tower_configs (type, level);
   `);
 
   const count = (db.prepare('SELECT COUNT(*) as cnt FROM tower_configs').get() as { cnt: number }).cnt;
@@ -51,7 +57,7 @@ export function initDatabase(): void {
         const cfg: TowerConfig = TOWER_CONFIGS[type][level as 1 | 2 | 3];
         insertStmt.run(
           uuidv4(),
-          cfg.type,
+          `${cfg.type}_${cfg.level}`,
           cfg.level,
           cfg.damage ?? null,
           cfg.slowFactor ?? null,
@@ -67,11 +73,11 @@ export function initDatabase(): void {
   }
 }
 
-export function saveScore(score: number, kills: number, wave: number): ScoreEntry {
+export function saveScore(score: number, kills: number, wave: number, userId: string = 'anonymous'): ScoreEntry {
   const id = uuidv4();
   const createdAt = Date.now();
-  db.prepare('INSERT INTO user_scores (id, score, kills, wave, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, score, kills, wave, createdAt);
+  db.prepare('INSERT INTO user_scores (id, user_id, score, kills, wave, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, userId, score, kills, wave, createdAt);
   return { id, score, kills, wave, createdAt };
 }
 
@@ -82,6 +88,17 @@ export function getTopScores(limit: number = 10): ScoreEntry[] {
     ORDER BY score DESC
     LIMIT ?
   `).all(limit) as ScoreEntry[];
+  return rows;
+}
+
+export function getUserTopScores(userId: string, limit: number = 10): ScoreEntry[] {
+  const rows = db.prepare(`
+    SELECT id, score, kills, wave, created_at as createdAt
+    FROM user_scores
+    WHERE user_id = ?
+    ORDER BY score DESC
+    LIMIT ?
+  `).all(userId, limit) as ScoreEntry[];
   return rows;
 }
 
