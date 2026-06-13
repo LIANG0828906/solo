@@ -1,5 +1,46 @@
 {
-  "plants": [],
+  "plants": [
+    {
+      "id": "98aff452-665d-45ae-a461-15adf9b0d9b6",
+      "name": "测试绿萝",
+      "species": "绿萝",
+      "plantDate": 1781372484791,
+      "status": "growing",
+      "careRules": {
+        "waterFrequency": 5,
+        "fertilizeFrequency": 21,
+        "lightRequirement": "散射光",
+        "temperatureMin": 12,
+        "temperatureMax": 32
+      },
+      "nextWaterDate": 1781804484821,
+      "nextFertilizeDate": 1783186884821,
+      "nextRepotDate": 1796924484821,
+      "careLogs": [],
+      "notes": [],
+      "createdAt": 1781372484821
+    },
+    {
+      "id": "60505669-cd17-4f6a-b231-f1e1df941e8b",
+      "name": "test",
+      "species": "绿萝",
+      "plantDate": 1781372543831,
+      "status": "growing",
+      "careRules": {
+        "waterFrequency": 5,
+        "fertilizeFrequency": 21,
+        "lightRequirement": "sun",
+        "temperatureMin": 10,
+        "temperatureMax": 30
+      },
+      "nextWaterDate": 1781804543831,
+      "nextFertilizeDate": 1783186943831,
+      "nextRepotDate": 1796924543831,
+      "careLogs": [],
+      "notes": [],
+      "createdAt": 1781372543831
+    }
+  ],
   "tasks": [],
   "completionHistory": []
 }

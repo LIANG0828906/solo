@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 const uploadDir = join(__dirname, '..', 'uploads');
 const dbFile = join(__dirname, 'db.json');
@@ -456,12 +456,234 @@ app.get('/api/plants/:id/report', (req, res) => {
   doc.text(`Generated on ${new Date().toLocaleString()}`, 105, 285, { align: 'center' });
 
   const pdfBuffer = doc.output('arraybuffer');
+  const safeName = Buffer.from(plant.name).toString('base64').replace(/=/g, '');
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="${encodeURIComponent(plant.name)}-report.pdf"`
+    `attachment; filename="plant-report.pdf"; filename*=UTF-8''${encodeURIComponent(plant.name)}-report.pdf`
   );
   res.send(Buffer.from(pdfBuffer));
+});
+
+app.post('/api/compress-image', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No image file provided' });
+  const maxSizeMB = Number(req.query.maxSizeMB) || 2;
+  try {
+    let quality = 90;
+    let outputBuffer = null;
+    let currentSize = Infinity;
+    while (quality >= 30 && currentSize > maxSizeMB * 1024 * 1024) {
+      outputBuffer = await sharp(req.file.buffer)
+        .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality })
+        .toBuffer();
+      currentSize = outputBuffer.length;
+      quality -= 10;
+    }
+    if (!outputBuffer) {
+      outputBuffer = await sharp(req.file.buffer)
+        .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 30 })
+        .toBuffer();
+    }
+    const photoId = uuidv4();
+    const filename = `${photoId}.jpg`;
+    const filePath = join(uploadDir, filename);
+    fs.writeFileSync(filePath, outputBuffer);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', outputBuffer.length);
+    res.json({
+      url: `/uploads/${filename}`,
+      size: outputBuffer.length,
+      quality,
+      width: 1280,
+      height: 1280,
+    });
+  } catch (err) {
+    console.error('Compress image error:', err);
+    res.status(500).json({ error: 'Failed to compress image' });
+  }
+});
+
+app.get('/api/export-pdf/:plantId', (req, res) => {
+  const plant = db.data.plants.find((p) => p.id === req.params.plantId);
+  if (!plant) return res.status(404).json({ error: 'Plant not found' });
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${plant.name} - 生长日记报告</title>
+<style>
+  body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; padding: 40px; color: #2d3e2d; }
+  h1 { color: #3a7a3a; border-bottom: 2px solid #6bb36b; padding-bottom: 10px; }
+  h2 { color: #4a8f4a; margin-top: 30px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .info-item { background: #e8f5e0; padding: 10px 14px; border-radius: 8px; }
+  .info-label { font-size: 12px; color: #6b7c6b; }
+  .info-value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .log-item { padding: 10px 12px; margin: 6px 0; background: #faf8f0; border-left: 3px solid #4a8f4a; border-radius: 4px; }
+  .log-type { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: white; margin-right: 8px; }
+  .log-water { background: #4a9eff; }
+  .log-fertilize { background: #f0a040; }
+  .log-repot { background: #a060d0; }
+  .log-note { background: #708090; }
+  .log-date { font-size: 12px; color: #6b7c6b; margin-top: 4px; }
+  .photo-section { margin: 16px 0; }
+  .photo-item { display: inline-block; margin: 8px; border: 2px solid #d0d8c8; border-radius: 8px; padding: 4px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #d0d8c8; font-size: 12px; color: #6b7c6b; text-align: center; }
+  .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; background: #6bb36b; color: white; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>🌿 ${plant.name}</h1>
+  <p><span class="status-badge">${plant.status}</span> &nbsp; <em>${plant.species}</em></p>
+  <h2>📋 基本信息</h2>
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">品种</div><div class="info-value">${plant.species}</div></div>
+    <div class="info-item"><div class="info-label">种植日期</div><div class="info-value">${new Date(plant.plantDate).toLocaleDateString('zh-CN')}</div></div>
+    <div class="info-item"><div class="info-label">种植天数</div><div class="info-value">${Math.floor((Date.now() - plant.plantDate) / (1000 * 60 * 60 * 24))} 天</div></div>
+    <div class="info-item"><div class="info-label">当前状态</div><div class="info-value">${plant.status}</div></div>
+  </div>
+  <h2>🌱 养护规则</h2>
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">浇水频率</div><div class="info-value">每 ${plant.careRules.waterFrequency} 天</div></div>
+    <div class="info-item"><div class="info-label">施肥周期</div><div class="info-value">每 ${plant.careRules.fertilizeFrequency} 天</div></div>
+    <div class="info-item"><div class="info-label">光照需求</div><div class="info-value">${plant.careRules.lightRequirement}</div></div>
+    <div class="info-item"><div class="info-label">适宜温度</div><div class="info-value">${plant.careRules.temperatureMin}°C ~ ${plant.careRules.temperatureMax}°C</div></div>
+  </div>
+  <h2>📝 养护记录</h2>
+  ${
+    plant.careLogs.length === 0
+      ? '<p style="color:#6b7c6b">暂无养护记录</p>'
+      : [...plant.careLogs]
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 50)
+          .map(
+            (log) => `
+    <div class="log-item">
+      <span class="log-type log-${log.type}">${log.type}</span>
+      <strong>${log.completed ? '已完成' : '未完成'}</strong>
+      ${log.note ? `<br/><span style="font-size:13px">${log.note}</span>` : ''}
+      <div class="log-date">${new Date(log.timestamp).toLocaleString('zh-CN')}</div>
+    </div>`
+          )
+          .join('')
+  }
+  <h2>🖼️ 照片时间线</h2>
+  ${
+    plant.photo
+      ? `<div class="photo-section">
+           <div class="photo-item">
+             <img src="${plant.photo.url}" alt="照片" style="max-width:300px; border-radius:4px" />
+             <p style="font-size:12px;color:#6b7c6b;text-align:center">
+               ${new Date(plant.photo.timestamp).toLocaleDateString('zh-CN')}
+             </p>
+           </div>
+         </div>`
+      : '<p style="color:#6b7c6b">暂无照片</p>'
+  }
+  <h2>📌 备注日志</h2>
+  ${
+    plant.notes && plant.notes.length > 0
+      ? plant.notes
+          .map(
+            (note, i) => `
+    <div class="log-item">
+      <span class="log-type log-note">备注 ${i + 1}</span>
+      ${note}
+    </div>`
+          )
+          .join('')
+      : '<p style="color:#6b7c6b">暂无备注</p>'
+  }
+  <div class="footer">
+    植物日记 - 家庭园艺养护助手 ・ 生成于 ${new Date().toLocaleString('zh-CN')}
+  </div>
+</body>
+</html>`;
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 40;
+  let y = 40;
+  const lineHeight = 18;
+
+  doc.setFontSize(22);
+  doc.setTextColor(58, 122, 58);
+  doc.text(`${plant.name} - 生长日记报告`, pageWidth / 2, y, { align: 'center' });
+  y += 40;
+
+  doc.setFontSize(13);
+  doc.setTextColor(60, 60, 60);
+  const sections = [
+    { title: '【基本信息】', items: [
+      `品种：${plant.species}`,
+      `种植日期：${new Date(plant.plantDate).toLocaleDateString('zh-CN')}`,
+      `种植天数：${Math.floor((Date.now() - plant.plantDate) / (1000 * 60 * 60 * 24))} 天`,
+      `当前状态：${plant.status}`,
+    ]},
+    { title: '【养护规则】', items: [
+      `浇水：每 ${plant.careRules.waterFrequency} 天`,
+      `施肥：每 ${plant.careRules.fertilizeFrequency} 天`,
+      `光照：${plant.careRules.lightRequirement}`,
+      `温度：${plant.careRules.temperatureMin}°C ~ ${plant.careRules.temperatureMax}°C`,
+    ]},
+    { title: '【养护记录】', items:
+      plant.careLogs.length === 0
+        ? ['暂无养护记录']
+        : [...plant.careLogs]
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 20)
+            .map((log) => {
+              const d = new Date(log.timestamp).toLocaleDateString('zh-CN');
+              const status = log.completed ? '✓' : '○';
+              return `${status} [${d}] ${log.type}${log.note ? ' - ' + log.note : ''}`;
+            })
+    },
+  ];
+
+  for (const section of sections) {
+    if (y + lineHeight > 780) { doc.addPage(); y = 40; }
+    doc.setFontSize(14);
+    doc.setTextColor(74, 143, 74);
+    doc.text(section.title, margin, y);
+    y += lineHeight + 4;
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    for (const item of section.items) {
+      if (y + lineHeight > 780) { doc.addPage(); y = 40; }
+      const lines = doc.splitTextToSize(item, pageWidth - margin * 2);
+      for (const line of lines) {
+        if (y + lineHeight > 780) { doc.addPage(); y = 40; }
+        doc.text(line, margin + 10, y);
+        y += lineHeight;
+      }
+    }
+    y += lineHeight;
+  }
+
+  doc.setFontSize(9);
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    `生成于 ${new Date().toLocaleString('zh-CN')} ・ 植物日记`,
+    pageWidth / 2,
+    doc.internal.pageSize.getHeight() - 30,
+    { align: 'center' }
+  );
+
+  const pdfBuffer = doc.output('arraybuffer');
+  if (req.query.format === 'html') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlContent);
+  } else {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="plant-diary.pdf"; filename*=UTF-8''${encodeURIComponent(plant.name)}-生长日记.pdf`
+    );
+    res.send(Buffer.from(pdfBuffer));
+  }
 });
 
 app.listen(PORT, () => {
