@@ -501,12 +501,17 @@ export class UIRenderer {
     const progress = remaining / total;
 
     const secondsRemaining = remaining / 1000;
-    const currentSecond = Math.ceil(secondsRemaining);
-    const secondProgress = currentSecond / (total / 1000);
+    const currentSecond = Math.max(0, Math.ceil(secondsRemaining));
+    const totalSeconds = Math.ceil(total / 1000);
+    const secondProgress = 1 - (currentSecond / totalSeconds);
 
-    const r = Math.round(255 * (1 - secondProgress));
-    const g = Math.round(255 * secondProgress);
-    const timerColor = `rgb(${r}, ${g}, 50)`;
+    const green = { r: 80, g: 250, b: 123 };
+    const red = { r: 255, g: 85, b: 85 };
+
+    const tr = Math.round(green.r + (red.r - green.r) * secondProgress);
+    const tg = Math.round(green.g + (red.g - green.g) * secondProgress);
+    const tb = Math.round(green.b + (red.b - green.b) * secondProgress);
+    const timerColor = `rgb(${tr}, ${tg}, ${tb})`;
 
     const startAngle = -Math.PI / 2;
     const endAngle = startAngle + progress * Math.PI * 2;
@@ -522,7 +527,7 @@ export class UIRenderer {
     ctx.font = 'bold 14px Consolas, Monaco, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(Math.ceil(secondsRemaining).toString(), center, center);
+    ctx.fillText(currentSecond.toString(), center, center);
     ctx.textAlign = 'start';
   }
 
@@ -641,22 +646,34 @@ export class UIRenderer {
       }
 
       const progress = elapsed / 400;
-      const maxRadius = Math.max(cw, ch) * 0.8;
-      const currentRadius = maxRadius * progress;
-      const alpha = 1 - progress;
-
       const cx = x + cw / 2;
       const cy = y + ch / 2;
+      const maxRadius = Math.max(cw, ch) * 0.95;
+      const startRadius = Math.max(cw, ch) * 0.05;
+      const currentRadius = startRadius + (maxRadius - startRadius) * progress;
+
+      const alpha = Math.max(0, 0.85 - progress * 0.85);
 
       ctx.save();
       ctx.beginPath();
       this.roundRect(ctx, x, y, cw, ch, 6);
       ctx.clip();
 
+      const pulseGrad = ctx.createRadialGradient(cx, cy, startRadius, cx, cy, currentRadius);
+      pulseGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+      pulseGrad.addColorStop(0.5, `rgba(255, 255, 255, ${alpha * 0.5})`);
+      pulseGrad.addColorStop(1, `rgba(255, 255, 255, 0)`);
+
       ctx.beginPath();
       ctx.arc(cx, cy, currentRadius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+      ctx.fillStyle = pulseGrad;
       ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, currentRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
       ctx.restore();
     }

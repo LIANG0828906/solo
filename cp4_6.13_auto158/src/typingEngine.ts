@@ -237,20 +237,22 @@ export class TypingEngine {
     let wordCount: number;
     const words: string[] = [];
 
+    const megaComplexWords = ['entrepreneur', 'unprecedented', 'entrepreneurship', 'extraordinary', 'sophisticated',
+      'simultaneous', 'unquestionable', 'representative', 'configuration', 'differentiate',
+      'acknowledgement', 'administrative', 'psychological', 'philosophical', 'unconventional'];
+
     switch (this.difficulty) {
       case 'easy':
         wordCount = 6 + Math.floor(Math.random() * 3);
         for (let i = 0; i < wordCount; i++) {
           const idx = Math.floor(Math.random() * WORD_LIBRARY.common.length);
-          let w = WORD_LIBRARY.common[idx];
-          if (i === 0) w = w.charAt(0).toUpperCase() + w.slice(1);
-          words.push(w);
+          words.push(WORD_LIBRARY.common[idx]);
         }
         break;
       case 'normal':
         wordCount = 10 + Math.floor(Math.random() * 3);
         const mediumCount = 3 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < Math.min(mediumCount, wordCount); i++) {
+        for (let i = 0; i < mediumCount; i++) {
           const idx = Math.floor(Math.random() * WORD_LIBRARY.medium.length);
           words.push(WORD_LIBRARY.medium[idx]);
         }
@@ -264,21 +266,23 @@ export class TypingEngine {
       case 'hard':
       default:
         wordCount = 14 + Math.floor(Math.random() * 3);
-        const complexCount = 3 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < Math.min(complexCount, wordCount); i++) {
+        const megaIdx = Math.floor(Math.random() * megaComplexWords.length);
+        words.push(megaComplexWords[megaIdx]);
+        const complexCount = 4 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < complexCount; i++) {
           const idx = Math.floor(Math.random() * WORD_LIBRARY.complex.length);
           words.push(WORD_LIBRARY.complex[idx]);
         }
-        const hardMediumCount = 2 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < hardMediumCount && words.length < wordCount; i++) {
+        const hardMediumCount = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < hardMediumCount; i++) {
           const idx = Math.floor(Math.random() * WORD_LIBRARY.medium.length);
           words.push(WORD_LIBRARY.medium[idx]);
         }
         while (words.length < wordCount) {
           const r = Math.random();
           let pool: string[];
-          if (r < 0.3) pool = WORD_LIBRARY.complex;
-          else if (r < 0.6) pool = WORD_LIBRARY.medium;
+          if (r < 0.25) pool = WORD_LIBRARY.complex;
+          else if (r < 0.55) pool = WORD_LIBRARY.medium;
           else pool = WORD_LIBRARY.common;
           const idx = Math.floor(Math.random() * pool.length);
           words.push(pool[idx]);

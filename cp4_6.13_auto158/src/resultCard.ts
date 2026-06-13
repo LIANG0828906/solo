@@ -37,10 +37,10 @@ export class ResultCard {
       left: 50%;
       transform: translate(-50%, -50%);
       width: 640px;
-      max-width: 92vw;
       height: 400px;
+      max-width: 92vw;
       max-height: 80vh;
-      background: rgba(255, 255, 255, 0.8);
+      background: #ffffffcc;
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-radius: 20px;
@@ -409,7 +409,7 @@ export class ResultCard {
 
       const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
       gradient.addColorStop(0, this.hexToRgba(lineColor, 0.2));
-      gradient.addColorStop(1, this.hexToRgba(lineColor, 0.02));
+      gradient.addColorStop(1, this.hexToRgba(lineColor, 0.2));
       ctx.fillStyle = gradient;
       ctx.fill();
 
@@ -423,12 +423,19 @@ export class ResultCard {
       });
 
       const lastPoint = points[points.length - 1];
-      const breathElapsed = (time - this.breathStart) / 800;
-      const breathAlpha = 0.5 + 0.5 * Math.sin(breathElapsed * Math.PI * 2);
-      const breathScale = 0.8 + 0.4 * Math.sin(breathElapsed * Math.PI * 2);
+      const breathElapsed = (time - this.breathStart) % 800;
+      const breathProgress = breathElapsed / 800;
+      const breathWave = Math.sin(breathProgress * Math.PI * 2);
+      const breathAlpha = 0.5 + 0.5 * breathWave;
+      const breathScale = 0.8 + 0.4 * breathWave;
 
       ctx.beginPath();
-      ctx.arc(lastPoint.x, lastPoint.y, 8 * breathScale, 0, Math.PI * 2);
+      ctx.arc(lastPoint.x, lastPoint.y, 10 * breathScale, 0, Math.PI * 2);
+      ctx.fillStyle = this.hexToRgba(lineColor, breathAlpha * 0.2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(lastPoint.x, lastPoint.y, 7 * breathScale, 0, Math.PI * 2);
       ctx.fillStyle = this.hexToRgba(lineColor, breathAlpha * 0.4);
       ctx.fill();
 
@@ -436,6 +443,12 @@ export class ResultCard {
       ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
       ctx.fillStyle = lineColor;
       ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(lastPoint.x, lastPoint.y, 6, 0, Math.PI * 2);
+      ctx.strokeStyle = this.hexToRgba(lineColor, breathAlpha);
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
       if (this.visible) {
         this.chartAnimFrame = requestAnimationFrame(animate);
