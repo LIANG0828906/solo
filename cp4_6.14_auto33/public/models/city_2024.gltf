@@ -1,0 +1,41 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "CityEvolution3D"
+  },
+  "scene": 0,
+  "scenes": [{"name": "City_2024", "nodes": [0, 1, 2, 3, 4, 5]}],
+  "nodes": [
+    {"name": "Building1", "mesh": 0, "translation": [-8, 22.5, -8]},
+    {"name": "Building2", "mesh": 1, "translation": [8, 17.5, -8]},
+    {"name": "Building3", "mesh": 2, "translation": [-8, 14, 8]},
+    {"name": "Building4", "mesh": 3, "translation": [8, 15, 8]},
+    {"name": "Building5", "mesh": 4, "translation": [0, 11, 0]},
+    {"name": "Building6", "mesh": 5, "translation": [0, 20, 15]}
+  ],
+  "meshes": [
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 0}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 1}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 2}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 3}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 4}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 5}]}
+  ],
+  "materials": [
+    {"name": "Mat1", "pbrMetallicRoughness": {"baseColorFactor": [0.118, 0.565, 1.0, 1]}},
+    {"name": "Mat2", "pbrMetallicRoughness": {"baseColorFactor": [1.0, 0.388, 0.278, 1]}},
+    {"name": "Mat3", "pbrMetallicRoughness": {"baseColorFactor": [0.196, 0.804, 0.196, 1]}},
+    {"name": "Mat4", "pbrMetallicRoughness": {"baseColorFactor": [0.855, 0.647, 0.125, 1]}},
+    {"name": "Mat5", "pbrMetallicRoughness": {"baseColorFactor": [0.576, 0.439, 0.859, 1]}},
+    {"name": "Mat6", "pbrMetallicRoughness": {"baseColorFactor": [0.0, 0.808, 0.820, 1]}}
+  ],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 24, "type": "VEC3", "min": [-2, 0, -2], "max": [2, 45, 2]}
+  ],
+  "bufferViews": [
+    {"buffer": 0, "byteOffset": 0, "byteLength": 288, "target": 34962}
+  ],
+  "buffers": [
+    {"byteLength": 288, "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+  ]
+}

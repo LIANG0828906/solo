@@ -1,0 +1,38 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "CityEvolution3D"
+  },
+  "scene": 0,
+  "scenes": [{"name": "City_2000", "nodes": [0, 1, 2, 3, 4]}],
+  "nodes": [
+    {"name": "Building1", "mesh": 0, "translation": [-8, 7.5, -8]},
+    {"name": "Building2", "mesh": 1, "translation": [8, 10, -8]},
+    {"name": "Building3", "mesh": 2, "translation": [-8, 6, 8]},
+    {"name": "Building4", "mesh": 3, "translation": [8, 4, 8]},
+    {"name": "Building5", "mesh": 4, "translation": [0, 5, 0]}
+  ],
+  "meshes": [
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 0}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 1}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 2}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 3}]},
+    {"primitives": [{"attributes": {"POSITION": 0}, "material": 4}]}
+  ],
+  "materials": [
+    {"name": "Mat1", "pbrMetallicRoughness": {"baseColorFactor": [0.545, 0.271, 0.075, 1]}},
+    {"name": "Mat2", "pbrMetallicRoughness": {"baseColorFactor": [0.275, 0.510, 0.706, 1]}},
+    {"name": "Mat3", "pbrMetallicRoughness": {"baseColorFactor": [0.180, 0.545, 0.341, 1]}},
+    {"name": "Mat4", "pbrMetallicRoughness": {"baseColorFactor": [0.804, 0.522, 0.247, 1]}},
+    {"name": "Mat5", "pbrMetallicRoughness": {"baseColorFactor": [0.439, 0.502, 0.565, 1]}}
+  ],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 24, "type": "VEC3", "min": [-2, 0, -2], "max": [2, 15, 2]}
+  ],
+  "bufferViews": [
+    {"buffer": 0, "byteOffset": 0, "byteLength": 288, "target": 34962}
+  ],
+  "buffers": [
+    {"byteLength": 288, "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+  ]
+}
