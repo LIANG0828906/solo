@@ -1,7 +1,9 @@
+export type RuleType = 'keyword' | 'format' | 'formula';
+
 export interface Rule {
   id: string;
   name: string;
-  type: 'regex' | 'keyword' | 'structural';
+  type: RuleType;
   pattern: string;
   weight: number;
   suggestion: string;

@@ -2,8 +2,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { Readable } from 'stream';
 import pdfParse from 'pdf-parse';
-import { scoreText } from './scoringEngine';
+import { scoreText } from './scoringEngine.ts';
 import {
   getRules,
   addRule,
@@ -12,8 +13,8 @@ import {
   saveGradingResult,
   getHistory,
   getGradingById
-} from './database';
-import { Rule } from './types';
+} from './database.ts';
+import { Rule, GradingResult } from './types.ts';
 
 const app = express();
 const PORT = 3001;
@@ -34,15 +35,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -60,35 +53,39 @@ const upload = multer({
   }
 });
 
+const streamToString = (stream: Readable): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    stream.on('error', reject);
+  });
+};
+
 app.post('/api/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: '请上传文件' });
     }
 
-    const filePath = req.file.path;
     const originalName = req.file.originalname;
     const ext = path.extname(originalName).toLowerCase();
+    const fileBuffer = req.file.buffer;
 
     let text = '';
 
     try {
       if (ext === '.pdf') {
-        const dataBuffer = fs.readFileSync(filePath);
-        const pdfResult = await pdfParse(dataBuffer);
+        const pdfResult = await pdfParse(fileBuffer);
         text = pdfResult.text;
         if (!text || text.trim().length === 0) {
           return res.status(400).json({ error: '报告格式不正确' });
         }
       } else if (ext === '.txt') {
-        text = fs.readFileSync(filePath, 'utf-8');
+        text = fileBuffer.toString('utf-8');
       }
     } catch (err) {
       return res.status(400).json({ error: '报告格式不正确' });
-    } finally {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
     }
 
     const rules = getRules();
@@ -183,7 +180,13 @@ app.delete('/api/rules/:id', (req: Request, res: Response) => {
 app.get('/api/history', (req: Request, res: Response) => {
   try {
     const history = getHistory();
-    return res.json(history);
+    const historyWithPercentage = history.map(record => ({
+      ...record,
+      filename: record.reportName,
+      timestamp: record.createdAt,
+      percentage: Math.round((record.totalScore / record.maxScore) * 100)
+    }));
+    return res.json(historyWithPercentage);
   } catch (err) {
     console.error('Get history error:', err);
     return res.status(500).json({ error: '获取历史记录失败' });
@@ -197,7 +200,13 @@ app.get('/api/history/:id', (req: Request, res: Response) => {
     if (!record) {
       return res.status(404).json({ error: '记录不存在' });
     }
-    return res.json(record);
+    const result: GradingResult & { filename: string; timestamp: string; percentage: number } = {
+      ...record,
+      filename: record.reportName,
+      timestamp: record.createdAt,
+      percentage: Math.round((record.totalScore / record.maxScore) * 100)
+    };
+    return res.json(result);
   } catch (err) {
     console.error('Get grading detail error:', err);
     return res.status(500).json({ error: '获取评分详情失败' });

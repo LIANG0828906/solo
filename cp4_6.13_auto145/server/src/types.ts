@@ -14,7 +14,6 @@ export interface ScoreResult {
   ruleName: string;
   passed: boolean;
   matchedTexts: string[];
-  matchPositions: Array<{ start: number; end: number }>;
   score: number;
   maxScore: number;
   suggestion: string;
@@ -22,19 +21,17 @@ export interface ScoreResult {
 
 export interface GradingResult {
   id: string;
-  filename: string;
+  reportName: string;
   totalScore: number;
   maxScore: number;
-  percentage: number;
   results: ScoreResult[];
-  timestamp: string;
+  createdAt: string;
 }
 
 export interface HistoryRecord {
   id: string;
-  filename: string;
+  reportName: string;
   totalScore: number;
   maxScore: number;
-  percentage: number;
-  timestamp: string;
+  createdAt: string;
 }

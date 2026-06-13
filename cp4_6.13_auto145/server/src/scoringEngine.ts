@@ -1,7 +1,7 @@
 import { Rule, ScoreResult } from './types';
 
-function extractMatches(text: string, regex: RegExp, contextLen: number = 20): string[] {
-  const matches: string[] = [];
+function extractMatches(text: string, regex: RegExp, contextLen: number = 20): { text: string; index: number }[] {
+  const matches: { text: string; index: number }[] = [];
   let match;
   const globalRegex = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : regex.flags + 'g');
   
@@ -11,28 +11,28 @@ function extractMatches(text: string, regex: RegExp, contextLen: number = 20): s
     const context = text.slice(start, end);
     const prefix = start > 0 ? '...' : '';
     const suffix = end < text.length ? '...' : '';
-    matches.push(prefix + context + suffix);
+    matches.push({ text: prefix + context + suffix, index: match.index });
   }
   
   return matches;
 }
 
-function matchKeyword(text: string, pattern: string): { hit: boolean; matches: string[] } {
+function matchKeyword(text: string, pattern: string): { hit: boolean; matches: { text: string; index: number }[] } {
   if (!pattern) return { hit: false, matches: [] };
   const regex = new RegExp(pattern, 'i');
   const matches = extractMatches(text, regex, 20);
   return { hit: matches.length > 0, matches };
 }
 
-function matchFormat(text: string, ruleName: string, pattern: string): { hit: boolean; matches: string[] } {
-  const matches: string[] = [];
+function matchFormat(text: string, ruleName: string, pattern: string): { hit: boolean; matches: { text: string; index: number }[] } {
+  const matches: { text: string; index: number }[] = [];
   
   switch (ruleName) {
     case '字数超过500': {
       const charCount = text.replace(/\s/g, '').length;
       const hit = charCount > 500;
       if (hit) {
-        matches.push(`报告字数：${charCount}字，已超过500字要求`);
+        matches.push({ text: `报告字数：${charCount}字，已超过500字要求`, index: 0 });
       }
       return { hit, matches };
     }
@@ -58,7 +58,7 @@ function matchFormat(text: string, ruleName: string, pattern: string): { hit: bo
     default: {
       const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
       if (paragraphs.length > 3) {
-        matches.push(`检测到${paragraphs.length}个段落，结构较为完整`);
+        matches.push({ text: `检测到${paragraphs.length}个段落，结构较为完整`, index: 0 });
         return { hit: true, matches };
       }
       if (pattern) {
@@ -73,11 +73,93 @@ function matchFormat(text: string, ruleName: string, pattern: string): { hit: bo
   }
 }
 
-function matchFormula(text: string, pattern: string): { hit: boolean; matches: string[] } {
-  if (!pattern) return { hit: false, matches: [] };
-  const regex = new RegExp(pattern, 'i');
-  const matches = extractMatches(text, regex, 25);
-  return { hit: matches.length > 0, matches };
+function isValidIdentifier(str: string): boolean {
+  const identifierRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  return identifierRegex.test(str.trim());
+}
+
+function isValidNumber(str: string): boolean {
+  const num = parseFloat(str.trim());
+  return !isNaN(num);
+}
+
+function isValidExpressionPart(str: string): boolean {
+  if (!str || str.trim() === '') return false;
+  
+  const trimmed = str.trim();
+  
+  if (isValidIdentifier(trimmed)) return true;
+  if (isValidNumber(trimmed)) return true;
+  
+  const complexPatterns = [
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*(\+\s*[a-zA-Z0-9_]+\s*)*$/,
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*\-\s*[a-zA-Z0-9_]+\s*$/,
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*\*\s*[a-zA-Z0-9_]+\s*$/,
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*\/\s*[a-zA-Z0-9_]+\s*$/,
+    /^\(\s*[a-zA-Z0-9_+\-*/\s]+\s*\)$/,
+    /^(\d+\.?\d*\s*[+\-*/]\s*)*\d+\.?\d*$/,
+    /^[a-zA-Z_][a-zA-Z0-9_]*\s*(\*\s*[a-zA-Z0-9_]+(\s*\+\s*[a-zA-Z0-9_]+)*\s*)*$/,
+  ];
+  
+  return complexPatterns.some(pattern => pattern.test(trimmed));
+}
+
+function matchFormula(text: string, pattern: string): { hit: boolean; matches: { text: string; index: number }[] } {
+  const matches: { text: string; index: number }[] = [];
+  
+  const formulaPatterns = [
+    /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*\s*[+\-*/]\s*[a-zA-Z0-9_]+\s*)+[a-zA-Z0-9_]+/,
+    /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\/\s*[a-zA-Z0-9_]+/,
+    /mean\s*[=:]\s*sum\s*\/\s*n/i,
+    /average\s*[=:]\s*sum\s*\/\s*count/i,
+    /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*sum\s*\(\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\)\s*\/\s*\d+/i,
+    /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\d+\.?\d*\s*[+\-*/]\s*)+\d+\.?\d*/,
+    /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\(\s*[a-zA-Z0-9_+\-*/\s]+\s*\)\s*\/\s*[a-zA-Z0-9_]+/,
+  ];
+
+  for (const formulaRegex of formulaPatterns) {
+    const found = extractMatches(text, formulaRegex, 25);
+    for (const match of found) {
+      if (!matches.some(m => m.text === match.text)) {
+        matches.push(match);
+      }
+    }
+  }
+
+  if (pattern) {
+    try {
+      const customRegex = new RegExp(pattern, 'gi');
+      const customMatches = extractMatches(text, customRegex, 25);
+      for (const match of customMatches) {
+        if (!matches.some(m => m.text === match.text)) {
+          matches.push(match);
+        }
+      }
+    } catch {
+    }
+  }
+
+  const filteredMatches = matches.filter(match => {
+    const parts = match.text.split(/[=:]/);
+    if (parts.length !== 2) return false;
+    
+    const leftPart = parts[0].replace(/[.\s]/g, '');
+    const rightPart = parts[1].replace(/[.\s]/g, '');
+    
+    if (!leftPart || !rightPart) return false;
+    
+    if (!isValidIdentifier(leftPart) && !isValidNumber(leftPart)) {
+      return false;
+    }
+    
+    const rightHasOperator = /[+\-*/]/.test(rightPart);
+    const rightHasAlpha = /[a-zA-Z]/.test(rightPart);
+    const rightHasNumber = /[0-9]/.test(rightPart);
+    
+    return rightHasOperator && (rightHasAlpha || rightHasNumber);
+  });
+
+  return { hit: filteredMatches.length > 0, matches: filteredMatches.slice(0, 3) };
 }
 
 export function scoreText(text: string, rules: Rule[]): ScoreResult[] {
@@ -86,7 +168,7 @@ export function scoreText(text: string, rules: Rule[]): ScoreResult[] {
   
   for (const rule of rules) {
     let hit = false;
-    let matches: string[] = [];
+    let matches: { text: string; index: number }[] = [];
     
     switch (rule.type) {
       case 'keyword':
@@ -103,8 +185,8 @@ export function scoreText(text: string, rules: Rule[]): ScoreResult[] {
     results.push({
       ruleId: rule.id,
       ruleName: rule.name,
-      hit,
-      matches,
+      passed: hit,
+      matchedTexts: matches.map(m => m.text),
       score: hit ? rule.weight : 0,
       maxScore: rule.weight,
       suggestion: hit ? '符合要求' : rule.suggestion

@@ -10,7 +10,9 @@ const ScoreDashboard: React.FC<ScoreDashboardProps> = ({ gradingResult }) => {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [animatedScores, setAnimatedScores] = useState<Record<string, number>>({});
+  const [highlightedRuleId, setHighlightedRuleId] = useState<string | null>(null);
   const animationRefs = useRef<Record<string, number>>({});
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const getScoreColor = (percentage: number): string => {
     if (percentage >= 80) return 'green';
@@ -61,8 +63,21 @@ const ScoreDashboard: React.FC<ScoreDashboardProps> = ({ gradingResult }) => {
       const next = new Set(prev);
       if (next.has(ruleId)) {
         next.delete(ruleId);
+        setHighlightedRuleId(null);
       } else {
         next.add(ruleId);
+        setHighlightedRuleId(ruleId);
+        
+        setTimeout(() => {
+          const cardElement = cardRefs.current[ruleId];
+          if (cardElement) {
+            cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardElement.classList.add('highlighted');
+            setTimeout(() => {
+              cardElement.classList.remove('highlighted');
+            }, 1000);
+          }
+        }, 100);
       }
       return next;
     });
@@ -83,52 +98,112 @@ const ScoreDashboard: React.FC<ScoreDashboardProps> = ({ gradingResult }) => {
   const exportToPDF = async () => {
     setIsExporting(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const doc = new jsPDF();
-      doc.setFontSize(20);
-      doc.text('AutoLab 评分报告', 20, 25);
-      
-      doc.setFontSize(12);
-      doc.text(`文件名: ${gradingResult.filename}`, 20, 40);
-      doc.text(`评分时间: ${new Date(gradingResult.timestamp).toLocaleString()}`, 20, 50);
-      doc.text(`总分: ${gradingResult.totalScore} / ${gradingResult.maxScore} (${gradingResult.percentage}%)`, 20, 60);
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      let yPos = margin;
 
-      let yPos = 80;
+      doc.setFont('Helvetica');
+      doc.setFontSize(20);
+      doc.setTextColor(26, 35, 50);
+      doc.text('AutoLab 实验报告评分报告', margin, yPos);
+      yPos += 15;
+
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`文件名: ${gradingResult.filename}`, margin, yPos);
+      yPos += 8;
+      doc.text(`评分时间: ${new Date(gradingResult.timestamp).toLocaleString('zh-CN')}`, margin, yPos);
+      yPos += 8;
+      doc.setTextColor(26, 35, 50);
       doc.setFontSize(14);
-      doc.text('详细评分:', 20, yPos);
+      doc.text(`总分: ${gradingResult.totalScore} / ${gradingResult.maxScore} (${gradingResult.percentage}%)`, margin, yPos);
+      yPos += 15;
+
+      const scorePercentage = gradingResult.percentage;
+      const circleRadius = 30;
+      const circleCenterX = pageWidth / 2;
+      const circleCenterY = yPos + circleRadius + 10;
+      const circumference = 2 * Math.PI * circleRadius;
+      const offset = circumference - (scorePercentage / 100) * circumference;
+
+      doc.setLineWidth(4);
+      doc.setDrawColor(232, 232, 232);
+      doc.circle(circleCenterX, circleCenterY, circleRadius, 'S');
+
+      doc.setDrawColor(scorePercentage >= 80 ? 78 : scorePercentage >= 60 ? 255 : 255,
+        scorePercentage >= 80 ? 205 : scorePercentage >= 60 ? 167 : 107,
+        scorePercentage >= 80 ? 196 : scorePercentage >= 60 ? 38 : 94);
+      doc.arc(circleCenterX, circleCenterY, circleRadius, -Math.PI / 2, -Math.PI / 2 - (scorePercentage / 100) * 2 * Math.PI, 'S');
+
+      doc.setFontSize(24);
+      doc.setTextColor(26, 35, 50);
+      doc.text(`${scorePercentage}%`, circleCenterX - 15, circleCenterY + 5);
+
+      yPos = circleCenterY + circleRadius + 20;
+
+      doc.setFontSize(14);
+      doc.setTextColor(26, 35, 50);
+      doc.text('详细评分:', margin, yPos);
       yPos += 10;
 
       gradingResult.results.forEach((result, index) => {
-        if (yPos > 270) {
+        if (yPos > pageHeight - margin - 20) {
           doc.addPage();
-          yPos = 20;
+          yPos = margin;
         }
+
         doc.setFontSize(11);
-        doc.text(`${index + 1}. ${result.ruleName}: ${result.score}/${result.maxScore} ${result.passed ? '✓' : '✗'}`, 25, yPos);
+        doc.setTextColor(result.passed ? 78 : 255, result.passed ? 205 : 107, result.passed ? 196 : 94);
+        doc.text(`${index + 1}. ${result.ruleName}:`, margin, yPos);
+        doc.setTextColor(26, 35, 50);
+        doc.text(` ${result.score}/${result.maxScore}`, margin + 80, yPos);
+        doc.setTextColor(result.passed ? 78 : 255, result.passed ? 205 : 107, result.passed ? 196 : 94);
+        doc.text(` ${result.passed ? '✓ 通过' : '✗ 未通过'}`, margin + 120, yPos);
         yPos += 7;
 
-        if (result.suggestion) {
-          doc.setFontSize(10);
+        if (result.matchedTexts && result.matchedTexts.length > 0) {
+          doc.setFontSize(9);
           doc.setTextColor(100, 100, 100);
-          doc.text(`建议: ${result.suggestion}`, 30, yPos);
-          doc.setTextColor(0, 0, 0);
-          yPos += 7;
+          doc.text('匹配内容:', margin + 10, yPos);
+          yPos += 5;
+          result.matchedTexts.slice(0, 2).forEach((text, idx) => {
+            const wrappedText = doc.splitTextToSize(text, pageWidth - margin - 30);
+            wrappedText.forEach(line => {
+              if (yPos > pageHeight - margin - 20) {
+                doc.addPage();
+                yPos = margin;
+              }
+              doc.text(line, margin + 15, yPos);
+              yPos += 5;
+            });
+          });
+          yPos += 5;
         }
-        yPos += 3;
+
+        if (result.suggestion) {
+          doc.setFontSize(9);
+          doc.setTextColor(78, 205, 196);
+          doc.text(`建议: ${result.suggestion}`, margin + 10, yPos);
+          yPos += 8;
+        }
+        yPos += 5;
       });
 
       const passedCount = gradingResult.results.filter(r => r.passed).length;
       const failedCount = gradingResult.results.filter(r => !r.passed).length;
-      
-      if (yPos > 250) {
+
+      if (yPos > pageHeight - margin - 20) {
         doc.addPage();
-        yPos = 20;
+        yPos = margin;
       }
       doc.setFontSize(12);
-      doc.text(`统计: 通过 ${passedCount} 项, 未通过 ${failedCount} 项`, 20, yPos);
+      doc.setTextColor(26, 35, 50);
+      doc.text(`统计: 通过 ${passedCount} 项, 未通过 ${failedCount} 项`, margin, yPos);
 
-      doc.save(`评分报告_${gradingResult.filename.replace(/\.[^/.]+$/, '')}.pdf`);
+      const fileName = `评分报告_${gradingResult.filename.replace(/\.[^/.]+$/, '')}.pdf`;
+      doc.save(fileName);
     } catch (error) {
       console.error('导出PDF失败:', error);
       alert('导出PDF失败，请重试');
@@ -194,7 +269,8 @@ const ScoreDashboard: React.FC<ScoreDashboardProps> = ({ gradingResult }) => {
           return (
             <div
               key={result.ruleId}
-              className={`card rule-card ${result.passed ? '' : 'failed'}`}
+              ref={el => { cardRefs.current[result.ruleId] = el; }}
+              className={`card rule-card ${result.passed ? '' : 'failed'} ${highlightedRuleId === result.ruleId ? 'highlighted' : ''}`}
               style={{ animationDelay: `${index * 0.1}s` }}
               onClick={() => toggleCard(result.ruleId)}
             >
@@ -223,7 +299,7 @@ const ScoreDashboard: React.FC<ScoreDashboardProps> = ({ gradingResult }) => {
 
               {isExpanded && (
                 <div className="rule-expand">
-                  {result.matchedTexts.length > 0 && (
+                  {result.matchedTexts && result.matchedTexts.length > 0 && (
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '8px' }}>
                         匹配的文本片段:

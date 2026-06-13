@@ -34,7 +34,7 @@ const App: React.FC = () => {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch('/api/history?limit=10');
+      const response = await fetch('/api/history');
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
@@ -46,7 +46,7 @@ const App: React.FC = () => {
 
   const fetchResultById = async (id: string) => {
     try {
-      const response = await fetch(`/api/results/${id}`);
+      const response = await fetch(`/api/history/${id}`);
       if (response.ok) {
         const data = await response.json();
         setCurrentResult(data);

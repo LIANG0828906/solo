@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Rule } from './types';
+import { Rule, RuleType } from './types';
 
 interface RulesEditorProps {
   rules: Rule[];
@@ -11,7 +11,7 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Partial<Rule>>({
     name: '',
-    type: 'keyword',
+    type: 'keyword' as RuleType,
     pattern: '',
     weight: 10,
     suggestion: ''
@@ -53,6 +53,7 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('确定要删除这条规则吗？')) return;
 
+    setIsSaving(true);
     try {
       const response = await fetch(`/api/rules/${ruleId}`, {
         method: 'DELETE'
@@ -67,6 +68,8 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
     } catch (error) {
       console.error('删除规则失败:', error);
       alert('删除规则失败，请重试');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -118,9 +121,9 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
 
   const getTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      regex: '正则表达式',
       keyword: '关键词',
-      structural: '结构性'
+      format: '格式检查',
+      formula: '公式检查'
     };
     return labels[type] || type;
   };
@@ -161,12 +164,12 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
               <select
                 name="type"
                 className="form-select"
-                value={formData.type || 'keyword'}
+                value={(formData.type as RuleType) || 'keyword'}
                 onChange={handleInputChange}
               >
                 <option value="keyword">关键词</option>
-                <option value="regex">正则表达式</option>
-                <option value="structural">结构性</option>
+                <option value="format">格式检查</option>
+                <option value="formula">公式检查</option>
               </select>
             </div>
             <div className="form-group">
@@ -192,7 +195,7 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
               className="form-input"
               value={formData.pattern || ''}
               onChange={handleInputChange}
-              placeholder={formData.type === 'regex' ? '例如：^实验目的' : '例如：实验目的'}
+              placeholder="正则表达式或关键词"
               required
             />
           </div>
@@ -248,6 +251,7 @@ const RulesEditor: React.FC<RulesEditorProps> = ({ rules, onRulesChange }) => {
               <button
                 className="btn btn-danger btn-sm"
                 onClick={() => handleDeleteRule(rule.id)}
+                disabled={isSaving}
               >
                 删除
               </button>
