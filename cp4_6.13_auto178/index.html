@@ -250,10 +250,39 @@
     #control-panel.no-anim input[type="range"]::-moz-range-thumb {
       transition: none !important;
       transform: none !important;
+      opacity: 1 !important;
+      box-shadow: none !important;
+      background: none !important;
+      filter: none !important;
+      animation: none !important;
+      will-change: auto !important;
     }
 
-    #control-panel.no-anim .reset-btn:hover {
-      transform: none;
+    #control-panel.no-anim .reset-btn:hover,
+    #control-panel.no-anim .reset-btn:active {
+      transform: none !important;
+      background: rgba(255, 69, 0, 0.15) !important;
+      box-shadow: none !important;
+      opacity: 1 !important;
+    }
+
+    #control-panel.no-anim input[type="range"]::-webkit-slider-thumb:hover,
+    #control-panel.no-anim input[type="range"]::-moz-range-thumb:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    #control-panel.no-anim * {
+      pointer-events: auto;
+    }
+
+    #control-panel.no-anim .control-group input,
+    #control-panel.no-anim .reset-btn {
+      pointer-events: none;
+    }
+
+    #control-panel.no-anim .panel-header {
+      pointer-events: auto;
     }
   </style>
 </head>
@@ -286,7 +315,7 @@
           <span>粒子数量</span>
           <span class="control-value" id="particle-value">2000</span>
         </div>
-        <input type="range" id="particle-slider" min="500" max="3000" step="100" value="2000" />
+        <input type="range" id="particle-slider" min="500" max="5000" step="100" value="2000" />
       </div>
       <button class="reset-btn" id="reset-btn">重置粒子系统</button>
     </div>

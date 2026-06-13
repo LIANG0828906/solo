@@ -18,6 +18,9 @@ const QUALITY_LEVEL = 0.01;
 const MIN_DISTANCE = 10;
 const MIN_FEATURE_RATIO = 0.2;
 const REDETECT_INTERVAL = 30;
+const GRID_COLS = 4;
+const GRID_ROWS = 4;
+const MIN_PER_CELL = 2;
 
 export class OpticalFlow {
   private video: HTMLVideoElement;
@@ -116,29 +119,114 @@ export class OpticalFlow {
 
     responses.sort((a, b) => b.r - a.r);
     const threshold = responses.length > 0 ? responses[0].r * QUALITY_LEVEL : 0;
+
+    const gridCounts: number[][] = [];
+    for (let r = 0; r < GRID_ROWS; r++) {
+      gridCounts[r] = [];
+      for (let c = 0; c < GRID_COLS; c++) gridCounts[r][c] = 0;
+    }
+    const cellW = this.width / GRID_COLS;
+    const cellH = this.height / GRID_ROWS;
+
     const features: FeaturePoint[] = [];
-    const grid = new Set<string>();
+    const localGrid = new Set<string>();
 
     for (const pt of responses) {
       if (pt.r < threshold) continue;
       if (features.length >= MAX_CORNERS) break;
+
+      const gc = Math.min(Math.floor(pt.x / cellW), GRID_COLS - 1);
+      const gr = Math.min(Math.floor(pt.y / cellH), GRID_ROWS - 1);
 
       const gx = Math.floor(pt.x / MIN_DISTANCE);
       const gy = Math.floor(pt.y / MIN_DISTANCE);
       let overlap = false;
       for (let dy = -1; dy <= 1 && !overlap; dy++) {
         for (let dx = -1; dx <= 1 && !overlap; dx++) {
-          if (grid.has(`${gx + dx},${gy + dy}`)) overlap = true;
+          if (localGrid.has(`${gx + dx},${gy + dy}`)) overlap = true;
         }
       }
-      if (!overlap) {
-        grid.add(`${gx},${gy}`);
-        features.push({ x: pt.x, y: pt.y, quality: pt.r });
+      if (overlap) continue;
+
+      const emptyCells = this.countEmptyCells(gridCounts);
+      const remainingSlots = MAX_CORNERS - features.length;
+      const cellQuota = (gridCounts[gr][gc] < MIN_PER_CELL) ? 1 : 0;
+
+      if (emptyCells > 0 && remainingSlots > emptyCells * MIN_PER_CELL + 10) {
+        if (gridCounts[gr][gc] >= MIN_PER_CELL && cellQuota === 0) {
+          continue;
+        }
+      }
+
+      localGrid.add(`${gx},${gy}`);
+      gridCounts[gr][gc]++;
+      features.push({ x: pt.x, y: pt.y, quality: pt.r });
+    }
+
+    if (features.length > 0) {
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (gridCounts[r][c] < MIN_PER_CELL) {
+            const backup = this.findFallbackInCell(gray, sobel, c, r, cellW, cellH, MIN_PER_CELL - gridCounts[r][c]);
+            for (const bp of backup) {
+              if (features.length >= MAX_CORNERS) break;
+              features.push(bp);
+              gridCounts[r][c]++;
+            }
+          }
+        }
       }
     }
 
-    console.log(`[OpticalFlow] 特征点检测完成, 检测到 ${features.length} 个特征点`);
+    if (this.frameCount % 120 === 0) {
+      const dist = gridCounts.map(r => r.join(',')).join(' | ');
+      console.log(`[OpticalFlow] 特征点检测: ${features.length}个, 网格分布: ${dist}`);
+    }
+
     return features;
+  }
+
+  private countEmptyCells(gridCounts: number[][]): number {
+    let count = 0;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (gridCounts[r][c] < MIN_PER_CELL) count++;
+      }
+    }
+    return count;
+  }
+
+  private findFallbackInCell(
+    gray: Float32Array,
+    sobel: Float32Array,
+    col: number,
+    row: number,
+    cellW: number,
+    cellH: number,
+    needed: number
+  ): FeaturePoint[] {
+    const result: FeaturePoint[] = [];
+    const startX = Math.max(MIN_DISTANCE, Math.floor(col * cellW));
+    const endX = Math.min(this.width - MIN_DISTANCE, Math.ceil((col + 1) * cellW));
+    const startY = Math.max(MIN_DISTANCE, Math.floor(row * cellH));
+    const endY = Math.min(this.height - MIN_DISTANCE, Math.ceil((row + 1) * cellH));
+
+    const candidates: { x: number; y: number; r: number }[] = [];
+    const step = 4;
+
+    for (let y = startY; y < endY; y += step) {
+      for (let x = startX; x < endX; x += step) {
+        const r = this.harrisCornerResponse(sobel, x, y);
+        if (r > 0) candidates.push({ x, y, r });
+      }
+    }
+
+    candidates.sort((a, b) => b.r - a.r);
+    for (let i = 0; i < Math.min(needed, candidates.length); i++) {
+      result.push({ x: candidates[i].x, y: candidates[i].y, quality: candidates[i].r });
+    }
+
+    return result;
   }
 
   private bilinearSample(gray: Float32Array, x: number, y: number): number {

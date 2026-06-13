@@ -5,6 +5,8 @@ const COLOR_BLUE = new THREE.Color(0x1e90ff);
 const COLOR_RED = new THREE.Color(0xff4500);
 const DEFAULT_MAX_MAGNITUDE = 10;
 const MAX_TRAIL_SEGMENTS = 50;
+const BUFFER_GROWTH_FACTOR = 1.5;
+const MIN_BUFFER_CAPACITY = 1000;
 
 interface ParticleState {
   px: number; py: number; pz: number;
@@ -25,6 +27,7 @@ export class ParticleSystem {
   private lines!: THREE.LineSegments;
   private linesGeometry!: THREE.BufferGeometry;
   public particleCount: number;
+  private particleCapacity: number;
 
   private positionBuffer!: Float32Array;
   private colorBuffer!: Float32Array;
@@ -39,28 +42,44 @@ export class ParticleSystem {
 
   private lastDrawRange = 0;
   private prevMaxMagnitude = DEFAULT_MAX_MAGNITUDE;
+  private prevMADScale = DEFAULT_MAX_MAGNITUDE;
 
   constructor(scene: THREE.Scene, particleCount: number = 2000) {
     this.scene = scene;
     this.particleCount = particleCount;
-    this.trailCapacity = particleCount * MAX_TRAIL_SEGMENTS;
+    this.particleCapacity = Math.max(particleCount, MIN_BUFFER_CAPACITY);
+    this.trailCapacity = this.particleCapacity * MAX_TRAIL_SEGMENTS;
     this.initBuffers();
     this.initParticles();
-    console.log(`[ParticleSystem] 初始化完成, 粒子数: ${particleCount}, 尾迹缓冲: ${this.trailCapacity}`);
+    console.log(`[ParticleSystem] 初始化完成, 粒子数: ${particleCount}, 容量: ${this.particleCapacity}, 尾迹缓冲: ${this.trailCapacity}`);
   }
 
   private initBuffers(): void {
-    this.positionBuffer = new Float32Array(this.particleCount * 3);
-    this.colorBuffer = new Float32Array(this.particleCount * 3);
-    this.sizeBuffer = new Float32Array(this.particleCount);
+    const cap = this.particleCapacity;
+    const trailCap = this.trailCapacity;
 
-    this.trailX = new Float32Array(this.trailCapacity);
-    this.trailY = new Float32Array(this.trailCapacity);
-    this.trailZ = new Float32Array(this.trailCapacity);
+    if (this.positionBuffer && this.positionBuffer.length >= cap * 3) {
+      return;
+    }
 
-    const maxLineVerts = this.particleCount * MAX_TRAIL_SEGMENTS * 2;
+    this.positionBuffer = new Float32Array(cap * 3);
+    this.colorBuffer = new Float32Array(cap * 3);
+    this.sizeBuffer = new Float32Array(cap);
+
+    this.trailX = new Float32Array(trailCap);
+    this.trailY = new Float32Array(trailCap);
+    this.trailZ = new Float32Array(trailCap);
+
+    const maxLineVerts = cap * MAX_TRAIL_SEGMENTS * 2;
     this.linePositionBuffer = new Float32Array(maxLineVerts * 3);
     this.lineColorBuffer = new Float32Array(maxLineVerts * 3);
+
+    if (this.pointsGeometry) {
+      this.pointsGeometry.dispose();
+      this.linesGeometry.dispose();
+      this.scene.remove(this.points);
+      this.scene.remove(this.lines);
+    }
 
     this.pointsGeometry = new THREE.BufferGeometry();
     this.pointsGeometry.setAttribute('position', new THREE.BufferAttribute(this.positionBuffer, 3));
@@ -95,6 +114,32 @@ export class ParticleSystem {
 
     this.lines = new THREE.LineSegments(this.linesGeometry, linesMaterial);
     this.scene.add(this.lines);
+
+    this.lastDrawRange = 0;
+  }
+
+  private ensureCapacity(newCount: number): void {
+    if (newCount <= this.particleCapacity) return;
+
+    const oldCapacity = this.particleCapacity;
+    const oldParticles = this.particles.slice();
+
+    this.particleCapacity = Math.max(
+      Math.ceil(newCount * BUFFER_GROWTH_FACTOR),
+      Math.ceil(oldCapacity * BUFFER_GROWTH_FACTOR),
+      MIN_BUFFER_CAPACITY
+    );
+    this.trailCapacity = this.particleCapacity * MAX_TRAIL_SEGMENTS;
+
+    console.log(`[ParticleSystem] 扩容: ${oldCapacity} → ${this.particleCapacity}`);
+
+    this.initBuffers();
+    this.initParticles();
+
+    for (let i = 0; i < Math.min(oldParticles.length, this.particleCount); i++) {
+      Object.assign(this.particles[i], oldParticles[i]);
+      this.particles[i].trailHead = i * MAX_TRAIL_SEGMENTS;
+    }
   }
 
   private initParticles(): void {
@@ -115,14 +160,30 @@ export class ParticleSystem {
     }
   }
 
-  private computeDynamicMaxMagnitude(vectors: MotionVector[]): number {
+  private computeRobustMaxMagnitude(vectors: MotionVector[]): number {
     if (vectors.length === 0) return this.prevMaxMagnitude;
 
     const mags = vectors.map(v => v.magnitude).sort((a, b) => a - b);
-    const p90 = mags[Math.floor(mags.length * 0.9)];
-    const dynamic = Math.max(p90 * 1.2, 1.0);
+    const n = mags.length;
 
-    this.prevMaxMagnitude = this.prevMaxMagnitude * 0.8 + dynamic * 0.2;
+    const median = n % 2 === 0
+      ? (mags[n / 2 - 1] + mags[n / 2]) / 2
+      : mags[Math.floor(n / 2)];
+
+    const absDev = mags.map(m => Math.abs(m - median)).sort((a, b) => a - b);
+    const mad = n % 2 === 0
+      ? (absDev[n / 2 - 1] + absDev[n / 2]) / 2
+      : absDev[Math.floor(n / 2)];
+
+    const robustUpper = median + 3 * 1.4826 * mad;
+
+    const p99 = mags[Math.min(Math.floor(n * 0.99), n - 1)];
+
+    const dynamic = Math.max(Math.min(robustUpper, p99 * 1.1), median * 1.5, 1.0);
+
+    this.prevMADScale = this.prevMADScale * 0.85 + dynamic * 0.15;
+    this.prevMaxMagnitude = this.prevMADScale;
+
     return this.prevMaxMagnitude;
   }
 
@@ -136,7 +197,9 @@ export class ParticleSystem {
   }
 
   public update(vectors: MotionVector[], deltaTime: number): void {
-    const maxMag = this.computeDynamicMaxMagnitude(vectors);
+    this.ensureCapacity(this.particleCount);
+
+    const maxMag = this.computeRobustMaxMagnitude(vectors);
     const positions = this.positionBuffer;
     const colors = this.colorBuffer;
     const sizes = this.sizeBuffer;
@@ -203,6 +266,7 @@ export class ParticleSystem {
       sizes[i] = p.size;
     }
 
+    this.pointsGeometry.setDrawRange(0, this.particleCount);
     (this.pointsGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
     (this.pointsGeometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
     (this.pointsGeometry.getAttribute('size') as THREE.BufferAttribute).needsUpdate = true;
@@ -256,16 +320,16 @@ export class ParticleSystem {
     const lp = this.linePositionBuffer;
     const lc = this.lineColorBuffer;
     let vi = 0;
-    const maxVerts = this.particleCount * MAX_TRAIL_SEGMENTS * 2;
+    const maxLines = this.particleCapacity * MAX_TRAIL_SEGMENTS;
 
-    for (let i = 0; i < this.particleCount && vi < maxVerts; i++) {
+    for (let i = 0; i < this.particleCount && vi < maxLines; i++) {
       const p = this.particles[i];
       const len = p.trailLen;
       if (len < 2) continue;
 
       const start = (p.trailLen > p.maxTrail) ? (p.trailLen - p.maxTrail) : 0;
 
-      for (let t = start; t < p.trailLen - 1 && vi < maxVerts; t++) {
+      for (let t = start; t < p.trailLen - 1 && vi < maxLines; t++) {
         const idx0 = p.trailHead + (t % MAX_TRAIL_SEGMENTS);
         const idx1 = p.trailHead + ((t + 1) % MAX_TRAIL_SEGMENTS);
 
@@ -296,8 +360,8 @@ export class ParticleSystem {
       }
     }
 
-    const prevBytes = this.lastDrawRange * 3;
-    const currBytes = vi * 3;
+    const prevBytes = this.lastDrawRange * 6;
+    const currBytes = vi * 6;
     if (vi < this.lastDrawRange) {
       for (let i = currBytes; i < prevBytes; i++) {
         lp[i] = 0;
@@ -314,19 +378,49 @@ export class ParticleSystem {
   public resizeParticleCount(newCount: number): void {
     if (newCount === this.particleCount) return;
 
-    this.scene.remove(this.points);
-    this.scene.remove(this.lines);
-    this.pointsGeometry.dispose();
-    this.linesGeometry.dispose();
-    (this.points.material as THREE.Material).dispose();
-    (this.lines.material as THREE.Material).dispose();
-
+    const oldCount = this.particleCount;
     this.particleCount = newCount;
-    this.trailCapacity = newCount * MAX_TRAIL_SEGMENTS;
-    this.lastDrawRange = 0;
-    this.initBuffers();
-    this.initParticles();
-    console.log(`[ParticleSystem] 粒子数更新为: ${newCount}`);
+
+    if (newCount > this.particleCapacity) {
+      this.ensureCapacity(newCount);
+      console.log(`[ParticleSystem] 粒子数扩容: ${oldCount} → ${newCount}`);
+      return;
+    }
+
+    if (newCount > oldCount) {
+      for (let i = oldCount; i < newCount; i++) {
+        if (i < this.particles.length) {
+          Object.assign(this.particles[i], {
+            px: (Math.random() - 0.5) * 4,
+            py: (Math.random() - 0.5) * 4,
+            pz: Math.random() * 0.5,
+            vx: 0, vy: 0, vz: 0,
+            cr: COLOR_BLUE.r, cg: COLOR_BLUE.g, cb: COLOR_BLUE.b,
+            size: 4 + Math.random() * 4,
+            life: 0.5 + Math.random() * 0.5,
+            maxTrail: 10,
+            trailHead: i * MAX_TRAIL_SEGMENTS,
+            trailLen: 0
+          });
+        } else {
+          this.particles.push({
+            px: (Math.random() - 0.5) * 4,
+            py: (Math.random() - 0.5) * 4,
+            pz: Math.random() * 0.5,
+            vx: 0, vy: 0, vz: 0,
+            cr: COLOR_BLUE.r, cg: COLOR_BLUE.g, cb: COLOR_BLUE.b,
+            size: 4 + Math.random() * 4,
+            life: 0.5 + Math.random() * 0.5,
+            maxTrail: 10,
+            trailHead: i * MAX_TRAIL_SEGMENTS,
+            trailLen: 0
+          });
+        }
+      }
+    }
+
+    this.particles.length = newCount;
+    console.log(`[ParticleSystem] 粒子数更新为: ${newCount}, 容量: ${this.particleCapacity}`);
   }
 
   public reset(): void {

@@ -20,6 +20,10 @@ class App {
   private videoFrameInterval: number = 1000 / 30;
   private cameraReady: boolean = false;
 
+  private frameTimestamps: number[] = [];
+  private estimatedFps: number = 30;
+  private lastFrameProcessed: number = 0;
+
   constructor() {
     this.canvasContainer = document.getElementById('canvas-container') as HTMLDivElement;
     this.video = document.getElementById('video-element') as HTMLVideoElement;
@@ -54,6 +58,10 @@ class App {
 
     this.handleResize = this.handleResize.bind(this);
     window.addEventListener('resize', this.handleResize);
+
+    this.video.addEventListener('playing', () => {
+      this.detectCameraFps();
+    });
 
     this.initCamera();
     this.requestCameraAccess();
@@ -116,12 +124,47 @@ class App {
     this.scene.add(pointLight);
   }
 
+  private detectCameraFps(): void {
+    const stream = this.video.srcObject as MediaStream | null;
+    if (stream && stream.getVideoTracks().length > 0) {
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      if (settings.frameRate) {
+        this.estimatedFps = settings.frameRate;
+        this.videoFrameInterval = 1000 / this.estimatedFps * 0.95;
+        console.log(`[App] 从Track检测到摄像头帧率: ${this.estimatedFps}FPS, 节流间隔: ${this.videoFrameInterval.toFixed(1)}ms`);
+        return;
+      }
+    }
+
+    this.startFpsEstimation();
+  }
+
+  private startFpsEstimation(): void {
+    const detect = () => {
+      if (!this.cameraReady || this.frameTimestamps.length >= 30) {
+        if (this.frameTimestamps.length >= 10) {
+          const avgInterval = (this.frameTimestamps[this.frameTimestamps.length - 1] - this.frameTimestamps[0]) / (this.frameTimestamps.length - 1);
+          this.estimatedFps = Math.max(10, 1000 / avgInterval);
+          this.videoFrameInterval = 1000 / this.estimatedFps * 0.95;
+          console.log(`[App] 实测估算摄像头帧率: ${this.estimatedFps.toFixed(1)}FPS, 节流间隔: ${this.videoFrameInterval.toFixed(1)}ms`);
+        }
+        this.frameTimestamps = [];
+        return;
+      }
+      this.frameTimestamps.push(performance.now());
+      setTimeout(detect, 0);
+    };
+    detect();
+  }
+
   private async requestCameraAccess(): Promise<void> {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
+          frameRate: { ideal: 30 },
           facingMode: 'user'
         },
         audio: false
@@ -145,6 +188,8 @@ class App {
   private resetSystem(): void {
     this.opticalFlow.reset();
     this.particleSystem.reset();
+    this.lastVideoFrameTime = 0;
+    this.lastFrameProcessed = 0;
     console.log('[App] 系统已重置');
   }
 
@@ -175,10 +220,26 @@ class App {
     );
     this.camera.lookAt(0, 0, 0);
 
-    if (this.cameraReady && currentTime - this.lastVideoFrameTime >= this.videoFrameInterval) {
-      this.lastVideoFrameTime = currentTime - ((currentTime - this.lastVideoFrameTime) % this.videoFrameInterval);
-      const vectors = this.opticalFlow.calculate();
-      this.particleSystem.update(vectors, deltaTime);
+    const shouldProcessFrame = this.cameraReady && (
+      currentTime - this.lastVideoFrameTime >= this.videoFrameInterval ||
+      this.lastVideoFrameTime === 0
+    );
+
+    if (shouldProcessFrame) {
+      const videoFrame = (this.video as any).webkitDecodedFrameCount || (this.video as any).mozDecodedFrameCount || (this.video as any).decodedFrameCount;
+
+      if (videoFrame === undefined || videoFrame !== this.lastFrameProcessed) {
+        if (this.lastVideoFrameTime === 0) {
+          this.lastVideoFrameTime = currentTime;
+        } else {
+          const drift = (currentTime - this.lastVideoFrameTime) % this.videoFrameInterval;
+          this.lastVideoFrameTime = currentTime - drift;
+        }
+        this.lastFrameProcessed = videoFrame ?? (this.lastFrameProcessed + 1);
+
+        const vectors = this.opticalFlow.calculate();
+        this.particleSystem.update(vectors, deltaTime);
+      }
     }
 
     this.renderer.render(this.scene, this.camera);
