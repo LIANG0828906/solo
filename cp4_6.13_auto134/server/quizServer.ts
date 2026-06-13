@@ -42,6 +42,11 @@ interface Room {
 const rooms = new Map<string, Room>();
 const clientToRoom = new Map<WebSocket, string>();
 
+const HEARTBEAT_INTERVAL = 30000;
+const clientLastPong = new Map<WebSocket, number>();
+const pendingStatsBroadcasts = new Map<string, { questionId: number; stats: any }>();
+const statsBroadcastTimers = new Map<string, NodeJS.Timeout>();
+
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -66,6 +71,50 @@ function broadcastToRoom(roomId: string, data: any, excludeWs?: WebSocket) {
     }
   }
 }
+
+function broadcastStatsThrottled(roomId: string, questionId: number, stats: any) {
+  pendingStatsBroadcasts.set(roomId, { questionId, stats });
+  if (statsBroadcastTimers.has(roomId)) return;
+
+  const timer = setTimeout(() => {
+    const pending = pendingStatsBroadcasts.get(roomId);
+    statsBroadcastTimers.delete(roomId);
+    pendingStatsBroadcasts.delete(roomId);
+    if (!pending) return;
+
+    const room = rooms.get(roomId);
+    if (!room) return;
+    for (const { ws: clientWs, role } of room.clients.values()) {
+      if (role === 'teacher') {
+        sendToClient(clientWs, {
+          type: 'stats_updated',
+          questionId: pending.questionId,
+          stats: pending.stats,
+        });
+      }
+    }
+  }, 150);
+  statsBroadcastTimers.set(roomId, timer);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const ws of Array.from(wss.clients)) {
+    const last = clientLastPong.get(ws);
+    if (last && now - last > HEARTBEAT_INTERVAL * 2) {
+      ws.terminate();
+      clientLastPong.delete(ws);
+      continue;
+    }
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.ping();
+      } catch {
+        ws.terminate();
+      }
+    }
+  }
+}, HEARTBEAT_INTERVAL);
 
 function questionToPublic(q: Question, forTeacher: boolean) {
   const base = {
@@ -180,6 +229,21 @@ function handleJoinRoom(ws: WebSocket, nickname: string, code: string) {
   });
 }
 
+function getQuestionSummariesForRoom(roomId: string) {
+  const questions = getRoomQuestions(roomId);
+  return questions.map(q => {
+    const stats = getQuestionStats(q.id);
+    return {
+      id: q.id,
+      questionNumber: q.questionNumber,
+      questionText: q.questionText,
+      correctRate: stats.correctRate,
+      isActive: q.isActive === 1,
+      isEnded: q.isEnded === 1,
+    };
+  });
+}
+
 function handleAddQuestion(ws: WebSocket, payload: any) {
   const roomId = clientToRoom.get(ws);
   if (!roomId) return;
@@ -221,21 +285,6 @@ function handleAddQuestion(ws: WebSocket, payload: any) {
     type: 'question_list_updated',
     summaries: getQuestionSummariesForRoom(roomId),
   }, ws);
-}
-
-function getQuestionSummariesForRoom(roomId: string) {
-  const questions = getRoomQuestions(roomId);
-  return questions.map(q => {
-    const stats = getQuestionStats(q.id);
-    return {
-      id: q.id,
-      questionNumber: q.questionNumber,
-      questionText: q.questionText,
-      correctRate: stats.correctRate,
-      isActive: q.isActive === 1,
-      isEnded: q.isEnded === 1,
-    };
-  });
 }
 
 function handlePublishQuestion(ws: WebSocket, questionId: number) {
@@ -313,7 +362,6 @@ function handleSubmitAnswer(ws: WebSocket, payload: any) {
     return;
   }
 
-  const isCorrect = selectedOption === question.correctOption;
   sendToClient(ws, {
     type: 'answer_submitted',
     selectedOption,
@@ -321,15 +369,7 @@ function handleSubmitAnswer(ws: WebSocket, payload: any) {
   });
 
   const stats = getQuestionStats(questionId);
-  for (const { ws: clientWs, role } of room.clients.values()) {
-    if (role === 'teacher') {
-      sendToClient(clientWs, {
-        type: 'stats_updated',
-        questionId,
-        stats,
-      });
-    }
-  }
+  broadcastStatsThrottled(roomId, questionId, stats);
 }
 
 function handleEndQuestion(ws: WebSocket, questionId: number) {
@@ -407,6 +447,12 @@ function handleViewQuestionStats(ws: WebSocket, questionId: number) {
 }
 
 wss.on('connection', (ws) => {
+  clientLastPong.set(ws, Date.now());
+
+  ws.on('pong', () => {
+    clientLastPong.set(ws, Date.now());
+  });
+
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString());
@@ -439,6 +485,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    clientLastPong.delete(ws);
     const roomId = clientToRoom.get(ws);
     if (!roomId) return;
     const room = rooms.get(roomId);
@@ -464,6 +511,12 @@ wss.on('connection', (ws) => {
 
     if (room.clients.size === 0) {
       rooms.delete(roomId);
+      const timer = statsBroadcastTimers.get(roomId);
+      if (timer) {
+        clearTimeout(timer);
+        statsBroadcastTimers.delete(roomId);
+      }
+      pendingStatsBroadcasts.delete(roomId);
     }
   });
 });
