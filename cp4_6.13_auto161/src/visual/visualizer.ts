@@ -379,8 +379,13 @@ export class Visualizer {
       this.highlightTweens.delete(buildingId);
     }
 
-    const startColor = new THREE.Color(building.baseColor);
-    const startEmissive = new THREE.Color(building.originalEmissive);
+    const currentColor = building.materials.length > 0 
+      ? building.materials[0].color.clone()
+      : new THREE.Color(building.baseColor);
+    const currentEmissive = building.materials.length > 0
+      ? building.materials[0].emissive.clone()
+      : new THREE.Color(building.originalEmissive);
+
     const targetColor = new THREE.Color(0xffffff);
     const targetEmissive = new THREE.Color(0xffffff);
 
@@ -388,13 +393,14 @@ export class Visualizer {
       buildingId,
       startTime: performance.now(),
       duration: 300,
-      fromColor: startColor,
+      fromColor: currentColor,
       toColor: targetColor,
-      fromEmissive: startEmissive,
+      fromEmissive: currentEmissive,
       toEmissive: targetEmissive,
     });
 
     building.isHighlighting = true;
+    building.baseColor = targetColor.getHex();
     this.spawnParticles(buildingId);
   }
 
@@ -406,8 +412,13 @@ export class Visualizer {
       this.highlightTweens.delete(buildingId);
     }
 
-    const startColor = new THREE.Color(building.baseColor);
-    const startEmissive = new THREE.Color(0xffffff);
+    const currentColor = building.materials.length > 0
+      ? building.materials[0].color.clone()
+      : new THREE.Color(building.baseColor);
+    const currentEmissive = building.materials.length > 0
+      ? building.materials[0].emissive.clone()
+      : new THREE.Color(0xffffff);
+
     const targetColor = new THREE.Color(building.originalColor);
     const targetEmissive = new THREE.Color(0x000000);
 
@@ -415,9 +426,9 @@ export class Visualizer {
       buildingId,
       startTime: performance.now(),
       duration: 300,
-      fromColor: startColor,
+      fromColor: currentColor,
       toColor: targetColor,
-      fromEmissive: startEmissive,
+      fromEmissive: currentEmissive,
       toEmissive: targetEmissive,
       onComplete: () => {
         building.isHighlighting = false;
@@ -431,8 +442,8 @@ export class Visualizer {
     const data = buildingData.find(b => b.id === buildingId);
     if (!building || !data) return;
 
-    const colorHex = BUILDING_COLORS[data.function];
-    const color = new THREE.Color(colorHex);
+    const baseColor = new THREE.Color(BUILDING_COLORS[data.function]);
+    const particleColor = baseColor.clone().offsetHSL(0, 0, 0.2);
     const particleCount = this.PARTICLES_PER_BUILDING;
 
     let spawned = 0;
@@ -442,8 +453,9 @@ export class Visualizer {
       const particle = this.particlePool[i];
       if (!particle.active) {
         const material = particle.mesh.material as THREE.MeshBasicMaterial;
-        material.color.copy(color);
-        material.opacity = 0.6;
+        material.color.copy(particleColor);
+        material.opacity = 0.5;
+        material.transparent = true;
 
         particle.mesh.position.set(
           building.position.x + (Math.random() - 0.5) * halfWidth,
