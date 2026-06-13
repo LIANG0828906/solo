@@ -595,26 +595,17 @@ export class Renderer {
     const positions = lineObj.particles.geometry.attributes.position.array as Float32Array;
     const colors = lineObj.particles.geometry.attributes.color.array as Float32Array;
 
-    const lineGeometry = lineObj.line.geometry;
-    const posAttr = lineGeometry.attributes.position;
-    const points: THREE.Vector3[] = [];
-    for (let i = 0; i < posAttr.count; i++) {
-      points.push(
-        new THREE.Vector3(
-          posAttr.getX(i),
-          posAttr.getY(i),
-          posAttr.getZ(i)
-        )
-      );
-    }
-
     for (let i = 0; i < PARTICLES_PER_LINE; i++) {
       lineObj.particleOffsets[i] += lineObj.particleSpeeds[i] * deltaTime;
       if (lineObj.particleOffsets[i] > lineObj.totalLength) {
         lineObj.particleOffsets[i] -= lineObj.totalLength;
       }
 
-      const pos = this.getPointAtDistance(points, lineObj.distances, lineObj.particleOffsets[i]);
+      const pos = this.getPointAtDistance(
+        lineObj.threePoints,
+        lineObj.distances,
+        lineObj.particleOffsets[i]
+      );
       positions[i * 3] = pos.x;
       positions[i * 3 + 1] = pos.y;
       positions[i * 3 + 2] = pos.z;
