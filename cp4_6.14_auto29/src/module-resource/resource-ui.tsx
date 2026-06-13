@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ResourceType, BuildingType, RESOURCE_COLORS, RESOURCE_NAMES, BUILDING_COSTS, BUILDING_NAMES } from '../types'
+import { ResourceType, BuildingType, RESOURCE_COLORS, RESOURCE_NAMES, BUILDING_COSTS, BUILDING_NAMES, ResourceEvent } from '../types'
 import { resourceManager, ResourceMap } from './resource-manager'
 
 interface Particle {
@@ -10,6 +10,13 @@ interface Particle {
   targetY: number
   color: string
   progress: number
+}
+
+interface PendingAnimation {
+  resource: ResourceType
+  from: number
+  to: number
+  startTime: number
 }
 
 interface ResourceUIProps {
@@ -52,35 +59,44 @@ const ResourceIcon: React.FC<{ type: ResourceType; size?: number }> = ({ type, s
   }
 }
 
-const AnimatedNumber: React.FC<{ value: number; color: string }> = ({ value, color }) => {
+const AnimatedNumber: React.FC<{ value: number; color: string; pendingAnim?: PendingAnimation }> = ({ value, color, pendingAnim }) => {
   const [displayValue, setDisplayValue] = useState(value)
-  const prevValue = useRef(value)
   const animRef = useRef<number | null>(null)
+  const lastAnimProcessed = useRef<number>(0)
 
   useEffect(() => {
-    if (prevValue.current !== value) {
-      const startValue = prevValue.current
-      const endValue = value
-      const startTime = performance.now()
-      const duration = 200
+    if (pendingAnim && pendingAnim.startTime > lastAnimProcessed.current) {
+      lastAnimProcessed.current = pendingAnim.startTime
 
       if (animRef.current) {
         cancelAnimationFrame(animRef.current)
       }
 
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime
-        const progress = Math.min(elapsed / duration, 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        setDisplayValue(Math.round(startValue + (endValue - startValue) * eased))
-        if (progress < 1) {
-          animRef.current = requestAnimationFrame(animate)
+      const startValue = pendingAnim.from
+      const endValue = pendingAnim.to
+      const duration = 300
+
+      const delay = Math.max(0, pendingAnim.startTime - performance.now())
+
+      setTimeout(() => {
+        const animStartTime = performance.now()
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - animStartTime
+          const progress = Math.min(elapsed / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setDisplayValue(Math.round(startValue + (endValue - startValue) * eased))
+          if (progress < 1) {
+            animRef.current = requestAnimationFrame(animate)
+          } else {
+            setDisplayValue(endValue)
+          }
         }
-      }
-      animRef.current = requestAnimationFrame(animate)
-      prevValue.current = value
+        animRef.current = requestAnimationFrame(animate)
+      }, delay)
+    } else if (!pendingAnim) {
+      setDisplayValue(value)
     }
-  }, [value])
+  }, [pendingAnim, value])
 
   return (
     <span
@@ -103,6 +119,9 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
   const [particles, setParticles] = useState<Particle[]>([])
   const [slideAnim, setSlideAnim] = useState(false)
   const [pressedButton, setPressedButton] = useState<string | null>(null)
+  const [pendingAnims, setPendingAnims] = useState<Record<ResourceType, PendingAnimation | undefined>>({
+    wood: undefined, stone: undefined, metal: undefined, food: undefined
+  })
   const particleIdRef = useRef(0)
   const resourceRefs = useRef<Record<ResourceType, HTMLDivElement | null>>({
     wood: null, stone: null, metal: null, food: null
@@ -115,16 +134,36 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
   }, [chunkAnimKey])
 
   useEffect(() => {
-    const unsubscribe = resourceManager.addListener((event) => {
+    const unsubscribe = resourceManager.addListener((event: ResourceEvent) => {
       setResources(resourceManager.getResources())
+
       if (event.type === 'collect') {
-        spawnCollectParticles(event.resource)
+        const animStartTime = performance.now()
+
+        setPendingAnims((prev) => ({
+          ...prev,
+          [event.resource]: {
+            resource: event.resource,
+            from: event.previousValue,
+            to: event.currentValue,
+            startTime: animStartTime
+          }
+        }))
+
+        spawnCollectParticles(event.resource, animStartTime)
+
+        setTimeout(() => {
+          setPendingAnims((prev) => ({
+            ...prev,
+            [event.resource]: undefined
+          }))
+        }, 400)
       }
     })
     return unsubscribe
   }, [])
 
-  const spawnCollectParticles = useCallback((resourceType: ResourceType) => {
+  const spawnCollectParticles = useCallback((resourceType: ResourceType, startTime: number) => {
     const targetEl = resourceRefs.current[resourceType]
     if (!targetEl) return
 
@@ -150,33 +189,37 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
       })
     }
 
-    setParticles((prev) => [...prev, ...newParticles])
+    const startDelay = Math.max(0, startTime - performance.now())
 
-    const startTime = performance.now()
-    const duration = 600
+    setTimeout(() => {
+      setParticles((prev) => [...prev, ...newParticles])
 
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime
-      const progress = Math.min(elapsed / duration, 1)
+      const animStartTime = performance.now()
+      const duration = 600
 
-      setParticles((prev) =>
-        prev
-          .map((p) => {
-            if (newParticles.find((np) => np.id === p.id)) {
-              return { ...p, progress }
-            }
-            return p
-          })
-          .filter((p) => p.progress < 1 || !newParticles.find((np) => np.id === p.id))
-      )
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - animStartTime
+        const progress = Math.min(elapsed / duration, 1)
 
-      if (progress < 1) {
-        requestAnimationFrame(animate)
-      } else {
-        setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)))
+        setParticles((prev) =>
+          prev
+            .map((p) => {
+              if (newParticles.find((np) => np.id === p.id)) {
+                return { ...p, progress }
+              }
+              return p
+            })
+            .filter((p) => p.progress < 1 || !newParticles.find((np) => np.id === p.id))
+        )
+
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)))
+        }
       }
-    }
-    requestAnimationFrame(animate)
+      requestAnimationFrame(animate)
+    }, startDelay)
   }, [])
 
   const handleBuild = useCallback((type: BuildingType) => {
@@ -224,7 +267,11 @@ export const ResourceUI: React.FC<ResourceUIProps> = ({ onBuild, chunkAnimKey })
               }}
             >
               <ResourceIcon type={type} size={24} />
-              <AnimatedNumber value={resources[type]} color={RESOURCE_COLORS[type]} />
+              <AnimatedNumber
+                value={resources[type]}
+                color={RESOURCE_COLORS[type]}
+                pendingAnim={pendingAnims[type]}
+              />
               <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
                 {RESOURCE_NAMES[type]}
               </span>

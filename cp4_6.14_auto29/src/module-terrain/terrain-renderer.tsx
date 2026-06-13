@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TerrainData, ResourcePoint, Building, RESOURCE_COLORS, ResourceType, BuildingType } from '../types'
@@ -24,7 +24,7 @@ function TerrainMesh({ terrainData, opacity }: TerrainMeshProps) {
       <meshStandardMaterial
         color="#4a7c59"
         side={THREE.DoubleSide}
-        flatShading
+        flatShading={false}
         transparent
         opacity={opacity}
       />
@@ -41,15 +41,17 @@ function ResourceMesh({ point, onClick }: ResourceMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [scale, setScale] = useState(1)
   const [visible, setVisible] = useState(true)
+  const animating = useRef(false)
 
   useFrame((_, delta) => {
-    if (meshRef.current && visible) {
+    if (meshRef.current && visible && !animating.current) {
       meshRef.current.rotation.y += delta * 0.5
     }
   })
 
   useEffect(() => {
-    if (point.collected && visible) {
+    if (point.collected && visible && !animating.current) {
+      animating.current = true
       let start = 0
       const animate = (t: number) => {
         if (!start) start = t
@@ -60,6 +62,7 @@ function ResourceMesh({ point, onClick }: ResourceMeshProps) {
           requestAnimationFrame(animate)
         } else {
           setVisible(false)
+          animating.current = false
         }
       }
       requestAnimationFrame(animate)
@@ -90,7 +93,7 @@ function ResourceMesh({ point, onClick }: ResourceMeshProps) {
       scale={scale}
       onClick={(e) => {
         e.stopPropagation()
-        if (!point.collected) onClick(point)
+        if (!point.collected && !animating.current) onClick(point)
       }}
       onPointerOver={(e) => {
         e.stopPropagation()
@@ -114,8 +117,9 @@ interface BuildingMeshProps {
 function BuildingMesh({ building, isNew }: BuildingMeshProps) {
   const groupRef = useRef<THREE.Group>(null)
   const particlesRef = useRef<THREE.Points>(null)
-  const [particlesVisible, setParticlesVisible] = useState(isNew || false)
+  const [particlesVisible, setParticlesVisible] = useState(false)
   const particleStartTime = useRef<number>(0)
+  const hasAnimated = useRef(false)
 
   const { positions, velocities } = useMemo(() => {
     const count = 40
@@ -134,6 +138,13 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
     }
     return { positions: pos, velocities: vel }
   }, [building.id])
+
+  useEffect(() => {
+    if (isNew && !hasAnimated.current) {
+      hasAnimated.current = true
+      setParticlesVisible(true)
+    }
+  }, [isNew])
 
   useFrame((state, delta) => {
     if (particlesRef.current && particlesVisible) {
@@ -165,16 +176,32 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
       case 'tower':
         return (
           <group>
-            <mesh position={[0, 1, 0]} castShadow>
-              <cylinderGeometry args={[0.6, 0.8, 2, 8]} />
-              <meshStandardMaterial color="#6b6b6b" />
+            <mesh position={[0, 0.5, 0]} castShadow>
+              <cylinderGeometry args={[0.9, 1.1, 1, 12]} />
+              <meshStandardMaterial color="#5a5a5a" roughness={0.8} />
             </mesh>
-            <mesh position={[0, 2.5, 0]} castShadow>
-              <coneGeometry args={[1, 1.2, 8]} />
+            <mesh position={[0, 1.75, 0]} castShadow>
+              <cylinderGeometry args={[0.7, 0.9, 1.5, 12]} />
+              <meshStandardMaterial color="#6b6b6b" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 3.0, 0]} castShadow>
+              <cylinderGeometry args={[0.5, 0.7, 1, 12]} />
+              <meshStandardMaterial color="#7a7a7a" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 3.9, 0]} castShadow>
+              <cylinderGeometry args={[0.6, 0.6, 0.1, 12]} />
               <meshStandardMaterial color="#8B4513" />
             </mesh>
-            <mesh position={[0, 1.5, 0]} castShadow>
-              <boxGeometry args={[0.3, 0.5, 0.3]} />
+            <mesh position={[0, 4.7, 0]} castShadow>
+              <coneGeometry args={[0.8, 1.5, 12]} />
+              <meshStandardMaterial color="#8B4513" />
+            </mesh>
+            <mesh position={[0, 5.5, 0]} castShadow>
+              <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+              <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+            </mesh>
+            <mesh position={[0, 1.75, 0.71]} castShadow>
+              <boxGeometry args={[0.4, 0.6, 0.05]} />
               <meshStandardMaterial color="#2c2c2c" />
             </mesh>
           </group>
@@ -182,56 +209,114 @@ function BuildingMesh({ building, isNew }: BuildingMeshProps) {
       case 'warehouse':
         return (
           <group>
-            <mesh position={[0, 0.75, 0]} castShadow>
-              <boxGeometry args={[2.5, 1.5, 2]} />
-              <meshStandardMaterial color="#8B4513" />
+            <mesh position={[0, 0.4, 0]} castShadow>
+              <boxGeometry args={[3.2, 0.8, 2.4]} />
+              <meshStandardMaterial color="#7a5c3d" roughness={0.7} />
             </mesh>
-            <mesh position={[0, 1.9, 0]} castShadow>
-              <boxGeometry args={[2.7, 0.3, 2.2]} />
+            <mesh position={[0, 1.4, 0]} castShadow>
+              <boxGeometry args={[3, 1.2, 2.2]} />
+              <meshStandardMaterial color="#8B4513" roughness={0.7} />
+            </mesh>
+            <mesh position={[0, 2.55, 0]} castShadow>
+              <boxGeometry args={[3.3, 0.3, 2.5]} />
               <meshStandardMaterial color="#6b4226" />
             </mesh>
-            <mesh position={[0, 0.5, 1.01]} castShadow>
-              <boxGeometry args={[0.8, 1, 0.1]} />
+            <mesh position={[0, 2.9, 0]} castShadow>
+              <boxGeometry args={[0.15, 0.4, 2.6]} />
               <meshStandardMaterial color="#5a3a1a" />
+            </mesh>
+            <mesh position={[1.2, 2.9, 0]} castShadow>
+              <boxGeometry args={[0.15, 0.4, 2.6]} />
+              <meshStandardMaterial color="#5a3a1a" />
+            </mesh>
+            <mesh position={[-1.2, 2.9, 0]} castShadow>
+              <boxGeometry args={[0.15, 0.4, 2.6]} />
+              <meshStandardMaterial color="#5a3a1a" />
+            </mesh>
+            <mesh position={[0, 1.0, 1.21]} castShadow>
+              <boxGeometry args={[1.2, 1.5, 0.1]} />
+              <meshStandardMaterial color="#5a3a1a" />
+            </mesh>
+            <mesh position={[-1.3, 1.0, 1.21]} castShadow>
+              <boxGeometry args={[0.4, 1.0, 0.08]} />
+              <meshStandardMaterial color="#2c2c2c" />
+            </mesh>
+            <mesh position={[1.3, 1.0, 1.21]} castShadow>
+              <boxGeometry args={[0.4, 1.0, 0.08]} />
+              <meshStandardMaterial color="#2c2c2c" />
             </mesh>
           </group>
         )
       case 'workshop':
         return (
           <group>
-            <mesh position={[0, 0.6, 0]} castShadow>
-              <boxGeometry args={[2, 1.2, 1.8]} />
+            <mesh position={[0, 0.3, 0]} castShadow>
+              <boxGeometry args={[2.5, 0.6, 2.2]} />
+              <meshStandardMaterial color="#6b6b6b" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 1.0, 0]} castShadow>
+              <boxGeometry args={[2.3, 0.8, 2]} />
+              <meshStandardMaterial color="#8B4513" roughness={0.7} />
+            </mesh>
+            <mesh position={[0, 1.85, 0]} castShadow>
+              <boxGeometry args={[2.5, 0.3, 2.2]} />
+              <meshStandardMaterial color="#6b4226" />
+            </mesh>
+            <mesh position={[0, 2.8, 0]} castShadow>
+              <cylinderGeometry args={[0.2, 0.25, 1.5, 12]} />
+              <meshStandardMaterial color="#555" roughness={0.5} />
+            </mesh>
+            <mesh position={[0, 3.7, 0]} castShadow>
+              <cylinderGeometry args={[0.25, 0.25, 0.15, 12]} />
+              <meshStandardMaterial color="#444" />
+            </mesh>
+            <mesh position={[0.8, 0.9, 1.01]} castShadow>
+              <boxGeometry args={[0.6, 0.7, 0.05]} />
+              <meshStandardMaterial color="#C0C0C0" metalness={0.8} roughness={0.2} />
+            </mesh>
+            <mesh position={[-0.8, 0.9, 1.01]} castShadow>
+              <boxGeometry args={[0.4, 0.5, 0.05]} />
               <meshStandardMaterial color="#8B4513" />
             </mesh>
-            <mesh position={[0, 1.7, 0]} castShadow>
-              <cylinderGeometry args={[0.15, 0.2, 1.2, 8]} />
-              <meshStandardMaterial color="#555" />
-            </mesh>
-            <mesh position={[0.7, 0.6, 0.91]} castShadow>
-              <boxGeometry args={[0.5, 0.6, 0.05]} />
-              <meshStandardMaterial color="#C0C0C0" />
+            <mesh position={[0, 2.8, 0.8]} castShadow>
+              <boxGeometry args={[0.3, 0.15, 0.3]} />
+              <meshStandardMaterial color="#ff4400" emissive="#ff4400" emissiveIntensity={0.6} />
             </mesh>
           </group>
         )
       case 'wall':
         return (
           <group>
-            <mesh position={[0, 0.75, 0]} castShadow>
-              <boxGeometry args={[3, 1.5, 0.4]} />
-              <meshStandardMaterial color="#808080" />
+            <mesh position={[0, 0.4, 0]} castShadow>
+              <boxGeometry args={[4, 0.8, 0.6]} />
+              <meshStandardMaterial color="#707070" roughness={0.9} />
             </mesh>
-            <mesh position={[-1.2, 1.7, 0]} castShadow>
-              <boxGeometry args={[0.3, 0.4, 0.4]} />
-              <meshStandardMaterial color="#6b6b6b" />
+            <mesh position={[0, 1.2, 0]} castShadow>
+              <boxGeometry args={[3.8, 0.8, 0.5]} />
+              <meshStandardMaterial color="#808080" roughness={0.9} />
             </mesh>
-            <mesh position={[0, 1.7, 0]} castShadow>
-              <boxGeometry args={[0.3, 0.4, 0.4]} />
-              <meshStandardMaterial color="#6b6b6b" />
+            <mesh position={[0, 1.85, 0]} castShadow>
+              <boxGeometry args={[4, 0.5, 0.6]} />
+              <meshStandardMaterial color="#707070" roughness={0.9} />
             </mesh>
-            <mesh position={[1.2, 1.7, 0]} castShadow>
-              <boxGeometry args={[0.3, 0.4, 0.4]} />
-              <meshStandardMaterial color="#6b6b6b" />
-            </mesh>
+            {[-1.5, -0.5, 0.5, 1.5].map((x, i) => (
+              <group key={i} position={[x, 2.3, 0]}>
+                <mesh castShadow>
+                  <boxGeometry args={[0.35, 0.35, 0.6]} />
+                  <meshStandardMaterial color="#6b6b6b" roughness={0.9} />
+                </mesh>
+                <mesh position={[0, 0.18, 0]} castShadow>
+                  <boxGeometry args={[0.35, 0.02, 0.6]} />
+                  <meshStandardMaterial color="#555" />
+                </mesh>
+              </group>
+            ))}
+            {[-1.8, -1, -0.2, 0.6, 1.4].map((x, i) => (
+              <mesh key={i} position={[x, 0.8, 0.31]} castShadow>
+                <boxGeometry args={[0.15, 0.3, 0.05]} />
+                <meshStandardMaterial color="#555" metalness={0.7} roughness={0.3} />
+              </mesh>
+            ))}
           </group>
         )
     }
@@ -340,19 +425,25 @@ function CameraController({ minDistance, maxDistance, minPolar, maxPolar, dampin
 
 interface TerrainRendererProps {
   terrainData: TerrainData | null
+  prevTerrainData: TerrainData | null
   resourcePoints: ResourcePoint[]
   buildings: Building[]
+  newBuildingIds: Set<string>
   onCollectResource: (point: ResourcePoint) => void
   transitionOpacity: number
 }
 
 export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
   terrainData,
+  prevTerrainData,
   resourcePoints,
   buildings,
+  newBuildingIds,
   onCollectResource,
   transitionOpacity
 }) => {
+  const fadeOutOpacity = 1 - transitionOpacity
+
   return (
     <Canvas
       shadows
@@ -386,6 +477,10 @@ export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
         damping={0.85}
       />
 
+      {prevTerrainData && fadeOutOpacity > 0.01 && (
+        <TerrainMesh terrainData={prevTerrainData} opacity={fadeOutOpacity} />
+      )}
+
       {terrainData && (
         <TerrainMesh terrainData={terrainData} opacity={transitionOpacity} />
       )}
@@ -402,6 +497,7 @@ export const TerrainRenderer: React.FC<TerrainRendererProps> = ({
         <BuildingMesh
           key={building.id}
           building={building}
+          isNew={newBuildingIds.has(building.id)}
         />
       ))}
 

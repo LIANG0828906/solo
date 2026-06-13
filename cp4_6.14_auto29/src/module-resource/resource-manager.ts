@@ -22,19 +22,35 @@ class ResourceManager {
     return this.resources[type]
   }
 
-  collect(type: ResourceType, amount: number = 1): boolean {
+  collect(type: ResourceType, amount: number = 1): ResourceEvent {
+    const previousValue = this.resources[type]
     this.resources[type] += amount
-    this.emit({ type: 'collect', resource: type, amount })
-    return true
+    const event: ResourceEvent = {
+      type: 'collect',
+      resource: type,
+      amount,
+      previousValue,
+      currentValue: this.resources[type]
+    }
+    this.emit(event)
+    return event
   }
 
-  consume(type: ResourceType, amount: number): boolean {
+  consume(type: ResourceType, amount: number): ResourceEvent | null {
+    const previousValue = this.resources[type]
     if (this.resources[type] >= amount) {
       this.resources[type] -= amount
-      this.emit({ type: 'consume', resource: type, amount })
-      return true
+      const event: ResourceEvent = {
+        type: 'consume',
+        resource: type,
+        amount,
+        previousValue,
+        currentValue: this.resources[type]
+      }
+      this.emit(event)
+      return event
     }
-    return false
+    return null
   }
 
   canBuild(buildingType: BuildingType): boolean {
@@ -47,16 +63,19 @@ class ResourceManager {
     return true
   }
 
-  build(buildingType: BuildingType): boolean {
+  build(buildingType: BuildingType): ResourceEvent[] | null {
     if (!this.canBuild(buildingType)) {
-      return false
+      return null
     }
     const costs = BUILDING_COSTS[buildingType]
+    const events: ResourceEvent[] = []
     for (const [resource, amount] of Object.entries(costs)) {
-      this.resources[resource as ResourceType] -= amount || 0
-      this.emit({ type: 'consume', resource: resource as ResourceType, amount: amount || 0 })
+      const event = this.consume(resource as ResourceType, amount || 0)
+      if (event) {
+        events.push(event)
+      }
     }
-    return true
+    return events
   }
 
   reset(): void {

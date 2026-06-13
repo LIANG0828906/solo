@@ -29,6 +29,8 @@ export interface ResourceEvent {
   type: 'collect' | 'consume'
   resource: ResourceType
   amount: number
+  currentValue: number
+  previousValue: number
 }
 
 export const RESOURCE_COLORS: Record<ResourceType, string> = {
