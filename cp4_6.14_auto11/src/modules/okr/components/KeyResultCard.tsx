@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Pencil,
   Trash2,
@@ -47,7 +47,11 @@ export default function KeyResultCard({ kr }: KeyResultCardProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignee, setNewTaskAssignee] = useState(kr.assignee);
 
-  const allSubTasks = useOkrStore((s) => s.subTasks.filter((st) => st.keyResultId === kr.id));
+  const subTasks = useOkrStore((s) => s.subTasks);
+  const allSubTasks = useMemo(
+    () => subTasks.filter((st) => st.keyResultId === kr.id),
+    [subTasks, kr.id]
+  );
   const addSubTask = useOkrStore((s) => s.addSubTask);
   const updateSubTask = useOkrStore((s) => s.updateSubTask);
   const deleteSubTask = useOkrStore((s) => s.deleteSubTask);

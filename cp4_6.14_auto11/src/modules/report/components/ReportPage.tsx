@@ -38,19 +38,27 @@ export default function ReportPage() {
   const setFailureReasons = useOkrStore((s) => s.setFailureReasons);
 
   const currentQuarter = quarters.find((q) => q.id === quarterId);
-  const objectives = allObjectives.filter((o) => o.quarterId === quarterId);
-  const keyResults = allKeyResults.filter((kr) =>
-    objectives.some((o) => o.id === kr.objectiveId)
+  const objectives = useMemo(
+    () => allObjectives.filter((o) => o.quarterId === quarterId),
+    [allObjectives, quarterId]
+  );
+  const keyResults = useMemo(
+    () => allKeyResults.filter((kr) => objectives.some((o) => o.id === kr.objectiveId)),
+    [allKeyResults, objectives]
   );
 
   const radarData = useMemo(() => buildRadarData(objectives, keyResults), [objectives, keyResults]);
   const stackedData = useMemo(() => buildStackedBarData(objectives, keyResults), [objectives, keyResults]);
   const pieData = useMemo(() => buildPieData(failureReasons), [failureReasons]);
 
-  const incompleteKRs = keyResults.filter((kr) => {
-    const p = getProgressInfo(kr.type, kr.initialValue, kr.targetValue, kr.currentValue);
-    return p.percentage < 100;
-  });
+  const incompleteKRs = useMemo(
+    () =>
+      keyResults.filter((kr) => {
+        const p = getProgressInfo(kr.type, kr.initialValue, kr.targetValue, kr.currentValue);
+        return p.percentage < 100;
+      }),
+    [keyResults]
+  );
 
   const overallProgress = useMemo(() => {
     if (keyResults.length === 0) return 0;

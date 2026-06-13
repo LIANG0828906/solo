@@ -223,9 +223,13 @@ export default function OkrBoard() {
 
   const currentQuarterId = quarterId || quarters[0]?.id;
   const currentQuarter = quarters.find((q) => q.id === currentQuarterId);
-  const objectives = allObjectives
-    .filter((o) => o.quarterId === currentQuarterId)
-    .sort((a, b) => a.order - b.order);
+  const objectives = useMemo(
+    () =>
+      allObjectives
+        .filter((o) => o.quarterId === currentQuarterId)
+        .sort((a, b) => a.order - b.order),
+    [allObjectives, currentQuarterId]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -265,9 +269,15 @@ export default function OkrBoard() {
     return map;
   }, [objectives, krsByObjective]);
 
-  const dependencies = allDependencies.filter(
-    (d) => objectiveMap.has(d.sourceId) && objectiveMap.has(d.targetId)
+  const dependencies = useMemo(
+    () =>
+      allDependencies.filter(
+        (d) => objectiveMap.has(d.sourceId) && objectiveMap.has(d.targetId)
+      ),
+    [allDependencies, objectiveMap]
   );
+
+  const lastLineCoordsRef = useRef<string>('');
 
   useEffect(() => {
     function updateLines() {
@@ -287,16 +297,20 @@ export default function OkrBoard() {
           y2: tgtRect.top + tgtRect.height / 2 - rect.top,
         };
       });
-      setLineCoords(coords);
+      const sig = JSON.stringify(coords);
+      if (sig !== lastLineCoordsRef.current) {
+        lastLineCoordsRef.current = sig;
+        setLineCoords(coords);
+      }
     }
     updateLines();
     window.addEventListener('resize', updateLines);
-    const t = setTimeout(updateLines, 100);
+    const t = setTimeout(updateLines, 150);
     return () => {
       window.removeEventListener('resize', updateLines);
       clearTimeout(t);
     };
-  }, [objectives, dependencies]);
+  }, [dependencies]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id);
