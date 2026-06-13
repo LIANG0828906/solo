@@ -130,13 +130,6 @@ export interface PlateIngredient {
   state: IngredientState;
 }
 
-export const STATE_SCORES: Record<IngredientState, number> = {
-  raw: 0,
-  half_cooked: 70,
-  cooked: 100,
-  burnt: 0
-};
-
 export const getStateLabel = (state: IngredientState): string => {
   const labels: Record<IngredientState, string> = {
     raw: '生',
@@ -147,67 +140,131 @@ export const getStateLabel = (state: IngredientState): string => {
   return labels[state];
 };
 
-export const calculateMatchScore = (plate: PlateIngredient[]): { score: number; matchedRecipe: Recipe | null; matchPercentage: number } => {
+const STATE_ORDER: IngredientState[] = ['raw', 'half_cooked', 'cooked', 'burnt'];
+
+function stateDistance(a: IngredientState, b: IngredientState): number {
+  return Math.abs(STATE_ORDER.indexOf(a) - STATE_ORDER.indexOf(b));
+}
+
+function stateMatchScore(actual: IngredientState, required: IngredientState): number {
+  if (actual === 'burnt') return 0;
+  if (actual === required) return 100;
+  if (actual === 'raw') return 10;
+
+  const dist = stateDistance(actual, required);
+  if (dist === 1) return 60;
+  if (dist === 2) return 25;
+  return 10;
+}
+
+export interface MatchResult {
+  score: number;
+  matchedRecipe: Recipe | null;
+  matchPercentage: number;
+  details: Array<{
+    recipeId: string;
+    recipeName: string;
+    percentage: number;
+    ingredientMatches: Array<{
+      required: RecipeIngredient;
+      matched: PlateIngredient | null;
+      stateScore: number;
+    }>;
+  }>;
+}
+
+export const calculateMatchScore = (plate: PlateIngredient[]): MatchResult => {
   if (plate.length === 0) {
-    return { score: 0, matchedRecipe: null, matchPercentage: 0 };
+    return { score: 0, matchedRecipe: null, matchPercentage: 0, details: [] };
   }
 
   let bestScore = 0;
   let bestRecipe: Recipe | null = null;
   let bestPercentage = 0;
+  const allDetails: MatchResult['details'] = [];
 
   for (const recipe of RECIPES) {
-    const result = matchRecipe(plate, recipe);
-    if (result.score > bestScore) {
-      bestScore = result.score;
-      bestRecipe = recipe;
+    const result = matchRecipeWithDetails(plate, recipe);
+    allDetails.push(result);
+
+    if (result.percentage > bestPercentage) {
       bestPercentage = result.percentage;
+      bestScore = Math.round(result.percentage * recipe.ingredients.length);
+      bestRecipe = recipe;
     }
   }
 
-  return { score: bestScore, matchedRecipe: bestRecipe, matchPercentage: bestPercentage };
+  return { score: bestScore, matchedRecipe: bestRecipe, matchPercentage: bestPercentage, details: allDetails };
 };
 
-const matchRecipe = (plate: PlateIngredient[], recipe: Recipe): { score: number; percentage: number } => {
+function matchRecipeWithDetails(
+  plate: PlateIngredient[],
+  recipe: Recipe
+): {
+  recipeId: string;
+  recipeName: string;
+  percentage: number;
+  ingredientMatches: Array<{
+    required: RecipeIngredient;
+    matched: PlateIngredient | null;
+    stateScore: number;
+  }>;
+} {
   const plateCopy = [...plate];
-  let totalMatchScore = 0;
-  let maxPossibleScore = recipe.ingredients.length * 100;
+  const ingredientMatches: Array<{
+    required: RecipeIngredient;
+    matched: PlateIngredient | null;
+    stateScore: number;
+  }> = [];
+
+  let totalScore = 0;
+  const maxPossible = recipe.ingredients.length * 100;
 
   for (const required of recipe.ingredients) {
-    const matchIndex = plateCopy.findIndex(p => {
-      if (p.type !== required.type) return false;
-      const stateScore = STATE_SCORES[p.state];
-      return stateScore > 0;
-    });
+    let bestIdx = -1;
+    let bestStateScore = -1;
 
-    if (matchIndex !== -1) {
-      const matched = plateCopy[matchIndex];
-      totalMatchScore += calculateStateScore(matched.state, required.requiredState);
-      plateCopy.splice(matchIndex, 1);
+    for (let i = 0; i < plateCopy.length; i++) {
+      const p = plateCopy[i];
+      if (p.type !== required.type) continue;
+      if (p.state === 'burnt') continue;
+
+      const score = stateMatchScore(p.state, required.requiredState);
+      if (score > bestStateScore) {
+        bestStateScore = score;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx !== -1) {
+      const matched = plateCopy[bestIdx];
+      totalScore += bestStateScore;
+      ingredientMatches.push({
+        required,
+        matched,
+        stateScore: bestStateScore
+      });
+      plateCopy.splice(bestIdx, 1);
+    } else {
+      ingredientMatches.push({
+        required,
+        matched: null,
+        stateScore: 0
+      });
     }
   }
 
-  const extraPenalty = plateCopy.length * 20;
-  const finalScore = Math.max(0, totalMatchScore - extraPenalty);
-  const percentage = Math.round((finalScore / maxPossibleScore) * 100);
+  const extraPenalty = plateCopy.length * 25;
+  const finalScore = Math.max(0, totalScore - extraPenalty);
+  const percentage = Math.round((finalScore / maxPossible) * 100);
 
-  return { score: finalScore, percentage };
-};
-
-const calculateStateScore = (actual: IngredientState, required: IngredientState): number => {
-  if (actual === required) return 100;
-  if (actual === 'burnt') return 0;
-  if (actual === 'raw') return 20;
-
-  const order: IngredientState[] = ['raw', 'half_cooked', 'cooked', 'burnt'];
-  const actualIdx = order.indexOf(actual);
-  const requiredIdx = order.indexOf(required);
-  const diff = Math.abs(actualIdx - requiredIdx);
-
-  if (diff === 1) return 70;
-  if (diff === 2) return 30;
-  return 10;
-};
+  return {
+    recipeId: recipe.id,
+    recipeName: recipe.name,
+    percentage,
+    ingredientMatches
+  };
+}
 
 export const getRandomIngredientType = (): IngredientType => {
   const types: IngredientType[] = ['onion', 'tomato', 'cheese', 'patty', 'bread'];

@@ -21,13 +21,32 @@ interface PlayerInfo {
   joinedAt: number;
 }
 
+const DEFAULT_PORT = 3002;
+
+function findAvailablePort(startPort: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const testServer = createServer();
+    testServer.listen(startPort, () => {
+      const port = (testServer.address() as { port: number }).port;
+      testServer.close(() => resolve(port));
+    });
+    testServer.on('error', () => {
+      if (startPort < 65535) {
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(new Error('No available port found'));
+      }
+    });
+  });
+}
+
 class GameServer {
   private app: express.Application;
   private httpServer: HTTPServer;
   private io: SocketIOServer;
   private rooms: Map<string, Room> = new Map();
   private playerToRoom: Map<string, string> = new Map();
-  private PORT: number = 3001;
+  private PORT: number = DEFAULT_PORT;
 
   constructor() {
     this.app = express();
@@ -299,7 +318,10 @@ class GameServer {
     }
   }
 
-  public start(): void {
+  public async start(): Promise<void> {
+    const port = await findAvailablePort(DEFAULT_PORT);
+    this.PORT = port;
+
     this.httpServer.listen(this.PORT, () => {
       console.log(`🚀 Cooking Battle Server running on http://localhost:${this.PORT}`);
       console.log(`📊 Health check: http://localhost:${this.PORT}/health`);

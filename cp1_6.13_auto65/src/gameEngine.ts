@@ -2,13 +2,28 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   IngredientType,
   IngredientState,
-  IngredientConfig,
   INGREDIENT_CONFIGS,
   PlateIngredient,
   calculateMatchScore,
   getRandomIngredientType,
   Recipe
 } from './recipeData';
+
+export const STATE_TRANSITIONS: IngredientState[] = ['raw', 'half_cooked', 'cooked', 'burnt'];
+
+export const STATE_THRESHOLDS: Record<IngredientState, number> = {
+  raw: 0,
+  half_cooked: 25,
+  cooked: 50,
+  burnt: 85
+};
+
+export const STATE_COLORS: Record<IngredientState, string> = {
+  raw: '#FF4444',
+  half_cooked: '#FFA500',
+  cooked: '#8B4513',
+  burnt: '#2C2C2C'
+};
 
 export interface IngredientSlot {
   slotId: string;
@@ -20,6 +35,8 @@ export interface Ingredient {
   id: string;
   type: IngredientType;
   state: IngredientState;
+  previousState: IngredientState;
+  stateChangedAt: number;
   cookingProgress: number;
   location: 'slot' | 'stove' | 'plate';
   slotId?: string;
@@ -53,10 +70,12 @@ export interface GameState {
 }
 
 type Listener = (state: GameState) => void;
+type StateChangeListener = (ingredientId: string, fromState: IngredientState, toState: IngredientState) => void;
 
 class GameEngine {
   private state: GameState;
   private listeners: Set<Listener> = new Set();
+  private stateChangeListeners: Set<StateChangeListener> = new Set();
   private cookingTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
   private syncCallback: ((event: string, data: unknown) => void) | null = null;
 
@@ -100,6 +119,8 @@ class GameEngine {
       id: uuidv4(),
       type,
       state: 'raw',
+      previousState: 'raw',
+      stateChangedAt: Date.now(),
       cookingProgress: 0,
       location: 'slot'
     };
@@ -120,12 +141,40 @@ class GameEngine {
     return () => this.listeners.delete(listener);
   }
 
+  onStateChange(listener: StateChangeListener): () => void {
+    this.stateChangeListeners.add(listener);
+    return () => this.stateChangeListeners.delete(listener);
+  }
+
   getState(): GameState {
     return { ...this.state };
   }
 
   private notify(): void {
     this.listeners.forEach(l => l(this.getState()));
+  }
+
+  private fireStateChange(ingredientId: string, from: IngredientState, to: IngredientState): void {
+    this.stateChangeListeners.forEach(l => l(ingredientId, from, to));
+  }
+
+  transitionState(ingredient: Ingredient, newProgress: number): void {
+    const newState = this.resolveState(newProgress);
+    if (newState !== ingredient.state) {
+      const from = ingredient.state;
+      ingredient.previousState = from;
+      ingredient.state = newState;
+      ingredient.stateChangedAt = Date.now();
+      this.fireStateChange(ingredient.id, from, newState);
+    }
+    ingredient.cookingProgress = newProgress;
+  }
+
+  private resolveState(progress: number): IngredientState {
+    if (progress < STATE_THRESHOLDS.half_cooked) return 'raw';
+    if (progress < STATE_THRESHOLDS.cooked) return 'half_cooked';
+    if (progress < STATE_THRESHOLDS.burnt) return 'cooked';
+    return 'burnt';
   }
 
   setRoomId(roomId: string): void {
@@ -189,6 +238,9 @@ class GameEngine {
 
     foundIngredient.location = 'stove';
     foundIngredient.cookingProgress = 0;
+    foundIngredient.state = 'raw';
+    foundIngredient.previousState = 'raw';
+    foundIngredient.stateChangedAt = Date.now();
     foundIngredient.cookStartTime = Date.now();
     player.stove.ingredient = foundIngredient;
 
@@ -213,10 +265,9 @@ class GameEngine {
       const config = INGREDIENT_CONFIGS[ingredient.type];
       const elapsed = Date.now() - (ingredient.cookStartTime || Date.now());
       const totalTime = config.cookTime * 2;
-      ingredient.cookingProgress = Math.min(100, (elapsed / totalTime) * 100);
+      const newProgress = Math.min(100, (elapsed / totalTime) * 100);
 
-      ingredient.state = this.getStateFromProgress(ingredient.cookingProgress);
-
+      this.transitionState(ingredient, newProgress);
       this.notify();
     }, tickInterval);
 
@@ -229,13 +280,6 @@ class GameEngine {
       clearInterval(timer);
       this.cookingTimers.delete(ingredientId);
     }
-  }
-
-  private getStateFromProgress(progress: number): IngredientState {
-    if (progress < 25) return 'raw';
-    if (progress < 50) return 'half_cooked';
-    if (progress < 85) return 'cooked';
-    return 'burnt';
   }
 
   takeFromStoveToPlate(): boolean {
@@ -307,7 +351,7 @@ class GameEngine {
   }
 
   private updateProgress(player: PlayerState): void {
-    const cookedCount = player.plate.filter(p => p.state === 'cooked').length;
+    const cookedCount = player.plate.filter(p => p.state === 'cooked' || p.state === 'half_cooked').length;
     player.progress = Math.min(100, player.progress + cookedCount * 2);
   }
 
@@ -322,10 +366,13 @@ class GameEngine {
             s.ingredient && s.ingredient.id === ingredient.id
           );
           if (existingSlot) existingSlot.ingredient = null;
-          opponent.stove.ingredient = { ...ingredient, cookStartTime: Date.now() };
-          if (!opponent.isOpponent || true) {
-            this.startCookingTimer(ingredient.id, opponent.playerId);
-          }
+          opponent.stove.ingredient = {
+            ...ingredient,
+            cookStartTime: Date.now(),
+            previousState: ingredient.state,
+            stateChangedAt: Date.now()
+          };
+          this.startCookingTimer(ingredient.id, opponent.playerId);
         }
         break;
       }
@@ -388,6 +435,7 @@ class GameEngine {
     this.cookingTimers.forEach(timer => clearInterval(timer));
     this.cookingTimers.clear();
     this.listeners.clear();
+    this.stateChangeListeners.clear();
   }
 }
 

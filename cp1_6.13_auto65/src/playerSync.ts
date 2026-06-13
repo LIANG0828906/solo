@@ -1,6 +1,64 @@
 import { io, Socket } from 'socket.io-client';
 import { gameEngine } from './gameEngine';
 
+interface DelayedEvent {
+  event: string;
+  data: Record<string, unknown>;
+  fromPlayerId: string;
+  scheduledAt: number;
+}
+
+class DelayQueue {
+  private queue: DelayedEvent[] = [];
+  private processing: boolean = false;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly DELAY_MS = 200;
+  private handler: (event: string, data: Record<string, unknown>) => void;
+
+  constructor(handler: (event: string, data: Record<string, unknown>) => void) {
+    this.handler = handler;
+  }
+
+  enqueue(event: string, data: Record<string, unknown>, fromPlayerId: string): void {
+    const scheduledAt = Date.now() + this.DELAY_MS;
+    this.queue.push({ event, data, fromPlayerId, scheduledAt });
+    this.queue.sort((a, b) => a.scheduledAt - b.scheduledAt);
+
+    if (!this.processing) {
+      this.processNext();
+    }
+  }
+
+  private processNext(): void {
+    if (this.queue.length === 0) {
+      this.processing = false;
+      return;
+    }
+
+    this.processing = true;
+    const next = this.queue[0];
+    const now = Date.now();
+    const waitTime = Math.max(0, next.scheduledAt - now);
+
+    this.timer = setTimeout(() => {
+      const item = this.queue.shift();
+      if (item) {
+        this.handler(item.event, item.data);
+      }
+      this.processNext();
+    }, waitTime);
+  }
+
+  clear(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.queue = [];
+    this.processing = false;
+  }
+}
+
 interface SyncModuleEvents {
   connected: () => void;
   disconnected: () => void;
@@ -19,10 +77,15 @@ class PlayerSync {
   private playerId: string | null = null;
   private roomId: string | null = null;
   private connected: boolean = false;
-  private eventQueue: { event: string; data: unknown }[] = [];
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private sendQueue: { event: string; data: unknown }[] = [];
+  private sendFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private delayQueue: DelayQueue;
 
   constructor() {
+    this.delayQueue = new DelayQueue((event, data) => {
+      gameEngine.applyOpponentAction(event, data);
+    });
+
     gameEngine.setSyncCallback((event, data) => {
       this.handleGameEvent(event, data);
     });
@@ -79,9 +142,7 @@ class PlayerSync {
 
         this.socket.on('game:event', (data: { event: string; data: Record<string, unknown>; fromPlayerId: string }) => {
           if (data.fromPlayerId !== this.playerId) {
-            setTimeout(() => {
-              gameEngine.applyOpponentAction(data.event, data.data);
-            }, 200);
+            this.delayQueue.enqueue(data.event, data.data, data.fromPlayerId);
           }
         });
 
@@ -97,20 +158,20 @@ class PlayerSync {
   private handleGameEvent(event: string, data: unknown): void {
     if (!this.connected || !this.socket) return;
 
-    this.eventQueue.push({ event, data });
+    this.sendQueue.push({ event, data });
 
-    if (!this.flushTimer) {
-      this.flushTimer = setTimeout(() => this.flushQueue(), 16);
+    if (!this.sendFlushTimer) {
+      this.sendFlushTimer = setTimeout(() => this.flushSendQueue(), 16);
     }
   }
 
-  private flushQueue(): void {
-    if (!this.socket || this.eventQueue.length === 0) {
-      this.flushTimer = null;
+  private flushSendQueue(): void {
+    if (!this.socket || this.sendQueue.length === 0) {
+      this.sendFlushTimer = null;
       return;
     }
 
-    for (const item of this.eventQueue) {
+    for (const item of this.sendQueue) {
       this.socket.emit('game:event', {
         event: item.event,
         data: item.data,
@@ -119,8 +180,8 @@ class PlayerSync {
       });
     }
 
-    this.eventQueue = [];
-    this.flushTimer = null;
+    this.sendQueue = [];
+    this.sendFlushTimer = null;
   }
 
   createRoom(): void {
@@ -172,11 +233,12 @@ class PlayerSync {
   }
 
   disconnect(): void {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
+    if (this.sendFlushTimer) {
+      clearTimeout(this.sendFlushTimer);
+      this.sendFlushTimer = null;
     }
-    this.eventQueue = [];
+    this.sendQueue = [];
+    this.delayQueue.clear();
     this.socket?.disconnect();
     this.socket = null;
     this.connected = false;
