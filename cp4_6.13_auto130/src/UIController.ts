@@ -25,7 +25,6 @@ export class UIController {
   private normalizedMouseX: number = 0;
   private normalizedMouseY: number = 0;
 
-  private initialCameraDistance: number = 8;
   private minDistance: number = 4;
   private maxDistance: number = 40;
 
@@ -196,13 +195,10 @@ export class UIController {
       } else {
         this.autoRotateBtn.classList.remove('active');
       }
-      
-      this.autoRotateBtn.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        if (this.autoRotateBtn) {
-          this.autoRotateBtn.style.transform = '';
-        }
-      }, 150);
+
+      this.autoRotateBtn.classList.remove('click-bounce');
+      void this.autoRotateBtn.offsetWidth;
+      this.autoRotateBtn.classList.add('click-bounce');
     }
   }
 
@@ -220,11 +216,10 @@ export class UIController {
       });
     }
     target.classList.add('active');
-    
-    target.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      target.style.transform = '';
-    }, 150);
+
+    target.classList.remove('click-bounce');
+    void target.offsetWidth;
+    target.classList.add('click-bounce');
   }
 
   private onColorChange(): void {
@@ -238,9 +233,16 @@ export class UIController {
     }
     
     if (this.colorPickerWrapper) {
-      this.colorPickerWrapper.classList.remove('flash');
+      this.colorPickerWrapper.classList.remove('pulse', 'flash');
       void this.colorPickerWrapper.offsetWidth;
       this.colorPickerWrapper.classList.add('flash');
+      
+      const wrapper = this.colorPickerWrapper;
+      setTimeout(() => {
+        wrapper.classList.remove('flash');
+        void wrapper.offsetWidth;
+        wrapper.classList.add('pulse');
+      }, 300);
     }
   }
 

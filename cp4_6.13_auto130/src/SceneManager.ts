@@ -118,7 +118,10 @@ export class SceneManager {
     const maxHorizontalAngle = THREE.MathUtils.degToRad(20);
     const maxVerticalAngle = THREE.MathUtils.degToRad(10);
 
-    const horizontalOffset = normalizedX * maxHorizontalAngle;
+    const aspectRatio = this.container.clientWidth / this.container.clientHeight;
+    const adjustedX = normalizedX / Math.max(1, aspectRatio);
+
+    const horizontalOffset = adjustedX * maxHorizontalAngle;
     const verticalOffset = normalizedY * maxVerticalAngle;
 
     const basePos = this.baseLightPosition.clone();
@@ -130,8 +133,12 @@ export class SceneManager {
     const newYaw = baseYaw + horizontalOffset;
     const newPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, basePitch + verticalOffset));
 
-    this.directionalLight.position.x = distance * Math.sin(newYaw) * Math.cos(newPitch);
-    this.directionalLight.position.y = distance * Math.sin(newPitch);
-    this.directionalLight.position.z = distance * Math.cos(newYaw) * Math.cos(newPitch);
+    const targetX = distance * Math.sin(newYaw) * Math.cos(newPitch);
+    const targetY = distance * Math.sin(newPitch);
+    const targetZ = distance * Math.cos(newYaw) * Math.cos(newPitch);
+
+    this.directionalLight.position.x += (targetX - this.directionalLight.position.x) * 0.1;
+    this.directionalLight.position.y += (targetY - this.directionalLight.position.y) * 0.1;
+    this.directionalLight.position.z += (targetZ - this.directionalLight.position.z) * 0.1;
   }
 }

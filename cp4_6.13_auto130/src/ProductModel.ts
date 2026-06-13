@@ -173,11 +173,12 @@ export class ProductModel {
 
   private createHoverSpotLight(): THREE.SpotLight {
     const spotLight = new THREE.SpotLight(0xffffff, 0);
-    spotLight.angle = Math.PI / 6;
-    spotLight.penumbra = 0.5;
-    spotLight.decay = 2;
-    spotLight.distance = 10;
+    spotLight.angle = Math.PI / 8;
+    spotLight.penumbra = 0.8;
+    spotLight.decay = 1.5;
+    spotLight.distance = 15;
     spotLight.castShadow = false;
+    spotLight.power = 2;
     return spotLight;
   }
 
@@ -232,7 +233,10 @@ export class ProductModel {
 
   private getMaterialStateDiff(a: MaterialState, b: MaterialState): number {
     let diff = 0;
-    diff += a.color.distanceTo(b.color);
+    const r = a.color.r - b.color.r;
+    const g = a.color.g - b.color.g;
+    const bl = a.color.b - b.color.b;
+    diff += Math.sqrt(r * r + g * g + bl * bl);
     diff += Math.abs(a.metalness - b.metalness);
     diff += Math.abs(a.roughness - b.roughness);
     diff += Math.abs(a.opacity - b.opacity);
@@ -300,9 +304,24 @@ export class ProductModel {
     }
   }
 
+  private disposeMaterialTextures(material: THREE.Material): void {
+    const mat = material as THREE.MeshStandardMaterial;
+    const textureProps: (keyof THREE.MeshStandardMaterial)[] = [
+      'map', 'normalMap', 'roughnessMap', 'metalnessMap', 
+      'aoMap', 'emissiveMap', 'envMap'
+    ];
+    textureProps.forEach(prop => {
+      const texture = mat[prop] as THREE.Texture | undefined;
+      if (texture) {
+        texture.dispose();
+      }
+    });
+  }
+
   private replaceMaterials(state: MaterialState): void {
     this.meshes.forEach((mesh, index) => {
       const oldMaterial = mesh.material as THREE.Material;
+      this.disposeMaterialTextures(oldMaterial);
       const newState = index === 4
         ? { ...state, opacity: state.opacity * 0.7, transparent: true }
         : state;
@@ -333,20 +352,27 @@ export class ProductModel {
     this.mouse.set(normalizedX, normalizedY);
     this.raycaster.setFromCamera(this.mouse, camera);
     
-    const intersects = this.raycaster.intersectObjects(this.meshes);
+    const intersects = this.raycaster.intersectObjects(this.meshes, false);
     
     if (intersects.length > 0) {
       this.hoverActive = true;
-      const point = intersects[0].point;
-      const faceNormal = intersects[0].face?.normal;
+      const intersection = intersects[0];
+      const point = intersection.point.clone();
       
-      if (faceNormal) {
-        const normal = faceNormal.clone();
-        normal.transformDirection(this.group.matrixWorld);
-        this.hoverSpotLight.position.copy(point).add(normal.multiplyScalar(2));
-        this.hoverSpotLight.target.position.copy(point);
-        this.hoverSpotLight.target.updateMatrixWorld();
+      let normalDir: THREE.Vector3;
+      if (intersection.face && intersection.face.normal) {
+        normalDir = intersection.face.normal.clone();
+        normalDir.transformDirection(intersection.object.matrixWorld);
+      } else {
+        normalDir = point.clone().sub(this.group.position).normalize();
       }
+      
+      const lightOffset = normalDir.clone().multiplyScalar(2.5);
+      const lightPosition = point.clone().add(lightOffset);
+      
+      this.hoverSpotLight.position.lerp(lightPosition, 0.3);
+      this.hoverSpotLight.target.position.lerp(point, 0.3);
+      this.hoverSpotLight.target.updateMatrixWorld();
     } else {
       this.hoverActive = false;
     }
