@@ -45,6 +45,9 @@ export const apiService = {
 
   pollBooth: (boothId: string): Promise<{ exhibits: Exhibit[]; comments: Comment[] }> =>
     api.get(`/booths/${boothId}/poll`).then((r) => r.data),
+
+  downloadQRCode: (boothId: string): Promise<Blob> =>
+    api.get(`/booths/${boothId}/qrcode/download`, { responseType: 'blob' }).then((r) => r.data),
 };
 
 export default apiService;

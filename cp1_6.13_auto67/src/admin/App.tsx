@@ -18,13 +18,18 @@ interface QRModalData {
   visitorUrl: string;
 }
 
+const BOOTHS_PER_PAGE = 9;
+
 const AdminApp: React.FC = () => {
   const [exhibits, setExhibits] = useState<Exhibit[]>([]);
   const [booths, setBooths] = useState<Booth[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [highlightedBooth, setHighlightedBooth] = useState<string | null>(null);
   const [showExhibitModal, setShowExhibitModal] = useState(false);
+  const [showBoothModal, setShowBoothModal] = useState(false);
   const [editingExhibit, setEditingExhibit] = useState<Exhibit | null>(null);
+  const [newBoothName, setNewBoothName] = useState('');
   const [formData, setFormData] = useState<ExhibitFormData>({
     name: '',
     description: '',
@@ -33,7 +38,9 @@ const AdminApp: React.FC = () => {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [qrModal, setQrModal] = useState<QRModalData | null>(null);
-  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(booths.length / BOOTHS_PER_PAGE));
+  const displayBooths = booths.slice(currentPage * BOOTHS_PER_PAGE, (currentPage + 1) * BOOTHS_PER_PAGE);
 
   const loadData = useCallback(async () => {
     try {
@@ -44,12 +51,32 @@ const AdminApp: React.FC = () => {
       ]);
       setExhibits(exhibitsData);
       setBooths(boothsData);
+      if (boothsData.length === 0) {
+        await initializeDefaultBooths();
+        loadData();
+        return;
+      }
     } catch (err) {
       console.error('加载数据失败:', err);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const initializeDefaultBooths = async () => {
+    const defaultNames = [
+      '古典艺术区', '印象派专区', '东方艺术馆',
+      '瓷器展厅', '雕塑长廊', '现代艺术区',
+      '书画展厅', '特展区A', '特展区B',
+    ];
+    for (let i = 0; i < defaultNames.length; i++) {
+      try {
+        await apiService.createBooth({ name: defaultNames[i] });
+      } catch (err) {
+        console.error('初始化展位失败:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -174,6 +201,23 @@ const AdminApp: React.FC = () => {
     }
   };
 
+  const handleCreateBooth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBoothName.trim()) {
+      alert('请输入展位名称');
+      return;
+    }
+    try {
+      await apiService.createBooth({ name: newBoothName.trim() });
+      setNewBoothName('');
+      setShowBoothModal(false);
+      loadData();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || '创建失败，请重试';
+      alert(msg);
+    }
+  };
+
   const handleQrClick = async (booth: Booth) => {
     try {
       const result = await apiService.getBoothQRCode(booth.id);
@@ -192,10 +236,34 @@ const AdminApp: React.FC = () => {
 
   const downloadQRCode = () => {
     if (!qrModal) return;
-    const link = document.createElement('a');
-    link.download = `展位${qrModal.boothNumber}-${qrModal.boothName}.png`;
-    link.href = qrModal.qrCode;
-    link.click();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      canvas.width = 220;
+      canvas.height = 220;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 220, 220);
+      ctx.drawImage(img, 10, 10, 200, 200);
+
+      ctx.fillStyle = '#6366f1';
+      ctx.fillRect(90, 90, 40, 40);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(qrModal.boothNumber), 110, 110);
+
+      const link = document.createElement('a');
+      link.download = `展位${qrModal.boothNumber}-${qrModal.boothName}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = qrModal.qrCode;
   };
 
   const renderExhibitCard = (exhibit: Exhibit, _index: number, isDragging: boolean) => (
@@ -223,6 +291,14 @@ const AdminApp: React.FC = () => {
     </div>
   );
 
+  const goToPrevPage = () => {
+    setCurrentPage((p) => Math.max(0, p - 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+  };
+
   if (loading) {
     return (
       <div className="admin-layout" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -233,9 +309,56 @@ const AdminApp: React.FC = () => {
 
   return (
     <>
+      <div style={{ position: 'fixed', top: '20px', left: '340px', zIndex: 999, display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button className="admin-btn admin-btn-primary" onClick={openAddModal}>
+          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 新增展品
+        </button>
+        <button className="admin-btn admin-btn-secondary" onClick={() => setShowBoothModal(true)}>
+          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 新增展位
+        </button>
+      </div>
+
+      {totalPages > 1 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '24px',
+            zIndex: 999,
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            background: 'rgba(22, 33, 62, 0.9)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <button
+            className="admin-btn admin-btn-secondary admin-btn-sm"
+            onClick={goToPrevPage}
+            disabled={currentPage === 0}
+            style={{ opacity: currentPage === 0 ? 0.5 : 1 }}
+          >
+            ← 上一页
+          </button>
+          <span style={{ color: '#e5e7eb', fontSize: '13px' }}>
+            {currentPage + 1} / {totalPages}
+          </span>
+          <button
+            className="admin-btn admin-btn-secondary admin-btn-sm"
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages - 1}
+            style={{ opacity: currentPage === totalPages - 1 ? 0.5 : 1 }}
+          >
+            下一页 →
+          </button>
+        </div>
+      )}
+
       <DnDCol
         exhibits={exhibits}
-        booths={booths}
+        booths={displayBooths}
         onAssign={handleAssign}
         onHighlightBooth={handleHighlightBooth}
         onRemoveExhibit={handleRemoveExhibit}
@@ -244,30 +367,13 @@ const AdminApp: React.FC = () => {
         onDeleteExhibit={handleDeleteExhibit}
       />
 
-      <div style={{ position: 'fixed', top: '20px', left: '340px', zIndex: 999 }}>
-        <button className="admin-btn admin-btn-primary" onClick={openAddModal}>
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 新增展品
-        </button>
-      </div>
-
-      {booths.map((booth) => (
-        <React.Fragment key={`qr-trigger-${booth.id}`}>
-          <div
-            style={{ display: 'none' }}
-            ref={(el) => {
-              if (!el || el.dataset.injected) return;
-              el.dataset.injected = 'true';
-              const card = document.querySelector(`[data-booth-id="${booth.id}"]`) as HTMLElement | null;
-              if (!card) return;
-            }}
-          />
-          <QrButtonInjection
-            key={booth.id}
-            booth={booth}
-            highlighted={highlightedBooth === booth.id}
-            onClick={() => handleQrClick(booth)}
-          />
-        </React.Fragment>
+      {displayBooths.map((booth) => (
+        <QrButtonInjection
+          key={`qr-trigger-${booth.id}`}
+          booth={booth}
+          highlighted={highlightedBooth === booth.id}
+          onClick={() => handleQrClick(booth)}
+        />
       ))}
 
       {showExhibitModal && (
@@ -337,6 +443,48 @@ const AdminApp: React.FC = () => {
         </div>
       )}
 
+      {showBoothModal && (
+        <div className="modal-overlay" onClick={() => setShowBoothModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">新增展位</div>
+              <button className="modal-close" onClick={() => setShowBoothModal(false)}>
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreateBooth}>
+              <div className="form-group">
+                <label className="form-label">展位名称 *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newBoothName}
+                  onChange={(e) => setNewBoothName(e.target.value)}
+                  placeholder="请输入展位名称"
+                  autoFocus
+                />
+              </div>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary"
+                  onClick={() => setShowBoothModal(false)}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn-primary"
+                  disabled={!newBoothName.trim()}
+                >
+                  创建展位
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {qrModal && (
         <div className="modal-overlay" onClick={() => setQrModal(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -348,15 +496,15 @@ const AdminApp: React.FC = () => {
             </div>
             <div className="qr-display">
               <div className="qr-wrapper">
-                <img src={qrModal.qrCode} alt={`展位${qrModal.boothNumber}二维码`} ref={qrCanvasRef as any} />
+                <img src={qrModal.qrCode} alt={`展位${qrModal.boothNumber}二维码`} />
                 <div className="qr-badge">{qrModal.boothNumber}</div>
               </div>
               <div className="qr-info">
                 <div className="qr-info-name">展位 {qrModal.boothNumber} · {qrModal.boothName}</div>
-                <div style={{ fontSize: '12px', wordBreak: 'break-all' }}>{qrModal.visitorUrl}</div>
+                <div style={{ fontSize: '12px', wordBreak: 'break-all', color: '#9ca3af' }}>{qrModal.visitorUrl}</div>
               </div>
               <button className="admin-btn admin-btn-primary" onClick={downloadQRCode}>
-                📥 下载二维码
+                📥 下载为PNG图片
               </button>
             </div>
           </div>

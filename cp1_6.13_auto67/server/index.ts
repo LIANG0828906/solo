@@ -6,7 +6,7 @@ import { readData, writeData, ensureDataFile } from './fileStore';
 import { Exhibit, Booth, Comment } from '../src/types';
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());
@@ -168,6 +168,29 @@ app.get('/api/booths/:id/qrcode', async (req, res) => {
       boothName: booth.name,
       visitorUrl,
     });
+  } catch (err) {
+    res.status(500).json({ error: '二维码生成失败' });
+  }
+});
+
+app.get('/api/booths/:id/qrcode/download', async (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  const booth = data.booths.find((b) => b.id === id);
+  if (!booth) {
+    return res.status(404).json({ error: '展位不存在' });
+  }
+  const visitorUrl = `${req.protocol}://${req.get('host')}/visitor/${id}`;
+  try {
+    const qrBuffer = await QRCode.toBuffer(visitorUrl, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+    const filename = `展位${booth.number}-${booth.name}.png`;
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(qrBuffer);
   } catch (err) {
     res.status(500).json({ error: '二维码生成失败' });
   }

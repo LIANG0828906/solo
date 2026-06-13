@@ -24,6 +24,29 @@ interface PendingComment {
 const POLL_INTERVAL = 5000;
 const LIKE_COOLDOWN = 5000;
 const MY_NAME_KEY = 'expoflow_visitor_name';
+const LIKE_LOCK_KEY = 'expoflow_like_locks';
+
+const loadLikeLocks = (): { [exhibitId: string]: number } => {
+  try {
+    const raw = localStorage.getItem(LIKE_LOCK_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveLikeLock = (exhibitId: string, lockedUntil: number) => {
+  try {
+    const locks = loadLikeLocks();
+    locks[exhibitId] = lockedUntil;
+    const now = Date.now();
+    Object.keys(locks).forEach((id) => {
+      if (locks[id] < now) delete locks[id];
+    });
+    localStorage.setItem(LIKE_LOCK_KEY, JSON.stringify(locks));
+  } catch {
+  }
+};
 
 const HeartIcon: React.FC<{ filled: boolean }> = ({ filled }) => (
   <svg
@@ -54,7 +77,17 @@ const ExhibitList: React.FC = () => {
   const { boothId } = useParams<{ boothId: string }>();
   const [boothData, setBoothData] = useState<BoothData | null>(null);
   const [comments, setComments] = useState<CommentMap>({});
-  const [likeStates, setLikeStates] = useState<LikeState>({});
+  const [likeStates, setLikeStates] = useState<LikeState>(() => {
+    const locks = loadLikeLocks();
+    const now = Date.now();
+    const initial: LikeState = {};
+    Object.keys(locks).forEach((id) => {
+      if (locks[id] > now) {
+        initial[id] = { liked: true, lockedUntil: locks[id] };
+      }
+    });
+    return initial;
+  });
   const [commentInputs, setCommentInputs] = useState<{ [exhibitId: string]: PendingComment }>({});
   const [submittingComments, setSubmittingComments] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -62,6 +95,7 @@ const ExhibitList: React.FC = () => {
   const [myName, setMyName] = useState<string>(() => localStorage.getItem(MY_NAME_KEY) || '');
   const pollTimerRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
+  const likeTimeoutRefs = useRef<{ [exhibitId: string]: number }>({});
 
   const loadInitialData = useCallback(async () => {
     if (!boothId) return;
@@ -131,8 +165,28 @@ const ExhibitList: React.FC = () => {
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      Object.values(likeTimeoutRefs.current).forEach((t) => clearTimeout(t));
+      likeTimeoutRefs.current = {};
     };
   }, [loading, boothData, schedulePoll]);
+
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      setLikeStates((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach((id) => {
+          if (next[id].liked && next[id].lockedUntil <= now) {
+            next[id] = { ...next[id], liked: false };
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(checkInterval);
+  }, []);
 
   const handleLike = async (exhibit: Exhibit) => {
     const state = likeStates[exhibit.id];
@@ -150,16 +204,23 @@ const ExhibitList: React.FC = () => {
           ),
         };
       });
+      const lockedUntil = now + LIKE_COOLDOWN;
       setLikeStates((prev) => ({
         ...prev,
-        [exhibit.id]: { liked: true, lockedUntil: now + LIKE_COOLDOWN },
+        [exhibit.id]: { liked: true, lockedUntil },
       }));
-      setTimeout(() => {
+      saveLikeLock(exhibit.id, lockedUntil);
+
+      if (likeTimeoutRefs.current[exhibit.id]) {
+        clearTimeout(likeTimeoutRefs.current[exhibit.id]);
+      }
+      likeTimeoutRefs.current[exhibit.id] = window.setTimeout(() => {
         setLikeStates((prev) => {
           const s = prev[exhibit.id];
           if (!s) return prev;
           return { ...prev, [exhibit.id]: { ...s, liked: false } };
         });
+        delete likeTimeoutRefs.current[exhibit.id];
       }, LIKE_COOLDOWN);
     } catch {
     }
@@ -209,7 +270,9 @@ const ExhibitList: React.FC = () => {
 
   const isLikeLocked = (exhibitId: string): boolean => {
     const state = likeStates[exhibitId];
-    return !!(state && state.lockedUntil > Date.now());
+    const locks = loadLikeLocks();
+    const now = Date.now();
+    return !!(state?.lockedUntil && state.lockedUntil > now) || !!(locks[exhibitId] && locks[exhibitId] > now);
   };
 
   if (loading) {
@@ -276,6 +339,10 @@ const ExhibitList: React.FC = () => {
             const isLocked = isLikeLocked(exhibit.id);
             const isLiked = !!(likeStates[exhibit.id]?.liked);
             const isSubmitting = submittingComments.has(exhibit.id);
+            const lockState = likeStates[exhibit.id];
+            const remaining = lockState && lockState.lockedUntil > Date.now()
+              ? Math.ceil((lockState.lockedUntil - Date.now()) / 1000)
+              : 0;
 
             return (
               <div
@@ -308,9 +375,13 @@ const ExhibitList: React.FC = () => {
                     className={`like-btn ${isLiked ? 'liked' : ''}`}
                     onClick={() => handleLike(exhibit)}
                     disabled={isLocked}
+                    title={isLocked ? `${remaining}秒后可再次点赞` : '点赞'}
                   >
                     <HeartIcon filled={isLiked} />
                     <span>{exhibit.likes}</span>
+                    {isLocked && remaining > 0 && (
+                      <span style={{ fontSize: '11px', marginLeft: '4px' }}>({remaining}s)</span>
+                    )}
                   </button>
                 </div>
 
