@@ -21,11 +21,21 @@ const DEFAULT_CONFIG: GameConfig = {
   jumpHeightMax: 200,
   superJumpThreshold: 80,
   superJumpHeight: 300,
+  superJumpTransitionBand: 10,
   confidenceThreshold: 0.8,
   initialLives: 3,
   hurtDuration: 0.3,
   dashDuration: 1.0,
-  crouchDuration: 1.0
+  crouchDuration: 1.0,
+  scrollSpeedMin: 2,
+  scrollSpeedMax: 8,
+  spawnIntervalMinMs: 1500,
+  spawnIntervalMaxMs: 3000,
+  difficultyRampSeconds: 180,
+  fpsLowThreshold: 30,
+  fpsRecoverThreshold: 38,
+  fpsSampleWindow: 60,
+  fpsSmoothFactor: 0.1
 };
 
 export class Game {
@@ -40,6 +50,8 @@ export class Game {
   private lastFrameTime: number = 0;
   private fpsSamples: number[] = [];
   private lowFpsMode: boolean = false;
+  private lowFpsCoolDown: number = 0;
+  private smoothedFps: number = 60;
   private waveBuffer: number[] = [];
   private onScoreUpdate?: (score: number, isNewHigh: boolean) => void;
   private onGameOver?: (score: number) => void;
@@ -54,13 +66,13 @@ export class Game {
       volume: 0,
       confidence: 0,
       lastCommand: null,
-      scrollSpeed: 2,
-      scrollSpeedMin: 2,
-      scrollSpeedMax: 8,
+      scrollSpeed: this.config.scrollSpeedMin,
+      scrollSpeedMin: this.config.scrollSpeedMin,
+      scrollSpeedMax: this.config.scrollSpeedMax,
       difficulty: 0,
-      spawnInterval: 3000,
-      spawnIntervalMin: 1500,
-      spawnIntervalMax: 3000,
+      spawnInterval: this.config.spawnIntervalMaxMs,
+      spawnIntervalMin: this.config.spawnIntervalMinMs,
+      spawnIntervalMax: this.config.spawnIntervalMaxMs,
       backgroundProgress: 0,
       fps: 60,
       waveData: []
@@ -98,14 +110,18 @@ export class Game {
   private resetGame(): void {
     this.state.score = 0;
     this.state.lives = this.config.initialLives;
-    this.state.scrollSpeed = this.state.scrollSpeedMin;
-    this.state.spawnInterval = this.state.spawnIntervalMax;
+    this.state.scrollSpeed = this.config.scrollSpeedMin;
+    this.state.spawnInterval = this.config.spawnIntervalMaxMs;
     this.state.difficulty = 0;
     this.state.backgroundProgress = 0;
     this.gameTime = 0;
     this.spawnTimer = 0;
     this.obstacles = [];
     this.particles = [];
+    this.smoothedFps = 60;
+    this.lowFpsMode = false;
+    this.lowFpsCoolDown = 0;
+    this.fpsSamples = [];
     this.player.x = this.config.playerStartX;
     this.player.y = this.config.groundY;
     this.player.velocityY = 0;
@@ -145,25 +161,41 @@ export class Game {
   private updateFPS(deltaTime: number): void {
     const currentFps = 1 / deltaTime;
     this.fpsSamples.push(currentFps);
-    if (this.fpsSamples.length > 30) {
+    if (this.fpsSamples.length > this.config.fpsSampleWindow) {
       this.fpsSamples.shift();
     }
-    const avgFps = this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length;
-    this.state.fps = avgFps;
 
-    if (avgFps < 30 && !this.lowFpsMode) {
+    const avgFps = this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length;
+    this.smoothedFps = this.smoothedFps * (1 - this.config.fpsSmoothFactor) + avgFps * this.config.fpsSmoothFactor;
+    this.state.fps = this.smoothedFps;
+
+    if (this.lowFpsCoolDown > 0) {
+      this.lowFpsCoolDown -= deltaTime;
+    }
+
+    if (!this.lowFpsMode && this.smoothedFps < this.config.fpsLowThreshold) {
       this.lowFpsMode = true;
-    } else if (avgFps >= 35 && this.lowFpsMode) {
+      this.lowFpsCoolDown = 2.0;
+    } else if (this.lowFpsMode && this.lowFpsCoolDown <= 0 && this.smoothedFps >= this.config.fpsRecoverThreshold) {
       this.lowFpsMode = false;
     }
   }
 
+  private easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  private easeOutSine(t: number): number {
+    return Math.sin((t * Math.PI) / 2);
+  }
+
   private updateDifficulty(): void {
-    const progress = Math.min(1, this.gameTime / 120);
-    this.state.difficulty = progress;
-    this.state.scrollSpeed = this.state.scrollSpeedMin + (this.state.scrollSpeedMax - this.state.scrollSpeedMin) * progress;
-    this.state.spawnInterval = this.state.spawnIntervalMax - (this.state.spawnIntervalMax - this.state.spawnIntervalMin) * progress;
-    this.state.backgroundProgress = progress;
+    const linearProgress = Math.min(1, this.gameTime / this.config.difficultyRampSeconds);
+    const smoothProgress = this.easeInOutCubic(linearProgress);
+    this.state.difficulty = smoothProgress;
+    this.state.scrollSpeed = this.config.scrollSpeedMin + (this.config.scrollSpeedMax - this.config.scrollSpeedMin) * smoothProgress;
+    this.state.spawnInterval = this.config.spawnIntervalMaxMs - (this.config.spawnIntervalMaxMs - this.config.spawnIntervalMinMs) * smoothProgress;
+    this.state.backgroundProgress = this.easeOutSine(linearProgress);
   }
 
   private updatePlayer(deltaTime: number): void {
@@ -351,22 +383,42 @@ export class Game {
         if (!this.player.isDashing) {
           this.player.isDashing = true;
           this.player.dashTimer = this.config.dashDuration;
-          this.state.scrollSpeed = Math.min(this.state.scrollSpeed + 3, this.state.scrollSpeedMax + 2);
         }
         break;
     }
   }
 
   private jump(volume: number): void {
-    let jumpHeight: number;
+    const clampedVolume = Math.max(0, Math.min(100, volume));
 
-    if (volume >= this.config.superJumpThreshold) {
+    let jumpHeight: number;
+    let isSuperJump: boolean = false;
+
+    const superJumpStart = this.config.superJumpThreshold - this.config.superJumpTransitionBand;
+    const superJumpEnd = this.config.superJumpThreshold + this.config.superJumpTransitionBand;
+
+    if (clampedVolume <= this.config.volumeJumpMin) {
+      jumpHeight = this.config.jumpHeightMin;
+    } else if (clampedVolume >= superJumpEnd) {
       jumpHeight = this.config.superJumpHeight;
-      this.addSuperJumpParticles();
-    } else {
-      const t = (volume - this.config.volumeJumpMin) / (this.config.volumeJumpMax - this.config.volumeJumpMin);
+      isSuperJump = true;
+    } else if (clampedVolume <= this.config.volumeJumpMax) {
+      const t = (clampedVolume - this.config.volumeJumpMin) / (this.config.volumeJumpMax - this.config.volumeJumpMin);
       const clampedT = Math.max(0, Math.min(1, t));
       jumpHeight = this.config.jumpHeightMin + (this.config.jumpHeightMax - this.config.jumpHeightMin) * clampedT;
+    } else {
+      const transitionT = (clampedVolume - this.config.volumeJumpMax) / (superJumpEnd - this.config.volumeJumpMax);
+      const smoothT = this.easeInOutCubic(Math.max(0, Math.min(1, transitionT)));
+      jumpHeight = this.config.jumpHeightMax + (this.config.superJumpHeight - this.config.jumpHeightMax) * smoothT;
+      if (transitionT > 0.5) {
+        isSuperJump = true;
+      }
+    }
+
+    jumpHeight = Math.max(this.config.jumpHeightMin, Math.min(this.config.superJumpHeight, jumpHeight));
+
+    if (isSuperJump) {
+      this.addSuperJumpParticles();
     }
 
     this.player.velocityY = -Math.sqrt(2 * this.config.gravity * jumpHeight);

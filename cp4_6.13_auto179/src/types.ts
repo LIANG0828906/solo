@@ -69,9 +69,19 @@ export interface GameConfig {
   jumpHeightMax: number;
   superJumpThreshold: number;
   superJumpHeight: number;
+  superJumpTransitionBand: number;
   confidenceThreshold: number;
   initialLives: number;
   hurtDuration: number;
   dashDuration: number;
   crouchDuration: number;
+  scrollSpeedMin: number;
+  scrollSpeedMax: number;
+  spawnIntervalMinMs: number;
+  spawnIntervalMaxMs: number;
+  difficultyRampSeconds: number;
+  fpsLowThreshold: number;
+  fpsRecoverThreshold: number;
+  fpsSampleWindow: number;
+  fpsSmoothFactor: number;
 }

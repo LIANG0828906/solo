@@ -6,6 +6,7 @@ export class Renderer {
   private buildings: { x: number; width: number; height: number; color: string }[] = [];
   private bgOffset: number = 0;
   private groundOffset: number = 0;
+  private waveScrollOffset: number = 0;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.ctx = canvas.getContext('2d')!;
@@ -356,46 +357,115 @@ export class Renderer {
 
   private drawWaveform(state: GameState): void {
     const waveX = 20;
-    const waveY = this.config.canvasHeight - 50;
+    const waveY = this.config.canvasHeight - 60;
     const waveWidth = 200;
     const waveHeight = 30;
-    const bars = state.waveData.length;
+    const padding = 4;
 
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    this.ctx.fillRect(waveX - 4, waveY - 4, waveWidth + 8, waveHeight + 24);
-
-    for (let i = 0; i < bars; i++) {
-      const value = state.waveData[i] / 100;
-      const barHeight = value * waveHeight;
-      const barX = waveX + (i / bars) * waveWidth;
-      const barY = waveY + waveHeight - barHeight;
-      const barW = Math.max(1, waveWidth / bars - 2);
-
-      const gradient = this.ctx.createLinearGradient(0, barY, 0, waveY + waveHeight);
-      gradient.addColorStop(0, '#00ff88');
-      gradient.addColorStop(0.5, '#88ff00');
-      gradient.addColorStop(1, '#ff8800');
-
-      this.ctx.fillStyle = gradient;
-      this.ctx.fillRect(Math.floor(barX), Math.floor(barY), Math.floor(barW), Math.floor(barHeight));
+    this.waveScrollOffset += 2;
+    if (this.waveScrollOffset >= waveWidth) {
+      this.waveScrollOffset = 0;
     }
+
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.ctx.fillRect(waveX - 4, waveY - 8, waveWidth + 8, waveHeight + 42);
+
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    this.ctx.fillRect(waveX, waveY, waveWidth, waveHeight);
+
+    const barWidth = 3;
+    const barGap = 2;
+    const totalBars = Math.floor(waveWidth / (barWidth + barGap));
+    const dataLength = state.waveData.length;
+
+    for (let i = 0; i < totalBars; i++) {
+      const scrollIdx = (i + Math.floor(this.waveScrollOffset / (barWidth + barGap))) % totalBars;
+      const dataIdx = Math.floor((scrollIdx / totalBars) * dataLength);
+      const value = (state.waveData[dataIdx] || 0) / 100;
+      const barHeight = Math.max(2, value * waveHeight);
+      const barX = waveX + i * (barWidth + barGap);
+      const barY = waveY + waveHeight - barHeight;
+
+      const progress = value;
+      let color: string;
+      if (progress < 0.33) {
+        color = '#00ff88';
+      } else if (progress < 0.66) {
+        const t = (progress - 0.33) / 0.33;
+        const r = Math.floor(0 + (136 - 0) * t);
+        const g = Math.floor(255);
+        const b = Math.floor(136 + (0 - 136) * t);
+        color = `rgb(${r}, ${g}, ${b})`;
+      } else {
+        const t = (progress - 0.66) / 0.34;
+        const r = Math.floor(136 + (255 - 136) * t);
+        const g = Math.floor(255 + (136 - 255) * t);
+        color = `rgb(${r}, ${g}, 0)`;
+      }
+
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(Math.floor(barX), Math.floor(barY), barWidth, Math.ceil(barHeight));
+
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      this.ctx.fillRect(Math.floor(barX), Math.floor(barY), barWidth, 1);
+    }
+
+    const currentVol = state.volume / 100;
+    const needleX = waveX + currentVol * waveWidth;
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.moveTo(needleX, waveY);
+    this.ctx.lineTo(needleX, waveY + waveHeight);
+    this.ctx.stroke();
+    this.ctx.lineWidth = 1;
+
+    const confY = waveY + waveHeight + 8;
 
     this.ctx.font = 'bold 12px "Courier New", monospace';
     this.ctx.fillStyle = '#ffffff';
     const confPercent = Math.floor(state.confidence * 100);
     const confText = `置信度: ${confPercent}%`;
-    this.ctx.fillText(confText, waveX, waveY + waveHeight + 6);
+    this.ctx.fillText(confText, waveX, confY);
 
+    const thresholdX = waveX + this.config.confidenceThreshold * waveWidth;
+
+    const confBarX = waveX;
+    const confBarY = confY + 16;
     const confBarWidth = waveWidth;
-    const confBarHeight = 4;
+    const confBarHeight = 6;
+
+    this.ctx.fillStyle = '#2a2a2a';
+    this.ctx.fillRect(confBarX, confBarY, confBarWidth, confBarHeight);
+
     const confProgress = state.confidence * confBarWidth;
+    let confColor: string;
+    if (state.confidence >= this.config.confidenceThreshold) {
+      confColor = '#00ff88';
+    } else if (state.confidence >= 0.5) {
+      confColor = '#ffcc00';
+    } else {
+      confColor = '#ff4444';
+    }
 
-    this.ctx.fillStyle = '#333333';
-    this.ctx.fillRect(waveX, waveY + waveHeight + 18, confBarWidth, confBarHeight);
+    const confGradient = this.ctx.createLinearGradient(confBarX, confBarY, confBarX + confProgress, confBarY);
+    confGradient.addColorStop(0, confColor);
+    confGradient.addColorStop(1, state.confidence >= 0.5 ? '#ffaa00' : '#ff6644');
+    this.ctx.fillStyle = confGradient;
+    this.ctx.fillRect(confBarX, confBarY, confProgress, confBarHeight);
 
-    const confColor = state.confidence >= 0.8 ? '#00ff88' : state.confidence >= 0.5 ? '#ffcc00' : '#ff4444';
-    this.ctx.fillStyle = confColor;
-    this.ctx.fillRect(waveX, waveY + waveHeight + 18, confProgress, confBarHeight);
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = 1;
+    this.ctx.setLineDash([2, 2]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(thresholdX, confBarY - 2);
+    this.ctx.lineTo(thresholdX, confBarY + confBarHeight + 2);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
+
+    this.ctx.font = '10px "Courier New", monospace';
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    this.ctx.fillText('80%', thresholdX + 2, confBarY - 4);
   }
 
   private drawStartScreen(): void {
