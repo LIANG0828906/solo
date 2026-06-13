@@ -81,15 +81,28 @@ export class Creature {
     this.drawBody(ctx);
   }
 
+  private getHungryFlashHue(): { hue: number; isHungry: boolean } {
+    const isHungry = this.energy < HUNGER_THRESHOLD;
+    if (!isHungry) {
+      return { hue: this.genes.colorHue, isHungry: false };
+    }
+    const flashOn = Math.sin(this.hungerFlashTimer * 6) > 0;
+    const hue = flashOn ? 0 : this.genes.colorHue;
+    return { hue, isHungry: true };
+  }
+
   private drawTail(ctx: CanvasRenderingContext2D): void {
+    const { hue, isHungry } = this.getHungryFlashHue();
     for (let i = this.tail.length - 1; i >= 1; i--) {
       const t = this.tail[i];
       const progress = i / this.tail.length;
       const alpha = 0.6 * (1 - progress);
       const radius = this.genes.size * (1 - progress * 0.7);
       const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
-      gradient.addColorStop(0, `hsla(${this.genes.colorHue}, 100%, 60%, ${alpha})`);
-      gradient.addColorStop(1, `hsla(${this.genes.colorHue}, 100%, 60%, 0)`);
+      const saturation = isHungry ? 100 : 100;
+      const lightness = isHungry ? 50 : 60;
+      gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`);
+      gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, 0)`);
       ctx.beginPath();
       ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
       ctx.fillStyle = gradient;
@@ -98,11 +111,9 @@ export class Creature {
   }
 
   private drawBody(ctx: CanvasRenderingContext2D): void {
-    const isHungry = this.energy < HUNGER_THRESHOLD;
-    const flashRed = isHungry && Math.sin(this.hungerFlashTimer * 8) > 0;
-    const hue = flashRed ? 0 : this.genes.colorHue;
-    const saturation = flashRed ? 100 : 100;
-    const lightness = flashRed ? 50 : 60;
+    const { hue, isHungry } = this.getHungryFlashHue();
+    const saturation = 100;
+    const lightness = isHungry ? 55 : 60;
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -122,10 +133,10 @@ export class Creature {
     ctx.closePath();
 
     ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = isHungry ? 18 : 12;
     ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     ctx.fill();
-    ctx.strokeStyle = `hsl(${hue}, 80%, 80%)`;
+    ctx.strokeStyle = `hsl(${hue}, 80%, ${isHungry ? 70 : 80}%)`;
     ctx.lineWidth = 1;
     ctx.stroke();
 

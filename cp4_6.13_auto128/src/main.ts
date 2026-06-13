@@ -29,7 +29,6 @@ class App {
     this.fpsTime = 0;
     this.currentFps = 0;
 
-    this.simulator.spawnFood();
     this.loop(performance.now());
   }
 

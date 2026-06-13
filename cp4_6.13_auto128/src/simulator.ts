@@ -21,6 +21,7 @@ interface Particle {
 interface Stats {
   count: number;
   avgAggression: number;
+  hungryCount: number;
 }
 
 const CANVAS_SIZE = 600;
@@ -52,6 +53,7 @@ export class Simulator {
     this.particles = [];
     this.foodTimer = 0;
     this.generateInitialCreatures();
+    this.refreshFood();
   }
 
   generateInitialCreatures(): void {
@@ -78,6 +80,7 @@ export class Simulator {
     this.particles = [];
     this.foodTimer = 0;
     this.generateInitialCreatures();
+    this.refreshFood();
   }
 
   runGeneration(dt: number, speedMultiplier: number): void {
@@ -95,7 +98,7 @@ export class Simulator {
     this.foodTimer += sDt;
     if (this.foodTimer >= FOOD_SPAWN_INTERVAL) {
       this.foodTimer = 0;
-      this.spawnFood();
+      this.refreshFood();
     }
 
     this.updateParticles(sDt);
@@ -111,15 +114,31 @@ export class Simulator {
         if (!a.alive || !b.alive) continue;
         if (!a.collidesWith(b)) continue;
 
-        const effectiveAggrA = a.genes.aggression + (Math.random() - 0.5) * 0.2;
-        const effectiveAggrB = b.genes.aggression + (Math.random() - 0.5) * 0.2;
+        const sizeScoreA = a.genes.size / 15;
+        const sizeScoreB = b.genes.size / 15;
+        const speedEvadeA = a.genes.speed / 3;
+        const speedEvadeB = b.genes.speed / 3;
 
-        if (effectiveAggrA > effectiveAggrB) {
-          a.energy += COLLISION_WIN_ENERGY;
-          b.energy -= COLLISION_LOSE_ENERGY;
-        } else if (effectiveAggrB > effectiveAggrA) {
-          b.energy += COLLISION_WIN_ENERGY;
-          a.energy -= COLLISION_LOSE_ENERGY;
+        const powerA = a.genes.aggression * 0.6 + sizeScoreA * 0.35 + (Math.random() - 0.5) * 0.15;
+        const powerB = b.genes.aggression * 0.6 + sizeScoreB * 0.35 + (Math.random() - 0.5) * 0.15;
+
+        const evadeA = speedEvadeA * 0.4;
+        const evadeB = speedEvadeB * 0.4;
+
+        const effectiveA = powerA - evadeB;
+        const effectiveB = powerB - evadeA;
+
+        const diff = Math.abs(effectiveA - effectiveB);
+        const baseEnergy = 5 + diff * 15;
+        const energyGain = Math.max(3, Math.min(25, baseEnergy));
+        const energyLoss = Math.max(3, Math.min(20, baseEnergy * 0.8));
+
+        if (effectiveA > effectiveB) {
+          a.energy += energyGain;
+          b.energy -= energyLoss;
+        } else if (effectiveB > effectiveA) {
+          b.energy += energyGain;
+          a.energy -= energyLoss;
         }
 
         const dx = b.x - a.x;
@@ -203,9 +222,10 @@ export class Simulator {
   }
 
   private spawnDeathParticles(creature: Creature): void {
-    for (let i = 0; i < DEATH_PARTICLE_COUNT; i++) {
-      const angle = (Math.PI * 2 / DEATH_PARTICLE_COUNT) * i + (Math.random() - 0.5) * 0.5;
-      const speed = 40 + Math.random() * 60;
+    const count = DEATH_PARTICLE_COUNT;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.6;
+      const speed = 50 + Math.random() * 80;
       this.particles.push({
         x: creature.x,
         y: creature.y,
@@ -214,7 +234,21 @@ export class Simulator {
         life: DEATH_PARTICLE_DURATION,
         maxLife: DEATH_PARTICLE_DURATION,
         hue: creature.genes.colorHue,
-        size: 2 + Math.random() * 3,
+        size: 3 + Math.random() * 4,
+      });
+    }
+    for (let i = 0; i < count / 2; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 20 + Math.random() * 40;
+      this.particles.push({
+        x: creature.x,
+        y: creature.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: DEATH_PARTICLE_DURATION * 0.6,
+        maxLife: DEATH_PARTICLE_DURATION * 0.6,
+        hue: creature.genes.colorHue,
+        size: 1.5 + Math.random() * 2,
       });
     }
   }
@@ -236,6 +270,19 @@ export class Simulator {
     }
   }
 
+  refreshFood(): void {
+    this.foods = [];
+    for (let i = 0; i < FOOD_SPAWN_COUNT; i++) {
+      const margin = 15;
+      this.foods.push({
+        x: Math.random() * (this.canvasWidth - margin * 2) + margin,
+        y: Math.random() * (this.canvasHeight - margin * 2) + margin,
+        pulsePhase: Math.random() * Math.PI * 2,
+        eaten: false,
+      });
+    }
+  }
+
   spawnFood(): void {
     for (let i = 0; i < FOOD_SPAWN_COUNT; i++) {
       const margin = 15;
@@ -250,25 +297,37 @@ export class Simulator {
 
   drawFoods(ctx: CanvasRenderingContext2D): void {
     for (const f of this.foods) {
-      const pulse = Math.sin(f.pulsePhase * Math.PI * 2 / 0.5) * 0.3 + 0.7;
-      const radius = 4 * pulse;
-      const alpha = 0.6 + pulse * 0.4;
+      const pulseScale = Math.sin(f.pulsePhase * Math.PI * 2 / 0.5) * 0.4 + 0.6;
+      const blinkAlpha = Math.sin(f.pulsePhase * Math.PI * 4 / 0.5) * 0.3 + 0.7;
+      const radius = 5 * pulseScale;
+      const alpha = Math.max(0.4, Math.min(1, blinkAlpha));
 
       ctx.save();
-      ctx.shadowColor = 'rgba(0, 255, 100, 0.8)';
-      ctx.shadowBlur = 10;
 
-      const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, radius + 2);
-      gradient.addColorStop(0, `rgba(100, 255, 150, ${alpha})`);
-      gradient.addColorStop(1, `rgba(0, 200, 80, 0)`);
+      const outerGrad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, radius + 6);
+      outerGrad.addColorStop(0, `rgba(0, 255, 120, ${alpha * 0.8})`);
+      outerGrad.addColorStop(0.5, `rgba(0, 220, 100, ${alpha * 0.3})`);
+      outerGrad.addColorStop(1, 'rgba(0, 180, 80, 0)');
       ctx.beginPath();
-      ctx.arc(f.x, f.y, radius + 2, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
+      ctx.arc(f.x, f.y, radius + 6, 0, Math.PI * 2);
+      ctx.fillStyle = outerGrad;
+      ctx.fill();
+
+      ctx.shadowColor = 'rgba(0, 255, 100, 0.9)';
+      ctx.shadowBlur = 15 * alpha;
+
+      const innerGrad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, radius);
+      innerGrad.addColorStop(0, `rgba(180, 255, 200, ${alpha})`);
+      innerGrad.addColorStop(0.5, `rgba(80, 255, 140, ${alpha})`);
+      innerGrad.addColorStop(1, `rgba(20, 200, 80, ${alpha * 0.8})`);
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = innerGrad;
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(f.x, f.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(80, 255, 120, ${alpha})`;
+      ctx.arc(f.x - radius * 0.3, f.y - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
       ctx.fill();
 
       ctx.restore();
@@ -279,11 +338,16 @@ export class Simulator {
     for (const p of this.particles) {
       const lifeRatio = p.life / p.maxLife;
       const alpha = lifeRatio;
+      const size = p.size * (0.5 + lifeRatio * 0.5);
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 2);
+      gradient.addColorStop(0, `hsla(${p.hue}, 100%, 70%, ${alpha})`);
+      gradient.addColorStop(0.5, `hsla(${p.hue}, 100%, 55%, ${alpha * 0.6})`);
+      gradient.addColorStop(1, `hsla(${p.hue}, 100%, 50%, 0)`);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * lifeRatio, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${alpha})`;
-      ctx.shadowColor = `hsla(${p.hue}, 100%, 60%, ${alpha * 0.5})`;
-      ctx.shadowBlur = 6;
+      ctx.arc(p.x, p.y, size * 2, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = `hsla(${p.hue}, 100%, 60%, ${alpha})`;
+      ctx.shadowBlur = 10 * lifeRatio;
       ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -301,6 +365,7 @@ export class Simulator {
     const avgAggression = count > 0
       ? alive.reduce((sum, c) => sum + c.genes.aggression, 0) / count
       : 0;
-    return { count, avgAggression };
+    const hungryCount = alive.filter(c => c.checkHunger()).length;
+    return { count, avgAggression, hungryCount };
   }
 }
