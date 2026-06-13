@@ -148,28 +148,28 @@ export function validateRequired(value: string): boolean {
 
 export function validateWorkCount(workList: WorkExperience[]): { valid: boolean; error?: string } {
   if (workList.length > MAX_WORK_EXPERIENCE) {
-    return { valid: false, error: `工作经历最多${MAX_WORK_EXPERIENCE}条` };
+    return { valid: false, error: `工作经历最多${MAX_WORK_EXPERIENCE}条，当前${workList.length}条，超出${workList.length - MAX_WORK_EXPERIENCE}条，请删除多余条目` };
   }
   return { valid: true };
 }
 
 export function validateEducationCount(eduList: Education[]): { valid: boolean; error?: string } {
   if (eduList.length > MAX_EDUCATION) {
-    return { valid: false, error: `教育背景最多${MAX_EDUCATION}条` };
+    return { valid: false, error: `教育背景最多${MAX_EDUCATION}条，当前${eduList.length}条，超出${eduList.length - MAX_EDUCATION}条，请删除多余条目` };
   }
   return { valid: true };
 }
 
 export function validateSkillsCount(skills: Skill[]): { valid: boolean; error?: string } {
   if (skills.length > MAX_SKILLS) {
-    return { valid: false, error: `技能标签最多${MAX_SKILLS}个` };
+    return { valid: false, error: `技能标签最多${MAX_SKILLS}个，当前${skills.length}个，超出${skills.length - MAX_SKILLS}个，请删除多余标签` };
   }
   return { valid: true };
 }
 
 export function validateProjectsCount(projects: Project[]): { valid: boolean; error?: string } {
   if (projects.length > MAX_PROJECTS) {
-    return { valid: false, error: `项目经历最多${MAX_PROJECTS}条` };
+    return { valid: false, error: `项目经历最多${MAX_PROJECTS}条，当前${projects.length}条，超出${projects.length - MAX_PROJECTS}条，请删除多余条目` };
   }
   return { valid: true };
 }

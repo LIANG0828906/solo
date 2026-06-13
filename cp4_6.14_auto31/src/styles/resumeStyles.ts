@@ -86,7 +86,15 @@ export function generateThemeCSS(themeName: string): string {
     --resume-card-shadow: ${config.cardShadow};
     --resume-font-heading: ${config.fontHeading};
     --resume-font-body: ${config.fontBody};
-    transition: all 0.5s ease;
+    transition: 
+      color 0.5s ease,
+      background-color 0.5s ease,
+      background 0.5s ease,
+      box-shadow 0.5s ease,
+      border-color 0.5s ease,
+      fill 0.5s ease,
+      stroke 0.5s ease,
+      opacity 0.5s ease;
   `;
 }
 

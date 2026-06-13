@@ -1,4 +1,4 @@
-import React, { forwardRef, useState, useCallback, DragEvent } from 'react';
+import React, { forwardRef, useState, useCallback, useRef, DragEvent, TouchEvent } from 'react';
 import { ResumeData, ModuleType, THEME_CONFIG } from '@/data/resumeModel';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,21 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
   ({ data, theme, moduleOrder, onModuleReorder }, ref) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+    // ========== 触摸拖拽状态 ==========
+    // 是否正在触摸拖拽
+    const [touchDragging, setTouchDragging] = useState<boolean>(false);
+    // 开始拖拽的模块索引
+    const [touchStartIndex, setTouchStartIndex] = useState<number | null>(null);
+    // 当前手指所在的模块索引
+    const [touchMoveIndex, setTouchMoveIndex] = useState<number | null>(null);
+    // 触摸点相对模块左上角的偏移量，用于计算拖拽时的位置
+    const [touchDragOffset, setTouchDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    // 当前手指的屏幕坐标
+    const [touchPosition, setTouchPosition] = useState<{ x: number; y: number } | null>(null);
+    // 模块卡片的 refs 数组，用于触摸移动时查找当前手指所在的模块
+    const moduleRefs = useRef<(HTMLDivElement | null)[]>([]);
+    // ================================
 
     const themeConfig = THEME_CONFIG[theme] || THEME_CONFIG['简洁灰'];
 
@@ -68,9 +83,112 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       setDragOverIndex(null);
     }, []);
 
+    // ========== 触摸拖拽事件处理 ==========
+
+    /**
+     * 触摸开始处理
+     * 只在拖拽手柄区域（drag-handle 或其内部 svg）触发拖拽
+     * 记录触摸起始位置和相对模块的偏移量
+     */
+    const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>, index: number) => {
+      const touch = e.touches[0];
+      const target = e.target as HTMLElement;
+
+      // 检查触摸目标是否是拖拽手柄（drag-handle 类或其内部的 svg 子元素）
+      const isDragHandle = target.closest('.drag-handle');
+      if (!isDragHandle) {
+        return;
+      }
+
+      // 获取当前模块卡片的 DOM 元素
+      const moduleEl = moduleRefs.current[index];
+      if (!moduleEl) return;
+
+      // 计算模块在视口中的位置
+      const rect = moduleEl.getBoundingClientRect();
+      // 计算触摸点相对模块左上角的偏移，保证拖拽时手指始终按在同一个位置
+      const offsetX = touch.clientX - rect.left;
+      const offsetY = touch.clientY - rect.top;
+
+      setTouchDragOffset({ x: offsetX, y: offsetY });
+      setTouchPosition({ x: touch.clientX, y: touch.clientY });
+      setTouchDragging(true);
+      setTouchStartIndex(index);
+      setTouchMoveIndex(index);
+    }, []);
+
+    /**
+     * 触摸移动处理（绑定到最外层容器）
+     * 阻止页面滚动，更新手指坐标，查找当前所在模块
+     */
+    const handleTouchMove = useCallback((e: TouchEvent<HTMLDivElement>) => {
+      // 如果没有在拖拽，不处理
+      if (!touchDragging) return;
+
+      const touch = e.touches[0];
+      // 阻止页面滚动，避免拖拽时页面跟着动
+      e.preventDefault();
+
+      const x = touch.clientX;
+      const y = touch.clientY;
+      // 更新当前手指屏幕坐标
+      setTouchPosition({ x, y });
+
+      // 通过坐标查找当前手指所在的 DOM 元素
+      const elementAtPoint = document.elementFromPoint(x, y);
+      if (!elementAtPoint) return;
+
+      // 向上查找最近的 module-card 元素
+      const moduleCard = elementAtPoint.closest('.module-card');
+      if (!moduleCard) return;
+
+      // 通过 module-card 在 refs 数组中的索引确定 touchMoveIndex
+      const moveIndex = moduleRefs.current.findIndex((ref) => ref === moduleCard);
+      if (moveIndex !== -1) {
+        setTouchMoveIndex(moveIndex);
+      }
+    }, [touchDragging]);
+
+    /**
+     * 触摸结束处理
+     * 如果起始位置和结束位置不同，执行模块重排
+     * 最后重置所有触摸状态
+     */
+    const handleTouchEnd = useCallback(() => {
+      // 如果有有效的拖拽操作（起始索引和移动索引不同且都不为空）
+      if (
+        touchStartIndex !== null &&
+        touchMoveIndex !== null &&
+        touchStartIndex !== touchMoveIndex
+      ) {
+        // 执行与 onDrop 相同的模块重排逻辑
+        const newOrder = [...moduleOrder];
+        const removed = newOrder[touchStartIndex];
+        newOrder.splice(touchStartIndex, 1);
+        newOrder.splice(touchMoveIndex, 0, removed);
+        onModuleReorder?.(newOrder);
+      }
+
+      // 重置所有触摸状态
+      setTouchDragging(false);
+      setTouchStartIndex(null);
+      setTouchMoveIndex(null);
+      setTouchPosition(null);
+      setTouchDragOffset({ x: 0, y: 0 });
+    }, [touchStartIndex, touchMoveIndex, moduleOrder, onModuleReorder]);
+
+    // ====================================
+
     const renderModule = (moduleType: ModuleType, index: number) => {
       const isDragging = draggedIndex === index;
       const isDragOver = dragOverIndex === index && draggedIndex !== index;
+
+      // ========== 触摸拖拽的视觉状态 ==========
+      // 触摸拖拽时，起始模块显示拖拽状态（放大半透明）
+      const isTouchDragging = touchDragging && touchStartIndex === index;
+      // 触摸拖拽时，当前手指所在模块显示 drop 目标（上边距增加）
+      const isTouchDragOver = touchDragging && touchMoveIndex === index && touchStartIndex !== index;
+      // ====================================
 
       const moduleContent = () => {
         switch (moduleType) {
@@ -92,26 +210,50 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       return (
         <div
           key={moduleType}
+          // 保存模块的 ref，用于触摸查找
+          ref={(el) => {
+            moduleRefs.current[index] = el;
+          }}
           draggable
           onDragStart={(e) => handleDragStart(e, index)}
           onDragOver={(e) => handleDragOver(e, index)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, index)}
           onDragEnd={handleDragEnd}
+          // 触摸事件处理
+          onTouchStart={(e) => handleTouchStart(e, index)}
           className={cn(
             'module-card relative rounded-lg p-4 mb-4 transition-all duration-200',
-            isDragging && 'opacity-50 scale-[1.02] z-10',
-            isDragOver && 'mt-8'
+            // 触摸拖拽时，被拖拽的模块需要提高层级
+            isTouchDragging && 'z-10'
           )}
           style={{
             backgroundColor: 'var(--resume-background)',
-            boxShadow: isDragging
+            // 将 transform、opacity、boxShadow、margin 都放在 style 中，确保 CSS transition 生效
+            // 鼠标拖拽 或 触摸拖拽 都应用相同的视觉效果
+            transform: (isDragging || isTouchDragging) ? 'scale(1.02)' : 'scale(1)',
+            opacity: (isDragging || isTouchDragging) ? 0.5 : 1,
+            boxShadow: (isDragging || isTouchDragging)
               ? '0 8px 25px rgba(0, 0, 0, 0.2)'
               : 'var(--resume-shadow)',
-            transition: 'transform 200ms ease, box-shadow 200ms ease, margin 200ms ease',
+            // 鼠标拖拽 hover 或 触摸拖拽 hover 时增加上边距
+            margin: (isDragOver || isTouchDragOver) ? '2rem 0 0 0' : '0 0 1rem 0',
+            // 统一使用 transition 控制所有动画属性，200ms ease 过渡
+            transition: 'transform 200ms ease, box-shadow 200ms ease, margin 200ms ease, opacity 200ms ease',
+            // 触摸拖拽时，使用 fixed 定位让卡片跟随手指移动
+            ...(isTouchDragging && touchPosition
+              ? {
+                  position: 'fixed' as const,
+                  left: touchPosition.x - touchDragOffset.x,
+                  top: touchPosition.y - touchDragOffset.y,
+                  width: 'calc(210mm - 30mm)', // 等于 resume 宽度减去左右 padding
+                  pointerEvents: 'none' as const, // 避免跟随的卡片挡住 elementFromPoint 检测
+                }
+              : {}),
           }}
         >
-          <div className="drag-handle absolute top-3 right-3 cursor-grab active:cursor-grabbing select-none text-xs opacity-40 hover:opacity-70">
+          {/* 拖拽手柄：扩大触摸区域至 min-w-8 min-h-8（32x32px），使用 flex 居中 */}
+          <div className="drag-handle absolute top-2 right-2 cursor-grab active:cursor-grabbing select-none text-xs opacity-40 hover:opacity-70 min-w-8 min-h-8 flex items-center justify-center">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="9" cy="6" r="2" />
               <circle cx="15" cy="6" r="2" />
@@ -406,6 +548,9 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
           borderRadius: '4px',
         }}
+        // 在最外层容器绑定触摸移动和结束事件，便于全局处理拖拽
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div
           className="resume-content h-full"

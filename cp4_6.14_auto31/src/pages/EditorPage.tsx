@@ -385,9 +385,16 @@ export default function EditorPage() {
 
   // 导出 PDF
   const handleExportPDF = async () => {
-    if (!previewRef.current || isExporting) return
+    if (isExporting) return
     try {
-      await exportToPDF(previewRef.current, setIsExporting)
+      const currentThemeConfig = THEME_CONFIG[theme] || THEME_CONFIG['简洁灰']
+      const { primary, background, text, accent } = currentThemeConfig
+      await exportToPDF(
+        resumeData,
+        theme,
+        { primary, background, text, accent },
+        setIsExporting
+      )
     } catch (error) {
       console.error('导出PDF失败:', error)
     }
