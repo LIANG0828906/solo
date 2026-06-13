@@ -1,4 +1,4 @@
-import { random, randomChoice, lerp, easeOutQuad } from './utils';
+import { random, randomChoice, easeOutQuad } from './utils';
 
 export interface Particle {
   x: number;

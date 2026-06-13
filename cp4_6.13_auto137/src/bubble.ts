@@ -1,4 +1,4 @@
-import { random, randomChoice, pointInCircle, lerp } from './utils';
+import { random, pointInCircle } from './utils';
 
 export type BubbleColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
 export type BubblePattern = 'star' | 'heart' | 'circle' | 'triangle' | 'diamond' | 'hexagon';
@@ -64,9 +64,9 @@ export class Bubble {
   shakeOffset: number;
   darkenAmount: number;
   
-  tailParticles: { x: number; y: number; life: number }[] = [];
   glowPulse: number;
   glowIntensity: number;
+  lastTrailEmitTime: number = 0;
 
   constructor(config: BubbleConfig) {
     this.x = config.x;
@@ -92,9 +92,10 @@ export class Bubble {
     
     this.glowPulse = random(0, Math.PI * 2);
     this.glowIntensity = config.type === 'bomb' ? 1.5 : config.type === 'comet' ? 1.2 : 1;
+    this.lastTrailEmitTime = 0;
   }
 
-  update(deltaTime: number): void {
+  update(deltaTime: number, _currentTime?: number): void {
     if (this.animationState === 'popping') {
       this.animationProgress += deltaTime / 300;
       const t = Math.min(this.animationProgress, 1);
@@ -129,23 +130,23 @@ export class Bubble {
     this.wobbleOffset += this.wobbleSpeed;
     this.x += Math.sin(this.wobbleOffset) * this.wobbleAmount * 0.02;
     this.glowPulse += 0.05;
-    
-    if (this.type === 'comet') {
-      this.tailParticles.unshift({ x: this.x, y: this.y + this.radius, life: 1 });
-      if (this.tailParticles.length > 15) {
-        this.tailParticles.pop();
-      }
-      for (const p of this.tailParticles) {
-        p.life -= 0.07;
-      }
+  }
+
+  shouldEmitTrail(currentTime: number, interval: number = 30): boolean {
+    if (this.type !== 'comet') return false;
+    if (this.animationState !== 'idle') return false;
+    if (currentTime - this.lastTrailEmitTime >= interval) {
+      this.lastTrailEmitTime = currentTime;
+      return true;
     }
+    return false;
+  }
+
+  getTrailPosition(): { x: number; y: number } {
+    return { x: this.x, y: this.y + this.radius * 0.5 };
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    if (this.type === 'comet' && this.tailParticles.length > 0) {
-      this.renderTail(ctx);
-    }
-    
     ctx.save();
     ctx.translate(this.x + this.shakeOffset, this.y);
     
@@ -297,28 +298,6 @@ export class Bubble {
     ctx.fillText('💣', 0, 0);
   }
 
-  private renderTail(ctx: CanvasRenderingContext2D): void {
-    const color = COLOR_MAP[this.color];
-    
-    for (let i = this.tailParticles.length - 1; i >= 0; i--) {
-      const p = this.tailParticles[i];
-      if (p.life <= 0) continue;
-      
-      const size = this.radius * 0.6 * p.life;
-      const alpha = p.life * 0.5;
-      
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 15;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
   private renderPattern(ctx: CanvasRenderingContext2D, size: number): void {
     ctx.save();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -414,7 +393,17 @@ export class Bubble {
   }
 
   containsPoint(px: number, py: number): boolean {
-    return pointInCircle(px, py, this.x, this.y, this.radius);
+    const effectiveX = this.x + this.shakeOffset;
+    let effectiveRadius = this.radius;
+    if (this.animationState === 'popping') {
+      const t = Math.min(this.animationProgress, 1);
+      effectiveRadius = this.radius * this.popScale * (1 - t * 0.5);
+    }
+    return pointInCircle(px, py, effectiveX, this.y, effectiveRadius);
+  }
+
+  isClickable(): boolean {
+    return this.animationState === 'idle';
   }
 
   pop(): void {

@@ -54,7 +54,6 @@ export class EffectsManager {
 
   render(): void {
     const now = performance.now();
-    const { width, height } = this.canvas;
 
     for (const effect of this.effects) {
       const elapsed = now - effect.startTime;
