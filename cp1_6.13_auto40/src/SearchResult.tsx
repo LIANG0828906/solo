@@ -1,52 +1,106 @@
 import React from 'react';
-import { SearchResultItem, SearchMatch } from './App';
+import type { SearchResultItem, SearchMatch } from './App';
 
 interface SearchResultProps {
   results: SearchResultItem[];
+  keywords: string[];
   onResultClick: (match: SearchMatch) => void;
-  getKeywordColor: (keyword: string) => string;
 }
 
 const HIGHLIGHT_COLORS = ['#FFD54F', '#4DD0E1', '#FF9800', '#81C784', '#BA68C8'];
 
-const SearchResult: React.FC<SearchResultProps> = ({ results, onResultClick, getKeywordColor }) => {
-  const renderHighlightedContext = (context: string, keyword: string, keywordIndex: number) => {
+const SearchResult: React.FC<SearchResultProps> = ({ results, keywords, onResultClick }) => {
+  const getKeywordColor = (keyword: string): string => {
+    const idx = keywords.findIndex((k) => k.toLowerCase() === keyword.toLowerCase());
+    return HIGHLIGHT_COLORS[Math.max(0, idx) % HIGHLIGHT_COLORS.length];
+  };
+
+  const renderHighlightedContext = (context: string) => {
+    if (keywords.length === 0) return context;
+
+    const allMatches: Array<{ start: number; end: number; keyword: string; color: string }> = [];
     const lowerContext = context.toLowerCase();
-    const lowerKeyword = keyword.toLowerCase();
-    const idx = lowerContext.indexOf(lowerKeyword);
 
-    if (idx === -1) return context;
+    keywords.forEach((keyword) => {
+      const lowerKeyword = keyword.toLowerCase();
+      const color = getKeywordColor(keyword);
+      let searchPos = 0;
 
-    const before = context.slice(0, idx);
-    const match = context.slice(idx, idx + keyword.length);
-    const after = context.slice(idx + keyword.length);
-    const color = HIGHLIGHT_COLORS[keywordIndex % HIGHLIGHT_COLORS.length];
+      while (true) {
+        const pos = lowerContext.indexOf(lowerKeyword, searchPos);
+        if (pos === -1) break;
+        allMatches.push({
+          start: pos,
+          end: pos + keyword.length,
+          keyword,
+          color,
+        });
+        searchPos = pos + keyword.length;
+      }
+    });
 
-    return (
-      <>
-        {before && <span className="context-text">...{before.slice(-30)}</span>}
+    if (allMatches.length === 0) return context;
+
+    allMatches.sort((a, b) => a.start - b.start);
+
+    const merged: typeof allMatches = [];
+    allMatches.forEach((m) => {
+      if (merged.length === 0 || m.start >= merged[merged.length - 1].end) {
+        merged.push(m);
+      } else {
+        const last = merged[merged.length - 1];
+        if (m.end > last.end) {
+          last.end = m.end;
+        }
+      }
+    });
+
+    const result: React.ReactNode[] = [];
+    let lastEnd = 0;
+
+    merged.forEach((match, idx) => {
+      if (match.start > lastEnd) {
+        const text = context.slice(lastEnd, match.start);
+        const displayText =
+          lastEnd === 0 && idx === 0
+            ? text.length > 30
+              ? '...' + text.slice(-30)
+              : text
+            : text;
+        result.push(
+          <span key={`text-${idx}`} className="context-text">
+            {displayText}
+          </span>
+        );
+      }
+      result.push(
         <span
+          key={`hl-${idx}`}
           className="highlight-breath"
           style={{
-            backgroundColor: color,
+            backgroundColor: match.color,
             color: '#1A1A2E',
             fontWeight: 600,
             padding: '1px 3px',
             borderRadius: '2px',
           }}
         >
-          {match}
+          {context.slice(match.start, match.end)}
         </span>
-        {after && <span className="context-text">{after.slice(0, 30)}...</span>}
-      </>
-    );
-  };
+      );
+      lastEnd = match.end;
+    });
 
-  const getKeywordIndex = (keyword: string): number => {
-    const allKeywords = Array.from(
-      new Set(results.flatMap((r) => r.matches.map((m) => m.keyword.toLowerCase())))
-    );
-    return allKeywords.indexOf(keyword.toLowerCase());
+    if (lastEnd < context.length) {
+      const remaining = context.slice(lastEnd);
+      result.push(
+        <span key="text-end" className="context-text">
+          {remaining.length > 30 ? remaining.slice(0, 30) + '...' : remaining}
+        </span>
+      );
+    }
+
+    return <>{result}</>;
   };
 
   return (
@@ -66,16 +120,12 @@ const SearchResult: React.FC<SearchResultProps> = ({ results, onResultClick, get
           <div className="result-matches">
             {result.matches.slice(0, 5).map((match, idx) => (
               <div
-                key={idx}
+                key={`${match.paragraphIndex}-${match.startIndex}-${idx}`}
                 className="match-item card-mini"
                 onClick={() => onResultClick(match)}
               >
-                <div className="match-paragraph">
-                  {renderHighlightedContext(match.context, match.keyword, getKeywordIndex(match.keyword))}
-                </div>
-                <div className="match-location">
-                  段落 #{match.paragraphIndex + 1}
-                </div>
+                <div className="match-paragraph">{renderHighlightedContext(match.context)}</div>
+                <div className="match-location">段落 #{match.paragraphIndex + 1}</div>
               </div>
             ))}
             {result.matches.length > 5 && (

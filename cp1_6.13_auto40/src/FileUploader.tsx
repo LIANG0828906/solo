@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { DocInfo } from './App';
+import type { DocInfo } from './App';
+import type { ApiTypes } from './apiTypes';
 
 interface FileUploaderProps {
   onUploadComplete: (docInfo: DocInfo) => void;
@@ -10,8 +11,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastProgressUpdateRef = useRef<number>(0);
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -27,39 +30,38 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+    setUploadStatus('uploading');
+    lastProgressUpdateRef.current = 0;
 
     const formData = new FormData();
     formData.append('file', file);
 
-    let progressInterval: NodeJS.Timeout | null = null;
-
     try {
-      let progress = 0;
-      progressInterval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress > 90) {
-          progress = 90;
-          if (progressInterval) clearInterval(progressInterval);
-        }
-        setUploadProgress(Math.floor(progress));
-      }, 100);
-
-      const response = await axios.post('/api/upload', formData, {
+      const response = await axios.post<ApiTypes['upload']['response']>('/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
-            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            if (percent > progress) {
+            const now = Date.now();
+            const elapsedSinceLastUpdate = now - lastProgressUpdateRef.current;
+            const percent = Math.min(95, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+
+            if (elapsedSinceLastUpdate >= 100 || percent >= 95) {
               setUploadProgress(percent);
+              lastProgressUpdateRef.current = now;
             }
           }
         },
       });
 
-      if (progressInterval) clearInterval(progressInterval);
+      setUploadStatus('parsing');
+      setUploadProgress(98);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       setUploadProgress(100);
+      setUploadStatus('done');
 
       const docInfo: DocInfo = {
         id: response.data.id,
@@ -67,19 +69,20 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
         pageCount: response.data.pageCount,
         paragraphCount: response.data.paragraphCount,
         uploadedAt: Date.now(),
-        preview: '',
+        preview: response.data.preview || '',
       };
 
       setTimeout(() => {
         onUploadComplete(docInfo);
         setIsUploading(false);
         setUploadProgress(0);
-      }, 500);
+        setUploadStatus('idle');
+      }, 400);
     } catch (error: any) {
-      if (progressInterval) clearInterval(progressInterval);
       setIsUploading(false);
       setUploadProgress(0);
-      setUploadError(error.response?.data?.error || '上传失败');
+      setUploadStatus('idle');
+      setUploadError(error.response?.data?.error || '上传失败，请重试');
     }
   }, [onUploadComplete]);
 
@@ -98,7 +101,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
     setIsDragging(false);
 
     const files = e.dataTransfer.files;
-    if (files.length > 0) {
+    if (files.length > 0 && !isUploading) {
       handleFileUpload(files[0]);
     }
   };
@@ -114,7 +117,22 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
   };
 
   const handleClick = () => {
-    fileInputRef.current?.click();
+    if (!isUploading) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const getStatusText = () => {
+    switch (uploadStatus) {
+      case 'uploading':
+        return '正在上传...';
+      case 'parsing':
+        return '正在解析文档...';
+      case 'done':
+        return '解析完成!';
+      default:
+        return isUploading ? '处理中...' : '拖拽PDF文件到此处';
+    }
   };
 
   return (
@@ -133,12 +151,19 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
           accept=".pdf"
           className="file-input"
           onChange={handleFileChange}
+          disabled={isUploading}
         />
-        <div className="upload-icon">{isUploading ? '⏳' : '📁'}</div>
-        <p className="drop-text">
-          {isUploading ? '正在解析文档...' : '拖拽PDF文件到此处'}
-        </p>
-        <p className="drop-hint">或点击选择文件</p>
+        <div className="upload-icon">
+          {uploadStatus === 'uploading'
+            ? '📤'
+            : uploadStatus === 'parsing'
+            ? '�'
+            : uploadStatus === 'done'
+            ? '✅'
+            : '📁'}
+        </div>
+        <p className="drop-text">{getStatusText()}</p>
+        <p className="drop-hint">{isUploading ? '' : '或点击选择文件'}</p>
         <p className="size-hint">最大支持 50MB</p>
 
         {isUploading && (
@@ -146,7 +171,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete }) => {
             <div className="progress-bar">
               <div
                 className="progress-fill"
-                style={{ width: `${uploadProgress}%` }}
+                style={{
+                  width: `${uploadProgress}%`,
+                  background:
+                    uploadStatus === 'parsing'
+                      ? 'linear-gradient(90deg, #81C784, #4CAF50)'
+                      : 'linear-gradient(90deg, #FFD54F, #FF9800)',
+                }}
               />
             </div>
             <span className="progress-text">{uploadProgress}%</span>

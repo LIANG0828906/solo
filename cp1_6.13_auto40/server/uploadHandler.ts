@@ -13,6 +13,14 @@ export interface Document {
 
 export const documentsMap = new Map<string, Document>();
 
+export type DocumentCreatedCallback = (doc: Document) => void;
+
+let onDocumentCreated: DocumentCreatedCallback | null = null;
+
+export function setDocumentCreatedCallback(callback: DocumentCreatedCallback): void {
+  onDocumentCreated = callback;
+}
+
 function generateId(): string {
   return 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
@@ -33,6 +41,8 @@ export async function uploadHandler(req: Request, res: Response): Promise<void> 
 
     const fileBuffer = req.file.buffer;
     const fileName = req.file.originalname;
+
+    const parseStartTime = Date.now();
 
     const data = await pdfParse(fileBuffer, {
       pagerender: function (pageData: any) {
@@ -55,7 +65,7 @@ export async function uploadHandler(req: Request, res: Response): Promise<void> 
     const totalPages = data.numpages;
 
     let remainingText = data.text;
-    const charsPerPage = Math.ceil(data.text.length / totalPages);
+    const charsPerPage = Math.ceil(data.text.length / Math.max(1, totalPages));
     for (let i = 0; i < totalPages; i++) {
       const pageText = remainingText.slice(0, charsPerPage);
       pagesText.push(pageText);
@@ -77,11 +87,25 @@ export async function uploadHandler(req: Request, res: Response): Promise<void> 
 
     documentsMap.set(docId, document);
 
+    if (onDocumentCreated) {
+      try {
+        onDocumentCreated(document);
+      } catch (err) {
+        console.error('Index registration failed:', err);
+      }
+    }
+
+    const parseElapsed = Date.now() - parseStartTime;
+    console.log(
+      `[Upload] Parsed "${fileName}": ${totalPages} pages, ${paragraphs.length} paragraphs, ${data.text.length} chars in ${parseElapsed}ms`
+    );
+
     res.json({
       id: docId,
       name: fileName,
       pageCount: totalPages,
       paragraphCount: paragraphs.length,
+      preview: pagesText[0]?.slice(0, 100) || '',
     });
   } catch (error) {
     console.error('Upload error:', error);

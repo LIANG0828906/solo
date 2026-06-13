@@ -1,63 +1,135 @@
 import { Request, Response } from 'express';
 import { documentsMap, Document } from './uploadHandler.js';
+import type { SearchMatchDto, SearchResultDto, DocInfoDto } from '../src/apiTypes.js';
 
-export interface SearchMatch {
-  documentId: string;
-  documentName: string;
+export type InvertedIndexEntry = {
   paragraphIndex: number;
-  paragraph: string;
-  context: string;
-  startIndex: number;
-  endIndex: number;
-  keyword: string;
-}
+  positions: number[];
+};
 
-export interface SearchResult {
-  documentId: string;
-  documentName: string;
-  pageCount: number;
-  matchCount: number;
-  matches: SearchMatch[];
-}
+export type DocInvertedIndex = Map<string, InvertedIndexEntry[]>;
 
-function buildInvertedIndex(doc: Document): Map<string, Array<{ paragraphIndex: number; positions: number[] }>> {
-  const index = new Map<string, Array<{ paragraphIndex: number; positions: number[] }>>();
+export type GlobalInvertedIndex = Map<string, Map<string, InvertedIndexEntry[]>>;
+
+const globalInvertedIndex: GlobalInvertedIndex = new Map();
+
+const docWordIndexCache = new Map<string, DocInvertedIndex>();
+
+export function buildDocumentIndex(doc: Document): DocInvertedIndex {
+  const docIndex: DocInvertedIndex = new Map();
 
   doc.paragraphs.forEach((paragraph, pIdx) => {
-    const wordMap = new Map<string, number[]>();
+    const wordPositions = new Map<string, number[]>();
     const lowerPara = paragraph.toLowerCase();
 
-    const words = lowerPara.match(/[\w\u4e00-\u9fa5]+/g) || [];
-    let searchPos = 0;
-    words.forEach((word) => {
-      const pos = lowerPara.indexOf(word, searchPos);
-      if (pos !== -1) {
-        if (!wordMap.has(word)) {
-          wordMap.set(word, []);
-        }
-        wordMap.get(word)!.push(pos);
-        searchPos = pos + word.length;
+    const tokens = extractTokens(lowerPara);
+    tokens.forEach(({ token, position }) => {
+      if (!wordPositions.has(token)) {
+        wordPositions.set(token, []);
       }
+      wordPositions.get(token)!.push(position);
     });
 
-    wordMap.forEach((positions, word) => {
-      if (!index.has(word)) {
-        index.set(word, []);
+    wordPositions.forEach((positions, word) => {
+      if (!docIndex.has(word)) {
+        docIndex.set(word, []);
       }
-      index.get(word)!.push({ paragraphIndex: pIdx, positions });
+      docIndex.get(word)!.push({
+        paragraphIndex: pIdx,
+        positions,
+      });
     });
   });
 
-  return index;
+  return docIndex;
 }
 
-const docIndexCache = new Map<string, Map<string, Array<{ paragraphIndex: number; positions: number[] }>>>();
+function extractTokens(text: string): Array<{ token: string; position: number }> {
+  const result: Array<{ token: string; position: number }> = [];
+  const regex = /[\w\u4e00-\u9fa5]+/g;
+  let match: RegExpExecArray | null;
 
-function getDocIndex(doc: Document): Map<string, Array<{ paragraphIndex: number; positions: number[] }>> {
-  if (!docIndexCache.has(doc.id)) {
-    docIndexCache.set(doc.id, buildInvertedIndex(doc));
+  while ((match = regex.exec(text)) !== null) {
+    result.push({
+      token: match[0],
+      position: match.index,
+    });
   }
-  return docIndexCache.get(doc.id)!;
+
+  return result;
+}
+
+export function registerDocumentToIndex(doc: Document): void {
+  const docIndex = buildDocumentIndex(doc);
+  docWordIndexCache.set(doc.id, docIndex);
+
+  docIndex.forEach((entries, word) => {
+    if (!globalInvertedIndex.has(word)) {
+      globalInvertedIndex.set(word, new Map());
+    }
+    globalInvertedIndex.get(word)!.set(doc.id, entries);
+  });
+}
+
+export function removeDocumentFromIndex(docId: string): void {
+  const docIndex = docWordIndexCache.get(docId);
+  if (docIndex) {
+    docIndex.forEach((_, word) => {
+      globalInvertedIndex.get(word)?.delete(docId);
+      if (globalInvertedIndex.get(word)?.size === 0) {
+        globalInvertedIndex.delete(word);
+      }
+    });
+  }
+  docWordIndexCache.delete(docId);
+}
+
+export function searchKeywordsInGlobalIndex(keywords: string[]): Map<string, SearchMatchDto[]> {
+  const docMatchesMap = new Map<string, SearchMatchDto[]>();
+
+  keywords.forEach((keyword) => {
+    const lowerKeyword = keyword.toLowerCase();
+
+    for (const [word, docEntriesMap] of globalInvertedIndex.entries()) {
+      if (!word.includes(lowerKeyword)) continue;
+
+      for (const [docId, entries] of docEntriesMap.entries()) {
+        const doc = documentsMap.get(docId);
+        if (!doc) continue;
+
+        if (!docMatchesMap.has(docId)) {
+          docMatchesMap.set(docId, []);
+        }
+        const matches = docMatchesMap.get(docId)!;
+
+        entries.forEach((entry) => {
+          const paragraph = doc.paragraphs[entry.paragraphIndex];
+          const lowerPara = paragraph.toLowerCase();
+
+          let searchPos = 0;
+          while (true) {
+            const idx = lowerPara.indexOf(lowerKeyword, searchPos);
+            if (idx === -1) break;
+
+            matches.push({
+              documentId: docId,
+              documentName: doc.name,
+              paragraphIndex: entry.paragraphIndex,
+              paragraph,
+              context: getContext(paragraph, idx, idx + keyword.length),
+              startIndex: idx,
+              endIndex: idx + keyword.length,
+              keyword,
+            });
+
+            searchPos = idx + keyword.length;
+          }
+        });
+      }
+    }
+  });
+
+  return docMatchesMap;
 }
 
 function getContext(text: string, start: number, end: number, contextLen: number = 30): string {
@@ -66,12 +138,23 @@ function getContext(text: string, start: number, end: number, contextLen: number
   return text.slice(ctxStart, ctxEnd);
 }
 
+function deduplicateMatches(matches: SearchMatchDto[]): SearchMatchDto[] {
+  const seen = new Set<string>();
+  return matches.filter((m) => {
+    const key = `${m.paragraphIndex}-${m.startIndex}-${m.keyword}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function searchHandler(req: Request, res: Response): void {
   try {
+    const startTime = Date.now();
     const { q } = req.query;
 
     if (!q || typeof q !== 'string') {
-      res.json({ results: [], keywords: [] });
+      res.json({ results: [], keywords: [], totalMatches: 0 });
       return;
     }
 
@@ -81,72 +164,33 @@ export function searchHandler(req: Request, res: Response): void {
       .filter((k) => k.length > 0);
 
     if (keywords.length === 0) {
-      res.json({ results: [], keywords: [] });
+      res.json({ results: [], keywords: [], totalMatches: 0 });
       return;
     }
 
-    const results: SearchResult[] = [];
+    const docMatchesMap = searchKeywordsInGlobalIndex(keywords);
+    const results: SearchResultDto[] = [];
 
-    documentsMap.forEach((doc) => {
-      const index = getDocIndex(doc);
-      const allMatches: SearchMatch[] = [];
+    docMatchesMap.forEach((matches, docId) => {
+      const doc = documentsMap.get(docId);
+      if (!doc) return;
 
-      keywords.forEach((keyword) => {
-        const lowerKeyword = keyword.toLowerCase();
+      const uniqueMatches = deduplicateMatches(matches);
+      if (uniqueMatches.length === 0) return;
 
-        for (const [word, entries] of index.entries()) {
-          if (word.includes(lowerKeyword)) {
-            entries.forEach((entry) => {
-              const paragraph = doc.paragraphs[entry.paragraphIndex];
-              const lowerPara = paragraph.toLowerCase();
-
-              let searchPos = 0;
-              while (true) {
-                const idx = lowerPara.indexOf(lowerKeyword, searchPos);
-                if (idx === -1) break;
-
-                allMatches.push({
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  paragraphIndex: entry.paragraphIndex,
-                  paragraph,
-                  context: getContext(paragraph, idx, idx + keyword.length),
-                  startIndex: idx,
-                  endIndex: idx + keyword.length,
-                  keyword,
-                });
-
-                searchPos = idx + keyword.length;
-              }
-            });
-          }
-        }
+      results.push({
+        documentId: docId,
+        documentName: doc.name,
+        pageCount: doc.pageCount,
+        matchCount: uniqueMatches.length,
+        matches: uniqueMatches,
       });
-
-      if (allMatches.length > 0) {
-        const uniqueMatches = allMatches.filter((match, idx, arr) => {
-          return (
-            idx ===
-            arr.findIndex(
-              (m) =>
-                m.paragraphIndex === match.paragraphIndex &&
-                m.startIndex === match.startIndex &&
-                m.keyword === match.keyword
-            )
-          );
-        });
-
-        results.push({
-          documentId: doc.id,
-          documentName: doc.name,
-          pageCount: doc.pageCount,
-          matchCount: uniqueMatches.length,
-          matches: uniqueMatches,
-        });
-      }
     });
 
     results.sort((a, b) => b.matchCount - a.matchCount);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Search] Query="${q}", Found ${results.length} docs, ${results.reduce((s, r) => s + r.matchCount, 0)} matches in ${elapsed}ms`);
 
     res.json({
       results,
@@ -161,7 +205,7 @@ export function searchHandler(req: Request, res: Response): void {
 
 export function getDocumentsHandler(req: Request, res: Response): void {
   try {
-    const docs = Array.from(documentsMap.values()).map((doc) => ({
+    const docs: DocInfoDto[] = Array.from(documentsMap.values()).map((doc) => ({
       id: doc.id,
       name: doc.name,
       pageCount: doc.pageCount,
