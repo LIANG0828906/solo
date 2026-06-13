@@ -109,19 +109,28 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z' && !e.shiftKey) {
-          e.preventDefault();
-          undo();
+          if (!isInput) {
+            e.preventDefault();
+            e.stopPropagation();
+            undo();
+          }
         } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
-          e.preventDefault();
-          redo();
+          if (!isInput) {
+            e.preventDefault();
+            e.stopPropagation();
+            redo();
+          }
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [undo, redo]);
 
   useEffect(() => {

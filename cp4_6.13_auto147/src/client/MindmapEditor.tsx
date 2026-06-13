@@ -25,7 +25,7 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 function getLevelColor(level: number): string {
-  return LEVEL_COLORS[level] || LEVEL_COLORS[3] || '#50C878';
+  return LEVEL_COLORS[level] || LEVEL_COLORS[3];
 }
 
 function MindmapEditor({
@@ -161,23 +161,21 @@ function MindmapEditor({
       target.setPointerCapture(e.pointerId);
       target.classList.add('dragging');
 
-      let lastX = e.clientX;
-      let lastY = e.clientY;
-      let currentX = node.x;
-      let currentY = node.y;
+      const currentScale = transformRef.current.scale;
+      const lastX = e.clientX / currentScale;
+      const lastY = e.clientY / currentScale;
+      const currentX = node.x;
+      const currentY = node.y;
 
       const handleMove = (moveEvent: PointerEvent) => {
-        const currentScale = transformRef.current.scale;
-        const dx = (moveEvent.clientX - lastX) / currentScale;
-        const dy = (moveEvent.clientY - lastY) / currentScale;
+        const scale = transformRef.current.scale;
+        const dx = (moveEvent.clientX / scale) - lastX;
+        const dy = (moveEvent.clientY / scale) - lastY;
 
-        lastX = moveEvent.clientX;
-        lastY = moveEvent.clientY;
+        const newX = currentX + dx;
+        const newY = currentY + dy;
 
-        currentX += dx;
-        currentY += dy;
-
-        onNodeDrag(node.id, currentX, currentY);
+        onNodeDrag(node.id, newX, newY);
       };
 
       const handleUp = () => {
@@ -282,7 +280,9 @@ function MindmapEditor({
             top: node.y,
             backgroundColor: bgColor,
             borderColor: isRoot ? '#4A90D9' : 'transparent',
-            color: isRoot ? '#333' : 'white',
+            color: isRoot ? '#333' : '#ffffff',
+            borderWidth: isRoot ? '2px' : '0px',
+            borderStyle: 'solid',
           }}
           onPointerDown={(e) => handleNodePointerDown(e, node)}
           onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
@@ -362,38 +362,15 @@ function MindmapEditor({
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        const container = containerRef.current;
-        const savedTransform = { ...transformRef.current };
-
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        const traverse = (node: MindMapNode) => {
-          minX = Math.min(minX, node.x - 120);
-          maxX = Math.max(maxX, node.x + 120);
-          minY = Math.min(minY, node.y - 40);
-          maxY = Math.max(maxY, node.y + 40);
-          node.children.forEach(traverse);
-        };
-        traverse(data);
-
-        const contentWidth = maxX - minX;
-        const contentHeight = maxY - minY;
-        const padding = 40;
-
         const canvasEl = canvasRef.current;
         const savedStyle = canvasEl.style.cssText;
 
-        canvasEl.style.transform = 'none';
-        canvasEl.style.left = `${-minX + padding}px`;
-        canvasEl.style.top = `${-minY + padding}px`;
-        canvasEl.style.width = `${contentWidth + padding * 2}px`;
-        canvasEl.style.height = `${contentHeight + padding * 2}px`;
+        canvasEl.style.transform = 'translate(0px, 0px) scale(1)';
+        canvasEl.style.left = '0';
+        canvasEl.style.top = '0';
+        canvasEl.style.width = `${canvasEl.parentElement?.clientWidth}px`;
+        canvasEl.style.height = `${canvasEl.parentElement?.clientHeight}px`;
         canvasEl.style.transition = 'none';
-
-        const wrapperEl = container;
-        const savedWrapperStyle = wrapperEl.style.cssText;
-        wrapperEl.style.width = `${contentWidth + padding * 2}px`;
-        wrapperEl.style.height = `${contentHeight + padding * 2}px`;
-        wrapperEl.style.overflow = 'visible';
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -404,7 +381,6 @@ function MindmapEditor({
         });
 
         canvasEl.style.cssText = savedStyle;
-        wrapperEl.style.cssText = savedWrapperStyle;
         setShowGrid(true);
 
         const link = document.createElement('a');
