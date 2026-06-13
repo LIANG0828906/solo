@@ -20,9 +20,33 @@ export interface PaginationResult<T> {
   hasMore: boolean;
 }
 
+export interface FavoriteResult {
+  snippet: CodeSnippet;
+  favorited: boolean;
+}
+
+const MAX_RETRY = 5;
+const MIN_PAGE = 1;
+const MAX_PAGE_SIZE = 100;
+
+function clampPage(page: unknown, defaultPage: number = MIN_PAGE): number {
+  const p = typeof page === 'number' ? page : parseInt(String(page ?? ''));
+  if (isNaN(p) || p < MIN_PAGE) return defaultPage;
+  return p;
+}
+
+function clampPageSize(pageSize: unknown, defaultSize: number = 12): number {
+  const s = typeof pageSize === 'number' ? pageSize : parseInt(String(pageSize ?? ''));
+  if (isNaN(s) || s < 1) return defaultSize;
+  if (s > MAX_PAGE_SIZE) return MAX_PAGE_SIZE;
+  return s;
+}
+
 class Database {
   private snippets: Map<string, CodeSnippet> = new Map();
   private shortLinkMap: Map<string, string> = new Map();
+  private snippetToShortCode: Map<string, string> = new Map();
+  private favoriteNonces: Map<string, Set<string>> = new Map();
 
   constructor() {
     this.seedData();
@@ -454,20 +478,23 @@ $user = DB::table('users')
     });
   }
 
-  getAll(page: number = 1, pageSize: number = 12): PaginationResult<CodeSnippet> {
+  getAll(page: unknown = 1, pageSize: unknown = 12): PaginationResult<CodeSnippet> {
+    const safePage = clampPage(page);
+    const safePageSize = clampPageSize(pageSize);
+
     const allSnippets = Array.from(this.snippets.values()).sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
 
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
+    const start = (safePage - 1) * safePageSize;
+    const end = start + safePageSize;
     const items = allSnippets.slice(start, end);
 
     return {
       items,
       total: allSnippets.length,
-      page,
-      pageSize,
+      page: safePage,
+      pageSize: safePageSize,
       hasMore: end < allSnippets.length,
     };
   }
@@ -488,10 +515,10 @@ $user = DB::table('users')
     const snippet: CodeSnippet = {
       id,
       title: data.title,
-      description: data.description,
+      description: data.description || '',
       code: data.code,
       language: data.language,
-      tags: data.tags,
+      tags: Array.isArray(data.tags) ? data.tags.slice(0, 3) : [],
       favorites: 0,
       createdAt: now,
       updatedAt: now,
@@ -513,9 +540,18 @@ $user = DB::table('users')
     const snippet = this.snippets.get(id);
     if (!snippet) return undefined;
 
+    const updateData: Partial<CodeSnippet> = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.code !== undefined) updateData.code = data.code;
+    if (data.language !== undefined) updateData.language = data.language;
+    if (data.tags !== undefined) {
+      updateData.tags = Array.isArray(data.tags) ? data.tags.slice(0, 3) : [];
+    }
+
     const updated: CodeSnippet = {
       ...snippet,
-      ...data,
+      ...updateData,
       updatedAt: new Date(),
     };
     this.snippets.set(id, updated);
@@ -523,27 +559,49 @@ $user = DB::table('users')
   }
 
   delete(id: string): boolean {
+    const shortCode = this.snippetToShortCode.get(id);
+    if (shortCode) {
+      this.shortLinkMap.delete(shortCode);
+      this.snippetToShortCode.delete(id);
+    }
+    this.favoriteNonces.delete(id);
     return this.snippets.delete(id);
   }
 
-  toggleFavorite(id: string): { snippet: CodeSnippet; favorited: boolean } | undefined {
+  toggleFavorite(id: string, nonce?: string): FavoriteResult | undefined {
     const snippet = this.snippets.get(id);
     if (!snippet) return undefined;
+
+    let nonces = this.favoriteNonces.get(id);
+    if (!nonces) {
+      nonces = new Set();
+      this.favoriteNonces.set(id, nonces);
+    }
+
+    if (nonce) {
+      if (nonces.has(nonce)) {
+        return { snippet: { ...snippet }, favorited: true };
+      }
+      nonces.add(nonce);
+    }
 
     snippet.favorites = snippet.favorites + 1;
     snippet.updatedAt = new Date();
     this.snippets.set(id, snippet);
 
-    return { snippet, favorited: true };
+    return { snippet: { ...snippet }, favorited: true };
   }
 
   search(
     keyword: string = '',
     tags: string[] = [],
-    page: number = 1,
-    pageSize: number = 12
+    page: unknown = 1,
+    pageSize: unknown = 12
   ): PaginationResult<CodeSnippet> {
-    const keywordLower = keyword.toLowerCase();
+    const safePage = clampPage(page);
+    const safePageSize = clampPageSize(pageSize);
+    const keywordLower = (keyword || '').toLowerCase();
+    const safeTags = Array.isArray(tags) ? tags.filter(Boolean) : [];
 
     let filtered = Array.from(this.snippets.values()).filter((snippet) => {
       const matchesKeyword =
@@ -552,22 +610,22 @@ $user = DB::table('users')
         snippet.description.toLowerCase().includes(keywordLower);
 
       const matchesTags =
-        tags.length === 0 || tags.some((tag) => snippet.tags.includes(tag));
+        safeTags.length === 0 || safeTags.some((tag) => snippet.tags.includes(tag));
 
       return matchesKeyword && matchesTags;
     });
 
     filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
+    const start = (safePage - 1) * safePageSize;
+    const end = start + safePageSize;
     const items = filtered.slice(start, end);
 
     return {
       items,
       total: filtered.length,
-      page,
-      pageSize,
+      page: safePage,
+      pageSize: safePageSize,
       hasMore: end < filtered.length,
     };
   }
@@ -575,7 +633,9 @@ $user = DB::table('users')
   getAvailableTags(): string[] {
     const tagSet = new Set<string>();
     this.snippets.forEach((snippet) => {
-      snippet.tags.forEach((tag) => tagSet.add(tag));
+      snippet.tags.forEach((tag) => {
+        if (tag) tagSet.add(tag);
+      });
     });
     return Array.from(tagSet).sort();
   }
@@ -583,8 +643,38 @@ $user = DB::table('users')
   generateShortLink(snippetId: string): string | undefined {
     if (!this.snippets.has(snippetId)) return undefined;
 
-    const shortCode = Buffer.from(snippetId).toString('base64url').slice(0, 12);
+    const existing = this.snippetToShortCode.get(snippetId);
+    if (existing && this.shortLinkMap.get(existing) === snippetId) {
+      return existing;
+    }
+
+    let shortCode: string;
+    let attempt = 0;
+    const baseId = snippetId + Date.now().toString(36);
+
+    do {
+      const raw = attempt === 0 ? baseId : baseId + attempt.toString(36);
+      shortCode = Buffer.from(raw).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
+      if (shortCode.length < 8) {
+        shortCode = shortCode.padEnd(8, '0');
+      }
+      attempt++;
+    } while (
+      this.shortLinkMap.has(shortCode) &&
+      this.shortLinkMap.get(shortCode) !== snippetId &&
+      attempt < MAX_RETRY
+    );
+
+    if (
+      this.shortLinkMap.has(shortCode) &&
+      this.shortLinkMap.get(shortCode) !== snippetId
+    ) {
+      const fallback = `${shortCode}-${Date.now().toString(36).slice(-4)}`;
+      shortCode = fallback;
+    }
+
     this.shortLinkMap.set(shortCode, snippetId);
+    this.snippetToShortCode.set(snippetId, shortCode);
     return shortCode;
   }
 
@@ -593,7 +683,15 @@ $user = DB::table('users')
     if (!snippetId) return undefined;
     return this.snippets.get(snippetId);
   }
+
+  clear(): void {
+    this.snippets.clear();
+    this.shortLinkMap.clear();
+    this.snippetToShortCode.clear();
+    this.favoriteNonces.clear();
+  }
 }
 
 const db = new Database();
 export default db;
+export { clampPage, clampPageSize };
