@@ -41,6 +41,8 @@ export interface FeedbackState {
   selectedId: string
   isCorrect: boolean
   scoreDelta: number
+  comboBonus: number
+  combo: number
 }
 
 export interface GameState {
@@ -160,14 +162,19 @@ export class GameEngine {
 
     const isCorrect = isSameColor(selectedColor, this.state.targetColor)
     let scoreDelta = 0
+    let comboBonus = 0
     let newCombo = this.state.combo
 
     if (isCorrect) {
       scoreDelta = SCORE_CORRECT
       newCombo = this.state.combo + 1
-      if (newCombo > 1) scoreDelta += SCORE_COMBO_BONUS
+      if (newCombo > 1) {
+        comboBonus = SCORE_COMBO_BONUS
+        scoreDelta += comboBonus
+      }
     } else {
       scoreDelta = SCORE_WRONG
+      comboBonus = 0
       newCombo = 0
     }
 
@@ -188,7 +195,7 @@ export class GameEngine {
       score: newScore,
       combo: newCombo,
       lastResult: result,
-      feedback: { selectedId, isCorrect, scoreDelta },
+      feedback: { selectedId, isCorrect, scoreDelta, comboBonus, combo: newCombo },
       isRoundComplete: nowRoundComplete,
     }
     this.notify()

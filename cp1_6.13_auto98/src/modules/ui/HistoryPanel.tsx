@@ -22,9 +22,30 @@ function difficultyBadgeColor(d: Difficulty): string {
   }
 }
 
-function buildThumbnail(record: GameRecord): string[] {
-  return record.results.slice(0, 6).map((r) => r.targetColor.hex)
-}
+const ColorSwatch: React.FC<{
+  hex: string
+  size?: number
+  label?: string
+}> = ({ hex, size = 32, label }) => (
+  <span
+    className="color-swatch"
+    style={{ width: size, height: size, background: hex }}
+    title={label ?? hex}
+  />
+)
+
+const QuestionRow: React.FC<{ index: number; result: QuestionResult }> = ({ index, result }) => (
+  <div className={`q-row ${result.isCorrect ? 'q-correct' : 'q-wrong'}`}>
+    <span className="q-index">#{index + 1}</span>
+    <ColorSwatch hex={result.targetColor.hex} size={28} label={`目标 ${result.targetColor.hex}`} />
+    <span className="q-arrow">→</span>
+    <ColorSwatch hex={result.selectedColor.hex} size={28} label={`选择 ${result.selectedColor.hex}`} />
+    <span className={`q-result-icon ${result.isCorrect ? 'icon-correct' : 'icon-wrong'}`}>
+      {result.isCorrect ? '✓' : '✗'}
+    </span>
+    <span className="q-time">{result.reactionTimeMs}ms</span>
+  </div>
+)
 
 const HistoryListItem: React.FC<{
   record: GameRecord
@@ -32,7 +53,6 @@ const HistoryListItem: React.FC<{
   onToggle: () => void
   onDelete: () => void
 }> = ({ record, isExpanded, onToggle, onDelete }) => {
-  const thumbs = useMemo(() => buildThumbnail(record), [record])
   const correctCount = record.results.filter((r) => r.isCorrect).length
   const accuracy = Math.round((correctCount / TOTAL_QUESTIONS) * 100)
 
@@ -51,8 +71,8 @@ const HistoryListItem: React.FC<{
         <div className="history-item-score-row">
           <span className="history-score">{record.totalScore}</span>
           <div className="history-thumbs">
-            {thumbs.map((hex, i) => (
-              <span key={i} className="thumb" style={{ background: hex }} />
+            {record.results.slice(0, 6).map((r, i) => (
+              <ColorSwatch key={i} hex={r.targetColor.hex} size={18} />
             ))}
           </div>
           <span className="history-accuracy" title="正确率">{accuracy}%</span>
@@ -68,9 +88,27 @@ const HistoryListItem: React.FC<{
             <span>答题详情</span>
             <button className="delete-btn" type="button" onClick={onDelete}>删除</button>
           </div>
-          <div className="detail-list">
+          <div className="detail-color-grid">
             {record.results.map((r: QuestionResult, idx: number) => (
-              <QuestionRow key={idx} index={idx} result={r} />
+              <div key={idx} className="detail-color-row">
+                <div className="detail-color-pair">
+                  <div className="detail-swatch-group">
+                    <ColorSwatch hex={r.targetColor.hex} size={36} label={`目标 ${r.targetColor.hex}`} />
+                    <span className="swatch-label">目标</span>
+                  </div>
+                  <span className="detail-vs">vs</span>
+                  <div className="detail-swatch-group">
+                    <ColorSwatch hex={r.selectedColor.hex} size={36} label={`选择 ${r.selectedColor.hex}`} />
+                    <span className="swatch-label">你的选择</span>
+                  </div>
+                </div>
+                <div className="detail-result-info">
+                  <span className={`detail-result-icon ${r.isCorrect ? 'icon-correct' : 'icon-wrong'}`}>
+                    {r.isCorrect ? '✓ 正确' : '✗ 错误'}
+                  </span>
+                  <span className="detail-time">{r.reactionTimeMs}ms</span>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -78,17 +116,6 @@ const HistoryListItem: React.FC<{
     </div>
   )
 }
-
-const QuestionRow: React.FC<{ index: number; result: QuestionResult }> = ({ index, result }) => (
-  <div className={`q-row ${result.isCorrect ? 'q-correct' : 'q-wrong'}`}>
-    <span className="q-index">#{index + 1}</span>
-    <span className="q-swatch" style={{ background: result.targetColor.hex }} title={`目标 ${result.targetColor.hex}`} />
-    <span className="q-arrow">→</span>
-    <span className="q-swatch" style={{ background: result.selectedColor.hex }} title={`选择 ${result.selectedColor.hex}`} />
-    <span className="q-result-icon">{result.isCorrect ? '✓' : '✗'}</span>
-    <span className="q-time">{result.reactionTimeMs}ms</span>
-  </div>
-)
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
   const [records, setRecords] = useState<GameRecord[]>([])
@@ -301,12 +328,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
             flex: 1;
             display: flex;
             gap: 3px;
-          }
-          .thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+            flex-wrap: wrap;
           }
           .history-accuracy {
             font-size: 13px;
@@ -327,6 +349,12 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
           }
           .expand-arrow.expanded {
             transform: rotate(180deg);
+          }
+          .color-swatch {
+            display: inline-block;
+            border-radius: 6px;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+            flex-shrink: 0;
           }
           .history-item-detail {
             padding: 0 14px 14px;
@@ -356,46 +384,53 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
             background: #F5B7B1;
             color: #FFFFFF;
           }
-          .detail-list {
+          .detail-color-grid {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
           }
-          .q-row {
+          .detail-color-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 8px;
+            justify-content: space-between;
+            padding: 8px 10px;
             border-radius: 8px;
-            font-size: 12px;
+            background: #F8F9FA;
           }
-          .q-correct { background: #EAFAF1; }
-          .q-wrong   { background: #FDEDEC; }
-          .q-index {
-            width: 24px;
+          .detail-color-pair {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .detail-swatch-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+          }
+          .swatch-label {
+            font-size: 10px;
             color: var(--color-text-light);
-            font-family: var(--font-mono);
           }
-          .q-swatch {
-            width: 26px;
-            height: 26px;
-            border-radius: 6px;
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
-          }
-          .q-arrow {
+          .detail-vs {
+            font-size: 11px;
             color: #BDC3C7;
-            width: 14px;
-            text-align: center;
+            font-weight: 600;
           }
-          .q-result-icon {
-            width: 18px;
-            text-align: center;
+          .detail-result-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+          }
+          .detail-result-icon {
+            font-size: 12px;
             font-weight: 700;
           }
-          .q-correct .q-result-icon { color: var(--color-accent); }
-          .q-wrong   .q-result-icon { color: var(--color-error); }
-          .q-time {
-            margin-left: auto;
+          .icon-correct { color: var(--color-accent); }
+          .icon-wrong   { color: var(--color-error); }
+          .detail-time {
+            font-size: 11px;
             color: var(--color-text-light);
             font-family: var(--font-mono);
           }

@@ -64,6 +64,10 @@ function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
+function sortByTimestampDesc(a: GameRecord, b: GameRecord): number {
+  return b.timestamp - a.timestamp
+}
+
 export async function addRecord(record: GameRecord): Promise<string> {
   const db = await openDB()
   const tx = db.transaction('records', 'readwrite')
@@ -76,20 +80,13 @@ export async function getAllRecords(): Promise<GameRecord[]> {
   const db = await openDB()
   const tx = db.transaction('records', 'readonly')
   const store = tx.objectStore('records')
-  const index = store.index('timestamp')
 
-  const records: GameRecord[] = []
   return new Promise((resolve, reject) => {
-    const cursorReq = index.openCursor(null, 'prev')
-    cursorReq.onerror = () => reject(cursorReq.error)
-    cursorReq.onsuccess = () => {
-      const cursor = cursorReq.result
-      if (cursor) {
-        records.push(cursor.value as GameRecord)
-        cursor.continue()
-      } else {
-        resolve(records)
-      }
+    const request = store.getAll()
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const records = (request.result as GameRecord[]).sort(sortByTimestampDesc)
+      resolve(records)
     }
   })
 }
@@ -100,19 +97,12 @@ export async function getRecordsByDifficulty(difficulty: Difficulty): Promise<Ga
   const store = tx.objectStore('records')
   const index = store.index('difficulty')
 
-  const all: GameRecord[] = []
   return new Promise((resolve, reject) => {
-    const cursorReq = index.openCursor(IDBKeyRange.only(difficulty), 'prev')
-    cursorReq.onerror = () => reject(cursorReq.error)
-    cursorReq.onsuccess = () => {
-      const cursor = cursorReq.result
-      if (cursor) {
-        all.push(cursor.value as GameRecord)
-        cursor.continue()
-      } else {
-        all.sort((a, b) => b.timestamp - a.timestamp)
-        resolve(all)
-      }
+    const request = index.getAll(IDBKeyRange.only(difficulty))
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const records = (request.result as GameRecord[]).sort(sortByTimestampDesc)
+      resolve(records)
     }
   })
 }
