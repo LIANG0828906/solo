@@ -61,9 +61,9 @@ export default function Canvas({
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [editingSticky, setEditingSticky] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const lastMousePos = useRef<Point>({ x: 0, y: 0 });
   const panStart = useRef<Point>({ x: 0, y: 0 });
   const currentEventId = useRef<string>('');
+  const cursorThrottle = useRef<number>(0);
 
   const screenToWorld = useCallback(
     (screenX: number, screenY: number): Point => {
@@ -93,11 +93,13 @@ export default function Canvas({
     }
 
     for (const sticky of stickies) {
-      drawSticky(ctx, sticky, 1);
+      if (editingSticky !== sticky.id) {
+        drawSticky(ctx, sticky, 1);
+      }
     }
 
     ctx.restore();
-  }, [drawHistory, stickies, offset, scale]);
+  }, [drawHistory, stickies, offset, scale, editingSticky]);
 
   const redrawPreview = useCallback(() => {
     const previewCanvas = previewCanvasRef.current;
@@ -173,16 +175,25 @@ export default function Canvas({
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
+      if (!e || !e.preventDefault) return;
       e.preventDefault();
+      e.stopPropagation();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const delta = -e.deltaY * 0.0015;
+      const rawDelta = e.deltaY !== 0 ? e.deltaY : (e.deltaX !== 0 ? e.deltaX : 0);
+      if (rawDelta === 0) return;
+
+      const deltaFactor = e.ctrlKey ? 0.002 : 0.0015;
+      const delta = -rawDelta * deltaFactor;
       let newScale = scale * (1 + delta);
-      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+
+      newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
+
+      if (newScale === scale) return;
 
       const scaleRatio = newScale / scale;
       const newOffsetX = mouseX - (mouseX - offset.x) * scaleRatio;
@@ -196,23 +207,36 @@ export default function Canvas({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+
+    const opts: AddEventListenerOptions = { passive: false, capture: false };
+    container.addEventListener('wheel', handleWheel, opts);
+
+    const preventDefault = (ev: WheelEvent) => {
+      if (container.contains(ev.target as Node)) {
+        ev.preventDefault();
+      }
+    };
+    document.addEventListener('wheel', preventDefault, opts);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel, opts);
+      document.removeEventListener('wheel', preventDefault, opts);
+    };
   }, [handleWheel]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      const worldPoint = screenToWorld(e.clientX, e.clientY);
-
-      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+      if (e.button === 1 || (e.button === 0 && e.shiftKey) || e.button === 2) {
+        e.preventDefault();
         setIsPanning(true);
         panStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
         return;
       }
 
+      const worldPoint = screenToWorld(e.clientX, e.clientY);
+
       if (currentTool === 'sticky') {
-        const stickyColors = [...STICKY_COLORS];
-        const color = stickyColors[Math.floor(Math.random() * stickyColors.length)];
+        const color = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
         const newSticky: StickyNote = {
           id: generateId(),
           userId,
@@ -227,6 +251,10 @@ export default function Canvas({
         setEditingSticky(newSticky.id);
         setEditText('');
         return;
+      }
+
+      if (editingSticky) {
+        finishEditingInternal();
       }
 
       const hitSticky = [...stickies].reverse().find(
@@ -264,15 +292,27 @@ export default function Canvas({
         timestamp: Date.now(),
       });
     },
-    [currentTool, offset, screenToWorld, userId, userColor, onDrawStart, onStickyCreate, stickies],
+    [currentTool, offset, screenToWorld, userId, userColor, onDrawStart, onStickyCreate, stickies, editingSticky],
   );
+
+  const finishEditingInternal = useCallback(() => {
+    if (!editingSticky) return;
+    const sticky = stickies.find((s) => s.id === editingSticky);
+    if (sticky) {
+      onStickyUpdate({ ...sticky, text: editText });
+    }
+    setEditingSticky(null);
+  }, [editingSticky, editText, stickies, onStickyUpdate]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       const worldPoint = screenToWorld(e.clientX, e.clientY);
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
 
-      onCursorMove(worldPoint.x, worldPoint.y);
+      const now = performance.now();
+      if (now - cursorThrottle.current > 30) {
+        cursorThrottle.current = now;
+        onCursorMove(worldPoint.x, worldPoint.y);
+      }
 
       if (isPanning) {
         const newOffset = {
@@ -364,19 +404,18 @@ export default function Canvas({
     setCurrentPoints([]);
   }, [isDrawing, isPanning, draggingSticky, currentPoints, currentTool, userId, userColor, onDrawEnd]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
   const handleStickyDoubleClick = useCallback((stickyId: string, text: string) => {
     setEditingSticky(stickyId);
     setEditText(text);
   }, []);
 
   const finishEditing = useCallback(() => {
-    if (!editingSticky) return;
-    const sticky = stickies.find((s) => s.id === editingSticky);
-    if (sticky) {
-      onStickyUpdate({ ...sticky, text: editText });
-    }
-    setEditingSticky(null);
-  }, [editingSticky, editText, stickies, onStickyUpdate]);
+    finishEditingInternal();
+  }, [finishEditingInternal]);
 
   useEffect(() => {
     if (editingSticky) {
@@ -384,11 +423,14 @@ export default function Canvas({
         if (e.key === 'Escape') {
           setEditingSticky(null);
         }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          finishEditingInternal();
+        }
       };
       window.addEventListener('keydown', handleKey);
       return () => window.removeEventListener('keydown', handleKey);
     }
-  }, [editingSticky]);
+  }, [editingSticky, finishEditingInternal]);
 
   const getStickyScreenPosition = (sticky: StickyNote) => ({
     left: offset.x + sticky.x * scale,
@@ -398,13 +440,16 @@ export default function Canvas({
   });
 
   return (
-    <div ref={containerRef} className="canvas-container">
+    <div
+      ref={containerRef}
+      className="canvas-container"
+      onContextMenu={handleContextMenu}
+    >
       <canvas
         ref={bgCanvasRef}
         className="canvas-layer"
         style={{
           background: 'var(--bg-canvas)',
-          boxShadow: 'inset 0 0 60px rgba(0,0,0,0.05)',
         }}
       />
       <canvas ref={drawCanvasRef} className="canvas-layer" style={{ pointerEvents: 'none' }} />
@@ -415,7 +460,15 @@ export default function Canvas({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
+        style={{
+          cursor: isPanning
+            ? 'grabbing'
+            : currentTool === 'sticky'
+            ? 'copy'
+            : draggingSticky
+            ? 'grabbing'
+            : 'crosshair',
+        }}
       />
 
       {stickies.map((sticky) => {
@@ -431,8 +484,9 @@ export default function Canvas({
               top: pos.top,
               width: pos.width,
               height: pos.height,
-              pointerEvents: 'auto',
-              cursor: draggingSticky === sticky.id ? 'grabbing' : 'grab',
+              pointerEvents: isEditing ? 'auto' : 'auto',
+              cursor: isEditing ? 'text' : draggingSticky === sticky.id ? 'grabbing' : 'grab',
+              zIndex: 5,
             }}
           >
             {isEditing && (
@@ -441,6 +495,7 @@ export default function Canvas({
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onBlur={finishEditing}
+                placeholder="输入文字..."
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -449,14 +504,16 @@ export default function Canvas({
                   height: '100%',
                   background: sticky.color,
                   border: '2px solid #89b4fa',
-                  borderRadius: 4,
+                  borderRadius: Math.max(3, 4 * scale),
                   padding: Math.max(8, 12 * scale),
                   fontSize: Math.max(10, 14 * scale),
+                  lineHeight: 1.6,
                   fontFamily: "'Noto Sans SC', sans-serif",
-                  color: '#333',
+                  color: '#2d2d2d',
                   resize: 'none',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
                 }}
               />
             )}
@@ -473,8 +530,40 @@ export default function Canvas({
             top: offset.y + data.y * scale,
           }}
         >
-          <div className="user-cursor" style={{ background: data.color }} />
-          <div className="user-label" style={{ background: data.color }}>
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{
+              transform: 'translate(-2px, -2px)',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+            }}
+          >
+            <path
+              d="M2 2 L2 20 L8 15 L12 22 L15 21 L11 14 L19 14 Z"
+              fill={data.color}
+              stroke="#ffffff"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div
+            style={{
+              position: 'absolute',
+              top: 18,
+              left: 14,
+              fontSize: Math.max(9, 11),
+              padding: '2px 6px',
+              borderRadius: 4,
+              background: data.color,
+              color: '#fff',
+              whiteSpace: 'nowrap',
+              fontFamily: "'Noto Sans SC', sans-serif",
+              fontWeight: 500,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            }}
+          >
             {data.username}
           </div>
         </div>

@@ -125,32 +125,51 @@ export const drawArrow = (
   style: DrawStyle,
 ): void => {
   if (points.length < 2) return;
+
   const start = points[0];
   const end = points[points.length - 1];
-  const headLength = 12 + style.lineWidth * 3;
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const angle = Math.atan2(dy, dx);
+
+  const headLength = 10 + style.lineWidth * 2.5;
+  const headAngle = Math.PI / 7;
+
+  const p1: Point = {
+    x: end.x - headLength * Math.cos(angle - headAngle),
+    y: end.y - headLength * Math.sin(angle - headAngle),
+  };
+  const p2: Point = {
+    x: end.x - headLength * Math.cos(angle + headAngle),
+    y: end.y - headLength * Math.sin(angle + headAngle),
+  };
+
+  const insetDist = headLength * 0.6;
+  const lineEnd: Point = {
+    x: end.x - insetDist * Math.cos(angle),
+    y: end.y - insetDist * Math.sin(angle),
+  };
+
   ctx.save();
   ctx.strokeStyle = style.color;
   ctx.lineWidth = style.lineWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.fillStyle = style.color;
+
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
+  ctx.lineTo(lineEnd.x, lineEnd.y);
   ctx.stroke();
+
   ctx.beginPath();
   ctx.moveTo(end.x, end.y);
-  ctx.lineTo(
-    end.x - headLength * Math.cos(angle - Math.PI / 6),
-    end.y - headLength * Math.sin(angle - Math.PI / 6),
-  );
-  ctx.lineTo(
-    end.x - headLength * Math.cos(angle + Math.PI / 6),
-    end.y - headLength * Math.sin(angle + Math.PI / 6),
-  );
+  ctx.lineTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
   ctx.closePath();
   ctx.fill();
+
   ctx.restore();
 };
 
@@ -161,12 +180,16 @@ export const drawSticky = (
 ): void => {
   const fontSize = Math.max(10, 14 * scale);
   const padding = 12 * scale;
+  const radius = Math.max(3, 4 * scale);
+
   ctx.save();
+
   ctx.fillStyle = note.color;
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
   ctx.shadowBlur = 6 * scale;
   ctx.shadowOffsetY = 2 * scale;
-  const radius = 4 * scale;
+  ctx.shadowOffsetX = 0;
+
   ctx.beginPath();
   ctx.moveTo(note.x + radius, note.y);
   ctx.lineTo(note.x + note.width - radius, note.y);
@@ -184,11 +207,26 @@ export const drawSticky = (
   ctx.quadraticCurveTo(note.x, note.y, note.x + radius, note.y);
   ctx.closePath();
   ctx.fill();
+
   ctx.shadowColor = 'transparent';
-  ctx.fillStyle = '#333';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  const foldSize = 12 * scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(note.x + note.width - foldSize, note.y);
+  ctx.lineTo(note.x + note.width, note.y);
+  ctx.lineTo(note.x + note.width, note.y + foldSize);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = '#2d2d2d';
   ctx.font = `${fontSize}px 'Noto Sans SC', sans-serif`;
   ctx.textBaseline = 'top';
-  wrapText(ctx, note.text, note.x + padding, note.y + padding, note.width - padding * 2, fontSize * 1.5);
+  wrapText(ctx, note.text, note.x + padding, note.y + padding, note.width - padding * 2, fontSize * 1.6);
   ctx.restore();
 };
 
@@ -200,6 +238,7 @@ const wrapText = (
   maxWidth: number,
   lineHeight: number,
 ): void => {
+  if (!text) return;
   const chars = text.split('');
   let line = '';
   let lineY = y;
