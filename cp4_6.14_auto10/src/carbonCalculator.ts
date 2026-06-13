@@ -3,7 +3,6 @@ import type {
   EmissionFactor,
   CarbonResult,
   CategoryBreakdown,
-  SubItemDetail,
   MonthlyData,
   ActivityCategory,
   TransportType,
