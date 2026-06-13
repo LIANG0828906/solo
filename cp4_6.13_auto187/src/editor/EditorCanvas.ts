@@ -8,7 +8,7 @@ const FILL_COLOR = '#6366f1'
 const ANCHOR_STROKE = '#6366f1'
 const ANCHOR_FILL_SELECTED = '#6366f1'
 const BREATHE_DURATION = 2000
-const EASE_DURATION = 100
+const EASE_LERP_FACTOR = 0.12
 
 export interface EditorCanvasOptions {
   canvas: HTMLCanvasElement
@@ -28,7 +28,7 @@ export class EditorCanvas {
   private ctx: CanvasRenderingContext2D
   private opts: EditorCanvasOptions
   private animationId: number | null = null
-  private startTime: number = 0
+  private animStartTime: number = 0
   private draggingId: string | null = null
   private dragOffsetX: number = 0
   private dragOffsetY: number = 0
@@ -38,9 +38,10 @@ export class EditorCanvas {
   private easeTargetY: number = 0
   private easeCurrentX: number = 0
   private easeCurrentY: number = 0
-  private isEasing: boolean = false
+  private isDragging: boolean = false
   private editingBubble: HTMLElement | null = null
   private dpr: number = 1
+  private breatheStartTime: number = 0
 
   constructor(options: EditorCanvasOptions) {
     this.canvas = options.canvas
@@ -51,6 +52,8 @@ export class EditorCanvas {
     this.dpr = window.devicePixelRatio || 1
     this.setupCanvas()
     this.bindEvents()
+    this.breatheStartTime = performance.now()
+    this.animStartTime = performance.now()
     this.startAnimation()
   }
 
@@ -87,7 +90,7 @@ export class EditorCanvas {
     const scaleY = this.opts.getCanvasHeight() / rect.height
     return {
       x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
+      y: (e.clientY - rect.top) * scaleY,
     }
   }
 
@@ -123,9 +126,9 @@ export class EditorCanvas {
       this.dragOffsetX = pos.x - anchor.x
       this.dragOffsetY = pos.y - anchor.y
       this.opts.onSelectAnchor(anchor.id)
-      this.isEasing = true
-      this.easeTargetX = pos.x - this.dragOffsetX
-      this.easeTargetY = pos.y - this.dragOffsetY
+      this.isDragging = true
+      this.easeTargetX = anchor.x
+      this.easeTargetY = anchor.y
       this.easeCurrentX = anchor.x
       this.easeCurrentY = anchor.y
     } else {
@@ -135,8 +138,8 @@ export class EditorCanvas {
 
   private handleMouseMove = (e: MouseEvent) => {
     const pos = this.getMousePos(e)
-    
-    if (this.draggingId) {
+
+    if (this.isDragging && this.draggingId) {
       this.easeTargetX = pos.x - this.dragOffsetX
       this.easeTargetY = pos.y - this.dragOffsetY
       return
@@ -147,7 +150,7 @@ export class EditorCanvas {
   }
 
   private handleMouseUp = (e: MouseEvent) => {
-    if (!this.draggingId) {
+    if (!this.isDragging) {
       const pos = this.getMousePos(e)
       const anchor = this.hitTestAnchor(pos.x, pos.y)
       if (!anchor && e.type === 'mouseup') {
@@ -159,8 +162,8 @@ export class EditorCanvas {
       return
     }
 
+    this.isDragging = false
     this.draggingId = null
-    this.isEasing = false
   }
 
   private handleDoubleClick = (e: MouseEvent) => {
@@ -179,7 +182,7 @@ export class EditorCanvas {
     bubble.style.cssText = `
       position: fixed;
       left: ${clientX + 10}px;
-      top: ${clientY - 30}px;
+      top: ${clientY - 40}px;
       background: #2a2a3e;
       border: 1px solid #6366f1;
       border-radius: 8px;
@@ -198,7 +201,7 @@ export class EditorCanvas {
     bubble.innerHTML = `
       <label style="display:flex;flex-direction:column;gap:4px;">
         <span style="font-size:11px;color:#888;">X</span>
-        <input type="number" id="bubble-x" value="${Math.round(anchor.x)}" 
+        <input type="number" id="bubble-x" value="${Math.round(anchor.x)}"
           style="width:60px;padding:4px 6px;background:#1e1e2e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-size:12px;">
       </label>
       <label style="display:flex;flex-direction:column;gap:4px;">
@@ -206,13 +209,13 @@ export class EditorCanvas {
         <input type="number" id="bubble-y" value="${Math.round(anchor.y)}"
           style="width:60px;padding:4px 6px;background:#1e1e2e;border:1px solid #444;border-radius:4px;color:#e0e0e0;font-size:12px;">
       </label>
-      <button id="bubble-apply" 
+      <button id="bubble-apply"
         style="padding:4px 10px;background:#6366f1;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;">
-        确定
+        \u786E\u5B9A
       </button>
       <button id="bubble-delete"
         style="padding:4px 10px;background:#ef4444;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;">
-        删除
+        \u5220\u9664
       </button>
     `
 
@@ -247,8 +250,8 @@ export class EditorCanvas {
 
     setTimeout(() => xInput.focus(), 0)
 
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (!bubble.contains(e.target as Node)) {
+    const handleOutsideClick = (ev: MouseEvent) => {
+      if (!bubble.contains(ev.target as Node)) {
         this.removeEditBubble()
         document.removeEventListener('mousedown', handleOutsideClick)
       }
@@ -266,22 +269,29 @@ export class EditorCanvas {
   }
 
   private startAnimation() {
-    this.startTime = performance.now()
-    const animate = (time: number) => {
-      this.update(time)
+    const animate = (_time: number) => {
+      this.update()
       this.draw()
       this.animationId = requestAnimationFrame(animate)
     }
     this.animationId = requestAnimationFrame(animate)
   }
 
-  private update(time: number) {
-    if (this.isEasing && this.draggingId) {
-      const t = Math.min(1, (time - (this.startTime + time % 16)) / EASE_DURATION)
-      const easeT = 1 - Math.pow(1 - t, 3)
-      this.easeCurrentX += (this.easeTargetX - this.easeCurrentX) * 0.3
-      this.easeCurrentY += (this.easeTargetY - this.easeCurrentY) * 0.3
-      this.opts.onUpdateAnchor(this.draggingId, this.easeCurrentX, this.easeCurrentY)
+  private update() {
+    if (this.isDragging && this.draggingId) {
+      const dx = this.easeTargetX - this.easeCurrentX
+      const dy = this.easeTargetY - this.easeCurrentY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (dist > 0.1) {
+        this.easeCurrentX += dx * EASE_LERP_FACTOR
+        this.easeCurrentY += dy * EASE_LERP_FACTOR
+        this.opts.onUpdateAnchor(this.draggingId, this.easeCurrentX, this.easeCurrentY)
+      } else {
+        this.easeCurrentX = this.easeTargetX
+        this.easeCurrentY = this.easeTargetY
+        this.opts.onUpdateAnchor(this.draggingId, this.easeCurrentX, this.easeCurrentY)
+      }
     }
   }
 
@@ -292,7 +302,6 @@ export class EditorCanvas {
     const selectedId = this.opts.getSelectedId()
 
     this.ctx.clearRect(0, 0, width, height)
-
     this.ctx.fillStyle = CANVAS_BG
     this.ctx.fillRect(0, 0, width, height)
 
@@ -333,7 +342,7 @@ export class EditorCanvas {
   }
 
   private drawPolygon(anchors: AnchorPoint[]) {
-    const elapsed = performance.now() - this.startTime
+    const elapsed = performance.now() - this.breatheStartTime
     const phase = (elapsed % BREATHE_DURATION) / BREATHE_DURATION
     const alpha = 0.3 + 0.1 * (0.5 - 0.5 * Math.cos(phase * Math.PI * 2))
 
@@ -364,7 +373,7 @@ export class EditorCanvas {
   private drawAnchor(anchor: AnchorPoint, selected: boolean) {
     this.ctx.beginPath()
     this.ctx.arc(anchor.x, anchor.y, ANCHOR_RADIUS, 0, Math.PI * 2)
-    
+
     if (selected) {
       this.ctx.fillStyle = ANCHOR_FILL_SELECTED
       this.ctx.fill()
@@ -372,7 +381,7 @@ export class EditorCanvas {
       this.ctx.fillStyle = CANVAS_BG
       this.ctx.fill()
     }
-    
+
     this.ctx.strokeStyle = ANCHOR_STROKE
     this.ctx.lineWidth = 2
     this.ctx.stroke()

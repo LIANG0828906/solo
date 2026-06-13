@@ -90,6 +90,6 @@ export const useEditorStore = defineStore('editor', () => {
     toggleGrid,
     toggleAutoScale,
     setScale,
-    setCanvasSize
+    setCanvasSize,
   }
 })

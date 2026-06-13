@@ -2,24 +2,27 @@ import { useEditorStore } from '@/store/useEditorStore'
 import { computed } from 'vue'
 
 export class ClipPreviewer {
-  private store = useEditorStore()
+  private store!: ReturnType<typeof useEditorStore>
 
-  get clipPath() {
-    return computed(() => this.store.clipPathValue)
+  private getStore() {
+    if (!this.store) {
+      this.store = useEditorStore()
+    }
+    return this.store
   }
 
-  get anchorCount() {
-    return computed(() => this.store.anchors.length)
+  get clipPath() {
+    return computed(() => this.getStore().clipPathValue)
   }
 
   get hasValidShape() {
-    return computed(() => this.store.anchors.length >= 3)
+    return computed(() => this.getStore().anchors.length >= 3)
   }
 
   getPreviewStyle() {
     return computed(() => ({
-      clipPath: this.store.clipPathValue,
-      WebkitClipPath: this.store.clipPathValue
+      clipPath: this.getStore().clipPathValue,
+      WebkitClipPath: this.getStore().clipPathValue,
     }))
   }
 }

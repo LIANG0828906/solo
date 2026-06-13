@@ -2,44 +2,51 @@ import { useEditorStore } from '@/store/useEditorStore'
 import { ref } from 'vue'
 
 export class EditorToolbar {
-  private store = useEditorStore()
-  private showConfirmDialog = ref(false)
+  private store!: ReturnType<typeof useEditorStore>
+  private _showConfirmDialog = ref(false)
+
+  private getStore() {
+    if (!this.store) {
+      this.store = useEditorStore()
+    }
+    return this.store
+  }
 
   get showGrid() {
-    return this.store.showGrid
+    return this.getStore().showGrid
   }
 
   get autoScale() {
-    return this.store.autoScale
+    return this.getStore().autoScale
   }
 
   get anchorCount() {
-    return this.store.anchors.length
-  }
-
-  toggleGrid() {
-    this.store.toggleGrid()
-  }
-
-  toggleAutoScale() {
-    this.store.toggleAutoScale()
-  }
-
-  requestClearAll() {
-    if (this.store.anchors.length === 0) return
-    this.showConfirmDialog.value = true
-  }
-
-  confirmClearAll() {
-    this.store.clearAnchors()
-    this.showConfirmDialog.value = false
-  }
-
-  cancelClearAll() {
-    this.showConfirmDialog.value = false
+    return this.getStore().anchors.length
   }
 
   get confirmVisible() {
-    return this.showConfirmDialog
+    return this._showConfirmDialog
+  }
+
+  toggleGrid() {
+    this.getStore().toggleGrid()
+  }
+
+  toggleAutoScale() {
+    this.getStore().toggleAutoScale()
+  }
+
+  requestClearAll() {
+    if (this.getStore().anchors.length === 0) return
+    this._showConfirmDialog.value = true
+  }
+
+  confirmClearAll() {
+    this.getStore().clearAnchors()
+    this._showConfirmDialog.value = false
+  }
+
+  cancelClearAll() {
+    this._showConfirmDialog.value = false
   }
 }
