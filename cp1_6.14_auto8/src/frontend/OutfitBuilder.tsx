@@ -1,97 +1,166 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import axios from 'axios'
+import {
+  Clothing,
+  Category,
+  Mood,
+  CATEGORY_LABELS,
+  MOOD_LABELS,
+  MOOD_COLORS,
+  OutfitRecommendation,
+  LABEL_TO_CATEGORY,
+} from '../shared/types'
 import './OutfitBuilder.css'
 
-type Category = '上装' | '下装' | '外套' | '鞋' | '配饰'
-type OutfitSlot = 'top' | 'bottom' | 'outer' | 'shoes' | 'accessory'
-type Mood = '开心' | '平静' | '悲伤' | '兴奋' | '疲惫'
-
-interface ClothingItem {
-  id: string
-  imageUrl: string
-  category: Category
-  color: string
-}
+type OutfitSlot = Category
 
 interface OutfitState {
-  top: ClothingItem | null
-  bottom: ClothingItem | null
-  outer: ClothingItem | null
-  shoes: ClothingItem | null
-  accessory: ClothingItem | null
-}
-
-interface Recommendation {
-  id: string
-  name: string
-  items: Partial<Record<OutfitSlot, ClothingItem>>
+  top: Clothing | null
+  bottom: Clothing | null
+  outerwear: Clothing | null
+  shoes: Clothing | null
+  accessory: Clothing | null
 }
 
 interface DragState {
   isDragging: boolean
-  item: ClothingItem | null
+  item: Clothing | null
   x: number
   y: number
 }
 
-const CATEGORY_TO_SLOT: Record<Category, OutfitSlot> = {
-  '上装': 'top',
-  '下装': 'bottom',
-  '外套': 'outer',
-  '鞋': 'shoes',
-  '配饰': 'accessory'
+interface ParsedRecommendation {
+  id: string
+  pattern: { color: string; category: Category }[]
+  frequency: number
+  outfit: OutfitState
+  hasAll: boolean
 }
+
+const CATEGORIES: Category[] = ['top', 'bottom', 'outerwear', 'shoes', 'accessory']
 
 const SLOT_AREAS: Record<OutfitSlot, { x: number; y: number; width: number; height: number }> = {
   top: { x: 80, y: 120, width: 80, height: 100 },
   bottom: { x: 80, y: 220, width: 80, height: 120 },
-  outer: { x: 70, y: 110, width: 100, height: 130 },
+  outerwear: { x: 70, y: 110, width: 100, height: 130 },
   shoes: { x: 80, y: 340, width: 80, height: 50 },
-  accessory: { x: 130, y: 80, width: 60, height: 50 }
+  accessory: { x: 130, y: 80, width: 60, height: 50 },
 }
 
-const COLOR_CONFLICTS: [string, string][] = [
-  ['#FF6B6B', '#96CEB4'],
-  ['#FF0000', '#00FF00'],
+const SLOT_LABELS: Record<OutfitSlot, string> = {
+  top: '上装区',
+  bottom: '下装区',
+  outerwear: '外套区',
+  shoes: '鞋区',
+  accessory: '配饰区',
+}
+
+const RED_COLORS = [
+  '#FF6B6B',
+  '#FF0000',
+  '#FF4757',
+  '#E74C3C',
+  '#C0392B',
+  '#FF6348',
+  '#EB4D4B',
+  '#FF7F50',
+  '#FF6F61',
 ]
 
-const MOODS: Mood[] = ['开心', '平静', '悲伤', '兴奋', '疲惫']
-const MOOD_COLORS: Record<Mood, string> = {
-  '开心': '#96CEB4',
-  '平静': '#45B7D1',
-  '悲伤': '#6C5CE7',
-  '兴奋': '#F39C12',
-  '疲惫': '#999'
+const GREEN_COLORS = [
+  '#00FF00',
+  '#96CEB4',
+  '#2ECC71',
+  '#27AE60',
+  '#1ABC9C',
+  '#16A085',
+  '#A8E6CF',
+  '#6BCB77',
+  '#4ECDC4',
+]
+
+const MOODS: Mood[] = ['happy', 'calm', 'sad', 'excited', 'tired']
+
+const CATEGORY_TO_SLOT: Record<Category, OutfitSlot> = {
+  top: 'top',
+  bottom: 'bottom',
+  outerwear: 'outerwear',
+  shoes: 'shoes',
+  accessory: 'accessory',
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null
+}
+
+function colorDistance(c1: { r: number; g: number; b: number }, c2: { r: number; g: number; b: number }): number {
+  const r = c1.r - c2.r
+  const g = c1.g - c2.g
+  const b = c1.b - c2.b
+  return Math.sqrt(r * r + g * g + b * b)
+}
+
+function isRed(color: string): boolean {
+  const rgb = hexToRgb(color)
+  if (!rgb) return false
+  if (RED_COLORS.includes(color.toUpperCase()) || RED_COLORS.includes(color.toLowerCase())) return true
+  return rgb.r > 180 && rgb.g < 120 && rgb.b < 120 && rgb.r > rgb.g && rgb.r > rgb.b
+}
+
+function isGreen(color: string): boolean {
+  const rgb = hexToRgb(color)
+  if (!rgb) return false
+  if (GREEN_COLORS.includes(color.toUpperCase()) || GREEN_COLORS.includes(color.toLowerCase())) return true
+  return rgb.g > 150 && rgb.g > rgb.r && rgb.g > rgb.b && (rgb.g - rgb.r > 30 || rgb.g - rgb.b > 30)
+}
+
+function colorMatch(color1: string, color2: string, threshold = 80): boolean {
+  const rgb1 = hexToRgb(color1)
+  const rgb2 = hexToRgb(color2)
+  if (!rgb1 || !rgb2) return color1.toLowerCase() === color2.toLowerCase()
+  return colorDistance(rgb1, rgb2) < threshold
 }
 
 function OutfitBuilder() {
-  const [clothes, setClothes] = useState<ClothingItem[]>([])
-  const [expandedCategories, setExpandedCategories] = useState<Set<Category>>(new Set(['上装', '下装']))
+  const [clothing, setClothing] = useState<Clothing[]>([])
+  const [expandedCategories, setExpandedCategories] = useState<Set<Category>>(new Set(['top', 'bottom']))
   const [outfit, setOutfit] = useState<OutfitState>({
     top: null,
     bottom: null,
-    outer: null,
+    outerwear: null,
     shoes: null,
-    accessory: null
+    accessory: null,
   })
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     item: null,
     x: 0,
-    y: 0
+    y: 0,
   })
+  const [hoveredSlot, setHoveredSlot] = useState<OutfitSlot | null>(null)
   const [conflictWarning, setConflictWarning] = useState<string | null>(null)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [selectedMood, setSelectedMood] = useState<Mood>('开心')
+  const [selectedMood, setSelectedMood] = useState<Mood>('happy')
   const [note, setNote] = useState('')
   const [showRecommend, setShowRecommend] = useState(false)
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [saveAnimation, setSaveAnimation] = useState<OutfitSlot | null>(null)
+  const [rawRecommendations, setRawRecommendations] = useState<OutfitRecommendation[]>([])
+  const [popAnimation, setPopAnimation] = useState<Set<OutfitSlot>>(new Set())
+  const [saveFlyAnimation, setSaveFlyAnimation] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const mannequinRef = useRef<HTMLDivElement>(null)
+  const dragPreviewRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number>(0)
+  const dragStateRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   useEffect(() => {
-    fetchClothes()
+    fetchClothing()
     fetchRecommendations()
   }, [])
 
@@ -99,58 +168,89 @@ function OutfitBuilder() {
     checkConflicts()
   }, [outfit])
 
-  const fetchClothes = async () => {
+  const fetchClothing = async () => {
     try {
-      const res = await axios.get('/api/clothes')
-      setClothes(res.data)
+      const res = await axios.get<Clothing[]>('/api/clothing')
+      setClothing(res.data)
     } catch (err) {
-      setClothes([
-        { id: '1', imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200', category: '上装', color: '#FF6B6B' },
-        { id: '2', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200', category: '上装', color: '#FFFFFF' },
-        { id: '3', imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200', category: '下装', color: '#45B7D1' },
-        { id: '4', imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200', category: '外套', color: '#8B4513' },
-        { id: '5', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200', category: '鞋', color: '#FF6B6B' },
-        { id: '6', imageUrl: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?w=200', category: '配饰', color: '#FFEAA7' },
+      setClothing([
+        { id: '1', name: '白色T恤', category: 'top', color: '#FFFFFF', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200', createdAt: '2024-01-01' },
+        { id: '2', name: '粉色卫衣', category: 'top', color: '#FF6B6B', imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200', createdAt: '2024-01-01' },
+        { id: '3', name: '蓝色牛仔裤', category: 'bottom', color: '#45B7D1', imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200', createdAt: '2024-01-01' },
+        { id: '4', name: '棕色外套', category: 'outerwear', color: '#8B4513', imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200', createdAt: '2024-01-01' },
+        { id: '5', name: '红色运动鞋', category: 'shoes', color: '#FF6B6B', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200', createdAt: '2024-01-01' },
+        { id: '6', name: '黄色帽子', category: 'accessory', color: '#FFEAA7', imageUrl: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?w=200', createdAt: '2024-01-01' },
       ])
     }
   }
 
   const fetchRecommendations = async () => {
     try {
-      const res = await axios.get('/api/recommendations')
-      setRecommendations(res.data)
+      const res = await axios.get<OutfitRecommendation[]>('/api/recommendations')
+      setRawRecommendations(res.data)
     } catch (err) {
-      setRecommendations([
-        {
-          id: 'r1',
-          name: '清新日常',
-          items: {
-            top: { id: '2', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200', category: '上装', color: '#FFFFFF' },
-            bottom: { id: '3', imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200', category: '下装', color: '#45B7D1' },
-          }
-        },
-        {
-          id: 'r2',
-          name: '休闲出街',
-          items: {
-            top: { id: '1', imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200', category: '上装', color: '#FF6B6B' },
-            shoes: { id: '5', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200', category: '鞋', color: '#FF6B6B' },
-          }
-        }
-      ])
+      setRawRecommendations([])
     }
   }
+
+  const parsedRecommendations = useMemo<ParsedRecommendation[]>(() => {
+    return rawRecommendations.map(rec => {
+      const newOutfit: OutfitState = {
+        top: null,
+        bottom: null,
+        outerwear: null,
+        shoes: null,
+        accessory: null,
+      }
+      let hasAll = true
+
+      for (const patternItem of rec.pattern) {
+        const slot = CATEGORY_TO_SLOT[patternItem.category]
+        let match: Clothing | null = null
+
+        const directMatch = rec.sampleClothingIds
+          .map(id => clothing.find(c => c.id === id && c.category === patternItem.category))
+          .find(Boolean) || null
+
+        if (directMatch) {
+          match = directMatch
+        } else {
+          const closetMatch = clothing.find(
+            c => c.category === patternItem.category && colorMatch(c.color, patternItem.color, 100)
+          ) || null
+          if (closetMatch) {
+            match = closetMatch
+          } else {
+            const fallback = clothing.find(c => c.category === patternItem.category) || null
+            if (fallback) {
+              match = fallback
+            } else {
+                hasAll = false
+              }
+            }
+          }
+
+        if (match) {
+            newOutfit[slot] = match
+          }
+      }
+
+      return {
+        id: rec.id,
+        pattern: rec.pattern,
+        frequency: rec.frequency,
+        outfit: newOutfit,
+        hasAll,
+      }
+    }).filter(rec => Object.values(rec.outfit).some(v => v !== null))
+  }, [rawRecommendations, clothing])
 
   const checkConflicts = () => {
     setConflictWarning(null)
     const { top, bottom } = outfit
     if (top && bottom) {
-      for (const [color1, color2] of COLOR_CONFLICTS) {
-        if ((top.color === color1 && bottom.color === color2) ||
-            (top.color === color2 && bottom.color === color1)) {
-          setConflictWarning('风格冲突：红配绿可能不太协调哦~')
-          return
-        }
+      if ((isRed(top.color) && isGreen(bottom.color)) || (isGreen(top.color) && isRed(bottom.color))) {
+        setConflictWarning('风格冲突：红配绿可能不太协调哦~')
       }
     }
   }
@@ -167,42 +267,63 @@ function OutfitBuilder() {
     })
   }
 
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: ClothingItem) => {
+  const updateDragPosition = useCallback((clientX: number, clientY: number) => {
+    dragStateRef.current = { x: clientX, y: clientY }
+    if (dragPreviewRef.current) {
+      dragPreviewRef.current.style.transform = `translate(${clientX}px, ${clientY}px) translate(-50%, -50%)`
+    }
+  }, [])
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: Clothing) => {
     e.preventDefault()
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    
+
+    dragStateRef.current = { x: clientX, y: clientY }
+
     setDragState({
       isDragging: true,
       item,
       x: clientX,
-      y: clientY
+      y: clientY,
     })
 
-    const updatePosition = (clientX: number, clientY: number) => {
-      setDragState(prev => ({
-        ...prev,
-        x: clientX,
-        y: clientY
-      }))
-    }
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX
+      const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY
 
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      const cx = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
-      const cy = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
-      
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
       animationFrameRef.current = requestAnimationFrame(() => {
-        updatePosition(cx, cy)
+        updateDragPosition(cx, cy)
+        setDragState(prev => ({ ...prev, x: cx, y: cy }))
+
+        if (mannequinRef.current) {
+          const rect = mannequinRef.current.getBoundingClientRect()
+          const relX = cx - rect.left
+          const relY = cy - rect.top
+          const scaleX = 240 / rect.width
+          const scaleY = 400 / rect.height
+          const svgX = relX * scaleX
+          const svgY = relY * scaleY
+
+          const slot = CATEGORY_TO_SLOT[item.category]
+          const area = SLOT_AREAS[slot]
+
+          if (svgX >= area.x && svgX <= area.x + area.width && svgY >= area.y && svgY <= area.y + area.height) {
+            setHoveredSlot(slot)
+          } else {
+            setHoveredSlot(null)
+          }
+        }
       })
     }
 
-    const handleEnd = (e: MouseEvent | TouchEvent) => {
-      const cx = 'changedTouches' in e ? e.changedTouches[0].clientX : (e as MouseEvent).clientX
-      const cy = 'changedTouches' in e ? e.changedTouches[0].clientY : (e as MouseEvent).clientY
-      
+    const handleEnd = (ev: MouseEvent | TouchEvent) => {
+      const cx = 'changedTouches' in ev ? ev.changedTouches[0].clientX : (ev as MouseEvent).clientX
+      const cy = 'changedTouches' in ev ? ev.changedTouches[0].clientY : (ev as MouseEvent).clientY
+
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
@@ -219,19 +340,25 @@ function OutfitBuilder() {
         const slot = CATEGORY_TO_SLOT[item.category]
         const area = SLOT_AREAS[slot]
 
-        if (svgX >= area.x && svgX <= area.x + area.width &&
-            svgY >= area.y && svgY <= area.y + area.height) {
+        if (svgX >= area.x && svgX <= area.x + area.width && svgY >= area.y && svgY <= area.y + area.height) {
           setOutfit(prev => ({ ...prev, [slot]: item }))
-          setSaveAnimation(slot)
-          setTimeout(() => setSaveAnimation(null), 300)
+          setPopAnimation(prev => new Set(prev).add(slot))
+          setTimeout(() => {
+            setPopAnimation(prev => {
+              const next = new Set(prev)
+              next.delete(slot)
+              return next
+            })
+          }, 300)
         }
       }
 
+      setHoveredSlot(null)
       setDragState({
         isDragging: false,
         item: null,
         x: 0,
-        y: 0
+        y: 0,
       })
 
       window.removeEventListener('mousemove', handleMove)
@@ -244,7 +371,7 @@ function OutfitBuilder() {
     window.addEventListener('mouseup', handleEnd)
     window.addEventListener('touchmove', handleMove, { passive: false })
     window.addEventListener('touchend', handleEnd)
-  }, [])
+  }, [updateDragPosition])
 
   const removeItem = (slot: OutfitSlot) => {
     setOutfit(prev => ({ ...prev, [slot]: null }))
@@ -256,36 +383,61 @@ function OutfitBuilder() {
 
   const confirmSave = async () => {
     try {
+      const clothingIds = Object.values(outfit)
+        .filter((item): item is Clothing => item !== null)
+        .map(item => item.id)
+
+      if (clothingIds.length === 0) {
+        alert('请先搭配至少一件衣物')
+        return
+      }
+
       await axios.post('/api/diary', {
-        outfit,
+        clothingIds,
         mood: selectedMood,
-        note,
-        date: new Date().toISOString().split('T')[0]
+        note: note.slice(0, 50),
+        date: new Date().toISOString().split('T')[0],
       })
+
+      setShowSaveModal(false)
+      setNote('')
+      setSaveSuccess(true)
+      setSaveFlyAnimation(true)
+
+      setTimeout(() => {
+        setSaveFlyAnimation(false)
+        setSaveSuccess(false)
+      }, 1200)
     } catch (err) {
       console.error('保存失败', err)
+      alert('保存失败，请重试')
     }
-    setShowSaveModal(false)
-    setNote('')
-    alert('保存成功！')
   }
 
-  const applyRecommendation = (rec: Recommendation) => {
-    setOutfit({
-      top: rec.items.top || null,
-      bottom: rec.items.bottom || null,
-      outer: rec.items.outer || null,
-      shoes: rec.items.shoes || null,
-      accessory: rec.items.accessory || null
-    })
+  const applyRecommendation = (rec: ParsedRecommendation) => {
+    setOutfit(rec.outfit)
     setShowRecommend(false)
+    const slots = (Object.keys(rec.outfit) as OutfitSlot[]).filter(s => rec.outfit[s] !== null)
+    slots.forEach(slot => {
+      setPopAnimation(prev => new Set(prev).add(slot))
+      setTimeout(() => {
+        setPopAnimation(prev => {
+          const next = new Set(prev)
+          next.delete(slot)
+          return next
+        })
+      }, 300)
+    })
   }
 
-  const clothesByCategory = CATEGORY_TO_SLOT ? 
-    (['上装', '下装', '外套', '鞋', '配饰'] as Category[]).map(cat => ({
+  const clothingByCategory = useMemo(() => {
+    return CATEGORIES.map(cat => ({
       category: cat,
-      items: clothes.filter(c => c.category === cat)
-    })) : []
+      items: clothing.filter(c => c.category === cat),
+    }))
+  }, [clothing])
+
+  const outfitHasItems = Object.values(outfit).some(v => v !== null)
 
   return (
     <div className="outfit-builder">
@@ -298,7 +450,7 @@ function OutfitBuilder() {
             </svg>
             推荐
           </button>
-          <button className="save-btn" onClick={handleSave}>
+          <button className={`save-btn ${saveSuccess ? 'save-success-btn' : ''}`} onClick={handleSave} disabled={!outfitHasItems}>
             保存搭配
           </button>
         </div>
@@ -317,13 +469,13 @@ function OutfitBuilder() {
 
       <div className="builder-content">
         <div className="clothes-list">
-          {clothesByCategory.map(({ category, items }) => (
+          {clothingByCategory.map(({ category, items }) => (
             <div key={category} className="category-section">
               <button
                 className="category-header"
                 onClick={() => toggleCategory(category)}
               >
-                <span>{category}</span>
+                <span>{CATEGORY_LABELS[category]}</span>
                 <span className="item-count">{items.length}</span>
                 <svg
                   className={`arrow ${expandedCategories.has(category) ? 'expanded' : ''}`}
@@ -346,7 +498,7 @@ function OutfitBuilder() {
                       onMouseDown={e => handleDragStart(e, item)}
                       onTouchStart={e => handleDragStart(e, item)}
                     >
-                      <img src={item.imageUrl} alt={category} />
+                      <img src={item.imageUrl} alt={CATEGORY_LABELS[category]} />
                     </div>
                   ))}
                   {items.length === 0 && (
@@ -359,84 +511,40 @@ function OutfitBuilder() {
         </div>
 
         <div className="mannequin-section">
-          <div className="mannequin-wrapper" ref={mannequinRef}>
+          <div className={`mannequin-wrapper ${saveFlyAnimation ? 'fly-in' : ''}`} ref={mannequinRef}>
             <svg viewBox="0 0 240 400" className="mannequin-svg">
               <ellipse cx="120" cy="50" rx="35" ry="40" fill="#E5E0DB" stroke="#D5D0CB" strokeWidth="2" />
-              
-              <rect
-                x={SLOT_AREAS.outer.x}
-                y={SLOT_AREAS.outer.y}
-                width={SLOT_AREAS.outer.width}
-                height={SLOT_AREAS.outer.height}
-                fill="transparent"
-                stroke="#E5E0DB"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                rx="8"
-                className="slot-area"
-              />
-              
-              <rect
-                x={SLOT_AREAS.top.x}
-                y={SLOT_AREAS.top.y}
-                width={SLOT_AREAS.top.width}
-                height={SLOT_AREAS.top.height}
-                fill="transparent"
-                stroke="#E5E0DB"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                rx="8"
-                className="slot-area"
-              />
-              
-              <rect
-                x={SLOT_AREAS.bottom.x}
-                y={SLOT_AREAS.bottom.y}
-                width={SLOT_AREAS.bottom.width}
-                height={SLOT_AREAS.bottom.height}
-                fill="transparent"
-                stroke="#E5E0DB"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                rx="8"
-                className="slot-area"
-              />
-              
-              <rect
-                x={SLOT_AREAS.shoes.x}
-                y={SLOT_AREAS.shoes.y}
-                width={SLOT_AREAS.shoes.width}
-                height={SLOT_AREAS.shoes.height}
-                fill="transparent"
-                stroke="#E5E0DB"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                rx="8"
-                className="slot-area"
-              />
-              
-              <rect
-                x={SLOT_AREAS.accessory.x}
-                y={SLOT_AREAS.accessory.y}
-                width={SLOT_AREAS.accessory.width}
-                height={SLOT_AREAS.accessory.height}
-                fill="transparent"
-                stroke="#E5E0DB"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                rx="8"
-                className="slot-area"
-              />
+
+              {CATEGORIES.map(slot => {
+                const area = SLOT_AREAS[slot]
+                const isHovered = hoveredSlot === slot && dragState.item && dragState.item.category === slot
+                return (
+                  <rect
+                    key={slot}
+                    x={area.x}
+                    y={area.y}
+                    width={area.width}
+                    height={area.height}
+                    fill={isHovered ? 'rgba(250, 220, 217, 0.3)' : 'transparent'}
+                    stroke={isHovered ? '#E8A5A0' : '#E5E0DB'}
+                    strokeWidth={isHovered ? '2' : '1'}
+                    strokeDasharray="4 4"
+                    rx="8"
+                    className={`slot-area ${isHovered ? 'slot-hovered' : ''}`}
+                  />
+                )
+              })}
             </svg>
 
-            {(Object.keys(outfit) as OutfitSlot[]).map(slot => {
+            {CATEGORIES.map(slot => {
               const item = outfit[slot]
               if (!item) return null
               const area = SLOT_AREAS[slot]
+              const isPopping = popAnimation.has(slot)
               return (
                 <div
                   key={slot}
-                  className={`outfit-item ${saveAnimation === slot ? 'pop-in' : ''}`}
+                  className={`outfit-item ${isPopping ? 'pop-in' : ''}`}
                   style={{
                     left: `${(area.x / 240) * 100}%`,
                     top: `${(area.y / 400) * 100}%`,
@@ -447,6 +555,7 @@ function OutfitBuilder() {
                 >
                   <img src={item.imageUrl} alt="" className="outfit-item-image" />
                   <div className="remove-hint">点击移除</div>
+                  <span className="slot-label">{SLOT_LABELS[slot]}</span>
                 </div>
               )
             })}
@@ -457,10 +566,10 @@ function OutfitBuilder() {
 
       {dragState.isDragging && dragState.item && (
         <div
+          ref={dragPreviewRef}
           className="drag-preview"
           style={{
-            left: dragState.x - 40,
-            top: dragState.y - 50,
+            transform: `translate(${dragState.x}px, ${dragState.y}px) translate(-50%, -50%)`,
           }}
         >
           <img src={dragState.item.imageUrl} alt="" />
@@ -471,7 +580,7 @@ function OutfitBuilder() {
         <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
           <div className="modal-content save-modal" onClick={e => e.stopPropagation()}>
             <h3>保存为日记</h3>
-            
+
             <div className="form-group">
               <label>今日心情</label>
               <div className="mood-options">
@@ -483,7 +592,7 @@ function OutfitBuilder() {
                     style={{ borderColor: selectedMood === mood ? MOOD_COLORS[mood] : 'transparent' }}
                   >
                     <span className="mood-dot" style={{ backgroundColor: MOOD_COLORS[mood] }}></span>
-                    {mood}
+                    {MOOD_LABELS[mood]}
                   </button>
                 ))}
               </div>
@@ -514,19 +623,43 @@ function OutfitBuilder() {
           <div className="modal-content recommend-modal" onClick={e => e.stopPropagation()}>
             <h3>今日推荐</h3>
             <div className="recommend-list">
-              {recommendations.map(rec => (
+              {parsedRecommendations.length > 0 ? (
+                parsedRecommendations.map((rec, idx) => (
                 <div key={rec.id} className="recommend-card">
-                  <div className="recommend-name">{rec.name}</div>
-                  <div className="recommend-items">
-                    {Object.entries(rec.items).map(([slot, item]) => (
-                      item && <img key={slot} src={item.imageUrl} alt="" className="recommend-item-img" />
+                  <div className="recommend-header">
+                    <div className="recommend-name">推荐搭配 #{idx + 1}</div>
+                    <div className="recommend-frequency">历史 {rec.frequency} 次</div>
+                  </div>
+                  <div className="recommend-pattern">
+                    {rec.pattern.map((p, i) => (
+                      <div key={i} className="pattern-item">
+                        <span className="pattern-color" style={{ backgroundColor: p.color }}></span>
+                        <span>{CATEGORY_LABELS[p.category]}</span>
+                      </div>
                     ))}
                   </div>
-                  <button className="apply-btn" onClick={() => applyRecommendation(rec)}>
-                    一键采纳
+                  <div className="recommend-items">
+                    {CATEGORIES.filter(s => rec.outfit[s]).map(slot => {
+                      const item = rec.outfit[slot]
+                      return item ? (
+                        <div key={slot} className="recommend-item">
+                          <img src={item.imageUrl} alt="" className="recommend-item-img" />
+                          <span className="recommend-item-label">{CATEGORY_LABELS[item.category]}</span>
+                        </div>
+                      ) : null
+                    })}
+                  </div>
+                  <button className="apply-btn" onClick={() => applyRecommendation(rec)}
+                    disabled={!rec.hasAll}
+                  >
+                    {rec.hasAll ? '一键采纳' : '部分采纳'}
                   </button>
                 </div>
-              ))}
+              ))
+              ) : (
+                <div className="no-recommendations">暂无推荐搭配，请先添加更多衣物~
+                </div>
+              )}
             </div>
             <button className="close-btn" onClick={() => setShowRecommend(false)}>关闭</button>
           </div>

@@ -55,10 +55,9 @@
 }
 
 .nav-item.active {
-  color: #FADCD9;
+  color: #E8A5A0;
 }
 
 .nav-item.active svg {
-  color: #FADCD9;
   stroke: #E8A5A0;
 }
