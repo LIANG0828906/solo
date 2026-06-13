@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Recipe, TimerState, CreateRecipeRequest, AddReviewRequest, Step } from '../types';
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());

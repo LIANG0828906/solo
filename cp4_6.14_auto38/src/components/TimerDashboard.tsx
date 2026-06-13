@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import type { Recipe, TimerState, Step } from '../types';
 
 interface TimerDashboardProps {
@@ -18,10 +18,36 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+const interpolateColor = (color1: number[], color2: number[], ratio: number): string => {
+  const r = Math.round(color1[0] + (color2[0] - color1[0]) * ratio);
+  const g = Math.round(color1[1] + (color2[1] - color1[1]) * ratio);
+  const b = Math.round(color1[2] + (color2[2] - color1[2]) * ratio);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const hexToRgb = (hex: string): number[] => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [0, 0, 0];
+};
+
 const getProgressColor = (percentage: number): string => {
-  if (percentage <= 20) return '#E53935';
-  if (percentage <= 50) return '#FF9800';
-  return '#4CAF50';
+  const green = hexToRgb('#4CAF50');
+  const yellow = hexToRgb('#FFC107');
+  const orange = hexToRgb('#FF9800');
+  const red = hexToRgb('#E53935');
+
+  if (percentage >= 70) {
+    const ratio = (100 - percentage) / 30;
+    return interpolateColor(green, yellow, ratio);
+  } else if (percentage >= 40) {
+    const ratio = (70 - percentage) / 30;
+    return interpolateColor(yellow, orange, ratio);
+  } else {
+    const ratio = (40 - percentage) / 40;
+    return interpolateColor(orange, red, ratio);
+  }
 };
 
 const TimerDashboard: React.FC<TimerDashboardProps> = ({
@@ -35,7 +61,18 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
   syncTimer,
 }) => {
   const timerRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number>(Date.now());
+  const lastTickRef = useRef<number>(performance.now());
+  const [circleSize, setCircleSize] = useState(200);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setCircleSize(window.innerWidth < 768 ? 150 : 200);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const currentStep: Step | undefined = recipe.steps[timerState?.currentStepIndex ?? 0];
   const totalDuration = currentStep?.duration ?? 0;
@@ -43,7 +80,6 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
   const percentage = totalDuration > 0 ? (remainingTime / totalDuration) * 100 : 0;
   const isLowTime = percentage <= 20 && remainingTime > 0;
 
-  const circleSize = typeof window !== 'undefined' && window.innerWidth < 768 ? 150 : 200;
   const strokeWidth = 12;
   const radius = (circleSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -52,7 +88,7 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
   const tick = useCallback(() => {
     if (!timerState || !timerState.isRunning) return;
 
-    const now = Date.now();
+    const now = performance.now();
     const delta = (now - lastTickRef.current) / 1000;
     lastTickRef.current = now;
 
@@ -60,7 +96,7 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
     const newState: TimerState = {
       ...timerState,
       remainingTime: newRemainingTime,
-      lastUpdated: now,
+      lastUpdated: Date.now(),
     };
 
     if (newRemainingTime <= 0) {
@@ -81,7 +117,7 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
 
   useEffect(() => {
     if (timerState?.isRunning) {
-      lastTickRef.current = Date.now();
+      lastTickRef.current = performance.now();
       timerRef.current = window.setInterval(tick, 100);
     } else {
       if (timerRef.current) {
@@ -101,14 +137,14 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({
     if (timerState && timerState.lastUpdated > 0) {
       const syncInterval = setInterval(() => {
         syncTimer(timerState);
-      }, 1500);
+      }, 800);
 
       return () => clearInterval(syncInterval);
     }
   }, [timerState, syncTimer]);
 
   const handleStart = () => {
-    lastTickRef.current = Date.now();
+    lastTickRef.current = performance.now();
     onStart();
   };
 

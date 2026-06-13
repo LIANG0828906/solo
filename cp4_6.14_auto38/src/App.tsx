@@ -360,7 +360,7 @@ const RecipeDetailPage: React.FC = () => {
     };
 
     pollTimer();
-    pollInterval = window.setInterval(pollTimer, 1500);
+    pollInterval = window.setInterval(pollTimer, 800);
 
     return () => {
       if (pollInterval) clearInterval(pollInterval);
