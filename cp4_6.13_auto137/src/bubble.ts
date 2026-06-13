@@ -1,4 +1,4 @@
-import { random, pointInCircle } from './utils';
+import { random } from './utils';
 
 export type BubbleColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
 export type BubblePattern = 'star' | 'heart' | 'circle' | 'triangle' | 'diamond' | 'hexagon';
@@ -393,13 +393,27 @@ export class Bubble {
   }
 
   containsPoint(px: number, py: number): boolean {
-    const effectiveX = this.x + this.shakeOffset;
-    let effectiveRadius = this.radius;
+    if (!this.isClickable()) return false;
+    
+    let localX = px - (this.x + this.shakeOffset);
+    let localY = py - this.y;
+    
     if (this.animationState === 'popping') {
       const t = Math.min(this.animationProgress, 1);
-      effectiveRadius = this.radius * this.popScale * (1 - t * 0.5);
+      const scale = this.popScale * (1 - t * 0.5);
+      const rotation = this.popRotation;
+      
+      const cos = Math.cos(-rotation);
+      const sin = Math.sin(-rotation);
+      const rotatedX = localX * cos - localY * sin;
+      const rotatedY = localX * sin + localY * cos;
+      
+      localX = rotatedX / scale;
+      localY = rotatedY / scale;
     }
-    return pointInCircle(px, py, effectiveX, this.y, effectiveRadius);
+    
+    const distSq = localX * localX + localY * localY;
+    return distSq <= this.radius * this.radius;
   }
 
   isClickable(): boolean {

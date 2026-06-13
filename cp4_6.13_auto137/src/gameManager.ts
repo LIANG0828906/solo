@@ -120,30 +120,46 @@ export class GameManager {
     
     let type: BubbleType = 'normal';
     let secondaryColor: BubbleColor | undefined;
+    const rand = Math.random();
     
-    if (this.level >= 5) {
-      const rand = Math.random();
-      if (rand < 0.1) {
-        type = 'comet';
-      }
-    }
-    
-    if (type === 'normal' && this.level >= 4) {
-      const rand = Math.random();
-      if (rand < 0.15) {
-        type = 'bomb';
-      }
-    }
-    
-    if (type === 'normal' && this.level >= 3) {
-      const rand = Math.random();
-      if (rand < 0.25) {
-        type = 'striped';
-        const otherColors = this.availableColors.filter(c => c !== color);
-        if (otherColors.length > 0) {
-          secondaryColor = randomChoice(otherColors);
+    switch (this.level) {
+      case 1:
+      case 2:
+        type = 'normal';
+        break;
+      case 3:
+        if (rand < 0.25) {
+          type = 'striped';
+          const otherColors = this.availableColors.filter(c => c !== color);
+          if (otherColors.length > 0) {
+            secondaryColor = randomChoice(otherColors);
+          }
         }
-      }
+        break;
+      case 4:
+        if (rand < 0.15) {
+          type = 'bomb';
+        } else if (rand < 0.40) {
+          type = 'striped';
+          const otherColors = this.availableColors.filter(c => c !== color);
+          if (otherColors.length > 0) {
+            secondaryColor = randomChoice(otherColors);
+          }
+        }
+        break;
+      case 5:
+        if (rand < 0.10) {
+          type = 'comet';
+        } else if (rand < 0.25) {
+          type = 'bomb';
+        } else if (rand < 0.50) {
+          type = 'striped';
+          const otherColors = this.availableColors.filter(c => c !== color);
+          if (otherColors.length > 0) {
+            secondaryColor = randomChoice(otherColors);
+          }
+        }
+        break;
     }
     
     let speed = this.baseSpeed;
@@ -190,9 +206,18 @@ export class GameManager {
     isCorrect: boolean;
     scoreGained: number;
     shouldFlashRed: boolean;
+    shouldBurst: boolean;
   } {
     if (this.state !== 'playing') {
-      return { hit: false, bubble: null, isBomb: false, isCorrect: false, scoreGained: 0, shouldFlashRed: false };
+      return {
+        hit: false,
+        bubble: null,
+        isBomb: false,
+        isCorrect: false,
+        scoreGained: 0,
+        shouldFlashRed: false,
+        shouldBurst: false
+      };
     }
 
     for (let i = this.bubbles.length - 1; i >= 0; i--) {
@@ -212,22 +237,30 @@ export class GameManager {
             isBomb: true,
             isCorrect: false,
             scoreGained: -penalty,
-            shouldFlashRed: true
+            shouldFlashRed: true,
+            shouldBurst: false
           };
         }
         
         if (bubble.matchesTarget(this.targetColor)) {
           bubble.pop();
+          
           this.addCombo();
-          const gained = this.addScore(10);
+          const baseScore = 10;
+          const multiplier = this.getComboMultiplier();
+          const actualScore = Math.floor(baseScore * multiplier);
+          this.score += actualScore;
+          
           this.targetColor = randomChoice(this.availableColors);
+          
           return {
             hit: true,
             bubble,
             isBomb: false,
             isCorrect: true,
-            scoreGained: gained,
-            shouldFlashRed: false
+            scoreGained: actualScore,
+            shouldFlashRed: false,
+            shouldBurst: false
           };
         } else {
           bubble.shake();
@@ -239,20 +272,22 @@ export class GameManager {
             isBomb: false,
             isCorrect: false,
             scoreGained: 0,
-            shouldFlashRed: false
+            shouldFlashRed: false,
+            shouldBurst: false
           };
         }
       }
     }
     
-    return { hit: false, bubble: null, isBomb: false, isCorrect: false, scoreGained: 0, shouldFlashRed: false };
-  }
-
-  private addScore(baseScore: number): number {
-    const multiplier = this.getComboMultiplier();
-    const actualScore = Math.floor(baseScore * multiplier);
-    this.score += actualScore;
-    return actualScore;
+    return {
+      hit: false,
+      bubble: null,
+      isBomb: false,
+      isCorrect: false,
+      scoreGained: 0,
+      shouldFlashRed: false,
+      shouldBurst: false
+    };
   }
 
   private addCombo(): void {
@@ -314,7 +349,7 @@ export class GameManager {
     for (const bubble of this.bubbles) {
       if (bubble.animationState === 'idle') {
         bubble.pop();
-        this.addScore(5);
+        this.score += 5;
       }
     }
   }

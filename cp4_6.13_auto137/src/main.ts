@@ -138,9 +138,20 @@ class GameApp {
       const result = this.gameManager.handleClick(x, y);
 
       if (result.hit && result.bubble) {
-        if (result.isBomb) {
+        if (result.shouldFlashRed) {
           this.effectsManager.addFlash('#ff3333', 350, 0.45);
+        }
+        
+        if (result.shouldBurst) {
+          this.effectsManager.addBurst('#ffffff', 500);
+          this.gameManager.fullScreenBurst();
+        }
+        
+        if (result.isBomb) {
           this.particleSystem.createBubbleBurst(result.bubble.x, result.bubble.y, '#ff4444', 20);
+          if (result.scoreGained < 0) {
+            this.particleSystem.createScorePopup(result.bubble.x, result.bubble.y - 20, result.scoreGained, '#ff6666');
+          }
         } else if (result.isCorrect) {
           const stats = this.gameManager.getStats();
           const color = COLOR_MAP[stats.targetColor] || COLOR_MAP[result.bubble.color];
@@ -158,7 +169,6 @@ class GameApp {
             this.effectsManager.addGlow('#ffd700', 1200, 0.25);
           }
         } else {
-          const _color = COLOR_MAP[result.bubble.color];
           this.particleSystem.createBubbleBurst(result.bubble.x, result.bubble.y, '#888888', 8);
         }
       }
@@ -340,11 +350,7 @@ class GameApp {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    ctx.font = 'bold 13px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('目标', cx, cy);
+    this.drawShadowText(ctx, '目标', cx, cy, '#ffffff', 13);
 
     ctx.restore();
   }
@@ -395,7 +401,7 @@ class GameApp {
     ctx.font = 'bold 44px "Segoe UI", sans-serif';
     this.drawShadowText(ctx, '游戏结束', width / 2, 90, '#ffffff');
 
-    this.drawBadge(width / 2, 220, stats.achievement!);
+    this.drawBadge(width / 2, 220, stats.achievement ?? 'bronze');
 
     ctx.font = 'bold 28px "Segoe UI", sans-serif';
     this.drawShadowText(ctx, `最终得分: ${stats.score}`, width / 2, 350, '#ffd700');
