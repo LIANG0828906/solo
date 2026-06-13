@@ -1,7 +1,7 @@
 import { getFloorplan, getAllFloorplans, validateFloorplan, FloorplanData } from './floorplan';
-import { getAllStyles, StylePreset, hexToHSL } from './styleLibrary';
+import { getAllStyles, StylePreset } from './styleLibrary';
 import { saveScheme, loadScheme, deleteScheme, listSchemes, SchemeData, RoomStyleState } from './store';
-import { createRenderState, RenderState, renderExportFrame } from './renderer';
+import { createRenderState, RenderState, Renderer } from './renderer';
 import { InteractionManager } from './interaction';
 
 class App {
@@ -10,6 +10,7 @@ class App {
   private floorplan: FloorplanData;
   private stylePresets: Map<string, StylePreset>;
   private renderState: RenderState;
+  private renderer: Renderer | null = null;
   private interaction: InteractionManager | null = null;
   private drawerOpen: boolean = false;
 
@@ -27,11 +28,13 @@ class App {
 
     this.initStyles();
     this.initCanvas();
+    this.initRenderer();
     this.initDefaultRoomStyles();
     this.verifyFloorplanData();
     this.initUI();
     this.initInteraction();
     this.refreshSchemeGrid();
+    this.startRenderLoop();
   }
 
   private initStyles(): void {
@@ -50,44 +53,87 @@ class App {
       const dpr = window.devicePixelRatio || 1;
       this.canvas.width = rect.width * dpr;
       this.canvas.height = rect.height * dpr;
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
       this.canvas.style.width = rect.width + 'px';
       this.canvas.style.height = rect.height + 'px';
+      if (this.renderer) {
+        this.renderer.resizeBackground();
+      }
     };
     resize();
     window.addEventListener('resize', resize);
   }
 
+  private initRenderer(): void {
+    this.renderer = new Renderer(
+      this.ctx,
+      this.floorplan,
+      this.renderState,
+      this.stylePresets
+    );
+  }
+
   private initDefaultRoomStyles(): void {
     for (const room of this.floorplan.rooms) {
-      this.renderState.roomStyles[room.name] = {
-        wallColor: room.defaultWallColor,
-        floorColor: room.defaultFloorColor,
-        furnitureColor: room.defaultFurnitureColor,
-        styleId: 'nordic'
-      };
+      const nordicStyle = this.stylePresets.get('nordic');
+      if (nordicStyle) {
+        this.renderState.roomStyles[room.name] = {
+          wallColor: nordicStyle.wallColor,
+          floorColor: nordicStyle.floorColor,
+          furnitureColor: nordicStyle.furnitureColor,
+          styleId: 'nordic'
+        };
+      } else {
+        this.renderState.roomStyles[room.name] = {
+          wallColor: room.defaultWallColor,
+          floorColor: room.defaultFloorColor,
+          furnitureColor: room.defaultFurnitureColor,
+          styleId: 'nordic'
+        };
+      }
+    }
+    if (this.renderer) {
+      this.renderer.markAllDirty();
     }
   }
 
   private verifyFloorplanData(): void {
     const fp = this.floorplan;
+    let hasError = false;
+
     for (const room of fp.rooms) {
       const poly = room.polygon;
       if (poly.length < 3) {
-        console.error(`Room "${room.name}" has less than 3 vertices`);
+        console.error(`[Floorplan] Room "${room.name}": has less than 3 vertices`);
+        hasError = true;
         continue;
       }
       const first = poly[0];
       const last = poly[poly.length - 1];
       if (Math.abs(first.x - last.x) > 0.5 || Math.abs(first.y - last.y) > 0.5) {
-        console.error(`Room "${room.name}" polygon is not closed`);
+        console.error(`[Floorplan] Room "${room.name}": polygon is not closed`);
+        hasError = true;
       }
       if (!room.defaultWallColor || !room.defaultFloorColor || !room.defaultFurnitureColor) {
-        console.error(`Room "${room.name}" missing default colors`);
+        console.error(`[Floorplan] Room "${room.name}": missing default colors`);
+        hasError = true;
+      }
+      for (let i = 0; i < poly.length - 1; i++) {
+        if (poly[i].x < 0 || poly[i].y < 0 || poly[i].x > 1200 || poly[i].y > 800) {
+          console.error(`[Floorplan] Room "${room.name}": vertex ${i} out of bounds (${poly[i].x}, ${poly[i].y})`);
+          hasError = true;
+        }
       }
     }
+
     if (!validateFloorplan(fp)) {
-      console.error('Floorplan validation failed');
+      console.error('[Floorplan] Validation failed');
+      hasError = true;
+    }
+
+    if (!hasError) {
+      console.log('[Floorplan] All rooms validated: polygons closed, colors defined, within bounds');
     }
   }
 
@@ -129,6 +175,7 @@ class App {
       btn.className = 'style-btn';
       btn.style.background = s.previewColor;
       btn.dataset.styleId = s.id;
+      btn.setAttribute('aria-label', s.name);
 
       const tooltip = document.createElement('span');
       tooltip.className = 'style-tooltip';
@@ -147,7 +194,10 @@ class App {
 
   private onStyleButtonClick(styleId: string): void {
     const selectedRoom = this.renderState.selectedRoom;
-    if (!selectedRoom) return;
+    if (!selectedRoom) {
+      this.interaction?.applyStyleToAllRooms(styleId);
+      return;
+    }
     this.interaction?.applyStyleToRoom(selectedRoom, styleId);
   }
 
@@ -202,6 +252,11 @@ class App {
       closePreview.addEventListener('click', () => {
         previewModal.classList.remove('visible');
       });
+      previewModal.addEventListener('click', (e: MouseEvent) => {
+        if (e.target === previewModal) {
+          previewModal.classList.remove('visible');
+        }
+      });
     }
   }
 
@@ -211,7 +266,7 @@ class App {
     const scheme: SchemeData = {
       name,
       timestamp: Date.now(),
-      roomStyles: { ...this.renderState.roomStyles },
+      roomStyles: JSON.parse(JSON.stringify(this.renderState.roomStyles)),
       thumbnail
     };
 
@@ -226,13 +281,16 @@ class App {
     const thumbCtx = thumbCanvas.getContext('2d');
     if (!thumbCtx) return '';
 
-    const scaleX = 200 / this.canvas.width;
-    const scaleY = 140 / this.canvas.height;
-    const scale = Math.min(scaleX, scaleY);
+    const logicalW = this.canvas.width / (window.devicePixelRatio || 1);
+    const logicalH = this.canvas.height / (window.devicePixelRatio || 1);
+    const scale = Math.min(200 / logicalW, 140 / logicalH);
+    const offsetX = (200 - logicalW * scale) / 2;
+    const offsetY = (140 - logicalH * scale) / 2;
 
     thumbCtx.save();
-    thumbCtx.scale(scale * (window.devicePixelRatio || 1), scale * (window.devicePixelRatio || 1));
-    renderExportFrame(thumbCtx, this.floorplan, this.renderState, this.stylePresets);
+    thumbCtx.translate(offsetX, offsetY);
+    thumbCtx.scale(scale, scale);
+    this.renderer?.renderExport(thumbCtx);
     thumbCtx.restore();
 
     return thumbCanvas.toDataURL('image/png', 0.6);
@@ -244,6 +302,16 @@ class App {
 
     grid.innerHTML = '';
     const schemes = listSchemes();
+
+    if (schemes.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.color = '#a0aec0';
+      empty.style.fontSize = '0.8rem';
+      empty.style.padding = '20px';
+      empty.textContent = '暂无保存的方案，点击"保存当前方案"开始吧';
+      grid.appendChild(empty);
+      return;
+    }
 
     for (const scheme of schemes) {
       const card = document.createElement('div');
@@ -271,10 +339,13 @@ class App {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = '×';
+      deleteBtn.setAttribute('aria-label', '删除方案');
       deleteBtn.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
-        deleteScheme(scheme.name);
-        this.refreshSchemeGrid();
+        if (confirm(`确定删除方案"${scheme.name}"吗？`)) {
+          deleteScheme(scheme.name);
+          this.refreshSchemeGrid();
+        }
       });
       card.appendChild(deleteBtn);
 
@@ -323,12 +394,11 @@ class App {
     const exportCtx = exportCanvas.getContext('2d');
     if (!exportCtx) return;
 
-    const scaleX = 1920 / this.canvas.width;
-    const scaleY = 1080 / this.canvas.height;
-    const scale = Math.min(scaleX, scaleY) / (window.devicePixelRatio || 1);
-
-    const offsetX = (1920 - this.canvas.width * scale) / 2;
-    const offsetY = (1080 - this.canvas.height * scale) / 2;
+    const logicalW = this.canvas.width / (window.devicePixelRatio || 1);
+    const logicalH = this.canvas.height / (window.devicePixelRatio || 1);
+    const scale = Math.min(1920 / logicalW, 1080 / logicalH);
+    const offsetX = (1920 - logicalW * scale) / 2;
+    const offsetY = (1080 - logicalH * scale) / 2;
 
     exportCtx.fillStyle = '#1a1a2e';
     exportCtx.fillRect(0, 0, 1920, 1080);
@@ -337,7 +407,7 @@ class App {
     exportCtx.translate(offsetX, offsetY);
     exportCtx.scale(scale, scale);
 
-    renderExportFrame(exportCtx, this.floorplan, this.renderState, this.stylePresets);
+    this.renderer?.renderExport(exportCtx);
 
     exportCtx.restore();
 
@@ -348,9 +418,11 @@ class App {
   }
 
   private initInteraction(): void {
+    if (!this.renderer) return;
+
     this.interaction = new InteractionManager(
       this.canvas,
-      this.ctx,
+      this.renderer,
       this.floorplan,
       this.renderState,
       this.stylePresets,
@@ -368,7 +440,7 @@ class App {
         onRoomSelect: (roomName: string | null) => {
           const info = document.getElementById('roomInfo');
           if (info && roomName) {
-            info.textContent = roomName;
+            info.textContent = `已选中：${roomName}`;
             info.classList.add('visible');
           }
         },
@@ -376,6 +448,10 @@ class App {
         onSchemeChange: () => {}
       }
     );
+  }
+
+  private startRenderLoop(): void {
+    this.interaction?.start();
   }
 }
 

@@ -1,7 +1,7 @@
 import { FloorplanData, Point } from './floorplan';
-import { StylePreset, getAllStyles, interpolateColorHSL } from './styleLibrary';
+import { StylePreset, getAllStyles } from './styleLibrary';
 import { RoomStyleState } from './store';
-import { RenderState, AnimationState, renderFrame } from './renderer';
+import { RenderState, AnimationState, Renderer } from './renderer';
 
 export interface InteractionCallbacks {
   onRoomHover: (roomName: string | null) => void;
@@ -28,7 +28,8 @@ function findRoomAtPoint(
   x: number,
   y: number
 ): string | null {
-  for (const room of floorplan.rooms) {
+  for (let i = floorplan.rooms.length - 1; i >= 0; i--) {
+    const room = floorplan.rooms[i];
     if (pointInPolygon(x, y, room.polygon)) {
       return room.name;
     }
@@ -38,41 +39,44 @@ function findRoomAtPoint(
 
 export class InteractionManager {
   private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
   private floorplan: FloorplanData;
   private renderState: RenderState;
   private stylePresets: Map<string, StylePreset>;
   private callbacks: InteractionCallbacks;
-  private animFrameId: number = 0;
-  private scaleRatio: number = 1;
+  private renderer: Renderer;
+  private scaleX: number = 1;
+  private scaleY: number = 1;
 
   constructor(
     canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D,
+    renderer: Renderer,
     floorplan: FloorplanData,
     renderState: RenderState,
     stylePresets: Map<string, StylePreset>,
     callbacks: InteractionCallbacks
   ) {
     this.canvas = canvas;
-    this.ctx = ctx;
+    this.renderer = renderer;
     this.floorplan = floorplan;
     this.renderState = renderState;
     this.stylePresets = stylePresets;
     this.callbacks = callbacks;
 
+    this.updateScale();
     this.bindEvents();
-    this.startRenderLoop();
+  }
+
+  private updateScale(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    this.scaleX = this.canvas.width / rect.width;
+    this.scaleY = this.canvas.height / rect.height;
   }
 
   private getCanvasCoords(e: MouseEvent): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    this.scaleRatio = scaleX;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
+      x: (e.clientX - rect.left) * this.scaleX,
+      y: (e.clientY - rect.top) * this.scaleY
     };
   }
 
@@ -82,6 +86,7 @@ export class InteractionManager {
       const roomName = findRoomAtPoint(this.floorplan, coords.x, coords.y);
 
       if (roomName !== this.renderState.hoveredRoom) {
+        const prev = this.renderState.hoveredRoom;
         this.renderState.hoveredRoom = roomName;
         this.callbacks.onRoomHover(roomName);
       }
@@ -98,6 +103,10 @@ export class InteractionManager {
     this.canvas.addEventListener('mouseleave', () => {
       this.renderState.hoveredRoom = null;
       this.callbacks.onRoomHover(null);
+    });
+
+    window.addEventListener('resize', () => {
+      this.updateScale();
     });
   }
 
@@ -138,36 +147,25 @@ export class InteractionManager {
     for (const [roomName, style] of Object.entries(roomStyles)) {
       this.renderState.roomStyles[roomName] = { ...style };
       this.renderState.animatingRooms.delete(roomName);
+      this.renderer.markRoomDirty(roomName);
     }
     this.callbacks.onSchemeChange();
   }
 
-  private startRenderLoop(): void {
-    const loop = (now: number) => {
-      renderFrame(
-        this.ctx,
-        this.floorplan,
-        this.renderState,
-        this.stylePresets,
-        now
-      );
-      this.animFrameId = requestAnimationFrame(loop);
-    };
-    this.animFrameId = requestAnimationFrame(loop);
-  }
-
-  stopRenderLoop(): void {
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = 0;
-    }
-  }
-
   updateFloorplan(floorplan: FloorplanData): void {
     this.floorplan = floorplan;
+    this.renderer.updateFloorplan(floorplan);
   }
 
   getRenderState(): RenderState {
     return this.renderState;
+  }
+
+  start(): void {
+    this.renderer.start();
+  }
+
+  stop(): void {
+    this.renderer.stop();
   }
 }

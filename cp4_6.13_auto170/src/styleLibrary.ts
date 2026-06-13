@@ -17,9 +17,9 @@ const STYLE_LIBRARY: StylePreset[] = [
     wallColor: '#f5f0eb',
     floorColor: '#c4a67a',
     furnitureColor: '#9b8b72',
-    shadowIntensity: 0.15,
-    gradientAngle: 315,
-    gradientSpread: 0.5,
+    shadowIntensity: 0.12,
+    gradientAngle: 45,
+    gradientSpread: 0.95,
     previewColor: '#f5f0eb'
   },
   {
@@ -28,20 +28,20 @@ const STYLE_LIBRARY: StylePreset[] = [
     wallColor: '#f5e6c8',
     floorColor: '#b8a070',
     furnitureColor: '#c89060',
-    shadowIntensity: 0.2,
-    gradientAngle: 315,
-    gradientSpread: 0.55,
+    shadowIntensity: 0.22,
+    gradientAngle: 45,
+    gradientSpread: 0.7,
     previewColor: '#f5e6c8'
   },
   {
     id: 'industrial',
     name: '现代工业',
-    wallColor: '#4a4a4a',
+    wallColor: '#5a5a5a',
     floorColor: '#2c2c2c',
-    furnitureColor: '#8a8a8a',
-    shadowIntensity: 0.45,
-    gradientAngle: 315,
-    gradientSpread: 0.85,
+    furnitureColor: '#9a9a9a',
+    shadowIntensity: 0.55,
+    gradientAngle: 135,
+    gradientSpread: 0.35,
     previewColor: '#4a4a4a'
   },
   {
@@ -50,9 +50,9 @@ const STYLE_LIBRARY: StylePreset[] = [
     wallColor: '#f0f4f8',
     floorColor: '#c4785a',
     furnitureColor: '#4a90c4',
-    shadowIntensity: 0.25,
-    gradientAngle: 315,
-    gradientSpread: 0.6,
+    shadowIntensity: 0.28,
+    gradientAngle: 135,
+    gradientSpread: 0.65,
     previewColor: '#4a90c4'
   },
   {
@@ -61,9 +61,9 @@ const STYLE_LIBRARY: StylePreset[] = [
     wallColor: '#d8d0c0',
     floorColor: '#8b6b3a',
     furnitureColor: '#8b2500',
-    shadowIntensity: 0.3,
-    gradientAngle: 315,
-    gradientSpread: 0.65,
+    shadowIntensity: 0.32,
+    gradientAngle: 135,
+    gradientSpread: 0.6,
     previewColor: '#8b2500'
   }
 ];
