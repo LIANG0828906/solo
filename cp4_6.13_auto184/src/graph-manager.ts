@@ -70,7 +70,10 @@ export class GraphManager {
     return this.nodes.find(n => n.id === id);
   }
 
-  exportJSON(): { nodes: DependencyNode[]; edges: DependencyEdge[] } {
+  exportJSON(): {
+    nodes: Array<{ id: string; label: string; type: DependencyNode['type']; size: number; exports: string[]; x: number; y: number }>;
+    edges: DependencyEdge[];
+  } {
     return {
       nodes: this.nodes.map(n => ({
         id: n.id,
@@ -141,9 +144,9 @@ export class GraphManager {
       for (const edge of this.edges) {
         let connected: DependencyNode | null = null;
         if (edge.source === node.id) {
-          connected = this.getNodeById(edge.target);
+          connected = this.getNodeById(edge.target) ?? null;
         } else if (edge.target === node.id) {
-          connected = this.getNodeById(edge.source);
+          connected = this.getNodeById(edge.source) ?? null;
         }
         if (connected) {
           const dx = connected.x - node.x;

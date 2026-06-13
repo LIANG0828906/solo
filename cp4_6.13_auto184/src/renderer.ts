@@ -192,12 +192,23 @@ export class Renderer {
 
       if (isSelected) {
         ctx.save();
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 25;
         ctx.shadowColor = color;
         ctx.beginPath();
         ctx.arc(node.x, node.y, drawRadius, 0, Math.PI * 2);
-        ctx.fillStyle = 'transparent';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.35;
         ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, drawRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.restore();
       }
 

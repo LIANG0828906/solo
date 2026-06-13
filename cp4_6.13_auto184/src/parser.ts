@@ -47,8 +47,36 @@ function getModuleType(moduleName: string): 'local' | 'third-party' | 'builtin' 
   return 'third-party';
 }
 
-function calcSize(refCount: number): number {
-  return Math.min(80, Math.max(30, 30 + refCount * 10));
+function calcSizesByRefCount(nodeMap: Map<string, DependencyNode>, moduleRefs: Map<string, number>, rootLabel: string): void {
+  let maxRefCount = 0;
+  for (const count of moduleRefs.values()) {
+    if (count > maxRefCount) maxRefCount = count;
+  }
+  const rootExportCount = nodeMap.get(rootLabel)?.exports.length ?? 0;
+  if (rootExportCount > maxRefCount) maxRefCount = rootExportCount;
+  if (maxRefCount === 0) maxRefCount = 1;
+
+  for (const [moduleName, count] of moduleRefs) {
+    const node = nodeMap.get(moduleName);
+    if (!node) continue;
+    const ratio = (count - 1) / Math.max(1, maxRefCount - 1);
+    node.size = Math.round(30 + ratio * 50);
+  }
+
+  const root = nodeMap.get(rootLabel);
+  if (root) {
+    const ratio = Math.max(0, (rootExportCount - 1)) / Math.max(1, maxRefCount - 1);
+    root.size = Math.round(30 + ratio * 50);
+  }
+}
+
+function fillReferencedBy(nodeMap: Map<string, DependencyNode>, edges: DependencyEdge[]): void {
+  for (const edge of edges) {
+    const targetNode = nodeMap.get(edge.target);
+    if (targetNode && !targetNode.referencedBy.includes(edge.source)) {
+      targetNode.referencedBy.push(edge.source);
+    }
+  }
 }
 
 function randomPosition(): { x: number; y: number } {
@@ -163,12 +191,8 @@ export function parseCode(code: string, fileName?: string): ParseResult {
     addImport(match[1]);
   }
 
-  for (const [moduleName, count] of moduleRefs) {
-    const node = nodeMap.get(moduleName)!;
-    node.size = calcSize(count);
-  }
-
-  rootNode.size = calcSize(rootNode.exports.length);
+  calcSizesByRefCount(nodeMap, moduleRefs, rootLabel);
+  fillReferencedBy(nodeMap, edges);
 
   return {
     nodes: Array.from(nodeMap.values()),
