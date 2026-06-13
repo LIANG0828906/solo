@@ -40,6 +40,8 @@ function computeResults() {
     } else {
       recommendations.value = []
     }
+
+    debouncedSaveHistory()
   } else {
     contrastResult.value = null
     recommendations.value = []
@@ -118,7 +120,6 @@ function applyRecommendation(hex: string) {
 
 watch([foreground, background], () => {
   debouncedCompute()
-  debouncedSaveHistory()
 })
 
 function formatTime(ts: number): string {

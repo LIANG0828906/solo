@@ -99,17 +99,29 @@ function onPreviewInput(e: Event) {
         />
       </div>
       <div class="preview-area" :style="{ backgroundColor: background }">
-        <div class="preview-normal" :style="{ color: foreground }">
-          {{ previewText || '预览文本示例' }}
+        <div class="preview-row">
+          <span class="preview-tag">正文 16px/400</span>
+          <div class="preview-content preview-normal" :style="{ color: foreground }">
+            {{ previewText || '这是正常正文文本，用于展示常用字号下的可读性效果。' }}
+          </div>
         </div>
-        <div class="preview-heading" :style="{ color: foreground }">
-          {{ previewText || '标题文本示例' }}
+        <div class="preview-row">
+          <span class="preview-tag">标题 24px/700</span>
+          <div class="preview-content preview-heading" :style="{ color: foreground }">
+            {{ previewText || '标题文本示例' }}
+          </div>
         </div>
-        <div class="preview-small" :style="{ color: foreground }">
-          {{ previewText || '小字文本示例' }}
+        <div class="preview-row">
+          <span class="preview-tag">小字 12px/300</span>
+          <div class="preview-content preview-small" :style="{ color: foreground }">
+            {{ previewText || '小字辅助文本，用于次要说明内容。' }}
+          </div>
         </div>
-        <div class="preview-link" :style="{ color: foreground }">
-          {{ previewText || '高亮链接示例' }}
+        <div class="preview-row">
+          <span class="preview-tag">高亮链接</span>
+          <div class="preview-content preview-link" :style="{ color: foreground }">
+            {{ previewText || '高亮链接文字示例' }}
+          </div>
         </div>
       </div>
     </div>
@@ -285,12 +297,32 @@ function onPreviewInput(e: Event) {
 
 .preview-area {
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  min-height: 140px;
+  min-height: 180px;
+}
+
+.preview-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-tag {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.preview-content {
+  margin: 0;
 }
 
 .preview-normal {

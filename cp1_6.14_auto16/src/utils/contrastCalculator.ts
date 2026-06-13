@@ -49,10 +49,21 @@ export function clearChromaCache(): void {
   chromaCache.clear()
 }
 
-const RGBA_REGEX = /^rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(-?\d*\.?\d+)\s*)?\)$/i
+const RGBA_COMMA_REGEX = /^rgba?\s*\(\s*(-?\d{1,3})\s*,\s*(-?\d{1,3})\s*,\s*(-?\d{1,3})\s*(?:,\s*(-?\d*\.?\d+)\s*)?\)$/i
+const RGBA_SPACE_REGEX = /^rgba?\s*\(\s*(-?\d{1,3})\s+(-?\d{1,3})\s+(-?\d{1,3})\s*(?:\/\s*(-?\d*\.?\d+)\s*)?\)$/i
+
+function looksLikeRgba(value: string): boolean {
+  const trimmed = value.trim().toLowerCase()
+  return trimmed.startsWith('rgb(') || trimmed.startsWith('rgba(')
+}
 
 export function parseRgba(value: string): { r: number; g: number; b: number; a: number } | null {
-  const match = value.trim().match(RGBA_REGEX)
+  const trimmed = value.trim()
+
+  let match = trimmed.match(RGBA_COMMA_REGEX)
+  if (!match) {
+    match = trimmed.match(RGBA_SPACE_REGEX)
+  }
   if (!match) return null
 
   const r = Number(match[1])
@@ -60,10 +71,10 @@ export function parseRgba(value: string): { r: number; g: number; b: number; a: 
   const b = Number(match[3])
   const a = match[4] !== undefined ? Number(match[4]) : 1
 
-  if (r < 0 || r > 255) return null
-  if (g < 0 || g > 255) return null
-  if (b < 0 || b > 255) return null
-  if (a < 0 || a > 1) return null
+  if (!Number.isFinite(r) || r < 0 || r > 255) return null
+  if (!Number.isFinite(g) || g < 0 || g > 255) return null
+  if (!Number.isFinite(b) || b < 0 || b > 255) return null
+  if (!Number.isFinite(a) || a < 0 || a > 1) return null
 
   return { r, g, b, a }
 }
@@ -75,13 +86,22 @@ export function validateColorInput(value: string): { valid: boolean; error: stri
 
   const trimmed = value.trim()
 
-  const rgbaParsed = parseRgba(trimmed)
-  if (rgbaParsed) {
-    if (rgbaParsed.a < 0 || rgbaParsed.a > 1) {
-      return { valid: false, error: 'Alpha值必须在0到1之间' }
-    }
-    if (rgbaParsed.r > 255 || rgbaParsed.g > 255 || rgbaParsed.b > 255) {
-      return { valid: false, error: 'RGB值必须在0到255之间' }
+  if (looksLikeRgba(trimmed)) {
+    const rgbaParsed = parseRgba(trimmed)
+    if (!rgbaParsed) {
+      const match = trimmed.match(RGBA_COMMA_REGEX) || trimmed.match(RGBA_SPACE_REGEX)
+      if (match) {
+        const r = Number(match[1])
+        const g = Number(match[2])
+        const b = Number(match[3])
+        const a = match[4] !== undefined ? Number(match[4]) : 1
+
+        if (r < 0 || r > 255) return { valid: false, error: 'RGB值必须在0到255之间' }
+        if (g < 0 || g > 255) return { valid: false, error: 'RGB值必须在0到255之间' }
+        if (b < 0 || b > 255) return { valid: false, error: 'RGB值必须在0到255之间' }
+        if (a < 0 || a > 1) return { valid: false, error: 'Alpha值必须在0到1之间' }
+      }
+      return { valid: false, error: '无效的rgba格式' }
     }
     return { valid: true, error: '' }
   }
@@ -136,7 +156,8 @@ export function generateRecommendations(fg: string, bg: string, count: number = 
   const fgHsl = fgColor.hsl()
   const bgLuminance = bgColor.luminance()
   const currentRatio = chroma.contrast(fgColor, bgColor)
-  const ratioGap = Math.max(4.5 - currentRatio, 0)
+  const targetRatio = 4.5
+  const ratioGap = Math.max(targetRatio - currentRatio, 0)
 
   const recommendations: RecommendedColor[] = []
   const seenHex = new Set<string>()
@@ -146,8 +167,10 @@ export function generateRecommendations(fg: string, bg: string, count: number = 
   const l = fgHsl[2] * 100
 
   const isLighterBetter = bgLuminance > 0.5
+  const primaryDirection = isLighterBetter ? -1 : 1
 
-  const initialStep = ratioGap > 5 ? 20 : ratioGap > 2 ? 12 : 6
+  const hueShifts = [0, -5, 5, -10, 10]
+  const satShifts = [0, -0.08, 0.08, -0.15, 0.15]
 
   function tryCandidate(ch: number, cs: number, cl: number): boolean {
     if (recommendations.length >= count) return true
@@ -160,7 +183,7 @@ export function generateRecommendations(fg: string, bg: string, count: number = 
       if (seenHex.has(candidateHex)) return false
 
       const ratio = chroma.contrast(candidate, bgColor)
-      if (ratio >= 4.5) {
+      if (ratio >= targetRatio) {
         seenHex.add(candidateHex)
         recommendations.push({
           hex: candidateHex,
@@ -175,31 +198,69 @@ export function generateRecommendations(fg: string, bg: string, count: number = 
     return false
   }
 
-  const primaryDirection = isLighterBetter ? -1 : 1
-
-  for (let step = initialStep; step <= 60; step += Math.max(step * 0.4, 4)) {
-    const targetL = l + primaryDirection * step
-    if (tryCandidate(h, s, targetL)) return recommendations
+  function tryLuminosityWithVariations(targetL: number): boolean {
+    for (const dh of hueShifts) {
+      for (const ds of satShifts) {
+        if (tryCandidate(h + dh, s + ds, targetL)) {
+          return true
+        }
+      }
+    }
+    return false
   }
 
-  for (let step = initialStep; step <= 60; step += Math.max(step * 0.4, 4)) {
-    const targetL = l + primaryDirection * step
-    const hueShifts = [-20, -10, 10, 20]
+  let lastL = l
+  let lastRatio = currentRatio
+  let iterations = 0
+  const maxIterations = 12
+
+  while (iterations < maxIterations && recommendations.length < count) {
+    iterations++
+
+    const remainingGap = Math.max(targetRatio - lastRatio, 0.01)
+    const ratioStep = remainingGap * 0.6
+    const stepL = (ratioStep / lastRatio) * 60 * primaryDirection
+
+    let newL = lastL + stepL
+    newL = Math.max(0, Math.min(100, newL))
+
+    if (Math.abs(newL - lastL) < 0.5) {
+      newL = lastL + primaryDirection * 2
+      if (newL < 0 || newL > 100) break
+    }
+
+    tryLuminosityWithVariations(newL)
+
+    let testRatio = lastRatio
     for (const dh of hueShifts) {
-      if (tryCandidate(h + dh, s, targetL)) return recommendations
+      for (const ds of satShifts) {
+        try {
+          const testHue = ((h + dh) % 360 + 360) % 360
+          const testSat = Math.max(0, Math.min(1, s + ds))
+          const c = chroma.hsl(testHue, testSat, newL / 100)
+          const r = chroma.contrast(c, bgColor)
+          if (r > testRatio) {
+            testRatio = r
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+
+    lastRatio = testRatio
+    lastL = newL
+
+    if (lastRatio >= targetRatio && recommendations.length > 0) {
+      break
     }
   }
 
-  for (const satShift of [0, -0.15, 0.15, -0.3, 0.3]) {
-    for (let step = initialStep; step <= 70; step += Math.max(step * 0.4, 4)) {
-      const targetL = l + primaryDirection * step
-      const newS = Math.min(1, Math.max(0, s + satShift))
-      if (tryCandidate(h, newS, targetL)) return recommendations
-
-      const hueShifts = [-20, -10, 10, 20]
-      for (const dh of hueShifts) {
-        if (tryCandidate(h + dh, newS, targetL)) return recommendations
-      }
+  if (recommendations.length < count) {
+    const extraSteps = isLighterBetter ? [2, 5, 10, 20, 35] : [98, 95, 90, 80, 65]
+    for (const stepL of extraSteps) {
+      if (recommendations.length >= count) break
+      tryLuminosityWithVariations(stepL)
     }
   }
 
