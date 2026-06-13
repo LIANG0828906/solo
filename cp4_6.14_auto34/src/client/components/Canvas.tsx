@@ -247,20 +247,34 @@ export const Canvas: React.FC<CanvasProps> = ({ readOnly = false }) => {
     return () => {
       isMountedRef.current = false;
 
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      try {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      } catch (_) { /* no-op */ }
+      try {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      } catch (_) { /* no-op */ }
+      try {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      } catch (_) { /* no-op */ }
 
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) {
+        try { cancelAnimationFrame(rafRef.current); } catch (_) { /* no-op */ }
         rafRef.current = null;
       }
-      if (cursorUpdateRef.current) {
-        cancelAnimationFrame(cursorUpdateRef.current);
+      if (cursorUpdateRef.current !== null) {
+        try { cancelAnimationFrame(cursorUpdateRef.current); } catch (_) { /* no-op */ }
         cursorUpdateRef.current = null;
       }
+
+      dragStateRef.current = {
+        isDragging: false, nodeId: null, startX: 0, startY: 0, nodeStartX: 0, nodeStartY: 0,
+      };
+      connectStateRef.current = {
+        isConnecting: false, sourceId: null, startX: 0, startY: 0, currentX: 0, currentY: 0,
+      };
+      pendingEdgeRef.current = null;
     };
   }, [handleMouseMove, handleMouseUp]);
 

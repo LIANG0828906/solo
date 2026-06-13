@@ -163,14 +163,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ roomId, canvasRef }) => {
         scale: 2,
         useCORS: true,
         onclone: (clonedDoc) => {
+          const animationKeywords = [
+            'animate', 'animation', 'transition', 'pulse', 'spin',
+            'fade', 'slide', 'bounce', 'ease', 'delay', 'duration',
+            'infinite', 'linear', 'repeat', 'hover', 'focus',
+            'active', 'scale', 'translate', 'rotate', 'skew',
+          ];
           const clonedNodes = clonedDoc.querySelectorAll('*');
           clonedNodes.forEach((el) => {
-            const classList = (el as HTMLElement).classList;
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style) {
+              try {
+                htmlEl.style.animation = 'none';
+                htmlEl.style.transition = 'none';
+                htmlEl.style.animationPlayState = 'paused';
+              } catch (_) { /* no-op */ }
+            }
+            const classList = htmlEl.classList;
             if (classList) {
               for (let i = classList.length - 1; i >= 0; i--) {
-                const cls = classList[i];
-                if (cls.includes('animate') || cls.includes('transition') || cls.includes('pulse') || cls.includes('spin')) {
-                  classList.remove(cls);
+                const cls = classList[i].toLowerCase();
+                let hasAnimationKeyword = false;
+                for (const kw of animationKeywords) {
+                  if (cls.includes(kw)) {
+                    hasAnimationKeyword = true;
+                    break;
+                  }
+                }
+                if (hasAnimationKeyword) {
+                  classList.remove(classList[i]);
                 }
               }
             }

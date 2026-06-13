@@ -307,13 +307,27 @@ export class RoomManager {
         try {
           snapshotManager.lockEditing(roomId, userId);
         } catch (lockError) {
-          console.error(`[Room:${roomId}] [Op:${op.type}] lockEditing error:`, lockError);
+          logger.error(`lockEditing error in room ${roomId} user ${userId}`, lockError);
         }
       }
 
       let changed = false;
       let broadcastExcludeSelf = false;
+      let unlockScheduled = false;
 
+      const scheduleUnlock = () => {
+        if (!hasEditOperation || unlockScheduled) return;
+        unlockScheduled = true;
+        setTimeout(() => {
+          try {
+            snapshotManager.unlockEditing(roomId, userId);
+          } catch (error) {
+            logger.error(`unlockEditing error in room ${roomId} user ${userId}`, error);
+          }
+        }, 500);
+      };
+
+      try {
       switch (op.type) {
         case 'node-add': {
           const newVersion = room.version + 1;
@@ -330,11 +344,7 @@ export class RoomManager {
           const currentVersion = room.nodeVersions.get(nodeId) ?? 0;
           const opVersion = op.data.version ?? 0;
           if (opVersion < currentVersion) {
-            if (hasEditOperation) {
-              setTimeout(() => {
-                try { snapshotManager.unlockEditing(roomId, userId); } catch (_) { /* ignore */ }
-              }, 500);
-            }
+            scheduleUnlock();
             return;
           }
           const nodeIdx = room.nodes.findIndex(n => n.id === nodeId);
@@ -380,11 +390,7 @@ export class RoomManager {
           const currentVersion = room.edgeVersions.get(edgeId) ?? 0;
           const opVersion = op.data.version ?? 0;
           if (opVersion < currentVersion) {
-            if (hasEditOperation) {
-              setTimeout(() => {
-                try { snapshotManager.unlockEditing(roomId, userId); } catch (_) { /* ignore */ }
-              }, 500);
-            }
+            scheduleUnlock();
             return;
           }
           const edgeIdx = room.edges.findIndex(e => e.id === edgeId);
@@ -418,11 +424,7 @@ export class RoomManager {
       }
 
       if (!changed) {
-        if (hasEditOperation) {
-          setTimeout(() => {
-            try { snapshotManager.unlockEditing(roomId, userId); } catch (_) { /* ignore */ }
-          }, 500);
-        }
+        scheduleUnlock();
         return;
       }
 
@@ -433,22 +435,17 @@ export class RoomManager {
         if (hasEditOperation) this.schedulePersist(roomId);
       }
 
-      if (hasEditOperation) {
-        setTimeout(() => {
-          try {
-            snapshotManager.unlockEditing(roomId, userId);
-          } catch (error) {
-            console.error(`[Room:${roomId}] [Op:${op.type}] unlockEditing error:`, error);
-          }
-        }, 500);
+      scheduleUnlock();
+      } finally {
+        scheduleUnlock();
       }
     } catch (e) {
       logger.error(`Error in applyOperation for room ${roomId}, user ${userId}, op ${(op as any).type}`, e);
-      console.error(`[Room:${roomId}] [Op:${(op as any).type}] applyOperation failed:`, e);
     }
   }
 
-  sendInitState(roomId: string, userId: string): void {
+  sendInitState
+(roomId: string, userId: string): void {
     try {
       const room = this.rooms.get(roomId);
       if (!room) return;

@@ -294,26 +294,37 @@ export class SnapshotManager {
         return null;
       }
 
-      room.nodes = JSON.parse(JSON.stringify(snapshot.nodes));
-      room.edges = JSON.parse(JSON.stringify(snapshot.edges));
+      const sanitizedNodes: FlowNode[] = JSON.parse(JSON.stringify(snapshot.nodes)).map((n: any) => ({
+        ...n,
+        version: typeof n?.version === 'number' && Number.isFinite(n.version) ? n.version : 0,
+      }));
+      const sanitizedEdges: FlowEdge[] = JSON.parse(JSON.stringify(snapshot.edges)).map((e: any) => ({
+        ...e,
+        version: typeof e?.version === 'number' && Number.isFinite(e.version) ? e.version : 0,
+      }));
+
+      room.nodes = sanitizedNodes;
+      room.edges = sanitizedEdges;
 
       if (!room.nodeVersions) room.nodeVersions = new Map();
       else room.nodeVersions.clear();
       if (!room.edgeVersions) room.edgeVersions = new Map();
       else room.edgeVersions.clear();
+
       let maxVersion = 0;
-      for (const n of room.nodes) {
-        if (typeof n.version !== 'number') n.version = 0;
-        room.nodeVersions.set(n.id, n.version);
-        if (n.version > maxVersion) maxVersion = n.version;
+      for (const n of sanitizedNodes) {
+        const safeVersion = typeof n?.version === 'number' && Number.isFinite(n.version) ? n.version : 0;
+        room.nodeVersions.set(n.id, safeVersion);
+        if (safeVersion > maxVersion) maxVersion = safeVersion;
       }
-      for (const e of room.edges) {
-        if (typeof e.version !== 'number') e.version = 0;
-        room.edgeVersions.set(e.id, e.version);
-        if (e.version > maxVersion) maxVersion = e.version;
+      for (const e of sanitizedEdges) {
+        const safeVersion = typeof e?.version === 'number' && Number.isFinite(e.version) ? e.version : 0;
+        room.edgeVersions.set(e.id, safeVersion);
+        if (safeVersion > maxVersion) maxVersion = safeVersion;
       }
-      if (typeof room.version !== 'number') room.version = 0;
-      room.version = Math.max(room.version, maxVersion);
+
+      const currentRoomVersion = typeof room?.version === 'number' && Number.isFinite(room.version) ? room.version : 0;
+      room.version = Math.max(currentRoomVersion, maxVersion, 0);
 
       logger.info(`Snapshot ${snapshotId} restored successfully for room ${roomId}`);
       return snapshot;
