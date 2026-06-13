@@ -287,8 +287,8 @@ export class UIController {
     slider.type = 'range';
     slider.min = min.toString();
     slider.max = max.toString();
-    slider.value = value.toString();
     slider.step = type === 'radius' ? '1' : '0.05';
+    slider.value = value.toString();
 
     const percent = ((value - min) / (max - min)) * 100;
     slider.style.cssText = `
