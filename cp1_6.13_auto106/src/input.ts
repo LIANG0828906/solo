@@ -8,6 +8,12 @@ export interface InputEvent {
   timestamp: number;
 }
 
+interface PendingAction {
+  playerId: number;
+  action: PlayerAction;
+  frameDelay: number;
+}
+
 export interface InputState {
   player1: Record<PlayerAction, boolean>;
   player2: Record<PlayerAction, boolean>;
@@ -38,11 +44,19 @@ const DUEL_ATTACK_MAP: Record<string, { playerId: number; action: PlayerAction }
   'KeyK': { playerId: 2, action: 'DUEL_ATTACK' }
 };
 
+const MOVE_ACTIONS: PlayerAction[] = ['MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT'];
+
+function isMoveAction(action: PlayerAction): boolean {
+  return MOVE_ACTIONS.includes(action);
+}
+
 export class InputManager {
   private state: InputState;
   private pressedKeys: Set<string>;
   private listeners: ((event: InputEvent) => void)[];
   private currentGameState: GameState;
+  private pendingActions: PendingAction[];
+  private player1MoveActive: boolean;
 
   constructor() {
     this.state = {
@@ -53,6 +67,8 @@ export class InputManager {
     this.pressedKeys = new Set();
     this.listeners = [];
     this.currentGameState = 'MENU';
+    this.pendingActions = [];
+    this.player1MoveActive = false;
     this.setupEventListeners();
   }
 
@@ -129,16 +145,45 @@ export class InputManager {
     this.pressedKeys.clear();
     this.state.player1 = this.createEmptyActionState();
     this.state.player2 = this.createEmptyActionState();
+    this.pendingActions = [];
+    this.player1MoveActive = false;
   }
 
   private processAction(playerId: number, action: PlayerAction, pressed: boolean): void {
-    const playerState = playerId === 1 ? this.state.player1 : this.state.player2;
-
     if (this.isActionBlocked(playerId, action)) {
-      playerState[action] = false;
       return;
     }
 
+    if (pressed && isMoveAction(action)) {
+      if (playerId === 1) {
+        this.player1MoveActive = true;
+        this.applyMoveAction(playerId, action, true);
+      } else {
+        if (this.player1MoveActive) {
+          this.pendingActions.push({
+            playerId,
+            action,
+            frameDelay: 1
+          });
+        } else {
+          this.applyMoveAction(playerId, action, true);
+        }
+      }
+      return;
+    }
+
+    if (!pressed && isMoveAction(action)) {
+      if (playerId === 1) {
+        this.applyMoveAction(playerId, action, false);
+        this.checkPlayer1MoveReleased();
+      } else {
+        this.applyMoveAction(playerId, action, false);
+        this.removePendingAction(playerId, action);
+      }
+      return;
+    }
+
+    const playerState = playerId === 1 ? this.state.player1 : this.state.player2;
     playerState[action] = pressed;
 
     if (pressed) {
@@ -152,7 +197,42 @@ export class InputManager {
     }
   }
 
+  private applyMoveAction(playerId: number, action: PlayerAction, pressed: boolean): void {
+    const playerState = playerId === 1 ? this.state.player1 : this.state.player2;
+    playerState[action] = pressed;
+
+    if (pressed) {
+      const event: InputEvent = {
+        playerId,
+        action,
+        timestamp: performance.now()
+      };
+      this.state.pressedThisFrame.push(event);
+      this.notifyListeners(event);
+    }
+  }
+
+  private checkPlayer1MoveReleased(): void {
+    const hasActiveMove = MOVE_ACTIONS.some(a => this.state.player1[a]);
+    if (!hasActiveMove) {
+      this.player1MoveActive = false;
+    }
+  }
+
+  private removePendingAction(playerId: number, action: PlayerAction): void {
+    const index = this.pendingActions.findIndex(
+      p => p.playerId === playerId && p.action === action
+    );
+    if (index !== -1) {
+      this.pendingActions.splice(index, 1);
+    }
+  }
+
   private processDuelAttack(playerId: number, action: PlayerAction): void {
+    if (this.isActionBlocked(playerId, action)) {
+      return;
+    }
+
     const event: InputEvent = {
       playerId,
       action,
@@ -168,7 +248,12 @@ export class InputManager {
     }
 
     if (this.currentGameState === 'COMBAT') {
-      return ['MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT'].includes(action);
+      if (isMoveAction(action)) {
+        return true;
+      }
+      if (action === 'DUEL_ATTACK') {
+        return true;
+      }
     }
 
     if (this.currentGameState === 'BOSS_FIGHT') {
@@ -216,9 +301,30 @@ export class InputManager {
     return events;
   }
 
+  update(): void {
+    const stillPending: PendingAction[] = [];
+
+    for (const pending of this.pendingActions) {
+      pending.frameDelay--;
+
+      if (pending.frameDelay <= 0) {
+        if (!this.player1MoveActive && isMoveAction(pending.action)) {
+          this.applyMoveAction(pending.playerId, pending.action, true);
+        } else {
+          stillPending.push(pending);
+          pending.frameDelay = 1;
+        }
+      } else {
+        stillPending.push(pending);
+      }
+    }
+
+    this.pendingActions = stillPending;
+  }
+
   getMoveDirection(playerId: number): { x: number; y: number } | null {
     const state = playerId === 1 ? this.state.player1 : this.state.player2;
-    
+
     let dx = 0;
     let dy = 0;
 
@@ -236,10 +342,16 @@ export class InputManager {
     };
   }
 
+  hasPlayer1MoveActive(): boolean {
+    return this.player1MoveActive;
+  }
+
   reset(): void {
     this.state.player1 = this.createEmptyActionState();
     this.state.player2 = this.createEmptyActionState();
     this.state.pressedThisFrame = [];
     this.pressedKeys.clear();
+    this.pendingActions = [];
+    this.player1MoveActive = false;
   }
 }
