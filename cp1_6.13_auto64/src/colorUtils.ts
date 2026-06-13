@@ -21,7 +21,7 @@ export function hslToHex(h: number, s: number, l: number): string {
 
 export function hueDifference(h1: number, h2: number): number {
   const diff = Math.abs(h1 - h2);
-  return diff > 180 ? 360 - diff : diff;
+  return Math.min(diff, 360 - diff);
 }
 
 export function generateColorWithHueDifference(existingHues: number[], minDiff: number = 60): { hue: number; hex: string } {
