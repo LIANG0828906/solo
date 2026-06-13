@@ -97,12 +97,20 @@ body {
 
 .canvas-wrapper {
   position: relative;
-  cursor: crosshair;
+  cursor: none;
   image-rendering: pixelated;
 }
 
 .canvas-wrapper canvas {
   display: block;
+}
+
+.pixel-cursor {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  transition: left 0.05s ease, top 0.05s ease;
+  z-index: 10;
 }
 
 .status-bar {
