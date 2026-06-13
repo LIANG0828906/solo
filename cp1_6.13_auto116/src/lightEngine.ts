@@ -9,6 +9,8 @@ import {
 const MAX_PARTICLES = 500;
 const PARTICLE_LIFETIME = 2000;
 const BG_TRANSITION_DURATION = 1000;
+const PARTICLE_ID_WRAP = 1000000;
+const ALPHA_THRESHOLD = 0.005;
 
 export interface BgGradient {
   colors: string[];
@@ -25,6 +27,65 @@ export const BG_PRESETS: Record<string, BgGradient> = {
 export interface LightEngineCallbacks {
   onParticlesChange?: (count: number) => void;
   onBgUpdate?: (gradient: string) => void;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  if (h.length === 3) {
+    return {
+      r: parseInt(h[0] + h[0], 16),
+      g: parseInt(h[1] + h[1], 16),
+      b: parseInt(h[2] + h[2], 16)
+    };
+  }
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16)
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function lerpColor(color1: string, color2: string, t: number): string {
+  const c1 = hexToRgb(color1);
+  const c2 = hexToRgb(color2);
+  return rgbToHex(
+    c1.r + (c2.r - c1.r) * t,
+    c1.g + (c2.g - c1.g) * t,
+    c1.b + (c2.b - c1.b) * t
+  );
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function interpolateGradient(
+  from: BgGradient,
+  to: BgGradient,
+  t: number
+): string {
+  const easedT = easeInOutCubic(t);
+  const maxLen = Math.max(from.colors.length, to.colors.length);
+  const result: string[] = [];
+
+  for (let i = 0; i < maxLen; i++) {
+    const fromIdx = Math.min(i, from.colors.length - 1);
+    const toIdx = Math.min(i, to.colors.length - 1);
+    result.push(lerpColor(from.colors[fromIdx], to.colors[toIdx], easedT));
+  }
+
+  const angle = from.angle + (to.angle - from.angle) * easedT;
+  const stops = result.map((color, i) => {
+    const pos = maxLen > 1 ? (i / (maxLen - 1)) * 100 : 50;
+    return `${color} ${pos}%`;
+  }).join(', ');
+
+  return `linear-gradient(${angle}deg, ${stops})`;
 }
 
 export class LightEngine {
@@ -62,6 +123,12 @@ export class LightEngine {
     this.attachEventListeners();
     this.notifyBgUpdate(this.currentBg);
     this.startRenderLoop();
+  }
+
+  private nextParticleId(): number {
+    const id = this.particleIdCounter;
+    this.particleIdCounter = (this.particleIdCounter + 1) % PARTICLE_ID_WRAP;
+    return id;
   }
 
   private resizeCanvas(): void {
@@ -162,13 +229,32 @@ export class LightEngine {
     this.isDrawing = false;
   }
 
+  private generateStarRayLengths(): number[] {
+    const lengths: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      lengths.push(15 + Math.random() * 15);
+    }
+    return lengths;
+  }
+
+  private calculateStripeSpacing(velocity: number): number {
+    const minSpacing = 4;
+    const maxSpacing = 16;
+    const baseSpacing = 8;
+    const speedFactor = Math.min(velocity * 0.05, 1);
+    return minSpacing + (baseSpacing - minSpacing) + (maxSpacing - baseSpacing) * speedFactor;
+  }
+
   private spawnParticle(x: number, y: number, velocity: number): void {
     const halos = this.generateHalos(x, y);
+    const starRayLengths = this.generateStarRayLengths();
+    const stripeSpacing = this.calculateStripeSpacing(velocity);
 
     const sizeMultiplier = 1 + Math.min(velocity * 0.02, 1.5);
     const alphaMultiplier = 0.7 + Math.min(velocity * 0.003, 0.3);
 
     const particle: Particle = {
+      id: this.nextParticleId(),
       x,
       y,
       prevX: this.lastX,
@@ -178,7 +264,9 @@ export class LightEngine {
       alpha: alphaMultiplier,
       birthTime: performance.now(),
       velocity,
-      halos
+      halos,
+      starRayLengths,
+      stripeSpacing
     };
 
     this.particles.push(particle);
@@ -223,17 +311,53 @@ export class LightEngine {
     this.animationFrameId = requestAnimationFrame(render);
   }
 
+  private isParticleAlive(particle: Particle, now: number): boolean {
+    const timeAlive = now - particle.birthTime;
+    if (timeAlive >= PARTICLE_LIFETIME) {
+      return false;
+    }
+    const fadeFactor = 1 - timeAlive / PARTICLE_LIFETIME;
+    const effectiveAlpha = particle.alpha * fadeFactor;
+    return effectiveAlpha > ALPHA_THRESHOLD;
+  }
+
+  private notifyBgUpdate(bg: BgGradient): void {
+    if (this.callbacks.onBgUpdate) {
+      const gradient = interpolateGradient(bg, bg, 0);
+      this.callbacks.onBgUpdate(gradient);
+    }
+  }
+
+  private updateBgTransition(now: number): void {
+    if (!this.isBgTransitioning) return;
+
+    const elapsed = now - this.bgTransitionStart;
+    const progress = Math.min(elapsed / BG_TRANSITION_DURATION, 1);
+
+    if (progress >= 1) {
+      this.isBgTransitioning = false;
+      this.currentBg = this.targetBg;
+      this.notifyBgUpdate(this.targetBg);
+      return;
+    }
+
+    if (this.callbacks.onBgUpdate) {
+      const gradient = interpolateGradient(this.currentBg, this.targetBg, progress);
+      this.callbacks.onBgUpdate(gradient);
+    }
+  }
+
   private render(): void {
     const now = performance.now();
     const rect = this.canvas.getBoundingClientRect();
+
+    this.updateBgTransition(now);
 
     this.ctx.clearRect(0, 0, rect.width, rect.height);
 
     this.ctx.globalCompositeOperation = 'lighter';
 
-    this.particles = this.particles.filter(p => {
-      return now - p.birthTime < PARTICLE_LIFETIME;
-    });
+    this.particles = this.particles.filter(p => this.isParticleAlive(p, now));
 
     for (const particle of this.particles) {
       const timeAlive = now - particle.birthTime;
@@ -270,6 +394,15 @@ export class LightEngine {
 
   public getEffect(): EffectType {
     return this.currentEffect;
+  }
+
+  public setBgPreset(preset: string): void {
+    const target = BG_PRESETS[preset];
+    if (!target) return;
+
+    this.targetBg = target;
+    this.bgTransitionStart = performance.now();
+    this.isBgTransitioning = true;
   }
 
   public clear(): void {

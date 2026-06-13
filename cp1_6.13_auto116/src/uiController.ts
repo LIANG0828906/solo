@@ -10,13 +10,6 @@ export interface UICallbacks {
   onSave: () => void;
 }
 
-const BG_PRESETS: Record<BgPreset, string> = {
-  night: 'linear-gradient(135deg, #0c0c1e 0%, #1a1a3e 50%, #2d1b4e 100%)',
-  sunset: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 50%, #ff9ff3 100%)',
-  ocean: 'linear-gradient(135deg, #0f3460 0%, #16213e 50%, #0077b6 100%)',
-  aurora: 'linear-gradient(135deg, #00b894 0%, #00cec9 50%, #55efc4 100%)'
-};
-
 export class UIController {
   private hueRing: HTMLCanvasElement;
   private hueCtx: CanvasRenderingContext2D;
@@ -37,6 +30,7 @@ export class UIController {
   private selectedHue: number = 0;
   private isDraggingHue: boolean = false;
   private currentColor: string = '#ff0000';
+  private minBrightness: number = 50;
 
   constructor(callbacks: UICallbacks) {
     this.callbacks = callbacks;
@@ -72,6 +66,8 @@ export class UIController {
 
     this.effectButtons = document.querySelectorAll<HTMLButtonElement>('.effect-btn');
     this.bgRadios = document.querySelectorAll<HTMLInputElement>('input[name="bgPreset"]');
+
+    this.brightnessSlider.min = String(this.minBrightness);
 
     this.drawHueRing();
     this.attachEventListeners();
@@ -226,7 +222,13 @@ export class UIController {
 
   private handleBrightnessChange(e: Event): void {
     const target = e.target as HTMLInputElement;
-    const value = parseInt(target.value, 10);
+    let value = parseInt(target.value, 10);
+
+    if (value < this.minBrightness) {
+      value = this.minBrightness;
+      target.value = String(value);
+    }
+
     this.brightness = value / 100;
     this.brightnessValue.textContent = `${value}%`;
     this.updateColor();
@@ -258,11 +260,7 @@ export class UIController {
 
   private handleBgChange(radio: HTMLInputElement): void {
     const preset = radio.value as BgPreset;
-    const bgValue = BG_PRESETS[preset];
-    if (bgValue) {
-      this.canvasWrapper.style.background = bgValue;
-      this.callbacks.onBgChange(preset);
-    }
+    this.callbacks.onBgChange(preset);
   }
 
   private handleCanvasMouseMove(e: MouseEvent): void {
@@ -286,10 +284,7 @@ export class UIController {
     return this.currentColor;
   }
 
-  public setBgPreset(preset: BgPreset): void {
-    const bgValue = BG_PRESETS[preset];
-    if (bgValue) {
-      this.canvasWrapper.style.background = bgValue;
-    }
+  public setCanvasWrapperBg(gradientCss: string): void {
+    this.canvasWrapper.style.background = gradientCss;
   }
 }

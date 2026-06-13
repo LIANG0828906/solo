@@ -19,7 +19,9 @@ class PulseFrameApp {
     }
 
     try {
-      this.lightEngine = new LightEngine(canvas);
+      this.lightEngine = new LightEngine(canvas, {
+        onBgUpdate: this.handleBgUpdate.bind(this)
+      });
     } catch (err) {
       console.error('光绘引擎初始化失败:', err);
       return;
@@ -41,7 +43,7 @@ class PulseFrameApp {
     const initialColor = this.uiController.getCurrentColor();
     this.lightEngine.setColor(initialColor);
 
-    this.uiController.setBgPreset('night');
+    this.lightEngine.setBgPreset('night');
 
     console.log('[PulseFrame] 应用初始化完成');
     console.log('[PulseFrame] 提示：在画布上按住鼠标或触摸拖动即可开始光绘');
@@ -57,7 +59,14 @@ class PulseFrameApp {
   }
 
   private handleBgChange(preset: BgPreset): void {
+    this.lightEngine.setBgPreset(preset);
     console.log(`[PulseFrame] 切换背景: ${preset}`);
+  }
+
+  private handleBgUpdate(gradientCss: string): void {
+    if (this.uiController) {
+      this.uiController.setCanvasWrapperBg(gradientCss);
+    }
   }
 
   private handleClear(): void {

@@ -87,7 +87,7 @@ export function renderStarEffect(
   const rayCount = 6;
   for (let i = 0; i < rayCount; i++) {
     const baseAngle = (i / rayCount) * Math.PI * 2;
-    const baseLength = particle.starRayLengths[i] ?? (15 + Math.random() * 15);
+    const baseLength = particle.starRayLengths[i] ?? 20;
     const velocityBonus = particle.velocity * 0.08;
     const finalLength = baseLength + velocityBonus;
 
