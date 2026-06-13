@@ -1,21 +1,73 @@
 const ALLOWED_TAGS = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'h1', 'h2', 'h3', 'ul', 'ol', 'li'];
 const ALLOWED_ATTRIBUTES: Record<string, string[]> = {};
 
-export function sanitizeHtml(html: string): string {
-  const div = document.createElement('div');
-  div.innerHTML = html;
+const WORD_NAMESPACE_TAGS = /<(\/)?(w|o|m|v):[^>]*>/gi;
+const WORD_CONDITIONAL_COMMENTS = /<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi;
+const EMPTY_TAGS = /<([a-z][a-z0-9]*)\s*><\/\1>/gi;
 
-  const cleanNode = (node: Node) => {
+export function sanitizeHtml(html: string): string {
+  if (!html) return '';
+
+  let cleaned = html;
+  cleaned = cleaned.replace(WORD_CONDITIONAL_COMMENTS, '');
+  cleaned = cleaned.replace(WORD_NAMESPACE_TAGS, '');
+
+  const div = document.createElement('div');
+  div.innerHTML = cleaned;
+
+  const normalizeNode = (node: Node) => {
     const childNodes = Array.from(node.childNodes);
 
     childNodes.forEach((child) => {
       if (child.nodeType === Node.ELEMENT_NODE) {
         const element = child as HTMLElement;
-        const tagName = element.tagName.toLowerCase();
+        let tagName = element.tagName.toLowerCase();
+
+        if (tagName === 'strong') {
+          const b = document.createElement('b');
+          b.innerHTML = element.innerHTML;
+          node.replaceChild(b, element);
+          normalizeNode(b);
+          return;
+        }
+        if (tagName === 'em') {
+          const i = document.createElement('i');
+          i.innerHTML = element.innerHTML;
+          node.replaceChild(i, element);
+          normalizeNode(i);
+          return;
+        }
+
+        const style = element.getAttribute('style') || '';
+        const fontWeight = element.style.fontWeight;
+        const fontStyle = element.style.fontStyle;
+        const textDecoration = element.style.textDecoration;
 
         if (!ALLOWED_TAGS.includes(tagName)) {
-          const textNode = document.createTextNode(element.textContent || '');
-          node.replaceChild(textNode, element);
+          let shouldReplaceWithFormatTag: string | null = null;
+
+          if (fontWeight === 'bold' || fontWeight === '700' || fontWeight === 'bolder') {
+            shouldReplaceWithFormatTag = 'b';
+          } else if (fontStyle === 'italic') {
+            shouldReplaceWithFormatTag = 'i';
+          } else if (textDecoration.includes('underline')) {
+            shouldReplaceWithFormatTag = 'u';
+          }
+
+          if (shouldReplaceWithFormatTag) {
+            const newEl = document.createElement(shouldReplaceWithFormatTag);
+            newEl.innerHTML = element.innerHTML;
+            node.replaceChild(newEl, element);
+            normalizeNode(newEl);
+          } else {
+            const parent = element.parentNode;
+            if (parent) {
+              while (element.firstChild) {
+                parent.insertBefore(element.firstChild, element);
+              }
+              parent.removeChild(element);
+            }
+          }
           return;
         }
 
@@ -26,6 +78,8 @@ export function sanitizeHtml(html: string): string {
             element.removeAttribute(attr.name);
           }
         });
+        element.removeAttribute('style');
+        element.removeAttribute('class');
 
         if (tagName === 'li') {
           const parent = element.parentElement;
@@ -36,22 +90,34 @@ export function sanitizeHtml(html: string): string {
           }
         }
 
-        cleanNode(element);
+        if (tagName === 'div' || tagName === 'span') {
+          const p = document.createElement('p');
+          p.innerHTML = element.innerHTML;
+          node.replaceChild(p, element);
+          normalizeNode(p);
+          return;
+        }
+
+        normalizeNode(element);
       } else if (child.nodeType === Node.TEXT_NODE) {
         return;
+      } else if (child.nodeType === Node.COMMENT_NODE) {
+        node.removeChild(child);
       } else {
         node.removeChild(child);
       }
     });
   };
 
-  cleanNode(div);
+  normalizeNode(div);
 
   let result = div.innerHTML;
+  result = result.replace(EMPTY_TAGS, '');
   result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
   result = result.replace(/javascript:/gi, '');
   result = result.replace(/on\w+="[^"]*"/gi, '');
   result = result.replace(/on\w+='[^']*'/gi, '');
+  result = result.replace(/\n{2,}/g, '\n');
 
   return result;
 }
@@ -76,24 +142,31 @@ export function getRandomUserName(): string {
   return names[Math.floor(Math.random() * names.length)];
 }
 
+export interface ExportProgressEvent {
+  progress: number;
+  stage: 'init' | 'processing' | 'formatting' | 'done';
+  chapterIndex?: number;
+  totalChapters?: number;
+}
+
 export async function generateExportContent(
   title: string,
   chapters: Array<{ title: string; content: string }>,
-  onProgress: (progress: number) => void
+  onProgress: (event: ExportProgressEvent) => void
 ): Promise<string> {
-  const totalSteps = chapters.length + 2;
-  let currentStep = 0;
+  const emit = (progress: number, stage: ExportProgressEvent['stage'], chapterIndex?: number) => {
+    onProgress({ progress, stage, chapterIndex, totalChapters: chapters.length });
+  };
 
-  await new Promise((resolve) => setTimeout(resolve, 30));
-  currentStep++;
-  onProgress(Math.round((currentStep / totalSteps) * 100));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  emit(5, 'init');
 
   let content = `${title}\n${'='.repeat(title.length * 2)}\n\n`;
 
-  for (const chapter of chapters) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    currentStep++;
-    onProgress(Math.round((currentStep / totalSteps) * 100));
+  for (let i = 0; i < chapters.length; i++) {
+    const chapter = chapters[i];
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    emit(Math.round(10 + (i / chapters.length) * 70), 'processing', i);
 
     content += `\n---\n\n`;
     content += `${chapter.title}\n`;
@@ -130,8 +203,10 @@ export async function generateExportContent(
   }
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  currentStep++;
-  onProgress(100);
+  emit(85, 'formatting');
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  emit(100, 'done');
 
   return content;
 }
