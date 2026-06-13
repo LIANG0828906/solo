@@ -15,16 +15,26 @@ const weathers = [
   { id: 'foggy', name: '雾', icon: '🌫️' }
 ];
 
-const UIControls = ({ time, season, weather, onTimeChange, onSeasonChange, onWeatherChange, presets, onSavePreset, onLoadPreset }) => {
+const formatTime = (t) => {
+  const hours = Math.floor(t);
+  const minutes = Math.floor((t % 1) * 60);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+const UIControls = ({
+  time,
+  season,
+  weather,
+  onTimeChange,
+  onSeasonChange,
+  onWeatherChange,
+  presets,
+  onSavePreset,
+  onLoadPreset
+}) => {
   const [showPresets, setShowPresets] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [presetDesc, setPresetDesc] = useState('');
-
-  const formatTime = (t) => {
-    const hours = Math.floor(t);
-    const minutes = Math.floor((t % 1) * 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
 
   const handleSavePreset = () => {
     if (!presetName.trim()) return;
@@ -45,21 +55,24 @@ const UIControls = ({ time, season, weather, onTimeChange, onSeasonChange, onWea
       <div className="controls-section time-section">
         <div className="section-label">时间</div>
         <div className="time-display">{formatTime(time)}</div>
-        <input
-          type="range"
-          min="0"
-          max="24"
-          step="0.1"
-          value={time}
-          onChange={(e) => onTimeChange(parseFloat(e.target.value))}
-          className="time-slider"
-        />
+        <div className="slider-container">
+          <div className="slider-gradient-track" />
+          <input
+            type="range"
+            min="0"
+            max="24"
+            step="0.1"
+            value={time}
+            onChange={(e) => onTimeChange(parseFloat(e.target.value))}
+            className="time-slider"
+          />
+        </div>
         <div className="time-markers">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
+          <span>00</span>
+          <span>06</span>
+          <span>12</span>
+          <span>18</span>
+          <span>24</span>
         </div>
       </div>
 
@@ -100,13 +113,13 @@ const UIControls = ({ time, season, weather, onTimeChange, onSeasonChange, onWea
 
       <div className="controls-section presets-section">
         <div className="section-label">场景预设</div>
-        <button 
+        <button
           className="preset-toggle-btn"
           onClick={() => setShowPresets(!showPresets)}
         >
-          {showPresets ? '收起预设' : '展开预设'}
+          {showPresets ? '收起预设 ▲' : '展开预设 ▼'}
         </button>
-        
+
         {showPresets && (
           <div className="presets-panel">
             <div className="save-preset-form">
@@ -124,14 +137,11 @@ const UIControls = ({ time, season, weather, onTimeChange, onSeasonChange, onWea
                 onChange={(e) => setPresetDesc(e.target.value)}
                 className="preset-input"
               />
-              <button 
-                className="save-btn"
-                onClick={handleSavePreset}
-              >
+              <button className="save-btn" onClick={handleSavePreset}>
                 保存当前状态
               </button>
             </div>
-            
+
             <div className="presets-list">
               {presets.map((preset) => (
                 <div
@@ -141,7 +151,10 @@ const UIControls = ({ time, season, weather, onTimeChange, onSeasonChange, onWea
                 >
                   <div className="preset-item-name">{preset.name}</div>
                   <div className="preset-item-desc">
-                    {preset.description || `${formatTime(preset.time)} · ${preset.season} · ${preset.weather}`}
+                    {preset.description ||
+                      `${formatTime(preset.time)} · ${
+                        seasons.find((s) => s.id === preset.season)?.name || preset.season
+                      } · ${weathers.find((w) => w.id === preset.weather)?.name || preset.weather}`}
                   </div>
                 </div>
               ))}

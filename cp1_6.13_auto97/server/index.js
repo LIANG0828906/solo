@@ -1,12 +1,79 @@
 import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
+const DATA_DIR = path.join(__dirname, 'data');
+const PRESETS_FILE = path.join(DATA_DIR, 'presets.json');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 app.use(cors());
 app.use(express.json());
+
+const loadPresets = () => {
+  try {
+    if (fs.existsSync(PRESETS_FILE)) {
+      const data = fs.readFileSync(PRESETS_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading presets:', err);
+  }
+  return [
+    {
+      id: uuidv4(),
+      name: '清晨薄雾',
+      description: '春日清晨，薄雾缭绕的城市',
+      time: 6.5,
+      season: 'spring',
+      weather: 'foggy'
+    },
+    {
+      id: uuidv4(),
+      name: '正午晴空',
+      description: '夏日正午，阳光明媚',
+      time: 12,
+      season: 'summer',
+      weather: 'sunny'
+    },
+    {
+      id: uuidv4(),
+      name: '黄昏日落',
+      description: '秋日傍晚，金色余晖',
+      time: 18,
+      season: 'autumn',
+      weather: 'sunny'
+    },
+    {
+      id: uuidv4(),
+      name: '雨夜霓虹',
+      description: '冬夜雨中，灯火阑珊',
+      time: 23,
+      season: 'winter',
+      weather: 'rainy'
+    }
+  ];
+};
+
+const savePresets = (presets) => {
+  try {
+    fs.writeFileSync(PRESETS_FILE, JSON.stringify(presets, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving presets:', err);
+  }
+};
+
+let presets = loadPresets();
 
 const generateBuildingData = (count = 30) => {
   const buildings = [];
@@ -33,43 +100,8 @@ const generateBuildingData = (count = 30) => {
   return buildings;
 };
 
-let presets = [
-  {
-    id: uuidv4(),
-    name: '清晨薄雾',
-    description: '春日清晨，薄雾缭绕的城市',
-    time: 6.5,
-    season: 'spring',
-    weather: 'foggy'
-  },
-  {
-    id: uuidv4(),
-    name: '正午晴空',
-    description: '夏日正午，阳光明媚',
-    time: 12,
-    season: 'summer',
-    weather: 'sunny'
-  },
-  {
-    id: uuidv4(),
-    name: '黄昏日落',
-    description: '秋日傍晚，金色余晖',
-    time: 18,
-    season: 'autumn',
-    weather: 'sunny'
-  },
-  {
-    id: uuidv4(),
-    name: '雨夜霓虹',
-    description: '冬夜雨中，灯火阑珊',
-    time: 23,
-    season: 'winter',
-    weather: 'rainy'
-  }
-];
-
 app.get('/api/buildings', (req, res) => {
-  const count = parseInt(req.query.count as string) || 30;
+  const count = parseInt(req.query.count) || 30;
   res.json(generateBuildingData(count));
 });
 
@@ -94,6 +126,7 @@ app.post('/api/presets', (req, res) => {
   };
   
   presets.push(newPreset);
+  savePresets(presets);
   res.status(201).json(newPreset);
 });
 
@@ -103,6 +136,16 @@ app.get('/api/presets/:id', (req, res) => {
     return res.status(404).json({ error: '预设不存在' });
   }
   res.json(preset);
+});
+
+app.delete('/api/presets/:id', (req, res) => {
+  const index = presets.findIndex(p => p.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ error: '预设不存在' });
+  }
+  presets.splice(index, 1);
+  savePresets(presets);
+  res.json({ success: true });
 });
 
 app.listen(PORT, () => {
