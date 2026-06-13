@@ -10,7 +10,9 @@ export class BrushController {
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
   private isDragging: boolean;
-  private brushPreview: THREE.Mesh;
+  private brushPreview: THREE.Group;
+  private brushRing: THREE.Mesh;
+  private brushDisk: THREE.Mesh;
   public brushParams: BrushParams;
   public brushPosition: BrushPosition;
   public onBrushPositionChange: ((pos: BrushPosition) => void) | null;
@@ -46,42 +48,77 @@ export class BrushController {
 
     this.onBrushPositionChange = null;
 
-    this.brushPreview = this.createBrushPreview();
+    const previewResult = this.createBrushPreview();
+    this.brushPreview = previewResult.group;
+    this.brushRing = previewResult.ring;
+    this.brushDisk = previewResult.disk;
+
     scene.add(this.brushPreview);
 
     this.setupEventListeners();
   }
 
-  private createBrushPreview(): THREE.Mesh {
-    const geometry = new THREE.RingGeometry(0.1, 0.15, 64);
-    geometry.rotateX(-Math.PI / 2);
-    const material = new THREE.MeshBasicMaterial({
+  private createBrushPreview(): { group: THREE.Group; ring: THREE.Mesh; disk: THREE.Mesh } {
+    const group = new THREE.Group();
+    group.visible = false;
+    group.renderOrder = 999;
+
+    const ringGeom = new THREE.RingGeometry(3.8, 4.0, 64);
+    ringGeom.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
       color: 0x6ee7b7,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.9,
       side: THREE.DoubleSide,
-      depthTest: false
+      depthTest: false,
+      depthWrite: false
     });
-    const ring = new THREE.Mesh(geometry, material);
-    ring.visible = false;
-    return ring;
+    const ring = new THREE.Mesh(ringGeom, ringMat);
+    ring.renderOrder = 999;
+    group.add(ring);
+
+    const diskGeom = new THREE.CircleGeometry(4.0, 64);
+    diskGeom.rotateX(-Math.PI / 2);
+    const diskMat = new THREE.MeshBasicMaterial({
+      color: 0x6ee7b7,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      depthTest: false,
+      depthWrite: false
+    });
+    const disk = new THREE.Mesh(diskGeom, diskMat);
+    disk.renderOrder = 998;
+    group.add(disk);
+
+    return { group, ring, disk };
   }
 
   private updateBrushPreview(): void {
     const radius = this.brushParams.radius * this.terrain.cellSize;
-    const newGeometry = new THREE.RingGeometry(radius * 0.95, radius, 64);
-    newGeometry.rotateX(-Math.PI / 2);
-    this.brushPreview.geometry.dispose();
-    this.brushPreview.geometry = newGeometry;
+    const innerR = Math.max(0.01, radius - 0.2);
+
+    this.brushRing.geometry.dispose();
+    const newRingGeom = new THREE.RingGeometry(innerR, radius, 64);
+    newRingGeom.rotateX(-Math.PI / 2);
+    this.brushRing.geometry = newRingGeom;
+
+    this.brushDisk.geometry.dispose();
+    const newDiskGeom = new THREE.CircleGeometry(radius, 64);
+    newDiskGeom.rotateX(-Math.PI / 2);
+    this.brushDisk.geometry = newDiskGeom;
 
     const color = this.brushParams.type === 'raise' ? 0x6ee7b7 : 0xfca5a5;
-    (this.brushPreview.material as THREE.MeshBasicMaterial).color.setHex(color);
+    (this.brushRing.material as THREE.MeshBasicMaterial).color.setHex(color);
+    (this.brushDisk.material as THREE.MeshBasicMaterial).color.setHex(color);
 
     if (this.brushPosition.visible) {
       this.brushPreview.visible = true;
+      const grid = this.terrain.worldToGrid(this.brushPosition.worldX, this.brushPosition.worldZ);
+      const terrainY = this.terrain.getHeightAt(grid.ix, grid.iz);
       this.brushPreview.position.set(
         this.brushPosition.worldX,
-        0.1,
+        terrainY + 0.3,
         this.brushPosition.worldZ
       );
     } else {
@@ -96,7 +133,6 @@ export class BrushController {
     canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
     canvas.addEventListener('mouseup', () => this.onMouseUp());
     canvas.addEventListener('mouseleave', () => this.onMouseLeave());
-    canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
   }
 
   private updateMousePosition(e: MouseEvent): void {
@@ -158,10 +194,6 @@ export class BrushController {
     this.brushPreview.visible = false;
   }
 
-  private onWheel(e: WheelEvent): void {
-    e.preventDefault();
-  }
-
   private applyBrush(): void {
     const now = performance.now();
     if (now - this.lastEditTime < this.minEditInterval) return;
@@ -174,7 +206,7 @@ export class BrushController {
       grid.ix,
       grid.iz,
       this.brushParams.radius,
-      this.terrain.gridSize
+      this.terrain.vertexCount
     );
 
     const sign = this.brushParams.type === 'raise' ? 1 : -1;
@@ -199,9 +231,5 @@ export class BrushController {
 
   public setBrushStrength(strength: number): void {
     this.brushParams.strength = strength;
-  }
-
-  public update(): void {
-    this.updateBrushPreview();
   }
 }

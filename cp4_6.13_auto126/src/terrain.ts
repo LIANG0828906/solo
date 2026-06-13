@@ -6,23 +6,25 @@ export class Terrain {
   public mesh: THREE.Mesh;
   public geometry: THREE.PlaneGeometry;
   public gridSize: number;
+  public vertexCount: number;
   public cellSize: number;
   private heightData: HeightData;
   private colors: Float32Array;
 
   constructor(gridSize: number = 30, cellSize: number = 1) {
     this.gridSize = gridSize;
+    this.vertexCount = gridSize + 1;
     this.cellSize = cellSize;
 
     this.heightData = {
-      size: gridSize,
-      heights: new Float32Array(gridSize * gridSize)
+      size: this.vertexCount,
+      heights: new Float32Array(this.vertexCount * this.vertexCount)
     };
 
     this.generateRandomHeights();
 
-    const width = (gridSize - 1) * cellSize;
-    this.geometry = new THREE.PlaneGeometry(width, width, gridSize - 1, gridSize - 1);
+    const width = gridSize * cellSize;
+    this.geometry = new THREE.PlaneGeometry(width, width, gridSize, gridSize);
     this.geometry.rotateX(-Math.PI / 2);
 
     this.colors = new Float32Array(this.geometry.attributes.position.count * 3);
@@ -45,8 +47,8 @@ export class Terrain {
   }
 
   private generateRandomHeights(): void {
-    for (let i = 0; i < this.gridSize * this.gridSize; i++) {
-      this.heightData.heights[i] = (Math.random() * 2 - 1) * 0.5;
+    for (let i = 0; i < this.vertexCount * this.vertexCount; i++) {
+      this.heightData.heights[i] = Math.random() * 2 - 1;
     }
   }
 
@@ -65,34 +67,33 @@ export class Terrain {
   }
 
   public getHeightAt(ix: number, iz: number): number {
-    if (ix < 0 || ix >= this.gridSize || iz < 0 || iz >= this.gridSize) {
+    if (ix < 0 || ix >= this.vertexCount || iz < 0 || iz >= this.vertexCount) {
       return 0;
     }
-    return this.heightData.heights[iz * this.gridSize + ix];
+    return this.heightData.heights[iz * this.vertexCount + ix];
   }
 
   public setHeightAt(ix: number, iz: number, height: number): void {
-    if (ix < 0 || ix >= this.gridSize || iz < 0 || iz >= this.gridSize) {
+    if (ix < 0 || ix >= this.vertexCount || iz < 0 || iz >= this.vertexCount) {
       return;
     }
-    this.heightData.heights[iz * this.gridSize + ix] = clamp(height, -5, 5);
+    this.heightData.heights[iz * this.vertexCount + ix] = clamp(height, -5, 5);
   }
 
   public addHeightAt(ix: number, iz: number, delta: number): void {
-    if (ix < 0 || ix >= this.gridSize || iz < 0 || iz >= this.gridSize) {
+    if (ix < 0 || ix >= this.vertexCount || iz < 0 || iz >= this.vertexCount) {
       return;
     }
-    const idx = iz * this.gridSize + ix;
+    const idx = iz * this.vertexCount + ix;
     this.heightData.heights[idx] = clamp(this.heightData.heights[idx] + delta, -5, 5);
   }
 
   public updateGeometryFromHeights(): void {
     const positions = this.geometry.attributes.position;
-    const halfSize = (this.gridSize - 1) * this.cellSize / 2;
 
-    for (let iz = 0; iz < this.gridSize; iz++) {
-      for (let ix = 0; ix < this.gridSize; ix++) {
-        const idx = iz * this.gridSize + ix;
+    for (let iz = 0; iz < this.vertexCount; iz++) {
+      for (let ix = 0; ix < this.vertexCount; ix++) {
+        const idx = iz * this.vertexCount + ix;
         const y = this.heightData.heights[idx];
         positions.setY(idx, y);
       }
@@ -127,14 +128,14 @@ export class Terrain {
   }
 
   public worldToGrid(worldX: number, worldZ: number): { ix: number; iz: number } {
-    const halfSize = (this.gridSize - 1) * this.cellSize / 2;
+    const halfSize = this.gridSize * this.cellSize / 2;
     const ix = Math.round((worldX + halfSize) / this.cellSize);
     const iz = Math.round((worldZ + halfSize) / this.cellSize);
     return { ix, iz };
   }
 
   public gridToWorld(ix: number, iz: number): { x: number; z: number } {
-    const halfSize = (this.gridSize - 1) * this.cellSize / 2;
+    const halfSize = this.gridSize * this.cellSize / 2;
     const x = ix * this.cellSize - halfSize;
     const z = iz * this.cellSize - halfSize;
     return { x, z };

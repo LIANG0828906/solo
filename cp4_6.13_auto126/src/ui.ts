@@ -29,6 +29,7 @@ export class UIController {
     this.fpsBlinkState = false;
     this.lastFpsUpdateTime = 0;
 
+    this.injectGlobalStyles();
     this.createToolbar();
     this.createInfoPanel();
     this.setupEventListeners();
@@ -36,6 +37,69 @@ export class UIController {
     this.brushController.onBrushPositionChange = (pos: BrushPosition) => {
       this.updateBrushPosition(pos);
     };
+  }
+
+  private injectGlobalStyles(): void {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fpsBlink {
+        0%, 100% { color: #ef4444; text-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+        50% { color: #fca5a5; text-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
+      }
+      @keyframes brushSpinIn {
+        0% { transform: rotate(0deg) scale(0.6); opacity: 0.3; }
+        60% { transform: rotate(260deg) scale(1.1); opacity: 1; }
+        100% { transform: rotate(360deg) scale(1); opacity: 1; }
+      }
+      .tool-btn {
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .tool-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 16px rgba(110, 231, 183, 0.25);
+      }
+      .slider-container {
+        transition: transform 0.15s ease, background 0.15s ease;
+        border-radius: 6px;
+        padding: 4px;
+        margin: -4px;
+      }
+      .slider-container:hover {
+        transform: scale(1.04);
+        background: rgba(110, 231, 183, 0.06);
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        background: #6ee7b7;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 0 8px rgba(110, 231, 183, 0.4);
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.3);
+        box-shadow: 0 0 14px rgba(110, 231, 183, 0.7);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        background: #6ee7b7;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .fps-warning {
+        animation: fpsBlink 0.8s ease-in-out infinite !important;
+      }
+      .info-row-value {
+        transition: color 0.15s ease, text-shadow 0.15s ease;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   private createToolbar(): void {
@@ -104,14 +168,14 @@ export class UIController {
     this.toolbar.appendChild(divider);
 
     const radiusControl = this.createSliderControl('半径', 2, 8, 4, 'radius');
-    this.toolbar.appendChild(radiusControl.container);
     this.radiusSlider = radiusControl.slider;
     this.radiusValue = radiusControl.value;
+    this.toolbar.appendChild(radiusControl.container);
 
     const strengthControl = this.createSliderControl('力度', 0.1, 1.0, 0.5, 'strength');
-    this.toolbar.appendChild(strengthControl.container);
     this.strengthSlider = strengthControl.slider;
     this.strengthValue = strengthControl.value;
+    this.toolbar.appendChild(strengthControl.container);
 
     this.container.appendChild(this.toolbar);
   }
@@ -123,6 +187,7 @@ export class UIController {
     isActive: boolean
   ): HTMLElement {
     const btn = document.createElement('button');
+    btn.className = 'tool-btn';
     btn.dataset.toolType = type;
     btn.title = tooltip;
     btn.style.cssText = `
@@ -135,7 +200,6 @@ export class UIController {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s ease;
       position: relative;
       overflow: hidden;
     `;
@@ -145,10 +209,7 @@ export class UIController {
     svg.setAttribute('height', '24');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('fill', 'none');
-    svg.style.transition = 'transform 0.2s ease';
-    if (isActive) {
-      svg.style.transform = 'rotate(90deg)';
-    }
+    svg.dataset.toolType = type;
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', svgPath);
@@ -159,19 +220,13 @@ export class UIController {
     path.setAttribute('stroke-linejoin', 'round');
     svg.appendChild(path);
 
+    if (isActive) {
+      svg.style.animation = 'none';
+      svg.style.transform = 'rotate(0deg) scale(1)';
+      svg.style.opacity = '1';
+    }
+
     btn.appendChild(svg);
-
-    btn.addEventListener('mouseenter', () => {
-      btn.style.transform = 'scale(1.08)';
-      btn.style.background = 'rgba(110, 231, 183, 0.15)';
-    });
-
-    btn.addEventListener('mouseleave', () => {
-      btn.style.transform = 'scale(1)';
-      if (btn.dataset.active !== 'true') {
-        btn.style.background = 'rgba(30, 41, 59, 0.8)';
-      }
-    });
 
     btn.addEventListener('click', () => {
       this.setActiveTool(type);
@@ -191,6 +246,9 @@ export class UIController {
     value: number,
     type: 'radius' | 'strength'
   ): { container: HTMLElement; slider: HTMLInputElement; value: HTMLElement } {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'slider-container';
+
     const container = document.createElement('div');
     container.style.cssText = `
       display: flex;
@@ -232,61 +290,23 @@ export class UIController {
     slider.value = value.toString();
     slider.step = type === 'radius' ? '1' : '0.05';
 
-    const sliderStyle = `
+    const percent = ((value - min) / (max - min)) * 100;
+    slider.style.cssText = `
       -webkit-appearance: none;
       appearance: none;
       width: 100%;
       height: 4px;
-      background: rgba(30, 41, 59, 0.9);
       border-radius: 2px;
       outline: none;
       cursor: pointer;
-      transition: all 0.15s ease;
+      background: linear-gradient(to right, #6ee7b7 0%, #6ee7b7 ${percent}%, rgba(30, 41, 59, 0.9) ${percent}%, rgba(30, 41, 59, 0.9) 100%);
     `;
-    slider.style.cssText = sliderStyle;
-
-    const trackFill = `
-      background: linear-gradient(to right, #6ee7b7 0%, #6ee7b7 ${((value - min) / (max - min)) * 100}%, rgba(30, 41, 59, 0.9) ${((value - min) / (max - min)) * 100}%, rgba(30, 41, 59, 0.9) 100%);
-    `;
-    slider.style.cssText = sliderStyle + trackFill;
-
-    const style = document.createElement('style');
-    style.textContent = `
-      input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 14px;
-        height: 14px;
-        background: #6ee7b7;
-        border-radius: 50%;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        box-shadow: 0 0 8px rgba(110, 231, 183, 0.4);
-      }
-      input[type="range"]::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-        box-shadow: 0 0 12px rgba(110, 231, 183, 0.6);
-      }
-      input[type="range"]::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        background: #6ee7b7;
-        border-radius: 50%;
-        cursor: pointer;
-        border: none;
-        transition: all 0.15s ease;
-      }
-      @keyframes fpsBlink {
-        0%, 100% { color: #ef4444; text-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
-        50% { color: #fca5a5; text-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
-      }
-    `;
-    document.head.appendChild(style);
 
     container.appendChild(header);
     container.appendChild(slider);
+    wrapper.appendChild(container);
 
-    return { container, slider, value: valueEl };
+    return { container: wrapper, slider, value: valueEl };
   }
 
   private createInfoPanel(): void {
@@ -361,13 +381,13 @@ export class UIController {
     `;
 
     const valueEl = document.createElement('span');
+    valueEl.className = 'info-row-value';
     valueEl.textContent = value;
     valueEl.style.cssText = `
       color: #6ee7b7;
       font-size: 12px;
       font-weight: 600;
       font-variant-numeric: tabular-nums;
-      transition: color 0.15s ease;
     `;
 
     row.appendChild(labelEl);
@@ -413,7 +433,15 @@ export class UIController {
       const svg = btn.querySelector('svg');
       const path = btn.querySelector('path');
       if (svg) {
-        svg.style.transform = isActive ? 'rotate(90deg)' : 'rotate(0deg)';
+        if (isActive) {
+          svg.style.animation = 'none';
+          void svg.offsetWidth;
+          svg.style.animation = 'brushSpinIn 0.2s ease forwards';
+        } else {
+          svg.style.animation = 'none';
+          svg.style.transform = 'rotate(0deg) scale(1)';
+          svg.style.opacity = '1';
+        }
       }
       if (path) {
         path.setAttribute('fill', isActive ? '#6ee7b7' : 'rgba(110, 231, 183, 0.7)');
@@ -440,10 +468,10 @@ export class UIController {
     this.fpsEl.textContent = `${fps.toFixed(0)} FPS`;
 
     if (fps < 25) {
-      this.fpsEl.style.animation = 'fpsBlink 0.8s ease-in-out infinite';
-      this.fpsEl.style.color = '#ef4444';
+      this.fpsEl.classList.add('fps-warning');
+      this.fpsEl.style.color = '';
     } else {
-      this.fpsEl.style.animation = 'none';
+      this.fpsEl.classList.remove('fps-warning');
       this.fpsEl.style.color = '#6ee7b7';
     }
   }
