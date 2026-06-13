@@ -7,6 +7,17 @@ const POLLS_KEY = 'team_polls';
 const VOTES_KEY = 'team_votes';
 const DEVICE_KEY = 'device_id';
 
+const POLL_UPDATE_EVENT = 'poll-update';
+
+const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('team_poll_channel') : null;
+
+function broadcastPollUpdate(pollId: string, action: string): void {
+  if (bc) {
+    bc.postMessage({ pollId, action, ts: Date.now() });
+  }
+  window.dispatchEvent(new CustomEvent(POLL_UPDATE_EVENT, { detail: { pollId, action, ts: Date.now() } }));
+}
+
 function generateId(): string {
   return Math.random().toString(36).substring(2, 10);
 }
@@ -261,6 +272,7 @@ const App: React.FC = () => {
         },
       };
     });
+    broadcastPollUpdate(pollId, 'vote');
     return true;
   }, [polls, votes, deviceId]);
 
@@ -275,6 +287,7 @@ const App: React.FC = () => {
         endedAt: Date.now(),
       },
     }));
+    broadcastPollUpdate(pollId, 'end');
     return true;
   }, [polls, deviceId]);
 
@@ -423,6 +436,7 @@ const App: React.FC = () => {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <input
+              className="poll-code-input"
               style={inputStyles}
               type="text"
               placeholder="输入投票码"
@@ -434,14 +448,6 @@ const App: React.FC = () => {
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleJoin();
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--accent-blue)';
-                e.currentTarget.style.animation = 'breathe 2s infinite alternate';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
-                e.currentTarget.style.animation = 'none';
               }}
             />
             <div style={errorTextStyles}>{joinError}</div>

@@ -223,20 +223,51 @@ const VotePage: React.FC<VotePageProps> = ({
   }, [poll.creatorDeviceId, deviceId]);
 
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'team_polls') {
-        try {
-          const polls = JSON.parse(e.newValue || '{}');
-          if (polls[localPoll.id]) {
-            setLocalPoll(polls[localPoll.id]);
-          }
-        } catch {
-          // ignore
+    const onCustomEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.pollId === localPoll.id) {
+        const raw = localStorage.getItem('team_polls');
+        if (raw) {
+          try {
+            const allPolls = JSON.parse(raw);
+            if (allPolls[localPoll.id]) {
+              const t0 = performance.now();
+              setLocalPoll(allPolls[localPoll.id]);
+              console.log(`[实时推送-同标签页] 延迟 ${(performance.now() - t0).toFixed(2)}ms, 动作: ${detail.action}`);
+            }
+          } catch { /* ignore */ }
         }
       }
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+
+    const onBcMessage = (e: MessageEvent) => {
+      const { pollId, action } = e.data;
+      if (pollId === localPoll.id) {
+        const raw = localStorage.getItem('team_polls');
+        if (raw) {
+          try {
+            const allPolls = JSON.parse(raw);
+            if (allPolls[localPoll.id]) {
+              const t0 = performance.now();
+              setLocalPoll(allPolls[localPoll.id]);
+              console.log(`[实时推送-跨标签页] 延迟 ${(performance.now() - t0).toFixed(2)}ms, 动作: ${action}`);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    };
+
+    window.addEventListener('poll-update', onCustomEvent);
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('team_poll_channel') : null;
+    if (channel) channel.addEventListener('message', onBcMessage);
+
+    return () => {
+      window.removeEventListener('poll-update', onCustomEvent);
+      if (channel) {
+        channel.removeEventListener('message', onBcMessage);
+        channel.close();
+      }
+    };
   }, [localPoll.id]);
 
   const handleVote = useCallback((optionId: string) => {

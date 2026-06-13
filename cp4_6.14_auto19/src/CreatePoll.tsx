@@ -234,19 +234,12 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onCreate, onBack }) => {
         <div>
           <label style={labelStyles}>投票标题 *</label>
           <input
+            className="breathing-input"
             style={inputBaseStyles}
             type="text"
             placeholder="例如：团建地点投票"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--accent-blue)';
-              e.currentTarget.style.animation = 'breathe 2s infinite alternate';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-color)';
-              e.currentTarget.style.animation = 'none';
-            }}
           />
         </div>
 

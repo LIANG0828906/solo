@@ -130,6 +130,12 @@ input, textarea, select {
   border-color: var(--accent-blue) !important;
 }
 
+.breathing-input:focus {
+  animation: breathe 2s infinite alternate !important;
+  border-color: var(--accent-blue) !important;
+  outline: none;
+}
+
 @media (max-width: 768px) {
   .vote-options-grid {
     grid-template-columns: 1fr !important;

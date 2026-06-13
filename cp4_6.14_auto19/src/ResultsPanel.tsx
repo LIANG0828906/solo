@@ -58,11 +58,12 @@ const performanceBadgeStyles: React.CSSProperties = {
   right: '8px',
   padding: '4px 10px',
   background: 'rgba(16, 185, 129, 0.15)',
-  color: 'var(--success-start)',
+  color: '#10b981',
   fontSize: '11px',
   fontWeight: 600,
   borderRadius: '999px',
   fontFamily: 'monospace',
+  zIndex: 2,
 };
 
 function easeOutCubic(t: number): number {
@@ -73,181 +74,198 @@ function drawCrown(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.save();
   ctx.translate(x, y);
 
-  const gradient = ctx.createLinearGradient(0, -size * 0.6, 0, size * 0.4);
+  const w = size;
+  const h = size * 0.8;
+
+  const gradient = ctx.createLinearGradient(0, -h * 0.7, 0, h * 0.4);
   gradient.addColorStop(0, '#fde68a');
-  gradient.addColorStop(0.5, '#fbbf24');
+  gradient.addColorStop(0.4, '#fbbf24');
   gradient.addColorStop(1, '#d97706');
 
   ctx.fillStyle = gradient;
-  ctx.strokeStyle = '#b45309';
-  ctx.lineWidth = size * 0.06;
+  ctx.strokeStyle = '#92400e';
+  ctx.lineWidth = Math.max(1, size * 0.04);
   ctx.lineJoin = 'round';
 
   ctx.beginPath();
-  const w = size;
-  const h = size * 0.75;
-  const baseY = h * 0.5;
-
+  const baseY = h * 0.35;
   ctx.moveTo(-w / 2, baseY);
-  ctx.lineTo(-w / 2, -h * 0.2);
-  ctx.lineTo(-w * 0.25, -h * 0.5);
-  ctx.lineTo(0, -h * 0.15);
-  ctx.lineTo(w * 0.25, -h * 0.5);
-  ctx.lineTo(w / 2, -h * 0.2);
+  ctx.lineTo(-w / 2, -h * 0.15);
+  ctx.lineTo(-w * 0.25, -h * 0.6);
+  ctx.lineTo(0, -h * 0.1);
+  ctx.lineTo(w * 0.25, -h * 0.6);
+  ctx.lineTo(w / 2, -h * 0.15);
   ctx.lineTo(w / 2, baseY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = '#fde68a';
   ctx.beginPath();
-  ctx.arc(-w * 0.25, -h * 0.55, size * 0.08, 0, Math.PI * 2);
+  ctx.arc(-w * 0.25, -h * 0.65, size * 0.09, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(0, -h * 0.2, size * 0.07, 0, Math.PI * 2);
+  ctx.arc(0, -h * 0.15, size * 0.08, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(w * 0.25, -h * 0.55, size * 0.08, 0, Math.PI * 2);
+  ctx.arc(w * 0.25, -h * 0.65, size * 0.09, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.beginPath();
-  ctx.ellipse(-w * 0.15, -h * 0.1, w * 0.08, h * 0.08, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(-w * 0.12, -h * 0.05, w * 0.06, h * 0.06, -0.3, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.fillStyle = '#92400e';
+  ctx.fillRect(-w / 2, baseY - 1, w, size * 0.1);
 
   ctx.restore();
 }
 
+const BAR_H = 32;
+const BAR_GAP = 16;
+const PAD_LEFT = 24;
+const PAD_RIGHT = 120;
+const CROWN_TOP = 38;
+const MARGIN_TOP = 20;
+const MARGIN_BOTTOM = 16;
+
 const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shareCanvasRef = useRef<HTMLCanvasElement>(null);
-  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const offscreenRef = useRef<HTMLCanvasElement | null>(null);
+  const offCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const cachedSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const rafIdRef = useRef<number>(0);
-  const animStartTimeRef = useRef<number>(0);
-  const animProgressRef = useRef<number[]>([]);
+  const animStartRef = useRef<number>(0);
   const [renderTime, setRenderTime] = useState<number>(0);
   const [showShare, setShowShare] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const prevPollIdRef = useRef<string>('');
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(800);
-  const pendingPollRef = useRef<Poll | null>(null);
 
   const totalVotes = useMemo(
-    () => poll.options.reduce((sum, o) => sum + o.votes, 0),
+    () => poll.options.reduce((s, o) => s + o.votes, 0),
     [poll.options]
   );
 
-  const maxVotes = useMemo(() => {
-    return Math.max(...poll.options.map((o) => o.votes), 1);
-  }, [poll.options]);
+  const maxVotes = useMemo(
+    () => Math.max(...poll.options.map((o) => o.votes), 1),
+    [poll.options]
+  );
 
   const winnerIds = useMemo(() => {
-    const max = Math.max(...poll.options.map((o) => o.votes), 0);
-    if (max === 0) return [];
-    return poll.options.filter((o) => o.votes === max).map((o) => o.id);
+    const mx = Math.max(...poll.options.map((o) => o.votes), 0);
+    if (mx === 0) return [] as string[];
+    return poll.options.filter((o) => o.votes === mx).map((o) => o.id);
   }, [poll.options]);
 
+  const canvasHeight = useMemo(
+    () => MARGIN_TOP + MARGIN_BOTTOM + CROWN_TOP + poll.options.length * (BAR_H + BAR_GAP) - BAR_GAP,
+    [poll.options.length]
+  );
+
   useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        const w = Math.min(containerRef.current.offsetWidth - 40, 800);
-        setCanvasWidth(Math.max(280, w));
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.min(entry.contentRect.width - 16, 800);
+        setCanvasWidth(Math.max(260, w));
       }
-    };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  const barHeight = 32;
-  const barGap = 16;
-  const labelLeftPad = 24;
-  const labelRightPad = 120;
-  const crownExtraTop = 36;
-  const topMargin = 20;
-  const bottomMargin = 16;
+  const getOrCreateOffscreen = useCallback((w: number, h: number, dpr: number): CanvasRenderingContext2D | null => {
+    if (
+      offscreenRef.current &&
+      cachedSizeRef.current.w === w * dpr &&
+      cachedSizeRef.current.h === h * dpr &&
+      offCtxRef.current
+    ) {
+      return offCtxRef.current;
+    }
+    if (!offscreenRef.current) {
+      offscreenRef.current = document.createElement('canvas');
+    }
+    const oc = offscreenRef.current;
+    oc.width = w * dpr;
+    oc.height = h * dpr;
+    cachedSizeRef.current = { w: w * dpr, h: h * dpr };
+    const ctx = oc.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    offCtxRef.current = ctx;
+    return ctx;
+  }, []);
 
-  const canvasHeight = useMemo(() => {
-    return (
-      topMargin +
-      bottomMargin +
-      poll.options.length * (barHeight + barGap) -
-      barGap +
-      crownExtraTop
-    );
-  }, [poll.options.length, barHeight, barGap, topMargin, bottomMargin, crownExtraTop]);
-
-  const drawStatic = useCallback(
-    (ctx: CanvasRenderingContext2D, options: PollOption[], widths: number[], width: number, height: number, withCrown: boolean = true) => {
-      const startY = topMargin + crownExtraTop;
-      const barAreaWidth = width - labelLeftPad - labelRightPad;
+  const drawBars = useCallback(
+    (ctx: CanvasRenderingContext2D, options: PollOption[], widths: number[], w: number, h: number, drawCrownFlag: boolean = true) => {
+      const startY = MARGIN_TOP + CROWN_TOP;
+      const barAreaW = w - PAD_LEFT - PAD_RIGHT;
 
       for (let i = 0; i < options.length; i++) {
         const opt = options[i];
-        const y = startY + i * (barHeight + barGap);
-        const barW = Math.max(2, widths[i] * barAreaWidth);
-        const isWinner = winnerIds.includes(opt.id);
+        const y = startY + i * (BAR_H + BAR_GAP);
+        const barW = Math.max(2, widths[i] * barAreaW);
+        const isWinner = winnerIds.includes(opt.id) && opt.votes > 0;
 
-        const barGradient = ctx.createLinearGradient(labelLeftPad, 0, labelLeftPad + barW, 0);
-        if (isWinner && opt.votes > 0) {
-          barGradient.addColorStop(0, '#fbbf24');
-          barGradient.addColorStop(1, '#f97316');
-        } else {
-          barGradient.addColorStop(0, '#3b82f6');
-          barGradient.addColorStop(1, '#1d4ed8');
+        if (drawCrownFlag && isWinner) {
+          drawCrown(ctx, PAD_LEFT + 30, y - 6, 26);
         }
 
-        ctx.fillStyle = barGradient;
-        ctx.beginPath();
-        const radius = barHeight / 2;
-        const w = Math.max(radius * 2, barW);
-        const x = labelLeftPad;
-
-        if (w <= radius * 2) {
-          ctx.arc(x + radius, y + barHeight / 2, radius, 0, Math.PI * 2);
+        const grad = ctx.createLinearGradient(PAD_LEFT, 0, PAD_LEFT + barW, 0);
+        if (isWinner) {
+          grad.addColorStop(0, '#fbbf24');
+          grad.addColorStop(1, '#f97316');
         } else {
-          ctx.moveTo(x + radius, y);
-          ctx.lineTo(x + w - radius, y);
-          ctx.arc(x + w - radius, y + barHeight / 2, radius, -Math.PI / 2, Math.PI / 2);
-          ctx.lineTo(x + radius, y + barHeight);
-          ctx.arc(x + radius, y + barHeight / 2, radius, Math.PI / 2, -Math.PI / 2);
+          grad.addColorStop(0, '#3b82f6');
+          grad.addColorStop(1, '#1d4ed8');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        const r = BAR_H / 2;
+        const bw = Math.max(r * 2, barW);
+        const x = PAD_LEFT;
+        if (bw <= r * 2) {
+          ctx.arc(x + r, y + BAR_H / 2, r, 0, Math.PI * 2);
+        } else {
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + bw - r, y);
+          ctx.arc(x + bw - r, y + BAR_H / 2, r, -Math.PI / 2, Math.PI / 2);
+          ctx.lineTo(x + r, y + BAR_H);
+          ctx.arc(x + r, y + BAR_H / 2, r, Math.PI / 2, -Math.PI / 2);
         }
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = '600 14px Outfit, -apple-system, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
+        const textX = PAD_LEFT + 12;
+        const pct = totalVotes > 0 ? ((opt.votes / totalVotes) * 100).toFixed(1) : '0.0';
+        const label = opt.text.length > 18 ? opt.text.slice(0, 16) + '…' : opt.text;
 
-        const textX = labelLeftPad + 12;
+        ctx.font = '600 14px Outfit, -apple-system, sans-serif';
+        ctx.textBaseline = 'middle';
         if (barW > 80) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, textX, y + BAR_H / 2);
         } else {
           ctx.fillStyle = '#94a3b8';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, PAD_LEFT + bw + 8, y + BAR_H / 2);
         }
 
-        const displayText = opt.text.length > 20 ? opt.text.slice(0, 18) + '...' : opt.text;
-        ctx.fillText(displayText, textX, y + barHeight / 2);
-
-        const pct = totalVotes > 0 ? ((opt.votes / totalVotes) * 100).toFixed(1) : '0.0';
         ctx.fillStyle = '#f8fafc';
-        ctx.font = '700 14px Space Grotesk, Outfit, sans-serif';
+        ctx.font = '700 13px Space Grotesk, Outfit, sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(
-          `${opt.votes}票 · ${pct}%`,
-          width - 16,
-          y + barHeight / 2
-        );
-
-        if (withCrown && isWinner && opt.votes > 0) {
-          const crownX = labelLeftPad + 30;
-          const crownY = y - 8;
-          drawCrown(ctx, crownX, crownY, 28);
-        }
+        ctx.fillText(`${opt.votes}票 · ${pct}%`, w - 12, y + BAR_H / 2);
       }
     },
-    [winnerIds, totalVotes, barHeight, barGap, topMargin, crownExtraTop]
+    [winnerIds, totalVotes]
   );
 
   useEffect(() => {
@@ -255,46 +273,34 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
     if (!canvas) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const width = canvasWidth;
-    const height = canvasHeight;
+    const w = canvasWidth;
+    const h = canvasHeight;
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
 
-    if (!offscreenCanvasRef.current) {
-      offscreenCanvasRef.current = document.createElement('canvas');
-    }
-    const offscreen = offscreenCanvasRef.current;
-    offscreen.width = width * dpr;
-    offscreen.height = height * dpr;
-    const offCtx = offscreen.getContext('2d');
+    const offCtx = getOrCreateOffscreen(w, h, dpr);
     if (!offCtx) return;
-    offCtx.scale(dpr, dpr);
 
     const isNewPoll = prevPollIdRef.current !== poll.id;
     if (isNewPoll) {
       prevPollIdRef.current = poll.id;
-      animProgressRef.current = poll.options.map(() => 0);
-      animStartTimeRef.current = 0;
+      animStartRef.current = 0;
     }
 
-    if (pendingPollRef.current === null) {
-      pendingPollRef.current = poll;
-    } else {
-      pendingPollRef.current = poll;
-      if (rafIdRef.current) {
-        return;
-      }
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = 0;
     }
 
-    const startTime = performance.now();
+    const t0 = performance.now();
 
     if (isNewPoll) {
       const animate = (ts: number) => {
-        if (!animStartTimeRef.current) animStartTimeRef.current = ts;
-        const elapsed = ts - animStartTimeRef.current;
+        if (!animStartRef.current) animStartRef.current = ts;
+        const elapsed = ts - animStartRef.current;
 
         const widths: number[] = [];
         let allDone = true;
@@ -302,49 +308,39 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
         for (let i = 0; i < poll.options.length; i++) {
           const delay = i * 100;
           const duration = 500;
-          let t = (elapsed - delay) / duration;
-          t = Math.max(0, Math.min(1, t));
-          const progress = easeOutCubic(t);
-          widths.push(progress * (poll.options[i].votes / Math.max(maxVotes, 1)));
+          let t = Math.max(0, Math.min(1, (elapsed - delay) / duration));
+          widths.push(easeOutCubic(t) * (poll.options[i].votes / maxVotes));
           if (t < 1) allDone = false;
-          animProgressRef.current[i] = progress;
         }
 
-        offCtx.clearRect(0, 0, width, height);
-        drawStatic(offCtx, poll.options, widths, width, height);
+        offCtx.clearRect(0, 0, w, h);
+        drawBars(offCtx, poll.options, widths, w, h);
 
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(offscreen, 0, 0);
+        const mainCtx = canvas.getContext('2d');
+        if (mainCtx) {
+          mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+          mainCtx.drawImage(offscreenRef.current!, 0, 0);
         }
 
         if (!allDone) {
           rafIdRef.current = requestAnimationFrame(animate);
         } else {
           rafIdRef.current = 0;
-          pendingPollRef.current = null;
-          const endTime = performance.now();
-          setRenderTime(endTime - startTime);
+          setRenderTime(performance.now() - t0);
         }
       };
-
       rafIdRef.current = requestAnimationFrame(animate);
     } else {
-      const widths = poll.options.map((o) => o.votes / Math.max(maxVotes, 1));
+      const widths = poll.options.map((o) => o.votes / maxVotes);
+      offCtx.clearRect(0, 0, w, h);
+      drawBars(offCtx, poll.options, widths, w, h);
 
-      offCtx.clearRect(0, 0, width, height);
-      drawStatic(offCtx, poll.options, widths, width, height);
-
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(offscreen, 0, 0);
+      const mainCtx = canvas.getContext('2d');
+      if (mainCtx) {
+        mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+        mainCtx.drawImage(offscreenRef.current!, 0, 0);
       }
-
-      const endTime = performance.now();
-      setRenderTime(endTime - startTime);
-      pendingPollRef.current = null;
+      setRenderTime(performance.now() - t0);
     }
 
     return () => {
@@ -353,72 +349,76 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
         rafIdRef.current = 0;
       }
     };
-  }, [poll, canvasWidth, canvasHeight, maxVotes, drawStatic]);
+  }, [poll, canvasWidth, canvasHeight, maxVotes, drawBars, getOrCreateOffscreen]);
 
   useEffect(() => {
     if (!showShare) return;
-    const shareCanvas = shareCanvasRef.current;
-    if (!shareCanvas) return;
+    const sc = shareCanvasRef.current;
+    if (!sc) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const w = 800;
-    const h = 600;
-    shareCanvas.width = w * dpr;
-    shareCanvas.height = h * dpr;
-    shareCanvas.style.width = '100%';
-    shareCanvas.style.height = 'auto';
+    const sw = 800;
+    const sh = Math.max(600, 200 + poll.options.length * 40 + 80);
+    sc.width = sw * dpr;
+    sc.height = sh * dpr;
+    sc.style.width = '100%';
+    sc.style.height = 'auto';
 
-    const ctx = shareCanvas.getContext('2d');
+    const ctx = sc.getContext('2d');
     if (!ctx) return;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const bgGrad = ctx.createLinearGradient(0, 0, w, h);
-    bgGrad.addColorStop(0, '#0f172a');
-    bgGrad.addColorStop(1, '#1e293b');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
+    const bg = ctx.createLinearGradient(0, 0, sw, sh);
+    bg.addColorStop(0, '#0f172a');
+    bg.addColorStop(1, '#1e293b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, sw, sh);
 
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+    ctx.fillStyle = 'rgba(59,130,246,0.1)';
     ctx.beginPath();
     ctx.arc(0, 0, 200, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.08)';
+    ctx.fillStyle = 'rgba(249,115,22,0.08)';
     ctx.beginPath();
-    ctx.arc(w, h, 250, 0, Math.PI * 2);
+    ctx.arc(sw, sh, 250, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 32px Space Grotesk, Outfit, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(poll.title, 40, 70);
+    ctx.textBaseline = 'top';
+    ctx.fillText(poll.title, 40, 40);
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = '14px Outfit, sans-serif';
     ctx.fillText(
       `共 ${totalVotes} 票 · ${poll.options.length} 个选项 · ${poll.isEnded ? '已结束' : '进行中'}`,
       40,
-      100
+      82
     );
 
-    const chartTop = 140;
-    const chartBottom = h - 80;
+    const chartTop = 120;
+    const chartBottom = sh - 80;
     const chartLeft = 40;
-    const chartRight = w - 40;
+    const chartRight = sw - 40;
     const chartH = chartBottom - chartTop;
 
-    const optCount = poll.options.length;
-    const eachH = chartH / optCount;
+    const sorted = [...poll.options].sort((a, b) => b.votes - a.votes);
+    const optCount = sorted.length;
+    const eachH = chartH / Math.max(optCount, 1);
     const barH = Math.min(36, eachH * 0.6);
     const barAreaW = chartRight - chartLeft - 160;
 
-    const sortedOptions = [...poll.options].sort((a, b) => b.votes - a.votes);
-
-    for (let i = 0; i < sortedOptions.length; i++) {
-      const opt = sortedOptions[i];
+    for (let i = 0; i < sorted.length; i++) {
+      const opt = sorted[i];
       const y = chartTop + i * eachH + (eachH - barH) / 2;
       const ratio = maxVotes > 0 ? opt.votes / maxVotes : 0;
       const barW = Math.max(4, ratio * barAreaW);
       const isWinner = winnerIds.includes(opt.id) && opt.votes > 0;
+
+      if (isWinner) {
+        drawCrown(ctx, chartLeft + 30, y - 4, 24);
+      }
 
       const barGrad = ctx.createLinearGradient(chartLeft, 0, chartLeft + barW, 0);
       if (isWinner) {
@@ -445,37 +445,35 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
       ctx.closePath();
       ctx.fill();
 
-      if (isWinner) {
-        drawCrown(ctx, chartLeft + 28, y + 4, 26);
-      }
+      const pct = totalVotes > 0 ? ((opt.votes / totalVotes) * 100).toFixed(1) : '0.0';
+      const label = opt.text.length > 22 ? opt.text.slice(0, 20) + '…' : opt.text;
 
-      ctx.fillStyle = barW > 100 ? 'rgba(255,255,255,0.95)' : '#94a3b8';
-      ctx.font = '600 15px Outfit, sans-serif';
+      if (barW > 100) {
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      } else {
+        ctx.fillStyle = '#94a3b8';
+      }
+      ctx.font = '600 14px Outfit, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      const displayText = opt.text.length > 25 ? opt.text.slice(0, 23) + '...' : opt.text;
-      ctx.fillText(displayText, chartLeft + 14, y + barH / 2);
+      ctx.fillText(label, chartLeft + 14, y + barH / 2);
 
-      const pct = totalVotes > 0 ? ((opt.votes / totalVotes) * 100).toFixed(1) : '0.0';
       ctx.fillStyle = '#f8fafc';
-      ctx.font = '700 15px Space Grotesk, sans-serif';
+      ctx.font = '700 14px Space Grotesk, sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(`${opt.votes}票 · ${pct}%`, chartRight, y + barH / 2);
     }
 
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+    ctx.fillStyle = 'rgba(148,163,184,0.6)';
     ctx.font = '12px Outfit, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('团队投票决策工具 · 扫码或输入投票码参与', w / 2, h - 30);
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('团队投票决策工具 · 输入投票码参与', sw / 2, sh - 28);
 
-    ctx.fillStyle = 'var(--accent-orange)';
+    ctx.fillStyle = '#f97316';
     ctx.font = 'bold 14px Space Grotesk, sans-serif';
-    ctx.fillText(`投票码: ${poll.id}`, w / 2, h - 12);
-
-    shareCanvas.setAttribute('data-png', shareCanvas.toDataURL('image/png'));
+    ctx.fillText(`投票码: ${poll.id}`, sw / 2, sh - 10);
   }, [showShare, poll, totalVotes, maxVotes, winnerIds]);
-
-  const [showHint, setShowHint] = useState(false);
 
   return (
     <div style={cardStyles} ref={containerRef} className="results-panel-card">
@@ -484,10 +482,12 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
         <span>实时投票结果</span>
       </h3>
 
-      <div style={canvasContainerStyles}>
-        <div style={performanceBadgeStyles}>
-          渲染 {renderTime.toFixed(1)}ms
-        </div>
+      <div style={canvasContainerStyles} className="results-canvas-container">
+        {renderTime > 0 && (
+          <div style={performanceBadgeStyles}>
+            渲染 {renderTime.toFixed(1)}ms
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           style={{
@@ -511,7 +511,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
               style={{
                 width: '100%',
                 padding: '12px 20px',
-                background: 'var(--accent-blue)',
+                background: '#3b82f6',
                 color: 'white',
                 fontSize: '14px',
                 fontWeight: 600,
@@ -521,7 +521,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
               onClick={() => setShowShare(true)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
@@ -536,18 +536,18 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ poll }) => {
                 ref={shareCanvasRef}
                 style={{
                   borderRadius: '12px',
-                  border: '1px solid var(--border-color)',
+                  border: '1px solid #334155',
                   cursor: 'context-menu',
                   maxWidth: '100%',
                   height: 'auto',
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  const canvas = shareCanvasRef.current;
-                  if (canvas) {
+                  const c = shareCanvasRef.current;
+                  if (c) {
                     const link = document.createElement('a');
                     link.download = `投票结果_${poll.id}.png`;
-                    link.href = canvas.toDataURL('image/png');
+                    link.href = c.toDataURL('image/png');
                     link.click();
                   }
                 }}
