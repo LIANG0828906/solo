@@ -1,4 +1,11 @@
-import { SimplexNoise, waveRipple, fbmNoise } from './algorithms';
+import {
+  SimplexNoise,
+  waveRipple,
+  fbmNoise,
+  turbulence,
+  domainWarpedNoise,
+  ridgedMultiFractal,
+} from './algorithms';
 
 export type GridType = 'square' | 'hexagon' | 'triangle';
 
@@ -87,16 +94,16 @@ function getColorFromPalette(
 
 export function generatePattern(params: GenerateParams): MosaicCell[] {
   const { palette, gridType, density, seed, canvasWidth, canvasHeight } = params;
-  const actualSeed = seed ?? Math.random() * 10000;
+  const actualSeed = seed ?? Math.floor(Math.random() * 999999);
   const noise = new SimplexNoise(actualSeed);
+  const detailNoise = new SimplexNoise(actualSeed + 1000);
+  const warpNoise = new SimplexNoise(actualSeed + 2000);
   const cells: MosaicCell[] = [];
 
   const cols = density;
   const rows = Math.floor(density * (canvasHeight / canvasWidth));
   const cellWidth = canvasWidth / cols;
   const cellHeight = canvasHeight / rows;
-
-  const time = actualSeed % 1000;
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -121,18 +128,27 @@ export function generatePattern(params: GenerateParams): MosaicCell[] {
         h = triHeight;
       }
 
-      const nx = col / cols * 4;
-      const ny = row / rows * 4;
+      const baseNx = col / cols * 3.5;
+      const baseNy = row / rows * 3.5;
 
-      const noiseVal = fbmNoise(noise, nx, ny, 4);
-      const rippleVal = waveRipple(col * 0.3, row * 0.3, time, 4);
-      const combined = noiseVal * 0.6 + rippleVal * 0.4;
+      const warped = domainWarpedNoise(warpNoise, baseNx, baseNy, 0.8, 3);
+
+      const fbmVal = fbmNoise(noise, baseNx + warped * 0.3, baseNy + warped * 0.3, 5, 0.55, 2.1);
+      const rippleVal = waveRipple(noise, baseNx * 1.2, baseNy * 1.2, 5);
+      const ridgeVal = ridgedMultiFractal(detailNoise, baseNx * 2, baseNy * 2, 3, 0.6, 2.2, 1);
+      const turbVal = turbulence(detailNoise, baseNx * 1.5, baseNy * 1.5, 3, 0.55);
+
+      const combined =
+        fbmVal * 0.4 +
+        rippleVal * 0.3 +
+        ridgeVal * 0.15 +
+        turbVal * 0.15;
 
       const color = getColorFromPalette(palette, combined, 'smooth');
 
-      const detailNoise = noise.noise2D(nx * 3, ny * 3);
-      const scale = 0.9 + detailNoise * 0.1;
-      const rotation = noise.noise2D(nx * 2, ny * 2) * 10;
+      const dn = detailNoise.noise2D(baseNx * 4, baseNy * 4);
+      const scale = 0.88 + dn * 0.12;
+      const rotation = detailNoise.noise2D(baseNx * 2.5, baseNy * 2.5) * 8;
 
       cells.push({
         id: `cell-${row}-${col}`,

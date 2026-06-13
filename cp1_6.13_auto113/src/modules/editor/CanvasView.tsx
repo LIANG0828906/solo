@@ -39,15 +39,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     row: number;
     col: number;
   } | null>(null);
-  const [cellColorMap, setCellColorMap] = useState<Map<string, string>>(new Map());
   const [currentColor, setCurrentColor] = useState(palette[0]);
   const [eyedropperActive, setEyedropperActive] = useState(false);
-
-  useEffect(() => {
-    const newMap = new Map<string, string>();
-    cells.forEach((cell) => newMap.set(cell.id, cell.color));
-    setCellColorMap(newMap);
-  }, [cells]);
 
   const rows = useMemo(() => {
     return Math.floor(density * (canvasHeight / canvasWidth));
@@ -387,7 +380,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
             <g>
               {cells.map((cell) => {
                 const isSelected = selectedCells.has(cell.id);
-                const isAnimating = animatingCells.has(cell.id);
                 const isPickerTarget = selectedCell?.id === cell.id;
 
                 return (
@@ -395,10 +387,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
                     key={cell.id}
                     d={getCellPath(cell)}
                     fill={cell.color}
-                    className={`transition-opacity duration-200 ${
-                      isAnimating ? 'animate-pulse' : ''
-                    }`}
                     style={{
+                      transition: 'fill 0.2s ease-in-out, opacity 0.2s ease-in-out, filter 0.2s ease-in-out',
                       opacity: isSelected ? 0.7 : 1,
                       filter: isPickerTarget
                         ? 'drop-shadow(0 0 6px rgba(255, 215, 0, 0.8))'

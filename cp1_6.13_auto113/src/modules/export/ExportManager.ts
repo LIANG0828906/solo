@@ -97,39 +97,56 @@ export async function exportPNG(
   width: number,
   height: number,
   exportWidth: number = 1920,
-  exportHeight: number = 1080
+  exportHeight: number = 1080,
+  aaScale: number = 4
 ): Promise<void> {
-  const scaleX = exportWidth / width;
-  const scaleY = exportHeight / height;
-  const scale = Math.min(scaleX, scaleY);
+  const targetRatio = exportWidth / exportHeight;
+  const canvasRatio = width / height;
+  let renderW: number, renderH: number;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = exportWidth;
-  canvas.height = exportHeight;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (canvasRatio > targetRatio) {
+    renderW = exportWidth;
+    renderH = exportWidth / canvasRatio;
+  } else {
+    renderH = exportHeight;
+    renderW = exportHeight * canvasRatio;
+  }
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, exportHeight);
-  gradient.addColorStop(0, '#1a1a2e');
-  gradient.addColorStop(1, '#16213e');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, exportWidth, exportHeight);
+  const ssaaScale = aaScale;
+  const ssaaWidth = Math.floor(renderW * ssaaScale);
+  const ssaaHeight = Math.floor(renderH * ssaaScale);
 
-  const offsetX = (exportWidth - width * scale) / 2;
-  const offsetY = (exportHeight - height * scale) / 2;
+  const offscreen = document.createElement('canvas');
+  offscreen.width = ssaaWidth;
+  offscreen.height = ssaaHeight;
+  const offCtx = offscreen.getContext('2d');
+  if (!offCtx) return;
 
-  ctx.save();
-  ctx.translate(offsetX, offsetY);
-  ctx.scale(scale, scale);
+  offCtx.imageSmoothingEnabled = true;
+  offCtx.imageSmoothingQuality = 'high';
+
+  const contentScale = Math.min(ssaaWidth / width, ssaaHeight / height);
+  const offsetX = (ssaaWidth - width * contentScale) / 2;
+  const offsetY = (ssaaHeight - height * contentScale) / 2;
+
+  const bgGradient = offCtx.createLinearGradient(0, 0, 0, ssaaHeight);
+  bgGradient.addColorStop(0, '#1a1a2e');
+  bgGradient.addColorStop(1, '#16213e');
+  offCtx.fillStyle = bgGradient;
+  offCtx.fillRect(0, 0, ssaaWidth, ssaaHeight);
+
+  offCtx.save();
+  offCtx.translate(offsetX, offsetY);
+  offCtx.scale(contentScale, contentScale);
 
   for (const cell of cells) {
     const path = new Path2D(generateCellPath(cell));
-    ctx.fillStyle = cell.color;
-    ctx.fill(path);
+    offCtx.fillStyle = cell.color;
+    offCtx.fill(path);
 
-    ctx.save();
-    ctx.clip(path);
-    const innerGradient = ctx.createLinearGradient(
+    offCtx.save();
+    offCtx.clip(path);
+    const innerGradient = offCtx.createLinearGradient(
       cell.x,
       cell.y,
       cell.x + cell.width,
@@ -137,21 +154,60 @@ export async function exportPNG(
     );
     innerGradient.addColorStop(0, 'rgba(255,255,255,0.1)');
     innerGradient.addColorStop(0.5, 'rgba(255,255,255,0)');
-    innerGradient.addColorStop(1, 'rgba(0,0,0,0.2)');
-    ctx.fillStyle = innerGradient;
-    ctx.fillRect(cell.x, cell.y, cell.width, cell.height);
-    ctx.restore();
+    innerGradient.addColorStop(1, 'rgba(0,0,0,0.25)');
+    offCtx.fillStyle = innerGradient;
+    offCtx.fillRect(cell.x, cell.y, cell.width, cell.height);
+    offCtx.restore();
+
+    offCtx.save();
+    offCtx.clip(path);
+    const innerShadow = offCtx.createRadialGradient(
+      cell.x + cell.width / 2,
+      cell.y + cell.height / 2,
+      cell.width * 0.1,
+      cell.x + cell.width / 2,
+      cell.y + cell.height / 2,
+      Math.max(cell.width, cell.height) * 0.7
+    );
+    innerShadow.addColorStop(0, 'rgba(0,0,0,0)');
+    innerShadow.addColorStop(1, 'rgba(0,0,0,0.2)');
+    offCtx.fillStyle = innerShadow;
+    offCtx.fillRect(cell.x - 2, cell.y - 2, cell.width + 4, cell.height + 4);
+    offCtx.restore();
   }
 
-  ctx.restore();
+  offCtx.restore();
+
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = exportWidth;
+  outputCanvas.height = exportHeight;
+  const outCtx = outputCanvas.getContext('2d');
+  if (!outCtx) return;
+
+  outCtx.imageSmoothingEnabled = true;
+  outCtx.imageSmoothingQuality = 'high';
+
+  const finalBg = outCtx.createLinearGradient(0, 0, 0, exportHeight);
+  finalBg.addColorStop(0, '#1a1a2e');
+  finalBg.addColorStop(1, '#16213e');
+  outCtx.fillStyle = finalBg;
+  outCtx.fillRect(0, 0, exportWidth, exportHeight);
+
+  const drawX = (exportWidth - renderW) / 2;
+  const drawY = (exportHeight - renderH) / 2;
+  outCtx.drawImage(offscreen, drawX, drawY, renderW, renderH);
 
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        saveAs(blob, `neon-mosaic-${Date.now()}.png`);
-      }
-      resolve();
-    }, 'image/png');
+    outputCanvas.toBlob(
+      (blob) => {
+        if (blob) {
+          saveAs(blob, `neon-mosaic-${Date.now()}.png`);
+        }
+        resolve();
+      },
+      'image/png',
+      1.0
+    );
   });
 }
 

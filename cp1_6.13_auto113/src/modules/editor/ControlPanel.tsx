@@ -60,17 +60,30 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const [activePreset, setActivePreset] = useState(0);
   const [showColorPicker, setShowColorPicker] = useState<number | null>(null);
 
-  const handleDragStart = useCallback((index: number) => {
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    if (e.currentTarget instanceof HTMLElement) {
+      e.dataTransfer.setDragImage(e.currentTarget, 20, 20);
+    }
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
     setDragOverIndex(index);
   }, []);
 
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
   const handleDrop = useCallback(
-    (dropIndex: number) => {
+    (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (draggedIndex === null || draggedIndex === dropIndex) {
         setDraggedIndex(null);
         setDragOverIndex(null);
@@ -189,9 +202,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div
                     key={index}
                     draggable
-                    onDragStart={() => handleDragStart(index)}
+                    onDragStart={(e) => handleDragStart(e, index)}
                     onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={() => handleDrop(index)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, index)}
                     onDragEnd={() => {
                       setDraggedIndex(null);
                       setDragOverIndex(null);
