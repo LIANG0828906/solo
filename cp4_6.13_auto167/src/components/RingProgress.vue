@@ -17,6 +17,7 @@ const strokeWidth = computed(() => props.strokeWidth || 10)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const currentValue = ref(0)
 const animationFrame = ref<number | null>(null)
+const isUnmounted = ref(false)
 
 const targetProgress = computed(() => {
   return Math.min(100, (props.value / props.maxValue) * 100)
@@ -29,12 +30,33 @@ const displayValue = computed(() => {
   return Math.round((currentValue.value / 100) * props.maxValue)
 })
 
-function easeOutElastic(t: number): number {
-  const c4 = (2 * Math.PI) / 3
-  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1
+function cubicBezier(t: number): number {
+  const x1 = 0.68
+  const y1 = -0.55
+  const x2 = 0.27
+  const y2 = 1.55
+
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+
+  let lo = 0
+  let hi = 1
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2
+    const x = 3 * x1 * mid * (1 - mid) * (1 - mid) + 3 * x2 * mid * mid * (1 - mid) + mid * mid * mid
+    if (x < t) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+  const s = (lo + hi) / 2
+  const y = 3 * y1 * s * (1 - s) * (1 - s) + 3 * y2 * s * s * (1 - s) + s * s * s
+  return y
 }
 
 function drawRing(progress: number) {
+  if (isUnmounted.value) return
   const canvas = canvasRef.value
   if (!canvas) return
 
@@ -47,6 +69,7 @@ function drawRing(progress: number) {
   canvas.height = actualSize * dpr
   canvas.style.width = `${actualSize}px`
   canvas.style.height = `${actualSize}px`
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.scale(dpr, dpr)
 
   const centerX = actualSize / 2
@@ -63,12 +86,13 @@ function drawRing(progress: number) {
   ctx.stroke()
 
   if (progress > 0) {
+    const clampedProgress = Math.max(0, Math.min(100, progress))
     const startAngle = -Math.PI / 2
-    const endAngle = startAngle + (progress / 100) * 2 * Math.PI
+    const endAngle = startAngle + (clampedProgress / 100) * 2 * Math.PI
 
     const gradient = ctx.createLinearGradient(0, 0, actualSize, actualSize)
     gradient.addColorStop(0, props.color)
-    gradient.addColorStop(1, adjustColor(props.color, -20))
+    gradient.addColorStop(1, adjustColor(props.color, -30))
 
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius, startAngle, endAngle)
@@ -77,19 +101,19 @@ function drawRing(progress: number) {
     ctx.lineCap = 'round'
     ctx.stroke()
 
-    const glowRadius = radius - strokeWidth.value / 2
+    const glowRadius = radius
     const glowAngle = endAngle
     const glowX = centerX + Math.cos(glowAngle) * glowRadius
     const glowY = centerY + Math.sin(glowAngle) * glowRadius
 
-    const glowGradient = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, strokeWidth.value)
-    glowGradient.addColorStop(0, props.color)
-    glowGradient.addColorStop(1, 'transparent')
-    
+    ctx.save()
+    ctx.shadowColor = props.color
+    ctx.shadowBlur = 8
     ctx.beginPath()
-    ctx.arc(glowX, glowY, strokeWidth.value, 0, 2 * Math.PI)
-    ctx.fillStyle = glowGradient
+    ctx.arc(glowX, glowY, strokeWidth.value * 0.35, 0, 2 * Math.PI)
+    ctx.fillStyle = props.color
     ctx.fill()
+    ctx.restore()
   }
 }
 
@@ -101,29 +125,47 @@ function adjustColor(hex: string, amount: number): string {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
 }
 
+function cancelAnimation() {
+  if (animationFrame.value !== null) {
+    cancelAnimationFrame(animationFrame.value)
+    animationFrame.value = null
+  }
+}
+
 function animateTo(target: number) {
+  cancelAnimation()
+
   const startValue = currentValue.value
   const diff = target - startValue
+  if (Math.abs(diff) < 0.01) {
+    currentValue.value = target
+    drawRing(target)
+    return
+  }
+
   const duration = 800
   const startTime = performance.now()
 
   function animate(currentTime: number) {
+    if (isUnmounted.value) return
+
     const elapsed = currentTime - startTime
-    const progress = Math.min(1, elapsed / duration)
-    
-    const easedProgress = easeOutElastic(progress)
+    const timeProgress = Math.min(1, elapsed / duration)
+
+    const easedProgress = cubicBezier(timeProgress)
     currentValue.value = startValue + diff * easedProgress
-    
+
     drawRing(currentValue.value)
 
-    if (progress < 1) {
+    if (timeProgress < 1) {
       animationFrame.value = requestAnimationFrame(animate)
+    } else {
+      currentValue.value = target
+      drawRing(target)
+      animationFrame.value = null
     }
   }
 
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value)
-  }
   animationFrame.value = requestAnimationFrame(animate)
 }
 
@@ -132,16 +174,24 @@ watch(targetProgress, (newVal) => {
 })
 
 onMounted(() => {
+  isUnmounted.value = false
   drawRing(0)
-  setTimeout(() => {
-    animateTo(targetProgress.value)
-  }, 100)
+  const initTimer = setTimeout(() => {
+    if (!isUnmounted.value) {
+      animateTo(targetProgress.value)
+    }
+  }, 120)
+  ;(canvasRef.value as any)._initTimer = initTimer
 })
 
 onUnmounted(() => {
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value)
+  isUnmounted.value = true
+  cancelAnimation()
+  if (canvasRef.value && (canvasRef.value as any)._initTimer) {
+    clearTimeout((canvasRef.value as any)._initTimer)
+    ;(canvasRef.value as any)._initTimer = null
   }
+  canvasRef.value = null
 })
 </script>
 
@@ -183,6 +233,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  pointer-events: none;
 }
 
 .ring-value {
