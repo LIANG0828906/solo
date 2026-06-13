@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseFrame - 动态光绘摄影模拟器</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>PulseFrame</h1>
+      <p class="subtitle">动态光绘摄影模拟器</p>
+    </header>
+
+    <main class="main-content">
+      <div class="canvas-wrapper">
+        <canvas id="paintCanvas"></canvas>
+        <div id="cursorPreview" class="cursor-preview"></div>
+      </div>
+
+      <aside class="control-panel">
+        <div class="panel-section">
+          <h3>光笔效果</h3>
+          <div class="effect-buttons">
+            <button class="effect-btn active" data-effect="glow" data-tooltip="辉光效果">
+              <span class="btn-front">辉光</span>
+              <span class="btn-back">Glow</span>
+            </button>
+            <button class="effect-btn" data-effect="star" data-tooltip="星芒效果">
+              <span class="btn-front">星芒</span>
+              <span class="btn-back">Star</span>
+            </button>
+            <button class="effect-btn" data-effect="stripe" data-tooltip="条纹效果">
+              <span class="btn-front">条纹</span>
+              <span class="btn-back">Stripe</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>颜色选择</h3>
+          <div class="color-picker">
+            <canvas id="hueRing" width="200" height="200"></canvas>
+            <div class="slider-container">
+              <label for="brightnessSlider">亮度: <span id="brightnessValue">100%</span></label>
+              <input type="range" id="brightnessSlider" min="50" max="100" value="100">
+            </div>
+            <div class="color-preview" id="colorPreviewBox"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>背景渐变</h3>
+          <div class="bg-radio-group">
+            <label class="bg-radio">
+              <input type="radio" name="bgPreset" value="night" checked>
+              <span class="bg-swatch" style="background: linear-gradient(135deg, #0c0c1e 0%, #1a1a3e 50%, #2d1b4e 100%);"></span>
+              <span class="bg-label">暗夜星空</span>
+            </label>
+            <label class="bg-radio">
+              <input type="radio" name="bgPreset" value="sunset">
+              <span class="bg-swatch" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 50%, #ff9ff3 100%);"></span>
+              <span class="bg-label">日落橙</span>
+            </label>
+            <label class="bg-radio">
+              <input type="radio" name="bgPreset" value="ocean">
+              <span class="bg-swatch" style="background: linear-gradient(135deg, #0f3460 0%, #16213e 50%, #0077b6 100%);"></span>
+              <span class="bg-label">深海蓝</span>
+            </label>
+            <label class="bg-radio">
+              <input type="radio" name="bgPreset" value="aurora">
+              <span class="bg-swatch" style="background: linear-gradient(135deg, #00b894 0%, #00cec9 50%, #55efc4 100%);"></span>
+              <span class="bg-label">极光绿</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>操作</h3>
+          <div class="action-buttons">
+            <button id="clearBtn" class="action-btn">清空画布</button>
+            <button id="saveBtn" class="action-btn primary">保存为PNG</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
