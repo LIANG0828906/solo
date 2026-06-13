@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { marked } from 'marked'
 import type { Note as NoteType } from './types'
 
@@ -19,6 +19,11 @@ const COLOR_OPTIONS = [
   '#e2d9f3',
 ]
 
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+})
+
 function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) {
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(note.title)
@@ -28,6 +33,14 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
   const [overflowing, setOverflowing] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+
+  const renderedContent = useMemo(() => {
+    try {
+      return marked.parse(contentDraft) as string
+    } catch {
+      return contentDraft
+    }
+  }, [contentDraft])
 
   useEffect(() => {
     if (editing && titleInputRef.current) {
@@ -42,6 +55,20 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
       setOverflowing(el.scrollHeight > el.clientHeight)
     }
   }, [note.content, editing])
+
+  useEffect(() => {
+    if (isDragging) {
+      const el = document.querySelector(`[data-note-id="${note.id}"]`) as HTMLElement
+      if (el) {
+        el.style.willChange = 'transform, box-shadow, opacity'
+      }
+      return () => {
+        if (el) {
+          el.style.willChange = ''
+        }
+      }
+    }
+  }, [isDragging, note.id])
 
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -58,10 +85,25 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
     setEditing(false)
   }
 
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value.length <= 30) {
+      setTitleDraft(e.target.value)
+    }
+  }
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
+    const el = document.querySelector(`[data-note-id="${note.id}"]`) as HTMLElement
+    if (el) {
+      el.style.willChange = 'transform, opacity'
+    }
     setRemoving(true)
-    setTimeout(() => onDelete(), 250)
+    setTimeout(() => {
+      onDelete()
+      if (el) {
+        el.style.willChange = ''
+      }
+    }, 250)
   }
 
   const handleColorSelect = (color: string, e: React.MouseEvent) => {
@@ -73,14 +115,6 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
   const toggleColorPicker = (e: React.MouseEvent) => {
     e.stopPropagation()
     setShowColorPicker((prev) => !prev)
-  }
-
-  const renderMarkdown = (text: string) => {
-    try {
-      return marked.parse(text, { async: false }) as string
-    } catch {
-      return text
-    }
   }
 
   const noteClass = [
@@ -100,7 +134,7 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
       style={{ backgroundColor: note.color }}
       onMouseDown={onDragStart}
       onTouchStart={onDragStart}
-      onClick={(e) => {
+      onClick={() => {
         if (showColorPicker) setShowColorPicker(false)
       }}
     >
@@ -142,7 +176,7 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
             ref={titleInputRef}
             value={titleDraft}
             maxLength={30}
-            onChange={(e) => setTitleDraft(e.target.value)}
+            onChange={handleTitleChange}
             onBlur={saveEdits}
             onKeyDown={(e) => {
               if (e.key === 'Enter') saveEdits()
@@ -169,22 +203,18 @@ function Note({ note, isDragging, onDragStart, onUpdate, onDelete }: NoteProps) 
               e.stopPropagation()
             }}
           />
-          {contentDraft && (
-            <>
-              <div className="preview-label">预览</div>
-              <div
-                className="note-preview"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(contentDraft) }}
-              />
-            </>
-          )}
+          <div className="preview-label">实时预览</div>
+          <div
+            className="note-preview"
+            dangerouslySetInnerHTML={{ __html: renderedContent }}
+          />
         </div>
       ) : (
         <div
           ref={contentRef}
           className={`note-content ${overflowing ? 'overflowing' : ''}`}
           onDoubleClick={handleTitleDoubleClick}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content || '双击编辑内容...') }}
+          dangerouslySetInnerHTML={{ __html: renderedContent || '<span style="color:#999">双击编辑内容...</span>' }}
         />
       )}
 

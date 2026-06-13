@@ -15,8 +15,10 @@ interface BoardProps {
 interface DragState {
   noteId: string
   fromColumnId: string
+  fromIndex: number
   currentColumnId: string
   currentIndex: number
+  startX: number
   startY: number
   offsetX: number
   offsetY: number
@@ -26,9 +28,8 @@ interface DragState {
 function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote, onMoveNote }: BoardProps) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [hoverColumn, setHoverColumn] = useState<string | null>(null)
-  const [bumpCounts, setBumpCounts] = useState<Record<string, boolean>>({})
+  const [bumpColumns, setBumpColumns] = useState<Set<string>>(new Set())
   const boardRef = useRef<HTMLDivElement>(null)
-  const pendingMoves = useRef<Set<string>>(new Set())
 
   const getColumnNotes = useCallback(
     (columnId: string) => {
@@ -41,22 +42,23 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
 
   const getDropIndex = useCallback(
     (columnId: string, clientY: number): number => {
-      const colNotes = getColumnNotes(columnId)
       const colEl = document.querySelector(`[data-column="${columnId}"] .column-body`)
-      if (!colEl || colNotes.length === 0) return 0
+      if (!colEl) return 0
 
       const rect = colEl.getBoundingClientRect()
       const relativeY = clientY - rect.top
-      const noteEls = colEl.querySelectorAll('.note-wrapper')
+      const noteEls = colEl.querySelectorAll('.note-wrapper:not(.dragging)')
+
+      if (noteEls.length === 0) return 0
 
       for (let i = 0; i < noteEls.length; i++) {
         const noteRect = (noteEls[i] as HTMLElement).getBoundingClientRect()
         const noteCenter = noteRect.top - rect.top + noteRect.height / 2
         if (relativeY < noteCenter) return i
       }
-      return colNotes.length
+      return noteEls.length
     },
-    [getColumnNotes]
+    []
   )
 
   const handleDoubleClick = useCallback(
@@ -64,7 +66,7 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
       if ((e.target as HTMLElement).closest('.note')) return
       const col = columns.find((c) => c.id === columnId)
       if (!col) return
-      const tempId = `temp-${Date.now()}-${Math.random()}`
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
       onAddNote({
         columnId,
         tempId,
@@ -92,11 +94,16 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
         clientY = e.clientY
       }
 
+      const currentNotes = getColumnNotes(note.columnId)
+      const fromIndex = currentNotes.findIndex((n) => n.id === note.id)
+
       setDragState({
         noteId: note.id,
         fromColumnId: note.columnId,
+        fromIndex,
         currentColumnId: note.columnId,
-        currentIndex: getColumnNotes(note.columnId).findIndex((n) => n.id === note.id),
+        currentIndex: fromIndex,
+        startX: clientX,
         startY: clientY,
         offsetX: clientX - rect.left,
         offsetY: clientY - rect.top,
@@ -123,7 +130,7 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
         const colEl = document.querySelector(`[data-column="${col.id}"]`) as HTMLElement
         if (colEl) {
           const rect = colEl.getBoundingClientRect()
-          if (clientX >= rect.left && clientX <= rect.right) {
+          if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
             targetColId = col.id
           }
         }
@@ -138,26 +145,25 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
       const dropIndex = getDropIndex(targetColId, clientY)
 
       if (targetColId !== dragState.currentColumnId || dropIndex !== dragState.currentIndex) {
+        const prevCol = dragState.currentColumnId
         setDragState((prev) =>
           prev
             ? { ...prev, currentColumnId: targetColId!, currentIndex: dropIndex }
             : prev
         )
 
-        if (targetColId !== dragState.currentColumnId && !pendingMoves.current.has(dragState.noteId)) {
-          setBumpCounts((prev) => {
-            const next = { ...prev }
-            if (dragState.fromColumnId !== targetColId) {
-              next[targetColId!] = true
-              next[dragState.currentColumnId] = true
-            }
+        if (targetColId !== prevCol) {
+          setBumpColumns((prev) => {
+            const next = new Set(prev)
+            next.add(targetColId!)
+            next.add(prevCol)
             return next
           })
           setTimeout(() => {
-            setBumpCounts((prev) => {
-              const next = { ...prev }
-              delete next[targetColId!]
-              delete next[dragState.currentColumnId]
+            setBumpColumns((prev) => {
+              const next = new Set(prev)
+              next.delete(targetColId!)
+              next.delete(prevCol)
               return next
             })
           }, 300)
@@ -182,22 +188,36 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
       const boardEl = boardRef.current
       if (boardEl) {
         const rect = boardEl.getBoundingClientRect()
-        if (clientX < rect.left - 50 || clientX > rect.right + 50 || clientY < rect.top - 50 || clientY > rect.bottom + 50) {
-          setDragState(null)
-          setHoverColumn(null)
+        const isOutside = 
+          clientX < rect.left - 50 || 
+          clientX > rect.right + 50 || 
+          clientY < rect.top - 50 || 
+          clientY > rect.bottom + 50
+
+        if (isOutside) {
           const noteEl = document.querySelector(`[data-note-id="${dragState.noteId}"]`) as HTMLElement
           if (noteEl) {
+            noteEl.style.willChange = 'transform, opacity'
             noteEl.classList.add('returning')
-            setTimeout(() => noteEl.classList.remove('returning'), 400)
+            setTimeout(() => {
+              noteEl.classList.remove('returning')
+              noteEl.style.willChange = ''
+            }, 400)
           }
+          setDragState(null)
+          setHoverColumn(null)
           return
         }
       }
 
       if (hoverColumn) {
-        onMoveNote(dragState.noteId, dragState.currentColumnId, dragState.currentIndex)
-        pendingMoves.current.add(dragState.noteId)
-        setTimeout(() => pendingMoves.current.delete(dragState.noteId), 500)
+        const shouldMove = 
+          dragState.fromColumnId !== dragState.currentColumnId || 
+          dragState.fromIndex !== dragState.currentIndex
+
+        if (shouldMove) {
+          onMoveNote(dragState.noteId, dragState.currentColumnId, dragState.currentIndex)
+        }
       }
 
       setDragState(null)
@@ -230,22 +250,35 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
     const isHover = hoverColumn === col.id
 
     let displayNotes = [...colNotes]
-    if (dragState && isHover) {
-      const dragNote = notes.find((n) => n.id === dragState.noteId)
-      if (dragNote) {
-        displayNotes = displayNotes.filter((n) => n.id !== dragState.noteId)
-        displayNotes.splice(dragState.currentIndex, 0, { ...dragNote, columnId: col.id } as NoteType)
-      }
-    } else if (dragState && dragState.fromColumnId === col.id) {
+    if (dragState) {
+      const isDraggingFromThisCol = dragState.fromColumnId === col.id
+      const isDraggingToThisCol = isHover
+
       displayNotes = displayNotes.filter((n) => n.id !== dragState.noteId)
+
+      if (isDraggingToThisCol) {
+        const dragNote = notes.find((n) => n.id === dragState.noteId)
+        if (dragNote) {
+          const insertedNote: NoteType = { ...dragNote, columnId: col.id, order: dragState.currentIndex }
+          displayNotes.splice(dragState.currentIndex, 0, insertedNote)
+        }
+      }
+
+      displayNotes.forEach((n, i) => {
+        n.order = i
+      })
     }
+
+    const count = colNotes.length + 
+      (dragState && isDraggingToThisCol && dragState.fromColumnId !== col.id ? 1 : 0) - 
+      (dragState && isDraggingFromThisCol && !isDraggingToThisCol ? 1 : 0)
 
     return (
       <div key={col.id} className="column" data-column={col.id}>
         <div className="column-header">
           <span className="column-title">{col.name}</span>
-          <span className={`column-count ${bumpCounts[col.id] ? 'bump' : ''}`}>
-            {colNotes.length + (dragState && isHover && dragState.fromColumnId !== col.id ? 1 : 0) - (dragState && dragState.fromColumnId === col.id && !isHover ? 1 : 0)}
+          <span className={`column-count ${bumpColumns.has(col.id) ? 'bump' : ''}`}>
+            {count}
           </span>
         </div>
         <div
@@ -253,7 +286,11 @@ function Board({ columns, notes, nickname, onAddNote, onUpdateNote, onDeleteNote
           onDoubleClick={(e) => handleDoubleClick(col.id, e)}
         >
           {displayNotes.map((note, idx) => (
-            <div key={note.id} className="note-wrapper" style={{ position: 'relative' }}>
+            <div 
+              key={note.id} 
+              className={`note-wrapper ${dragState?.noteId === note.id ? 'dragging' : ''}`}
+              style={{ position: 'relative' }}
+            >
               {dragState && isHover && idx === dragState.currentIndex && dragState.noteId !== note.id && (
                 <div className="drag-indicator" />
               )}
