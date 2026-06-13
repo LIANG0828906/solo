@@ -13,6 +13,29 @@ interface ParticleData {
   phase: number;
 }
 
+interface BeatState {
+  active: boolean;
+  time: number;
+  duration: number;
+  energy: number;
+  explosionDirX: Float32Array;
+  explosionDirY: Float32Array;
+  explosionDirZ: Float32Array;
+  preBeatPositions: Float32Array;
+  explosionDistances: Float32Array;
+}
+
+interface ResetState {
+  active: boolean;
+  startTime: number;
+  duration: number;
+  startPositions: Float32Array;
+  targetPositions: Float32Array;
+}
+
+const SPECTRUM_BIN_COUNT = 256;
+const COLOR_CHANGE_RATE = 0.3;
+
 export class ParticleSystem {
   public points: THREE.Points;
   public spectrumBars: THREE.LineSegments | null = null;
@@ -25,17 +48,15 @@ export class ParticleSystem {
   private positions: Float32Array;
   private colors: Float32Array;
   private sizes: Float32Array;
+
   private currentHue: number = 240;
   private targetHue: number = 240;
+  private barsHue: number = 240;
+  private barsTargetHue: number = 240;
   private displayMode: DisplayMode = 'particles';
-  private lastDisplayMode: DisplayMode = 'particles';
-  private modeTransitionProgress: number = 1;
 
-  private beatExplosionActive: boolean = false;
-  private beatExplosionTime: number = 0;
-  private beatExplosionDuration: number = 0.4;
-  private beatExplosionEnergy: number = 0;
-  private explosionPositions: Float32Array;
+  private beat: BeatState;
+  private reset: ResetState;
 
   private currentRadius: number = 3;
   private targetRadius: number = 3;
@@ -52,9 +73,13 @@ export class ParticleSystem {
 
   private camera: THREE.PerspectiveCamera;
   private frameTimes: number[] = [];
-  private frameTimeWindow: number = 30;
+  private frameTimeWindow: number = 60;
 
   private barsMaterial: THREE.LineBasicMaterial | null = null;
+  private barsOpacity: number = 0;
+  private barsTargetOpacity: number = 0;
+  private particlesOpacity: number = 1;
+  private particlesTargetOpacity: number = 1;
 
   constructor(camera: THREE.PerspectiveCamera, initialCount: number = 2000) {
     this.camera = camera;
@@ -64,7 +89,26 @@ export class ParticleSystem {
     this.positions = new Float32Array(this.particleCount * 3);
     this.colors = new Float32Array(this.particleCount * 3);
     this.sizes = new Float32Array(this.particleCount);
-    this.explosionPositions = new Float32Array(this.particleCount * 3);
+
+    this.beat = {
+      active: false,
+      time: 0,
+      duration: 0.4,
+      energy: 0,
+      explosionDirX: new Float32Array(this.particleCount),
+      explosionDirY: new Float32Array(this.particleCount),
+      explosionDirZ: new Float32Array(this.particleCount),
+      preBeatPositions: new Float32Array(this.particleCount * 3),
+      explosionDistances: new Float32Array(this.particleCount)
+    };
+
+    this.reset = {
+      active: false,
+      startTime: 0,
+      duration: 1000,
+      startPositions: new Float32Array(this.particleCount * 3),
+      targetPositions: new Float32Array(this.particleCount * 3)
+    };
 
     this.geometry = new THREE.BufferGeometry();
     this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
@@ -105,31 +149,27 @@ export class ParticleSystem {
         hue: 240,
         phase: Math.random() * Math.PI * 2
       });
-
-      this.explosionPositions[i * 3] = 0;
-      this.explosionPositions[i * 3 + 1] = 0;
-      this.explosionPositions[i * 3 + 2] = 0;
     }
   }
 
   private initStandbyPositions(): void {
     for (let i = 0; i < this.particleCount; i++) {
-      const p = this.particles[i];
+      const t = i / this.particleCount;
       const standbyR = 3.5;
-      const angle = (i / this.particleCount) * Math.PI * 2;
-      const y = (Math.random() - 0.5) * 0.5;
-      const r = standbyR * Math.cos(Math.asin(y / standbyR));
-      
+      const angle = t * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 0.3;
+      const r = standbyR * Math.cos(Math.asin(Math.min(0.9, y / standbyR)));
+
       this.positions[i * 3] = Math.cos(angle) * r;
       this.positions[i * 3 + 1] = y;
       this.positions[i * 3 + 2] = Math.sin(angle) * r;
 
-      const color = new THREE.Color().setHSL(240 / 360, 0.8, 0.6);
+      const color = new THREE.Color().setHSL(240 / 360, 0.7, 0.55);
       this.colors[i * 3] = color.r;
       this.colors[i * 3 + 1] = color.g;
       this.colors[i * 3 + 2] = color.b;
 
-      this.sizes[i] = 0.08;
+      this.sizes[i] = 0.07;
     }
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.attributes.color.needsUpdate = true;
@@ -137,34 +177,43 @@ export class ParticleSystem {
   }
 
   private createSpectrumBars(): void {
-    const binCount = 256;
-    const barWidth = 1 / binCount;
-    const spacing = 1 / (binCount - 1);
-    const maxHeight = 3;
-    const yTop = 9;
+    const binCount = SPECTRUM_BIN_COUNT;
+    const yBase = 9;
 
-    const positions: number[] = [];
-    const colors: number[] = [];
+    const positions = new Float32Array(binCount * 6);
+    const colors = new Float32Array(binCount * 6);
 
     for (let i = 0; i < binCount; i++) {
       const x = (i / (binCount - 1)) * 16 - 8;
-      const hue = (i / binCount) * 240 / 360;
+      const hue = 240 / 360;
       const color = new THREE.Color().setHSL(1 - hue, 0.9, 0.6);
 
-      positions.push(x, yTop, 0, x, yTop, 0);
-      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      positions[i * 6] = x;
+      positions[i * 6 + 1] = yBase;
+      positions[i * 6 + 2] = 0;
+      positions[i * 6 + 3] = x;
+      positions[i * 6 + 4] = yBase;
+      positions[i * 6 + 5] = 0;
+
+      colors[i * 6] = color.r;
+      colors[i * 6 + 1] = color.g;
+      colors[i * 6 + 2] = color.b;
+      colors[i * 6 + 3] = color.r;
+      colors[i * 6 + 4] = color.g;
+      colors[i * 6 + 5] = color.b;
     }
 
     const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     this.barsMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 1.0,
+      opacity: 0,
       linewidth: 1,
-      blending: THREE.AdditiveBlending
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
 
     this.spectrumBars = new THREE.LineSegments(geom, this.barsMaterial);
@@ -172,31 +221,52 @@ export class ParticleSystem {
     this.group.add(this.spectrumBars);
   }
 
+  public triggerResetParticles(durationMs: number = 1000): void {
+    this.reset.active = true;
+    this.reset.startTime = performance.now();
+    this.reset.duration = durationMs;
+
+    for (let i = 0; i < this.particleCount; i++) {
+      const p = this.particles[i];
+      this.reset.startPositions[i * 3] = this.positions[i * 3];
+      this.reset.startPositions[i * 3 + 1] = this.positions[i * 3 + 1];
+      this.reset.startPositions[i * 3 + 2] = this.positions[i * 3 + 2];
+
+      const r = p.baseRadius;
+      this.reset.targetPositions[i * 3] = r * Math.sin(p.basePhi) * Math.cos(p.baseTheta);
+      this.reset.targetPositions[i * 3 + 1] = r * Math.cos(p.basePhi);
+      this.reset.targetPositions[i * 3 + 2] = r * Math.sin(p.basePhi) * Math.sin(p.baseTheta);
+    }
+  }
+
   public updateSpectrumBars(freqData: Float32Array): void {
     if (!this.spectrumBars || !this.barsMaterial) return;
 
     const positions = this.spectrumBars.geometry.attributes.position.array as Float32Array;
     const colors = this.spectrumBars.geometry.attributes.color.array as Float32Array;
-    const binCount = 256;
-    const yTop = 9;
-    const hueBase = this.currentHue / 360;
+    const binCount = SPECTRUM_BIN_COUNT;
+    const yBase = 9;
+    const hueNorm = this.barsHue / 360;
 
     for (let i = 0; i < binCount; i++) {
-      const amplitude = freqData[i] || 0;
-      const height = amplitude * 3;
-      const baseY = yTop;
-      const topY = yTop + height;
+      const idx = Math.floor(i * freqData.length / binCount);
+      const amplitude = freqData[idx] || 0;
+      const height = amplitude * amplitude * 3.5;
       const x = (i / (binCount - 1)) * 16 - 8;
 
       positions[i * 6] = x;
-      positions[i * 6 + 1] = baseY;
+      positions[i * 6 + 1] = yBase;
       positions[i * 6 + 2] = 0;
       positions[i * 6 + 3] = x;
-      positions[i * 6 + 4] = topY;
+      positions[i * 6 + 4] = yBase + height;
       positions[i * 6 + 5] = 0;
 
-      const barHue = (hueBase + (i / binCount) * 0.3) % 1;
-      const color = new THREE.Color().setHSL(1 - barHue, 0.9, 0.5 + amplitude * 0.3);
+      const barHue = (hueNorm + (i / binCount) * 0.28) % 1;
+      const color = new THREE.Color().setHSL(
+        1 - barHue,
+        0.9,
+        0.45 + amplitude * 0.4
+      );
       colors[i * 6] = color.r;
       colors[i * 6 + 1] = color.g;
       colors[i * 6 + 2] = color.b;
@@ -207,28 +277,22 @@ export class ParticleSystem {
 
     this.spectrumBars.geometry.attributes.position.needsUpdate = true;
     this.spectrumBars.geometry.attributes.color.needsUpdate = true;
-
-    let targetOpacity = 0;
-    if (this.displayMode === 'bars') targetOpacity = 1;
-    else if (this.displayMode === 'mixed') targetOpacity = 0.3;
-    
-    this.barsMaterial.opacity = THREE.MathUtils.lerp(this.barsMaterial.opacity, targetOpacity, 0.05);
-    this.spectrumBars.visible = this.barsMaterial.opacity > 0.01;
   }
 
   public update(data: AudioFrameData | null, deltaTime: number): number {
     const frameStart = performance.now();
-
-    const smooth = Math.min(1, deltaTime * 6);
+    const dt = Math.min(0.05, deltaTime);
+    const smoothing = 1 - Math.exp(-dt * 6);
 
     if (data) {
       this.standbyMode = !data.isActive;
 
       if (data.isActive) {
-        this.targetRadius = 1 + Math.pow(data.lowEnergy, 1.5) * 7;
-        this.targetRotationSpeed = THREE.MathUtils.lerp(0.5, 3, data.midEnergy);
-        this.targetWaveAmplitude = data.totalEnergy;
-        this.targetHue = THREE.MathUtils.lerp(240, 0, data.highEnergy);
+        this.targetRadius = 1 + Math.pow(Math.max(0, data.lowEnergy), 1.5) * 7;
+        this.targetRotationSpeed = 0.5 + THREE.MathUtils.clamp(data.midEnergy, 0, 1) * 2.5;
+        this.targetWaveAmplitude = THREE.MathUtils.clamp(data.totalEnergy, 0, 1);
+        this.targetHue = 240 - THREE.MathUtils.clamp(data.highEnergy, 0, 1) * 240;
+        this.barsTargetHue = this.targetHue;
 
         if (data.beatDetected) {
           this.triggerBeatExplosion(data.beatEnergy);
@@ -247,150 +311,278 @@ export class ParticleSystem {
       this.targetWaveAmplitude = 0;
     }
 
-    this.currentRadius = THREE.MathUtils.lerp(this.currentRadius, this.targetRadius, smooth);
-    this.currentRotationSpeed = THREE.MathUtils.lerp(this.currentRotationSpeed, this.targetRotationSpeed, smooth * 0.3);
-    this.currentWaveAmplitude = THREE.MathUtils.lerp(this.currentWaveAmplitude, this.targetWaveAmplitude, smooth);
-    this.currentHue = THREE.MathUtils.lerp(this.currentHue, this.targetHue, 0.3 * deltaTime);
+    this.currentRadius = THREE.MathUtils.lerp(this.currentRadius, this.targetRadius, smoothing);
+    this.currentRotationSpeed = THREE.MathUtils.lerp(this.currentRotationSpeed, this.targetRotationSpeed, smoothing * 0.3);
+    this.currentWaveAmplitude = THREE.MathUtils.lerp(this.currentWaveAmplitude, this.targetWaveAmplitude, smoothing);
 
-    this.updateBeatExplosion(deltaTime);
+    const hueDelta = this.targetHue - this.currentHue;
+    this.currentHue += hueDelta * COLOR_CHANGE_RATE * dt * 60;
 
-    if (this.standbyMode) {
-      this.updateStandbyAnimation(deltaTime);
+    const barsHueDelta = this.barsTargetHue - this.barsHue;
+    this.barsHue += barsHueDelta * COLOR_CHANGE_RATE * dt * 60;
+
+    this.updateModeTransition(dt);
+    this.updateBeatExplosion(dt);
+    this.updateResetParticles();
+
+    if (this.reset.active) {
+      // 重置动画在 updateResetParticles 中处理
+    } else if (this.beat.active) {
+      // 节拍爆炸动画在 updateBeatExplosion 中处理
+    } else if (this.standbyMode) {
+      this.updateStandbyAnimation(dt);
     } else {
-      this.updateParticles(deltaTime);
+      this.updateParticlesAudio(dt);
     }
 
     this.updateParticleDepthSizes();
 
+    this.material.opacity = THREE.MathUtils.lerp(this.material.opacity, this.particlesOpacity, smoothing);
+    if (this.barsMaterial) {
+      this.barsMaterial.opacity = THREE.MathUtils.lerp(this.barsMaterial.opacity, this.barsOpacity, smoothing);
+      this.spectrumBars!.visible = this.barsMaterial.opacity > 0.02;
+    }
+
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.attributes.color.needsUpdate = true;
     this.geometry.attributes.size.needsUpdate = true;
-
-    if (this.lastDisplayMode !== this.displayMode) {
-      this.modeTransitionProgress = 0;
-      this.lastDisplayMode = this.displayMode;
-    }
-    if (this.modeTransitionProgress < 1) {
-      this.modeTransitionProgress = Math.min(1, this.modeTransitionProgress + deltaTime);
-    }
 
     const frameTime = performance.now() - frameStart;
     this.recordFrameTime(frameTime);
     return frameTime;
   }
 
-  private updateStandbyAnimation(deltaTime: number): void {
-    this.standbyAngle += deltaTime * 0.15;
-    const pulse = 2 + Math.sin(this.standbyAngle * 1.3) * 1.5 + 1.5;
-    const currentTargetHue = 200 + Math.sin(this.standbyAngle * 0.5) * 40;
-    this.currentHue = THREE.MathUtils.lerp(this.currentHue, currentTargetHue, 0.01);
-    const hueNorm = this.currentHue / 360;
-
-    for (let i = 0; i < this.particleCount; i++) {
-      const t = i / this.particleCount;
-      const angle = t * Math.PI * 2 + this.standbyAngle;
-      const yOffset = Math.sin(angle * 3 + this.standbyAngle) * 0.3;
-      const radius = pulse * Math.cos(Math.asin(Math.min(0.9, yOffset / pulse)));
-
-      this.positions[i * 3] = Math.cos(angle) * radius;
-      this.positions[i * 3 + 1] = yOffset;
-      this.positions[i * 3 + 2] = Math.sin(angle) * radius;
-
-      const particleHue = (hueNorm + t * 0.1) % 1;
-      const color = new THREE.Color().setHSL(particleHue, 0.7, 0.5 + Math.sin(angle * 2) * 0.1);
-      this.colors[i * 3] = color.r;
-      this.colors[i * 3 + 1] = color.g;
-      this.colors[i * 3 + 2] = color.b;
+  private updateModeTransition(dt: number): void {
+    switch (this.displayMode) {
+      case 'bars':
+        this.barsTargetOpacity = 1.0;
+        this.particlesTargetOpacity = 0.0;
+        break;
+      case 'particles':
+        this.barsTargetOpacity = 0.0;
+        this.particlesTargetOpacity = 1.0;
+        break;
+      case 'mixed':
+        this.barsTargetOpacity = 0.3;
+        this.particlesTargetOpacity = 1.0;
+        break;
     }
 
-    if (this.barsMaterial) this.barsMaterial.opacity *= 0.95;
-    if (this.spectrumBars) this.spectrumBars.visible = (this.barsMaterial?.opacity || 0) > 0.01;
+    const t = 1 - Math.exp(-dt * 1.2);
+    this.barsOpacity = THREE.MathUtils.lerp(this.barsOpacity, this.barsTargetOpacity, t);
+    this.particlesOpacity = THREE.MathUtils.lerp(this.particlesOpacity, this.particlesTargetOpacity, t);
   }
 
-  private updateParticles(deltaTime: number): void {
-    this.rotationY += this.currentRotationSpeed * deltaTime;
-    this.rotationX += this.currentRotationSpeed * deltaTime * 0.3;
-
+  private updateStandbyAnimation(dt: number): void {
+    this.standbyAngle += dt * 0.25;
+    const pulse = 3.5 + Math.sin(this.standbyAngle * 1.5) * 1.5;
+    const targetHueS = 220 + Math.sin(this.standbyAngle * 0.4) * 30;
+    this.currentHue = THREE.MathUtils.lerp(this.currentHue, targetHueS, 0.02);
     const hueNorm = this.currentHue / 360;
-    const alpha = Math.min(1, 0.2 + this.currentWaveAmplitude * 0.8);
-    this.material.opacity = THREE.MathUtils.lerp(this.material.opacity, alpha, 0.05);
+
+    const ringTiltY = Math.sin(this.standbyAngle * 0.3) * 0.2;
+    const ringTiltX = Math.cos(this.standbyAngle * 0.2) * 0.1;
 
     for (let i = 0; i < this.particleCount; i++) {
       const p = this.particles[i];
-      
-      let theta = p.baseTheta + this.rotationY * (0.8 + Math.sin(p.phase) * 0.4) + p.offsetTheta * 0.1;
-      let phi = p.basePhi + this.rotationX * 0.5 + Math.sin(p.phase + this.standbyAngle) * 0.1;
+      const baseAngle = (i / this.particleCount) * Math.PI * 2;
+      const angle = baseAngle + this.standbyAngle * 0.6;
+      const spread = Math.sin(p.phase + this.standbyAngle) * 0.15;
+
+      const ringR = pulse + spread * 0.8;
+      const yOnRing = Math.sin(baseAngle * 2 + this.standbyAngle * 0.8) * 0.35;
+      const rOnRing = ringR * Math.cos(Math.asin(Math.min(0.95, yOnRing / ringR)));
+
+      let x = Math.cos(angle) * rOnRing;
+      let y = yOnRing;
+      let z = Math.sin(angle) * rOnRing;
+
+      const cosY = Math.cos(ringTiltY);
+      const sinY = Math.sin(ringTiltY);
+      const x1 = x * cosY - z * sinY;
+      const z1 = x * sinY + z * cosY;
+
+      const cosX = Math.cos(ringTiltX);
+      const sinX = Math.sin(ringTiltX);
+      const y1 = y * cosX - z1 * sinX;
+      const z2 = y * sinX + z1 * cosX;
+
+      this.positions[i * 3] = x1;
+      this.positions[i * 3 + 1] = y1;
+      this.positions[i * 3 + 2] = z2;
+
+      const pHue = (hueNorm + (i / this.particleCount) * 0.12 + Math.sin(this.standbyAngle + i) * 0.03) % 1;
+      const light = 0.5 + Math.sin(angle * 3 + this.standbyAngle) * 0.1;
+      const color = new THREE.Color().setHSL(pHue, 0.65, light);
+
+      this.colors[i * 3] = THREE.MathUtils.lerp(this.colors[i * 3], color.r, 0.05);
+      this.colors[i * 3 + 1] = THREE.MathUtils.lerp(this.colors[i * 3 + 1], color.g, 0.05);
+      this.colors[i * 3 + 2] = THREE.MathUtils.lerp(this.colors[i * 3 + 2], color.b, 0.05);
+
+      p.phase += dt * 0.6;
+    }
+
+    if (this.barsMaterial) {
+      this.barsMaterial.opacity *= Math.pow(0.9, dt * 60);
+      this.barsOpacity *= Math.pow(0.9, dt * 60);
+    }
+  }
+
+  private updateParticlesAudio(dt: number): void {
+    this.rotationY += this.currentRotationSpeed * dt;
+    this.rotationX += this.currentRotationSpeed * dt * 0.3;
+
+    const hueNorm = this.currentHue / 360;
+    const alpha = THREE.MathUtils.clamp(0.15 + this.currentWaveAmplitude * 0.85, 0, 1);
+    this.material.opacity = THREE.MathUtils.lerp(this.material.opacity, alpha * this.particlesTargetOpacity, 0.05);
+
+    for (let i = 0; i < this.particleCount; i++) {
+      const p = this.particles[i];
+
+      const theta = p.baseTheta
+        + this.rotationY * (0.7 + Math.sin(p.phase) * 0.5)
+        + p.offsetTheta * 0.08;
+      const phi = p.basePhi
+        + this.rotationX * 0.45
+        + Math.sin(p.phase + this.standbyAngle) * 0.08;
       let radius = p.baseRadius * (this.currentRadius / 3);
-      
-      radius += Math.sin(p.phase * 2 + this.standbyAngle * 2) * this.currentWaveAmplitude * 0.8;
-      
-      let x = radius * Math.sin(phi) * Math.cos(theta);
-      let y = radius * Math.cos(phi);
-      let z = radius * Math.sin(phi) * Math.sin(theta);
 
-      if (this.beatExplosionActive) {
-        const t = this.beatExplosionTime / this.beatExplosionDuration;
-        const explosionT = this.easeOutCubic(t);
-        const ex = this.explosionPositions[i * 3] * explosionT;
-        const ey = this.explosionPositions[i * 3 + 1] * explosionT;
-        const ez = this.explosionPositions[i * 3 + 2] * explosionT;
-        
-        x = THREE.MathUtils.lerp(x, ex, 1 - t * 0.5);
-        y = THREE.MathUtils.lerp(y, ey, 1 - t * 0.5);
-        z = THREE.MathUtils.lerp(z, ez, 1 - t * 0.5);
+      radius += Math.sin(p.phase * 2 + this.standbyAngle * 2.3) * this.currentWaveAmplitude * 1.0;
+      radius = THREE.MathUtils.clamp(radius, 0.2, 9);
 
-        const whiten = Math.sin(t * Math.PI);
-        const particleHue = (hueNorm + (i / this.particleCount) * 0.15) % 1;
-        const baseColor = new THREE.Color().setHSL(particleHue, 0.9, 0.6);
-        const r = THREE.MathUtils.lerp(baseColor.r, 1, whiten);
-        const g = THREE.MathUtils.lerp(baseColor.g, 1, whiten);
-        const b = THREE.MathUtils.lerp(baseColor.b, 1, whiten);
-        this.colors[i * 3] = r;
-        this.colors[i * 3 + 1] = g;
-        this.colors[i * 3 + 2] = b;
-      } else {
-        const particleHue = (hueNorm + (i / this.particleCount) * 0.15) % 1;
-        const saturation = 0.7 + this.currentWaveAmplitude * 0.3;
-        const lightness = 0.45 + this.currentWaveAmplitude * 0.3;
-        const color = new THREE.Color().setHSL(particleHue, saturation, lightness);
-        
-        this.colors[i * 3] = THREE.MathUtils.lerp(this.colors[i * 3], color.r, 0.03);
-        this.colors[i * 3 + 1] = THREE.MathUtils.lerp(this.colors[i * 3 + 1], color.g, 0.03);
-        this.colors[i * 3 + 2] = THREE.MathUtils.lerp(this.colors[i * 3 + 2], color.b, 0.03);
-      }
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
 
       this.positions[i * 3] = x;
       this.positions[i * 3 + 1] = y;
       this.positions[i * 3 + 2] = z;
 
-      p.phase += deltaTime * (0.5 + Math.random() * 0.5);
+      const pHue = (hueNorm + (i / this.particleCount) * 0.16) % 1;
+      const saturation = 0.72 + this.currentWaveAmplitude * 0.25;
+      const lightness = 0.48 + this.currentWaveAmplitude * 0.32;
+      const color = new THREE.Color().setHSL(pHue, saturation, lightness);
+
+      this.colors[i * 3] = THREE.MathUtils.lerp(this.colors[i * 3], color.r, 0.025);
+      this.colors[i * 3 + 1] = THREE.MathUtils.lerp(this.colors[i * 3 + 1], color.g, 0.025);
+      this.colors[i * 3 + 2] = THREE.MathUtils.lerp(this.colors[i * 3 + 2], color.b, 0.025);
+
+      p.phase += dt * (0.45 + Math.sin(p.baseTheta) * 0.2);
     }
 
-    this.standbyAngle += deltaTime;
+    this.standbyAngle += dt;
   }
 
   private triggerBeatExplosion(energy: number): void {
-    this.beatExplosionActive = true;
-    this.beatExplosionTime = 0;
-    this.beatExplosionEnergy = energy;
+    energy = THREE.MathUtils.clamp(energy, 0.1, 1.0);
+    this.beat.active = true;
+    this.beat.time = 0;
+    this.beat.energy = energy;
 
     for (let i = 0; i < this.particleCount; i++) {
       const p = this.particles[i];
-      const dirTheta = p.baseTheta;
-      const dirPhi = p.basePhi;
-      const dist = 4 + energy * 8 + Math.random() * 2;
-      
-      this.explosionPositions[i * 3] = dist * Math.sin(dirPhi) * Math.cos(dirTheta);
-      this.explosionPositions[i * 3 + 1] = dist * Math.cos(dirPhi);
-      this.explosionPositions[i * 3 + 2] = dist * Math.sin(dirPhi) * Math.sin(dirTheta);
+      const theta = p.baseTheta;
+      const phi = p.basePhi;
+
+      this.beat.preBeatPositions[i * 3] = this.positions[i * 3];
+      this.beat.preBeatPositions[i * 3 + 1] = this.positions[i * 3 + 1];
+      this.beat.preBeatPositions[i * 3 + 2] = this.positions[i * 3 + 2];
+
+      const len = 1;
+      this.beat.explosionDirX[i] = (Math.sin(phi) * Math.cos(theta)) / len;
+      this.beat.explosionDirY[i] = (Math.cos(phi)) / len;
+      this.beat.explosionDirZ[i] = (Math.sin(phi) * Math.sin(theta)) / len;
+
+      this.beat.explosionDistances[i] = 5 + energy * 11 + Math.random() * 2.5;
     }
   }
 
-  private updateBeatExplosion(deltaTime: number): void {
-    if (!this.beatExplosionActive) return;
-    this.beatExplosionTime += deltaTime;
-    if (this.beatExplosionTime >= this.beatExplosionDuration) {
-      this.beatExplosionActive = false;
+  private updateBeatExplosion(dt: number): void {
+    if (!this.beat.active) return;
+
+    this.beat.time += dt;
+    const t = THREE.MathUtils.clamp(this.beat.time / this.beat.duration, 0, 1);
+    const energy = this.beat.energy;
+    const hueNorm = this.currentHue / 360;
+
+    const collapseT = THREE.MathUtils.clamp(t / 0.08, 0, 1);
+    const collapseEased = collapseT * collapseT * (3 - 2 * collapseT);
+
+    const explodeT = t < 0.08
+      ? 0
+      : THREE.MathUtils.clamp((t - 0.08) / (1 - 0.08), 0, 1);
+    const explodeEased = 1 - Math.pow(1 - explodeT, 3);
+
+    const whiten = Math.max(0, Math.sin(t * Math.PI));
+
+    for (let i = 0; i < this.particleCount; i++) {
+      const pPreX = this.beat.preBeatPositions[i * 3];
+      const pPreY = this.beat.preBeatPositions[i * 3 + 1];
+      const pPreZ = this.beat.preBeatPositions[i * 3 + 2];
+
+      const dist = this.beat.explosionDistances[i] * explodeEased;
+      const ex = this.beat.explosionDirX[i] * dist;
+      const ey = this.beat.explosionDirY[i] * dist;
+      const ez = this.beat.explosionDirZ[i] * dist;
+
+      const collapsedX = THREE.MathUtils.lerp(pPreX, 0, collapseEased);
+      const collapsedY = THREE.MathUtils.lerp(pPreY, 0, collapseEased);
+      const collapsedZ = THREE.MathUtils.lerp(pPreZ, 0, collapseEased);
+
+      const finalX = collapsedX + ex * (1 - collapseEased * 0.3);
+      const finalY = collapsedY + ey * (1 - collapseEased * 0.3);
+      const finalZ = collapsedZ + ez * (1 - collapseEased * 0.3);
+
+      this.positions[i * 3] = finalX;
+      this.positions[i * 3 + 1] = finalY;
+      this.positions[i * 3 + 2] = finalZ;
+
+      const pHue = (hueNorm + (i / this.particleCount) * 0.15) % 1;
+      const baseColor = new THREE.Color().setHSL(pHue, 0.9, 0.6);
+
+      const r = THREE.MathUtils.lerp(baseColor.r, 1, whiten * (0.6 + energy * 0.4));
+      const g = THREE.MathUtils.lerp(baseColor.g, 1, whiten * (0.6 + energy * 0.4));
+      const b = THREE.MathUtils.lerp(baseColor.b, 1, whiten * (0.6 + energy * 0.4));
+
+      this.colors[i * 3] = r;
+      this.colors[i * 3 + 1] = g;
+      this.colors[i * 3 + 2] = b;
+    }
+
+    if (t >= 1) {
+      this.beat.active = false;
+      for (let i = 0; i < this.particleCount; i++) {
+        const p = this.particles[i];
+        this.positions[i * 3] = this.beat.preBeatPositions[i * 3];
+        this.positions[i * 3 + 1] = this.beat.preBeatPositions[i * 3 + 1];
+        this.positions[i * 3 + 2] = this.beat.preBeatPositions[i * 3 + 2];
+        p.phase += Math.random() * 0.5;
+      }
+    }
+  }
+
+  private updateResetParticles(): void {
+    if (!this.reset.active) return;
+
+    const elapsed = performance.now() - this.reset.startTime;
+    const t = THREE.MathUtils.clamp(elapsed / this.reset.duration, 0, 1);
+    const eased = t * t * (3 - 2 * t);
+
+    for (let i = 0; i < this.particleCount; i++) {
+      const i3 = i * 3;
+      this.positions[i3] = THREE.MathUtils.lerp(this.reset.startPositions[i3], this.reset.targetPositions[i3], eased);
+      this.positions[i3 + 1] = THREE.MathUtils.lerp(this.reset.startPositions[i3 + 1], this.reset.targetPositions[i3 + 1], eased);
+      this.positions[i3 + 2] = THREE.MathUtils.lerp(this.reset.startPositions[i3 + 2], this.reset.targetPositions[i3 + 2], eased);
+    }
+
+    if (t >= 1) {
+      this.reset.active = false;
+      this.rotationY = 0;
+      this.rotationX = 0;
+      this.currentRadius = 3;
+      this.targetRadius = 3;
+      this.currentRotationSpeed = 0.5;
+      this.targetRotationSpeed = 0.5;
     }
   }
 
@@ -401,19 +593,12 @@ export class ParticleSystem {
       const dy = this.positions[i * 3 + 1] - camPos.y;
       const dz = this.positions[i * 3 + 2] - camPos.z;
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      this.sizes[i] = 0.05 + Math.max(0, (30 - dist) / 30) * 0.12;
+      this.sizes[i] = 0.045 + Math.max(0, (28 - dist) / 28) * 0.14;
     }
-  }
-
-  private easeOutCubic(t: number): number {
-    return 1 - Math.pow(1 - t, 3);
   }
 
   public setDisplayMode(mode: DisplayMode): void {
     this.displayMode = mode;
-    if (mode === 'particles') {
-      this.targetHue = this.currentHue;
-    }
   }
 
   public getDisplayMode(): DisplayMode {
@@ -425,7 +610,7 @@ export class ParticleSystem {
     this.targetRadius = 3;
     this.currentRotationSpeed = 0.5;
     this.targetRotationSpeed = 0.5;
-    this.beatExplosionActive = false;
+    this.beat.active = false;
     this.rotationY = 0;
     this.rotationX = 0;
   }
@@ -437,31 +622,51 @@ export class ParticleSystem {
   public reduceParticleCount(amount: number): boolean {
     const newCount = Math.max(500, this.particleCount - amount);
     if (newCount >= this.particleCount) return false;
-    
+
     this.particleCount = newCount;
     this.particles = this.particles.slice(0, newCount);
-    
+
     const newPositions = new Float32Array(newCount * 3);
     const newColors = new Float32Array(newCount * 3);
     const newSizes = new Float32Array(newCount);
-    const newExplosion = new Float32Array(newCount * 3);
-    
+
     newPositions.set(this.positions.slice(0, newCount * 3));
     newColors.set(this.colors.slice(0, newCount * 3));
     newSizes.set(this.sizes.slice(0, newCount));
-    newExplosion.set(this.explosionPositions.slice(0, newCount * 3));
-    
+
     this.positions = newPositions;
     this.colors = newColors;
     this.sizes = newSizes;
-    this.explosionPositions = newExplosion;
-    
+
+    const newDirX = new Float32Array(newCount);
+    const newDirY = new Float32Array(newCount);
+    const newDirZ = new Float32Array(newCount);
+    const newPreBeat = new Float32Array(newCount * 3);
+    const newDist = new Float32Array(newCount);
+    newDirX.set(this.beat.explosionDirX.slice(0, newCount));
+    newDirY.set(this.beat.explosionDirY.slice(0, newCount));
+    newDirZ.set(this.beat.explosionDirZ.slice(0, newCount));
+    newPreBeat.set(this.beat.preBeatPositions.slice(0, newCount * 3));
+    newDist.set(this.beat.explosionDistances.slice(0, newCount));
+    this.beat.explosionDirX = newDirX;
+    this.beat.explosionDirY = newDirY;
+    this.beat.explosionDirZ = newDirZ;
+    this.beat.preBeatPositions = newPreBeat;
+    this.beat.explosionDistances = newDist;
+
+    const newStartR = new Float32Array(newCount * 3);
+    const newTargetR = new Float32Array(newCount * 3);
+    newStartR.set(this.reset.startPositions.slice(0, newCount * 3));
+    newTargetR.set(this.reset.targetPositions.slice(0, newCount * 3));
+    this.reset.startPositions = newStartR;
+    this.reset.targetPositions = newTargetR;
+
     this.geometry.dispose();
     this.geometry = new THREE.BufferGeometry();
     this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
     this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
     this.geometry.setAttribute('size', new THREE.BufferAttribute(this.sizes, 1));
-    
+
     this.points.geometry = this.geometry;
     return true;
   }
@@ -618,10 +823,6 @@ export class OrbitCameraController {
     return t * t * (3 - 2 * t);
   }
 
-  private easeOutCubic(t: number): number {
-    return 1 - Math.pow(1 - t, 3);
-  }
-
   public triggerReset(duration: number = 1500): void {
     this.isResetting = true;
     this.resetStartTime = performance.now();
@@ -652,7 +853,7 @@ export class OrbitCameraController {
       const elapsed = performance.now() - this.resetStartTime;
       const t = Math.min(1, elapsed / this.resetDuration);
       const eased = this.smoothstep(0, 1, t);
-      
+
       this.azimuth = THREE.MathUtils.lerp(this.resetStartAzimuth, this.initialAzimuth, eased);
       this.polar = THREE.MathUtils.lerp(this.resetStartPolar, this.initialPolar, eased);
       this.distance = THREE.MathUtils.lerp(this.resetStartDistance, this.initialDistance, eased);

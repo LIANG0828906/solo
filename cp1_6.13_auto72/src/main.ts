@@ -18,7 +18,8 @@ class EchoDriftApp {
   private latestAudioData: AudioFrameData | null = null;
   private animationFrameId: number | null = null;
   private lastPerformanceCheck: number = 0;
-  private performanceCheckInterval: number = 5000;
+  private performanceCheckInterval: number = 2000;
+  private performanceWarningActive: boolean = false;
 
   constructor() {
     this.container = document.getElementById('app')!;
@@ -43,12 +44,16 @@ class EchoDriftApp {
       this.particleSystem,
       {
         onResetCamera: () => this.cameraController.triggerReset(1500),
-        onResetParticles: () => this.animateResetParticles()
+        onResetParticles: () => this.particleSystem.triggerResetParticles(1000)
       }
     );
 
     this.audioEngine.onFrame((data) => {
-      this.latestAudioData = { ...data };
+      this.latestAudioData = {
+        ...data,
+        frequencyData: new Float32Array(data.frequencyData),
+        timeDomainData: new Float32Array(data.timeDomainData)
+      };
     });
 
     this.setupWindowEvents();
@@ -61,20 +66,22 @@ class EchoDriftApp {
 
     const canvas = document.createElement('canvas');
     canvas.width = 2;
-    canvas.height = 512;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
-    const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-    gradient.addColorStop(0, '#0a0a0a');
-    gradient.addColorStop(0.5, '#080812');
-    gradient.addColorStop(1, '#05050a');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 1024);
+    gradient.addColorStop(0, '#0a0a10');
+    gradient.addColorStop(0.4, '#08080e');
+    gradient.addColorStop(0.7, '#06060a');
+    gradient.addColorStop(1, '#040408');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 2, 512);
+    ctx.fillRect(0, 0, 2, 1024);
 
     const bgTexture = new THREE.CanvasTexture(canvas);
+    bgTexture.colorSpace = THREE.SRGBColorSpace;
     bgTexture.needsUpdate = true;
     scene.background = bgTexture;
 
-    scene.fog = new THREE.FogExp2(0x050508, 0.008);
+    scene.fog = new THREE.FogExp2(0x040408, 0.008);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.05);
     scene.add(ambient);
@@ -97,56 +104,18 @@ class EchoDriftApp {
   private createRenderer(): THREE.WebGLRenderer {
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance'
+      alpha: false,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: false
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.25;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setClearColor(0x05050a, 1);
     return renderer;
-  }
-
-  private animateResetParticles(): void {
-    const duration = 1000;
-    const startTime = performance.now();
-    const positions = this.particleSystem.points.geometry.attributes.position.array as Float32Array;
-    const startPositions = new Float32Array(positions.length);
-    startPositions.set(positions);
-
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const t = Math.min(1, elapsed / duration);
-      const eased = t * t * (3 - 2 * t);
-
-      for (let i = 0; i < positions.length / 3; i++) {
-        const i3 = i * 3;
-        const particle = (this.particleSystem as any).particles[i];
-        if (!particle) continue;
-
-        const baseR = particle.baseRadius;
-        const theta = particle.baseTheta;
-        const phi = particle.basePhi;
-        const targetX = baseR * Math.sin(phi) * Math.cos(theta);
-        const targetY = baseR * Math.cos(phi);
-        const targetZ = baseR * Math.sin(phi) * Math.sin(theta);
-
-        positions[i3] = THREE.MathUtils.lerp(startPositions[i3], targetX, eased);
-        positions[i3 + 1] = THREE.MathUtils.lerp(startPositions[i3 + 1], targetY, eased);
-        positions[i3 + 2] = THREE.MathUtils.lerp(startPositions[i3 + 2], targetZ, eased);
-      }
-      this.particleSystem.points.geometry.attributes.position.needsUpdate = true;
-
-      if (t < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        this.particleSystem.resetParticles();
-      }
-    };
-    animate();
   }
 
   private setupWindowEvents(): void {
@@ -170,7 +139,12 @@ class EchoDriftApp {
     style.textContent = `
       @keyframes blink {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.3; }
+        50% { opacity: 0.35; }
+      }
+      @keyframes mic-pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+        50% { transform: scale(1.18); box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.25); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
       }
     `;
     document.head.appendChild(style);
@@ -189,24 +163,27 @@ class EchoDriftApp {
 
     const frameTime = this.particleSystem.update(this.latestAudioData, deltaTime);
 
-    this.checkPerformance(frameTime);
+    this.checkPerformance();
 
     this.renderer.render(this.scene, this.camera);
   };
 
-  private checkPerformance(frameTime: number): void {
+  private checkPerformance(): void {
     const now = performance.now();
     if (now - this.lastPerformanceCheck < this.performanceCheckInterval) return;
     this.lastPerformanceCheck = now;
 
     const avgFrameTime = this.particleSystem.getAverageFrameTime();
-    
-    if (avgFrameTime > 10) {
+    const count = this.particleSystem.getParticleCount();
+
+    if (avgFrameTime > 10 && count > 500) {
       const reduced = this.particleSystem.reduceParticleCount(200);
       if (reduced) {
+        this.performanceWarningActive = true;
         this.uiController.showPerformanceWarning(true);
       }
-    } else if (avgFrameTime < 3) {
+    } else if (avgFrameTime < 4 && this.performanceWarningActive) {
+      this.performanceWarningActive = false;
       this.uiController.showPerformanceWarning(false);
     }
   }
