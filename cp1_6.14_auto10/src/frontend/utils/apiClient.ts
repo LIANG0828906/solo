@@ -81,7 +81,7 @@ apiClient.interceptors.response.use(
   (response) => {
     const result: ApiResponse<unknown> = response.data;
     if (result.success && result.data !== undefined) {
-      return result.data;
+      return result.data as unknown as typeof response;
     }
     return Promise.reject(new Error(result.message || '请求失败'));
   },
