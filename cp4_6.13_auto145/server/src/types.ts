@@ -12,8 +12,9 @@ export interface Rule {
 export interface ScoreResult {
   ruleId: string;
   ruleName: string;
-  hit: boolean;
-  matches: string[];
+  passed: boolean;
+  matchedTexts: string[];
+  matchPositions: Array<{ start: number; end: number }>;
   score: number;
   maxScore: number;
   suggestion: string;
@@ -21,17 +22,19 @@ export interface ScoreResult {
 
 export interface GradingResult {
   id: string;
-  reportName: string;
+  filename: string;
   totalScore: number;
   maxScore: number;
+  percentage: number;
   results: ScoreResult[];
-  createdAt: string;
+  timestamp: string;
 }
 
 export interface HistoryRecord {
   id: string;
-  reportName: string;
+  filename: string;
   totalScore: number;
   maxScore: number;
-  createdAt: string;
+  percentage: number;
+  timestamp: string;
 }
