@@ -502,26 +502,31 @@ export default function SearchTeachers() {
                     height: 48,
                     borderRadius: '50%',
                     objectFit: 'cover',
+                    transition: 'transform 0.2s ease-out',
                   }}
                 />
-                {hoveredAvatar === teacher.id && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%) scale(0.95)',
-                      transformOrigin: 'top center',
-                      marginTop: 8,
-                      background: '#fff',
-                      borderRadius: 10,
-                      padding: 12,
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                      zIndex: 10,
-                      minWidth: 200,
-                      animation: 'tooltipIn 0.2s ease-out forwards',
-                    }}
-                  >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '50%',
+                    transform: hoveredAvatar === teacher.id
+                      ? 'translateX(-50%) scale(1)'
+                      : 'translateX(-50%) scale(0.95)',
+                    transformOrigin: 'top center',
+                    opacity: hoveredAvatar === teacher.id ? 1 : 0,
+                    visibility: hoveredAvatar === teacher.id ? 'visible' : 'hidden',
+                    marginTop: 8,
+                    background: '#fff',
+                    borderRadius: 10,
+                    padding: 12,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    zIndex: 10,
+                    minWidth: 200,
+                    transition: 'transform 0.2s ease-out, opacity 0.2s ease-out',
+                    pointerEvents: 'none',
+                  }}
+                >
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#1F2937' }}>
                       {teacher.name} 的课程
                     </div>
@@ -540,8 +545,7 @@ export default function SearchTeachers() {
                         <span style={{ fontWeight: 600, color: '#F59E0B' }}>¥{c.price}</span>
                       </div>
                     ))}
-                  </div>
-                )}
+                </div>
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{teacher.name}</div>

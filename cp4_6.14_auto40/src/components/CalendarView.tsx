@@ -42,6 +42,7 @@ export default function CalendarView() {
   const [animKey, setAnimKey] = useState(0);
   const [visibleWeekRange, setVisibleWeekRange] = useState<[number, number]>([0, 5]);
   const gridRef = useRef<HTMLDivElement>(null);
+  const renderStartTime = useRef(performance.now());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -53,6 +54,7 @@ export default function CalendarView() {
   const safeBookings = Array.isArray(bookings) ? bookings : [];
 
   const bookingsByDate = useMemo(() => {
+    const t0 = performance.now();
     const map = new Map<string, Booking[]>();
     for (const b of safeBookings) {
       const existing = map.get(b.date) ?? [];
@@ -100,16 +102,24 @@ export default function CalendarView() {
   }, [currentMonth]);
 
   const visibleDays = useMemo(() => {
-    const start = visibleWeekRange[0] * 7;
-    const end = (visibleWeekRange[1] + 1) * 7;
-    return allDays.slice(start, end);
+    const startIdx = visibleWeekRange[0] * 7;
+    const endIdx = (visibleWeekRange[1] + 1) * 7;
+    const visible = allDays.slice(startIdx, endIdx);
+    console.log(`[Calendar] 虚拟滚动: 渲染 ${visible.length} 天 (共 ${allDays.length} 天), 周范围 ${visibleWeekRange[0]}-${visibleWeekRange[1]}`);
+    return visible;
   }, [allDays, visibleWeekRange]);
 
   const virtualPadding = useMemo(() => {
-    const paddingTop = visibleWeekRange[0] * 7 * (80 + 1) - 1;
-    const paddingBottom = (totalWeeks - visibleWeekRange[1] - 1) * 7 * (80 + 1);
+    const cellHeight = 80 + 1;
+    const paddingTop = visibleWeekRange[0] * 7 * cellHeight;
+    const paddingBottom = (totalWeeks - visibleWeekRange[1] - 1) * 7 * cellHeight;
     return { paddingTop, paddingBottom };
   }, [visibleWeekRange, totalWeeks]);
+
+  useEffect(() => {
+    const renderTime = performance.now() - renderStartTime.current;
+    console.log(`[Calendar] 首屏渲染时间: ${renderTime.toFixed(2)}ms`);
+  }, []);
 
   const renderDayCell = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');

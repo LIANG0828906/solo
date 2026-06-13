@@ -198,7 +198,7 @@ export default function StudentDashboard() {
     }
 
     const renderTime = performance.now() - t0;
-    console.log('Line chart rendered in', renderTime.toFixed(2), 'ms');
+    console.log('[Dashboard] 折线图渲染时间:', renderTime.toFixed(2), 'ms');
     setChartImageUrl(canvas.toDataURL('image/png'));
   }, [progress]);
 
