@@ -324,6 +324,47 @@ setTimeout((): void => {
   markDirty();
 }, 2000);
 
+declare global {
+  interface Window {
+    opticsLab: {
+      lights: LightSource[];
+      mirrors: Mirror[];
+      renderer: Renderer;
+      ui: UIController;
+      settings: RendererSettings;
+      canvas: HTMLCanvasElement;
+      markDirty: () => void;
+      forceRender: () => void;
+      benchmarkRender: (count?: number) => { totalMs: number; avgMs: number; fps: number };
+    };
+  }
+}
+
+window.opticsLab = {
+  lights,
+  mirrors,
+  renderer,
+  ui,
+  settings,
+  canvas,
+  markDirty,
+  forceRender: () => {
+    renderer.render();
+  },
+  benchmarkRender: (count: number = 100) => {
+    const start = performance.now();
+    for (let i = 0; i < count; i++) {
+      renderer.render();
+    }
+    const elapsed = performance.now() - start;
+    return {
+      totalMs: elapsed,
+      avgMs: elapsed / count,
+      fps: 1000 / (elapsed / count)
+    };
+  }
+};
+
 export {
   lights,
   mirrors,

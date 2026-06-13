@@ -7,8 +7,6 @@ export interface RendererSettings {
   mirrorOpacity: number;
 }
 
-type FrameBuffer = Uint8ClampedArray | null;
-
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   public lights: LightSource[];
@@ -111,42 +109,26 @@ export class Renderer {
     const ctx = this.colorBufferCtx;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
 
     for (const seg of segments) {
-      const dx = seg.end.x - seg.start.x;
-      const dy = seg.end.y - seg.start.y;
-      const len = Math.hypot(dx, dy);
+      const len = Math.hypot(seg.end.x - seg.start.x, seg.end.y - seg.start.y);
       if (len < 1) continue;
-      const nx = -dy / len;
-      const ny = dx / len;
-      const baseWidth = 5;
       const intensity = seg.intensity;
 
-      const outerWidth = baseWidth * 3;
       ctx.beginPath();
-      ctx.moveTo(seg.start.x + nx * outerWidth, seg.start.y + ny * outerWidth);
-      ctx.lineTo(seg.start.x - nx * outerWidth, seg.start.y - ny * outerWidth);
-      ctx.lineTo(seg.end.x - nx * outerWidth, seg.end.y - ny * outerWidth);
-      ctx.lineTo(seg.end.x + nx * outerWidth, seg.end.y + ny * outerWidth);
-      ctx.closePath();
-      const grad1 = ctx.createLinearGradient(seg.start.x, seg.start.y, seg.end.x, seg.end.y);
-      grad1.addColorStop(0, `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.015 * intensity})`);
-      grad1.addColorStop(1, `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.008 * intensity})`);
-      ctx.fillStyle = grad1;
-      ctx.fill();
+      ctx.moveTo(seg.start.x, seg.start.y);
+      ctx.lineTo(seg.end.x, seg.end.y);
+      ctx.strokeStyle = `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.05 * intensity})`;
+      ctx.lineWidth = 8;
+      ctx.stroke();
 
-      const midWidth = baseWidth * 1.5;
       ctx.beginPath();
-      ctx.moveTo(seg.start.x + nx * midWidth, seg.start.y + ny * midWidth);
-      ctx.lineTo(seg.start.x - nx * midWidth, seg.start.y - ny * midWidth);
-      ctx.lineTo(seg.end.x - nx * midWidth, seg.end.y - ny * midWidth);
-      ctx.lineTo(seg.end.x + nx * midWidth, seg.end.y + ny * midWidth);
-      ctx.closePath();
-      const grad2 = ctx.createLinearGradient(seg.start.x, seg.start.y, seg.end.x, seg.end.y);
-      grad2.addColorStop(0, `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.06 * intensity})`);
-      grad2.addColorStop(1, `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.03 * intensity})`);
-      ctx.fillStyle = grad2;
-      ctx.fill();
+      ctx.moveTo(seg.start.x, seg.start.y);
+      ctx.lineTo(seg.end.x, seg.end.y);
+      ctx.strokeStyle = `rgba(${seg.color.r},${seg.color.g},${seg.color.b},${0.12 * intensity})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
     }
     ctx.restore();
   }
@@ -154,16 +136,21 @@ export class Renderer {
   private drawBlendedLightBeams(): void {
     this.ctx.save();
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = 'high';
-    this.ctx.filter = 'blur(6px)';
-    this.ctx.globalAlpha = 0.9;
-    this.ctx.drawImage(this.colorBufferCanvas, 0, 0);
-    this.ctx.filter = 'blur(2px)';
-    this.ctx.globalAlpha = 0.6;
-    this.ctx.drawImage(this.colorBufferCanvas, 0, 0);
-    this.ctx.filter = 'none';
+
+    this.ctx.globalCompositeOperation = 'lighter';
+
+    this.ctx.filter = 'blur(10px)';
     this.ctx.globalAlpha = 0.5;
     this.ctx.drawImage(this.colorBufferCanvas, 0, 0);
+
+    this.ctx.filter = 'blur(4px)';
+    this.ctx.globalAlpha = 0.4;
+    this.ctx.drawImage(this.colorBufferCanvas, 0, 0);
+
+    this.ctx.filter = 'none';
+    this.ctx.globalAlpha = 0.3;
+    this.ctx.drawImage(this.colorBufferCanvas, 0, 0);
+
     this.ctx.restore();
   }
 

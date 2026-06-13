@@ -300,15 +300,15 @@ export class LightSource {
   private drawConeBeam(ctx: CanvasRenderingContext2D): void {
     const halfCone = (this.coneAngle / 2) * Math.PI / 180;
     const centerRad = (this.angle * Math.PI) / 180;
-    const maxDist = 300;
-    const steps = 12;
+    const maxDist = 350;
+    const radialSteps = 6;
 
-    for (let i = steps; i >= 1; i--) {
-      const t = i / steps;
-      const angleSpread = halfCone * t;
+    for (let rStep = radialSteps; rStep >= 1; rStep--) {
+      const rT = rStep / radialSteps;
+      const dist = maxDist * rT;
+      const angleSpread = halfCone * (0.65 + 0.35 * rT);
       const leftRad = centerRad - angleSpread;
       const rightRad = centerRad + angleSpread;
-      const dist = maxDist;
 
       const left: Point = {
         x: this.x + Math.cos(leftRad) * dist,
@@ -319,13 +319,32 @@ export class LightSource {
         y: this.y + Math.sin(rightRad) * dist
       };
 
-      const alpha = (1 - t) * 0.12;
+      const prevDist = maxDist * ((rStep - 1) / radialSteps);
+      const prevSpread = halfCone * (0.65 + 0.35 * ((rStep - 1) / radialSteps));
+      const prevLeft: Point = {
+        x: this.x + Math.cos(centerRad - prevSpread) * prevDist,
+        y: this.y + Math.sin(centerRad - prevSpread) * prevDist
+      };
+      const prevRight: Point = {
+        x: this.x + Math.cos(centerRad + prevSpread) * prevDist,
+        y: this.y + Math.sin(centerRad + prevSpread) * prevDist
+      };
+
+      const distAlpha = (1 - rT * 0.85) * 0.16;
+
       ctx.beginPath();
-      ctx.moveTo(this.x, this.y);
+      if (rStep === radialSteps) {
+        ctx.moveTo(this.x, this.y);
+      } else {
+        ctx.moveTo(prevLeft.x, prevLeft.y);
+      }
       ctx.lineTo(left.x, left.y);
       ctx.lineTo(right.x, right.y);
+      if (rStep !== radialSteps) {
+        ctx.lineTo(prevRight.x, prevRight.y);
+      }
       ctx.closePath();
-      ctx.fillStyle = `rgba(${this.color.r},${this.color.g},${this.color.b},${alpha})`;
+      ctx.fillStyle = `rgba(${this.color.r},${this.color.g},${this.color.b},${distAlpha})`;
       ctx.fill();
     }
   }
