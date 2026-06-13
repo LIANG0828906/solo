@@ -1,0 +1,59 @@
+export enum AppState {
+  IDLE = 'idle',
+  FLYING_IN = 'flying_in',
+  STABLE = 'stable',
+  DISPERSING = 'dispersing'
+}
+
+export interface HSLA {
+  h: number;
+  s: number;
+  l: number;
+  a: number;
+}
+
+export interface RGB {
+  r: number;
+  g: number;
+  b: number;
+}
+
+export interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  startX: number;
+  startY: number;
+  cp1x: number;
+  cp1y: number;
+  cp2x: number;
+  cp2y: number;
+  currentColor: HSLA;
+  startColor: HSLA;
+  targetColor: HSLA;
+  opacity: number;
+  delay: number;
+  startTime: number;
+  duration: number;
+  spiralAngle: number;
+  spiralRadius: number;
+  spiralStartAngle: number;
+  initialDistance: number;
+  size: number;
+  tremorPhase: number;
+}
+
+export interface Word {
+  char: string;
+  particles: Particle[];
+  centerX: number;
+  centerY: number;
+}
+
+export interface CanvasDimensions {
+  width: number;
+  height: number;
+  dpr: number;
+}
