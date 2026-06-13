@@ -1,29 +1,39 @@
-import { Server as SocketIOServer } from 'socket.io'
-import type { Server } from 'http'
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import type { Server as HTTPServer } from 'http';
+import type { BoardUpdateEvent } from '../src/types/index.js';
 
-let io: SocketIOServer
+let io: SocketIOServer | null = null;
 
-function init(server: Server): void {
-  io = new SocketIOServer(server, {
+export const initSocketService = (httpServer: HTTPServer): SocketIOServer => {
+  io = new SocketIOServer(httpServer, {
     cors: {
       origin: '*',
       methods: ['GET', 'POST'],
     },
-  })
+  });
 
-  io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id)
+  io.on('connection', (socket: Socket) => {
+    console.log(`Client connected: ${socket.id}`);
 
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id)
-    })
-  })
-}
+      console.log(`Client disconnected: ${socket.id}`);
+    });
+  });
 
-function broadcastUpdate(boardId: string, action: string, task: any, user?: string): void {
-  if (io) {
-    io.emit('boardUpdate', { boardId, action, task, user })
+  return io;
+};
+
+export const broadcastBoardUpdate = (event: BoardUpdateEvent): void => {
+  if (!io) {
+    throw new Error('Socket.io not initialized');
   }
-}
+  console.log('Broadcasting boardUpdate:', event);
+  io.emit('boardUpdate', event);
+};
 
-export { init, broadcastUpdate }
+export const getIo = (): SocketIOServer => {
+  if (!io) {
+    throw new Error('Socket.io not initialized');
+  }
+  return io;
+};

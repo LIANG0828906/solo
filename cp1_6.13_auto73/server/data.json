@@ -1,0 +1,90 @@
+{
+  "boards": [
+    {
+      "id": "board-1",
+      "name": "产品研发看板",
+      "columns": [
+        {
+          "id": "col-todo",
+          "name": "待办",
+          "tasks": [
+            {
+              "id": "task-1",
+              "title": "用户登录页面设计",
+              "description": "完成登录页面的UI设计和交互稿",
+              "priority": "high",
+              "dueDate": "2026-06-20",
+              "assignee": "张三"
+            },
+            {
+              "id": "task-2",
+              "title": "API接口文档编写",
+              "description": "编写后端API的Swagger文档",
+              "priority": "medium",
+              "dueDate": "2026-06-22",
+              "assignee": "李四"
+            }
+          ]
+        },
+        {
+          "id": "col-inprogress",
+          "name": "进行中",
+          "tasks": [
+            {
+              "id": "task-3",
+              "title": "数据库表结构设计",
+              "description": "设计用户和订单相关的数据库表",
+              "priority": "high",
+              "dueDate": "2026-06-18",
+              "assignee": "王五"
+            }
+          ]
+        },
+        {
+          "id": "col-done",
+          "name": "完成",
+          "tasks": [
+            {
+              "id": "task-4",
+              "title": "需求评审会议",
+              "description": "组织团队进行需求评审",
+              "priority": "low",
+              "dueDate": "2026-06-15",
+              "assignee": "赵六"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "board-2",
+      "name": "运营管理看板",
+      "columns": [
+        {
+          "id": "col-todo-2",
+          "name": "待办",
+          "tasks": [
+            {
+              "id": "task-5",
+              "title": "月度运营报告",
+              "description": "编写6月份运营数据报告",
+              "priority": "medium",
+              "dueDate": "2026-06-30",
+              "assignee": "钱七"
+            }
+          ]
+        },
+        {
+          "id": "col-inprogress-2",
+          "name": "进行中",
+          "tasks": []
+        },
+        {
+          "id": "col-done-2",
+          "name": "完成",
+          "tasks": []
+        }
+      ]
+    }
+  ]
+}
