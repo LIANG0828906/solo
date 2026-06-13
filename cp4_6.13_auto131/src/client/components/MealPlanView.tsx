@@ -44,20 +44,6 @@ const MealPlanView: React.FC<MealPlanViewProps> = ({ plan, generating, selectedR
           onMouseEnter={(e) => { if (canGenerate) { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(176,137,104,0.4)'; } }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(176,137,104,0.25)'; }}
         >
-          {generating ? '⏳ 生成中...' : '🍽️ 生成一周餐单'}
-        </button>
-        <button
-          onClick={onShare}
-          disabled={!plan}
-          style={{
-            ...actionBtn,
-            background: !plan ? '#d6cfc7' : 'linear-gradient(135deg, #6fa8dc, #4a86bf)',
-            cursor: !plan ? 'not-allowed' : 'pointer',
-            minWidth: 120
-          }}
-          onMouseEnter={(e) => { if (plan) { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(111,168,220,0.4)'; } }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(111,168,220,0.25)'; }}
-        >
           📤 分享餐单
         </button>
       </div>
@@ -229,7 +215,8 @@ const actionBtn: React.CSSProperties = {
   borderRadius: 12,
   cursor: 'pointer',
   transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  transform: 'scale(1)'
 };
 
 const thStyle: React.CSSProperties = {

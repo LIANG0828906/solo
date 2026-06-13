@@ -53,7 +53,7 @@ const IngredientInput: React.FC<IngredientInputProps> = ({ ingredients, onAdd, o
     setTimeout(() => {
       onRemove(ing);
       setRemoving(null);
-    }, 300);
+    }, 350);
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
@@ -119,9 +119,10 @@ const IngredientInput: React.FC<IngredientInputProps> = ({ ingredients, onAdd, o
               key={ing}
               style={{
                 ...tagStyle,
-                transform: removing === ing ? 'translateX(-40px)' : 'translateX(0)',
+                transform: removing === ing ? 'translateX(-60px) scaleX(0.6)' : 'translateX(0) scaleX(1)',
                 opacity: removing === ing ? 0 : 1,
-                transition: 'transform 0.3s ease, opacity 0.3s ease'
+                transition: 'transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.35s ease',
+                overflow: 'hidden'
               }}
             >
               {ing}

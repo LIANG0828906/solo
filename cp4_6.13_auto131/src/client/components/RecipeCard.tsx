@@ -27,21 +27,19 @@ interface RecipeCardProps {
 }
 
 const cuisineGradients: Record<string, string> = {
-  '中餐': 'linear-gradient(135deg, #ffe4e1 0%, #f8a8a0 50%, #e27d60 100%)',
-  '西餐': 'linear-gradient(135deg, #fff8e1 0%, #ffe0a0 50%, #f5c16c 100%)',
-  '日料': 'linear-gradient(135deg, #e3f2fd 0%, #a8d5f0 50%, #6fa8dc 100%)',
-  '韩餐': 'linear-gradient(135deg, #f3e5f5 0%, #d9a8d9 50%, #b57edc 100%)',
-  '泰餐': 'linear-gradient(135deg, #e8f5e9 0%, #a8d8ab 50%, #68b977 100%)',
-  '法式': 'linear-gradient(135deg, #fff1f2 0%, #f5b8c0 50%, #e08a9a 100%)'
+  '中餐': 'linear-gradient(145deg, #ffe4e1 0%, #f8a8a0 40%, #e85d45 100%)',
+  '西餐': 'linear-gradient(145deg, #fff8e1 0%, #ffe0a0 40%, #f5b731 100%)',
+  '日料': 'linear-gradient(145deg, #e3f2fd 0%, #90caf9 40%, #4a90d9 100%)',
+  '韩餐': 'linear-gradient(145deg, #f3e5f5 0%, #ce93d8 40%, #9c27b0 100%)',
+  '泰餐': 'linear-gradient(145deg, #e8f5e9 0%, #81c784 40%, #388e3c 100%)'
 };
 
 const cuisineBadge: Record<string, { bg: string; color: string }> = {
-  '中餐': { bg: 'rgba(226,125,96,0.9)', color: '#fff' },
-  '西餐': { bg: 'rgba(245,193,108,0.9)', color: '#5a3a00' },
-  '日料': { bg: 'rgba(111,168,220,0.9)', color: '#fff' },
-  '韩餐': { bg: 'rgba(181,126,220,0.9)', color: '#fff' },
-  '泰餐': { bg: 'rgba(104,185,119,0.9)', color: '#fff' },
-  '法式': { bg: 'rgba(224,138,154,0.9)', color: '#fff' }
+  '中餐': { bg: 'rgba(220,60,40,0.85)', color: '#fff' },
+  '西餐': { bg: 'rgba(210,155,30,0.9)', color: '#fff' },
+  '日料': { bg: 'rgba(50,120,200,0.9)', color: '#fff' },
+  '韩餐': { bg: 'rgba(140,50,170,0.9)', color: '#fff' },
+  '泰餐': { bg: 'rgba(40,140,50,0.9)', color: '#fff' }
 };
 
 const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index = 0, showMatch = true, onAddToPlan, isInPlan, onClick, replaceAnim }) => {
@@ -67,11 +65,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index = 0, showMatch = 
         borderRadius: 16,
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
-        transform: mounted ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.97)',
+        transform: mounted
+          ? (hovered ? 'translateY(-8px) scale(1)' : 'translateY(0) scale(1)')
+          : 'translateY(20px) scale(0.97)',
         opacity: mounted ? 1 : 0,
-        transition: `transform 0.4s cubic-bezier(.2,.8,.2,1), opacity 0.4s ease, box-shadow 0.3s ease${replaceAnim ? ', opacity 0.4s ease, transform 0.4s ease' : ''}`,
+        transition: 'transform 0.3s cubic-bezier(.2,.8,.2,1), opacity 0.4s ease, box-shadow 0.3s ease',
         boxShadow: hovered
-          ? '0 20px 40px -12px rgba(0,0,0,0.18), 0 8px 16px -8px rgba(0,0,0,0.1)'
+          ? '0 24px 48px -12px rgba(0,0,0,0.2), 0 12px 24px -8px rgba(0,0,0,0.12)'
           : '0 4px 16px -4px rgba(0,0,0,0.1)',
         animation: replaceAnim ? 'zoomInFade 0.4s ease' : undefined
       }}
