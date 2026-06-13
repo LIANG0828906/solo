@@ -194,22 +194,29 @@ export class GameLogic {
       p.x += p.vx * deltaTime;
       p.y += p.vy * deltaTime;
       p.life -= deltaTime;
-      const lifeRatio = Math.max(0, p.life / p.maxLife);
+      const lifeRatio = Math.max(0, Math.min(1, p.life / p.maxLife));
       p.size = 4 * lifeRatio * lifeRatio;
       if (p.life <= 0) {
         particles.splice(i, 1);
       }
     }
-    if (particles.length > MAX_PARTICLES) {
-      particles.splice(0, particles.length - MAX_PARTICLES);
+    while (particles.length > MAX_PARTICLES) {
+      particles.shift();
     }
   }
 
-  private easeOutElastic(t: number): number {
-    const c4 = (2 * Math.PI) / 3;
-    if (t === 0) return 0;
-    if (t === 1) return 1;
-    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+  private easeOutBounce(t: number): number {
+    const n1 = 7.5625;
+    const d1 = 2.75;
+    if (t < 1 / d1) {
+      return n1 * t * t;
+    } else if (t < 2 / d1) {
+      return n1 * (t -= 1.5 / d1) * t + 0.75;
+    } else if (t < 2.5 / d1) {
+      return n1 * (t -= 2.25 / d1) * t + 0.9375;
+    } else {
+      return n1 * (t -= 2.625 / d1) * t + 0.984375;
+    }
   }
 
   private updateEffects(deltaTime: number): void {
@@ -230,7 +237,7 @@ export class GameLogic {
         this.state.scoreAnimation.scale = 1;
       } else {
         const t = 1 - this.state.scoreAnimation.timer / 0.5;
-        this.state.scoreAnimation.scale = 1 + 0.2 * (1 - this.easeOutElastic(t));
+        this.state.scoreAnimation.scale = 1.2 - 0.2 * this.easeOutBounce(t);
       }
     }
   }
