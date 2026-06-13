@@ -79,17 +79,70 @@ export const IngredientIcon: React.FC<{
         </div>
       )}
       {state === 'burnt' && (
-        <div style={{
-          position: 'absolute',
-          top: -12,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: 16,
-          animation: 'smoke 1.2s ease-in-out infinite',
-          pointerEvents: 'none'
-        }}>
-          💨
-        </div>
+        <>
+          <div style={{
+            position: 'absolute',
+            top: -8,
+            left: '35%',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(120,120,120,0.7) 0%, rgba(80,80,80,0.4) 60%, transparent 100%)',
+            animation: 'smoke1 1.4s ease-out infinite',
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: -10,
+            left: '55%',
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(150,150,150,0.6) 0%, rgba(100,100,100,0.3) 60%, transparent 100%)',
+            animation: 'smoke2 1.6s ease-out infinite',
+            animationDelay: '0.3s',
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: -6,
+            left: '45%',
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(180,180,180,0.5) 0%, rgba(130,130,130,0.25) 60%, transparent 100%)',
+            animation: 'smoke3 1.2s ease-out infinite',
+            animationDelay: '0.6s',
+            pointerEvents: 'none'
+          }} />
+        </>
+      )}
+      {state === 'cooked' && (
+        <>
+          <div style={{
+            position: 'absolute',
+            top: -6,
+            left: '40%',
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,220,150,0.7) 0%, rgba(255,180,100,0.3) 60%, transparent 100%)',
+            animation: 'steam1 1.8s ease-out infinite',
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: -8,
+            left: '55%',
+            width: 3,
+            height: 3,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,240,200,0.6) 0%, rgba(255,200,150,0.25) 60%, transparent 100%)',
+            animation: 'steam2 2s ease-out infinite',
+            animationDelay: '0.5s',
+            pointerEvents: 'none'
+          }} />
+        </>
       )}
     </div>
   );
@@ -320,26 +373,29 @@ export const Kitchen: React.FC<{
           data-stove={isOpponent ? 'opponent' : 'player'}
           style={{
             flex: 1,
-            background: 'linear-gradient(180deg, rgba(90, 70, 60, 0.35) 0%, rgba(60, 45, 35, 0.5) 100%)',
-            borderRadius: 14,
-            border: '3px solid rgba(100, 75, 55, 0.5)',
+            background: 'linear-gradient(180deg, rgba(90, 70, 60, 0.35) 0%, rgba(60, 45, 35, 0.55) 100%)',
+            borderRadius: 16,
+            border: '3px solid rgba(100, 75, 55, 0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            minHeight: 110,
-            overflow: 'hidden'
+            minHeight: 120,
+            overflow: 'hidden',
+            boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)'
           }}
         >
           <div style={{
             position: 'absolute',
-            bottom: 6,
+            bottom: 10,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '75%',
-            height: 6,
-            background: 'linear-gradient(90deg, transparent, rgba(244, 164, 96, 0.5), transparent)',
-            borderRadius: 3
+            width: '70%',
+            height: 8,
+            background: 'linear-gradient(90deg, transparent, rgba(244, 164, 96, 0.6), rgba(255, 200, 100, 0.8), rgba(244, 164, 96, 0.6), transparent)',
+            borderRadius: 4,
+            boxShadow: '0 0 8px rgba(244, 164, 96, 0.4)',
+            animation: 'glowPulse 2s ease-in-out infinite'
           }} />
 
           {player.stove.ingredient ? (
@@ -347,38 +403,76 @@ export const Kitchen: React.FC<{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 2
+              gap: 4,
+              zIndex: 2
             }}>
               <div style={{
                 position: 'relative',
-                width: 64,
-                height: 64,
+                width: 72,
+                height: 72,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle at 40% 35%, rgba(160, 100, 50, 0.5) 0%, rgba(70, 50, 40, 0.7) 60%, rgba(50, 35, 25, 0.85) 100%)',
-                boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)',
-                border: '2px solid rgba(120, 80, 50, 0.5)',
+                background: `radial-gradient(circle at 35% 30%, rgba(200, 140, 80, 0.6) 0%, rgba(120, 80, 50, 0.7) 40%, rgba(80, 55, 35, 0.85) 70%, rgba(50, 35, 25, 0.95) 100%)`,
+                boxShadow: 'inset 0 4px 10px rgba(255,220,150,0.2), inset 0 -3px 8px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.3)',
+                border: '3px solid rgba(140, 100, 60, 0.7)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                animation: player.stove.ingredient.state === 'burnt' ? 'shake 0.3s infinite' : 'none'
+                animation: player.stove.ingredient.state === 'burnt' ? 'shake 0.25s infinite' : 'none',
+                transition: 'all 0.3s ease'
               }}>
-                <IngredientIcon type={player.stove.ingredient.type} state={player.stove.ingredient.state} size={34} />
+                <div style={{
+                  position: 'absolute',
+                  right: -16,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 18,
+                  height: 10,
+                  background: 'linear-gradient(90deg, rgba(100, 70, 40, 0.9), rgba(70, 50, 30, 0.95))',
+                  borderRadius: '0 4px 4px 0',
+                  border: '2px solid rgba(80, 55, 35, 0.8)',
+                  borderLeft: 'none'
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  top: 6,
+                  left: 12,
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent)',
+                  pointerEvents: 'none'
+                }} />
+                <IngredientIcon type={player.stove.ingredient.type} state={player.stove.ingredient.state} size={36} />
               </div>
-              <CircularProgress progress={player.stove.ingredient.cookingProgress} state={player.stove.ingredient.state} size={52} />
+              <CircularProgress progress={player.stove.ingredient.cookingProgress} state={player.stove.ingredient.state} size={56} />
             </div>
           ) : (
             <div style={{
-              width: 72,
-              height: 72,
+              width: 80,
+              height: 80,
               borderRadius: '50%',
-              background: 'radial-gradient(circle at 40% 35%, rgba(139, 69, 19, 0.25) 0%, rgba(70, 50, 40, 0.4) 60%, rgba(50, 35, 25, 0.55) 100%)',
-              border: '3px solid rgba(100, 75, 55, 0.4)',
+              background: 'radial-gradient(circle at 35% 30%, rgba(180, 120, 70, 0.3) 0%, rgba(100, 70, 45, 0.4) 50%, rgba(60, 40, 28, 0.55) 100%)',
+              border: '3px solid rgba(120, 85, 55, 0.5)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 28,
-              opacity: 0.5
+              fontSize: 32,
+              opacity: 0.6,
+              boxShadow: 'inset 0 3px 8px rgba(255,200,120,0.1), inset 0 -2px 6px rgba(0,0,0,0.3)',
+              position: 'relative'
             }}>
+              <div style={{
+                position: 'absolute',
+                right: -14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 14,
+                height: 8,
+                background: 'linear-gradient(90deg, rgba(100, 70, 40, 0.6), rgba(70, 50, 30, 0.7))',
+                borderRadius: '0 3px 3px 0',
+                border: '2px solid rgba(80, 55, 35, 0.5)',
+                borderLeft: 'none'
+              }} />
               🍳
             </div>
           )}
