@@ -92,10 +92,6 @@ export const Board: React.FC<BoardProps> = ({
     }
   }, [cardAdds, handleMoveAnimation]);
 
-  useEffect(() => {
-    // 预留：卡片更新动画触发点
-  }, []);
-
   const handleDragStart = useCallback((e: React.DragEvent, cardId: string, laneId: string) => {
     setDraggingCardId(cardId);
     dragStartLaneRef.current = laneId;
@@ -321,7 +317,7 @@ export const Board: React.FC<BoardProps> = ({
             onDrop={(e) => handleDrop(e, lane.id)}
           >
             <div 
-              className="px-4 py-3 border-b border-gray-100 rounded-t-xl bg-gradient-to-r from-gray-100 to-white"
+              className="px-4 py-3 border-b border-gray-100 rounded-t-xl"
               style={{
                 backgroundImage: 'linear-gradient(to right, #f3f4f6, #ffffff)'
               }}

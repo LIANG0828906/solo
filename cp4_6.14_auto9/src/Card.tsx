@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { KanbanCard, Priority } from './types';
 import { formatTimeAgo } from './websocket';
 
@@ -56,11 +56,71 @@ export const Card: React.FC<CardProps> = ({
     stiffness: 0.15
   });
 
+  const stopAnimation = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (cardRef.current) {
+      cardRef.current.style.transform = '';
+    }
+    setIsAnimating(false);
+  }, []);
+
+  const startElasticAnimation = useCallback((startX: number, startY: number) => {
+    stopAnimation();
+    const state = animStateRef.current;
+    state.position = { x: startX, y: startY };
+    state.velocity = { x: 0, y: 0 };
+    state.target = { x: 0, y: 0 };
+    setIsAnimating(true);
+
+    const animate = () => {
+      const s = animStateRef.current;
+
+      const dx = s.target.x - s.position.x;
+      const dy = s.target.y - s.position.y;
+
+      const ax = dx * s.stiffness;
+      const ay = dy * s.stiffness;
+
+      s.velocity.x = (s.velocity.x + ax) * s.damping;
+      s.velocity.y = (s.velocity.y + ay) * s.damping;
+
+      s.position.x += s.velocity.x;
+      s.position.y += s.velocity.y;
+
+      const scaleY = 1 + Math.abs(s.position.y) * 0.003;
+      const scaleX = 1 + Math.abs(s.position.x) * 0.002;
+
+      if (cardRef.current) {
+        cardRef.current.style.transform =
+          `translate(${s.position.x.toFixed(2)}px, ${s.position.y.toFixed(2)}px) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`;
+      }
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const spd = Math.sqrt(s.velocity.x * s.velocity.x + s.velocity.y * s.velocity.y);
+
+      if (dist < 0.3 && spd < 0.08) {
+        if (cardRef.current) {
+          cardRef.current.style.transform = '';
+        }
+        setIsAnimating(false);
+        rafRef.current = null;
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+  }, [stopAnimation]);
+
   useEffect(() => {
     if (justMoved && !isAnimating) {
-      triggerElasticAnimation();
+      startElasticAnimation(0, -12);
     }
-  }, [justMoved]);
+  }, [justMoved, isAnimating, startElasticAnimation]);
 
   useEffect(() => {
     return () => {
@@ -70,55 +130,18 @@ export const Card: React.FC<CardProps> = ({
     };
   }, []);
 
-  const triggerElasticAnimation = () => {
-    const state = animStateRef.current;
-    state.position = { x: 0, y: -8 };
-    state.velocity = { x: 0, y: 0 };
-    state.target = { x: 0, y: 0 };
-    setIsAnimating(true);
-
-    const animate = () => {
-      const { position, velocity, target, damping, stiffness } = animStateRef.current;
-      
-      const dx = target.x - position.x;
-      const dy = target.y - position.y;
-      
-      const ax = dx * stiffness;
-      const ay = dy * stiffness;
-      
-      velocity.x = (velocity.x + ax) * damping;
-      velocity.y = (velocity.y + ay) * damping;
-      
-      position.x += velocity.x;
-      position.y += velocity.y;
-
-      if (cardRef.current) {
-        cardRef.current.style.transform = `translate(${position.x}px, ${position.y}px) scale(${1 + Math.abs(position.y) * 0.002})`;
-      }
-
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-
-      if (distance < 0.5 && speed < 0.1) {
-        if (cardRef.current) {
-          cardRef.current.style.transform = '';
-        }
-        setIsAnimating(false);
-        return;
-      }
-
-      rafRef.current = requestAnimationFrame(animate);
-    };
-
-    rafRef.current = requestAnimationFrame(animate);
-  };
-
   const handleDragStart = (e: React.DragEvent) => {
+    stopAnimation();
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', JSON.stringify({ cardId: card.id, laneId }));
     }
     onDragStart(e, card.id, laneId);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    startElasticAnimation(6, -4);
+    onDragEnd(e);
   };
 
   const isOverdue = card.dueDate && new Date(card.dueDate) < new Date(new Date().toDateString());
@@ -128,49 +151,58 @@ export const Card: React.FC<CardProps> = ({
       ref={cardRef}
       draggable
       onDragStart={handleDragStart}
-      onDragEnd={onDragEnd}
+      onDragEnd={handleDragEnd}
       onDoubleClick={() => onDoubleClick(card)}
       className={`
-        relative group bg-white rounded-card shadow-card overflow-hidden cursor-grab active:cursor-grabbing
-        transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-card-hover
+        relative group bg-white rounded-card overflow-hidden cursor-grab active:cursor-grabbing
         ${isDragging ? 'card-dragging opacity-50' : ''}
-        ${justMoved ? 'animate-elastic-bounce' : ''}
+        ${!isAnimating && !isDragging ? 'transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-card-hover shadow-card' : ''}
+        ${isAnimating ? 'shadow-card-hover' : 'shadow-card'}
       `}
       style={{
-        willChange: 'transform'
+        willChange: isAnimating ? 'transform' : undefined
       }}
     >
       <div
-        className="absolute left-0 top-0 bottom-0 w-1"
-        style={{ backgroundColor: priorityColor(card.priority) }}
+        className="absolute left-0 top-0 bottom-0"
+        style={{
+          width: '4px',
+          backgroundColor: priorityColor(card.priority),
+          borderRadius: '8px 0 0 8px'
+        }}
       />
 
-      <div className="p-3.5 pl-4">
+      <div className="p-3.5 pl-5">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="text-sm font-medium text-gray-800 leading-snug flex-1 min-w-0">
+          <h4 className="text-sm font-medium text-gray-800 leading-snug flex-1 min-w-0 break-words">
             {card.title}
           </h4>
-          
+
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <div className="relative group/avatar">
-              <img
-                src={card.lastEditorAvatar}
-                alt={card.lastEditor}
-                className="w-5 h-5 rounded-full border border-white shadow-sm object-cover"
-                style={{
-                  clipPath: 'circle(50% at 50% 50%)',
-                  boxShadow: '0 0 0 1px #ffffff'
-                }}
-              />
-              <div className="absolute right-0 bottom-full mb-1 hidden group-hover/avatar:block z-10">
-                <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                  {card.lastEditor}
+            {card.lastEditor && (
+              <div className="relative group/avatar">
+                <img
+                  src={card.lastEditorAvatar}
+                  alt={card.lastEditor}
+                  className="w-5 h-5 rounded-full object-cover"
+                  style={{
+                    clipPath: 'circle(50% at 50% 50%)',
+                    border: '1px solid #ffffff',
+                    boxShadow: '0 0 0 1px #ffffff'
+                  }}
+                />
+                <div className="absolute right-0 bottom-full mb-1 hidden group-hover/avatar:block z-10">
+                  <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                    {card.lastEditor}
+                  </div>
                 </div>
               </div>
-            </div>
-            <span className="text-[10px] text-gray-400 font-medium">
-              {formatTimeAgo(card.lastEditTime)}
-            </span>
+            )}
+            {card.lastEditTime > 0 && (
+              <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                {formatTimeAgo(card.lastEditTime)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -213,8 +245,6 @@ export const Card: React.FC<CardProps> = ({
             </span>
           )}
         </div>
-
-        <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-white/0 via-white/0 to-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       </div>
     </div>
   );
