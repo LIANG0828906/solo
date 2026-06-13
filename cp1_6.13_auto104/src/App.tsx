@@ -158,7 +158,25 @@ const App: React.FC = () => {
 
   const handleSelectSegment = useCallback((segmentId: string | null) => {
     setSelectedSegmentId(segmentId);
-  }, []);
+    if (socket) {
+      socket.emit('segment_selected', { segmentId });
+    }
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSegmentSelected = (data: { segmentId: string | null; userId: string; userName: string }) => {
+      if (data.userId !== currentUser.id) {
+        addToast('info', `${data.userName} 选中了一个段落`);
+      }
+    };
+
+    socket.on('segment_selected', handleSegmentSelected);
+    return () => {
+      socket.off('segment_selected', handleSegmentSelected);
+    };
+  }, [socket, currentUser.id, addToast]);
 
   const handleUpdateStatus = useCallback((segmentId: string, status: ReviewStatus) => {
     if (!socket) return;

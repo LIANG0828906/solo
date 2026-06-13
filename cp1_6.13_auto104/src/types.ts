@@ -44,6 +44,7 @@ export type WebSocketEventType =
   | 'status_updated'
   | 'comment_added'
   | 'user_editing'
+  | 'segment_selected'
   | 'task_saved'
   | 'task_loaded'
   | 'task_not_found'
@@ -74,6 +75,12 @@ export interface CommentPayload {
 
 export interface UserEditingPayload {
   segmentId: string;
+  userName: string;
+}
+
+export interface SegmentSelectedPayload {
+  segmentId: string | null;
+  userId: string;
   userName: string;
 }
 

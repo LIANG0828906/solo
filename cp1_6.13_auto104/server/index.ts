@@ -79,12 +79,14 @@ const calculateDiff = (originalText: string, revisedText: string): DiffSegment[]
     newlineIsToken: false
   });
 
+  type PendingRemoved = { text: string; startLine: number; endLine: number };
+
   const segments: DiffSegment[] = [];
   let originalLine = 1;
   let revisedLine = 1;
-  let pendingRemoved: { text: string; startLine: number; endLine: number } | null = null;
+  let pendingRemoved: PendingRemoved | null = null;
 
-  changes.forEach((change) => {
+  for (const change of changes) {
     const actualLines = change.value ? change.value.split('\n').length - (change.value.endsWith('\n') ? 1 : 0) : 0;
 
     if (change.removed) {
@@ -96,7 +98,7 @@ const calculateDiff = (originalText: string, revisedText: string): DiffSegment[]
       const startLine = revisedLine;
       const endLine = revisedLine + actualLines - 1;
 
-      const prev = pendingRemoved;
+      const prev: PendingRemoved | null = pendingRemoved;
       if (prev) {
         segments.push({
           id: uuidv4(),
@@ -121,7 +123,7 @@ const calculateDiff = (originalText: string, revisedText: string): DiffSegment[]
       }
       revisedLine += actualLines;
     } else {
-      const prev = pendingRemoved;
+      const prev: PendingRemoved | null = pendingRemoved;
       if (prev) {
         segments.push({
           id: uuidv4(),
@@ -166,16 +168,16 @@ const calculateDiff = (originalText: string, revisedText: string): DiffSegment[]
       originalLine += actualLines;
       revisedLine += actualLines;
     }
-  });
+  }
 
-  const remaining: typeof pendingRemoved = pendingRemoved;
-  if (remaining) {
+  const lastPending: PendingRemoved | null = pendingRemoved;
+  if (lastPending) {
     segments.push({
       id: uuidv4(),
       type: 'removed',
-      originalLines: { start: remaining.startLine, end: remaining.endLine },
+      originalLines: { start: lastPending.startLine, end: lastPending.endLine },
       revisedLines: { start: revisedLine, end: revisedLine - 1 },
-      originalText: remaining.text,
+      originalText: lastPending.text,
       revisedText: '',
       status: null
     });
@@ -395,6 +397,16 @@ io.on('connection', (socket: Socket) => {
     socket.broadcast.emit('user_editing', {
       ...data,
       userName: user?.nickname || data.userName
+    });
+  });
+
+  socket.on('segment_selected', (data: { segmentId: string | null }) => {
+    const user = connectedUsers.get(socket.id);
+    if (!user) return;
+    socket.broadcast.emit('segment_selected', {
+      segmentId: data.segmentId,
+      userId: user.id,
+      userName: user.nickname
     });
   });
 
