@@ -13,12 +13,13 @@ function App() {
   const playerIdRef = useRef<string>('');
   const snakesRef = useRef<Map<string, Snake>>(new Map());
   const isSpectatingRef = useRef<boolean>(false);
+  const leaderboardRef = useRef<{ id: string; name: string; score: number; alive: boolean }[]>([]);
 
   const [playerId, setPlayerId] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [isSpectating, setIsSpectating] = useState(false);
   const [playerInfo, setPlayerInfo] = useState<{ name: string; score: number; survivalTime: number } | null>(null);
-  const [leaderboard, setLeaderboard] = useState<{ id: string; name: string; score: number; alive: boolean }[]>([]);
+  const [, setAnimTick] = useState<number>(0);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   const handleDirectionChange = useCallback((direction: Direction) => {
@@ -60,10 +61,12 @@ function App() {
           .map(s => ({ id: s.id, name: s.name, score: s.score, alive: s.alive }))
           .sort((a, b) => b.score - a.score)
           .slice(0, 10);
-        setLeaderboard(lb);
+        leaderboardRef.current = lb;
         rendererRef.current.updateLeaderboard(lb);
       }
     }
+
+    setAnimTick(t => (t + 1) % 1000000);
 
     animationFrameRef.current = requestAnimationFrame(gameLoop);
   }, []);
@@ -130,13 +133,13 @@ function App() {
     isSpectatingRef.current = false;
     setIsSpectating(false);
     setPlayerInfo(null);
-    setLeaderboard([]);
+    leaderboardRef.current = [];
     setTimeout(() => {
       networkRef.current?.connect();
     }, 100);
   };
 
-  const getRankChangeAnimation = (id: string) => {
+  const getRankChangeAnimation = (id: string): React.CSSProperties => {
     if (!rendererRef.current) return {};
     const anim = rendererRef.current.getLeaderboardAnimation(id);
     return {
@@ -145,6 +148,8 @@ function App() {
       transition: 'none',
     };
   };
+
+  const leaderboard = leaderboardRef.current;
 
   return (
     <div style={styles.app}>
@@ -427,7 +432,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 10px',
     background: 'rgba(255, 255, 255, 0.03)',
     borderRadius: '6px',
-    transition: 'background 150ms ease',
   },
   leaderboardItemSelf: {
     background: 'rgba(0, 255, 136, 0.1)',
