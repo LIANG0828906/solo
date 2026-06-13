@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Calendar, DollarSign, FileText } from 'lucide-react';
+import { Check, AlertCircle, Calendar, DollarSign, FileText, ChevronDown } from 'lucide-react';
 import { ExpenseService, CATEGORY_LIST, type Category } from '../services/ExpenseService';
 
 const todayStr = () => {
@@ -19,7 +19,8 @@ export default function AddExpense() {
   const [success, setSuccess] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const [rustleKey, setRustleKey] = useState(0);
-  const [activeCatKey, setActiveCatKey] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setAmount('');
@@ -30,6 +31,22 @@ export default function AddExpense() {
 
   const triggerRustle = () => {
     setRustleKey((k) => k + 1);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectCategory = (c: Category) => {
+    setCategory(c);
+    setDropdownOpen(false);
+    triggerRustle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,35 +144,81 @@ export default function AddExpense() {
               />
             </div>
 
-            <div className="mb-5">
+            <div className="mb-5" ref={dropdownRef}>
               <label className="block text-sm font-semibold mb-2" style={{ color: '#374151' }}>类别</label>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {CATEGORY_LIST.map((c) => {
-                  const isActive = category === c.name;
-                  const isRustling = activeCatKey === c.name;
-                  return (
-                    <button
-                      key={c.name}
-                      type="button"
-                      onClick={() => {
-                        setCategory(c.name);
-                        triggerRustle();
-                        setActiveCatKey(c.name);
-                        setTimeout(() => setActiveCatKey(null), 350);
-                      }}
-                      className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200 ${isRustling ? 'rustle-animation' : ''}`}
-                      style={{
-                        background: isActive ? c.color + '22' : '#FFFCF7',
-                        border: `2px solid ${isActive ? c.color : 'transparent'}`,
-                        transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                        boxShadow: isActive ? `0 4px 10px ${c.color}33` : 'none',
-                      }}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between ${rustleKey ? 'rustle-animation' : ''}`}
+                  style={{
+                    background: catInfo.color + '12',
+                    borderColor: dropdownOpen ? catInfo.color : catInfo.color + '44',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                      style={{ background: catInfo.color + '33' }}
                     >
-                      <span className="text-xl">{c.icon}</span>
-                      <span className="text-xs font-medium" style={{ color: c.color }}>{c.name}</span>
-                    </button>
-                  );
-                })}
+                      {catInfo.icon}
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold" style={{ color: catInfo.color }}>{catInfo.name}</div>
+                      <div className="text-[11px]" style={{ color: '#9CA3AF' }}>点击切换类别</div>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={20}
+                    style={{ color: catInfo.color, transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s ease-out' }}
+                  />
+                </button>
+
+                {dropdownOpen && (
+                  <div
+                    className="absolute z-20 top-full left-0 right-0 mt-2 rounded-xl overflow-hidden fade-in"
+                    style={{
+                      background: '#FFFFFF',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+                      border: '1px solid #F3F4F6',
+                    }}
+                  >
+                    {CATEGORY_LIST.map((c) => {
+                      const selected = c.name === category;
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => handleSelectCategory(c.name)}
+                          className="w-full flex items-center gap-3 px-4 py-3 transition-all"
+                          style={{
+                            background: selected ? c.color + '15' : 'transparent',
+                            borderBottom: '1px solid #F9FAFB',
+                          }}
+                        >
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                            style={{ background: c.color + '22' }}
+                          >
+                            {c.icon}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="font-semibold text-sm" style={{ color: c.color }}>{c.name}</div>
+                            <div className="text-[11px]" style={{ color: '#9CA3AF' }}>点击选择此类别</div>
+                          </div>
+                          {selected && (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: c.color }}
+                            >
+                              <Check size={14} color="#FFFFFF" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

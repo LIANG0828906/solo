@@ -37,7 +37,6 @@ export const CATEGORY_LIST: CategoryInfo[] = [
 ];
 
 const STORAGE_KEY = 'family_expense_data';
-const INIT_FLAG_KEY = 'family_expense_initialized';
 
 const generateId = (): string => {
   return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -111,18 +110,11 @@ const saveAllExpenses = (list: Expense[]): void => {
 };
 
 const initializeIfNeeded = (): void => {
-  console.time('ExpenseService: 初始化数据读取');
   const existing = getAllExpenses();
-  console.timeEnd('ExpenseService: 初始化数据读取');
-
   if (existing.length === 0) {
-    console.time('ExpenseService: 示例数据写入');
     saveAllExpenses(getSampleData());
-    console.timeEnd('ExpenseService: 示例数据写入');
     console.log('[ExpenseService] 首次使用，已自动填充3条示例数据');
   }
-
-  localStorage.setItem(INIT_FLAG_KEY, '1');
 };
 
 initializeIfNeeded();

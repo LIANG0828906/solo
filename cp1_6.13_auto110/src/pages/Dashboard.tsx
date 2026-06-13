@@ -1,8 +1,53 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Edit2, Trash2, Check, X, Plus } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { ExpenseService, CATEGORY_LIST, type Expense } from '../services/ExpenseService';
+
+function renderCustomLabel(props: {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  name: string;
+  value: number;
+  color: string;
+  total: number;
+}) {
+  const { cx, cy, midAngle, outerRadius, name, value, color, total } = props;
+  if (total <= 0) return null;
+  const RADIAN = Math.PI / 180;
+  const pct = ((value / total) * 100).toFixed(0);
+  if (Number(pct) < 5) return null;
+  const radius = outerRadius + 18;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  return (
+    <g>
+      <line
+        x1={cx + (outerRadius - 5) * Math.cos(-midAngle * RADIAN)}
+        y1={cy + (outerRadius - 5) * Math.sin(-midAngle * RADIAN)}
+        x2={cx + (outerRadius + 10) * Math.cos(-midAngle * RADIAN)}
+        y2={cy + (outerRadius + 10) * Math.sin(-midAngle * RADIAN)}
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <text
+        x={x}
+        y={y}
+        fill={color}
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={12}
+        fontWeight="700"
+      >
+        {`${name} ${pct}%`}
+      </text>
+    </g>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -12,7 +57,7 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState('');
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const summary = useMemo(
     () => ExpenseService.getMonthlySummary(year, month),
@@ -30,6 +75,8 @@ export default function Dashboard() {
       }));
   }, [summary]);
 
+  const chartTotal = chartData.reduce((s, d) => s + d.value, 0);
+
   const refresh = () => setRefreshKey((k) => k + 1);
 
   const goPrevMonth = () => {
@@ -40,7 +87,7 @@ export default function Dashboard() {
       setMonth((m) => m - 1);
     }
     setExpandedId(null);
-    setEditId(null);
+    setEditingId(null);
   };
 
   const goNextMonth = () => {
@@ -54,35 +101,45 @@ export default function Dashboard() {
     setYear(nxt.getFullYear());
     setMonth(nxt.getMonth() + 1);
     setExpandedId(null);
-    setEditId(null);
+    setEditingId(null);
   };
 
-  const toggleExpand = (e: Expense) => {
-    if (expandedId === e.id) {
+  const handleCardClick = (e: React.MouseEvent, exp: Expense) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('textarea') || target.closest('input')) {
+      return;
+    }
+    if (expandedId === exp.id) {
       setExpandedId(null);
-      setEditId(null);
+      setEditingId(null);
     } else {
-      setExpandedId(e.id);
-      setEditNote(e.note);
-      setEditId(null);
+      setExpandedId(exp.id);
+      setEditNote(exp.note);
+      setEditingId(null);
     }
   };
 
-  const startEdit = (e: Expense) => {
-    setEditId(e.id);
-    setEditNote(e.note);
+  const startEdit = (exp: Expense) => {
+    setEditingId(exp.id);
+    setEditNote(exp.note);
+  };
+
+  const cancelEdit = (exp: Expense) => {
+    setEditingId(null);
+    setEditNote(exp.note);
   };
 
   const saveEdit = (id: string) => {
     ExpenseService.updateExpense(id, { note: editNote });
-    setEditId(null);
+    setEditingId(null);
     refresh();
   };
 
   const deleteExp = (id: string) => {
-    if (confirm('确定删除这笔支出记录吗？')) {
+    if (window.confirm('确定删除这笔支出记录吗？')) {
       ExpenseService.deleteExpense(id);
       setExpandedId(null);
+      setEditingId(null);
       refresh();
     }
   };
@@ -139,9 +196,31 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="relative h-64 mb-4">
+            <div className="relative h-72 mb-4">
               {chartData.length > 0 ? (
-                <ChartWithPerf data={chartData} />
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 10, right: 40, left: 40, bottom: 10 }}>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                      strokeWidth={0}
+                      label={(props) => renderCustomLabel({ ...props, total: chartTotal })}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val: number) => ExpenseService.formatMoney(val)}
+                      contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center" style={{ color: '#9CA3AF' }}>
                   <div className="text-5xl mb-3">📭</div>
@@ -199,21 +278,20 @@ export default function Dashboard() {
                 {sortedExpenses.map((exp) => {
                   const cat = ExpenseService.getCategoryInfo(exp.category);
                   const isExpanded = expandedId === exp.id;
-                  const isEditing = editId === exp.id;
+                  const isEditing = editingId === exp.id;
                   return (
                     <div
                       key={exp.id}
-                      className="rounded-xl transition-all duration-200 overflow-hidden"
+                      className="rounded-xl transition-all duration-200 overflow-hidden cursor-pointer"
                       style={{
                         background: '#FFFFFF',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                        border: `1px solid ${isExpanded ? cat.color + '55' : '#F3F4F6'}`,
+                        boxShadow: isExpanded ? `0 6px 16px ${cat.color}22` : '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        border: `1px solid ${isExpanded ? cat.color + '66' : '#F3F4F6'}`,
+                        transform: isExpanded ? 'translateY(-1px)' : 'translateY(0)',
                       }}
+                      onClick={(e) => handleCardClick(e, exp)}
                     >
-                      <div
-                        className="flex items-center gap-3 p-4 cursor-pointer transition-all hover:bg-gray-50"
-                        onClick={() => toggleExpand(exp)}
-                      >
+                      <div className="flex items-center gap-3 p-4">
                         <div
                           className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
                           style={{ background: cat.color + '20' }}
@@ -231,7 +309,7 @@ export default function Dashboard() {
                             <div className="text-xs mt-1 truncate" style={{ color: '#6B7280' }}>{exp.note}</div>
                           )}
                           {!exp.note && !isExpanded && (
-                            <div className="text-xs mt-1 italic" style={{ color: '#D1D5DB' }}>无备注</div>
+                            <div className="text-xs mt-1 italic" style={{ color: '#D1D5DB' }}>点击卡片编辑备注</div>
                           )}
                         </div>
                         <div className="text-right shrink-0">
@@ -240,7 +318,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div
-                          className="shrink-0 transition-transform duration-300"
+                          className="shrink-0 transition-transform duration-300 ml-1"
                           style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', color: '#9CA3AF' }}
                         >
                           <ChevronRight size={18} />
@@ -248,8 +326,12 @@ export default function Dashboard() {
                       </div>
 
                       {isExpanded && (
-                        <div className="expand-animation" onClick={(e) => e.stopPropagation()}>
-                          <div style={{ borderTop: `1px dashed ${cat.color}44` }} className="px-4 py-4 space-y-3">
+                        <div
+                          className="expand-animation"
+                          style={{ borderTop: `1px dashed ${cat.color}55` }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-4 py-4 space-y-4">
                             <div className="grid grid-cols-2 gap-3 text-sm">
                               <div>
                                 <div className="text-xs mb-1" style={{ color: '#6B7280' }}>日期</div>
@@ -264,51 +346,61 @@ export default function Dashboard() {
                             </div>
 
                             <div>
-                              <div className="text-xs mb-1 flex items-center justify-between" style={{ color: '#6B7280' }}>
-                                <span>备注</span>
+                              <div className="text-xs mb-2 flex items-center justify-between" style={{ color: '#6B7280' }}>
+                                <span className="font-medium">备注信息</span>
                                 {!isEditing && (
                                   <button
                                     onClick={() => startEdit(exp)}
-                                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-md hover:bg-orange-50 transition-all"
-                                    style={{ color: '#F5A623' }}
+                                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all"
+                                    style={{ background: cat.color + '18', color: cat.color }}
                                   >
-                                    <Edit2 size={12} /> 编辑
+                                    <Edit2 size={12} /> 编辑备注
                                   </button>
                                 )}
                               </div>
                               {isEditing ? (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   <textarea
                                     value={editNote}
                                     onChange={(e) => setEditNote(e.target.value)}
-                                    rows={2}
-                                    placeholder="添加备注..."
-                                    className="w-full px-3 py-2 rounded-lg border-2 border-orange-200 focus:border-orange-400 transition-all outline-none text-sm"
-                                    style={{ background: '#FFFCF7' }}
+                                    rows={3}
+                                    autoFocus
+                                    placeholder="添加或修改这笔支出的备注信息..."
+                                    className="w-full px-4 py-3 rounded-xl border-2 transition-all outline-none text-sm"
+                                    style={{
+                                      background: '#FFFCF7',
+                                      borderColor: cat.color + '66',
+                                    }}
                                   />
                                   <div className="flex gap-2 justify-end">
                                     <button
-                                      onClick={() => { setEditId(null); setEditNote(exp.note); }}
-                                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg"
+                                      onClick={() => cancelEdit(exp)}
+                                      className="flex items-center gap-1 text-xs px-4 py-2 rounded-lg transition-all"
                                       style={{ background: '#F3F4F6', color: '#374151' }}
                                     >
                                       <X size={12} /> 取消
                                     </button>
                                     <button
                                       onClick={() => saveEdit(exp.id)}
-                                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-white"
-                                      style={{ background: '#F5A623' }}
+                                      className="flex items-center gap-1 text-xs px-4 py-2 rounded-lg text-white transition-all"
+                                      style={{ background: cat.color }}
                                     >
-                                      <Check size={12} /> 保存
+                                      <Check size={12} /> 保存备注
                                     </button>
                                   </div>
                                 </div>
                               ) : (
                                 <div
-                                  className="p-3 rounded-lg text-sm"
-                                  style={{ background: cat.color + '10', color: '#374151', minHeight: 40 }}
+                                  className="p-4 rounded-xl text-sm"
+                                  style={{ background: cat.color + '12', color: '#374151', minHeight: 56 }}
                                 >
-                                  {exp.note || <span className="italic" style={{ color: '#9CA3AF' }}>暂无备注</span>}
+                                  {exp.note ? (
+                                    <span>{exp.note}</span>
+                                  ) : (
+                                    <span className="italic" style={{ color: '#9CA3AF' }}>
+                                      暂无备注，点击右上角「编辑备注」添加说明
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -316,9 +408,9 @@ export default function Dashboard() {
                             <div className="flex justify-end pt-1 no-print">
                               <button
                                 onClick={() => deleteExp(exp.id)}
-                                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-all"
+                                className="flex items-center gap-1 text-xs px-4 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-all"
                               >
-                                <Trash2 size={12} /> 删除记录
+                                <Trash2 size={12} /> 删除此记录
                               </button>
                             </div>
                           </div>
@@ -333,87 +425,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ChartWithPerf({ data }: { data: { name: string; value: number; icon: string; color: string }[] }) {
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  const dataWithPct = data.map((d) => ({
-    ...d,
-    percentage: total > 0 ? ((d.value / total) * 100).toFixed(0) : '0',
-  }));
-
-  useEffect(() => {
-    console.time('Dashboard: 环形图渲染');
-    return () => {
-      console.timeEnd('Dashboard: 环形图渲染');
-    };
-  }, [data]);
-
-  const renderCustomLabel = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    name,
-    value,
-    color,
-  }: {
-    cx: number;
-    cy: number;
-    midAngle: number;
-    innerRadius: number;
-    outerRadius: number;
-    name: string;
-    value: number;
-    color: string;
-  }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 12;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    const pct = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill={color}
-        textAnchor={x > cx ? 'start' : 'end'}
-        dominantBaseline="central"
-        fontSize={11}
-        fontWeight="bold"
-      >
-        {`${name} ${pct}%`}
-      </text>
-    );
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={dataWithPct}
-          cx="50%"
-          cy="50%"
-          innerRadius={50}
-          outerRadius={80}
-          paddingAngle={2}
-          dataKey="value"
-          strokeWidth={0}
-          label={renderCustomLabel}
-          labelLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
-        >
-          {dataWithPct.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
-          ))}
-        </Pie>
-        <Tooltip
-          formatter={(val: number) => ExpenseService.formatMoney(val)}
-          contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
   );
 }
