@@ -1,0 +1,26 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #e6eaf2;
+  user-select: none;
+}
+
+.glass-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 340px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 20px;
+  background: rgba(20, 25, 45, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255,
