@@ -13,28 +13,30 @@
       </pre>
     </div>
     
-    <button
-      class="copy-btn"
-      @click="copyCode"
-      @mouseenter="showTooltipHandler"
-      @mouseleave="hideTooltipHandler"
-      :class="{ 'copied': isCopied }"
-    >
-      <span v-if="!isCopied" class="copy-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-      </span>
-      <span v-else class="check-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </span>
-      <span class="copy-text">{{ isCopied ? '已复制' : '复制' }}</span>
-    </button>
+    <div class="copy-wrapper">
+      <button
+        class="copy-btn"
+        @click="copyCode"
+        @mouseenter="showTooltipHandler"
+        @mouseleave="hideTooltipHandler"
+        :class="{ 'copied': isCopied }"
+      >
+        <span v-if="!isCopied" class="copy-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </span>
+        <span v-else class="check-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+        <span class="copy-text">{{ isCopied ? '已复制' : '复制' }}</span>
+      </button>
 
-    <div class="tooltip" :class="{ 'show': showTooltip }">复制到剪贴板</div>
+      <div class="tooltip" :class="{ 'show': showTooltip }">复制到剪贴板</div>
+    </div>
   </div>
 </template>
 
@@ -97,7 +99,7 @@ function hideTooltipHandler() {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -156,10 +158,15 @@ function hideTooltipHandler() {
   padding: 0 !important;
 }
 
-.copy-btn {
+.copy-wrapper {
   position: absolute;
   bottom: 12px;
   right: 12px;
+  z-index: 15;
+}
+
+.copy-btn {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -173,7 +180,6 @@ function hideTooltipHandler() {
   cursor: pointer;
   opacity: 0;
   transition: all 0.3s ease;
-  z-index: 15;
 }
 
 .code-card:hover .copy-btn {
@@ -209,24 +215,37 @@ function hideTooltipHandler() {
 
 .tooltip {
   position: absolute;
-  bottom: -32px;
-  right: 12px;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
   background-color: #333;
   color: white;
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 11px;
+  line-height: 1;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
   pointer-events: none;
-  z-index: 20;
+  z-index: 1000;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #333;
 }
 
 .tooltip.show {
   opacity: 1;
   visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 @media (max-width: 768px) {

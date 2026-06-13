@@ -13,7 +13,7 @@ export const themesConfig: ThemeConfig[] = [
     labelColor: '#f5f5f5',
     bgColor: '#ffffff',
     textColor: '#24292e',
-    lineNumBg: '#f6f8fa',
+    lineNumBg: '#eaeef2',
     lineNumColor: '#6a737d'
   },
   {
@@ -21,15 +21,15 @@ export const themesConfig: ThemeConfig[] = [
     labelColor: '#24292e',
     bgColor: '#24292e',
     textColor: '#e1e4e8',
-    lineNumBg: '#1b1f23',
-    lineNumColor: '#6a737d'
+    lineNumBg: '#14181c',
+    lineNumColor: '#8b949e'
   },
   {
     name: 'Monokai',
     labelColor: '#272822',
     bgColor: '#272822',
     textColor: '#f8f8f2',
-    lineNumBg: '#1e1f1c',
+    lineNumBg: '#171815',
     lineNumColor: '#90908a'
   },
   {
@@ -37,7 +37,7 @@ export const themesConfig: ThemeConfig[] = [
     labelColor: '#282a36',
     bgColor: '#282a36',
     textColor: '#f8f8f2',
-    lineNumBg: '#21222c',
+    lineNumBg: '#1a1b23',
     lineNumColor: '#6272a4'
   },
   {
@@ -45,7 +45,7 @@ export const themesConfig: ThemeConfig[] = [
     labelColor: '#0366d6',
     bgColor: '#ffffff',
     textColor: '#24292e',
-    lineNumBg: '#f6f8fa',
+    lineNumBg: '#eaeef2',
     lineNumColor: '#6a737d'
   }
 ]
