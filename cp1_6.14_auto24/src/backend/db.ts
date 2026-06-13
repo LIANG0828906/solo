@@ -2,13 +2,19 @@ import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 import { v4 as uuidv4 } from 'uuid'
 import type { DB } from './types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const file = path.join(__dirname, '..', '..', 'data', 'db.json')
+const dataDir = path.join(__dirname, '..', '..', 'data')
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true })
+}
+
+const file = path.join(dataDir, 'db.json')
 
 const defaultData: DB = {
   users: [
@@ -78,4 +84,106 @@ async function initMockBooks(db: Low<DB>) {
       isbn: '9787508647357',
       publishYear: 2014,
       description: '从认知革命、农业革命到科学革命，讲述了智人如何从非洲草原上的普通动物演变成地球的主宰。',
-      coverUrl: 'https://images.unsplash.com/photo-1543002588
+      coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800&h=1200&fit=crop',
+      dropPointId: 'dp-2',
+      ownerId: 'user-demo-2',
+    },
+    {
+      title: '围城',
+      author: '钱钟书',
+      isbn: '9787020024759',
+      publishYear: 1991,
+      description: '一部新"儒林外史"，讽刺了当时社会上的各种丑恶现象，被誉为"新儒林外史"。',
+      coverUrl: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=800&h=1200&fit=crop',
+      dropPointId: 'dp-4',
+      ownerId: 'user-demo-1',
+    },
+    {
+      title: '平凡的世界',
+      author: '路遥',
+      isbn: '9787530212004',
+      publishYear: 2012,
+      description: '通过复杂的矛盾纠葛，以孙少安和孙少平两兄弟为中心，刻画了当时社会各阶层众多普通人的形象。',
+      coverUrl: 'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=800&h=1200&fit=crop',
+      dropPointId: 'dp-5',
+      ownerId: 'user-demo-2',
+    },
+    {
+      title: '挪威的森林',
+      author: '村上春树',
+      isbn: '9787532742929',
+      publishYear: 2007,
+      description: '以青春和爱情为主题的小说，讲述了主人公渡边在青春的迷茫与爱情的纠葛中成长的故事。',
+      coverUrl: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=800&h=1200&fit=crop',
+      dropPointId: 'dp-1',
+      ownerId: 'user-demo-1',
+    },
+  ]
+
+  const sampleLogs = [
+    {
+      bookIndex: 0,
+      userId: 'user-demo-2',
+      username: '爱读书的猫',
+      content: '第三次读《百年孤独》了，每次都有新的感悟。马尔克斯用魔幻现实主义的笔法，把一个家族的兴衰写得如此荡气回肠。孤独是每个人的宿命，但书中人物对命运的抗争让我动容。推荐给所有喜欢深度阅读的朋友！',
+      rating: 5,
+    },
+    {
+      bookIndex: 1,
+      userId: 'user-demo-1',
+      username: '书虫小明',
+      content: '刘慈欣的想象力太惊人了！黑暗森林法则让人细思极恐。这不仅是一本科幻小说，更是对人类文明的深刻反思。读完后仰望星空，感觉宇宙都变得不一样了。期待更多优秀的中国科幻作品！',
+      rating: 5,
+    },
+    {
+      bookIndex: 2,
+      userId: 'user-demo-2',
+      username: '爱读书的猫',
+      content: '余华的文字总是那么朴素却有力量。福贵的一生经历了太多苦难，但他依然选择活着。这本书让我更加珍惜当下的生活，也让我对生命有了更深的思考。值得每个年轻人读一读。',
+      rating: 4,
+    },
+  ]
+
+  for (const b of sampleBooks) {
+    db.data.books.push({
+      id: uuidv4(),
+      title: b.title,
+      author: b.author,
+      isbn: b.isbn,
+      publishYear: b.publishYear,
+      description: b.description,
+      coverUrl: b.coverUrl,
+      dropPointId: b.dropPointId,
+      ownerId: b.ownerId,
+      status: 'available',
+      currentBorrowerId: null,
+      borrowCount: Math.floor(Math.random() * 10) + 1,
+      totalRating: Math.floor(Math.random() * 20) + 15,
+      ratingCount: Math.floor(Math.random() * 5) + 3,
+    })
+  }
+
+  for (const log of sampleLogs) {
+    const book = db.data.books[log.bookIndex]
+    db.data.driftLogs.push({
+      id: uuidv4(),
+      bookId: book.id,
+      userId: log.userId,
+      username: log.username,
+      content: log.content,
+      rating: log.rating,
+      createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+  }
+
+  await db.write()
+}
+
+const adapter = new JSONFile<DB>(file)
+const db = new Low<DB>(adapter, defaultData)
+
+await db.read()
+await initMockBooks(db)
+await db.write()
+
+export { db }
