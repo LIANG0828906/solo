@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>城市交通流量3D热力图</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Roboto', sans-serif;
+      background: #0f3460;
+      color: #e2e2e2;
+    }
+
+    #app {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 3D场景容器 */
+    #scene-container {
+      width: 75%;
+      height: 100%;
+      position: relative;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      overflow: hidden;
+    }
+
+    #scene-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* 场景标题 */
+    .scene-title {
+      position: absolute;
+      top: 24px;
+      left: 32px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .scene-title h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #00d4ff;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0, 212, 255, 0.3);
+      letter-spacing: 2px;
+    }
+
+    .scene-title p {
+      font-size: 12px;
+      color: #7eb8da;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    /* FPS显示 */
+    .fps-display {
+      position: absolute;
+      bottom: 20px;
+      left: 32px;
+      z-index: 10;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      color: #00ff88;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    /* 时间显示 */
+    .time-display {
+      position: absolute;
+      top: 24px;
+      right: 32px;
+      z-index: 10;
+      text-align: right;
+    }
+
+    .time-display .label {
+      font-size: 11px;
+      color: #7eb8da;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .time-display .value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #00d4ff;
+      text-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+    }
+
+    /* 控制面板 */
+    #control-panel {
+      width: 25%;
+      min-width: 320px;
+      height: 100%;
+      background: #0f3460;
+      border-left: 1px solid rgba(0, 212, 255, 0.3);
+      box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    #control-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+      animation: neon-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes neon-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    .panel-header {
+      text-align: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .panel-header h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #00d4ff;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .panel-header p {
+      font-size: 11px;
+      color: #7eb8da;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* 滑块控件组 */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #b0c4de;
+      font-weight: 500;
+    }
+
+    .control-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #00d4ff;
+      background: rgba(0, 212, 255, 0.1);
+      padding: 2px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .slider-wrapper {
+      position: relative;
+      height: 24px;
+      display: flex;
+      align-items: center;
+    }
+
+    .slider-track {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: #533483;
+      border-radius: 3px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .slider-fill {
+      position: absolute;
+      height: 6px;
+      background: linear-gradient(90deg, #e94560, #ff6b8a);
+      border-radius: 3px;
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+      transition: width 0.15s ease-out;
+    }
+
+    input[type="range"] {
+      position: absolute;
+      width: 100%;
+      height: 24px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: transparent;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e94560;
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      margin-top: -7px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e94560;
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.8);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb {
+      transform: scale(1.15);
+      box-shadow: 0 0 15px rgba(233, 69, 96, 1);
+    }
+
+    input[type="range"]:hover::-moz-range-thumb {
+      transform: scale(1.15);
+    }
+
+    input[type="range"]:active::-webkit-slider-thumb {
+      transform: scale(0.95);
+    }
+
+    input[type="range"]:active::-moz-range-thumb {
+      transform: scale(0.95);
+    }
+
+    /* 图例 */
+    .legend-section {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .legend-section h3 {
+      font-size: 12px;
+      color: #7eb8da;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+
+    .legend-bar {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #00ff88, #ffdd00, #ff3366);
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+      margin-bottom: 8px;
+    }
+
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #7eb8da;
+    }
+
+    /* 操作提示 */
+    .tips {
+      font-size: 11px;
+      color: #5a7a9a;
+      line-height: 1.6;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    .tips strong {
+      color: #00d4ff;
+    }
+
+    /* 信息卡片 */
+    #info-card {
+      position: absolute;
+      z-index: 100;
+      min-width: 280px;
+      max-width: 320px;
+      background: rgba(15, 52, 96, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 212, 255, 0.5);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 255, 0.2);
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #info-card.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #info-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .info-header h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #00d4ff;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    }
+
+    .close-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(233, 69, 96, 0.2);
+      border: 1px solid rgba(233, 69, 96, 0.5);
+      color: #e94560;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .close-btn:hover {
+      background: #e94560;
+      color: #fff;
+      transform: scale(1.1);
+    }
+
+    .info-flow {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .info-flow .value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .info-flow .unit {
+      font-size: 12px;
+      color: #7eb8da;
+    }
+
+    .info-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .info-status.smooth {
+      background: rgba(0, 255, 136, 0.15);
+      color: #00ff88;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+
+    .info-status.moderate {
+      background: rgba(255, 221, 0, 0.15);
+      color: #ffdd00;
+      border: 1px solid rgba(255, 221, 0, 0.4);
+    }
+
+    .info-status.congested {
+      background: rgba(255, 51, 102, 0.15);
+      color: #ff3366;
+      border: 1px solid rgba(255, 51, 102, 0.4);
+    }
+
+    .chart-container {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .chart-title {
+      font-size: 11px;
+      color: #7eb8da;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #trend-chart {
+      width: 100%;
+      height: 80px;
+    }
+
+    /* 滚动条样式 */
+    #control-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #control-panel::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    #control-panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    #control-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 212, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 3D场景区域 -->
+    <div id="scene-container">
+      <canvas id="scene-canvas"></canvas>
+      
+      <div class="scene-title">
+        <h1>TRAFFIC HEATMAP</h1>
+        <p>城市交通流量实时监测系统</p>
+      </div>
+
+      <div class="time-display">
+        <div class="label">模拟时间</div>
+        <div class="value" id="current-time">08:00</div>
+      </div>
+
+      <div class="fps-display">
+        FPS: <span id="fps-value">60</span>
+      </div>
+
+      <!-- 信息卡片 -->
+      <div id="info-card">
+        <div class="info-header">
+          <h3 id="block-name">街区 A-01</h3>
+          <button class="close-btn" id="close-card">×</button>
+        </div>
+        <div class="info-flow">
+          <span class="value" id="flow-value">45</span>
+          <span class="unit">流量指数</span>
+        </div>
+        <div class="info-status smooth" id="flow-status">畅通</div>
+        <div class="chart-container">
+          <div class="chart-title">近12个时间点趋势</div>
+          <svg id="trend-chart" viewBox="0 0 240 80" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <aside id="control-panel">
+      <div class="panel-header">
+        <h2>控制面板</h2>
+        <p>Control Panel</p>
+      </div>
+
+      <!-- 模拟速度 -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>模拟速度</span>
+          <span class="control-value" id="speed-value">1.0x</span>
+        </div>
+        <div class="slider-wrapper">
+          <div class="slider-track"></div>
+          <div class="slider-fill" id="speed-fill" style="width: 25%"></div>
+          <input type="range" id="speed-slider" min="0.5" max="4" step="0.1" value="1">
+        </div>
+      </div>
+
+      <!-- 时间进度 -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>时间进度</span>
+          <span class="control-value" id="time-value">08:00</span>
+        </div>
+        <div class="slider-wrapper">
+          <div class="slider-track"></div>
+          <div class="slider-fill" id="time-fill" style="width: 12.5%"></div>
+          <input type="range" id="time-slider" min="0" max="64" step="1" value="4">
+        </div>
+      </div>
+
+      <!-- 流量阈值 -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>流量阈值</span>
+          <span class="control-value" id="threshold-value">50</span>
+        </div>
+        <div class="slider-wrapper">
+          <div class="slider-track"></div>
+          <div class="slider-fill" id="threshold-fill" style="width: 50%"></div>
+          <input type="range" id="threshold-slider" min="0" max="100" step="1" value="50">
+        </div>
+      </div>
+
+      <!-- 图例 -->
+      <div class="legend-section">
+        <h3>流量等级图例</h3>
+        <div class="legend-bar"></div>
+        <div class="legend-labels">
+          <span>畅通 (0)</span>
+          <span>拥堵 (100)</span>
+        </div>
+      </div>
+
+      <!-- 操作提示 -->
+      <div class="tips">
+        <p><strong>操作提示：</strong></p>
+        <p>• 左键拖拽：旋转视角</p>
+        <p>• 滚轮：缩放视图</p>
+        <p>• 右键拖拽：平移</p>
+        <p>• 点击建筑：查看详情</p>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
