@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AudioEngine, AudioFrameData } from './audioEngine';
-import { OrbitCameraController, ParticleSystem } from './particleSystem';
+import { OrbitCameraController, ParticleSystem, DisplayMode } from './particleSystem';
 import { UIController } from './uiController';
 
 class EchoDriftApp {
@@ -20,6 +20,8 @@ class EchoDriftApp {
   private lastPerformanceCheck: number = 0;
   private performanceCheckInterval: number = 2000;
   private performanceWarningActive: boolean = false;
+  private lastRestoreTime: number = 0;
+  private restoreCooldown: number = 5000;
 
   constructor() {
     this.container = document.getElementById('app')!;
@@ -37,16 +39,41 @@ class EchoDriftApp {
     this.cameraController = new OrbitCameraController(this.camera, this.renderer.domElement);
     this.renderer.domElement.style.cursor = 'grab';
 
-    this.uiController = new UIController(
-      this.container,
-      this.audioEngine,
-      this.cameraController,
-      this.particleSystem,
-      {
-        onResetCamera: () => this.cameraController.triggerReset(1500),
-        onResetParticles: () => this.particleSystem.triggerResetParticles(1000)
+    this.uiController = new UIController(this.container, {
+      onMicClick: async () => {
+        const active = this.audioEngine.getCurrentSource() === 'mic';
+        if (active) {
+          await this.audioEngine.stop();
+          this.uiController.setMicActive(false);
+        } else {
+          try {
+            const ok = await this.audioEngine.startMicrophone();
+            if (ok) {
+              this.uiController.setMicActive(true);
+            }
+          } catch (e) {
+            console.error('麦克风启动失败:', e);
+          }
+        }
+      },
+      onFileChange: async (file: File) => {
+        try {
+          await this.audioEngine.loadAudioFile(file);
+          this.uiController.setMicActive(false);
+        } catch (e) {
+          console.error('音频加载失败:', e);
+        }
+      },
+      onModeChange: (mode: DisplayMode) => {
+        this.particleSystem.setDisplayMode(mode);
+      },
+      onResetCamera: () => {
+        this.cameraController.triggerReset(1500);
+      },
+      onResetParticles: () => {
+        this.particleSystem.triggerResetParticles(1000);
       }
-    );
+    });
 
     this.audioEngine.onFrame((data) => {
       this.latestAudioData = {
@@ -174,17 +201,25 @@ class EchoDriftApp {
     this.lastPerformanceCheck = now;
 
     const avgFrameTime = this.particleSystem.getAverageFrameTime();
-    const count = this.particleSystem.getParticleCount();
+    const reduced = this.particleSystem.getPerformanceReduced();
 
-    if (avgFrameTime > 10 && count > 500) {
-      const reduced = this.particleSystem.reduceParticleCount(200);
-      if (reduced) {
+    if (avgFrameTime > 10 && reduced < 1500) {
+      const didReduce = this.particleSystem.reduceParticleCount(200);
+      if (didReduce) {
         this.performanceWarningActive = true;
-        this.uiController.showPerformanceWarning(true);
+        this.uiController.showPerformanceWarning();
       }
-    } else if (avgFrameTime < 4 && this.performanceWarningActive) {
-      this.performanceWarningActive = false;
-      this.uiController.showPerformanceWarning(false);
+    } else if (avgFrameTime < 4 && reduced > 0) {
+      if (now - this.lastRestoreTime > this.restoreCooldown) {
+        const didRestore = this.particleSystem.restoreParticleCount(200);
+        if (didRestore) {
+          this.lastRestoreTime = now;
+        }
+        if (this.particleSystem.getPerformanceReduced() <= 0) {
+          this.performanceWarningActive = false;
+          this.uiController.hidePerformanceWarning();
+        }
+      }
     }
   }
 

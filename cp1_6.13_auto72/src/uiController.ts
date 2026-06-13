@@ -1,591 +1,440 @@
-import { AudioEngine } from './audioEngine';
-import { DisplayMode, OrbitCameraController, ParticleSystem } from './particleSystem';
+import { DisplayMode } from './particleSystem';
 
-interface UICallbacks {
+interface UIOptions {
+  onMicClick: () => void;
+  onFileChange: (file: File) => void;
+  onModeChange: (mode: DisplayMode) => void;
   onResetCamera: () => void;
   onResetParticles: () => void;
 }
 
 export class UIController {
   private container: HTMLElement;
-  private audioEngine: AudioEngine;
-  private cameraController: OrbitCameraController;
-  private particleSystem: ParticleSystem;
-  private callbacks: UICallbacks;
+  private options: UIOptions;
 
-  private controlBar!: HTMLDivElement;
-  private micButton!: HTMLButtonElement;
-  private fileButton!: HTMLButtonElement;
-  private fileInput!: HTMLInputElement;
-  private fileStatus!: HTMLSpanElement;
-  private modeButtons!: HTMLButtonElement[];
-  private resetButton!: HTMLButtonElement;
-  private warningLabel!: HTMLDivElement;
-  private tooltip!: HTMLDivElement;
+  private micButton: HTMLButtonElement | null = null;
+  private fileInput: HTMLInputElement | null = null;
+  private fileButton: HTMLButtonElement | null = null;
+  private modeButtons: { bars: HTMLButtonElement; particles: HTMLButtonElement; mixed: HTMLButtonElement } | null = null;
+  private resetButton: HTMLButtonElement | null = null;
+  private perfWarning: HTMLDivElement | null = null;
 
-  private micAuthorized: boolean = false;
+  private micActive: boolean = false;
   private currentMode: DisplayMode = 'particles';
-  private resetButtonSpinning: boolean = false;
 
-  constructor(
-    container: HTMLElement,
-    audioEngine: AudioEngine,
-    cameraController: OrbitCameraController,
-    particleSystem: ParticleSystem,
-    callbacks: UICallbacks
-  ) {
+  constructor(container: HTMLElement, options: UIOptions) {
     this.container = container;
-    this.audioEngine = audioEngine;
-    this.cameraController = cameraController;
-    this.particleSystem = particleSystem;
-    this.callbacks = callbacks;
-
-    this.createControlBar();
-    this.createTooltip();
-    this.bindResponsive();
-    this.hidePermissionPrompt();
+    this.options = options;
+    this.createUI();
+    this.injectStyles();
   }
 
-  private hidePermissionPrompt(): void {
-    const prompt = document.getElementById('permission-prompt');
-    if (prompt) {
-      setTimeout(() => {
-        prompt.style.transition = 'opacity 0.5s ease';
-        prompt.style.opacity = '0';
-        setTimeout(() => prompt.classList.add('hidden'), 500);
-      }, 4500);
-    }
-  }
+  private createUI(): void {
+    const controlBar = document.createElement('div');
+    controlBar.className = 'ed-control-bar';
 
-  private createControlBar(): void {
-    this.controlBar = document.createElement('div');
-    this.controlBar.style.cssText = `
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 60px;
-      min-width: 400px;
-      max-width: calc(100% - 48px);
-      padding: 0 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      background: rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      backdrop-filter: blur(20px) saturate(1.2);
-      -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-        0 0 24px rgba(100, 150, 255, 0.08),
-        0 8px 32px rgba(0, 0, 0, 0.5);
-      z-index: 100;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      user-select: none;
-    `;
-
-    this.warningLabel = document.createElement('div');
-    this.warningLabel.textContent = '⚠ 渲染负载高';
-    this.warningLabel.style.cssText = `
-      position: absolute;
-      top: -22px;
-      left: 8px;
-      font-size: 12px;
-      font-weight: 500;
-      color: #ffcc00;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-      text-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
-      letter-spacing: 0.3px;
-    `;
-    this.controlBar.appendChild(this.warningLabel);
-
-    const leftSection = this.createLeftSection();
-    const centerSection = this.createCenterSection();
-    const rightSection = this.createRightSection();
-
-    this.controlBar.appendChild(leftSection);
-    this.controlBar.appendChild(centerSection);
-    this.controlBar.appendChild(rightSection);
-
-    this.container.appendChild(this.controlBar);
-  }
-
-  private createLeftSection(): HTMLElement {
-    const section = document.createElement('div');
-    section.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-    `;
+    const leftGroup = document.createElement('div');
+    leftGroup.className = 'ed-left-group';
 
     this.micButton = document.createElement('button');
-    this.micButton.innerHTML = this.getMicSVG(false);
-    this.applyCircularButtonStyle(this.micButton, '启用麦克风');
+    this.micButton.className = 'ed-btn ed-mic-btn';
+    this.micButton.title = '启用麦克风';
+    this.micButton.innerHTML = `
+      <svg class="ed-mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    `;
+    this.micButton.addEventListener('click', () => {
+      this.options.onMicClick();
+    });
 
     this.fileButton = document.createElement('button');
-    this.fileButton.innerHTML = this.getFileSVG();
-    this.fileButton.style.cssText = `
-      width: 120px;
-      height: 40px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0 12px;
-      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-      font-size: 13px;
-      font-weight: 500;
-      position: relative;
-      flex-shrink: 0;
+    this.fileButton.className = 'ed-btn ed-file-btn';
+    this.fileButton.title = '选择音频文件';
+    this.fileButton.innerHTML = `
+      <svg class="ed-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="ed-file-label">未选择</span>
     `;
-
-    this.fileStatus = document.createElement('span');
-    this.fileStatus.textContent = '未选择';
-    this.fileStatus.style.cssText = `
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.5);
-      white-space: nowrap;
-      transition: color 0.2s;
-    `;
-    this.fileButton.appendChild(this.fileStatus);
+    this.fileButton.addEventListener('click', () => {
+      this.fileInput?.click();
+    });
 
     this.fileInput = document.createElement('input');
     this.fileInput.type = 'file';
-    this.fileInput.accept = '.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav';
+    this.fileInput.accept = 'audio/*';
     this.fileInput.style.display = 'none';
-
-    this.bindTooltip(this.micButton, '麦克风输入');
-    this.bindTooltip(this.fileButton, '选择音频文件 (.mp3 / .wav)');
-
-    section.appendChild(this.micButton);
-    section.appendChild(this.fileButton);
-    section.appendChild(this.fileInput);
-
-    this.micButton.addEventListener('click', this.onMicClick);
-    this.fileButton.addEventListener('click', () => this.fileInput.click());
-    this.fileInput.addEventListener('change', this.onFileSelect);
-
-    this.addPressEffect(this.micButton, 'rgba(255, 255, 255, 0.05)');
-    this.addPressEffect(this.fileButton, 'rgba(255, 255, 255, 0.05)');
-
-    return section;
-  }
-
-  private createCenterSection(): HTMLElement {
-    const section = document.createElement('div');
-    section.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      padding: 3px;
-      flex-shrink: 0;
-    `;
-
-    const modes: { key: DisplayMode; label: string; tip: string }[] = [
-      { key: 'bars', label: '线条', tip: '频谱线条模式' },
-      { key: 'particles', label: '粒子', tip: '3D粒子模式' },
-      { key: 'mixed', label: '混合', tip: '线条+粒子混合模式' }
-    ];
-
-    this.modeButtons = [];
-    modes.forEach(({ key, label, tip }) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.dataset.mode = key;
-      btn.style.cssText = `
-        width: 80px;
-        height: 30px;
-        border-radius: 6px;
-        border: none;
-        background: transparent;
-        color: rgba(255, 255, 255, 0.65);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 500;
-        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        font-family: inherit;
-        letter-spacing: 0.3px;
-      `;
-
-      if (key === this.currentMode) {
-        btn.style.background = 'rgba(255, 255, 255, 0.25)';
-        btn.style.color = 'white';
+    this.fileInput.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        this.setFileName(file.name);
+        this.options.onFileChange(file);
       }
-
-      btn.addEventListener('click', () => this.onModeChange(key, btn));
-      this.addPressEffect(btn, 'transparent');
-      this.bindTooltip(btn, tip);
-      this.modeButtons.push(btn);
-      section.appendChild(btn);
     });
 
-    return section;
-  }
+    leftGroup.appendChild(this.micButton);
+    leftGroup.appendChild(this.fileButton);
+    leftGroup.appendChild(this.fileInput);
 
-  private createRightSection(): HTMLElement {
-    const section = document.createElement('div');
-    section.style.cssText = `
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-    `;
+    const centerGroup = document.createElement('div');
+    centerGroup.className = 'ed-center-group';
+
+    const barsBtn = document.createElement('button');
+    barsBtn.className = 'ed-btn ed-mode-btn';
+    barsBtn.textContent = '线条';
+    barsBtn.addEventListener('click', () => this.setMode('bars'));
+
+    const particlesBtn = document.createElement('button');
+    particlesBtn.className = 'ed-btn ed-mode-btn ed-active';
+    particlesBtn.textContent = '粒子';
+    particlesBtn.addEventListener('click', () => this.setMode('particles'));
+
+    const mixedBtn = document.createElement('button');
+    mixedBtn.className = 'ed-btn ed-mode-btn';
+    mixedBtn.textContent = '混合';
+    mixedBtn.addEventListener('click', () => this.setMode('mixed'));
+
+    this.modeButtons = { bars: barsBtn, particles: particlesBtn, mixed: mixedBtn };
+
+    centerGroup.appendChild(barsBtn);
+    centerGroup.appendChild(particlesBtn);
+    centerGroup.appendChild(mixedBtn);
+
+    const rightGroup = document.createElement('div');
+    rightGroup.className = 'ed-right-group';
 
     this.resetButton = document.createElement('button');
-    this.resetButton.innerHTML = this.getResetSVG();
-    this.applyCircularButtonStyle(this.resetButton, '重置视角');
-
-    this.resetButton.addEventListener('click', this.onResetClick);
-    this.addPressEffect(this.resetButton, 'rgba(255, 255, 255, 0.05)');
-    this.bindTooltip(this.resetButton, '重置视角与粒子位置');
-
-    section.appendChild(this.resetButton);
-    return section;
-  }
-
-  private applyCircularButtonStyle(btn: HTMLButtonElement, aria: string): void {
-    btn.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-      flex-shrink: 0;
-      position: relative;
-      overflow: visible;
+    this.resetButton.className = 'ed-btn ed-reset-btn';
+    this.resetButton.title = '重置视角';
+    this.resetButton.innerHTML = `
+      <svg class="ed-reset-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
     `;
-    btn.setAttribute('aria-label', aria);
-  }
-
-  private addPressEffect(btn: HTMLButtonElement, releaseBg: string): void {
-    const pressHandler = () => {
-      btn.style.background = 'rgba(255, 255, 255, 0.3)';
-    };
-    const releaseHandler = () => {
-      setTimeout(() => {
-        if (btn.dataset.mode) {
-          if ((btn.dataset.mode as DisplayMode) === this.currentMode) {
-            btn.style.background = 'rgba(255, 255, 255, 0.25)';
-          } else {
-            btn.style.background = 'transparent';
-          }
-        } else {
-          btn.style.background = releaseBg;
-        }
-      }, 150);
-    };
-    btn.addEventListener('mousedown', pressHandler);
-    btn.addEventListener('mouseup', releaseHandler);
-    btn.addEventListener('mouseleave', releaseHandler);
-    btn.addEventListener('touchstart', pressHandler, { passive: true });
-    btn.addEventListener('touchend', releaseHandler);
-  }
-
-  private bindTooltip(btn: HTMLElement, text: string): void {
-    btn.addEventListener('mouseenter', (e) => {
-      const me = e as MouseEvent;
-      this.showTooltip(me.clientX, me.clientY, text);
+    this.resetButton.addEventListener('click', () => {
+      this.triggerResetAnimation();
+      this.options.onResetCamera();
+      this.options.onResetParticles();
     });
-    btn.addEventListener('mousemove', (e) => {
-      const me = e as MouseEvent;
-      this.moveTooltip(me.clientX, me.clientY);
-    });
-    btn.addEventListener('mouseleave', () => {
-      this.hideTooltip();
-    });
+
+    rightGroup.appendChild(this.resetButton);
+
+    controlBar.appendChild(leftGroup);
+    controlBar.appendChild(centerGroup);
+    controlBar.appendChild(rightGroup);
+
+    this.perfWarning = document.createElement('div');
+    this.perfWarning.className = 'ed-perf-warning';
+    this.perfWarning.textContent = '⚠ 渲染负载高';
+    this.perfWarning.style.display = 'none';
+
+    this.container.appendChild(controlBar);
+    this.container.appendChild(this.perfWarning);
   }
 
-  private createTooltip(): void {
-    this.tooltip = document.createElement('div');
-    this.tooltip.style.cssText = `
-      position: fixed;
-      pointer-events: none;
-      background: rgba(0, 0, 0, 0.88);
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      backdrop-filter: blur(10px);
-      z-index: 2000;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      white-space: nowrap;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      font-family: inherit;
-      line-height: 1.4;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    `;
-    document.body.appendChild(this.tooltip);
-  }
+  private triggerResetAnimation(): void {
+    const icon = this.resetButton?.querySelector('.ed-reset-icon') as SVGElement | null;
+    if (!icon) return;
 
-  private showTooltip(x: number, y: number, text: string): void {
-    this.tooltip.textContent = text;
-    this.tooltip.style.opacity = '0.85';
-    requestAnimationFrame(() => {
-      this.tooltip.style.opacity = '1';
-    });
-    this.moveTooltip(x, y);
-  }
+    icon.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    icon.style.transform = 'rotate(360deg)';
 
-  private moveTooltip(x: number, y: number): void {
-    const padding = 14;
-    const tw = this.tooltip.offsetWidth;
-    const th = this.tooltip.offsetHeight;
-    let left = x + padding;
-    let top = y - th - 10;
-    if (left + tw > window.innerWidth - 10) {
-      left = x - tw - padding;
-    }
-    if (top < 10) {
-      top = y + padding;
-    }
-    this.tooltip.style.left = `${Math.max(10, left)}px`;
-    this.tooltip.style.top = `${Math.max(10, top)}px`;
-  }
-
-  private hideTooltip(): void {
-    this.tooltip.style.opacity = '0.85';
     setTimeout(() => {
-      if (parseFloat(this.tooltip.style.opacity) <= 0.85) {
-        this.tooltip.style.opacity = '0';
-      }
-    }, 60);
+      icon.style.transition = 'none';
+      icon.style.transform = 'rotate(0deg)';
+    }, 320);
   }
 
-  private getMicSVG(active: boolean): string {
-    const color = active ? '#22c55e' : 'white';
-    const fill = active ? color : 'none';
-    return `
-      <svg class="mic-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-        style="display: block; transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);">
-        <path d="M12 1C9.79 1 8 2.79 8 5V13C8 15.21 9.79 17 12 17C14.21 17 16 15.21 16 13V5C16 2.79 14.21 1 12 1Z"
-          fill="${fill}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M19 11V13C19 16.87 15.87 20 12 20C8.13 20 5 16.87 5 13V11"
-          fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12 20V23" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M8 23H16" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `;
-  }
+  public triggerMicPulseAnimation(): void {
+    if (!this.micButton) return;
 
-  private getFileSVG(): string {
-    return `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-        style="display: block; flex-shrink: 0;">
-        <path d="M21 15V5C21 3.9 20.1 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H15"
-          stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M17 21V13H21L17 21Z"
-          stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M8.5 11L11.5 8L14.5 11"
-          stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M11.5 8V14"
-          stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `;
-  }
+    const btn = this.micButton;
+    const icon = btn.querySelector('.ed-mic-icon') as SVGElement;
 
-  private getResetSVG(): string {
-    return `
-      <svg class="reset-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-        style="display: block; transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);">
-        <path d="M3 12C3 7.03 7.03 3 12 3C16.97 3 21 7.03 21 12C21 16.97 16.97 21 12 21"
-          stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 12H7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 12L7 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12 7V12L15 14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `;
-  }
+    btn.style.borderColor = '#22c55e';
+    btn.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.5)';
 
-  private onMicClick = async (): Promise<void> => {
-    if (this.micAuthorized) {
-      this.audioEngine.stop();
-      this.micAuthorized = false;
-      this.micButton.innerHTML = this.getMicSVG(false);
-      this.micButton.style.animation = 'none';
-      this.fileStatus.textContent = '未选择';
-      this.fileStatus.style.color = 'rgba(255, 255, 255, 0.5)';
-    } else {
-      const success = await this.audioEngine.startMicrophone();
-      if (success) {
-        this.micAuthorized = true;
-        this.micButton.innerHTML = this.getMicSVG(true);
-        this.triggerMicPulseAnimation();
-        this.hidePermissionPrompt();
-        this.fileStatus.textContent = '麦克风';
-        this.fileStatus.style.color = '#22c55e';
-      } else {
-        this.fileStatus.textContent = '已拒绝';
-        this.fileStatus.style.color = '#ef4444';
-        setTimeout(() => {
-          this.fileStatus.textContent = '未选择';
-          this.fileStatus.style.color = 'rgba(255, 255, 255, 0.5)';
-        }, 2500);
-      }
-    }
-  };
-
-  private triggerMicPulseAnimation(): void {
-    const icon = this.micButton.querySelector('.mic-icon') as SVGElement | null;
     if (icon) {
+      icon.classList.add('mic-pulse');
       icon.style.transform = 'scale(1.25)';
-      setTimeout(() => {
-        icon.style.transform = 'scale(1)';
-      }, 300);
     }
-    this.micButton.style.animation = 'mic-pulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    this.micButton.style.borderColor = 'rgba(34, 197, 94, 0.6)';
+
     setTimeout(() => {
-      this.micButton.style.animation = '';
-    }, 600);
+      btn.style.boxShadow = '';
+      if (icon) {
+        icon.style.transform = 'scale(1)';
+      }
+    }, 300);
   }
 
-  private onFileSelect = async (e: Event): Promise<void> => {
-    const input = e.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
+  public setMicActive(active: boolean): void {
+    this.micActive = active;
+    if (!this.micButton) return;
 
-    const file = input.files[0];
-    const validExt = /\.(mp3|wav)$/i.test(file.name);
-    const validType = file.type.startsWith('audio/');
-    if (!validExt && !validType) {
-      alert('请选择 .mp3 或 .wav 格式的音频文件');
-      return;
-    }
+    const icon = this.micButton.querySelector('.ed-mic-icon') as SVGElement;
 
-    this.fileStatus.textContent = '加载中...';
-    this.fileStatus.style.color = 'rgba(255, 255, 255, 0.8)';
-
-    const success = await this.audioEngine.loadAudioFile(file);
-
-    if (success) {
-      this.fileStatus.textContent = '已加载';
-      this.fileStatus.style.color = '#22c55e';
-      this.micAuthorized = false;
-      this.micButton.innerHTML = this.getMicSVG(false);
-      this.micButton.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-      this.hidePermissionPrompt();
+    if (active) {
+      this.micButton.classList.add('ed-mic-active');
+      this.micButton.title = '关闭麦克风';
+      if (icon) {
+        icon.setAttribute('fill', '#22c55e');
+        icon.style.stroke = '#22c55e';
+      }
+      this.triggerMicPulseAnimation();
     } else {
-      this.fileStatus.textContent = '加载失败';
-      this.fileStatus.style.color = '#ef4444';
-      setTimeout(() => {
-        this.fileStatus.textContent = '未选择';
-        this.fileStatus.style.color = 'rgba(255, 255, 255, 0.5)';
-      }, 2500);
+      this.micButton.classList.remove('ed-mic-active');
+      this.micButton.title = '启用麦克风';
+      if (icon) {
+        icon.setAttribute('fill', 'none');
+        icon.style.stroke = '';
+      }
     }
-    input.value = '';
-  };
+  }
 
-  private onModeChange(mode: DisplayMode, btn: HTMLButtonElement): void {
+  public setFileName(name: string): void {
+    const label = this.fileButton?.querySelector('.ed-file-label');
+    if (label) {
+      label.textContent = name.length > 12 ? name.slice(0, 10) + '...' : name;
+    }
+  }
+
+  public setMode(mode: DisplayMode): void {
     if (this.currentMode === mode) return;
     this.currentMode = mode;
-    this.particleSystem.setDisplayMode(mode);
 
-    this.modeButtons.forEach((b) => {
-      const isActive = b.dataset.mode === mode;
-      const t1 = performance.now();
-      b.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      b.style.background = isActive ? 'rgba(255, 255, 255, 0.25)' : 'transparent';
-      b.style.color = isActive ? 'white' : 'rgba(255, 255, 255, 0.65)';
-      if (isActive) {
-        b.style.transform = 'scale(1.06)';
+    if (!this.modeButtons) return;
+
+    (Object.keys(this.modeButtons) as DisplayMode[]).forEach((key) => {
+      const btn = this.modeButtons![key];
+      if (key === mode) {
+        btn.classList.add('ed-active');
+        btn.style.transform = 'scale(1.06)';
         setTimeout(() => {
-          b.style.transform = 'scale(1)';
+          btn.style.transform = '';
         }, 220);
+      } else {
+        btn.classList.remove('ed-active');
       }
     });
+
+    this.options.onModeChange(mode);
   }
 
-  private onResetClick = (): void => {
-    if (this.resetButtonSpinning) return;
-    this.resetButtonSpinning = true;
-
-    const icon = this.resetButton.querySelector('.reset-icon') as SVGElement | null;
-    if (icon) {
-      icon.style.transform = 'rotate(360deg)';
-    }
-
-    this.callbacks.onResetCamera();
-    this.callbacks.onResetParticles();
-
-    setTimeout(() => {
-      if (icon) {
-        icon.style.transform = 'rotate(0deg)';
-      }
-      this.resetButtonSpinning = false;
-    }, 320);
-  };
-
-  public showPerformanceWarning(show: boolean): void {
-    if (show) {
-      this.warningLabel.style.opacity = '1';
-      this.warningLabel.style.animation = 'blink 0.5s ease-in-out infinite';
-    } else {
-      this.warningLabel.style.opacity = '0';
-      this.warningLabel.style.animation = 'none';
-    }
+  public getCurrentMode(): DisplayMode {
+    return this.currentMode;
   }
 
-  private bindResponsive(): void {
-    const mediaQuery = window.matchMedia('(max-width: 600px) and (orientation: portrait)');
+  public showPerformanceWarning(): void {
+    if (!this.perfWarning) return;
+    if (this.perfWarning.style.display === 'block') return;
+    this.perfWarning.style.display = 'block';
+  }
 
-    const applyResponsive = (isMobile: boolean) => {
-      if (isMobile) {
-        this.controlBar.style.height = '112px';
-        this.controlBar.style.minWidth = '300px';
-        this.controlBar.style.flexDirection = 'column';
-        this.controlBar.style.flexWrap = 'wrap';
-        this.controlBar.style.padding = '10px 14px';
-        this.controlBar.style.gap = '10px';
-        this.controlBar.style.alignContent = 'center';
-        this.controlBar.style.alignItems = 'center';
-        this.controlBar.style.justifyContent = 'center';
-        this.controlBar.style.setProperty('transform', 'translateX(-50%) scale(0.84)');
-        this.controlBar.style.bottom = '14px';
-      } else {
-        this.controlBar.style.height = '60px';
-        this.controlBar.style.minWidth = '400px';
-        this.controlBar.style.flexDirection = 'row';
-        this.controlBar.style.flexWrap = 'nowrap';
-        this.controlBar.style.padding = '0 20px';
-        this.controlBar.style.gap = '16px';
-        this.controlBar.style.alignContent = 'stretch';
-        this.controlBar.style.alignItems = 'center';
-        this.controlBar.style.justifyContent = 'space-between';
-        this.controlBar.style.setProperty('transform', 'translateX(-50%) scale(1)');
-        this.controlBar.style.bottom = '24px';
+  public hidePerformanceWarning(): void {
+    if (!this.perfWarning) return;
+    this.perfWarning.style.display = 'none';
+  }
+
+  private injectStyles(): void {
+    const style = document.createElement('style');
+    style.textContent = `
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-    };
 
-    mediaQuery.addEventListener('change', (e) => applyResponsive(e.matches));
-    applyResponsive(mediaQuery.matches);
+      .ed-control-bar {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 14px 28px;
+        background: rgba(20, 20, 28, 0.55);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        user-select: none;
+      }
+
+      .ed-left-group,
+      .ed-center-group,
+      .ed-right-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .ed-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e0e0e8;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(8px);
+      }
+
+      .ed-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.18);
+        transform: translateY(-1px);
+      }
+
+      .ed-btn:active {
+        transform: translateY(0);
+      }
+
+      .ed-btn svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      .ed-mic-btn {
+        width: 44px;
+        padding: 10px 0;
+      }
+
+      .ed-mic-btn.ed-mic-active {
+        color: #22c55e;
+        border-color: rgba(34, 197, 94, 0.4);
+        background: rgba(34, 197, 94, 0.12);
+      }
+
+      .ed-mic-icon {
+        transition: transform 0.3s ease;
+      }
+
+      .ed-mic-icon.mic-pulse {
+        animation: mic-pulse 0.3s ease-out;
+      }
+
+      @keyframes mic-pulse {
+        0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0)); }
+        50% { transform: scale(1.3); filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.8)); }
+        100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.3)); }
+      }
+
+      .ed-file-btn {
+        padding: 10px 14px;
+        min-width: 120px;
+      }
+
+      .ed-file-label {
+        font-size: 13px;
+        opacity: 0.85;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ed-mode-btn {
+        padding: 8px 18px;
+        font-size: 13px;
+        color: #9090a0;
+      }
+
+      .ed-mode-btn.ed-active {
+        background: rgba(120, 140, 255, 0.18);
+        color: #b8c4ff;
+        border-color: rgba(120, 140, 255, 0.4);
+      }
+
+      .ed-reset-btn {
+        width: 44px;
+        padding: 10px 0;
+      }
+
+      .ed-reset-icon {
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .ed-perf-warning {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: #ffcc00;
+        background: rgba(255, 204, 0, 0.1);
+        border: 1px solid rgba(255, 204, 0, 0.3);
+        border-radius: 6px;
+        backdrop-filter: blur(8px);
+        z-index: 2000;
+        pointer-events: none;
+        animation: blink 0.5s ease-in-out infinite;
+        font-family: inherit;
+      }
+
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+
+      @media (max-width: 600px) and (orientation: portrait) {
+        .ed-control-bar {
+          bottom: 16px;
+          padding: 10px 16px;
+          gap: 12px;
+          flex-wrap: wrap;
+          justify-content: center;
+          width: calc(100% - 32px);
+          max-width: 400px;
+        }
+
+        .ed-left-group {
+          order: 1;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .ed-center-group {
+          order: 2;
+        }
+
+        .ed-right-group {
+          order: 3;
+        }
+
+        .ed-btn {
+          padding: 8px 14px;
+          font-size: 12px;
+        }
+
+        .ed-file-btn {
+          min-width: 100px;
+        }
+
+        .ed-mode-btn {
+          padding: 6px 14px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   public dispose(): void {
-    if (this.tooltip && this.tooltip.parentNode) {
-      this.tooltip.remove();
-    }
-    if (this.controlBar && this.controlBar.parentNode) {
-      this.controlBar.remove();
-    }
-    this.fileInput.removeEventListener('change', this.onFileSelect);
-    this.micButton.removeEventListener('click', this.onMicClick);
-    this.resetButton.removeEventListener('click', this.onResetClick);
+    // 清理事件监听
   }
 }

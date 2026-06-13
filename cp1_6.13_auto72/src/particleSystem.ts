@@ -18,11 +18,11 @@ interface BeatState {
   time: number;
   duration: number;
   energy: number;
-  explosionDirX: Float32Array;
-  explosionDirY: Float32Array;
-  explosionDirZ: Float32Array;
-  preBeatPositions: Float32Array;
-  explosionDistances: Float32Array;
+  dirX: Float32Array;
+  dirY: Float32Array;
+  dirZ: Float32Array;
+  prePositions: Float32Array;
+  maxDistances: Float32Array;
 }
 
 interface ResetState {
@@ -34,7 +34,10 @@ interface ResetState {
 }
 
 const SPECTRUM_BIN_COUNT = 256;
-const COLOR_CHANGE_RATE = 0.3;
+const COLOR_TRANSITION_DURATION = 1.0;
+const PARTICLE_COLOR_CHANGE_RATE = 0.35;
+const MAX_PARTICLE_COUNT = 3000;
+const MIN_PARTICLE_COUNT = 500;
 
 export class ParticleSystem {
   public points: THREE.Points;
@@ -44,16 +47,21 @@ export class ParticleSystem {
   private geometry: THREE.BufferGeometry;
   private material: THREE.PointsMaterial;
   private particleCount: number;
+  private initialParticleCount: number;
   private particles: ParticleData[] = [];
   private positions: Float32Array;
   private colors: Float32Array;
   private sizes: Float32Array;
 
   private currentHue: number = 240;
-  private targetHue: number = 240;
+  private targetAudioHue: number = 240;
   private barsHue: number = 240;
-  private barsTargetHue: number = 240;
+  private barsTargetAudioHue: number = 240;
+
   private displayMode: DisplayMode = 'particles';
+  private modeTransitionTime: number = 1.0;
+  private particlesModeHue: number = 240;
+  private barsModeHue: number = 240;
 
   private beat: BeatState;
   private reset: ResetState;
@@ -74,6 +82,8 @@ export class ParticleSystem {
   private camera: THREE.PerspectiveCamera;
   private frameTimes: number[] = [];
   private frameTimeWindow: number = 60;
+  private lastReduceTime: number = 0;
+  private reduceCooldown: number = 2000;
 
   private barsMaterial: THREE.LineBasicMaterial | null = null;
   private barsOpacity: number = 0;
@@ -81,9 +91,12 @@ export class ParticleSystem {
   private particlesOpacity: number = 1;
   private particlesTargetOpacity: number = 1;
 
+  private performanceReduced: number = 0;
+
   constructor(camera: THREE.PerspectiveCamera, initialCount: number = 2000) {
     this.camera = camera;
-    this.particleCount = initialCount;
+    this.particleCount = Math.min(MAX_PARTICLE_COUNT, Math.max(MIN_PARTICLE_COUNT, initialCount));
+    this.initialParticleCount = this.particleCount;
     this.group = new THREE.Group();
 
     this.positions = new Float32Array(this.particleCount * 3);
@@ -95,11 +108,11 @@ export class ParticleSystem {
       time: 0,
       duration: 0.4,
       energy: 0,
-      explosionDirX: new Float32Array(this.particleCount),
-      explosionDirY: new Float32Array(this.particleCount),
-      explosionDirZ: new Float32Array(this.particleCount),
-      preBeatPositions: new Float32Array(this.particleCount * 3),
-      explosionDistances: new Float32Array(this.particleCount)
+      dirX: new Float32Array(this.particleCount),
+      dirY: new Float32Array(this.particleCount),
+      dirZ: new Float32Array(this.particleCount),
+      prePositions: new Float32Array(this.particleCount * 3),
+      maxDistances: new Float32Array(this.particleCount)
     };
 
     this.reset = {
@@ -132,6 +145,7 @@ export class ParticleSystem {
     this.initParticles();
     this.initStandbyPositions();
     this.createSpectrumBars();
+    this.updateModeTargets();
   }
 
   private initParticles(): void {
@@ -185,8 +199,7 @@ export class ParticleSystem {
 
     for (let i = 0; i < binCount; i++) {
       const x = (i / (binCount - 1)) * 16 - 8;
-      const hue = 240 / 360;
-      const color = new THREE.Color().setHSL(1 - hue, 0.9, 0.6);
+      const color = new THREE.Color().setHSL(240 / 360, 0.9, 0.6);
 
       positions[i * 6] = x;
       positions[i * 6 + 1] = yBase;
@@ -250,7 +263,7 @@ export class ParticleSystem {
 
     for (let i = 0; i < binCount; i++) {
       const idx = Math.floor(i * freqData.length / binCount);
-      const amplitude = freqData[idx] || 0;
+      const amplitude = Math.max(0, freqData[idx] || 0);
       const height = amplitude * amplitude * 3.5;
       const x = (i / (binCount - 1)) * 16 - 8;
 
@@ -291,10 +304,10 @@ export class ParticleSystem {
         this.targetRadius = 1 + Math.pow(Math.max(0, data.lowEnergy), 1.5) * 7;
         this.targetRotationSpeed = 0.5 + THREE.MathUtils.clamp(data.midEnergy, 0, 1) * 2.5;
         this.targetWaveAmplitude = THREE.MathUtils.clamp(data.totalEnergy, 0, 1);
-        this.targetHue = 240 - THREE.MathUtils.clamp(data.highEnergy, 0, 1) * 240;
-        this.barsTargetHue = this.targetHue;
+        this.targetAudioHue = 240 - THREE.MathUtils.clamp(data.highEnergy, 0, 1) * 240;
+        this.barsTargetAudioHue = this.targetAudioHue;
 
-        if (data.beatDetected) {
+        if (data.beatDetected && !this.beat.active) {
           this.triggerBeatExplosion(data.beatEnergy);
         }
 
@@ -315,20 +328,20 @@ export class ParticleSystem {
     this.currentRotationSpeed = THREE.MathUtils.lerp(this.currentRotationSpeed, this.targetRotationSpeed, smoothing * 0.3);
     this.currentWaveAmplitude = THREE.MathUtils.lerp(this.currentWaveAmplitude, this.targetWaveAmplitude, smoothing);
 
-    const hueDelta = this.targetHue - this.currentHue;
-    this.currentHue += hueDelta * COLOR_CHANGE_RATE * dt * 60;
+    const hueDelta = this.targetAudioHue - this.currentHue;
+    this.currentHue += hueDelta * PARTICLE_COLOR_CHANGE_RATE * dt * 60;
 
-    const barsHueDelta = this.barsTargetHue - this.barsHue;
-    this.barsHue += barsHueDelta * COLOR_CHANGE_RATE * dt * 60;
+    const barsHueDelta = this.barsTargetAudioHue - this.barsHue;
+    this.barsHue += barsHueDelta * PARTICLE_COLOR_CHANGE_RATE * dt * 60;
 
     this.updateModeTransition(dt);
     this.updateBeatExplosion(dt);
     this.updateResetParticles();
 
     if (this.reset.active) {
-      // 重置动画在 updateResetParticles 中处理
+      // reset 在 updateResetParticles 处理
     } else if (this.beat.active) {
-      // 节拍爆炸动画在 updateBeatExplosion 中处理
+      // 爆炸在 updateBeatExplosion 处理
     } else if (this.standbyMode) {
       this.updateStandbyAnimation(dt);
     } else {
@@ -352,7 +365,7 @@ export class ParticleSystem {
     return frameTime;
   }
 
-  private updateModeTransition(dt: number): void {
+  private updateModeTargets(): void {
     switch (this.displayMode) {
       case 'bars':
         this.barsTargetOpacity = 1.0;
@@ -367,7 +380,10 @@ export class ParticleSystem {
         this.particlesTargetOpacity = 1.0;
         break;
     }
+  }
 
+  private updateModeTransition(dt: number): void {
+    this.updateModeTargets();
     const t = 1 - Math.exp(-dt * 1.2);
     this.barsOpacity = THREE.MathUtils.lerp(this.barsOpacity, this.barsTargetOpacity, t);
     this.particlesOpacity = THREE.MathUtils.lerp(this.particlesOpacity, this.particlesTargetOpacity, t);
@@ -375,7 +391,13 @@ export class ParticleSystem {
 
   private updateStandbyAnimation(dt: number): void {
     this.standbyAngle += dt * 0.25;
-    const pulse = 3.5 + Math.sin(this.standbyAngle * 1.5) * 1.5;
+
+    const pulseMin = 2.0;
+    const pulseMax = 5.0;
+    const pulseMid = (pulseMin + pulseMax) / 2;
+    const pulseAmp = (pulseMax - pulseMin) / 2;
+    const pulse = pulseMid + Math.sin(this.standbyAngle * 1.3) * pulseAmp;
+
     const targetHueS = 220 + Math.sin(this.standbyAngle * 0.4) * 30;
     this.currentHue = THREE.MathUtils.lerp(this.currentHue, targetHueS, 0.02);
     const hueNorm = this.currentHue / 360;
@@ -423,8 +445,9 @@ export class ParticleSystem {
     }
 
     if (this.barsMaterial) {
-      this.barsMaterial.opacity *= Math.pow(0.9, dt * 60);
-      this.barsOpacity *= Math.pow(0.9, dt * 60);
+      const decay = Math.pow(0.85, dt * 60);
+      this.barsMaterial.opacity *= decay;
+      this.barsOpacity *= decay;
     }
   }
 
@@ -474,26 +497,33 @@ export class ParticleSystem {
   }
 
   private triggerBeatExplosion(energy: number): void {
-    energy = THREE.MathUtils.clamp(energy, 0.1, 1.0);
+    energy = THREE.MathUtils.clamp(energy, 0.15, 1.0);
     this.beat.active = true;
     this.beat.time = 0;
     this.beat.energy = energy;
+
+    const baseSpeed = 6;
+    const energyScaledSpeed = baseSpeed + energy * 22;
 
     for (let i = 0; i < this.particleCount; i++) {
       const p = this.particles[i];
       const theta = p.baseTheta;
       const phi = p.basePhi;
 
-      this.beat.preBeatPositions[i * 3] = this.positions[i * 3];
-      this.beat.preBeatPositions[i * 3 + 1] = this.positions[i * 3 + 1];
-      this.beat.preBeatPositions[i * 3 + 2] = this.positions[i * 3 + 2];
+      this.beat.prePositions[i * 3] = this.positions[i * 3];
+      this.beat.prePositions[i * 3 + 1] = this.positions[i * 3 + 1];
+      this.beat.prePositions[i * 3 + 2] = this.positions[i * 3 + 2];
 
-      const len = 1;
-      this.beat.explosionDirX[i] = (Math.sin(phi) * Math.cos(theta)) / len;
-      this.beat.explosionDirY[i] = (Math.cos(phi)) / len;
-      this.beat.explosionDirZ[i] = (Math.sin(phi) * Math.sin(theta)) / len;
+      const dx = Math.sin(phi) * Math.cos(theta);
+      const dy = Math.cos(phi);
+      const dz = Math.sin(phi) * Math.sin(theta);
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      this.beat.dirX[i] = dx / len;
+      this.beat.dirY[i] = dy / len;
+      this.beat.dirZ[i] = dz / len;
 
-      this.beat.explosionDistances[i] = 5 + energy * 11 + Math.random() * 2.5;
+      const randomFactor = 0.85 + Math.random() * 0.3;
+      this.beat.maxDistances[i] = energyScaledSpeed * randomFactor * 0.5;
     }
   }
 
@@ -505,33 +535,33 @@ export class ParticleSystem {
     const energy = this.beat.energy;
     const hueNorm = this.currentHue / 360;
 
-    const collapseT = THREE.MathUtils.clamp(t / 0.08, 0, 1);
+    const collapseT = THREE.MathUtils.clamp(t / 0.07, 0, 1);
     const collapseEased = collapseT * collapseT * (3 - 2 * collapseT);
 
-    const explodeT = t < 0.08
+    const explodeT = t < 0.07
       ? 0
-      : THREE.MathUtils.clamp((t - 0.08) / (1 - 0.08), 0, 1);
-    const explodeEased = 1 - Math.pow(1 - explodeT, 3);
+      : THREE.MathUtils.clamp((t - 0.07) / (1 - 0.07), 0, 1);
+    const explodeEased = 1 - Math.pow(1 - explodeT, 2.5);
 
     const whiten = Math.max(0, Math.sin(t * Math.PI));
 
     for (let i = 0; i < this.particleCount; i++) {
-      const pPreX = this.beat.preBeatPositions[i * 3];
-      const pPreY = this.beat.preBeatPositions[i * 3 + 1];
-      const pPreZ = this.beat.preBeatPositions[i * 3 + 2];
+      const preX = this.beat.prePositions[i * 3];
+      const preY = this.beat.prePositions[i * 3 + 1];
+      const preZ = this.beat.prePositions[i * 3 + 2];
 
-      const dist = this.beat.explosionDistances[i] * explodeEased;
-      const ex = this.beat.explosionDirX[i] * dist;
-      const ey = this.beat.explosionDirY[i] * dist;
-      const ez = this.beat.explosionDirZ[i] * dist;
+      const dist = this.beat.maxDistances[i] * explodeEased;
+      const ex = this.beat.dirX[i] * dist;
+      const ey = this.beat.dirY[i] * dist;
+      const ez = this.beat.dirZ[i] * dist;
 
-      const collapsedX = THREE.MathUtils.lerp(pPreX, 0, collapseEased);
-      const collapsedY = THREE.MathUtils.lerp(pPreY, 0, collapseEased);
-      const collapsedZ = THREE.MathUtils.lerp(pPreZ, 0, collapseEased);
+      const collapsedX = THREE.MathUtils.lerp(preX, 0, collapseEased);
+      const collapsedY = THREE.MathUtils.lerp(preY, 0, collapseEased);
+      const collapsedZ = THREE.MathUtils.lerp(preZ, 0, collapseEased);
 
-      const finalX = collapsedX + ex * (1 - collapseEased * 0.3);
-      const finalY = collapsedY + ey * (1 - collapseEased * 0.3);
-      const finalZ = collapsedZ + ez * (1 - collapseEased * 0.3);
+      const finalX = collapsedX + ex * (1 - collapseEased * 0.2);
+      const finalY = collapsedY + ey * (1 - collapseEased * 0.2);
+      const finalZ = collapsedZ + ez * (1 - collapseEased * 0.2);
 
       this.positions[i * 3] = finalX;
       this.positions[i * 3 + 1] = finalY;
@@ -540,9 +570,9 @@ export class ParticleSystem {
       const pHue = (hueNorm + (i / this.particleCount) * 0.15) % 1;
       const baseColor = new THREE.Color().setHSL(pHue, 0.9, 0.6);
 
-      const r = THREE.MathUtils.lerp(baseColor.r, 1, whiten * (0.6 + energy * 0.4));
-      const g = THREE.MathUtils.lerp(baseColor.g, 1, whiten * (0.6 + energy * 0.4));
-      const b = THREE.MathUtils.lerp(baseColor.b, 1, whiten * (0.6 + energy * 0.4));
+      const r = THREE.MathUtils.lerp(baseColor.r, 1, whiten * (0.55 + energy * 0.45));
+      const g = THREE.MathUtils.lerp(baseColor.g, 1, whiten * (0.55 + energy * 0.45));
+      const b = THREE.MathUtils.lerp(baseColor.b, 1, whiten * (0.55 + energy * 0.45));
 
       this.colors[i * 3] = r;
       this.colors[i * 3 + 1] = g;
@@ -553,10 +583,10 @@ export class ParticleSystem {
       this.beat.active = false;
       for (let i = 0; i < this.particleCount; i++) {
         const p = this.particles[i];
-        this.positions[i * 3] = this.beat.preBeatPositions[i * 3];
-        this.positions[i * 3 + 1] = this.beat.preBeatPositions[i * 3 + 1];
-        this.positions[i * 3 + 2] = this.beat.preBeatPositions[i * 3 + 2];
-        p.phase += Math.random() * 0.5;
+        this.positions[i * 3] = this.beat.prePositions[i * 3];
+        this.positions[i * 3 + 1] = this.beat.prePositions[i * 3 + 1];
+        this.positions[i * 3 + 2] = this.beat.prePositions[i * 3 + 2];
+        p.phase += Math.random() * 0.6;
       }
     }
   }
@@ -598,7 +628,9 @@ export class ParticleSystem {
   }
 
   public setDisplayMode(mode: DisplayMode): void {
+    if (this.displayMode === mode) return;
     this.displayMode = mode;
+    this.modeTransitionTime = 0;
   }
 
   public getDisplayMode(): DisplayMode {
@@ -620,11 +652,17 @@ export class ParticleSystem {
   }
 
   public reduceParticleCount(amount: number): boolean {
-    const newCount = Math.max(500, this.particleCount - amount);
+    const now = performance.now();
+    if (now - this.lastReduceTime < this.reduceCooldown) return false;
+    if (this.particleCount <= MIN_PARTICLE_COUNT) return false;
+
+    this.lastReduceTime = now;
+    const newCount = Math.max(MIN_PARTICLE_COUNT, this.particleCount - amount);
     if (newCount >= this.particleCount) return false;
 
     this.particleCount = newCount;
     this.particles = this.particles.slice(0, newCount);
+    this.performanceReduced = this.initialParticleCount - this.particleCount;
 
     const newPositions = new Float32Array(newCount * 3);
     const newColors = new Float32Array(newCount * 3);
@@ -641,18 +679,18 @@ export class ParticleSystem {
     const newDirX = new Float32Array(newCount);
     const newDirY = new Float32Array(newCount);
     const newDirZ = new Float32Array(newCount);
-    const newPreBeat = new Float32Array(newCount * 3);
+    const newPre = new Float32Array(newCount * 3);
     const newDist = new Float32Array(newCount);
-    newDirX.set(this.beat.explosionDirX.slice(0, newCount));
-    newDirY.set(this.beat.explosionDirY.slice(0, newCount));
-    newDirZ.set(this.beat.explosionDirZ.slice(0, newCount));
-    newPreBeat.set(this.beat.preBeatPositions.slice(0, newCount * 3));
-    newDist.set(this.beat.explosionDistances.slice(0, newCount));
-    this.beat.explosionDirX = newDirX;
-    this.beat.explosionDirY = newDirY;
-    this.beat.explosionDirZ = newDirZ;
-    this.beat.preBeatPositions = newPreBeat;
-    this.beat.explosionDistances = newDist;
+    newDirX.set(this.beat.dirX.slice(0, newCount));
+    newDirY.set(this.beat.dirY.slice(0, newCount));
+    newDirZ.set(this.beat.dirZ.slice(0, newCount));
+    newPre.set(this.beat.prePositions.slice(0, newCount * 3));
+    newDist.set(this.beat.maxDistances.slice(0, newCount));
+    this.beat.dirX = newDirX;
+    this.beat.dirY = newDirY;
+    this.beat.dirZ = newDirZ;
+    this.beat.prePositions = newPre;
+    this.beat.maxDistances = newDist;
 
     const newStartR = new Float32Array(newCount * 3);
     const newTargetR = new Float32Array(newCount * 3);
@@ -671,6 +709,96 @@ export class ParticleSystem {
     return true;
   }
 
+  public restoreParticleCount(amount: number): boolean {
+    if (this.particleCount >= this.initialParticleCount) return false;
+    if (this.performanceReduced <= 0) return false;
+
+    const newCount = Math.min(this.initialParticleCount, this.particleCount + amount);
+    if (newCount <= this.particleCount) return false;
+
+    const addCount = newCount - this.particleCount;
+    const oldCount = this.particleCount;
+
+    for (let i = 0; i < addCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const radius = 2 + Math.random() * 3;
+      this.particles.push({
+        baseTheta: theta,
+        basePhi: phi,
+        baseRadius: radius,
+        offsetTheta: Math.random() * Math.PI * 2,
+        offsetPhi: Math.random() * Math.PI * 2,
+        hue: 240,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    const newPositions = new Float32Array(newCount * 3);
+    const newColors = new Float32Array(newCount * 3);
+    const newSizes = new Float32Array(newCount);
+
+    newPositions.set(this.positions);
+    newColors.set(this.colors);
+    newSizes.set(this.sizes);
+
+    for (let i = oldCount; i < newCount; i++) {
+      const p = this.particles[i];
+      const r = p.baseRadius * (this.currentRadius / 3);
+      newPositions[i * 3] = r * Math.sin(p.basePhi) * Math.cos(p.baseTheta);
+      newPositions[i * 3 + 1] = r * Math.cos(p.basePhi);
+      newPositions[i * 3 + 2] = r * Math.sin(p.basePhi) * Math.sin(p.baseTheta);
+
+      const color = new THREE.Color().setHSL(this.currentHue / 360, 0.7, 0.55);
+      newColors[i * 3] = color.r;
+      newColors[i * 3 + 1] = color.g;
+      newColors[i * 3 + 2] = color.b;
+      newSizes[i] = 0.07;
+    }
+
+    this.positions = newPositions;
+    this.colors = newColors;
+    this.sizes = newSizes;
+    this.particleCount = newCount;
+    this.performanceReduced = this.initialParticleCount - this.particleCount;
+
+    const newDirX = new Float32Array(newCount);
+    const newDirY = new Float32Array(newCount);
+    const newDirZ = new Float32Array(newCount);
+    const newPre = new Float32Array(newCount * 3);
+    const newDist = new Float32Array(newCount);
+    newDirX.set(this.beat.dirX);
+    newDirY.set(this.beat.dirY);
+    newDirZ.set(this.beat.dirZ);
+    newPre.set(this.beat.prePositions);
+    newDist.set(this.beat.maxDistances);
+    this.beat.dirX = newDirX;
+    this.beat.dirY = newDirY;
+    this.beat.dirZ = newDirZ;
+    this.beat.prePositions = newPre;
+    this.beat.maxDistances = newDist;
+
+    const newStartR = new Float32Array(newCount * 3);
+    const newTargetR = new Float32Array(newCount * 3);
+    newStartR.set(this.reset.startPositions);
+    newTargetR.set(this.reset.targetPositions);
+    this.reset.startPositions = newStartR;
+    this.reset.targetPositions = newTargetR;
+
+    this.geometry.dispose();
+    this.geometry = new THREE.BufferGeometry();
+    this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+    this.geometry.setAttribute('size', new THREE.BufferAttribute(this.sizes, 1));
+
+    this.points.geometry = this.geometry;
+    return true;
+  }
+
+  public getPerformanceReduced(): number {
+    return this.performanceReduced;
+  }
+
   private recordFrameTime(time: number): void {
     this.frameTimes.push(time);
     if (this.frameTimes.length > this.frameTimeWindow) {
@@ -679,7 +807,7 @@ export class ParticleSystem {
   }
 
   public getAverageFrameTime(): number {
-    if (this.frameTimes.length === 0) return 0;
+    if (this.frameTimes.length < 10) return 0;
     return this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
   }
 
