@@ -25,6 +25,7 @@ export interface WallAnimState {
 
 export const WALL_ANIM_DURATION = 200;
 export const RIPPLE_DURATION = 500;
+export const EXPLORED_BLINK_PERIOD_MS = 500;
 
 export function wallKey(cellX: number, cellY: number, side: WallSide): string {
   return `${cellX},${cellY},${side}`;
@@ -48,6 +49,10 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
 function getWallAnimOpacity(
   anims: Map<string, WallAnimState>,
   key: string,
@@ -56,7 +61,7 @@ function getWallAnimOpacity(
 ): number {
   const anim = anims.get(key);
   if (!anim) return base;
-  const t = Math.min(1, (now - anim.startTime) / anim.duration);
+  const t = clamp((now - anim.startTime) / anim.duration, 0, 1);
   const eased = easeOutCubic(t);
   return anim.from + (anim.to - anim.from) * eased;
 }
@@ -67,10 +72,10 @@ export function computeLayout(
   maze: MazeState,
   padding: number = 32
 ): { cellSize: number; offsetX: number; offsetY: number } {
-  const availW = canvasWidth - padding * 2;
-  const availH = canvasHeight - padding * 2;
+  const availW = Math.max(100, canvasWidth - padding * 2);
+  const availH = Math.max(100, canvasHeight - padding * 2);
   const cellSize = Math.max(
-    12,
+    14,
     Math.floor(Math.min(availW / maze.width, availH / maze.height))
   );
   const mazeW = cellSize * maze.width;
@@ -88,31 +93,40 @@ export function drawBackground(
 ): void {
   const cx = w / 2 + Math.sin(t * 0.00008) * 40;
   const cy = h / 2 + Math.cos(t * 0.0001) * 30;
-  const r = Math.max(w, h) * 0.8;
+  const r = Math.max(w, h) * 0.85;
 
   const hueShift = Math.sin(t * 0.00005) * 6;
   const color1 = `rgb(${10 + hueShift}, ${14 + hueShift * 0.8}, ${39 + hueShift * 0.5})`;
-  const color2 = `rgb(${16 - hueShift * 0.5}, ${8 + hueShift * 0.3}, ${36 - hueShift * 0.4})`;
-  const color3 = '#05030e';
+  const color2 = `rgb(${22 - hueShift * 0.3}, ${10 + hueShift * 0.4}, ${46 - hueShift * 0.4})`;
+  const color3 = '#060313';
 
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   grad.addColorStop(0, color1);
-  grad.addColorStop(0.6, color2);
+  grad.addColorStop(0.58, color2);
   grad.addColorStop(1, color3);
 
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
   ctx.save();
-  ctx.globalAlpha = 0.04;
+  ctx.globalAlpha = 0.05;
   ctx.fillStyle = '#ffffff';
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 70; i++) {
     const seed = i * 97.37;
     const px = ((Math.sin(seed) * 0.5 + 0.5) * w + t * 0.002 * ((i % 3) + 1)) % w;
     const py = ((Math.cos(seed * 1.7) * 0.5 + 0.5) * h + t * 0.0015 * ((i % 4) + 1)) % h;
     const size = 1 + (i % 3);
     ctx.fillRect(px, py, size, size);
   }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.025;
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.7);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 
@@ -141,31 +155,34 @@ export function drawStartEndMarkers(
   const { cx: ex, cy: ey } = cellCenter(maze.end.x, maze.end.y, cellSize, offsetX, offsetY);
 
   const pulse = 0.5 + Math.sin(t * 0.004) * 0.5;
-  const r = Math.max(4, cellSize * 0.22);
+  const r = Math.max(5, cellSize * 0.24);
 
   ctx.save();
-  ctx.shadowBlur = 18 + pulse * 10;
-  ctx.shadowColor = 'rgba(0, 255, 180, 0.85)';
-  ctx.fillStyle = `rgba(0, 255, 180, ${0.65 + pulse * 0.25})`;
+
+  ctx.shadowBlur = 22 + pulse * 12;
+  ctx.shadowColor = 'rgba(0, 255, 180, 0.9)';
+  ctx.fillStyle = `rgba(0, 255, 180, ${0.7 + pulse * 0.25})`;
   ctx.beginPath();
-  ctx.arc(sx, sy, r + pulse * 2, 0, Math.PI * 2);
+  ctx.arc(sx, sy, r + pulse * 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.shadowBlur = 18 + pulse * 10;
-  ctx.shadowColor = 'rgba(255, 90, 160, 0.85)';
-  ctx.fillStyle = `rgba(255, 90, 160, ${0.65 + pulse * 0.25})`;
+  ctx.shadowBlur = 22 + pulse * 12;
+  ctx.shadowColor = 'rgba(255, 90, 160, 0.9)';
+  ctx.fillStyle = `rgba(255, 90, 160, ${0.7 + pulse * 0.25})`;
   ctx.beginPath();
-  ctx.arc(ex, ey, r + pulse * 2, 0, Math.PI * 2);
+  ctx.arc(ex, ey, r + pulse * 2.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   ctx.save();
-  ctx.font = `bold ${Math.max(10, Math.floor(cellSize * 0.35))}px Orbitron, sans-serif`;
+  ctx.font = `bold ${Math.max(11, Math.floor(cellSize * 0.38))}px Orbitron, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.fillText('S', sx, sy);
-  ctx.fillText('E', ex, ey);
+  ctx.fillStyle = 'rgba(255,255,255,0.98)';
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.fillText('S', sx, sy + 1);
+  ctx.fillText('E', ex, ey + 1);
   ctx.restore();
 }
 
@@ -180,9 +197,17 @@ export function drawWalls(
   t: number
 ): void {
   const drawnWalls = new Set<string>();
-  const thickness = Math.max(2, Math.min(4, Math.floor(cellSize / 8)));
+  const thickness = Math.max(2, Math.min(5, Math.floor(cellSize / 7.5)));
 
-  const glowPulse = 0.7 + Math.sin(t * 0.002) * 0.3;
+  const glowPulse = 0.65 + Math.sin(t * 0.002) * 0.35;
+
+  const opposites: Record<WallSide, WallSide> = {
+    top: 'bottom', bottom: 'top', left: 'right', right: 'left'
+  };
+  const deltas: Record<WallSide, { dx: number; dy: number }> = {
+    top: { dx: 0, dy: -1 }, right: { dx: 1, dy: 0 },
+    bottom: { dx: 0, dy: 1 }, left: { dx: -1, dy: 0 }
+  };
 
   for (let y = 0; y < maze.height; y++) {
     for (let x = 0; x < maze.width; x++) {
@@ -227,13 +252,6 @@ export function drawWalls(
         }
 
         drawnWalls.add(k);
-        const opposites: Record<WallSide, WallSide> = {
-          top: 'bottom', bottom: 'top', left: 'right', right: 'left'
-        };
-        const deltas: Record<WallSide, { dx: number; dy: number }> = {
-          top: { dx: 0, dy: -1 }, right: { dx: 1, dy: 0 },
-          bottom: { dx: 0, dy: 1 }, left: { dx: -1, dy: 0 }
-        };
         const d = deltas[side];
         drawnWalls.add(wallKey(x + d.dx, y + d.dy, opposites[side]));
 
@@ -248,16 +266,16 @@ export function drawWalls(
         ctx.lineCap = 'round';
         ctx.lineWidth = thickness;
 
-        ctx.shadowBlur = (10 + thickness * 2) * glowPulse;
+        ctx.shadowBlur = (10 + thickness * 2.2) * glowPulse;
         ctx.shadowColor = isHovered
           ? 'rgba(180, 220, 255, 0.95)'
-          : 'rgba(220, 230, 255, 0.55)';
+          : 'rgba(210, 225, 255, 0.55)';
 
-        const baseColor1 = isHovered ? '#e8f0ff' : '#c8cfdf';
-        const baseColor2 = isHovered ? '#a8c0ff' : '#8a93a8';
+        const baseColor1 = isHovered ? '#eef4ff' : '#cdd5e6';
+        const baseColor2 = isHovered ? '#b4ccff' : '#8f99b0';
         const grad = ctx.createLinearGradient(x1, y1, x2, y2);
         grad.addColorStop(0, baseColor1);
-        grad.addColorStop(0.5, '#d8dfee');
+        grad.addColorStop(0.5, '#dde3f2');
         grad.addColorStop(1, baseColor2);
         ctx.strokeStyle = grad;
 
@@ -267,9 +285,9 @@ export function drawWalls(
         ctx.stroke();
 
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = opacity * 0.6;
-        ctx.lineWidth = Math.max(1, thickness * 0.35);
-        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.globalAlpha = opacity * 0.55;
+        ctx.lineWidth = Math.max(1, thickness * 0.32);
+        ctx.strokeStyle = 'rgba(255,255,255,0.78)';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -291,21 +309,23 @@ export function drawExplored(
   if (explored.length === 0) return;
 
   const total = explored.length;
-  const flicker = 0.55 + Math.sin(t * 0.004 * Math.PI * 2) * 0.35;
-  const phase = (t * 0.0008) % 1;
+  const omega = (2 * Math.PI) / EXPLORED_BLINK_PERIOD_MS;
+  const blinkBase = 0.55 + Math.sin(t * omega) * 0.45;
+  const phase = (t * 0.0007) % 1;
 
   for (let i = 0; i < total; i++) {
     const p = explored[i];
     const orderRatio = i / total;
     const wavePhase = (orderRatio + phase) % 1;
-    const waveAlpha = 0.15 + Math.sin(wavePhase * Math.PI * 2) * 0.1 + 0.1;
-    const alpha = (0.12 + waveAlpha * 0.9) * flicker;
+    const waveA = 0.18 + Math.sin(wavePhase * Math.PI * 2) * 0.12 + 0.1;
+    const alpha = (0.14 + waveA * 0.8) * blinkBase;
 
-    const px = offsetX + p.x * cellSize + cellSize * 0.12;
-    const py = offsetY + p.y * cellSize + cellSize * 0.12;
-    const pw = cellSize * 0.76;
-    const ph = cellSize * 0.76;
-    const r = Math.min(pw, ph) * 0.22;
+    const pad = cellSize * 0.14;
+    const px = offsetX + p.x * cellSize + pad;
+    const py = offsetY + p.y * cellSize + pad;
+    const pw = cellSize - pad * 2;
+    const ph = cellSize - pad * 2;
+    const r = Math.min(pw, ph) * 0.28;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -313,8 +333,8 @@ export function drawExplored(
       px + pw / 2, py + ph / 2, 0,
       px + pw / 2, py + ph / 2, Math.max(pw, ph) / 2
     );
-    grad.addColorStop(0, 'rgba(110, 190, 255, 0.95)');
-    grad.addColorStop(0.6, 'rgba(70, 150, 255, 0.55)');
+    grad.addColorStop(0, 'rgba(120, 200, 255, 0.95)');
+    grad.addColorStop(0.55, 'rgba(75, 160, 255, 0.55)');
     grad.addColorStop(1, 'rgba(40, 110, 220, 0)');
     ctx.fillStyle = grad;
 
@@ -349,44 +369,142 @@ export function drawPath(
     y: offsetY + p.y * cellSize + cellSize / 2
   }));
 
+  let totalLen = 0;
+  const segLens: number[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i - 1].x;
+    const dy = pts[i].y - pts[i - 1].y;
+    const l = Math.sqrt(dx * dx + dy * dy);
+    segLens.push(l);
+    totalLen += l;
+  }
+  if (totalLen < 1) return;
+
   const lineWidth = Math.max(3, Math.floor(cellSize * 0.22));
 
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.shadowBlur = lineWidth * 3.5;
-  ctx.shadowColor = 'rgba(255, 180, 40, 0.75)';
-  ctx.lineWidth = lineWidth;
+  function pointAt(dist: number): { x: number; y: number } {
+    let d = Math.max(0, Math.min(totalLen, dist));
+    for (let i = 0; i < segLens.length; i++) {
+      if (d <= segLens[i]) {
+        const ratio = segLens[i] === 0 ? 0 : d / segLens[i];
+        return {
+          x: pts[i].x + (pts[i + 1].x - pts[i].x) * ratio,
+          y: pts[i].y + (pts[i + 1].y - pts[i].y) * ratio
+        };
+      }
+      d -= segLens[i];
+    }
+    return pts[pts.length - 1];
+  }
+
+  const flowSpeed = totalLen * 0.00035;
+  const flowOffset = (t * flowSpeed) % totalLen;
+  const hueGlobalShift = Math.sin(t * 0.0013) * 18;
 
   for (let layer = 0; layer < 2; layer++) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
-    }
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = layer === 0 ? lineWidth : lineWidth * 0.5;
 
-    let totalLen = 0;
-    for (let i = 1; i < pts.length; i++) {
-      const dx = pts[i].x - pts[i - 1].x;
-      const dy = pts[i].y - pts[i - 1].y;
-      totalLen += Math.sqrt(dx * dx + dy * dy);
-    }
+    const baseShadow = layer === 0 ? lineWidth * 4 : lineWidth * 1.5;
+    ctx.shadowBlur = baseShadow + Math.sin(t * 0.003) * 2;
+    ctx.shadowColor = layer === 0 ? 'rgba(255, 180, 40, 0.8)' : 'rgba(255, 220, 120, 0.6)';
 
-    const flowOffset = (t * 0.0004) % 1;
     const grad = ctx.createLinearGradient(
       pts[0].x, pts[0].y,
       pts[pts.length - 1].x, pts[pts.length - 1].y
     );
 
-    const hueShift = Math.sin(t * 0.0015) * 20;
-    const stops = 6;
+    const stops = 8;
     for (let i = 0; i <= stops; i++) {
-      let pos = (i / stops + flowOffset) % 1;
-      if (i === stops) pos = 1;
-      const hue = 40 + Math.sin(pos * Math.PI * 4 + t * 0.002) * 18 + hueShift * 0.2;
-      const light = 52 + Math.sin(pos * Math.PI * 2 + t * 0.003) * 14;
-      const alpha = layer === 0 ? 0.95 : 0.35;
-      grad.addColorStop(pos, `hsla(${hue}, 100%, ${light}%, ${alpha})`);
+      const distRatio = i / stops;
+      const dist = (distRatio * totalLen + flowOffset) % totalLen;
+      const pp = pointAt(dist);
+      const pathRatio = dist / totalLen;
+
+      const wave = Math.sin(pathRatio * Math.PI * 6 + t * 0.0025) * 14;
+      const hue = 42 + wave + hueGlobalShift * 0.2;
+      const light = 54 + Math.sin(pathRatio * Math.PI * 3 + t * 0.004) * 13;
+      const alpha = layer === 0 ? 0.95 : 0.42;
+
+      const pos = i === stops ? 1 : ((distRatio + flowOffset / totalLen) % 1);
+      grad.addColorStop(pos, `hsla(${clamp(hue, 25, 65)}, 100%, ${clamp(light, 38, 72)}%, ${alpha})`);
+      void pp;
     }
     ctx.strokeStyle = grad;
-    ctx.globalAlpha = layer
+    ctx.globalAlpha = layer === 0 ? 1 : 0.75;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.save();
+  const dotDist = flowOffset;
+  const dot = pointAt(dotDist);
+  const glowR = lineWidth * 1.3 + Math.sin(t * 0.008) * 1.2;
+  const dotGrad = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR * 2.5);
+  dotGrad.addColorStop(0, 'rgba(255, 255, 220, 1)');
+  dotGrad.addColorStop(0.35, 'rgba(255, 210, 80, 0.9)');
+  dotGrad.addColorStop(1, 'rgba(255, 170, 30, 0)');
+  ctx.fillStyle = dotGrad;
+  ctx.beginPath();
+  ctx.arc(dot.x, dot.y, glowR * 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawRipples(
+  ctx: CanvasRenderingContext2D,
+  ripples: Ripple[],
+  t: number
+): Ripple[] {
+  const alive: Ripple[] = [];
+  for (const r of ripples) {
+    const age = t - r.startTime;
+    if (age >= r.duration) continue;
+    const progress = age / r.duration;
+    const eased = easeOutCubic(progress);
+    const radius = 4 + eased * r.maxRadius;
+    const alpha = (1 - eased) * 0.75;
+
+    ctx.save();
+    ctx.strokeStyle = r.color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = Math.max(1.5, 3.5 * (1 - eased));
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = r.color;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = alpha * 0.35;
+    ctx.lineWidth = Math.max(1, 2 * (1 - eased));
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius * 0.55, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    alive.push(r);
+  }
+  return alive;
+}
+
+export function render(
+  ctx: CanvasRenderingContext2D,
+  rc: RenderContext,
+  t: number
+): Ripple[] {
+  const { canvasWidth: w, canvasHeight: h } = rc;
+  drawBackground(ctx, w, h, t);
+  drawExplored(ctx, rc.explored, rc.cellSize, rc.offsetX, rc.offsetY, t);
+  drawPath(ctx, rc.path, rc.cellSize, rc.offsetX, rc.offsetY, t);
+  drawWalls(ctx, rc.maze, rc.cellSize, rc.offsetX, rc.offsetY, rc.wallAnims, rc.hoveredWall, t);
+  drawStartEndMarkers(ctx, rc.maze, rc.cellSize, rc.offsetX, rc.offsetY, t);
+  return drawRipples(ctx, rc.ripples, t);
+}

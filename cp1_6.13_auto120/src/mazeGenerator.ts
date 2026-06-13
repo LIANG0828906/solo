@@ -17,11 +17,12 @@ export interface SolveResult {
   path: Array<{ x: number; y: number }>;
   explored: Array<{ x: number; y: number }>;
   found: boolean;
+  elapsedMs: number;
 }
 
 export type WallSide = 'top' | 'right' | 'bottom' | 'left';
 
-const WALL_OFFSETS_RANGE = 1.5;
+const WALL_OFFSETS_RANGE = 2.0;
 
 function randomOffset(): number {
   return (Math.random() - 0.5) * 2 * WALL_OFFSETS_RANGE;
@@ -116,101 +117,221 @@ export function generateMaze(width: number, height: number): MazeState {
   };
 }
 
-function canPass(
-  maze: MazeState,
-  x: number,
-  y: number,
-  dir: WallSide
-): boolean {
-  const cell = maze.grid[y]?.[x];
-  if (!cell) return false;
-  return !cell.walls[dir];
-}
-
 function pointKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-export function solveMaze(maze: MazeState): SolveResult {
+const SEARCH_DIRS: Array<{
+  side: WallSide;
+  dx: number;
+  dy: number;
+}> = [
+  { side: 'top', dx: 0, dy: -1 },
+  { side: 'right', dx: 1, dy: 0 },
+  { side: 'bottom', dx: 0, dy: 1 },
+  { side: 'left', dx: -1, dy: 0 }
+];
+
+function neighborsOf(
+  maze: MazeState,
+  x: number,
+  y: number
+): Array<{ x: number; y: number }> {
+  const result: Array<{ x: number; y: number }> = [];
+  const cell = maze.grid[y]?.[x];
+  if (!cell) return result;
+  for (const sd of SEARCH_DIRS) {
+    if (cell.walls[sd.side]) continue;
+    const nx = x + sd.dx;
+    const ny = y + sd.dy;
+    if (nx < 0 || nx >= maze.width || ny < 0 || ny >= maze.height) continue;
+    result.push({ x: nx, y: ny });
+  }
+  return result;
+}
+
+export function solveMaze(
+  maze: MazeState,
+  previousPath?: Array<{ x: number; y: number }>
+): SolveResult {
+  const t0 = performance.now();
+
+  if (previousPath && previousPath.length >= 2) {
+    const stillValid = isPathStillValid(maze, previousPath);
+    if (stillValid) {
+      const explored = reconstructExploredFromPath(maze, previousPath);
+      return {
+        path: previousPath,
+        explored,
+        found: true,
+        elapsedMs: performance.now() - t0
+      };
+    }
+  }
+
+  return bidirectionalBFS(maze, t0);
+}
+
+function isPathStillValid(
+  maze: MazeState,
+  path: Array<{ x: number; y: number }>
+): boolean {
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    let side: WallSide | null = null;
+    if (dx === 0 && dy === -1) side = 'top';
+    else if (dx === 1 && dy === 0) side = 'right';
+    else if (dx === 0 && dy === 1) side = 'bottom';
+    else if (dx === -1 && dy === 0) side = 'left';
+    if (!side) return false;
+    const cell = maze.grid[a.y]?.[a.x];
+    if (!cell || cell.walls[side]) return false;
+  }
+  return true;
+}
+
+function reconstructExploredFromPath(
+  maze: MazeState,
+  path: Array<{ x: number; y: number }>
+): Array<{ x: number; y: number }> {
+  const visited = new Set<string>();
+  const explored: Array<{ x: number; y: number }> = [];
+  const q: Array<{ x: number; y: number }> = [maze.start];
+  visited.add(pointKey(maze.start.x, maze.start.y));
+  const pathSet = new Set(path.map((p) => pointKey(p.x, p.y)));
+  const cutoff = Math.min(path.length * 3, maze.width * maze.height);
+  while (q.length > 0 && explored.length < cutoff) {
+    const cur = q.shift()!;
+    explored.push(cur);
+    if (cur.x === maze.end.x && cur.y === maze.end.y) break;
+    for (const nb of neighborsOf(maze, cur.x, cur.y)) {
+      const k = pointKey(nb.x, nb.y);
+      if (visited.has(k)) continue;
+      visited.add(k);
+      if (pathSet.has(k) || explored.length < cutoff / 2) {
+        q.push(nb);
+      }
+    }
+  }
+  return explored;
+}
+
+function bidirectionalBFS(maze: MazeState, t0: number): SolveResult {
   const { start, end, width, height, grid } = maze;
   const explored: Array<{ x: number; y: number }> = [];
-  const cameFrom = new Map<string, string>();
-  const visited = new Set<string>();
 
-  if (
-    start.x < 0 ||
-    start.x >= width ||
-    start.y < 0 ||
-    start.y >= height ||
-    end.x < 0 ||
-    end.x >= width ||
-    end.y < 0 ||
-    end.y >= height
-  ) {
-    return { path: [], explored: [], found: false };
-  }
-
-  const queue: Array<{ x: number; y: number }> = [];
   const startKey = pointKey(start.x, start.y);
-  queue.push({ ...start });
-  visited.add(startKey);
   const endKey = pointKey(end.x, end.y);
 
-  const searchDirs: Array<{
-    side: WallSide;
-    dx: number;
-    dy: number;
-  }> = [
-    { side: 'top', dx: 0, dy: -1 },
-    { side: 'right', dx: 1, dy: 0 },
-    { side: 'bottom', dx: 0, dy: 1 },
-    { side: 'left', dx: -1, dy: 0 }
-  ];
-
-  let found = false;
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const currentKey = pointKey(current.x, current.y);
-    explored.push(current);
-
-    if (currentKey === endKey) {
-      found = true;
-      break;
-    }
-
-    const cell = grid[current.y][current.x];
-    if (!cell) continue;
-
-    for (const sd of searchDirs) {
-      if (cell.walls[sd.side]) continue;
-      const nx = current.x + sd.dx;
-      const ny = current.y + sd.dy;
-      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-      const nk = pointKey(nx, ny);
-      if (visited.has(nk)) continue;
-      visited.add(nk);
-      cameFrom.set(nk, currentKey);
-      queue.push({ x: nx, y: ny });
-    }
+  if (
+    start.x < 0 || start.x >= width || start.y < 0 || start.y >= height ||
+    end.x < 0 || end.x >= width || end.y < 0 || end.y >= height
+  ) {
+    return { path: [], explored: [], found: false, elapsedMs: performance.now() - t0 };
   }
 
-  const path: Array<{ x: number; y: number }> = [];
-  if (found) {
-    let cur: string | undefined = endKey;
-    const pathKeys: string[] = [];
-    while (cur) {
-      pathKeys.push(cur);
-      cur = cameFrom.get(cur);
+  if (startKey === endKey) {
+    return {
+      path: [{ x: start.x, y: start.y }],
+      explored: [{ x: start.x, y: start.y }],
+      found: true,
+      elapsedMs: performance.now() - t0
+    };
+  }
+
+  const forwardQ: Array<{ x: number; y: number }> = [{ ...start }];
+  const backwardQ: Array<{ x: number; y: number }> = [{ ...end }];
+  const forwardVisited = new Map<string, string | null>();
+  const backwardVisited = new Map<string, string | null>();
+  forwardVisited.set(startKey, null);
+  backwardVisited.set(endKey, null);
+
+  let meetingKey: string | null = null;
+
+  while (forwardQ.length > 0 && backwardQ.length > 0) {
+    if (forwardQ.length <= backwardQ.length) {
+      const sz = forwardQ.length;
+      for (let i = 0; i < sz; i++) {
+        const cur = forwardQ.shift()!;
+        const ck = pointKey(cur.x, cur.y);
+        explored.push(cur);
+        if (backwardVisited.has(ck)) {
+          meetingKey = ck;
+          break;
+        }
+        const cell = grid[cur.y]?.[cur.x];
+        if (!cell) continue;
+        for (const sd of SEARCH_DIRS) {
+          if (cell.walls[sd.side]) continue;
+          const nx = cur.x + sd.dx;
+          const ny = cur.y + sd.dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          const nk = pointKey(nx, ny);
+          if (forwardVisited.has(nk)) continue;
+          forwardVisited.set(nk, ck);
+          forwardQ.push({ x: nx, y: ny });
+        }
+      }
+    } else {
+      const sz = backwardQ.length;
+      for (let i = 0; i < sz; i++) {
+        const cur = backwardQ.shift()!;
+        const ck = pointKey(cur.x, cur.y);
+        explored.push(cur);
+        if (forwardVisited.has(ck)) {
+          meetingKey = ck;
+          break;
+        }
+        const cell = grid[cur.y]?.[cur.x];
+        if (!cell) continue;
+        for (const sd of SEARCH_DIRS) {
+          if (cell.walls[sd.side]) continue;
+          const nx = cur.x + sd.dx;
+          const ny = cur.y + sd.dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          const nk = pointKey(nx, ny);
+          if (backwardVisited.has(nk)) continue;
+          backwardVisited.set(nk, ck);
+          backwardQ.push({ x: nx, y: ny });
+        }
+      }
     }
-    pathKeys.reverse();
-    for (const k of pathKeys) {
+    if (meetingKey) break;
+  }
+
+  let path: Array<{ x: number; y: number }> = [];
+  if (meetingKey) {
+    const forwardPath: string[] = [];
+    let cur: string | null | undefined = meetingKey;
+    while (cur) {
+      forwardPath.push(cur);
+      cur = forwardVisited.get(cur) ?? null;
+    }
+    forwardPath.reverse();
+
+    const backwardPath: string[] = [];
+    cur = backwardVisited.get(meetingKey) ?? null;
+    while (cur) {
+      backwardPath.push(cur);
+      cur = backwardVisited.get(cur) ?? null;
+    }
+
+    const allKeys = [...forwardPath, ...backwardPath];
+    for (const k of allKeys) {
       const [xs, ys] = k.split(',');
       path.push({ x: parseInt(xs, 10), y: parseInt(ys, 10) });
     }
   }
 
-  return { path, explored, found };
+  return {
+    path,
+    explored,
+    found: meetingKey !== null,
+    elapsedMs: performance.now() - t0
+  };
 }
 
 export function toggleWall(
@@ -229,7 +350,9 @@ export function toggleWall(
     return maze;
   }
 
-  const newGrid = maze.grid.map((row) => row.map((c) => ({ ...c, walls: { ...c.walls } })));
+  const newGrid = maze.grid.map((row) =>
+    row.map((c) => ({ ...c, walls: { ...c.walls } }))
+  );
   newGrid[cellY][cellX].walls[side] = addWall;
 
   const opposites: Record<WallSide, WallSide> = {
@@ -276,7 +399,7 @@ export function findWallAtPosition(
   const localX = relX - cellX * cellSize;
   const localY = relY - cellY * cellSize;
 
-  const hitDist = wallThickness + 2;
+  const hitDist = Math.max(wallThickness + 2, cellSize * 0.18);
 
   const distTop = localY;
   const distBottom = cellSize - localY;
