@@ -15,6 +15,15 @@ export interface Song {
   duration: number;
 }
 
+export interface MoodResponse {
+  mood: string;
+  label: string;
+  color: string;
+  description: string;
+  tags: string[];
+  songs: Song[];
+}
+
 export const loginUser = async (username: string, password: string): Promise<UserInfo> => {
   const res = await api.post('/login', { username, password });
   return res.data;
@@ -25,7 +34,7 @@ export const registerUser = async (username: string, password: string): Promise<
   return res.data;
 };
 
-export const getMoodSongs = async (mood: string): Promise<Song[]> => {
+export const getMoodSongs = async (mood: string): Promise<MoodResponse> => {
   const res = await api.get(`/moods/${mood}/songs`);
   return res.data;
 };
