@@ -152,11 +152,11 @@ const App: React.FC = () => {
   };
 
   const joinRoom = () => {
-    if (inputRoomCode.length !== 4) {
-      setError('请输入4位房间码');
+    if (inputRoomCode.length !== 4 || !/^\d{4}$/.test(inputRoomCode)) {
+      setError('请输入4位数字房间码');
       return;
     }
-    sendMessage({ type: 'join_room', roomCode: inputRoomCode.toUpperCase(), userId });
+    sendMessage({ type: 'join_room', roomCode: inputRoomCode, userId });
   };
 
   const handleStroke = (data: StrokeData) => {
@@ -253,10 +253,13 @@ const App: React.FC = () => {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type="text"
-                placeholder="输入房间码"
+                placeholder="输入4位数字房间码"
                 maxLength={4}
                 value={inputRoomCode}
-                onChange={(e) => setInputRoomCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setInputRoomCode(val);
+                }}
                 style={{
                   flex: 1,
                   padding: '10px 12px',
@@ -266,8 +269,8 @@ const App: React.FC = () => {
                   color: '#fff',
                   fontSize: 14,
                   outline: 'none',
-                  textTransform: 'uppercase',
-                  letterSpacing: 2,
+                  letterSpacing: 4,
+                  textAlign: 'center',
                 }}
               />
               <button

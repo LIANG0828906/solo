@@ -10,15 +10,18 @@ export class RoomManager {
   private rooms: Map<string, Room> = new Map();
 
   generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code: string;
     do {
       code = '';
       for (let i = 0; i < 4; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
+        code += Math.floor(Math.random() * 10).toString();
       }
     } while (this.rooms.has(code));
     return code;
+  }
+
+  isValidRoomCode(code: string): boolean {
+    return /^\d{4}$/.test(code);
   }
 
   createRoom(userId: string, ws: WebSocket): string {
@@ -34,6 +37,9 @@ export class RoomManager {
   }
 
   joinRoom(roomCode: string, userId: string, ws: WebSocket): { success: boolean; users?: string[]; isHost?: boolean; error?: string } {
+    if (!this.isValidRoomCode(roomCode)) {
+      return { success: false, error: '房间码格式错误，请输入4位数字' };
+    }
     const room = this.rooms.get(roomCode);
     if (!room) {
       return { success: false, error: '房间不存在' };
@@ -104,6 +110,7 @@ export class RoomManager {
     if (!room) return false;
     if (room.hostId !== requesterId) return false;
     if (!room.clients.has(targetUserId)) return false;
+    if (targetUserId === requesterId) return false;
     const targetWs = room.clients.get(targetUserId);
     if (targetWs && targetWs.readyState === WebSocket.OPEN) {
       targetWs.send(JSON.stringify({ type: 'kicked' }));

@@ -48,14 +48,24 @@ const Canvas: React.FC<CanvasProps> = ({
   clearTrigger,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
   const lastPoint = useRef<Point | null>(null);
   const localPoints = useRef<Point[]>([]);
   const animFrameRef = useRef<number>(0);
   const lastParticleEmit = useRef(0);
   const lastAudioPlay = useRef(0);
+  const remoteFinishedStrokes = useRef<Set<string>>(new Set());
 
-  const drawBackground = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
+  const drawBackgroundToCache = useCallback((w: number, h: number) => {
+    if (!bgCanvasRef.current) {
+      bgCanvasRef.current = document.createElement('canvas');
+    }
+    const canvas = bgCanvasRef.current;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
     const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
     gradient.addColorStop(0, '#1a1a4e');
     gradient.addColorStop(0.5, '#2d1b69');
@@ -89,6 +99,20 @@ const Canvas: React.FC<CanvasProps> = ({
     ctx.stroke();
   }, []);
 
+  const commitStrokeToOffscreen = useCallback((
+    points: Point[],
+    color: string,
+    size: number,
+    alpha: number
+  ) => {
+    const offscreen = offscreenCanvasRef.current;
+    if (!offscreen || points.length < 2) return;
+    const ctx = offscreen.getContext('2d')!;
+    for (let i = 1; i < points.length; i++) {
+      drawStrokeSegment(ctx, points[i - 1], points[i], color, size, alpha);
+    }
+  }, [drawStrokeSegment]);
+
   const drawTrail = useCallback((
     ctx: CanvasRenderingContext2D,
     points: Point[],
@@ -98,7 +122,7 @@ const Canvas: React.FC<CanvasProps> = ({
     const now = performance.now();
     const trailDuration = 500;
 
-    for (let i = 1; i < points.length; i++) {
+    for (let i = Math.max(1, points.length - 30); i < points.length; i++) {
       const age = now - points[i].timestamp;
       if (age > trailDuration) continue;
 
@@ -117,16 +141,26 @@ const Canvas: React.FC<CanvasProps> = ({
     const w = canvas.width;
     const h = canvas.height;
 
-    drawBackground(ctx, w, h);
+    if (bgCanvasRef.current) {
+      ctx.drawImage(bgCanvasRef.current, 0, 0);
+    }
+
+    if (offscreenCanvasRef.current) {
+      ctx.drawImage(offscreenCanvasRef.current, 0, 0);
+    }
 
     const now = performance.now();
 
-    remoteStrokes.forEach((stroke) => {
-      const points = stroke.points;
-      for (let i = 1; i < points.length; i++) {
-        drawStrokeSegment(ctx, points[i - 1], points[i], stroke.color, stroke.size, stroke.alpha);
+    remoteStrokes.forEach((stroke, uid) => {
+      if (!stroke.isDrawing && !remoteFinishedStrokes.current.has(uid)) {
+        commitStrokeToOffscreen(stroke.points, stroke.color, stroke.size, stroke.alpha);
+        remoteFinishedStrokes.current.add(uid);
       }
-      if (stroke.isDrawing) {
+      if (stroke.isDrawing && stroke.points.length > 1) {
+        const points = stroke.points;
+        for (let i = Math.max(1, points.length - 30); i < points.length; i++) {
+          drawStrokeSegment(ctx, points[i - 1], points[i], stroke.color, stroke.size, stroke.alpha);
+        }
         drawTrail(ctx, points, stroke.color, stroke.size);
       }
     });
@@ -142,15 +176,23 @@ const Canvas: React.FC<CanvasProps> = ({
     particleSystem.updateAndDraw(ctx);
 
     animFrameRef.current = requestAnimationFrame(renderLoop);
-  }, [brushColor, brushSize, brushAlpha, remoteStrokes, drawBackground, drawStrokeSegment, drawTrail]);
+  }, [brushColor, brushSize, brushAlpha, remoteStrokes, drawStrokeSegment, drawTrail, commitStrokeToOffscreen]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+      drawBackgroundToCache(w, h);
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+      }
+      offscreenCanvasRef.current.width = w;
+      offscreenCanvasRef.current.height = h;
     };
 
     resize();
@@ -162,10 +204,16 @@ const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [renderLoop]);
+  }, [renderLoop, drawBackgroundToCache]);
 
   useEffect(() => {
+    const offscreen = offscreenCanvasRef.current;
+    if (offscreen) {
+      const ctx = offscreen.getContext('2d')!;
+      ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+    }
     localPoints.current = [];
+    remoteFinishedStrokes.current.clear();
     particleSystem.clear();
   }, [clearTrigger]);
 
@@ -192,6 +240,8 @@ const Canvas: React.FC<CanvasProps> = ({
     const pos = getPos(e);
     lastPoint.current = pos;
     localPoints.current = [pos];
+    lastParticleEmit.current = 0;
+    lastAudioPlay.current = 0;
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
@@ -233,6 +283,9 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleEnd = () => {
+    if (isDrawing.current && localPoints.current.length > 1) {
+      commitStrokeToOffscreen(localPoints.current, brushColor, brushSize, brushAlpha);
+    }
     isDrawing.current = false;
     lastPoint.current = null;
     localPoints.current = [];
