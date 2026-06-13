@@ -13,22 +13,24 @@ export interface Transform {
   rotation: number;
 }
 
+export interface PathBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+}
+
 export interface Path {
   id: string;
   points: Point[];
   pathString: string;
   color: string;
   strokeWidth: number;
-  bounds: {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-    width: number;
-    height: number;
-    centerX: number;
-    centerY: number;
-  };
+  bounds: PathBounds;
 }
 
 export interface Layer {
@@ -62,6 +64,8 @@ const DEFAULT_TRANSFORM: Transform = {
   scaleY: 1,
   rotation: 0
 };
+
+export type SelectionMode = 'single' | 'additive' | 'toggle';
 
 export class DataModel {
   private project: Project;
@@ -154,6 +158,10 @@ export class DataModel {
     return this.selectedLayerIds.has(id);
   }
 
+  getSelectionCount(): number {
+    return this.selectedLayerIds.size;
+  }
+
   addLayer(pathData: Omit<Path, 'id'>, name?: string): Layer {
     const path: Path = {
       ...pathData,
@@ -177,6 +185,21 @@ export class DataModel {
     return layer;
   }
 
+  addLayerFromPathString(
+    pathString: string,
+    points: Point[],
+    bounds: PathBounds,
+    options?: { name?: string; color?: string; strokeWidth?: number }
+  ): Layer {
+    return this.addLayer({
+      points,
+      pathString,
+      color: options?.color || '#4a9eff',
+      strokeWidth: options?.strokeWidth || 2,
+      bounds
+    }, options?.name);
+  }
+
   updateLayerTransform(id: string, transform: Partial<Transform>): boolean {
     const layer = this.project.layers.find(l => l.id === id);
     if (!layer || layer.locked) return false;
@@ -185,9 +208,25 @@ export class DataModel {
     return true;
   }
 
+  updateLayersTransform(ids: string[], transform: Partial<Transform>): boolean {
+    let updated = false;
+    ids.forEach(id => {
+      if (this.updateLayerTransform(id, transform)) {
+        updated = true;
+      }
+    });
+    return updated;
+  }
+
   commitLayerTransform(id: string): boolean {
     const layer = this.project.layers.find(l => l.id === id);
     if (!layer) return false;
+    this.pushHistory();
+    return true;
+  }
+
+  commitLayersTransform(ids: string[]): boolean {
+    if (ids.length === 0) return false;
     this.pushHistory();
     return true;
   }
@@ -213,6 +252,9 @@ export class DataModel {
     const layer = this.project.layers.find(l => l.id === id);
     if (!layer) return false;
     layer.locked = !layer.locked;
+    if (layer.locked) {
+      this.selectedLayerIds.delete(id);
+    }
     this.notify();
     return true;
   }
@@ -236,6 +278,30 @@ export class DataModel {
     this.pushHistory();
     this.notify();
     return true;
+  }
+
+  duplicateLayer(id: string): Layer | null {
+    const layer = this.project.layers.find(l => l.id === id);
+    if (!layer) return null;
+    const newLayer: Layer = {
+      ...JSON.parse(JSON.stringify(layer)),
+      id: generateId(),
+      name: `${layer.name} 副本`,
+      transform: {
+        ...layer.transform,
+        tx: layer.transform.tx + 20,
+        ty: layer.transform.ty + 20
+      },
+      zIndex: this.project.layers.length,
+      createdAt: Date.now()
+    };
+    newLayer.path.id = generateId();
+    this.project.layers.push(newLayer);
+    this.selectedLayerIds.clear();
+    this.selectedLayerIds.add(newLayer.id);
+    this.pushHistory();
+    this.notify();
+    return newLayer;
   }
 
   reorderLayer(id: string, newZIndex: number): boolean {
@@ -263,13 +329,33 @@ export class DataModel {
     return this.reorderLayer(id, layer.zIndex - 1);
   }
 
-  selectLayer(id: string, additive = false): void {
-    if (!additive) {
-      this.selectedLayerIds.clear();
-    }
+  moveLayerToTop(id: string): boolean {
+    return this.reorderLayer(id, this.project.layers.length - 1);
+  }
+
+  moveLayerToBottom(id: string): boolean {
+    return this.reorderLayer(id, 0);
+  }
+
+  selectLayer(id: string, mode: SelectionMode = 'single'): void {
     const layer = this.project.layers.find(l => l.id === id);
-    if (layer && !layer.locked) {
-      this.selectedLayerIds.add(id);
+    if (!layer || layer.locked) return;
+
+    switch (mode) {
+      case 'single':
+        this.selectedLayerIds.clear();
+        this.selectedLayerIds.add(id);
+        break;
+      case 'additive':
+        this.selectedLayerIds.add(id);
+        break;
+      case 'toggle':
+        if (this.selectedLayerIds.has(id)) {
+          this.selectedLayerIds.delete(id);
+        } else {
+          this.selectedLayerIds.add(id);
+        }
+        break;
     }
     this.notify();
   }
@@ -285,8 +371,33 @@ export class DataModel {
     this.notify();
   }
 
+  toggleLayerSelection(id: string): void {
+    this.selectLayer(id, 'toggle');
+  }
+
+  selectAll(): void {
+    this.project.layers.forEach(layer => {
+      if (!layer.locked && layer.visible) {
+        this.selectedLayerIds.add(layer.id);
+      }
+    });
+    this.notify();
+  }
+
   clearSelection(): void {
+    if (this.selectedLayerIds.size === 0) return;
     this.selectedLayerIds.clear();
+    this.notify();
+  }
+
+  invertSelection(): void {
+    const newSelection = new Set<string>();
+    this.project.layers.forEach(layer => {
+      if (!layer.locked && layer.visible && !this.selectedLayerIds.has(layer.id)) {
+        newSelection.add(layer.id);
+      }
+    });
+    this.selectedLayerIds = newSelection;
     this.notify();
   }
 
@@ -301,18 +412,20 @@ export class DataModel {
     const maxX = Math.max(...allBounds.map(b => b.maxX));
     const maxY = Math.max(...allBounds.map(b => b.maxY));
 
+    const mergedBounds: PathBounds = {
+      minX, minY, maxX, maxY,
+      width: maxX - minX,
+      height: maxY - minY,
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2
+    };
+
     const newPath: Omit<Path, 'id'> = {
       points: selected.flatMap(l => l.path.points),
       pathString: combinedPathString,
       color: selected[0].path.color,
       strokeWidth: selected[0].path.strokeWidth,
-      bounds: {
-        minX, minY, maxX, maxY,
-        width: maxX - minX,
-        height: maxY - minY,
-        centerX: (minX + maxX) / 2,
-        centerY: (minY + maxY) / 2
-      }
+      bounds: mergedBounds
     };
 
     const mergedLayer = this.addLayer(newPath, `组合路径 (${selected.length})`);
@@ -345,7 +458,7 @@ export class DataModel {
     });
   }
 
-  getTransformedBounds(layer: Layer): Path['bounds'] {
+  getTransformedBounds(layer: Layer): PathBounds {
     const { bounds } = layer.path;
     const { tx, ty, scaleX, scaleY, rotation } = layer.transform;
     const rad = (rotation * Math.PI) / 180;
@@ -366,6 +479,25 @@ export class DataModel {
       height: rotatedH,
       centerX,
       centerY
+    };
+  }
+
+  getCombinedSelectionBounds(): PathBounds | null {
+    const selected = this.getSelectedLayers();
+    if (selected.length === 0) return null;
+
+    const allBounds = selected.map(l => this.getTransformedBounds(l));
+    const minX = Math.min(...allBounds.map(b => b.minX));
+    const minY = Math.min(...allBounds.map(b => b.minY));
+    const maxX = Math.max(...allBounds.map(b => b.maxX));
+    const maxY = Math.max(...allBounds.map(b => b.maxY));
+
+    return {
+      minX, minY, maxX, maxY,
+      width: maxX - minX,
+      height: maxY - minY,
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2
     };
   }
 }

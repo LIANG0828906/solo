@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Layer, Transform } from './DataModel';
+import type { Layer, Transform, PathBounds } from './DataModel';
 
 interface SVGEditorProps {
   layers: Layer[];
@@ -7,9 +7,10 @@ interface SVGEditorProps {
   onSelect: (id: string, additive: boolean) => void;
   onClearSelection: () => void;
   onTransformUpdate: (id: string, transform: Partial<Transform>) => void;
-  onTransformCommit: (id: string) => void;
+  onTransformCommit: (ids: string[]) => void;
   previewPath?: string;
   maintainAspectRatio?: boolean;
+  onWheelScale?: (id: string, delta: number, centerX: number, centerY: number) => void;
 }
 
 type HandleType =
@@ -22,13 +23,14 @@ interface DragState {
   startY: number;
   layerIds: string[];
   originalTransforms: Map<string, Transform>;
-  originalBounds: Map<string, Layer['path']['bounds']>;
+  originalBounds: Map<string, PathBounds>;
   currentAngle?: number;
 }
 
 const HANDLE_SIZE = 10;
-const ROTATE_OFFSET = 30;
-const MIN_SIZE = 10;
+const ROTATE_OFFSET = 32;
+const MIN_SCALE = 0.05;
+const WHEEL_SCALE_FACTOR = 0.0015;
 
 export function SVGEditor({
   layers,
@@ -44,28 +46,6 @@ export function SVGEditor({
   const dragStateRef = useRef<DragState | null>(null);
   const [hoveredHandle, setHoveredHandle] = useState<HandleType | null>(null);
   const [currentRotation, setCurrentRotation] = useState<number | null>(null);
-  const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
-
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const updateSize = () => {
-      const rect = svg.getBoundingClientRect();
-      setSvgSize({ width: rect.width, height: rect.height });
-    };
-
-    updateSize();
-
-    resizeObserverRef.current = new ResizeObserver(updateSize);
-    resizeObserverRef.current.observe(svg);
-
-    return () => {
-      resizeObserverRef.current?.disconnect();
-    };
-  }, []);
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current;
@@ -77,98 +57,165 @@ export function SVGEditor({
     };
   }, []);
 
-  const getTransformedCenter = useCallback((layer: Layer) => {
-    const { bounds } = layer.path;
-    const { tx, ty } = layer.transform;
-    return { x: bounds.centerX + tx, y: bounds.centerY + ty };
-  }, []);
-
-  const applyScale = useCallback((
+  const applyScaleToLayer = useCallback((
     layer: Layer,
     handleType: HandleType,
-    dx: number,
-    dy: number,
+    startX: number, startY: number,
+    currX: number, currY: number,
     originalTransform: Transform,
-    origBounds: Layer['path']['bounds']
+    origBounds: PathBounds
   ): Partial<Transform> => {
-    let scaleX = originalTransform.scaleX;
-    let scaleY = originalTransform.scaleY;
-    let tx = originalTransform.tx;
-    let ty = originalTransform.ty;
+    const dx = currX - startX;
+    const dy = currY - startY;
 
-    const origWidth = origBounds.width * originalTransform.scaleX;
-    const origHeight = origBounds.height * originalTransform.scaleY;
-    const centerX = origBounds.centerX + originalTransform.tx;
-    const centerY = origBounds.centerY + originalTransform.ty;
+    const origScaleX = originalTransform.scaleX;
+    const origScaleY = originalTransform.scaleY;
+    const origTx = originalTransform.tx;
+    const origTy = originalTransform.ty;
+    const origRot = originalTransform.rotation;
 
-    const rad = (originalTransform.rotation * Math.PI) / 180;
+    const origCenterX = origBounds.centerX + origTx;
+    const origCenterY = origBounds.centerY + origTy;
+
+    const rad = (origRot * Math.PI) / 180;
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
 
     const localDx = dx * cos + dy * sin;
     const localDy = -dx * sin + dy * cos;
 
-    let signX = 1, signY = 1;
-    let factorX = 0, factorY = 0;
+    let scaleX = origScaleX;
+    let scaleY = origScaleY;
+
+    const origLocalW = origBounds.width * origScaleX;
+    const origLocalH = origBounds.height * origScaleY;
 
     switch (handleType) {
-      case 'nw': signX = -1; signY = -1; factorX = factorY = 0.5; break;
-      case 'n': signY = -1; factorY = 1; break;
-      case 'ne': signX = 1; signY = -1; factorX = factorY = 0.5; break;
-      case 'e': signX = 1; factorX = 1; break;
-      case 'se': signX = 1; signY = 1; factorX = factorY = 0.5; break;
-      case 's': signY = 1; factorY = 1; break;
-      case 'sw': signX = -1; signY = 1; factorX = factorY = 0.5; break;
-      case 'w': signX = -1; factorX = 1; break;
+      case 'nw': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW - localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        if (origLocalH > 0) {
+          const factor = (origLocalH - localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 'n': {
+        if (origLocalH > 0) {
+          const factor = (origLocalH - localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 'ne': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW + localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        if (origLocalH > 0) {
+          const factor = (origLocalH - localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 'e': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW + localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        break;
+      }
+      case 'se': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW + localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        if (origLocalH > 0) {
+          const factor = (origLocalH + localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 's': {
+        if (origLocalH > 0) {
+          const factor = (origLocalH + localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 'sw': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW - localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        if (origLocalH > 0) {
+          const factor = (origLocalH + localDy) / origLocalH;
+          scaleY = Math.max(MIN_SCALE, origScaleY * factor);
+        }
+        break;
+      }
+      case 'w': {
+        if (origLocalW > 0) {
+          const factor = (origLocalW - localDx) / origLocalW;
+          scaleX = Math.max(MIN_SCALE, origScaleX * factor);
+        }
+        break;
+      }
     }
 
-    if (origWidth > 0 && (factorX > 0 || signX !== 1 || handleType === 'e' || handleType === 'w')) {
-      const changeX = (signX * localDx * 2 * factorX) / origWidth;
-      scaleX = Math.max(MIN_SIZE / origBounds.width, originalTransform.scaleX + changeX);
-    }
-    if (origHeight > 0 && (factorY > 0 || signY !== 1 || handleType === 'n' || handleType === 's')) {
-      const changeY = (signY * localDy * 2 * factorY) / origHeight;
-      scaleY = Math.max(MIN_SIZE / origBounds.height, originalTransform.scaleY + changeY);
+    if (maintainAspectRatio && handleType.length === 2) {
+      const ratio = Math.max(scaleX / origScaleX, scaleY / origScaleY);
+      scaleX = origScaleX * ratio;
+      scaleY = origScaleY * ratio;
     }
 
-    if (maintainAspectRatio && handleType !== 'n' && handleType !== 's' && handleType !== 'e' && handleType !== 'w') {
-      const ratio = Math.max(scaleX / originalTransform.scaleX, scaleY / originalTransform.scaleY);
-      scaleX = originalTransform.scaleX * ratio;
-      scaleY = originalTransform.scaleY * ratio;
+    const dScaleX = scaleX / origScaleX;
+    const dScaleY = scaleY / origScaleY;
+
+    let anchorLocalX = origBounds.centerX;
+    let anchorLocalY = origBounds.centerY;
+
+    switch (handleType) {
+      case 'nw': anchorLocalX = origBounds.minX; anchorLocalY = origBounds.minY; break;
+      case 'n': anchorLocalY = origBounds.minY; break;
+      case 'ne': anchorLocalX = origBounds.maxX; anchorLocalY = origBounds.minY; break;
+      case 'e': anchorLocalX = origBounds.maxX; break;
+      case 'se': anchorLocalX = origBounds.maxX; anchorLocalY = origBounds.maxY; break;
+      case 's': anchorLocalY = origBounds.maxY; break;
+      case 'sw': anchorLocalX = origBounds.minX; anchorLocalY = origBounds.maxY; break;
+      case 'w': anchorLocalX = origBounds.minX; break;
     }
 
-    const dScaleX = scaleX - originalTransform.scaleX;
-    const dScaleY = scaleY - originalTransform.scaleY;
-    const moveLocalX = -signX * (origBounds.width / 2) * dScaleX * factorX * 2;
-    const moveLocalY = -signY * (origBounds.height / 2) * dScaleY * factorY * 2;
+    const anchorOffsetLocalX = anchorLocalX - origBounds.centerX;
+    const anchorOffsetLocalY = anchorLocalY - origBounds.centerY;
 
-    const worldMoveX = moveLocalX * cos - moveLocalY * sin;
-    const worldMoveY = moveLocalX * sin + moveLocalY * cos;
+    const origAnchorWorldX = origCenterX + anchorOffsetLocalX * origScaleX * cos - anchorOffsetLocalY * origScaleY * sin;
+    const origAnchorWorldY = origCenterY + anchorOffsetLocalX * origScaleX * sin + anchorOffsetLocalY * origScaleY * cos;
 
-    tx = originalTransform.tx + worldMoveX;
-    ty = originalTransform.ty + worldMoveY;
+    const newAnchorWorldX = origCenterX + anchorOffsetLocalX * scaleX * cos - anchorOffsetLocalY * scaleY * sin;
+    const newAnchorWorldY = origCenterY + anchorOffsetLocalX * scaleX * sin + anchorOffsetLocalY * scaleY * cos;
 
-    if (handleType === 'nw' || handleType === 'ne' || handleType === 'sw' || handleType === 'se') {
-      tx = centerX - (centerX - (origBounds.centerX + originalTransform.tx)) - worldMoveX * 0;
-      ty = centerY - (centerY - (origBounds.centerY + originalTransform.ty)) - worldMoveY * 0;
-    }
-
-    void centerX; void centerY;
+    const tx = origTx + (origAnchorWorldX - newAnchorWorldX);
+    const ty = origTy + (origAnchorWorldY - newAnchorWorldY);
 
     return { scaleX, scaleY, tx, ty };
   }, [maintainAspectRatio]);
 
   const startDrag = useCallback((
-    e: React.PointerEvent,
+    e: React.PointerEvent | PointerEvent,
     type: HandleType,
     layerIds: string[]
   ) => {
     e.stopPropagation();
     e.preventDefault();
 
-    const pt = getSvgPoint(e.clientX, e.clientY);
+    const clientX = 'clientX' in e ? e.clientX : 0;
+    const clientY = 'clientY' in e ? e.clientY : 0;
+    const pt = getSvgPoint(clientX, clientY);
     const originalTransforms = new Map<string, Transform>();
-    const originalBounds = new Map<string, Layer['path']['bounds']>();
+    const originalBounds = new Map<string, PathBounds>();
 
     layerIds.forEach(id => {
       const layer = layers.find(l => l.id === id);
@@ -188,7 +235,11 @@ export function SVGEditor({
     };
 
     setCurrentRotation(null);
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+
+    const target = e.target as Element;
+    if (target && 'setPointerCapture' in target) {
+      try { target.setPointerCapture(e.pointerId); } catch {}
+    }
   }, [getSvgPoint, layers]);
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
@@ -197,8 +248,6 @@ export function SVGEditor({
     e.preventDefault();
 
     const pt = getSvgPoint(e.clientX, e.clientY);
-    const dx = pt.x - state.startX;
-    const dy = pt.y - state.startY;
 
     state.layerIds.forEach(id => {
       const layer = layers.find(l => l.id === id);
@@ -212,51 +261,54 @@ export function SVGEditor({
       switch (state.type) {
         case 'move': {
           newTransform = {
-            tx: originalTransform.tx + dx,
-            ty: originalTransform.ty + dy
+            tx: originalTransform.tx + (pt.x - state.startX),
+            ty: originalTransform.ty + (pt.y - state.startY)
           };
           break;
         }
         case 'rotate': {
-          const center = {
-            x: origBounds.centerX + originalTransform.tx,
-            y: origBounds.centerY + originalTransform.ty
-          };
-          const startAngle = Math.atan2(state.startY - center.y, state.startX - center.x);
-          const currentAngle = Math.atan2(pt.y - center.y, pt.x - center.x);
-          const angleDeg = ((currentAngle - startAngle) * 180) / Math.PI;
-          newTransform = {
-            rotation: originalTransform.rotation + angleDeg
-          };
-          const finalRotation = originalTransform.rotation + angleDeg;
-          const normalizedRotation = ((finalRotation % 360) + 360) % 360;
-          setCurrentRotation(normalizedRotation);
+          const centerX = origBounds.centerX + originalTransform.tx;
+          const centerY = origBounds.centerY + originalTransform.ty;
+          const startAngle = Math.atan2(state.startY - centerY, state.startX - centerX);
+          const currAngle = Math.atan2(pt.y - centerY, pt.x - centerX);
+          const deltaDeg = ((currAngle - startAngle) * 180) / Math.PI;
+          const finalRot = originalTransform.rotation + deltaDeg;
+          newTransform = { rotation: finalRot };
+          const normalized = ((finalRot % 360) + 360) % 360;
+          setCurrentRotation(normalized);
           break;
         }
         default: {
-          newTransform = applyScale(layer, state.type, dx, dy, originalTransform, origBounds);
+          newTransform = applyScaleToLayer(
+            layer, state.type,
+            state.startX, state.startY,
+            pt.x, pt.y,
+            originalTransform, origBounds
+          );
           break;
         }
       }
 
       onTransformUpdate(id, newTransform);
     });
-  }, [getSvgPoint, layers, onTransformUpdate, applyScale]);
+  }, [getSvgPoint, layers, onTransformUpdate, applyScaleToLayer]);
 
   const handlePointerUp = useCallback((e: PointerEvent) => {
     const state = dragStateRef.current;
     if (!state) return;
 
-    state.layerIds.forEach(id => {
-      onTransformCommit(id);
-    });
+    if (state.layerIds.length > 0) {
+      onTransformCommit(state.layerIds);
+    }
 
     dragStateRef.current = null;
     setCurrentRotation(null);
     setHoveredHandle(null);
-    try {
-      (e.target as Element).releasePointerCapture?.(e.pointerId);
-    } catch {}
+
+    const target = e.target as Element;
+    if (target && 'releasePointerCapture' in target) {
+      try { target.releasePointerCapture(e.pointerId); } catch {}
+    }
   }, [onTransformCommit]);
 
   useEffect(() => {
@@ -270,48 +322,87 @@ export function SVGEditor({
     };
   }, [handlePointerMove, handlePointerUp]);
 
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (selectedIds.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const pt = getSvgPoint(e.clientX, e.clientY);
+    const scaleFactor = 1 + (-e.deltaY * WHEEL_SCALE_FACTOR);
+
+    selectedIds.forEach(id => {
+      const layer = layers.find(l => l.id === id);
+      if (!layer || layer.locked) return;
+
+      const { bounds, transform } = layer;
+      const { tx, ty, scaleX, scaleY, rotation } = transform;
+      const centerX = bounds.centerX + tx;
+      const centerY = bounds.centerY + ty;
+
+      const rad = (rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      const localMouseX = (pt.x - centerX) * cos + (pt.y - centerY) * sin;
+      const localMouseY = -(pt.x - centerX) * sin + (pt.y - centerY) * cos;
+
+      const newScaleX = Math.max(MIN_SCALE, scaleX * scaleFactor);
+      const newScaleY = maintainAspectRatio ? newScaleX : Math.max(MIN_SCALE, scaleY * scaleFactor);
+      const actualScaleFactorX = newScaleX / scaleX;
+      const actualScaleFactorY = newScaleY / scaleY;
+
+      const newLocalMouseX = localMouseX * actualScaleFactorX;
+      const newLocalMouseY = localMouseY * actualScaleFactorY;
+
+      const newCenterX = pt.x - (newLocalMouseX * cos - newLocalMouseY * sin);
+      const newCenterY = pt.y - (newLocalMouseX * sin + newLocalMouseY * cos);
+
+      onTransformUpdate(id, {
+        scaleX: newScaleX,
+        scaleY: newScaleY,
+        tx: newCenterX - bounds.centerX,
+        ty: newCenterY - bounds.centerY
+      });
+    });
+
+    onTransformCommit(selectedIds);
+  }, [selectedIds, layers, getSvgPoint, maintainAspectRatio, onTransformUpdate, onTransformCommit]);
+
   const selectedLayers = layers.filter(l => selectedIds.includes(l.id) && l.visible);
 
-  const getSelectionBoundingBox = () => {
+  const bbox = (() => {
     if (selectedLayers.length === 0) return null;
 
-    let overallMinX = Infinity, overallMinY = Infinity;
-    let overallMaxX = -Infinity, overallMaxY = -Infinity;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     selectedLayers.forEach(layer => {
       const { bounds } = layer.path;
       const { tx, ty, scaleX, scaleY, rotation } = layer.transform;
       const rad = (rotation * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(rad));
-      const sin = Math.abs(Math.sin(rad));
-      const scaledW = bounds.width * scaleX;
-      const scaledH = bounds.height * scaleY;
-      const rotatedW = scaledW * cos + scaledH * sin;
-      const rotatedH = scaledW * sin + scaledH * cos;
+      const cosVal = Math.abs(Math.cos(rad));
+      const sinVal = Math.abs(Math.sin(rad));
+      const w = bounds.width * scaleX;
+      const h = bounds.height * scaleY;
+      const rw = w * cosVal + h * sinVal;
+      const rh = w * sinVal + h * cosVal;
       const cx = bounds.centerX + tx;
       const cy = bounds.centerY + ty;
-
-      overallMinX = Math.min(overallMinX, cx - rotatedW / 2);
-      overallMinY = Math.min(overallMinY, cy - rotatedH / 2);
-      overallMaxX = Math.max(overallMaxX, cx + rotatedW / 2);
-      overallMaxY = Math.max(overallMaxY, cy + rotatedH / 2);
+      minX = Math.min(minX, cx - rw / 2);
+      minY = Math.min(minY, cy - rh / 2);
+      maxX = Math.max(maxX, cx + rw / 2);
+      maxY = Math.max(maxY, cy + rh / 2);
     });
 
     return {
-      minX: overallMinX,
-      minY: overallMinY,
-      maxX: overallMaxX,
-      maxY: overallMaxY,
-      width: overallMaxX - overallMinX,
-      height: overallMaxY - overallMinY,
-      centerX: (overallMinX + overallMaxX) / 2,
-      centerY: (overallMinY + overallMaxY) / 2
+      minX, minY, maxX, maxY,
+      width: maxX - minX,
+      height: maxY - minY,
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2
     };
-  };
+  })();
 
-  const bbox = getSelectionBoundingBox();
-
-  const renderHandle = (type: HandleType, x: number, y: number, cursor: string) => {
+  const renderHandle = (type: HandleType, x: number, y: number) => {
     const isHovered = hoveredHandle === type;
     return (
       <rect
@@ -323,28 +414,20 @@ export function SVGEditor({
         rx={2}
         ry={2}
         fill={isHovered ? '#ffd700' : '#ffffff'}
-        stroke={isHovered ? '#ffaa00' : '#888'}
-        strokeWidth={1}
-        style={{ cursor, pointerEvents: 'auto' }}
+        stroke={isHovered ? '#ff8c00' : '#666'}
+        strokeWidth={1.2}
+        style={{
+          cursor: type === 'n' || type === 's' ? 'ns-resize'
+            : type === 'e' || type === 'w' ? 'ew-resize'
+            : type === 'nw' || type === 'se' ? 'nwse-resize'
+            : 'nesw-resize',
+          pointerEvents: 'auto'
+        }}
         onPointerEnter={() => setHoveredHandle(type)}
         onPointerLeave={() => setHoveredHandle(null)}
         onPointerDown={(e) => startDrag(e, type, selectedIds)}
       />
     );
-  };
-
-  const cursorForHandle = (type: HandleType): string => {
-    const angle = bbox ? selectedLayers[0]?.transform.rotation || 0 : 0;
-    switch (type) {
-      case 'nw': case 'se': return `nwse-resize`;
-      case 'ne': case 'sw': return `nesw-resize`;
-      case 'n': case 's': return `ns-resize`;
-      case 'e': case 'w': return `ew-resize`;
-      case 'rotate': return 'grab';
-      case 'move': return 'move';
-      default: return 'default';
-    }
-    void angle;
   };
 
   return (
@@ -357,6 +440,7 @@ export function SVGEditor({
         height: '100%',
         pointerEvents: 'none'
       }}
+      onWheel={handleWheel}
       onClick={(e) => {
         if (e.target === svgRef.current) {
           onClearSelection();
@@ -364,11 +448,20 @@ export function SVGEditor({
       }}
     >
       <defs>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2a2a3e" strokeWidth="1" />
+        <pattern id="grid-small" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#26263a" strokeWidth="0.5" />
+        </pattern>
+        <pattern id="grid-large" width="100" height="100" patternUnits="userSpaceOnUse">
+          <rect width="100" height="100" fill="url(#grid-small)" />
+          <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#30304a" strokeWidth="1" />
         </pattern>
       </defs>
-      <rect x="0" y="0" width="100%" height="100%" fill="url(#grid)" style={{ pointerEvents: 'none' }} />
+      <rect x="0" y="0" width="100%" height="100%" fill="url(#grid-large)" style={{ pointerEvents: 'none' }} />
+
+      <g style={{ pointerEvents: 'none' }}>
+        <line x1="0" y1="0" x2="0" y2="100%" stroke="#444" strokeWidth="1" />
+        <line x1="0" y1="0" x2="100%" y2="0" stroke="#444" strokeWidth="1" />
+      </g>
 
       {layers
         .filter(l => l.visible)
@@ -391,13 +484,12 @@ export function SVGEditor({
                 const additive = e.shiftKey || e.ctrlKey || e.metaKey;
                 onSelect(layer.id, additive);
                 if (isSelected) {
-                  startDrag(e, 'move', [layer.id]);
+                  startDrag(e as unknown as PointerEvent, 'move', [layer.id]);
                 }
               }}
             >
               <g
-                transform={`translate(${tx}, ${ty}) rotate(${rotation}, ${bounds.centerX}, ${bounds.centerY}) scale(${scaleX}, ${scaleY}) translate(${-bounds.centerX + bounds.centerX * 0}, ${-bounds.centerY + bounds.centerY * 0})`}
-                style={{ transformOrigin: `${bounds.centerX}px ${bounds.centerY}px` }}
+                transform={`translate(${tx}, ${ty}) rotate(${rotation}, ${bounds.centerX}, ${bounds.centerY}) scale(${scaleX}, ${scaleY})`}
               >
                 <path
                   d={pathString}
@@ -407,9 +499,8 @@ export function SVGEditor({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
+                  opacity={layer.locked ? 0.5 : 1}
                 />
-              </g>
-              <g transform={`translate(${tx}, ${ty}) rotate(${rotation}, ${bounds.centerX}, ${bounds.centerY}) scale(${scaleX}, ${scaleY})`} style={{ transformBox: 'fill-box' }}>
               </g>
             </g>
           );
@@ -420,27 +511,30 @@ export function SVGEditor({
           d={previewPath}
           fill="none"
           stroke="#4a9eff"
-          strokeWidth={2}
+          strokeWidth={2.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray="6 4"
-          opacity={0.6}
+          strokeDasharray="8 5"
+          opacity={0.75}
           style={{ pointerEvents: 'none' }}
         />
       )}
 
       {bbox && (
-        <g style={{ pointerEvents: 'none' }}>
+        <g>
           <rect
-            x={bbox.minX - 2}
-            y={bbox.minY - 2}
-            width={bbox.width + 4}
-            height={bbox.height + 4}
+            x={bbox.minX - 3}
+            y={bbox.minY - 3}
+            width={bbox.width + 6}
+            height={bbox.height + 6}
             fill="none"
             stroke="#ff8c00"
             strokeWidth={1.5}
-            strokeDasharray="5 3"
-            style={{ pointerEvents: 'auto', cursor: cursorForHandle('move') }}
+            strokeDasharray="6 4"
+            style={{
+              pointerEvents: 'auto',
+              cursor: 'move'
+            }}
             onPointerDown={(e) => {
               if (selectedIds.length > 0) {
                 startDrag(e, 'move', selectedIds);
@@ -448,29 +542,29 @@ export function SVGEditor({
             }}
           />
 
-          {renderHandle('nw', bbox.minX, bbox.minY, cursorForHandle('nw'))}
-          {renderHandle('n', bbox.centerX, bbox.minY, cursorForHandle('n'))}
-          {renderHandle('ne', bbox.maxX, bbox.minY, cursorForHandle('ne'))}
-          {renderHandle('e', bbox.maxX, bbox.centerY, cursorForHandle('e'))}
-          {renderHandle('se', bbox.maxX, bbox.maxY, cursorForHandle('se'))}
-          {renderHandle('s', bbox.centerX, bbox.maxY, cursorForHandle('s'))}
-          {renderHandle('sw', bbox.minX, bbox.maxY, cursorForHandle('sw'))}
-          {renderHandle('w', bbox.minX, bbox.centerY, cursorForHandle('w'))}
+          {renderHandle('nw', bbox.minX, bbox.minY)}
+          {renderHandle('n', bbox.centerX, bbox.minY)}
+          {renderHandle('ne', bbox.maxX, bbox.minY)}
+          {renderHandle('e', bbox.maxX, bbox.centerY)}
+          {renderHandle('se', bbox.maxX, bbox.maxY)}
+          {renderHandle('s', bbox.centerX, bbox.maxY)}
+          {renderHandle('sw', bbox.minX, bbox.maxY)}
+          {renderHandle('w', bbox.minX, bbox.centerY)}
 
           <line
             x1={bbox.centerX}
-            y1={bbox.minY - ROTATE_OFFSET}
+            y1={bbox.minY - 3}
             x2={bbox.centerX}
-            y2={bbox.minY}
+            y2={bbox.minY - ROTATE_OFFSET + HANDLE_SIZE / 2}
             stroke="#ff8c00"
-            strokeWidth={1}
-            strokeDasharray="2 2"
+            strokeWidth={1.2}
+            strokeDasharray="3 2"
             style={{ pointerEvents: 'none' }}
           />
 
           {(() => {
-            const handleX = bbox.centerX;
-            const handleY = bbox.minY - ROTATE_OFFSET;
+            const hx = bbox.centerX;
+            const hy = bbox.minY - ROTATE_OFFSET;
             const isHovered = hoveredHandle === 'rotate';
             return (
               <g
@@ -480,45 +574,47 @@ export function SVGEditor({
                 onPointerDown={(e) => startDrag(e, 'rotate', selectedIds)}
               >
                 <circle
-                  cx={handleX}
-                  cy={handleY}
+                  cx={hx}
+                  cy={hy}
                   r={HANDLE_SIZE / 2 + 2}
                   fill={isHovered ? '#ffd700' : '#ffffff'}
-                  stroke={isHovered ? '#ffaa00' : '#888'}
-                  strokeWidth={1}
+                  stroke={isHovered ? '#ff8c00' : '#666'}
+                  strokeWidth={1.2}
                 />
                 <path
-                  d={`M ${handleX - 4} ${handleY} a 4 4 0 1 1 4 4`}
+                  d={`M ${hx - 4} ${hy} a 4 4 0 1 1 3.5 2`}
                   fill="none"
-                  stroke="#666"
-                  strokeWidth={1.2}
+                  stroke="#555"
+                  strokeWidth={1.3}
                   strokeLinecap="round"
                 />
                 <polygon
-                  points={`${handleX},${handleY - 6} ${handleX - 2},${handleY - 2} ${handleX + 2},${handleY - 2}`}
-                  fill="#666"
+                  points={`${hx - 0.5},${hy - 7} ${hx - 3.5},${hy - 3} ${hx + 2.5},${hy - 3}`}
+                  fill="#555"
                 />
               </g>
             );
           })()}
 
           {currentRotation !== null && (
-            <g>
+            <g style={{ pointerEvents: 'none' }}>
               <rect
-                x={bbox.centerX + 12}
-                y={bbox.minY - ROTATE_OFFSET - 14}
-                width={48}
-                height={20}
-                rx={3}
-                fill="rgba(0,0,0,0.8)"
+                x={bbox.centerX + 14}
+                y={bbox.minY - ROTATE_OFFSET - 15}
+                width={52}
+                height={22}
+                rx={4}
+                fill="rgba(0,0,0,0.85)"
               />
               <text
-                x={bbox.centerX + 36}
+                x={bbox.centerX + 40}
                 y={bbox.minY - ROTATE_OFFSET}
-                fill="#fff"
+                fill="#ffd700"
                 fontSize={12}
+                fontWeight={600}
                 textAnchor="middle"
-                fontFamily="monospace"
+                fontFamily="'Consolas', 'Monaco', monospace"
+                dominantBaseline="middle"
               >
                 {currentRotation.toFixed(1)}°
               </text>
