@@ -1,0 +1,38 @@
+.match-skill-card {
+  animation: slideIn 0.4s ease forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.progress-ring {
+  stroke-dashoffset: 176;
+  animation: fillProgress 0.6s ease forwards;
+}
+
+@keyframes fillProgress {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.relative.bg-\[\#1a1a2e\] {
+  animation: modalEnter 0.3s ease;
+}

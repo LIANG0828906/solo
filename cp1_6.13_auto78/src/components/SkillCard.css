@@ -1,0 +1,22 @@
+.skill-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform-style: preserve-3d;
+}
+
+.skill-card:hover {
+  transform: perspective(1000px) rotateY(-3deg);
+  box-shadow: 0 10px 40px rgba(232, 168, 56, 0.15),
+    0 0 20px rgba(42, 42, 78, 0.5);
+  border-color: rgba(232, 168, 56, 0.3);
+}
+
+.skill-card.expanded {
+  transform: none;
+}
+
+.skill-card.expanded:hover {
+  box-shadow: 0 10px 40px rgba(232, 168, 56, 0.15),
+    0 0 20px rgba(42, 42, 78, 0.5);
+}
