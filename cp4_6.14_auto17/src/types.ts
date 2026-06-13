@@ -8,4 +8,7 @@ export interface Note {
   linkedIds: string[];
 }
 
-export type NoteWithoutMeta = Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'tags' | 'linkedIds'>;
+export type NoteWithoutMeta = {
+  content: string;
+  title?: string;
+};

@@ -48,7 +48,7 @@ export default function GraphView({ notes, currentNoteId, onSelectNote }: GraphV
   const rafRef = useRef<number | null>(null);
   const sizeRef = useRef({ w: 800, h: 600 });
 
-  const { nodes, links, idSet } = useMemo(() => {
+  const { nodes, links } = useMemo(() => {
     const counts = new Map<string, number>();
     notes.forEach((n) => {
       if (!counts.has(n.id)) counts.set(n.id, 0);
@@ -57,15 +57,15 @@ export default function GraphView({ notes, currentNoteId, onSelectNote }: GraphV
         counts.set(lid, (counts.get(lid) as number) + 1);
       });
     });
-    const idSet = new Set(notes.map((n) => n.id));
     const nodes: GNode[] = notes.map((n) => {
       const refCount = counts.get(n.id) ?? 0;
-      const radius = 10 + Math.sqrt(refCount + 1) * 4.5;
+      const baseRadius = 12;
+      const dynamicRadius = baseRadius + Math.sqrt(refCount + 1) * 5;
       return {
         id: n.id,
         title: n.title,
         createdAt: n.createdAt,
-        radius: Math.max(8, Math.min(radius, 32)),
+        radius: Math.max(10, Math.min(dynamicRadius, 36)),
         refCount,
         isCurrent: n.id === currentNoteId,
       };
@@ -74,15 +74,14 @@ export default function GraphView({ notes, currentNoteId, onSelectNote }: GraphV
     const links: GLink[] = [];
     notes.forEach((n) => {
       n.linkedIds.forEach((lid) => {
-        if (!idSet.has(lid)) return;
+        if (!counts.has(lid)) return;
         const key = [n.id, lid].sort().join('|');
         if (linkSet.has(key)) return;
         linkSet.add(key);
         links.push({ source: n.id, target: lid });
       });
     });
-    return { nodes, links, idSet };
-    void idSet;
+    return { nodes, links };
   }, [notes, currentNoteId]);
 
   useEffect(() => {
@@ -452,7 +451,8 @@ export default function GraphView({ notes, currentNoteId, onSelectNote }: GraphV
   return (
     <div ref={containerRef} style={{
       width: '100%', height: '100%', minHeight: 0, minWidth: 0, position: 'relative',
-      background: 'linear-gradient(135deg, rgba(26,26,46,1), rgba(22,33,62,0.8)', overflow: 'hidden',
+      background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+      overflow: 'hidden',
     }}>
       <div style={{
         position: 'absolute', top: 12, left: 14, zIndex: 5,

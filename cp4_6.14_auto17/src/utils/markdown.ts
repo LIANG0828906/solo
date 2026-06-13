@@ -22,6 +22,13 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
+function unescapeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 function highlightCode(code: string, lang: string): string {
   let html = escapeHtml(code.trimEnd());
   const keywords = lang === 'ts' || lang === 'typescript' ? [...JS_KEYWORDS, ...TS_KEYWORDS] : JS_KEYWORDS;
@@ -43,10 +50,37 @@ interface RenderOptions {
 
 export function renderMarkdown(md: string, opts: RenderOptions): string {
   const codeBlocks: string[] = [];
-  let processed = md.replace(CODE_RE, (_, inner) => {
+  const linkTokens: Array<{ token: string; html: string }> = [];
+  const tagTokens: Array<{ token: string; html: string }> = [];
+  let processed = md;
+
+  processed = processed.replace(CODE_RE, (_, inner) => {
     const idx = codeBlocks.length;
     codeBlocks.push(inner);
     return `__CODEBLOCK${idx}__`;
+  });
+
+  processed = processed.replace(LINK_RE, (_m, title) => {
+    const titleTrim = title.trim();
+    const exists = opts.notes.some((n) => n.title.trim() === titleTrim);
+    const color = exists ? '#4a90d9' : '#e94560';
+    const onClickAttr = opts.onLinkClick
+      ? ` data-dg-link="${encodeURIComponent(titleTrim)}"`
+      : '';
+    const html = `<a class="dg-link" data-title="${escapeHtml(titleTrim)}"${onClickAttr} style="color:${color};text-decoration:none;border-bottom:2px solid ${color};cursor:pointer;transition:opacity 150ms" onmouseover="this.style.opacity=0.75" onmouseout="this.style.opacity=1">${escapeHtml(titleTrim)}</a>`;
+    const token = `__LINK${linkTokens.length}__`;
+    linkTokens.push({ token, html });
+    return token;
+  });
+
+  processed = processed.replace(TAG_RE, (_m, tag) => {
+    const onClickAttr = opts.onTagClick
+      ? ` data-dg-tag="${encodeURIComponent(tag)}"`
+      : '';
+    const html = `<span class="dg-tag" data-tag="${escapeHtml(tag)}"${onClickAttr} style="display:inline-block;background:#4a90d9;color:#ffffff;padding:1px 8px;border-radius:4px;font-size:12px;margin:0 2px;cursor:pointer;transition:transform 150ms,opacity 150ms" onmouseover="this.style.opacity=0.85;this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity=1;this.style.transform='none'">#${escapeHtml(tag)}</span>`;
+    const token = `__TAG${tagTokens.length}__`;
+    tagTokens.push({ token, html });
+    return token;
   });
 
   processed = escapeHtml(processed);
@@ -104,6 +138,13 @@ export function renderMarkdown(md: string, opts: RenderOptions): string {
     return `<pre style="background:#0d1b2a;border:1px solid rgba(74,144,217,0.15);border-radius:6px;padding:14px 16px;margin:14px 0;overflow-x:auto;font-size:13px;line-height:1.6">${langLabel}<code>${highlighted}</code></pre>`;
   });
 
+  for (const { token, html } of linkTokens) {
+    processed = processed.split(escapeHtml(token)).join(html);
+  }
+  for (const { token, html } of tagTokens) {
+    processed = processed.split(escapeHtml(token)).join(html);
+  }
+
   return processed;
 }
 
@@ -112,22 +153,27 @@ function processInline(text: string, opts: RenderOptions): string {
   s = s.replace(INLINE_CODE_RE, '<code style="background:rgba(74,144,217,0.12);color:#82aaff;padding:2px 6px;border-radius:4px;font-size:0.9em">$1</code>');
   s = s.replace(BOLD_RE, '<strong style="color:#fff;font-weight:600">$1</strong>');
   s = s.replace(ITALIC_RE, '<em style="color:#c5d0e6">$1</em>');
-  s = s.replace(LINK_RE, (_m, title) => {
-    const titleTrim = title.trim();
-    const exists = opts.notes.some((n) => n.title.trim() === titleTrim);
-    const color = exists ? 'var(--link-color)' : 'var(--accent)';
-    const onClickAttr = opts.onLinkClick
-      ? ` onclick="window.__dgLinkClick &amp;&amp; window.__dgLinkClick('${titleTrim.replace(/'/g, "\\'")}')"`
-      : '';
-    return `<a class="dg-link" style="color:${color};text-decoration:none;border-bottom:2px solid ${color};cursor:pointer;transition:opacity 150ms" data-title="${escapeHtml(titleTrim)}"${onClickAttr} onmouseover="this.style.opacity=0.75" onmouseout="this.style.opacity=1">${escapeHtml(titleTrim)}</a>`;
-  });
-  s = s.replace(TAG_RE, (_m, tag) => {
-    const onClickAttr = opts.onTagClick
-      ? ` onclick="window.__dgTagClick &amp;&amp; window.__dgTagClick('${tag.replace(/'/g, "\\'")}')"`
-      : '';
-    return `<span class="dg-tag" data-tag="${escapeHtml(tag)}"${onClickAttr} style="display:inline-block;background:var(--tag-bg);color:var(--tag-text);padding:1px 8px;border-radius:4px;font-size:12px;margin:0 2px;cursor:pointer;transition:transform 150ms,opacity 150ms" onmouseover="this.style.opacity=0.85;this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity=1;this.style.transform='none'">#${escapeHtml(tag)}</span>`;
-  });
   return s;
+}
+
+export function attachPreviewInteractions(
+  container: HTMLElement,
+  opts: { onLinkClick?: (title: string) => void; onTagClick?: (tag: string) => void },
+) {
+  container.querySelectorAll('a.dg-link').forEach((a) => {
+    a.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const t = a.getAttribute('data-title');
+      if (t && opts.onLinkClick) opts.onLinkClick(t);
+    });
+  });
+  container.querySelectorAll('span.dg-tag').forEach((s) => {
+    s.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const t = s.getAttribute('data-tag');
+      if (t && opts.onTagClick) opts.onTagClick(t);
+    });
+  });
 }
 
 export function formatDate(iso: string): string {

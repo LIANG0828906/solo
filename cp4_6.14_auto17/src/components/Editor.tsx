@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Note } from '../types';
-import { renderMarkdown, formatDate } from '../utils/markdown';
+import { renderMarkdown, attachPreviewInteractions, formatDate } from '../utils/markdown';
 
 interface EditorProps {
   note: Note | null;
@@ -45,19 +45,7 @@ export default function Editor({
 
   useEffect(() => {
     if (previewRef.current) {
-      previewRef.current.querySelectorAll('a.dg-link').forEach((a) => {
-        a.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          const t = a.getAttribute('data-title');
-          if (t) onLinkClick(t);
-        });
-      });
-      previewRef.current.querySelectorAll('span.dg-tag').forEach((s) => {
-        s.addEventListener('click', () => {
-          const t = s.getAttribute('data-tag');
-          if (t) onTagClick(t);
-        });
-      });
+      attachPreviewInteractions(previewRef.current, { onLinkClick, onTagClick });
     }
   }, [rendered, onLinkClick, onTagClick]);
 
@@ -226,7 +214,7 @@ const wrapStyle: React.CSSProperties = {
   flexDirection: 'column',
   minWidth: 0,
   minHeight: 0,
-  background: 'var(--bg-main)',
+  background: '#1a1a2e',
 };
 
 const emptyStyle: React.CSSProperties = {
@@ -246,13 +234,13 @@ const toolbarStyle: React.CSSProperties = {
   gap: 16,
   flexWrap: 'wrap',
   borderBottom: '1px solid var(--border-color)',
-  background: 'rgba(22,33,62,0.5)',
+  background: '#16213e',
 };
 
 const refPanelStyle: React.CSSProperties = {
   padding: '14px 22px',
   borderTop: '1px solid var(--border-color)',
-  background: 'rgba(15,52,96,0.2)',
+  background: '#0f3460',
 };
 
 const refHeadingStyle: React.CSSProperties = {

@@ -163,16 +163,16 @@ export default function NoteList({
                       }}
                       style={{
                         display: 'inline-block',
-                        background: 'var(--tag-bg)',
-                        color: 'var(--tag-text)',
-                        padding: '1px 7px',
+                        background: '#4a90d9',
+                        color: '#ffffff',
+                        padding: '1px 8px',
                         borderRadius: 4,
                         fontSize: 11,
                         cursor: 'pointer',
-                        transition: 'opacity 150ms',
+                        transition: 'opacity 150ms, transform 150ms',
                       }}
-                      onMouseOver={(e) => (e.currentTarget.style.opacity = '0.8')}
-                      onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+                      onMouseOver={(e) => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
                     >
                       #{t}
                     </span>
@@ -192,7 +192,7 @@ const listContainerStyle: React.CSSProperties = {
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  background: 'var(--bg-sidebar)',
+  background: 'rgba(22, 33, 62, 0.9)',
   borderRight: '1px solid var(--border-color)',
   backdropFilter: 'blur(10px)',
   WebkitBackdropFilter: 'blur(10px)',
@@ -204,6 +204,7 @@ const headerStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   padding: '18px 18px 14px',
   borderBottom: '1px solid var(--border-color)',
+  background: '#16213e',
 };
 
 const newBtnStyle: React.CSSProperties = {
