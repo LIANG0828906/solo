@@ -88,17 +88,33 @@ export class DrawManager {
 
   private handleDoubleClick = (): void => {
     this.isDrawing = false;
-    this.flushPendingPoints();
-    if (this.renderedPoints.length < 3) return;
+    
+    while (this.pendingPoints.length > 0) {
+      const pt = this.pendingPoints.shift()!;
+      this.renderSinglePoint(pt.x, pt.y);
+    }
+    
+    if (this.renderedPoints.length < 3) {
+      this.clearCanvasInternal();
+      return;
+    }
     
     const first = this.renderedPoints[0];
     const last = this.renderedPoints[this.renderedPoints.length - 1];
-    this.ctx.beginPath();
-    this.ctx.strokeStyle = '#333333';
-    this.ctx.lineWidth = 3;
-    this.ctx.moveTo(last.x, last.y);
-    this.ctx.lineTo(first.x, first.y);
-    this.ctx.stroke();
+    
+    const dx = last.x - first.x;
+    const dy = last.y - first.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > this.minDistance * 2) {
+      this.ctx.beginPath();
+      this.ctx.strokeStyle = '#333333';
+      this.ctx.lineWidth = 3;
+      this.ctx.moveTo(last.x, last.y);
+      this.ctx.lineTo(first.x, first.y);
+      this.ctx.stroke();
+    }
+    
     this.renderedPoints.push({ ...first });
 
     const canvasRect = this.canvas.getBoundingClientRect();
@@ -121,12 +137,7 @@ export class DrawManager {
     this.pendingPoints.push({ x, y, timestamp: performance.now() });
   }
 
-  private flushPendingPoints(): void {
-    while (this.pendingPoints.length > 0) {
-      const pt = this.pendingPoints.shift()!;
-      this.renderSinglePoint(pt.x, pt.y);
-    }
-  }
+
 
   private renderSinglePoint(x: number, y: number): void {
     const prev = this.renderedPoints.length > 0

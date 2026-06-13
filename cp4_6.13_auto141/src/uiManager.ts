@@ -80,7 +80,6 @@ export class UIManager {
     const valueSpan = document.createElement('span');
     valueSpan.className = 'slider-value';
     valueSpan.textContent = '3.0';
-    this.depthValue = valueSpan;
 
     slider.addEventListener('input', () => {
       const val = parseFloat(slider.value);

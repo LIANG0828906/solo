@@ -18,6 +18,7 @@ interface MaterialTransition {
   endMetalness: number;
   startClearcoat: number;
   endClearcoat: number;
+  targetFlatShading: boolean;
 }
 
 export class ExtrusionManager {
@@ -167,7 +168,6 @@ export class ExtrusionManager {
     }
 
     const material = this.currentMesh.material as THREE.MeshPhysicalMaterial;
-    const geometry = this.currentMesh.geometry as THREE.ExtrudeGeometry;
 
     this.materialTransition = {
       startTime: performance.now(),
@@ -179,13 +179,11 @@ export class ExtrusionManager {
       startMetalness: material.metalness,
       endMetalness: smooth ? 0.25 : 0.05,
       startClearcoat: material.clearcoat,
-      endClearcoat: smooth ? 0.8 : 0.0
+      endClearcoat: smooth ? 0.8 : 0.0,
+      targetFlatShading: !smooth
     };
 
     this.isSmooth = smooth;
-    material.flatShading = !smooth;
-    geometry.computeVertexNormals();
-    material.needsUpdate = true;
   }
 
   public updateTransitions(): void {
@@ -196,6 +194,7 @@ export class ExtrusionManager {
     const eased = this.easeOutCubic(progress);
 
     const material = this.currentMesh.material as THREE.MeshPhysicalMaterial;
+    const geometry = this.currentMesh.geometry as THREE.ExtrudeGeometry;
     const t = this.materialTransition;
 
     material.opacity = t.startOpacity + (t.endOpacity - t.startOpacity) * eased;
@@ -204,6 +203,9 @@ export class ExtrusionManager {
     material.clearcoat = t.startClearcoat + (t.endClearcoat - t.startClearcoat) * eased;
 
     if (progress >= 1) {
+      material.flatShading = t.targetFlatShading;
+      geometry.computeVertexNormals();
+      material.needsUpdate = true;
       this.materialTransition = null;
     }
   }

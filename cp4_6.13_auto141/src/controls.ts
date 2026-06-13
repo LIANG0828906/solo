@@ -15,6 +15,8 @@ export class ControlsManager {
   private animStartTarget: THREE.Vector3 = new THREE.Vector3();
   private animEndTarget: THREE.Vector3 = new THREE.Vector3();
 
+
+
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.camera = camera;
 
@@ -26,9 +28,9 @@ export class ControlsManager {
     this.controls.enableRotate = true;
     this.controls.minDistance = 4;
     this.controls.maxDistance = 40;
+    this.controls.screenSpacePanning = true;
     this.controls.minZoom = 0.5;
     this.controls.maxZoom = 5;
-    this.controls.screenSpacePanning = true;
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
@@ -84,10 +86,11 @@ export class ControlsManager {
 
       if (progress >= 1) {
         this.animating = false;
+        this.controls.update();
       }
+    } else {
+      this.controls.update();
     }
-
-    this.controls.update();
   }
 
   private easeOutCubic(t: number): number {

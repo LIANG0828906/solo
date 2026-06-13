@@ -41,7 +41,15 @@ class App {
       0.1,
       1000
     );
-    this.camera.position.set(8, 8, 8);
+    const distance = 12;
+    const elevation = Math.PI / 4;
+    const azimuth = Math.PI / 4;
+    this.camera.position.set(
+      distance * Math.cos(elevation) * Math.cos(azimuth),
+      distance * Math.sin(elevation),
+      distance * Math.cos(elevation) * Math.sin(azimuth)
+    );
+    this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(threeContainer.clientWidth, threeContainer.clientHeight);
@@ -57,7 +65,7 @@ class App {
 
     this.controlsManager = new ControlsManager(this.camera, this.renderer.domElement);
     this.controlsManager.setDefaultView(
-      new THREE.Vector3(8, 8, 8),
+      this.camera.position.clone(),
       new THREE.Vector3(0, 0, 0)
     );
 
