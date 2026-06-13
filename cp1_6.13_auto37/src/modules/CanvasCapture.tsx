@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Point } from './DataModel';
 import { StrokeToPath } from './StrokeToPath';
 
@@ -59,7 +60,7 @@ export function CanvasCapture({
     return () => window.removeEventListener('resize', resizeCanvas);
   }, [resizeCanvas]);
 
-  const getPoint = useCallback((e: PointerEvent): Point => {
+  const getPoint = useCallback((e: ReactPointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     return {
@@ -104,7 +105,7 @@ export function CanvasCapture({
     onStrokeProgress?.(result.pathString, points.length);
   }, [onStrokeProgress]);
 
-  const handlePointerDown = useCallback((e: PointerEvent) => {
+  const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (disabled) return;
     e.preventDefault();
     const canvas = canvasRef.current!;
@@ -114,7 +115,7 @@ export function CanvasCapture({
     drawPreview();
   }, [disabled, getPoint, drawPreview]);
 
-  const handlePointerMove = useCallback((e: PointerEvent) => {
+  const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current || disabled) return;
     e.preventDefault();
     const point = getPoint(e);
@@ -126,7 +127,7 @@ export function CanvasCapture({
     }
   }, [disabled, getPoint, drawPreview, emitProgress]);
 
-  const handlePointerUp = useCallback((e: PointerEvent) => {
+  const handlePointerUp = useCallback((e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
@@ -172,7 +173,7 @@ export function CanvasCapture({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onPointerLeave={(e) => {
-        if (isDrawingRef.current) handlePointerUp(e as unknown as PointerEvent);
+        if (isDrawingRef.current) handlePointerUp(e);
       }}
     />
   );

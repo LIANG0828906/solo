@@ -334,8 +334,9 @@ export function SVGEditor({
       const layer = layers.find(l => l.id === id);
       if (!layer || layer.locked) return;
 
-      const { bounds, transform } = layer;
+      const { path, transform } = layer;
       const { tx, ty, scaleX, scaleY, rotation } = transform;
+      const bounds = path.bounds;
       const centerX = bounds.centerX + tx;
       const centerY = bounds.centerY + ty;
 
