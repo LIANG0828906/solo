@@ -8,7 +8,7 @@ import type {
 } from './types';
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());
@@ -142,3 +142,5 @@ app.get('/api/health', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend server is running on http://localhost:${PORT}`);
 });
+
+

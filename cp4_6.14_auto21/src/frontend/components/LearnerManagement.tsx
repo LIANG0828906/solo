@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { learnerApi, courseApi } from '../api';
 import { Learner, Course } from '../types';
 
@@ -86,8 +86,8 @@ function LearnerManagement() {
               const learnerProgress = enrollmentsMap.get(learner.id) || [];
               const isExpanded = expandedLearnerId === learner.id;
               return (
-                <>
-                  <tr key={learner.id}>
+                <React.Fragment key={learner.id}>
+                  <tr>
                     <td>
                       <button
                         className="expand-btn"
@@ -151,7 +151,7 @@ function LearnerManagement() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               );
             })}
           </tbody>
