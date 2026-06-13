@@ -125,8 +125,9 @@ class VirtualBloomApp {
       
       const branches = this.growthController.getBranches();
       const time = this.growthController.getTime();
+      const growthProgress = this.growthController.getGrowthProgress();
       
-      this.sceneBuilder.updatePlant(branches, time);
+      this.sceneBuilder.updatePlant(branches, time, growthProgress);
     }
   }
 
