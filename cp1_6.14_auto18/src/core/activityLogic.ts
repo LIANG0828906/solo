@@ -1,50 +1,4 @@
-export type ReadingStatus = 'unread' | 'reading' | 'finished20' | 'finished50';
-
-export interface CheckIn {
-  id: string;
-  memberId: string;
-  date: string;
-  pagesRead: number;
-  status: ReadingStatus;
-  note?: string;
-  createdAt: string;
-}
-
-export interface Member {
-  id: string;
-  name: string;
-  avatar?: string;
-  joinedAt: string;
-}
-
-export interface Activity {
-  id: string;
-  title: string;
-  bookTitle: string;
-  bookAuthor: string;
-  coverImage: string;
-  startDate: string;
-  endDate: string;
-  description: string;
-  inviteCode: string;
-  organizerId: string;
-  ended: boolean;
-  members: Member[];
-  checkIns: CheckIn[];
-  createdAt: string;
-}
-
-export interface ReportData {
-  totalDays: number;
-  totalPages: number;
-  longestStreak: number;
-  memberCompletionRates: Array<{
-    memberId: string;
-    memberName: string;
-    completionRate: number;
-    totalPages: number;
-  }>;
-}
+import type { ReadingStatus, CheckIn, Member, Activity, ReportData } from '@/shared/types';
 
 export function getDatesInRange(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
@@ -96,19 +50,20 @@ export function calculateLongestStreak(checkIns: CheckIn[], memberId: string): n
 
 export function generateReportData(activity: Activity): ReportData {
   const totalDays = getDatesInRange(activity.startDate, activity.endDate).length;
-  const totalPages = activity.checkIns.reduce((sum, c) => sum + c.pagesRead, 0);
+  const totalPages = activity.checkIns.reduce((sum, c) => sum + c.pages, 0);
   let longestStreak = 0;
   activity.members.forEach((member) => {
     const streak = calculateLongestStreak(activity.checkIns, member.id);
     longestStreak = Math.max(longestStreak, streak);
   });
-  const memberCompletionRates = activity.members.map((member) => {
+  const memberCompletion = activity.members.map((member) => {
     const memberCheckIns = activity.checkIns.filter((c) => c.memberId === member.id);
-    const memberTotalPages = memberCheckIns.reduce((sum, c) => sum + c.pagesRead, 0);
+    const memberTotalPages = memberCheckIns.reduce((sum, c) => sum + c.pages, 0);
     const completionRate = calculateReadingProgress(activity, member.id);
     return {
       memberId: member.id,
       memberName: member.name,
+      memberAvatar: member.avatar,
       completionRate,
       totalPages: memberTotalPages,
     };
@@ -117,7 +72,7 @@ export function generateReportData(activity: Activity): ReportData {
     totalDays,
     totalPages,
     longestStreak,
-    memberCompletionRates,
+    memberCompletion,
   };
 }
 

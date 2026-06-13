@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-
-export interface CheckIn {
-  id: string;
-  memberId: string;
-  date: string;
-  status: string;
-  pages: number;
-  note?: string;
-}
+import confetti from 'canvas-confetti';
+import { CheckIn, ReadingStatus } from '@/shared/types';
 
 interface CalendarCanvasProps {
   startDate: string;
@@ -17,7 +10,7 @@ interface CalendarCanvasProps {
   onDateClick?: (date: string) => void;
 }
 
-const COLORS = {
+const COLORS: Record<ReadingStatus, string> = {
   unread: '#F5F5F4',
   reading: '#FED7AA',
   finished20: '#FDBA74',
@@ -52,7 +45,7 @@ const CalendarCanvas = ({
   }, [startDate, endDate]);
 
   const getCheckInStatus = useCallback(
-    (date: string) => {
+    (date: string): ReadingStatus => {
       const checkIn = checkIns.find(
         (c) => c.date === date && c.memberId === memberId
       );
@@ -65,8 +58,17 @@ const CalendarCanvas = ({
     [checkIns, memberId]
   );
 
-  const getColor = (status: string) => {
-    return COLORS[status as keyof typeof COLORS] || COLORS.unread;
+  const getColor = (status: ReadingStatus) => {
+    return COLORS[status] || COLORS.unread;
+  };
+
+  const triggerConfetti = (date: string) => {
+    confetti({
+      particleCount: 30,
+      spread: 50,
+      origin: { y: 0.7 },
+      colors: ['#F97316', '#FED7AA', '#FDBA74']
+    });
   };
 
   const draw = useCallback(() => {
@@ -151,9 +153,12 @@ const CalendarCanvas = ({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX / dpr;
+      const y = (e.clientY - rect.top) * scaleY / dpr;
 
       const days = getDaysBetween();
       const cols = 7;
@@ -193,9 +198,12 @@ const CalendarCanvas = ({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX / dpr;
+      const y = (e.clientY - rect.top) * scaleY / dpr;
 
       const days = getDaysBetween();
       const cols = 7;
@@ -212,6 +220,7 @@ const CalendarCanvas = ({
           y >= cellY &&
           y < cellY + cellSize
         ) {
+          triggerConfetti(date);
           onDateClick(date);
         }
       });
