@@ -1,14 +1,15 @@
-/**
- * 任务类型定义
- * 数据流向：被前端组件、API路由、WebSocket服务器共享使用
- */
+export interface TeamMember {
+  id: string;
+  name: string;
+  avatar: string;
+}
 
 export interface Task {
   id: string;
   title: string;
   description: string;
   estimatedHours: number;
-  assignees: string[];
+  assignees: TeamMember[];
   timeSpent: number;
   isRunning: boolean;
   createdAt: number;
@@ -20,7 +21,6 @@ export interface TimeSnapshot {
   taskId: string;
   timestamp: number;
   timeSpent: number;
-  snapshotTime: number;
 }
 
 export type WSMessageType =
@@ -44,14 +44,15 @@ export interface TaskCreateInput {
   title: string;
   description: string;
   estimatedHours: number;
-  assignees: string[];
+  assignees: TeamMember[];
 }
 
 export interface TaskUpdateInput {
   title?: string;
   description?: string;
   estimatedHours?: number;
-  assignees?: string;
+  assignees?: TeamMember[];
+  position?: number;
 }
 
 export interface TimeSpentUpdateInput {

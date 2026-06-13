@@ -1,160 +1,79 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HTTPServer } from 'http';
-import type { WSMessage, WSMessageType } from '../src/types/index.js';
+import type { WSMessage, WSMessageType, Task } from '../src/types';
 import {
   getAllTasks,
+  addTask,
+  updateTask,
+  deleteTask,
   updateTimeSpent,
-  setTaskRunning,
-  getTaskById,
-} from './taskData.js';
+  setTimerRunning,
+  resetTimer,
+} from './taskData';
 
-interface ConnectedClient {
-  ws: WebSocket;
-  id: string;
+type BroadcastFn = (msg: WSMessage) => void;
+
+interface WSExt extends WebSocket {
+  isAlive?: boolean;
 }
 
-let clients: ConnectedClient[] = [];
-let wss: WebSocketServer | null = null;
-
-function generateClientId(): string {
-  return `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+function validateMessage(data: unknown): { type: WSMessageType; payload: unknown } | null {
+  if (!data || typeof data !== 'object') return null;
+  const obj = data as Record<string, unknown>;
+  if (typeof obj.type !== 'string') return null;
+  return { type: obj.type as WSMessageType, payload: obj.payload };
 }
 
-export function broadcast<T = unknown>(type: WSMessageType, payload: T): void {
-  const message: WSMessage<T> = {
-    type,
-    payload,
-    timestamp: Date.now(),
-  };
-  const raw = JSON.stringify(message);
+export function createWSServer(server: HTTPServer): { wss: WebSocketServer; broadcast: BroadcastFn } {
+  const wss = new WebSocketServer({ server, path: '/ws' });
+  const clients = new Set<WSExt>();
 
-  for (const client of clients) {
-    if (client.ws.readyState === WebSocket.OPEN) {
-      client.ws.send(raw);
+  const broadcast = (msg: WSMessage): void => {
+    const raw = JSON.stringify(msg);
+    for (const client of clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(raw);
+      }
     }
-  }
-}
-
-function sendToClient<T = unknown>(client: ConnectedClient, type: WSMessageType, payload: T): void {
-  const message: WSMessage<T> = {
-    type,
-    payload,
-    timestamp: Date.now(),
   };
-  if (client.ws.readyState === WebSocket.OPEN) {
-    client.ws.send(JSON.stringify(message));
-  }
-}
 
-function handleIncomingMessage(client: ConnectedClient, raw: string): void {
-  try {
-    const parsed = JSON.parse(raw) as Partial<WSMessage>;
-    if (!parsed.type || typeof parsed.type !== 'string') {
-      sendToClient(client, 'ERROR', 'Invalid message format: missing type');
-      return;
+  const sendTo = (client: WSExt, type: WSMessageType, payload: unknown): void => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type, payload, timestamp: Date.now() }));
     }
+  };
 
-    switch (parsed.type) {
-      case 'TIME_SYNC': {
-        const payload = parsed.payload as { taskId: string; timeSpent: number } | undefined;
-        if (!payload || typeof payload.taskId !== 'string' || typeof payload.timeSpent !== 'number') {
-          sendToClient(client, 'ERROR', 'Invalid TIME_SYNC payload');
+  wss.on('connection', (ws: WSExt) => {
+    ws.isAlive = true;
+    clients.add(ws);
+    sendTo(ws, 'SNAPSHOT', getAllTasks());
+
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+
+    ws.on('message', (raw) => {
+      try {
+        const parsed = JSON.parse(raw.toString());
+        const msg = validateMessage(parsed);
+        if (!msg) {
+          sendTo(ws, 'ERROR', 'Invalid message format');
           return;
         }
-        const updated = updateTimeSpent(payload.taskId, payload.timeSpent);
-        if (updated) {
-          broadcast('TASK_UPDATED', updated);
-        }
-        break;
-      }
 
-      case 'TIMER_STARTED': {
-        const payload = parsed.payload as { taskId: string; timestamp: number } | undefined;
-        if (!payload || typeof payload.taskId !== 'string') {
-          sendToClient(client, 'ERROR', 'Invalid TIMER_STARTED payload');
-          return;
-        }
-        const updated = setTaskRunning(payload.taskId, true);
-        if (updated) {
-          broadcast('TIMER_STARTED', { taskId: payload.taskId, timestamp: payload.timestamp ?? Date.now() });
-          broadcast('TASK_UPDATED', updated);
-        }
-        break;
-      }
+        const now = Date.now();
 
-      case 'TIMER_PAUSED': {
-        const payload = parsed.payload as { taskId: string; timeSpent: number } | undefined;
-        if (!payload || typeof payload.taskId !== 'string') {
-          sendToClient(client, 'ERROR', 'Invalid TIMER_PAUSED payload');
-          return;
-        }
-        if (typeof payload.timeSpent === 'number') {
-          updateTimeSpent(payload.taskId, payload.timeSpent);
-        }
-        const updated = setTaskRunning(payload.taskId, false);
-        if (updated) {
-          broadcast('TIMER_PAUSED', { taskId: payload.taskId, timeSpent: updated.timeSpent });
-          broadcast('TASK_UPDATED', updated);
-        }
-        break;
-      }
-
-      case 'TIMER_RESET': {
-        const payload = parsed.payload as { taskId: string } | undefined;
-        if (!payload || typeof payload.taskId !== 'string') {
-          sendToClient(client, 'ERROR', 'Invalid TIMER_RESET payload');
-          return;
-        }
-        const task = getTaskById(payload.taskId);
-        if (task) {
-          updateTimeSpent(payload.taskId, 0);
-          const updated = setTaskRunning(payload.taskId, false);
-          if (updated) {
-            broadcast('TIMER_RESET', { taskId: payload.taskId });
-            broadcast('TASK_UPDATED', updated);
+        switch (msg.type) {
+          case 'TASK_CREATED': {
+            const input = msg.payload as Parameters<typeof addTask>[0];
+            if (!input || typeof input.title !== 'string') {
+              sendTo(ws, 'ERROR', 'Invalid task payload');
+              return;
+            }
+            const task = addTask(input);
+            broadcast({ type: 'TASK_CREATED', payload: task, timestamp: now });
+            break;
           }
-        }
-        break;
-      }
-
-      default:
-        sendToClient(client, 'ERROR', `Unknown message type: ${parsed.type}`);
-        break;
-    }
-  } catch {
-    sendToClient(client, 'ERROR', 'Failed to parse message');
-  }
-}
-
-export function setupWebSocket(server: HTTPServer): WebSocketServer {
-  wss = new WebSocketServer({ server, path: '/ws' });
-
-  wss.on('connection', (ws) => {
-    const client: ConnectedClient = {
-      ws,
-      id: generateClientId(),
-    };
-    clients.push(client);
-
-    const initialTasks = getAllTasks();
-    sendToClient(client, 'SNAPSHOT', initialTasks);
-
-    ws.on('message', (data) => {
-      handleIncomingMessage(client, data.toString());
-    });
-
-    ws.on('close', () => {
-      clients = clients.filter((c) => c.id !== client.id);
-    });
-
-    ws.on('error', () => {
-      clients = clients.filter((c) => c.id !== client.id);
-    });
-  });
-
-  return wss;
-}
-
-export function getWSS(): WebSocketServer | null {
-  return wss;
-}
+          case 'TASK_UPDATED': {
+            const payload = msg.payload as { id: string; data: Parameters<typeof updateTask>[1] };
+            if (!payload || !payload.id) {
