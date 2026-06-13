@@ -17,6 +17,8 @@ export function createPlayer(id: 1 | 2, heroType: 1 | 2): Player {
     id,
     x: spawnX,
     y: spawnY,
+    targetX: spawnX,
+    targetY: spawnY,
     renderX: spawnX,
     renderY: spawnY,
     hp: 100,
@@ -49,6 +51,8 @@ export function resetPlayer(player: Player): void {
 
   player.x = spawnX;
   player.y = spawnY;
+  player.targetX = spawnX;
+  player.targetY = spawnY;
   player.renderX = spawnX;
   player.renderY = spawnY;
   player.hp = player.maxHp;

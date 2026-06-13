@@ -25,8 +25,7 @@ import {
   createRandomItem,
   getOtherPlayer,
   canMove,
-  canAttack,
-  useExtraAction
+  canAttack
 } from './playerManager';
 
 interface Position {
@@ -357,10 +356,6 @@ export function updatePlayerAnimations(
   if (player.isMoving) {
     player.moveProgress += deltaTime;
     const progress = Math.min(1, player.moveProgress / MOVE_ANIMATION_DURATION);
-    
-    const easeProgress = progress < 0.5
-      ? 2 * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
     player.renderX = player.x;
     player.renderY = player.y;
@@ -430,8 +425,8 @@ export function updateTrapEffects(
 }
 
 export function checkGameOver(players: [Player, Player]): Player | null {
-  if (!players[0].isAlive) return players[1];
-  if (!players[1].isAlive) return players[0];
+  if (players[0].hp <= 0) return players[1];
+  if (players[1].hp <= 0) return players[0];
   return null;
 }
 

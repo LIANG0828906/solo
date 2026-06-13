@@ -21,8 +21,7 @@ import {
   updateRevealTimer,
   updatePickupEffectTimer,
   useExtraAction,
-  getItemEmoji,
-  isAlive
+  getItemEmoji
 } from './playerManager';
 import {
   calculateMoveRange,
@@ -230,12 +229,29 @@ function renderMap(): void {
 
   offscreenCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-  const gradient = offscreenCtx.createLinearGradient(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-  gradient.addColorStop(0, '#1a1a2e');
-  gradient.addColorStop(0.5, '#0f0f1a');
-  gradient.addColorStop(1, '#0a0a0f');
+  const gradient = offscreenCtx.createRadialGradient(
+    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.1,
+    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.7
+  );
+  gradient.addColorStop(0, '#16162a');
+  gradient.addColorStop(0.4, '#0d0d1a');
+  gradient.addColorStop(0.7, '#080812');
+  gradient.addColorStop(1, '#04040a');
   offscreenCtx.fillStyle = gradient;
   offscreenCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  offscreenCtx.strokeStyle = 'rgba(80, 60, 120, 0.04)';
+  offscreenCtx.lineWidth = 1;
+  for (let i = 0; i < CANVAS_SIZE; i += 40) {
+    offscreenCtx.beginPath();
+    offscreenCtx.moveTo(0, i);
+    offscreenCtx.lineTo(CANVAS_SIZE, i);
+    offscreenCtx.stroke();
+    offscreenCtx.beginPath();
+    offscreenCtx.moveTo(i, 0);
+    offscreenCtx.lineTo(i, CANVAS_SIZE);
+    offscreenCtx.stroke();
+  }
 
   for (let y = 0; y < MAP_SIZE; y++) {
     for (let x = 0; x < MAP_SIZE; x++) {
@@ -282,11 +298,12 @@ function renderMap(): void {
   }
 
   const edgeGradient = offscreenCtx.createRadialGradient(
-    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.3,
-    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.5
+    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.2,
+    CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE * 0.6
   );
   edgeGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  edgeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+  edgeGradient.addColorStop(0.5, 'rgba(10, 5, 20, 0.5)');
+  edgeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.92)');
   offscreenCtx.fillStyle = edgeGradient;
   offscreenCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
@@ -296,114 +313,271 @@ function renderMap(): void {
 function drawObstacle(c: CanvasRenderingContext2D, x: number, y: number): void {
   const padding = 4;
   const size = TILE_SIZE - padding * 2;
+  const bx = x + padding;
+  const by = y + padding;
 
-  const gradient = c.createLinearGradient(x, y, x + size, y + size);
-  gradient.addColorStop(0, '#1a3a2a');
-  gradient.addColorStop(1, '#0d1f15');
+  const gradient = c.createLinearGradient(x, y, x + TILE_SIZE, y + TILE_SIZE);
+  gradient.addColorStop(0, '#0d1f15');
+  gradient.addColorStop(0.5, '#163325');
+  gradient.addColorStop(1, '#1a3a2a');
   c.fillStyle = gradient;
-  c.fillRect(x + padding, y + padding, size, size);
-
-  c.strokeStyle = '#2a5a4a';
-  c.lineWidth = 2;
-  c.strokeRect(x + padding, y + padding, size, size);
-
-  c.fillStyle = 'rgba(42, 90, 74, 0.3)';
-  for (let i = 0; i < 4; i++) {
-    const rx = x + padding + 8 + i * 12;
-    const ry = y + padding + 8 + (i % 2) * 20;
-    c.fillRect(rx, ry, 6, 6);
-  }
-}
-
-function drawCover(c: CanvasRenderingContext2D, x: number, y: number): void {
-  const padding = 6;
-  const size = TILE_SIZE - padding * 2;
-
-  const gradient = c.createLinearGradient(x, y, x, y + size);
-  gradient.addColorStop(0, '#5a6b7a');
-  gradient.addColorStop(1, '#3a4b5a');
-  c.fillStyle = gradient;
-  c.fillRect(x + padding, y + padding, size, size);
+  c.fillRect(bx, by, size, size);
 
   c.save();
   c.beginPath();
-  c.rect(x + padding, y + padding, size, size);
+  c.rect(bx, by, size, size);
   c.clip();
 
-  c.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  c.lineWidth = 2;
-  for (let i = -size; i < size * 2; i += 8) {
+  c.strokeStyle = 'rgba(10, 30, 20, 0.6)';
+  c.lineWidth = 1.5;
+  for (let i = -size; i < size * 2; i += 10) {
     c.beginPath();
-    c.moveTo(x + padding + i, y + padding);
-    c.lineTo(x + padding + i + size, y + padding + size);
+    c.moveTo(bx + i, by);
+    c.lineTo(bx + i + size, by + size);
     c.stroke();
   }
+
+  c.strokeStyle = 'rgba(42, 90, 74, 0.35)';
+  c.lineWidth = 1;
+  const cx = bx + size / 2;
+  const cy = by + size / 2;
+  const r = size * 0.28;
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    if (i === 0) c.moveTo(px, py);
+    else c.lineTo(px, py);
+  }
+  c.closePath();
+  c.stroke();
+
+  c.fillStyle = 'rgba(42, 90, 74, 0.4)';
+  c.beginPath();
+  c.arc(cx, cy, 3, 0, Math.PI * 2);
+  c.fill();
+
   c.restore();
 
-  c.strokeStyle = '#7a8b9a';
-  c.lineWidth = 2;
-  c.strokeRect(x + padding, y + padding, size, size);
+  c.strokeStyle = '#1f4a38';
+  c.lineWidth = 2.5;
+  c.strokeRect(bx, by, size, size);
+
+  c.fillStyle = '#2d6a54';
+  const cornerSize = 5;
+  c.fillRect(bx, by, cornerSize, cornerSize);
+  c.fillRect(bx + size - cornerSize, by, cornerSize, cornerSize);
+  c.fillRect(bx, by + size - cornerSize, cornerSize, cornerSize);
+  c.fillRect(bx + size - cornerSize, by + size - cornerSize, cornerSize, cornerSize);
+}
+
+function drawCover(c: CanvasRenderingContext2D, x: number, y: number): void {
+  const padding = 5;
+  const size = TILE_SIZE - padding * 2;
+  const bx = x + padding;
+  const by = y + padding;
+
+  const gradient = c.createLinearGradient(bx, by, bx, by + size);
+  gradient.addColorStop(0, '#52616e');
+  gradient.addColorStop(0.5, '#404d59');
+  gradient.addColorStop(1, '#2e3944');
+  c.fillStyle = gradient;
+  c.fillRect(bx, by, size, size);
+
+  c.save();
+  c.beginPath();
+  c.rect(bx, by, size, size);
+  c.clip();
+
+  c.strokeStyle = 'rgba(90, 110, 130, 0.7)';
+  c.lineWidth = 1.2;
+  for (let i = -size; i < size * 2; i += 5) {
+    c.beginPath();
+    c.moveTo(bx + i, by);
+    c.lineTo(bx + i + size, by + size);
+    c.stroke();
+  }
+
+  c.strokeStyle = 'rgba(30, 40, 55, 0.75)';
+  c.lineWidth = 1.2;
+  for (let i = 0; i < size * 3; i += 5) {
+    c.beginPath();
+    c.moveTo(bx + i, by);
+    c.lineTo(bx + i - size, by + size);
+    c.stroke();
+  }
+
+  c.fillStyle = 'rgba(20, 28, 38, 0.35)';
+  const blockH = size / 3;
+  const offsets = [0, blockH * 0.5, 0];
+  for (let row = 0; row < 3; row++) {
+    const rowY = by + row * blockH;
+    const offset = offsets[row];
+    c.beginPath();
+    c.moveTo(bx + offset + size * 0.3, rowY);
+    c.lineTo(bx + offset + size * 0.3, rowY + blockH);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(bx + offset + size * 0.65, rowY);
+    c.lineTo(bx + offset + size * 0.65, rowY + blockH);
+    c.stroke();
+  }
+
+  c.restore();
+
+  c.strokeStyle = '#6a7a8a';
+  c.lineWidth = 2.5;
+  c.strokeRect(bx, by, size, size);
+
+  c.fillStyle = '#7a8b9a';
+  const cornerSize = 4;
+  c.fillRect(bx, by, cornerSize, cornerSize);
+  c.fillRect(bx + size - cornerSize, by, cornerSize, cornerSize);
+  c.fillRect(bx, by + size - cornerSize, cornerSize, cornerSize);
+  c.fillRect(bx + size - cornerSize, by + size - cornerSize, cornerSize, cornerSize);
+
+  c.strokeStyle = 'rgba(25, 35, 48, 0.6)';
+  c.lineWidth = 1;
+  c.strokeRect(bx + 3, by + 3, size - 6, size - 6);
 }
 
 function drawTrap(c: CanvasRenderingContext2D, x: number, y: number): void {
   const cx = x + TILE_SIZE / 2;
   const cy = y + TILE_SIZE / 2;
-  const r = TILE_SIZE * 0.3;
+  const outerR = TILE_SIZE * 0.38;
+  const innerR = TILE_SIZE * 0.22;
 
-  c.fillStyle = 'rgba(255, 68, 68, 0.2)';
+  c.save();
+  c.fillStyle = 'rgba(80, 15, 15, 0.35)';
   c.beginPath();
-  c.arc(cx, cy, r, 0, Math.PI * 2);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4 - Math.PI / 8;
+    const r = i % 2 === 0 ? outerR : outerR * 0.72;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    if (i === 0) c.moveTo(px, py);
+    else c.lineTo(px, py);
+  }
+  c.closePath();
   c.fill();
 
-  c.strokeStyle = '#FF4444';
-  c.lineWidth = 2;
-  c.setLineDash([5, 3]);
-  c.beginPath();
-  c.arc(cx, cy, r, 0, Math.PI * 2);
+  c.strokeStyle = '#8b1a1a';
+  c.lineWidth = 2.5;
   c.stroke();
-  c.setLineDash([]);
 
-  c.fillStyle = '#FF4444';
-  c.font = 'bold 24px monospace';
+  c.fillStyle = 'rgba(139, 26, 26, 0.5)';
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4;
+    const r = i % 2 === 0 ? innerR : innerR * 0.65;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    if (i === 0) c.moveTo(px, py);
+    else c.lineTo(px, py);
+  }
+  c.closePath();
+  c.fill();
+
+  c.strokeStyle = '#c42a2a';
+  c.lineWidth = 1.5;
+  c.stroke();
+
+  c.shadowColor = '#ff3333';
+  c.shadowBlur = 10;
+  c.fillStyle = '#e63030';
+  c.font = 'bold 22px serif';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillText('!', cx, cy);
+  c.fillText('☠', cx, cy + 1);
+  c.shadowBlur = 0;
+
+  c.fillStyle = 'rgba(200, 50, 50, 0.8)';
+  c.beginPath();
+  c.arc(cx, cy - innerR - 4, 2.5, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.arc(cx, cy + innerR + 4, 2.5, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.arc(cx - innerR - 4, cy, 2.5, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.arc(cx + innerR + 4, cy, 2.5, 0, Math.PI * 2);
+  c.fill();
+
+  c.restore();
 }
 
 function drawChest(c: CanvasRenderingContext2D, x: number, y: number): void {
-  const padding = 12;
+  const padding = 10;
   const w = TILE_SIZE - padding * 2;
-  const h = TILE_SIZE - padding * 2 - 8;
+  const h = TILE_SIZE - padding * 2 - 6;
+  const bx = x + padding;
+  const by = y + padding;
+  const cx = x + TILE_SIZE / 2;
+  const cy = y + TILE_SIZE / 2;
 
-  const gradient = c.createLinearGradient(x, y, x, y + h);
-  gradient.addColorStop(0, '#e6b85c');
-  gradient.addColorStop(1, '#b8860b');
-  c.fillStyle = gradient;
-  c.fillRect(x + padding, y + padding + 8, w, h);
-
-  const lidGradient = c.createLinearGradient(x, y, x, y + padding + 4);
-  lidGradient.addColorStop(0, '#f4c86c');
-  lidGradient.addColorStop(1, '#d4a853');
-  c.fillStyle = lidGradient;
-  c.fillRect(x + padding - 2, y + padding, w + 4, 12);
-
-  c.strokeStyle = '#ffd700';
-  c.lineWidth = 2;
-  c.strokeRect(x + padding, y + padding + 8, w, h);
-  c.strokeRect(x + padding - 2, y + padding, w + 4, 12);
-
-  c.fillStyle = '#ffd700';
-  c.beginPath();
-  c.arc(x + TILE_SIZE / 2, y + padding + 14, 4, 0, Math.PI * 2);
-  c.fill();
+  c.save();
 
   c.shadowColor = '#ffd700';
-  c.shadowBlur = 15;
-  c.fillStyle = 'rgba(255, 215, 0, 0.3)';
+  c.shadowBlur = 18;
+  c.fillStyle = 'rgba(255, 215, 0, 0.18)';
   c.beginPath();
-  c.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE * 0.4, 0, Math.PI * 2);
+  c.arc(cx, cy, TILE_SIZE * 0.44, 0, Math.PI * 2);
   c.fill();
   c.shadowBlur = 0;
+
+  const bodyGradient = c.createLinearGradient(bx, by + 10, bx, by + 10 + h);
+  bodyGradient.addColorStop(0, '#d4a853');
+  bodyGradient.addColorStop(0.4, '#c99438');
+  bodyGradient.addColorStop(1, '#b8860b');
+  c.fillStyle = bodyGradient;
+  c.fillRect(bx, by + 10, w, h);
+
+  const lidGradient = c.createLinearGradient(bx - 2, by, bx - 2, by + 12);
+  lidGradient.addColorStop(0, '#e8bc63');
+  lidGradient.addColorStop(0.5, '#d4a853');
+  lidGradient.addColorStop(1, '#b8902a');
+  c.fillStyle = lidGradient;
+  c.fillRect(bx - 2, by, w + 4, 12);
+
+  c.strokeStyle = '#ffd700';
+  c.lineWidth = 2.5;
+  c.strokeRect(bx, by + 10, w, h);
+  c.strokeRect(bx - 2, by, w + 4, 12);
+
+  c.fillStyle = '#ffd700';
+  c.fillRect(bx + 5, by + 10, 3, h);
+  c.fillRect(bx + w - 8, by + 10, 3, h);
+
+  c.fillStyle = '#d4a853';
+  c.fillRect(bx + 5, by + 10 + h / 2 - 4, 3, 8);
+  c.fillRect(bx + w - 8, by + 10 + h / 2 - 4, 3, 8);
+
+  c.fillStyle = '#ffd700';
+  c.shadowColor = '#ffd700';
+  c.shadowBlur = 8;
+  c.fillRect(cx - 5, by + 10 + h / 2 - 6, 10, 12);
+  c.fillStyle = '#b8860b';
+  c.fillRect(cx - 2, by + 10 + h / 2 - 2, 4, 5);
+  c.shadowBlur = 0;
+
+  c.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(bx + 4, by + 12);
+  c.lineTo(bx + 4, by + 8 + h);
+  c.stroke();
+
+  c.strokeStyle = 'rgba(80, 50, 10, 0.5)';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(bx + w - 4, by + 12);
+  c.lineTo(bx + w - 4, by + 8 + h);
+  c.stroke();
+
+  c.restore();
 }
 
 function drawMoveRange(): void {
@@ -438,18 +612,32 @@ function drawPlayer(player: Player): void {
   ctx.save();
 
   if (player.stealth) {
-    ctx.globalAlpha = 0.5 + Math.sin(gameTime / 200) * 0.15;
+    ctx.globalAlpha = 0.45 + Math.sin(gameTime / 180) * 0.18;
   }
 
   if (player.revealed && player.revealTimer > 0) {
     const blink = Math.floor(gameTime / ALERT_BLINK_INTERVAL) % 2;
     if (blink) {
-      ctx.shadowColor = '#FF4444';
-      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#FF3333';
+      ctx.shadowBlur = 25;
     }
   }
 
   const size = TILE_SIZE * 0.35;
+  const capeR = size * 1.35;
+
+  ctx.fillStyle = player.color === '#4A90D9' ? 'rgba(30, 50, 90, 0.75)' : 'rgba(90, 30, 30, 0.75)';
+  ctx.beginPath();
+  ctx.moveTo(drawX, drawY + size * 0.2);
+  ctx.quadraticCurveTo(drawX - capeR * 0.9, drawY + capeR * 0.3, drawX - capeR * 0.5, drawY + capeR * 1.05);
+  ctx.quadraticCurveTo(drawX, drawY + capeR * 0.75, drawX + capeR * 0.5, drawY + capeR * 1.05);
+  ctx.quadraticCurveTo(drawX + capeR * 0.9, drawY + capeR * 0.3, drawX, drawY + size * 0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = player.color === '#4A90D9' ? 'rgba(80, 120, 180, 0.6)' : 'rgba(180, 80, 80, 0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
   ctx.fillStyle = player.color;
   ctx.beginPath();
@@ -500,16 +688,20 @@ function drawPlayer(player: Player): void {
   }
 
   if (player.stealth) {
-    const starColor = '#9C27B0';
-    for (let i = 0; i < 3; i++) {
-      const angle = (gameTime / 500 + i * 2.1) % (Math.PI * 2);
-      const radius = size * 1.2 + Math.sin(gameTime / 300 + i) * 5;
+    const starColor1 = '#9C27B0';
+    const starColor2 = '#6A1B9A';
+    const starColor3 = '#E040FB';
+    for (let i = 0; i < 7; i++) {
+      const angle = (gameTime / 400 + i * 0.9) % (Math.PI * 2);
+      const radius = size * (1.15 + (i % 3) * 0.25) + Math.sin(gameTime / 250 + i * 1.3) * 4;
       const sx = drawX + Math.cos(angle) * radius;
       const sy = drawY + Math.sin(angle) * radius;
 
-      ctx.fillStyle = starColor;
-      ctx.globalAlpha = 0.6 + Math.sin(gameTime / 200 + i) * 0.4;
-      drawStar(ctx, sx, sy, 4, 3, 5);
+      const colors = [starColor1, starColor2, starColor3];
+      ctx.fillStyle = colors[i % 3];
+      ctx.globalAlpha = 0.55 + Math.sin(gameTime / 150 + i * 0.8) * 0.45;
+      const starSize = 3 + (i % 2) * 2;
+      drawStar(ctx, sx, sy, starSize, starSize * 0.55, 5);
     }
     ctx.globalAlpha = 1;
   }
@@ -644,7 +836,7 @@ function drawEffects(): void {
   }
 }
 
-function render(deltaTime: number): void {
+function render(): void {
   ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
   renderMap();
@@ -782,7 +974,7 @@ function gameLoop(timestamp: number): void {
     update(deltaTime);
   }
 
-  render(deltaTime);
+  render();
 
   requestAnimationFrame(gameLoop);
 }
