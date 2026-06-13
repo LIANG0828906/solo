@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -59,84 +59,36 @@ export interface PaginatedResult<T> {
   pageSize: number;
 }
 
+let dbInstance: SqlJsDatabase | null = null;
 const dbDir = path.resolve(process.cwd(), 'data');
+const dbPath = path.join(dbDir, 'app.db');
+
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new Database(path.join(dbDir, 'app.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+async function loadDatabase(): Promise<SqlJsDatabase> {
+  const SQL = await initSqlJs({
+    locateFile: (file: string) =>
+      path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
+  });
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    avatar TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS groups (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    cover_image TEXT NOT NULL,
-    leader_id TEXT NOT NULL,
-    leader_name TEXT NOT NULL,
-    member_count INTEGER NOT NULL DEFAULT 1,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (leader_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS activities (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    start_time INTEGER NOT NULL,
-    end_time INTEGER NOT NULL,
-    location TEXT NOT NULL,
-    max_participants INTEGER NOT NULL,
-    current_participants INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'upcoming',
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES groups(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS registrations (
-    id TEXT PRIMARY KEY,
-    activity_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    UNIQUE(activity_id, user_id),
-    FOREIGN KEY (activity_id) REFERENCES activities(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS ratings (
-    id TEXT PRIMARY KEY,
-    activity_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 5),
-    comment TEXT,
-    created_at INTEGER NOT NULL,
-    UNIQUE(activity_id, user_id),
-    FOREIGN KEY (activity_id) REFERENCES activities(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-`);
-
-const defaultUser = db.prepare('SELECT * FROM users WHERE id = ?').get('user-001') as User | undefined;
-if (!defaultUser) {
-  db.prepare('INSERT INTO users (id, name, avatar) VALUES (?, ?, ?)').run(
-    'user-001',
-    '测试用户',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=user001'
-  );
+  if (fs.existsSync(dbPath)) {
+    const buffer = fs.readFileSync(dbPath);
+    return new SQL.Database(buffer);
+  }
+  return new SQL.Database();
 }
 
-function rowToUser(row: any): User {
+function saveDatabase() {
+  if (dbInstance) {
+    const data = dbInstance.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(dbPath, buffer);
+  }
+}
+
+function rowToUser(row: Record<string, any>): User {
   return {
     id: row.id,
     name: row.name,
@@ -144,7 +96,7 @@ function rowToUser(row: any): User {
   };
 }
 
-function rowToGroup(row: any): Group {
+function rowToGroup(row: Record<string, any>): Group {
   return {
     id: row.id,
     name: row.name,
@@ -157,7 +109,7 @@ function rowToGroup(row: any): Group {
   };
 }
 
-function rowToActivity(row: any): Activity {
+function rowToActivity(row: Record<string, any>): Activity {
   return {
     id: row.id,
     groupId: row.group_id,
@@ -173,7 +125,7 @@ function rowToActivity(row: any): Activity {
   };
 }
 
-function rowToRegistration(row: any): Registration {
+function rowToRegistration(row: Record<string, any>): Registration {
   return {
     id: row.id,
     activityId: row.activity_id,
@@ -183,7 +135,7 @@ function rowToRegistration(row: any): Registration {
   };
 }
 
-function rowToRating(row: any): Rating {
+function rowToRating(row: Record<string, any>): Rating {
   return {
     id: row.id,
     activityId: row.activity_id,
@@ -195,12 +147,128 @@ function rowToRating(row: any): Rating {
   };
 }
 
+function execQuery<T>(
+  sql: string,
+  params: any[] = [],
+  rowMapper: (row: Record<string, any>) => T
+): T[] {
+  if (!dbInstance) throw new Error('Database not initialized');
+  const results = dbInstance.exec(sql, params);
+  if (results.length === 0) return [];
+  const columns = results[0].columns;
+  return results[0].values.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    columns.forEach((col: string, idx: number) => {
+      obj[col] = row[idx];
+    });
+    return rowMapper(obj);
+  });
+}
+
+function execGet<T>(
+  sql: string,
+  params: any[] = [],
+  rowMapper: (row: Record<string, any>) => T
+): T | undefined {
+  const results = execQuery(sql, params, rowMapper);
+  return results.length > 0 ? results[0] : undefined;
+}
+
+function execRun(sql: string, params: any[] = []): void {
+  if (!dbInstance) throw new Error('Database not initialized');
+  dbInstance.run(sql, params);
+  saveDatabase();
+}
+
+async function initDatabase(): Promise<void> {
+  if (dbInstance) return;
+  dbInstance = await loadDatabase();
+
+  dbInstance.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      avatar TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      cover_image TEXT NOT NULL,
+      leader_id TEXT NOT NULL,
+      leader_name TEXT NOT NULL,
+      member_count INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (leader_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      start_time INTEGER NOT NULL,
+      end_time INTEGER NOT NULL,
+      location TEXT NOT NULL,
+      max_participants INTEGER NOT NULL,
+      current_participants INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'upcoming',
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (group_id) REFERENCES groups(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS registrations (
+      id TEXT PRIMARY KEY,
+      activity_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(activity_id, user_id),
+      FOREIGN KEY (activity_id) REFERENCES activities(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS ratings (
+      id TEXT PRIMARY KEY,
+      activity_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 5),
+      comment TEXT,
+      created_at INTEGER NOT NULL,
+      UNIQUE(activity_id, user_id),
+      FOREIGN KEY (activity_id) REFERENCES activities(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+
+  saveDatabase();
+
+  const defaultUser = getUserById('user-001');
+  if (!defaultUser) {
+    execRun(
+      'INSERT INTO users (id, name, avatar) VALUES (?, ?, ?)',
+      ['user-001', '测试用户', 'https://api.dicebear.com/7.x/avataaars/svg?seed=user001']
+    );
+  }
+}
+
+function ensureDb(): void {
+  if (!dbInstance) {
+    throw new Error('Database not initialized. Call initDatabase() first.');
+  }
+}
+
+export { initDatabase };
+
 export function getUserById(id: string): User | undefined {
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
-  return row ? rowToUser(row) : undefined;
+  ensureDb();
+  return execGet('SELECT * FROM users WHERE id = ?', [id], rowToUser);
 }
 
 export function getCurrentUser(): User {
+  ensureDb();
   const user = getUserById('user-001');
   if (!user) {
     throw new Error('默认用户不存在');
@@ -209,20 +277,25 @@ export function getCurrentUser(): User {
 }
 
 export function getGroups(page: number = 1, pageSize: number = 20): PaginatedResult<Group> {
+  ensureDb();
   const offset = (page - 1) * pageSize;
-  const rows = db.prepare('SELECT * FROM groups ORDER BY created_at DESC LIMIT ? OFFSET ?').all(pageSize, offset) as any[];
-  const total = (db.prepare('SELECT COUNT(*) as count FROM groups').get() as any).count;
-  return {
-    items: rows.map(rowToGroup),
-    total,
-    page,
-    pageSize,
-  };
+  const items = execQuery(
+    'SELECT * FROM groups ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [pageSize, offset],
+    rowToGroup
+  );
+  const countRow = execGet<{ count: number }>(
+    'SELECT COUNT(*) as count FROM groups',
+    [],
+    (r) => ({ count: r.count })
+  );
+  const total = countRow?.count || 0;
+  return { items, total, page, pageSize };
 }
 
 export function getGroupById(id: string): Group | undefined {
-  const row = db.prepare('SELECT * FROM groups WHERE id = ?').get(id);
-  return row ? rowToGroup(row) : undefined;
+  ensureDb();
+  return execGet('SELECT * FROM groups WHERE id = ?', [id], rowToGroup);
 }
 
 export function createGroup(params: {
@@ -232,18 +305,20 @@ export function createGroup(params: {
   leaderId: string;
   leaderName: string;
 }): Group {
+  ensureDb();
   const id = uuidv4();
   const createdAt = Date.now();
-  db.prepare(
-    'INSERT INTO groups (id, name, description, cover_image, leader_id, leader_name, member_count, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)'
-  ).run(
-    id,
-    params.name,
-    params.description,
-    params.coverImage,
-    params.leaderId,
-    params.leaderName,
-    createdAt
+  execRun(
+    'INSERT INTO groups (id, name, description, cover_image, leader_id, leader_name, member_count, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)',
+    [
+      id,
+      params.name,
+      params.description,
+      params.coverImage,
+      params.leaderId,
+      params.leaderName,
+      createdAt,
+    ]
   );
   const group = getGroupById(id);
   if (!group) {
@@ -256,6 +331,7 @@ export function updateGroup(
   id: string,
   params: Partial<{ name: string; description: string; coverImage: string }>
 ): Group {
+  ensureDb();
   const existing = getGroupById(id);
   if (!existing) {
     throw new Error('小组不存在');
@@ -279,7 +355,7 @@ export function updateGroup(
 
   if (fields.length > 0) {
     values.push(id);
-    db.prepare(`UPDATE groups SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    execRun(`UPDATE groups SET ${fields.join(', ')} WHERE id = ?`, values);
   }
 
   const updated = getGroupById(id);
@@ -290,22 +366,24 @@ export function updateGroup(
 }
 
 export function deleteGroup(id: string): void {
+  ensureDb();
   const existing = getGroupById(id);
   if (!existing) {
     throw new Error('小组不存在');
   }
 
-  const transaction = db.transaction(() => {
-    const activityIds = db.prepare('SELECT id FROM activities WHERE group_id = ?').all(id) as any[];
-    for (const row of activityIds) {
-      db.prepare('DELETE FROM registrations WHERE activity_id = ?').run(row.id);
-      db.prepare('DELETE FROM ratings WHERE activity_id = ?').run(row.id);
-    }
-    db.prepare('DELETE FROM activities WHERE group_id = ?').run(id);
-    db.prepare('DELETE FROM groups WHERE id = ?').run(id);
-  });
+  const activityIds = execQuery<{ id: string }>(
+    'SELECT id FROM activities WHERE group_id = ?',
+    [id],
+    (r) => ({ id: r.id })
+  );
 
-  transaction();
+  for (const row of activityIds) {
+    execRun('DELETE FROM registrations WHERE activity_id = ?', [row.id]);
+    execRun('DELETE FROM ratings WHERE activity_id = ?', [row.id]);
+  }
+  execRun('DELETE FROM activities WHERE group_id = ?', [id]);
+  execRun('DELETE FROM groups WHERE id = ?', [id]);
 }
 
 export function getActivities(
@@ -313,22 +391,25 @@ export function getActivities(
   page: number = 1,
   pageSize: number = 20
 ): PaginatedResult<Activity> {
+  ensureDb();
   const offset = (page - 1) * pageSize;
-  const rows = db.prepare(
-    'SELECT * FROM activities WHERE group_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  ).all(groupId, pageSize, offset) as any[];
-  const total = (db.prepare('SELECT COUNT(*) as count FROM activities WHERE group_id = ?').get(groupId) as any).count;
-  return {
-    items: rows.map(rowToActivity),
-    total,
-    page,
-    pageSize,
-  };
+  const items = execQuery(
+    'SELECT * FROM activities WHERE group_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [groupId, pageSize, offset],
+    rowToActivity
+  );
+  const countRow = execGet<{ count: number }>(
+    'SELECT COUNT(*) as count FROM activities WHERE group_id = ?',
+    [groupId],
+    (r) => ({ count: r.count })
+  );
+  const total = countRow?.count || 0;
+  return { items, total, page, pageSize };
 }
 
 export function getActivityById(id: string): Activity | undefined {
-  const row = db.prepare('SELECT * FROM activities WHERE id = ?').get(id);
-  return row ? rowToActivity(row) : undefined;
+  ensureDb();
+  return execGet('SELECT * FROM activities WHERE id = ?', [id], rowToActivity);
 }
 
 export function createActivity(params: {
@@ -340,6 +421,7 @@ export function createActivity(params: {
   location: string;
   maxParticipants: number;
 }): Activity {
+  ensureDb();
   const group = getGroupById(params.groupId);
   if (!group) {
     throw new Error('小组不存在');
@@ -355,19 +437,20 @@ export function createActivity(params: {
     status = 'ongoing';
   }
 
-  db.prepare(
-    'INSERT INTO activities (id, group_id, title, description, start_time, end_time, location, max_participants, current_participants, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)'
-  ).run(
-    id,
-    params.groupId,
-    params.title,
-    params.description,
-    params.startTime,
-    params.endTime,
-    params.location,
-    params.maxParticipants,
-    status,
-    createdAt
+  execRun(
+    'INSERT INTO activities (id, group_id, title, description, start_time, end_time, location, max_participants, current_participants, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
+    [
+      id,
+      params.groupId,
+      params.title,
+      params.description,
+      params.startTime,
+      params.endTime,
+      params.location,
+      params.maxParticipants,
+      status,
+      createdAt,
+    ]
   );
 
   const activity = getActivityById(id);
@@ -382,6 +465,7 @@ export function registerActivity(
   userId: string,
   userName: string
 ): Registration {
+  ensureDb();
   const activity = getActivityById(activityId);
   if (!activity) {
     throw new Error('活动不存在');
@@ -391,49 +475,74 @@ export function registerActivity(
     throw new Error('活动名额已满');
   }
 
-  const existing = db.prepare('SELECT * FROM registrations WHERE activity_id = ? AND user_id = ?').get(activityId, userId);
+  const existing = execGet(
+    'SELECT * FROM registrations WHERE activity_id = ? AND user_id = ?',
+    [activityId, userId],
+    rowToRegistration
+  );
   if (existing) {
     throw new Error('您已报名该活动');
   }
 
-  const transaction = db.transaction(() => {
-    const id = uuidv4();
-    const createdAt = Date.now();
-    db.prepare(
-      'INSERT INTO registrations (id, activity_id, user_id, user_name, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, activityId, userId, userName, createdAt);
+  const id = uuidv4();
+  const createdAt = Date.now();
+  execRun(
+    'INSERT INTO registrations (id, activity_id, user_id, user_name, created_at) VALUES (?, ?, ?, ?, ?)',
+    [id, activityId, userId, userName, createdAt]
+  );
+  execRun(
+    'UPDATE activities SET current_participants = current_participants + 1 WHERE id = ?',
+    [activityId]
+  );
 
-    db.prepare('UPDATE activities SET current_participants = current_participants + 1 WHERE id = ?').run(activityId);
-
-    const row = db.prepare('SELECT * FROM registrations WHERE id = ?').get(id);
-    return rowToRegistration(row);
-  });
-
-  return transaction();
+  const row = execGet(
+    'SELECT * FROM registrations WHERE id = ?',
+    [id],
+    rowToRegistration
+  );
+  if (!row) {
+    throw new Error('报名失败');
+  }
+  return row;
 }
 
 export function unregisterActivity(activityId: string, userId: string): void {
-  const existing = db.prepare('SELECT * FROM registrations WHERE activity_id = ? AND user_id = ?').get(activityId, userId);
+  ensureDb();
+  const existing = execGet(
+    'SELECT * FROM registrations WHERE activity_id = ? AND user_id = ?',
+    [activityId, userId],
+    rowToRegistration
+  );
   if (!existing) {
     throw new Error('您未报名该活动');
   }
-
-  const transaction = db.transaction(() => {
-    db.prepare('DELETE FROM registrations WHERE activity_id = ? AND user_id = ?').run(activityId, userId);
-    db.prepare('UPDATE activities SET current_participants = current_participants - 1 WHERE id = ?').run(activityId);
-  });
-
-  transaction();
+  execRun(
+    'DELETE FROM registrations WHERE activity_id = ? AND user_id = ?',
+    [activityId, userId]
+  );
+  execRun(
+    'UPDATE activities SET current_participants = current_participants - 1 WHERE id = ?',
+    [activityId]
+  );
 }
 
 export function isRegistered(activityId: string, userId: string): boolean {
-  const row = db.prepare('SELECT COUNT(*) as count FROM registrations WHERE activity_id = ? AND user_id = ?').get(activityId, userId);
-  return (row as any).count > 0;
+  ensureDb();
+  const row = execGet<{ count: number }>(
+    'SELECT COUNT(*) as count FROM registrations WHERE activity_id = ? AND user_id = ?',
+    [activityId, userId],
+    (r) => ({ count: r.count })
+  );
+  return (row?.count || 0) > 0;
 }
 
 export function getRatings(activityId: string): Rating[] {
-  const rows = db.prepare('SELECT * FROM ratings WHERE activity_id = ? ORDER BY created_at DESC').all(activityId) as any[];
-  return rows.map(rowToRating);
+  ensureDb();
+  return execQuery(
+    'SELECT * FROM ratings WHERE activity_id = ? ORDER BY created_at DESC',
+    [activityId],
+    rowToRating
+  );
 }
 
 export function createRating(params: {
@@ -443,6 +552,7 @@ export function createRating(params: {
   score: number;
   comment: string;
 }): Rating {
+  ensureDb();
   if (params.score < 1 || params.score > 5) {
     throw new Error('评分必须在1-5之间');
   }
@@ -452,55 +562,79 @@ export function createRating(params: {
     throw new Error('活动不存在');
   }
 
-  const existing = db.prepare('SELECT * FROM ratings WHERE activity_id = ? AND user_id = ?').get(params.activityId, params.userId);
+  const existing = execGet(
+    'SELECT * FROM ratings WHERE activity_id = ? AND user_id = ?',
+    [params.activityId, params.userId],
+    rowToRating
+  );
   if (existing) {
     throw new Error('您已对该活动进行过评分');
   }
 
   const id = uuidv4();
   const createdAt = Date.now();
-  db.prepare(
-    'INSERT INTO ratings (id, activity_id, user_id, user_name, score, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(
-    id,
-    params.activityId,
-    params.userId,
-    params.userName,
-    params.score,
-    params.comment,
-    createdAt
+  execRun(
+    'INSERT INTO ratings (id, activity_id, user_id, user_name, score, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      id,
+      params.activityId,
+      params.userId,
+      params.userName,
+      params.score,
+      params.comment,
+      createdAt,
+    ]
   );
 
-  const rating = db.prepare('SELECT * FROM ratings WHERE id = ?').get(id);
+  const rating = execGet(
+    'SELECT * FROM ratings WHERE id = ?',
+    [id],
+    rowToRating
+  );
   if (!rating) {
     throw new Error('创建评分失败');
   }
-  return rowToRating(rating);
+  return rating;
 }
 
 export function getGroupsByUserId(userId: string): Group[] {
-  const rows = db.prepare('SELECT * FROM groups WHERE leader_id = ? ORDER BY created_at DESC').all(userId) as any[];
-  return rows.map(rowToGroup);
+  ensureDb();
+  return execQuery(
+    'SELECT * FROM groups WHERE leader_id = ? ORDER BY created_at DESC',
+    [userId],
+    rowToGroup
+  );
 }
 
 export function getActivitiesByUserId(userId: string): Activity[] {
-  const rows = db.prepare(
+  ensureDb();
+  return execQuery(
     `SELECT a.* FROM activities a
      INNER JOIN registrations r ON a.id = r.activity_id
      WHERE r.user_id = ?
-     ORDER BY a.created_at DESC`
-  ).all(userId) as any[];
-  return rows.map(rowToActivity);
+     ORDER BY a.created_at DESC`,
+    [userId],
+    rowToActivity
+  );
 }
 
 export function getRatingsByUserId(userId: string): Rating[] {
-  const rows = db.prepare('SELECT * FROM ratings WHERE user_id = ? ORDER BY created_at DESC').all(userId) as any[];
-  return rows.map(rowToRating);
+  ensureDb();
+  return execQuery(
+    'SELECT * FROM ratings WHERE user_id = ? ORDER BY created_at DESC',
+    [userId],
+    rowToRating
+  );
 }
 
 export function hasActivities(groupId: string): boolean {
-  const row = db.prepare('SELECT COUNT(*) as count FROM activities WHERE group_id = ?').get(groupId);
-  return (row as any).count > 0;
+  ensureDb();
+  const row = execGet<{ count: number }>(
+    'SELECT COUNT(*) as count FROM activities WHERE group_id = ?',
+    [groupId],
+    (r) => ({ count: r.count })
+  );
+  return (row?.count || 0) > 0;
 }
 
-export default db;
+export default dbInstance;
