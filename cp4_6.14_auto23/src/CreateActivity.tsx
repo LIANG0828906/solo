@@ -5,20 +5,20 @@ import { useApp } from './context/AppContext';
 
 const BoldIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7 4h6a4 4 0 0 1 0 8H7z"/>
-    <path d="M7 12h7a4 4 0 0 1 0 8H7z"/>
+    <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+    <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
   </svg>
 );
 
 const ItalicIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="19" y1="4" x2="10" y2="4"/>
     <line x1="14" y1="20" x2="5" y2="20"/>
     <line x1="15" y1="4" x2="9" y2="20"/>
   </svg>
 );
 
-const ListIcon2 = () => (
+const ListULIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="8" y1="6" x2="21" y2="6"/>
     <line x1="8" y1="12" x2="21" y2="12"/>
@@ -29,94 +29,81 @@ const ListIcon2 = () => (
   </svg>
 );
 
-const NumberedListIcon = () => (
+const ListOLIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="10" y1="6" x2="21" y2="6"/>
     <line x1="10" y1="12" x2="21" y2="12"/>
     <line x1="10" y1="18" x2="21" y2="18"/>
     <path d="M4 6h1v4"/>
-    <path d="M4 10h2"/>
+    <path d="M4 10H2"/>
     <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
   </svg>
 );
 
-const LocationIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 10c0 7-8 13-8 13s-8-6-8-13a8 8 0 0 1 16 0Z"/>
+const MapPinIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
     <circle cx="12" cy="10" r="3"/>
   </svg>
 );
 
 const GEO_SUGGESTIONS = [
   '北京市朝阳区朝阳公园',
-  '北京市海淀区颐和园',
-  '北京市西城区什刹海',
-  '上海市浦东新区世纪公园',
-  '上海市黄浦区外滩',
-  '上海市徐汇区徐家汇公园',
-  '广州市天河区体育中心',
-  '广州市越秀区越秀公园',
-  '深圳市南山区深圳湾公园',
-  '深圳市福田区莲花山公园',
-  '杭州市西湖区西湖风景区',
-  '成都市高新区天府绿道',
-  '武汉市武昌区东湖风景区',
-  '南京市玄武区玄武湖公园',
+  '北京市海淀区中关村',
+  '北京市西城区西单',
+  '上海市浦东新区陆家嘴',
+  '上海市徐汇区衡山路',
+  '广州市天河区珠江新城',
+  '深圳市南山区科技园',
+  '杭州市西湖区西湖',
+  '成都市锦江区春熙路',
+  '武汉市武昌区东湖',
+  '南京市鼓楼区新街口',
   '青岛市黄岛区金沙滩',
-  '西安市雁塔区大雁塔广场',
+  '西安市雁塔区大雁塔',
+  '苏州市工业园区金鸡湖',
 ];
 
 const CreateActivity = () => {
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
+  const [showGeo, setShowGeo] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
-  const editorRef = useRef<HTMLDivElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const navigate = useNavigate();
+  const editorRef = useRef<HTMLDivElement>(null);
   const { toast } = useApp();
+  const navigate = useNavigate();
 
-  const filteredSuggestions = GEO_SUGGESTIONS.filter(
-    (s) => location && s.toLowerCase().includes(location.toLowerCase())
-  ).slice(0, 6);
+  const filteredSuggestions = location.trim()
+    ? GEO_SUGGESTIONS.filter((s) => s.toLowerCase().includes(location.toLowerCase()))
+    : [];
 
-  const execCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    updateActiveFormats();
+  const execCommand = (cmd: string, value?: string) => {
+    document.execCommand(cmd, false, value);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      setDescription(editorRef.current.innerHTML);
+    }
   };
 
-  const updateActiveFormats = () => {
-    setActiveFormats({
-      bold: document.queryCommandState('bold'),
-      italic: document.queryCommandState('italic'),
-      insertUnorderedList: document.queryCommandState('insertUnorderedList'),
-      insertOrderedList: document.queryCommandState('insertOrderedList'),
-    });
-  };
-
-  const getDescription = () => {
-    return editorRef.current?.innerHTML || '';
-  };
+  useEffect(() => {
+    // 编辑器初始化后不自动填充内容，让 placeholder 生效
+  }, []);
 
   const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!title.trim()) newErrors.title = '请输入活动标题';
-    if (!getDescription().trim()) newErrors.description = '请输入活动描述';
-    if (!date) newErrors.date = '请选择活动日期';
-    if (!location.trim()) newErrors.location = '请输入活动地点';
-    if (!maxParticipants) {
-      newErrors.maxParticipants = '请输入最大参与人数';
-    } else if (!Number.isInteger(Number(maxParticipants)) || Number(maxParticipants) < 1) {
-      newErrors.maxParticipants = '参与人数必须为正整数';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: Record<string, string> = {};
+    if (!title.trim()) e.title = '请输入活动标题';
+    if (!description || description.replace(/<[^>]*>/g, '').trim().length === 0) e.description = '请输入活动描述';
+    if (!date) e.date = '请选择活动日期';
+    if (!location.trim()) e.location = '请输入活动地点';
+    const n = parseInt(maxParticipants, 10);
+    if (!maxParticipants || isNaN(n) || n < 1 || !Number.isInteger(n)) e.maxParticipants = '请输入正整数';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,18 +112,18 @@ const CreateActivity = () => {
       toast('请检查表单填写', 'error');
       return;
     }
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await activityApi.create({
         title: title.trim(),
-        description: getDescription(),
+        description,
         coverImage: coverImage.trim() || 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80',
         date,
         location: location.trim(),
-        maxParticipants: Number(maxParticipants),
+        maxParticipants: parseInt(maxParticipants, 10),
       });
-      toast('活动创建成功！获得50积分 🌿', 'success');
-      navigate(`/activities/${res.data.id}`);
+      toast('活动创建成功！获得50积分', 'success');
+      setTimeout(() => navigate(`/activities/${res.data.id}`), 500);
     } catch (err: any) {
       toast(err.response?.data?.error || '创建失败，请重试', 'error');
     } finally {
@@ -144,9 +131,10 @@ const CreateActivity = () => {
     }
   };
 
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const minDateTime = now.toISOString().slice(0, 16);
+  const selectGeo = (s: string) => {
+    setLocation(s);
+    setShowGeo(false);
+  };
 
   return (
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
@@ -154,217 +142,194 @@ const CreateActivity = () => {
         <div>
           <h1 className="page-title">🌱 发起环保活动</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
-            创建活动可获得 50 环保积分奖励
+            创建一个有意义的环保活动，邀请更多人一起守护地球
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="card" style={{ padding: 32 }}>
+      <form onSubmit={handleSubmit} className="card" style={{ padding: 32 }}>
+        <div className="form-group">
+          <label className="form-label">
+            活动标题 <span style={{ color: '#E07A5F' }}>*</span>
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="例如：周末公园清洁行动"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ borderColor: errors.title ? '#E07A5F' : undefined }}
+          />
+          {errors.title && <p style={{ color: '#E07A5F', fontSize: 12, marginTop: 6 }}>{errors.title}</p>}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">
+            活动描述 <span style={{ color: '#E07A5F' }}>*</span>
+          </label>
+          <div className="rich-editor" style={{ borderColor: errors.description ? '#E07A5F' : undefined }}>
+            <div className="rich-toolbar">
+              <button
+                type="button"
+                className="rich-toolbar-btn"
+                onClick={() => execCommand('bold')}
+                title="加粗"
+              >
+                <BoldIcon />
+              </button>
+              <button
+                type="button"
+                className="rich-toolbar-btn"
+                onClick={() => execCommand('italic')}
+                title="斜体"
+              >
+                <ItalicIcon />
+              </button>
+              <div style={{ width: 1, background: 'var(--forest-100)', margin: '4px 8px' }} />
+              <button
+                type="button"
+                className="rich-toolbar-btn"
+                onClick={() => execCommand('insertUnorderedList')}
+                title="无序列表"
+              >
+                <ListULIcon />
+              </button>
+              <button
+                type="button"
+                className="rich-toolbar-btn"
+                onClick={() => execCommand('insertOrderedList')}
+                title="有序列表"
+              >
+                <ListOLIcon />
+              </button>
+            </div>
+            <div
+              ref={editorRef}
+              className="rich-content"
+              contentEditable
+              suppressContentEditableWarning
+              data-placeholder="请输入活动详情、集合信息、注意事项等..."
+              onInput={(e) => setDescription((e.target as HTMLDivElement).innerHTML)}
+              onBlur={(e) => setDescription((e.target as HTMLDivElement).innerHTML)}
+              style={{ minHeight: 180 }}
+            />
+          </div>
+          {errors.description && (
+            <p style={{ color: '#E07A5F', fontSize: 12, marginTop: 6 }}>{errors.description}</p>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">封面图 URL（可选）</label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="粘贴图片链接，留空将使用默认封面"
+            value={coverImage}
+            onChange={(e) => setCoverImage(e.target.value)}
+          />
+          {coverImage && (
+            <div style={{ marginTop: 12 }}>
+              <img
+                src={coverImage}
+                alt="预览"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div className="form-group">
             <label className="form-label">
-              活动标题 <span style={{ color: '#E07A5F' }}>*</span>
+              活动日期时间 <span style={{ color: '#E07A5F' }}>*</span>
             </label>
+            <input
+              type="datetime-local"
+              className="form-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ borderColor: errors.date ? '#E07A5F' : undefined }}
+            />
+            {errors.date && <p style={{ color: '#E07A5F', fontSize: 12, marginTop: 6 }}>{errors.date}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">
+              最大参与人数 <span style={{ color: '#E07A5F' }}>*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              className="form-input"
+              placeholder="例如：50"
+              value={maxParticipants}
+              onChange={(e) => setMaxParticipants(e.target.value)}
+              style={{ borderColor: errors.maxParticipants ? '#E07A5F' : undefined }}
+            />
+            {errors.maxParticipants && (
+              <p style={{ color: '#E07A5F', fontSize: 12, marginTop: 6 }}>{errors.maxParticipants}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="form-group" style={{ position: 'relative' }}>
+          <label className="form-label">
+            活动地点 <span style={{ color: '#E07A5F' }}>*</span>
+          </label>
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
+              <MapPinIcon />
+            </div>
             <input
               type="text"
               className="form-input"
-              placeholder="给活动起一个吸引人的名字"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); setErrors({ ...errors, title: '' }); }}
-              maxLength={60}
-              style={{ borderColor: errors.title ? '#E07A5F' : undefined }}
+              placeholder="例如：北京市朝阳区朝阳公园南门"
+              style={{ paddingLeft: 44, borderColor: errors.location ? '#E07A5F' : undefined }}
+              value={location}
+              onChange={(e) => {
+                setLocation(e.target.value);
+                setShowGeo(true);
+              }}
+              onFocus={() => setShowGeo(true)}
+              onBlur={() => setTimeout(() => setShowGeo(false), 200)}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              {errors.title && <span style={{ color: '#E07A5F', fontSize: 13 }}>{errors.title}</span>}
-              <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 'auto' }}>{title.length}/60</span>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              活动描述 <span style={{ color: '#E07A5F' }}>*</span>
-            </label>
-            <div className="rich-editor">
-              <div className="rich-toolbar">
-                <button
-                  type="button"
-                  className={`rich-toolbar-btn ${activeFormats.bold ? 'active' : ''}`}
-                  onClick={() => execCommand('bold')}
-                  title="加粗"
-                >
-                  <BoldIcon />
-                </button>
-                <button
-                  type="button"
-                  className={`rich-toolbar-btn ${activeFormats.italic ? 'active' : ''}`}
-                  onClick={() => execCommand('italic')}
-                  title="斜体"
-                >
-                  <ItalicIcon />
-                </button>
-                <div style={{ width: 1, background: 'var(--forest-100)', margin: '4px 6px' }} />
-                <button
-                  type="button"
-                  className={`rich-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`}
-                  onClick={() => execCommand('insertUnorderedList')}
-                  title="无序列表"
-                >
-                  <ListIcon2 />
-                </button>
-                <button
-                  type="button"
-                  className={`rich-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`}
-                  onClick={() => execCommand('insertOrderedList')}
-                  title="有序列表"
-                >
-                  <NumberedListIcon />
-                </button>
-              </div>
-              <div
-                ref={editorRef}
-                className="rich-content"
-                contentEditable
-                data-placeholder="详细介绍活动内容、流程、注意事项等..."
-                onInput={() => { setErrors({ ...errors, description: '' }); updateActiveFormats(); }}
-                onBlur={updateActiveFormats}
-                style={{ minHeight: 180 }}
-              />
-            </div>
-            {errors.description && (
-              <span style={{ color: '#E07A5F', fontSize: 13, display: 'block', marginTop: 6 }}>{errors.description}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">封面图 URL（可选）</label>
-            <input
-              type="url"
-              className="form-input"
-              placeholder="https:// 图片链接，留空将使用默认封面"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-            />
-            {coverImage && (
-              <div style={{ marginTop: 12 }}>
-                <img
-                  src={coverImage}
-                  alt="封面预览"
-                  style={{
-                    width: '100%',
-                    maxHeight: 200,
-                    objectFit: 'cover',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
+            {showGeo && filteredSuggestions.length > 0 && (
+              <div className="geo-suggestions">
+                {filteredSuggestions.map((s, i) => (
+                  <div
+                    key={i}
+                    className="geo-suggestion-item"
+                    onMouseDown={() => selectGeo(s)}
+                  >
+                    <MapPinIcon />
+                    <span>{s}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+          {errors.location && <p style={{ color: '#E07A5F', fontSize: 12, marginTop: 6 }}>{errors.location}</p>}
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <div className="form-group">
-              <label className="form-label">
-                活动日期时间 <span style={{ color: '#E07A5F' }}>*</span>
-              </label>
-              <input
-                type="datetime-local"
-                className="form-input"
-                value={date}
-                min={minDateTime}
-                onChange={(e) => { setDate(e.target.value); setErrors({ ...errors, date: '' }); }}
-                style={{ borderColor: errors.date ? '#E07A5F' : undefined }}
-              />
-              {errors.date && <span style={{ color: '#E07A5F', fontSize: 13 }}>{errors.date}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                最大参与人数 <span style={{ color: '#E07A5F' }}>*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                className="form-input"
-                placeholder="请输入正整数"
-                value={maxParticipants}
-                onChange={(e) => { setMaxParticipants(e.target.value); setErrors({ ...errors, maxParticipants: '' }); }}
-                style={{ borderColor: errors.maxParticipants ? '#E07A5F' : undefined }}
-              />
-              {errors.maxParticipants && <span style={{ color: '#E07A5F', fontSize: 13 }}>{errors.maxParticipants}</span>}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              活动地点 <span style={{ color: '#E07A5F' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <div style={{ position: 'relative' }}>
-                <span style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}>
-                  <LocationIcon />
-                </span>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="输入活动地点，选择推荐地址或自定义"
-                  value={location}
-                  onChange={(e) => { setLocation(e.target.value); setShowSuggestions(true); setErrors({ ...errors, location: '' }); }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  style={{
-                    paddingLeft: 44,
-                    borderColor: errors.location ? '#E07A5F' : undefined,
-                  }}
-                />
-              </div>
-              {showSuggestions && filteredSuggestions.length > 0 && (
-                <div className="geo-suggestions">
-                  {filteredSuggestions.map((s, i) => (
-                    <div
-                      key={i}
-                      className="geo-suggestion-item"
-                      onMouseDown={() => { setLocation(s); setShowSuggestions(false); }}
-                    >
-                      <LocationIcon />
-                      <span>{s}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {errors.location && <span style={{ color: '#E07A5F', fontSize: 13, display: 'block', marginTop: 6 }}>{errors.location}</span>}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 12,
-            marginTop: 24,
-            paddingTop: 24,
-            borderTop: '1px solid var(--forest-50)',
-          }}>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => navigate(-1)}
-              disabled={loading}
-            >
-              取消
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '10px 32px' }}>
-              {loading ? '创建中...' : '✨ 发布活动'}
-            </button>
-          </div>
+        <div style={{ marginTop: 24, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => navigate(-1)}
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ minWidth: 140 }}
+          >
+            {loading ? '创建中...' : '✓ 发布活动'}
+          </button>
         </div>
       </form>
     </div>

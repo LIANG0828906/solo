@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import Navbar from './components/Navbar';
 import ToastContainer from './components/ToastContainer';
-import Login from './pages/Login';
+import Login from './Login';
 import ActivityList from './ActivityList';
 import CreateActivity from './CreateActivity';
 import ActivityDetail from './ActivityDetail';
