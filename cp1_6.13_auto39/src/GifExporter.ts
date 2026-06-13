@@ -235,11 +235,17 @@ export async function exportGif(
     videoEl.pause();
 
     const frames: number[][] = [];
-    onProgress({ stage: 'capturing', percent: 6 });
-
+    let lastReportedPct = -1;
     for (let i = 0; i < totalFrames; i++) {
       const t = validRange.start + i * step;
       videoEl.currentTime = Math.min(t, videoEl.duration - 0.001);
+
+      const rawPct = 6 + (i / totalFrames) * 42;
+      const capPercent = Math.floor(rawPct);
+      if (capPercent !== lastReportedPct) {
+        onProgress({ stage: 'capturing', percent: capPercent });
+        lastReportedPct = capPercent;
+      }
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => resolve(), 500);
@@ -266,9 +272,15 @@ export async function exportGif(
       const imageData = workCtx.getImageData(0, 0, targetWidth, targetHeight);
       frames.push(Array.from(imageData.data));
 
-      const capPercent = 6 + Math.floor((i / totalFrames) * 44);
-      onProgress({ stage: 'capturing', percent: capPercent });
+      const midRawPct = 6 + ((i + 0.5) / totalFrames) * 42;
+      const midPct = Math.floor(midRawPct);
+      if (midPct !== lastReportedPct) {
+        onProgress({ stage: 'capturing', percent: midPct });
+        lastReportedPct = midPct;
+      }
     }
+
+    onProgress({ stage: 'capturing', percent: 48 });
 
     videoEl.currentTime = originalTime;
     if (!originalPaused) {

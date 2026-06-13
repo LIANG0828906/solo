@@ -116,15 +116,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               style={{
                 ...cardStyleBase,
                 transform: isHovered && !isEnabled
-                  ? 'translateY(-3px) scale(1.01)'
+                  ? 'translateY(-4px) scale(1.015)'
                   : isEnabled
                     ? 'translateY(-1px)'
                     : 'translateY(0)',
                 boxShadow: isEnabled
-                  ? '0 0 22px rgba(0, 212, 255, 0.25), 0 6px 22px rgba(168, 85, 247, 0.15)'
+                  ? '0 0 24px rgba(0, 212, 255, 0.28), 0 10px 28px rgba(168, 85, 247, 0.22)'
                   : isHovered
-                    ? '0 8px 24px rgba(0, 0, 0, 0.35)'
-                    : '0 2px 8px rgba(0, 0, 0, 0.2)',
+                    ? '0 14px 36px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 212, 255, 0.08)'
+                    : '0 3px 10px rgba(0, 0, 0, 0.25)',
                 borderColor: isEnabled
                   ? 'transparent'
                   : 'rgba(255, 255, 255, 0.1)',

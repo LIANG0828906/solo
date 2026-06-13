@@ -1,4 +1,4 @@
-import { FilterConfig } from './types';
+import { FilterConfig, FilterType } from './types';
 
 export function applyFilters(
   ctx: CanvasRenderingContext2D,
@@ -248,5 +248,9 @@ function clamp(v: number, min: number, max: number): number {
 
 function clampByte(v: number): number {
   return clamp(Math.round(v), 0, 255);
+}
+
+export function getFilterByType(filters: FilterConfig[], type: FilterType): FilterConfig | undefined {
+  return filters.find((f) => f.id === type);
 }
 

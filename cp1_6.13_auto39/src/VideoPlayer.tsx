@@ -246,21 +246,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = () => {
       const el = timelineRef.current;
       if (!el || !duration) return;
       const rect = el.getBoundingClientRect();
-      const t = getTimelinePosition(e, rect);
+      let t = getTimelinePosition(e, rect);
+      t = Math.max(0, Math.min(t, duration));
       const v = videoRef.current;
       if (dragging === 'playhead' && v) {
-        v.currentTime = Math.max(0, Math.min(t, duration));
+        v.currentTime = t;
       } else if (dragging === 'start') {
         setTimeRange((prev) => {
-          const maxStart = Math.max(0, prev.end - 3);
-          const newStart = Math.min(t, maxStart);
-          return validateTimeRange({ ...prev, start: newStart }, duration);
+          const clampedStart = Math.min(t, prev.end - 0.05);
+          return validateTimeRange({ ...prev, start: clampedStart }, duration);
         });
       } else if (dragging === 'end') {
         setTimeRange((prev) => {
-          const minEnd = Math.min(duration, prev.start + 3);
-          const newEnd = Math.max(t, minEnd);
-          return validateTimeRange({ ...prev, end: newEnd }, duration);
+          const clampedEnd = Math.max(t, prev.start + 0.05);
+          return validateTimeRange({ ...prev, end: clampedEnd }, duration);
         });
       }
     };
