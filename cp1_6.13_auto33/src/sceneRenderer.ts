@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { EffectComposer, RenderPass, EffectPass, BloomEffect, KernelSize } from 'postprocessing';
+import { EffectComposer, RenderPass, EffectPass, BloomEffect, KernelSize, DepthOfFieldEffect } from 'postprocessing';
 import type { PresetType, PresetConfig } from './types';
 import { PRESET_CONFIGS } from './types';
 
-const MAX_PARTICLES = 6000;
+const MAX_PARTICLES = 500;
 
 interface ParticleData {
   positions: Float32Array;
@@ -14,6 +14,13 @@ interface ParticleData {
   head: number;
 }
 
+function radiusToKernelSize(radius: number): KernelSize {
+  if (radius < 0.3) return KernelSize.SMALL;
+  if (radius < 0.5) return KernelSize.MEDIUM;
+  if (radius < 0.7) return KernelSize.LARGE;
+  return KernelSize.VERY_LARGE;
+}
+
 export class SceneRenderer {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -21,6 +28,7 @@ export class SceneRenderer {
   private controls: OrbitControls;
   private composer: EffectComposer;
   private bloomEffect: BloomEffect;
+  private dofEffect: DepthOfFieldEffect;
   private renderPass: RenderPass;
   private effectPass: EffectPass;
 
@@ -132,12 +140,19 @@ export class SceneRenderer {
     this.composer.addPass(this.renderPass);
 
     this.bloomEffect = new BloomEffect({
-      intensity: 2.0,
-      luminanceThreshold: 0.2,
+      intensity: this.currentCfg.bloomIntensity,
+      luminanceThreshold: this.currentCfg.bloomThreshold,
       luminanceSmoothing: 0.3,
-      kernelSize: KernelSize.LARGE,
+      kernelSize: radiusToKernelSize(this.currentCfg.bloomRadius),
     });
-    this.effectPass = new EffectPass(this.camera, this.bloomEffect);
+
+    this.dofEffect = new DepthOfFieldEffect(this.camera, {
+      focusDistance: this.currentCfg.dofFocus / 10,
+      focalLength: 0.025,
+      bokehScale: 2.5,
+    });
+
+    this.effectPass = new EffectPass(this.camera, this.bloomEffect, this.dofEffect);
     this.composer.addPass(this.effectPass);
 
     const onResize = () => {
@@ -190,17 +205,25 @@ export class SceneRenderer {
     c.roughness = c.roughness + (tgt.roughness - c.roughness) * t;
     c.opacity = c.opacity + (tgt.opacity - c.opacity) * t;
     c.bloomIntensity = c.bloomIntensity + (tgt.bloomIntensity - c.bloomIntensity) * t;
+    c.bloomRadius = c.bloomRadius + (tgt.bloomRadius - c.bloomRadius) * t;
     c.bloomThreshold = c.bloomThreshold + (tgt.bloomThreshold - c.bloomThreshold) * t;
+    c.dofFocus = c.dofFocus + (tgt.dofFocus - c.dofFocus) * t;
+    c.dofAperture = c.dofAperture + (tgt.dofAperture - c.dofAperture) * t;
     c.ambientIntensity = c.ambientIntensity + (tgt.ambientIntensity - c.ambientIntensity) * t;
 
     this.material.metalness = c.metalness;
     this.material.roughness = c.roughness;
     this.material.opacity = c.opacity;
     this.material.transparent = c.transparent || c.opacity < 1;
+
     this.bloomEffect.intensity = c.bloomIntensity;
     this.bloomEffect.luminanceThreshold = c.bloomThreshold;
-    this.ambientLight.intensity = c.ambientIntensity;
+    this.bloomEffect.kernelSize = radiusToKernelSize(c.bloomRadius);
 
+    this.dofEffect.focusDistance = c.dofFocus / 10;
+    this.dofEffect.bokehScale = c.dofAperture * 500;
+
+    this.ambientLight.intensity = c.ambientIntensity;
     this.pointLight1.color.setHex(tgt.lightColor);
 
     if (this.presetTransition >= 1) {
@@ -216,9 +239,8 @@ export class SceneRenderer {
     if (!this.sculptMesh) return;
     const geo = this.sculptMesh.geometry;
     const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
-    const colAttr = geo.getAttribute('color') as THREE.BufferAttribute;
 
-    const sampleCount = 6;
+    const sampleCount = 3;
     for (let s = 0; s < sampleCount; s++) {
       const vi = Math.floor(Math.random() * posAttr.count);
       const i3 = vi * 3;
@@ -244,6 +266,7 @@ export class SceneRenderer {
 
     const cfg = this.currentCfg;
     let drawCount = 0;
+    const aliveIndices: number[] = [];
 
     for (let i = 0; i < this.particles.count; i++) {
       const idx = (this.particles.head - this.particles.count + i + MAX_PARTICLES) % MAX_PARTICLES;
@@ -253,6 +276,7 @@ export class SceneRenderer {
         continue;
       }
 
+      aliveIndices.push(idx);
       const ageRatio = this.particles.ages[idx] / this.trailLength;
       const alpha = 1 - ageRatio;
 
@@ -273,9 +297,20 @@ export class SceneRenderer {
     }
 
     this.particleGeometry.setDrawRange(0, drawCount);
-    posAttr.needsUpdate = true;
-    colAttr.needsUpdate = true;
-    sizeAttr.needsUpdate = true;
+
+    if (drawCount > 0) {
+      posAttr.updateRange.offset = 0;
+      posAttr.updateRange.count = drawCount * 3;
+      posAttr.needsUpdate = true;
+
+      colAttr.updateRange.offset = 0;
+      colAttr.updateRange.count = drawCount * 3;
+      colAttr.needsUpdate = true;
+
+      sizeAttr.updateRange.offset = 0;
+      sizeAttr.updateRange.count = drawCount;
+      sizeAttr.needsUpdate = true;
+    }
   }
 
   clearParticles(): void {
@@ -284,7 +319,7 @@ export class SceneRenderer {
     this.particleGeometry.setDrawRange(0, 0);
   }
 
-  takeSnapshot(): void {
+  takeSnapshot(onComplete?: () => void): void {
     const w = 1920;
     const h = 1080;
 
@@ -303,12 +338,21 @@ export class SceneRenderer {
     const link = document.createElement('a');
     link.download = `voxelsculpt_${Date.now()}.png`;
     link.href = dataUrl;
-    link.click();
 
-    this.renderer.setSize(oldW, oldH, false);
-    this.composer.setSize(oldW, oldH);
-    this.camera.aspect = oldW / oldH;
-    this.camera.updateProjectionMatrix();
+    const cleanup = () => {
+      this.renderer.setSize(oldW, oldH, false);
+      this.composer.setSize(oldW, oldH);
+      this.camera.aspect = oldW / oldH;
+      this.camera.updateProjectionMatrix();
+      if (onComplete) onComplete();
+    };
+
+    link.addEventListener('click', () => {
+      setTimeout(cleanup, 100);
+    });
+
+    link.click();
+    setTimeout(cleanup, 500);
   }
 
   reset(onComplete: () => void): void {
@@ -389,6 +433,7 @@ export class SceneRenderer {
     this.material.dispose();
     this.particleGeometry.dispose();
     this.particleMaterial.dispose();
+    this.composer.dispose();
     if (this.sculptMesh) {
       this.sculptMesh.geometry.dispose();
     }

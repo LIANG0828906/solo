@@ -1,8 +1,10 @@
 import * as THREE from 'three';
-import type { PresetType, PresetConfig, PRESET_CONFIGS } from './types';
+import type { PresetConfig } from './types';
 
 const LERP_SPEED = 0.1;
 const BAND_COUNT = 32;
+const LATITUDE_BANDS = 8;
+const LONGITUDE_BANDS = 16;
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   let r: number, g: number, b: number;
@@ -65,6 +67,7 @@ export class GeometryGenerator {
   update(bands: Float32Array, maxDisplacement: number, presetCfg: PresetConfig): void {
     const posAttr = this.geometry.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = this.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const normAttr = this.geometry.getAttribute('normal') as THREE.BufferAttribute;
 
     for (let i = 0; i < this.vertexCount; i++) {
       const i3 = i * 3;
@@ -72,54 +75,59 @@ export class GeometryGenerator {
       const ny = this.baseNormals[i3 + 1]!;
       const nz = this.baseNormals[i3 + 2]!;
 
-      const theta = Math.atan2(nz, nx);
-      const phi = Math.acos(Math.min(1, Math.max(-1, ny)));
-      const horizontalBand = Math.floor(((theta + Math.PI) / (2 * Math.PI)) * BAND_COUNT) % BAND_COUNT;
-      const verticalBand = Math.floor((phi / Math.PI) * BAND_COUNT) % BAND_COUNT;
-      const bandIdx = (horizontalBand + verticalBand) >> 1;
-      const energy = bands[bandIdx] ?? 0;
+      const longitude = (Math.atan2(nz, nx) + Math.PI) / (2 * Math.PI);
+      const latitude = Math.acos(Math.min(1, Math.max(-1, ny))) / Math.PI;
+
+      const lonBand = longitude * LONGITUDE_BANDS;
+      const latBand = latitude * LATITUDE_BANDS;
+
+      const lon0 = Math.floor(lonBand);
+      const lat0 = Math.floor(latBand);
+      const lonFrac = lonBand - lon0;
+      const latFrac = latBand - lat0;
+
+      const getBandIdx = (lon: number, lat: number): number => {
+        const l = ((lon % LONGITUDE_BANDS) + LONGITUDE_BANDS) % LONGITUDE_BANDS;
+        const la = Math.max(0, Math.min(LATITUDE_BANDS - 1, lat));
+        return Math.floor(la * 4 + (l / LONGITUDE_BANDS) * 32) % BAND_COUNT;
+      };
+
+      const idx00 = getBandIdx(lon0, lat0);
+      const idx10 = getBandIdx(lon0 + 1, lat0);
+      const idx01 = getBandIdx(lon0, lat0 + 1);
+      const idx11 = getBandIdx(lon0 + 1, lat0 + 1);
+
+      const e00 = bands[idx00] ?? 0;
+      const e10 = bands[idx10] ?? 0;
+      const e01 = bands[idx01] ?? 0;
+      const e11 = bands[idx11] ?? 0;
+
+      const ex0 = e00 * (1 - lonFrac) + e10 * lonFrac;
+      const ex1 = e01 * (1 - lonFrac) + e11 * lonFrac;
+      const energy = ex0 * (1 - latFrac) + ex1 * latFrac;
+
+      const continuousBandIdx = (latBand * 4 + (lonBand / LONGITUDE_BANDS) * 32) % BAND_COUNT;
 
       const displacement = energy * maxDisplacement;
       this.targetPositions[i3] = this.basePositions[i3]! + nx * displacement;
       this.targetPositions[i3 + 1] = this.basePositions[i3 + 1]! + ny * displacement;
       this.targetPositions[i3 + 2] = this.basePositions[i3 + 2]! + nz * displacement;
-    }
-
-    for (let i = 0; i < this.currentPositions.length; i++) {
-      this.currentPositions[i] = this.currentPositions[i]! + (this.targetPositions[i]! - this.currentPositions[i]!) * LERP_SPEED;
-    }
-
-    posAttr.array.set(this.currentPositions);
-    posAttr.needsUpdate = true;
-    this.geometry.computeVertexNormals();
-
-    for (let i = 0; i < this.vertexCount; i++) {
-      const i3 = i * 3;
-      const nx = this.baseNormals[i3]!;
-      const ny = this.baseNormals[i3 + 1]!;
-      const nz = this.baseNormals[i3 + 2]!;
-
-      const theta = Math.atan2(nz, nx);
-      const phi = Math.acos(Math.min(1, Math.max(-1, ny)));
-      const horizontalBand = Math.floor(((theta + Math.PI) / (2 * Math.PI)) * BAND_COUNT) % BAND_COUNT;
-      const verticalBand = Math.floor((phi / Math.PI) * BAND_COUNT) % BAND_COUNT;
-      const bandIdx = (horizontalBand + verticalBand) >> 1;
 
       let hue: number, sat: number, lum: number;
-      if (bandIdx < 9) {
-        hue = 0.6 - (bandIdx / 9) * 0.1;
+      if (continuousBandIdx < 9) {
+        hue = 0.6 - (continuousBandIdx / 9) * 0.1;
         sat = presetCfg.saturation;
-        lum = 0.4 + (bands[bandIdx] ?? 0) * 0.3;
-      } else if (bandIdx < 25) {
-        const t = (bandIdx - 9) / 15;
+        lum = 0.4 + energy * 0.3;
+      } else if (continuousBandIdx < 25) {
+        const t = (continuousBandIdx - 9) / 15;
         hue = 0.5 - t * 0.38;
         sat = presetCfg.saturation;
-        lum = 0.45 + (bands[bandIdx] ?? 0) * 0.25;
+        lum = 0.45 + energy * 0.25;
       } else {
-        const t = (bandIdx - 25) / 6;
+        const t = (continuousBandIdx - 25) / 6;
         hue = 0.12 - t * 0.12;
         sat = presetCfg.saturation;
-        lum = 0.45 + (bands[bandIdx] ?? 0) * 0.3;
+        lum = 0.45 + energy * 0.3;
       }
 
       hue = (hue + presetCfg.baseHue - 0.55 + 1) % 1;
@@ -128,6 +136,25 @@ export class GeometryGenerator {
       colAttr.array[i3 + 1] = g;
       colAttr.array[i3 + 2] = b;
     }
+
+    for (let i = 0; i < this.currentPositions.length; i++) {
+      this.currentPositions[i] = this.currentPositions[i]! + (this.targetPositions[i]! - this.currentPositions[i]!) * LERP_SPEED;
+    }
+
+    const positionData = posAttr.array as Float32Array;
+    const normalData = normAttr.array as Float32Array;
+    positionData.set(this.currentPositions);
+    posAttr.updateRange.offset = 0;
+    posAttr.updateRange.count = this.currentPositions.length;
+    posAttr.needsUpdate = true;
+
+    this.geometry.computeVertexNormals();
+    normAttr.updateRange.offset = 0;
+    normAttr.updateRange.count = normalData.length;
+    normAttr.needsUpdate = true;
+
+    colAttr.updateRange.offset = 0;
+    colAttr.updateRange.count = this.vertexCount * 3;
     colAttr.needsUpdate = true;
   }
 

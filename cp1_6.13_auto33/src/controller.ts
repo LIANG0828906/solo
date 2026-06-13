@@ -4,95 +4,167 @@ import { SceneRenderer } from './sceneRenderer';
 import type { PresetType, SculptParams } from './types';
 import { DEFAULT_PARAMS } from './types';
 
-export class Controller {
-  private audioEngine: AudioEngine;
-  private geoGenerator: GeometryGenerator;
-  private renderer: SceneRenderer;
-  private params: SculptParams = { ...DEFAULT_PARAMS };
-  private bands: Float32Array = new Float32Array(32);
-  private isRecording = false;
+const RING_BUFFER_SIZE = 4;
 
-  constructor(
-    audioEngine: AudioEngine,
-    geoGenerator: GeometryGenerator,
-    renderer: SceneRenderer,
-  ) {
-    this.audioEngine = audioEngine;
-    this.geoGenerator = geoGenerator;
-    this.renderer = renderer;
+class AudioRingBuffer {
+  private buffer: Float32Array[] = [];
+  private head = 0;
+  private tail = 0;
+  private size = 0;
 
-    this.audioEngine.onFrame((bands) => {
-      this.bands = bands;
-    });
-
-    this.renderer.setSculptGeometry(this.geoGenerator.getGeometry());
-
-    this.renderer.startLoop();
-    this.startUpdateLoop();
+  constructor() {
+    for (let i = 0; i < RING_BUFFER_SIZE; i++) {
+      this.buffer.push(new Float32Array(32));
+    }
   }
 
-  private updateLoopId = 0;
-  private startUpdateLoop(): void {
-    const update = () => {
-      this.updateLoopId = requestAnimationFrame(update);
-      const cfg = this.renderer.getCurrentPresetConfig();
-      this.geoGenerator.update(this.bands, this.params.maxDisplacement, cfg);
+  push(bands: Float32Array): void {
+    this.buffer[this.head]!.set(bands);
+    this.head = (this.head + 1) % RING_BUFFER_SIZE;
+    if (this.size < RING_BUFFER_SIZE) {
+      this.size++;
+    } else {
+      this.tail = (this.tail + 1) % RING_BUFFER_SIZE;
+    }
+  }
+
+  getLatest(out: Float32Array): boolean {
+    if (this.size === 0) return false;
+    const idx = (this.head - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+    out.set(this.buffer[idx]!);
+    return true;
+  }
+
+  clear(): void {
+    for (let i = 0; i < RING_BUFFER_SIZE; i++) {
+      this.buffer[i]!.fill(0);
+    }
+    this.head = 0;
+    this.tail = 0;
+    this.size = 0;
+  }
+}
+
+export class Controller {
+  private audioEngine: AudioEngine;
+  private geometryGenerator: GeometryGenerator;
+  private sceneRenderer: SceneRenderer;
+  private params: SculptParams = { ...DEFAULT_PARAMS };
+  private audioBuffer: AudioRingBuffer;
+  private currentBands: Float32Array = new Float32Array(32);
+  private interpolatedBands: Float32Array = new Float32Array(32);
+  private animFrameId = 0;
+  private lastAudioTime = 0;
+  private audioInterval = 50;
+  private animCallback: (() => void) | null = null;
+
+  constructor(canvasContainer: HTMLElement) {
+    this.audioEngine = new AudioEngine();
+    this.geometryGenerator = new GeometryGenerator();
+    this.sceneRenderer = new SceneRenderer(canvasContainer);
+    this.audioBuffer = new AudioRingBuffer();
+
+    this.audioEngine.onFrame((bands) => {
+      this.audioBuffer.push(bands);
+      this.lastAudioTime = performance.now();
+    });
+
+    this.sceneRenderer.setSculptGeometry(this.geometryGenerator.getGeometry());
+  }
+
+  init(): void {
+    this.sceneRenderer.applyPreset(this.params.preset);
+    this.sceneRenderer.setRotationSpeed(this.params.rotationSpeed);
+    this.sceneRenderer.setTrailLength(this.params.trailLength);
+    this.sceneRenderer.startLoop();
+    this.startRenderLoop();
+  }
+
+  private startRenderLoop(): void {
+    const loop = () => {
+      this.animFrameId = requestAnimationFrame(loop);
+
+      const hasNewData = this.audioBuffer.getLatest(this.currentBands);
+
+      if (hasNewData) {
+        for (let i = 0; i < 32; i++) {
+          this.interpolatedBands[i] = this.interpolatedBands[i]! + (this.currentBands[i]! - this.interpolatedBands[i]!) * 0.3;
+        }
+      }
+
+      this.geometryGenerator.update(
+        this.interpolatedBands,
+        this.params.maxDisplacement,
+        this.sceneRenderer.getCurrentPresetConfig()
+      );
+
+      if (this.animCallback) {
+        this.animCallback();
+      }
     };
-    this.updateLoopId = requestAnimationFrame(update);
+    this.animFrameId = requestAnimationFrame(loop);
+  }
+
+  onRenderFrame(cb: () => void): void {
+    this.animCallback = cb;
   }
 
   async startRecording(): Promise<void> {
-    if (this.isRecording) return;
-    this.isRecording = true;
     await this.audioEngine.start();
   }
 
   stopRecording(): void {
-    if (!this.isRecording) return;
-    this.isRecording = false;
     this.audioEngine.stop();
-    this.bands.fill(0);
+    this.audioBuffer.clear();
+    this.interpolatedBands.fill(0);
   }
 
-  setParameter(name: keyof SculptParams, value: number): void {
-    switch (name) {
-      case 'maxDisplacement':
-        this.params.maxDisplacement = value;
-        break;
-      case 'rotationSpeed':
-        this.params.rotationSpeed = value;
-        this.renderer.setRotationSpeed(value);
-        break;
-      case 'trailLength':
-        this.params.trailLength = Math.round(value);
-        this.renderer.setTrailLength(Math.round(value));
-        break;
+  isRecording(): boolean {
+    return this.audioEngine.isRunning();
+  }
+
+  setParameter(name: keyof SculptParams, value: number | PresetType): void {
+    if (name === 'maxDisplacement') {
+      this.params.maxDisplacement = value as number;
+    } else if (name === 'rotationSpeed') {
+      this.params.rotationSpeed = value as number;
+      this.sceneRenderer.setRotationSpeed(value as number);
+    } else if (name === 'trailLength') {
+      this.params.trailLength = value as number;
+      this.sceneRenderer.setTrailLength(value as number);
+    } else if (name === 'preset') {
+      this.params.preset = value as PresetType;
+      this.sceneRenderer.applyPreset(value as PresetType);
     }
   }
 
-  setPreset(preset: PresetType): void {
-    this.params.preset = preset;
-    this.renderer.applyPreset(preset);
+  getParameter(name: keyof SculptParams): number | PresetType {
+    return this.params[name];
   }
 
-  takeSnapshot(): void {
-    this.renderer.takeSnapshot();
+  takeSnapshot(onComplete?: () => void): void {
+    this.sceneRenderer.takeSnapshot(onComplete);
   }
 
-  reset(): void {
-    this.stopRecording();
-    this.renderer.reset(() => {
-      this.geoGenerator.reset();
+  reset(): Promise<void> {
+    return new Promise((resolve) => {
+      this.sceneRenderer.reset(() => {
+        this.geometryGenerator.reset();
+        this.audioBuffer.clear();
+        this.interpolatedBands.fill(0);
+        for (let i = 0; i < 32; i++) {
+          this.interpolatedBands[i] = 0;
+        }
+        resolve();
+      });
     });
   }
 
-  getIsRecording(): boolean {
-    return this.isRecording;
-  }
-
   dispose(): void {
-    cancelAnimationFrame(this.updateLoopId);
-    this.audioEngine.stop();
-    this.renderer.dispose();
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+    }
+    this.stopRecording();
+    this.sceneRenderer.dispose();
   }
 }
