@@ -15,10 +15,12 @@ export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props)
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
 
-  const processFiles = (files: FileList | File[]) => {
+  const validateAndProcess = (files: FileList | File[]) => {
     setError('');
     const fileArray = Array.from(files);
     const remainingSlots = maxFiles - images.length;
+    if (remainingSlots <= 0) return;
+
     const validFiles: File[] = [];
 
     for (const file of fileArray) {
@@ -34,14 +36,21 @@ export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props)
       validFiles.push(file);
     }
 
-    validFiles.forEach((file) => {
+    if (validFiles.length === 0) return;
+
+    let loaded = 0;
+    const total = validFiles.length;
+    const results: (string | null)[] = new Array(total).fill(null);
+
+    validFiles.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onChange((prev) => {
-          if (prev.length >= maxFiles) return prev;
-          return [...prev, result];
-        });
+        results[index] = e.target?.result as string;
+        loaded++;
+        if (loaded === total) {
+          const newImages = [...images, ...results.filter((r): r is string => r !== null)];
+          onChange(newImages.slice(0, maxFiles));
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -49,7 +58,7 @@ export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
-      processFiles(e.target.files);
+      validateAndProcess(e.target.files);
     }
     e.target.value = '';
   };
@@ -58,7 +67,7 @@ export default function ImageUploader({ images, onChange, maxFiles = 6 }: Props)
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files?.length) {
-      processFiles(e.dataTransfer.files);
+      validateAndProcess(e.dataTransfer.files);
     }
   };
 

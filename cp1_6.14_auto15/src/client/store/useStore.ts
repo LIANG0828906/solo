@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SessionUser, Instrument } from '../types';
+import type { SessionUser, Instrument, InstrumentCategory, GetInstrumentsParams } from '../types';
 import {
   getMe,
   logout as apiLogout,
@@ -13,10 +13,14 @@ interface StoreState {
   instruments: Instrument[];
   loading: boolean;
   error: string | null;
+  filterCategory: InstrumentCategory | undefined;
+  sortOrder: 'price-asc' | 'price-desc' | undefined;
+  searchQuery: string;
   setUser: (user: SessionUser | null) => void;
   fetchUser: () => Promise<void>;
   logout: () => Promise<void>;
-  fetchInstruments: (params?: Parameters<typeof getInstruments>[0]) => Promise<void>;
+  fetchInstruments: (params?: GetInstrumentsParams) => Promise<void>;
+  setFilterAndFetch: (filters: { category?: InstrumentCategory; sort?: 'price-asc' | 'price-desc'; search?: string }) => Promise<void>;
   addInstrument: (formData: FormData) => Promise<Instrument>;
   removeInstrument: (id: string) => Promise<void>;
   setError: (error: string | null) => void;
@@ -27,6 +31,9 @@ export const useStore = create<StoreState>((set, get) => ({
   instruments: [],
   loading: false,
   error: null,
+  filterCategory: undefined,
+  sortOrder: undefined,
+  searchQuery: '',
 
   setUser: (user) => set({ user }),
 
@@ -57,7 +64,40 @@ export const useStore = create<StoreState>((set, get) => ({
   fetchInstruments: async (params) => {
     set({ loading: true, error: null });
     try {
-      const response = await getInstruments(params);
+      const state = get();
+      const requestParams: GetInstrumentsParams = {
+        category: params?.category ?? state.filterCategory,
+        sort: params?.sort ?? state.sortOrder,
+        search: params?.search ?? state.searchQuery,
+      };
+      const response = await getInstruments(requestParams);
+      set({ instruments: response.instruments });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '获取乐器列表失败' });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  setFilterAndFetch: async (filters) => {
+    const state = get();
+    const newCategory = filters.category !== undefined ? filters.category : state.filterCategory;
+    const newSort = filters.sort !== undefined ? filters.sort : state.sortOrder;
+    const newSearch = filters.search !== undefined ? filters.search : state.searchQuery;
+
+    set({
+      filterCategory: newCategory,
+      sortOrder: newSort,
+      searchQuery: newSearch,
+    });
+
+    set({ loading: true, error: null });
+    try {
+      const response = await getInstruments({
+        category: newCategory,
+        sort: newSort,
+        search: newSearch,
+      });
       set({ instruments: response.instruments });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : '获取乐器列表失败' });

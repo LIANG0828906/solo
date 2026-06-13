@@ -22,10 +22,10 @@ export default function RentalForm({ instrument, isLoggedIn }: Props) {
   function calcDaysBetween(startStr: string, endStr: string): number {
     const [sy, sm, sd] = startStr.split('-').map(Number);
     const [ey, em, ed] = endStr.split('-').map(Number);
-    const start = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
-    const end = new Date(ey, em - 1, ed, 0, 0, 0, 0);
+    const startUtc = Date.UTC(sy, sm - 1, sd);
+    const endUtc = Date.UTC(ey, em - 1, ed);
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
-    const diffMs = end.getTime() - start.getTime();
+    const diffMs = endUtc - startUtc;
     if (diffMs < 0) return 0;
     return Math.round(diffMs / MS_PER_DAY) + 1;
   }

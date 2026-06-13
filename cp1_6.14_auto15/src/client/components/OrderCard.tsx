@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Calendar, Package, User as UserIcon } from 'lucide-react';
 import type { Order, Instrument, OrderStatus } from '../types';
-import { ORDER_STATUS_LABELS } from '../types';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../types';
 import { cn } from '@/lib/utils';
 import { updateOrderStatus } from '../api/client';
 
@@ -11,15 +11,6 @@ interface Props {
   role: 'owner' | 'renter';
   onStatusChange?: () => void;
 }
-
-const statusColorMap: Record<OrderStatus, string> = {
-  pending: 'bg-orange-500',
-  confirmed: 'bg-blue-500',
-  active: 'bg-green-500',
-  completed: 'bg-gray-500',
-  cancelled: 'bg-gray-400',
-  rejected: 'bg-red-500',
-};
 
 export default function OrderCard({ order, counterpartNickname, role, onStatusChange }: Props) {
   const [loading, setLoading] = useState(false);
@@ -124,7 +115,7 @@ export default function OrderCard({ order, counterpartNickname, role, onStatusCh
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden flex">
-      <div className={cn('w-1.5 shrink-0', statusColorMap[order.status])} />
+      <div className={cn('w-1.5 shrink-0', ORDER_STATUS_COLORS[order.status])} />
 
       <div className="flex-1 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -153,7 +144,7 @@ export default function OrderCard({ order, counterpartNickname, role, onStatusCh
           <span
             className={cn(
               'px-2.5 py-1 rounded-full text-xs font-medium text-white',
-              statusColorMap[order.status]
+              ORDER_STATUS_COLORS[order.status]
             )}
           >
             {ORDER_STATUS_LABELS[order.status]}

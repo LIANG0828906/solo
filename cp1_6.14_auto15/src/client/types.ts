@@ -47,6 +47,15 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   rejected: '已拒绝',
 };
 
+export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
+  pending: 'bg-orange-500',
+  confirmed: 'bg-blue-500',
+  active: 'bg-green-500',
+  completed: 'bg-gray-500',
+  cancelled: 'bg-gray-400',
+  rejected: 'bg-red-500',
+};
+
 export interface Instrument {
   id: string;
   ownerId: string;
