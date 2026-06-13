@@ -219,17 +219,25 @@ export class PlayerUI {
     const barHeight = 150
     const barWidth = 20
     const barX = this.isLeft ? 80 : -100
-    const healthPercent = health / this.player.maxHealth
+    const healthPercent = Math.max(0, Math.min(1, health / this.player.maxHealth))
+    const filledHeight = barHeight * healthPercent
+    const barTop = barHeight / 2 - filledHeight
     
     this.healthLiquid.clear()
-    this.healthLiquid.beginFill(this.player.color, 0.8)
-    this.healthLiquid.drawRect(barX, barHeight/2 - barHeight * healthPercent, barWidth, barHeight * healthPercent)
-    this.healthLiquid.endFill()
+    if (filledHeight > 0) {
+      this.healthLiquid.beginFill(this.player.color, 0.8)
+      this.healthLiquid.drawRect(barX, barTop, barWidth, filledHeight)
+      this.healthLiquid.endFill()
+    }
     
     this.healthGlow.clear()
-    this.healthGlow.beginFill(this.player.color, 0.3)
-    this.healthGlow.drawRect(barX - 5, barHeight/2 - barHeight * healthPercent, barWidth + 10, barHeight * healthPercent)
-    this.healthGlow.endFill()
+    if (filledHeight > 0) {
+      this.healthGlow.beginFill(this.player.color, 0.2)
+      this.healthGlow.drawRect(barX - 3, barTop, barWidth + 6, filledHeight)
+      this.healthGlow.endFill()
+    }
+    
+    this.player.health = health
   }
 
   update(deltaTime: number) {

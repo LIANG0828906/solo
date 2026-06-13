@@ -4,8 +4,11 @@ interface VFXParticle {
   sprite: Sprite
   x: number
   y: number
-  vx: number
-  vy: number
+  angle: number
+  radius: number
+  speed: number
+  verticalOffset: number
+  verticalSpeed: number
   life: number
   maxLife: number
   color: number
@@ -27,7 +30,6 @@ export class VFXManager {
   private particles: VFXParticle[] = []
   private explosionParticles: ExplosionParticle[] = []
   private maxParticles: number = 300
-
   private noteColors: number[] = [
     0xff6b6b, 0xffe66d, 0x4ecdc4, 0x45b7d1, 0x96ceb4, 0xdda0dd
   ]
@@ -37,53 +39,69 @@ export class VFXManager {
   }
 
   noteEffect(x: number, y: number, noteIndex: number, playerColor: number) {
-    if (this.particles.length >= this.maxParticles) return
+    if (this.particles.length >= this.maxParticles) {
+      this.removeOldestParticle()
+    }
 
     const color = this.noteColors[noteIndex % this.noteColors.length]
-    const particleCount = 8
+    const particleCount = 6
     
     for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2
-      const speed = 50 + Math.random() * 50
-      
       const graphics = new Graphics()
-      graphics.beginFill(color, 1)
-      graphics.drawCircle(0, 0, 3 + Math.random() * 3)
+      graphics.beginFill(color, 0.9)
+      graphics.drawCircle(0, 0, 4 + Math.random() * 3)
+      graphics.endFill()
       
       const sprite = graphics.generateSprite()
-      sprite.position.set(x, y)
       sprite.anchor.set(0.5)
       sprite.tint = color
       
       this.container.addChild(sprite)
       
+      const radius = 30 + Math.random() * 40
+      const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.5
+      const speed = 1.5 + Math.random() * 1.5
+      
       this.particles.push({
         sprite,
         x,
         y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 1,
-        maxLife: 1,
+        angle,
+        radius,
+        speed,
+        verticalOffset: Math.random() * Math.PI * 2,
+        verticalSpeed: 2 + Math.random() * 2,
+        life: 2.5,
+        maxLife: 2.5,
         color,
       })
     }
   }
 
+  private removeOldestParticle() {
+    if (this.particles.length > 0) {
+      const oldest = this.particles.shift()
+      if (oldest) {
+        this.container.removeChild(oldest.sprite)
+        oldest.sprite.destroy()
+      }
+    }
+  }
+
   explosion(x: number, y: number, color: number) {
-    const particleCount = 150
+    const particleCount = 120
     
     for (let i = 0; i < particleCount; i++) {
       const angle = Math.random() * Math.PI * 2
-      const speed = 100 + Math.random() * 300
-      const size = 2 + Math.random() * 8
+      const speed = 150 + Math.random() * 350
+      const size = 3 + Math.random() * 10
       
       const graphics = new Graphics()
-      graphics.beginRadialGradient(0, 0, 0, 0, 0, size, [color, 0xffffff], [0.3, 1])
+      graphics.beginFill(color, 0.9)
       graphics.drawCircle(0, 0, size)
+      graphics.endFill()
       
       const sprite = graphics.generateSprite()
-      sprite.position.set(x, y)
       sprite.anchor.set(0.5)
       
       this.container.addChild(sprite)
@@ -94,8 +112,8 @@ export class VFXManager {
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 2,
-        maxLife: 2,
+        life: 2.5,
+        maxLife: 2.5,
         color,
       })
     }
@@ -105,14 +123,16 @@ export class VFXManager {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i]
       
-      particle.x += particle.vx * deltaTime
-      particle.y += particle.vy * deltaTime
-      particle.vy += 50 * deltaTime
-      particle.life -= deltaTime * 2
+      particle.angle += particle.speed * deltaTime
+      particle.verticalOffset += particle.verticalSpeed * deltaTime
       
-      particle.sprite.position.set(particle.x, particle.y)
-      particle.sprite.alpha = particle.life / particle.maxLife
-      particle.sprite.scale.set(0.5 + (particle.life / particle.maxLife) * 0.5)
+      const x = particle.x + Math.cos(particle.angle) * particle.radius
+      const y = particle.y + Math.sin(particle.verticalOffset) * 20 + Math.sin(particle.angle) * particle.radius * 0.3
+      
+      particle.life -= deltaTime
+      particle.sprite.position.set(x, y)
+      particle.sprite.alpha = Math.min(1, particle.life / particle.maxLife)
+      particle.sprite.scale.set(0.3 + (particle.life / particle.maxLife) * 0.7)
       particle.sprite.rotation += deltaTime * 2
       
       if (particle.life <= 0) {
@@ -127,14 +147,15 @@ export class VFXManager {
       
       particle.x += particle.vx * deltaTime
       particle.y += particle.vy * deltaTime
-      particle.vy += 100 * deltaTime
-      particle.vx *= 0.98
-      particle.vy *= 0.98
+      particle.vy += 120 * deltaTime
+      particle.vx *= 0.97
+      particle.vy *= 0.97
       particle.life -= deltaTime
       
       particle.sprite.position.set(particle.x, particle.y)
-      particle.sprite.alpha = particle.life / particle.maxLife
+      particle.sprite.alpha = Math.min(1, particle.life / particle.maxLife)
       particle.sprite.scale.set(particle.life / particle.maxLife)
+      particle.sprite.rotation += deltaTime * 5
       
       if (particle.life <= 0) {
         this.container.removeChild(particle.sprite)
@@ -146,5 +167,9 @@ export class VFXManager {
 
   getParticleCount(): number {
     return this.particles.length + this.explosionParticles.length
+  }
+
+  getMaxParticles(): number {
+    return this.maxParticles
   }
 }

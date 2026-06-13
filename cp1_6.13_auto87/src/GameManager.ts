@@ -240,10 +240,14 @@ export class GameManager {
     const screenWidth = window.innerWidth
     const screenHeight = window.innerHeight
     
-    const canvas = this.app.canvas as HTMLCanvasElement
-    if (canvas) {
-      canvas.width = screenWidth
-      canvas.height = screenHeight
+    try {
+      const canvas = this.app.canvas
+      if (canvas && canvas instanceof HTMLCanvasElement) {
+        canvas.width = screenWidth
+        canvas.height = screenHeight
+      }
+    } catch (e) {
+      console.warn('Canvas resize skipped:', e)
     }
     
     this.players[0].position = { x: screenWidth * 0.2, y: screenHeight * 0.5 }
