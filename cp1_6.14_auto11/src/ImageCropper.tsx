@@ -19,7 +19,6 @@ export default function ImageCropper({
   const [crop, setCrop] = useState({ x: 0, y: 0, size: 0 });
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const dragRef = useRef({ startX: 0, startY: 0, cropX: 0, cropY: 0 });
 
   useEffect(() => {
@@ -116,7 +115,6 @@ export default function ImageCropper({
       cropX: crop.x,
       cropY: crop.y,
     };
-    setDragStart(coords);
     setIsDragging(true);
   };
 
