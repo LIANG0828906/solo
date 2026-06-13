@@ -109,54 +109,71 @@ export class BuildingGenerator {
       new THREE.Vector3(-halfW, y, -halfD),
       new THREE.Vector3(halfW, y, -halfD),
       new THREE.Vector3(halfW, y, halfD),
-      new THREE.Vector3(-halfW, y, halfD),
-      new THREE.Vector3(-halfW, y, -halfD)
+      new THREE.Vector3(-halfW, y, halfD)
     ];
 
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints(cornerPoints);
-    const glowMaterial = new THREE.LineBasicMaterial({
-      color: 0x88ccff,
-      transparent: true,
-      opacity: 0.8,
-      linewidth: 2
-    });
-    const glowLine = new THREE.Line(lineGeometry, glowMaterial);
-    group.add(glowLine);
-
-    const glowTubePoints = cornerPoints.slice(0, 4);
+    const glowTubePoints = [...cornerPoints, cornerPoints[0]];
     const tubeCurve = new THREE.CatmullRomCurve3(
-      [...glowTubePoints, glowTubePoints[0]],
+      glowTubePoints,
       true,
       'catmullrom',
       0
     );
-    const tubeGeometry = new THREE.TubeGeometry(tubeCurve, 32, 0.08, 8, true);
+    const tubeGeometry = new THREE.TubeGeometry(tubeCurve, 64, 0.12, 12, true);
     const tubeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xaaddff,
+      color: 0x66ccff,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.9
     });
     const glowTube = new THREE.Mesh(tubeGeometry, tubeMaterial);
     group.add(glowTube);
 
-    const pillarHeight = 0.5;
-    const pillarPositions = [
-      new THREE.Vector3(-halfW, y - pillarHeight / 2, -halfD),
-      new THREE.Vector3(halfW, y - pillarHeight / 2, -halfD),
-      new THREE.Vector3(halfW, y - pillarHeight / 2, halfD),
-      new THREE.Vector3(-halfW, y - pillarHeight / 2, halfD)
+    const outerTubeGeometry = new THREE.TubeGeometry(tubeCurve, 64, 0.25, 12, true);
+    const outerTubeMaterial = new THREE.MeshBasicMaterial({
+      color: 0x88ddff,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide
+    });
+    const outerGlow = new THREE.Mesh(outerTubeGeometry, outerTubeMaterial);
+    group.add(outerGlow);
+
+    const glowLineGeometry = new THREE.BufferGeometry().setFromPoints(glowTubePoints);
+    const glowLineMaterial = new THREE.LineBasicMaterial({
+      color: 0xaaddff,
+      transparent: true,
+      opacity: 0.6
+    });
+    const glowLine = new THREE.Line(glowLineGeometry, glowLineMaterial);
+    group.add(glowLine);
+
+    const cornerSpheres = [
+      new THREE.Vector3(-halfW, y, -halfD),
+      new THREE.Vector3(halfW, y, -halfD),
+      new THREE.Vector3(halfW, y, halfD),
+      new THREE.Vector3(-halfW, y, halfD)
     ];
 
-    pillarPositions.forEach((pos) => {
-      const pillarGeometry = new THREE.CylinderGeometry(0.1, 0.15, pillarHeight, 8);
-      const pillarMaterial = new THREE.MeshBasicMaterial({
+    cornerSpheres.forEach((pos) => {
+      const sphereGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+      const sphereMaterial = new THREE.MeshBasicMaterial({
         color: 0x88ccff,
         transparent: true,
-        opacity: 0.7
+        opacity: 0.9
       });
-      const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
-      pillar.position.copy(pos);
-      group.add(pillar);
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphere.position.copy(pos);
+      group.add(sphere);
+
+      const outerSphereGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+      const outerSphereMaterial = new THREE.MeshBasicMaterial({
+        color: 0xaaddff,
+        transparent: true,
+        opacity: 0.2
+      });
+      const outerSphere = new THREE.Mesh(outerSphereGeometry, outerSphereMaterial);
+      outerSphere.position.copy(pos);
+      group.add(outerSphere);
     });
 
     return group;
