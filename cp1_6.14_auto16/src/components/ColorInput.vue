@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import chroma from 'chroma-js'
-import { isValidColor, colorToHex } from '@/utils/contrastCalculator'
+import { validateColorInput, colorToHex } from '@/utils/contrastCalculator'
 
 const props = defineProps<{
   modelValue: string
@@ -42,11 +41,11 @@ function validateAndEmit(value: string, shouldEmit: boolean = true) {
     return
   }
 
-  const valid = isValidColor(value)
-  isValid.value = valid
+  const result = validateColorInput(value)
+  isValid.value = result.valid
 
-  if (!valid) {
-    errorMessage.value = '无效的颜色值'
+  if (!result.valid) {
+    errorMessage.value = result.error
   } else {
     errorMessage.value = ''
     if (shouldEmit) {
