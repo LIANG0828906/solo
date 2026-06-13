@@ -1,8 +1,8 @@
-import express from 'express';
-import { WebSocketServer } from 'ws';
-import http from 'http';
-import { setupWebSocket } from './websocket';
-import apiRouter from './routes/api';
+const express = require('express');
+const { WebSocketServer } = require('ws');
+const http = require('http');
+const { setupWebSocket } = require('./websocket');
+const apiRouter = require('./routes/api');
 
 const app = express();
 const server = http.createServer(app);

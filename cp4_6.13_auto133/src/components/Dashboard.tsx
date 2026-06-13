@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Post } from '../types';
 import { analyzeSentiment } from '../utils/sentimentAnalyzer';
@@ -11,6 +11,12 @@ interface DashboardProps {
 }
 
 function Dashboard({ posts, keyword }: DashboardProps) {
+  const [animatedStats, setAnimatedStats] = useState({
+    positive: 0,
+    neutral: 0,
+    negative: 0
+  });
+
   const stats = useMemo(() => {
     const total = posts.length;
     
@@ -52,10 +58,45 @@ function Dashboard({ posts, keyword }: DashboardProps) {
     };
   }, [posts]);
 
+  useEffect(() => {
+    const duration = 500;
+    const startTime = performance.now();
+    const startValues = { ...animatedStats };
+    const endValues = {
+      positive: stats.positiveCount,
+      neutral: stats.neutralCount,
+      negative: stats.negativeCount
+    };
+
+    let animationId: number;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+      setAnimatedStats({
+        positive: Math.round(startValues.positive + (endValues.positive - startValues.positive) * easeProgress),
+        neutral: Math.round(startValues.neutral + (endValues.neutral - startValues.neutral) * easeProgress),
+        negative: Math.round(startValues.negative + (endValues.negative - startValues.negative) * easeProgress)
+      });
+
+      if (progress < 1) {
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [stats.positiveCount, stats.neutralCount, stats.negativeCount]);
+
   const pieData = [
-    { name: '积极', value: stats.positiveCount, color: '#10b981' },
-    { name: '中性', value: stats.neutralCount, color: '#6b7280' },
-    { name: '消极', value: stats.negativeCount, color: '#ef4444' }
+    { name: '积极', value: animatedStats.positive, color: '#10b981' },
+    { name: '中性', value: animatedStats.neutral, color: '#6b7280' },
+    { name: '消极', value: animatedStats.negative, color: '#ef4444' }
   ];
 
   return (
@@ -117,6 +158,7 @@ function Dashboard({ posts, keyword }: DashboardProps) {
                     outerRadius={55}
                     paddingAngle={2}
                     dataKey="value"
+                    isAnimationActive={false}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />

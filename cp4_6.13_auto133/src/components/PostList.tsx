@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Post } from '../types';
 import { analyzeSentiment, getSentimentLabelText } from '../utils/sentimentAnalyzer';
 import PostCard from './PostCard';
 import './PostList.css';
+
+const PAGE_SIZE = 10;
 
 interface PostListProps {
   posts: Post[];
@@ -14,9 +16,17 @@ interface PostListProps {
 function PostList({ posts, loading, onTagToggle, availableTags }: PostListProps) {
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const [sentimentExpandedId, setSentimentExpandedId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+    setExpandedPostId(null);
+    setSentimentExpandedId(null);
+  }, [posts.length]);
 
   const postsWithSentiment = useMemo(() => {
-    return posts.map(post => {
+    const visiblePosts = posts.slice(0, visibleCount);
+    return visiblePosts.map(post => {
       const allText = post.content + ' ' + post.comments.map(c => c.content).join(' ');
       const sentiment = analyzeSentiment(allText);
       const commentSentiments = post.comments.map(comment => ({
@@ -29,7 +39,7 @@ function PostList({ posts, loading, onTagToggle, availableTags }: PostListProps)
         commentSentiments
       };
     });
-  }, [posts]);
+  }, [posts, visibleCount]);
 
   const toggleExpand = (postId: string) => {
     setExpandedPostId(prev => prev === postId ? null : postId);
@@ -38,6 +48,10 @@ function PostList({ posts, loading, onTagToggle, availableTags }: PostListProps)
   const toggleSentimentExpand = (postId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSentimentExpandedId(prev => prev === postId ? null : postId);
+  };
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => Math.min(prev + PAGE_SIZE, posts.length));
   };
 
   const formatTime = (timestamp: string) => {
@@ -75,22 +89,41 @@ function PostList({ posts, loading, onTagToggle, availableTags }: PostListProps)
     );
   }
 
+  const hasMore = visibleCount < posts.length;
+
   return (
-    <div className="post-list">
-      {postsWithSentiment.map((post, index) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          index={index}
-          expanded={expandedPostId === post.id}
-          sentimentExpanded={sentimentExpandedId === post.id}
-          onToggleExpand={() => toggleExpand(post.id)}
-          onToggleSentimentExpand={(e) => toggleSentimentExpand(post.id, e)}
-          formatTime={formatTime}
-          onTagToggle={onTagToggle}
-          availableTags={availableTags}
-        />
-      ))}
+    <div className="post-list-wrapper">
+      <div className="post-list">
+        {postsWithSentiment.map((post, index) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            index={index}
+            expanded={expandedPostId === post.id}
+            sentimentExpanded={sentimentExpandedId === post.id}
+            onToggleExpand={() => toggleExpand(post.id)}
+            onToggleSentimentExpand={(e) => toggleSentimentExpand(post.id, e)}
+            formatTime={formatTime}
+            onTagToggle={onTagToggle}
+            availableTags={availableTags}
+          />
+        ))}
+      </div>
+      
+      {hasMore && (
+        <div className="load-more-container">
+          <button className="load-more-btn" onClick={handleLoadMore}>
+            加载更多
+            <span className="load-more-count">({posts.length - visibleCount} 条剩余)</span>
+          </button>
+        </div>
+      )}
+
+      {!hasMore && posts.length > PAGE_SIZE && (
+        <div className="all-loaded">
+          <span>已加载全部 {posts.length} 条帖子</span>
+        </div>
+      )}
     </div>
   );
 }

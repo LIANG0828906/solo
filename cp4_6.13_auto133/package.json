@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"cd server && npx ts-node-esm index.ts\" \"vite\"",
+    "dev": "concurrently \"cd server && node index.js\" \"vite\"",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

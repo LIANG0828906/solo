@@ -1,25 +1,7 @@
-import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+const { Router } = require('express');
+const { v4: uuidv4 } = require('uuid');
 
 const router = Router();
-
-interface Comment {
-  id: string;
-  username: string;
-  content: string;
-  timestamp: string;
-  likes: number;
-  sentiment?: string;
-}
-
-interface Post {
-  id: string;
-  username: string;
-  content: string;
-  timestamp: string;
-  likes: number;
-  comments: Comment[];
-}
 
 const usernames = [
   '咖啡爱好者小王', '环保达人Lisa', '美食探店家', '科技先锋', '生活记录者',
@@ -27,19 +9,15 @@ const usernames = [
   '产品经理老李', '程序员大刘', '运营小姐姐', '市场分析师', '创意总监'
 ];
 
-const positiveWords = ['喜欢', '很棒', '优秀', '推荐', '满意', '惊喜', '舒适', '方便', '实用', '美观', '赞', '好', '棒', '支持', '值得', '高品质', '用心', '创新', '贴心', '完美'];
-const negativeWords = ['失望', '糟糕', '差', '不满', '太贵', '浪费', '不好', '劣质', '后悔', '难用', '坑', '假', '差評', '吐槽', '弃用', '麻烦', '笨重', '易碎', '褪色', '劣质'];
-const neutralWords = ['一般', '普通', '还行', '凑合', '中等', '常规', '标准', '平常', '正常', '差不多', '常见', '普遍', '通常', '一般般', '马马虎虎'];
-
-function getRandomItem<T>(arr: T[]): T {
+function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function getRandomInt(min: number, max: number): number {
+function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function generateRandomTimestamp(timeRange: string): string {
+function generateRandomTimestamp(timeRange) {
   const now = new Date();
   let hoursBack = 24;
   
@@ -62,8 +40,8 @@ function generateRandomTimestamp(timeRange: string): string {
   return timestamp.toISOString();
 }
 
-function generateContent(keyword: string, sentiment: string): string {
-  const templates: Record<string, string[]> = {
+function generateContent(keyword, sentiment) {
+  const templates = {
     positive: [
       `这个${keyword}真的太棒了，用了之后感觉生活品质都提升了！`,
       `强烈推荐这款${keyword}，性价比超高，用起来非常舒适。`,
@@ -99,8 +77,8 @@ function generateContent(keyword: string, sentiment: string): string {
   return getRandomItem(templates[sentiment] || templates.neutral);
 }
 
-function generateCommentContent(keyword: string, sentiment: string): string {
-  const templates: Record<string, string[]> = {
+function generateCommentContent(keyword, sentiment) {
+  const templates = {
     positive: [
       `同意楼主，这个${keyword}确实好用！`,
       `我也在用这款${keyword}，体验很不错~`,
@@ -127,8 +105,8 @@ function generateCommentContent(keyword: string, sentiment: string): string {
   return getRandomItem(templates[sentiment] || templates.neutral);
 }
 
-function generateComments(keyword: string, count: number, timeRange: string, postTimestamp: string): Comment[] {
-  const comments: Comment[] = [];
+function generateComments(keyword, count, timeRange, postTimestamp) {
+  const comments = [];
   const sentiments = ['positive', 'neutral', 'negative'];
   const postTime = new Date(postTimestamp).getTime();
   const now = Date.now();
@@ -151,14 +129,14 @@ function generateComments(keyword: string, count: number, timeRange: string, pos
   return comments;
 }
 
-function generatePosts(keyword: string, timeRange: string, count: number): Post[] {
-  const posts: Post[] = [];
+function generatePosts(keyword, timeRange, count) {
+  const posts = [];
   const sentiments = ['positive', 'neutral', 'negative'];
   const sentimentWeights = [0.4, 0.35, 0.25];
   
   for (let i = 0; i < count; i++) {
     const rand = Math.random();
-    let sentiment: string;
+    let sentiment;
     if (rand < sentimentWeights[0]) {
       sentiment = 'positive';
     } else if (rand < sentimentWeights[0] + sentimentWeights[1]) {
@@ -184,11 +162,11 @@ function generatePosts(keyword: string, timeRange: string, count: number): Post[
   return posts;
 }
 
-router.get('/posts', (req: Request, res: Response) => {
+router.get('/posts', (req, res) => {
   const { keyword = '环保咖啡杯', timeRange = '24h' } = req.query;
   
   const postCount = 25;
-  const posts = generatePosts(keyword as string, timeRange as string, postCount);
+  const posts = generatePosts(keyword, timeRange, postCount);
   
   res.json({
     success: true,
@@ -201,4 +179,4 @@ router.get('/posts', (req: Request, res: Response) => {
   });
 });
 
-export default router;
+module.exports = router;

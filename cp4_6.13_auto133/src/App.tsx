@@ -44,7 +44,7 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to fetch posts:', error);
-      const mockPosts = generateMockPosts(keyword);
+      const mockPosts = generateMockPosts(keyword, timeRange);
       setPosts(mockPosts);
     } finally {
       setLoading(false);
@@ -202,7 +202,7 @@ function App() {
   );
 }
 
-function generateMockPosts(keyword: string): Post[] {
+function generateMockPosts(keyword: string, timeRange: string = '24h'): Post[] {
   const usernames = [
     '咖啡爱好者小王', '环保达人Lisa', '美食探店家', '科技先锋', '生活记录者',
     '旅行者阿杰', '读书爱好者', '健身达人Mike', '摄影师小雨', '设计师张三',
@@ -213,8 +213,23 @@ function generateMockPosts(keyword: string): Post[] {
   const posts: Post[] = [];
   const now = Date.now();
 
+  let hoursBack = 24;
+  switch (timeRange) {
+    case '24h':
+      hoursBack = 24;
+      break;
+    case '7d':
+      hoursBack = 24 * 7;
+      break;
+    case '30d':
+      hoursBack = 24 * 30;
+      break;
+    default:
+      hoursBack = 24;
+  }
+
   for (let i = 0; i < 25; i++) {
-    const timestamp = new Date(now - Math.random() * 24 * 60 * 60 * 1000);
+    const timestamp = new Date(now - Math.random() * hoursBack * 60 * 60 * 1000);
     const sentimentRandom = Math.random();
     let sentiment: string;
     if (sentimentRandom < 0.4) sentiment = 'positive';

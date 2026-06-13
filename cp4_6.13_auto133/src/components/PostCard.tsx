@@ -41,6 +41,7 @@ function PostCard({
   availableTags
 }: PostCardProps) {
   const [showTagMenu, setShowTagMenu] = useState(false);
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
 
   const getSentimentBadgeClass = (label: string) => {
     switch (label) {
@@ -51,6 +52,11 @@ function PostCard({
       default:
         return 'sentiment-badge neutral';
     }
+  };
+
+  const handleCommentSentimentClick = (commentId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCommentId(prev => prev === commentId ? null : commentId);
   };
 
   return (
@@ -182,11 +188,58 @@ function PostCard({
                     </div>
                     <span className="comment-username">{comment.username}</span>
                   </div>
-                  <span className={`comment-sentiment ${comment.sentimentResult.label}`}>
-                    {getSentimentLabelText(comment.sentimentResult.label)}
-                  </span>
+                  <button
+                    className={`comment-sentiment-badge ${comment.sentimentResult.label}`}
+                    onClick={(e) => handleCommentSentimentClick(comment.id, e)}
+                  >
+                    <span className="sentiment-label">
+                      {getSentimentLabelText(comment.sentimentResult.label)}
+                    </span>
+                    <span className="sentiment-score">
+                      {comment.sentimentResult.score > 0 ? '+' : ''}
+                      {(comment.sentimentResult.score * 100).toFixed(0)}
+                    </span>
+                  </button>
                 </div>
                 <p className="comment-content">{comment.content}</p>
+                
+                {expandedCommentId === comment.id && (
+                  <div className="comment-sentiment-detail">
+                    <div className="sentiment-detail-row">
+                      <span className="detail-label">正面词</span>
+                      <span className="detail-value positive">
+                        {comment.sentimentResult.positiveCount} 个
+                      </span>
+                    </div>
+                    <div className="sentiment-detail-row">
+                      <span className="detail-label">负面词</span>
+                      <span className="detail-value negative">
+                        {comment.sentimentResult.negativeCount} 个
+                      </span>
+                    </div>
+                    {comment.sentimentResult.positiveWords.length > 0 && (
+                      <div className="sentiment-words small">
+                        <span className="words-label">正面:</span>
+                        <div className="words-list">
+                          {comment.sentimentResult.positiveWords.slice(0, 3).map((word, i) => (
+                            <span key={i} className="word-tag positive-word small">{word}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {comment.sentimentResult.negativeWords.length > 0 && (
+                      <div className="sentiment-words small">
+                        <span className="words-label">负面:</span>
+                        <div className="words-list">
+                          {comment.sentimentResult.negativeWords.slice(0, 3).map((word, i) => (
+                            <span key={i} className="word-tag negative-word small">{word}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="comment-footer">
                   <span className="comment-time">{formatTime(comment.timestamp)}</span>
                   <span className="comment-likes">❤️ {comment.likes}</span>
