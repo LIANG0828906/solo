@@ -1,8 +1,23 @@
-import React, { useEffect, useImperativeHandle, useRef, useState, forwardRef, useCallback } from 'react';
+import React, {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import { Stage, Layer, Rect, Circle, Line, Transformer, Group } from 'react-konva';
 import Konva from 'konva';
 import { v4 as uuidv4 } from 'uuid';
-import type { Shape as ShapeType, ToolType, RectShape, CircleShape, LineShape, User } from '../types';
+import type {
+  Shape as ShapeType,
+  ToolType,
+  RectShape,
+  CircleShape,
+  LineShape,
+  User,
+} from '../types';
 import { socketService } from '../utils/socket';
 import './Canvas.css';
 
@@ -26,31 +41,42 @@ interface CanvasProps {
   onCanvasScaleChange: (scale: number) => void;
 }
 
-type DrawingState =
-  | { status: 'idle' }
-  | { status: 'drawing'; type: 'rect' | 'circle' | 'line'; startX: number; startY: number; previewId: string };
+interface DrawingState {
+  isDrawing: boolean;
+  type: 'rect' | 'circle' | 'line' | null;
+  startX: number;
+  startY: number;
+  previewId: string;
+}
 
-const CreatorDot: React.FC<{ x: number; y: number; color: string; rotation: number }> = ({ x, y, color, rotation }) => {
+const CreatorDot: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => {
   return (
-    <Group x={x} y={y} rotation={rotation}>
-      <Circle
-        x={-8}
-        y={-8}
-        radius={7}
-        fill={color}
-        stroke="#ffffff"
-        strokeWidth={2}
-        listening={false}
-        shadowColor="rgba(0,0,0,0.2)"
-        shadowBlur={2}
-      />
-    </Group>
+    <Circle
+      x={x}
+      y={y}
+      radius={7}
+      fill={color}
+      stroke="#ffffff"
+      strokeWidth={2}
+      listening={false}
+      shadowColor="rgba(0,0,0,0.25)"
+      shadowBlur={3}
+    />
   );
 };
 
-const getShapeBounds = (shape: ShapeType): { x: number; y: number; width: number; height: number } => {
-  if (shape.type === 'rect') return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-  if (shape.type === 'circle') return { x: shape.x - shape.radius, y: shape.y - shape.radius, width: shape.radius * 2, height: shape.radius * 2 };
+const getShapeBounds = (
+  shape: ShapeType,
+): { x: number; y: number; width: number; height: number } => {
+  if (shape.type === 'rect')
+    return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+  if (shape.type === 'circle')
+    return {
+      x: shape.x - shape.radius,
+      y: shape.y - shape.radius,
+      width: shape.radius * 2,
+      height: shape.radius * 2,
+    };
   const xs = shape.points.filter((_, i) => i % 2 === 0);
   const ys = shape.points.filter((_, i) => i % 2 === 1);
   const minX = Math.min(...xs);
@@ -80,8 +106,29 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
   const stageRef = useRef<Konva.Stage>(null);
   const layerRef = useRef<Konva.Layer>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
-  const [drawing, setDrawing] = useState<DrawingState>({ status: 'idle' });
-  const trAnchorsRef = useRef<Set<string>>(new Set());
+  const drawingRef = useRef<DrawingState>({
+    isDrawing: false,
+    type: null,
+    startX: 0,
+    startY: 0,
+    previewId: '',
+  });
+  const shapesRef = useRef<ShapeType[]>(shapes);
+  const toolRef = useRef(tool);
+  const userRef = useRef(currentUser);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    shapesRef.current = shapes;
+  }, [shapes]);
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+
+  useEffect(() => {
+    userRef.current = currentUser;
+  }, [currentUser]);
 
   const updateTransformerNodes = useCallback(() => {
     const tr = transformerRef.current;
@@ -102,9 +149,14 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
   }, [selectedId]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(updateTransformerNodes);
-    return () => cancelAnimationFrame(frame);
-  }, [updateTransformerNodes, shapes.length]);
+    let raf = 0;
+    const tick = () => {
+      updateTransformerNodes();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [updateTransformerNodes]);
 
   useImperativeHandle(ref, () => ({
     exportToImage: () => {
@@ -134,20 +186,41 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     };
   };
 
+  const updatePreviewShape = (updater: (prev: ShapeType) => ShapeType) => {
+    const drawing = drawingRef.current;
+    if (!drawing.isDrawing || !drawing.previewId) return;
+
+    const allShapes = shapesRef.current;
+    const index = allShapes.findIndex((s) => s.id === drawing.previewId);
+    if (index === -1) return;
+
+    const next = [...allShapes];
+    next[index] = updater(allShapes[index]);
+    shapesRef.current = next;
+    onShapesChange(next);
+    forceUpdate((n) => n + 1);
+  };
+
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const target = e.target;
     const stage = stageRef.current;
     if (!stage) return;
 
-    const clickedOnEmpty = target === stage || target === layerRef.current || target.getClassName() === 'Stage';
+    const clickedOnEmpty =
+      target === stage ||
+      target === layerRef.current ||
+      target.getClassName() === 'Stage';
 
-    if (tool === 'select') {
+    if (toolRef.current === 'select') {
       if (clickedOnEmpty) {
         onSelectChange(null);
         return;
       }
-      const node = target.findAncestors('Node')[0] || target;
-      if (node && node.id()) {
+      let node = target;
+      while (node && node.getParent() && !node.id()) {
+        node = node.getParent();
+      }
+      if (node && node.id() && !node.id().startsWith('preview-')) {
         onSelectChange(node.id());
       } else {
         onSelectChange(null);
@@ -155,7 +228,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
       return;
     }
 
-    if (tool === 'sticky') {
+    if (toolRef.current === 'sticky') {
       if (clickedOnEmpty) {
         const { x, y } = getStagePointerPosition();
         onStickyCreate(x, y);
@@ -163,105 +236,110 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
       return;
     }
 
-    if (tool === 'rect' || tool === 'circle' || tool === 'line') {
-      if (!clickedOnEmpty) return;
-      if (!currentUser) return;
+    const drawTool = toolRef.current;
+    if (drawTool !== 'rect' && drawTool !== 'circle' && drawTool !== 'line') return;
+    if (!clickedOnEmpty) return;
+    const user = userRef.current;
+    if (!user) return;
 
-      const { x, y } = getStagePointerPosition();
-      const previewId = `preview-${uuidv4()}`;
+    const { x, y } = getStagePointerPosition();
+    const previewId = `preview-${uuidv4()}`;
 
-      if (tool === 'line') {
-        const previewShape: LineShape = {
-          id: previewId,
-          type: 'line',
-          x,
-          y,
-          rotation: 0,
-          stroke: currentUser.color,
-          strokeWidth: 3,
-          creatorId: currentUser.id,
-          creatorColor: currentUser.color,
-          points: [x, y, x, y],
-        };
-        onShapesChange([...shapes, previewShape]);
-      } else {
-        const previewShape: ShapeType =
-          tool === 'rect'
-            ? ({
-                id: previewId,
-                type: 'rect',
-                x,
-                y,
-                rotation: 0,
-                stroke: currentUser.color,
-                strokeWidth: 3,
-                creatorId: currentUser.id,
-                creatorColor: currentUser.color,
-                width: 0,
-                height: 0,
-              } as RectShape)
-            : ({
-                id: previewId,
-                type: 'circle',
-                x,
-                y,
-                rotation: 0,
-                stroke: currentUser.color,
-                strokeWidth: 3,
-                creatorId: currentUser.id,
-                creatorColor: currentUser.color,
-                radius: 0,
-              } as CircleShape);
-        onShapesChange([...shapes, previewShape]);
-      }
-
-      setDrawing({ status: 'drawing', type: tool, startX: x, startY: y, previewId });
+    let previewShape: ShapeType;
+    if (drawTool === 'rect') {
+      previewShape = {
+        id: previewId,
+        type: 'rect',
+        x,
+        y,
+        rotation: 0,
+        stroke: user.color,
+        strokeWidth: 3,
+        creatorId: user.id,
+        creatorColor: user.color,
+        width: 0,
+        height: 0,
+      } as RectShape;
+    } else if (drawTool === 'circle') {
+      previewShape = {
+        id: previewId,
+        type: 'circle',
+        x,
+        y,
+        rotation: 0,
+        stroke: user.color,
+        strokeWidth: 3,
+        creatorId: user.id,
+        creatorColor: user.color,
+        radius: 0,
+      } as CircleShape;
+    } else {
+      previewShape = {
+        id: previewId,
+        type: 'line',
+        x,
+        y,
+        rotation: 0,
+        stroke: user.color,
+        strokeWidth: 3,
+        creatorId: user.id,
+        creatorColor: user.color,
+        points: [0, 0, 0, 0],
+      } as LineShape;
     }
+
+    const next = [...shapesRef.current, previewShape];
+    shapesRef.current = next;
+    onShapesChange(next);
+
+    drawingRef.current = {
+      isDrawing: true,
+      type: drawTool,
+      startX: x,
+      startY: y,
+      previewId,
+    };
   };
 
   const handleStageMouseMove = () => {
-    if (drawing.status !== 'drawing') return;
+    const drawing = drawingRef.current;
+    if (!drawing.isDrawing || !drawing.type) return;
+
     const { x, y } = getStagePointerPosition();
-    const index = shapes.findIndex((s) => s.id === drawing.previewId);
-    if (index === -1) return;
+    const { startX, startY, type } = drawing;
 
-    const prev = shapes[index];
-    const next = [...shapes];
-    const { startX, startY } = drawing;
-
-    if (drawing.type === 'rect') {
-      const x1 = Math.min(startX, x);
-      const y1 = Math.min(startY, y);
-      const w = Math.abs(x - startX);
-      const h = Math.abs(y - startY);
-      next[index] = { ...(prev as RectShape), x: x1, y: y1, width: w, height: h };
-    } else if (drawing.type === 'circle') {
-      const cx = (startX + x) / 2;
-      const cy = (startY + y) / 2;
-      const dx = x - startX;
-      const dy = y - startY;
-      const radius = Math.sqrt(dx * dx + dy * dy) / 2;
-      next[index] = { ...(prev as CircleShape), x: cx, y: cy, radius };
-    } else if (drawing.type === 'line') {
-      next[index] = {
-        ...(prev as LineShape),
-        points: [startX, startY, x, y],
-      };
-    }
-
-    onShapesChange(next);
+    updatePreviewShape((prev) => {
+      if (type === 'rect') {
+        const x1 = Math.min(startX, x);
+        const y1 = Math.min(startY, y);
+        const w = Math.abs(x - startX);
+        const h = Math.abs(y - startY);
+        return { ...(prev as RectShape), x: x1, y: y1, width: w, height: h };
+      }
+      if (type === 'circle') {
+        const dx = x - startX;
+        const dy = y - startY;
+        const radius = Math.sqrt(dx * dx + dy * dy);
+        return { ...(prev as CircleShape), x: startX, y: startY, radius };
+      }
+      const rel = { x: x - prev.x, y: y - prev.y };
+      return { ...(prev as LineShape), points: [0, 0, rel.x, rel.y] };
+    });
   };
 
   const handleStageMouseUp = () => {
-    if (drawing.status !== 'drawing') return;
-    const index = shapes.findIndex((s) => s.id === drawing.previewId);
+    const drawing = drawingRef.current;
+    if (!drawing.isDrawing || !drawing.type) return;
+
+    const allShapes = shapesRef.current;
+    const index = allShapes.findIndex((s) => s.id === drawing.previewId);
     if (index === -1) {
-      setDrawing({ status: 'idle' });
+      drawingRef.current = { isDrawing: false, type: null, startX: 0, startY: 0, previewId: '' };
       return;
     }
 
-    const previewShape = shapes[index];
-    const nextShapes = shapes.filter((_, i) => i !== index);
+    const previewShape = allShapes[index];
+    const nextShapes = allShapes.filter((_, i) => i !== index);
 
     let valid = false;
     if (previewShape.type === 'rect') {
@@ -269,23 +347,41 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     } else if (previewShape.type === 'circle') {
       valid = previewShape.radius > 3;
     } else if (previewShape.type === 'line') {
-      const [x1, y1, x2, y2] = previewShape.points;
-      const dx = x2 - x1;
-      const dy = y2 - y1;
+      const pts = previewShape.points;
+      const dx = pts[2] - pts[0];
+      const dy = pts[3] - pts[1];
       valid = Math.sqrt(dx * dx + dy * dy) > 5;
     }
 
-    if (valid && currentUser) {
+    const user = userRef.current;
+    if (valid && user) {
       const finalId = uuidv4();
-      const finalShape: ShapeType = { ...previewShape, id: finalId };
-      onShapesChange([...nextShapes, finalShape]);
+      let finalShape: ShapeType = { ...previewShape, id: finalId };
+
+      if (finalShape.type === 'rect') {
+        finalShape = finalShape as RectShape;
+      } else if (finalShape.type === 'circle') {
+        finalShape = finalShape as CircleShape;
+      } else if (finalShape.type === 'line') {
+        finalShape = {
+          ...finalShape,
+          x: previewShape.x,
+          y: previewShape.y,
+          points: (previewShape as LineShape).points,
+        } as LineShape;
+      }
+
+      const finalList = [...nextShapes, finalShape];
+      shapesRef.current = finalList;
+      onShapesChange(finalList);
       onLocalShapeAdd(finalShape);
       socketService.addShape(finalShape);
     } else {
+      shapesRef.current = nextShapes;
       onShapesChange(nextShapes);
     }
 
-    setDrawing({ status: 'idle' });
+    drawingRef.current = { isDrawing: false, type: null, startX: 0, startY: 0, previewId: '' };
   };
 
   const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
@@ -293,10 +389,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     const shapeId = node.id();
     if (!shapeId || shapeId.startsWith('preview-')) return;
 
-    const idx = shapes.findIndex((s) => s.id === shapeId);
+    const allShapes = shapesRef.current;
+    const idx = allShapes.findIndex((s) => s.id === shapeId);
     if (idx === -1) return;
 
-    const old = shapes[idx];
+    const old = allShapes[idx];
     let updated: ShapeType;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
@@ -307,8 +404,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
         ...old,
         x: node.x(),
         y: node.y(),
-        width: Math.max(5, old.width * scaleX),
-        height: Math.max(5, old.height * scaleY),
+        width: Math.max(5, old.width * Math.abs(scaleX)),
+        height: Math.max(5, old.height * Math.abs(scaleY)),
         rotation,
       };
     } else if (old.type === 'circle') {
@@ -324,11 +421,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
       const pts = old.points.slice();
       const newPts: number[] = [];
       for (let i = 0; i < pts.length; i += 2) {
-        const px = pts[i];
-        const py = pts[i + 1];
-        const newX = px * scaleX;
-        const newY = py * scaleY;
-        newPts.push(newX, newY);
+        newPts.push(pts[i] * scaleX, pts[i + 1] * scaleY);
       }
       updated = {
         ...old,
@@ -342,12 +435,12 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     node.scaleX(1);
     node.scaleY(1);
 
-    const next = [...shapes];
+    const next = [...allShapes];
     next[idx] = updated;
+    shapesRef.current = next;
     onShapesChange(next);
     onLocalShapeUpdate(updated);
     socketService.updateShape(updated);
-    trAnchorsRef.current.clear();
   };
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -355,13 +448,15 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     const shapeId = node.id();
     if (!shapeId || shapeId.startsWith('preview-')) return;
 
-    const idx = shapes.findIndex((s) => s.id === shapeId);
+    const allShapes = shapesRef.current;
+    const idx = allShapes.findIndex((s) => s.id === shapeId);
     if (idx === -1) return;
 
-    const old = shapes[idx];
+    const old = allShapes[idx];
     const updated: ShapeType = { ...old, x: node.x(), y: node.y() };
-    const next = [...shapes];
+    const next = [...allShapes];
     next[idx] = updated;
+    shapesRef.current = next;
     onShapesChange(next);
     onLocalShapeUpdate(updated);
     socketService.updateShape(updated);
@@ -371,13 +466,21 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     const handleKey = (e: KeyboardEvent) => {
       if (!selectedId) return;
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      )
+        return;
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        const idx = shapes.findIndex((s) => s.id === selectedId);
+        const allShapes = shapesRef.current;
+        const idx = allShapes.findIndex((s) => s.id === selectedId);
         if (idx !== -1) {
-          const next = shapes.filter((_, i) => i !== idx);
+          const next = allShapes.filter((_, i) => i !== idx);
+          shapesRef.current = next;
           onShapesChange(next);
           onLocalShapeDelete(selectedId);
           socketService.deleteShape(selectedId);
@@ -388,7 +491,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedId, shapes, onShapesChange, onLocalShapeDelete, onSelectChange]);
+  }, [selectedId, onShapesChange, onLocalShapeDelete, onSelectChange]);
 
   useEffect(() => {
     const container = stageRef.current?.container();
@@ -412,14 +515,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     return () => container.removeEventListener('wheel', handleWheel);
   }, [canvasScale, onCanvasScaleChange, stickyNotesContainerRef]);
 
-  const containerStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-  };
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const viewportHeight =
+    typeof window !== 'undefined' ? window.innerHeight - 56 : 800;
 
-  const cursorStyle =
-    tool === 'select' ? 'default' : tool === 'sticky' ? 'copy' : 'crosshair';
+  const cursorStyle = useMemo(() => {
+    const t = toolRef.current;
+    if (t === 'select') return 'default';
+    if (t === 'sticky') return 'copy';
+    return 'crosshair';
+  }, [tool]);
 
   const renderShape = (shape: ShapeType) => {
     const isPreview = shape.id.startsWith('preview-');
@@ -427,7 +532,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     const dotX = bounds.x + bounds.width;
     const dotY = bounds.y + bounds.height;
 
-    const commonProps = {
+    const isLine = shape.type === 'line';
+    const baseProps = {
       id: shape.id,
       draggable: !isPreview && tool === 'select',
       onTransformEnd: handleTransformEnd,
@@ -438,7 +544,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
       return (
         <Group key={shape.id}>
           <Rect
-            {...commonProps}
+            {...baseProps}
             x={shape.x}
             y={shape.y}
             width={shape.width}
@@ -447,10 +553,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
             stroke={shape.stroke}
             strokeWidth={shape.strokeWidth}
             opacity={isPreview ? 0.7 : 1}
-            dash={isPreview ? [5, 5] : undefined}
+            dash={isPreview ? [6, 4] : undefined}
             hitStrokeWidth={10}
           />
-          <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} rotation={shape.rotation} />
+          <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} />
         </Group>
       );
     }
@@ -459,7 +565,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
       return (
         <Group key={shape.id}>
           <Circle
-            {...commonProps}
+            {...baseProps}
             x={shape.x}
             y={shape.y}
             radius={shape.radius}
@@ -467,10 +573,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
             stroke={shape.stroke}
             strokeWidth={shape.strokeWidth}
             opacity={isPreview ? 0.7 : 1}
-            dash={isPreview ? [5, 5] : undefined}
+            dash={isPreview ? [6, 4] : undefined}
             hitStrokeWidth={10}
           />
-          <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} rotation={shape.rotation} />
+          <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} />
         </Group>
       );
     }
@@ -478,14 +584,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
     const xs = shape.points.filter((_, i) => i % 2 === 0);
     const ys = shape.points.filter((_, i) => i % 2 === 1);
     const relPoints: number[] = [];
+    const baseX = isLine ? shape.x : 0;
+    const baseY = isLine ? shape.y : 0;
     for (let i = 0; i < xs.length; i++) {
-      relPoints.push(xs[i] - shape.x, ys[i] - shape.y);
+      relPoints.push(xs[i] - baseX, ys[i] - baseY);
     }
 
     return (
       <Group key={shape.id}>
         <Line
-          {...commonProps}
+          {...baseProps}
           x={shape.x}
           y={shape.y}
           points={relPoints}
@@ -495,19 +603,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
           lineCap="round"
           lineJoin="round"
           opacity={isPreview ? 0.7 : 1}
-          dash={isPreview ? [5, 5] : undefined}
+          dash={isPreview ? [6, 4] : undefined}
           hitStrokeWidth={10}
         />
-        <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} rotation={shape.rotation} />
+        <CreatorDot x={dotX} y={dotY} color={shape.creatorColor} />
       </Group>
     );
   };
 
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight - 56 : 800;
-
   return (
-    <div className="canvas-container" style={containerStyle}>
+    <div className="canvas-container">
       <Stage
         ref={stageRef}
         width={viewportWidth}
@@ -519,8 +624,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
         onMouseLeave={handleStageMouseUp}
-        onTouchStart={(e) => handleStageMouseDown(e as unknown as Konva.KonvaEventObject<MouseEvent>)}
-        onTouchMove={(e) => handleStageMouseMove()}
+        onTouchStart={(e) =>
+          handleStageMouseDown(e as unknown as Konva.KonvaEventObject<MouseEvent>)
+        }
+        onTouchMove={handleStageMouseMove}
         onTouchEnd={handleStageMouseUp}
       >
         <Layer ref={layerRef}>
@@ -536,7 +643,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
           <Transformer
             ref={transformerRef}
             rotateEnabled
-            enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+            enabledAnchors={[
+              'top-left',
+              'top-right',
+              'bottom-left',
+              'bottom-right',
+              'middle-left',
+              'middle-right',
+              'top-center',
+              'bottom-center',
+            ]}
             boundBoxFunc={(oldBox, newBox) => {
               if (newBox.width < 5 || newBox.height < 5) return oldBox;
               return newBox;
@@ -544,6 +660,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(props, ref)
             anchorStroke="#89b4fa"
             anchorFill="#ffffff"
             anchorSize={8}
+            anchorCornerRadius={2}
             borderStroke="#89b4fa"
             borderStrokeWidth={2}
             rotationSnaps={[0, 90, 180, 270]}

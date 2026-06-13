@@ -158,9 +158,15 @@ export function useHistory(handlers: HistoryHandlers) {
     });
   }, [applyForward]);
 
+  const undoCount = undoStack.length;
+  const redoCount = redoStack.length;
+
   return {
     canUndo,
     canRedo,
+    undoCount,
+    redoCount,
+    maxHistory: MAX_HISTORY,
     undo,
     redo,
     updateShapeCache,

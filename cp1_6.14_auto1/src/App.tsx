@@ -451,19 +451,18 @@ const App: React.FC = () => {
 
       <button
         type="button"
-        className="undo-fab"
+        className={`undo-fab ${history.canUndo ? 'available' : 'unavailable'}`}
         onClick={() => history.undo()}
         disabled={!history.canUndo}
-        title="撤销 (Ctrl+Z)"
+        title={`撤销 (Ctrl+Z)${history.canUndo ? '' : ' - 暂无可撤销操作'}`}
       >
         <span aria-hidden>↶</span>
-        {history.canUndo && <span className="badge" aria-hidden>{5 - (5 - history.canUndo ? 1 : 0)}</span>}
-        {!history.canUndo && (
-          <span className="undo-fab-tooltip">暂无撤销记录</span>
-        )}
-        {history.canUndo && (
-          <span className="undo-fab-tooltip">点击撤销 · 还可撤销 {5} 步以内</span>
-        )}
+        {history.canUndo && <span className="badge">可撤销</span>}
+        <span className="undo-fab-tooltip">
+          {history.canUndo
+            ? `点击撤销 (还可撤销最近 ${5} 步操作)`
+            : '暂无可撤销操作'}
+        </span>
       </button>
 
       {history.canRedo && (
