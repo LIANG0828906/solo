@@ -1,3 +1,8 @@
+import express from 'express';
+import http from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import cors from 'cors';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Snake,
   SnakeSegment,
@@ -13,8 +18,8 @@ import {
   FOOD_SPAWN_INTERVAL,
   MAX_FOODS,
   FOOD_SIZE,
-} from './types';
-import { v4 as uuidv4 } from 'uuid';
+  SERVER_TICK_INTERVAL,
+} from '../src/game/types';
 
 const SNAKE_NAMES = [
   '疾风蛇', '闪电蛇', '毒牙蛇', '翡翠蛇', '幽灵蛇',
@@ -48,7 +53,12 @@ const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
   right: 'left',
 };
 
-export class GameEngine {
+interface Client {
+  ws: WebSocket;
+  playerId: string;
+}
+
+class ServerGameEngine {
   snakes: Map<string, Snake> = new Map();
   foods: Map<string, Food> = new Map();
   deathParticles: DeathParticle[] = [];
@@ -59,15 +69,6 @@ export class GameEngine {
   mapHeight = MAP_HEIGHT;
   lastTickTime = 0;
   lastFoodSpawn = 0;
-  private onStateChange?: () => void;
-
-  setOnStateChange(cb: () => void) {
-    this.onStateChange = cb;
-  }
-
-  notifyChange() {
-    this.onStateChange?.();
-  }
 
   getRandomPosition(): { x: number; y: number } {
     const padding = 60;
@@ -81,8 +82,19 @@ export class GameEngine {
     return dirs[Math.floor(Math.random() * dirs.length)];
   }
 
-  addSnake(id?: string): Snake {
-    const snakeId = id || uuidv4();
+  isPositionOccupied(x: number, y: number): boolean {
+    const radius = SEGMENT_SIZE * 2;
+    for (const snake of this.snakes.values()) {
+      for (const seg of snake.segments) {
+        if (Math.abs(seg.x - x) < radius && Math.abs(seg.y - y) < radius) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  addSnake(playerId: string): Snake {
     let pos = this.getRandomPosition();
     let attempts = 0;
     while (this.isPositionOccupied(pos.x, pos.y) && attempts < 20) {
@@ -103,7 +115,7 @@ export class GameEngine {
     }
 
     const snake: Snake = {
-      id: snakeId,
+      id: playerId,
       name: SNAKE_NAMES[Math.floor(Math.random() * SNAKE_NAMES.length)] + Math.floor(Math.random() * 100),
       segments,
       direction,
@@ -112,48 +124,25 @@ export class GameEngine {
       alive: true,
       color: SNAKE_COLORS[Math.floor(Math.random() * SNAKE_COLORS.length)],
       bornAt: Date.now(),
-      flashUntil: 0,
+      flashUntil: Date.now() + 300,
       headRotation: DIRECTION_ROTATION[direction],
       targetRotation: DIRECTION_ROTATION[direction],
     };
 
-    this.snakes.set(snakeId, snake);
-    this.notifyChange();
+    this.snakes.set(playerId, snake);
     return snake;
   }
 
-  flashAllSnakesExcept(exceptId: string) {
-    const now = Date.now();
-    this.snakes.forEach((snake) => {
-      if (snake.id !== exceptId) {
-        snake.flashUntil = now + 300;
-      }
-    });
+  removeSnake(playerId: string) {
+    this.snakes.delete(playerId);
   }
 
-  removeSnake(id: string) {
-    this.snakes.delete(id);
-    this.notifyChange();
-  }
-
-  setDirection(snakeId: string, direction: Direction) {
-    const snake = this.snakes.get(snakeId);
+  setDirection(playerId: string, direction: Direction) {
+    const snake = this.snakes.get(playerId);
     if (!snake || !snake.alive) return;
     if (OPPOSITE_DIRECTION[snake.direction] === direction) return;
     snake.nextDirection = direction;
     snake.targetRotation = DIRECTION_ROTATION[direction];
-  }
-
-  isPositionOccupied(x: number, y: number): boolean {
-    const radius = SEGMENT_SIZE * 2;
-    for (const snake of this.snakes.values()) {
-      for (const seg of snake.segments) {
-        if (Math.abs(seg.x - x) < radius && Math.abs(seg.y - y) < radius) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   spawnFood() {
@@ -293,21 +282,6 @@ export class GameEngine {
       p.y += p.vy * deltaTime;
       return true;
     });
-
-    this.notifyChange();
-  }
-
-  getLeaderboard(): { id: string; name: string; score: number; alive: boolean; survivalTime: number }[] {
-    return Array.from(this.snakes.values())
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        score: s.score,
-        alive: s.alive,
-        survivalTime: s.alive ? (Date.now() - s.bornAt) / 1000 : 0,
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
   }
 
   serialize() {
@@ -322,25 +296,119 @@ export class GameEngine {
       startedAt: this.startedAt,
     };
   }
+}
 
-  deserialize(data: any) {
-    this.snakes = new Map(data.snakes.map((s: Snake) => [s.id, s]));
-    this.foods = new Map(data.foods.map((f: Food) => [f.id, f]));
-    this.deathParticles = data.deathParticles || [];
-    this.tick = data.tick;
-    this.tickInterval = data.tickInterval;
-    this.mapWidth = data.mapWidth;
-    this.mapHeight = data.mapHeight;
-    this.startedAt = data.startedAt;
-  }
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-  reset() {
-    this.snakes.clear();
-    this.foods.clear();
-    this.deathParticles = [];
-    this.tick = 0;
-    this.startedAt = Date.now();
-    this.lastTickTime = 0;
-    this.lastFoodSpawn = 0;
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+const gameEngine = new ServerGameEngine();
+const clients = new Map<string, Client>();
+
+function broadcast(message: any) {
+  const data = JSON.stringify(message);
+  clients.forEach((client) => {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(data);
+    }
+  });
+}
+
+function sendTo(playerId: string, message: any) {
+  const client = clients.get(playerId);
+  if (client && client.ws.readyState === WebSocket.OPEN) {
+    client.ws.send(JSON.stringify(message));
   }
+}
+
+wss.on('connection', (ws) => {
+  let playerId = uuidv4();
+
+  console.log('New connection:', playerId);
+
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+
+      if (message.type === 'join') {
+        if (message.data?.playerId && clients.has(message.data.playerId)) {
+          playerId = message.data.playerId;
+        }
+
+        clients.set(playerId, { ws, playerId });
+        gameEngine.addSnake(playerId);
+
+        sendTo(playerId, {
+          type: 'welcome',
+          data: {
+            playerId,
+            serverTime: Date.now(),
+          },
+        });
+
+        broadcast({
+          type: 'player-joined',
+          data: { playerId },
+        });
+
+        console.log('Player joined:', playerId, 'Total players:', clients.size);
+      } else if (message.type === 'direction') {
+        const { playerId: pid, direction } = message.data;
+        if (pid && direction) {
+          gameEngine.setDirection(pid, direction);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse message:', e);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('Connection closed:', playerId);
+    clients.delete(playerId);
+    gameEngine.removeSnake(playerId);
+    broadcast({
+      type: 'player-left',
+      data: { playerId },
+    });
+    console.log('Player left:', playerId, 'Total players:', clients.size);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+});
+
+let lastUpdateTime = Date.now();
+
+setInterval(() => {
+  const now = Date.now();
+  const deltaTime = (now - lastUpdateTime) / 1000;
+  lastUpdateTime = now;
+
+  gameEngine.update(deltaTime);
+
+  broadcast({
+    type: 'state',
+    data: gameEngine.serialize(),
+  });
+}, SERVER_TICK_INTERVAL);
+
+setInterval(() => {
+  for (let i = 0; i < 3; i++) {
+    gameEngine.spawnFood();
+  }
+}, 3000);
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`WebSocket server ready`);
+});
+
+for (let i = 0; i < 8; i++) {
+  gameEngine.spawnFood();
 }
