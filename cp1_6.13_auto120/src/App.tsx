@@ -26,7 +26,10 @@ const DEFAULT_SIZE = 12;
 export default function App() {
   const [size, setSize] = useState<number>(DEFAULT_SIZE);
   const [maze, setMaze] = useState<MazeState>(() => generateMaze(DEFAULT_SIZE, DEFAULT_SIZE));
-  const [solveResult, setSolveResult] = useState<SolveResult>(() => solveMaze(generateMaze(DEFAULT_SIZE, DEFAULT_SIZE)));
+  const [solveResult, setSolveResult] = useState<SolveResult>(() => {
+    const initial = generateMaze(DEFAULT_SIZE, DEFAULT_SIZE);
+    return solveMaze(initial);
+  });
   const [lastSolveMs, setLastSolveMs] = useState<number>(0);
   const [lastEditMs, setLastEditMs] = useState<number>(0);
 
@@ -38,6 +41,7 @@ export default function App() {
   const rafRef = useRef<number | null>(null);
   const mazeRef = useRef(maze);
   const solveRef = useRef(solveResult);
+  const prevSizeRef = useRef(size);
 
   useEffect(() => {
     mazeRef.current = maze;
@@ -46,6 +50,13 @@ export default function App() {
   useEffect(() => {
     solveRef.current = solveResult;
   }, [solveResult]);
+
+  useEffect(() => {
+    if (prevSizeRef.current !== size) {
+      prevSizeRef.current = size;
+      generateNew(size);
+    }
+  }, [size]);
 
   const sizeOptions = useMemo(() => {
     const arr: number[] = [];
@@ -106,7 +117,7 @@ export default function App() {
 
       const activeAnims = new Map<string, WallAnimState>();
       wallAnimsRef.current.forEach((anim, k) => {
-        if (now - anim.startTime < anim.duration) {
+        if (now - anim.startTime < anim.duration + 50) {
           activeAnims.set(k, anim);
         }
       });
@@ -148,15 +159,24 @@ export default function App() {
     });
   };
 
-  const triggerWallAnim = (cellX: number, cellY: number, side: WallSide, from: number, to: number) => {
+  const triggerWallAnim = (
+    cellX: number,
+    cellY: number,
+    side: WallSide,
+    addWall: boolean
+  ) => {
     const k = wallKey(cellX, cellY, side);
+    const now = performance.now();
     wallAnimsRef.current.set(k, {
       key: k,
-      startTime: performance.now(),
+      startTime: now,
       duration: WALL_ANIM_DURATION,
-      from,
-      to
+      fromOpacity: addWall ? 0 : 1,
+      toOpacity: addWall ? 1 : 0,
+      fromScale: addWall ? 0 : 1,
+      toScale: addWall ? 1 : 0
     });
+
     const opposites: Record<WallSide, WallSide> = {
       top: 'bottom', right: 'left', bottom: 'top', left: 'right'
     };
@@ -172,10 +192,12 @@ export default function App() {
       const k2 = wallKey(nx, ny, opposites[side]);
       wallAnimsRef.current.set(k2, {
         key: k2,
-        startTime: performance.now(),
+        startTime: now,
         duration: WALL_ANIM_DURATION,
-        from,
-        to
+        fromOpacity: addWall ? 0 : 1,
+        toOpacity: addWall ? 1 : 0,
+        fromScale: addWall ? 0 : 1,
+        toScale: addWall ? 1 : 0
       });
     }
   };
@@ -211,7 +233,7 @@ export default function App() {
       return;
     }
 
-    triggerWallAnim(hit.cellX, hit.cellY, hit.side, addWall ? 0 : 1, addWall ? 1 : 0);
+    triggerWallAnim(hit.cellX, hit.cellY, hit.side, addWall);
     spawnRipple(x, y, addWall ? 'rgba(255, 200, 80, 0.85)' : 'rgba(120, 200, 255, 0.85)');
 
     const t0 = performance.now();
@@ -253,7 +275,7 @@ export default function App() {
     <div className="app">
       <header className="toolbar">
         <div className="brand">
-          <div className="brand-logo" aria-hidden />
+          <div className="brand-logo" aria-hidden="true" />
           <span className="brand-title">PixelMaze</span>
         </div>
 
@@ -288,3 +310,27 @@ export default function App() {
             <span className="stat-label">编辑+重绘</span>
             <span className="stat-value">{lastEditMs.toFixed(2)} ms</span>
           </div>
+        </div>
+      </header>
+
+      <div
+        className="canvas-wrap"
+        ref={wrapRef}
+        onContextMenu={handleContextMenu}
+      >
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseLeave={handleCanvasMouseLeave}
+        />
+
+        <div className="help-hint">
+          <span><span className="hint-key">左键</span> 添加墙壁</span>
+          <span><span className="hint-key">右键</span> 删除墙壁</span>
+          <span>路径自动求解</span>
+        </div>
+      </div>
+    </div>
+  );
+}

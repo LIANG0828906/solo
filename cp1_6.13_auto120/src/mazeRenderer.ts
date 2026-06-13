@@ -1,4 +1,5 @@
 import type { MazeState, WallSide } from './mazeGenerator';
+import { WALL_OFFSETS_RANGE } from './mazeGenerator';
 
 export interface Ripple {
   x: number;
@@ -9,18 +10,14 @@ export interface Ripple {
   color: string;
 }
 
-export interface WallAnimKey {
-  cellX: number;
-  cellY: number;
-  side: WallSide;
-}
-
 export interface WallAnimState {
   key: string;
   startTime: number;
   duration: number;
-  from: number;
-  to: number;
+  fromOpacity: number;
+  toOpacity: number;
+  fromScale: number;
+  toScale: number;
 }
 
 export const WALL_ANIM_DURATION = 200;
@@ -45,6 +42,11 @@ export interface RenderContext {
   hoveredWall: { cellX: number; cellY: number; side: WallSide } | null;
 }
 
+interface WallAnimResult {
+  opacity: number;
+  scale: number;
+}
+
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -53,17 +55,20 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-function getWallAnimOpacity(
+function getWallAnimValues(
   anims: Map<string, WallAnimState>,
-  key: string,
+  k: string,
   now: number,
-  base: number
-): number {
-  const anim = anims.get(key);
-  if (!anim) return base;
-  const t = clamp((now - anim.startTime) / anim.duration, 0, 1);
-  const eased = easeOutCubic(t);
-  return anim.from + (anim.to - anim.from) * eased;
+  baseOpacity: number
+): WallAnimResult {
+  const anim = anims.get(k);
+  if (!anim) return { opacity: baseOpacity, scale: 1 };
+  const raw = clamp((now - anim.startTime) / anim.duration, 0, 1);
+  const eased = easeOutCubic(raw);
+  return {
+    opacity: anim.fromOpacity + (anim.toOpacity - anim.fromOpacity) * eased,
+    scale: anim.fromScale + (anim.toScale - anim.fromScale) * eased
+  };
 }
 
 export function computeLayout(
@@ -186,6 +191,47 @@ export function drawStartEndMarkers(
   ctx.restore();
 }
 
+function wallEndpoints(
+  x: number,
+  y: number,
+  side: WallSide,
+  cellSize: number,
+  offsetX: number,
+  offsetY: number,
+  off: number
+): { x1: number; y1: number; x2: number; y2: number; mx: number; my: number } {
+  let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+  switch (side) {
+    case 'top':
+      x1 = offsetX + x * cellSize;
+      y1 = offsetY + y * cellSize + off;
+      x2 = offsetX + (x + 1) * cellSize;
+      y2 = y1;
+      break;
+    case 'bottom':
+      x1 = offsetX + x * cellSize;
+      y1 = offsetY + (y + 1) * cellSize + off;
+      x2 = offsetX + (x + 1) * cellSize;
+      y2 = y1;
+      break;
+    case 'left':
+      x1 = offsetX + x * cellSize + off;
+      y1 = offsetY + y * cellSize;
+      x2 = x1;
+      y2 = offsetY + (y + 1) * cellSize;
+      break;
+    case 'right':
+      x1 = offsetX + (x + 1) * cellSize + off;
+      y1 = offsetY + y * cellSize;
+      x2 = x1;
+      y2 = offsetY + (y + 1) * cellSize;
+      break;
+  }
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  return { x1, y1, x2, y2, mx, my };
+}
+
 export function drawWalls(
   ctx: CanvasRenderingContext2D,
   maze: MazeState,
@@ -209,6 +255,8 @@ export function drawWalls(
     bottom: { dx: 0, dy: 1 }, left: { dx: -1, dy: 0 }
   };
 
+  void WALL_OFFSETS_RANGE;
+
   for (let y = 0; y < maze.height; y++) {
     for (let x = 0; x < maze.width; x++) {
       const cell = maze.grid[y][x];
@@ -218,38 +266,11 @@ export function drawWalls(
         if (drawnWalls.has(k)) continue;
 
         const hasWall = cell.walls[side];
-        const opacity = getWallAnimOpacity(wallAnims, k, t, hasWall ? 1 : 0);
-        if (opacity <= 0.01) continue;
+        const { opacity, scale } = getWallAnimValues(wallAnims, k, t, hasWall ? 1 : 0);
+        if (opacity <= 0.01 && scale <= 0.01) continue;
 
-        let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         const off = cell.wallOffsets[side];
-
-        switch (side) {
-          case 'top':
-            x1 = offsetX + x * cellSize;
-            y1 = offsetY + y * cellSize + off;
-            x2 = offsetX + (x + 1) * cellSize;
-            y2 = y1;
-            break;
-          case 'bottom':
-            x1 = offsetX + x * cellSize;
-            y1 = offsetY + (y + 1) * cellSize + off;
-            x2 = offsetX + (x + 1) * cellSize;
-            y2 = y1;
-            break;
-          case 'left':
-            x1 = offsetX + x * cellSize + off;
-            y1 = offsetY + y * cellSize;
-            x2 = x1;
-            y2 = offsetY + (y + 1) * cellSize;
-            break;
-          case 'right':
-            x1 = offsetX + (x + 1) * cellSize + off;
-            y1 = offsetY + y * cellSize;
-            x2 = x1;
-            y2 = offsetY + (y + 1) * cellSize;
-            break;
-        }
+        const ep = wallEndpoints(x, y, side, cellSize, offsetX, offsetY, off);
 
         drawnWalls.add(k);
         const d = deltas[side];
@@ -260,6 +281,11 @@ export function drawWalls(
           hoveredWall.cellX === x &&
           hoveredWall.cellY === y &&
           hoveredWall.side === side;
+
+        const sx1 = ep.mx + (ep.x1 - ep.mx) * scale;
+        const sy1 = ep.my + (ep.y1 - ep.my) * scale;
+        const sx2 = ep.mx + (ep.x2 - ep.mx) * scale;
+        const sy2 = ep.my + (ep.y2 - ep.my) * scale;
 
         ctx.save();
         ctx.globalAlpha = opacity;
@@ -273,15 +299,15 @@ export function drawWalls(
 
         const baseColor1 = isHovered ? '#eef4ff' : '#cdd5e6';
         const baseColor2 = isHovered ? '#b4ccff' : '#8f99b0';
-        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+        const grad = ctx.createLinearGradient(sx1, sy1, sx2, sy2);
         grad.addColorStop(0, baseColor1);
         grad.addColorStop(0.5, '#dde3f2');
         grad.addColorStop(1, baseColor2);
         ctx.strokeStyle = grad;
 
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
         ctx.stroke();
 
         ctx.shadowBlur = 0;
@@ -289,8 +315,8 @@ export function drawWalls(
         ctx.lineWidth = Math.max(1, thickness * 0.32);
         ctx.strokeStyle = 'rgba(255,255,255,0.78)';
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
         ctx.stroke();
         ctx.restore();
       }
@@ -310,7 +336,7 @@ export function drawExplored(
 
   const total = explored.length;
   const omega = (2 * Math.PI) / EXPLORED_BLINK_PERIOD_MS;
-  const blinkBase = 0.55 + Math.sin(t * omega) * 0.45;
+  const blinkBase = 0.5 + Math.sin(t * omega) * 0.5;
   const phase = (t * 0.0007) % 1;
 
   for (let i = 0; i < total; i++) {
@@ -397,9 +423,9 @@ export function drawPath(
     return pts[pts.length - 1];
   }
 
-  const flowSpeed = totalLen * 0.00035;
-  const flowOffset = (t * flowSpeed) % totalLen;
-  const hueGlobalShift = Math.sin(t * 0.0013) * 18;
+  const flowSpeed = 0.0003;
+  const flowPhase = (t * flowSpeed) % 1;
+  const hueGlobalShift = Math.sin(t * 0.0013) * 20;
 
   for (let layer = 0; layer < 2; layer++) {
     ctx.save();
@@ -411,26 +437,24 @@ export function drawPath(
     ctx.shadowBlur = baseShadow + Math.sin(t * 0.003) * 2;
     ctx.shadowColor = layer === 0 ? 'rgba(255, 180, 40, 0.8)' : 'rgba(255, 220, 120, 0.6)';
 
-    const grad = ctx.createLinearGradient(
-      pts[0].x, pts[0].y,
-      pts[pts.length - 1].x, pts[pts.length - 1].y
-    );
+    const p0 = pts[0];
+    const pn = pts[pts.length - 1];
+    const grad = ctx.createLinearGradient(p0.x, p0.y, pn.x, pn.y);
 
-    const stops = 8;
-    for (let i = 0; i <= stops; i++) {
-      const distRatio = i / stops;
-      const dist = (distRatio * totalLen + flowOffset) % totalLen;
-      const pp = pointAt(dist);
-      const pathRatio = dist / totalLen;
+    const numStops = 10;
+    for (let i = 0; i <= numStops; i++) {
+      const pos = i / numStops;
+      const flowPos = (pos + flowPhase) % 1;
 
-      const wave = Math.sin(pathRatio * Math.PI * 6 + t * 0.0025) * 14;
-      const hue = 42 + wave + hueGlobalShift * 0.2;
-      const light = 54 + Math.sin(pathRatio * Math.PI * 3 + t * 0.004) * 13;
+      const wave = Math.sin(flowPos * Math.PI * 6 + t * 0.0025) * 15;
+      const hue = 42 + wave + hueGlobalShift * 0.25;
+      const light = 55 + Math.sin(flowPos * Math.PI * 3 + t * 0.004) * 14;
       const alpha = layer === 0 ? 0.95 : 0.42;
 
-      const pos = i === stops ? 1 : ((distRatio + flowOffset / totalLen) % 1);
-      grad.addColorStop(pos, `hsla(${clamp(hue, 25, 65)}, 100%, ${clamp(light, 38, 72)}%, ${alpha})`);
-      void pp;
+      grad.addColorStop(
+        pos,
+        `hsla(${clamp(hue, 25, 65)}, 100%, ${clamp(light, 38, 72)}%, ${alpha})`
+      );
     }
     ctx.strokeStyle = grad;
     ctx.globalAlpha = layer === 0 ? 1 : 0.75;
@@ -444,10 +468,10 @@ export function drawPath(
     ctx.restore();
   }
 
-  ctx.save();
-  const dotDist = flowOffset;
-  const dot = pointAt(dotDist);
+  const dotPhase = flowPhase * totalLen;
+  const dot = pointAt(dotPhase);
   const glowR = lineWidth * 1.3 + Math.sin(t * 0.008) * 1.2;
+  ctx.save();
   const dotGrad = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR * 2.5);
   dotGrad.addColorStop(0, 'rgba(255, 255, 220, 1)');
   dotGrad.addColorStop(0.35, 'rgba(255, 210, 80, 0.9)');

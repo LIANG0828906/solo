@@ -22,7 +22,7 @@ export interface SolveResult {
 
 export type WallSide = 'top' | 'right' | 'bottom' | 'left';
 
-const WALL_OFFSETS_RANGE = 2.0;
+export const WALL_OFFSETS_RANGE = 2.0;
 
 function randomOffset(): number {
   return (Math.random() - 0.5) * 2 * WALL_OFFSETS_RANGE;
@@ -351,7 +351,7 @@ export function toggleWall(
   }
 
   const newGrid = maze.grid.map((row) =>
-    row.map((c) => ({ ...c, walls: { ...c.walls } }))
+    row.map((c) => ({ ...c, walls: { ...c.walls }, wallOffsets: { ...c.wallOffsets } }))
   );
   newGrid[cellY][cellX].walls[side] = addWall;
 
