@@ -70,10 +70,8 @@ const ObjectiveDetail: React.FC<ObjectiveDetailProps> = ({ onObjectiveUpdate }) 
   }, [objective, selectedWeek]);
 
   const handleWeekChange = (week: number) => {
+    setSelectedWeek(week);
     setFadeKey(prev => prev + 1);
-    setTimeout(() => {
-      setSelectedWeek(week);
-    }, 200);
   };
 
   const handleCheckIn = async () => {

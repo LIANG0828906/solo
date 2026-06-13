@@ -55,10 +55,8 @@ const Dashboard: React.FC<DashboardProps> = ({ objectives, loading, onConfidence
   }, [objectives, selectedWeek]);
 
   const handleWeekChange = (week: number) => {
+    setSelectedWeek(week);
     setFadeKey(prev => prev + 1);
-    setTimeout(() => {
-      setSelectedWeek(week);
-    }, 200);
   };
 
   const progressGradient = `linear-gradient(90deg, #1a237e 0%, #2e7d32 100%)`;
@@ -73,33 +71,40 @@ const Dashboard: React.FC<DashboardProps> = ({ objectives, loading, onConfidence
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#1a237e] to-[#3949ab] rounded-2xl p-6 text-white">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">团队整体完成度 {teamProgress}%</h2>
-            <p className="text-white/80">Q2 2026 季度目标追踪</p>
+      <div className="bg-gradient-to-r from-[#1a237e] to-[#3949ab] rounded-2xl p-6 text-white relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">团队整体完成度 {teamProgress}%</h2>
+              <p className="text-white/80">Q2 2026 季度目标追踪</p>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold">{objectives.length}</div>
+                <div className="text-sm text-white/70">总目标数</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold">{completedCount}</div>
+                <div className="text-sm text-white/70">已达标</div>
+              </div>
+              {riskCount > 0 && (
+                <div className="bg-orange-500/20 border border-orange-400/30 rounded-xl px-5 py-3 flex items-center gap-3">
+                  <AlertTriangle className="text-orange-400" size={28} />
+                  <div>
+                    <div className="text-2xl font-bold text-orange-400">{riskCount}</div>
+                    <div className="text-sm text-orange-300">风险预警</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{objectives.length}</div>
-              <div className="text-sm text-white/70">总目标数</div>
+          <div className="mt-6">
+            <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full progress-animate"
+                style={{ width: `${teamProgress}%`, background: progressGradient }}
+              />
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold">{completedCount}</div>
-              <div className="text-sm text-white/70">已完成</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-400">{riskCount}</div>
-              <div className="text-sm text-white/70">有风险</div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-6">
-          <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full progress-animate"
-              style={{ width: `${teamProgress}%`, background: progressGradient }}
-            />
           </div>
         </div>
       </div>

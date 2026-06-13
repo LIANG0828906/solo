@@ -74,14 +74,23 @@ const ObjectiveForm: React.FC<ObjectiveFormProps> = ({ isOpen, onClose, onSubmit
   };
 
   const triggerShake = (field: string) => {
-    setShakeFields(prev => new Set(prev).add(field));
-    setTimeout(() => {
-      setShakeFields(prev => {
-        const next = new Set(prev);
-        next.delete(field);
-        return next;
-      });
-    }, 200);
+    setShakeFields(prev => {
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        setShakeFields(prev => new Set(prev).add(field));
+        setTimeout(() => {
+          setShakeFields(prev => {
+            const next = new Set(prev);
+            next.delete(field);
+            return next;
+          });
+        }, 200);
+      }, 10);
+    });
   };
 
   const validate = (): boolean => {

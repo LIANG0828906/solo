@@ -28,20 +28,37 @@ const initialKeyResults4: KeyResult[] = [
 ];
 
 const initialCheckIns: CheckInRecord[] = [
+  { id: generateId(), keyResultId: initialKeyResults1[0].id, date: '2026-04-03', percentComplete: 65, note: '完成用户调研，明确优化方向', updatedBy: '张明' },
   { id: generateId(), keyResultId: initialKeyResults1[0].id, date: '2026-04-07', percentComplete: 75, note: '本周完成了3个体验优化', updatedBy: '张明' },
   { id: generateId(), keyResultId: initialKeyResults1[0].id, date: '2026-04-14', percentComplete: 80, note: 'NPS提升至42', updatedBy: '张明' },
   { id: generateId(), keyResultId: initialKeyResults1[0].id, date: '2026-04-21', percentComplete: 84, note: '完成支付流程重构', updatedBy: '张明' },
-  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-04-07', percentComplete: 70, note: '优化了注册流程', updatedBy: '李华' },
-  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-04-14', percentComplete: 85, note: '简化了3个操作步骤', updatedBy: '李华' },
-  { id: generateId(), keyResultId: initialKeyResults1[2].id, date: '2026-04-14', percentComplete: 32, note: '建立了客服轮班机制', updatedBy: '王芳' },
+  { id: generateId(), keyResultId: initialKeyResults1[0].id, date: '2026-05-05', percentComplete: 88, note: '上线新版本，用户反馈积极', updatedBy: '张明' },
+  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-04-05', percentComplete: 60, note: '开始优化注册流程', updatedBy: '李华' },
+  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-04-10', percentComplete: 70, note: '优化了注册流程', updatedBy: '李华' },
+  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-04-17', percentComplete: 85, note: '简化了3个操作步骤', updatedBy: '李华' },
+  { id: generateId(), keyResultId: initialKeyResults1[1].id, date: '2026-05-01', percentComplete: 90, note: '转化率提升明显', updatedBy: '李华' },
+  { id: generateId(), keyResultId: initialKeyResults1[2].id, date: '2026-04-08', percentComplete: 20, note: '初步建立客服流程', updatedBy: '王芳' },
+  { id: generateId(), keyResultId: initialKeyResults1[2].id, date: '2026-04-15', percentComplete: 32, note: '建立了客服轮班机制', updatedBy: '王芳' },
+  { id: generateId(), keyResultId: initialKeyResults1[2].id, date: '2026-04-29', percentComplete: 45, note: '新增2名客服人员', updatedBy: '王芳' },
+  { id: generateId(), keyResultId: initialKeyResults1[2].id, date: '2026-05-12', percentComplete: 60, note: '平均响应时间降至18小时', updatedBy: '王芳' },
+  { id: generateId(), keyResultId: initialKeyResults2[0].id, date: '2026-04-02', percentComplete: 45, note: '渠道准备工作完成', updatedBy: '赵强' },
   { id: generateId(), keyResultId: initialKeyResults2[0].id, date: '2026-04-07', percentComplete: 60, note: '投放了2个渠道广告', updatedBy: '赵强' },
   { id: generateId(), keyResultId: initialKeyResults2[0].id, date: '2026-04-14', percentComplete: 75, note: '新增用户7500', updatedBy: '赵强' },
-  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-04-07', percentComplete: 50, note: '优化了推送策略', updatedBy: '赵强' },
-  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-04-14', percentComplete: 70, note: 'DAU达到2100', updatedBy: '赵强' },
-  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-04-07', percentComplete: 95, note: '修复了2个高可用问题', updatedBy: '陈伟' },
-  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-04-14', percentComplete: 99, note: '系统可用性99.5%', updatedBy: '陈伟' },
-  { id: generateId(), keyResultId: initialKeyResults3[1].id, date: '2026-04-07', percentComplete: 40, note: '优化了数据库查询', updatedBy: '陈伟' },
-  { id: generateId(), keyResultId: initialKeyResults3[2].id, date: '2026-04-14', percentComplete: 50, note: '修复了2个安全漏洞', updatedBy: '陈伟' }
+  { id: generateId(), keyResultId: initialKeyResults2[0].id, date: '2026-04-28', percentComplete: 82, note: '新增社交渠道投放', updatedBy: '赵强' },
+  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-04-04', percentComplete: 40, note: 'DAU稳定在1200', updatedBy: '赵强' },
+  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-04-11', percentComplete: 50, note: '优化了推送策略', updatedBy: '赵强' },
+  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-04-18', percentComplete: 70, note: 'DAU达到2100', updatedBy: '赵强' },
+  { id: generateId(), keyResultId: initialKeyResults2[1].id, date: '2026-05-06', percentComplete: 78, note: '活动带动DAU增长', updatedBy: '赵强' },
+  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-04-03', percentComplete: 90, note: '完成基础监控部署', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-04-10', percentComplete: 95, note: '修复了2个高可用问题', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-04-17', percentComplete: 99, note: '系统可用性99.5%', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[0].id, date: '2026-05-08', percentComplete: 99.8, note: '完成容灾备份方案', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[1].id, date: '2026-04-06', percentComplete: 30, note: '开始性能优化工作', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[1].id, date: '2026-04-13', percentComplete: 40, note: '优化了数据库查询', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[1].id, date: '2026-04-27', percentComplete: 55, note: '引入缓存机制', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[2].id, date: '2026-04-09', percentComplete: 30, note: '完成安全审计', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[2].id, date: '2026-04-16', percentComplete: 50, note: '修复了2个安全漏洞', updatedBy: '陈伟' },
+  { id: generateId(), keyResultId: initialKeyResults3[2].id, date: '2026-05-03', percentComplete: 80, note: '大部分漏洞已修复', updatedBy: '陈伟' }
 ];
 
 let objectives: Objective[] = [
