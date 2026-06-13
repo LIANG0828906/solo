@@ -99,9 +99,9 @@ export class Renderer {
       centerX, centerY, 0,
       centerX, centerY, maxRadius
     );
-    gradient.addColorStop(0, '#0f0c29');
-    gradient.addColorStop(0.6, '#302b63');
-    gradient.addColorStop(1, '#24243e');
+    gradient.addColorStop(0, 'rgb(15, 12, 41)');
+    gradient.addColorStop(0.6, 'rgb(48, 43, 99)');
+    gradient.addColorStop(1, 'rgb(36, 36, 62)');
     
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, this.height);
@@ -172,26 +172,46 @@ export class Renderer {
     const ctx = this.ctx;
     
     for (const p of particles) {
-      const stretch = 1.5;
-      const particleWidth = p.size * stretch * 2;
-      const particleHeight = p.size * 0.8;
+      const stretchX = 1.5;
+      const originalSize = p.size;
+      const particleWidth = originalSize * stretchX * 2.5;
+      const particleHeight = originalSize * 0.9;
       
       const gradient = ctx.createLinearGradient(
-        p.x, p.y,
-        p.x - particleWidth * 1.5, p.y
+        p.x + particleWidth * 0.3, p.y,
+        p.x - particleWidth, p.y
       );
       gradient.addColorStop(0, p.color);
-      gradient.addColorStop(0.5, this.interpolateColor(p.color, '#ffa502', 0.5));
+      gradient.addColorStop(0.6, this.adjustColorAlpha(p.color, 0.5));
       gradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
       
       ctx.save();
-      ctx.globalAlpha = p.alpha * 0.9;
+      ctx.globalAlpha = p.alpha * 0.95;
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.ellipse(p.x, p.y, particleWidth, particleHeight, 0, 0, Math.PI * 2);
       ctx.fill();
+      
+      ctx.globalAlpha = p.alpha * 0.6;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x + particleWidth * 0.2, p.y, originalSize * 0.6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
+  }
+
+  private adjustColorAlpha(color: string, alpha: number): string {
+    if (color.startsWith('rgb')) {
+      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (match) {
+        const r = parseInt(match[1], 10);
+        const g = parseInt(match[2], 10);
+        const b = parseInt(match[3], 10);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+    }
+    return color;
   }
 
   private interpolateColor(color1: string, color2: string, factor: number): string {

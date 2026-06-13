@@ -32,6 +32,8 @@ export interface Enemy {
   spawnTime: number;
 }
 
+export type BulletQuality = 'perfect' | 'good' | 'miss';
+
 export interface Bullet {
   id: number;
   x: number;
@@ -40,6 +42,7 @@ export interface Bullet {
   damage: number;
   radius: number;
   color: string;
+  quality: BulletQuality;
   isPerfect: boolean;
   trail: Vector2[];
 }
@@ -207,17 +210,23 @@ export class EntityManager {
       }
     }
 
-    if (player.thrusterParticles.length < 6) {
-      const colors = ['#ff6b6b', '#ff8c42', '#ffa502', '#ff6b6b', '#ff8c42', '#ffa502'];
+    while (player.thrusterParticles.length < 6) {
+      const idx = player.thrusterParticles.length;
+      const t = idx / 5;
+      const r = Math.floor(255 * (1 - t) + 255 * t);
+      const g = Math.floor(107 * (1 - t) + 165 * t);
+      const b = Math.floor(107 * (1 - t) + 2 * t);
+      const color = `rgb(${r}, ${g}, ${b})`;
+      
       const particle: Particle = {
-        x: player.x - player.width / 2,
-        y: player.y + (Math.random() - 0.5) * 10,
-        vx: -100 - Math.random() * 50,
-        vy: (Math.random() - 0.5) * 30,
-        life: 0.3,
-        maxLife: 0.3,
-        size: 3 + Math.random() * 3,
-        color: colors[Math.floor(Math.random() * colors.length)],
+        x: player.x - player.width / 2 - Math.random() * 5,
+        y: player.y + (Math.random() - 0.5) * 12,
+        vx: -120 - Math.random() * 60,
+        vy: (Math.random() - 0.5) * 40,
+        life: 0.4,
+        maxLife: 0.4,
+        size: 4 + Math.random() * 2,
+        color,
         alpha: 1
       };
       player.thrusterParticles.push(particle);
@@ -346,20 +355,56 @@ export class EntityManager {
     }
   }
 
-  shoot(isPerfect: boolean, currentTime: number): Bullet | null {
+  shoot(quality: BulletQuality, currentTime: number): Bullet | null {
     const player = this.state.player;
+    
+    let radius: number;
+    let speed: number;
+    let damage: number;
+    let color: string;
+    let trailLength: number;
+    
+    switch (quality) {
+      case 'perfect':
+        radius = 5;
+        speed = 900;
+        damage = 2;
+        color = '#ffd700';
+        trailLength = 10;
+        break;
+      case 'good':
+        radius = 4;
+        speed = 700;
+        damage = 1;
+        color = '#00d2ff';
+        trailLength = 5;
+        break;
+      case 'miss':
+      default:
+        radius = 3;
+        speed = 500;
+        damage = 0.5;
+        color = '#ff4757';
+        trailLength = 3;
+        break;
+    }
     
     const bullet: Bullet = {
       id: this.nextId++,
       x: player.x + player.width / 2,
       y: player.y,
-      speed: isPerfect ? 800 : 600,
-      damage: isPerfect ? 2 : 1,
-      radius: isPerfect ? 5 : 4,
-      color: isPerfect ? '#ffd700' : '#00d2ff',
-      isPerfect,
+      speed,
+      damage,
+      radius,
+      color,
+      quality,
+      isPerfect: quality === 'perfect',
       trail: []
     };
+
+    for (let i = 0; i < trailLength; i++) {
+      bullet.trail.push({ x: bullet.x, y: bullet.y });
+    }
 
     this.state.bullets.push(bullet);
     return bullet;
@@ -370,7 +415,8 @@ export class EntityManager {
       const bullet = this.state.bullets[i];
       
       bullet.trail.unshift({ x: bullet.x, y: bullet.y });
-      if (bullet.trail.length > (bullet.isPerfect ? 8 : 4)) {
+      const maxTrail = bullet.quality === 'perfect' ? 10 : bullet.quality === 'good' ? 5 : 3;
+      if (bullet.trail.length > maxTrail) {
         bullet.trail.pop();
       }
       
