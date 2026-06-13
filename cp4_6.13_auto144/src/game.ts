@@ -4,7 +4,6 @@ import { StarfieldRenderer } from './renderer';
 
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 480;
-const MINIMAP_SCALE = 4;
 const ENGAGEMENT_DISTANCE = 100;
 const LASER_DURATION = 300;
 const LASER_INTERVAL = 2000;
@@ -155,7 +154,7 @@ class Game {
       if (targetDist < 5 || dist <= ENGAGEMENT_DISTANCE + 10) {
         this.engagementApproaching = false;
         this.inEngagement = true;
-        this.nextLaserTime = performance.now() + 300;
+        this.nextLaserTime = performance.now();
       }
     }
   }
@@ -265,19 +264,23 @@ class Game {
     mctx.fill();
     mctx.clip();
 
-    const offsetX = mw / 2 - CANVAS_WIDTH / 2 / MINIMAP_SCALE;
-    const offsetY = mh / 2 - CANVAS_HEIGHT / 2 / MINIMAP_SCALE;
+    const scaleX = mw / CANVAS_WIDTH;
+    const scaleY = mh / CANVAS_HEIGHT;
+    const scale = Math.min(scaleX, scaleY);
+
+    const offsetX = (mw - CANVAS_WIDTH * scale) / 2;
+    const offsetY = (mh - CANVAS_HEIGHT * scale) / 2;
 
     mctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
     mctx.lineWidth = 1;
-    mctx.strokeRect(offsetX, offsetY, CANVAS_WIDTH / MINIMAP_SCALE, CANVAS_HEIGHT / MINIMAP_SCALE);
+    mctx.strokeRect(offsetX, offsetY, CANVAS_WIDTH * scale, CANVAS_HEIGHT * scale);
 
     if (this.enemy && this.enemy.alive) {
       mctx.save();
       mctx.beginPath();
       mctx.arc(
-        offsetX + this.enemy.x / MINIMAP_SCALE,
-        offsetY + this.enemy.y / MINIMAP_SCALE,
+        offsetX + this.enemy.x * scale,
+        offsetY + this.enemy.y * scale,
         this.enemy.isDying ? 6 : 4,
         0,
         Math.PI * 2
@@ -292,8 +295,8 @@ class Game {
       mctx.beginPath();
       const size = ship.type === 'flagship' ? 3.5 : 2.5;
       mctx.arc(
-        offsetX + ship.x / MINIMAP_SCALE,
-        offsetY + ship.y / MINIMAP_SCALE,
+        offsetX + ship.x * scale,
+        offsetY + ship.y * scale,
         size,
         0,
         Math.PI * 2
@@ -307,9 +310,9 @@ class Game {
       mctx.save();
       mctx.beginPath();
       mctx.arc(
-        offsetX + this.enemy.x / MINIMAP_SCALE,
-        offsetY + this.enemy.y / MINIMAP_SCALE,
-        120 / MINIMAP_SCALE,
+        offsetX + this.enemy.x * scale,
+        offsetY + this.enemy.y * scale,
+        120 * scale,
         0,
         Math.PI * 2
       );

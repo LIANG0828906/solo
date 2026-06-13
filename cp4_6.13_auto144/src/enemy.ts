@@ -28,9 +28,9 @@ export class Enemy {
     this.pulsePhase += 0.08 * (deltaTime / 16.67);
 
     if (this.isDying) {
-      this.deathProgress += deltaTime / 1500;
+      this.deathProgress += deltaTime / 800;
 
-      if (this.deathProgress < 0.4 && this.explosionParticles.length === 0) {
+      if (this.deathProgress < 0.3 && this.explosionParticles.length < 100) {
         this.spawnExplosionParticles();
       }
 
@@ -38,8 +38,8 @@ export class Enemy {
         const p = this.explosionParticles[i];
         p.x += p.vx * (deltaTime / 16.67);
         p.y += p.vy * (deltaTime / 16.67);
-        p.vx *= 0.97;
-        p.vy *= 0.97;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
         p.life -= (deltaTime / 16.67);
         if (p.life <= 0) {
           this.explosionParticles.splice(i, 1);
@@ -53,20 +53,19 @@ export class Enemy {
   }
 
   private spawnExplosionParticles(): void {
-    const particleCount = 60;
-    const colors = ['#FF4444', '#FF6600', '#FFAA00', '#FFDD00', '#FFFFFF'];
+    const colors = ['#FF4444', '#FF6600', '#FFAA00', '#FFDD00', '#FFFFFF', '#FF8888'];
 
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.5;
-      const speed = 1 + Math.random() * 5;
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 6;
       this.explosionParticles.push({
-        x: this.x,
-        y: this.y,
+        x: this.x + (Math.random() - 0.5) * 10,
+        y: this.y + (Math.random() - 0.5) * 10,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 40 + Math.random() * 40,
+        life: 30 + Math.random() * 50,
         maxLife: 80,
-        size: 2 + Math.random() * 5,
+        size: 3 + Math.random() * 8,
         color: colors[Math.floor(Math.random() * colors.length)]
       });
     }

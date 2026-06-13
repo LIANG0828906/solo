@@ -134,21 +134,32 @@ export class Ship {
         idealY = flagshipY + rotOffsetY;
       }
 
-      this.jitterPhase += 0.15 * (deltaTime / 16.67);
-      const jitterAmount = this.type === 'scout' ? 2.5 : this.type === 'frigate' ? 2 : this.type === 'destroyer' ? 1.5 : 0;
-      const jitterX = Math.sin(this.jitterPhase) * jitterAmount;
-      const jitterY = Math.cos(this.jitterPhase * 0.7) * jitterAmount;
+      if (isMoving) {
+        this.jitterPhase += 0.08 * (deltaTime / 16.67);
+        const jitterAmount = this.type === 'scout' ? 0.8 : this.type === 'frigate' ? 0.5 : this.type === 'destroyer' ? 0.4 : 0;
+        const jitterX = Math.sin(this.jitterPhase) * jitterAmount;
+        const jitterY = Math.cos(this.jitterPhase * 0.7) * jitterAmount;
 
-      idealX += jitterX;
-      idealY += jitterY;
+        idealX += jitterX;
+        idealY += jitterY;
+      }
 
       const dx = idealX - this.x;
       const dy = idealY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist > 0.5) {
+      if (isMoving && dist > 0.5) {
         this.angle = Math.atan2(dy, dx);
         const moveSpeed = this.speed * (deltaTime / 16.67);
+        if (dist < moveSpeed) {
+          this.x = idealX;
+          this.y = idealY;
+        } else {
+          this.x += (dx / dist) * moveSpeed;
+          this.y += (dy / dist) * moveSpeed;
+        }
+      } else if (!isMoving && dist > 1) {
+        const moveSpeed = this.speed * 0.5 * (deltaTime / 16.67);
         if (dist < moveSpeed) {
           this.x = idealX;
           this.y = idealY;
@@ -325,7 +336,11 @@ export class Fleet {
   }
 
   private calculateFormationOffsets(): void {
-    this.previousOffsets = new Map(this.formationOffsets);
+    const newPreviousOffsets = new Map<number, { x: number; y: number }>();
+    for (const [key, value] of this.formationOffsets) {
+      newPreviousOffsets.set(key, { x: value.x, y: value.y });
+    }
+    this.previousOffsets = newPreviousOffsets;
     this.formationOffsets = new Map();
 
     const spacing = 45;
