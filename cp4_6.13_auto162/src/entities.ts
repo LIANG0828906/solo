@@ -12,6 +12,8 @@ import {
   SPEED_MUTATION_RANGE,
   PERCEPTION_MUTATION_RANGE,
   MAX_TRAIL_POINTS,
+  MIN_SPEED,
+  MIN_PERCEPTION,
 } from './config.js';
 
 export interface TrailPoint {
@@ -113,11 +115,11 @@ export class Herbivore extends BaseEntity {
 
     if (Math.random() < MUTATION_RATE) {
       childSpeed = this.speed * (1 + (Math.random() * 2 - 1) * SPEED_MUTATION_RANGE);
-      childSpeed = Math.max(0.3, childSpeed);
+      childSpeed = Math.max(MIN_SPEED, childSpeed);
     }
     if (Math.random() < MUTATION_RATE) {
       childPerception = this.perceptionRadius * (1 + (Math.random() * 2 - 1) * PERCEPTION_MUTATION_RANGE);
-      childPerception = Math.max(10, childPerception);
+      childPerception = Math.max(MIN_PERCEPTION, childPerception);
     }
 
     const offsetX = Math.random() * 30 - 15;
@@ -177,11 +179,11 @@ export class Carnivore extends BaseEntity {
 
     if (Math.random() < MUTATION_RATE) {
       childSpeed = this.speed * (1 + (Math.random() * 2 - 1) * SPEED_MUTATION_RANGE);
-      childSpeed = Math.max(0.4, childSpeed);
+      childSpeed = Math.max(MIN_SPEED, childSpeed);
     }
     if (Math.random() < MUTATION_RATE) {
       childPerception = this.perceptionRadius * (1 + (Math.random() * 2 - 1) * PERCEPTION_MUTATION_RANGE);
-      childPerception = Math.max(20, childPerception);
+      childPerception = Math.max(MIN_PERCEPTION, childPerception);
     }
 
     const offsetX = Math.random() * 30 - 15;

@@ -26,6 +26,8 @@ import {
   FADE_DURATION,
   TRAIL_DURATION,
   CARNIVORE_CHASE_SPEED_MULTIPLIER,
+  MIN_SPEED_MULTIPLIER,
+  MAX_SPEED_MULTIPLIER,
 } from './config.js';
 
 export interface StatsHistory {
@@ -99,7 +101,7 @@ export class Ecosystem {
   }
 
   setSpeed(speed: number): void {
-    this.speedMultiplier = Math.max(0.5, Math.min(3.0, speed));
+    this.speedMultiplier = Math.max(MIN_SPEED_MULTIPLIER, Math.min(MAX_SPEED_MULTIPLIER, speed));
   }
 
   getCounts() {
@@ -280,9 +282,9 @@ export class Ecosystem {
         dx /= len;
         dy /= len;
       } else {
-        if (currentTime >= c.nextWanderTime) {
-          c.wanderAngle += (Math.random() - 0.5) * 1.2;
-          c.nextWanderTime = currentTime + 500 + Math.random() * 1000;
+        if (currentTime >= c.nextWanderTime || (c.vx === 0 && c.vy === 0)) {
+          c.wanderAngle += (Math.random() - 0.5) * 1.5;
+          c.nextWanderTime = currentTime + 400 + Math.random() * 800;
         }
         dx = Math.cos(c.wanderAngle);
         dy = Math.sin(c.wanderAngle);

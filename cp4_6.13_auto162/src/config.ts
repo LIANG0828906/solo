@@ -52,7 +52,13 @@ export const WARNING_DURATION = 2000;
 export const FADE_DURATION = 500;
 export const TRAIL_DURATION = 1000;
 export const TRAIL_ALPHA = 0.2;
-export const MAX_TRAIL_POINTS = 60;
+export const MAX_TRAIL_POINTS = 200;
+
+export const MIN_SPEED = 0.1;
+export const MIN_PERCEPTION = 5;
+
+export const MIN_SPEED_MULTIPLIER = 0.1;
+export const MAX_SPEED_MULTIPLIER = 10;
 
 export const GRID_SPACING = 40;
 export const GRID_ALPHA = 0.15;
