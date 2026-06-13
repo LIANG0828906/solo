@@ -1,6 +1,6 @@
 import { Draggable } from 'react-beautiful-dnd';
 import type { DraggableProvided } from 'react-beautiful-dnd';
-import type { Task } from '../types';
+import type { Task, TaskStatus } from '../types';
 import { PRIORITY_COLORS, TAG_COLORS } from '../types';
 
 interface DraggableProvidedExt extends DraggableProvided {
@@ -13,8 +13,7 @@ interface CardProps {
   index: number;
   isFiltered: 'visible' | 'dimmed' | 'hidden';
   isMobile: boolean;
-  isDraggingGlobal?: boolean;
-  onStatusChange?: (taskId: string, status: Task['status']) => void;
+  onStatusChange?: (taskId: string, status: TaskStatus) => void;
 }
 
 function formatTime(ts: number): string {
@@ -27,37 +26,13 @@ function formatTime(ts: number): string {
   return `${days}天前`;
 }
 
-function MobileStatusSelect({
-  currentStatus,
-  onChange,
-  disabled,
-}: {
-  currentStatus: Task['status'];
-  onChange: (s: Task['status']) => void;
-  disabled: boolean;
-}) {
-  return (
-    <select
-      className="mobile-card-select"
-      value={currentStatus}
-      disabled={disabled}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => onChange(e.target.value as Task['status'])}
-    >
-      <option value="todo">待办</option>
-      <option value="in-progress">进行中</option>
-      <option value="done">已完成</option>
-    </select>
-  );
-}
-
 interface CardInnerProps {
   task: Task;
   onClick: () => void;
   isFiltered: 'visible' | 'dimmed' | 'hidden';
   isMobile: boolean;
   isDragging?: boolean;
-  onStatusChange?: (taskId: string, status: Task['status']) => void;
+  onStatusChange?: (taskId: string, status: TaskStatus) => void;
 }
 
 function CardInner({
@@ -68,24 +43,27 @@ function CardInner({
   isDragging,
   onStatusChange,
 }: CardInnerProps) {
-  const disabled = isFiltered !== 'visible';
+  const isDimmed = isFiltered === 'dimmed';
+  const isHidden = isFiltered === 'hidden';
+
+  const classNames = ['card'];
+  if (isDragging) classNames.push('card-dragging');
+  if (isDimmed) classNames.push('filtered-dimmed');
+  if (isHidden) classNames.push('filtered-out');
+
+  const inlineStyle: React.CSSProperties = {
+    boxShadow: isDragging
+      ? '0 4px 8px rgba(0,0,0,0.2)'
+      : '0 1px 3px rgba(0,0,0,0.12)',
+    transform: isDragging ? 'scale(1.03)' : undefined,
+    transition: 'box-shadow 0.2s ease, transform 0.2s ease, opacity 0.3s ease, filter 0.3s ease',
+  };
 
   return (
     <div
-      className={[
-        'card',
-        isFiltered === 'hidden' ? 'filtered-out' : '',
-        isFiltered === 'dimmed' ? 'filtered-dimmed' : '',
-        isDragging ? 'card-dragging' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      onClick={() => !disabled && onClick()}
-      style={{
-        transition:
-          'box-shadow 0.2s ease, transform 0.2s ease, opacity 0.3s ease, filter 0.3s ease',
-        pointerEvents: disabled ? 'none' : 'auto',
-      }}
+      className={classNames.join(' ')}
+      onClick={() => !isDimmed && !isHidden && onClick()}
+      style={inlineStyle}
     >
       <div className="card-header">
         <div className="card-title">{task.title}</div>
@@ -113,11 +91,19 @@ function CardInner({
 
       <div className="card-footer">
         {isMobile ? (
-          <MobileStatusSelect
-            currentStatus={task.status}
-            disabled={disabled}
-            onChange={(s) => onStatusChange && onStatusChange(task.id, s)}
-          />
+          <select
+            className="mobile-card-select"
+            value={task.status}
+            disabled={isDimmed}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) =>
+              onStatusChange && onStatusChange(task.id, e.target.value as TaskStatus)
+            }
+          >
+            <option value="todo">待办</option>
+            <option value="in-progress">进行中</option>
+            <option value="done">已完成</option>
+          </select>
         ) : (
           <span>{formatTime(task.createdAt)}</span>
         )}
@@ -135,7 +121,7 @@ export default function Card({
   isMobile,
   onStatusChange,
 }: CardProps) {
-  const disabled = isFiltered !== 'visible';
+  const isDragDisabled = isFiltered !== 'visible';
 
   if (isMobile) {
     return (
@@ -149,7 +135,7 @@ export default function Card({
     );
   }
 
-  if (disabled) {
+  if (isDragDisabled) {
     return (
       <CardInner
         task={task}
@@ -161,7 +147,7 @@ export default function Card({
   }
 
   return (
-    <Draggable draggableId={task.id} index={index} isDragDisabled={disabled}>
+    <Draggable draggableId={task.id} index={index} isDragDisabled={false}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}

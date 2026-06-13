@@ -16,6 +16,7 @@ export default function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [filteredTags, setFilteredTags] = useState<Tag[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [mobileMovingTask, setMobileMovingTask] = useState<Task | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -145,6 +146,16 @@ export default function App() {
     }
   };
 
+  const handleMobileMoveCard = (task: Task) => {
+    setMobileMovingTask(task);
+  };
+
+  const handleMobileSelectTarget = async (targetStatus: TaskStatus) => {
+    if (!mobileMovingTask) return;
+    await handleCardStatusChange(mobileMovingTask.id, targetStatus);
+    setMobileMovingTask(null);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -168,6 +179,7 @@ export default function App() {
               filteredTags={filteredTags as string[]}
               isMobile={true}
               onCardStatusChange={handleCardStatusChange}
+              onMobileMoveCard={handleMobileMoveCard}
             />
           ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
@@ -180,6 +192,42 @@ export default function App() {
             </DragDropContext>
           )}
         </main>
+      )}
+
+      {mobileMovingTask && (
+        <Modal
+          isOpen={!!mobileMovingTask}
+          onClose={() => setMobileMovingTask(null)}
+          title="移动卡片到"
+        >
+          <div className="modal-body">
+            <div className="mobile-move-card">
+              <div className="mobile-move-card-title">{mobileMovingTask.title}</div>
+              <span className="mobile-move-card-arrow">→</span>
+            </div>
+            {(['todo', 'in-progress', 'done'] as TaskStatus[]).map((status) => {
+              const meta = { todo: { label: '待办', color: '#2196F3' }, 'in-progress': { label: '进行中', color: '#FF9800' }, done: { label: '已完成', color: '#4CAF50' } }[status];
+              const isCurrent = mobileMovingTask.status === status;
+              return (
+                <button
+                  key={status}
+                  className={`mobile-move-btn ${isCurrent ? 'active-status' : ''}`}
+                  onClick={() => !isCurrent && handleMobileSelectTarget(status)}
+                  disabled={isCurrent}
+                  style={{
+                    opacity: isCurrent ? 0.5 : 1,
+                    borderLeft: `4px solid ${meta.color}`,
+                    cursor: isCurrent ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <span style={{ color: meta.color, marginRight: '8px' }}>●</span>
+                  {meta.label}
+                  {isCurrent && ' （当前）'}
+                </button>
+              );
+            })}
+          </div>
+        </Modal>
       )}
 
       <CardDetailModal
@@ -195,6 +243,39 @@ export default function App() {
       />
 
       <StatsPanel tasks={tasks} />
+    </div>
+  );
+}
+
+function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal">
+        {title && (
+          <div className="modal-header">
+            <div className="modal-title">{title}</div>
+            <button className="modal-close" onClick={onClose}>
+              ✕
+            </button>
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }

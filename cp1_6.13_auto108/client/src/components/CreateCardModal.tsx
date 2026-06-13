@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import { createTask } from '../api';
 import type { Task, Priority, Tag } from '../types';
@@ -11,6 +11,84 @@ interface CreateCardModalProps {
 }
 
 const PRIORITIES: Priority[] = ['P0', 'P1', 'P2', 'P3'];
+
+function RichTextEditor({
+  onChange,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [boldActive, setBoldActive] = useState(false);
+  const [ulActive, setUlActive] = useState(false);
+  const [olActive, setOlActive] = useState(false);
+
+  const handleInput = useCallback(() => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+    updateActiveStates();
+  }, [onChange]);
+
+  const updateActiveStates = () => {
+    setBoldActive(document.queryCommandState('bold'));
+    setUlActive(document.queryCommandState('insertUnorderedList'));
+    setOlActive(document.queryCommandState('insertOrderedList'));
+  };
+
+  const execCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    updateActiveStates();
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  return (
+    <div className="rich-editor">
+      <div className="rich-editor-toolbar">
+        <button
+          type="button"
+          className={boldActive ? 'active' : ''}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCommand('bold')}
+          title="加粗"
+        >
+          <strong>B</strong>
+        </button>
+        <button
+          type="button"
+          className={ulActive ? 'active' : ''}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCommand('insertUnorderedList')}
+          title="无序列表"
+        >
+          • 列表
+        </button>
+        <button
+          type="button"
+          className={olActive ? 'active' : ''}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCommand('insertOrderedList')}
+          title="有序列表"
+        >
+          1. 列表
+        </button>
+      </div>
+      <div
+        ref={editorRef}
+        className="rich-editor-content"
+        contentEditable
+        onInput={handleInput}
+        onMouseUp={updateActiveStates}
+        onKeyUp={updateActiveStates}
+        data-placeholder="输入描述内容，支持加粗和列表..."
+        suppressContentEditableWarning
+      />
+    </div>
+  );
+}
 
 export default function CreateCardModal({
   isOpen,
@@ -94,13 +172,8 @@ export default function CreateCardModal({
         </div>
 
         <div className="form-group">
-          <label className="form-label">描述</label>
-          <textarea
-            className="form-textarea"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="支持简单格式：**粗体**、- 无序列表、1. 有序列表"
-          />
+          <label className="form-label">描述（支持富文本）</label>
+          <RichTextEditor value={description} onChange={setDescription} />
         </div>
 
         <div className="form-group">

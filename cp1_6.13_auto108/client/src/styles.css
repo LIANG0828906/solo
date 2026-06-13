@@ -192,8 +192,8 @@ button.secondary:hover {
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  cursor: grab;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.3s ease, filter 0.3s ease;
   animation: card-pop-in 0.3s ease;
 }
 
@@ -217,26 +217,24 @@ button.secondary:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transform: scale(1.03);
   opacity: 0.95;
+  cursor: grabbing;
 }
 
 .card.filtered-dimmed {
   filter: grayscale(100%);
   opacity: 0.4;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .card.filtered-out {
   opacity: 0;
   pointer-events: none;
-}
-
-.card-header { transition: opacity 0.3s ease;
-}
-
-.card.filtered-dimmed {
-  opacity: 0.4;
-  filter: grayscale(100%);
-  pointer-events: none;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  overflow: hidden;
 }
 
 .card-header {
@@ -311,12 +309,8 @@ button.secondary:hover {
 }
 
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal {
@@ -492,7 +486,6 @@ button.secondary:hover {
 }
 
 .form-input,
-.form-textarea,
 .form-select {
   width: 100%;
   padding: 10px 12px;
@@ -505,14 +498,8 @@ button.secondary:hover {
 }
 
 .form-input:focus,
-.form-textarea:focus,
 .form-select:focus {
   border-color: #2196F3;
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 100px;
 }
 
 .form-error {
@@ -549,6 +536,77 @@ button.secondary:hover {
   border-color: var(--tag-color);
   background: var(--tag-color);
   color: white;
+}
+
+.rich-editor {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.rich-editor:focus-within {
+  border-color: #2196F3;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.rich-editor-toolbar button {
+  background: transparent;
+  color: #555;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  min-width: 28px;
+}
+
+.rich-editor-toolbar button:hover {
+  background: #e8e8e8;
+  transform: none;
+  filter: none;
+  color: #333;
+}
+
+.rich-editor-toolbar button.active {
+  background: #e3f2fd;
+  color: #1976D2;
+}
+
+.rich-editor-content {
+  padding: 10px 12px;
+  min-height: 100px;
+  max-height: 300px;
+  overflow-y: auto;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+.rich-editor-content:empty::before {
+  content: attr(data-placeholder);
+  color: #bbb;
+  pointer-events: none;
+}
+
+.rich-editor-content strong {
+  font-weight: 600;
+}
+
+.rich-editor-content ul,
+.rich-editor-content ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.rich-editor-content li {
+  margin: 2px 0;
 }
 
 .stats-panel {
@@ -648,33 +706,55 @@ button.secondary:hover {
   background: white;
 }
 
-@media (max-width: 768px) {
-  .board {
-    flex-direction: column;
-  }
+.mobile-move-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 8px;
+  transition: all 0.15s ease;
+}
 
-  .column {
-    min-width: 100%;
-  }
+.mobile-move-btn:hover {
+  background: #f5f5f5;
+  transform: none;
+  filter: none;
+}
 
-  .app-header {
-    padding: 12px 16px;
-  }
+.mobile-move-btn.active-status {
+  border-color: #2196F3;
+  background: #E3F2FD;
+  color: #1976D2;
+  font-weight: 500;
+}
 
-  .board-container {
-    padding: 16px;
-  }
+.mobile-move-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 
-  .stats-panel {
-    width: calc(100% - 32px);
-    bottom: 16px;
-    right: 16px;
-    left: 16px;
-  }
+.mobile-move-card-title {
+  font-weight: 500;
+  font-size: 14px;
+  flex: 1;
+  word-break: break-word;
+}
 
-  .modal {
-    max-height: 95vh;
-  }
+.mobile-move-card-arrow {
+  color: #999;
+  font-size: 16px;
 }
 
 .loading {
@@ -738,4 +818,37 @@ button.secondary:hover {
   border-color: #2196F3;
   color: #2196F3;
   background: #E3F2FD;
+}
+
+@media (max-width: 768px) {
+  .board {
+    flex-direction: column;
+  }
+
+  .column {
+    min-width: 100%;
+  }
+
+  .app-header {
+    padding: 12px 16px;
+  }
+
+  .board-container {
+    padding: 16px;
+  }
+
+  .stats-panel {
+    width: calc(100% - 32px);
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
+  .modal {
+    max-height: 95vh;
+  }
+
+  .card {
+    cursor: pointer;
+  }
 }
