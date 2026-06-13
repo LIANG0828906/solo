@@ -35,6 +35,7 @@ interface WaveFrame {
   right: Float32Array;
   mix: Float32Array;
   timestamp: number;
+  bands: { low: number; mid: number; high: number };
 }
 
 const LANE_KEYS = ['S', 'D', 'F', 'J', 'K', 'L'];
@@ -51,10 +52,8 @@ export class Renderer {
   private dpr = 1;
 
   private waveHistory: WaveFrame[] = [];
-  private readonly maxWaveHistory = 30;
   private readonly trailTime = 500;
 
-  private particles: Particle[] = [];
   private readonly maxParticles = 300;
   private particlePool: Particle[] = [];
 
@@ -71,7 +70,6 @@ export class Renderer {
   private noteHeight = 30;
   private noteWidth = 60;
 
-  private lastFrameTime = 0;
   private fps = 0;
   private frameCount = 0;
   private fpsUpdateTime = 0;
@@ -150,12 +148,17 @@ export class Renderer {
       left: new Float32Array(analysis.timeDomainLeft),
       right: new Float32Array(analysis.timeDomainRight),
       mix: new Float32Array(analysis.timeDomain),
-      timestamp: performance.now()
+      timestamp: performance.now(),
+      bands: { low: analysis.bands.low, mid: analysis.bands.mid, high: analysis.bands.high }
     };
     this.waveHistory.push(frame);
 
     const now = performance.now();
     while (this.waveHistory.length > 0 && now - this.waveHistory[0].timestamp > this.trailTime) {
+      this.waveHistory.shift();
+    }
+
+    while (this.waveHistory.length > 30) {
       this.waveHistory.shift();
     }
   }
@@ -301,7 +304,7 @@ export class Renderer {
 
     this.drawLanes();
     this.drawJudgeLine();
-    this.drawWaveforms(analysis);
+    this.drawWaveforms();
     this.drawSpectrumParticles();
     this.drawNotes(notes);
     this.drawHitEffects(currentTime);
@@ -362,24 +365,24 @@ export class Renderer {
     }
   }
 
-  private drawWaveforms(analysis: AudioAnalysis | null): void {
+  private drawWaveforms(): void {
     if (this.waveHistory.length === 0) return;
 
     const now = performance.now();
     const baseY = this.height * 0.35;
     const amplitude = this.height * 0.12;
+    const totalFrames = this.waveHistory.length;
 
-    for (let i = 0; i < this.waveHistory.length; i++) {
+    for (let i = 0; i < totalFrames; i++) {
       const frame = this.waveHistory[i];
       const age = now - frame.timestamp;
-      const alpha = Math.max(0, 1 - age / this.trailTime) * 0.8;
-      const offset = (i / this.waveHistory.length) * 10;
+      const ageRatio = age / this.trailTime;
+      const alpha = Math.max(0, (1 - ageRatio)) * 0.8;
+      const offset = (totalFrames - 1 - i) * 2;
 
-      const bands = analysis?.bands || { low: 0, mid: 0, high: 0 };
-
-      this.drawWaveform(frame.left, baseY - 40 + offset, amplitude, 'low', bands.low, alpha);
-      this.drawWaveform(frame.right, baseY + offset, amplitude, 'mid', bands.mid, alpha);
-      this.drawWaveform(frame.mix, baseY + 40 + offset, amplitude, 'high', bands.high, alpha);
+      this.drawWaveform(frame.left, baseY - 40 + offset, amplitude, 'low', frame.bands.low, alpha);
+      this.drawWaveform(frame.right, baseY + offset, amplitude, 'mid', frame.bands.mid, alpha);
+      this.drawWaveform(frame.mix, baseY + 40 + offset, amplitude, 'high', frame.bands.high, alpha);
     }
   }
 

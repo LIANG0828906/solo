@@ -17,6 +17,8 @@ export interface Note {
   hit: boolean;
   missed: boolean;
   y: number;
+  fallDuration: number;
+  bpm: number;
 }
 
 export type JudgeResult = 'perfect' | 'good' | 'miss';
@@ -38,13 +40,14 @@ const KEY_MAP: Record<string, number> = {
 };
 
 const PERFECT_WINDOW = 50;
-const GOOD_WINDOW = 100;
 const MISS_WINDOW = 150;
 
 const PERFECT_SCORE = 100;
 const GOOD_SCORE = 50;
 
-const FALL_DURATION = 2000;
+const MIN_BPM = 100;
+const MAX_BPM = 200;
+const BASE_FALL_DURATION = 2000;
 
 export class GameLogic {
   private state: GameState = {
@@ -130,13 +133,19 @@ export class GameLogic {
     this.notifyStateChange();
   }
 
+  private getFallDuration(bpm: number): number {
+    const duration = BASE_FALL_DURATION * 120 / bpm;
+    return Math.max(1200, Math.min(2400, duration));
+  }
+
   handleBeat(beat: BeatEvent): void {
     if (!this.state.isPlaying) return;
 
     this.currentBPM = beat.bpm;
 
+    const fallDuration = this.getFallDuration(beat.bpm);
     const lane = Math.floor(Math.random() * 6);
-    const hitTime = beat.time + FALL_DURATION;
+    const hitTime = beat.time + fallDuration;
     const spawnTime = beat.time;
 
     const note: Note = {
@@ -146,7 +155,9 @@ export class GameLogic {
       spawnTime,
       hit: false,
       missed: false,
-      y: -this.noteHeight
+      y: -this.noteHeight,
+      fallDuration,
+      bpm: beat.bpm
     };
 
     this.notes.push(note);
@@ -202,7 +213,7 @@ export class GameLogic {
       if (note.hit) continue;
 
       const timeUntilHit = note.hitTime - currentAudioTimeMs;
-      const progress = 1 - (timeUntilHit / FALL_DURATION);
+      const progress = 1 - (timeUntilHit / note.fallDuration);
 
       note.y = progress * this.judgeLineY;
 
@@ -216,7 +227,7 @@ export class GameLogic {
       }
 
       if (note.y >= -this.noteHeight && note.y <= this.canvasHeight && !note.missed) {
-        const alpha = Math.max(0, Math.min(1, 1 - Math.abs(timeUntilHit) / FALL_DURATION + 0.3));
+        const alpha = Math.max(0, Math.min(1, 1 - Math.abs(timeUntilHit) / note.fallDuration + 0.3));
         visibleNotes.push({
           id: note.id,
           y: note.y,

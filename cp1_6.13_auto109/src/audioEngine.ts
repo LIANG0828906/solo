@@ -24,18 +24,9 @@ const FFT_SIZE = 256;
 const SAMPLE_RATE = 44100;
 const FREQ_RESOLUTION = SAMPLE_RATE / FFT_SIZE;
 
-const LOW_BAND_MIN = Math.floor(20 / FREQ_RESOLUTION);
 const LOW_BAND_MAX = Math.floor(250 / FREQ_RESOLUTION);
-const MID_BAND_MIN = LOW_BAND_MAX + 1;
 const MID_BAND_MAX = Math.floor(2000 / FREQ_RESOLUTION);
-const HIGH_BAND_MIN = MID_BAND_MAX + 1;
 const HIGH_BAND_MAX = Math.floor(20000 / FREQ_RESOLUTION);
-
-interface WorkerMessage {
-  type: 'analyze' | 'reset';
-  spectrum?: ArrayBuffer;
-  timestamp?: number;
-}
 
 interface WorkerResult {
   type: 'bands' | 'beat';
@@ -76,106 +67,168 @@ export class AudioEngine {
 
   private initWorker(): void {
     const workerCode = `
-      let spectrumHistory = [];
+      const HALF_FFT = ${FFT_SIZE / 2};
+      const LOW_BAND_MAX = ${LOW_BAND_MAX};
+      const MID_BAND_MAX = ${MID_BAND_MAX};
+      const HIGH_BAND_MAX = ${Math.min(HIGH_BAND_MAX, FFT_SIZE / 2 - 1)};
+      const LOG_COMPRESSION_GAMMA = 10;
+      const THRESHOLD_WINDOW = 50;
+      const THRESHOLD_DELTA = 1.5;
+      const PEAK_WINDOW_SIZE = 5;
+      const MIN_BEAT_INTERVAL_MS = 200;
+      const ONSET_BUFFER_SIZE = 300;
+      const FRAME_INTERVAL_MS = 16;
+      const BPM_MIN = 60;
+      const BPM_MAX = 300;
+
+      let lastCompressedSpectrum = null;
+      let fluxHistory = [];
       let beatTimes = [];
       let lastBeatTime = 0;
-      let lastSpectrum = new Float32Array(${FFT_SIZE / 2});
-      const energyHistory = [];
-      const HISTORY_SIZE = 43;
-      
+      let onsetStrengthBuffer = [];
+
+      function compress(value) {
+        return Math.log(1 + LOG_COMPRESSION_GAMMA * value);
+      }
+
       function calculateBands(spectrum) {
-        const LOW_BAND_MAX = ${LOW_BAND_MAX};
-        const MID_BAND_MAX = ${MID_BAND_MAX};
-        const HIGH_BAND_MAX = ${Math.min(HIGH_BAND_MAX, FFT_SIZE / 2 - 1)};
-        
         let low = 0, mid = 0, high = 0;
         let lowCount = 0, midCount = 0, highCount = 0;
-        
+
         for (let i = 0; i < spectrum.length; i++) {
           const val = spectrum[i] / 255;
           if (i <= LOW_BAND_MAX) { low += val; lowCount++; }
           else if (i <= MID_BAND_MAX) { mid += val; midCount++; }
           else if (i <= HIGH_BAND_MAX) { high += val; highCount++; }
         }
-        
+
         return {
           low: lowCount > 0 ? low / lowCount : 0,
           mid: midCount > 0 ? mid / midCount : 0,
           high: highCount > 0 ? high / highCount : 0
         };
       }
-      
-      function detectBeat(spectrum, timestamp) {
-        const current = new Float32Array(spectrum);
-        
+
+      function computeSpectralFlux(spectrum) {
+        const compressed = new Float32Array(HALF_FFT);
+        for (let i = 0; i < HALF_FFT; i++) {
+          compressed[i] = compress(spectrum[i] / 255);
+        }
+
+        if (!lastCompressedSpectrum) {
+          lastCompressedSpectrum = compressed;
+          return 0;
+        }
+
         let flux = 0;
-        for (let i = 0; i < current.length; i++) {
-          const diff = current[i] - lastSpectrum[i];
-          flux += diff > 0 ? diff : 0;
-        }
-        
-        lastSpectrum = current;
-        
-        energyHistory.push({ flux, time: timestamp });
-        if (energyHistory.length > HISTORY_SIZE) {
-          energyHistory.shift();
-        }
-        
-        if (energyHistory.length < HISTORY_SIZE) return null;
-        
-        const recent = energyHistory.slice(-10);
-        const avgFlux = energyHistory.reduce((sum, e) => sum + e.flux, 0) / energyHistory.length;
-        const variance = energyHistory.reduce((sum, e) => sum + Math.pow(e.flux - avgFlux, 2), 0) / energyHistory.length;
-        const stdDev = Math.sqrt(variance);
-        
-        const threshold = avgFlux + stdDev * 1.3;
-        const latest = energyHistory[energyHistory.length - 1];
-        const prev = energyHistory[energyHistory.length - 2];
-        
-        const minInterval = 200;
-        if (latest.flux > threshold && 
-            latest.flux > prev.flux && 
-            timestamp - lastBeatTime > minInterval &&
-            latest.flux > 5) {
-          
-          lastBeatTime = timestamp;
-          beatTimes.push(timestamp);
-          if (beatTimes.length > 20) beatTimes.shift();
-          
-          let bpm = 120;
-          if (beatTimes.length >= 4) {
-            const intervals = [];
-            for (let i = 1; i < beatTimes.length; i++) {
-              intervals.push(beatTimes[i] - beatTimes[i - 1]);
-            }
-            intervals.sort((a, b) => a - b);
-            const mid = Math.floor(intervals.length / 2);
-            const medianInterval = intervals.length % 2 === 0
-              ? (intervals[mid - 1] + intervals[mid]) / 2
-              : intervals[mid];
-            bpm = Math.round(60000 / medianInterval);
-            bpm = Math.max(100, Math.min(200, bpm));
+        for (let i = 0; i < HALF_FFT; i++) {
+          const diff = compressed[i] - lastCompressedSpectrum[i];
+          if (diff > 0) {
+            const weight = 1 + (HALF_FFT - i) / HALF_FFT;
+            flux += weight * diff * diff;
           }
-          
-          return {
-            time: timestamp,
-            strength: Math.min(1, latest.flux / 50),
-            bpm: bpm
-          };
         }
-        
-        return null;
+
+        lastCompressedSpectrum = compressed;
+        return flux;
       }
-      
+
+      function adaptiveThreshold(flux) {
+        fluxHistory.push(flux);
+        if (fluxHistory.length > THRESHOLD_WINDOW) {
+          fluxHistory.shift();
+        }
+
+        if (fluxHistory.length < 10) return false;
+
+        const mean = fluxHistory.reduce((s, v) => s + v, 0) / fluxHistory.length;
+        const variance = fluxHistory.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / fluxHistory.length;
+        const stdDev = Math.sqrt(variance);
+
+        return flux > mean + THRESHOLD_DELTA * stdDev;
+      }
+
+      function isLocalPeak() {
+        const len = fluxHistory.length;
+        if (len < 3) return false;
+
+        const current = fluxHistory[len - 1];
+        const start = Math.max(0, len - 1 - PEAK_WINDOW_SIZE);
+
+        for (let i = start; i < len - 1; i++) {
+          if (fluxHistory[i] >= current) return false;
+        }
+        return true;
+      }
+
+      function estimateBPM() {
+        const len = onsetStrengthBuffer.length;
+        if (len < 20) return 120;
+
+        const minLagSamples = Math.floor(60000 / (BPM_MAX * FRAME_INTERVAL_MS));
+        const maxLagSamples = Math.ceil(60000 / (BPM_MIN * FRAME_INTERVAL_MS));
+
+        let bestLag = 0;
+        let bestCorr = -Infinity;
+
+        for (let lag = minLagSamples; lag <= Math.min(maxLagSamples, Math.floor(len / 2)); lag++) {
+          let corr = 0;
+          let count = 0;
+          for (let i = 0; i < len - lag; i++) {
+            corr += onsetStrengthBuffer[i] * onsetStrengthBuffer[i + lag];
+            count++;
+          }
+          if (count > 0) corr /= count;
+
+          if (corr > bestCorr) {
+            bestCorr = corr;
+            bestLag = lag;
+          }
+        }
+
+        if (bestLag === 0) return 120;
+
+        const beatPeriodMs = bestLag * FRAME_INTERVAL_MS;
+        let bpm = Math.round(60000 / beatPeriodMs);
+        bpm = Math.max(BPM_MIN, Math.min(BPM_MAX, bpm));
+
+        return bpm;
+      }
+
+      function detectBeat(spectrum, timestamp) {
+        const flux = computeSpectralFlux(spectrum);
+
+        onsetStrengthBuffer.push(flux);
+        if (onsetStrengthBuffer.length > ONSET_BUFFER_SIZE) {
+          onsetStrengthBuffer.shift();
+        }
+
+        if (!adaptiveThreshold(flux)) return null;
+        if (!isLocalPeak()) return null;
+        if (timestamp - lastBeatTime < MIN_BEAT_INTERVAL_MS) return null;
+
+        lastBeatTime = timestamp;
+        beatTimes.push(timestamp);
+        if (beatTimes.length > 30) beatTimes.shift();
+
+        const bpm = estimateBPM();
+
+        return {
+          time: timestamp,
+          strength: Math.min(1, flux / 50),
+          bpm: bpm
+        };
+      }
+
       self.onmessage = function(e) {
         const data = e.data;
         if (data.type === 'analyze' && data.spectrum) {
           const spectrum = new Uint8Array(data.spectrum);
           const bands = calculateBands(spectrum);
           const timestamp = data.timestamp || 0;
-          
+
           self.postMessage({ type: 'bands', bands: bands });
-          
+
           const beat = detectBeat(spectrum, timestamp);
           if (beat) {
             self.postMessage({ type: 'beat', beat: beat });
@@ -183,8 +236,9 @@ export class AudioEngine {
         } else if (data.type === 'reset') {
           beatTimes = [];
           lastBeatTime = 0;
-          lastSpectrum = new Float32Array(${FFT_SIZE / 2});
-          energyHistory.length = 0;
+          lastCompressedSpectrum = null;
+          fluxHistory = [];
+          onsetStrengthBuffer = [];
         }
       };
     `;
@@ -306,10 +360,10 @@ export class AudioEngine {
   getAnalysis(): AudioAnalysis | null {
     if (!this.analyser || !this.analyserLeft || !this.analyserRight) return null;
 
-    this.analyser.getByteFrequencyData(this.spectrumBuffer);
-    this.analyser.getFloatTimeDomainData(this.timeDomainBuffer);
-    this.analyserLeft.getFloatTimeDomainData(this.timeDomainLeftBuffer);
-    this.analyserRight.getFloatTimeDomainData(this.timeDomainRightBuffer);
+    this.analyser.getByteFrequencyData(this.spectrumBuffer as Uint8Array<ArrayBuffer>);
+    this.analyser.getFloatTimeDomainData(this.timeDomainBuffer as Float32Array<ArrayBuffer>);
+    this.analyserLeft.getFloatTimeDomainData(this.timeDomainLeftBuffer as Float32Array<ArrayBuffer>);
+    this.analyserRight.getFloatTimeDomainData(this.timeDomainRightBuffer as Float32Array<ArrayBuffer>);
 
     if (this.worker && this.state === 'playing') {
       const spectrumCopy = new Uint8Array(this.spectrumBuffer.slice(0, FFT_SIZE / 2));
