@@ -21,21 +21,40 @@ export class TerrainRenderer {
   }
 
   createTerrain(heightMap: number[]): THREE.Mesh {
-    const geometry = new THREE.PlaneGeometry(this.size, this.size, this.width - 1, this.height - 1);
-    const vertices = geometry.attributes.position;
+    const geometry = new THREE.BufferGeometry();
+    const positions: number[] = [];
+    const uv: number[] = [];
+    const indices: number[] = [];
 
-    for (let i = 0; i < vertices.count; i++) {
-      const x = Math.floor(i % (this.width));
-      const y = Math.floor(i / this.width);
-      const height = heightMap[y * this.width + x] * this.heightScale;
-      vertices.setY(i, height);
+    for (let y = 0; y <= this.height; y++) {
+      for (let x = 0; x <= this.width; x++) {
+        const u = x / this.width;
+        const v = y / this.height;
+        const height = heightMap[y * this.width + x] * this.heightScale;
+        positions.push(
+          (u - 0.5) * this.size,
+          height,
+          (v - 0.5) * this.size
+        );
+        uv.push(u, v);
+      }
     }
 
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const i = y * (this.width + 1) + x;
+        indices.push(i, i + 1, i + this.width + 1);
+        indices.push(i + 1, i + this.width + 2, i + this.width + 1);
+      }
+    }
+
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geometry.computeVertexNormals();
 
     const material = this.createTerrainMaterial();
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.x = -Math.PI / 2;
     mesh.receiveShadow = true;
     mesh.castShadow = true;
 
@@ -79,15 +98,9 @@ export class TerrainRenderer {
 
   createWater(): THREE.Mesh {
     const geometry = new THREE.PlaneGeometry(this.size + 10, this.size + 10, 64, 64);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x1e6b8a,
-      transparent: true,
-      opacity: 0.6,
-      roughness: 0.1,
-      metalness: 0.3
-    });
+    const waterMaterial = this.createWaterMaterial();
 
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(geometry, waterMaterial);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = this.waterLevel * this.heightScale;
 
@@ -100,28 +113,67 @@ export class TerrainRenderer {
     return mesh;
   }
 
-  updateTerrain(heightMap: number[], partialUpdate: boolean = false): void {
+  private createWaterMaterial(): THREE.MeshStandardMaterial {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x1e6b8a,
+      transparent: true,
+      opacity: 0.6,
+      roughness: 0.1,
+      metalness: 0.3,
+      side: THREE.DoubleSide
+    });
+
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.time = { value: 0 };
+      shader.uniforms.waterLevel = { value: this.waterLevel * this.heightScale };
+
+      shader.vertexShader = `
+        uniform float time;
+        uniform float waterLevel;
+        ${shader.vertexShader}
+      `.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+          float wave = sin(position.x * 0.1 + time) * 0.1 + sin(position.z * 0.15 + time * 1.2) * 0.05;
+          transformed.y = waterLevel + wave;
+        `
+      );
+
+      material.userData.shader = shader;
+    };
+
+    return material;
+  }
+
+  updateTerrain(heightMap: number[], affectedRegion?: { x: number; y: number; width: number; height: number }): void {
     if (!this.terrainMesh) return;
 
-    const vertices = this.terrainMesh.geometry.attributes.position;
+    const positions = this.terrainMesh.geometry.attributes.position;
     
-    if (partialUpdate) {
-      for (let i = 0; i < vertices.count; i++) {
-        const x = Math.floor(i % (this.width));
-        const y = Math.floor(i / this.width);
-        const height = heightMap[y * this.width + x] * this.heightScale;
-        vertices.setY(i, height);
+    if (affectedRegion) {
+      const startX = Math.max(0, Math.floor(affectedRegion.x));
+      const endX = Math.min(this.width, Math.floor(affectedRegion.x + affectedRegion.width));
+      const startY = Math.max(0, Math.floor(affectedRegion.y));
+      const endY = Math.min(this.height, Math.floor(affectedRegion.y + affectedRegion.height));
+
+      for (let y = startY; y <= endY; y++) {
+        for (let x = startX; x <= endX; x++) {
+          const index = y * (this.width + 1) + x;
+          const height = heightMap[y * this.width + x] * this.heightScale;
+          positions.setY(index, height);
+        }
       }
     } else {
-      for (let i = 0; i < vertices.count; i++) {
-        const x = Math.floor(i % (this.width));
-        const y = Math.floor(i / this.width);
-        const height = heightMap[y * this.width + x] * this.heightScale;
-        vertices.setY(i, height);
+      for (let y = 0; y <= this.height; y++) {
+        for (let x = 0; x <= this.width; x++) {
+          const index = y * (this.width + 1) + x;
+          const height = heightMap[y * this.width + x] * this.heightScale;
+          positions.setY(index, height);
+        }
       }
     }
 
-    vertices.needsUpdate = true;
+    positions.needsUpdate = true;
     this.terrainMesh.geometry.computeVertexNormals();
   }
 
@@ -129,24 +181,21 @@ export class TerrainRenderer {
     this.waterLevel = level;
     if (this.waterMesh) {
       this.waterMesh.position.y = level * this.heightScale;
+      if (this.waterMesh.material instanceof THREE.MeshStandardMaterial && 
+          this.waterMesh.material.userData.shader) {
+        this.waterMesh.material.userData.shader.uniforms.waterLevel.value = level * this.heightScale;
+      }
     }
   }
 
   updateWaterAnimation(deltaTime: number): void {
-    if (!this.waterMesh) return;
-
     this.waterAnimationTime += deltaTime;
-    const vertices = this.waterMesh.geometry.attributes.position;
-    
-    for (let i = 0; i < vertices.count; i++) {
-      const x = Math.floor(i % 65);
-      const y = Math.floor(i / 65);
-      const wave = Math.sin(x * 0.1 + this.waterAnimationTime) * 0.1 + 
-                   Math.sin(y * 0.15 + this.waterAnimationTime * 1.2) * 0.05;
-      vertices.setY(i, this.waterLevel * this.heightScale + wave);
+    if (this.waterMesh && this.waterMesh.material instanceof THREE.MeshStandardMaterial) {
+      const shader = this.waterMesh.material.userData.shader;
+      if (shader && shader.uniforms.time) {
+        shader.uniforms.time.value = this.waterAnimationTime;
+      }
     }
-
-    vertices.needsUpdate = true;
   }
 
   getTerrainMesh(): THREE.Mesh | null {

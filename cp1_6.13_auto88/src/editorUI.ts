@@ -48,7 +48,6 @@ export class EditorUI {
   }
 
   private createLeftPanel(): void {
-    this.leftPanel = document.createElement('div');
     this.leftPanel.style.cssText = `
       position: absolute;
       top: 20px;
@@ -60,6 +59,7 @@ export class EditorUI {
       padding: 20px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       pointer-events: auto;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     `;
     this.container.appendChild(this.leftPanel);
 
@@ -73,8 +73,47 @@ export class EditorUI {
       padding-bottom: 15px;
       border-bottom: 1px solid rgba(100, 100, 150, 0.3);
       text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+      animation: glow 2s ease-in-out infinite;
     `;
     this.leftPanel.appendChild(header);
+
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+      @keyframes glow {
+        0%, 100% { text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        50% { text-shadow: 0 0 20px rgba(0, 255, 255, 0.8); }
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      @keyframes sliderPulse {
+        0%, 100% { box-shadow: 0 0 5px rgba(100, 100, 200, 0.5); }
+        50% { box-shadow: 0 0 15px rgba(100, 100, 200, 0.8); }
+      }
+      @keyframes ripple {
+        0% { transform: scale(0); opacity: 1; }
+        100% { transform: scale(2); opacity: 0; }
+      }
+      .slider-track {
+        background: linear-gradient(to right, #4a4a8a, #8a4a8a);
+      }
+      .slider-track.active {
+        background: linear-gradient(to right, #6a6aca, #aa6aca);
+        animation: sliderPulse 0.5s ease-in-out infinite;
+      }
+      .style-btn {
+        transition: all 0.2s ease;
+      }
+      .style-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(150, 100, 255, 0.4);
+      }
+      .style-btn:active {
+        transform: translateY(0);
+      }
+    `;
+    this.leftPanel.appendChild(styleSheet);
 
     this.createStyleButtons();
     this.createSlider('frequency', 'Frequency', 0.5, 5, 0.1);
@@ -115,6 +154,7 @@ export class EditorUI {
     buttons.forEach((style, index) => {
       const button = document.createElement('button');
       button.textContent = names[index];
+      button.className = 'style-btn';
       button.style.cssText = `
         padding: 10px 12px;
         background: rgba(60, 60, 80, 0.6);
@@ -124,7 +164,10 @@ export class EditorUI {
         font-size: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
       `;
+      
       button.addEventListener('mouseenter', () => {
         button.style.cssText = `
           padding: 10px 12px;
@@ -135,9 +178,13 @@ export class EditorUI {
           font-size: 12px;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 0 10px rgba(150, 100, 255, 0.3);
+          position: relative;
+          overflow: hidden;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(150, 100, 255, 0.4);
         `;
       });
+      
       button.addEventListener('mouseleave', () => {
         button.style.cssText = `
           padding: 10px 12px;
@@ -148,15 +195,39 @@ export class EditorUI {
           font-size: 12px;
           cursor: pointer;
           transition: all 0.2s ease;
+          position: relative;
+          overflow: hidden;
+          transform: translateY(0);
         `;
       });
-      button.addEventListener('click', () => {
+      
+      button.addEventListener('click', (e) => {
+        const ripple = document.createElement('span');
+        const rect = button.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ripple.style.cssText = `
+          position: absolute;
+          width: 20px;
+          height: 20px;
+          background: rgba(150, 100, 255, 0.4);
+          border-radius: 50%;
+          left: ${x}px;
+          top: ${y}px;
+          transform: translate(-50%, -50%) scale(0);
+          animation: ripple 0.4s ease-out forwards;
+          pointer-events: none;
+        `;
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 400);
+
         if (!this.isAnimating) {
           this.isAnimating = true;
           this.callbacks.onStyleChange(style);
           setTimeout(() => { this.isAnimating = false; }, 500);
         }
       });
+      
       buttonRow.appendChild(button);
     });
 
@@ -188,6 +259,17 @@ export class EditorUI {
       gap: 12px;
     `;
 
+    const track = document.createElement('div');
+    track.className = 'slider-track';
+    track.style.cssText = `
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = min.toString();
@@ -195,49 +277,34 @@ export class EditorUI {
     slider.step = step.toString();
     slider.value = this.config[key].toString();
     slider.style.cssText = `
-      flex: 1;
-      height: 6px;
-      -webkit-appearance: none;
-      appearance: none;
-      background: linear-gradient(to right, #4a4a8a, #8a4a8a);
-      border-radius: 3px;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
       cursor: pointer;
-      outline: none;
+      z-index: 1;
     `;
 
-    slider.addEventListener('input', (e) => {
-      const target = e.target as HTMLInputElement;
-      this.config[key] = parseFloat(target.value);
-      valueDisplay.textContent = this.config[key].toFixed(step < 1 ? 2 : 0);
-      this.callbacks.onParamChange({ ...this.config });
-    });
+    const thumb = document.createElement('div');
+    thumb.style.cssText = `
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: #00ffff;
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+      transition: all 0.2s ease;
+    `;
 
-    slider.addEventListener('mousedown', () => {
-      slider.style.cssText = `
-        flex: 1;
-        height: 6px;
-        -webkit-appearance: none;
-        appearance: none;
-        background: linear-gradient(to right, #6a6aca, #aa6aca);
-        border-radius: 3px;
-        cursor: pointer;
-        outline: none;
-        box-shadow: 0 0 10px rgba(100, 100, 200, 0.5);
-      `;
-    });
-
-    slider.addEventListener('mouseup', () => {
-      slider.style.cssText = `
-        flex: 1;
-        height: 6px;
-        -webkit-appearance: none;
-        appearance: none;
-        background: linear-gradient(to right, #4a4a8a, #8a4a8a);
-        border-radius: 3px;
-        cursor: pointer;
-        outline: none;
-      `;
-    });
+    const updateThumbPosition = () => {
+      const value = parseFloat(slider.value);
+      const percent = (value - min) / (max - min);
+      thumb.style.left = `${percent * 100}%`;
+    };
+    updateThumbPosition();
 
     const valueDisplay = document.createElement('span');
     valueDisplay.textContent = this.config[key].toFixed(step < 1 ? 2 : 0);
@@ -248,16 +315,62 @@ export class EditorUI {
       font-family: monospace;
       font-size: 14px;
       text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+      transition: all 0.2s ease;
     `;
 
-    sliderContainer.appendChild(slider);
+    slider.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      this.config[key] = parseFloat(target.value);
+      valueDisplay.textContent = this.config[key].toFixed(step < 1 ? 2 : 0);
+      updateThumbPosition();
+      this.callbacks.onParamChange({ ...this.config });
+    });
+
+    slider.addEventListener('mousedown', () => {
+      track.classList.add('active');
+      thumb.style.cssText = `
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: #00ffff;
+        border-radius: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        transition: all 0.2s ease;
+      `;
+    });
+
+    slider.addEventListener('mouseup', () => {
+      track.classList.remove('active');
+      thumb.style.cssText = `
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: #00ffff;
+        border-radius: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        transition: all 0.2s ease;
+      `;
+    });
+
+    thumb.addEventListener('mousedown', () => {
+      slider.dispatchEvent(new MouseEvent('mousedown'));
+    });
+
+    track.appendChild(slider);
+    track.appendChild(thumb);
+    sliderContainer.appendChild(track);
     sliderContainer.appendChild(valueDisplay);
     container.appendChild(sliderContainer);
     this.leftPanel.appendChild(container);
   }
 
   private createRightPanel(): void {
-    this.rightPanel = document.createElement('div');
     this.rightPanel.style.cssText = `
       position: absolute;
       top: 20px;
@@ -269,6 +382,7 @@ export class EditorUI {
       padding: 20px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       pointer-events: auto;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     `;
     this.container.appendChild(this.rightPanel);
 
@@ -284,7 +398,6 @@ export class EditorUI {
     `;
     this.rightPanel.appendChild(header);
 
-    this.statsContainer = document.createElement('div');
     this.statsContainer.style.cssText = `
       display: flex;
       flex-direction: column;
@@ -304,6 +417,9 @@ export class EditorUI {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: 4px 0;
+        border-radius: 4px;
+        transition: background 0.2s ease;
       `;
 
       const labelEl = document.createElement('span');
@@ -319,10 +435,23 @@ export class EditorUI {
         color: #aaccdd;
         font-family: monospace;
         font-size: 13px;
+        text-shadow: 0 0 5px rgba(170, 204, 221, 0.3);
+        transition: all 0.2s ease;
       `;
 
       row.appendChild(labelEl);
       row.appendChild(valueEl);
+      
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(100, 100, 150, 0.2)';
+        valueEl.style.textShadow = '0 0 10px rgba(170, 204, 221, 0.6)';
+      });
+      
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+        valueEl.style.textShadow = '0 0 5px rgba(170, 204, 221, 0.3)';
+      });
+      
       return row;
     };
 

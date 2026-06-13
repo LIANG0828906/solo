@@ -10,8 +10,14 @@ export class SceneManager {
   private terrainRenderer: TerrainRenderer;
   private animationId: number = 0;
   private onTerrainClick: ((x: number, y: number) => void) | null = null;
+  private onTerrainDrag: ((x: number, y: number) => void) | null = null;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
+  private isDragging: boolean = false;
+  private frameCount: number = 0;
+  private lastFpsUpdate: number = 0;
+  private fps: number = 0;
+  private fpsCallback: ((fps: number) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -73,6 +79,9 @@ export class SceneManager {
   private setupEventListeners(): void {
     window.addEventListener('resize', this.handleResize.bind(this));
     this.renderer.domElement.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    this.renderer.domElement.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    this.renderer.domElement.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    this.renderer.domElement.addEventListener('mouseleave', this.handleMouseUp.bind(this));
   }
 
   private handleResize(): void {
@@ -89,7 +98,32 @@ export class SceneManager {
   }
 
   private handleMouseDown(event: MouseEvent): void {
-    if (event.button !== 0 || !this.onTerrainClick) return;
+    if (event.button !== 0 || this.controls.getState() !== 0) return;
+
+    this.isDragging = true;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    
+    const terrainMesh = this.terrainRenderer.getTerrainMesh();
+    if (terrainMesh) {
+      const intersects = this.raycaster.intersectObject(terrainMesh);
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        const size = this.terrainRenderer.getTerrainSize();
+        const x = ((point.x / size) + 0.5) * 256;
+        const y = ((point.z / size) + 0.5) * 256;
+        if (this.onTerrainClick) {
+          this.onTerrainClick(Math.max(0, Math.min(255, x)), Math.max(0, Math.min(255, y)));
+        }
+      }
+    }
+  }
+
+  private handleMouseMove(event: MouseEvent): void {
+    if (!this.isDragging || this.controls.getState() !== 0) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -105,9 +139,15 @@ export class SceneManager {
         const size = this.terrainRenderer.getTerrainSize();
         const x = ((point.x / size) + 0.5) * 256;
         const y = ((point.z / size) + 0.5) * 256;
-        this.onTerrainClick(Math.max(0, Math.min(255, x)), Math.max(0, Math.min(255, y)));
+        if (this.onTerrainDrag) {
+          this.onTerrainDrag(Math.max(0, Math.min(255, x)), Math.max(0, Math.min(255, y)));
+        }
       }
     }
+  }
+
+  private handleMouseUp(): void {
+    this.isDragging = false;
   }
 
   createTerrain(heightMap: number[]): void {
@@ -115,8 +155,8 @@ export class SceneManager {
     this.terrainRenderer.createWater();
   }
 
-  updateTerrain(heightMap: number[]): void {
-    this.terrainRenderer.updateTerrain(heightMap);
+  updateTerrain(heightMap: number[], affectedRegion?: { x: number; y: number; width: number; height: number }): void {
+    this.terrainRenderer.updateTerrain(heightMap, affectedRegion);
   }
 
   updateWaterLevel(level: number): void {
@@ -125,6 +165,14 @@ export class SceneManager {
 
   setOnTerrainClick(callback: (x: number, y: number) => void): void {
     this.onTerrainClick = callback;
+  }
+
+  setOnTerrainDrag(callback: (x: number, y: number) => void): void {
+    this.onTerrainDrag = callback;
+  }
+
+  setFpsCallback(callback: (fps: number) => void): void {
+    this.fpsCallback = callback;
   }
 
   start(): void {
@@ -136,6 +184,16 @@ export class SceneManager {
       const currentTime = performance.now();
       const deltaTime = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
+
+      this.frameCount++;
+      if (currentTime - this.lastFpsUpdate >= 1000) {
+        this.fps = this.frameCount;
+        if (this.fpsCallback) {
+          this.fpsCallback(this.fps);
+        }
+        this.frameCount = 0;
+        this.lastFpsUpdate = currentTime;
+      }
 
       this.controls.update();
       this.terrainRenderer.updateWaterAnimation(deltaTime);
@@ -155,6 +213,10 @@ export class SceneManager {
 
   getCamera(): THREE.PerspectiveCamera {
     return this.camera;
+  }
+
+  getFps(): number {
+    return this.fps;
   }
 
   dispose(): void {

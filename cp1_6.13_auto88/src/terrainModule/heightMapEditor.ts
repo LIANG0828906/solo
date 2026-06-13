@@ -7,7 +7,11 @@ export class HeightMapEditor {
   private brushSize: number = 20;
   private brushStrength: number = 0.5;
   private isRaise: boolean = true;
-  private onModify: ((x: number, y: number, size: number, strength: number, isRaise: boolean) => void) | null = null;
+  private lastX: number = 0;
+  private lastY: number = 0;
+  private affectedRegion: { x: number; y: number; width: number; height: number } | null = null;
+
+  private onModify: ((x: number, y: number, size: number, strength: number, isRaise: boolean, region: { x: number; y: number; width: number; height: number }) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -41,6 +45,14 @@ export class HeightMapEditor {
     this.isDrawing = true;
     this.isRaise = event.button === 0;
     const coords = this.getCanvasCoordinates(event);
+    this.lastX = coords.x;
+    this.lastY = coords.y;
+    this.affectedRegion = {
+      x: coords.x - this.brushSize,
+      y: coords.y - this.brushSize,
+      width: this.brushSize * 2,
+      height: this.brushSize * 2
+    };
     this.drawBrush(coords.x, coords.y);
     this.notifyModify(coords.x, coords.y);
   }
@@ -51,13 +63,26 @@ export class HeightMapEditor {
       return;
     }
     const coords = this.getCanvasCoordinates(event);
+    
+    if (this.affectedRegion) {
+      this.affectedRegion.x = Math.min(this.affectedRegion.x, coords.x - this.brushSize);
+      this.affectedRegion.y = Math.min(this.affectedRegion.y, coords.y - this.brushSize);
+      const newRight = coords.x + this.brushSize;
+      const newBottom = coords.y + this.brushSize;
+      this.affectedRegion.width = Math.max(this.affectedRegion.width, newRight - this.affectedRegion.x);
+      this.affectedRegion.height = Math.max(this.affectedRegion.height, newBottom - this.affectedRegion.y);
+    }
+
     this.drawBrush(coords.x, coords.y);
     this.notifyModify(coords.x, coords.y);
+    this.lastX = coords.x;
+    this.lastY = coords.y;
   }
 
   private handleMouseUp(): void {
     this.isDrawing = false;
     this.clearBrushPreview();
+    this.affectedRegion = null;
   }
 
   private drawBrush(x: number, y: number): void {
@@ -87,8 +112,8 @@ export class HeightMapEditor {
   }
 
   private notifyModify(x: number, y: number): void {
-    if (this.onModify) {
-      this.onModify(x, y, this.brushSize, this.brushStrength, this.isRaise);
+    if (this.onModify && this.affectedRegion) {
+      this.onModify(x, y, this.brushSize, this.brushStrength, this.isRaise, this.affectedRegion);
     }
   }
 
@@ -100,7 +125,7 @@ export class HeightMapEditor {
     this.brushStrength = strength;
   }
 
-  setOnModifyCallback(callback: (x: number, y: number, size: number, strength: number, isRaise: boolean) => void): void {
+  setOnModifyCallback(callback: (x: number, y: number, size: number, strength: number, isRaise: boolean, region: { x: number; y: number; width: number; height: number }) => void): void {
     this.onModify = callback;
   }
 
