@@ -2,12 +2,36 @@ const H = 6.626e-34;
 const C = 3e8;
 const K = 1.38e-23;
 
+const MIN_TEMPERATURE = 3000;
+const MAX_TEMPERATURE = 30000;
+const MAX_EXPONENT = 700;
+
+function clampTemperature(temperature: number): number {
+  return Math.max(MIN_TEMPERATURE, Math.min(MAX_TEMPERATURE, temperature));
+}
+
 export function blackbodyIntensity(wavelength: number, temperature: number): number {
+  const temp = clampTemperature(temperature);
   const lambda = wavelength * 1e-9;
-  const exponent = (H * C) / (lambda * K * temperature);
-  const denominator = Math.pow(lambda, 5) * (Math.exp(exponent) - 1);
-  if (denominator === 0 || !isFinite(denominator)) return 0;
-  return (2 * H * C * C) / denominator;
+
+  if (lambda <= 0) return 0;
+
+  const exponent = (H * C) / (lambda * K * temp);
+
+  if (exponent > MAX_EXPONENT) {
+    return 0;
+  }
+
+  const expVal = Math.exp(exponent);
+  const denominator = Math.pow(lambda, 5) * (expVal - 1);
+
+  if (denominator <= 0 || !isFinite(denominator)) return 0;
+
+  const result = (2 * H * C * C) / denominator;
+
+  if (!isFinite(result) || result < 0) return 0;
+
+  return result;
 }
 
 export function generateSpectrumData(
@@ -16,20 +40,26 @@ export function generateSpectrumData(
   endWavelength: number = 780,
   steps: number = 100
 ): { wavelength: number; intensity: number }[] {
+  const temp = clampTemperature(temperature);
   const data: { wavelength: number; intensity: number }[] = [];
+
+  if (steps <= 0 || startWavelength >= endWavelength) {
+    return data;
+  }
+
   const step = (endWavelength - startWavelength) / steps;
 
   let maxIntensity = 0;
   for (let i = 0; i <= steps; i++) {
     const wavelength = startWavelength + i * step;
-    const intensity = blackbodyIntensity(wavelength, temperature);
+    const intensity = blackbodyIntensity(wavelength, temp);
     data.push({ wavelength, intensity });
     if (intensity > maxIntensity) maxIntensity = intensity;
   }
 
-  if (maxIntensity > 0) {
+  if (maxIntensity > 0 && isFinite(maxIntensity)) {
     for (const point of data) {
-      point.intensity /= maxIntensity;
+      point.intensity = Math.min(1, Math.max(0, point.intensity / maxIntensity));
     }
   }
 

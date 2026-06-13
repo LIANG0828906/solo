@@ -33,7 +33,8 @@ function randomPosition(): { x: number; y: number; z: number } {
 }
 
 function getRandomSpectralType(): SpectralType {
-  const rand = Math.random();
+  const total = SPECTRAL_TYPES.reduce((sum, type) => sum + SPECTRAL_DISTRIBUTION[type], 0);
+  const rand = Math.random() * total;
   let cumulative = 0;
 
   for (const type of SPECTRAL_TYPES) {
@@ -44,6 +45,43 @@ function getRandomSpectralType(): SpectralType {
   }
 
   return 'M';
+}
+
+function getWeightedRandomSpectralType(count: number): SpectralType[] {
+  const result: SpectralType[] = [];
+  const counts: Record<SpectralType, number> = {
+    O: 0, B: 0, A: 0, F: 0, G: 0, K: 0, M: 0,
+  };
+
+  for (const type of SPECTRAL_TYPES) {
+    counts[type] = Math.max(0, Math.floor(count * SPECTRAL_DISTRIBUTION[type]));
+  }
+
+  let allocated = SPECTRAL_TYPES.reduce((sum, t) => sum + counts[t], 0);
+  const remaining = count - allocated;
+
+  const fractions: { type: SpectralType; frac: number }[] = SPECTRAL_TYPES.map((type) => ({
+    type,
+    frac: (count * SPECTRAL_DISTRIBUTION[type]) % 1,
+  }));
+  fractions.sort((a, b) => b.frac - a.frac);
+
+  for (let i = 0; i < remaining; i++) {
+    counts[fractions[i % fractions.length].type]++;
+  }
+
+  for (const type of SPECTRAL_TYPES) {
+    for (let i = 0; i < counts[type]; i++) {
+      result.push(type);
+    }
+  }
+
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
 }
 
 function calculateSize(absoluteMagnitude: number): number {
@@ -58,8 +96,7 @@ function calculateSize(absoluteMagnitude: number): number {
   return Math.max(minSize, Math.min(maxSize, size));
 }
 
-function generateStar(index: number): StarData {
-  const spectralType = getRandomSpectralType();
+function generateStar(spectralType: SpectralType): StarData {
   const [tempMin, tempMax] = TEMPERATURE_RANGES[spectralType];
   const temperature = Math.round(randomRange(tempMin, tempMax));
 
@@ -83,9 +120,10 @@ function generateStar(index: number): StarData {
 
 export function generateStars(count: number = 300): StarData[] {
   const stars: StarData[] = [];
+  const spectralTypes = getWeightedRandomSpectralType(count);
 
   for (let i = 0; i < count; i++) {
-    stars.push(generateStar(i));
+    stars.push(generateStar(spectralTypes[i]));
   }
 
   return stars;

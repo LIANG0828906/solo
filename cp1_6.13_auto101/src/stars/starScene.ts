@@ -6,11 +6,13 @@ interface StarRenderData {
   mesh: THREE.Mesh;
   data: StarData;
   baseSize: number;
-  baseOpacity: number;
+  baseColor: THREE.Color;
+  baseEmissiveIntensity: number;
   targetOpacity: number;
   targetScale: number;
-  currentOpacity: number;
-  currentScale: number;
+  startOpacity: number;
+  startScale: number;
+  isFiltered: boolean;
 }
 
 export interface StarSceneCallbacks {
@@ -33,11 +35,17 @@ export class StarScene {
   private selectionRing: THREE.Mesh | null = null;
   private clock: THREE.Clock;
   private brightness: number = 1.0;
+  private basePointLightIntensity: number = 1.0;
+  private pointLight: THREE.PointLight | null = null;
+  private ambientLight: THREE.AmbientLight | null = null;
   private activeFilters: SpectralType[] = [...SPECTRAL_TYPES];
-  private isAnimating: boolean = false;
-  private animationStartTime: number = 0;
-  private readonly ANIMATION_DURATION = 500;
-  private starGeometries: THREE.InstancedMesh | null = null;
+  private isFilterAnimating: boolean = false;
+  private filterAnimationStartTime: number = 0;
+  private readonly FILTER_ANIMATION_DURATION = 500;
+  private boundOnWindowResize: () => void;
+  private boundOnClick: () => void;
+  private boundOnMouseMove: (event: MouseEvent) => void;
+  private starSphereGeometry: THREE.SphereGeometry | null = null;
 
   constructor(container: HTMLElement, callbacks: StarSceneCallbacks) {
     this.container = container;
@@ -45,6 +53,10 @@ export class StarScene {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.clock = new THREE.Clock();
+
+    this.boundOnWindowResize = this.onWindowResize.bind(this);
+    this.boundOnClick = this.onClick.bind(this);
+    this.boundOnMouseMove = this.onMouseMove.bind(this);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a2e);
@@ -78,12 +90,12 @@ export class StarScene {
   }
 
   private setupLighting(): void {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    this.scene.add(ambientLight);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    this.scene.add(this.ambientLight);
 
-    const pointLight = new THREE.PointLight(0xffffff, 1, 200);
-    pointLight.position.set(50, 50, 50);
-    this.scene.add(pointLight);
+    this.pointLight = new THREE.PointLight(0xffffff, this.basePointLightIntensity, 200);
+    this.pointLight.position.set(50, 50, 50);
+    this.scene.add(this.pointLight);
   }
 
   private setupBackgroundParticles(): void {
@@ -124,9 +136,9 @@ export class StarScene {
   }
 
   private setupEventListeners(): void {
-    window.addEventListener('resize', this.onWindowResize.bind(this));
-    this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
-    this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
+    window.addEventListener('resize', this.boundOnWindowResize);
+    this.renderer.domElement.addEventListener('click', this.boundOnClick);
+    this.renderer.domElement.addEventListener('mousemove', this.boundOnMouseMove);
   }
 
   private onWindowResize(): void {
@@ -164,16 +176,15 @@ export class StarScene {
     this.deselectStar();
     this.selectedStar = star;
 
-    const ringGeometry = new THREE.RingGeometry(
-      star.data.size * 1.2,
-      star.data.size * 1.8,
-      64
-    );
+    const innerRadius = star.data.size * 1.2;
+    const outerRadius = star.data.size * 1.8;
+    const ringGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
       opacity: 0.5,
       side: THREE.DoubleSide,
+      depthWrite: false,
     });
 
     this.selectionRing = new THREE.Mesh(ringGeometry, ringMaterial);
@@ -195,12 +206,13 @@ export class StarScene {
   public setStars(starData: StarData[]): void {
     this.clearStars();
 
-    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    this.starSphereGeometry = new THREE.SphereGeometry(1, 32, 32);
 
     for (const data of starData) {
+      const color = new THREE.Color(data.color.r, data.color.g, data.color.b);
       const material = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(data.color.r, data.color.g, data.color.b),
-        emissive: new THREE.Color(data.color.r, data.color.g, data.color.b),
+        color: color.clone(),
+        emissive: color.clone(),
         emissiveIntensity: this.brightness,
         transparent: true,
         opacity: 1,
@@ -208,7 +220,7 @@ export class StarScene {
         metalness: 0.7,
       });
 
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(this.starSphereGeometry, material);
       mesh.position.set(data.position.x, data.position.y, data.position.z);
       mesh.scale.setScalar(data.size);
       mesh.userData.starId = data.id;
@@ -219,11 +231,13 @@ export class StarScene {
         mesh,
         data,
         baseSize: data.size,
-        baseOpacity: 1,
+        baseColor: color.clone(),
+        baseEmissiveIntensity: 1.0,
         targetOpacity: 1,
         targetScale: 1,
-        currentOpacity: 1,
-        currentScale: 1,
+        startOpacity: 1,
+        startScale: 1,
+        isFiltered: true,
       });
     }
   }
@@ -235,78 +249,97 @@ export class StarScene {
     }
     this.stars = [];
     this.deselectStar();
+
+    if (this.starSphereGeometry) {
+      this.starSphereGeometry.dispose();
+      this.starSphereGeometry = null;
+    }
   }
 
   public updateBrightness(brightness: number): void {
-    this.brightness = brightness;
+    const clampedBrightness = Math.max(0.5, Math.min(2.0, brightness));
+    this.brightness = clampedBrightness;
 
     for (const star of this.stars) {
       const material = star.mesh.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = brightness;
+      material.emissiveIntensity = clampedBrightness;
+      material.color.copy(star.baseColor).multiplyScalar(0.3 + clampedBrightness * 0.7);
+      material.emissive.copy(star.baseColor).multiplyScalar(clampedBrightness);
+    }
+
+    if (this.pointLight) {
+      this.pointLight.intensity = this.basePointLightIntensity * clampedBrightness;
     }
   }
 
   public updateFilter(activeFilters: SpectralType[]): void {
     this.activeFilters = activeFilters;
-    this.isAnimating = true;
-    this.animationStartTime = performance.now();
+    this.isFilterAnimating = true;
+    this.filterAnimationStartTime = performance.now();
 
     for (const star of this.stars) {
+      star.startOpacity = (star.mesh.material as THREE.MeshStandardMaterial).opacity;
+      star.startScale = star.mesh.scale.x / star.baseSize;
+
       const isFiltered = activeFilters.includes(star.data.spectralType);
+      star.isFiltered = isFiltered;
       star.targetOpacity = isFiltered ? 1 : 0.1;
       star.targetScale = isFiltered ? 1 : 0.5;
     }
   }
 
-  private updateAnimation(): void {
-    if (!this.isAnimating) return;
+  private easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
 
-    const elapsed = performance.now() - this.animationStartTime;
-    const progress = Math.min(elapsed / this.ANIMATION_DURATION, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
+  private updateFilterAnimation(): void {
+    if (!this.isFilterAnimating) return;
+
+    const elapsed = performance.now() - this.filterAnimationStartTime;
+    const progress = Math.min(elapsed / this.FILTER_ANIMATION_DURATION, 1);
+    const eased = this.easeInOutCubic(progress);
 
     for (const star of this.stars) {
-      star.currentOpacity =
-        star.currentOpacity + (star.targetOpacity - star.currentOpacity) * eased * 0.1;
-      star.currentScale =
-        star.currentScale + (star.targetScale - star.currentScale) * eased * 0.1;
+      const currentOpacity = star.startOpacity + (star.targetOpacity - star.startOpacity) * eased;
+      const currentScale = star.startScale + (star.targetScale - star.startScale) * eased;
 
       const material = star.mesh.material as THREE.MeshStandardMaterial;
-      material.opacity = star.currentOpacity;
-      star.mesh.scale.setScalar(star.baseSize * star.currentScale);
+      material.opacity = currentOpacity;
+      star.mesh.scale.setScalar(star.baseSize * currentScale);
     }
 
     if (progress >= 1) {
-      this.isAnimating = false;
+      this.isFilterAnimating = false;
       for (const star of this.stars) {
-        star.currentOpacity = star.targetOpacity;
-        star.currentScale = star.targetScale;
         const material = star.mesh.material as THREE.MeshStandardMaterial;
-        material.opacity = star.currentOpacity;
-        star.mesh.scale.setScalar(star.baseSize * star.currentScale);
+        material.opacity = star.targetOpacity;
+        star.mesh.scale.setScalar(star.baseSize * star.targetScale);
       }
     }
   }
 
+  private updateSelectionRing(elapsed: number): void {
+    if (!this.selectedStar || !this.selectionRing) return;
+
+    this.selectionRing.lookAt(this.camera.position);
+    this.selectionRing.position.copy(this.selectedStar.mesh.position);
+
+    const pulse = (Math.sin(elapsed * Math.PI) + 1) / 2;
+    const scale = 0.8 + pulse * 0.4;
+    this.selectionRing.scale.setScalar(scale);
+
+    const material = this.selectionRing.material as THREE.MeshBasicMaterial;
+    material.opacity = 0.3 + pulse * 0.4;
+  }
+
   private animate(): void {
-    this.animationId = requestAnimationFrame(this.animate.bind(this));
+    this.animationId = requestAnimationFrame(() => this.animate());
 
     const delta = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
 
-    this.updateAnimation();
-
-    if (this.selectedStar && this.selectionRing) {
-      this.selectionRing.lookAt(this.camera.position);
-
-      const pulse = Math.sin(elapsed * Math.PI) * 0.2 + 0.8;
-      this.selectionRing.scale.setScalar(pulse);
-
-      const material = this.selectionRing.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.5 * (1 - Math.abs(Math.sin(elapsed * Math.PI)) * 0.5);
-
-      this.selectionRing.position.copy(this.selectedStar.mesh.position);
-    }
+    this.updateFilterAnimation();
+    this.updateSelectionRing(elapsed);
 
     if (this.backgroundParticles) {
       this.backgroundParticles.rotation.y += delta * 0.02;
@@ -318,6 +351,7 @@ export class StarScene {
 
   public start(): void {
     if (this.animationId === null) {
+      this.clock.start();
       this.animate();
     }
   }
@@ -337,15 +371,19 @@ export class StarScene {
       this.scene.remove(this.backgroundParticles);
       this.backgroundParticles.geometry.dispose();
       (this.backgroundParticles.material as THREE.Material).dispose();
+      this.backgroundParticles = null;
     }
 
     this.controls.dispose();
     this.renderer.dispose();
-    this.container.removeChild(this.renderer.domElement);
 
-    window.removeEventListener('resize', this.onWindowResize.bind(this));
-    this.renderer.domElement.removeEventListener('click', this.onClick.bind(this));
-    this.renderer.domElement.removeEventListener('mousemove', this.onMouseMove.bind(this));
+    if (this.renderer.domElement.parentNode === this.container) {
+      this.container.removeChild(this.renderer.domElement);
+    }
+
+    window.removeEventListener('resize', this.boundOnWindowResize);
+    this.renderer.domElement.removeEventListener('click', this.boundOnClick);
+    this.renderer.domElement.removeEventListener('mousemove', this.boundOnMouseMove);
   }
 
   public setSelectedStarById(id: string | null): void {

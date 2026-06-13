@@ -40,11 +40,11 @@ export const TEMPERATURE_RANGES: Record<SpectralType, [number, number]> = {
 };
 
 export const SPECTRAL_DISTRIBUTION: Record<SpectralType, number> = {
-  O: 0.003,
-  B: 0.03,
-  A: 0.1,
-  F: 0.15,
-  G: 0.2,
-  K: 0.25,
-  M: 0.267,
+  O: 0.0000003,
+  B: 0.0013,
+  A: 0.006,
+  F: 0.03,
+  G: 0.076,
+  K: 0.121,
+  M: 0.76,
 };
