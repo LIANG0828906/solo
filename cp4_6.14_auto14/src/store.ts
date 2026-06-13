@@ -42,7 +42,7 @@ const MOCK_ITEMS: ClothingItem[] = [
   { id: generateId(), name: '米色阔腿裤', category: ClothingCategory.BOTTOM, color: '#ffe4b5', imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=beige%20wide%20leg%20pants%20minimal&image_size=square', season: Season.SUMMER, createdAt: '2026-01-12' },
 ];
 
-interface WardrobeStore {
+export interface WardrobeStore {
   items: ClothingItem[];
   outfits: Outfit[];
   dailyOutfits: DailyOutfit[];
