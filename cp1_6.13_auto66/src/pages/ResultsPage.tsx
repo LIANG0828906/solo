@@ -12,20 +12,22 @@ const BarChart: React.FC<{
   maxVotes: number
   recommendedId: string | null
 }> = ({ timeSlots, maxVotes, recommendedId }) => {
-  const [animated, setAnimated] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => setAnimated(true), 100)
+    const timer = setTimeout(() => setMounted(true), 50)
     return () => clearTimeout(timer)
   }, [])
 
   return (
     <div className="bar-chart">
-      {timeSlots.map(slot => {
+      {timeSlots.map((slot, index) => {
         const voteCount = slot.votes.length
         const heightPercent = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0
         const isRecommended = slot.id === recommendedId
-        const displayHeight = animated ? Math.max(heightPercent, voteCount > 0 ? 8 : 4) : 0
+        const targetHeight = Math.max(heightPercent, voteCount > 0 ? 8 : 4)
+        const finalHeight = mounted ? targetHeight : 0
+        const animDelay = mounted ? `${index * 0.12}s` : '0s'
 
         return (
           <div className="bar-item" key={slot.id}>
@@ -35,7 +37,11 @@ const BarChart: React.FC<{
             <div className="bar-container">
               <div
                 className={`bar ${isRecommended && voteCount > 0 ? 'bar-gold' : 'bar-blue'}`}
-                style={{ height: `${displayHeight}%` }}
+                style={{
+                  height: `${finalHeight}%`,
+                  transitionDelay: animDelay,
+                  minHeight: finalHeight > 0 ? '4px' : '0'
+                }}
               />
             </div>
             <div className="bar-label">
@@ -45,7 +51,7 @@ const BarChart: React.FC<{
               <div style={{ fontSize: 11, color: '#6b7280' }}>
                 {slot.startTime}
               </div>
-              <div className="bar-votes">
+              <div className="bar-votes" style={{ color: isRecommended && voteCount > 0 ? '#d97706' : undefined }}>
                 {voteCount} 票
               </div>
             </div>

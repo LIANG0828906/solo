@@ -14,7 +14,7 @@ if (!localVoterId) {
 }
 const VOTER_ID = localVoterId
 
-const CircularProgress: React.FC<{ percentage: number }> = ({ percentage }) => {
+const CircularProgress: React.FC<{ percentage: number; slotId: string }> = ({ percentage, slotId }) => {
   const radius = 26
   const circumference = 2 * Math.PI * radius
   const [displayedPercent, setDisplayedPercent] = useState(0)
@@ -35,15 +35,29 @@ const CircularProgress: React.FC<{ percentage: number }> = ({ percentage }) => {
     strokeColor = '#f59e0b'
   }
 
-  const gradientId = `progress-${Math.random().toString(36).substring(2, 9)}`
+  const gradientId = `progress-${slotId}`
 
   return (
     <div className="circular-progress">
       <svg width="60" height="60">
         <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity={0.9} />
-            <stop offset="100%" stopColor={strokeColor} stopOpacity={1} />
+          <linearGradient id={gradientId} x1="0%" y1="100%" x2="0%" y2="0%">
+            {displayedPercent >= 70 ? (
+              <>
+                <stop offset="0%" stopColor="#059669" />
+                <stop offset="100%" stopColor="#34d399" />
+              </>
+            ) : displayedPercent >= 30 ? (
+              <>
+                <stop offset="0%" stopColor="#d97706" />
+                <stop offset="100%" stopColor="#fbbf24" />
+              </>
+            ) : (
+              <>
+                <stop offset="0%" stopColor="#dc2626" />
+                <stop offset="100%" stopColor="#f87171" />
+              </>
+            )}
           </linearGradient>
         </defs>
         <circle
@@ -66,7 +80,9 @@ const CircularProgress: React.FC<{ percentage: number }> = ({ percentage }) => {
           strokeDashoffset={offset}
         />
       </svg>
-      <div className="progress-text">{Math.round(displayedPercent)}%</div>
+      <div className="progress-text" style={{ color: strokeColor, fontWeight: 700 }}>
+        {Math.round(displayedPercent)}%
+      </div>
     </div>
   )
 }
@@ -119,7 +135,7 @@ const TimeSlotCard: React.FC<{
             <span style={{ color: '#10b981', marginLeft: 4 }}>（含你）</span>
           )}
         </div>
-        <CircularProgress percentage={percentage} />
+        <CircularProgress percentage={percentage} slotId={slot.id} />
       </div>
     </div>
   )
