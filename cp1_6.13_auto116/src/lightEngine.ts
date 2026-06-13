@@ -8,9 +8,23 @@ import {
 
 const MAX_PARTICLES = 500;
 const PARTICLE_LIFETIME = 2000;
+const BG_TRANSITION_DURATION = 1000;
+
+export interface BgGradient {
+  colors: string[];
+  angle: number;
+}
+
+export const BG_PRESETS: Record<string, BgGradient> = {
+  night: { colors: ['#0c0c1e', '#1a1a3e', '#2d1b4e'], angle: 135 },
+  sunset: { colors: ['#ff6b6b', '#feca57', '#ff9ff3'], angle: 135 },
+  ocean: { colors: ['#0f3460', '#16213e', '#0077b6'], angle: 135 },
+  aurora: { colors: ['#00b894', '#00cec9', '#55efc4'], angle: 135 }
+};
 
 export interface LightEngineCallbacks {
   onParticlesChange?: (count: number) => void;
+  onBgUpdate?: (gradient: string) => void;
 }
 
 export class LightEngine {
@@ -25,7 +39,13 @@ export class LightEngine {
   private lastParticleTime: number = 0;
   private animationFrameId: number | null = null;
   private baseSize: number = 8;
+  private particleIdCounter: number = 0;
   private callbacks: LightEngineCallbacks;
+
+  private currentBg: BgGradient = BG_PRESETS.night;
+  private targetBg: BgGradient = BG_PRESETS.night;
+  private bgTransitionStart: number = 0;
+  private isBgTransitioning: boolean = false;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -40,6 +60,7 @@ export class LightEngine {
     this.callbacks = callbacks;
     this.resizeCanvas();
     this.attachEventListeners();
+    this.notifyBgUpdate(this.currentBg);
     this.startRenderLoop();
   }
 

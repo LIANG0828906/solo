@@ -14,6 +14,7 @@ export interface DrawCommand {
 }
 
 export interface Particle {
+  id: number;
   x: number;
   y: number;
   prevX: number;
@@ -29,6 +30,8 @@ export interface Particle {
     radius: number;
     alpha: number;
   }>;
+  starRayLengths: number[];
+  stripeSpacing: number;
 }
 
 export function renderGlowEffect(
@@ -84,10 +87,9 @@ export function renderStarEffect(
   const rayCount = 6;
   for (let i = 0; i < rayCount; i++) {
     const baseAngle = (i / rayCount) * Math.PI * 2;
-    const length = 15 + Math.random() * 15 + (particle.velocity * 0.05);
-
-    const jitter = particle.halos.length > i ? (particle.halos[i].radius - 5) * 0.5 : 0;
-    const finalLength = length + jitter;
+    const baseLength = particle.starRayLengths[i] ?? (15 + Math.random() * 15);
+    const velocityBonus = particle.velocity * 0.08;
+    const finalLength = baseLength + velocityBonus;
 
     const x2 = particle.x + Math.cos(baseAngle) * finalLength;
     const y2 = particle.y + Math.sin(baseAngle) * finalLength;
@@ -147,10 +149,10 @@ export function renderStripeEffect(
   }
 
   const tailLength = 20;
-  const spacing = 8;
+  const spacing = particle.stripeSpacing;
   const totalLength = tailLength * spacing;
 
-  const steps = Math.min(tailLength, Math.ceil(distance / 2));
+  const steps = Math.min(tailLength, Math.max(1, Math.ceil(distance / spacing)));
 
   for (let i = 0; i < steps; i++) {
     const t = i / steps;
