@@ -17,7 +17,6 @@
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "color-thief-react": "^2.2.0",
     "dotenv": "^17.2.1",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
