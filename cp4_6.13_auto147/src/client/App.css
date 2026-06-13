@@ -1,0 +1,406 @@
+.app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4A90D9;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #4A90D9, #7B61FF);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+}
+
+.input-wrapper {
+  flex: 1;
+  max-width: 500px;
+  position: relative;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fafafa;
+}
+
+.input-field:focus {
+  border-color: #4A90D9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+  background: white;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background-color: #4A90D9;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #357ABD;
+}
+
+.btn-primary:disabled {
+  background-color: #a0c4e8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-icon {
+  padding: 10px 12px;
+}
+
+.room-code-badge {
+  padding: 6px 12px;
+  background: #f0f7ff;
+  color: #4A90D9;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mindmap-canvas-wrapper {
+  width: 80%;
+  height: 90%;
+  max-width: 1400px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.mindmap-canvas {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.mindmap-canvas:active {
+  cursor: grabbing;
+}
+
+.canvas-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.canvas-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  transition: transform 0.3s ease-out;
+}
+
+.canvas-content.no-transition {
+  transition: none;
+}
+
+.connections-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.mindmap-node {
+  position: absolute;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: move;
+  user-select: none;
+  white-space: nowrap;
+  transition: box-shadow 0.2s, transform 0.3s ease-out;
+  transform: translate(-50%, -50%);
+  border: 2px solid transparent;
+}
+
+.mindmap-node.dragging {
+  transition: none;
+  z-index: 10;
+}
+
+.mindmap-node.root-node {
+  background: white;
+  border-color: #4A90D9;
+  color: #333;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.2);
+}
+
+.mindmap-node.root-node:hover {
+  box-shadow: 0 4px 16px rgba(74, 144, 217, 0.3);
+}
+
+.mindmap-node.level-1 {
+  background: #4A90D9;
+  color: white;
+  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.3);
+}
+
+.mindmap-node.level-2 {
+  background: #7B61FF;
+  color: white;
+  box-shadow: 0 2px 8px rgba(123, 97, 255, 0.3);
+}
+
+.mindmap-node.level-3 {
+  background: #50C878;
+  color: white;
+  box-shadow: 0 2px 8px rgba(80, 200, 120, 0.3);
+}
+
+.mindmap-node:hover {
+  filter: brightness(1.05);
+}
+
+.node-text {
+  outline: none;
+  display: inline-block;
+  min-width: 20px;
+}
+
+.node-text[contenteditable="true"] {
+  cursor: text;
+}
+
+.node-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff4757;
+  color: white;
+  border: 2px solid white;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mindmap-node:hover .node-delete-btn {
+  display: flex;
+}
+
+.user-avatars {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  display: flex;
+  gap: 8px;
+  z-index: 50;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: default;
+  transition: transform 0.2s;
+}
+
+.user-avatar:hover {
+  transform: scale(1.1);
+}
+
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out forwards;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  gap: 16px;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.empty-state-text {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+
+  .toolbar-left {
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .input-wrapper {
+    max-width: 100%;
+  }
+
+  .mindmap-canvas-wrapper {
+    width: 95%;
+    height: 75vh;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .mindmap-node {
+    font-size: 14px;
+    padding: 8px 14px;
+  }
+}
