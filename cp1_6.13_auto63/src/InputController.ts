@@ -31,6 +31,8 @@ export class InputController {
   private lastClickPos = new THREE.Vector2();
   private doubleClickThreshold = 300;
   private doubleClickDistance = 20;
+  private isDoubleClicked = false;
+  private clickTimeout: number | null = null;
 
   private mouseDownPos = new THREE.Vector2();
   private mouseDownTime = 0;
@@ -96,21 +98,13 @@ export class InputController {
   private onMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
 
-    this.controls.enabled = false;
-
     this.updateMouse(event);
     this.mouseDownPos.set(event.clientX, event.clientY);
     this.mouseDownTime = performance.now();
-    this.isDragging = true;
     this.lastMousePos.set(event.clientX, event.clientY);
     this.lastMouseTime = this.mouseDownTime;
     this.currentSpeed = 0;
     this.hasLastDragPos = false;
-
-    const hit = this.getTerrainHit();
-    if (hit) {
-      this.dragStartWorldPos = hit.clone();
-    }
 
     const now = performance.now();
     const timeSinceLastClick = now - this.lastClickTime;
@@ -120,18 +114,65 @@ export class InputController {
     );
 
     if (timeSinceLastClick < this.doubleClickThreshold && distFromLastClick < this.doubleClickDistance) {
-      this.handleDoubleClick();
+      this.isDoubleClicked = true;
       this.lastClickTime = 0;
+      if (this.clickTimeout !== null) {
+        clearTimeout(this.clickTimeout);
+        this.clickTimeout = null;
+      }
+      this.handleDoubleClick();
     } else {
+      this.isDoubleClicked = false;
       this.lastClickTime = now;
       this.lastClickPos.set(event.clientX, event.clientY);
+
+      if (this.clickTimeout !== null) {
+        clearTimeout(this.clickTimeout);
+      }
+
+      const clickX = event.clientX;
+      const clickY = event.clientY;
+
+      this.clickTimeout = window.setTimeout(() => {
+        if (!this.isDoubleClicked) {
+          this.startDrag();
+        }
+        this.clickTimeout = null;
+      }, 150);
+
+      this.pendingDragStart = { x: clickX, y: clickY };
     }
 
     if (this.onMouseActivity) this.onMouseActivity();
   }
 
+  private pendingDragStart: { x: number; y: number } | null = null;
+
+  private startDrag(): void {
+    this.isDragging = true;
+    this.controls.enabled = false;
+    const hit = this.getTerrainHit();
+    if (hit) {
+      this.dragStartWorldPos = hit.clone();
+    }
+  }
+
   private onMouseMove(event: MouseEvent): void {
     this.updateMouse(event);
+
+    if (this.pendingDragStart && !this.isDragging) {
+      const moveDist = Math.hypot(
+        event.clientX - this.pendingDragStart.x,
+        event.clientY - this.pendingDragStart.y
+      );
+      if (moveDist > 5) {
+        if (this.clickTimeout !== null) {
+          clearTimeout(this.clickTimeout);
+          this.clickTimeout = null;
+        }
+        this.startDrag();
+      }
+    }
 
     const now = performance.now();
     const dt = Math.max(1, now - this.lastMouseTime);
@@ -193,13 +234,19 @@ export class InputController {
   private onMouseUp(event: MouseEvent): void {
     if (event.button !== 0 && event.type !== 'mouseleave') return;
 
-    if (this.isDragging && (event.button === 0 || event.type === 'mouseleave')) {
+    if (this.clickTimeout !== null) {
+      clearTimeout(this.clickTimeout);
+      this.clickTimeout = null;
+    }
+
+    this.pendingDragStart = null;
+
+    if (this.isDragging && !this.isDoubleClicked && (event.button === 0 || event.type === 'mouseleave')) {
       const now = performance.now();
       const moveDist = Math.hypot(
         event.clientX - this.mouseDownPos.x,
         event.clientY - this.mouseDownPos.y
       );
-      const holdDuration = now - this.mouseDownTime;
 
       if (moveDist > 5) {
         const hit = this.getTerrainHit();
@@ -212,6 +259,7 @@ export class InputController {
       }
     }
 
+    this.isDoubleClicked = false;
     this.isDragging = false;
     this.currentSpeed = 0;
     this.smoothedSpeed = 0;

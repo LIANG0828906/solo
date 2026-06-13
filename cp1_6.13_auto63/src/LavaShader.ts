@@ -19,6 +19,7 @@ export const LavaFragmentShader = `
   uniform sampler2D uNoiseTexture;
   uniform vec2 uPoolCenter;
   uniform float uPoolRadius;
+  uniform float uMaxHeight;
 
   varying vec2 vUv;
   varying float vHeight;
@@ -53,22 +54,25 @@ export const LavaFragmentShader = `
   }
 
   void main() {
-    float flowSpeed = 0.02;
+    float normHeight = clamp(vHeight / max(uMaxHeight, 0.01), 0.0, 1.0);
+
+    float baseSpeed = 0.02;
+    float flowSpeed = baseSpeed;
     vec2 flowDir = vec2(0.0, 1.0);
-    
-    if (vHeight > 5.0) {
-      flowSpeed = 0.05;
-      flowDir = vec2(0.3, 0.95);
-    } else if (vHeight < 1.0) {
-      flowSpeed = 0.01;
-      flowDir = vec2(-0.2, 0.98);
+
+    if (normHeight > 0.5) {
+      flowSpeed = mix(baseSpeed, 0.05, (normHeight - 0.5) * 2.0);
+      flowDir = mix(vec2(0.0, 1.0), vec2(0.3, 0.95), (normHeight - 0.5) * 2.0);
+    } else if (normHeight < 0.1) {
+      flowSpeed = mix(0.01, baseSpeed, normHeight / 0.1);
+      flowDir = mix(vec2(-0.2, 0.98), vec2(0.0, 1.0), normHeight / 0.1);
     }
     
-    flowDir = normalize(flowDir + vec2(sin(vHeight * 0.5) * 0.1, cos(vHeight * 0.3) * 0.1));
+    flowDir = normalize(flowDir + vec2(sin(normHeight * 3.14159) * 0.1, cos(normHeight * 2.0) * 0.1));
 
     vec2 scrollUv = vUv;
     scrollUv += flowDir * uTime * flowSpeed;
-    scrollUv.x += sin(uTime * 0.3 + vHeight * 0.5) * 0.01;
+    scrollUv.x += sin(uTime * 0.3 + normHeight * 3.0) * 0.01;
 
     float n1 = fbm(scrollUv * 4.0);
     float n2 = fbm(scrollUv * 8.0 + uTime * 0.1);
