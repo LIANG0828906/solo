@@ -435,3 +435,69 @@ input {
     width: 100%;
   }
 }
+
+.search-bar-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.search-bar-input-wrapper {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-bar-icon {
+  position: absolute;
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  color: #999;
+  pointer-events: none;
+}
+.search-bar-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid #eee;
+  padding: 0 16px 0 44px;
+  font-size: 14px;
+  background: #fafafa;
+  transition: border-color 0.2s, background 0.2s;
+}
+.search-bar-input:focus {
+  border-color: var(--primary);
+  background: #fff;
+}
+.search-bar-select {
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #fafafa;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  min-width: 120px;
+}
+.search-bar-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: #fff;
+}
+@media (max-width: 767px) {
+  .search-bar-container { flex-direction: column; }
+  .search-bar-select { width: 100%; }
+}
+.recipe-card-image-wrapper { position: relative; }

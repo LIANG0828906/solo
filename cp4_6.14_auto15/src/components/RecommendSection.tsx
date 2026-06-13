@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getRecommendations } from '../utils/api';
-import CardSkeleton from './CardSkeleton';
+import { CardSkeleton } from './Skeleton';
 import { useLazyImage } from '../hooks/useLazyImage';
 import { cuisineLabel, difficultyLabel, difficultyColor } from '../utils/helpers';
 import type { Recipe } from '../types';
@@ -41,8 +41,8 @@ function RecommendCard({ recipe }: { recipe: Recipe }) {
         {!loaded && <div className="skeleton" style={{ position: 'absolute', inset: 0 }} />}
         <img
           ref={ref}
-          src={recipe.coverImage}
-          alt={recipe.title}
+          src={recipe.thumbnail}
+          alt={recipe.name}
           loading="lazy"
           style={{
             width: '100%',
@@ -88,7 +88,7 @@ function RecommendCard({ recipe }: { recipe: Recipe }) {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          {recipe.title}
+          {recipe.name}
         </h4>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-light)' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="#FFB300" stroke="#FFB300" strokeWidth="1">
@@ -96,7 +96,7 @@ function RecommendCard({ recipe }: { recipe: Recipe }) {
           </svg>
           <span>{recipe.rating.toFixed(1)}</span>
           <span style={{ color: '#ddd' }}>·</span>
-          <span>{recipe.cookingTime}分钟</span>
+          <span>{recipe.cookTime}分钟</span>
         </div>
       </div>
     </div>

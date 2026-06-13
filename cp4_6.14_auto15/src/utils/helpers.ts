@@ -1,80 +1,46 @@
 import type { Cuisine, Difficulty } from '../types';
 
-const cuisineLabels: Record<Cuisine, string> = {
-  chinese: '中餐',
-  western: '西餐',
-  japanese: '日料',
-  korean: '韩餐',
-  italian: '意餐',
-  french: '法餐',
-  other: '其他',
-};
+export function cuisineLabel(c: Cuisine | string): string {
+  const map: Record<string, string> = {
+    chinese: '中餐', western: '西餐', japanese: '日料',
+    korean: '韩餐', italian: '意餐', french: '法餐', other: '其他',
+  };
+  return map[c] || c;
+}
 
-const difficultyLabels: Record<Difficulty, string> = {
-  easy: '简单',
-  medium: '中等',
-  hard: '困难',
-};
+export function difficultyLabel(d: Difficulty | string): string {
+  const map: Record<string, string> = { easy: '简单', medium: '中等', hard: '困难' };
+  return map[d] || d;
+}
 
-const difficultyColors: Record<Difficulty, string> = {
-  easy: '#4CAF50',
-  medium: '#FF9800',
-  hard: '#F44336',
-};
+export function difficultyColor(d: Difficulty | string): string {
+  const map: Record<string, string> = {
+    easy: '#4CAF50', medium: '#FF9800', hard: '#F44336',
+  };
+  return map[d] || '#999';
+}
 
-const softColors = [
-  '#FFD700',
-  '#FFB6C1',
-  '#87CEEB',
-  '#98FB98',
-  '#DDA0DD',
-  '#F0E68C',
-  '#FFA07A',
-  '#20B2AA',
-  '#D8BFD8',
-  '#B0E0E6',
-  '#FFE4B5',
-  '#E6E6FA',
+export function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return ''; }
+}
+
+const avatarColors = [
+  '#FFB74D', '#81C784', '#64B5F6', '#BA68C8', '#F06292',
+  '#4DB6AC', '#FF8A65', '#A1887F', '#90A4AE', '#FFD54F',
 ];
 
-export function cuisineLabel(cuisine: Cuisine): string {
-  return cuisineLabels[cuisine] || cuisineLabels.other;
-}
-
-export function difficultyLabel(difficulty: Difficulty): string {
-  return difficultyLabels[difficulty];
-}
-
-export function difficultyColor(difficulty: Difficulty): string {
-  return difficultyColors[difficulty];
-}
-
-export function formatDate(isoString: string): string {
-  const date = new Date(isoString);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
-}
-
 export function randomAvatarColor(): string {
-  const index = Math.floor(Math.random() * softColors.length);
-  return softColors[index];
+  return avatarColors[Math.floor(Math.random() * avatarColors.length)];
 }
 
-export function debounce<T extends (...args: unknown[]) => unknown>(
-  func: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return function (this: unknown, ...args: Parameters<T>) {
-    if (timer) {
-      clearTimeout(timer);
-    }
-    timer = setTimeout(() => {
-      func.apply(this, args);
-    }, delay);
+export function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
+  let timer: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
   };
 }

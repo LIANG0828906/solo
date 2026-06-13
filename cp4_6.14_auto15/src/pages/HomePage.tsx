@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import SearchBar from '../components/SearchBar';
 import RecipeCard from '../components/RecipeCard';
-import ListSkeleton from '../components/ListSkeleton';
-import CardSkeleton from '../components/CardSkeleton';
+import { ListSkeleton, CardSkeleton } from '../components/Skeleton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { getRecipes } from '../utils/api';
 import type { Recipe } from '../types';
@@ -21,19 +20,20 @@ export default function HomePage() {
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getRecipes({
+      const result = await getRecipes({
         page,
         keyword,
         cuisine: cuisine === 'all' ? undefined : cuisine,
         difficulty: difficulty === 'all' ? undefined : difficulty,
       });
-      const { data, total: newTotal, hasMore: more } = response;
+      const pageSize = result.pageSize;
+      const more = result.page * pageSize < result.total;
       if (page === 1) {
-        setRecipes(data);
+        setRecipes(result.recipes);
       } else {
-        setRecipes((prev) => [...prev, ...data]);
+        setRecipes((prev) => [...prev, ...result.recipes]);
       }
-      setTotal(newTotal);
+      setTotal(result.total);
       setHasMore(more);
     } catch (error) {
       console.error('Failed to fetch recipes:', error);
@@ -91,9 +91,9 @@ export default function HomePage() {
 
       <SearchBar
         keyword={keyword}
-        cuisine={cuisine}
-        difficulty={difficulty}
-        onSearch={handleSearch}
+        cuisine={cuisine as any}
+        difficulty={difficulty as any}
+        onSearch={handleSearch as any}
       />
 
       {loading && recipes.length === 0 ? (
@@ -120,7 +120,7 @@ export default function HomePage() {
           </div>
 
           {loading && recipes.length > 0 && (
-            <div className="waterfall" style={{ marginTop: 24 }}>
+            <div className="waterfall fade-in" style={{ marginTop: 24 }}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <CardSkeleton key={`loading-${i}`} />
               ))}

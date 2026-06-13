@@ -14,57 +14,47 @@ export interface IngredientItem {
 }
 
 export interface RecipeStep {
-  order: number;
+  step: number;
   description: string;
   image?: string;
 }
 
 export interface IngredientDetail {
-  id: string;
   name: string;
-  calories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-  unit: string;
+  origin: string;
+  substitutes: string[];
+  description: string;
 }
 
 export interface Comment {
   id: string;
   recipeId: string;
-  author: string;
-  content: string;
-  rating: number;
-  createdAt: string;
+  username: string;
   avatarColor: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface Recipe {
   id: string;
-  title: string;
-  description: string;
-  coverImage: string;
-  images: string[];
+  name: string;
+  thumbnail: string;
+  image: string;
   cuisine: Cuisine;
   difficulty: Difficulty;
-  cookingTime: number;
-  servings: number;
-  calories: number;
   rating: number;
   ratingCount: number;
-  author: string;
-  authorAvatar: string;
+  cookTime: number;
+  description: string;
   ingredients: IngredientItem[];
   steps: RecipeStep[];
   tags: string[];
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface RecipeListResponse {
-  data: Recipe[];
+  recipes: Recipe[];
   total: number;
   page: number;
   pageSize: number;
-  hasMore: boolean;
 }

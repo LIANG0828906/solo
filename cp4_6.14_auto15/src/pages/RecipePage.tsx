@@ -106,18 +106,7 @@ export default function RecipePage() {
         <>
           <RecipeDetail
             recipe={recipe}
-            onIngredientClick={(name) => setActiveIngredient({
-              id: name,
-              name,
-              calories: 0,
-              protein: 0,
-              fat: 0,
-              carbs: 0,
-              unit: 'g',
-              origin: '本地农场',
-              substitutes: ['同类食材1', '同类食材2'],
-              description: `${name}是一种常见的优质食材，富含多种营养成分，适合各种烹饪方式。`,
-            } as IngredientDetail)}
+            onIngredientClick={() => { /* 空的，实际逻辑在组件内部 */ }}
             onRatingChange={handleRatingChange}
             onFavoriteToggle={handleFavoriteToggle}
             activeIngredient={activeIngredient}
