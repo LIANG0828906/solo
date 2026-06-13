@@ -24,7 +24,12 @@ export function calculateDamage(
 
   baseDamage *= 1.3;
 
-  const defenseReduction = target.defense / (target.defense + 50);
+  let targetDefense = target.defense;
+  if (targetSlot.row === 'front') {
+    targetDefense *= 0.5;
+  }
+
+  const defenseReduction = targetDefense / (targetDefense + 50);
   let finalDamage = baseDamage * (1 - defenseReduction);
 
   if (targetSlot.row === 'front') {

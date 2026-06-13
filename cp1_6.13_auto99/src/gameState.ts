@@ -43,6 +43,14 @@ export interface Slot {
   hovered: boolean;
   scale: number;
   targetScale: number;
+  borderColorR: number;
+  borderColorG: number;
+  borderColorB: number;
+  borderColorA: number;
+  targetBorderColorR: number;
+  targetBorderColorG: number;
+  targetBorderColorB: number;
+  targetBorderColorA: number;
 }
 
 export interface Particle {
