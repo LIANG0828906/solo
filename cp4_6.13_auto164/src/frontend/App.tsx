@@ -329,6 +329,7 @@ const EditBookModal: React.FC<{
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              className="modal-input"
               style={inputStyle}
               required
             />
@@ -341,6 +342,7 @@ const EditBookModal: React.FC<{
               type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
+              className="modal-input"
               style={inputStyle}
               required
             />
@@ -353,6 +355,7 @@ const EditBookModal: React.FC<{
               type="url"
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
+              className="modal-input"
               style={inputStyle}
               placeholder="https://..."
             />
@@ -367,6 +370,7 @@ const EditBookModal: React.FC<{
                 min="0"
                 value={totalPages}
                 onChange={(e) => setTotalPages(Number(e.target.value))}
+                className="modal-input"
                 style={inputStyle}
               />
             </div>
@@ -379,6 +383,7 @@ const EditBookModal: React.FC<{
                 min="0"
                 value={currentPage}
                 onChange={(e) => setCurrentPage(Number(e.target.value))}
+                className="modal-input"
                 style={inputStyle}
               />
             </div>
@@ -390,6 +395,7 @@ const EditBookModal: React.FC<{
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as Book['status'])}
+              className="modal-input"
               style={{ ...inputStyle, cursor: 'pointer' }}
             >
               <option value="want_to_read">想读</option>
@@ -446,6 +452,7 @@ const EditBookModal: React.FC<{
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .submit-btn:hover { filter: brightness(1.1); }
         .submit-btn:active { transform: translateY(2px); }
+        .modal-input:focus { border-color: #3498db !important; box-shadow: 0 0 0 3px rgba(52,152,219,0.15); }
       `}</style>
     </div>
   );
@@ -462,8 +469,6 @@ const inputStyle: React.CSSProperties = {
   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
   boxSizing: 'border-box',
 };
-
-inputStyle.onFocus = () => {};
 
 const BookDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

@@ -1,7 +1,8 @@
-import express, { Request, Response, NextFunction } from 'express';
-import cors from 'cors';
-import Database from 'better-sqlite3';
-import path from 'path';
+import express = require('express');
+import { Request, Response, NextFunction } from 'express';
+import cors = require('cors');
+import Database = require('better-sqlite3');
+import path = require('path');
 import { v4 as uuidv4 } from 'uuid';
 
 type BookStatus = 'want_to_read' | 'reading' | 'finished';
@@ -91,6 +92,15 @@ if (seedBooks.count === 0) {
 app.get('/api/books', (_req: Request, res: Response<Book[]>) => {
   const books = db.prepare('SELECT * FROM books ORDER BY updated_at DESC').all() as Book[];
   res.json(books);
+});
+
+app.get('/api/books/:id', (req: Request, res: Response<Book | { error: string }>) => {
+  const { id } = req.params;
+  const book = db.prepare('SELECT * FROM books WHERE id = ?').get(id) as Book | undefined;
+  if (!book) {
+    return res.status(404).json({ error: 'book not found' });
+  }
+  res.json(book);
 });
 
 app.post('/api/books', (req: Request, res: Response<Book | { error: string }>) => {
