@@ -2,18 +2,9 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import InventoryGrid from './components/InventoryGrid';
 import CraftResult from './components/CraftResult';
 import ResourceDepot from './components/ResourceDepot';
-import ParticleCanvas from './components/ParticleCanvas';
-import { detectRecipes } from './utils/recipeEngine';
-import { playCraftSound } from './utils/audioUtils';
+import { detectRecipes, consumeResources, getRecipeById } from './utils/recipeEngine';
 import { loadState, saveState, createEmptyInventory, createInitialDepot } from './utils/storageUtils';
-import { Inventory, CraftableResult, CraftedItem, ResourceType, RESOURCE_METAS } from './types';
-import { RECIPES } from './data/recipes';
-
-interface ParticleEvent {
-  id: string;
-  x: number;
-  y: number;
-}
+import { Inventory, CraftedItem, ResourceType, RESOURCE_METAS } from './types';
 
 function App() {
   const [inventory, setInventory] = useState<Inventory>(() => {
@@ -34,9 +25,7 @@ function App() {
     return saved.craftedItems;
   });
 
-  const [particleEvents, setParticleEvents] = useState<ParticleEvent[]>([]);
-
-  const craftableItems: CraftableResult[] = useMemo(() => {
+  const craftableItems = useMemo(() => {
     return detectRecipes(inventory);
   }, [inventory]);
 
@@ -86,90 +75,26 @@ function App() {
     });
   }, []);
 
-  const handleCraft = useCallback(
-    (recipeId: string, eventPos: { x: number; y: number }) => {
-      const recipe = RECIPES.find((r) => r.id === recipeId);
-      if (!recipe) return;
+  const handleCraft = useCallback((recipeId: string) => {
+    const recipe = getRecipeById(recipeId);
+    if (!recipe) return;
 
-      setInventory((prev) => {
-        const countMap: Record<ResourceType, number> = {} as Record<ResourceType, number>;
-        const keys = Object.keys(RESOURCE_METAS) as ResourceType[];
-        for (let i = 0; i < keys.length; i++) {
-          countMap[keys[i]] = 0;
-        }
+    setInventory((prev) => {
+      const newInv = consumeResources(recipeId, prev);
+      if (!newInv) return prev;
+      return newInv;
+    });
 
-        for (let i = 0; i < prev.length; i++) {
-          const slot = prev[i];
-          if (slot.resource && slot.count > 0) {
-            countMap[slot.resource] += slot.count;
-          }
-        }
-
-        const reqKeys = Object.keys(recipe.requirements) as ResourceType[];
-        for (let i = 0; i < reqKeys.length; i++) {
-          const k = reqKeys[i];
-          const needed = recipe.requirements[k] ?? 0;
-          if (countMap[k] < needed) {
-            return prev;
-          }
-        }
-
-        const newInv = prev.map((s) => ({ ...s }));
-        const remaining: Record<ResourceType, number> = {} as Record<ResourceType, number>;
-        for (let i = 0; i < reqKeys.length; i++) {
-          const k = reqKeys[i];
-          remaining[k] = recipe.requirements[k] ?? 0;
-        }
-
-        for (let i = 0; i < newInv.length; i++) {
-          const slot = newInv[i];
-          if (!slot.resource || slot.count <= 0) continue;
-
-          const need = remaining[slot.resource] ?? 0;
-          if (need <= 0) continue;
-
-          if (slot.count >= need) {
-            slot.count -= need;
-            remaining[slot.resource] = 0;
-            if (slot.count <= 0) {
-              slot.resource = null;
-              slot.count = 0;
-            }
-          } else {
-            remaining[slot.resource] = need - slot.count;
-            slot.resource = null;
-            slot.count = 0;
-          }
-        }
-
-        return newInv;
-      });
-
-      setCraftedItems((prev) => [
-        ...prev,
-        {
-          id: `${recipe.id}_${Date.now()}`,
-          recipeId: recipe.id,
-          name: recipe.name,
-          iconColor: recipe.iconColor,
-          timestamp: Date.now(),
-        },
-      ]);
-
-      const eventId = `particle_${Date.now()}_${Math.random()}`;
-      setParticleEvents((prev) => [...prev, { id: eventId, x: eventPos.x, y: eventPos.y }]);
-
-      try {
-        playCraftSound();
-      } catch {
-        // ignore
-      }
-    },
-    []
-  );
-
-  const handleEventConsumed = useCallback((id: string) => {
-    setParticleEvents((prev) => prev.filter((e) => e.id !== id));
+    setCraftedItems((prev) => [
+      ...prev,
+      {
+        id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        recipeId: recipe.id,
+        name: recipe.name,
+        iconColor: recipe.iconColor,
+        timestamp: Date.now(),
+      },
+    ]);
   }, []);
 
   return (
@@ -211,10 +136,6 @@ function App() {
           </div>
         </div>
       </div>
-      <ParticleCanvas
-        particleEvents={particleEvents}
-        onEventConsumed={handleEventConsumed}
-      />
     </div>
   );
 }
