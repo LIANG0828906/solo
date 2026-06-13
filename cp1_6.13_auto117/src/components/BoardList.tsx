@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Board } from '../types';
 
 interface BoardListProps {
@@ -8,7 +9,7 @@ interface BoardListProps {
   onDelete: (board: Board) => void;
 }
 
-export default function BoardList({ boards, onEnter, onCreate, onEdit, onDelete }: BoardListProps) {
+function BoardList({ boards, onEnter, onCreate, onEdit, onDelete }: BoardListProps) {
   return (
     <div className="board-list-section">
       <div className="section-header">
@@ -75,3 +76,5 @@ export default function BoardList({ boards, onEnter, onCreate, onEdit, onDelete 
     </div>
   );
 }
+
+export default memo(BoardList);

@@ -8,7 +8,19 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_FILE = path.join(__dirname, '..', 'data.json');
+const DATA_DIR = path.join(__dirname, '..');
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
+
+function ensureDataDir(): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      console.log('数据目录已创建');
+    }
+  } catch (e) {
+    console.error('创建数据目录失败', e);
+  }
+}
 
 interface DigestCard {
   id: string;
@@ -39,26 +51,62 @@ let data: AppData = {
 
 function loadData(): void {
   try {
+    ensureDataDir();
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      data = JSON.parse(raw);
-      console.log('数据加载成功');
+      if (!raw.trim()) {
+        console.log('数据文件为空，使用初始数据');
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.boards) && Array.isArray(parsed.cards)) {
+        data = parsed;
+        console.log(`数据加载成功：${data.boards.length} 个主题板，${data.cards.length} 张卡片`);
+      } else {
+        console.warn('数据文件格式不正确，使用空数据');
+      }
+    } else {
+      console.log('数据文件不存在，使用初始数据');
     }
   } catch (e) {
     console.error('加载数据失败，使用空数据', e);
+    data = { boards: [], cards: [] };
   }
 }
+
+let saveTimer: NodeJS.Timeout | null = null;
+let pendingSave = false;
 
 function saveData(): void {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    ensureDataDir();
+    const tmpFile = DATA_FILE + '.tmp';
+    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, DATA_FILE);
+    pendingSave = false;
   } catch (e) {
     console.error('保存数据失败', e);
+    pendingSave = false;
   }
 }
 
+function scheduleSave(): void {
+  if (pendingSave) return;
+  pendingSave = true;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+  }
+  saveTimer = setTimeout(() => {
+    saveData();
+  }, 500);
+}
+
 loadData();
-setInterval(saveData, 10000);
+setInterval(() => {
+  if (pendingSave) {
+    saveData();
+  }
+}, 10000);
 
 const app = express();
 const PORT = 3001;
@@ -87,7 +135,7 @@ app.post('/api/boards', (req: Request, res: Response) => {
     createdAt: Date.now(),
   };
   data.boards.push(newBoard);
-  saveData();
+  scheduleSave();
   res.status(201).json({ ...newBoard, cardCount: 0 });
 });
 
@@ -102,7 +150,7 @@ app.put('/api/boards/:id', (req: Request, res: Response) => {
     return res.status(400).json({ error: '板名称不能为空' });
   }
   board.name = name.trim();
-  saveData();
+  scheduleSave();
   const cardCount = data.cards.filter((c) => c.boardId === id).length;
   res.json({ ...board, cardCount });
 });
@@ -116,7 +164,7 @@ app.delete('/api/boards/:id', (req: Request, res: Response) => {
   const deletedCardCount = data.cards.filter((c) => c.boardId === id).length;
   data.boards.splice(boardIndex, 1);
   data.cards = data.cards.filter((c) => c.boardId !== id);
-  saveData();
+  scheduleSave();
   res.json({ deletedCardCount });
 });
 
@@ -154,7 +202,7 @@ app.post('/api/cards', (req: Request, res: Response) => {
     createdAt: Date.now(),
   };
   data.cards.push(newCard);
-  saveData();
+  scheduleSave();
   res.status(201).json(newCard);
 });
 
@@ -192,7 +240,7 @@ app.put('/api/cards/:id', (req: Request, res: Response) => {
   if (tags !== undefined) {
     card.tags = Array.isArray(tags) ? tags.filter((t: string) => t && t.trim()) : [];
   }
-  saveData();
+  scheduleSave();
   res.json(card);
 });
 
@@ -203,7 +251,7 @@ app.delete('/api/cards/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: '卡片不存在' });
   }
   data.cards.splice(cardIndex, 1);
-  saveData();
+  scheduleSave();
   res.json({ success: true });
 });
 

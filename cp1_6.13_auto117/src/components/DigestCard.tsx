@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Card } from '../types';
 
 const TAG_COLORS = [
@@ -24,7 +25,7 @@ interface DigestCardProps {
   onOpen?: () => void;
 }
 
-export default function DigestCard({ card, mode, onEdit, onDelete }: DigestCardProps) {
+function DigestCard({ card, mode, onEdit, onDelete }: DigestCardProps) {
   const colorTag = card.tags.length > 0 ? card.tags[0] : 'default';
   const barColor = getTagColor(colorTag);
   const excerptText = mode === 'preview'
@@ -109,3 +110,14 @@ export default function DigestCard({ card, mode, onEdit, onDelete }: DigestCardP
     </div>
   );
 }
+
+function areEqual(prevProps: DigestCardProps, nextProps: DigestCardProps): boolean {
+  if (prevProps.mode !== nextProps.mode) return false;
+  if (prevProps.card.id !== nextProps.card.id) return false;
+  if (prevProps.card.title !== nextProps.card.title) return false;
+  if (prevProps.card.excerpt !== nextProps.card.excerpt) return false;
+  if (prevProps.card.tags.length !== nextProps.card.tags.length) return false;
+  return true;
+}
+
+export default memo(DigestCard, areEqual);

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { Board, Card, SortOrder } from '../types';
 import DigestCard from './DigestCard';
 
@@ -14,7 +14,7 @@ interface CardListProps {
   onDeleteCard: (card: Card) => void;
 }
 
-export default function CardList({
+function CardList({
   board,
   cards,
   filterTag,
@@ -27,16 +27,28 @@ export default function CardList({
 }: CardListProps) {
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    cards.forEach((card) => card.tags.forEach((t) => tagSet.add(t)));
+    for (let i = 0; i < cards.length; i++) {
+      const cardTags = cards[i].tags;
+      for (let j = 0; j < cardTags.length; j++) {
+        tagSet.add(cardTags[j]);
+      }
+    }
     return Array.from(tagSet);
   }, [cards]);
 
   const processedCards = useMemo(() => {
-    let result = cards;
+    let result: Card[];
     if (filterTag) {
-      result = result.filter((c) => c.tags.includes(filterTag));
+      result = [];
+      for (let i = 0; i < cards.length; i++) {
+        if (cards[i].tags.includes(filterTag)) {
+          result.push(cards[i]);
+        }
+      }
+    } else {
+      result = cards.slice();
     }
-    result = [...result].sort((a, b) => {
+    result.sort((a, b) => {
       return sortOrder === 'desc' ? b.createdAt - a.createdAt : a.createdAt - b.createdAt;
     });
     return result;
@@ -121,3 +133,5 @@ export default function CardList({
     </div>
   );
 }
+
+export default memo(CardList);
