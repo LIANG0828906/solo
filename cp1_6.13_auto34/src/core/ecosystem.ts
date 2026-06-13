@@ -360,9 +360,9 @@ export class Ecosystem {
     for (const p of this.plants.values()) {
       if (p.energy <= 5) continue;
       const d = this.distance(animal.x, animal.y, p.x, p.y);
-      if (d > 6) continue;
-      const energyBonus = p.type === 'fruitTree' ? 1.5 : 1.0;
-      const priority = (p.energy * energyBonus) / Math.max(1, d);
+      const energyBonus = p.type === 'fruitTree' ? 2.0 : 1.2;
+      const distanceFactor = d <= 3 ? 1.0 : d <= 5 ? 0.8 : 0.5;
+      const priority = (p.energy * energyBonus * distanceFactor) / Math.max(1, d * 0.7);
       candidates.push({
         plant: p,
         cell: null,
@@ -378,9 +378,9 @@ export class Ecosystem {
       for (const cell of row) {
         if ((cell.type === 'grass' || cell.type === 'berry') && cell.amount > 5) {
           const d = this.distance(animal.x, animal.y, cell.x, cell.y);
-          if (d > 6) continue;
-          const energyBonus = cell.type === 'berry' ? 1.8 : 1.0;
-          const priority = (cell.amount * energyBonus) / Math.max(1, d);
+          const energyBonus = cell.type === 'berry' ? 2.2 : 1.0;
+          const distanceFactor = d <= 3 ? 1.0 : d <= 5 ? 0.8 : 0.5;
+          const priority = (cell.amount * energyBonus * distanceFactor) / Math.max(1, d * 0.7);
           candidates.push({
             plant: null,
             cell,
@@ -503,11 +503,11 @@ export class Ecosystem {
       return;
     }
 
-    if (animal.stamina < 25) {
+    if (animal.stamina < 20) {
       const currentCell = this.grid[animal.y][animal.x];
       if (currentCell.type === 'water' && currentCell.amount > 10) {
         animal.state = 'idle';
-        animal.stamina = Math.min(animal.maxStamina, animal.stamina + 20);
+        animal.stamina = Math.min(animal.maxStamina, animal.stamina + 25);
         currentCell.amount = Math.max(0, currentCell.amount - 8);
         this.pushBehavior(animal, '饮水恢复');
         animal.targetX = null;
@@ -516,7 +516,7 @@ export class Ecosystem {
         return;
       }
       const water = this.findNearestWater(animal);
-      if (water && this.distance(animal.x, animal.y, water.x, water.y) <= 4) {
+      if (water) {
         animal.state = 'moving';
         animal.targetX = water.x;
         animal.targetY = water.y;
@@ -527,47 +527,61 @@ export class Ecosystem {
       }
     }
 
-    if (animal.health < animal.maxHealth * 0.9 || animal.stamina > 30) {
-      const best = this.findBestPlantForHerbivore(animal);
-      if (best) {
-        animal.targetX = best.x;
-        animal.targetY = best.y;
-        animal.targetId = best.plant?.id ?? `cell_${best.x}_${best.y}`;
-
-        if (animal.x === best.x && animal.y === best.y) {
-          animal.state = 'eating';
-          if (best.plant) {
-            const gain = Math.min(best.plant.energy, 35);
-            best.plant.energy -= gain;
-            animal.health = Math.min(animal.maxHealth, animal.health + gain);
-            animal.stamina = Math.min(animal.maxStamina, animal.stamina + gain * 0.4);
-            const foodType = best.plant.type === 'fruitTree' ? '浆果' : '灌木';
-            this.pushBehavior(animal, `进食${foodType}`);
-            if (best.plant.energy <= 0) {
-              this.plants.delete(best.plant.id);
-            }
-          } else if (best.cell) {
-            const gain = Math.min(best.cell.amount, 25);
-            best.cell.amount -= gain;
-            animal.health = Math.min(animal.maxHealth, animal.health + gain * 0.6);
-            animal.stamina = Math.min(animal.maxStamina, animal.stamina + gain * 0.3);
-            const foodType = best.cell.type === 'berry' ? '浆果' : '青草';
-            this.pushBehavior(animal, `进食${foodType}`);
-          }
-        } else {
-          animal.state = 'foraging';
-          this.moveToward(animal, best.x, best.y);
-          const actionName = best.plant
-            ? best.plant.type === 'fruitTree'
-              ? '寻找高能量浆果'
-              : '寻找灌木'
-            : best.cell?.type === 'berry'
-              ? '前往浆果丛'
-              : '前往草地';
-          this.pushBehavior(animal, actionName);
-        }
+    if (animal.targetX !== null && animal.targetY !== null) {
+      if (animal.x !== animal.targetX || animal.y !== animal.targetY) {
+        animal.state = 'foraging';
+        this.moveToward(animal, animal.targetX, animal.targetY);
         return;
       }
+    }
+
+    const best = this.findBestPlantForHerbivore(animal);
+    if (best) {
+      animal.targetX = best.x;
+      animal.targetY = best.y;
+      animal.targetId = best.plant?.id ?? `cell_${best.x}_${best.y}`;
+
+      if (animal.x === best.x && animal.y === best.y) {
+        animal.state = 'eating';
+        if (best.plant) {
+          const gain = Math.min(best.plant.energy, 35);
+          best.plant.energy -= gain;
+          animal.health = Math.min(animal.maxHealth, animal.health + gain);
+          animal.stamina = Math.min(animal.maxStamina, animal.stamina + gain * 0.4);
+          const foodType = best.plant.type === 'fruitTree' ? '浆果' : '灌木';
+          this.pushBehavior(animal, `进食${foodType}`);
+          if (best.plant.energy <= 0) {
+            this.plants.delete(best.plant.id);
+          }
+          animal.targetX = null;
+          animal.targetY = null;
+          animal.targetId = null;
+        } else if (best.cell) {
+          const gain = Math.min(best.cell.amount, 25);
+          best.cell.amount -= gain;
+          animal.health = Math.min(animal.maxHealth, animal.health + gain * 0.6);
+          animal.stamina = Math.min(animal.maxStamina, animal.stamina + gain * 0.3);
+          const foodType = best.cell.type === 'berry' ? '浆果' : '青草';
+          this.pushBehavior(animal, `进食${foodType}`);
+          if (best.cell.amount <= 5) {
+            animal.targetX = null;
+            animal.targetY = null;
+            animal.targetId = null;
+          }
+        }
+      } else {
+        animal.state = 'foraging';
+        this.moveToward(animal, best.x, best.y);
+        const actionName = best.plant
+          ? best.plant.type === 'fruitTree'
+            ? '前往高能量浆果'
+            : '前往灌木'
+          : best.cell?.type === 'berry'
+            ? '前往浆果丛'
+            : '前往草地';
+        this.pushBehavior(animal, actionName);
+      }
+      return;
     }
 
     animal.state = 'idle';
