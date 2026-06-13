@@ -28,17 +28,6 @@ const CANVAS_H = 1080;
 const GRID_SIZE = 20;
 const FADE_MS = 400;
 
-const SIM_USERS = [
-  { id: 'user-A', name: '用户A', color: '#3b82f6' },
-  { id: 'user-B', name: '用户B', color: '#ef4444' },
-  { id: 'user-C', name: '用户C', color: '#22c55e' },
-  { id: 'user-D', name: '用户D', color: '#f59e0b' },
-];
-const SIM_COLORS = [
-  '#6366f1', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6',
-  '#f97316', '#06b6d4', '#eab308', '#10b981', '#84cc16',
-];
-
 export default function Whiteboard({ roomId }: WhiteboardProps) {
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -349,53 +338,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [handleUndo, handleRedo]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const user = SIM_USERS[Math.floor(Math.random() * SIM_USERS.length)];
-      const shapeType = Math.random() < 0.5 ? 'rectangle' : 'circle';
-      const w = 40 + Math.random() * 180;
-      const h = 40 + Math.random() * 140;
-      const elColor = SIM_COLORS[Math.floor(Math.random() * SIM_COLORS.length)];
-      const stroke = 2 + Math.floor(Math.random() * 4);
-      const x = 40 + Math.random() * (CANVAS_W - 200);
-      const y = 40 + Math.random() * (CANVAS_H - 200);
-
-      let newEl: RectangleElement | CircleElement;
-      if (shapeType === 'rectangle') {
-        newEl = {
-          id: uuidv4(),
-          type: 'rectangle',
-          color: elColor,
-          strokeWidth: stroke,
-          x,
-          y,
-          width: w,
-          height: h,
-          userId: user.id,
-          userColor: user.color,
-          createdAt: Date.now(),
-        };
-      } else {
-        newEl = {
-          id: uuidv4(),
-          type: 'circle',
-          color: elColor,
-          strokeWidth: stroke,
-          x: x + w / 2,
-          y: y + h / 2,
-          radiusX: w / 2,
-          radiusY: h / 2,
-          userId: user.id,
-          userColor: user.color,
-          createdAt: Date.now(),
-        };
-      }
-      setHistoryState((prev) => record(prev, [...prev.present, newEl]));
-      addRecent(newEl.id);
-    }, 2000);
-    return () => window.clearInterval(interval);
-  }, [addRecent]);
 
   const dragId = dragRef.current?.id ?? null;
 
