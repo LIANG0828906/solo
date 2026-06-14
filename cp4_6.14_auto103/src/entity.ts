@@ -237,6 +237,8 @@ export function moveMonsterAI(
 
   const dist = manhattan(monster.x, monster.y, player.x, player.y);
   const isAdjacent = dist === 1;
+  const CHASE_RANGE = 5;
+  const shouldChase = dist <= CHASE_RANGE && monster.hp > player.hp;
 
   const dirs = [
     { dx: 1, dy: 0 },
@@ -247,25 +249,32 @@ export function moveMonsterAI(
 
   let chosenDir: { dx: number; dy: number } | null = null;
 
-  if (isAdjacent && monster.hp > player.hp) {
+  if (isAdjacent) {
+    return;
+  }
+
+  if (shouldChase) {
     const best: { dx: number; dy: number }[] = [];
+    let bestDist = Infinity;
     for (const d of dirs) {
       const nx = monster.x + d.dx;
       const ny = monster.y + d.dy;
-      if (nx === player.x && ny === player.y) {
-        return;
-      }
       if (
         isWalkable(tiles, nx, ny) &&
-        !isPositionOccupied(nx, ny, monsters, monster.id)
+        !isPositionOccupied(nx, ny, monsters, monster.id) &&
+        !(nx === player.x && ny === player.y)
       ) {
         const nd = manhattan(nx, ny, player.x, player.y);
-        if (nd < dist) {
+        if (nd < bestDist) {
+          bestDist = nd;
+          best.length = 0;
+          best.push(d);
+        } else if (nd === bestDist) {
           best.push(d);
         }
       }
     }
-    if (best.length > 0) {
+    if (best.length > 0 && bestDist < dist) {
       chosenDir = best[Math.floor(Math.random() * best.length)];
     }
   }

@@ -163,45 +163,90 @@ export function generateDungeon(): DungeonMap {
   };
 }
 
+function carveCorridor(
+  tiles: TileType[][],
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): void {
+  const halfW = Math.floor(CORRIDOR_WIDTH / 2);
+
+  const startX = Math.min(x1, x2);
+  const endX = Math.max(x1, x2);
+  const yStart = y1 - halfW;
+  for (let x = startX; x <= endX; x++) {
+    for (let wy = 0; wy < CORRIDOR_WIDTH; wy++) {
+      const ty = yStart + wy;
+      if (ty >= 0 && ty < tiles.length && x >= 0 && x < tiles[0].length) {
+        tiles[ty][x] = TILE.CORRIDOR;
+      }
+    }
+  }
+
+  const startY = Math.min(y1, y2);
+  const endY = Math.max(y1, y2);
+  const xStart = x2 - halfW;
+  for (let y = startY; y <= endY; y++) {
+    for (let wx = 0; wx < CORRIDOR_WIDTH; wx++) {
+      const tx = xStart + wx;
+      if (y >= 0 && y < tiles.length && tx >= 0 && tx < tiles[0].length) {
+        tiles[y][tx] = TILE.CORRIDOR;
+      }
+    }
+  }
+}
+
 function connectRooms(tiles: TileType[][], r1: Room, r2: Room): void {
   const centerX1 = r1.x + Math.floor(r1.width / 2);
   const centerY1 = r1.y + Math.floor(r1.height / 2);
   const centerX2 = r2.x + Math.floor(r2.width / 2);
   const centerY2 = r2.y + Math.floor(r2.height / 2);
 
-  const halfW = Math.floor(CORRIDOR_WIDTH / 2);
+  carveCorridor(tiles, centerX1, centerY1, centerX2, centerY2);
+}
 
-  if (r1.gridX !== r2.gridX) {
-    const startX = Math.min(centerX1, centerX2);
-    const endX = Math.max(centerX1, centerX2);
-    const yStart = centerY1 - halfW;
-    for (let x = startX; x <= endX; x++) {
-      for (let wy = 0; wy < CORRIDOR_WIDTH; wy++) {
-        const ty = yStart + wy;
-        if (ty >= 0 && ty < tiles.length && x >= 0 && x < tiles[0].length) {
-          if (tiles[ty][x] === TILE.WALL) {
-            tiles[ty][x] = TILE.CORRIDOR;
-          }
-        }
+function validateConnectivity(tiles: TileType[][], rooms: Room[]): boolean {
+  if (rooms.length === 0) return false;
+
+  const start = getRoomCenter(rooms[0]);
+  const visited = new Set<string>();
+  const queue: { x: number; y: number }[] = [{ x: start.x, y: start.y }];
+  visited.add(`${start.x},${start.y}`);
+
+  const dirs = [
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: -1 },
+  ];
+
+  const reachableRooms = new Set<number>();
+  reachableRooms.add(0);
+
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    const roomAt = findRoomAt(rooms, cur.x, cur.y);
+    if (roomAt) {
+      const idx = rooms.indexOf(roomAt);
+      if (idx >= 0) reachableRooms.add(idx);
+    }
+
+    for (const d of dirs) {
+      const nx = cur.x + d.dx;
+      const ny = cur.y + d.dy;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      if (ny < 0 || ny >= tiles.length || nx < 0 || nx >= tiles[0].length) continue;
+      const t = tiles[ny][nx];
+      if (t === TILE.FLOOR || t === TILE.CORRIDOR) {
+        visited.add(key);
+        queue.push({ x: nx, y: ny });
       }
     }
   }
 
-  if (r1.gridY !== r2.gridY) {
-    const startY = Math.min(centerY1, centerY2);
-    const endY = Math.max(centerY1, centerY2);
-    const xStart = centerX2 - halfW;
-    for (let y = startY; y <= endY; y++) {
-      for (let wx = 0; wx < CORRIDOR_WIDTH; wx++) {
-        const tx = xStart + wx;
-        if (y >= 0 && y < tiles.length && tx >= 0 && tx < tiles[0].length) {
-          if (tiles[y][tx] === TILE.WALL) {
-            tiles[y][tx] = TILE.CORRIDOR;
-          }
-        }
-      }
-    }
-  }
+  return reachableRooms.size === rooms.length;
 }
 
 export function getRoomCenter(room: Room): { x: number; y: number } {
