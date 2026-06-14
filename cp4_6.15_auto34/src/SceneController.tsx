@@ -5,7 +5,7 @@ import {
   getBackgroundGradient,
   lerpHSL,
   hslToString,
-  type ParticleParams,
+  type ParticleConfig,
 } from './WeatherEngine';
 import {
   createClickEffect,
@@ -15,6 +15,8 @@ import {
   createLightningState,
   updateLightning,
   EFFECT_CLASSES,
+  getScreenShakeConfig,
+  getLightningFlashConfig,
   type LightningState,
 } from './EffectsLibrary';
 
@@ -91,7 +93,10 @@ const SceneController: React.FC<SceneControllerProps> = ({
   });
 
   const [lightningActive, setLightningActive] = useState(false);
-  const [shakeKey, setShakeKey] = useState(0);
+  const [shakeKey, setShakeKey] = useState('');
+  const screenShakeCfg = getScreenShakeConfig();
+  const lightningCfg = getLightningFlashConfig();
+  const fpsDebugRef = useRef<{ lastLog: number; currentFps: number }>({ lastLog: 0, currentFps: 60 });
 
   const createNoiseBuffer = useCallback((ctx: AudioContext, duration = 2): AudioBuffer => {
     const bufferSize = ctx.sampleRate * duration;
@@ -343,7 +348,7 @@ const SceneController: React.FC<SceneControllerProps> = ({
     };
   }, [weather, playSunnyAudio, playRainyAudio, playSnowyAudio, stopAllAudio]);
 
-  const initParticles = useCallback((params: ParticleParams, width: number, height: number) => {
+  const initParticles = useCallback((params: ParticleConfig, width: number, height: number) => {
     const count = Math.floor(params.density * densityScaleRef.current);
     const particles: Particle[] = [];
     for (let i = 0; i < count; i++) {
@@ -482,10 +487,21 @@ const SceneController: React.FC<SceneControllerProps> = ({
         if (fpsFramesRef.current.length >= FPS_WINDOW) {
           const avgDelta = fpsFramesRef.current.reduce((a, b) => a + b, 0) / fpsFramesRef.current.length;
           const fps = 1000 / avgDelta;
+          fpsDebugRef.current.currentFps = fps;
           if (fps < LOW_FPS_THRESHOLD) {
-            densityScaleRef.current = DENSITY_SCALE_ON_LOW_FPS;
+            if (densityScaleRef.current !== DENSITY_SCALE_ON_LOW_FPS) {
+              densityScaleRef.current = DENSITY_SCALE_ON_LOW_FPS;
+              const targetParams = getParticleParams(weather);
+              const reducedCount = Math.floor(targetParams.density * DENSITY_SCALE_ON_LOW_FPS);
+              if (particlesRef.current.length > reducedCount) {
+                particlesRef.current.length = reducedCount;
+              }
+            }
           } else if (fps >= 55) {
             densityScaleRef.current = 1;
+          }
+          if (now - fpsDebugRef.current.lastLog > 5000) {
+            fpsDebugRef.current.lastLog = now;
           }
         }
       }
@@ -493,6 +509,9 @@ const SceneController: React.FC<SceneControllerProps> = ({
 
       const params = getParticleParams(weather);
       const particleOpacity = visibility / 100;
+
+      const cullingThreshold = Math.min(params.maxCount * 0.8, 200);
+      const shouldCullInvisible = params.density * densityScaleRef.current > cullingThreshold;
 
       if (bgTransitionRef.current) {
         const t = Math.min(1, (now - bgTransitionRef.current.start) / bgTransitionRef.current.duration);
@@ -512,7 +531,11 @@ const SceneController: React.FC<SceneControllerProps> = ({
       const adjustedTop: HSLColor = { ...topColor, l: Math.min(topColor.l * brightnessMod, 95) };
       const adjustedBottom: HSLColor = { ...bottomColor, l: Math.min(bottomColor.l * brightnessMod, 90) };
 
-      const renderCtx = offCtx || ctx;
+      const useOffscreen = !!offCtx && !!offscreen && offscreen.width > 0 && offscreen.height > 0;
+      const renderCtx = useOffscreen ? offCtx! : ctx;
+      if (useOffscreen) {
+        offCtx!.clearRect(0, 0, width, height);
+      }
       const gradient = renderCtx.createLinearGradient(0, 0, 0, height);
       gradient.addColorStop(0, hslToString(adjustedTop));
       gradient.addColorStop(1, hslToString(adjustedBottom));
@@ -557,8 +580,10 @@ const SceneController: React.FC<SceneControllerProps> = ({
         if (p.x < -10) p.x = width + 10;
         if (p.x > width + 10) p.x = -10;
 
-        const isVisible = p.x >= -20 && p.x <= width + 20 && p.y >= -20 && p.y <= height + 20;
-        if (!isVisible && effectiveCount > Math.min(params.maxCount * 0.8, 200)) {
+        const inBoundsX = p.x >= -20 && p.x <= width + 20;
+        const inBoundsY = p.y >= -20 && p.y <= height + 20;
+        const isVisible = inBoundsX && inBoundsY;
+        if (!isVisible && shouldCullInvisible) {
           continue;
         }
 
@@ -602,13 +627,14 @@ const SceneController: React.FC<SceneControllerProps> = ({
       if (weather === 'stormy') {
         lightningRef.current = updateLightning(lightningRef.current, now, () => {
           setLightningActive(true);
-          setShakeKey((k) => k + 1);
+          setShakeKey(screenShakeCfg.triggerKey());
           playThunderClap();
-          window.setTimeout(() => setLightningActive(false), 100);
+          window.setTimeout(() => setLightningActive(false), lightningCfg.durationMs);
+          window.setTimeout(() => setShakeKey(''), screenShakeCfg.durationMs);
         });
       }
 
-      if (offCtx && offscreen) {
+      if (useOffscreen && offscreen) {
         ctx.drawImage(offscreen, 0, 0, width, height);
       }
 
@@ -622,14 +648,20 @@ const SceneController: React.FC<SceneControllerProps> = ({
     };
   }, [weather, visibility, playThunderClap]);
 
+  const containerClass = shakeKey
+    ? `scene-canvas-container ${screenShakeCfg.className}`
+    : 'scene-canvas-container';
+
   return (
     <div
       ref={containerRef}
-      className="scene-canvas-container"
-      key={shakeKey ? `shake-${shakeKey}` : undefined}
+      className={containerClass}
+      key={shakeKey || undefined}
     >
       <canvas ref={canvasRef} className="scene-canvas" />
-      <div className={`lightning-flash ${lightningActive ? EFFECT_CLASSES.lightningActive : ''}`} />
+      <div
+        className={`${lightningCfg.containerClassName} ${lightningActive ? lightningCfg.activeClassName : ''}`}
+      />
     </div>
   );
 };

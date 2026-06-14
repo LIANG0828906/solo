@@ -12,6 +12,54 @@ export const EFFECT_CLASSES: EffectCSSClasses = {
   lightningActive: 'active',
 };
 
+export interface ScreenShakeResult {
+  className: string;
+  durationMs: number;
+  triggerKey: () => string;
+}
+
+export function getScreenShakeConfig(): ScreenShakeResult {
+  return {
+    className: EFFECT_CLASSES.screenShake,
+    durationMs: 300,
+    triggerKey: () => `shake-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  };
+}
+
+export interface LightningFlashResult {
+  containerClassName: string;
+  activeClassName: string;
+  durationMs: number;
+  buildFlashState: () => { triggerCount: number; isActive: boolean };
+}
+
+export function getLightningFlashConfig(): LightningFlashResult {
+  return {
+    containerClassName: EFFECT_CLASSES.lightningFlash,
+    activeClassName: EFFECT_CLASSES.lightningActive,
+    durationMs: 100,
+    buildFlashState: () => ({ triggerCount: 0, isActive: false }),
+  };
+}
+
+export type DrawEffectFn = (ctx: CanvasRenderingContext2D, now: number) => boolean;
+
+export interface RippleFactory {
+  create: (x: number, y: number) => RippleEffect;
+  draw: DrawEffectFn;
+  getDuration: () => number;
+  getMaxRadius: () => number;
+}
+
+export const rippleEffect: RippleFactory = {
+  create: (x, y) => createRipple(x, y),
+  draw: (_ctx, _now) => {
+    throw new Error('需要绑定具体 effect 数据');
+  },
+  getDuration: () => 1500,
+  getMaxRadius: () => 60,
+};
+
 export function createRipple(x: number, y: number): RippleEffect {
   return {
     x,

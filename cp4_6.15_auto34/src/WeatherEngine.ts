@@ -1,6 +1,6 @@
 import type { WeatherType, WeatherStatus, HSLColor } from './types';
 
-export interface ParticleParams {
+export interface ParticleConfig {
   density: number;
   speedRange: [number, number];
   color: string;
@@ -9,6 +9,8 @@ export interface ParticleParams {
   swayAmount: number;
   maxCount: number;
 }
+
+export type ParticleParams = ParticleConfig;
 
 export const WEATHER_STATUS_MAP: Record<WeatherType, Omit<WeatherStatus, 'type'>> = {
   sunny: { temperature: 30, visibility: 95 },
@@ -24,7 +26,7 @@ export const WEATHER_BACKGROUND_COLORS: Record<WeatherType, HSLColor> = {
   stormy: { h: 230, s: 30, l: 18 },
 };
 
-export function getParticleParams(weather: WeatherType): ParticleParams {
+export function getParticleParams(weather: WeatherType): ParticleConfig {
   switch (weather) {
     case 'sunny':
       return {
