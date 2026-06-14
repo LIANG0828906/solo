@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDocStore } from '@/store/docStore';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -7,8 +7,10 @@ import { useDebounce } from '@/hooks/useDebounce';
  * 文档渲染模块
  * 数据流向：
  *   从 store 读取 currentDoc、pageState、paragraphsPerPage
- *   渲染后触发 scroll 事件 -> 调用 store.updatePosition()
- *   翻页时调用 store.setCurrentPage()，带 slide-left/slide-right 动画
+ *   通过 useMemo 监听段落变化自动重算总页数
+ *   翻页时使用 isAnimating 锁防止快速点击冲突
+ *   翻页方向决定 slide-left / slide-right 动画（250ms ease-in-out）
+ *   滚动事件 -> store.updatePosition() -> 同步模块广播
  */
 const DocumentRenderer: React.FC = () => {
   const {
@@ -22,21 +24,27 @@ const DocumentRenderer: React.FC = () => {
   } = useDocStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const pageContainerRef = useRef<HTMLDivElement>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationTimerRef = useRef<number | null>(null);
 
-  const totalPages = useMemo(
-    () => Math.ceil(currentDoc.paragraphs.length / paragraphsPerPage),
-    [currentDoc.paragraphs.length, paragraphsPerPage]
-  );
+  /**
+   * 总页数计算：基于段落总数 / 每页段落数向上取整
+   * 使用 useMemo 依赖 currentDoc.paragraphs.length 和 paragraphsPerPage，
+   * 两者任一变化都会自动重新计算总页数。
+   */
+  const totalPages = useMemo(() => {
+    if (!currentDoc.paragraphs || currentDoc.paragraphs.length === 0) return 1;
+    return Math.ceil(currentDoc.paragraphs.length / paragraphsPerPage);
+  }, [currentDoc.paragraphs.length, paragraphsPerPage]);
 
   const currentParagraphs = useMemo(() => {
     const start = (pageState.page - 1) * paragraphsPerPage;
-    const end = start + paragraphsPerPage;
+    const end = Math.min(start + paragraphsPerPage, currentDoc.paragraphs.length);
     return currentDoc.paragraphs.slice(start, end).map((text, idx) => ({
       index: start + idx,
       text,
     }));
-  }, [currentDoc.paragraphs, pageState.page, paragraphsPerPage]);
+  }, [currentDoc.paragraphs, pageState.page, paragraphsPerPage, totalPages]);
 
   const debouncedBroadcast = useDebounce(
     (percent: number, paragraphIndex: number) => {
@@ -45,22 +53,35 @@ const DocumentRenderer: React.FC = () => {
     50
   );
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const percent = scrollHeight - clientHeight > 0
-      ? scrollTop / (scrollHeight - clientHeight)
-      : 0;
-    const absoluteIndex = (pageState.page - 1) * paragraphsPerPage +
-      Math.floor((percent * (paragraphsPerPage - 1)));
-    const finalIndex = Math.min(
-      absoluteIndex,
+    const scrollMax = scrollHeight - clientHeight;
+    const percent = scrollMax > 0 ? scrollTop / scrollMax : 0;
+
+    const pageStartIdx = (pageState.page - 1) * paragraphsPerPage;
+    const pageEndIdx = Math.min(
+      pageStartIdx + paragraphsPerPage - 1,
       currentDoc.paragraphs.length - 1
     );
+    const paragraphIndex = Math.round(
+      pageStartIdx + percent * (pageEndIdx - pageStartIdx)
+    );
+    const finalIndex = Math.max(
+      0,
+      Math.min(paragraphIndex, currentDoc.paragraphs.length - 1)
+    );
+
     updatePosition(percent, finalIndex);
     debouncedBroadcast(percent, finalIndex);
-  };
+  }, [
+    currentDoc.paragraphs.length,
+    debouncedBroadcast,
+    pageState.page,
+    paragraphsPerPage,
+    updatePosition,
+  ]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -69,11 +90,42 @@ const DocumentRenderer: React.FC = () => {
     }
   }, [pageState.page]);
 
-  const handlePageChange = (targetPage: number) => {
-    if (targetPage < 1 || targetPage > totalPages || targetPage === pageState.page) return;
-    const direction = targetPage > pageState.page ? 'left' : 'right';
-    setCurrentPage(targetPage, direction);
-  };
+  /**
+   * 翻页处理：
+   * - 动画期间设置 isAnimating 锁，防止快速点击导致动画冲突
+   * - 翻页方向：新页 > 当前页 slide-left（内容从右滑入）
+   *            新页 < 当前页 slide-right（内容从左滑入）
+   * - 250ms 动画结束后解锁
+   */
+  const handlePageChange = useCallback(
+    (targetPage: number) => {
+      if (isAnimating) return;
+      if (targetPage < 1 || targetPage > totalPages) return;
+      if (targetPage === pageState.page) return;
+
+      const direction = targetPage > pageState.page ? 'left' : 'right';
+      setIsAnimating(true);
+
+      if (animationTimerRef.current !== null) {
+        window.clearTimeout(animationTimerRef.current);
+      }
+      animationTimerRef.current = window.setTimeout(() => {
+        setIsAnimating(false);
+        animationTimerRef.current = null;
+      }, 260);
+
+      setCurrentPage(targetPage, direction);
+    },
+    [isAnimating, pageState.page, setCurrentPage, totalPages]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (animationTimerRef.current !== null) {
+        window.clearTimeout(animationTimerRef.current);
+      }
+    };
+  }, []);
 
   const animationClass =
     pageState.direction === 'left'
@@ -82,7 +134,7 @@ const DocumentRenderer: React.FC = () => {
       ? 'anim-slide-right'
       : '';
 
-  const renderPageNumbers = () => {
+  const renderPageNumbers = useCallback(() => {
     const pages: (number | string)[] = [];
     const current = pageState.page;
     const delta = 2;
@@ -105,6 +157,7 @@ const DocumentRenderer: React.FC = () => {
           key={p}
           className={`page-number-btn ${p === current ? 'active' : ''}`}
           onClick={() => handlePageChange(p)}
+          disabled={isAnimating}
         >
           {p}
         </button>
@@ -117,7 +170,7 @@ const DocumentRenderer: React.FC = () => {
         </span>
       )
     );
-  };
+  }, [handlePageChange, isAnimating, pageState.page, totalPages]);
 
   return (
     <div
@@ -128,6 +181,7 @@ const DocumentRenderer: React.FC = () => {
         padding: '24px',
         overflow: 'hidden',
         minWidth: 0,
+        position: 'relative',
       }}
     >
       <div
@@ -141,9 +195,9 @@ const DocumentRenderer: React.FC = () => {
         }}
       >
         <div
-          ref={pageContainerRef}
           key={pageState.page}
           className={`document-card ${animationClass}`}
+          style={{ animationDuration: '250ms', animationTimingFunction: 'ease-in-out' }}
         >
           <div
             style={{
@@ -163,7 +217,7 @@ const DocumentRenderer: React.FC = () => {
             </span>
           </div>
 
-          <div>
+          <div id="document-content">
             {currentParagraphs.map((p) => (
               <p
                 key={p.index}
@@ -208,7 +262,7 @@ const DocumentRenderer: React.FC = () => {
         <button
           className="page-number-btn"
           onClick={() => handlePageChange(pageState.page - 1)}
-          disabled={pageState.page <= 1}
+          disabled={pageState.page <= 1 || isAnimating}
           aria-label="上一页"
         >
           <ChevronLeft size={18} />
@@ -219,7 +273,7 @@ const DocumentRenderer: React.FC = () => {
         <button
           className="page-number-btn"
           onClick={() => handlePageChange(pageState.page + 1)}
-          disabled={pageState.page >= totalPages}
+          disabled={pageState.page >= totalPages || isAnimating}
           aria-label="下一页"
         >
           <ChevronRight size={18} />

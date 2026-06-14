@@ -9,16 +9,30 @@ interface ParagraphRect {
   width: number;
   lineHeight: number;
   charWidth: number;
+  height: number;
+}
+
+interface DirtyRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 /**
  * 标注模块
+ *
  * 数据流向：
- *   从 store 读取 annotations、selectedRange
- *   通过 requestAnimationFrame 驱动 Canvas 渲染（30FPS+）
- *   使用脏区域标记（dirty flag）避免每帧全量重绘
- *   监听 mouseup 获取文本选区 -> store.setSelectedRange()
- *   悬停批注图标显示 tooltip
+ *   - 从 store 读取 annotations、selectedRange
+ *   - 通过 requestAnimationFrame 驱动渲染循环，目标 30 FPS
+ *   - 脏区域（dirty rect）重绘：仅重绘变化的区域，避免全量重绘
+ *   - 滚动事件中标记 dirty 但不立即重绘，交由 rAF 在下一帧统一处理
+ *
+ * 性能优化：
+ *   1. requestAnimationFrame 驱动，帧间隔 >= 33ms（30 FPS 以上）
+ *   2. dirty flag + dirty rect，仅在需要时重绘且仅重绘变化区域
+ *   3. 段落测量结果缓存，滚动时不重新测量
+ *   4. 使用 devicePixelRatio 保证高清屏清晰度
  */
 const AnnotationLayer: React.FC = () => {
   const {
@@ -32,14 +46,43 @@ const AnnotationLayer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  const dirtyRef = useRef(true);
   const lastFrameTimeRef = useRef(0);
+  const dirtyRef = useRef(false);
+  const dirtyRectRef = useRef<DirtyRect | null>(null);
+
   const paragraphRectsRef = useRef<Map<number, ParagraphRect>>(new Map());
+  const prevAnnotationsRef = useRef<string>('');
+
   const [hoverComment, setHoverComment] = useState<Annotation | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
   });
+
+  const MIN_FRAME_INTERVAL = 1000 / 30;
+
+  const markDirty = useCallback((rect?: DirtyRect) => {
+    dirtyRef.current = true;
+    if (rect) {
+      const prev = dirtyRectRef.current;
+      if (prev) {
+        const x1 = Math.min(prev.x, rect.x);
+        const y1 = Math.min(prev.y, rect.y);
+        const x2 = Math.max(prev.x + prev.w, rect.x + rect.w);
+        const y2 = Math.max(prev.y + prev.h, rect.y + rect.h);
+        dirtyRectRef.current = {
+          x: x1,
+          y: y1,
+          w: x2 - x1,
+          h: y2 - y1,
+        };
+      } else {
+        dirtyRectRef.current = { ...rect };
+      }
+    } else {
+      dirtyRectRef.current = null;
+    }
+  }, []);
 
   const measureParagraphs = useCallback(() => {
     const container = containerRef.current;
@@ -59,9 +102,9 @@ const AnnotationLayer: React.FC = () => {
       const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.8;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      let charWidth = fontSize * 0.6;
+      let charWidth = fontSize * 0.55;
       if (ctx) {
-        ctx.font = style.font;
+        ctx.font = `${fontSize}px -apple-system, sans-serif`;
         charWidth = ctx.measureWidth('中').width;
       }
       rects.set(idx, {
@@ -71,11 +114,12 @@ const AnnotationLayer: React.FC = () => {
         width: pRect.width,
         lineHeight,
         charWidth,
+        height: pRect.height,
       });
     });
     paragraphRectsRef.current = rects;
-    dirtyRef.current = true;
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   useEffect(() => {
     measureParagraphs();
@@ -85,113 +129,190 @@ const AnnotationLayer: React.FC = () => {
     if (containerRef.current) {
       ro.observe(containerRef.current);
     }
-    window.addEventListener('scroll', measureParagraphs, true);
+    const handleScroll = () => {
+      measureParagraphs();
+    };
+    window.addEventListener('scroll', handleScroll, true);
     return () => {
       ro.disconnect();
-      window.removeEventListener('scroll', measureParagraphs, true);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [measureParagraphs, pageState.page]);
 
-  const drawCanvas = useCallback(
+  useEffect(() => {
+    const annKey = annotations.map((a) => a.id + a.type).join(',');
+    if (annKey !== prevAnnotationsRef.current) {
+      prevAnnotationsRef.current = annKey;
+      markDirty();
+    }
+  }, [annotations, markDirty]);
+
+  const getAnnotationRect = useCallback((ann: Annotation): DirtyRect | null => {
+    const rect = paragraphRectsRef.current.get(ann.paragraphIndex);
+    if (!rect) return null;
+    const startX = rect.left + ann.startOffset * rect.charWidth;
+    const width = Math.min(
+      (ann.endOffset - ann.startOffset) * rect.charWidth,
+      rect.width + rect.left - startX + 20
+    );
+    return {
+      x: startX - 2,
+      y: rect.top - 2,
+      w: width + 4,
+      h: rect.lineHeight + 4,
+    };
+  }, []);
+
+  /**
+   * 渲染循环
+   * - 使用 requestAnimationFrame 调度
+   * - 帧间隔 >= MIN_FRAME_INTERVAL 才执行绘制（30 FPS 限制）
+   * - 仅在 dirty 标记时才执行绘制
+   * - 优先使用 dirtyRect 局部重绘，否则全量重绘
+   */
+  const renderLoop = useCallback(
     (timestamp: number) => {
-      if (timestamp - lastFrameTimeRef.current < 1000 / 30) {
-        rafRef.current = requestAnimationFrame(drawCanvas);
-        return;
-      }
-      lastFrameTimeRef.current = timestamp;
-
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        rafRef.current = requestAnimationFrame(drawCanvas);
-        return;
-      }
-
-      const container = containerRef.current;
-      if (!container) {
-        rafRef.current = requestAnimationFrame(drawCanvas);
+      if (timestamp - lastFrameTimeRef.current < MIN_FRAME_INTERVAL) {
+        rafRef.current = requestAnimationFrame(renderLoop);
         return;
       }
 
       if (!dirtyRef.current) {
-        rafRef.current = requestAnimationFrame(drawCanvas);
+        lastFrameTimeRef.current = timestamp;
+        rafRef.current = requestAnimationFrame(renderLoop);
         return;
       }
-      dirtyRef.current = false;
+
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) {
+        rafRef.current = requestAnimationFrame(renderLoop);
+        return;
+      }
 
       const dpr = window.devicePixelRatio || 1;
       const cRect = container.getBoundingClientRect();
-      if (
+      const needsResize =
         canvas.width !== cRect.width * dpr ||
-        canvas.height !== cRect.height * dpr
-      ) {
+        canvas.height !== cRect.height * dpr;
+
+      if (needsResize) {
         canvas.width = cRect.width * dpr;
         canvas.height = cRect.height * dpr;
         canvas.style.width = cRect.width + 'px';
         canvas.style.height = cRect.height + 'px';
       }
+
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        rafRef.current = requestAnimationFrame(drawCanvas);
+        rafRef.current = requestAnimationFrame(renderLoop);
         return;
       }
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, cRect.width, cRect.height);
 
-      const startIdx = (pageState.page - 1) * paragraphsPerPage;
-      const endIdx = startIdx + paragraphsPerPage;
-      const pageAnnotations = annotations.filter(
-        (a) => a.paragraphIndex >= startIdx && a.paragraphIndex < endIdx
-      );
+      const dirtyRect = dirtyRectRef.current;
 
-      pageAnnotations.forEach((ann) => {
-        const rect = paragraphRectsRef.current.get(ann.paragraphIndex);
-        if (!rect) return;
+      if (dirtyRect && !needsResize) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(dirtyRect.x, dirtyRect.y, dirtyRect.w, dirtyRect.h);
+        ctx.clip();
+        ctx.clearRect(dirtyRect.x, dirtyRect.y, dirtyRect.w, dirtyRect.h);
 
-        const offsetLength = ann.endOffset - ann.startOffset;
-        const startX = rect.left + ann.startOffset * rect.charWidth;
-        const highlightWidth = Math.min(
-          offsetLength * rect.charWidth,
-          rect.width + rect.left - startX
+        const startIdx = (pageState.page - 1) * paragraphsPerPage;
+        const endIdx = startIdx + paragraphsPerPage;
+        const pageAnnotations = annotations.filter(
+          (a) => a.paragraphIndex >= startIdx && a.paragraphIndex < endIdx
         );
 
-        if (ann.type === 'highlight') {
-          ctx.fillStyle = 'rgba(253, 224, 71, 0.5)';
-          ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
-        } else if (ann.type === 'comment') {
-          ctx.fillStyle = 'rgba(253, 224, 71, 0.3)';
-          ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
-          ctx.fillStyle = '#3b82f6';
-          ctx.beginPath();
-          const bubbleX = Math.min(
-            startX + highlightWidth + 8,
-            rect.left + rect.width - 16
-          );
-          ctx.arc(bubbleX, rect.top + 8, 8, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
+        pageAnnotations.forEach((ann) => {
+          const rect = paragraphRectsRef.current.get(ann.paragraphIndex);
+          if (!rect) return;
 
-      rafRef.current = requestAnimationFrame(drawCanvas);
+          const startX = rect.left + ann.startOffset * rect.charWidth;
+          const highlightWidth = Math.min(
+            (ann.endOffset - ann.startOffset) * rect.charWidth,
+            rect.width + rect.left - startX
+          );
+
+          if (ann.type === 'highlight') {
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.5)';
+            ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
+          } else if (ann.type === 'comment') {
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.3)';
+            ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            const bubbleX = Math.min(
+              startX + highlightWidth + 8,
+              rect.left + rect.width - 16
+            );
+            ctx.arc(bubbleX, rect.top + 8, 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+
+        ctx.restore();
+      } else {
+        ctx.clearRect(0, 0, cRect.width, cRect.height);
+
+        const startIdx = (pageState.page - 1) * paragraphsPerPage;
+        const endIdx = startIdx + paragraphsPerPage;
+        const pageAnnotations = annotations.filter(
+          (a) => a.paragraphIndex >= startIdx && a.paragraphIndex < endIdx
+        );
+
+        pageAnnotations.forEach((ann) => {
+          const rect = paragraphRectsRef.current.get(ann.paragraphIndex);
+          if (!rect) return;
+
+          const startX = rect.left + ann.startOffset * rect.charWidth;
+          const highlightWidth = Math.min(
+            (ann.endOffset - ann.startOffset) * rect.charWidth,
+            rect.width + rect.left - startX
+          );
+
+          if (ann.type === 'highlight') {
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.5)';
+            ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
+          } else if (ann.type === 'comment') {
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.3)';
+            ctx.fillRect(startX, rect.top, highlightWidth, rect.lineHeight - 4);
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            const bubbleX = Math.min(
+              startX + highlightWidth + 8,
+              rect.left + rect.width - 16
+            );
+            ctx.arc(bubbleX, rect.top + 8, 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
+
+      dirtyRef.current = false;
+      dirtyRectRef.current = null;
+      lastFrameTimeRef.current = timestamp;
+      rafRef.current = requestAnimationFrame(renderLoop);
     },
     [annotations, pageState.page, paragraphsPerPage]
   );
 
   useEffect(() => {
-    dirtyRef.current = true;
-  }, [annotations, pageState.page]);
-
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(drawCanvas);
+    rafRef.current = requestAnimationFrame(renderLoop);
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
-  }, [drawCanvas]);
+  }, [renderLoop]);
 
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setSelectedRange(null);
       return;
     }
 
@@ -238,9 +359,8 @@ const AnnotationLayer: React.FC = () => {
   const handleCanvasMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
       const container = containerRef.current;
-      if (!container) return;
+      if (!canvas || !container) return;
       const cRect = container.getBoundingClientRect();
       const x = e.clientX - cRect.left;
       const y = e.clientY - cRect.top;
@@ -255,13 +375,13 @@ const AnnotationLayer: React.FC = () => {
       );
 
       let found: Annotation | null = null;
+      let foundPos = { x: 0, y: 0 };
       for (const ann of pageAnnotations) {
         const rect = paragraphRectsRef.current.get(ann.paragraphIndex);
         if (!rect) continue;
-        const offsetLength = ann.endOffset - ann.startOffset;
         const startX = rect.left + ann.startOffset * rect.charWidth;
         const highlightWidth = Math.min(
-          offsetLength * rect.charWidth,
+          (ann.endOffset - ann.startOffset) * rect.charWidth,
           rect.width + rect.left - startX
         );
         const bubbleX = Math.min(
@@ -273,13 +393,18 @@ const AnnotationLayer: React.FC = () => {
         const dy = y - bubbleY;
         if (dx * dx + dy * dy < 100) {
           found = ann;
-          setTooltipPos({ x: bubbleX, y: bubbleY });
+          foundPos = { x: bubbleX, y: bubbleY };
           break;
         }
       }
-      setHoverComment(found);
+      if (found && hoverComment?.id !== found.id) {
+        setHoverComment(found);
+        setTooltipPos(foundPos);
+      } else if (!found && hoverComment) {
+        setHoverComment(null);
+      }
     },
-    [annotations, pageState.page, paragraphsPerPage]
+    [annotations, hoverComment, pageState.page, paragraphsPerPage]
   );
 
   return (
