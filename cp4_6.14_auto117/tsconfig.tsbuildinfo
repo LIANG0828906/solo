@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/canvasarea.tsx","./src/components/fragmentpanel.tsx","./src/components/previewpanel.tsx","./src/modules/dragmodule.tsx","./src/modules/puzzlemanager.ts","./src/store/gamestore.ts"],"version":"5.8.3"}
