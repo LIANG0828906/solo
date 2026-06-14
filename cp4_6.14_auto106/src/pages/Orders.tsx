@@ -29,6 +29,7 @@ export const Orders: React.FC = () => {
   const [customerName, setCustomerName] = useState('');
   const [dragOverStatus, setDragOverStatus] = useState<OrderStatus | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [justDroppedId, setJustDroppedId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetchAll();
@@ -49,7 +50,13 @@ export const Orders: React.FC = () => {
     setDragOverStatus(null);
     const orderId = e.dataTransfer.getData('text/plain');
     if (orderId) {
+      const currentOrder = orders.find((o) => o.id === orderId);
+      if (currentOrder && currentOrder.status === status) return;
       await updateOrderStatus(orderId, status);
+      setJustDroppedId(orderId);
+      window.setTimeout(() => {
+        setJustDroppedId((cur) => (cur === orderId ? undefined : cur));
+      }, 350);
     }
   };
 
@@ -128,6 +135,7 @@ export const Orders: React.FC = () => {
                   key={order.id}
                   order={order}
                   status={status}
+                  justDroppedKey={justDroppedId}
                 />
               ))}
           </div>

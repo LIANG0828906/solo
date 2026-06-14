@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Order, OrderStatus } from '../api';
 
 interface OrderCardProps {
   order: Order;
   status: OrderStatus;
+  justDroppedKey?: string;
 }
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -21,33 +22,54 @@ const formatTime = (iso: string) => {
   return `${month}/${day} ${hour}:${minute}`;
 };
 
-export const OrderCard: React.FC<OrderCardProps> = ({ order, status }) => {
+export const OrderCard: React.FC<OrderCardProps> = ({ order, status, justDroppedKey }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [justDropped, setJustDropped] = useState(false);
+  const [playDropAnim, setPlayDropAnim] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (justDroppedKey && justDroppedKey === order.id) {
+      setPlayDropAnim(true);
+      const t = window.setTimeout(() => setPlayDropAnim(false), 320);
+      return () => window.clearTimeout(t);
+    }
+  }, [justDroppedKey, order.id]);
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
     setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', order.id);
-    const el = e.currentTarget as HTMLElement;
-    requestAnimationFrame(() => {
+    const el = cardRef.current;
+    if (el) {
       el.style.opacity = '0.7';
       el.style.transform = 'scale(0.95)';
-    });
+      el.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.16)';
+    }
   }, [order.id]);
 
   const handleDragEnd = useCallback((e: React.DragEvent) => {
     setIsDragging(false);
-    const el = e.currentTarget as HTMLElement;
-    el.style.opacity = '';
-    el.style.transform = '';
-    setJustDropped(true);
-    setTimeout(() => setJustDropped(false), 300);
+    const el = cardRef.current;
+    if (el) {
+      el.style.opacity = '';
+      el.style.transform = '';
+      el.style.boxShadow = '';
+    }
+    e.preventDefault();
   }, []);
+
+  const draggableClass = [
+    'order-card',
+    isDragging ? 'dragging' : '',
+    playDropAnim ? 'dropped' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
-      className={`order-card ${isDragging ? 'dragging' : ''} ${justDropped ? 'dropped' : ''}`}
+      ref={cardRef}
+      className={draggableClass}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

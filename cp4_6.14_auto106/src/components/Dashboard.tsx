@@ -15,9 +15,13 @@ export const Dashboard: React.FC = () => {
 
     const container = chartRef.current.parentElement as HTMLElement;
     const isMobile = window.innerWidth < 768;
-    const width = isMobile ? 240 : Math.min(container.clientWidth - 48, 750);
-    const height = isMobile ? 180 : 280;
-    const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+    const width = isMobile
+      ? Math.min(Math.max(container.clientWidth - 16, 260), 360)
+      : Math.min(container.clientWidth - 48, 750);
+    const height = isMobile ? 200 : 280;
+    const margin = isMobile
+      ? { top: 16, right: 12, bottom: 36, left: 44 }
+      : { top: 20, right: 20, bottom: 40, left: 50 };
 
     const svg = d3.select(chartRef.current);
     svg.selectAll('*').remove();
@@ -31,10 +35,15 @@ export const Dashboard: React.FC = () => {
     const data = dashboard.salesTrend;
 
     const xScale = d3
-      .scalePoint()
+      .scaleBand()
       .domain(data.map((d) => d.date))
       .range([0, innerWidth])
-      .padding(0.5);
+      .padding(0.4);
+
+    const xCenter = (d: { date: string }) => {
+      const v = xScale(d.date);
+      return v === undefined ? 0 : v + (xScale.bandwidth() || 0) / 2;
+    };
 
     const yMax = Math.max(d3.max(data, (d) => d.amount) || 0, 100);
     const yScale = d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]);
@@ -54,8 +63,14 @@ export const Dashboard: React.FC = () => {
     const xAxis = g
       .append('g')
       .attr('transform', `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(xScale));
-    xAxis.selectAll('text').style('font-size', '12px').attr('fill', '#64748b');
+      .call(d3.axisBottom(xScale).tickSizeOuter(0));
+    xAxis
+      .selectAll('text')
+      .style('font-size', isMobile ? '10px' : '12px')
+      .attr('fill', '#64748b')
+      .attr('text-anchor', 'middle')
+      .attr('dx', '0')
+      .attr('dy', isMobile ? '10px' : '12px');
     xAxis.selectAll('line').attr('stroke', '#e2e8f0');
     xAxis.select('.domain').attr('stroke', '#e2e8f0');
 
@@ -66,7 +81,7 @@ export const Dashboard: React.FC = () => {
 
     const area = d3
       .area<{ date: string; amount: number }>()
-      .x((d) => xScale(d.date) || 0)
+      .x((d) => xCenter(d))
       .y0(innerHeight)
       .y1((d) => yScale(d.amount))
       .curve(d3.curveMonotoneX);
@@ -78,7 +93,7 @@ export const Dashboard: React.FC = () => {
 
     const line = d3
       .line<{ date: string; amount: number }>()
-      .x((d) => xScale(d.date) || 0)
+      .x((d) => xCenter(d))
       .y((d) => yScale(d.amount))
       .curve(d3.curveMonotoneX);
 
@@ -94,7 +109,7 @@ export const Dashboard: React.FC = () => {
       .enter()
       .append('circle')
       .attr('class', 'data-point')
-      .attr('cx', (d) => xScale(d.date) || 0)
+      .attr('cx', (d) => xCenter(d))
       .attr('cy', (d) => yScale(d.amount))
       .attr('r', 4)
       .attr('fill', '#fff')
