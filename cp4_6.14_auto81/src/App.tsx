@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { fetchCourses, fetchFeedback, fetchParticipation, submitFeedback, Course, Feedback, ParticipationData } from './api';
 import Dashboard from './pages/Dashboard';
@@ -26,6 +26,25 @@ function Sidebar({ current, onNavigate, mobileOpen, onOpenMobile, onCloseMobile 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleHamburgerClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onOpenMobile();
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onCloseMobile();
+  };
+
+  const handleNavClick = (e: React.MouseEvent<HTMLButtonElement>, key: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onNavigate(key);
+    onCloseMobile();
+  };
+
   const sidebar = (
     <nav style={{
       width: 240,
@@ -47,7 +66,7 @@ function Sidebar({ current, onNavigate, mobileOpen, onOpenMobile, onCloseMobile 
         {NAV_ITEMS.map(item => (
           <li key={item.key}>
             <button
-              onClick={() => { onNavigate(item.key); onCloseMobile(); }}
+              onClick={(e) => handleNavClick(e, item.key)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -78,7 +97,7 @@ function Sidebar({ current, onNavigate, mobileOpen, onOpenMobile, onCloseMobile 
       {isMobile && (
         <>
           <button
-            onClick={() => onOpenMobile()}
+            onClick={handleHamburgerClick}
             style={{
               position: 'fixed',
               top: 12,
@@ -99,7 +118,7 @@ function Sidebar({ current, onNavigate, mobileOpen, onOpenMobile, onCloseMobile 
           >☰</button>
           {mobileOpen && (
             <div
-              onClick={onCloseMobile}
+              onClick={handleOverlayClick}
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -129,7 +148,7 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
   const handleStarClick = (star: number) => {
     setRating(star);
     setBouncingStar(star);
-    setTimeout(() => setBouncingStar(null), 400);
+    setTimeout(() => setBouncingStar(null), 200);
   };
 
   const handleSubmit = async () => {
@@ -186,7 +205,8 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
                   fontSize: 32,
                   padding: 4,
                   color: (hoverRating || rating) >= star ? '#f59e0b' : '#e2e8f0',
-                  transition: 'color 150ms ease-out',
+                  transition: 'color 150ms ease-out, transform 200ms ease-out',
+                  transform: bouncingStar === star ? 'scale(1)' : 'scale(1)',
                 }}
               >
                 ★
@@ -261,12 +281,11 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
       <style>{`
         @keyframes starBounce {
           0% { transform: scale(1); }
-          30% { transform: scale(1.4); }
-          60% { transform: scale(0.95); }
+          50% { transform: scale(1.35); }
           100% { transform: scale(1); }
         }
         .star-bounce {
-          animation: starBounce 400ms ease-out;
+          animation: starBounce 200ms ease-out;
         }
       `}</style>
     </div>
@@ -303,11 +322,21 @@ function CourseDetailPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [participation, setParticipation] = useState<ParticipationData[]>([]);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const pageRef = useRef(1);
+  const loadingRef = useRef(false);
+  const totalRef = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     fetchCourses().then(setCourses).catch(() => {});
@@ -321,7 +350,8 @@ function CourseDetailPage() {
   }, [courses, courseId]);
 
   const loadFeedback = useCallback(async (pageNum: number) => {
-    if (!courseId) return;
+    if (!courseId || loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const res = await fetchFeedback(courseId, pageNum, 20);
@@ -331,14 +361,18 @@ function CourseDetailPage() {
         setFeedbackList(prev => [...prev, ...res.data]);
       }
       setTotal(res.total);
+      totalRef.current = res.total;
     } catch { } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, [courseId]);
 
   useEffect(() => {
-    setPage(1);
-    loadFeedback(1);
+    if (courseId) {
+      pageRef.current = 1;
+      loadFeedback(1);
+    }
   }, [courseId, loadFeedback]);
 
   useEffect(() => {
@@ -347,31 +381,29 @@ function CourseDetailPage() {
     }
   }, [courseId]);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 100 && !loading && feedbackList.length < total) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadFeedback(nextPage);
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (loadingRef.current) return;
+    if (feedbackList.length >= totalRef.current) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceToBottom < 100) {
+      pageRef.current += 1;
+      loadFeedback(pageRef.current);
     }
-  }, [loading, feedbackList.length, total, page, loadFeedback]);
+  }, [loadFeedback, feedbackList.length]);
 
   const handleSubmitSuccess = () => {
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 4000);
+    pageRef.current = 1;
     loadFeedback(1);
     if (courseId) {
       fetchParticipation(courseId).then(setParticipation).catch(() => {});
     }
   };
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const chartHeight = isMobile ? 150 : 300;
 
   return (
     <div>
@@ -398,15 +430,19 @@ function CourseDetailPage() {
         </div>
       )}
 
-      <div style={{
-        backgroundColor: '#f8fafc',
-        borderRadius: 12,
-        padding: 24,
-        marginBottom: 24,
-      }}>
+      <div
+        className="detail-chart-container"
+        style={{
+          backgroundColor: '#f8fafc',
+          borderRadius: 12,
+          padding: 24,
+          marginBottom: 24,
+          height: chartHeight + 48,
+          transition: 'height 300ms ease-out',
+        }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: '0 0 16px' }}>参与度趋势</h3>
         {participation.length > 0 && (
-          <RatingChart participationData={participation} height={isMobile ? 150 : 300} />
+          <RatingChart participationData={participation} height={chartHeight} />
         )}
       </div>
 
@@ -431,6 +467,7 @@ function CourseDetailPage() {
       </div>
 
       <div
+        ref={scrollContainerRef}
         onScroll={handleScroll}
         style={{ maxHeight: 600, overflowY: 'auto', paddingRight: 8 }}
       >
@@ -445,6 +482,14 @@ function CourseDetailPage() {
         <FeedbackModal courseId={courseId} onClose={() => setShowModal(false)} onSubmit={handleSubmitSuccess} />
       )}
       <Toast message="反馈已提交！" visible={toastVisible} />
+
+      <style>{`
+        @media (max-width: 768px) {
+          .detail-chart-container {
+            height: 198px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -476,7 +521,14 @@ export default function App() {
 
   return (
     <Router>
-      <div style={{ display: 'flex', fontFamily: "'Inter', sans-serif", margin: 0, padding: 0, minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+      <div style={{
+        display: 'flex',
+        fontFamily: "'Inter', sans-serif",
+        margin: 0,
+        padding: 0,
+        minHeight: '100vh',
+        backgroundColor: '#f1f5f9',
+      }}>
         <Sidebar
           current={currentNav}
           onNavigate={handleNavClick}

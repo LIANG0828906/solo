@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Course, Feedback, ParticipationData, fetchFeedback } from '../api';
 import RatingChart from '../components/RatingChart';
@@ -27,13 +27,10 @@ function StarRating({ rating, size = 20 }: { rating: number; size?: number }) {
 }
 
 function CourseCard({ course, onClick }: { course: Course; onClick: () => void }) {
-  const [hovered, setHovered] = React.useState(false);
-
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="course-card"
       style={{
         width: 320,
         maxWidth: '100%',
@@ -42,8 +39,8 @@ function CourseCard({ course, onClick }: { course: Course; onClick: () => void }
         border: '1px solid #e2e8f0',
         padding: 24,
         cursor: 'pointer',
-        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 8px 25px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.06)',
+        transform: 'translateY(0)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
         transition: 'transform 300ms ease-out, box-shadow 300ms ease-out',
       }}
     >
@@ -81,10 +78,13 @@ export default function Dashboard({ courses, participationData, selectedCourseId
 }) {
   const navigate = useNavigate();
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const pageRef = useRef(1);
+  const loadingRef = useRef(false);
+  const totalRef = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -93,6 +93,8 @@ export default function Dashboard({ courses, participationData, selectedCourseId
   }, []);
 
   const loadFeedback = useCallback(async (pageNum: number) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const res = await fetchFeedback(undefined, pageNum, 20);
@@ -102,24 +104,30 @@ export default function Dashboard({ courses, participationData, selectedCourseId
         setFeedbackList(prev => [...prev, ...res.data]);
       }
       setTotal(res.total);
+      totalRef.current = res.total;
     } catch {
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    pageRef.current = 1;
     loadFeedback(1);
   }, [loadFeedback]);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 100 && !loading && feedbackList.length < total) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadFeedback(nextPage);
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (loadingRef.current) return;
+    if (feedbackList.length >= totalRef.current) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceToBottom < 100) {
+      pageRef.current += 1;
+      loadFeedback(pageRef.current);
     }
-  }, [loading, feedbackList.length, total, page, loadFeedback]);
+  }, [loadFeedback, feedbackList.length]);
 
   const avgRating = courses.length > 0
     ? courses.reduce((sum, c) => sum + c.averageRating, 0) / courses.length
@@ -131,6 +139,8 @@ export default function Dashboard({ courses, participationData, selectedCourseId
     onSelectCourse(courseId);
     navigate(`/course/${courseId}`);
   };
+
+  const chartHeight = isMobile ? 150 : 300;
 
   return (
     <div>
@@ -186,18 +196,24 @@ export default function Dashboard({ courses, participationData, selectedCourseId
       {participationData.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 20, fontWeight: 600, color: '#0f172a', margin: '0 0 16px' }}>参与度趋势</h2>
-          <div style={{
-            backgroundColor: '#f8fafc',
-            borderRadius: 12,
-            padding: 24,
-          }}>
-            <RatingChart participationData={participationData} height={isMobile ? 150 : 300} />
+          <div
+            className="chart-container"
+            style={{
+              backgroundColor: '#f8fafc',
+              borderRadius: 12,
+              padding: 24,
+              height: chartHeight + 48,
+              transition: 'height 300ms ease-out',
+            }}
+          >
+            <RatingChart participationData={participationData} height={chartHeight} />
           </div>
         </div>
       )}
 
       <h2 style={{ fontSize: 20, fontWeight: 600, color: '#0f172a', margin: '0 0 16px' }}>最新评论</h2>
       <div
+        ref={scrollContainerRef}
         onScroll={handleScroll}
         style={{ maxHeight: 500, overflowY: 'auto', paddingRight: 8 }}
       >
@@ -209,9 +225,16 @@ export default function Dashboard({ courses, participationData, selectedCourseId
       </div>
 
       <style>{`
+        .course-card:hover {
+          transform: translateY(-4px) !important;
+          box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+        }
         @media (max-width: 768px) {
           .stats-grid {
             grid-template-columns: 1fr !important;
+          }
+          .chart-container {
+            height: 198px !important;
           }
         }
       `}</style>
