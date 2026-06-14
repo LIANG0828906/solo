@@ -39,10 +39,21 @@ function App() {
   });
   const [isDragging, setIsDragging] = useState(false);
 
+  const shadowCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<SceneRef>(null);
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const fixedAltitudeRef = useRef<number>(sunParams.altitude);
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 0;
+    canvas.height = 0;
+    shadowCanvasRef.current = canvas;
+    return () => {
+      shadowCanvasRef.current = null;
+    };
+  }, []);
 
   const updateSunParams = useCallback((updates: Partial<SunParams>) => {
     setSunParams(prev => {
@@ -135,6 +146,9 @@ function App() {
             <span className={`panel-arrow ${panels.building ? 'up' : ''}`}>▼</span>
           </div>
           <div className="panel-content">
+            <div className="building-hint">
+              💡 提示：点击建筑选中后，可在3D视图中直接拖拽调整位置（XZ平面），松开后有0.2秒弹性回正动画。
+            </div>
             <div className="building-list">
               {buildings.map(b => (
                 <div
@@ -159,7 +173,7 @@ function App() {
                 <div className="editor-title">编辑 {selectedBuilding.name}</div>
 
                 <div className="control-row">
-                  <label>高度 (米)</label>
+                  <label>高度 (2-20米)</label>
                   <div className="control-inputs">
                     <input
                       type="range"
@@ -193,7 +207,7 @@ function App() {
                 </div>
 
                 <div className="control-row">
-                  <label>X 位置</label>
+                  <label>X 位置 (-20~20)</label>
                   <div className="control-inputs">
                     <input
                       type="range"
@@ -225,7 +239,7 @@ function App() {
                 </div>
 
                 <div className="control-row">
-                  <label>Z 位置</label>
+                  <label>Z 位置 (-20~20)</label>
                   <div className="control-inputs">
                     <input
                       type="range"
@@ -268,7 +282,7 @@ function App() {
           </div>
           <div className="panel-content">
             <div className="control-row">
-              <label>阴影强度</label>
+              <label>阴影强度 (0.2-1.0)</label>
               <div className="control-inputs">
                 <input
                   type="range"
@@ -292,31 +306,14 @@ function App() {
             </div>
 
             <div className="control-row">
-              <label>阴影柔和度 (PCF)</label>
-              <div className="control-inputs">
-                <input
-                  type="range"
-                  min={0}
-                  max={5}
-                  step={1}
-                  value={sunParams.shadowSoftness}
-                  onChange={(e) => updateSunParams({ shadowSoftness: Number(e.target.value) })}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={5}
-                  step={1}
-                  value={sunParams.shadowSoftness}
-                  onChange={(e) => updateSunParams({
-                    shadowSoftness: Math.min(5, Math.max(0, Math.round(Number(e.target.value))))
-                  })}
-                />
+              <label>当前阴影柔和度 PCF: {sunParams.shadowSoftness}</label>
+              <div className="control-hint">
+                可在「太阳控制」面板中调节 0-5 级
               </div>
             </div>
 
             <div className="control-row">
-              <label>阴影颜色</label>
+              <label>阴影颜色预设</label>
               <div className="color-presets">
                 {SHADOW_COLOR_PRESETS.map(preset => (
                   <div
@@ -325,7 +322,9 @@ function App() {
                     title={preset.name}
                     onClick={() => updateSunParams({ shadowColor: preset.value })}
                     style={{ background: preset.value }}
-                  />
+                  >
+                    {sunParams.shadowColor === preset.value && <span className="check-mark">✓</span>}
+                  </div>
                 ))}
               </div>
             </div>
@@ -343,8 +342,9 @@ function App() {
           isDragging={isDragging}
           onDraggingChange={setIsDragging}
           onBuildingUpdate={handleBuildingUpdate}
+          shadowCanvasRef={shadowCanvasRef}
         />
-        <ShadowViewer sunParams={sunParams} />
+        <ShadowViewer sunParams={sunParams} shadowCanvas={shadowCanvasRef.current} />
         <div className="hsv-ring-container">
           <HSVRing hueAngle={hueAngle} />
         </div>

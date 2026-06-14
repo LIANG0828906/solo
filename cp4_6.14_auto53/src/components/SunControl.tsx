@@ -75,6 +75,30 @@ const SunControl: React.FC<SunControlProps> = ({
         </div>
       </div>
 
+      <div className="control-row">
+        <label>阴影柔和度 PCF (0-5)</label>
+        <div className="control-inputs">
+          <input
+            type="range"
+            min={0}
+            max={5}
+            step={1}
+            value={sunParams.shadowSoftness}
+            onChange={(e) => onUpdate({ shadowSoftness: Number(e.target.value) })}
+          />
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={1}
+            value={sunParams.shadowSoftness}
+            onChange={(e) => onUpdate({
+              shadowSoftness: Math.min(5, Math.max(0, Math.round(Number(e.target.value))))
+            })}
+          />
+        </div>
+      </div>
+
       <div className="auto-rotate-container">
         <svg
           className="progress-ring"

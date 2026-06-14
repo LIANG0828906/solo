@@ -207,6 +207,35 @@
 .color-preset.active {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  position: relative;
+}
+
+.check-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+
+.building-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.control-hint {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
 }
 
 .auto-rotate-container {
