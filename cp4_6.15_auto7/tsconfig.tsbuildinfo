@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/modules/data/datamanager.ts","./src/modules/data/searchfilter.tsx","./src/modules/graph/graphcanvas.tsx","./src/modules/graph/nodeeditor.tsx"],"errors":true,"version":"5.9.3"}
