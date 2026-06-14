@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, memo, useCallback } from 'react';
 import type { Book, BookCategory, Promotion } from './types';
 import { formatCurrency, getRandomCoverColor, generateId, validatePromoCode } from './utils';
 
@@ -30,6 +30,63 @@ const emptyForm: BookFormData = {
   stock: '',
   category: '文学'
 };
+
+interface BookCardProps {
+  book: Book;
+  isRemoving: boolean;
+  onEdit: (book: Book) => void;
+  onDelete: (id: string) => void;
+}
+
+const BookCard = memo(function BookCard({ book, isRemoving, onEdit, onDelete }: BookCardProps) {
+  return (
+    <div
+      className={`book-card ${isRemoving ? 'removing' : ''}`}
+      style={{
+        transitionDuration: '300ms',
+        transitionProperty: 'transform, opacity',
+        transitionTimingFunction: 'ease-in-out'
+      }}
+    >
+      <div
+        className="book-cover"
+        style={{ backgroundColor: book.coverColor }}
+      >
+        {book.title}
+      </div>
+      <div className="book-info">
+        <div className="book-title">{book.title}</div>
+        <div className="book-author">{book.author}</div>
+        <span className="book-category">{book.category}</span>
+        <div className="book-meta">
+          <div className="book-price">{formatCurrency(book.price)}</div>
+          <div className="book-stock">库存：{book.stock}</div>
+        </div>
+      </div>
+      <div className="book-actions">
+        <button
+          className="btn btn-secondary btn-sm"
+          style={{ flex: 1 }}
+          onClick={() => onEdit(book)}
+        >
+          编辑
+        </button>
+        <button
+          className="btn btn-danger btn-sm"
+          style={{ flex: 1 }}
+          onClick={() => onDelete(book.id)}
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.book === nextProps.book &&
+    prevProps.isRemoving === nextProps.isRemoving
+  );
+});
 
 const BooksModule = ({
   books,
@@ -77,6 +134,14 @@ const BooksModule = ({
       onShowToast('书籍已删除', 'success');
     }, 300);
   };
+
+  const handleEdit = useCallback((book: Book) => {
+    openEditModal(book);
+  }, []);
+
+  const handleCardDelete = useCallback((id: string) => {
+    handleDelete(id);
+  }, []);
 
   const openAddModal = () => {
     setEditingBook(null);
@@ -211,42 +276,13 @@ const BooksModule = ({
       ) : (
         <div className={`books-grid ${isFading ? 'fading' : ''}`}>
           {filteredBooks.map(book => (
-            <div
+            <BookCard
               key={book.id}
-              className={`book-card ${removingIds.has(book.id) ? 'removing' : ''}`}
-            >
-              <div
-                className="book-cover"
-                style={{ backgroundColor: book.coverColor }}
-              >
-                {book.title}
-              </div>
-              <div className="book-info">
-                <div className="book-title">{book.title}</div>
-                <div className="book-author">{book.author}</div>
-                <span className="book-category">{book.category}</span>
-                <div className="book-meta">
-                  <div className="book-price">{formatCurrency(book.price)}</div>
-                  <div className="book-stock">库存：{book.stock}</div>
-                </div>
-              </div>
-              <div className="book-actions">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  style={{ flex: 1 }}
-                  onClick={() => openEditModal(book)}
-                >
-                  编辑
-                </button>
-                <button
-                  className="btn btn-danger btn-sm"
-                  style={{ flex: 1 }}
-                  onClick={() => handleDelete(book.id)}
-                >
-                  删除
-                </button>
-              </div>
-            </div>
+              book={book}
+              isRemoving={removingIds.has(book.id)}
+              onEdit={handleEdit}
+              onDelete={handleCardDelete}
+            />
           ))}
         </div>
       )}
