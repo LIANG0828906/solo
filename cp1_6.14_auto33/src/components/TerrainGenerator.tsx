@@ -1,7 +1,6 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { createNoise2D } from 'simplex-noise';
-import { useFrame } from '@react-three/fiber';
 
 interface TerrainGeneratorProps {
   heightScale: number;
@@ -48,13 +47,10 @@ const Vegetation: React.FC<{
   density: number;
   seed: number;
   heightScale: number;
-  frequency: number;
-}> = ({ heights, density, seed, heightScale, frequency }) => {
+}> = ({ heights, density, seed, heightScale }) => {
   const treesRef = useRef<THREE.InstancedMesh>(null);
   const trunksRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-
-  const noise2D = useMemo(() => createNoise2D(() => seed / 1000000), [seed]);
 
   const treeCount = useMemo(() => {
     return Math.floor(Math.min(density, 1) * 800);
@@ -75,7 +71,7 @@ const Vegetation: React.FC<{
     return data;
   }, [treeCount, seed]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (!treesRef.current || !trunksRef.current) return;
 
     const halfSize = SIZE / 2;
@@ -110,20 +106,19 @@ const Vegetation: React.FC<{
       const hx1 = lerp(h01, h11, fx);
       const terrainY = lerp(hx0, hx1, fz);
 
-      const treeHeight = 4 * scale;
       const trunkHeight = 1.5 * scale;
 
       dummy.position.set(x, terrainY + trunkHeight / 2, z);
       dummy.rotation.set(0, rotation, 0);
       dummy.scale.set(scale, scale, scale);
       dummy.updateMatrix();
-      trunksRef.current!.setMatrixAt(i, dummy.matrix);
+      trunksRef.current.setMatrixAt(i, dummy.matrix);
 
-      dummy.position.set(x, terrainY + trunkHeight + treeHeight * 0.3, z);
+      dummy.position.set(x, terrainY + trunkHeight + 4 * scale * 0.3, z);
       dummy.rotation.set(0, rotation, 0);
       dummy.scale.set(scale, scale, scale);
       dummy.updateMatrix();
-      treesRef.current!.setMatrixAt(i, dummy.matrix);
+      treesRef.current.setMatrixAt(i, dummy.matrix);
     }
 
     treesRef.current.instanceMatrix.needsUpdate = true;
@@ -212,12 +207,6 @@ const TerrainGenerator: React.FC<TerrainGeneratorProps> = ({
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   }, [geometry, colors]);
 
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.geometry.computeVertexNormals();
-    }
-  });
-
   return (
     <group>
       <mesh ref={meshRef} geometry={geometry} receiveShadow>
@@ -232,7 +221,6 @@ const TerrainGenerator: React.FC<TerrainGeneratorProps> = ({
         density={vegetationDensity}
         seed={seed}
         heightScale={heightScale}
-        frequency={frequency}
       />
     </group>
   );
