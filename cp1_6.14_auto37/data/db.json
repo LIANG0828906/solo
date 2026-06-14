@@ -1,0 +1,132 @@
+{
+  "users": [
+    {
+      "id": "38514485-12cd-4d08-aaa4-50cb56423bea",
+      "username": "testuser_4573",
+      "password": "$2a$10$2gBsTTFtCXquSVTrmIlaBeesGbXJwV27/fpnIN66dvEZehtLti0We",
+      "createdAt": "2026-06-14T01:51:50.414Z"
+    },
+    {
+      "id": "cea89132-89b4-438d-a6b9-b8586ec18801",
+      "username": "testuser2_4573",
+      "password": "$2a$10$uFDN/.3Mr0mGiy0QBOOM5e3nrF420dG7nM1z7YDMIS/vUcJHljHEy",
+      "createdAt": "2026-06-14T01:51:50.566Z"
+    },
+    {
+      "id": "5898c6b0-9bb8-4aa4-8ab8-3cd0c90fe4b0",
+      "username": "testuser_9551",
+      "password": "$2a$10$lCE2cNriOhg4epeTzTT39.X9RdHSko1xsskOEXgIHWq.7GlMSOLB2",
+      "createdAt": "2026-06-14T01:54:09.008Z"
+    },
+    {
+      "id": "e0b248a8-5cae-4d31-bf61-c5f7644cf2a6",
+      "username": "testuser2_9551",
+      "password": "$2a$10$PcfRF8rKCttKa.6BSv5GrOPiJ/vVKMAA1YGfPX.LToE6b3V..aZ.e",
+      "createdAt": "2026-06-14T01:54:09.170Z"
+    },
+    {
+      "id": "509d7def-ce81-4404-8069-e50dda622a45",
+      "username": "testuser_2505",
+      "password": "$2a$10$sTlHuTdlh7MN50ce0/rngu2qhggMO0.QujZf4k3vWctHRpvt2RM0C",
+      "createdAt": "2026-06-14T01:54:40.152Z"
+    },
+    {
+      "id": "1e6dedf4-3026-4a92-a78f-d45b9ebdb826",
+      "username": "testuser2_2505",
+      "password": "$2a$10$nqPBiXlCbJf6KprLjBFwgOPJz.Yv.Psjn1dW5kwjVlyj/Bst9wZmm",
+      "createdAt": "2026-06-14T01:54:40.307Z"
+    },
+    {
+      "id": "5aa94928-ffa1-4f23-869b-53bb0089a19d",
+      "username": "testuser_6907",
+      "password": "$2a$10$2RsuoXBrKOeTAFmdl0qIMOAft3.gyEm2fy51dArrB6uJG1RumbC6e",
+      "createdAt": "2026-06-14T01:55:44.365Z"
+    },
+    {
+      "id": "26215d10-4e2b-4356-b6b0-9da5520d51cb",
+      "username": "testuser2_6907",
+      "password": "$2a$10$UzGUG0o3vbgSLMSPGTBdzePXkuWPUi5X5pwgfEYdyEFXAxNAE6v1.",
+      "createdAt": "2026-06-14T01:55:44.521Z"
+    }
+  ],
+  "capsules": [
+    {
+      "id": "17a71a63-3253-4fcd-a26e-94a2be5c10cd",
+      "userId": "5898c6b0-9bb8-4aa4-8ab8-3cd0c90fe4b0",
+      "type": "text",
+      "content": "这是一个测试胶囊，用于验证API是否正常工作。",
+      "openDate": "2026-06-14T01:53:09.538Z",
+      "createdAt": "2026-06-14T01:54:09.486Z",
+      "isOpened": true,
+      "isDrifted": true,
+      "drifts": [
+        "ef8d745d-3ad3-4ac5-a74d-08671023c96a"
+      ],
+      "openedAt": "2026-06-14T01:54:09.661Z",
+      "driftedAt": "2026-06-14T01:54:09.665Z"
+    },
+    {
+      "id": "f1c72dcd-2bb6-42df-ae5e-9237b8efcd4b",
+      "userId": "509d7def-ce81-4404-8069-e50dda622a45",
+      "type": "text",
+      "content": "这是一个测试胶囊，用于验证API是否正常工作。",
+      "openDate": "2026-06-14T01:53:40.634Z",
+      "createdAt": "2026-06-14T01:54:40.623Z",
+      "isOpened": true,
+      "isDrifted": true,
+      "drifts": [
+        "b471e5b1-43aa-4a42-add7-eb5b516c8df8"
+      ],
+      "openedAt": "2026-06-14T01:54:40.752Z",
+      "driftedAt": "2026-06-14T01:54:40.755Z"
+    },
+    {
+      "id": "b49bc2c9-3a3f-474a-8898-8de3bb970eaf",
+      "userId": "5aa94928-ffa1-4f23-869b-53bb0089a19d",
+      "type": "text",
+      "content": "这是一个测试胶囊，用于验证API是否正常工作。",
+      "openDate": "2026-06-14T01:54:44.852Z",
+      "createdAt": "2026-06-14T01:55:44.839Z",
+      "isOpened": true,
+      "isDrifted": true,
+      "drifts": [
+        "9c91fcdd-c578-4056-95aa-39d2110747b4"
+      ],
+      "openedAt": "2026-06-14T01:55:44.969Z",
+      "driftedAt": "2026-06-14T01:55:44.973Z"
+    }
+  ],
+  "drifts": [
+    {
+      "id": "ef8d745d-3ad3-4ac5-a74d-08671023c96a",
+      "capsuleId": "17a71a63-3253-4fcd-a26e-94a2be5c10cd",
+      "fromUserId": "5898c6b0-9bb8-4aa4-8ab8-3cd0c90fe4b0",
+      "toUserId": "38514485-12cd-4d08-aaa4-50cb56423bea",
+      "createdAt": "2026-06-14T01:54:09.665Z"
+    },
+    {
+      "id": "b471e5b1-43aa-4a42-add7-eb5b516c8df8",
+      "capsuleId": "f1c72dcd-2bb6-42df-ae5e-9237b8efcd4b",
+      "fromUserId": "509d7def-ce81-4404-8069-e50dda622a45",
+      "toUserId": "5898c6b0-9bb8-4aa4-8ab8-3cd0c90fe4b0",
+      "createdAt": "2026-06-14T01:54:40.755Z"
+    },
+    {
+      "id": "9c91fcdd-c578-4056-95aa-39d2110747b4",
+      "capsuleId": "b49bc2c9-3a3f-474a-8898-8de3bb970eaf",
+      "fromUserId": "5aa94928-ffa1-4f23-869b-53bb0089a19d",
+      "toUserId": "26215d10-4e2b-4356-b6b0-9da5520d51cb",
+      "createdAt": "2026-06-14T01:55:44.973Z",
+      "reply": "这是一条匿名回复，测试功能是否正常。",
+      "replyAt": "2026-06-14T01:55:45.092Z",
+      "replyVisibleAt": "2026-06-15T01:55:45.092Z"
+    }
+  ],
+  "dailyStats": [
+    {
+      "date": "2026-06-14",
+      "openedCount": 3,
+      "driftedCount": 3
+    }
+  ]
+}

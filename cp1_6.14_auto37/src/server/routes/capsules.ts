@@ -15,7 +15,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!
     const page = parseInt(req.query.page as string) || 1
-    const pageSize = parseInt(req.query.pageSize as string) || 12
+    const pageSize = parseInt(req.query.limit as string) || parseInt(req.query.pageSize as string) || 12
 
     await db.read()
     

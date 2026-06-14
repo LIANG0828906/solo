@@ -27,14 +27,19 @@ interface CapsuleCardProps {
 
 function CapsuleCard({ capsule, onOpen }: CapsuleCardProps) {
   const [isOpening, setIsOpening] = useState(false)
+  const [showContent, setShowContent] = useState(false)
 
   const handleClick = () => {
     if (capsule.isOpenable && !capsule.isOpened) {
       setIsOpening(true)
       setTimeout(() => {
+        setShowContent(true)
+      }, 400)
+      setTimeout(() => {
         onOpen?.(capsule)
         setIsOpening(false)
-      }, 800)
+        setShowContent(false)
+      }, 1200)
     } else if (capsule.isOpened) {
       onOpen?.(capsule)
     }
@@ -61,7 +66,24 @@ function CapsuleCard({ capsule, onOpen }: CapsuleCardProps) {
         {capsule.isOwner ? ' · 我的' : ' · 漂流瓶'}
       </span>
 
-      {capsule.isOpened ? (
+      {isOpening ? (
+        <div className="capsule-open-animation">
+          <div className="envelope-open">
+            <div className="envelope-open-body" />
+            <div className="envelope-open-flap-left" />
+            <div className="envelope-open-flap-right" />
+          </div>
+          {showContent && (
+            <div className="capsule-content-reveal">
+              {capsule.type === 'image' && capsule.imageUrl ? (
+                <img src={capsule.imageUrl} alt="胶囊内容" className="capsule-preview-small" />
+              ) : (
+                <p className="capsule-content-preview">{capsule.content.slice(0, 50)}...</p>
+              )}
+            </div>
+          )}
+        </div>
+      ) : capsule.isOpened ? (
         <>
           {capsule.type === 'image' && capsule.imageUrl ? (
             <img src={capsule.imageUrl} alt="胶囊内容" className="capsule-preview" />
@@ -74,8 +96,11 @@ function CapsuleCard({ capsule, onOpen }: CapsuleCardProps) {
         </>
       ) : capsule.isOpenable ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📬</div>
-          <p style={{ color: 'var(--accent-color)', fontSize: '14px', marginBottom: '12px' }}>
+          <div className="envelope-ready">
+            <div className="envelope-ready-body" />
+            <div className="envelope-ready-flap" />
+          </div>
+          <p style={{ color: 'var(--accent-color)', fontSize: '14px', marginBottom: '12px', marginTop: '12px' }}>
             可以开封啦！
           </p>
           <button className="btn btn-primary">点击开封</button>
