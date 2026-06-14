@@ -69,6 +69,7 @@ export class AudioEngine {
     if (this.context) return;
     this.context = new AudioContext({
       sampleRate: 44100,
+      latencyHint: 'interactive',
     });
     this._sampleRate = this.context.sampleRate;
     await this.context.resume();

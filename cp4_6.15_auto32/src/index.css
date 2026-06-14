@@ -67,13 +67,19 @@ select:focus {
 
 @keyframes portBreathe {
   0%, 100% {
-    box-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
-    opacity: 0.8;
+    box-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 12px currentColor;
+    opacity: 0.7;
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor;
     opacity: 1;
+    transform: scale(1.15);
   }
+}
+
+.port-wrapper .port-glow {
+  animation: portBreathe 2s ease-in-out infinite;
 }
 
 @keyframes connectionPulse {
@@ -87,6 +93,23 @@ select:focus {
 
 .connection-pulse {
   animation: connectionPulse 1.5s linear infinite;
+}
+
+@keyframes endpointPulse {
+  0%, 100% {
+    r: 4;
+    opacity: 0.75;
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    r: 5.5;
+    opacity: 1;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+}
+
+.connection-endpoint {
+  animation: endpointPulse 2s ease-in-out infinite;
 }
 
 @keyframes moduleSlideIn {

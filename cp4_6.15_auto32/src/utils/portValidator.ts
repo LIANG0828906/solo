@@ -5,7 +5,7 @@ export interface ValidationResult {
   reason?: string;
 }
 
-export function canConnect(fromPort: Port, toPort: Port): ValidationResult {
+export function validateConnection(fromPort: Port, toPort: Port): ValidationResult {
   if (fromPort.direction !== 'output') {
     return { valid: false, reason: '源端口必须是输出端口' };
   }
@@ -20,3 +20,5 @@ export function canConnect(fromPort: Port, toPort: Port): ValidationResult {
   }
   return { valid: true };
 }
+
+export const canConnect = validateConnection;

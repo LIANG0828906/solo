@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Module, Connection, Port, SIGNAL_COLORS, ModuleType, MODULE_CONFIGS, generateId } from '../types/ModuleTypes';
-import { canConnect } from '../utils/portValidator';
+import { validateConnection, canConnect } from '../utils/portValidator';
 import ModuleCard, { MODULE_WIDTH, PORT_RADIUS } from './ModuleCard';
 
 const HEADER_HEIGHT = 34;
@@ -86,7 +86,7 @@ export default function Workbench({
   const handlePortMouseUp = useCallback((port: Port, e: React.MouseEvent) => {
     if (!dragState || dragState.type !== 'connecting') return;
     if (port.direction === 'input') {
-      const validation = canConnect(dragState.fromPort, port);
+      const validation = validateConnection(dragState.fromPort, port);
       if (validation.valid) {
         const success = onAddConnection(dragState.fromPort.id, port.id);
         if (!success) {
@@ -129,10 +129,12 @@ export default function Workbench({
 
     const handleMouseUp = () => {
       if (dragState.hoveredPort) {
-        const validation = canConnect(dragState.fromPort, dragState.hoveredPort);
+        const validation = validateConnection(dragState.fromPort, dragState.hoveredPort);
         if (!validation.valid) {
           setInvalidFlash(true);
           setTimeout(() => setInvalidFlash(false), 400);
+        } else {
+          onAddConnection(dragState.fromPort.id, dragState.hoveredPort.id);
         }
       }
       setDragState(null);
@@ -167,36 +169,44 @@ export default function Workbench({
           fill="none"
           stroke={color}
           strokeWidth={2.5}
-          opacity={0.3}
+          opacity={0.2}
         />
         <path
           d={path}
           fill="none"
           stroke={color}
           strokeWidth={2}
-          strokeDasharray="8 4"
-          className="connection-pulse"
+          opacity={0.9}
+          strokeLinecap="round"
         />
+        <circle r={5} fill={color} filter="url(#glow)" opacity={0.9}>
+          <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
+        </circle>
+        <circle r={3} fill="#ffffff" opacity={0.95}>
+          <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
+        </circle>
         <circle
           cx={from.x}
           cy={from.y}
           r={4}
           fill={color}
-          opacity={0.8}
+          opacity={0.85}
+          className="connection-endpoint"
         />
         <circle
           cx={to.x}
           cy={to.y}
           r={4}
           fill={color}
-          opacity={0.8}
+          opacity={0.85}
+          className="connection-endpoint"
         />
         <path
           d={path}
           fill="none"
           stroke="transparent"
           strokeWidth={12}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
           onClick={() => onRemoveConnection(conn.id)}
         >
           <title>点击删除连接</title>
@@ -218,7 +228,7 @@ export default function Workbench({
     let isValid = true;
 
     if (dragState.hoveredPort) {
-      const validation = canConnect(dragState.fromPort, dragState.hoveredPort);
+      const validation = validateConnection(dragState.fromPort, dragState.hoveredPort);
       if (!validation.valid) {
         color = '#e94560';
         isValid = false;
@@ -260,8 +270,8 @@ export default function Workbench({
         style={{ zIndex: 1 }}
       >
         <defs>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />

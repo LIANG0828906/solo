@@ -72,7 +72,7 @@ export default function ModuleCard({
           <span className="text-[10px] opacity-70 select-none">{port.name}</span>
         )}
         <div
-          className="port-dot relative cursor-crosshair"
+          className="port-dot relative cursor-crosshair port-wrapper"
           onMouseDown={e => {
             e.stopPropagation();
             onPortMouseDown(port, e);
@@ -81,14 +81,13 @@ export default function ModuleCard({
             e.stopPropagation();
             onPortMouseUp(port, e);
           }}
-          style={{ width: PORT_RADIUS * 2, height: PORT_RADIUS * 2, flexShrink: 0 }}
+          style={{ width: PORT_RADIUS * 2, height: PORT_RADIUS * 2, flexShrink: 0, color: SIGNAL_COLORS[port.signalType] }}
         >
           <div
-            className="absolute inset-0 rounded-full"
+            className="absolute inset-0 rounded-full port-glow"
             style={{
               backgroundColor: SIGNAL_COLORS[port.signalType],
               boxShadow: `0 0 6px ${SIGNAL_COLORS[port.signalType]}, 0 0 12px ${SIGNAL_COLORS[port.signalType]}44`,
-              animation: 'portBreathe 2s ease-in-out infinite',
             }}
           />
         </div>
@@ -355,6 +354,8 @@ export default function ModuleCard({
     output: '◉',
   };
 
+  const [isHovered, setIsHovered] = React.useState(false);
+
   return (
     <div
       className="absolute select-none"
@@ -362,17 +363,23 @@ export default function ModuleCard({
         left: module.x,
         top: module.y,
         width: MODULE_WIDTH,
-        transition: dragRef.current ? 'none' : 'left 0ms, top 0ms',
+        transition: dragRef.current ? 'none' : 'left 0ms, top 0ms, transform 200ms ease-out',
         animation: 'moduleSlideIn 0.3s ease-out',
+        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
       }}
       onMouseDown={handleMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div
         className="rounded-lg overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #0f3460, #16213e)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 1px rgba(233,69,96,0.3)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: isHovered
+            ? '0 10px 32px rgba(0,0,0,0.6), 0 0 0 2px #00aaff, 0 0 20px rgba(0,170,255,0.5), 0 0 40px rgba(0,170,255,0.25)'
+            : '0 4px 20px rgba(0,0,0,0.5), 0 0 1px rgba(233,69,96,0.3)',
+          border: isHovered ? '1px solid #00aaff' : '1px solid rgba(255,255,255,0.06)',
+          transition: 'box-shadow 200ms ease-out, border-color 200ms ease-out',
         }}
       >
         <div className="flex items-center justify-between px-2 py-1.5 cursor-grab active:cursor-grabbing" style={{ background: 'rgba(0,0,0,0.3)' }}>

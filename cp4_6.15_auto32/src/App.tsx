@@ -8,6 +8,7 @@ import {
   Port,
 } from './types/ModuleTypes';
 import { AudioEngine } from './audio/AudioEngine';
+import { validateConnection } from './utils/portValidator';
 import ModulePanel from './components/ModulePanel';
 import Workbench from './components/Workbench';
 
@@ -190,6 +191,20 @@ export default function App() {
   }, []);
 
   const handleAddConnection = useCallback((fromPortId: string, toPortId: string): boolean => {
+    const findPort = (id: string): Port | undefined =>
+      state.modules
+        .flatMap(m => m.ports)
+        .find(p => p.id === id);
+
+    const fromPort = findPort(fromPortId);
+    const toPort = findPort(toPortId);
+    if (!fromPort || !toPort) return false;
+
+    const validation = validateConnection(fromPort, toPort);
+    if (!validation.valid) {
+      return false;
+    }
+
     const conn: Connection = {
       id: generateId(),
       fromPortId,
