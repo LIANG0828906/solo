@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { WaveformCanvas } from './WaveformCanvas';
-import { TrackState, EffectState, MAX_EFFECTS_PER_TRACK, EFFECT_CONFIGS } from '@types/index';
+import { TrackState, EffectType, MAX_EFFECTS_PER_TRACK, EFFECT_CONFIGS } from '@types/index';
 import { useAudioEngine } from '@hooks/useAudioEngine';
 import { useMixerStore } from '@store/useStore';
 
@@ -9,9 +9,10 @@ interface TrackItemProps {
   index: number;
   isSelected: boolean;
   onSelect: (trackId: string) => void;
+  onEffectDrop?: (trackId: string, effectType: EffectType, slotIndex: number) => void;
 }
 
-export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps) {
+export function TrackItem({ track, index, isSelected, onSelect, onEffectDrop }: TrackItemProps) {
   const {
     setTrackVolume,
     setTrackPan,
@@ -26,32 +27,25 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
   const currentTime = useMixerStore((state) => state.playback.currentTime);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(track.name);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panKnobRef = useRef<HTMLDivElement>(null);
-  const isDraggingPanRef = useState(false);
 
   const bgColor = index % 2 === 0 ? '#f9fafb' : '#f3f4f6';
-  const textColor = '#1e293b';
-  const mutedTextColor = '#64748b';
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number(e.target.value);
     setTrackVolume(track.id, value);
   };
 
-  const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value);
-    setTrackPan(track.id, value);
-  };
-
   const handlePanKnobMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    isDraggingPanRef.current = true;
     const startY = e.clientY;
     const startPan = track.pan;
+    let isDragging = true;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDraggingPanRef.current) return;
+      if (!isDragging) return;
       const deltaY = startY - moveEvent.clientY;
       const newPan = Math.max(-100, Math.min(100, startPan + deltaY * 0.5));
       setTrackPan(track.id, Math.round(newPan));
@@ -65,7 +59,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
     };
 
     const handleMouseUp = () => {
-      isDraggingPanRef.current = false;
+      isDragging = false;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -120,24 +114,38 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleSlotDragOver = (e: React.DragEvent, slotIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    const effectType = e.dataTransfer.getData('effectType') as any;
-    if (effectType && track.effects.length < MAX_EFFECTS_PER_TRACK) {
-      // Will be handled by parent
-    }
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOverSlot(slotIndex);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleSlotDragLeave = () => {
+    setDragOverSlot(null);
+  };
+
+  const handleSlotDrop = (e: React.DragEvent, slotIndex: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    e.stopPropagation();
+    setDragOverSlot(null);
+    const effectType = e.dataTransfer.getData('effectType') as EffectType;
+    if (effectType && onEffectDrop) {
+      onEffectDrop(track.id, effectType, slotIndex);
+    }
   };
 
   const panRotation = (track.pan / 100) * 135;
 
   const selectionStart = selection?.trackId === track.id ? selection.startTime : null;
   const selectionEnd = selection?.trackId === track.id ? selection.endTime : null;
+
+  const muteBtnBg = track.muted ? '#dc2626' : '#d1d5db';
+  const muteBtnColor = track.muted ? '#ffffff' : '#475569';
+  const soloBtnBg = track.solo ? '#dc2626' : '#d1d5db';
+  const soloBtnColor = track.solo ? '#ffffff' : '#475569';
+
+  const otherInactive = track.muted || track.solo;
 
   return (
     <div
@@ -150,8 +158,6 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
         boxShadow: isSelected ? 'inset 3px 0 0 #a855f7' : 'none',
       }}
       onClick={() => onSelect(track.id)}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
@@ -175,7 +181,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               style={{
                 fontSize: '14px',
                 fontWeight: 500,
-                color: textColor,
+                color: '#1e293b',
                 backgroundColor: 'transparent',
                 border: '1px solid #a855f7',
                 borderRadius: '4px',
@@ -191,7 +197,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               style={{
                 fontSize: '14px',
                 fontWeight: 500,
-                color: track.muted ? mutedTextColor : textColor,
+                color: track.muted ? '#64748b' : '#1e293b',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -253,10 +259,8 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
             max="100"
             value={track.volume}
             onChange={handleVolumeChange}
-            style={{
-              width: '100%',
-              '--value: `${track.volume}%`,
-            } as React.CSSProperties}
+            className="volume-slider"
+            style={{ width: '100%', '--value': `${track.volume}%` } as React.CSSProperties}
           />
         </div>
 
@@ -269,7 +273,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               width: '36px',
               height: '36px',
               borderRadius: '50%',
-              backgroundColor: '#1e293b,
+              backgroundColor: '#1e293b',
               border: '2px solid #475569',
               position: 'relative',
               cursor: 'grab',
@@ -321,8 +325,9 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               fontSize: '11px',
               fontWeight: 600,
               transition: 'all 0.15s ease',
-              backgroundColor: track.muted ? '#dc2626' : '#d1d5db',
-              color: track.muted ? '#ffffff' : '#475569',
+              backgroundColor: muteBtnBg,
+              color: muteBtnColor,
+              opacity: otherInactive && !track.muted ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
               if (!track.muted) {
@@ -349,8 +354,9 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               fontSize: '11px',
               fontWeight: 600,
               transition: 'all 0.15s ease',
-              backgroundColor: track.solo ? '#dc2626' : '#d1d5db',
-              color: track.solo ? '#ffffff' : '#475569',
+              backgroundColor: soloBtnBg,
+              color: soloBtnColor,
+              opacity: otherInactive && !track.solo ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
               if (!track.solo) {
@@ -372,6 +378,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
         {Array.from({ length: MAX_EFFECTS_PER_TRACK }).map((_, i) => {
           const effect = track.effects.find((e) => e.slotIndex === i);
           const config = effect ? EFFECT_CONFIGS[effect.type] : null;
+          const isDragOver = dragOverSlot === i;
 
           return (
             <div
@@ -380,19 +387,26 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
                 e.stopPropagation();
                 handleEffectSlotClick(i);
               }}
+              onDragOver={(e) => handleSlotDragOver(e, i)}
+              onDragLeave={handleSlotDragLeave}
+              onDrop={(e) => handleSlotDrop(e, i)}
               style={{
                 flex: 1,
                 height: '32px',
                 borderRadius: '4px',
-                backgroundColor: effect ? '#334155' : 'transparent',
+                backgroundColor: effect
+                  ? effect.bypassed ? '#64748b' : '#334155'
+                  : isDragOver ? 'rgba(96, 165, 250, 0.2)' : 'transparent',
                 border: effect
                   ? `1px solid ${effect.bypassed ? '#64748b' : '#60a5fa'}`
-                  : '1px dashed #cbd5e1',
+                  : isDragOver
+                    ? '1px solid #60a5fa'
+                    : '1px dashed #cbd5e1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '10px',
-                color: effect ? '#e2e8f0' : '#94a3b8',
+                color: effect ? (effect.bypassed ? '#94a3b8' : '#e2e8f0') : '#94a3b8',
                 cursor: effect ? 'pointer' : 'default',
                 opacity: effect && effect.bypassed ? 0.5 : 1,
                 transition: 'all 0.15s ease',
@@ -403,7 +417,7 @@ export function TrackItem({ track, index, isSelected, onSelect }: TrackItemProps
               }}
               title={config?.name || `插槽 ${i + 1}`}
             >
-              {effect ? config?.name.split(' ')[0] : `+`}
+              {effect ? `${config?.icon || ''} ${config?.name.split(' ')[0] || ''}` : '+'}
             </div>
           );
         })}

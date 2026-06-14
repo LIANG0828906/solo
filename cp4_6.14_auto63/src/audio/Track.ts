@@ -1,15 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import { EffectSlot } from './EffectSlot.js';
-import { EffectType, TrackState, WAVEFORM_SAMPLES, MAX_EFFECTS_PER_TRACK } from '@types/index';
+import { EffectType, TrackState, ITrack, IEffectSlot, WAVEFORM_SAMPLES, WAVEFORM_REFRESH_INTERVAL, MAX_EFFECTS_PER_TRACK } from '@types/index';
 
-export class Track {
+export class Track implements ITrack {
   id: string;
   name: string;
   volume: number = 80;
   pan: number = 0;
   muted: boolean = false;
   solo: boolean = false;
-  effects: EffectSlot[] = [];
+  effects: IEffectSlot[] = [];
   buffer: AudioBuffer | null = null;
   waveformData: Float32Array | null = null;
   duration: number = 0;
@@ -23,6 +23,7 @@ export class Track {
   private pausedAt: number = 0;
   private isPlaying: boolean = false;
   private isSoloMuted: boolean = false;
+  private waveformRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(audioContext: AudioContext, name: string = '新轨道') {
     this.id = uuidv4();
@@ -100,6 +101,23 @@ export class Track {
     return this.waveformData;
   }
 
+  startWaveformRefresh(): void {
+    this.stopWaveformRefresh();
+    this.computeWaveform();
+    this.waveformRefreshTimer = setInterval(() => {
+      if (this.buffer) {
+        this.computeWaveform();
+      }
+    }, WAVEFORM_REFRESH_INTERVAL);
+  }
+
+  stopWaveformRefresh(): void {
+    if (this.waveformRefreshTimer !== null) {
+      clearInterval(this.waveformRefreshTimer);
+      this.waveformRefreshTimer = null;
+    }
+  }
+
   setVolume(value: number): void {
     this.volume = Math.max(0, Math.min(100, value));
     this.updateGain();
@@ -107,7 +125,7 @@ export class Track {
 
   setPan(value: number): void {
     this.pan = Math.max(-100, Math.min(100, value));
-    this.panNode.pan.value = this.pan / 100;
+    this.panNode.pan.setTargetAtTime(this.pan / 100, this.audioContext.currentTime, 0.01);
   }
 
   toggleMute(): boolean {
@@ -132,7 +150,7 @@ export class Track {
     this.gainNode.gain.setTargetAtTime(targetGain, this.audioContext.currentTime, 0.01);
   }
 
-  addEffect(type: EffectType, slotIndex: number): EffectSlot | null {
+  addEffect(type: EffectType, slotIndex: number): IEffectSlot | null {
     if (this.effects.length >= MAX_EFFECTS_PER_TRACK) return null;
     if (this.effects.some((e) => e.slotIndex === slotIndex)) return null;
 
@@ -163,46 +181,32 @@ export class Track {
     return true;
   }
 
-  getEffect(effectId: string): EffectSlot | undefined {
+  getEffect(effectId: string): IEffectSlot | undefined {
     return this.effects.find((e) => e.id === effectId);
   }
 
   private reconnectEffectChain(): void {
     if (!this.sourceNode) return;
 
-    try {
-      this.sourceNode.disconnect();
-    } catch (e) { /* ignore */ }
-
-    this.preGain.disconnect();
-    this.gainNode.disconnect();
-    this.panNode.disconnect();
-
-    let currentNode: AudioNode = this.sourceNode;
+    try { this.sourceNode.disconnect(); } catch (e) { /* ignore */ }
+    try { this.preGain.disconnect(); } catch (e) { /* ignore */ }
 
     for (const effect of this.effects) {
       effect.disconnect();
     }
 
-    if (this.effects.length > 0) {
-      this.sourceNode.connect(this.preGain);
-      let prevOutput: AudioNode = this.preGain;
+    if (this.effects.length === 0) {
+      this.sourceNode.connect(this.gainNode);
+    } else {
+      let prevNode: AudioNode = this.sourceNode;
+      prevNode.connect(this.preGain);
+      prevNode = this.preGain;
 
       for (const effect of this.effects) {
-        const effect.createNodes(prevOutput, this.gainNode);
-        prevOutput = this.gainNode;
-        break;
+        effect.createNodes(prevNode, this.gainNode);
+        prevNode = this.gainNode;
       }
-
-      this.effects[0].createNodes(this.preGain, this.gainNode);
-      for (let i = 1; i < this.effects.length; i++) {
-        // Chain effects together - we need intermediate nodes
-      }
-    } else {
-      this.sourceNode.connect(this.gainNode);
     }
-
-    this.gainNode.connect(this.panNode);
   }
 
   play(offset: number = 0): void {
@@ -214,10 +218,6 @@ export class Track {
     this.sourceNode.buffer = this.buffer;
 
     this.reconnectEffectChain();
-
-    this.panNode.connect(this.gainNode);
-    this.gainNode.disconnect();
-    this.gainNode.connect(this.panNode);
 
     this.startTime = this.audioContext.currentTime - offset;
     this.pausedAt = 0;
@@ -278,17 +278,17 @@ export class Track {
   }
 
   connect(destination: AudioNode): void {
+    this.gainNode.connect(this.panNode);
     this.panNode.connect(destination);
   }
 
   disconnect(): void {
     try {
+      this.gainNode.disconnect();
       this.panNode.disconnect();
+      this.preGain.disconnect();
     } catch (e) { /* ignore */ }
   }
-
-  trim(startTime: number = 0;
-  endTime: number = 0;
 
   cutSelection(start: number, end: number): AudioBuffer | null {
     if (!this.buffer) return null;
@@ -401,6 +401,7 @@ export class Track {
 
   destroy(): void {
     this.stop();
+    this.stopWaveformRefresh();
     this.disconnect();
     for (const effect of this.effects) {
       effect.destroy();

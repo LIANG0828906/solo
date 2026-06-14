@@ -7,7 +7,6 @@ export function TrackPanel() {
   const tracks = useMixerStore((state) => state.tracks);
   const selectedTrackId = useMixerStore((state) => state.selectedTrackId);
   const setSelectedTrackId = useMixerStore((state) => state.setSelectedTrackId);
-  const setSelection = useMixerStore((state) => state.setSelection);
 
   const { addTrack, addEffect, addTrackWithFile } = useAudioEngine();
 
@@ -15,17 +14,8 @@ export function TrackPanel() {
     addTrack();
   };
 
-  const handleDrop = (e: React.DragEvent, trackId: string, slotIndex: number) => {
-    e.preventDefault();
-    const effectType = e.dataTransfer.getData('effectType') as EffectType;
-    if (effectType) {
-      addEffect(trackId, effectType, slotIndex);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+  const handleEffectDrop = (trackId: string, effectType: EffectType, slotIndex: number) => {
+    addEffect(trackId, effectType, slotIndex);
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -37,6 +27,11 @@ export function TrackPanel() {
         addTrackWithFile(file);
       }
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   return (
@@ -115,19 +110,15 @@ export function TrackPanel() {
             </p>
           </div>
         ) : (
-            tracks.map((track, index) => (
-            <div
+          tracks.map((track, index) => (
+            <TrackItem
               key={track.id}
-              onDrop={(e) => handleDrop(e, track.id, 0)}
-              onDragOver={handleDragOver}
-            >
-              <TrackItem
-                track={track}
-                index={index}
-                isSelected={selectedTrackId === track.id}
-                onSelect={setSelectedTrackId}
-              />
-            </div>
+              track={track}
+              index={index}
+              isSelected={selectedTrackId === track.id}
+              onSelect={setSelectedTrackId}
+              onEffectDrop={handleEffectDrop}
+            />
           ))
         )}
       </div>

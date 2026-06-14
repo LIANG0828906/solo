@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { EffectType, EffectState, EFFECT_CONFIGS } from '@types/index';
+import { EffectType, EffectState, EFFECT_CONFIGS, IEffectSlot } from '@types/index';
 
-export class EffectSlot {
+const PARAM_RAMP_TIME = 0.01;
+
+export class EffectSlot implements IEffectSlot {
   id: string;
   type: EffectType;
   params: Record<string, number>;
@@ -20,6 +22,7 @@ export class EffectSlot {
   private waveShaper: WaveShaperNode | null = null;
   private convolver: ConvolverNode | null = null;
   private compressorNode: DynamicsCompressorNode | null = null;
+  private nodesCreated: boolean = false;
 
   constructor(
     audioContext: AudioContext,
@@ -56,20 +59,26 @@ export class EffectSlot {
 
   toggleBypass(): boolean {
     this.bypassed = !this.bypassed;
-    if (this.dryGain && this.wetGain) {
-      if (this.bypassed) {
-        this.dryGain.gain.value = 1;
-        this.wetGain.gain.value = 0;
-      } else {
-        const wet = this.params['wet'] ?? 0.5;
-        this.dryGain.gain.value = 1 - wet;
-        this.wetGain.gain.value = wet;
-      }
-    }
+    this.applyBypassState();
     return this.bypassed;
   }
 
+  private applyBypassState(): void {
+    if (!this.dryGain || !this.wetGain) return;
+    const t = this.audioContext.currentTime;
+    if (this.bypassed) {
+      this.dryGain.gain.setTargetAtTime(1, t, PARAM_RAMP_TIME);
+      this.wetGain.gain.setTargetAtTime(0, t, PARAM_RAMP_TIME);
+    } else {
+      const wet = this.params['wet'] ?? 0.5;
+      this.dryGain.gain.setTargetAtTime(1 - wet, t, PARAM_RAMP_TIME);
+      this.wetGain.gain.setTargetAtTime(wet, t, PARAM_RAMP_TIME);
+    }
+  }
+
   createNodes(input: AudioNode, output: AudioNode): void {
+    this.disconnect();
+
     this.inputNode = input;
     this.outputNode = output;
 
@@ -95,6 +104,7 @@ export class EffectSlot {
     }
 
     this.connectChain();
+    this.nodesCreated = true;
   }
 
   private connectChain(): void {
@@ -143,10 +153,10 @@ export class EffectSlot {
 
   private createCompressor(): void {
     const compressor = this.audioContext.createDynamicsCompressor();
-    compressor.threshold.value = this.params['threshold'] || -24;
-    compressor.ratio.value = this.params['ratio'] || 4;
-    compressor.attack.value = this.params['attack'] || 0.003;
-    compressor.release.value = this.params['release'] || 0.25;
+    compressor.threshold.value = this.params['threshold'] ?? -24;
+    compressor.ratio.value = this.params['ratio'] ?? 4;
+    compressor.attack.value = this.params['attack'] ?? 0.003;
+    compressor.release.value = this.params['release'] ?? 0.25;
 
     this.compressorNode = compressor;
     this.effectNode = compressor;
@@ -154,7 +164,7 @@ export class EffectSlot {
 
   private createReverb(): void {
     const convolver = this.audioContext.createConvolver();
-    this.generateImpulseResponse(convolver, this.params['decay'] || 2);
+    this.generateImpulseResponse(convolver, this.params['decay'] ?? 2);
 
     this.convolver = convolver;
     this.effectNode = convolver;
@@ -162,7 +172,7 @@ export class EffectSlot {
 
   private generateImpulseResponse(convolver: ConvolverNode, decay: number): void {
     const sampleRate = this.audioContext.sampleRate;
-    const length = sampleRate * decay;
+    const length = Math.floor(sampleRate * decay);
     const impulse = this.audioContext.createBuffer(2, length, sampleRate);
 
     for (let channel = 0; channel < 2; channel++) {
@@ -177,10 +187,10 @@ export class EffectSlot {
 
   private createDelay(): void {
     const delay = this.audioContext.createDelay(2);
-    delay.delayTime.value = this.params['delayTime'] || 0.3;
+    delay.delayTime.value = this.params['delayTime'] ?? 0.3;
 
     const feedback = this.audioContext.createGain();
-    feedback.gain.value = this.params['feedback'] || 0.3;
+    feedback.gain.value = this.params['feedback'] ?? 0.3;
 
     delay.connect(feedback);
     feedback.connect(delay);
@@ -192,7 +202,7 @@ export class EffectSlot {
 
   private createDistortion(): void {
     const waveShaper = this.audioContext.createWaveShaper();
-    waveShaper.curve = this.makeDistortionCurve(this.params['amount'] || 0.5);
+    waveShaper.curve = this.makeDistortionCurve(this.params['amount'] ?? 0.5);
     waveShaper.oversample = '4x';
 
     this.waveShaper = waveShaper;
@@ -214,6 +224,8 @@ export class EffectSlot {
   }
 
   private applyParam(name: string, value: number): void {
+    if (!this.nodesCreated) return;
+
     switch (this.type) {
       case 'eq':
         this.applyEQParam(name, value);
@@ -234,58 +246,74 @@ export class EffectSlot {
   }
 
   private applyEQParam(name: string, value: number): void {
+    const t = this.audioContext.currentTime;
     if (name === 'lowGain' && this.eqFilters[0]) {
-      this.eqFilters[0].gain.value = value;
+      this.eqFilters[0].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     } else if (name === 'midGain' && this.eqFilters[1]) {
-      this.eqFilters[1].gain.value = value;
+      this.eqFilters[1].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     } else if (name === 'highGain' && this.eqFilters[2]) {
-      this.eqFilters[2].gain.value = value;
+      this.eqFilters[2].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     }
   }
 
   private applyCompressorParam(name: string, value: number): void {
     if (!this.compressorNode) return;
-    if (name === 'threshold') this.compressorNode.threshold.value = value;
-    else if (name === 'ratio') this.compressorNode.ratio.value = value;
-    else if (name === 'attack') this.compressorNode.attack.value = value;
-    else if (name === 'release') this.compressorNode.release.value = value;
+    const t = this.audioContext.currentTime;
+    if (name === 'threshold') this.compressorNode.threshold.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+    else if (name === 'ratio') this.compressorNode.ratio.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+    else if (name === 'attack') this.compressorNode.attack.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+    else if (name === 'release') this.compressorNode.release.setTargetAtTime(value, t, PARAM_RAMP_TIME);
   }
 
   private applyReverbParam(name: string, value: number): void {
+    const t = this.audioContext.currentTime;
     if (name === 'decay' && this.convolver) {
       this.generateImpulseResponse(this.convolver, value);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.value = 1 - value;
-      this.wetGain.gain.value = value;
+      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
+      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     }
   }
 
   private applyDelayParam(name: string, value: number): void {
+    const t = this.audioContext.currentTime;
     if (name === 'delayTime' && this.delayNode) {
-      this.delayNode.delayTime.value = value;
+      this.delayNode.delayTime.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     } else if (name === 'feedback' && this.feedbackGain) {
-      this.feedbackGain.gain.value = value;
+      this.feedbackGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.value = 1 - value;
-      this.wetGain.gain.value = value;
+      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
+      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     }
   }
 
   private applyDistortionParam(name: string, value: number): void {
+    const t = this.audioContext.currentTime;
     if (name === 'amount' && this.waveShaper) {
       this.waveShaper.curve = this.makeDistortionCurve(value);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.value = 1 - value;
-      this.wetGain.gain.value = value;
+      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
+      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
     }
   }
 
   disconnect(): void {
+    if (!this.nodesCreated) return;
     try {
       if (this.inputNode && this.dryGain) this.inputNode.disconnect(this.dryGain);
       if (this.inputNode && this.effectNode) this.inputNode.disconnect(this.effectNode);
       if (this.dryGain && this.outputNode) this.dryGain.disconnect(this.outputNode);
       if (this.wetGain && this.outputNode) this.wetGain.disconnect(this.outputNode);
+      if (this.effectNode && this.wetGain) this.effectNode.disconnect(this.wetGain);
+      if (this.eqFilters.length > 0) {
+        this.eqFilters[0].disconnect();
+        if (this.eqFilters[1]) this.eqFilters[0].disconnect(this.eqFilters[1]);
+        if (this.eqFilters[2]) this.eqFilters[1].disconnect(this.eqFilters[2]);
+      }
+      if (this.delayNode) {
+        this.delayNode.disconnect();
+        if (this.feedbackGain) this.feedbackGain.disconnect();
+      }
     } catch (e) {
       // ignore disconnect errors
     }
@@ -298,6 +326,7 @@ export class EffectSlot {
     this.waveShaper = null;
     this.convolver = null;
     this.compressorNode = null;
+    this.nodesCreated = false;
   }
 
   destroy(): void {

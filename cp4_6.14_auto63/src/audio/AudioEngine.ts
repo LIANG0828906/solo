@@ -1,10 +1,10 @@
 import { Track } from './Track.js';
-import { EffectType, AudioEngineState, PlaybackState, TrackState } from '@types/index';
+import { EffectType, AudioEngineState, PlaybackState, TrackState, IAudioEngine, ITrack } from '@types/index';
 import { v4 as uuidv4 } from 'uuid';
 
 type StateListener = (state: AudioEngineState) => void;
 
-export class AudioEngine {
+export class AudioEngine implements IAudioEngine {
   private static instance: AudioEngine | null = null;
 
   private context: AudioContext | null = null;
@@ -12,10 +12,10 @@ export class AudioEngine {
   private masterGain: GainNode | null = null;
   private masterVolume: number = 80;
 
-  private isPlaying: boolean = false;
-  private currentTime: number = 0;
-  private duration: number = 0;
-  private bpm: number = 120;
+  private _isPlaying: boolean = false;
+  private _currentTime: number = 0;
+  private _duration: number = 0;
+  private _bpm: number = 120;
 
   private stateListeners: Set<StateListener> = new Set();
   private animationFrameId: number | null = null;
@@ -67,18 +67,18 @@ export class AudioEngine {
   }
 
   getState(): AudioEngineState {
-    const tracks: TrackState[] = [];
+    const trackStates: TrackState[] = [];
     this.tracks.forEach((track) => {
-      tracks.push(track.getState());
+      trackStates.push(track.getState());
     });
 
     return {
-      tracks,
+      tracks: trackStates,
       playback: {
-        isPlaying: this.isPlaying,
-        currentTime: this.currentTime,
-        duration: this.duration,
-        bpm: this.bpm,
+        isPlaying: this._isPlaying,
+        currentTime: this._currentTime,
+        duration: this._duration,
+        bpm: this._bpm,
       },
       masterVolume: this.masterVolume,
     };
@@ -86,14 +86,14 @@ export class AudioEngine {
 
   getPlaybackState(): PlaybackState {
     return {
-      isPlaying: this.isPlaying,
-      currentTime: this.currentTime,
-      duration: this.duration,
-      bpm: this.bpm,
+      isPlaying: this._isPlaying,
+      currentTime: this._currentTime,
+      duration: this._duration,
+      bpm: this._bpm,
     };
   }
 
-  addTrack(name?: string): Track {
+  addTrack(name?: string): ITrack {
     if (!this.context) {
       throw new Error('AudioEngine not initialized');
     }
@@ -117,6 +117,7 @@ export class AudioEngine {
     if (!track) return false;
 
     track.stop();
+    track.stopWaveformRefresh();
     track.disconnect();
     track.destroy();
     this.tracks.delete(trackId);
@@ -128,11 +129,11 @@ export class AudioEngine {
     return true;
   }
 
-  getTrack(trackId: string): Track | undefined {
+  getTrack(trackId: string): ITrack | undefined {
     return this.tracks.get(trackId);
   }
 
-  getTracks(): Track[] {
+  getTracks(): ITrack[] {
     return Array.from(this.tracks.values());
   }
 
@@ -260,7 +261,7 @@ export class AudioEngine {
     }
   }
 
-  async addTrackWithFile(file: File): Promise<Track | null> {
+  async addTrackWithFile(file: File): Promise<ITrack | null> {
     try {
       const track = this.addTrack();
       const success = await this.importAudioFile(track.id, file);
@@ -268,8 +269,8 @@ export class AudioEngine {
         this.removeTrack(track.id);
         return null;
       }
-      if (this.duration > 0 && this.currentTime === 0) {
-        this.seek(this.duration / 2);
+      if (this._duration > 0 && this._currentTime === 0) {
+        this.seek(this._duration / 2);
       }
       return track;
     } catch (e) {
@@ -280,10 +281,10 @@ export class AudioEngine {
 
   setMasterVolume(volume: number): void {
     this.masterVolume = Math.max(0, Math.min(100, volume));
-    if (this.masterGain) {
+    if (this.masterGain && this.context) {
       this.masterGain.gain.setTargetAtTime(
         this.masterVolume / 100,
-        this.context!.currentTime,
+        this.context.currentTime,
         0.01,
       );
     }
@@ -291,12 +292,12 @@ export class AudioEngine {
   }
 
   setBPM(bpm: number): void {
-    this.bpm = Math.max(20, Math.min(300, bpm));
+    this._bpm = Math.max(20, Math.min(300, bpm));
     this.notifyListeners();
   }
 
   play(): void {
-    if (this.isPlaying) return;
+    if (this._isPlaying) return;
     if (!this.context || this.tracks.size === 0) return;
 
     if (this.context.state === 'suspended') {
@@ -304,24 +305,26 @@ export class AudioEngine {
     }
 
     this.tracks.forEach((track) => {
-      track.play(this.currentTime);
+      track.play(this._currentTime);
+      track.startWaveformRefresh();
     });
 
-    this.isPlaying = true;
+    this._isPlaying = true;
     this.lastUpdateTime = this.context.currentTime;
     this.startAnimationFrame();
     this.notifyListeners();
   }
 
   pause(): void {
-    if (!this.isPlaying) return;
+    if (!this._isPlaying) return;
 
     this.tracks.forEach((track) => {
-      this.currentTime = track.getCurrentTime();
+      this._currentTime = track.getCurrentTime();
       track.pause();
+      track.stopWaveformRefresh();
     });
 
-    this.isPlaying = false;
+    this._isPlaying = false;
     this.stopAnimationFrame();
     this.notifyListeners();
   }
@@ -329,20 +332,21 @@ export class AudioEngine {
   stop(): void {
     this.tracks.forEach((track) => {
       track.stop();
+      track.stopWaveformRefresh();
     });
 
-    this.isPlaying = false;
-    this.currentTime = 0;
+    this._isPlaying = false;
+    this._currentTime = 0;
     this.stopAnimationFrame();
     this.notifyListeners();
   }
 
   seek(time: number): void {
-    this.currentTime = Math.max(0, Math.min(this.duration, time));
+    this._currentTime = Math.max(0, Math.min(this._duration, time));
 
-    if (this.isPlaying) {
+    if (this._isPlaying) {
       this.tracks.forEach((track) => {
-        track.seek(this.currentTime);
+        track.seek(this._currentTime);
       });
     }
 
@@ -351,21 +355,20 @@ export class AudioEngine {
 
   private startAnimationFrame(): void {
     const update = () => {
-      if (!this.isPlaying || !this.context) return;
+      if (!this._isPlaying || !this.context) return;
 
       const now = this.context.currentTime;
-      const delta = now - this.lastUpdateTime;
       this.lastUpdateTime = now;
 
       if (this.tracks.size > 0) {
         const firstTrack = this.tracks.values().next().value;
         if (firstTrack) {
-          this.currentTime = firstTrack.getCurrentTime();
+          this._currentTime = firstTrack.getCurrentTime();
         }
       }
 
-      if (this.currentTime >= this.duration && this.duration > 0) {
-        this.currentTime = this.duration;
+      if (this._currentTime >= this._duration && this._duration > 0) {
+        this._currentTime = this._duration;
         this.pause();
         return;
       }
@@ -391,7 +394,7 @@ export class AudioEngine {
         maxDuration = track.duration;
       }
     });
-    this.duration = maxDuration;
+    this._duration = maxDuration;
   }
 
   cutSelection(trackId: string, startTime: number, endTime: number): AudioBuffer | null {
@@ -430,7 +433,7 @@ export class AudioEngine {
     return true;
   }
 
-  pasteToNewTrack(insertTime: number): Track | null {
+  pasteToNewTrack(insertTime: number): ITrack | null {
     if (this.clipboards.size === 0) return null;
 
     const firstClip = this.clipboards.values().next().value;
@@ -456,6 +459,7 @@ export class AudioEngine {
   destroy(): void {
     this.stopAnimationFrame();
     this.tracks.forEach((track) => {
+      track.stopWaveformRefresh();
       track.destroy();
     });
     this.tracks.clear();

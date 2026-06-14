@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 
 interface WaveformCanvasProps {
   waveformData: Float32Array | null;
@@ -16,7 +16,7 @@ export function WaveformCanvas({
   waveformData,
   duration,
   currentTime,
-  height = 80,
+  height,
   selectionStart = null,
   selectionEnd = null,
   onSelectionChange,
@@ -28,6 +28,29 @@ export function WaveformCanvas({
   const isDraggingRef = useRef(false);
   const isSelectingRef = useRef(false);
   const selectionStartRef = useRef<number | null>(null);
+  const [autoHeight, setAutoHeight] = useState(height || 80);
+
+  useEffect(() => {
+    if (height !== undefined) {
+      setAutoHeight(height);
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.contentRect.height;
+        if (h > 0) {
+          setAutoHeight(h);
+        }
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [height]);
 
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
@@ -39,7 +62,7 @@ export function WaveformCanvas({
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     const width = rect.width;
-    const h = height;
+    const h = autoHeight;
 
     canvas.width = width * dpr;
     canvas.height = h * dpr;
@@ -92,7 +115,7 @@ export function WaveformCanvas({
       ctx.lineTo(playheadX, h);
       ctx.stroke();
     }
-  }, [waveformData, duration, currentTime, height, selectionStart, selectionEnd]);
+  }, [waveformData, duration, currentTime, autoHeight, selectionStart, selectionEnd]);
 
   useEffect(() => {
     let animationId: number;
@@ -168,7 +191,8 @@ export function WaveformCanvas({
       style={{
         position: 'relative',
         width: '100%',
-        height,
+        height: height !== undefined ? height : '100%',
+        minHeight: height !== undefined ? undefined : 40,
         borderRadius: '4px',
         overflow: 'hidden',
         cursor: onSeek ? 'pointer' : 'default',
