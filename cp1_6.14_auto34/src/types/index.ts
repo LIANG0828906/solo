@@ -7,6 +7,14 @@ export interface LocationNode {
   x: number;
   y: number;
   estimatedDuration: number;
+  anchorPoints?: AnchorPoints;
+}
+
+export interface AnchorPoints {
+  left: { x: number; y: number };
+  right: { x: number; y: number };
+  top: { x: number; y: number };
+  bottom: { x: number; y: number };
 }
 
 export interface Connection {
@@ -67,4 +75,25 @@ export interface ReportDayData {
   nodes: LocationNode[];
   totalDistance: number;
   totalDuration: number;
+}
+
+export interface TimelineSlot {
+  dayNumber: number;
+  gradientStart: string;
+  gradientEnd: string;
+  nodeIds: string[];
+}
+
+export interface DragPayload {
+  type: 'canvas-node' | 'timeline-item';
+  nodeId: string;
+  sourceDayNumber?: number;
+  sourceIndex?: number;
+}
+
+export interface DirtyRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }

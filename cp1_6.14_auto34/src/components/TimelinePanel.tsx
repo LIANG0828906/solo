@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { MapPin, Clock, GripVertical, Trash2 } from 'lucide-react';
+import { DragPayload } from '@/types';
 import { UseRouteStateReturn } from '@/hooks/useRouteState';
 
 interface TimelinePanelProps {
@@ -8,7 +9,6 @@ interface TimelinePanelProps {
 
 export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
   const {
-    nodes,
     itineraries,
     getNodeById,
     assignNodeToDay,
@@ -20,9 +20,10 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
   } = routeState;
 
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [draggedItem, setDraggedItem] = useState<{ dayNumber: number; index: number } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number>(-1);
+  const [draggedItem, setDraggedItem] = useState<DragPayload | null>(null);
   const [activeDay, setActiveDay] = useState<number>(1);
+  const dragCounterRef = useRef(0);
 
   const formatDuration = (minutes: number): string => {
     if (minutes >= 60) {
@@ -40,6 +41,28 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
     return `${meters.toFixed(0)} m`;
   };
 
+  const parseDragPayload = (e: React.DragEvent): DragPayload | null => {
+    const raw = e.dataTransfer.getData('application/travel-node');
+    if (raw) {
+      try {
+        return JSON.parse(raw) as DragPayload;
+      } catch {
+        return null;
+      }
+    }
+    const plainNodeId = e.dataTransfer.getData('text/plain');
+    if (plainNodeId) {
+      return { type: 'canvas-node', nodeId: plainNodeId };
+    }
+    return null;
+  };
+
+  const handleDragEnter = useCallback((e: React.DragEvent, dayNumber: number) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    setDragOverDay(dayNumber);
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent, dayNumber: number, index?: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -50,37 +73,61 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
   }, []);
 
   const handleDragLeave = useCallback(() => {
-    setDragOverDay(null);
-    setDragOverIndex(null);
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setDragOverDay(null);
+      setDragOverIndex(-1);
+    }
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, dayNumber: number, targetIndex?: number) => {
       e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
       setDragOverDay(null);
-      setDragOverIndex(null);
+      setDragOverIndex(-1);
 
-      const nodeId = e.dataTransfer.getData('nodeId');
-      if (nodeId) {
-        assignNodeToDay(nodeId, dayNumber, targetIndex);
-        setTimeout(() => updateConnectionHighlight(), 50);
-        return;
+      const payload = parseDragPayload(e);
+
+      if (payload) {
+        if (payload.type === 'canvas-node') {
+          assignNodeToDay(payload.nodeId, dayNumber, targetIndex);
+          setTimeout(() => updateConnectionHighlight(), 50);
+          return;
+        }
+
+        if (payload.type === 'timeline-item' && payload.sourceDayNumber !== undefined && payload.sourceIndex !== undefined) {
+          if (payload.sourceDayNumber === dayNumber) {
+            const toIdx = targetIndex !== undefined ? targetIndex : itineraries.find(i => i.dayNumber === dayNumber)?.nodeIds.length || 0;
+            if (payload.sourceIndex !== toIdx) {
+              reorderNodesInDay(dayNumber, payload.sourceIndex, toIdx);
+              setTimeout(() => updateConnectionHighlight(), 50);
+            }
+          } else {
+            assignNodeToDay(payload.nodeId, dayNumber, targetIndex);
+            setTimeout(() => updateConnectionHighlight(), 50);
+          }
+          return;
+        }
       }
 
       if (draggedItem) {
-        const { dayNumber: fromDay, index: fromIndex } = draggedItem;
-        if (fromDay === dayNumber) {
-          const toIndex = targetIndex !== undefined ? targetIndex : itineraries.find(i => i.dayNumber === dayNumber)?.nodeIds.length || 0;
-          if (fromIndex !== toIndex) {
-            reorderNodesInDay(dayNumber, fromIndex, toIndex);
+        if (draggedItem.type === 'timeline-item' && draggedItem.sourceDayNumber !== undefined && draggedItem.sourceIndex !== undefined) {
+          if (draggedItem.sourceDayNumber === dayNumber) {
+            const toIdx = targetIndex !== undefined ? targetIndex : itineraries.find(i => i.dayNumber === dayNumber)?.nodeIds.length || 0;
+            if (draggedItem.sourceIndex !== toIdx) {
+              reorderNodesInDay(dayNumber, draggedItem.sourceIndex, toIdx);
+              setTimeout(() => updateConnectionHighlight(), 50);
+            }
+          } else {
+            assignNodeToDay(draggedItem.nodeId, dayNumber, targetIndex);
             setTimeout(() => updateConnectionHighlight(), 50);
           }
         } else {
-          const nodeIdToMove = itineraries.find(i => i.dayNumber === fromDay)?.nodeIds[fromIndex];
-          if (nodeIdToMove) {
-            assignNodeToDay(nodeIdToMove, dayNumber, targetIndex);
-            setTimeout(() => updateConnectionHighlight(), 50);
-          }
+          assignNodeToDay(draggedItem.nodeId, dayNumber, targetIndex);
+          setTimeout(() => updateConnectionHighlight(), 50);
         }
         setDraggedItem(null);
       }
@@ -90,16 +137,29 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
 
   const handleItemDragStart = useCallback(
     (e: React.DragEvent, dayNumber: number, index: number) => {
-      e.dataTransfer.effectAllowed = 'move';
-      setDraggedItem({ dayNumber, index });
+      e.stopPropagation();
       const itinerary = itineraries.find((i) => i.dayNumber === dayNumber);
-      if (itinerary) {
-        const nodeId = itinerary.nodeIds[index];
-        e.dataTransfer.setData('nodeId', nodeId);
-      }
+      if (!itinerary) return;
+      const nodeId = itinerary.nodeIds[index];
+      const payload: DragPayload = {
+        type: 'timeline-item',
+        nodeId,
+        sourceDayNumber: dayNumber,
+        sourceIndex: index,
+      };
+      e.dataTransfer.setData('application/travel-node', JSON.stringify(payload));
+      e.dataTransfer.effectAllowed = 'move';
+      setDraggedItem(payload);
     },
     [itineraries]
   );
+
+  const handleItemDragEnd = useCallback(() => {
+    setDraggedItem(null);
+    setDragOverDay(null);
+    setDragOverIndex(-1);
+    dragCounterRef.current = 0;
+  }, []);
 
   const handleRemoveNode = useCallback(
     (nodeId: string, dayNumber: number) => {
@@ -111,7 +171,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
 
   return (
     <div className="h-full flex flex-col bg-[#FAF7F2] border-l border-[#E8DCC4]">
-      <div className="p-4 border-b border-[#E8DCC4] bg-gradient-to-r from-[#FAF7F2] to-[#F5F0E8]">
+      <div className="p-4 border-b border-[#E8DCC4] bg-gradient-to-r from-[#FAF7F2] to-[#F5F0E8] flex-shrink-0">
         <h2 className="text-lg font-semibold text-[#4A3728]" style={{ fontFamily: "'Noto Serif SC', serif" }}>
           行程时间轴
         </h2>
@@ -122,7 +182,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
         {itineraries.map((itinerary, idx) => {
           const dayNodes = itinerary.nodeIds
             .map((id) => getNodeById(id))
-            .filter((n) => n !== undefined);
+            .filter((n): n is NonNullable<typeof n> => n !== undefined);
           const distance = calculateDayDistance(itinerary.dayNumber);
           const duration = calculateDayDuration(itinerary.dayNumber);
           const isActive = activeDay === itinerary.dayNumber;
@@ -134,19 +194,23 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
               className={`transition-all duration-300 ease-out ${
                 isActive ? 'opacity-100 translate-y-0' : 'opacity-90'
               }`}
-              style={{ animationDelay: `${idx * 50}ms` }}
+              style={{
+                animation: `slideInDay 0.3s ease-out ${idx * 50}ms both`,
+              }}
+              onDragEnter={(e) => handleDragEnter(e, itinerary.dayNumber)}
+              onDragOver={(e) => handleDragOver(e, itinerary.dayNumber)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, itinerary.dayNumber)}
             >
               <div
-                className={`relative rounded-xl overflow-hidden transition-all duration-200 ${
-                  isDragOver ? 'ring-2 ring-offset-2' : ''
+                className={`relative rounded-xl overflow-hidden transition-all duration-200 border-2 ${
+                  isDragOver
+                    ? 'border-[#6B7F5E] shadow-lg scale-[1.01]'
+                    : 'border-transparent'
                 }`}
                 style={{
                   background: `linear-gradient(135deg, ${itinerary.gradientStart}15 0%, ${itinerary.gradientEnd}08 100%)`,
-                  ringColor: itinerary.gradientStart,
                 }}
-                onDragOver={(e) => handleDragOver(e, itinerary.dayNumber)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, itinerary.dayNumber)}
               >
                 <div
                   className="px-3 py-2 cursor-pointer"
@@ -155,7 +219,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm"
                         style={{ backgroundColor: itinerary.gradientStart }}
                       >
                         {itinerary.dayNumber}
@@ -186,13 +250,19 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
                   </div>
                 </div>
 
-                {isActive && (
-                  <div className="px-3 pb-3 space-y-2">
+                <div
+                  className="overflow-hidden transition-all duration-300 ease-out"
+                  style={{
+                    maxHeight: isActive ? `${dayNodes.length * 60 + 80}px` : '0px',
+                    opacity: isActive ? 1 : 0,
+                  }}
+                >
+                  <div className="px-3 pb-3 space-y-1">
                     {dayNodes.length === 0 && (
                       <div
                         className={`h-16 border-2 border-dashed rounded-lg flex items-center justify-center text-sm transition-all ${
                           isDragOver
-                            ? 'border-[#6B7F5E] bg-[#6B7F5E]/10 text-[#6B7F5E]'
+                            ? 'border-[#6B7F5E] bg-[#6B7F5E]/10 text-[#6B7F5E] scale-105'
                             : 'border-[#E8DCC4] text-[#A08060]'
                         }`}
                       >
@@ -201,26 +271,26 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
                     )}
 
                     {dayNodes.map((node, index) => {
-                      if (!node) return null;
                       const isItemDragOver = dragOverDay === itinerary.dayNumber && dragOverIndex === index;
 
                       return (
                         <React.Fragment key={node.id}>
                           {isItemDragOver && (
                             <div
-                              className="h-12 border-2 border-dashed rounded-lg"
-                              style={{ borderColor: itinerary.gradientStart }}
+                              className="h-10 border-2 border-dashed rounded-lg transition-all"
+                              style={{ borderColor: itinerary.gradientStart + '80' }}
                             />
                           )}
                           <div
                             draggable
                             onDragStart={(e) => handleItemDragStart(e, itinerary.dayNumber, index)}
+                            onDragEnd={handleItemDragEnd}
                             onDragOver={(e) => handleDragOver(e, itinerary.dayNumber, index)}
                             onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, itinerary.dayNumber, index)}
-                            className="group bg-white rounded-lg p-2 shadow-sm border border-[#E8DCC4] flex items-center gap-2 cursor-move hover:shadow-md transition-all"
+                            onDrop={(e) => { e.stopPropagation(); handleDrop(e, itinerary.dayNumber, index); }}
+                            className="group bg-white rounded-lg p-2 shadow-sm border border-[#E8DCC4] flex items-center gap-2 cursor-move hover:shadow-md hover:border-[#6B7F5E]/30 transition-all"
                           >
-                            <GripVertical size={14} className="text-[#A08060] flex-shrink-0" />
+                            <GripVertical size={14} className="text-[#A08060] flex-shrink-0 opacity-50 group-hover:opacity-100" />
                             <div
                               className="w-2 h-8 rounded-full flex-shrink-0"
                               style={{ backgroundColor: itinerary.gradientStart }}
@@ -239,7 +309,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
                                 e.stopPropagation();
                                 handleRemoveNode(node.id, itinerary.dayNumber);
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-500 transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-500 transition-all flex-shrink-0"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -248,14 +318,14 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({ routeState }) => {
                       );
                     })}
 
-                    {dragOverDay === itinerary.dayNumber && dragOverIndex === dayNodes.length && dayNodes.length > 0 && (
+                    {dragOverDay === itinerary.dayNumber && dragOverIndex >= dayNodes.length && dayNodes.length > 0 && (
                       <div
-                        className="h-12 border-2 border-dashed rounded-lg"
-                        style={{ borderColor: itinerary.gradientStart }}
+                        className="h-10 border-2 border-dashed rounded-lg transition-all"
+                        style={{ borderColor: itinerary.gradientStart + '80' }}
                       />
                     )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           );
