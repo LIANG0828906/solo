@@ -38,7 +38,12 @@ export const NoteCard: React.FC<NoteCardProps> = memo(({
   const [editContent, setEditContent] = useState(note.content);
   const [voteAnimating, setVoteAnimating] = useState(false);
   const [voteButtonAnimating, setVoteButtonAnimating] = useState(false);
+  const [voteKey, setVoteKey] = useState(0);
+  const [animationState, setAnimationState] = useState<'visible' | 'fading-out' | 'hidden' | 'fading-in'>(
+    isFiltered ? 'hidden' : 'visible'
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevVoteCount = useRef<number>(note.votes.length);
   const hasVoted = note.votes.includes(currentUserId);
   const [isAppear, setIsAppear] = useState(true);
 
@@ -46,6 +51,41 @@ export const NoteCard: React.FC<NoteCardProps> = memo(({
     const timer = setTimeout(() => setIsAppear(false), 500);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (isFiltered) {
+      if (animationState === 'visible') {
+        setAnimationState('fading-out');
+      } else if (animationState === 'fading-in') {
+        setAnimationState('fading-out');
+      }
+    } else {
+      if (animationState === 'hidden') {
+        setAnimationState('fading-in');
+      } else if (animationState === 'fading-out') {
+        setAnimationState('fading-in');
+      }
+    }
+  }, [isFiltered, animationState]);
+
+  useEffect(() => {
+    if (note.votes.length !== prevVoteCount.current) {
+      setVoteKey(prev => prev + 1);
+      prevVoteCount.current = note.votes.length;
+    }
+  }, [note.votes.length]);
+
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    if (e.animationName === 'fadeOut') {
+      if (animationState === 'fading-out') {
+        setAnimationState('hidden');
+      }
+    } else if (e.animationName === 'fadeIn') {
+      if (animationState === 'fading-in') {
+        setAnimationState('visible');
+      }
+    }
+  }, [animationState]);
 
   const { isDragging, position, handleMouseDown } = useDrag({
     noteId: note.id,
@@ -121,9 +161,18 @@ export const NoteCard: React.FC<NoteCardProps> = memo(({
 
   const transformStyle = `translate(${targetX}px, ${targetY}px) scale(${1 / scale})`;
 
-  const filterClasses = isFiltered
-    ? 'note-filter-out'
-    : 'note-filter-in';
+  const filterClasses = (() => {
+    switch (animationState) {
+      case 'fading-out':
+      case 'hidden':
+        return 'note-filter-out';
+      case 'fading-in':
+      case 'visible':
+        return 'note-filter-in';
+      default:
+        return 'note-filter-in';
+    }
+  })();
 
   return (
     <div
@@ -143,6 +192,7 @@ export const NoteCard: React.FC<NoteCardProps> = memo(({
       onMouseDown={!isEditing ? handleMouseDown : undefined}
       onDoubleClick={!isEditing ? handleDoubleClick : undefined}
       onTouchStart={!isEditing ? handleMouseDown : undefined}
+      onAnimationEnd={handleAnimationEnd}
     >
       <div className="note-inner p-3 relative">
         <div
@@ -201,6 +251,7 @@ export const NoteCard: React.FC<NoteCardProps> = memo(({
                 }`}
               />
               <span
+                key={voteKey}
                 className={`text-sm font-bold min-w-[20px] text-center inline-block ${
                   voteAnimating ? 'vote-bounce' : ''
                 }`}

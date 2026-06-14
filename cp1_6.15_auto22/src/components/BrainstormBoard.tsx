@@ -44,6 +44,8 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
   const [prevPositions, setPrevPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [justSwitchedView, setJustSwitchedView] = useState(false);
   const groupZoneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const noteRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const pendingAnimations = useRef<Set<string>>(new Set());
 
   const {
     containerRef,
@@ -61,11 +63,18 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
   }, []);
 
   useEffect(() => {
+    const currentPositions = new Map<string, { x: number; y: number }>();
+    notes.forEach(note => {
+      currentPositions.set(note.id, { x: note.x, y: note.y });
+    });
+    setPrevPositions(currentPositions);
+
     setViewModeAnimating(true);
     setJustSwitchedView(true);
+    pendingAnimations.current.clear();
+
     const timer = setTimeout(() => {
       setViewModeAnimating(false);
-      setJustSwitchedView(false);
     }, 700);
     return () => clearTimeout(timer);
   }, [viewMode]);
@@ -254,6 +263,44 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
     }
   }, [currentUser, roomId, offset, scale, getGroupAtPosition, addNoteToStore]);
 
+  const handleNoteAnimationEnd = useCallback((noteId: string) => {
+    const el = noteRefs.current.get(noteId);
+    if (el) {
+      el.style.removeProperty('--from-x');
+      el.style.removeProperty('--from-y');
+      el.style.removeProperty('--to-x');
+      el.style.removeProperty('--to-y');
+      el.classList.remove('note-fly');
+    }
+
+    pendingAnimations.current.delete(noteId);
+
+    if (pendingAnimations.current.size === 0) {
+      setJustSwitchedView(false);
+    }
+  }, []);
+
+  const setNoteRef = useCallback((noteId: string, targetPosition: { x: number; y: number }) => (el: HTMLDivElement | null) => {
+    if (el) {
+      noteRefs.current.set(noteId, el);
+
+      if (justSwitchedView && prevPositions.has(noteId)) {
+        const prevPos = prevPositions.get(noteId)!;
+        el.style.setProperty('--from-x', `${prevPos.x}px`);
+        el.style.setProperty('--from-y', `${prevPos.y}px`);
+        el.style.setProperty('--to-x', `${targetPosition.x}px`);
+        el.style.setProperty('--to-y', `${targetPosition.y}px`);
+        el.classList.add('note-fly');
+
+        if (!pendingAnimations.current.has(noteId)) {
+          pendingAnimations.current.add(noteId);
+        }
+      }
+    } else {
+      noteRefs.current.delete(noteId);
+    }
+  }, [justSwitchedView, prevPositions]);
+
   const processedNotes = useMemo(() => {
     return notes.map(note => {
       const basePosition = { x: note.x, y: note.y };
@@ -265,15 +312,6 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
       const isFiltered = colorFilter !== 'all' && note.color !== colorFilter;
 
-      const flyStyle = justSwitchedView && prevPositions.has(note.id)
-        ? {
-            '--from-x': `${prevPositions.get(note.id)!.x}px`,
-            '--from-y': `${prevPositions.get(note.id)!.y}px`,
-            '--to-x': `${targetPosition.x}px`,
-            '--to-y': `${targetPosition.y}px`,
-          } as React.CSSProperties
-        : {};
-
       return {
         note: {
           ...note,
@@ -281,11 +319,11 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
           y: targetPosition.y,
         },
         isFiltered,
-        flyStyle,
+        targetPosition,
         useFlyAnimation: justSwitchedView,
       };
     });
-  }, [notes, mindmapPositions, viewMode, colorFilter, prevPositions, justSwitchedView]);
+  }, [notes, mindmapPositions, viewMode, colorFilter, justSwitchedView]);
 
   const renderMindmapConnections = () => {
     if (viewMode !== 'mindmap') return null;
@@ -470,14 +508,14 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
           {renderMindmapConnections()}
 
-          {processedNotes.map(({ note, isFiltered, flyStyle, useFlyAnimation }) => (
+          {processedNotes.map(({ note, isFiltered, targetPosition, useFlyAnimation }) => (
             <div
               key={`wrapper-${note.id}`}
-              className={useFlyAnimation ? 'note-fly' : ''}
+              ref={setNoteRef(note.id, targetPosition)}
               style={{
                 position: 'absolute',
-                ...flyStyle,
               }}
+              onAnimationEnd={() => handleNoteAnimationEnd(note.id)}
             >
               <NoteCard
                 key={note.id}

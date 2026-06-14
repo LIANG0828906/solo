@@ -37,11 +37,12 @@ export const GroupZone: React.FC<GroupZoneProps> = ({
         borderStyle: isHovered ? 'solid' : 'dashed',
         borderColor: isHovered ? zone.borderColor : '#B8B8B8',
         transform: isHovered ? 'scale(1.03)' : 'scale(1)',
+        zIndex: isHovered ? 10 : 1,
         boxShadow: isHovered
-          ? `0 15px 50px ${zone.borderColor}40, 0 5px 20px rgba(0,0,0,0.08)`
+          ? `0 15px 50px ${zone.borderColor}40, 0 5px 20px rgba(0,0,0,0.08), inset 0 0 30px ${zone.borderColor}25`
           : '0 2px 10px rgba(0,0,0,0.03)',
         backdropFilter: isHovered ? 'blur(2px)' : 'none',
-        transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
