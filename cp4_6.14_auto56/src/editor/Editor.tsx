@@ -25,27 +25,50 @@ export function Editor({ code, language, onChange }: EditorProps) {
   const preRef = useRef<HTMLPreElement>(null);
   const [highlightedCode, setHighlightedCode] = useState('');
   const animationFrameRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCodeRef = useRef<string>('');
+  const lastLangRef = useRef<Language>('javascript');
 
   const highlightCode = useCallback((value: string, lang: Language) => {
+    lastCodeRef.current = value;
+    lastLangRef.current = lang;
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
 
-    animationFrameRef.current = requestAnimationFrame(() => {
-      const grammar = Prism.languages[languageMap[lang]];
-      if (grammar) {
-        const highlighted = Prism.highlight(value, grammar, languageMap[lang]);
-        setHighlightedCode(highlighted);
-      } else {
-        setHighlightedCode(value);
-      }
-      animationFrameRef.current = null;
-    });
+    debounceTimerRef.current = setTimeout(() => {
+      animationFrameRef.current = requestAnimationFrame(() => {
+        const grammar = Prism.languages[languageMap[lastLangRef.current]];
+        if (grammar) {
+          const highlighted = Prism.highlight(lastCodeRef.current, grammar, languageMap[lastLangRef.current]);
+          setHighlightedCode(highlighted);
+        } else {
+          setHighlightedCode(lastCodeRef.current);
+        }
+        animationFrameRef.current = null;
+      });
+      debounceTimerRef.current = null;
+    }, 300);
   }, []);
 
   useEffect(() => {
     highlightCode(code, language);
   }, [code, language, highlightCode]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   const handleScroll = () => {
     if (textareaRef.current && preRef.current) {

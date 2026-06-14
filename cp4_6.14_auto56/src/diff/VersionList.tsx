@@ -1,5 +1,6 @@
 import { Clock, FileCode, Trash2 } from 'lucide-react';
 import type { CodeVersion } from '../types';
+import { RippleButton } from '../components/RippleButton';
 import styles from './Diff.module.css';
 
 interface VersionListProps {
@@ -54,7 +55,7 @@ export function VersionList({ versions, selectedId, onSelect, onDelete }: Versio
               </div>
             </div>
             {onDelete && (
-              <button
+              <RippleButton
                 className={styles.deleteButton}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -63,7 +64,7 @@ export function VersionList({ versions, selectedId, onSelect, onDelete }: Versio
                 title="删除版本"
               >
                 <Trash2 size={14} />
-              </button>
+              </RippleButton>
             )}
           </div>
         ))}

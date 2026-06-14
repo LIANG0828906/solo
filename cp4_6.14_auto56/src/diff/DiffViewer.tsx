@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { diffLines, Change } from 'diff';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
 import type { Language } from '../types';
+import { RippleButton } from '../components/RippleButton';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-python';
@@ -198,6 +199,7 @@ export function DiffViewer({
   const [currentDiffIndex, setCurrentDiffIndex] = useState(-1);
   const [flashIndex, setFlashIndex] = useState<number | null>(null);
   const isSyncing = useRef(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const { leftLines, rightLines, diffBlocks } = useMemo(() => {
     const changes = diffLines(oldCode, newCode);
@@ -214,21 +216,33 @@ export function DiffViewer({
     [rightLines, language]
   );
 
-  const handleScroll = useCallback((side: 'left' | 'right') => {
+  const syncScroll = useCallback((source: 'left' | 'right') => {
     if (isSyncing.current) return;
 
     isSyncing.current = true;
+
     requestAnimationFrame(() => {
-      if (side === 'left' && leftPanelRef.current && rightPanelRef.current) {
-        rightPanelRef.current.scrollTop = leftPanelRef.current.scrollTop;
-      } else if (side === 'right' && leftPanelRef.current && rightPanelRef.current) {
-        leftPanelRef.current.scrollTop = rightPanelRef.current.scrollTop;
+      const sourcePanel = source === 'left' ? leftPanelRef.current : rightPanelRef.current;
+      const targetPanel = source === 'left' ? rightPanelRef.current : leftPanelRef.current;
+
+      if (sourcePanel && targetPanel) {
+        targetPanel.scrollTop = sourcePanel.scrollTop;
+        targetPanel.scrollLeft = sourcePanel.scrollLeft;
       }
+
       isSyncing.current = false;
     });
   }, []);
 
-  const scrollToDiff = (index: number) => {
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 250);
+  }, [onClose]);
+
+  const scrollToDiff = useCallback((index: number) => {
     if (index < 0 || index >= diffBlocks.length) return;
 
     setCurrentDiffIndex(index);
@@ -244,7 +258,7 @@ export function DiffViewer({
     }
 
     setTimeout(() => setFlashIndex(null), 600);
-  };
+  }, [diffBlocks]);
 
   const goToPrevDiff = () => {
     if (diffBlocks.length === 0) return;
@@ -293,34 +307,37 @@ export function DiffViewer({
   };
 
   return (
-    <div className={styles.diffModalOverlay} onClick={onClose}>
-      <div className={styles.diffModal} onClick={(e) => e.stopPropagation()}>
+    <div className={`${styles.diffModalOverlay} ${isClosing ? styles.overlayClosing : ''}`} onClick={handleClose}>
+      <div
+        className={`${styles.diffModal} ${isClosing ? styles.modalClosing : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.diffHeader}>
           <h2 className={styles.diffTitle}>代码差异对比</h2>
           <div className={styles.diffNav}>
-            <button
+            <RippleButton
               className={styles.navButton}
               onClick={goToPrevDiff}
               title="上一处差异"
               disabled={diffBlocks.length === 0}
             >
               <ChevronUp size={18} />
-            </button>
+            </RippleButton>
             <span className={styles.diffCount}>
               {diffBlocks.length > 0 ? `${currentDiffIndex + 1} / ${diffBlocks.length}` : '0 / 0'}
             </span>
-            <button
+            <RippleButton
               className={styles.navButton}
               onClick={goToNextDiff}
               title="下一处差异"
               disabled={diffBlocks.length === 0}
             >
               <ChevronDown size={18} />
-            </button>
+            </RippleButton>
           </div>
-          <button className={styles.closeButton} onClick={onClose} title="关闭">
+          <RippleButton className={styles.closeButton} onClick={handleClose} title="关闭">
             <X size={20} />
-          </button>
+          </RippleButton>
         </div>
 
         <div className={styles.diffLabels}>
@@ -333,7 +350,7 @@ export function DiffViewer({
           <div
             className={`${styles.diffPanel} ${styles.leftPanel}`}
             ref={leftPanelRef}
-            onScroll={() => handleScroll('left')}
+            onScroll={() => syncScroll('left')}
           >
             <div className={`${styles.lineNumbers} language-${languageMap[language]}`}>
               {leftLines.map((line, index) => (
@@ -357,7 +374,7 @@ export function DiffViewer({
           <div
             className={`${styles.diffPanel} ${styles.rightPanel}`}
             ref={rightPanelRef}
-            onScroll={() => handleScroll('right')}
+            onScroll={() => syncScroll('right')}
           >
             <div className={`${styles.lineNumbers} language-${languageMap[language]}`}>
               {rightLines.map((line, index) => (
