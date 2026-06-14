@@ -48,6 +48,9 @@ export class ParticleEngine {
   private starParticles: StarParticle[] = [];
   private ringScale = 1;
   private ringScaleTarget = 1;
+  private ringScaleProgress = 1;
+  private ringScaleStart = 1;
+  private ringScaleAnimDuration = 0.1;
   private segmentPulse: number[] = new Array(RING_SEGMENTS).fill(0);
   private missFlashTimer = 0;
   private haloAngle = 0;
@@ -84,7 +87,9 @@ export class ParticleEngine {
 
   onBeat(beat: BeatSignal) {
     this.beatIntensity = beat.intensity;
+    this.ringScaleStart = this.ringScale;
     this.ringScaleTarget = 0.8 + beat.intensity * 0.5;
+    this.ringScaleProgress = 0;
 
     for (let i = 0; i < RING_SEGMENTS; i++) {
       if (Math.random() < 0.6) {
@@ -104,6 +109,14 @@ export class ParticleEngine {
   onJudgment(type: JudgmentType) {
     const cx = this.centerX;
     const cy = this.centerY;
+
+    const currentTotal = this.particles.length + this.starParticles.length;
+    if (currentTotal >= MAX_PARTICLES) {
+      if (type === 'miss') {
+        this.missFlashTimer = MISS_FLASH_DURATION;
+      }
+      return;
+    }
 
     if (type === 'perfect') {
       this.spawnBurstParticles(cx, cy, this.getParticleCount(30), true);
@@ -192,8 +205,12 @@ export class ParticleEngine {
   }
 
   private updateAndDrawRing(ctx: CanvasRenderingContext2D, dt: number) {
-    const scaleDiff = this.ringScaleTarget - this.ringScale;
-    this.ringScale += scaleDiff * Math.min(1, dt / 0.1);
+    if (this.ringScaleProgress < 1) {
+      this.ringScaleProgress = Math.min(1, this.ringScaleProgress + dt / this.ringScaleAnimDuration);
+      const t = this.ringScaleProgress;
+      const eased = 1 - Math.pow(1 - t, 2);
+      this.ringScale = this.ringScaleStart + (this.ringScaleTarget - this.ringScaleStart) * eased;
+    }
     this.ringScaleTarget += (1 - this.ringScaleTarget) * Math.min(1, dt / 0.3);
 
     const radius = RING_BASE_RADIUS * this.ringScale;

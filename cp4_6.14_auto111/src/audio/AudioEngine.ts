@@ -5,10 +5,11 @@ export type BeatSignal = {
 
 type BeatCallback = (beat: BeatSignal) => void;
 
-const FFT_SIZE = 2048;
+const FFT_SIZE = 1024;
 const BEAT_THRESHOLD = 1.3;
 const BEAT_COOLDOWN_MS = 200;
 const WAVEFORM_REFRESH_MS = 20;
+const ANALYSIS_INTERVAL_MS = 16;
 
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
@@ -26,6 +27,7 @@ export class AudioEngine {
   private energyHistory: number[] = [];
   private energyHistorySize = 43;
   private animationFrameId = 0;
+  private analysisIntervalId: number | null = null;
   private waveformCallback: ((data: Uint8Array) => void) | null = null;
   private lastWaveformTime = 0;
   private onEndedCallback: (() => void) | null = null;
@@ -100,6 +102,10 @@ export class AudioEngine {
     this.isPlaying = false;
     try { this.source?.stop(); } catch (_) { /* ignore */ }
     cancelAnimationFrame(this.animationFrameId);
+    if (this.analysisIntervalId !== null) {
+      clearInterval(this.analysisIntervalId);
+      this.analysisIntervalId = null;
+    }
   }
 
   stop() {
@@ -107,6 +113,10 @@ export class AudioEngine {
     this.pauseTime = 0;
     try { this.source?.stop(); } catch (_) { /* ignore */ }
     cancelAnimationFrame(this.animationFrameId);
+    if (this.analysisIntervalId !== null) {
+      clearInterval(this.analysisIntervalId);
+      this.analysisIntervalId = null;
+    }
   }
 
   get currentTime(): number {
@@ -136,10 +146,8 @@ export class AudioEngine {
       }
 
       this.detectBeat();
-
-      this.animationFrameId = requestAnimationFrame(analyze);
     };
-    this.animationFrameId = requestAnimationFrame(analyze);
+    this.analysisIntervalId = window.setInterval(analyze, ANALYSIS_INTERVAL_MS);
   }
 
   private detectBeat() {
