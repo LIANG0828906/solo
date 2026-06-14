@@ -1,0 +1,240 @@
+.order-list-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.3s ease;
+}
+
+.order-list-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.list-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary-bg);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-light);
+}
+
+.empty-state p {
+  font-size: 15px;
+}
+
+.empty-hint {
+  font-size: 13px !important;
+  color: #b8c5c7 !important;
+  margin-top: 8px;
+}
+
+.groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.community-group {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.community-group:hover {
+  border-color: var(--primary-light);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: var(--primary-bg);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.group-header:hover {
+  background-color: #dff5e8;
+}
+
+.arrow {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--primary);
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.arrow.small {
+  font-size: 8px;
+}
+
+.arrow-up {
+  transform: rotate(90deg);
+}
+
+.community-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  flex: 1;
+}
+
+.group-summary {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-right: 8px;
+}
+
+.notify-btn {
+  padding: 6px 14px;
+  background-color: white;
+  color: var(--primary-dark);
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notify-btn:hover {
+  background-color: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
+}
+
+.group-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.products-table-wrapper {
+  padding: 0;
+}
+
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.products-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+  background-color: #f8fcf9;
+  border-bottom: 1px solid var(--border);
+}
+
+.product-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.product-row:hover {
+  background-color: var(--primary-bg);
+}
+
+.product-row td {
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.product-detail-row {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.product-detail-row > td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.product-detail-content {
+  background-color: #fafbfc;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.customers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.customers-table thead th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+  background-color: transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+.customers-table tbody td {
+  padding: 8px 12px;
+  font-size: 13px;
+  border: none;
+  color: var(--text);
+}
+
+.customers-table tbody tr:not(:last-child) td {
+  border-bottom: 1px dashed var(--border);
+}
+
+@media (max-width: 768px) {
+  .order-list-card {
+    padding: 18px;
+  }
+
+  .list-title {
+    font-size: 18px;
+  }
+
+  .group-header {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .group-summary {
+    order: 3;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .community-name {
+    font-size: 14px;
+  }
+
+  .product-row td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .notify-btn {
+    padding: 5px 12px;
+    font-size: 11px;
+  }
+
+  .product-detail-content {
+    padding-left: 24px !important;
+    padding-right: 12px !important;
+  }
+}
