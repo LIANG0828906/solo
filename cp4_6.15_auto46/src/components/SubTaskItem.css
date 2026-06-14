@@ -1,0 +1,132 @@
+.subtask-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.subtask-item.completed {
+  animation: greenGlow 0.6s ease forwards;
+}
+
+@keyframes greenGlow {
+  0% { box-shadow: 0 0 0 rgba(82, 196, 26, 0); }
+  50% { box-shadow: 0 0 12px rgba(82, 196, 26, 0.4); }
+  100% { box-shadow: 0 0 6px rgba(82, 196, 26, 0.15); }
+}
+
+.subtask-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.subtask-checkbox:checked {
+  background-color: #4A90D9;
+  border-color: #4A90D9;
+}
+
+.subtask-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.subtask-title {
+  font-size: 14px;
+  flex-grow: 1;
+  margin-left: 8px;
+}
+
+.subtask-title.completed-text {
+  text-decoration: line-through;
+  color: #aaa;
+}
+
+.subtask-time {
+  font-size: 12px;
+  color: #888;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.subtask-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  margin-left: 8px;
+}
+
+.subtask-item:hover .subtask-actions {
+  opacity: 1;
+}
+
+.subtask-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.subtask-btn:hover {
+  color: #4A90D9;
+}
+
+.subtask-btn.delete:hover {
+  color: #e74c3c;
+}
+
+.subtask-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-grow: 1;
+  margin-left: 8px;
+}
+
+.subtask-edit-input {
+  font-size: 13px;
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.subtask-edit-input:focus {
+  border-color: #4A90D9;
+}
+
+.subtask-edit-input.title-input {
+  flex-grow: 1;
+}
+
+.subtask-edit-input.time-input {
+  width: 50px;
+  text-align: center;
+}
+
+.subtask-edit-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}

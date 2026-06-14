@@ -1,0 +1,311 @@
+.stage-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+  cursor: grab;
+  min-width: 260px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
+
+.stage-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stage-card.dragging {
+  opacity: 0.6;
+  transform: rotate(2deg);
+  z-index: 10;
+}
+
+.stage-card.drag-over {
+  transform: translateX(12px);
+  box-shadow: 0 0 0 2px #4A90D9;
+}
+
+.stage-card.status-not-started {
+  background: #f8f9fb;
+}
+
+.stage-card.status-in-progress {
+  border-left: 4px solid #4A90D9;
+}
+
+.stage-card.status-completed {
+  border-left: 4px solid #52c41a;
+  background: #f6ffed;
+}
+
+.stage-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+  gap: 12px;
+  user-select: none;
+}
+
+.stage-color-bar {
+  width: 4px;
+  height: 40px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.stage-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.stage-order {
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stage-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.stage-target {
+  font-size: 12px;
+  color: #888;
+  background: #f0f2f5;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.stage-status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.stage-status-badge.status-not-started {
+  background: #f0f2f5;
+  color: #999;
+}
+
+.stage-status-badge.status-in-progress {
+  background: #e6f0ff;
+  color: #4A90D9;
+}
+
+.stage-status-badge.status-completed {
+  background: #f0fff0;
+  color: #52c41a;
+}
+
+.stage-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stage-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.stage-progress-text {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  min-width: 36px;
+  text-align: right;
+}
+
+.stage-expand-icon {
+  font-size: 12px;
+  color: #999;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.stage-expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.stage-body {
+  padding: 0 16px 16px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 600px;
+  }
+}
+
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.add-subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.add-subtask-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.add-subtask-input:focus {
+  border-color: #4A90D9;
+}
+
+.add-subtask-minutes {
+  width: 56px;
+  padding: 6px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+}
+
+.add-subtask-minutes:focus {
+  border-color: #4A90D9;
+}
+
+.minutes-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.add-subtask-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: #4A90D9;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.add-subtask-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.3);
+}
+
+.add-subtask-btn:active {
+  transform: scale(0.97);
+}
+
+.skill-scores-section {
+  border-top: 1px solid #f0f2f5;
+  padding-top: 12px;
+}
+
+.skill-scores-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 8px;
+}
+
+.skill-scores-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-score-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-score-name {
+  font-size: 12px;
+  color: #888;
+  min-width: 64px;
+}
+
+.skill-score-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e0e0e0;
+  border-radius: 2px;
+  outline: none;
+}
+
+.skill-score-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4A90D9;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.skill-score-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.skill-score-value {
+  font-size: 12px;
+  color: #4A90D9;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: right;
+}
+
+@media (max-width: 767px) {
+  .stage-card {
+    min-width: auto;
+    max-width: none;
+  }
+}
