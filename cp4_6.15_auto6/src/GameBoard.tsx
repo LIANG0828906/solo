@@ -25,7 +25,16 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
   const isSwitchingRef = useRef<boolean>(false)
 
   const safeTimeout = useCallback((callback: () => void, delay: number): number => {
-    const id = window.setTimeout(callback, delay)
+    const id = window.setTimeout(() => {
+      try {
+        callback()
+      } finally {
+        const idx = timeoutRefs.current.indexOf(id)
+        if (idx !== -1) {
+          timeoutRefs.current.splice(idx, 1)
+        }
+      }
+    }, delay)
     timeoutRefs.current.push(id)
     return id
   }, [])
@@ -204,12 +213,15 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
     if (currentPlayer === 1) {
       if (currentRound >= settings.totalRounds) {
         playSound('firework')
-        safeTimeout(() => playSound('firework'), 200)
-        safeTimeout(() => playSound('firework'), 400)
+        safeTimeout(() => playSound('firework'), 250)
+        safeTimeout(() => playSound('firework'), 500)
+        safeTimeout(() => playSound('firework'), 750)
+        safeTimeout(() => playSound('firework'), 1000)
+        safeTimeout(() => playSound('firework'), 1250)
         safeTimeout(() => {
           isSwitchingRef.current = false
           onGameEnd(scores)
-        }, 480)
+        }, 1500)
         return
       }
       setCurrentRound((r) => r + 1)

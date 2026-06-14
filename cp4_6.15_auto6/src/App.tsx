@@ -203,7 +203,7 @@ function ResultScreen({
 
   return (
     <div className="result-screen">
-      <Fireworks active={showFireworks} duration={4000} onComplete={() => setShowFireworks(false)} />
+      <Fireworks active={showFireworks} duration={2500} onComplete={() => setShowFireworks(false)} />
       <div className="result-decoration">
         {Array.from({ length: 15 }).map((_, i) => (
           <div

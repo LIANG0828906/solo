@@ -230,50 +230,100 @@ body {
   bottom: 0;
   pointer-events: none;
   z-index: 999;
+  --crack-top-h: 18vh;
+  --crack-bottom-h: 18vh;
+  --crack-left-w: 22vw;
+  --crack-right-w: 22vw;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='120' viewBox='0 0 800 120' preserveAspectRatio='none'%3E%3Cpath d='M0,120 L20,95 L35,110 L55,70 L75,100 L95,60 L115,95 L140,45 L165,85 L195,30 L225,75 L260,20 L295,65 L335,15 L375,60 L420,10 L465,55 L510,12 L560,50 L610,18 L660,48 L710,22 L760,45 L800,30 L800,0 L0,0 Z' fill='%238b0000' opacity='0.9'/%3E%3Cpath d='M0,120 L30,100 L50,108 L80,75 L105,95 L135,55 L165,88 L200,35 L240,78 L285,22 L330,68 L380,12 L435,58 L490,8 L550,52 L615,20 L680,50 L740,28 L800,40 L800,0 L0,0 Z' fill='%23a52a2a' opacity='0.6'/%3E%3C/svg%3E") top/100% 120px no-repeat,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='120' viewBox='0 0 800 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L20,25 L35,10 L55,50 L75,20 L95,60 L115,25 L140,75 L165,35 L195,90 L225,45 L260,100 L295,55 L335,105 L375,60 L420,110 L465,65 L510,108 L560,70 L610,102 L660,72 L710,98 L760,75 L800,90 L800,120 L0,120 Z' fill='%238b0000' opacity='0.9'/%3E%3Cpath d='M0,0 L30,20 L50,12 L80,45 L105,25 L135,65 L165,32 L200,85 L240,42 L285,98 L330,52 L380,108 L435,62 L490,112 L550,68 L615,100 L680,70 L740,92 L800,80 L800,120 L0,120 Z' fill='%23a52a2a' opacity='0.6'/%3E%3C/svg%3E") bottom/100% 120px no-repeat,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100%25' viewBox='0 0 100 600' preserveAspectRatio='none'%3E%3Cpath d='M100,0 L75,30 L90,55 L60,85 L80,120 L50,160 L72,200 L38,250 L65,300 L28,360 L58,420 L20,485 L52,540 L18,600 L0,600 L0,0 Z' fill='%238b0000' opacity='0.9'/%3E%3Cpath d='M100,0 L80,25 L92,48 L68,80 L82,115 L55,155 L75,195 L42,245 L68,295 L32,355 L58,415 L25,480 L50,535 L22,590 L18,600 L0,600 L0,0 Z' fill='%23a52a2a' opacity='0.6'/%3E%3C/svg%3E") left/100px 100% no-repeat,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100%25' viewBox='0 0 100 600' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L25,30 L10,55 L40,85 L20,120 L50,160 L28,200 L62,250 L35,300 L72,360 L42,420 L80,485 L48,540 L82,600 L100,600 L100,0 Z' fill='%238b0000' opacity='0.9'/%3E%3Cpath d='M0,0 L20,25 L8,48 L32,80 L18,115 L45,155 L25,195 L58,245 L32,295 L68,355 L42,415 L75,480 L50,535 L78,590 L82,600 L100,600 L100,0 Z' fill='%23a52a2a' opacity='0.6'/%3E%3C/svg%3E") right/100px 100% no-repeat,
-    radial-gradient(ellipse at center, rgba(139, 0, 0, 0.15) 0%, rgba(139, 0, 0, 0.08) 40%, transparent 70%);
-  animation: crackFlash 0.8s ease-out forwards, screenShake 0.8s ease-out;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 180' preserveAspectRatio='none'%3E%3Cpath d='M0,180 L15,155 L28,172 L52,118 L78,152 L105,98 L132,142 L168,72 L205,128 L250,52 L295,108 L345,32 L395,88 L450,18 L505,72 L560,22 L618,68 L675,28 L732,62 L790,35 L848,65 L905,38 L962,62 L1000,45 L1000,0 L0,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,180 L22,152 L42,165 L72,110 L102,145 L140,82 L178,128 L225,48 L278,100 L332,25 L390,78 L448,12 L510,65 L572,16 L640,58 L705,20 L772,55 L838,28 L902,60 L968,40 L1000,55 L1000,0 L0,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.5'/%3E%3C/svg%3E") top/100% var(--crack-top-h) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 180' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L15,25 L28,8 L52,62 L78,28 L105,82 L132,38 L168,108 L205,52 L250,128 L295,72 L345,148 L395,92 L450,162 L505,108 L560,158 L618,112 L675,152 L732,118 L790,145 L848,115 L905,142 L962,118 L1000,135 L1000,180 L0,180 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,0 L22,28 L42,15 L72,70 L102,35 L140,98 L178,52 L225,132 L278,80 L332,155 L390,102 L448,168 L510,115 L572,164 L640,122 L705,160 L772,125 L838,152 L902,120 L968,140 L1000,125 L1000,180 L0,180 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.5'/%3E%3C/svg%3E") bottom/100% var(--crack-bottom-h) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 600' preserveAspectRatio='none'%3E%3Cpath d='M220,0 L178,42 L205,82 L152,132 L182,185 L130,248 L165,310 L112,378 L145,445 L88,518 L118,572 L68,600 L0,600 L0,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M220,0 L188,32 L210,72 L165,122 L192,175 L145,238 L175,298 L128,365 L158,432 L102,505 L130,562 L82,600 L0,600 L0,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.2'/%3E%3C/svg%3E") left/var(--crack-left-w) 100% no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 600' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L42,42 L15,82 L68,132 L38,185 L90,248 L55,310 L108,378 L75,445 L132,518 L102,572 L152,600 L220,600 L220,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,0 L32,32 L10,72 L55,122 L28,175 L75,238 L45,298 L92,365 L62,432 L118,505 L90,562 L138,600 L220,600 L220,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.2'/%3E%3C/svg%3E") right/var(--crack-right-w) 100% no-repeat,
+    radial-gradient(ellipse at center, rgba(139, 0, 0, 0.18) 0%, rgba(139, 0, 0, 0.10) 45%, transparent 72%);
+  animation: crackFlash 0.9s ease-out forwards, screenShake 0.9s ease-out;
+}
+
+@media (orientation: landscape) {
+  .screen-crack {
+    --crack-top-h: 22vh;
+    --crack-bottom-h: 22vh;
+    --crack-left-w: 14vw;
+    --crack-right-w: 14vw;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 220' preserveAspectRatio='none'%3E%3Cpath d='M0,220 L12,188 L22,208 L42,142 L65,182 L92,115 L118,165 L152,82 L188,145 L230,58 L272,122 L318,38 L365,102 L415,22 L465,82 L518,28 L575,75 L632,32 L690,72 L748,42 L805,72 L862,45 L920,72 L972,55 L1000,65 L1000,0 L0,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,220 L18,190 L35,205 L62,135 L92,175 L128,102 L162,158 L208,62 L260,122 L318,35 L375,98 L435,18 L500,80 L562,25 L628,70 L692,28 L758,70 L820,40 L882,68 L942,42 L1000,70 L1000,0 L0,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.5'/%3E%3C/svg%3E") top/100% var(--crack-top-h) no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 220' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L12,32 L22,12 L42,78 L65,38 L92,105 L118,55 L152,138 L188,75 L230,162 L272,98 L318,182 L365,118 L415,198 L465,138 L518,192 L575,145 L632,188 L690,148 L748,178 L805,148 L862,175 L920,148 L972,165 L1000,155 L1000,220 L0,220 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,0 L18,30 L35,15 L62,85 L92,45 L128,118 L162,62 L208,158 L260,98 L318,185 L375,122 L435,202 L500,140 L562,195 L628,150 L692,192 L758,150 L820,180 L882,152 L942,178 L1000,150 L1000,220 L0,220 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1.5'/%3E%3C/svg%3E") bottom/100% var(--crack-bottom-h) no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 600' preserveAspectRatio='none'%3E%3Cpath d='M140,0 L112,28 L132,58 L100,98 L120,142 L90,198 L110,252 L78,312 L98,370 L62,438 L82,500 L48,562 L62,600 L0,600 L0,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M140,0 L118,22 L135,52 L105,92 L122,135 L95,188 L115,242 L85,302 L102,358 L70,425 L88,485 L58,545 L70,600 L0,600 L0,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1'/%3E%3C/svg%3E") left/var(--crack-left-w) 100% no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 600' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L28,28 L8,58 L40,98 L20,142 L50,198 L30,252 L62,312 L42,370 L78,438 L58,500 L92,562 L78,600 L140,600 L140,0 Z' fill='%238b0000' opacity='0.92'/%3E%3Cpath d='M0,0 L22,22 L5,52 L35,92 L18,135 L45,188 L25,242 L55,302 L38,358 L70,425 L52,485 L82,545 L70,600 L140,600 L140,0 Z' fill='%23a52a2a' opacity='0.55' stroke='%23a52a2a' stroke-width='1'/%3E%3C/svg%3E") right/var(--crack-right-w) 100% no-repeat,
+      radial-gradient(ellipse at center, rgba(139, 0, 0, 0.18) 0%, rgba(139, 0, 0, 0.10) 45%, transparent 72%);
+  }
+}
+
+@media (max-width: 480px) {
+  .screen-crack {
+    --crack-top-h: 14vh;
+    --crack-bottom-h: 14vh;
+    --crack-left-w: 18vw;
+    --crack-right-w: 18vw;
+  }
 }
 
 @keyframes crackFlash {
   0% {
     opacity: 0;
-    background-size: 100% 0px, 100% 0px, 0px 100%, 0px 100%, 0% 0%;
+    background-size:
+      100% 0vh,
+      100% 0vh,
+      0vw 100%,
+      0vw 100%,
+      0% 0%;
   }
-  8% {
-    background-size: 100% 30px, 100% 30px, 25px 100%, 25px 100%, 100% 100%;
-  }
-  15% {
+  12% {
     opacity: 1;
-    background-size: 100% 120px, 100% 120px, 100px 100%, 100px 100%, 100% 100%;
+    background-size:
+      100% var(--crack-top-h),
+      100% var(--crack-bottom-h),
+      var(--crack-left-w) 100%,
+      var(--crack-right-w) 100%,
+      100% 100%;
   }
-  25% { opacity: 0.6; }
-  35% { opacity: 1; }
-  45% { opacity: 0.5; }
-  55% { opacity: 0.9; }
-  70% { opacity: 0.6; }
+  24% { opacity: 0.55; }
+  36% { opacity: 1; }
+  48% { opacity: 0.45; }
+  60% { opacity: 0.95; }
+  72% { opacity: 0.6; }
+  75% { opacity: 1; }
   100% {
     opacity: 0;
-    background-size: 100% 140px, 100% 140px, 120px 100%, 120px 100%, 100% 100%;
+    background-size:
+      100% calc(var(--crack-top-h) * 1.2),
+      100% calc(var(--crack-bottom-h) * 1.2),
+      calc(var(--crack-left-w) * 1.2) 100%,
+      calc(var(--crack-right-w) * 1.2) 100%,
+      100% 100%;
   }
 }
 
 @keyframes screenShake {
   0%, 100% { transform: translate(0, 0); }
-  5% { transform: translate(-4px, 2px); }
-  10% { transform: translate(5px, -3px); }
-  15% { transform: translate(-3px, 4px); }
-  20% { transform: translate(4px, -2px); }
-  25% { transform: translate(-2px, 3px); }
-  30% { transform: translate(3px, -1px); }
-  35% { transform: translate(-1px, 2px); }
-  40% { transform: translate(2px, 0); }
-  50% { transform: translate(-1px, 1px); }
-  60% { transform: translate(1px, 0); }
+  5% { transform: translate(-5px, 3px); }
+  10% { transform: translate(6px, -4px); }
+  15% { transform: translate(-4px, 5px); }
+  20% { transform: translate(5px, -3px); }
+  25% { transform: translate(-3px, 4px); }
+  30% { transform: translate(4px, -2px); }
+  35% { transform: translate(-2px, 3px); }
+  40% { transform: translate(3px, -1px); }
+  45% { transform: translate(-1px, 2px); }
+  50% { transform: translate(2px, 0); }
+  55% { transform: translate(-1px, 1px); }
+  60% { transform: translate(1px, -1px); }
+  65% { transform: translate(-2px, 0); }
+  70% { transform: translate(1px, 1px); }
+  75% { transform: translate(-1px, -1px); }
+  80% { transform: translate(0, 1px); }
+  85% { transform: translate(1px, 0); }
+  90% { transform: translate(0, 0); }
+  95% { transform: translate(0, 0); }
 }
 
 .top-bar {
