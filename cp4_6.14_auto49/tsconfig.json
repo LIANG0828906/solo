@@ -20,7 +20,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": false,
-    "noUncheckedSideEffectImports": false,
     "forceConsistentCasingInFileNames": false,
     "baseUrl": "./",
     "paths": {
@@ -30,7 +29,6 @@
     }
   },
   "include": [
-    "src",
-    "api"
+    "src"
   ]
 }
