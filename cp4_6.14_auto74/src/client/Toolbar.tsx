@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useBoardStore, ToolMode } from './Store';
 
 const tools: { mode: ToolMode; icon: string; label: string }[] = [
@@ -10,9 +10,15 @@ const tools: { mode: ToolMode; icon: string; label: string }[] = [
 
 interface ToolbarProps {
   onSaveSnapshot: () => void;
+  onToggleSnapshots: () => void;
+  snapshotCount: number;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ onSaveSnapshot }) => {
+export const Toolbar = memo(function Toolbar({
+  onSaveSnapshot,
+  onToggleSnapshots,
+  snapshotCount,
+}: ToolbarProps) {
   const toolMode = useBoardStore((s) => s.toolMode);
   const setToolMode = useBoardStore((s) => s.setToolMode);
 
@@ -53,30 +59,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSaveSnapshot }) => {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 14,
-              gap: 2,
+              gap: 0,
               transition: 'all 150ms ease',
               transform: isActive ? 'scale(1.05)' : 'scale(1)',
+              filter: isActive ? 'brightness(1.1)' : 'none',
             }}
             onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLButtonElement;
               if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.background = '#e2e8f0';
-                (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)';
+                el.style.background = '#e2e8f0';
+                el.style.transform = 'scale(1.05)';
               }
             }}
             onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLButtonElement;
               if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc';
-                (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                el.style.background = '#f8fafc';
+                el.style.transform = 'scale(1)';
               }
             }}
+            title={`${tool.label} 工具`}
           >
-            <span style={{ fontSize: 18 }}>{tool.icon}</span>
-            <span style={{ fontSize: 9 }}>{tool.label}</span>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{tool.icon}</span>
+            <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>{tool.label}</span>
           </button>
         );
       })}
 
-      <div style={{ width: 36, height: 1, background: '#334155', margin: '4px 0' }} />
+      <div style={{ width: 36, height: 1, background: '#334155', margin: '6px 0' }} />
 
       <button
         onClick={onSaveSnapshot}
@@ -92,9 +102,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSaveSnapshot }) => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 14,
-          gap: 2,
+          gap: 0,
           transition: 'all 150ms ease',
+          position: 'relative',
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLButtonElement).style.background = '#e2e8f0';
@@ -104,10 +114,61 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSaveSnapshot }) => {
           (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc';
           (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
         }}
+        title="保存快照"
       >
-        <span style={{ fontSize: 18 }}>📷</span>
-        <span style={{ fontSize: 9 }}>快照</span>
+        <span style={{ fontSize: 18, lineHeight: 1 }}>📷</span>
+        <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>快照</span>
+      </button>
+
+      <button
+        onClick={onToggleSnapshots}
+        style={{
+          width: 48,
+          height: 48,
+          border: 'none',
+          borderRadius: 8,
+          background: '#f8fafc',
+          color: '#334155',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0,
+          transition: 'all 150ms ease',
+          position: 'relative',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = '#e2e8f0';
+          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc';
+          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+        }}
+        title="查看历史快照"
+      >
+        <span style={{ fontSize: 18, lineHeight: 1 }}>�</span>
+        <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>历史</span>
+        {snapshotCount > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              background: '#ef4444',
+              color: '#ffffff',
+              fontSize: 9,
+              borderRadius: 8,
+              padding: '1px 4px',
+              minWidth: 16,
+              textAlign: 'center',
+            }}
+          >
+            {snapshotCount}
+          </span>
+        )}
       </button>
     </div>
   );
-};
+});

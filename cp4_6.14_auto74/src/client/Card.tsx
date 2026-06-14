@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { memo, useState, useRef, useCallback, useEffect } from 'react';
 import { CardData } from './Store';
 
 interface CardProps {
@@ -7,85 +7,95 @@ interface CardProps {
   isEditing: boolean;
   isConnecting: boolean;
   isDeleteMode: boolean;
+  editingContent?: string;
   onDoubleClick: (id: string) => void;
   onDragStart: (id: string, e: React.MouseEvent) => void;
-  onConnectStart: (id: string, e: React.MouseEvent) => void;
+  onConnectStart: (id: string, point: 'bottom' | 'top', e: React.MouseEvent) => void;
   onDelete: (id: string) => void;
   onContentChange: (id: string, content: string) => void;
   onEditEnd: (id: string) => void;
+  onConnectPointHover?: (cardId: string, point: 'bottom' | 'top' | null) => void;
 }
 
-export const Card: React.FC<CardProps> = ({
+export const Card = memo(function Card({
   card,
   isSelected,
   isEditing,
   isConnecting,
   isDeleteMode,
+  editingContent,
   onDoubleClick,
   onDragStart,
   onConnectStart,
   onDelete,
   onContentChange,
   onEditEnd,
-}) => {
-  const [editContent, setEditContent] = useState(card.content);
+  onConnectPointHover,
+}: CardProps) {
+  const [localContent, setLocalContent] = useState(editingContent ?? card.content);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editingContent !== undefined) {
+      setLocalContent(editingContent);
+    }
+  }, [editingContent]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
+      inputRef.current.setSelectionRange(
+        inputRef.current.value.length,
+        inputRef.current.value.length
+      );
     }
   }, [isEditing]);
-
-  useEffect(() => {
-    setEditContent(card.content);
-  }, [card.content]);
 
   const handleContentInput = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const val = e.target.value;
       if (val.length <= 100) {
-        setEditContent(val);
+        setLocalContent(val);
         onContentChange(card.id, val);
       }
     },
     [card.id, onContentChange]
   );
 
-  const remaining = 100 - editContent.length;
+  const remaining = 100 - localContent.length;
 
   return (
     <div
+      data-card-id={card.id}
       style={{
-        position: 'absolute',
-        left: card.x,
-        top: card.y,
         width: 160,
         height: 120,
         borderRadius: 12,
         background: isEditing ? '#ffffff' : card.color,
-        border: isSelected ? '2px solid #3b82f6' : isDeleteMode ? '2px solid #ef4444' : '1px solid rgba(0,0,0,0.1)',
+        border: isSelected
+          ? '2px solid #3b82f6'
+          : isDeleteMode
+          ? '2px solid #ef4444'
+          : '1px solid rgba(0,0,0,0.1)',
         boxShadow: isSelected
           ? '0 4px 20px rgba(59,130,246,0.3)'
           : '0 2px 8px rgba(0,0,0,0.15)',
-        transition: isEditing ? 'none' : 'left 0.25s cubic-bezier(.34,1.56,.64,1), top 0.25s cubic-bezier(.34,1.56,.64,1)',
+        transition:
+          isEditing
+            ? 'box-shadow 150ms ease'
+            : 'box-shadow 150ms ease, border-color 150ms ease',
         cursor: isDeleteMode ? 'pointer' : isEditing ? 'text' : 'grab',
         userSelect: 'none',
-        zIndex: isSelected ? 10 : 1,
         display: 'flex',
         flexDirection: 'column',
         padding: 10,
+        position: 'relative',
       }}
       onMouseDown={(e) => {
         if (isEditing) return;
         if (isDeleteMode) {
           e.stopPropagation();
           onDelete(card.id);
-          return;
-        }
-        if (isConnecting) {
-          e.stopPropagation();
-          onConnectStart(card.id, e);
           return;
         }
         e.stopPropagation();
@@ -96,6 +106,34 @@ export const Card: React.FC<CardProps> = ({
         onDoubleClick(card.id);
       }}
     >
+      {isConnecting && (
+        <div
+          data-connect-point="top"
+          style={{
+            position: 'absolute',
+            top: -8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: card.color,
+            border: '2px solid #3b82f6',
+            cursor: 'crosshair',
+            zIndex: 20,
+            boxShadow: '0 0 6px rgba(59,130,246,0.5)',
+          }}
+          onMouseEnter={() => onConnectPointHover?.(card.id, 'top')}
+          onMouseLeave={() => onConnectPointHover?.(card.id, null)}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+          }}
+        />
+      )}
+
       <div
         style={{
           display: 'flex',
@@ -109,7 +147,7 @@ export const Card: React.FC<CardProps> = ({
             width: 24,
             height: 24,
             borderRadius: '50%',
-            background: '#e2e8f0',
+            background: 'rgba(226,232,240,0.8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -123,7 +161,7 @@ export const Card: React.FC<CardProps> = ({
           style={{
             fontSize: 10,
             color: '#1e293b',
-            fontWeight: 500,
+            fontWeight: 600,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -137,10 +175,11 @@ export const Card: React.FC<CardProps> = ({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <textarea
             ref={inputRef}
-            value={editContent}
+            value={localContent}
             onChange={handleContentInput}
             onBlur={() => onEditEnd(card.id)}
             maxLength={100}
+            spellCheck={false}
             style={{
               flex: 1,
               border: 'none',
@@ -151,6 +190,7 @@ export const Card: React.FC<CardProps> = ({
               color: '#1e293b',
               background: 'transparent',
               fontFamily: 'inherit',
+              width: '100%',
             }}
           />
           <div
@@ -158,6 +198,7 @@ export const Card: React.FC<CardProps> = ({
               fontSize: 10,
               color: remaining <= 20 ? '#ef4444' : '#94a3b8',
               textAlign: 'right',
+              marginTop: 2,
             }}
           >
             {remaining}
@@ -175,13 +216,16 @@ export const Card: React.FC<CardProps> = ({
           }}
         >
           {card.content || (
-            <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>双击编辑...</span>
+            <span style={{ color: '#64748b', fontStyle: 'italic', opacity: 0.8 }}>
+              双击编辑...
+            </span>
           )}
         </div>
       )}
 
       {isConnecting && (
         <div
+          data-connect-point="bottom"
           style={{
             position: 'absolute',
             bottom: -8,
@@ -194,13 +238,16 @@ export const Card: React.FC<CardProps> = ({
             border: '2px solid #0f172a',
             cursor: 'crosshair',
             zIndex: 20,
+            boxShadow: '0 0 6px rgba(255,255,255,0.3)',
           }}
           onMouseDown={(e) => {
             e.stopPropagation();
-            onConnectStart(card.id, e);
+            onConnectStart(card.id, 'bottom', e);
           }}
+          onMouseEnter={() => onConnectPointHover?.(card.id, 'bottom')}
+          onMouseLeave={() => onConnectPointHover?.(card.id, null)}
         />
       )}
     </div>
   );
-};
+});

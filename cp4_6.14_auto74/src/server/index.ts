@@ -60,6 +60,15 @@ app.get('/snapshots', (_req, res) => {
   res.json(boardManager.getSnapshots());
 });
 
+app.post('/snapshot/:id/restore', (req, res) => {
+  const restored = boardManager.loadSnapshot(req.params.id);
+  if (!restored) {
+    res.status(404).json({ error: 'Snapshot not found' });
+    return;
+  }
+  res.json({ success: true });
+});
+
 app.get('/online', (_req, res) => {
   res.json({ count: boardManager.getOnlineCount() });
 });

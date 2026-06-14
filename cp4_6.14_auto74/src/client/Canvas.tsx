@@ -1,38 +1,60 @@
-import React, { useCallback, useRef, useEffect, useState } from 'react';
-import { useBoardStore, CardData, ConnectionData } from './Store';
+import React, {
+  memo,
+  useCallback,
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+} from 'react';
+import { useBoardStore, CardData, ConnectionData, SnapshotData } from './Store';
 import { Card } from './Card';
 import { Toolbar } from './Toolbar';
 
 const GRID_SIZE = 20;
+const CARD_W = 160;
+const CARD_H = 120;
 
-const ConnectionLine: React.FC<{
+function computeBezierPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): string {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const curveOffset = Math.min(Math.max(dist * 0.4, 20), 100);
+  return `M ${x1} ${y1} C ${x1} ${y1 + curveOffset}, ${x2} ${y2 - curveOffset}, ${x2} ${y2}`;
+}
+
+const ConnectionLine = memo(function ConnectionLine({
+  conn,
+  cardsById,
+  hovered,
+  onHover,
+  onDelete,
+  isDeleteMode,
+}: {
   conn: ConnectionData;
-  cards: CardData[];
+  cardsById: Map<string, CardData>;
   hovered: boolean;
   onHover: (id: string | null) => void;
   onDelete: (id: string) => void;
   isDeleteMode: boolean;
-}> = ({ conn, cards, hovered, onHover, onDelete, isDeleteMode }) => {
-  const fromCard = cards.find((c) => c.id === conn.fromCardId);
-  const toCard = cards.find((c) => c.id === conn.toCardId);
+}) {
+  const fromCard = cardsById.get(conn.fromCardId);
+  const toCard = cardsById.get(conn.toCardId);
   if (!fromCard || !toCard) return null;
 
-  const x1 = fromCard.x + 80;
-  const y1 = fromCard.y + 120;
-  const x2 = toCard.x + 80;
+  const x1 = fromCard.x + CARD_W / 2;
+  const y1 = fromCard.y + CARD_H;
+  const x2 = toCard.x + CARD_W / 2;
   const y2 = toCard.y;
 
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const curveOffset = Math.min(dist * 0.4, 100);
-
-  const cx1 = x1;
-  const cy1 = y1 + curveOffset;
-  const cx2 = x2;
-  const cy2 = y2 - curveOffset;
-
-  const path = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+  const pathD = useMemo(
+    () => computeBezierPath(x1, y1, x2, y2),
+    [x1, y1, x2, y2]
+  );
 
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
@@ -47,36 +69,205 @@ const ConnectionLine: React.FC<{
       style={{ cursor: isDeleteMode ? 'pointer' : 'default' }}
     >
       <path
-        d={path}
+        d={pathD}
         fill="none"
         stroke={conn.color}
         strokeWidth={hovered ? 4 : 2}
-        strokeDasharray={hovered ? '8,4' : 'none'}
-        style={{ transition: 'stroke-dasharray 150ms ease' }}
+        strokeDasharray={hovered ? '8,4' : undefined}
+        style={{ transition: 'stroke-width 150ms ease, stroke-dasharray 150ms ease' }}
       />
       <path
-        d={path}
+        d={pathD}
         fill="none"
         stroke="transparent"
-        strokeWidth={16}
+        strokeWidth={18}
       />
-      {hovered && conn.label && (
-        <text
-          x={midX}
-          y={midY - 8}
-          textAnchor="middle"
-          fill="#e2e8f0"
-          fontSize={11}
-          style={{ pointerEvents: 'none' }}
-        >
-          {conn.label}
-        </text>
+      {hovered && (
+        <g>
+          {conn.label ? (
+            <text
+              x={midX}
+              y={midY - 10}
+              textAnchor="middle"
+              fill="#e2e8f0"
+              fontSize={11}
+              style={{ pointerEvents: 'none' }}
+            >
+              {conn.label}
+            </text>
+          ) : (
+            <text
+              x={midX}
+              y={midY - 10}
+              textAnchor="middle"
+              fill="#64748b"
+              fontSize={10}
+              fontStyle="italic"
+              style={{ pointerEvents: 'none' }}
+            >
+              点击删除
+            </text>
+          )}
+        </g>
       )}
     </g>
   );
-};
+});
 
-export const Canvas: React.FC = () => {
+const SnapshotPanel = memo(function SnapshotPanel({
+  snapshots,
+  onClose,
+  onRestore,
+}: {
+  snapshots: SnapshotData[];
+  onClose: () => void;
+  onRestore: (id: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 48,
+        right: 0,
+        bottom: 0,
+        width: 280,
+        background: 'rgba(30,41,59,0.95)',
+        backdropFilter: 'blur(8px)',
+        borderLeft: '1px solid #334155',
+        zIndex: 250,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid #334155',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 14 }}>
+          📜 历史快照
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            fontSize: 18,
+            padding: 4,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+        {snapshots.length === 0 ? (
+          <div
+            style={{
+              color: '#64748b',
+              textAlign: 'center',
+              padding: 40,
+              fontSize: 13,
+            }}
+          >
+            暂无快照记录
+            <br />
+            点击 📷 按钮保存快照
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {snapshots
+              .slice()
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map((snapshot, idx) => {
+                const date = new Date(snapshot.timestamp);
+                const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date
+                  .getMinutes()
+                  .toString()
+                  .padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+                return (
+                  <div
+                    key={snapshot.id}
+                    style={{
+                      background: '#0f172a',
+                      border: '1px solid #334155',
+                      borderRadius: 8,
+                      padding: 12,
+                      cursor: 'default',
+                      transition: 'all 150ms ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = '#3b82f6';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = '#334155';
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13 }}>
+                        快照 #{snapshots.length - idx}
+                      </span>
+                      <span style={{ color: '#94a3b8', fontSize: 11 }}>{timeStr}</span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        marginBottom: 10,
+                        fontSize: 11,
+                        color: '#94a3b8',
+                      }}
+                    >
+                      <span>💡 {snapshot.cards.length} 卡片</span>
+                      <span>🔗 {snapshot.connections.length} 连线</span>
+                    </div>
+                    <button
+                      onClick={() => onRestore(snapshot.id)}
+                      style={{
+                        width: '100%',
+                        background: '#3b82f6',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '6px 0',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        transition: 'background 150ms ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = '#2563eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = '#3b82f6';
+                      }}
+                    >
+                      恢复到此版本
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+export const Canvas: React.FC = function Canvas() {
   const cards = useBoardStore((s) => s.cards);
   const connections = useBoardStore((s) => s.connections);
   const toolMode = useBoardStore((s) => s.toolMode);
@@ -84,35 +275,61 @@ export const Canvas: React.FC = () => {
   const connectingFrom = useBoardStore((s) => s.connectingFrom);
   const connectingTo = useBoardStore((s) => s.connectingTo);
   const onlineCount = useBoardStore((s) => s.onlineCount);
+  const hoveredConnectionId = useBoardStore((s) => s.hoveredConnectionId);
+  const snapshots = useBoardStore((s) => s.snapshots);
+  const snapshotPanelOpen = useBoardStore((s) => s.snapshotPanelOpen);
+
   const loadBoard = useBoardStore((s) => s.loadBoard);
   const addCard = useBoardStore((s) => s.addCard);
   const updateCard = useBoardStore((s) => s.updateCard);
+  const updateCardLocal = useBoardStore((s) => s.updateCardLocal);
+  const flushPendingCardUpdates = useBoardStore((s) => s.flushPendingCardUpdates);
   const deleteCard = useBoardStore((s) => s.deleteCard);
   const addConnection = useBoardStore((s) => s.addConnection);
   const deleteConnection = useBoardStore((s) => s.deleteConnection);
   const saveSnapshot = useBoardStore((s) => s.saveSnapshot);
+  const loadSnapshots = useBoardStore((s) => s.loadSnapshots);
+  const restoreSnapshot = useBoardStore((s) => s.restoreSnapshot);
   const selectCard = useBoardStore((s) => s.selectCard);
   const setConnectingFrom = useBoardStore((s) => s.setConnectingFrom);
   const setConnectingTo = useBoardStore((s) => s.setConnectingTo);
+  const setHoveredConnectionId = useBoardStore((s) => s.setHoveredConnectionId);
   const applyFullSync = useBoardStore((s) => s.applyFullSync);
   const applyIncremental = useBoardStore((s) => s.applyIncremental);
   const setOnlineCount = useBoardStore((s) => s.setOnlineCount);
+  const setSnapshotPanelOpen = useBoardStore((s) => s.setSnapshotPanelOpen);
 
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [hoveredConnection, setHoveredConnection] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>('');
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [hoveredConnectPoint, setHoveredConnectPoint] = useState<{
+    cardId: string;
+    point: 'top' | 'bottom';
+  } | null>(null);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     cardId: string;
     startX: number;
     startY: number;
     cardStartX: number;
     cardStartY: number;
+    lastSentX: number;
+    lastSentY: number;
+    rafId: number | null;
   } | null>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const contentDebounceRef = useRef<{ id: string; timer: NodeJS.Timeout } | null>(null);
+
+  const cardsById = useMemo(() => {
+    const map = new Map<string, CardData>();
+    for (const c of cards) map.set(c.id, c);
+    return map;
+  }, [cards]);
 
   useEffect(() => {
     loadBoard();
-  }, [loadBoard]);
+    loadSnapshots();
+  }, [loadBoard, loadSnapshots]);
 
   useEffect(() => {
     const eventSource = new EventSource('/events');
@@ -144,22 +361,40 @@ export const Canvas: React.FC = () => {
     return () => clearInterval(interval);
   }, [setOnlineCount]);
 
+  useEffect(() => {
+    return () => {
+      if (contentDebounceRef.current) {
+        clearTimeout(contentDebounceRef.current.timer);
+      }
+      if (dragRef.current?.rafId) {
+        cancelAnimationFrame(dragRef.current.rafId);
+      }
+    };
+  }, []);
+
   const getCanvasCursor = useCallback(() => {
     if (toolMode === 'connect') return 'crosshair';
-    if (toolMode === 'delete') return 'none';
-    if (toolMode === 'add-card') return 'cell';
-    return 'default';
+    if (toolMode === 'delete') return 'not-allowed';
+    if (toolMode === 'add-card') return 'copy';
+    return 'grab';
   }, [toolMode]);
 
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target !== canvasRef.current && !(e.target as HTMLElement).classList.contains('canvas-grid')) return;
+      const target = e.target as HTMLElement;
+      if (
+        target !== canvasRef.current &&
+        !target.classList.contains('canvas-grid-bg')
+      ) {
+        if (target.closest('[data-card-id]') || target.closest('svg')) return;
+      }
 
       if (toolMode === 'add-card') {
         const rect = canvasRef.current!.getBoundingClientRect();
-        const x = e.clientX - rect.left - 80 + canvasOffset.x;
-        const y = e.clientY - rect.top - 60 + canvasOffset.y;
+        const x = e.clientX - rect.left - CARD_W / 2 + canvasOffset.x;
+        const y = e.clientY - rect.top - CARD_H / 2 + canvasOffset.y;
         addCard(x, y);
+        return;
       }
 
       selectCard(null);
@@ -169,6 +404,7 @@ export const Canvas: React.FC = () => {
         const startX = e.clientX;
         const startY = e.clientY;
         const startOffset = { ...canvasOffset };
+        e.preventDefault();
 
         const handleMove = (ev: MouseEvent) => {
           setCanvasOffset({
@@ -195,8 +431,11 @@ export const Canvas: React.FC = () => {
       e.stopPropagation();
       selectCard(cardId);
 
-      const card = cards.find((c) => c.id === cardId);
+      const card = cardsById.get(cardId);
       if (!card) return;
+
+      const rafIdRef = { value: 0 };
+      const pending = { dx: 0, dy: 0 };
 
       dragRef.current = {
         cardId,
@@ -204,20 +443,48 @@ export const Canvas: React.FC = () => {
         startY: e.clientY,
         cardStartX: card.x,
         cardStartY: card.y,
+        lastSentX: card.x,
+        lastSentY: card.y,
+        rafId: null,
+      };
+
+      const scheduleRaf = () => {
+        if (rafIdRef.value) return;
+        rafIdRef.value = requestAnimationFrame(() => {
+          rafIdRef.value = 0;
+          if (!dragRef.current) return;
+          const nx = dragRef.current.cardStartX + pending.dx;
+          const ny = dragRef.current.cardStartY + pending.dy;
+          updateCardLocal(cardId, { x: nx, y: ny });
+
+          const ddx = Math.abs(nx - dragRef.current.lastSentX);
+          const ddy = Math.abs(ny - dragRef.current.lastSentY);
+          if (ddx + ddy > 4) {
+            dragRef.current.lastSentX = nx;
+            dragRef.current.lastSentY = ny;
+            updateCard(cardId, { x: nx, y: ny });
+          }
+        });
       };
 
       const handleMove = (ev: MouseEvent) => {
         if (!dragRef.current) return;
-        const dx = ev.clientX - dragRef.current.startX;
-        const dy = ev.clientY - dragRef.current.startY;
-        updateCard(cardId, {
-          x: dragRef.current.cardStartX + dx,
-          y: dragRef.current.cardStartY + dy,
-        });
+        pending.dx = ev.clientX - dragRef.current.startX;
+        pending.dy = ev.clientY - dragRef.current.startY;
+        scheduleRaf();
       };
 
       const handleUp = () => {
-        dragRef.current = null;
+        if (rafIdRef.value) {
+          cancelAnimationFrame(rafIdRef.value);
+        }
+        if (dragRef.current) {
+          const nx = dragRef.current.cardStartX + pending.dx;
+          const ny = dragRef.current.cardStartY + pending.dy;
+          updateCard(cardId, { x: nx, y: ny });
+          flushPendingCardUpdates();
+          dragRef.current = null;
+        }
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
       };
@@ -225,33 +492,64 @@ export const Canvas: React.FC = () => {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [toolMode, cards, selectCard, updateCard]
+    [toolMode, cardsById, selectCard, updateCardLocal, updateCard, flushPendingCardUpdates]
   );
 
   const handleConnectStart = useCallback(
-    (cardId: string, e: React.MouseEvent) => {
+    (cardId: string, point: 'bottom' | 'top', e: React.MouseEvent) => {
+      if (toolMode !== 'connect') return;
       e.stopPropagation();
       setConnectingFrom(cardId);
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const card = cardsById.get(cardId);
+      if (!card) return;
+
+      const startX = card.x + CARD_W / 2;
+      const startY = point === 'bottom' ? card.y + CARD_H : card.y;
+      setConnectingTo({
+        x: startX + (e.clientX - rect.left - (startX - canvasOffset.x)),
+        y: startY + (e.clientY - rect.top - (startY - canvasOffset.y)),
+      });
+
+      let releaseTarget: string | null = null;
 
       const handleMove = (ev: MouseEvent) => {
-        const rect = canvasRef.current!.getBoundingClientRect();
         setConnectingTo({
           x: ev.clientX - rect.left + canvasOffset.x,
           y: ev.clientY - rect.top + canvasOffset.y,
         });
+        const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+        if (el) {
+          const cp = el.closest('[data-connect-point]') as HTMLElement | null;
+          if (cp && cp.getAttribute('data-connect-point') === 'top') {
+            const cardEl = cp.closest('[data-card-id]') as HTMLElement | null;
+            const tid = cardEl?.getAttribute('data-card-id') || null;
+            releaseTarget = tid && tid !== cardId ? tid : null;
+          } else {
+            releaseTarget = null;
+          }
+        }
       };
 
       const handleUp = (ev: MouseEvent) => {
-        const target = ev.target as HTMLElement;
-        const cardEl = target.closest('[data-card-id]');
-        if (cardEl) {
-          const toCardId = cardEl.getAttribute('data-card-id');
-          if (toCardId && toCardId !== cardId) {
-            addConnection(cardId, toCardId);
+        let toCardId = releaseTarget;
+        if (!toCardId) {
+          const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+          if (el) {
+            const cp = el.closest('[data-connect-point]') as HTMLElement | null;
+            if (cp && cp.getAttribute('data-connect-point') === 'top') {
+              const cardEl = cp.closest('[data-card-id]') as HTMLElement | null;
+              const tid = cardEl?.getAttribute('data-card-id') || null;
+              if (tid && tid !== cardId) toCardId = tid;
+            }
           }
+        }
+        if (toCardId) {
+          addConnection(cardId, toCardId);
         }
         setConnectingFrom(null);
         setConnectingTo(null);
+        setHoveredConnectPoint(null);
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
       };
@@ -259,48 +557,118 @@ export const Canvas: React.FC = () => {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [addConnection, setConnectingFrom, setConnectingTo, canvasOffset]
+    [
+      toolMode,
+      cardsById,
+      setConnectingFrom,
+      setConnectingTo,
+      canvasOffset,
+      addConnection,
+    ]
   );
 
   const handleDoubleClick = useCallback((cardId: string) => {
+    const card = cardsById.get(cardId);
     setEditingCardId(cardId);
-  }, []);
+    setEditingContent(card?.content ?? '');
+  }, [cardsById]);
 
-  const handleEditEnd = useCallback((_cardId: string) => {
-    setEditingCardId(null);
-  }, []);
+  const handleEditEnd = useCallback(
+    (cardId: string) => {
+      if (contentDebounceRef.current && contentDebounceRef.current.id === cardId) {
+        clearTimeout(contentDebounceRef.current.timer);
+        updateCard(cardId, { content: editingContent });
+        contentDebounceRef.current = null;
+      }
+      setEditingCardId(null);
+    },
+    [updateCard, editingContent]
+  );
 
   const handleContentChange = useCallback(
     (cardId: string, content: string) => {
-      updateCard(cardId, { content });
+      setEditingContent(content);
+      updateCardLocal(cardId, { content });
+      if (contentDebounceRef.current) {
+        clearTimeout(contentDebounceRef.current.timer);
+      }
+      contentDebounceRef.current = {
+        id: cardId,
+        timer: setTimeout(() => {
+          updateCard(cardId, { content });
+          contentDebounceRef.current = null;
+        }, 50),
+      };
     },
-    [updateCard]
+    [updateCardLocal, updateCard]
   );
 
   const handleSaveSnapshot = useCallback(async () => {
     await saveSnapshot();
   }, [saveSnapshot]);
 
+  const handleToggleSnapshots = useCallback(async () => {
+    if (!snapshotPanelOpen) {
+      await loadSnapshots();
+    }
+    setSnapshotPanelOpen(!snapshotPanelOpen);
+  }, [snapshotPanelOpen, setSnapshotPanelOpen, loadSnapshots]);
+
+  const handleRestoreSnapshot = useCallback(
+    async (id: string) => {
+      await restoreSnapshot(id);
+    },
+    [restoreSnapshot]
+  );
+
   const renderGrid = () => {
-    const patternId = 'grid-pattern';
+    const patternId = 'grid-pattern-main';
     return (
-      <svg
+      <div
+        className="canvas-grid-bg"
         style={{
           position: 'absolute',
-          left: -canvasOffset.x,
-          top: -canvasOffset.y,
-          width: '200%',
-          height: '200%',
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
           pointerEvents: 'none',
         }}
       >
-        <defs>
-          <pattern id={patternId} width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
-            <circle cx={GRID_SIZE / 2} cy={GRID_SIZE / 2} r={0.5} fill="rgba(30,41,59,0.5)" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-      </svg>
+        <svg
+          style={{
+            position: 'absolute',
+            left: -((canvasOffset.x % GRID_SIZE) + GRID_SIZE * 2),
+            top: -((canvasOffset.y % GRID_SIZE) + GRID_SIZE * 2),
+            width: 'calc(100% + 40px)',
+            height: 'calc(100% + 40px)',
+            pointerEvents: 'none',
+          }}
+        >
+          <defs>
+            <pattern
+              id={patternId}
+              width={GRID_SIZE}
+              height={GRID_SIZE}
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d={`M ${GRID_SIZE} 0 L 0 0 0 ${GRID_SIZE}`}
+                fill="none"
+                stroke="#1e293b"
+                strokeWidth={0.5}
+              />
+              <circle
+                cx={GRID_SIZE / 2}
+                cy={GRID_SIZE / 2}
+                r={0.6}
+                fill="rgba(51,65,85,0.6)"
+              />
+            </pattern>
+          </defs>
+          <rect width="120%" height="120%" fill={`url(#${patternId})`} />
+        </svg>
+      </div>
     );
   };
 
@@ -317,23 +685,27 @@ export const Canvas: React.FC = () => {
           overflow: 'visible',
         }}
       >
-        <g transform={`translate(${-canvasOffset.x}, ${-canvasOffset.y})`}>
+        <g
+          transform={`translate(${-canvasOffset.x}, ${-canvasOffset.y})`}
+          style={{ pointerEvents: 'auto' }}
+        >
           {connections.map((conn) => (
             <ConnectionLine
               key={conn.id}
               conn={conn}
-              cards={cards}
-              hovered={hoveredConnection === conn.id}
-              onHover={setHoveredConnection}
+              cardsById={cardsById}
+              hovered={hoveredConnectionId === conn.id}
+              onHover={setHoveredConnectionId}
               onDelete={deleteConnection}
               isDeleteMode={toolMode === 'delete'}
             />
           ))}
           {connectingFrom && connectingTo && (
-            <ConnectingLine
+            <ConnectingPreviewLine
               fromCardId={connectingFrom}
               toPos={connectingTo}
-              cards={cards}
+              cardsById={cardsById}
+              targetCardId={hoveredConnectPoint?.cardId === connectingFrom ? null : hoveredConnectPoint?.cardId || null}
             />
           )}
         </g>
@@ -342,36 +714,57 @@ export const Canvas: React.FC = () => {
   };
 
   const renderCards = () => {
-    return cards.map((card) => (
-      <div
-        key={card.id}
-        data-card-id={card.id}
-        style={{
-          position: 'absolute',
-          left: card.x - canvasOffset.x,
-          top: card.y - canvasOffset.y,
-          transition: 'left 0.25s cubic-bezier(.34,1.56,.64,1), top 0.25s cubic-bezier(.34,1.56,.64,1)',
-        }}
-      >
-        <Card
-          card={card}
-          isSelected={selectedCardId === card.id}
-          isEditing={editingCardId === card.id}
-          isConnecting={toolMode === 'connect'}
-          isDeleteMode={toolMode === 'delete'}
-          onDoubleClick={handleDoubleClick}
-          onDragStart={handleCardDragStart}
-          onConnectStart={handleConnectStart}
-          onDelete={deleteCard}
-          onContentChange={handleContentChange}
-          onEditEnd={handleEditEnd}
-        />
-      </div>
-    ));
+    return cards.map((card) => {
+      const isEditing = editingCardId === card.id;
+      return (
+        <div
+          key={card.id}
+          data-card-id={card.id}
+          style={{
+            position: 'absolute',
+            left: card.x - canvasOffset.x,
+            top: card.y - canvasOffset.y,
+            width: CARD_W,
+            height: CARD_H,
+            transition:
+              dragRef.current?.cardId === card.id || isEditing
+                ? 'none'
+                : 'left 0.25s cubic-bezier(.34,1.56,.64,1), top 0.25s cubic-bezier(.34,1.56,.64,1)',
+            zIndex: selectedCardId === card.id ? 10 : 1,
+          }}
+        >
+          <Card
+            card={card}
+            isSelected={selectedCardId === card.id}
+            isEditing={isEditing}
+            isConnecting={toolMode === 'connect'}
+            isDeleteMode={toolMode === 'delete'}
+            editingContent={isEditing ? editingContent : undefined}
+            onDoubleClick={handleDoubleClick}
+            onDragStart={handleCardDragStart}
+            onConnectStart={handleConnectStart}
+            onDelete={deleteCard}
+            onContentChange={handleContentChange}
+            onEditEnd={handleEditEnd}
+            onConnectPointHover={(cid, pt) => {
+              if (pt === null) setHoveredConnectPoint(null);
+              else setHoveredConnectPoint({ cardId: cid, point: pt });
+            }}
+          />
+        </div>
+      );
+    });
   };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#0f172a' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        background: '#0f172a',
+      }}
+    >
       <div
         style={{
           position: 'fixed',
@@ -403,13 +796,30 @@ export const Canvas: React.FC = () => {
               borderRadius: '50%',
               background: '#22c55e',
               boxShadow: '0 0 6px rgba(34,197,94,0.5)',
+              animation: 'pulse 2s infinite',
             }}
           />
           <span style={{ color: '#94a3b8', fontSize: 13 }}>{onlineCount} 在线</span>
+          <span style={{ color: '#475569', margin: '0 6px', fontSize: 12 }}>|</span>
+          <span style={{ color: '#64748b', fontSize: 12 }}>
+            💡 {cards.length} 卡片 · 🔗 {connections.length} 连线
+          </span>
         </div>
       </div>
 
-      <Toolbar onSaveSnapshot={handleSaveSnapshot} />
+      <Toolbar
+        onSaveSnapshot={handleSaveSnapshot}
+        onToggleSnapshots={handleToggleSnapshots}
+        snapshotCount={snapshots.length}
+      />
+
+      {snapshotPanelOpen && (
+        <SnapshotPanel
+          snapshots={snapshots}
+          onClose={() => setSnapshotPanelOpen(false)}
+          onRestore={handleRestoreSnapshot}
+        />
+      )}
 
       <div
         ref={canvasRef}
@@ -419,10 +829,11 @@ export const Canvas: React.FC = () => {
           position: 'fixed',
           left: 60,
           top: 48,
-          right: 0,
+          right: snapshotPanelOpen ? 280 : 0,
           bottom: 0,
           overflow: 'hidden',
           cursor: getCanvasCursor(),
+          transition: 'right 200ms ease',
         }}
       >
         {renderGrid()}
@@ -434,17 +845,18 @@ export const Canvas: React.FC = () => {
             style={{
               position: 'fixed',
               bottom: 20,
-              right: 20,
-              background: 'rgba(239,68,68,0.9)',
+              right: snapshotPanelOpen ? 300 : 20,
+              background: 'rgba(239,68,68,0.95)',
               color: 'white',
               padding: '8px 16px',
               borderRadius: 8,
               fontSize: 13,
               zIndex: 300,
               pointerEvents: 'none',
+              transition: 'right 200ms ease',
             }}
           >
-            点击卡片或连线进行删除
+            🗑️ 点击卡片或连线进行删除
           </div>
         )}
 
@@ -453,52 +865,100 @@ export const Canvas: React.FC = () => {
             style={{
               position: 'fixed',
               bottom: 20,
-              right: 20,
-              background: 'rgba(59,130,246,0.9)',
+              right: snapshotPanelOpen ? 300 : 20,
+              background: 'rgba(59,130,246,0.95)',
               color: 'white',
               padding: '8px 16px',
               borderRadius: 8,
               fontSize: 13,
               zIndex: 300,
               pointerEvents: 'none',
+              transition: 'right 200ms ease',
             }}
           >
-            从卡片底部连接点拖拽到另一张卡片
+            🔗 从卡片底部连接点拖拽到另一张卡片顶部连接点
+          </div>
+        )}
+
+        {toolMode === 'add-card' && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 20,
+              right: snapshotPanelOpen ? 300 : 20,
+              background: 'rgba(34,197,94,0.95)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontSize: 13,
+              zIndex: 300,
+              pointerEvents: 'none',
+              transition: 'right 200ms ease',
+            }}
+          >
+            ➕ 点击画布任意位置添加卡片
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 };
 
-const ConnectingLine: React.FC<{
+const ConnectingPreviewLine = memo(function ConnectingPreviewLine({
+  fromCardId,
+  toPos,
+  cardsById,
+  targetCardId,
+}: {
   fromCardId: string;
   toPos: { x: number; y: number };
-  cards: CardData[];
-}> = ({ fromCardId, toPos, cards }) => {
-  const fromCard = cards.find((c) => c.id === fromCardId);
+  cardsById: Map<string, CardData>;
+  targetCardId: string | null;
+}) {
+  const fromCard = cardsById.get(fromCardId);
   if (!fromCard) return null;
 
-  const x1 = fromCard.x + 80;
-  const y1 = fromCard.y + 120;
-  const x2 = toPos.x;
-  const y2 = toPos.y;
+  const x1 = fromCard.x + CARD_W / 2;
+  const y1 = fromCard.y + CARD_H;
+  const x2 = targetCardId && cardsById.has(targetCardId)
+    ? cardsById.get(targetCardId)!.x + CARD_W / 2
+    : toPos.x;
+  const y2 = targetCardId && cardsById.has(targetCardId)
+    ? cardsById.get(targetCardId)!.y
+    : toPos.y;
 
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const curveOffset = Math.min(dist * 0.4, 100);
+  const pathD = useMemo(
+    () => computeBezierPath(x1, y1, x2, y2),
+    [x1, y1, x2, y2]
+  );
 
-  const path = `M ${x1} ${y1} C ${x1} ${y1 + curveOffset}, ${x2} ${y2 - curveOffset}, ${x2} ${y2}`;
+  const isValid = !!targetCardId && targetCardId !== fromCardId;
 
   return (
-    <path
-      d={path}
-      fill="none"
-      stroke={fromCard.color}
-      strokeWidth={2}
-      strokeDasharray="6,4"
-      style={{ pointerEvents: 'none' }}
-    />
+    <g style={{ pointerEvents: 'none' }}>
+      <path
+        d={pathD}
+        fill="none"
+        stroke={isValid ? '#22c55e' : fromCard.color}
+        strokeWidth={isValid ? 3 : 2}
+        strokeDasharray="6,4"
+        opacity={0.9}
+      />
+      <circle
+        cx={x2}
+        cy={y2}
+        r={isValid ? 8 : 5}
+        fill={isValid ? '#22c55e' : fromCard.color}
+        stroke="#ffffff"
+        strokeWidth={2}
+      />
+    </g>
   );
-};
+});
