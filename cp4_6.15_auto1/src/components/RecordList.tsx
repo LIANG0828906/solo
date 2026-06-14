@@ -21,19 +21,26 @@ export default function RecordList() {
   }, [scoreRecords, filterStudent, filterQuestion]);
 
   const handleExportCSV = () => {
-    const header = '原题,学生姓名,班级,学生答案,总分,关键词得分,长度得分,语义得分,评语,评分时间';
+    const header = '原题,满分,学生姓名,班级,学生答案,总分,得分率,关键词得分,长度得分,语义得分,评语,评分时间';
     const rows = filtered.map((r) => {
-      const q = questions.find((q) => q.id === r.questionId);
+      const q = questions.find((item) => item.id === r.questionId);
+      const maxScore = q?.maxScore || 10;
       const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      const keywordActual = Math.round(r.keywordScore * maxScore * 0.5 * 100) / 100;
+      const lengthActual = Math.round(Math.min(r.lengthScore, 1) * maxScore * 0.2 * 100) / 100;
+      const semanticActual = Math.round(r.semanticScore * maxScore * 0.3 * 100) / 100;
+      const scoreRate = Math.round((r.totalScore / maxScore) * 1000) / 10;
       return [
         escape(q?.text || ''),
+        maxScore,
         escape(r.studentName),
         escape(r.studentClass),
         escape(r.studentAnswer),
         r.totalScore,
-        r.keywordScore,
-        r.lengthScore,
-        r.semanticScore,
+        `${scoreRate}%`,
+        keywordActual,
+        lengthActual,
+        semanticActual,
         escape(r.feedback),
         new Date(r.scoredAt).toLocaleString('zh-CN'),
       ].join(',');

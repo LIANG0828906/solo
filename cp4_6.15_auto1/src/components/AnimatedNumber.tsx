@@ -7,18 +7,21 @@ interface AnimatedNumberProps {
 }
 
 export default function AnimatedNumber({ value, duration = 800, decimals = 1 }: AnimatedNumberProps) {
-  const [display, setDisplay] = useState(value);
-  const prevRef = useRef(value);
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
   const rafRef = useRef<number>(0);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    const start = prevRef.current;
+    const start = hasAnimated.current ? prevRef.current : 0;
     const diff = value - start;
     if (Math.abs(diff) < 0.01) {
       setDisplay(value);
       prevRef.current = value;
+      hasAnimated.current = true;
       return;
     }
+
     const startTime = performance.now();
     const animate = (now: number) => {
       const elapsed = now - startTime;
@@ -31,6 +34,7 @@ export default function AnimatedNumber({ value, duration = 800, decimals = 1 }: 
       } else {
         prevRef.current = value;
         setDisplay(value);
+        hasAnimated.current = true;
       }
     };
     rafRef.current = requestAnimationFrame(animate);

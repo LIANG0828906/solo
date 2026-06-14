@@ -15,13 +15,15 @@ export default function App() {
     loadFromStorage();
   }, [loadFromStorage]);
 
-  const mainMargin = sidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-[220px]';
+  const mainMargin = sidebarCollapsed
+    ? 'md:ml-[64px]'
+    : 'md:ml-[64px] lg:ml-[220px]';
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-[#e0f7fa] via-white to-[#b2dfdb]">
+      <div className="min-h-screen bg-gradient-to-br from-[#e0f7fa] via-[#f0fdfa] to-[#b2dfdb]">
         <Sidebar />
-        <main className={`transition-all duration-300 ${mainMargin} px-4 md:px-8 py-6 pt-16 md:pt-6`}>
+        <main className={`transition-all duration-300 ease-out ${mainMargin} px-4 sm:px-6 lg:px-8 py-4 md:py-6 pt-20 md:pt-6`}>
           <GlobalStatsPanel />
           <Routes>
             <Route path="/" element={<Navigate to="/questions" replace />} />

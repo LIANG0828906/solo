@@ -27,6 +27,8 @@ function extractMissedKeywords(records: ScoreRecord[], questions: Question[]) {
   for (const r of records) {
     const q = questions.find((item) => item.id === r.questionId);
     if (!q) continue;
+    const scoreRatio = r.totalScore / q.maxScore;
+    if (scoreRatio >= 0.7) continue;
     const lower = r.studentAnswer.toLowerCase();
     for (const kw of q.keywords) {
       if (!lower.includes(kw.word.toLowerCase())) {
