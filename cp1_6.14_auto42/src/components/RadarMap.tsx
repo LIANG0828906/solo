@@ -13,12 +13,17 @@ const RadarMap: React.FC<RadarMapProps> = ({ allStars: propStars }) => {
   const { stars: hookStars } = useStarData();
   const { selectedBody } = useStarContext();
   const dataRef = useRef<Star[]>([]);
+  const selectedRef = useRef(selectedBody);
 
   const stars = propStars ?? hookStars;
 
   useEffect(() => {
     dataRef.current = stars;
   }, [stars]);
+
+  useEffect(() => {
+    selectedRef.current = selectedBody;
+  }, [selectedBody]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -39,8 +44,11 @@ const RadarMap: React.FC<RadarMapProps> = ({ allStars: propStars }) => {
     const maxR = size / 2 - 8;
 
     let startTime = performance.now();
+    let animationRunning = true;
 
     const draw = () => {
+      if (!animationRunning) return;
+
       const now = performance.now();
       const t = (now - startTime) / 1000;
 
@@ -84,10 +92,13 @@ const RadarMap: React.FC<RadarMapProps> = ({ allStars: propStars }) => {
         dirZ = nav.cameraDirRef.current?.z ?? -1;
       }
 
-      const selectedId = selectedBody
-        ? selectedBody.type === 'star'
-          ? selectedBody.data.id
-          : (selectedBody.type === 'planet' ? selectedBody.parentStar.id : null)
+      const currentSelected = selectedRef.current;
+      const selectedId = currentSelected
+        ? currentSelected.type === 'star'
+          ? currentSelected.data.id
+          : currentSelected.type === 'planet'
+          ? currentSelected.parentStar.id
+          : null
         : null;
 
       const starList = dataRef.current;
@@ -180,11 +191,7 @@ const RadarMap: React.FC<RadarMapProps> = ({ allStars: propStars }) => {
 
       ctx.save();
       const sweepAngle = (t * 1.2) % (Math.PI * 2);
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-      grad.addColorStop(0, 'rgba(0, 212, 255, 0)');
-      grad.addColorStop(0.7, 'rgba(0, 212, 255, 0.12)');
-      grad.addColorStop(1, 'rgba(0, 212, 255, 0)');
-      const sweepGrad = ctx.createConicGradient
+      const sweepGrad = (ctx as any).createConicGradient
         ? (() => {
             const g = (ctx as any).createConicGradient(sweepAngle, cx, cy);
             g.addColorStop(0, 'rgba(0, 212, 255, 0.45)');
@@ -207,9 +214,10 @@ const RadarMap: React.FC<RadarMapProps> = ({ allStars: propStars }) => {
     draw();
 
     return () => {
+      animationRunning = false;
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [selectedBody, propStars]);
+  }, []);
 
   return (
     <div className="radar-container">

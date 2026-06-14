@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, MutableRefObject } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, LOD, Html } from '@react-three/drei';
+import { OrbitControls, Stars, Html, Detailed } from '@react-three/drei';
 import * as THREE from 'three';
 import StarOrbitSystem from './StarOrbitSystem';
 import ParticleField from './ParticleField';

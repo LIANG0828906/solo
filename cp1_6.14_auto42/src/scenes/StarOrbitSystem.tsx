@@ -1,9 +1,8 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { LOD } from '@react-three/drei';
+import { Detailed } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Star, Planet } from '../types';
-import { NavDataContext } from './StarChart';
 
 interface StarOrbitSystemProps {
   star: Star;
@@ -12,11 +11,16 @@ interface StarOrbitSystemProps {
   onPlanetClick: (planet: Planet) => void;
 }
 
-const OrbitLine: React.FC<{ radius: number; visible: boolean; color: string }> = ({
-  radius,
-  visible,
-  color,
-}) => {
+interface OrbitLineProps {
+  radius: number;
+  visible: boolean;
+  color: string;
+}
+
+const OrbitLine: React.FC<OrbitLineProps> = ({ radius, visible, color }) => {
+  const lineRef = useRef<THREE.Line>(null);
+  const materialRef = useRef<THREE.LineBasicMaterial>(null);
+
   const points = useMemo(() => {
     const pts: THREE.Vector3[] = [];
     const segments = 128;
@@ -32,10 +36,22 @@ const OrbitLine: React.FC<{ radius: number; visible: boolean; color: string }> =
     return g;
   }, [points]);
 
+  useFrame((state, delta) => {
+    if (lineRef.current && materialRef.current) {
+      const targetOpacity = visible ? 0.35 : 0;
+      materialRef.current.opacity = THREE.MathUtils.lerp(
+        materialRef.current.opacity, targetOpacity, delta * 6);
+      lineRef.current.visible = materialRef.current.opacity > 0.01;
+    }
+  });
+
+  const orbitColor = useMemo(() => new THREE.Color(color), [color]);
+
   return (
-    <line geometry={lineGeom} visible={visible}>
+    <line ref={lineRef} geometry={lineGeom} visible={visible}>
       <lineBasicMaterial
-        color={color}
+        ref={materialRef}
+        color={orbitColor}
         transparent
         opacity={visible ? 0.35 : 0}
         depthWrite={false}
@@ -45,11 +61,13 @@ const OrbitLine: React.FC<{ radius: number; visible: boolean; color: string }> =
   );
 };
 
-const AsteroidBelt: React.FC<{ innerRadius: number; outerRadius: number; count: number }> = ({
-  innerRadius,
-  outerRadius,
-  count,
-}) => {
+interface AsteroidBeltProps {
+  innerRadius: number;
+  outerRadius: number;
+  count: number;
+}
+
+const AsteroidBelt: React.FC<AsteroidBeltProps> = ({ innerRadius, outerRadius, count }) => {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -63,11 +81,13 @@ const AsteroidBelt: React.FC<{ innerRadius: number; outerRadius: number; count: 
         yOffset: (Math.random() - 0.5) * 0.4,
         scale: 0.05 + Math.random() * 0.12,
         speed: 0.002 + Math.random() * 0.005,
+        rotationSpeed: 0.3 + i * 0.01,
+        rotationSpeed2: 0.2 + i * 0.015,
       };
     });
   }, [innerRadius, outerRadius, count]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!ref.current) return;
     data.forEach((d, i) => {
       const a = d.angle + state.clock.elapsedTime * d.speed;
@@ -77,8 +97,8 @@ const AsteroidBelt: React.FC<{ innerRadius: number; outerRadius: number; count: 
         Math.sin(a) * d.radius
       );
       dummy.rotation.set(
-        state.clock.elapsedTime * (0.3 + i * 0.01),
-        state.clock.elapsedTime * (0.2 + i * 0.015),
+        state.clock.elapsedTime * d.rotationSpeed,
+        state.clock.elapsedTime * d.rotationSpeed2,
         0
       );
       dummy.scale.setScalar(d.scale);
@@ -102,18 +122,20 @@ const AsteroidBelt: React.FC<{ innerRadius: number; outerRadius: number; count: 
   );
 };
 
-const PlanetMesh: React.FC<{
+interface PlanetMeshProps {
   planet: Planet;
   onClick: () => void;
   showAtmosphere: boolean;
   lodDistance: number;
-}> = ({ planet, onClick, showAtmosphere, lodDistance }) => {
+}
+
+const PlanetMesh: React.FC<PlanetMeshProps> = ({ planet, onClick, showAtmosphere, lodDistance }) => {
   const meshRef = useRef<THREE.Mesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
   const atmosphereRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
   const planetColor = useMemo(() => new THREE.Color(planet.color), [planet.color]);
+  const atmosphereColor = useMemo(() => new THREE.Color(planet.atmosphereColor), [planet.atmosphereColor]);
 
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -122,6 +144,10 @@ const PlanetMesh: React.FC<{
     if (atmosphereRef.current && planet.hasAtmosphere) {
       const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.8) * 0.04;
       atmosphereRef.current.scale.setScalar(pulse);
+      const material = atmosphereRef.current.material as THREE.MeshBasicMaterial;
+      const targetOpacity = showAtmosphere ? 0.25 : 0;
+      material.opacity = THREE.MathUtils.lerp(material.opacity, targetOpacity, delta * 5);
+      atmosphereRef.current.visible = material.opacity > 0.01;
     }
   });
 
@@ -130,43 +156,22 @@ const PlanetMesh: React.FC<{
     onClick();
   };
 
-  const lowDetail = (
-    <mesh
-      onClick={handleClick}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        document.body.style.cursor = 'auto';
-      }}
-      ref={meshRef}
-    >
-      <sphereGeometry args={[planet.radius, 16, 12]} />
-      <meshStandardMaterial
-        color={planetColor}
-        roughness={0.85}
-        metalness={0.1}
-        emissive={planetColor}
-        emissiveIntensity={hovered ? 0.35 : 0.08}
-      />
-    </mesh>
-  );
+  const handlePointerOver = (e: THREE.Event) => {
+    e.stopPropagation();
+    setHovered(true);
+    document.body.style.cursor = 'pointer';
+  };
+
+  const handlePointerOut = () => {
+    setHovered(false);
+    document.body.style.cursor = 'auto';
+  };
 
   const highDetail = (
     <mesh
       onClick={handleClick}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        document.body.style.cursor = 'auto';
-      }}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
       ref={meshRef}
     >
       <sphereGeometry args={[planet.radius, 48, 40]} />
@@ -181,18 +186,35 @@ const PlanetMesh: React.FC<{
     </mesh>
   );
 
+  const lowDetail = (
+    <mesh
+      onClick={handleClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+    >
+      <sphereGeometry args={[planet.radius, 16, 12]} />
+      <meshStandardMaterial
+        color={planetColor}
+        roughness={0.85}
+        metalness={0.1}
+        emissive={planetColor}
+        emissiveIntensity={hovered ? 0.35 : 0.08}
+      />
+    </mesh>
+  );
+
   return (
-    <group ref={groupRef}>
-      <LOD distances={[lodDistance]}>
+    <group>
+      <Detailed distances={[0, lodDistance]}>
         {highDetail}
         {lowDetail}
-      </LOD>
+      </Detailed>
 
       {planet.hasAtmosphere && planet.atmosphereColor && (
         <mesh ref={atmosphereRef} visible={showAtmosphere}>
           <sphereGeometry args={[planet.radius * 1.15, 32, 32]} />
           <meshBasicMaterial
-            color={planet.atmosphereColor}
+            color={atmosphereColor}
             transparent
             opacity={showAtmosphere ? 0.25 : 0}
             side={THREE.BackSide}
@@ -205,20 +227,21 @@ const PlanetMesh: React.FC<{
   );
 };
 
-const PlanetNode: React.FC<{
+interface PlanetNodeProps {
   planet: Planet;
   onClick: () => void;
   showOrbits: boolean;
   showAtmosphere: boolean;
   starColor: string;
-}> = ({ planet, onClick, showOrbits, showAtmosphere, starColor }) => {
+}
+
+const PlanetNode: React.FC<PlanetNodeProps> = ({ planet, onClick, showOrbits, showAtmosphere, starColor }) => {
   const groupRef = useRef<THREE.Group>(null);
   const orbitAngle = useRef(Math.random() * Math.PI * 2);
-  const { camera } = useThree();
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
-    orbitAngle.current += planet.orbitSpeed * delta * 0.3;
+    orbitAngle.current += planet.orbitSpeed * delta;
     const x = Math.cos(orbitAngle.current) * planet.orbitRadius;
     const z = Math.sin(orbitAngle.current) * planet.orbitRadius;
     groupRef.current.position.set(x, 0, z);
