@@ -22,23 +22,36 @@ interface PaginatedResult<T> {
 const OVERDUE_DAYS = 30;
 
 export class ReceiptService {
-  async generateReceiptNo(): Promise<string> {
-    const now = new Date();
-    const dateKey = now.toISOString().slice(0, 10).replace(/-/g, '');
+  private async ensureReceiptCounterInitialized(): Promise<void> {
+    if (!db.data.receiptCounter) {
+      db.data.receiptCounter = {};
+      await db.write();
+    }
+  }
 
-    const currentCounter = db.data.receiptCounter[dateKey] || 0;
+  async generateReceiptNo(dateStr?: string): Promise<string> {
+    await this.ensureReceiptCounterInitialized();
+
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const dateKey = targetDate.toISOString().slice(0, 10).replace(/-/g, '');
+
+    const currentCounter: number = (db.data.receiptCounter as Record<string, number>)[dateKey] ?? 0;
     const nextCounter = currentCounter + 1;
 
-    db.data.receiptCounter[dateKey] = nextCounter;
+    (db.data.receiptCounter as Record<string, number>)[dateKey] = nextCounter;
     await db.write();
 
     const paddedCounter = nextCounter.toString().padStart(3, '0');
     return `RCT-${dateKey}-${paddedCounter}`;
   }
 
-  private calculateOverdueStatus(receipt: Receipt): Receipt {
-    if (receipt.status !== 'pending' && receipt.status !== 'partial') {
+  calculateOverdueStatus(receipt: Receipt): Receipt {
+    if (receipt.status === 'paid') {
       return receipt;
+    }
+
+    if (receipt.status === 'partial' && receipt.paymentInfo?.amount && receipt.paymentInfo.amount >= receipt.totalAmount) {
+      return { ...receipt, status: 'paid' as ReceiptStatus };
     }
 
     const receiptDate = new Date(receipt.date);
@@ -51,6 +64,14 @@ export class ReceiptService {
     }
 
     return receipt;
+  }
+
+  hasOutstandingBalance(receipt: Receipt): boolean {
+    if (receipt.status === 'paid') return false;
+    if (receipt.status === 'partial' && receipt.paymentInfo?.amount) {
+      return receipt.paymentInfo.amount < receipt.totalAmount;
+    }
+    return true;
   }
 
   private applyFilters(receipts: Receipt[], query: ReceiptQuery): Receipt[] {
@@ -109,10 +130,11 @@ export class ReceiptService {
   }
 
   async createReceipt(receiptData: Omit<Receipt, 'id' | 'receiptNo' | 'createdAt' | 'status'>): Promise<Receipt> {
-    const receiptNo = await this.generateReceiptNo();
+    await this.ensureReceiptCounterInitialized();
+    const receiptNo = await this.generateReceiptNo(receiptData.date);
     const customer = db.data.customers.find((c: Customer) => c.id === receiptData.customerId);
 
-    const newReceipt: Receipt = {
+    let newReceipt: Receipt = {
       ...receiptData,
       id: uuidv4(),
       receiptNo,
@@ -120,6 +142,8 @@ export class ReceiptService {
       status: 'pending',
       createdAt: new Date().toISOString()
     };
+
+    newReceipt = this.calculateOverdueStatus(newReceipt);
 
     db.data.receipts.push(newReceipt);
     await db.write();
@@ -141,15 +165,17 @@ export class ReceiptService {
       }
     }
 
-    const updatedReceipt: Receipt = {
+    let updatedReceipt: Receipt = {
       ...db.data.receipts[receiptIndex],
       ...updates
     };
 
+    updatedReceipt = this.calculateOverdueStatus(updatedReceipt);
+
     db.data.receipts[receiptIndex] = updatedReceipt;
     await db.write();
 
-    return this.calculateOverdueStatus(updatedReceipt);
+    return updatedReceipt;
   }
 
   async updateStatus(id: string, status: ReceiptStatus, paymentInfo?: PaymentInfo): Promise<Receipt | undefined> {
@@ -173,16 +199,18 @@ export class ReceiptService {
       }
     }
 
-    const updatedReceipt: Receipt = {
+    let updatedReceipt: Receipt = {
       ...receipt,
       status,
       paymentInfo: updatedPaymentInfo
     };
 
+    updatedReceipt = this.calculateOverdueStatus(updatedReceipt);
+
     db.data.receipts[receiptIndex] = updatedReceipt;
     await db.write();
 
-    return this.calculateOverdueStatus(updatedReceipt);
+    return updatedReceipt;
   }
 
   async deleteReceipt(id: string): Promise<boolean> {

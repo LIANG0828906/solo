@@ -10,8 +10,14 @@ interface SearchCacheEntry {
 export class CustomerService {
   private searchCache: Map<string, SearchCacheEntry> = new Map();
   private readonly CACHE_TTL = 5 * 60 * 1000;
+  private readonly INDEX_CHUNK = 100;
+
   private nameIndex: Map<string, string[]> = new Map();
   private companyIndex: Map<string, string[]> = new Map();
+  private emailIndex: Map<string, string[]> = new Map();
+  private phoneIndex: Map<string, string[]> = new Map();
+  private customerIdMap: Map<string, Customer> = new Map();
+  private indexesBuilt = false;
 
   constructor() {
     this.buildIndexes();
@@ -20,25 +26,36 @@ export class CustomerService {
   private buildIndexes(): void {
     this.nameIndex.clear();
     this.companyIndex.clear();
+    this.emailIndex.clear();
+    this.phoneIndex.clear();
+    this.customerIdMap.clear();
 
-    for (const customer of db.data.customers) {
-      const nameKey = customer.name.toLowerCase();
-      const companyKey = customer.company.toLowerCase();
+    const customers = db.data.customers;
+    for (let i = 0; i < customers.length; i += this.INDEX_CHUNK) {
+      const chunk = customers.slice(i, i + this.INDEX_CHUNK);
+      for (const customer of chunk) {
+        this.customerIdMap.set(customer.id, customer);
 
-      if (!this.nameIndex.has(nameKey)) {
-        this.nameIndex.set(nameKey, []);
+        this.insertToIndex(this.nameIndex, customer.name.toLowerCase(), customer.id);
+        this.insertToIndex(this.companyIndex, customer.company.toLowerCase(), customer.id);
+        this.insertToIndex(this.emailIndex, customer.email.toLowerCase(), customer.id);
+        this.insertToIndex(this.phoneIndex, customer.phone.toLowerCase(), customer.id);
       }
-      this.nameIndex.get(nameKey)!.push(customer.id);
-
-      if (!this.companyIndex.has(companyKey)) {
-        this.companyIndex.set(companyKey, []);
-      }
-      this.companyIndex.get(companyKey)!.push(customer.id);
     }
+    this.indexesBuilt = true;
   }
 
-  private invalidateCache(): void {
+  private insertToIndex(index: Map<string, string[]>, key: string, id: string): void {
+    if (!key) return;
+    if (!index.has(key)) {
+      index.set(key, []);
+    }
+    index.get(key)!.push(id);
+  }
+
+  invalidateCache(): void {
     this.searchCache.clear();
+    this.indexesBuilt = false;
     this.buildIndexes();
   }
 
@@ -59,7 +76,11 @@ export class CustomerService {
       return cachedEntry.results;
     }
 
-    const results = this.performSearch(normalizedTerm);
+    if (!this.indexesBuilt) {
+      this.buildIndexes();
+    }
+
+    const results = this.performSearchOptimized(normalizedTerm);
 
     this.searchCache.set(cacheKey, {
       results,
@@ -69,36 +90,31 @@ export class CustomerService {
     return results;
   }
 
-  private performSearch(term: string): Customer[] {
+  private searchIndex(index: Map<string, string[]>, term: string, matched: Set<string>): void {
+    for (const [key, ids] of index.entries()) {
+      if (key.includes(term)) {
+        for (const id of ids) {
+          matched.add(id);
+        }
+      }
+    }
+  }
+
+  private performSearchOptimized(term: string): Customer[] {
     const matchedIds = new Set<string>();
 
-    for (const [name, ids] of this.nameIndex.entries()) {
-      if (name.includes(term)) {
-        ids.forEach(id => matchedIds.add(id));
-      }
-    }
-
-    for (const [company, ids] of this.companyIndex.entries()) {
-      if (company.includes(term)) {
-        ids.forEach(id => matchedIds.add(id));
-      }
-    }
+    this.searchIndex(this.nameIndex, term, matchedIds);
+    this.searchIndex(this.companyIndex, term, matchedIds);
+    this.searchIndex(this.emailIndex, term, matchedIds);
+    this.searchIndex(this.phoneIndex, term, matchedIds);
 
     const results: Customer[] = [];
-    const customers = db.data.customers;
-
-    for (const customer of customers) {
-      if (matchedIds.has(customer.id)) {
-        results.push(customer);
-        continue;
-      }
-
-      if (customer.email.toLowerCase().includes(term) ||
-          customer.phone.toLowerCase().includes(term)) {
+    for (const id of matchedIds) {
+      const customer = this.customerIdMap.get(id);
+      if (customer) {
         results.push(customer);
       }
     }
-
     return results;
   }
 

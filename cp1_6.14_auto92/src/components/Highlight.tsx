@@ -2,21 +2,21 @@ import React from 'react';
 
 interface HighlightProps {
   text: string;
-  highlight: string;
+  search: string;
 }
 
-export default function Highlight({ text, highlight }: HighlightProps) {
-  if (!highlight.trim()) {
+export default function Highlight({ text, search }: HighlightProps) {
+  if (!search.trim()) {
     return <>{text}</>;
   }
 
-  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
 
   return (
     <>
       {parts.map((part, index) =>
-        part.toLowerCase() === highlight.toLowerCase() ? (
+        part.toLowerCase() === search.toLowerCase() ? (
           <span key={index} className="highlight">
             {part}
           </span>

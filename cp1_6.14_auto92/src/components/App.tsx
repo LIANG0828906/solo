@@ -39,5 +39,25 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <button className="hamburger-btn" onClick
+      <div>
+        <button className="hamburger-btn" onClick={toggleSidebar}>
+          {sidebarOpen ? <X /> : <Menu />}
+        </button>
+        <Sidebar isOpen={sidebarOpen || !isMobile} onNavClick={handleNavClick} />
+        {sidebarOpen && isMobile && <div className="sidebar-overlay visible" onClick={handleOverlayClick} />}
+        <div className={`main-content ${sidebarOpen && isMobile ? '' : ''}`}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/receipts" element={<ReceiptsPage />} />
+            <Route path="/receipts/new" element={<ReceiptForm />} />
+            <Route path="/receipts/:id" element={<ReceiptDetail />} />
+            <Route path="/receipts/:id/edit" element={<ReceiptForm />} />
+            <Route path="/statements" element={<StatementsPage />} />
+          </Routes>
+        </div>
+        <NotificationToast />
+      </div>
+    </Router>
+  );
+}

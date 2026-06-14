@@ -79,19 +79,51 @@ body {
   transition: all 0.2s;
 }
 
-@keyframes pulse-red {
+@keyframes pulse-overdue {
   0%,
   100% {
-    opacity: 1;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    box-shadow: 0 0 0 0 rgba(238, 90, 90, 0.7), 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: scale(1);
   }
   50% {
-    opacity: 0.7;
+    background: linear-gradient(135deg, #ff4d4d 0%, #d94343 100%);
+    box-shadow: 0 0 0 12px rgba(238, 90, 90, 0), 0 2px 16px rgba(238, 90, 90, 0.4);
+    transform: scale(1.01);
   }
 }
 
 .overdue-card {
-  animation: pulse-red 2s infinite;
+  animation: pulse-overdue 1.8s ease-in-out infinite;
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overdue-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+  animation: pulse-overdue-glow 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-overdue-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
 }
 
 @keyframes rollDown {

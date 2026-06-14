@@ -1,8 +1,18 @@
+import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 
 export default function NotificationToast() {
   const { notifications, removeNotification } = useAppStore();
+
+  useEffect(() => {
+    notifications.forEach((notification) => {
+      const timer = setTimeout(() => {
+        removeNotification(notification.id);
+      }, 3000);
+      return () => clearTimeout(timer);
+    });
+  }, [notifications, removeNotification]);
 
   if (notifications.length === 0) return null;
 
