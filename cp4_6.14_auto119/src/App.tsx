@@ -1,9 +1,23 @@
-import { useState } from 'react'
+import { useState, createContext, useContext } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { useCourses } from './hooks/useCourses'
 import { CourseCard } from './components/CourseCard'
 import { ConflictModal } from './components/ConflictModal'
 import { Course, Student, loadCourseStudents, ConflictErrorData } from './api'
+
+interface ToastContextType {
+  showToast: (message: string, duration?: number) => void
+}
+
+const ToastContext = createContext<ToastContextType | null>(null)
+
+export function useToast() {
+  const context = useContext(ToastContext)
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider')
+  }
+  return context
+}
 
 function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const location = useLocation()
@@ -14,10 +28,15 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
     { path: '/admin/students', label: '学员管理' },
   ]
 
+  const sidebarStyle: React.CSSProperties = {}
+  if (window.innerWidth <= 768) {
+    sidebarStyle.transform = isOpen ? 'translateX(0)' : 'translateX(-100%)'
+  }
+
   return (
     <>
       <div className={`sidebar-overlay ${isOpen ? 'visible' : ''}`} onClick={onClose} />
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`} style={sidebarStyle}>
         <div className="sidebar-header">
           <h1>选课管理系统</h1>
         </div>
@@ -329,7 +348,8 @@ function AdminStudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedCourseId, setSelectedCourseId] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [courseSearchTerm, setCourseSearchTerm] = useState('')
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
@@ -347,14 +367,26 @@ function AdminStudentsPage() {
     setCurrentPage(1)
   }
 
+  const filteredCourses = courses.filter((course) =>
+    course.name.toLowerCase().includes(courseSearchTerm.toLowerCase()),
+  )
+
   const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const courseId = e.target.value
     setSelectedCourseId(courseId)
+    setStudentSearchTerm('')
     fetchStudents(courseId)
   }
 
+  const handleCourseSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCourseSearchTerm(e.target.value)
+    setSelectedCourseId('')
+    setStudents([])
+    setCurrentPage(1)
+  }
+
   const filteredStudents = students.filter((student) =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    student.name.toLowerCase().includes(studentSearchTerm.toLowerCase()),
   )
 
   const totalPages = Math.ceil(filteredStudents.length / pageSize)
@@ -369,30 +401,21 @@ function AdminStudentsPage() {
 
       <div className="student-table-section">
         <div className="table-toolbar">
-          <div>
+          <div className="search-group">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="按课程名搜索..."
+              value={courseSearchTerm}
+              onChange={handleCourseSearch}
+            />
             <select
               value={selectedCourseId}
               onChange={handleCourseChange}
-              style={{
-                padding: '10px 14px',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '14px',
-                outline: 'none',
-                minWidth: '200px',
-                cursor: 'pointer',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'var(--primary)'
-                e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = ''
-                e.target.style.boxShadow = ''
-              }}
+              className="course-select"
             >
               <option value="">请选择课程查看学员</option>
-              {courses.map((course) => (
+              {filteredCourses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.name}
                 </option>
@@ -403,9 +426,9 @@ function AdminStudentsPage() {
             type="text"
             className="search-input"
             placeholder="搜索学员名..."
-            value={searchTerm}
+            value={studentSearchTerm}
             onChange={(e) => {
-              setSearchTerm(e.target.value)
+              setStudentSearchTerm(e.target.value)
               setCurrentPage(1)
             }}
           />
@@ -474,25 +497,38 @@ function AdminStudentsPage() {
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+
+  const showToast = (message: string, duration: number = 2000) => {
+    setToastMessage(message)
+    setToastVisible(true)
+    setTimeout(() => {
+      setToastVisible(false)
+    }, duration)
+  }
 
   return (
-    <div className="app-container">
-      <button
-        className="hamburger-btn"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="菜单"
-      >
-        ☰
-      </button>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<CourseListPage />} />
-          <Route path="/admin/courses" element={<AdminCoursesPage />} />
-          <Route path="/admin/students" element={<AdminStudentsPage />} />
-        </Routes>
-      </main>
-    </div>
+    <ToastContext.Provider value={{ showToast }}>
+      <div className="app-container">
+        <button
+          className="hamburger-btn"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="菜单"
+        >
+          ☰
+        </button>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<CourseListPage />} />
+            <Route path="/admin/courses" element={<AdminCoursesPage />} />
+            <Route path="/admin/students" element={<AdminStudentsPage />} />
+          </Routes>
+        </main>
+        {toastVisible && <div className="toast global-toast">{toastMessage}</div>}
+      </div>
+    </ToastContext.Provider>
   )
 }
 

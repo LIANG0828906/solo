@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Course } from '../api'
+import { useToast } from '../App'
 
 interface CourseCardProps {
   course: Course
@@ -10,7 +11,7 @@ export function CourseCard({ course, onEnroll }: CourseCardProps) {
   const [studentName, setStudentName] = useState('')
   const [showInput, setShowInput] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
-  const [showToast, setShowToast] = useState(false)
+  const { showToast } = useToast()
 
   const isFull = course.enrolledCount >= course.maxStudents
   const remaining = course.maxStudents - course.enrolledCount
@@ -30,8 +31,7 @@ export function CourseCard({ course, onEnroll }: CourseCardProps) {
     if (success) {
       setShowInput(false)
       setStudentName('')
-      setShowToast(true)
-      setTimeout(() => setShowToast(false), 2000)
+      showToast('选课成功', 2000)
     }
   }
 
@@ -96,8 +96,6 @@ export function CourseCard({ course, onEnroll }: CourseCardProps) {
           {isFull ? '已满' : '选课'}
         </button>
       )}
-
-      {showToast && <div className="toast">选课成功</div>}
     </div>
   )
 }

@@ -59,23 +59,58 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes
 }
 
+function parseDateToTimestamp(dateStr: string, timeStr: string): number {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  return new Date(year, month - 1, day, hours, minutes).getTime()
+}
+
+function getTimeInterval(
+  date: string,
+  startTime: string,
+  endTime: string,
+): { start: number; end: number } {
+  const startTs = parseDateToTimestamp(date, startTime)
+  let endTs = parseDateToTimestamp(date, endTime)
+
+  if (endTs <= startTs) {
+    endTs += 24 * 60 * 60 * 1000
+  }
+
+  return { start: startTs, end: endTs }
+}
+
+function calculateOverlapMinutes(
+  interval1: { start: number; end: number },
+  interval2: { start: number; end: number },
+): number {
+  const overlapStart = Math.max(interval1.start, interval2.start)
+  const overlapEnd = Math.min(interval1.end, interval2.end)
+  const overlapMs = overlapEnd - overlapStart
+
+  if (overlapMs <= 0) return 0
+  return Math.floor(overlapMs / (1000 * 60))
+}
+
 function checkTimeConflict(
   newCourse: Omit<Course, 'id' | 'enrolledCount'>,
   existingCourses: Course[],
 ): Course[] {
   return existingCourses.filter((course) => {
     if (course.instructor !== newCourse.instructor) return false
-    if (course.date !== newCourse.date) return false
 
-    const newStart = timeToMinutes(newCourse.startTime)
-    const newEnd = timeToMinutes(newCourse.endTime)
-    const existStart = timeToMinutes(course.startTime)
-    const existEnd = timeToMinutes(course.endTime)
+    const newInterval = getTimeInterval(
+      newCourse.date,
+      newCourse.startTime,
+      newCourse.endTime,
+    )
+    const existInterval = getTimeInterval(
+      course.date,
+      course.startTime,
+      course.endTime,
+    )
 
-    const overlapStart = Math.max(newStart, existStart)
-    const overlapEnd = Math.min(newEnd, existEnd)
-    const overlapMinutes = overlapEnd - overlapStart
-
+    const overlapMinutes = calculateOverlapMinutes(newInterval, existInterval)
     return overlapMinutes >= 1
   })
 }
