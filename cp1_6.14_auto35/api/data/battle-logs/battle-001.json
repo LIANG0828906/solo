@@ -1,0 +1,178 @@
+{
+  "id": "battle-001",
+  "name": "暗影地牢 - 第3层Boss战",
+  "frames": [
+    {
+      "timestamp": 0,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 120, "maxHp": 120, "shield": 10, "maxShield": 10, "actionPoints": 3, "position": { "x": 0, "y": 0, "z": 0 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 1, "y": 0, "z": 0 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 3, "position": { "x": 2, "y": 0, "z": 0 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 200, "maxHp": 200, "shield": 20, "maxShield": 20, "actionPoints": 2, "position": { "x": 4, "y": 0, "z": 8 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "u1", "actorName": "战士A", "from": { "x": 0, "y": 0, "z": 0 }, "to": { "x": 0, "y": 0, "z": 2 }, "description": "战士A 向前移动2格" }
+      ]
+    },
+    {
+      "timestamp": 1000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 120, "maxHp": 120, "shield": 10, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 1, "y": 0, "z": 0 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 3, "position": { "x": 2, "y": 0, "z": 0 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 200, "maxHp": 200, "shield": 20, "maxShield": 20, "actionPoints": 2, "position": { "x": 4, "y": 0, "z": 8 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "attack", "actorId": "u1", "actorName": "战士A", "targetId": "e2", "targetName": "暗影侍从A", "damage": 18, "from": { "x": 0, "y": 0, "z": 2 }, "to": { "x": 3, "y": 0, "z": 7 }, "description": "战士A 对 暗影侍从A 造成了18点物理伤害" }
+      ]
+    },
+    {
+      "timestamp": 2000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 120, "maxHp": 120, "shield": 10, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 3, "position": { "x": 2, "y": 0, "z": 0 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 200, "maxHp": 200, "shield": 20, "maxShield": 20, "actionPoints": 2, "position": { "x": 4, "y": 0, "z": 8 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 32, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "u2", "actorName": "弓箭手A", "from": { "x": 1, "y": 0, "z": 0 }, "to": { "x": 1, "y": 0, "z": 1 }, "description": "弓箭手A 向前移动1格" },
+        { "type": "attack", "actorId": "u2", "actorName": "弓箭手A", "targetId": "e2", "targetName": "暗影侍从A", "damage": 12, "from": { "x": 1, "y": 0, "z": 1 }, "to": { "x": 3, "y": 0, "z": 7 }, "description": "弓箭手A 对 暗影侍从A 造成了12点远程伤害" }
+      ]
+    },
+    {
+      "timestamp": 3000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 120, "maxHp": 120, "shield": 10, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 1, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 1, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 165, "maxHp": 200, "shield": 15, "maxShield": 20, "actionPoints": 2, "position": { "x": 4, "y": 0, "z": 8 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 32, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "u3", "actorName": "法师A", "from": { "x": 2, "y": 0, "z": 0 }, "to": { "x": 2, "y": 0, "z": 1 }, "description": "法师A 向前移动1格" },
+        { "type": "spell", "actorId": "u3", "actorName": "法师A", "targetId": "e1", "targetName": "暗影领主", "damage": 35, "spellName": "火球术", "from": { "x": 2, "y": 0, "z": 1 }, "to": { "x": 4, "y": 0, "z": 8 }, "description": "法师A 对 暗影领主 施放火球术，造成35点魔法伤害" }
+      ]
+    },
+    {
+      "timestamp": 4000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 120, "maxHp": 120, "shield": 10, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 1, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 1, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 165, "maxHp": 200, "shield": 15, "maxShield": 20, "actionPoints": 2, "position": { "x": 4, "y": 0, "z": 8 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 32, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "spell", "actorId": "u4", "actorName": "牧师A", "targetId": "u1", "targetName": "战士A", "spellName": "护盾术", "description": "牧师A 对 战士A 施放护盾术，恢复5点护盾" }
+      ]
+    },
+    {
+      "timestamp": 5000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 95, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 1, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 1, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 165, "maxHp": 200, "shield": 15, "maxShield": 20, "actionPoints": 1, "position": { "x": 4, "y": 0, "z": 7 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 32, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 7 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "e1", "actorName": "暗影领主", "from": { "x": 4, "y": 0, "z": 8 }, "to": { "x": 4, "y": 0, "z": 7 }, "description": "暗影领主 向前移动1格" },
+        { "type": "attack", "actorId": "e1", "actorName": "暗影领主", "targetId": "u1", "targetName": "战士A", "damage": 25, "from": { "x": 4, "y": 0, "z": 7 }, "to": { "x": 0, "y": 0, "z": 2 }, "description": "暗影领主 对 战士A 造成了25点暗影伤害" }
+      ]
+    },
+    {
+      "timestamp": 6000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 95, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 2, "position": { "x": 0, "y": 0, "z": 2 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 1, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 1, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 165, "maxHp": 200, "shield": 15, "maxShield": 20, "actionPoints": 1, "position": { "x": 4, "y": 0, "z": 7 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 32, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 5 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "e2", "actorName": "暗影侍从A", "from": { "x": 3, "y": 0, "z": 7 }, "to": { "x": 3, "y": 0, "z": 5 }, "description": "暗影侍从A 向前移动2格" }
+      ]
+    },
+    {
+      "timestamp": 7000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 95, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 3, "position": { "x": 1, "y": 0, "z": 3 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 3, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 3, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 3, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 165, "maxHp": 200, "shield": 15, "maxShield": 20, "actionPoints": 1, "position": { "x": 4, "y": 0, "z": 7 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 0, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 5 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "u1", "actorName": "战士A", "from": { "x": 0, "y": 0, "z": 2 }, "to": { "x": 1, "y": 0, "z": 3 }, "description": "战士A 移动到敌方阵地" },
+        { "type": "attack", "actorId": "u1", "actorName": "战士A", "targetId": "e2", "targetName": "暗影侍从A", "damage": 32, "from": { "x": 1, "y": 0, "z": 3 }, "to": { "x": 3, "y": 0, "z": 5 }, "description": "战士A 对 暗影侍从A 造成了32点致命一击！暗影侍从A被击倒！" }
+      ]
+    },
+    {
+      "timestamp": 8000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 95, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 3 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 130, "maxHp": 200, "shield": 5, "maxShield": 20, "actionPoints": 1, "position": { "x": 4, "y": 0, "z": 7 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 0, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 0, "position": { "x": 3, "y": 0, "z": 5 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 50, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "spell", "actorId": "u3", "actorName": "法师A", "targetId": "e1", "targetName": "暗影领主", "damage": 30, "spellName": "寒冰箭", "from": { "x": 2, "y": 0, "z": 1 }, "to": { "x": 4, "y": 0, "z": 7 }, "description": "法师A 对 暗影领主 施放寒冰箭，造成30点冰霜伤害" },
+        { "type": "attack", "actorId": "u2", "actorName": "弓箭手A", "targetId": "e3", "targetName": "暗影侍从B", "damage": 15, "from": { "x": 1, "y": 0, "z": 1 }, "to": { "x": 5, "y": 0, "z": 7 }, "description": "弓箭手A 对 暗影侍从B 造成了15点远程伤害" }
+      ]
+    },
+    {
+      "timestamp": 9000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 95, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 3 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 80, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 130, "maxHp": 200, "shield": 5, "maxShield": 20, "actionPoints": 1, "position": { "x": 3, "y": 0, "z": 6 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 0, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 0, "position": { "x": 3, "y": 0, "z": 5 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 35, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "move", "actorId": "e1", "actorName": "暗影领主", "from": { "x": 4, "y": 0, "z": 7 }, "to": { "x": 3, "y": 0, "z": 6 }, "description": "暗影领主 向前逼近" },
+        { "type": "spell", "actorId": "e1", "actorName": "暗影领主", "targetId": "u1", "targetName": "战士A", "damage": 20, "spellName": "暗影冲击", "from": { "x": 3, "y": 0, "z": 6 }, "to": { "x": 1, "y": 0, "z": 3 }, "description": "暗影领主 对 战士A 施放暗影冲击，造成20点暗影伤害" }
+      ]
+    },
+    {
+      "timestamp": 10000,
+      "units": [
+        { "id": "u1", "name": "战士A", "team": "player", "hp": 75, "maxHp": 120, "shield": 0, "maxShield": 10, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 3 } },
+        { "id": "u2", "name": "弓箭手A", "team": "player", "hp": 65, "maxHp": 80, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 1, "y": 0, "z": 1 } },
+        { "id": "u3", "name": "法师A", "team": "player", "hp": 60, "maxHp": 60, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 2, "y": 0, "z": 1 } },
+        { "id": "u4", "name": "牧师A", "team": "player", "hp": 70, "maxHp": 70, "shield": 5, "maxShield": 5, "actionPoints": 2, "position": { "x": 3, "y": 0, "z": 0 } },
+        { "id": "e1", "name": "暗影领主", "team": "enemy", "hp": 130, "maxHp": 200, "shield": 5, "maxShield": 20, "actionPoints": 1, "position": { "x": 3, "y": 0, "z": 6 } },
+        { "id": "e2", "name": "暗影侍从A", "team": "enemy", "hp": 0, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 0, "position": { "x": 3, "y": 0, "z": 5 } },
+        { "id": "e3", "name": "暗影侍从B", "team": "enemy", "hp": 35, "maxHp": 50, "shield": 0, "maxShield": 0, "actionPoints": 2, "position": { "x": 5, "y": 0, "z": 7 } }
+      ],
+      "actions": [
+        { "type": "attack", "actorId": "e3", "actorName": "暗影侍从B", "targetId": "u2", "targetName": "弓箭手A", "damage": 15, "from": { "x": 5, "y": 0, "z": 7 }, "to": { "x": 1, "y": 0, "z": 1 }, "description": "暗影侍从B 对 弓箭手A 造成了15点物理伤害" },
+        { "type": "item", "actorId": "u4", "actorName": "牧师A", "targetId": "u1", "targetName": "战士A", "healAmount": 30, "itemName": "大型治疗药水", "description": "牧师A 对 战士A 使用了大型治疗药水，恢复30点生命值" }
+      ]
+    }
+  ]
+}

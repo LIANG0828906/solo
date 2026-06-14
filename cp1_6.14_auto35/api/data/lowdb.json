@@ -1,0 +1,25 @@
+{
+  "replays": [
+    {
+      "id": "battle-001",
+      "name": "暗影地牢 - 第3层Boss战",
+      "createdAt": "2026-06-14T10:30:00Z",
+      "teamLevel": 15,
+      "teamComposition": ["战士A", "弓箭手A", "法师A", "牧师A"]
+    },
+    {
+      "id": "battle-002",
+      "name": "冰霜洞窟 - 精英遭遇战",
+      "createdAt": "2026-06-13T18:45:00Z",
+      "teamLevel": 12,
+      "teamComposition": ["战士B", "盗贼A", "法师B", "牧师B"]
+    },
+    {
+      "id": "battle-003",
+      "name": "熔岩深渊 - 守卫突围战",
+      "createdAt": "2026-06-12T22:10:00Z",
+      "teamLevel": 18,
+      "teamComposition": ["圣骑士A", "猎人A", "术士A", "德鲁伊A"]
+    }
+  ]
+}
