@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import StoryPanel from './modules/cooperation/StoryPanel';
 import StoryboardGrid from './modules/storyboard/StoryboardGrid';
@@ -11,27 +11,12 @@ function WorkspacePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [title] = useState('未命名创意故事');
   const [participants] = useState(['作者 1', '作者 2']);
-  const [isTablet, setIsTablet] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsTablet(window.innerWidth < 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #334155 100%)',
-        padding: '72px 20px 32px',
-      }}
-    >
+    <div className="app-container">
       <ExportPanel title={title} participants={participants} panels={storyboards} />
 
-      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+      <div className="workspace-wrapper">
         <div style={{ marginBottom: 24, textAlign: 'center' }}>
           <div
             style={{
@@ -69,33 +54,15 @@ function WorkspacePage() {
           </p>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: isTablet ? 'column' : 'row',
-            gap: 20,
-          }}
-        >
-          <div
-            style={{
-              flex: isTablet ? 'none' : 1,
-              width: '100%',
-              minWidth: 0,
-            }}
-          >
+        <div className="main-layout">
+          <div className="panel-column">
             <StoryPanel
               onStoryboardsChange={setStoryboards}
               onParagraphsChange={setParagraphs}
               onGeneratingChange={setIsGenerating}
             />
           </div>
-          <div
-            style={{
-              flex: isTablet ? 'none' : 1.1,
-              width: '100%',
-              minWidth: 0,
-            }}
-          >
+          <div className="panel-column storyboard-col">
             <StoryboardGrid panels={storyboards} isGenerating={isGenerating} />
           </div>
         </div>

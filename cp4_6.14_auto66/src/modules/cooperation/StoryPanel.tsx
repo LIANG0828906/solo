@@ -9,7 +9,7 @@ interface StoryPanelProps {
 }
 
 export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, onGeneratingChange }: StoryPanelProps) {
-  const { paragraphs, currentAuthorIndex, isGenerating, addParagraph, storyboards } = useStory();
+  const { paragraphs, currentAuthorIndex, currentRound, isGenerating, addParagraph, storyboards } = useStory();
   const [inputValue, setInputValue] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +47,14 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
     }
   };
 
+  const getAuthorColor = (index: number) => {
+    return index === 0
+      ? { bg: '#e2e8f0', text: '#1e293b', badgeBg: '#e2e8f0', badgeText: '#475569' }
+      : { bg: '#3b82f6', text: '#ffffff', badgeBg: '#dbeafe', badgeText: '#1d4ed8' };
+  };
+
+  const currentAuthor = getAuthorColor(currentAuthorIndex);
+
   return (
     <div
       style={{
@@ -68,21 +76,37 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
         }}
       >
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>📝 故事接龙协作</h2>
-        <span
-          style={{
-            fontSize: 13,
-            padding: '4px 10px',
-            borderRadius: 20,
-            background: currentAuthorIndex === 0 ? '#e2e8f0' : '#dbeafe',
-            color: currentAuthorIndex === 0 ? '#475569' : '#1d4ed8',
-            fontWeight: 600,
-          }}
-        >
-          轮到作者 {currentAuthorIndex + 1}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontSize: 12,
+              padding: '4px 10px',
+              borderRadius: 20,
+              background: '#fef3c7',
+              color: '#92400e',
+              fontWeight: 700,
+            }}
+          >
+            第 {currentRound} 轮
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              padding: '4px 10px',
+              borderRadius: 20,
+              background: currentAuthor.badgeBg,
+              color: currentAuthor.badgeText,
+              fontWeight: 700,
+            }}
+          >
+            轮到作者 {currentAuthorIndex + 1}
+          </span>
+        </div>
       </div>
 
       <div
@@ -116,6 +140,7 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
 
         {paragraphs.map((p, idx) => {
           const isRight = p.authorIndex === 1;
+          const colors = getAuthorColor(p.authorIndex);
           return (
             <div
               key={p.id}
@@ -133,8 +158,8 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
                   maxWidth: 600,
                   padding: '14px 18px',
                   borderRadius: isRight ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: isRight ? '#3b82f6' : '#e2e8f0',
-                  color: isRight ? '#ffffff' : '#1e293b',
+                  background: colors.bg,
+                  color: colors.text,
                   fontSize: 14,
                   lineHeight: 1.65,
                   wordBreak: 'break-word',
@@ -147,9 +172,12 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
                     opacity: 0.7,
                     marginBottom: 6,
                     fontWeight: 600,
+                    display: 'flex',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  作者 {p.authorIndex + 1} · 第{idx + 1}段
+                  <span>作者 {p.authorIndex + 1}</span>
+                  <span>第{idx + 1} 段</span>
                 </div>
                 {p.content}
               </div>
@@ -157,14 +185,31 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
           );
         })}
 
-        {paragraphs.length > 0 && (
+        {paragraphs.length > 0 && paragraphs.length % 2 === 0 && (
           <div
             style={{
               width: '100%',
               borderTop: '2px dashed #cbd5e1',
               margin: '8px 0',
+              position: 'relative',
             }}
-          />
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: -10,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#f1f5f9',
+                padding: '0 10px',
+                fontSize: 11,
+                color: '#94a3b8',
+                fontWeight: 600,
+              }}
+            >
+              第 {Math.floor(paragraphs.length / 2)} 轮结束
+            </span>
+          </div>
         )}
 
         {isGenerating && (
@@ -182,7 +227,7 @@ export default function StoryPanel({ onStoryboardsChange, onParagraphsChange, on
                 gap: 8,
               }}
             >
-              <span style={{ display: 'inline-block', animation: 'slide-up 0.6s infinite' }}>⚡</span>
+              <span className="pulse-soft" style={{ display: 'inline-block' }}>⚡</span>
               正在生成分镜...
             </div>
           </div>

@@ -4,11 +4,13 @@ import { StoryParagraph, StoryboardPanel } from '../../types';
 import { generateStoryboard } from '../storyboard/storyboardGenerator';
 
 export const MAX_WORDS = 300;
+export const PARTICIPANT_COUNT = 2;
 
 export function useStory() {
   const [paragraphs, setParagraphs] = useState<StoryParagraph[]>([]);
   const [storyboards, setStoryboards] = useState<StoryboardPanel[]>([]);
   const [currentAuthorIndex, setCurrentAuthorIndex] = useState<number>(0);
+  const [currentRound, setCurrentRound] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
@@ -26,7 +28,13 @@ export function useStory() {
 
     const updatedParagraphs = [...paragraphs, newParagraph];
     setParagraphs(updatedParagraphs);
-    setCurrentAuthorIndex((prev) => (prev + 1) % 2);
+
+    const nextAuthorIndex = (currentAuthorIndex + 1) % PARTICIPANT_COUNT;
+    setCurrentAuthorIndex(nextAuthorIndex);
+
+    if (nextAuthorIndex === 0) {
+      setCurrentRound((prev) => prev + 1);
+    }
 
     setIsGenerating(true);
     setGenerateError(null);
@@ -44,6 +52,7 @@ export function useStory() {
     paragraphs,
     storyboards,
     currentAuthorIndex,
+    currentRound,
     isGenerating,
     generateError,
     addParagraph,

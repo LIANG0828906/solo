@@ -45,6 +45,119 @@ export default function StoryboardGrid({ panels, isGenerating }: StoryboardGridP
     }
   };
 
+  const CardItem = ({ panel, index }: { panel: StoryboardPanel; index: number }) => {
+    const color = shotTypeColor(panel.shotType);
+    const [hovered, setHovered] = useState(false);
+
+    return (
+      <div
+        className="storyboard-card"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: '#ffffff',
+          borderRadius: 12,
+          border: `2px solid ${hovered ? '#8b5cf6' : '#94a3b8'}`,
+          padding: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          marginLeft: index === 0 || isMobile ? 0 : 16,
+          transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+          transition: 'border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+          boxShadow: hovered
+            ? '0 10px 25px -5px rgba(139,92,246,0.25), 0 4px 10px -4px rgba(139,92,246,0.15)'
+            : '0 2px 6px rgba(0,0,0,0.04)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: '#1e293b',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            #{String(panel.sceneNumber).padStart(2, '0')}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: 6,
+              background: color.bg,
+              color: color.text,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {panel.shotType}
+          </div>
+        </div>
+
+        <div
+          style={{
+            flex: '1 0 auto',
+            minHeight: 80,
+            background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+            borderRadius: 8,
+            marginBottom: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <div style={{ textAlign: 'center', padding: 8 }}>
+            <div style={{ fontSize: 40, marginBottom: 4, opacity: 0.5 }}>
+              {panel.shotType === '特写' ? '👁️' : panel.shotType === '远景' ? '🏔️' : panel.shotType === '全景' ? '🏠' : panel.shotType === '近景' ? '🗣️' : '🚶'}
+            </div>
+            <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>
+              画面预览区
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            fontSize: 11,
+            color: '#475569',
+            marginBottom: 6,
+            lineHeight: 1.45,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          <span style={{ fontWeight: 700, color: '#334155' }}>画面：</span>
+          {panel.description}
+        </div>
+
+        {panel.dialogue && (
+          <div
+            style={{
+              fontSize: 11,
+              color: '#7c3aed',
+              background: '#f5f3ff',
+              padding: '5px 8px',
+              borderRadius: 6,
+              lineHeight: 1.4,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}
+          >
+            💬 {panel.dialogue}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       style={{
@@ -68,7 +181,7 @@ export default function StoryboardGrid({ panels, isGenerating }: StoryboardGridP
           alignItems: 'center',
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>🎞️ 漫画分镜脚本</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>🎞️ 漫画分镜脚本</h2>
         <span
           style={{
             fontSize: 13,
@@ -115,11 +228,11 @@ export default function StoryboardGrid({ panels, isGenerating }: StoryboardGridP
               }}
             >
               <div
+                className="pulse-soft"
                 style={{
-                  width: '50%',
+                  width: '60%',
                   height: '100%',
                   background: '#8b5cf6',
-                  animation: 'slide-up 1.2s infinite',
                 }}
               />
             </div>
@@ -130,151 +243,45 @@ export default function StoryboardGrid({ panels, isGenerating }: StoryboardGridP
           <div
             ref={scrollRef}
             onScroll={updateProgress}
+            className="storyboard-scroll-container"
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
+              flexDirection: 'row',
               gap: 0,
-              overflowX: isMobile ? 'hidden' : 'auto',
-              overflowY: isMobile ? 'auto' : 'hidden',
+              overflowX: 'auto',
+              overflowY: 'hidden',
               padding: '20px 16px 16px',
-              alignItems: isMobile ? 'center' : 'flex-start',
+              alignItems: 'flex-start',
             }}
           >
-            {panels.map((panel, idx) => {
-              const color = shotTypeColor(panel.shotType);
-              const [hovered, setHovered] = useState(false);
-              return (
-                <div key={panel.id} style={{ position: 'relative', flexShrink: 0 }}>
-                  {idx > 0 && !isMobile && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: 10,
-                        bottom: 10,
-                        width: 1,
-                        background: 'repeating-linear-gradient(to bottom, #cbd5e1 0, #cbd5e1 4px, transparent 4px, transparent 8px)',
-                      }}
-                    />
-                  )}
-                  {idx > 0 && isMobile && (
-                    <div
-                      style={{
-                        height: 1,
-                        width: 80,
-                        margin: '12px auto',
-                        background: 'repeating-linear-gradient(to right, #cbd5e1 0, #cbd5e1 4px, transparent 4px, transparent 8px)',
-                      }}
-                    />
-                  )}
+            {panels.map((panel, idx) => (
+              <div key={panel.id} style={{ position: 'relative', flexShrink: 0 }}>
+                {idx > 0 && !isMobile && (
                   <div
-                    onMouseEnter={() => setHovered(true)}
-                    onMouseLeave={() => setHovered(false)}
                     style={{
-                      width: 200,
-                      height: 280,
-                      background: '#ffffff',
-                      borderRadius: 12,
-                      border: `2px solid ${hovered ? '#8b5cf6' : '#94a3b8'}`,
-                      padding: 14,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      marginLeft: idx === 0 || isMobile ? 0 : 16,
-                      marginRight: isMobile ? 0 : 0,
-                      transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-                      transition: 'border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                      boxShadow: hovered
-                        ? '0 10px 25px -5px rgba(139,92,246,0.25), 0 4px 10px -4px rgba(139,92,246,0.15)'
-                        : '0 2px 6px rgba(0,0,0,0.04)',
+                      position: 'absolute',
+                      left: -8,
+                      top: 10,
+                      bottom: 10,
+                      width: 1,
+                      background: 'repeating-linear-gradient(to bottom, #cbd5e1 0, #cbd5e1 4px, transparent 4px, transparent 8px)',
                     }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <div
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 800,
-                          color: '#1e293b',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        #{String(panel.sceneNumber).padStart(2, '0')}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: 6,
-                          background: color.bg,
-                          color: color.text,
-                        }}
-                      >
-                        {panel.shotType}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        flex: 1,
-                        background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                        borderRadius: 8,
-                        marginBottom: 10,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{ textAlign: 'center', padding: 8 }}>
-                        <div style={{ fontSize: 40, marginBottom: 4, opacity: 0.5 }}>
-                          {panel.shotType === '特写' ? '👁️' : panel.shotType === '远景' ? '🏔️' : panel.shotType === '全景' ? '🏠' : panel.shotType === '近景' ? '🗣️' : '🚶'}
-                        </div>
-                        <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>
-                          画面预览区
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: '#475569',
-                        marginBottom: 6,
-                        lineHeight: 1.45,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, color: '#334155' }}>画面：</span>
-                      {panel.description}
-                    </div>
-
-                    {panel.dialogue && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: '#7c3aed',
-                          background: '#f5f3ff',
-                          padding: '5px 8px',
-                          borderRadius: 6,
-                          lineHeight: 1.4,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        💬 {panel.dialogue}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  />
+                )}
+                {idx > 0 && isMobile && (
+                  <div
+                    style={{
+                      height: 1,
+                      width: 80,
+                      margin: '12px auto',
+                      background: 'repeating-linear-gradient(to right, #cbd5e1 0, #cbd5e1 4px, transparent 4px, transparent 8px)',
+                    }}
+                  />
+                )}
+                <CardItem panel={panel} index={idx} />
+              </div>
+            ))}
           </div>
 
           <div
