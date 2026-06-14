@@ -7,7 +7,7 @@ export enum PlotStatus {
 export enum OperationType {
   WATER = 'water',
   FERTILIZE = 'fertilize',
-  PEST_CONTROL = 'pest_control'
+  PEST_CONTROL = 'pest'
 }
 
 export interface PlotCell {
@@ -18,7 +18,7 @@ export interface PlotCell {
   color: string
   hasPlantMarker: boolean
   isAnimating: boolean
-  animationType?: 'claim' | 'water' | 'fertilize' | 'pest' | null
+  animationType?: 'claim' | OperationType | null
 }
 
 export interface ClaimInfo {
