@@ -8,8 +8,8 @@ export class TimeSlider {
   private scene: THREE.Scene;
   private scatterCube: ScatterCube;
   private planeGroup: THREE.Group;
-  private slicePlane: THREE.Mesh;
-  private planeBorder: THREE.LineSegments;
+  private slicePlane!: THREE.Mesh;
+  private planeBorder!: THREE.LineSegments;
   private currentDayIndex: number = 0;
   private targetDayIndex: number = 0;
   private totalDays: number;

@@ -11,7 +11,7 @@ export interface ChartPoint {
 
 export class AnalysisPanel {
   private containerId: string = '#chart-container';
-  private svg: d3.Selection<SVGSVGElement, unknown, HTMLElement, any> | null = null;
+  private svg: d3.Selection<SVGGElement, unknown, HTMLElement, any> | null = null;
   private width: number = 0;
   private height: number = 0;
   private margin = { top: 10, right: 15, bottom: 30, left: 40 };
@@ -296,9 +296,9 @@ export class AnalysisPanel {
 
   public dispose(): void {
     if (this.svg) {
-      const parent = this.svg.node()?.parentNode;
+      const parent = this.svg.node()?.parentNode as Element | null;
       if (parent) {
-        d3.select(parent).remove();
+        d3.select(parent as Element).remove();
       }
     }
   }
