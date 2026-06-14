@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { DailyAssignment } from '../../types';
-import { getIntensityColor, getGradientStyle } from '../../utils/calculateProgress';
+import { getGradientStyle } from '../../utils/calculateProgress';
 
 interface CalendarGridProps {
   assignments: DailyAssignment[];
@@ -91,21 +91,21 @@ export default function CalendarGrid({
           <div className="legend-item">
             <div
               className="legend-box"
-              style={{ background: getIntensityColor(0) }}
+              style={getGradientStyle(0)}
             />
             <span className="legend-label">未开始</span>
           </div>
           <div className="legend-item">
             <div
               className="legend-box"
-              style={{ background: getIntensityColor(0.5) }}
+              style={getGradientStyle(0.5)}
             />
             <span className="legend-label">进行中</span>
           </div>
           <div className="legend-item">
             <div
               className="legend-box"
-              style={{ background: getIntensityColor(1) }}
+              style={getGradientStyle(1)}
             />
             <span className="legend-label">已完成</span>
           </div>

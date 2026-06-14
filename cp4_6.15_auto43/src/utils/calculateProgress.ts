@@ -123,21 +123,22 @@ export function generateMemberAvatar(index: number): string {
   return AVATAR_EMOJIS[index % AVATAR_EMOJIS.length];
 }
 
-export function getIntensityColor(progress: number): string {
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-  const r = Math.round(235 - clampedProgress * 135);
-  const g = Math.round(240 - clampedProgress * 90);
-  const b = Math.round(250 - clampedProgress * 110);
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 export function getGradientStyle(progress: number): { background: string } {
   const clampedProgress = Math.max(0, Math.min(1, progress));
   const startColor = '#f0f4f8';
   const endColor = '#2563eb';
-  const angle = 135 + clampedProgress * 45;
+  const midColor = '#93c5fd';
+  const angle = 135;
+
+  if (clampedProgress === 0) {
+    return { background: `linear-gradient(${angle}deg, ${startColor} 0%, #dbeafe 100%)` };
+  }
+
+  const colorStop2 = Math.max(5, clampedProgress * 60);
+  const colorStop3 = clampedProgress * 100;
+
   return {
-    background: `linear-gradient(${angle}deg, ${startColor} 0%, ${endColor} ${clampedProgress * 100}%)`,
+    background: `linear-gradient(${angle}deg, ${startColor} 0%, ${midColor} ${colorStop2}%, ${endColor} ${colorStop3}%)`,
   };
 }
 

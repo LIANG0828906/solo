@@ -113,7 +113,7 @@ export default function ProgressDashboard({
               width="220"
               height="220"
               viewBox="0 0 220 220"
-              className="transform-rotate"
+              className="transform-rotate ring-animated"
             >
               <defs>
                 <linearGradient
@@ -249,7 +249,8 @@ export default function ProgressDashboard({
                     style={{
                       background: `${member.color}33`,
                       boxShadow: `0 0 0 2px ${member.color}40, 0 0 20px ${member.color}60, 0 4px 12px rgba(0, 0, 0, 0.15)`,
-                    }}
+                      '--avatar-glow-color': member.color,
+                    } as React.CSSProperties}
                   >
                     <div
                       className="member-avatar-glow"
@@ -314,11 +315,15 @@ export default function ProgressDashboard({
                 key={milestone.id}
                 className="timeline-item"
                 style={{
-                  animation: `slideInLeft 0.5s ease ${idx * 0.1}s both`,
+                  animationDelay: `${idx * 0.1}s`,
                 }}
               >
                 <div className="timeline-marker">
-                  <span className="milestone-medal-icon">✓</span>
+                  <div className="medal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                  </div>
                 </div>
 
                 <div className="glass-card milestone-card">
