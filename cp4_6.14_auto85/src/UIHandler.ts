@@ -19,17 +19,33 @@ const formatTime = (ts: number): string => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
+const createPreviewGeometry = (type: GeometryType): THREE.BufferGeometry => {
+  const s = 1;
+  switch (type) {
+    case 'cube':
+      return new THREE.BoxGeometry(s * 1.5, s * 1.5, s * 1.5, 8, 8, 8);
+    case 'sphere':
+      return new THREE.SphereGeometry(s * 0.9, 16, 12);
+    case 'cylinder':
+      return new THREE.CylinderGeometry(s * 0.7, s * 0.7, s * 1.6, 24, 8);
+    case 'cone':
+      return new THREE.ConeGeometry(s * 0.85, s * 1.8, 24, 8);
+  }
+};
+
 export class UIHandler {
   private options: UIHandlerOptions;
   private dom: { [key: string]: HTMLElement | null } = {};
   private dragType: GeometryType | null = null;
   private dragGhost: HTMLElement | null = null;
+  private dragPreviewMesh: THREE.Mesh | null = null;
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private hoverPos = new THREE.Vector3();
   private draggingObject: GeometryObject | null = null;
   private dragOffset = new THREE.Vector3();
+  private isDraggingObject = false;
 
   constructor(options: UIHandlerOptions) {
     this.options = options;
@@ -69,6 +85,7 @@ export class UIHandler {
       'prop-rot-y-val',
       'prop-rot-z',
       'prop-rot-z-val',
+      'scene-area',
     ];
     for (const id of ids) {
       this.dom[id] = document.getElementById(id);
@@ -84,8 +101,11 @@ export class UIHandler {
       if (!type) return;
 
       btn.addEventListener('dragstart', (e) => {
-        e.dataTransfer!.setData('text/plain', type);
-        e.dataTransfer!.effectAllowed = 'copy';
+        const dataTransfer = (e as DragEvent).dataTransfer;
+        if (!dataTransfer) return;
+        dataTransfer.setData('text/plain', type);
+        dataTransfer.effectAllowed = 'copy';
+        dataTransfer.setDragImage(new Image(), 0, 0);
         btn.classList.add('dragging');
         this.dragType = type;
 
@@ -98,16 +118,19 @@ export class UIHandler {
           this.dragGhost.style.left = `${e.clientX - 48}px`;
           this.dragGhost.style.top = `${e.clientY - 48}px`;
         }
+
+        this.createDragPreviewMesh(type);
       });
 
       btn.addEventListener('dragend', () => {
         btn.classList.remove('dragging');
         this.dragType = null;
         if (this.dragGhost) this.dragGhost.classList.add('hidden');
+        this.removeDragPreviewMesh();
       });
 
       btn.addEventListener('click', () => {
-        this.options.onDropGeometry(type, { x: 0, y: 0, z: 0 });
+        this.options.onDropGeometry(type, { x: 0, y: 0.75, z: 0 });
       });
     });
 
@@ -117,17 +140,21 @@ export class UIHandler {
         this.dragGhost.style.left = `${e.clientX - 48}px`;
         this.dragGhost.style.top = `${e.clientY - 48}px`;
       }
+      this.updateDragPreviewPosition(e);
     });
 
     canvas.addEventListener('dragover', (e) => {
       e.preventDefault();
-      e.dataTransfer!.dropEffect = 'copy';
+      const dataTransfer = (e as DragEvent).dataTransfer;
+      if (dataTransfer) dataTransfer.dropEffect = 'copy';
       this.updateRaycast(e);
+      this.updateDragPreviewPosition(e);
     });
 
     canvas.addEventListener('drop', (e) => {
       e.preventDefault();
-      const type = e.dataTransfer!.getData('text/plain') as GeometryType;
+      const dataTransfer = (e as DragEvent).dataTransfer;
+      const type = dataTransfer?.getData('text/plain') as GeometryType;
       if (!type) return;
 
       this.updateRaycast(e);
@@ -136,12 +163,16 @@ export class UIHandler {
       const pos = intersect || new THREE.Vector3(0, 0, 0);
       this.options.onDropGeometry(type, {
         x: Math.round(pos.x * 10) / 10,
-        y: 0.5,
+        y: 0,
         z: Math.round(pos.z * 10) / 10,
       });
+
+      this.removeDragPreviewMesh();
     });
 
     canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+
       this.updateRaycast(e);
       const hits = this.raycaster.intersectObjects(this.getPickableMeshes(), true);
       let hitMesh: THREE.Object3D | null = null;
@@ -160,19 +191,22 @@ export class UIHandler {
         const geoObj = this.options.sceneManager.getObjectByMesh(hitMesh);
         if (geoObj) {
           this.draggingObject = geoObj;
+          this.isDraggingObject = true;
           const intersectPt = new THREE.Vector3();
           this.raycaster.ray.intersectPlane(this.groundPlane, intersectPt);
           if (intersectPt) {
             this.dragOffset
               .copy(geoObj.group.position)
-              .sub(new THREE.Vector3(intersectPt.x, geoObj.group.position.y, intersectPt.z));
+              .sub(new THREE.Vector3(intersectPt.x, 0, intersectPt.z));
           }
           this.options.sceneManager.select(geoObj.data.id);
           (canvas as any).setPointerCapture?.(e.pointerId);
+          e.stopPropagation();
           return;
         }
       }
 
+      this.closeMobilePanels();
       this.options.sceneManager.clearSelection();
       this.hidePropertiesPanel();
     });
@@ -180,7 +214,7 @@ export class UIHandler {
     canvas.addEventListener('pointermove', (e) => {
       this.updateRaycast(e);
 
-      if (this.draggingObject) {
+      if (this.draggingObject && this.isDraggingObject) {
         const intersect = new THREE.Vector3();
         this.raycaster.ray.intersectPlane(this.groundPlane, intersect);
         if (intersect) {
@@ -189,7 +223,7 @@ export class UIHandler {
           this.options.sceneManager.updatePosition(
             this.draggingObject.data.id,
             newX,
-            this.draggingObject.group.position.y,
+            this.draggingObject.data.position.y,
             newZ
           );
           this.syncPropertySliders(this.draggingObject);
@@ -201,11 +235,13 @@ export class UIHandler {
       if (this.draggingObject) {
         (canvas as any).releasePointerCapture?.(e.pointerId);
         this.draggingObject = null;
+        this.isDraggingObject = false;
       }
     });
 
     canvas.addEventListener('pointercancel', () => {
       this.draggingObject = null;
+      this.isDraggingObject = false;
     });
 
     document.querySelectorAll<HTMLElement>('.bool-btn').forEach((btn) => {
@@ -228,6 +264,8 @@ export class UIHandler {
       }
       if (selected.length > 0) {
         this.showPropertiesPanel(selected[selected.length - 1]);
+      } else {
+        this.hidePropertiesPanel();
       }
     });
 
@@ -274,13 +312,25 @@ export class UIHandler {
       }
     });
 
-    this.dom['mobile-menu-btn']?.addEventListener('click', () => {
+    this.dom['mobile-menu-btn']?.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.dom['left-toolbar']?.classList.toggle('open');
       this.dom['right-panel']?.classList.remove('open');
     });
-    this.dom['mobile-history-btn']?.addEventListener('click', () => {
+    this.dom['mobile-history-btn']?.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.dom['right-panel']?.classList.toggle('open');
       this.dom['left-toolbar']?.classList.remove('open');
+    });
+
+    this.dom['left-toolbar']?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    this.dom['right-panel']?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    this.dom['properties-panel']?.addEventListener('click', (e) => {
+      e.stopPropagation();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -295,10 +345,64 @@ export class UIHandler {
       if (e.key === 'Escape') {
         sceneManager.clearSelection();
         this.hidePropertiesPanel();
-        this.dom['left-toolbar']?.classList.remove('open');
-        this.dom['right-panel']?.classList.remove('open');
+        this.closeMobilePanels();
       }
     });
+  }
+
+  private createDragPreviewMesh(type: GeometryType): void {
+    if (this.dragPreviewMesh) {
+      this.removeDragPreviewMesh();
+    }
+
+    const geometry = createPreviewGeometry(type);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x60a5fa,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      metalness: 0.2,
+      roughness: 0.5,
+    });
+
+    this.dragPreviewMesh = new THREE.Mesh(geometry, material);
+    this.dragPreviewMesh.position.set(0, 0.5, 0);
+    this.dragPreviewMesh.scale.setScalar(0.8);
+    this.options.scene.add(this.dragPreviewMesh);
+  }
+
+  private removeDragPreviewMesh(): void {
+    if (this.dragPreviewMesh) {
+      this.options.scene.remove(this.dragPreviewMesh);
+      const geo = this.dragPreviewMesh.geometry;
+      const mat = this.dragPreviewMesh.material as THREE.Material;
+      geo.dispose();
+      mat.dispose();
+      this.dragPreviewMesh = null;
+    }
+  }
+
+  private updateDragPreviewPosition(e: DragEvent | MouseEvent): void {
+    if (!this.dragPreviewMesh) return;
+
+    this.updateRaycast(e as any);
+    const intersect = new THREE.Vector3();
+    this.raycaster.ray.intersectPlane(this.groundPlane, intersect);
+    if (intersect) {
+      const box = new THREE.Box3().setFromObject(this.dragPreviewMesh);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      this.dragPreviewMesh.position.set(
+        Math.round(intersect.x * 10) / 10,
+        size.y / 2,
+        Math.round(intersect.z * 10) / 10
+      );
+    }
+  }
+
+  private closeMobilePanels(): void {
+    this.dom['left-toolbar']?.classList.remove('open');
+    this.dom['right-panel']?.classList.remove('open');
   }
 
   private getPickableMeshes(): THREE.Object3D[] {
@@ -310,10 +414,10 @@ export class UIHandler {
     return meshes;
   }
 
-  private updateRaycast(e: PointerEvent | DragEvent): void {
+  private updateRaycast(e: PointerEvent | DragEvent | MouseEvent): void {
     const rect = this.options.canvas.getBoundingClientRect();
-    const cx = 'clientX' in e ? e.clientX : (e as DragEvent).clientX;
-    const cy = 'clientY' in e ? e.clientY : (e as DragEvent).clientY;
+    const cx = 'clientX' in e ? e.clientX : 0;
+    const cy = 'clientY' in e ? e.clientY : 0;
     this.mouse.x = ((cx - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((cy - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.options.camera);
@@ -330,7 +434,7 @@ export class UIHandler {
 
     slider.addEventListener('input', () => {
       const num = parseFloat(slider.value);
-      val.textContent = num % 1 === 0 ? num.toFixed(1) : num.toFixed(1);
+      val.textContent = num.toFixed(slider.step === '1' ? 0 : 1);
       const selected = this.options.sceneManager.getSelectedObjects();
       if (selected.length > 0) {
         onChange(num, selected[selected.length - 1]);
@@ -391,6 +495,18 @@ export class UIHandler {
     if (overlay) {
       overlay.classList.remove('hidden');
       setTimeout(() => overlay.classList.add('hidden'), 350);
+    }
+
+    const btn = this.dom['capture-btn'];
+    if (btn) {
+      btn.animate(
+        [
+          { transform: 'scale(1)' },
+          { transform: 'scale(0.92)' },
+          { transform: 'scale(1)' },
+        ],
+        { duration: 200, easing: 'ease-out' }
+      );
     }
 
     const objects = this.options.sceneManager.getAllObjects();
