@@ -15,14 +15,16 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
   const currentYear = new Date().getFullYear();
   const [filters, setFilters] = useState<FilterState>(createDefaultFilterState());
   const [fading, setFading] = useState(false);
-  const [gridKey, setGridKey] = useState(0);
   const fadeTimer = useRef<number | null>(null);
+
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const insertOrderRef = useRef<Map<string, number>>(new Map());
+  const prevCountRef = useRef(0);
 
   const debouncedSearch = useDebounce(filters.search, 300);
 
   const triggerFade = () => {
     setFading(true);
-    setGridKey((k) => k + 1);
     if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
     fadeTimer.current = window.setTimeout(() => setFading(false), 400);
   };
@@ -66,6 +68,24 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
     filters.ratingRange,
     filters.selectedCategories,
   ]);
+
+  const getAnimationDelay = (id: string, idx: number): number => {
+    if (!seenIdsRef.current.has(id)) {
+      if (!insertOrderRef.current.has(id)) {
+        const seq = prevCountRef.current++;
+        insertOrderRef.current.set(id, seq);
+      }
+      return Math.min(insertOrderRef.current.get(id) ?? idx, 20) * 0.05;
+    }
+    return 0;
+  };
+
+  useEffect(() => {
+    const currentIds = new Set(filteredMovies.map((m) => m.id));
+    seenIdsRef.current = currentIds;
+    insertOrderRef.current.clear();
+    prevCountRef.current = 0;
+  }, [filteredMovies]);
 
   const setSearch = (v: string) =>
     setFilters((prev) => ({ ...prev, search: v }));
@@ -182,27 +202,33 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
           )}
         </div>
       ) : (
-        <div
-          className={`movies-grid ${fading ? 'fading' : ''}`}
-          key={`grid-${gridKey}`}
-        >
-          {filteredMovies.map((m, idx) => (
-            <div
-              key={`${gridKey}-${m.id}`}
-              className="movie-card glass"
-              style={{ animationDelay: `${Math.min(idx, 20) * 0.05}s` }}
-              onClick={() => onSelectMovie(m.id)}
-            >
-              <div className="poster-wrapper">
-                <img src={m.poster} alt={m.titleCn} loading="lazy" />
+        <div className={`movies-grid ${fading ? 'fading' : ''}`}>
+          {filteredMovies.map((m, idx) => {
+            const delay = getAnimationDelay(m.id, idx);
+            const noAnim = delay === 0 && seenIdsRef.current.has(m.id);
+            return (
+              <div
+                key={m.id}
+                className="movie-card glass"
+                style={{
+                  animationDelay: `${delay}s`,
+                  animation: noAnim ? 'none' : undefined,
+                  opacity: noAnim ? 1 : undefined,
+                  transform: noAnim ? 'none' : undefined,
+                }}
+                onClick={() => onSelectMovie(m.id)}
+              >
+                <div className="poster-wrapper">
+                  <img src={m.poster} alt={m.titleCn} loading="lazy" />
+                </div>
+                <div className="card-info">
+                  <div className="card-title">{m.titleCn}</div>
+                  <div className="card-title-en">{m.titleEn}</div>
+                  <StarRating rating={m.rating} />
+                </div>
               </div>
-              <div className="card-info">
-                <div className="card-title">{m.titleCn}</div>
-                <div className="card-title-en">{m.titleEn}</div>
-                <StarRating rating={m.rating} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

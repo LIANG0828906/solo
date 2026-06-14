@@ -125,7 +125,7 @@ export default function MovieDetail({
         <h3 style={{ fontSize: 18, marginBottom: 20, fontFamily: 'Raleway, sans-serif' }}>
           📅 观影时间线
         </h3>
-        <div className="timeline">
+        <div className={`timeline ${allRecords.length === 1 ? 'timeline-single' : ''}`}>
           {allRecords.map((rec, idx) => (
             <div
               key={rec.id}

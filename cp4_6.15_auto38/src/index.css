@@ -648,7 +648,7 @@ label {
   border-radius: 2px;
 }
 
-.timeline::after {
+.timeline.timeline-single::after {
   content: '';
   position: absolute;
   left: 4px;

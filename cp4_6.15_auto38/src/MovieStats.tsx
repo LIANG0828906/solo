@@ -90,6 +90,10 @@ export default function MovieStats({ movies }: MovieStatsProps) {
   }, [movies]);
 
   const totalRated = ratingDistribution.reduce((s, d) => s + d.count, 0);
+  const hasRatingData =
+    Array.isArray(ratingDistribution) &&
+    ratingDistribution.length > 0 &&
+    totalRated > 0;
 
   const monthlyData = useMemo(() => {
     const months: { label: string; count: number; key: string }[] = [];
@@ -199,7 +203,7 @@ export default function MovieStats({ movies }: MovieStatsProps) {
       <div className="stats-grid">
         <div className="glass stats-card" style={{ animationDelay: '0.05s' }}>
           <h3>⭐ 评分分布</h3>
-          {totalRated === 0 ? (
+          {!hasRatingData ? (
             <div
               style={{
                 width: '100%',
