@@ -18,7 +18,7 @@ import { ShareCard } from '@/components/ShareCard';
 export default function TeaDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { teas, updateTea, deleteTea } = useTeaStore();
+  const { teas, loadTeas, updateTea, deleteTea } = useTeaStore();
   const { brews, notes, loadByTeaId, addBrew } = useBrewStore();
   const { collections, toggleTea, loadAll: loadCollections } = useCollectionStore();
   const [tea, setTea] = useState<Tea | null>(null);
@@ -32,7 +32,8 @@ export default function TeaDetail() {
 
   useEffect(() => {
     loadCollections();
-  }, [loadCollections]);
+    loadTeas();
+  }, [loadCollections, loadTeas]);
 
   useEffect(() => {
     const found = teas.find((t) => t.id === id) ?? null;
