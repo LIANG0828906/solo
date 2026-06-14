@@ -81,10 +81,6 @@ export const TownPanel: React.FC<TownPanelProps> = ({
     const panelRect = panelRef.current.getBoundingClientRect();
     
     return floatingCoins.map(coin => {
-      const age = Date.now() - coin.createdAt;
-      if (age >= FLOATING_COIN_DURATION) return null;
-      
-      const progress = age / FLOATING_COIN_DURATION;
       const relativeX = coin.x - panelRect.left;
       const relativeY = coin.y - panelRect.top;
       
@@ -93,10 +89,12 @@ export const TownPanel: React.FC<TownPanelProps> = ({
           key={coin.id}
           style={{
             position: 'absolute',
-            left: relativeX,
-            top: relativeY,
-            transform: `translateY(${-progress * 60}px) scale(${1 + progress * 0.2})`,
-            opacity: 1 - progress,
+            left: 0,
+            top: 0,
+            ['--coin-x' as string]: `${relativeX}px`,
+            ['--coin-y' as string]: `${relativeY}px`,
+            transform: 'translate(var(--coin-x), var(--coin-y))',
+            opacity: 1,
             willChange: 'transform, opacity',
             pointerEvents: 'none',
             zIndex: 100,
@@ -104,7 +102,7 @@ export const TownPanel: React.FC<TownPanelProps> = ({
             color: '#FFD700',
             fontSize: '18px',
             textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-            transition: 'none',
+            animation: `float-up-coin ${FLOATING_COIN_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
           }}
         >
           +{coin.amount} 💰
@@ -146,15 +144,15 @@ export const TownPanel: React.FC<TownPanelProps> = ({
           backgroundColor: area.unlocked ? area.color : area.lockedColor,
           borderRadius: '8px',
           cursor: area.unlocked ? 'pointer' : 'not-allowed',
-          transition: area.unlocked ? 'all 0.3s ease' : 'none',
-          transform: isAnimating ? 'scale(1)' : (area.unlocked ? 'scale(1)' : 'scale(0.5)'),
-          opacity: isAnimating ? 1 : (area.unlocked ? 1 : 0.5),
-          filter: area.unlocked ? 'none' : 'grayscale(100%)',
+          transition: !isAnimating && area.unlocked ? 'all 0.3s ease' : 'none',
+          transform: isAnimating ? 'scale(0)' : (area.unlocked ? 'scale(1)' : 'scale(0.5)'),
+          opacity: isAnimating ? 0.3 : (area.unlocked ? 1 : 0.5),
+          filter: isAnimating ? 'grayscale(100%)' : (area.unlocked ? 'none' : 'grayscale(100%)'),
           boxShadow: isSelected 
             ? '0 0 0 3px #FFDAB9, 0 4px 12px rgba(0,0,0,0.2)' 
             : '0 2px 8px rgba(0,0,0,0.1)',
           overflow: 'hidden',
-          animation: isAnimating ? `unlock-pop ${UNLOCK_ANIMATION_DURATION}ms ease-out forwards` : 'none',
+          animation: isAnimating ? `unlock-pop-init ${UNLOCK_ANIMATION_DURATION}ms ease-out forwards` : 'none',
           willChange: isAnimating ? 'transform, opacity, filter' : 'auto',
         }}
       >
@@ -408,6 +406,32 @@ export const TownPanel: React.FC<TownPanelProps> = ({
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes float-up-coin {
+          0% {
+            opacity: 1;
+            transform: translate(var(--coin-x, 0px), var(--coin-y, 0px)) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(var(--coin-x, 0px), calc(var(--coin-y, 0px) - 60px)) scale(1.2);
+          }
+        }
+        @keyframes unlock-pop-init {
+          0% {
+            transform: scale(0);
+            opacity: 0.3;
+            filter: grayscale(100%);
+          }
+          50% {
+            transform: scale(1.1);
+            filter: grayscale(0%);
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+            filter: grayscale(0%);
+          }
         }
       `}</style>
     </div>

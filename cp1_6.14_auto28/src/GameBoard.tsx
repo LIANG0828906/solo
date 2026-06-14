@@ -27,6 +27,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ grid, onMerge, disabled })
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [cellSize, setCellSize] = useState(BASE_CELL_SIZE);
+  const cellSizeRef = useRef(BASE_CELL_SIZE);
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
   const renderFrameRef = useRef<number | null>(null);
 
   const { activeAnimations, getAnimationFrame, startMergeAnimation, isAnimating } = useMergeAnimation();
@@ -47,9 +49,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ grid, onMerge, disabled })
     
     const ctx = canvasRef.current.getContext('2d');
     if (ctx) {
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     
+    cellSizeRef.current = newCellSize;
+    canvasSizeRef.current = { width: totalSize, height: totalSize };
     setCanvasSize({ width: totalSize, height: totalSize });
     setCellSize(newCellSize);
   }, []);
@@ -60,25 +64,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({ grid, onMerge, disabled })
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, [updateCanvasSize]);
 
-  const getCellFromCoords = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
+  const clientToCanvasCoords = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
     if (!canvasRef.current) return null;
     
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = (clientX - rect.left);
-    const y = (clientY - rect.top);
+    const scaleX = canvasSizeRef.current.width / rect.width;
+    const scaleY = canvasSizeRef.current.height / rect.height;
     
-    const col = Math.floor(x / (cellSize + GAP));
-    const row = Math.floor(y / (cellSize + GAP));
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }, []);
+
+  const getCellFromCoords = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
+    const coords = clientToCanvasCoords(clientX, clientY);
+    if (!coords) return null;
+    
+    const currentCellSize = cellSizeRef.current;
+    const col = Math.floor(coords.x / (currentCellSize + GAP));
+    const row = Math.floor(coords.y / (currentCellSize + GAP));
     
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-      const cellX = col * (cellSize + GAP);
-      const cellY = row * (cellSize + GAP);
-      if (x < cellX + cellSize && y < cellY + cellSize) {
+      const cellX = col * (currentCellSize + GAP);
+      const cellY = row * (currentCellSize + GAP);
+      if (coords.x < cellX + currentCellSize && coords.y < cellY + currentCellSize) {
         return { row, col };
       }
     }
     return null;
-  }, [cellSize]);
+  }, [clientToCanvasCoords]);
 
   const drawPixelAnimal = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -228,24 +243,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ grid, onMerge, disabled })
     const cell = getCellFromCoords(e.clientX, e.clientY);
     if (!cell || !grid[cell.row][cell.col]) return;
     
-    const rect = canvasRef.current!.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    const coords = clientToCanvasCoords(e.clientX, e.clientY);
+    if (coords) {
+      setDragOffset({ x: coords.x, y: coords.y });
+    }
     setDraggingCell(cell);
     setSelectedCell(cell);
-  }, [grid, getCellFromCoords, disabled, isAnimating]);
+  }, [grid, getCellFromCoords, clientToCanvasCoords, disabled, isAnimating]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!draggingCell || disabled || isAnimating) return;
     
-    const rect = canvasRef.current!.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-  }, [draggingCell, disabled, isAnimating]);
+    const coords = clientToCanvasCoords(e.clientX, e.clientY);
+    if (coords) {
+      setDragOffset({ x: coords.x, y: coords.y });
+    }
+  }, [draggingCell, clientToCanvasCoords, disabled, isAnimating]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled || isAnimating) return;
@@ -275,26 +288,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ grid, onMerge, disabled })
     const cell = getCellFromCoords(touch.clientX, touch.clientY);
     if (!cell || !grid[cell.row][cell.col]) return;
     
-    const rect = canvasRef.current!.getBoundingClientRect();
-    setDragOffset({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
-    });
+    const coords = clientToCanvasCoords(touch.clientX, touch.clientY);
+    if (coords) {
+      setDragOffset({ x: coords.x, y: coords.y });
+    }
     setDraggingCell(cell);
     setSelectedCell(cell);
-  }, [grid, getCellFromCoords, disabled, isAnimating]);
+  }, [grid, getCellFromCoords, clientToCanvasCoords, disabled, isAnimating]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     if (!draggingCell || disabled || isAnimating) return;
     
     const touch = e.touches[0];
-    const rect = canvasRef.current!.getBoundingClientRect();
-    setDragOffset({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
-    });
-  }, [draggingCell, disabled, isAnimating]);
+    const coords = clientToCanvasCoords(touch.clientX, touch.clientY);
+    if (coords) {
+      setDragOffset({ x: coords.x, y: coords.y });
+    }
+  }, [draggingCell, clientToCanvasCoords, disabled, isAnimating]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();

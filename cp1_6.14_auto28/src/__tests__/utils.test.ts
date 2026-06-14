@@ -235,6 +235,75 @@ describe('mergeCells', () => {
     expect(result.grid[0][1]?.id).not.toBe('old1');
     expect(result.grid[0][1]?.id).not.toBe('old2');
   });
+
+  it('should not leave residue after consecutive merges', () => {
+    let grid: Grid = createEmptyGrid();
+    grid[0][0] = { id: 'a1', level: 1, row: 0, col: 0 };
+    grid[0][1] = { id: 'a2', level: 1, row: 0, col: 1 };
+    grid[0][2] = { id: 'b1', level: 1, row: 0, col: 2 };
+    grid[0][3] = { id: 'b2', level: 1, row: 0, col: 3 };
+
+    const result1 = mergeCells(grid, 0, 0, 0, 1);
+    expect(result1.success).toBe(true);
+    expect(result1.grid[0][0]).toBeNull();
+    expect(result1.grid[0][1]?.level).toBe(2);
+
+    const result2 = mergeCells(result1.grid, 0, 2, 0, 3);
+    expect(result2.success).toBe(true);
+    expect(result2.grid[0][2]).toBeNull();
+    expect(result2.grid[0][3]?.level).toBe(2);
+
+    let nonNullCount = 0;
+    result2.grid.forEach(row => {
+      row.forEach(cell => {
+        if (cell !== null) nonNullCount++;
+      });
+    });
+    expect(nonNullCount).toBe(2);
+  });
+
+  it('should not skip intermediate levels when merging', () => {
+    const grid = createEmptyGrid();
+    grid[1][0] = { id: 'x', level: 3, row: 1, col: 0 };
+    grid[1][1] = { id: 'y', level: 3, row: 1, col: 1 };
+    grid[2][0] = { id: 'a', level: 1, row: 2, col: 0 };
+    grid[2][1] = { id: 'b', level: 1, row: 2, col: 1 };
+    grid[2][2] = { id: 'c', level: 2, row: 2, col: 2 };
+
+    const result = mergeCells(grid, 1, 0, 1, 1);
+    expect(result.success).toBe(true);
+    expect(result.newLevel).toBe(4);
+    expect(result.newLevel).not.toBe(5);
+    expect(result.newLevel).not.toBeGreaterThan(4);
+
+    const lvl1Cells: number[] = [];
+    const lvl2Cells: number[] = [];
+    result.grid.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        if (cell?.level === 1) lvl1Cells.push(r * 4 + c);
+        if (cell?.level === 2) lvl2Cells.push(r * 4 + c);
+      });
+    });
+    expect(lvl1Cells.length).toBe(2);
+    expect(lvl2Cells.length).toBe(1);
+  });
+
+  it('should clear source cells even when target has neighbors', () => {
+    const grid = createEmptyGrid();
+    grid[1][1] = { id: 's1', level: 2, row: 1, col: 1 };
+    grid[1][2] = { id: 's2', level: 2, row: 1, col: 2 };
+    grid[0][2] = { id: 'n1', level: 3, row: 0, col: 2 };
+    grid[2][2] = { id: 'n2', level: 4, row: 2, col: 2 };
+    grid[1][3] = { id: 'n3', level: 5, row: 1, col: 3 };
+
+    const result = mergeCells(grid, 1, 1, 1, 2);
+    expect(result.success).toBe(true);
+    expect(result.grid[1][1]).toBeNull();
+    expect(result.grid[1][2]?.level).toBe(3);
+    expect(result.grid[0][2]?.level).toBe(3);
+    expect(result.grid[2][2]?.level).toBe(4);
+    expect(result.grid[1][3]?.level).toBe(5);
+  });
 });
 
 describe('getMaxLevel', () => {

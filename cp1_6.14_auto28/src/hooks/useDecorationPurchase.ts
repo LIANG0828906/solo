@@ -5,7 +5,6 @@ import {
   getDecorationCost,
   DECORATION_EMOJIS,
   MAX_DECORATIONS,
-  debounce,
 } from '../utils';
 
 type DecorationPurchaseResult = {
@@ -13,6 +12,7 @@ type DecorationPurchaseResult = {
   purchaseDecoration: (areaId: string) => void;
   getCurrentCost: (area: TownArea) => number;
   canPurchase: (area: TownArea, coins: number) => boolean;
+  lastPurchaseTime: number;
 };
 
 export const useDecorationPurchase = (
@@ -21,8 +21,9 @@ export const useDecorationPurchase = (
   onPurchase: (updatedAreas: TownArea[], cost: number) => void
 ): DecorationPurchaseResult => {
   const [isAnimating, setIsAnimating] = useState(false);
-  const animationRef = useRef(false);
-  const pendingPurchaseRef = useRef<{ areaId: string; timestamp: number } | null>(null);
+  const lastPurchaseTimeRef = useRef<number>(0);
+  const [lastPurchaseTime, setLastPurchaseTime] = useState(0);
+  const cooldownMs = 500;
 
   const getCurrentCost = useCallback((area: TownArea): number => {
     return getDecorationCost(area.decorations.length);
@@ -35,9 +36,13 @@ export const useDecorationPurchase = (
     return currentCoins >= cost;
   }, [getCurrentCost]);
 
-  const executePurchase = useCallback((areaId: string) => {
-    if (animationRef.current) return;
+  const purchaseDecoration = useCallback((areaId: string) => {
+    const now = Date.now();
     
+    if (now - lastPurchaseTimeRef.current < cooldownMs) {
+      return;
+    }
+
     const area = areas.find(a => a.id === areaId);
     if (!area || !canPurchase(area, coins)) return;
 
@@ -45,37 +50,20 @@ export const useDecorationPurchase = (
     const result = addDecoration(areas, areaId, randomDecoration);
 
     if (result.success) {
-      animationRef.current = true;
+      lastPurchaseTimeRef.current = now;
+      setLastPurchaseTime(now);
       setIsAnimating(true);
       onPurchase(result.areas, result.cost);
       
       setTimeout(() => {
-        animationRef.current = false;
         setIsAnimating(false);
-      }, 500);
+      }, cooldownMs);
     }
-  }, [areas, coins, canPurchase, onPurchase]);
-
-  const debouncedPurchase = useCallback(
-    debounce(executePurchase, 300),
-    [executePurchase]
-  );
-
-  const purchaseDecoration = useCallback((areaId: string) => {
-    const now = Date.now();
-    const pending = pendingPurchaseRef.current;
-    
-    if (pending && now - pending.timestamp < 300) {
-      return;
-    }
-    
-    pendingPurchaseRef.current = { areaId, timestamp: now };
-    debouncedPurchase(areaId);
-  }, [debouncedPurchase]);
+  }, [areas, coins, canPurchase, onPurchase, cooldownMs]);
 
   useEffect(() => {
     return () => {
-      pendingPurchaseRef.current = null;
+      lastPurchaseTimeRef.current = 0;
     };
   }, []);
 
@@ -84,5 +72,6 @@ export const useDecorationPurchase = (
     purchaseDecoration,
     getCurrentCost,
     canPurchase,
+    lastPurchaseTime,
   };
 };
