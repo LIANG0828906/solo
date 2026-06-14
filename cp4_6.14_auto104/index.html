@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D城市交通流量热力时序可视化</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #e2e8f0; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .control-panel {
+      position: fixed; top: 16px; left: 16px; z-index: 10;
+      background: #0f172acc; border-radius: 12px; padding: 16px;
+      width: 320px; backdrop-filter: blur(8px);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .control-panel.collapsed {
+      transform: translateX(-340px); opacity: 0; pointer-events: none;
+    }
+    .panel-toggle {
+      position: fixed; top: 16px; left: 16px; z-index: 11;
+      width: 40px; height: 40px; border-radius: 8px;
+      background: #1e293b; border: none; color: #94a3b8;
+      cursor: pointer; display: none; align-items: center; justify-content: center;
+      font-size: 20px; transition: background 0.2s;
+    }
+    .panel-toggle:hover { background: #334155; }
+
+    .upload-zone {
+      border: 2px dashed #94a3b8; border-radius: 8px;
+      height: 120px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; transition: border-color 0.2s, border-style 0.2s;
+      margin-bottom: 12px; position: relative;
+    }
+    .upload-zone.dragover {
+      border: 2px solid #3b82f6; border-style: solid;
+    }
+    .upload-zone input { display: none; }
+    .upload-zone .upload-icon { font-size: 28px; color: #94a3b8; margin-bottom: 8px; }
+    .upload-zone .upload-text { font-size: 13px; color: #94a3b8; }
+    .upload-zone .file-name {
+      font-size: 12px; color: #3b82f6; margin-top: 4px;
+      max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .data-info { font-size: 11px; color: #94a3b8; margin-bottom: 12px; min-height: 18px; }
+
+    .stats-panel { margin-bottom: 12px; }
+    .stat-card {
+      background: #1e293b; border-radius: 8px; padding: 12px;
+      margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .stat-card .stat-label { font-size: 12px; color: #94a3b8; }
+    .stat-card .stat-value {
+      font-size: 20px; font-weight: 600;
+      transition: opacity 0.3s ease;
+    }
+    .stat-card .stat-value.fading { opacity: 0; }
+    .stat-card.highlight { border-left: 3px solid #ef4444; }
+
+    .playback-controls {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .ctrl-btn {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: #1e293b; border: none; color: #e2e8f0;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; transition: background 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .ctrl-btn:hover { background: #334155; }
+    .ctrl-btn:active { transform: scale(0.89); }
+    .ctrl-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .speed-group { display: flex; gap: 4px; margin-left: auto; }
+    .speed-btn {
+      padding: 4px 10px; border-radius: 12px;
+      background: #1e293b; border: none; color: #94a3b8;
+      font-size: 11px; cursor: pointer; transition: background 0.2s, color 0.2s;
+    }
+    .speed-btn.active { background: #3b82f6; color: #fff; }
+    .speed-btn:hover:not(.active) { background: #334155; }
+
+    .timeline-container {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+      background: #0f172acc; backdrop-filter: blur(8px);
+      padding: 12px 24px 16px;
+    }
+    .time-label {
+      text-align: center; font-size: 16px; color: #e2e8f0;
+      margin-bottom: 10px; font-weight: 500; letter-spacing: 1px;
+    }
+    .timeline-track {
+      position: relative; height: 6px; background: #1e293b;
+      border-radius: 3px; cursor: pointer;
+    }
+    .timeline-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      border-radius: 3px; pointer-events: none;
+    }
+    .timeline-thumb {
+      position: absolute; top: 50%; width: 16px; height: 16px;
+      background: #e2e8f0; border-radius: 50%;
+      transform: translate(-50%, -50%); cursor: grab;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5); transition: transform 0.1s;
+    }
+    .timeline-thumb:hover { transform: translate(-50%, -50%) scale(1.2); }
+    .timeline-thumb:active { cursor: grabbing; }
+    .time-ticks {
+      display: flex; justify-content: space-between;
+      margin-top: 6px; font-size: 10px; color: #64748b;
+    }
+
+    .legend-panel {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      z-index: 10; display: flex; flex-direction: column; align-items: center;
+    }
+    .legend-bar {
+      width: 20px; height: 200px; border-radius: 4px;
+      background: linear-gradient(to top, #1e3a8a, #06b6d4, #f97316, #ef4444);
+      border: 1px solid #334155;
+    }
+    .legend-labels {
+      display: flex; flex-direction: column; justify-content: space-between;
+      height: 200px; margin-left: 8px; font-size: 10px; color: #94a3b8;
+    }
+    .legend-row { display: flex; align-items: stretch; gap: 8px; }
+    .legend-title { font-size: 11px; color: #94a3b8; margin-bottom: 8px; text-align: center; }
+    .threshold-control { margin-top: 12px; text-align: center; }
+    .threshold-label { font-size: 10px; color: #94a3b8; display: block; margin-bottom: 4px; }
+    .threshold-slider {
+      width: 80px; -webkit-appearance: none; appearance: none;
+      height: 4px; background: #334155; border-radius: 2px; outline: none;
+    }
+    .threshold-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #3b82f6; cursor: pointer;
+    }
+    .threshold-value { font-size: 11px; color: #e2e8f0; margin-top: 2px; }
+
+    @media (max-width: 767px) {
+      .control-panel { transform: translateX(-340px); opacity: 0; pointer-events: none; }
+      .control-panel.expanded { transform: translateX(0); opacity: 1; pointer-events: auto; }
+      .panel-toggle { display: flex; }
+      .legend-panel { right: 8px; }
+      .legend-bar { height: 140px; }
+      .legend-labels { height: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <button class="panel-toggle" id="panelToggle">&#9776;</button>
+
+  <div class="control-panel" id="controlPanel">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".csv" />
+      <div class="upload-icon">&#128194;</div>
+      <div class="upload-text">拖拽或点击上传CSV文件</div>
+      <div class="file-name" id="fileName"></div>
+    </div>
+    <div class="data-info" id="dataInfo"></div>
+
+    <div class="stats-panel" id="statsPanel">
+      <div class="stat-card">
+        <span class="stat-label">总车流量</span>
+        <span class="stat-value" id="statTotal">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">平均车流量</span>
+        <span class="stat-value" id="statAvg">--</span>
+      </div>
+      <div class="stat-card highlight">
+        <span class="stat-label">最高车流量</span>
+        <span class="stat-value" id="statMax">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">最低车流量</span>
+        <span class="stat-value" id="statMin">--</span>
+      </div>
+    </div>
+
+    <div class="playback-controls">
+      <button class="ctrl-btn" id="btnPlay" title="播放/暂停">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" id="playIcon"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="上一时间片">
+        <svg viewBox="0 0 24 24"><polygon points="19,3 9,12 19,21"/><rect x="5" y="3" width="2" height="18"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="下一时间片">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 15,12 5,21"/><rect x="17" y="3" width="2" height="18"/></svg>
+      </button>
+      <div class="speed-group">
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="4">4x</button>
+        <button class="speed-btn" data-speed="8">8x</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="timeline-container" id="timelineContainer">
+    <div class="time-label" id="timeLabel">00:00</div>
+    <div class="timeline-track" id="timelineTrack">
+      <div class="timeline-fill" id="timelineFill"></div>
+      <div class="timeline-thumb" id="timelineThumb"></div>
+    </div>
+    <div class="time-ticks">
+      <span>00:00</span><span>04:00</span><span>08:00</span>
+      <span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span>
+    </div>
+  </div>
+
+  <div class="legend-panel" id="legendPanel">
+    <div class="legend-title">车流量</div>
+    <div class="legend-row">
+      <div class="legend-bar"></div>
+      <div class="legend-labels">
+        <span id="legendHigh">200</span>
+        <span id="legendMid3">133</span>
+        <span id="legendMid2">67</span>
+        <span id="legendLow">0</span>
+      </div>
+    </div>
+    <div class="threshold-control">
+      <span class="threshold-label">最高阈值</span>
+      <input type="range" class="threshold-slider" id="thresholdSlider"
+             min="50" max="500" step="10" value="200" />
+      <div class="threshold-value" id="thresholdValue">200</div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
