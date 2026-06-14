@@ -10,8 +10,32 @@ function generateId(): string {
 function isValidISBN(isbn: string): boolean {
   if (!isbn) return true;
   const cleaned = isbn.replace(/[- ]/g, '').toUpperCase();
-  const regex = /^(?:ISBN(?:-1[03])?:? )?(?=[0-9X]{10}$|(?=(?:[0-9]+[- ]){3})[- 0-9X]{13}$|97[89][0-9]{10}$|(?=(?:[0-9]+[- ]){4})[- 0-9]{17}$)/;
-  return regex.test(cleaned);
+
+  if (!/^[0-9]{9}[0-9X]$/.test(cleaned) && !/^[0-9]{13}$/.test(cleaned)) {
+    return false;
+  }
+
+  if (cleaned.length === 10) {
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(cleaned[i]) * (10 - i);
+    }
+    const checkChar = cleaned[9];
+    const checkValue = checkChar === 'X' ? 10 : parseInt(checkChar);
+    sum += checkValue;
+    return sum % 11 === 0;
+  }
+
+  if (cleaned.length === 13) {
+    let sum = 0;
+    for (let i = 0; i < 13; i++) {
+      const digit = parseInt(cleaned[i]);
+      sum += i % 2 === 0 ? digit : digit * 3;
+    }
+    return sum % 10 === 0;
+  }
+
+  return false;
 }
 
 function validateBook(data: Partial<Book>): ValidationResult {
@@ -181,7 +205,41 @@ export const BookStorage = {
     return JSON.stringify(data, null, 2);
   },
 
-  importData(json: string): { imported: number; duplicates: string[]; errors: string[] } {
+  previewImportData(json: string): { totalBooks: number; duplicates: string[]; duplicateBooks: Book[]; errors: string[] } {
+    const result = { totalBooks: 0, duplicates: [] as string[], duplicateBooks: [] as Book[], errors: [] as string[] };
+
+    try {
+      const data = JSON.parse(json);
+      const existingBooks = this.getBooks();
+
+      if (!Array.isArray(data.books)) {
+        result.errors.push('数据格式错误：缺少 books 数组');
+        return result;
+      }
+
+      result.totalBooks = data.books.length;
+      const existingIsbns = new Set(existingBooks.map(b => b.isbn).filter(Boolean));
+
+      for (const bookData of data.books) {
+        const validation = validateBook(bookData);
+        if (!validation.isValid) {
+          result.errors.push(`图书 "${bookData.title || '未知'}" 验证失败: ${Object.values(validation.errors).join(', ')}`);
+          continue;
+        }
+
+        if (bookData.isbn && existingIsbns.has(bookData.isbn)) {
+          result.duplicates.push(bookData.isbn);
+          result.duplicateBooks.push(bookData);
+        }
+      }
+    } catch (e) {
+      result.errors.push(`JSON解析失败: ${e instanceof Error ? e.message : '未知错误'}`);
+    }
+
+    return result;
+  },
+
+  importData(json: string, skipDuplicates: boolean = true): { imported: number; duplicates: string[]; errors: string[] } {
     const result = { imported: 0, duplicates: [] as string[], errors: [] as string[] };
     
     try {
@@ -206,7 +264,9 @@ export const BookStorage = {
         
         if (bookData.isbn && existingIsbns.has(bookData.isbn)) {
           result.duplicates.push(bookData.isbn);
-          continue;
+          if (skipDuplicates) {
+            continue;
+          }
         }
         
         const now = new Date().toISOString();

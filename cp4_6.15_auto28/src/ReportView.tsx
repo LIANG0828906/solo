@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -6,6 +6,23 @@ import {
 } from 'recharts';
 import { BookStorage } from './BookStorage';
 import { formatMonth, formatShortDate } from './utils';
+
+const ChartWrapper: React.FC<{ children: React.ReactNode; chartKey: string }> = ({ children, chartKey }) => {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setVisible(false);
+    const timer = setTimeout(() => setVisible(true), 30);
+    return () => clearTimeout(timer);
+  }, [chartKey]);
+
+  return (
+    <div ref={ref} className={`report-chart ${visible ? 'visible' : ''}`}>
+      {children}
+    </div>
+  );
+};
 
 const CATEGORY_COLORS = [
   '#8B7355', '#A08060', '#C9A86C', '#B8956E',
@@ -209,7 +226,7 @@ const ReportView: React.FC = () => {
             <div key={`category-${chartKey}`} className="report-card">
               <h3 className="report-title">图书分类分布</h3>
               {categoryData.length > 0 ? (
-                <div className="report-chart">
+                <ChartWrapper chartKey={`category-${chartKey}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -236,7 +253,7 @@ const ReportView: React.FC = () => {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                </div>
+                </ChartWrapper>
               ) : (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-light)' }}>
                   暂无分类数据
@@ -248,7 +265,7 @@ const ReportView: React.FC = () => {
           {(activeChart === 'all' || activeChart === 'monthly') && (
             <div key={`monthly-${chartKey}`} className="report-card">
               <h3 className="report-title">近12个月阅读时长</h3>
-              <div className="report-chart">
+              <ChartWrapper chartKey={`monthly-${chartKey}`}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
                     <defs>
@@ -278,14 +295,14 @@ const ReportView: React.FC = () => {
                     <Bar dataKey="hours" fill="url(#barGradient)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartWrapper>
             </div>
           )}
 
           {(activeChart === 'all' || activeChart === 'daily') && (
             <div key={`daily-${chartKey}`} className="report-card" style={{ gridColumn: '1 / -1' }}>
               <h3 className="report-title">近30天每日阅读页数</h3>
-              <div className="report-chart">
+              <ChartWrapper chartKey={`daily-${chartKey}`}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
                     <defs>
@@ -328,7 +345,7 @@ const ReportView: React.FC = () => {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartWrapper>
             </div>
           )}
         </div>
