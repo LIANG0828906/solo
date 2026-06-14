@@ -1,3 +1,25 @@
+/*
+ * ============================================================
+ * 模块调用关系与数据流向
+ * ============================================================
+ *
+ * 职责：
+ *   - 在屏幕右下角渲染半透明信息面板
+ *   - 实时显示心跳周期编号、AV延迟、心输出量估算值
+ *
+ * 数据流入：
+ *   - 从 useHeartStore 读取 cycleNumber, avDelay, cardiacOutput
+ *   - 数据由 Web Worker 模拟计算后存入 store
+ *   - 每 16ms 刷新一次
+ *
+ * 数据流出：
+ *   - 渲染到 DOM，无数据输出
+ *
+ * 调用方：
+ *   - App.tsx 渲染 <InfoPanel /> 组件
+ * ============================================================
+ */
+
 import { useHeartStore } from '../store/useHeartStore'
 
 export default function InfoPanel() {
@@ -6,17 +28,17 @@ export default function InfoPanel() {
   return (
     <div style={styles.panel}>
       <div style={styles.title}>心脏状态</div>
-      
+
       <div style={styles.item}>
         <span style={styles.label}>心跳周期:</span>
         <span style={styles.value}>{cycleNumber}</span>
       </div>
-      
+
       <div style={styles.item}>
         <span style={styles.label}>AV延迟:</span>
         <span style={styles.value}>{avDelay.toFixed(0)} ms</span>
       </div>
-      
+
       <div style={styles.item}>
         <span style={styles.label}>心输出量:</span>
         <span style={styles.value}>{cardiacOutput.toFixed(1)} L/min</span>

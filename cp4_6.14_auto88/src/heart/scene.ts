@@ -1,3 +1,34 @@
+/*
+ * ============================================================
+ * 模块调用关系与数据流向
+ * ============================================================
+ *
+ * 职责：
+ *   - 初始化 Three.js 场景、透视相机、WebGL 渲染器
+ *   - 设置环境光照、阴影、背景渐变
+ *   - 创建 OrbitControls 轨道控制器
+ *   - 管理动画循环 (requestAnimationFrame)
+ *   - 协调心脏模型与 UI 交互
+ *
+ * 数据流入：
+ *   - main.ts 调用 createHeartScene() 并 start()
+ *   - useHeartStore 订阅变化，通过 setPaused / setConductionVisible 控制
+ *
+ * 内部处理：
+ *   1. 每帧调用 heartModel.update() 更新顶点位置和材质颜色
+ *   2. 更新 OrbitControls 阻尼
+ *   3. 调用 renderer.render() 渲染场景
+ *   4. 处理窗口 resize 事件，自动调整相机和渲染器
+ *
+ * 数据流出：
+ *   - WebGL 渲染结果输出到 canvas
+ *
+ * 调用方：
+ *   - main.ts 在应用启动时创建场景实例
+ *   - 动画循环每帧调用 heartModel.update()
+ * ============================================================
+ */
+
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createHeartModel, HeartModel } from './model'
@@ -23,17 +54,56 @@ export function createHeartScene(container: HTMLElement): HeartScene {
   let isRunning = false
   const clock = new THREE.Clock()
   let lastTime = 0
+  let canvas: HTMLCanvasElement
+
+  function createBackgroundGradient(): THREE.Mesh {
+    const topColor = new THREE.Color('#0f172a')
+    const bottomColor = new THREE.Color('#1e3a8a')
+
+    const geometry = new THREE.PlaneGeometry(2, 2)
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        topColor: { value: topColor },
+        bottomColor: { value: bottomColor },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 bottomColor;
+        varying vec2 vUv;
+        void main() {
+          vec3 color = mix(bottomColor, topColor, vUv.y);
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      side: THREE.DoubleSide,
+      depthTest: false,
+      depthWrite: false,
+    })
+
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.renderOrder = -1000
+    mesh.position.z = -10
+    return mesh
+  }
 
   function init(): void {
     scene = new THREE.Scene()
 
-    const canvas = document.createElement('canvas')
+    canvas = document.createElement('canvas')
     canvas.style.position = 'fixed'
     canvas.style.top = '0'
     canvas.style.left = '0'
     canvas.style.width = '100%'
     canvas.style.height = '100%'
     canvas.style.zIndex = '0'
+    canvas.style.display = 'block'
     container.appendChild(canvas)
 
     renderer = new THREE.WebGLRenderer({
@@ -47,6 +117,7 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     renderer.toneMappingExposure = 1.2
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.outputColorSpace = THREE.SRGBColorSpace
 
     camera = new THREE.PerspectiveCamera(
       45,
@@ -54,7 +125,7 @@ export function createHeartScene(container: HTMLElement): HeartScene {
       0.1,
       100
     )
-    camera.position.set(0, 1.5, 4)
+    camera.position.set(0, 1.0, 4)
 
     controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
@@ -63,50 +134,12 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     controls.enablePan = false
     controls.minDistance = 2
     controls.maxDistance = 10
+    controls.minPolarAngle = Math.PI * 0.2
+    controls.maxPolarAngle = Math.PI * 0.8
     controls.target.set(0, 0, 0)
 
-    const topColor = new THREE.Color('#0f172a')
-    const bottomColor = new THREE.Color('#1e3a8a')
-    const vertices = new Float32Array([
-      -1, -1, 0,
-      1, -1, 0,
-      1, 1, 0,
-      -1, 1, 0,
-    ])
-    const colors = new Float32Array([
-      bottomColor.r, bottomColor.g, bottomColor.b,
-      bottomColor.r, bottomColor.g, bottomColor.b,
-      topColor.r, topColor.g, topColor.b,
-      topColor.r, topColor.g, topColor.b,
-    ])
-    const bgGeometry = new THREE.BufferGeometry()
-    bgGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-    bgGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    bgGeometry.setIndex([0, 1, 2, 0, 2, 3])
-    const bgMaterial = new THREE.ShaderMaterial({
-      uniforms: {},
-      vertexShader: `
-        varying vec3 vColor;
-        attribute vec3 color;
-        void main() {
-          vColor = color;
-          gl_Position = vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vColor;
-        void main() {
-          gl_FragColor = vec4(vColor, 1.0);
-        }
-      `,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-    })
-    const backgroundMesh = new THREE.Mesh(bgGeometry, bgMaterial)
-    backgroundMesh.renderOrder = -1000
-    backgroundMesh.position.z = -5
-    scene.add(backgroundMesh)
+    const bgMesh = createBackgroundGradient()
+    scene.add(bgMesh)
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
     scene.add(ambientLight)
@@ -116,6 +149,12 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     keyLight.castShadow = true
     keyLight.shadow.mapSize.width = 1024
     keyLight.shadow.mapSize.height = 1024
+    keyLight.shadow.camera.near = 0.5
+    keyLight.shadow.camera.far = 20
+    keyLight.shadow.camera.left = -3
+    keyLight.shadow.camera.right = 3
+    keyLight.shadow.camera.top = 3
+    keyLight.shadow.camera.bottom = -3
     scene.add(keyLight)
 
     const fillLight = new THREE.DirectionalLight(0x88aaff, 0.4)
@@ -129,12 +168,12 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     heartModel = createHeartModel()
     scene.add(heartModel.group)
 
-    const cameraHeight = window.innerHeight
-    const modelHeight = cameraHeight / 3
+    const initialHeight = window.innerHeight
     const fov = camera.fov * (Math.PI / 180)
-    const distance = (modelHeight / 2) / Math.tan(fov / 2)
-    camera.position.z = distance * 1.2
-    camera.position.y = distance * 0.3
+    const targetHeight = 2.0
+    const distance = (targetHeight / 2) / Math.tan(fov / 2)
+    camera.position.z = distance
+    camera.position.y = distance * 0.25
     controls.update()
 
     window.addEventListener('resize', onWindowResize)
@@ -144,14 +183,13 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
-    
-    const cameraHeight = window.innerHeight
+
     const fov = camera.fov * (Math.PI / 180)
-    const targetHeight = cameraHeight / 300
+    const targetHeight = 2.2
     const distance = (targetHeight / 2) / Math.tan(fov / 2)
-    camera.position.z = Math.max(2.5, distance * 1.5)
-    camera.position.y = distance * 0.3
-    
+    camera.position.z = Math.max(2.5, distance)
+    camera.position.y = distance * 0.25
+
     controls.update()
     heartModel.resize()
   }
@@ -178,6 +216,7 @@ export function createHeartScene(container: HTMLElement): HeartScene {
     if (isRunning) return
     isRunning = true
     clock.start()
+    lastTime = 0
     animate()
   }
 
@@ -191,7 +230,7 @@ export function createHeartScene(container: HTMLElement): HeartScene {
   function dispose(): void {
     stop()
     window.removeEventListener('resize', onWindowResize)
-    
+
     if (renderer) {
       renderer.dispose()
       if (renderer.domElement && renderer.domElement.parentNode) {
@@ -201,9 +240,11 @@ export function createHeartScene(container: HTMLElement): HeartScene {
 
     scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
-        object.geometry.dispose()
+        object.geometry?.dispose()
         if (object.material instanceof THREE.Material) {
           object.material.dispose()
+        } else if (Array.isArray(object.material)) {
+          object.material.forEach((m) => m.dispose())
         }
       }
     })

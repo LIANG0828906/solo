@@ -1,30 +1,67 @@
+/*
+ * ============================================================
+ * 模块调用关系与数据流向
+ * ============================================================
+ *
+ * 职责：
+ *   - 渲染左侧浮动控制面板
+ *   - 提供心跳速度滑块、暂停/继续按钮、电传导可视化开关
+ *   - 监听用户输入并更新 Zustand store
+ *
+ * 数据流入：
+ *   - 从 useHeartStore 读取 heartRate, isPaused, conductionVisible
+ *   - 用于同步 UI 控件状态
+ *
+ * 内部处理：
+ *   1. 滑块 onChange -> setHeartRate() 更新 store
+ *   2. 按钮 onClick -> togglePause() 切换暂停状态
+ *   3. 复选框 onChange -> toggleConduction() 切换传导可视化
+ *   4. 按钮按下时 scale(0.95) 缩放反馈，悬停时 opacity 过渡
+ *
+ * 数据流出：
+ *   - 通过 useHeartStore.setHeartRate / togglePause / toggleConduction
+ *     更新全局状态
+ *   - store 变化触发 simulation.ts 中的订阅回调
+ *     进而通过 postMessage 通知 Web Worker
+ *
+ * 调用方：
+ *   - App.tsx 渲染 <Controls /> 组件
+ * ============================================================
+ */
+
 import { useHeartStore } from '../store/useHeartStore'
-import { useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
 
-interface ControlsProps {
-  onHeartRateChange?: (rate: number) => void
-}
-
-export default function Controls({ onHeartRateChange }: ControlsProps) {
+export default function Controls() {
   const { heartRate, isPaused, conductionVisible, setHeartRate, togglePause, toggleConduction } = useHeartStore()
-  const prevRateRef = useRef(heartRate)
+  const [buttonPressed, setButtonPressed] = useState(false)
 
-  useEffect(() => {
-    if (prevRateRef.current !== heartRate && onHeartRateChange) {
-      onHeartRateChange(heartRate)
-      prevRateRef.current = heartRate
-    }
-  }, [heartRate, onHeartRateChange])
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value)
     setHeartRate(value)
-  }
+  }, [setHeartRate])
+
+  const handleButtonMouseDown = useCallback(() => {
+    setButtonPressed(true)
+  }, [])
+
+  const handleButtonMouseUp = useCallback(() => {
+    setButtonPressed(false)
+  }, [])
+
+  const handleButtonClick = useCallback(() => {
+    togglePause()
+    setButtonPressed(false)
+  }, [togglePause])
+
+  const handleConductionChange = useCallback(() => {
+    toggleConduction()
+  }, [toggleConduction])
 
   return (
     <div style={styles.panel}>
       <div style={styles.title}>心脏模拟控制</div>
-      
+
       <div style={styles.controlGroup}>
         <label style={styles.label}>
           心跳速度: {heartRate.toFixed(1)}x
@@ -46,10 +83,14 @@ export default function Controls({ onHeartRateChange }: ControlsProps) {
 
       <div style={styles.controlGroup}>
         <button
-          onClick={togglePause}
+          onClick={handleButtonClick}
+          onMouseDown={handleButtonMouseDown}
+          onMouseUp={handleButtonMouseUp}
+          onMouseLeave={handleButtonMouseUp}
           style={{
             ...styles.button,
             ...(isPaused ? styles.playButton : styles.pauseButton),
+            transform: buttonPressed ? 'scale(0.95)' : 'scale(1)',
           }}
         >
           <span style={styles.buttonIcon}>{isPaused ? '▶' : '⏸'}</span>
@@ -62,7 +103,7 @@ export default function Controls({ onHeartRateChange }: ControlsProps) {
           <input
             type="checkbox"
             checked={conductionVisible}
-            onChange={toggleConduction}
+            onChange={handleConductionChange}
             style={styles.checkbox}
           />
           <span style={styles.toggleText}>电传导可视化</span>
@@ -151,6 +192,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontSize: '13px',
     color: '#f8fafc',
+    userSelect: 'none',
   },
   checkbox: {
     width: '18px',
