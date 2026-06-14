@@ -158,6 +158,32 @@ router.post('/:id/items', (req: Request, res: Response) => {
   res.status(201).json(item);
 });
 
+router.put('/:id/items/:itemId', (req: Request, res: Response) => {
+  const order = orders.get(req.params.id);
+  if (!order) {
+    res.status(404).json({ error: '订单不存在' });
+    return;
+  }
+
+  const item = order.items.find((i) => i.id === req.params.itemId);
+  if (!item) {
+    res.status(404).json({ error: '菜品不存在' });
+    return;
+  }
+
+  const { sharedBy, isSharedByAll, name, price, quantity, emoji } = req.body;
+
+  if (name != null) item.name = name;
+  if (price != null) item.price = Number(price);
+  if (quantity != null) item.quantity = Number(quantity);
+  if (sharedBy != null) item.sharedBy = sharedBy;
+  if (isSharedByAll != null) item.isSharedByAll = !!isSharedByAll;
+  if (emoji != null) item.emoji = emoji;
+
+  broadcast(req.params.id, 'item_updated', item);
+  res.json(item);
+});
+
 router.delete('/:id/items/:itemId', (req: Request, res: Response) => {
   const order = orders.get(req.params.id);
   if (!order) {

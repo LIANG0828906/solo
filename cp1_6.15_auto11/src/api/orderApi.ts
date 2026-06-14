@@ -104,6 +104,20 @@ export async function removeItem(
   if (!res.ok) throw new Error((await res.json()).error);
 }
 
+export async function updateItem(
+  orderId: string,
+  itemId: string,
+  updates: Partial<OrderItem>
+): Promise<OrderItem> {
+  const res = await fetch(`${BASE}/${orderId}/items/${itemId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
 export async function togglePayment(
   orderId: string,
   participantId: string,

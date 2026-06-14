@@ -98,6 +98,11 @@ function App() {
           case 'item_removed':
             updated.items = updated.items.filter((i) => i.id !== msg.data.id);
             break;
+          case 'item_updated':
+            updated.items = updated.items.map((i) =>
+              i.id === msg.data.id ? msg.data : i
+            );
+            break;
           case 'participant_added':
             updated.participants = [...updated.participants, msg.data];
             break;
@@ -112,7 +117,12 @@ function App() {
         return updated;
       });
 
-      if (msg.event === 'payment_updated' || msg.event === 'item_added' || msg.event === 'item_removed') {
+      if (
+        msg.event === 'payment_updated' ||
+        msg.event === 'item_added' ||
+        msg.event === 'item_removed' ||
+        msg.event === 'item_updated'
+      ) {
         const oid = order?.id;
         if (oid && (activeTab === 'split' || activeTab === 'settle')) {
           fetchSplitResult(oid);

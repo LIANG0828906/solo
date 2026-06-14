@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { Order, addItem, removeItem } from '../api/orderApi';
+import {
+  Order,
+  addItem,
+  removeItem,
+  updateItem,
+} from '../api/orderApi';
 
 const FOOD_EMOJIS = [
   '🍚', '🍜', '🥟', '🍕', '🍔', '🍣', '🥗', '🍲',
@@ -59,10 +64,43 @@ function OrderBoard({ order, currentParticipantId }: OrderBoardProps) {
     }
   };
 
+  const handleItemSharedByToggle = async (
+    itemId: string,
+    participantId: string,
+    currentSharedBy: string[],
+    currentIsSharedByAll: boolean
+  ) => {
+    if (currentIsSharedByAll) return;
+    const nextShared = currentSharedBy.includes(participantId)
+      ? currentSharedBy.filter((id) => id !== participantId)
+      : [...currentSharedBy, participantId];
+    try {
+      await updateItem(order.id, itemId, { sharedBy: nextShared });
+    } catch (e) {
+      console.error('Failed to update item shared:', e);
+    }
+  };
+
+  const handleItemToggleSharedAll = async (
+    itemId: string,
+    nextValue: boolean
+  ) => {
+    try {
+      await updateItem(order.id, itemId, {
+        isSharedByAll: nextValue,
+        sharedBy: nextValue ? [] : undefined,
+      });
+    } catch (e) {
+      console.error('Failed to update item share all:', e);
+    }
+  };
+
   const totalPrice = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+
+  const overLimit = order.maxAmount && totalPrice > order.maxAmount;
 
   return (
     <div className="order-board">
@@ -71,7 +109,13 @@ function OrderBoard({ order, currentParticipantId }: OrderBoardProps) {
           菜品列表
           <span className="item-count">{order.items.length} 道</span>
         </h2>
-        <div className="board-total">合计 ¥{totalPrice.toFixed(2)}</div>
+        <div
+          className={`board-total ${overLimit ? 'board-total-over' : ''}`}
+          title={overLimit ? `已超出上限 ¥${(totalPrice - order.maxAmount!).toFixed(2)}` : ''}
+        >
+          合计 ¥{totalPrice.toFixed(2)}
+          {overLimit && <span className="limit-warn">⚠️超限</span>}
+        </div>
         <button className="btn-add" onClick={() => setShowForm(!showForm)}>
           {showForm ? '✕ 取消' : '+ 添加菜品'}
         </button>
@@ -193,46 +237,90 @@ function OrderBoard({ order, currentParticipantId }: OrderBoardProps) {
           <p>还没有菜品，点击上方按钮添加</p>
         </div>
       ) : (
-        <div className="items-scroll">
+        <div className="items-list">
           {order.items.map((item, idx) => (
             <div
               key={item.id}
-              className="item-card animate-fade-in"
-              style={{ animationDelay: `${idx * 0.05}s` }}
+              className="item-card-large animate-fade-in"
+              style={{ animationDelay: `${idx * 0.04}s` }}
             >
-              <div className="item-emoji">{item.emoji}</div>
-              <div className="item-info">
-                <div className="item-name">{item.name}</div>
-                <div className="item-price">
-                  ¥{item.price} × {item.quantity}
-                  {item.isSharedByAll && (
-                    <span className="shared-badge">众人均摊</span>
-                  )}
+              <div className="item-card-top">
+                <div className="item-emoji">{item.emoji}</div>
+                <div className="item-info">
+                  <div className="item-name">{item.name}</div>
+                  <div className="item-price">
+                    ¥{item.price} × {item.quantity}
+                  </div>
                 </div>
-                <div className="item-shared-by">
-                  {item.isSharedByAll
-                    ? '全员分摊'
-                    : item.sharedBy.length === 0
-                    ? '未指定'
-                    : item.sharedBy
-                        .map(
-                          (pid) =>
-                            order.participants.find((p) => p.id === pid)
-                              ?.name || '?'
-                        )
-                        .join('、')}
+                <div className="item-total">
+                  ¥{(item.price * item.quantity).toFixed(2)}
                 </div>
+                <button
+                  className="btn-remove"
+                  onClick={() => handleRemoveItem(item.id)}
+                  title="删除菜品"
+                >
+                  ✕
+                </button>
               </div>
-              <div className="item-total">
-                ¥{(item.price * item.quantity).toFixed(2)}
+
+              <div className="item-card-participants">
+                <label className="shared-all-toggle shared-all-inline">
+                  <input
+                    type="checkbox"
+                    checked={item.isSharedByAll}
+                    onChange={(e) =>
+                      handleItemToggleSharedAll(item.id, e.target.checked)
+                    }
+                  />
+                  <span>全员分摊</span>
+                </label>
+
+                {!item.isSharedByAll && (
+                  <div className="inline-participant-checks">
+                    <span className="checks-label">谁吃了：</span>
+                    {order.participants.map((p) => (
+                      <label
+                        key={p.id}
+                        className={`inline-participant-check ${
+                          item.sharedBy.includes(p.id) ? 'check-active' : ''
+                        }`}
+                        style={{
+                          borderColor: item.sharedBy.includes(p.id)
+                            ? p.color
+                            : 'var(--gray-200)',
+                          background: item.sharedBy.includes(p.id)
+                            ? `${p.color}22`
+                            : 'transparent',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.sharedBy.includes(p.id)}
+                          onChange={() =>
+                            handleItemSharedByToggle(
+                              item.id,
+                              p.id,
+                              item.sharedBy,
+                              item.isSharedByAll
+                            )
+                          }
+                        />
+                        <span
+                          className="check-dot"
+                          style={{ backgroundColor: p.color }}
+                        />
+                        <span className="check-name">{p.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {!item.isSharedByAll && item.sharedBy.length === 0 && (
+                  <p className="hint-text hint-inline">
+                    ⚠️ 未选择参与者，此菜品暂不计入分摊
+                  </p>
+                )}
               </div>
-              <button
-                className="btn-remove"
-                onClick={() => handleRemoveItem(item.id)}
-                title="删除"
-              >
-                ✕
-              </button>
             </div>
           ))}
         </div>
