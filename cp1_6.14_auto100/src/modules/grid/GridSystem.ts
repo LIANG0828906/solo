@@ -96,13 +96,16 @@ export class GridSystem {
     occupiedPositions: Set<string> = new Set()
   ): GridPosition[] {
     const reachable = new Set<string>();
-    const visited = new Map<string, number>();
-    const queue: { pos: GridPosition; cost: number }[] = [{ pos: start, cost: 0 }];
+    const costSoFar = new Map<string, number>();
+    const frontier: { pos: GridPosition; cost: number }[] = [];
 
-    visited.set(this.posKey(start), 0);
+    const startKey = this.posKey(start);
+    costSoFar.set(startKey, 0);
+    frontier.push({ pos: start, cost: 0 });
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    while (frontier.length > 0) {
+      frontier.sort((a, b) => a.cost - b.cost);
+      const current = frontier.shift()!;
       const neighbors = this.getNeighbors(current.pos);
 
       for (const neighbor of neighbors) {
@@ -111,13 +114,14 @@ export class GridSystem {
 
         const moveCost = this.getMoveCost(neighbor);
         const totalCost = current.cost + moveCost;
+        const oldCost = costSoFar.get(key);
 
-        if (totalCost <= movePoints) {
-          if (!visited.has(key) || visited.get(key)! > totalCost) {
-            visited.set(key, totalCost);
+        if (totalCost <= movePoints && (oldCost === undefined || totalCost < oldCost)) {
+          costSoFar.set(key, totalCost);
+          if (key !== startKey) {
             reachable.add(key);
-            queue.push({ pos: neighbor, cost: totalCost });
           }
+          frontier.push({ pos: neighbor, cost: totalCost });
         }
       }
     }

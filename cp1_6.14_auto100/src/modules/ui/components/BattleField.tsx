@@ -1,5 +1,5 @@
-import { useRef, useMemo, useEffect, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useBattleStore } from '../../../store/battleStore';
@@ -31,6 +31,16 @@ function createHexagonGeometry(size: number): THREE.BufferGeometry {
   return geometry;
 }
 
+interface HexTileProps {
+  position: GridPosition;
+  terrain: TerrainType;
+  isMovable: boolean;
+  isAttackable: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+  onContextMenu: (clientX: number, clientY: number) => void;
+}
+
 function HexTile({
   position,
   terrain,
@@ -39,15 +49,7 @@ function HexTile({
   isSelected,
   onClick,
   onContextMenu,
-}: {
-  position: GridPosition;
-  terrain: TerrainType;
-  isMovable: boolean;
-  isAttackable: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-  onContextMenu: (e: any) => void;
-}) {
+}: HexTileProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -75,6 +77,15 @@ function HexTile({
     }
   });
 
+  const handleContextMenu = useCallback((event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    const nativeEvent = event.nativeEvent || (event as unknown as MouseEvent);
+    if (nativeEvent.preventDefault) {
+      nativeEvent.preventDefault();
+    }
+    onContextMenu(nativeEvent.clientX, nativeEvent.clientY);
+  }, [onContextMenu]);
+
   return (
     <mesh
       ref={meshRef}
@@ -84,10 +95,7 @@ function HexTile({
         e.stopPropagation();
         onClick();
       }}
-      onContextMenu={(e) => {
-        e.stopPropagation();
-        onContextMenu(e);
-      }}
+      onContextMenu={handleContextMenu}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
@@ -102,61 +110,118 @@ function HexTile({
   );
 }
 
+interface UnitMeshProps {
+  unit: Unit;
+  isCurrentTurn: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
 function UnitMesh({
   unit,
   isCurrentTurn,
   isSelected,
   onClick,
-}: {
-  unit: Unit;
-  isCurrentTurn: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
+}: UnitMeshProps) {
   const meshRef = useRef<THREE.Group>(null);
-  const [spawnAnim, setSpawnAnim] = useState(0);
-  const [bounceOffset, setBounceOffset] = useState(0);
-
   const gridSystem = useBattleStore((state) => state.gridSystem);
   const pixelPos = gridSystem.axialToPixel(unit.position, HEX_SIZE);
 
   const color = UNIT_CLASS_COLORS[unit.unitClass];
   const hpPercent = unit.currentHp / unit.maxHp;
 
+  const [animState, setAnimState] = useState({
+    progress: 0,
+    arcHeight: 0,
+    shakeOffset: 0,
+    scale: 0,
+    startX: pixelPos.x + (Math.random() - 0.5) * 6,
+    startY: pixelPos.y + (Math.random() - 0.5) * 6,
+    phase: 'projectile' as 'projectile' | 'shake' | 'idle',
+    shakeTime: 0,
+  });
+
   useEffect(() => {
-    let startTime = Date.now();
+    let startTime = performance.now();
+    const projectileDuration = 400;
+    const shakeDuration = 300;
+
     const animate = () => {
-      const elapsed = (Date.now() - startTime) / 500;
-      if (elapsed < 1) {
-        const progress = elapsed;
-        const bounce = Math.sin(progress * Math.PI) * 0.5;
-        setSpawnAnim(progress);
-        setBounceOffset(bounce);
+      const elapsed = performance.now() - startTime;
+
+      if (elapsed < projectileDuration) {
+        const t = elapsed / projectileDuration;
+        const easeProgress = 1 - Math.pow(1 - t, 3);
+        const arcHeight = Math.sin(t * Math.PI) * 2.5;
+        setAnimState((prev) => ({
+          ...prev,
+          progress: easeProgress,
+          arcHeight,
+          scale: Math.min(1, t * 1.5),
+          phase: 'projectile',
+        }));
+        requestAnimationFrame(animate);
+      } else if (elapsed < projectileDuration + shakeDuration) {
+        const shakeElapsed = elapsed - projectileDuration;
+        const shakeT = shakeElapsed / shakeDuration;
+        const shakeDecay = Math.pow(1 - shakeT, 2);
+        const shakeOffset = Math.sin(shakeElapsed * 0.08) * 0.2 * shakeDecay;
+        setAnimState((prev) => ({
+          ...prev,
+          progress: 1,
+          arcHeight: 0,
+          scale: 1,
+          shakeOffset,
+          phase: 'shake',
+          shakeTime: shakeElapsed,
+        }));
         requestAnimationFrame(animate);
       } else {
-        setSpawnAnim(1);
-        setBounceOffset(0);
+        setAnimState((prev) => ({
+          ...prev,
+          progress: 1,
+          arcHeight: 0,
+          scale: 1,
+          shakeOffset: 0,
+          phase: 'idle',
+        }));
       }
     };
     animate();
   }, [unit.id]);
 
   useFrame((state) => {
-    if (meshRef.current && isCurrentTurn) {
+    if (meshRef.current && isCurrentTurn && animState.phase === 'idle') {
       meshRef.current.position.y = pixelPos.y + Math.sin(state.clock.elapsedTime * 3) * 0.15;
     }
   });
 
-  const scale = spawnAnim;
-  const yOffset = bounceOffset * 2;
-
   if (unit.currentHp <= 0) return null;
+
+  let displayX: number, displayY: number, displayZ: number, displayScale: number;
+
+  if (animState.phase === 'projectile') {
+    displayX = animState.startX + (pixelPos.x - animState.startX) * animState.progress;
+    displayY = animState.startY + (pixelPos.y - animState.startY) * animState.progress;
+    displayZ = 0.3 + animState.arcHeight;
+    displayScale = animState.scale;
+  } else if (animState.phase === 'shake') {
+    displayX = pixelPos.x + animState.shakeOffset;
+    displayY = pixelPos.y + animState.shakeOffset * 0.5;
+    displayZ = 0.3;
+    displayScale = 1 + Math.sin(animState.shakeTime * 0.05) * 0.08 * Math.pow(1 - animState.shakeTime / 300, 2);
+  } else {
+    displayX = pixelPos.x;
+    displayY = pixelPos.y;
+    displayZ = 0.3;
+    displayScale = 1;
+  }
 
   return (
     <group
       ref={meshRef}
-      position={[pixelPos.x, pixelPos.y + yOffset, 0.3]}
-      scale={[scale, scale, scale]}
+      position={[displayX, displayY, displayZ]}
+      scale={[displayScale, displayScale, displayScale]}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -333,7 +398,7 @@ function Scene() {
     return set;
   }, [attackablePositions]);
 
-  const handleCellClick = (position: GridPosition) => {
+  const handleCellClick = useCallback((position: GridPosition) => {
     if (isAnimating) return;
 
     const posKey = `${position.q},${position.r}`;
@@ -364,9 +429,9 @@ function Scene() {
     }
 
     setSelectedUnit(null);
-  };
+  }, [isAnimating, placeMode, units, selectedUnitId, movableSet, attackableSet, addUnit, moveUnit, attackUnit, setSelectedUnit]);
 
-  const handleUnitClick = (unit: Unit) => {
+  const handleUnitClick = useCallback((unit: Unit) => {
     if (isAnimating) return;
 
     if (turn.phase === 'selecting') {
@@ -384,16 +449,15 @@ function Scene() {
     }
 
     setSelectedUnit(unit.id);
-  };
+  }, [isAnimating, turn, attackableSet, attackUnit, selectedUnitId, setSelectedUnit]);
 
-  const handleContextMenu = (e: { clientX: number; clientY: number; preventDefault: () => void }, position: GridPosition) => {
-    e.preventDefault();
+  const handleContextMenu = useCallback((position: GridPosition, clientX: number, clientY: number) => {
     setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
+      x: clientX,
+      y: clientY,
       position,
     });
-  };
+  }, [setContextMenu]);
 
   const currentUnitId = turn.phase !== 'idle' ? turn.turnOrder[turn.currentUnitIndex] : null;
 
@@ -418,7 +482,7 @@ function Scene() {
               units.find((u) => u.id === selectedUnitId)?.position.r === cell.r
             }
             onClick={() => handleCellClick(cell)}
-            onContextMenu={(e) => handleContextMenu(e, cell)}
+            onContextMenu={(clientX, clientY) => handleContextMenu(cell, clientX, clientY)}
           />
         );
       })}
