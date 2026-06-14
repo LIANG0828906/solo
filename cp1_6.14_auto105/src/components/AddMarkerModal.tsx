@@ -1,19 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import type { TravelMarker, MoodType } from '@/types'
+import type { TravelMarker, MoodType, MarkerFormData } from '@/types'
 import { MOOD_EMOJIS, MOOD_LABELS } from '@/types'
 import { reverseGeocode } from '@/services/api'
 import { compressImage } from '@/utils/image'
-
-export interface MarkerFormData {
-  city: string
-  country: string
-  continent: string
-  date: string
-  mood: MoodType
-  photo?: string
-  lat: number
-  lng: number
-}
 
 interface AddMarkerModalProps {
   isOpen: boolean
@@ -47,6 +36,7 @@ export default function AddMarkerModal({
   const [mood, setMood] = useState<MoodType>('happy')
   const [photo, setPhoto] = useState<string | undefined>(undefined)
   const [isLoadingCity, setIsLoadingCity] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isEditMode = !!initialData
@@ -54,6 +44,7 @@ export default function AddMarkerModal({
 
   useEffect(() => {
     if (isOpen) {
+      setPhotoError(null)
       if (initialData) {
         setCity(initialData.city)
         setCountry(initialData.country)
@@ -99,18 +90,37 @@ export default function AddMarkerModal({
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setPhotoError(null)
+
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError('图片大小不能超过2MB，请选择更小的图片')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('请选择图片文件')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
 
     compressImage(file, 800, 0.8)
       .then((dataUrl) => {
         setPhoto(dataUrl)
+        setPhotoError(null)
       })
       .catch((error) => {
-        alert(error.message || '图片处理失败')
+        setPhotoError(error.message || '图片处理失败')
       })
   }
 
   function handleRemovePhoto() {
     setPhoto(undefined)
+    setPhotoError(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -148,7 +158,7 @@ export default function AddMarkerModal({
               className="form-input"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder={isLoadingCity ? '加载中...' : '请输入城市名称'}
+              placeholder={isLoadingCity ? '正在获取城市名称...' : '请输入城市名称'}
               disabled={isLoadingCity}
               required
             />
@@ -218,6 +228,11 @@ export default function AddMarkerModal({
                 <div className="photo-upload-icon">📷</div>
                 <div className="photo-upload-text">点击上传照片（最大2MB）</div>
               </label>
+            )}
+            {photoError && (
+              <div style={{ color: '#E74C3C', fontSize: '0.8rem', marginTop: '4px' }}>
+                {photoError}
+              </div>
             )}
           </div>
 

@@ -1,10 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap } from 'react-leaflet'
-import type { LatLng } from 'leaflet'
 import MarkerLayer from '@/components/MarkerLayer'
 import AddMarkerModal from '@/components/AddMarkerModal'
-import type { TravelMarker, MoodType } from '@/types'
-import { MOOD_EMOJIS, MOOD_LABELS } from '@/types'
+import type { TravelMarker, MarkerFormData } from '@/types'
 import {
   getMarkers,
   addMarker,
@@ -48,15 +46,6 @@ function MapController({ flyToPosition }: MapControllerProps) {
   return null
 }
 
-interface MarkerFormData {
-  city: string
-  country: string
-  continent: string
-  date: string
-  mood: MoodType
-  photo?: string
-}
-
 export default function MapPage() {
   const [markers, setMarkers] = useState<TravelMarker[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -75,9 +64,6 @@ export default function MapPage() {
     lat: number
     lng: number
   } | null>(null)
-  const [selectedMarker, setSelectedMarker] = useState<TravelMarker | null>(
-    null
-  )
 
   useEffect(() => {
     const data = getMarkers()
@@ -91,9 +77,7 @@ export default function MapPage() {
   }, [])
 
   const handleMarkerClick = useCallback(
-    (marker: TravelMarker) => {
-      setSelectedMarker(marker)
-    },
+    (_marker: TravelMarker) => {},
     []
   )
 
@@ -121,7 +105,6 @@ export default function MapPage() {
       setDeletingId(null)
       setMarkerToDelete(null)
       setShowConfirmDelete(false)
-      setSelectedMarker(null)
     }, 300)
   }, [markerToDelete])
 
@@ -132,13 +115,16 @@ export default function MapPage() {
 
   const handleSubmit = useCallback(
     (data: MarkerFormData) => {
-      if (!clickPosition) return
-
       if (editingMarker) {
         const updated = updateMarker(editingMarker.id, {
-          ...data,
-          lat: clickPosition.lat,
-          lng: clickPosition.lng,
+          city: data.city,
+          country: data.country,
+          continent: data.continent,
+          date: data.date,
+          mood: data.mood,
+          photo: data.photo,
+          lat: data.lat,
+          lng: data.lng,
         })
         if (updated) {
           setMarkers((prev) =>
@@ -148,9 +134,14 @@ export default function MapPage() {
         }
       } else {
         const newMarker = addMarker({
-          ...data,
-          lat: clickPosition.lat,
-          lng: clickPosition.lng,
+          city: data.city,
+          country: data.country,
+          continent: data.continent,
+          date: data.date,
+          mood: data.mood,
+          photo: data.photo,
+          lat: data.lat,
+          lng: data.lng,
         })
         setMarkers((prev) => [...prev, newMarker])
         setNewMarkerId(newMarker.id)
@@ -165,7 +156,7 @@ export default function MapPage() {
       setEditingMarker(null)
       setClickPosition(null)
     },
-    [clickPosition, editingMarker]
+    [editingMarker]
   )
 
   const handleCloseModal = useCallback(() => {
@@ -198,7 +189,6 @@ export default function MapPage() {
             onMarkerClick={handleMarkerClick}
             newMarkerId={newMarkerId || undefined}
             deletingId={deletingId || undefined}
-            selectedMarker={selectedMarker}
             onEdit={handleEditMarker}
             onDelete={handleDeleteRequest}
           />

@@ -29,6 +29,17 @@ export interface ReverseGeocodeResult {
   continent: string
 }
 
+export interface MarkerFormData {
+  city: string
+  country: string
+  continent: string
+  date: string
+  mood: MoodType
+  photo?: string
+  lat: number
+  lng: number
+}
+
 export const MOOD_EMOJIS: Record<MoodType, string> = {
   happy: '😊',
   calm: '😌',
