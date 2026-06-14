@@ -1,11 +1,33 @@
-import React from 'react';
-import type { Objective, User } from '../types';
+import React, { useState, useCallback } from 'react';
+import type { Objective, User, KeyResult } from '../types';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { okrApi } from '../api';
+import KeyResultDetail from './KeyResultDetail';
 
 interface OKRBoardProps {
   objectives: Objective[];
   users: User[];
   currentUserId?: string;
   userRole?: 'member' | 'manager';
+  onKRUpdate?: (objectiveId: string, kr: KeyResult) => void;
 }
 
 const getProgressColor = (progress: number) => {
@@ -14,187 +36,185 @@ const getProgressColor = (progress: number) => {
   return 'var(--color-danger)';
 };
 
+const getScoreColor = (score?: number): string => {
+  if (score === undefined) return 'var(--color-primary)';
+  if (score <= 2) return '#ef4444';
+  if (score <= 3) return '#eab308';
+  return '#22c55e';
+};
+
 const getUserById = (users: User[], id: string) => users.find((u) => u.id === id);
 
-const OKRBoard: React.FC<OKRBoardProps> = ({ objectives, users }) => {
-  if (objectives.length === 0) {
-    return (
-      <div className="empty">
-        <div className="empty-title">暂无OKR数据</div>
-        <p>点击右上角"创建OKR"按钮开始创建</p>
-      </div>
-    );
-  }
+interface SortableKRCardProps {
+  kr: KeyResult;
+  users: User[];
+  onClick: () => void;
+  isDragging?: boolean;
+}
+
+const SortableKRCard: React.FC<SortableKRCardProps> = ({ kr, users, onClick }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: kr.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  const owner = getUserById(users, kr.ownerId);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {objectives.map((obj) => {
-        const objOwner = getUserById(users, obj.ownerId);
-        const avgProgress =
-          obj.keyResults.length > 0
-            ? Math.round(
-                obj.keyResults.reduce((sum, kr) => sum + kr.progress, 0) / obj.keyResults.length
-              )
-            : 0;
-
-        return (
-          <div key={obj.id} className="card" style={{ padding: 20 }}>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <h2 style={{ fontSize: 18, fontWeight: 600 }}>{obj.title}</h2>
-                    <span
-                      style={{
-                        padding: '2px 10px',
-                        backgroundColor: 'var(--color-primary)',
-                        color: '#fff',
-                        borderRadius: 12,
-                        fontSize: 12,
-                      }}
-                    >
-                      {obj.quarter}
-                    </span>
-                  </div>
-                  {obj.description && (
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 8 }}>
-                      {obj.description}
-                    </p>
-                  )}
-                  {objOwner && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                      <span className="user-avatar" style={{ fontSize: 16 }}>{objOwner.avatar}</span>
-                      <span>负责人：{objOwner.name}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ minWidth: 140, textAlign: 'right' }}>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-                    整体进度
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: getProgressColor(avgProgress) }}>
-                    {avgProgress}%
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  height: 6,
-                  backgroundColor: 'var(--color-border)',
-                  borderRadius: 3,
-                  marginTop: 12,
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${avgProgress}%`,
-                    backgroundColor: getProgressColor(avgProgress),
-                    borderRadius: 3,
-                    transition: 'width 0.5s ease',
-                  }}
-                />
-              </div>
+    <div
+      ref={setNodeRef}
+      style={{
+        ...style,
+        position: 'relative',
+      }}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        onClick={onClick}
+        style={{
+          padding: '12px 14px',
+          backgroundColor: 'var(--color-surface)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-border)',
+          cursor: isDragging ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+          boxShadow: isDragging
+            ? '0 12px 24px rgba(99, 102, 241, 0.2)'
+            : '0 1px 3px rgba(0,0,0,0.06)',
+          cursor: 'grab',
+          transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease',
+          transform: isDragging ? 'scale(1.03)' : 'scale(1)',
+        }}
+        onMouseEnter={(e) => {
+          if (!isDragging) {
+            (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.02)';
+            (e.currentTarget as HTMLDivElement).style.boxShadow =
+              '0 6px 16px rgba(99, 102, 241, 0.12)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isDragging) {
+            (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+            (e.currentTarget as HTMLDivElement).style.boxShadow =
+              '0 1px 3px rgba(0,0,0,0.06)';
+          }
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, marginBottom: '2px', color: 'var(--color-text)', fontSize: '14px' }}>
+              <span style={{ color: 'var(--color-text-secondary)', marginRight: '6px', fontWeight: 500 }}>
+                #{kr.priority
+              </span>
+              {kr.title}
             </div>
-
+            {kr.description && (
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--color-text-secondary)',
+                marginBottom: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {kr.description}
+              </p>
+            )}
+          </div>
+          {kr.score !== undefined && (
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: 12,
+                padding: '2px 8px',
+                backgroundColor: getScoreColor(kr.score),
+                color: '#fff',
+                borderRadius: '12px',
+                fontSize: '11px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                animation: 'badgeBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
             >
-              {obj.keyResults
-                .sort((a, b) => a.priority - b.priority)
-                .map((kr) => {
-                  const krOwner = getUserById(users, kr.ownerId);
-                  return (
-                    <div
-                      key={kr.id}
-                      style={{
-                        padding: 14,
-                        backgroundColor: 'var(--color-surface-hover)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                            <span style={{ color: 'var(--color-text-secondary)', marginRight: 6 }}>#{kr.priority}</span>
-                            {kr.title}
-                          </div>
-                          {kr.description && (
-                            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
-                              {kr.description}
-                            </p>
-                          )}
-                        </div>
-                        {kr.score !== undefined && (
-                          <div
-                            style={{
-                              padding: '2px 8px',
-                              backgroundColor: 'var(--color-warning)',
-                              color: '#fff',
-                              borderRadius: 8,
-                              fontSize: 12,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            ★ {kr.score}
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                          <span style={{ color: 'var(--color-text-secondary)' }}>进度</span>
-                          <span style={{ fontWeight: 600, color: getProgressColor(kr.progress) }}>
-                            {kr.progress}%
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            height: 4,
-                            backgroundColor: 'var(--color-border)',
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${kr.progress}%`,
-                              backgroundColor: getProgressColor(kr.progress),
-                              borderRadius: 2,
-                              transition: 'width 0.5s ease',
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span className="user-avatar" style={{ fontSize: 14 }}>
-                            {krOwner?.avatar || '👤'}
-                          </span>
-                          <span>{krOwner?.name || '未知'}</span>
-                        </div>
-                        <span>截止：{new Date(kr.deadline).toLocaleDateString('zh-CN')}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+              ★ {kr.score}
             </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>进度</span>
+            <span style={{ fontWeight: 600, color: getProgressColor(kr.progress) }}>
+              {kr.progress}%
+            </span>
           </div>
-        );
-      })}
+          <div
+            style={{
+              height: '4px',
+              backgroundColor: 'var(--color-border)',
+              borderRadius: '2px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${kr.progress}%`,
+                backgroundColor: getScoreColor(kr.score),
+                borderRadius: '2px',
+                transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '14px' }}>
+              {owner?.avatar || '👤'}
+            </span>
+            <span style={{ fontSize: '11px' }}>{owner?.name || '未知'}</span>
+          </div>
+          <span style={{ fontSize: '11px' }}>
+            {new Date(kr.deadline).toLocaleDateString('zh-CN')}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default OKRBoard;
+interface ObjectiveCardProps {
+  objective: Objective;
+  users: User[];
+  onKRClick: (kr: KeyResult) => void;
+  onReorder: (objectiveId: string, newOrder: string[]) => void;
+  activeId: string | null;
+  setActiveId: (id: string | null) => void;
+}
+
+const ObjectiveCard: React.FC<ObjectiveCardProps> = ({
+  objective,
+  users,
+  onKRClick,
+  onReorder,
+  activeId,
+  setActiveId,
+}) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
