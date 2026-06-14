@@ -4,6 +4,7 @@ import session from 'express-session';
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,6 +17,7 @@ interface Member {
   avatar: string;
   points: number;
   isAdmin: boolean;
+  passwordHash?: string;
 }
 
 interface Category {
@@ -49,11 +51,20 @@ interface Reward {
   stock: number;
 }
 
+interface Redemption {
+  id: string;
+  memberId: string;
+  rewardId: string;
+  points: number;
+  createdAt: string;
+}
+
 interface Data {
   members: Member[];
   categories: Category[];
   tasks: Task[];
   rewards: Reward[];
+  redemptions: Redemption[];
 }
 
 const defaultData: Data = {
@@ -90,7 +101,7 @@ const defaultData: Data = {
     {
       id: 'task-2',
       title: '做晚饭',
-      description: '准备三菜一汤',
+      description: '准备三菜一汤，营养均衡',
       category: 'category-2',
       points: 8,
       cycle: 'daily',
@@ -103,7 +114,7 @@ const defaultData: Data = {
     {
       id: 'task-3',
       title: '洗衣服',
-      description: '把脏衣服洗好并晾干',
+      description: '把脏衣服洗好并晾干，分类折叠',
       category: 'category-3',
       points: 6,
       cycle: 'weekly',
@@ -116,7 +127,7 @@ const defaultData: Data = {
     {
       id: 'task-4',
       title: '买 groceries',
-      description: '购买一周的生活用品',
+      description: '购买一周的生活用品和食材',
       category: 'category-4',
       points: 10,
       cycle: 'weekly',
@@ -129,7 +140,7 @@ const defaultData: Data = {
     {
       id: 'task-5',
       title: '洗碗',
-      description: '餐后洗碗并整理厨房',
+      description: '餐后洗碗并整理厨房台面',
       category: 'category-2',
       points: 3,
       cycle: 'daily',
@@ -139,13 +150,55 @@ const defaultData: Data = {
       completedAt: null,
       createdAt: new Date().toISOString(),
     },
+    {
+      id: 'task-6',
+      title: '倒垃圾',
+      description: '把家里的垃圾都带下楼扔掉',
+      category: 'category-1',
+      points: 2,
+      cycle: 'daily',
+      deadline: new Date(Date.now() + 72000000).toISOString(),
+      assigneeId: 'member-4',
+      status: 'pending',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'task-7',
+      title: '整理房间',
+      description: '整理自己的房间，保持干净整洁',
+      category: 'category-1',
+      points: 4,
+      cycle: 'daily',
+      deadline: new Date(Date.now() + 54000000).toISOString(),
+      assigneeId: 'member-3',
+      status: 'pending',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'task-8',
+      title: '浇花',
+      description: '给阳台上的花草浇水',
+      category: 'category-1',
+      points: 2,
+      cycle: 'daily',
+      deadline: new Date(Date.now() + 36000000).toISOString(),
+      assigneeId: 'member-7',
+      status: 'pending',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    },
   ],
   rewards: [
     { id: 'reward-1', name: '看电影', description: '周末全家一起看电影', points: 50, stock: 2 },
     { id: 'reward-2', name: '吃冰淇淋', description: '一支美味的冰淇淋', points: 20, stock: 10 },
-    { id: 'reward-3', name: '新玩具', description: '一个小礼物', points: 100, stock: 3 },
+    { id: 'reward-3', name: '新玩具', description: '一个惊喜小礼物', points: 100, stock: 3 },
     { id: 'reward-4', name: '免做家务', description: '可以免去一次家务任务', points: 80, stock: 5 },
+    { id: 'reward-5', name: '选餐厅', description: '周末出去吃饭你来选', points: 60, stock: 1 },
+    { id: 'reward-6', name: '晚点睡', description: '周末可以晚睡一小时', points: 30, stock: 4 },
   ],
+  redemptions: [],
 };
 
 const dbPath = path.join(__dirname, '..', '..', 'db.json');
@@ -156,6 +209,28 @@ await db.read();
 if (!db.data || !db.data.members || db.data.members.length === 0) {
   db.data = defaultData;
   await db.write();
+}
+
+let dbLock = false;
+
+async function withLock<T>(operation: () => Promise<T>): Promise<T> {
+  let attempts = 0;
+  while (dbLock && attempts < 50) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    attempts++;
+  }
+  if (dbLock) {
+    throw new Error('Database timeout');
+  }
+  dbLock = true;
+  try {
+    await db.read();
+    const result = await operation();
+    await db.write();
+    return result;
+  } finally {
+    dbLock = false;
+  }
 }
 
 const app = express();
@@ -169,7 +244,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use(session({
-  secret: 'family-chores-secret-key',
+  secret: 'family-chores-secret-key-2024',
   resave: false,
   saveUninitialized: true,
   cookie: {
@@ -184,7 +259,8 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/members', async (req, res) => {
   await db.read();
-  res.json(db.data.members);
+  const members = db.data.members.map(({ passwordHash, ...member }) => member);
+  res.json(members);
 });
 
 app.get('/api/members/:id', async (req, res) => {
@@ -193,47 +269,91 @@ app.get('/api/members/:id', async (req, res) => {
   if (!member) {
     return res.status(404).json({ error: 'Member not found' });
   }
-  res.json(member);
+  const { passwordHash, ...memberWithoutPassword } = member;
+  res.json(memberWithoutPassword);
 });
 
 app.post('/api/members', async (req, res) => {
-  const { name, avatar, points = 0, isAdmin = false } = req.body;
+  const { name, avatar, points = 0, isAdmin = false, password } = req.body;
   if (!name || !avatar) {
     return res.status(400).json({ error: 'Name and avatar are required' });
   }
-  const newMember: Member = {
-    id: uuidv4(),
-    name,
-    avatar,
-    points,
-    isAdmin,
-  };
-  await db.read();
-  db.data.members.push(newMember);
-  await db.write();
-  res.status(201).json(newMember);
+
+  try {
+    const newMember: Member = {
+      id: uuidv4(),
+      name,
+      avatar,
+      points,
+      isAdmin,
+    };
+
+    if (password) {
+      newMember.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    await withLock(async () => {
+      db.data.members.push(newMember);
+    });
+
+    const { passwordHash, ...memberWithoutPassword } = newMember;
+    res.status(201).json(memberWithoutPassword);
+  } catch (error) {
+    console.error('Create member error:', error);
+    res.status(500).json({ error: 'Failed to create member' });
+  }
 });
 
 app.put('/api/members/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.members.findIndex(m => m.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Member not found' });
+  try {
+    const result = await withLock(async () => {
+      const index = db.data.members.findIndex(m => m.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Member not found');
+      }
+      const updateData: Partial<Member> = { ...req.body };
+      delete updateData.id;
+      delete updateData.passwordHash;
+
+      if (req.body.password) {
+        updateData.passwordHash = await bcrypt.hash(req.body.password, 10);
+      }
+
+      db.data.members[index] = { ...db.data.members[index], ...updateData, id: req.params.id };
+      return db.data.members[index];
+    });
+
+    const { passwordHash, ...memberWithoutPassword } = result;
+    res.json(memberWithoutPassword);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Member not found') {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    res.status(500).json({ error: 'Failed to update member' });
   }
-  db.data.members[index] = { ...db.data.members[index], ...req.body, id: req.params.id };
-  await db.write();
-  res.json(db.data.members[index]);
 });
 
 app.delete('/api/members/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.members.findIndex(m => m.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Member not found' });
+  try {
+    await withLock(async () => {
+      const index = db.data.members.findIndex(m => m.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Member not found');
+      }
+      db.data.members.splice(index, 1);
+      db.data.tasks.forEach(task => {
+        if (task.assigneeId === req.params.id) {
+          task.assigneeId = null;
+        }
+      });
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Member not found') {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete member' });
   }
-  db.data.members.splice(index, 1);
-  await db.write();
-  res.status(204).send();
 });
 
 app.get('/api/tasks', async (req, res) => {
@@ -255,88 +375,144 @@ app.post('/api/tasks', async (req, res) => {
   if (!title || !category || points === undefined || !cycle || !deadline) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const newTask: Task = {
-    id: uuidv4(),
-    title,
-    description: description || '',
-    category,
-    points: Math.min(10, Math.max(1, points)),
-    cycle,
-    deadline,
-    assigneeId,
-    status: 'pending',
-    completedAt: null,
-    createdAt: new Date().toISOString(),
-  };
-  await db.read();
-  db.data.tasks.push(newTask);
-  await db.write();
-  res.status(201).json(newTask);
+
+  try {
+    const newTask: Task = {
+      id: uuidv4(),
+      title,
+      description: description || '',
+      category,
+      points: Math.min(10, Math.max(1, points)),
+      cycle,
+      deadline,
+      assigneeId,
+      status: 'pending',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    await withLock(async () => {
+      db.data.tasks.push(newTask);
+    });
+
+    res.status(201).json(newTask);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create task' });
+  }
 });
 
 app.put('/api/tasks/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.tasks.findIndex(t => t.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Task not found' });
+  try {
+    const updatedTask = await withLock(async () => {
+      const index = db.data.tasks.findIndex(t => t.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Task not found');
+      }
+      const updateData = { ...req.body };
+      delete updateData.id;
+      delete updateData.createdAt;
+
+      if (updateData.points !== undefined) {
+        updateData.points = Math.min(10, Math.max(1, updateData.points));
+      }
+
+      db.data.tasks[index] = { ...db.data.tasks[index], ...updateData, id: req.params.id };
+      return db.data.tasks[index];
+    });
+    res.json(updatedTask);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Task not found') {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.status(500).json({ error: 'Failed to update task' });
   }
-  db.data.tasks[index] = { ...db.data.tasks[index], ...req.body, id: req.params.id };
-  await db.write();
-  res.json(db.data.tasks[index]);
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.tasks.findIndex(t => t.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Task not found' });
+  try {
+    await withLock(async () => {
+      const index = db.data.tasks.findIndex(t => t.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Task not found');
+      }
+      db.data.tasks.splice(index, 1);
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Task not found') {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete task' });
   }
-  db.data.tasks.splice(index, 1);
-  await db.write();
-  res.status(204).send();
 });
 
 app.post('/api/tasks/:id/complete', async (req, res) => {
-  await db.read();
-  const taskIndex = db.data.tasks.findIndex(t => t.id === req.params.id);
-  if (taskIndex === -1) {
-    return res.status(404).json({ error: 'Task not found' });
-  }
-  const task = db.data.tasks[taskIndex];
-  if (task.status === 'completed') {
-    return res.status(400).json({ error: 'Task already completed' });
-  }
-  if (task.status === 'expired') {
-    return res.status(400).json({ error: 'Task already expired' });
-  }
-  task.status = 'completed';
-  task.completedAt = new Date().toISOString();
-  if (task.assigneeId) {
-    const memberIndex = db.data.members.findIndex(m => m.id === task.assigneeId);
-    if (memberIndex !== -1) {
-      db.data.members[memberIndex].points += task.points;
+  try {
+    const result = await withLock(async () => {
+      const taskIndex = db.data.tasks.findIndex(t => t.id === req.params.id);
+      if (taskIndex === -1) {
+        throw new Error('Task not found');
+      }
+      const task = db.data.tasks[taskIndex];
+      if (task.status === 'completed') {
+        throw new Error('Task already completed');
+      }
+      if (task.status === 'expired') {
+        throw new Error('Task already expired');
+      }
+
+      task.status = 'completed';
+      task.completedAt = new Date().toISOString();
+
+      let updatedMember = null;
+      if (task.assigneeId) {
+        const memberIndex = db.data.members.findIndex(m => m.id === task.assigneeId);
+        if (memberIndex !== -1) {
+          db.data.members[memberIndex].points += task.points;
+          const { passwordHash, ...memberWithoutPassword } = db.data.members[memberIndex];
+          updatedMember = memberWithoutPassword;
+        }
+      }
+
+      return { task, member: updatedMember };
+    });
+
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Task not found') {
+        return res.status(404).json({ error: error.message });
+      }
+      return res.status(400).json({ error: error.message });
     }
+    res.status(500).json({ error: 'Failed to complete task' });
   }
-  await db.write();
-  res.json({ task, member: task.assigneeId ? db.data.members.find(m => m.id === task.assigneeId) : null });
 });
 
 app.put('/api/tasks/:id/assign', async (req, res) => {
   const { memberId } = req.body;
-  await db.read();
-  const taskIndex = db.data.tasks.findIndex(t => t.id === req.params.id);
-  if (taskIndex === -1) {
-    return res.status(404).json({ error: 'Task not found' });
-  }
-  if (memberId !== null) {
-    const memberExists = db.data.members.some(m => m.id === memberId);
-    if (!memberExists) {
-      return res.status(404).json({ error: 'Member not found' });
+  try {
+    const task = await withLock(async () => {
+      const taskIndex = db.data.tasks.findIndex(t => t.id === req.params.id);
+      if (taskIndex === -1) {
+        throw new Error('Task not found');
+      }
+      if (memberId !== null && memberId !== undefined) {
+        const memberExists = db.data.members.some(m => m.id === memberId);
+        if (!memberExists) {
+          throw new Error('Member not found');
+        }
+      }
+      db.data.tasks[taskIndex].assigneeId = memberId ?? null;
+      return db.data.tasks[taskIndex];
+    });
+    res.json(task);
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(404).json({ error: error.message });
     }
+    res.status(500).json({ error: 'Failed to assign task' });
   }
-  db.data.tasks[taskIndex].assigneeId = memberId;
-  await db.write();
-  res.json(db.data.tasks[taskIndex]);
 });
 
 app.get('/api/rewards', async (req, res) => {
@@ -358,39 +534,63 @@ app.post('/api/rewards', async (req, res) => {
   if (!name || points === undefined) {
     return res.status(400).json({ error: 'Name and points are required' });
   }
-  const newReward: Reward = {
-    id: uuidv4(),
-    name,
-    description: description || '',
-    points,
-    stock,
-  };
-  await db.read();
-  db.data.rewards.push(newReward);
-  await db.write();
-  res.status(201).json(newReward);
+
+  try {
+    const newReward: Reward = {
+      id: uuidv4(),
+      name,
+      description: description || '',
+      points,
+      stock,
+    };
+
+    await withLock(async () => {
+      db.data.rewards.push(newReward);
+    });
+
+    res.status(201).json(newReward);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create reward' });
+  }
 });
 
 app.put('/api/rewards/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.rewards.findIndex(r => r.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Reward not found' });
+  try {
+    const updatedReward = await withLock(async () => {
+      const index = db.data.rewards.findIndex(r => r.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Reward not found');
+      }
+      const updateData = { ...req.body };
+      delete updateData.id;
+      db.data.rewards[index] = { ...db.data.rewards[index], ...updateData, id: req.params.id };
+      return db.data.rewards[index];
+    });
+    res.json(updatedReward);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Reward not found') {
+      return res.status(404).json({ error: 'Reward not found' });
+    }
+    res.status(500).json({ error: 'Failed to update reward' });
   }
-  db.data.rewards[index] = { ...db.data.rewards[index], ...req.body, id: req.params.id };
-  await db.write();
-  res.json(db.data.rewards[index]);
 });
 
 app.delete('/api/rewards/:id', async (req, res) => {
-  await db.read();
-  const index = db.data.rewards.findIndex(r => r.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Reward not found' });
+  try {
+    await withLock(async () => {
+      const index = db.data.rewards.findIndex(r => r.id === req.params.id);
+      if (index === -1) {
+        throw new Error('Reward not found');
+      }
+      db.data.rewards.splice(index, 1);
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Reward not found') {
+      return res.status(404).json({ error: 'Reward not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete reward' });
   }
-  db.data.rewards.splice(index, 1);
-  await db.write();
-  res.status(204).send();
 });
 
 app.post('/api/rewards/:id/redeem', async (req, res) => {
@@ -398,27 +598,54 @@ app.post('/api/rewards/:id/redeem', async (req, res) => {
   if (!memberId) {
     return res.status(400).json({ error: 'Member ID is required' });
   }
-  await db.read();
-  const rewardIndex = db.data.rewards.findIndex(r => r.id === req.params.id);
-  if (rewardIndex === -1) {
-    return res.status(404).json({ error: 'Reward not found' });
+
+  try {
+    const result = await withLock(async () => {
+      const rewardIndex = db.data.rewards.findIndex(r => r.id === req.params.id);
+      if (rewardIndex === -1) {
+        throw new Error('Reward not found');
+      }
+      const memberIndex = db.data.members.findIndex(m => m.id === memberId);
+      if (memberIndex === -1) {
+        throw new Error('Member not found');
+      }
+
+      const reward = db.data.rewards[rewardIndex];
+      const member = db.data.members[memberIndex];
+
+      if (reward.stock <= 0) {
+        throw new Error('Reward is out of stock');
+      }
+      if (member.points < reward.points) {
+        throw new Error('Not enough points');
+      }
+
+      member.points -= reward.points;
+      reward.stock -= 1;
+
+      const redemption: Redemption = {
+        id: uuidv4(),
+        memberId,
+        rewardId: reward.id,
+        points: reward.points,
+        createdAt: new Date().toISOString(),
+      };
+      db.data.redemptions.push(redemption);
+
+      const { passwordHash, ...memberWithoutPassword } = member;
+      return { member: memberWithoutPassword, reward, message: 'Redemption successful' };
+    });
+
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Reward not found' || error.message === 'Member not found') {
+        return res.status(404).json({ error: error.message });
+      }
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to redeem reward' });
   }
-  const memberIndex = db.data.members.findIndex(m => m.id === memberId);
-  if (memberIndex === -1) {
-    return res.status(404).json({ error: 'Member not found' });
-  }
-  const reward = db.data.rewards[rewardIndex];
-  const member = db.data.members[memberIndex];
-  if (reward.stock <= 0) {
-    return res.status(400).json({ error: 'Reward is out of stock' });
-  }
-  if (member.points < reward.points) {
-    return res.status(400).json({ error: 'Not enough points' });
-  }
-  member.points -= reward.points;
-  reward.stock -= 1;
-  await db.write();
-  res.json({ member, reward, message: 'Redemption successful' });
 });
 
 app.get('/api/report/weekly', async (req, res) => {
