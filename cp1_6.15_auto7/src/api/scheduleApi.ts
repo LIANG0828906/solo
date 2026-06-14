@@ -104,7 +104,7 @@ export async function fetchSchedule(): Promise<ScheduleEntry[]> {
   return res.json();
 }
 
-export async function autoSchedule(): Promise<{ schedule: ScheduleEntry[]; conflicts: string[] }> {
+export async function autoSchedule(): Promise<{ schedule: ScheduleEntry[]; conflicts: string[]; validation: { valid: boolean; errors: string[] } }> {
   const res = await fetch(`${API_BASE}/schedule/auto`, { method: 'POST' });
   return res.json();
 }

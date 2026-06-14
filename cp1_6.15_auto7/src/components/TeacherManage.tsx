@@ -19,22 +19,34 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
 
 function normalizeSlot(slot: TimeSlot): TimeSlot[] {
   const result: TimeSlot[] = [];
-  const validDay = Math.max(0, Math.min(4, slot.day));
-  const validStart = Math.max(0, Math.min(TOTAL_SLOTS, slot.startSlot));
-  let validEnd = Math.max(0, Math.min(TOTAL_SLOTS, slot.endSlot));
 
-  if (validEnd <= validStart) {
+  if (slot.endSlot <= slot.startSlot) {
     return result;
   }
 
-  if (slot.startSlot < 0 || slot.endSlot > TOTAL_SLOTS) {
-    const clampedStart = Math.max(0, slot.startSlot);
-    const clampedEnd = Math.min(TOTAL_SLOTS, slot.endSlot);
+  let remainingStart = slot.startSlot;
+  let remainingEnd = slot.endSlot;
+  let currentDay = slot.day;
+
+  while (remainingEnd > remainingStart && currentDay < 5) {
+    const clampedStart = Math.max(0, remainingStart);
+    const clampedEnd = Math.min(TOTAL_SLOTS, remainingEnd);
+
     if (clampedEnd > clampedStart) {
-      result.push({ day: validDay, startSlot: clampedStart, endSlot: clampedEnd });
+      result.push({
+        day: Math.max(0, Math.min(4, currentDay)),
+        startSlot: clampedStart,
+        endSlot: clampedEnd,
+      });
     }
-  } else {
-    result.push({ day: validDay, startSlot: validStart, endSlot: validEnd });
+
+    if (remainingEnd > TOTAL_SLOTS) {
+      remainingStart = 0;
+      remainingEnd = remainingEnd - TOTAL_SLOTS;
+      currentDay++;
+    } else {
+      break;
+    }
   }
 
   return result;
