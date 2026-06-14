@@ -30,17 +30,15 @@ onMounted(() => {
 
     energyStore.generateMockData()
     building3D.updateFloorData(energyStore.getCurrentFloorData)
-    const win: any = window
-    win.__energyStore = energyStore
+    building3D.setFloorHighlight(energyStore.selectedFloor)
   }
 })
 
 watch(
-  () => [energyStore.currentDateIndex, energyStore.selectedFloor],
+  () => energyStore.currentDateIndex,
   () => {
     if (building3D) {
       building3D.updateFloorData(energyStore.getCurrentFloorData)
-      building3D.setFloorHighlight(energyStore.selectedFloor)
     }
   }
 )

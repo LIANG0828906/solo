@@ -31,11 +31,17 @@ class EventEmitter {
 interface EnergyBarGroup {
   mesh: THREE.Mesh
   topDot: THREE.Mesh
+  valueLabel: CSS2DObject
+  valueLabelElement: HTMLDivElement
   direction: Direction
   floor: number
   currentHeight: number
   targetHeight: number
   baseScale: THREE.Vector3
+  originalHeight: number
+  baseX: number
+  baseZ: number
+  slabY: number
 }
 
 export default class Building3D extends EventEmitter {
@@ -359,29 +365,33 @@ export default class Building3D extends EventEmitter {
   }
 
   private createEnergyBars(slabY: number, floorNum: number) {
-    const w = this.buildingWidth / 2 + 1.8
-    const d = this.buildingDepth / 2 + 1.8
+    const hw = this.buildingWidth / 2
+    const hd = this.buildingDepth / 2
+    const barOffset = 1.5
 
-    const positions: Record<Direction, { x: number; z: number; rot: number }> = {
-      north: { x: 0, z: d, rot: 0 },
-      south: { x: 0, z: -d, rot: Math.PI },
-      east: { x: w, z: 0, rot: -Math.PI / 2 },
-      west: { x: -w, z: 0, rot: Math.PI / 2 }
+    const configs: Record<Direction, { x: number; z: number; barW: number; barD: number }> = {
+      north: { x: 0, z: hd + barOffset, barW: 5, barD: 1.6 },
+      south: { x: 0, z: -hd - barOffset, barW: 5, barD: 1.6 },
+      east: { x: hw + barOffset, z: 0, barW: 1.6, barD: 5 },
+      west: { x: -hw - barOffset, z: 0, barW: 1.6, barD: 5 }
     }
 
     DIRECTION_ORDER.forEach((dir) => {
-      const p = positions[dir]
-      const group = this.createEnergyBar(floorNum, dir, slabY, p)
+      const cfg = configs[dir]
+      const group = this.createEnergyBar(floorNum, dir, slabY, cfg)
       this.energyBars.push(group)
     })
   }
 
-  private createEnergyBar(floor: number, direction: Direction, baseY: number, pos: { x: number; z: number; rot: number }): EnergyBarGroup {
-    const barWidth = 2.2
-    const barDepth = 1.2
+  private createEnergyBar(
+    floor: number,
+    direction: Direction,
+    slabY: number,
+    cfg: { x: number; z: number; barW: number; barD: number }
+  ): EnergyBarGroup {
     const initialHeight = 0.5
 
-    const geo = new THREE.BoxGeometry(barWidth, initialHeight, barDepth)
+    const geo = new THREE.BoxGeometry(cfg.barW, initialHeight, cfg.barD)
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0x1e88e5,
       metalness: 0.3,
@@ -394,7 +404,7 @@ export default class Building3D extends EventEmitter {
       clearcoatRoughness: 0.15
     })
     const mesh = new THREE.Mesh(geo, mat)
-    mesh.position.set(pos.x, baseY + initialHeight / 2, pos.z)
+    mesh.position.set(cfg.x, slabY + initialHeight / 2, cfg.z)
     mesh.castShadow = true
     mesh.receiveShadow = true
     mesh.userData.floor = floor
@@ -402,31 +412,60 @@ export default class Building3D extends EventEmitter {
     mesh.userData.isEnergyBar = true
     this.buildingFacade?.add(mesh)
 
-    const dotGeo = new THREE.SphereGeometry(0.25, 24, 24)
+    const dotGeo = new THREE.SphereGeometry(0.3, 24, 24)
     const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
     const topDot = new THREE.Mesh(dotGeo, dotMat)
-    topDot.position.set(pos.x, baseY + initialHeight + 0.25, pos.z)
+    topDot.position.set(cfg.x, slabY + initialHeight + 0.3, cfg.z)
     this.buildingFacade?.add(topDot)
 
-    const glowGeo = new THREE.SphereGeometry(0.45, 16, 16)
+    const glowGeo = new THREE.SphereGeometry(0.55, 16, 16)
     const glowMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.25
+      opacity: 0.3
     })
     const glow = new THREE.Mesh(glowGeo, glowMat)
     glow.position.copy(topDot.position)
     this.buildingFacade?.add(glow)
     topDot.userData.glow = glow
 
+    const labelEl = document.createElement('div')
+    labelEl.className = 'bar-value-label'
+    labelEl.textContent = '0'
+    labelEl.style.cssText = `
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      text-shadow: 0 0 8px #4a9eff, 0 0 16px rgba(74, 158, 255, 0.6);
+      background: rgba(10, 20, 50, 0.75);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 3px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(120, 180, 255, 0.45);
+      white-space: nowrap;
+      pointer-events: none;
+      letter-spacing: 0.3px;
+    `
+    const valueLabel = new CSS2DObject(labelEl)
+    valueLabel.position.set(cfg.x, slabY + initialHeight + 1.8, cfg.z)
+    this.buildingFacade?.add(valueLabel)
+
     return {
       mesh,
       topDot,
+      valueLabel,
+      valueLabelElement: labelEl,
       direction,
       floor,
       currentHeight: initialHeight,
       targetHeight: initialHeight,
-      baseScale: new THREE.Vector3(1, 1, 1)
+      baseScale: new THREE.Vector3(1, 1, 1),
+      originalHeight: initialHeight,
+      baseX: cfg.x,
+      baseZ: cfg.z,
+      slabY
     }
   }
 
@@ -689,23 +728,31 @@ export default class Building3D extends EventEmitter {
     const newHeight = Math.max(0.4, normalized * this.barMaxHeight)
     const colorHex = this.colorScale(normalized)
     const color = new THREE.Color(colorHex)
-
-    const obj = { h: bar.currentHeight }
     const duration = 300
 
-    new TWEEN.Tween(obj)
-      .to({ h: newHeight }, duration)
+    const state = {
+      h: bar.currentHeight,
+      valueDisplay: parseInt(bar.valueLabelElement.textContent || '0') || 0
+    }
+
+    new TWEEN.Tween(state)
+      .to({ h: newHeight, valueDisplay: value }, duration)
       .easing(TWEEN.Easing.Quadratic.Out)
       .onUpdate(() => {
-        bar.currentHeight = obj.h
-        bar.mesh.scale.y = obj.h / Math.max(bar.mesh.userData.originalHeight || 0.5, 0.01)
+        bar.currentHeight = state.h
         const geo = bar.mesh.geometry as THREE.BoxGeometry
         const originalH = geo.parameters.height
-        bar.mesh.scale.y = obj.h / originalH
-        bar.mesh.position.y = slabY + obj.h / 2
-        bar.topDot.position.y = slabY + obj.h + 0.25
-        const glow = bar.topDot.userData.glow
-        if (glow) glow.position.y = slabY + obj.h + 0.25
+        bar.mesh.scale.y = state.h / originalH
+        bar.mesh.position.y = slabY + state.h / 2
+
+        bar.topDot.position.y = slabY + state.h + 0.3
+        const glow = bar.topDot.userData.glow as THREE.Mesh | undefined
+        if (glow) glow.position.y = slabY + state.h + 0.3
+
+        bar.valueLabel.position.y = slabY + state.h + 2.0
+        bar.valueLabel.position.x = bar.baseX
+        bar.valueLabel.position.z = bar.baseZ
+        bar.valueLabelElement.textContent = `${Math.round(state.valueDisplay)} kWh`
       })
       .start()
 
@@ -717,21 +764,28 @@ export default class Building3D extends EventEmitter {
       .easing(TWEEN.Easing.Quadratic.Out)
       .onUpdate(() => {
         mat.color.copy(curColor).lerp(color, colorTween.t)
-        mat.emissive.copy(color).multiplyScalar(0.15 + colorTween.t * 0.1)
+        mat.emissive.copy(color).multiplyScalar(0.15 + colorTween.t * 0.15)
       })
       .start()
 
     const dotMat = bar.topDot.material as THREE.MeshBasicMaterial
     const curDotColor = dotMat.color.clone()
+    const glow = bar.topDot.userData.glow as THREE.Mesh | undefined
+    const glowMat = glow?.material as THREE.MeshBasicMaterial | undefined
+    const curGlowColor = glowMat?.color.clone()
     new TWEEN.Tween({ t: 0 })
       .to({ t: 1 }, duration)
       .easing(TWEEN.Easing.Quadratic.Out)
       .onUpdate(({ t }) => {
         dotMat.color.copy(curDotColor).lerp(color, t)
+        if (glowMat && curGlowColor) {
+          glowMat.color.copy(curGlowColor).lerp(color, t)
+        }
       })
       .start()
 
     bar.targetHeight = newHeight
+    bar.slabY = slabY
   }
 
   setFloorHighlight(floor: number) {
@@ -768,12 +822,16 @@ export default class Building3D extends EventEmitter {
       const glow = bar.topDot.userData.glow
       if (glow) {
         const glowMat = glow.material as THREE.MeshBasicMaterial
-        const glowTarget = floor === 0 || bar.floor === floor ? 0.25 : 0.02
+        const glowTarget = floor === 0 || bar.floor === floor ? 0.3 : 0.02
         new TWEEN.Tween(glowMat)
           .to({ opacity: glowTarget }, 300)
           .easing(TWEEN.Easing.Quadratic.Out)
           .start()
       }
+
+      const labelTarget = floor === 0 || bar.floor === floor ? 1 : 0.08
+      bar.valueLabelElement.style.transition = 'opacity 0.3s ease-out'
+      bar.valueLabelElement.style.opacity = String(labelTarget)
     })
 
     if (this.buildingFacade) {
@@ -832,15 +890,26 @@ export default class Building3D extends EventEmitter {
 
     this.hideInfoCard()
 
+    this.energyBars.forEach((bar) => {
+      bar.valueLabelElement.remove()
+      if (bar.valueLabel.parent) {
+        bar.valueLabel.parent.remove(bar.valueLabel)
+      }
+    })
+
     this.scene.traverse((obj) => {
-      if ((obj as THREE.Mesh).isMesh) {
-        const mesh = obj as THREE.Mesh
+      const mesh = obj as THREE.Mesh
+      if (mesh.isMesh) {
         mesh.geometry?.dispose()
         if (Array.isArray(mesh.material)) {
           mesh.material.forEach((m) => m.dispose())
         } else {
           mesh.material?.dispose()
         }
+      }
+      const cssObj = obj as CSS2DObject
+      if (cssObj.isCSS2DObject && cssObj.element) {
+        cssObj.element.remove()
       }
     })
 
