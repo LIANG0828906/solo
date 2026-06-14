@@ -129,15 +129,15 @@ body {
   z-index: 999;
   padding: 16px;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-.modal-overlay.modal-opening {
+.modal-overlay.modal-visible {
   opacity: 1;
-}
-
-.modal-overlay.modal-closing {
-  opacity: 0;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .modal-content {
@@ -155,14 +155,9 @@ body {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.modal-overlay.modal-opening .modal-content {
+.modal-overlay.modal-visible .modal-content {
   transform: scale(1) translateY(0);
   opacity: 1;
-}
-
-.modal-overlay.modal-closing .modal-content {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
 }
 
 .modal-header {
@@ -200,6 +195,7 @@ body {
   background-color: var(--primary-bg);
   color: var(--primary-dark);
   transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--primary-bg), #dff5e8);
 }
 
 .modal-body {

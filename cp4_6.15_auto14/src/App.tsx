@@ -85,7 +85,7 @@ function App() {
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [showSuccess, setShowSuccess] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [modalState, setModalState] = useState<'hidden' | 'visible' | 'closing'>('hidden');
+  const [modalVisible, setModalVisible] = useState(false);
 
   const communityGroups = useMemo(() => groupOrdersByCommunity(orders), [orders]);
 
@@ -125,14 +125,11 @@ function App() {
     }
 
     setNotifications((prev) => [...newNotifications, ...prev]);
-    setModalState('visible');
+    setModalVisible(true);
   }, [orders]);
 
   const closeNotificationModal = useCallback(() => {
-    setModalState('closing');
-    setTimeout(() => {
-      setModalState('hidden');
-    }, 300);
+    setModalVisible(false);
   }, []);
 
   return (
@@ -163,42 +160,40 @@ function App() {
         </div>
       </div>
 
-      {modalState !== 'hidden' && (
-        <div
-          className={`modal-overlay ${modalState === 'closing' ? 'modal-closing' : 'modal-opening'}`}
-          onClick={closeNotificationModal}
-        >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>到货通知已发送</h2>
-              <button className="modal-close" onClick={closeNotificationModal}>
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              {notifications.length === 0 ? (
-                <p className="empty-text">暂无通知记录</p>
-              ) : (
-                <ul className="notification-list">
-                  {notifications.map((notif) => (
-                    <li key={notif.id} className="notification-item">
-                      <div className="notification-header">
-                        <span className="notification-community">{notif.community}</span>
-                        <span className="notification-name">{notif.customerName}</span>
-                        <span className="notification-phone">{notif.phone}</span>
-                      </div>
-                      <p className="notification-message">{notif.message}</p>
-                      <span className="notification-time">
-                        {new Date(notif.sentAt).toLocaleTimeString('zh-CN')}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+      <div
+        className={`modal-overlay ${modalVisible ? 'modal-visible' : ''}`}
+        onClick={closeNotificationModal}
+      >
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>到货通知已发送</h2>
+            <button className="modal-close" onClick={closeNotificationModal}>
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            {notifications.length === 0 ? (
+              <p className="empty-text">暂无通知记录</p>
+            ) : (
+              <ul className="notification-list">
+                {notifications.map((notif) => (
+                  <li key={notif.id} className="notification-item">
+                    <div className="notification-header">
+                      <span className="notification-community">{notif.community}</span>
+                      <span className="notification-name">{notif.customerName}</span>
+                      <span className="notification-phone">{notif.phone}</span>
+                    </div>
+                    <p className="notification-message">{notif.message}</p>
+                    <span className="notification-time">
+                      {new Date(notif.sentAt).toLocaleTimeString('zh-CN')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
