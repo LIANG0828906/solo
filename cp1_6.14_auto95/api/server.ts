@@ -1,34 +1,34 @@
-/**
- * local server entry file, for local development
- */
-import app from './app.js';
+import app from './app.js'
+import { initDb } from './db/index.js'
+import { startCronJobs } from './services/overdue.js'
 
-/**
- * start server with port
- */
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001
 
-const server = app.listen(PORT, () => {
-  console.log(`Server ready on port ${PORT}`);
-});
+async function start() {
+  await initDb()
+  console.log('数据库初始化完成')
 
-/**
- * close server
- */
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+  startCronJobs()
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+  const server = app.listen(PORT, () => {
+    console.log(`服务已启动：http://localhost:${PORT}`)
+  })
 
-export default app;
+  process.on('SIGTERM', () => {
+    console.log('收到SIGTERM信号')
+    server.close(() => {
+      console.log('服务已关闭')
+      process.exit(0)
+    })
+  })
+
+  process.on('SIGINT', () => {
+    console.log('收到SIGINT信号')
+    server.close(() => {
+      console.log('服务已关闭')
+      process.exit(0)
+    })
+  })
+}
+
+start()

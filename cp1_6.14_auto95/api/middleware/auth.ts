@@ -24,7 +24,15 @@ export function authenticateToken(
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
     req.user = decoded
     next()
-  } catch {
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        success: false,
+        code: 'TOKEN_EXPIRED',
+        message: '访问令牌已过期',
+      })
+      return
+    }
     res.status(403).json({
       success: false,
       message: '无效的访问令牌',
