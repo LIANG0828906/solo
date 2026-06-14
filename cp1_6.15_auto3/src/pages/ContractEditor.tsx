@@ -27,6 +27,9 @@ interface DiffBlock {
   addedCount: number;
   removedCount: number;
   equalCount: number;
+  groupId: number;
+  childIndices: number[];
+  parentIndex: number | null;
 }
 
 const statusConfig: Record<ApprovalStatus, { label: string; className: string; icon: string }> = {
@@ -447,8 +450,8 @@ const ContractEditor: React.FC = () => {
   }, [oldContent, newContent]);
 
   const diffBlocks = useMemo((): DiffBlock[] => {
-    const blocks: DiffBlock[] = [];
-    if (diffLines.length === 0) return blocks;
+    const blocks: Omit<DiffBlock, 'groupId' | 'childIndices' | 'parentIndex'>[] = [];
+    if (diffLines.length === 0) return [];
 
     let currentStart = 0;
     let currentIsDiff = diffLines[0].type !== 'equal';
@@ -500,25 +503,112 @@ const ContractEditor: React.FC = () => {
       equalCount,
     });
 
-    return blocks;
+    let currentGroupId = 0;
+    let lastWasDiff = false;
+    const result: DiffBlock[] = blocks.map((b, idx) => ({
+      ...b,
+      groupId: 0,
+      childIndices: [],
+      parentIndex: null,
+    }));
+
+    for (let i = 0; i < result.length; i++) {
+      if (result[i].isDiff) {
+        if (!lastWasDiff) {
+          currentGroupId++;
+        }
+        result[i].groupId = currentGroupId;
+        lastWasDiff = true;
+      } else {
+        lastWasDiff = false;
+      }
+    }
+
+    const groupMap: Map<number, number[]> = new Map();
+    result.forEach((b, idx) => {
+      if (b.groupId > 0) {
+        if (!groupMap.has(b.groupId)) {
+          groupMap.set(b.groupId, []);
+        }
+        groupMap.get(b.groupId)!.push(idx);
+      }
+    });
+
+    groupMap.forEach((indices) => {
+      if (indices.length > 1) {
+        const parentIdx = indices[0];
+        for (let j = 1; j < indices.length; j++) {
+          result[indices[j]].parentIndex = parentIdx;
+          if (!result[parentIdx].childIndices.includes(indices[j])) {
+            result[parentIdx].childIndices.push(indices[j]);
+          }
+        }
+      }
+    });
+
+    return result;
   }, [diffLines]);
 
-  const toggleBlockCollapse = useCallback((blockIndex: number) => {
-    setCollapsedBlocks((prev) => {
-      const next = new Set(prev);
-      if (next.has(blockIndex)) {
-        next.delete(blockIndex);
-      } else {
-        next.add(blockIndex);
+  const collectRecursiveBlockIndices = useCallback(
+    (startIndex: number, blocks: DiffBlock[]): number[] => {
+      const result: number[] = [];
+      const visited = new Set<number>();
+      const queue = [startIndex];
+      while (queue.length > 0) {
+        const idx = queue.shift()!;
+        if (visited.has(idx)) continue;
+        visited.add(idx);
+        result.push(idx);
+        const block = blocks[idx];
+        if (block) {
+          if (block.parentIndex !== null && !visited.has(block.parentIndex)) {
+            queue.push(block.parentIndex);
+          }
+          for (const childIdx of block.childIndices) {
+            if (!visited.has(childIdx)) {
+              queue.push(childIdx);
+            }
+          }
+          if (block.groupId > 0) {
+            for (let i = 0; i < blocks.length; i++) {
+              if (blocks[i].groupId === block.groupId && !visited.has(i)) {
+                queue.push(i);
+              }
+            }
+          }
+        }
       }
-      return next;
-    });
-  }, []);
+      return result;
+    },
+    []
+  );
+
+  const toggleBlockCollapse = useCallback(
+    (blockIndex: number) => {
+      setCollapsedBlocks((prev) => {
+        const next = new Set(prev);
+        const allRelatedIndices = collectRecursiveBlockIndices(blockIndex, diffBlocks);
+        const blockCurrentlyCollapsed = next.has(blockIndex);
+        for (const idx of allRelatedIndices) {
+          if (blockCurrentlyCollapsed) {
+            next.delete(idx);
+          } else {
+            next.add(idx);
+          }
+        }
+        return next;
+      });
+    },
+    [diffBlocks, collectRecursiveBlockIndices]
+  );
 
   const collapseAllDiff = useCallback(() => {
-    const indices = diffBlocks
-      .map((b, i) => (b.isDiff ? i : -1))
-      .filter((i) => i >= 0);
+    const indices: number[] = [];
+    for (let i = 0; i < diffBlocks.length; i++) {
+      if (diffBlocks[i].isDiff) {
+        indices.push(i);
+      }
+    }
     setCollapsedBlocks(new Set(indices));
   }, [diffBlocks]);
 

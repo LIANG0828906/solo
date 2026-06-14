@@ -32,6 +32,7 @@ export interface Contract {
 
 class ContractModel {
   private contract: Contract;
+  private commentIndex: Map<string, Comment> = new Map();
 
   constructor() {
     this.contract = {
@@ -104,6 +105,19 @@ class ContractModel {
     };
   }
 
+  private rebuildCommentIndex(): void {
+    this.commentIndex.clear();
+    const traverse = (comments: Comment[]): void => {
+      for (const comment of comments) {
+        this.commentIndex.set(comment.id, comment);
+        if (comment.replies.length > 0) {
+          traverse(comment.replies);
+        }
+      }
+    };
+    traverse(this.contract.comments);
+  }
+
   getContract(): Contract {
     return this.contract;
   }
@@ -134,29 +148,34 @@ class ContractModel {
     };
 
     if (input.parentId) {
-      const addReply = (comments: Comment[]): Comment | null => {
-        for (const comment of comments) {
-          if (comment.id === input.parentId) {
-            comment.replies.push(newComment);
-            return newComment;
-          }
-          if (comment.replies.length > 0) {
-            const result = addReply(comment.replies);
-            if (result) return result;
-          }
-        }
-        return null;
-      };
-      const result = addReply(this.contract.comments);
-      if (result) return result;
+      if (this.commentIndex.size === 0) {
+        this.rebuildCommentIndex();
+      }
+      const parent = this.commentIndex.get(input.parentId);
+      if (parent) {
+        parent.replies.push(newComment);
+        this.commentIndex.set(newComment.id, newComment);
+        return newComment;
+      }
     }
 
     this.contract.comments.push(newComment);
+    this.commentIndex.set(newComment.id, newComment);
     return newComment;
   }
 
   getComments(): Comment[] {
+    if (this.commentIndex.size === 0 && this.contract.comments.length > 0) {
+      this.rebuildCommentIndex();
+    }
     return this.contract.comments;
+  }
+
+  getCommentById(id: string): Comment | undefined {
+    if (this.commentIndex.size === 0) {
+      this.rebuildCommentIndex();
+    }
+    return this.commentIndex.get(id);
   }
 
   getApprovalStatus(): ApprovalStatus {
@@ -169,7 +188,13 @@ class ContractModel {
   }
 
   getHistory(): HistoryRecord[] {
-    return [...this.contract.history].sort((a, b) => b.timestamp - a.timestamp);
+    const sorted = [...this.contract.history].sort((a, b) => {
+      if (b.timestamp !== a.timestamp) {
+        return b.timestamp - a.timestamp;
+      }
+      return b.id.localeCompare(a.id);
+    });
+    return sorted;
   }
 
   addHistory(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord[] {

@@ -4,14 +4,19 @@ import { Server as HttpServer } from 'http';
 export type WSEventType = 'status_updated' | 'comment_added' | 'history_updated' | 'version_uploaded';
 
 export interface WSMessage {
-  type: WSEventType;
+  type: string;
   payload: unknown;
   timestamp: number;
 }
 
+interface WSClientState {
+  subscribed: boolean;
+  connectedAt: number;
+}
+
 class WSManager {
   private wss: WebSocketServer | null = null;
-  private clients: Set<WebSocket> = new Set();
+  private clients: Map<WebSocket, WSClientState> = new Map();
 
   init(server: HttpServer): void {
     if (this.wss) {
@@ -23,19 +28,66 @@ class WSManager {
 
     this.wss.on('connection', (ws: WebSocket) => {
       console.log('New WebSocket client connected');
-      this.clients.add(ws);
+      
+      const clientState: WSClientState = {
+        subscribed: false,
+        connectedAt: Date.now(),
+      };
+      this.clients.set(ws, clientState);
 
       ws.on('message', (data: string) => {
         try {
           const message = JSON.parse(data.toString());
           console.log('Received WebSocket message:', message);
+
+          if (message.type === 'subscribe') {
+            clientState.subscribed = true;
+            const state = this.clients.get(ws);
+            if (state) {
+              state.subscribed = true;
+            }
+            const ackMessage = {
+              type: 'subscribe_ack',
+              payload: {
+                success: true,
+                subscribedAt: Date.now(),
+                events: ['status_updated', 'comment_added', 'history_updated', 'version_uploaded'],
+              },
+              timestamp: Date.now(),
+            };
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(ackMessage), (err) => {
+                if (err) {
+                  console.error('Failed to send subscribe_ack:', err);
+                }
+              });
+            }
+            console.log('Client subscribed to events successfully');
+          } else if (message.type === 'ping') {
+            const pongMessage = {
+              type: 'pong',
+              payload: { serverTime: Date.now() },
+              timestamp: Date.now(),
+            };
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(pongMessage));
+            }
+          }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);
+          const errorMessage = {
+            type: 'error',
+            payload: { code: 'PARSE_ERROR', message: 'Invalid JSON' },
+            timestamp: Date.now(),
+          };
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(errorMessage));
+          }
         }
       });
 
-      ws.on('close', () => {
-        console.log('WebSocket client disconnected');
+      ws.on('close', (code, reason) => {
+        console.log(`WebSocket client disconnected (code=${code})`);
         this.clients.delete(ws);
       });
 
@@ -44,13 +96,22 @@ class WSManager {
         this.clients.delete(ws);
       });
 
-      ws.send(
-        JSON.stringify({
-          type: 'connected',
-          payload: { message: 'Connected to contract approval server' },
-          timestamp: Date.now(),
-        })
-      );
+      const connectedMessage = {
+        type: 'connected',
+        payload: {
+          message: 'Connected to contract approval server',
+          serverTime: Date.now(),
+          protocol: 'Please send { type: "subscribe" } to start receiving events',
+        },
+        timestamp: Date.now(),
+      };
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(connectedMessage), (err) => {
+          if (err) {
+            console.error('Failed to send connected message:', err);
+          }
+        });
+      }
     });
 
     console.log('WebSocket server initialized on /ws path');
@@ -70,23 +131,36 @@ class WSManager {
 
     const messageStr = JSON.stringify(message);
     let sentCount = 0;
+    let skippedCount = 0;
 
-    this.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
+    this.clients.forEach((state, client) => {
+      if (client.readyState === WebSocket.OPEN && state.subscribed) {
         client.send(messageStr, (err) => {
           if (err) {
             console.error('Failed to send WebSocket message:', err);
           }
         });
         sentCount++;
+      } else {
+        skippedCount++;
       }
     });
 
-    console.log(`Broadcasted "${type}" to ${sentCount} client(s)`);
+    console.log(
+      `Broadcasted "${type}" to ${sentCount} subscribed client(s) (skipped ${skippedCount} unsubscribed)`
+    );
   }
 
   getClientCount(): number {
     return this.clients.size;
+  }
+
+  getSubscribedCount(): number {
+    let count = 0;
+    this.clients.forEach((state) => {
+      if (state.subscribed) count++;
+    });
+    return count;
   }
 }
 

@@ -12,12 +12,26 @@ const MAX_PORT_TRIES = 10;
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
-    server.once('error', () => resolve(false));
+    let resolved = false;
+    const finish = (available: boolean): void => {
+      if (resolved) return;
+      resolved = true;
+      resolve(available);
+    };
+    server.once('error', () => finish(false));
     server.once('listening', () => {
-      server.close();
-      resolve(true);
+      server.close((err) => {
+        if (err) {
+          console.warn(`Warning: Failed to close test server on port ${port}:`, err.message);
+        }
+        setTimeout(() => finish(true), 50);
+      });
     });
-    server.listen(port, '127.0.0.1');
+    try {
+      server.listen(port);
+    } catch (err) {
+      finish(false);
+    }
   });
 }
 
