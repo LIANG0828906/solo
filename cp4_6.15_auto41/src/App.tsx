@@ -5,11 +5,12 @@ import { FavoritesProvider, useFavorites } from '@/context/FavoritesContext';
 import MapContainer from '@/modules/map/MapContainer';
 import StallList from '@/modules/market/stallList';
 import StallDetail from '@/modules/market/stallDetail';
+import { Category, CATEGORY_LABELS } from '@/types';
 
 function Header() {
   const { theme } = useTheme();
   const { favorites } = useFavorites();
-  const { stalls } = useStallService();
+  const { stalls, activeCategories, toggleCategory } = useStallService();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -21,6 +22,15 @@ function Header() {
   }, []);
 
   const openStalls = stalls.filter(s => s.isOpen).length;
+  const totalStalls = stalls.length;
+
+  const categories: { key: Category; icon: string }[] = [
+    { key: 'handcraft', icon: '🎨' },
+    { key: 'books', icon: '📚' },
+    { key: 'clothing', icon: '👕' },
+    { key: 'electronics', icon: '💻' },
+    { key: 'food', icon: '🍪' }
+  ];
 
   return (
     <header
@@ -28,12 +38,19 @@ function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: scrolled ? 'rgba(255, 248, 231, 0.98)' : 'rgba(255, 248, 231, 0.95)',
-        backdropFilter: 'blur(10px)',
-        padding: '14px 20px',
+        background: scrolled
+          ? 'rgba(255, 248, 231, 0.98)'
+          : 'rgba(255, 248, 231, 0.95)',
+        backdropFilter: scrolled ? 'blur(12px)' : 'blur(8px)',
+        WebkitBackdropFilter: scrolled ? 'blur(12px)' : 'blur(8px)',
+        padding: '12px 16px',
         transition: 'all 0.3s ease',
-        boxShadow: scrolled ? '0 2px 12px rgba(139, 115, 85, 0.15)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(139, 115, 85, 0.1)' : 'none'
+        boxShadow: scrolled
+          ? '0 2px 16px rgba(139, 115, 85, 0.12)'
+          : 'none',
+        borderBottom: scrolled
+          ? '1px solid rgba(139, 115, 85, 0.08)'
+          : 'none'
       }}
     >
       <div style={{
@@ -49,33 +66,54 @@ function Header() {
           gap: '12px'
         }}>
           <div style={{
-            width: '44px',
-            height: '44px',
+            width: '42px',
+            height: '42px',
             borderRadius: '14px',
             background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: `0 4px 12px rgba(139, 115, 85, 0.3)`
-          }}>
+            fontSize: '22px',
+            boxShadow: `0 4px 14px rgba(139, 115, 85, 0.3)`,
+            transition: 'transform 0.3s ease'
+          }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1) rotate(-6deg)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+            }}
+          >
             🎪
           </div>
           <div>
             <h1 style={{
-              fontSize: '20px',
-              fontWeight: 700,
+              fontSize: '19px',
+              fontWeight: 800,
               color: theme.primary,
               margin: 0,
-              lineHeight: 1.2
+              lineHeight: 1.2,
+              letterSpacing: '0.5px'
             }}>
               周末集市
             </h1>
             <div style={{
-              fontSize: '12px',
-              color: '#999'
+              fontSize: '11px',
+              color: '#999',
+              marginTop: '2px',
+              fontWeight: 500
             }}>
-              {openStalls}/{stalls.length} 摊位营业中
+              <span style={{
+                display: 'inline-block',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: '#7CB342',
+                marginRight: '5px',
+                animation: 'pulse 2s infinite',
+                verticalAlign: 'middle'
+              }} />
+              {openStalls}/{totalStalls} 营业中
             </div>
           </div>
         </div>
@@ -83,31 +121,35 @@ function Header() {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          gap: '10px'
         }}>
-          <div style={{
-            position: 'relative',
-            padding: '8px 14px',
-            background: 'white',
-            borderRadius: '20px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
+          <div
+            style={{
+              position: 'relative',
+              padding: '8px 14px',
+              background: 'white',
+              borderRadius: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.25s ease',
+              userSelect: 'none'
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.transform = 'scale(1.06)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
             }}
           >
-            <span style={{ fontSize: '16px' }}>❤️</span>
+            <span style={{ fontSize: '15px' }}>❤️</span>
             <span style={{
               fontSize: '13px',
-              fontWeight: 600,
+              fontWeight: 700,
               color: '#E74C3C'
             }}>
               {favorites.length}
@@ -115,32 +157,34 @@ function Header() {
             {favorites.length > 0 && (
               <div style={{
                 position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                width: '8px',
-                height: '8px',
+                top: '-3px',
+                right: '-3px',
+                width: '10px',
+                height: '10px',
                 borderRadius: '50%',
-                background: '#E74C3C',
-                animation: 'pulse 2s infinite'
+                background: '#FF6B6B',
+                border: '2px solid white',
+                animation: 'pulse 1.5s infinite'
               }} />
             )}
           </div>
 
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${theme.secondary}, ${theme.primary})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '18px',
-            cursor: 'pointer',
-            boxShadow: `0 2px 8px rgba(124, 179, 66, 0.3)`,
-            transition: 'all 0.2s ease'
-          }}
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${theme.secondary}, ${theme.primary})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '17px',
+              cursor: 'pointer',
+              boxShadow: `0 2px 8px rgba(124, 179, 66, 0.3)`,
+              transition: 'all 0.25s ease'
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.transform = 'scale(1.12)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
@@ -150,26 +194,120 @@ function Header() {
           </div>
         </div>
       </div>
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '12px auto 0',
+        display: 'flex',
+        gap: '6px',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        paddingBottom: '2px',
+        scrollSnapType: 'x mandatory'
+      }}>
+        {categories.map(({ key, icon }) => {
+          const isActive = activeCategories.has(key);
+          const count = stalls.filter(s => s.category === key).length;
+          return (
+            <button
+              key={key}
+              onClick={() => toggleCategory(key)}
+              style={{
+                flexShrink: 0,
+                padding: '6px 14px',
+                borderRadius: '18px',
+                fontSize: '12px',
+                fontWeight: isActive ? 600 : 500,
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                background: isActive
+                  ? `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`
+                  : 'rgba(255,255,255,0.8)',
+                color: isActive ? 'white' : '#666',
+                border: isActive ? 'none' : '1px solid rgba(139,115,85,0.15)',
+                boxShadow: isActive
+                  ? '0 2px 8px rgba(139,115,85,0.25)'
+                  : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                scrollSnapAlign: 'start'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <span>{icon}</span>
+              <span>{CATEGORY_LABELS[key]}</span>
+              <span style={{
+                fontSize: '10px',
+                opacity: 0.75,
+                background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
+                padding: '1px 5px',
+                borderRadius: '10px',
+                fontWeight: 500
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <style>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          header h1 {
+            font-size: 17px !important;
+          }
+
+          header > div:first-child > div:last-child {
+            gap: 8px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          header {
+            padding: 10px 14px !important;
+          }
+
+          header h1 {
+            font-size: 16px !important;
+          }
+
+          header > div:first-child > div:first-child > div:first-child {
+            width: 36px !important;
+            height: 36px !important;
+            font-size: 18px !important;
+            border-radius: 12px !important;
+          }
+        }
+      `}</style>
     </header>
   );
 }
 
 function MapToolbar() {
-  const { activeCategories, toggleCategory, filteredStalls } = useStallService();
-  const { theme } = useTheme();
+  const { activeCategories, toggleCategory, stalls } = useStallService();
 
-  const categories = [
-    { key: 'handcraft', label: '手工艺品', icon: '🎨' },
-    { key: 'books', label: '二手书籍', icon: '📚' },
-    { key: 'clothing', label: '衣物', icon: '👕' },
-    { key: 'electronics', label: '电子小物', icon: '💻' },
-    { key: 'food', label: '食品', icon: '🍪' }
-  ] as const;
+  const categories: { key: Category; icon: string; color: string }[] = [
+    { key: 'handcraft', icon: '🎨', color: '#D4A574' },
+    { key: 'books', icon: '📚', color: '#6B8E23' },
+    { key: 'clothing', icon: '👕', color: '#E67E22' },
+    { key: 'electronics', icon: '💻', color: '#3498DB' },
+    { key: 'food', icon: '🍪', color: '#E74C3C' }
+  ];
 
   return (
     <div style={{
       position: 'absolute',
-      top: '16px',
+      top: '14px',
       left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 500,
@@ -178,51 +316,75 @@ function MapToolbar() {
       justifyContent: 'center',
       gap: '6px',
       padding: '8px 12px',
-      background: 'rgba(255, 248, 231, 0.95)',
+      background: 'rgba(255, 248, 231, 0.96)',
       backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
       borderRadius: '16px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-      maxWidth: 'calc(100% - 32px)'
+      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+      maxWidth: 'calc(100% - 28px)',
+      maxHeight: '80vh',
+      overflowY: 'auto'
     }}>
-      {categories.map(cat => {
-        const isActive = activeCategories.has(cat.key);
-        const count = filteredStalls.filter(s => s.category === cat.key).length;
+      {categories.map(({ key, icon, color }) => {
+        const isActive = activeCategories.has(key);
+        const count = stalls.filter(s => s.category === key).length;
         return (
           <button
-            key={cat.key}
-            onClick={() => toggleCategory(cat.key)}
+            key={key}
+            onClick={() => toggleCategory(key)}
+            aria-label={`${CATEGORY_LABELS[key]}筛选`}
             style={{
               padding: '6px 12px',
               borderRadius: '14px',
               fontSize: '12px',
-              fontWeight: 500,
+              fontWeight: isActive ? 600 : 500,
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.25s ease',
-              background: isActive ? theme.primary : 'rgba(255,255,255,0.8)',
+              gap: '5px',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              background: isActive ? color : 'rgba(255,255,255,0.9)',
               color: isActive ? 'white' : '#666',
-              boxShadow: isActive ? `0 2px 8px rgba(139,115,85,0.3)` : 'none',
-              opacity: count === 0 ? 0.5 : 1
+              boxShadow: isActive ? `0 2px 8px ${color}40` : 'none',
+              opacity: count === 0 ? 0.5 : 1,
+              cursor: count === 0 ? 'not-allowed' : 'pointer',
+              border: isActive ? 'none' : '1px solid rgba(0,0,0,0.05)',
+              whiteSpace: 'nowrap'
             }}
             onMouseEnter={(e) => {
-              if (count > 0) e.currentTarget.style.transform = 'scale(1.05)';
+              if (count > 0) {
+                e.currentTarget.style.transform = 'scale(1.06)';
+              }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            <span>{cat.icon}</span>
-            <span>{cat.label}</span>
+            <span>{icon}</span>
+            <span style={{
+              display: 'none'
+            }} className="map-cat-label">
+              {CATEGORY_LABELS[key]}
+            </span>
             <span style={{
               fontSize: '10px',
-              opacity: 0.8
+              opacity: isActive ? 0.9 : 0.6,
+              background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
+              padding: '1px 5px',
+              borderRadius: '10px'
             }}>
-              ({count})
+              {count}
             </span>
           </button>
         );
       })}
+
+      <style>{`
+        @media (min-width: 480px) {
+          .map-cat-label {
+            display: inline !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -231,18 +393,20 @@ function AppContent() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--bg-color)'
+      background: 'var(--bg-color)',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <Header />
 
-      <main>
+      <main style={{ flex: 1 }}>
         <div style={{ position: 'relative' }}>
           <MapContainer />
           <MapToolbar />
         </div>
 
         <div style={{
-          padding: '8px 0 20px'
+          padding: '6px 0 24px'
         }}>
           <StallList />
         </div>
@@ -251,60 +415,25 @@ function AppContent() {
       <StallDetail />
 
       <footer style={{
-        padding: '24px 20px',
+        padding: '20px 16px 32px',
         textAlign: 'center',
-        color: '#999',
+        color: '#aaa',
         fontSize: '12px',
-        borderTop: '1px solid rgba(139, 115, 85, 0.1)'
+        borderTop: '1px solid rgba(139, 115, 85, 0.08)',
+        background: 'rgba(255, 248, 231, 0.5)'
       }}>
-        <div style={{ marginBottom: '8px' }}>🎪 周末集市 · 发现身边的美好</div>
-        <div>© 2026 Weekend Market. Made with 💚</div>
+        <div style={{
+          marginBottom: '8px',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#888'
+        }}>
+          🎪 周末集市 · 发现身边的小美好
+        </div>
+        <div style={{ opacity: 0.7 }}>
+          © 2026 Weekend Market · Made with 💚
+        </div>
       </footer>
-
-      <style>{`
-        @media (max-width: 768px) {
-          header {
-            padding: 12px 16px !important;
-          }
-          header h1 {
-            font-size: 18px !important;
-          }
-        }
-
-        @media (max-width: 768px) {
-          [style*="grid-template-columns: repeat(auto-fill"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.2); }
-        }
-
-        .custom-stall-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-
-        ::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-          background: rgba(139, 115, 85, 0.3);
-          border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(139, 115, 85, 0.5);
-        }
-      `}</style>
     </div>
   );
 }
