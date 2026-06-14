@@ -483,6 +483,7 @@ const ActivityBoard = ({ onEdit, onViewReview, onRefresh, onCreateNew }: Props) 
 
   const [modalType, setModalType] = useState<'pause' | 'delete' | 'resume' | null>(null);
   const [modalActivity, setModalActivity] = useState<Activity | null>(null);
+  const modalActivityRef = useRef<Activity | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<any>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
@@ -545,13 +546,17 @@ const ActivityBoard = ({ onEdit, onViewReview, onRefresh, onCreateNew }: Props) 
   const openModal = (type: 'pause' | 'delete' | 'resume', activity: Activity) => {
     setModalType(type);
     setModalActivity(activity);
+    modalActivityRef.current = activity;
     if (type === 'pause') {
       setCountdown(5);
+      if (countdownRef.current) clearInterval(countdownRef.current);
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev === null || prev <= 1) {
             clearInterval(countdownRef.current);
-            if (prev !== null && prev === 1) confirmPause();
+            if (prev !== null && prev === 1) {
+              doPause(modalActivityRef.current);
+            }
             return 0;
           }
           return prev - 1;
@@ -566,13 +571,14 @@ const ActivityBoard = ({ onEdit, onViewReview, onRefresh, onCreateNew }: Props) 
     if (countdownRef.current) clearInterval(countdownRef.current);
     setModalType(null);
     setModalActivity(null);
+    modalActivityRef.current = null;
     setCountdown(null);
   };
 
-  const confirmPause = async () => {
-    if (!modalActivity) return;
+  const doPause = async (activity: Activity | null) => {
+    if (!activity) return;
     try {
-      const res = await fetch(`/api/activities/${modalActivity.id}/pause`, { method: 'POST' });
+      const res = await fetch(`/api/activities/${activity.id}/pause`, { method: 'POST' });
       if (res.ok) {
         showToast('success', '活动已暂停');
         loadActivities();
@@ -582,6 +588,10 @@ const ActivityBoard = ({ onEdit, onViewReview, onRefresh, onCreateNew }: Props) 
       showToast('error', '操作失败');
     }
     closeModal();
+  };
+
+  const confirmPause = async () => {
+    await doPause(modalActivityRef.current);
   };
 
   const confirmResume = async () => {

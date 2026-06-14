@@ -237,9 +237,8 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
   const [chartType, setChartType] = useState<'revenue' | 'orders' | 'profit'>('revenue');
 
   useEffect(() => {
-    let debounce: any;
-    debounce = setTimeout(fetchPrediction, 150);
-    return () => clearTimeout(debounce);
+    const timer = setTimeout(fetchPrediction, 80);
+    return () => clearTimeout(timer);
   }, [params, trafficGrowth, conversionRate, avgOrderValue]);
 
   const fetchPrediction = async () => {
@@ -464,7 +463,7 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
                     tickLine={false}
                     tickFormatter={(v) => chartDataKey.format(v)}
                   />
-                  <Tooltip content={customTooltip} />
+                  <Tooltip content={customTooltip} allowDuplicateView={false} />
                   <Legend
                     iconType="circle"
                     wrapperStyle={{ fontSize: 12, paddingTop: 10 }}
@@ -493,8 +492,9 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
                     strokeWidth={2.5}
                     fill="url(#colorPred)"
                     dot={false}
-                    activeDot={{ r: 5, stroke: '#1A73E8', strokeWidth: 2, fill: 'white' }}
-                    animationDuration={500}
+                    activeDot={{ r: 5, stroke: '#1A73E8', strokeWidth: 2, fill: 'white', animationDuration: 0 }}
+                    isAnimationActive={false}
+                    animationDuration={0}
                   />
                 </AreaChart>
               </ResponsiveContainer>
