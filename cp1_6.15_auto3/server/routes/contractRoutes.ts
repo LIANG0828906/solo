@@ -1,8 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const contractService = require('../services/contractService');
+import { Router, Request, Response } from 'express';
+import contractService from '../services/contractService';
+import wsManager from '../websocket/wsManager';
+import { ApprovalStatus, HistoryRecord } from '../models/contractModel';
 
-router.get('/contract', (req, res) => {
+const router: Router = Router();
+
+router.get('/contract', (_req: Request, res: Response) => {
   try {
     const data = contractService.getContractData();
     res.json(data);
@@ -12,9 +15,9 @@ router.get('/contract', (req, res) => {
   }
 });
 
-router.post('/comment', (req, res) => {
+router.post('/comment', (req: Request, res: Response) => {
   try {
-    const { lineIndex, content, author, replyToId } = req.body;
+    const { lineIndex, content, author, parentId } = req.body;
 
     if (lineIndex === undefined || lineIndex === null) {
       return res.status(400).json({ error: '行索引不能为空' });
@@ -30,16 +33,21 @@ router.post('/comment', (req, res) => {
       Number(lineIndex),
       content,
       author,
-      replyToId
+      parentId as string | undefined
     );
+
+    wsManager.broadcast('comment_added', { comment });
+    wsManager.broadcast('history_updated', { history: contractService.getContractData().history });
+
     res.status(201).json(comment);
   } catch (error) {
     console.error('Error adding comment:', error);
-    res.status(500).json({ error: error.message || '添加批注失败' });
+    const message = error instanceof Error ? error.message : '添加批注失败';
+    res.status(500).json({ error: message });
   }
 });
 
-router.post('/approve', (req, res) => {
+router.post('/approve', (req: Request, res: Response) => {
   try {
     const { action, user, oldContent, newContent } = req.body;
 
@@ -52,19 +60,28 @@ router.post('/approve', (req, res) => {
     }
 
     const result = contractService.handleApprovalAction(
-      action,
+      action as 'approve' | 'reject' | undefined,
       user,
-      oldContent,
-      newContent
+      oldContent as string | undefined,
+      newContent as string | undefined
     );
+
+    wsManager.broadcast('status_updated', { status: result.status });
+    wsManager.broadcast('history_updated', { history: result.history });
+
+    if (oldContent !== undefined || newContent !== undefined) {
+      wsManager.broadcast('version_uploaded', { oldContent, newContent });
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Error handling approval:', error);
-    res.status(500).json({ error: error.message || '审批操作失败' });
+    const message = error instanceof Error ? error.message : '审批操作失败';
+    res.status(500).json({ error: message });
   }
 });
 
-router.get('/diff', (req, res) => {
+router.get('/diff', (req: Request, res: Response) => {
   try {
     const { oldText, newText } = req.query;
     const result = contractService.computeDiff(
@@ -78,4 +95,4 @@ router.get('/diff', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

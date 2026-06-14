@@ -1,6 +1,38 @@
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
+
+export type ApprovalStatus = 'pending' | 'reviewing' | 'approved' | 'rejected';
+export type HistoryType = 'version' | 'comment' | 'approve' | 'reject';
+
+export interface Comment {
+  id: string;
+  lineIndex: number;
+  content: string;
+  author: string;
+  timestamp: number;
+  parentId: string | null;
+  replies: Comment[];
+}
+
+export interface HistoryRecord {
+  id: string;
+  type: HistoryType;
+  description: string;
+  user: string;
+  timestamp: number;
+}
+
+export interface Contract {
+  contractId: string;
+  oldContent: string;
+  newContent: string;
+  comments: Comment[];
+  approvalStatus: ApprovalStatus;
+  history: HistoryRecord[];
+}
 
 class ContractModel {
+  private contract: Contract;
+
   constructor() {
     this.contract = {
       contractId: 'contract-001',
@@ -72,11 +104,11 @@ class ContractModel {
     };
   }
 
-  getContract() {
+  getContract(): Contract {
     return this.contract;
   }
 
-  updateContent(oldContent, newContent) {
+  updateContent(oldContent?: string, newContent?: string): void {
     if (oldContent !== undefined) {
       this.contract.oldContent = oldContent;
     }
@@ -85,59 +117,63 @@ class ContractModel {
     }
   }
 
-  addComment(comment) {
-    const newComment = {
+  addComment(input: {
+    lineIndex: number;
+    content: string;
+    author: string;
+    parentId?: string;
+  }): Comment {
+    const newComment: Comment = {
       id: uuidv4(),
-      lineIndex: comment.lineIndex,
-      content: comment.content,
-      author: comment.author,
+      lineIndex: input.lineIndex,
+      content: input.content,
+      author: input.author,
       timestamp: Date.now(),
+      parentId: input.parentId || null,
       replies: [],
     };
 
-    if (comment.replyToId) {
-      const addReply = (comments) => {
-        for (let i = 0; i < comments.length; i++) {
-          if (comments[i].id === comment.replyToId) {
-            if (!comments[i].replies) {
-              comments[i].replies = [];
-            }
-            comments[i].replies.push(newComment);
+    if (input.parentId) {
+      const addReply = (comments: Comment[]): Comment | null => {
+        for (const comment of comments) {
+          if (comment.id === input.parentId) {
+            comment.replies.push(newComment);
             return newComment;
           }
-          if (comments[i].replies && comments[i].replies.length > 0) {
-            const result = addReply(comments[i].replies);
+          if (comment.replies.length > 0) {
+            const result = addReply(comment.replies);
             if (result) return result;
           }
         }
         return null;
       };
-      return addReply(this.contract.comments) || newComment;
-    } else {
-      this.contract.comments.push(newComment);
+      const result = addReply(this.contract.comments);
+      if (result) return result;
     }
+
+    this.contract.comments.push(newComment);
     return newComment;
   }
 
-  getComments() {
+  getComments(): Comment[] {
     return this.contract.comments;
   }
 
-  getApprovalStatus() {
+  getApprovalStatus(): ApprovalStatus {
     return this.contract.approvalStatus;
   }
 
-  setApprovalStatus(status) {
+  setApprovalStatus(status: ApprovalStatus): ApprovalStatus {
     this.contract.approvalStatus = status;
     return this.contract.approvalStatus;
   }
 
-  getHistory() {
+  getHistory(): HistoryRecord[] {
     return [...this.contract.history].sort((a, b) => b.timestamp - a.timestamp);
   }
 
-  addHistory(record) {
-    const newRecord = {
+  addHistory(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord[] {
+    const newRecord: HistoryRecord = {
       id: uuidv4(),
       ...record,
       timestamp: Date.now(),
@@ -147,4 +183,4 @@ class ContractModel {
   }
 }
 
-module.exports = new ContractModel();
+export default new ContractModel();

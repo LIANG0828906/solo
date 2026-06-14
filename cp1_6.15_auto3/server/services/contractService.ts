@@ -1,7 +1,38 @@
-const contractModel = require('../models/contractModel');
+import contractModel, {
+  Comment,
+  HistoryRecord,
+  ApprovalStatus,
+} from '../models/contractModel';
+
+export interface ContractData {
+  contractId: string;
+  oldContent: string;
+  newContent: string;
+  comments: Comment[];
+  approvalStatus: ApprovalStatus;
+  history: HistoryRecord[];
+}
+
+export interface DiffStatistics {
+  added: number;
+  removed: number;
+  unchanged: number;
+}
+
+export interface DiffChange {
+  type: 'equal' | 'added' | 'removed';
+  content: string;
+  oldLineNumber: number | null;
+  newLineNumber: number | null;
+}
+
+export interface DiffResult {
+  changes: DiffChange[];
+  statistics: DiffStatistics;
+}
 
 class ContractService {
-  getContractData() {
+  getContractData(): ContractData {
     const contract = contractModel.getContract();
     return {
       contractId: contract.contractId,
@@ -13,7 +44,12 @@ class ContractService {
     };
   }
 
-  addComment(lineIndex, content, author, replyToId) {
+  addComment(
+    lineIndex: number,
+    content: string,
+    author: string,
+    parentId?: string
+  ): Comment {
     if (!content || !content.trim()) {
       throw new Error('批注内容不能为空');
     }
@@ -21,41 +57,52 @@ class ContractService {
       throw new Error('作者信息不能为空');
     }
 
+    const trimmedContent = content.trim();
+    const trimmedAuthor = author.trim();
+
     const comment = contractModel.addComment({
       lineIndex,
-      content: content.trim(),
-      author: author.trim(),
-      replyToId,
+      content: trimmedContent,
+      author: trimmedAuthor,
+      parentId,
     });
 
+    const isReply = !!parentId;
     contractModel.addHistory({
       type: 'comment',
-      description: replyToId
-        ? `回复了批注：${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`
-        : `添加了批注：${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`,
-      user: author.trim(),
+      description: isReply
+        ? `回复了批注：${trimmedContent.substring(0, 30)}${trimmedContent.length > 30 ? '...' : ''}`
+        : `添加了批注：${trimmedContent.substring(0, 30)}${trimmedContent.length > 30 ? '...' : ''}`,
+      user: trimmedAuthor,
     });
 
     return comment;
   }
 
-  handleApprovalAction(action, user, oldContent, newContent) {
+  handleApprovalAction(
+    action: 'approve' | 'reject' | undefined,
+    user: string,
+    oldContent?: string,
+    newContent?: string
+  ): { status: ApprovalStatus; history: HistoryRecord[] } {
     if (!user || !user.trim()) {
       throw new Error('用户信息不能为空');
     }
+
+    const trimmedUser = user.trim();
 
     if (oldContent !== undefined || newContent !== undefined) {
       contractModel.updateContent(oldContent, newContent);
       contractModel.addHistory({
         type: 'version',
         description: '上传了新的合同版本并进行对比',
-        user: user.trim(),
+        user: trimmedUser,
       });
       contractModel.setApprovalStatus('reviewing');
-    } else {
-      let newStatus;
-      let description;
-      let historyType;
+    } else if (action) {
+      let newStatus: ApprovalStatus;
+      let description: string;
+      let historyType: 'approve' | 'reject';
 
       switch (action) {
         case 'approve':
@@ -76,8 +123,10 @@ class ContractService {
       contractModel.addHistory({
         type: historyType,
         description,
-        user: user.trim(),
+        user: trimmedUser,
       });
+    } else {
+      throw new Error('必须提供审批操作或版本内容');
     }
 
     return {
@@ -86,7 +135,7 @@ class ContractService {
     };
   }
 
-  computeDiff(oldText, newText) {
+  computeDiff(oldText: string, newText: string): DiffResult {
     if (!oldText && !newText) {
       return { changes: [], statistics: { added: 0, removed: 0, unchanged: 0 } };
     }
@@ -94,7 +143,7 @@ class ContractService {
     const oldLines = (oldText || '').split('\n');
     const newLines = (newText || '').split('\n');
 
-    const dp = [];
+    const dp: number[][] = [];
     const m = oldLines.length;
     const n = newLines.length;
 
@@ -111,7 +160,7 @@ class ContractService {
       }
     }
 
-    const changes = [];
+    const changes: DiffChange[] = [];
     let i = m;
     let j = n;
     let added = 0;
@@ -157,4 +206,4 @@ class ContractService {
   }
 }
 
-module.exports = new ContractService();
+export default new ContractService();
