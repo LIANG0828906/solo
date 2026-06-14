@@ -1,22 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getBookById, getUserById, subscribe } from '../../shared/dataStore';
 import { addRipple } from '../../shared/utils';
 import Navbar from '../../shared/Navbar';
 import ExchangeModal from '../exchange/ExchangeModal';
-import type { Book } from '../../shared/dataStore';
+import type { Book, User } from '../../shared/dataStore';
 
 export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [book, setBook] = useState<Book | undefined>(() => getBookById(id || ''));
+  const [owner, setOwner] = useState<User | undefined>(() => {
+    const b = getBookById(id || '');
+    return b ? getUserById(b.ownerId) : undefined;
+  });
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribe(() => {
-      setBook(getBookById(id || ''));
+      const currentBook = getBookById(id || '');
+      setBook(currentBook);
+      if (currentBook) {
+        setOwner(getUserById(currentBook.ownerId));
+      }
     });
     return unsubscribe;
   }, [id]);
@@ -33,7 +40,6 @@ export default function BookDetailPage() {
     );
   }
 
-  const owner = getUserById(book.ownerId);
   const isOwner = user?.id === book.ownerId;
 
   return (

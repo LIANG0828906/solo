@@ -406,6 +406,29 @@ input, select, textarea {
   animation: fadeIn 0.4s ease;
 }
 
+.filter-header {
+  display: none;
+  margin-bottom: 16px;
+}
+
+.filter-hamburger {
+  background: var(--color-wood);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-fast);
+}
+
+.filter-hamburger:hover {
+  background: var(--color-wood-light);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -951,20 +974,18 @@ input, select, textarea {
     justify-content: center;
   }
 
-  .book-detail-header {
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .book-detail-cover {
-    width: 100%;
-    min-width: auto;
-    max-height: 300px;
-    object-fit: contain;
+  .filter-header {
+    display: block;
   }
 
   .filter-section {
-    gap: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filter-section.filter-open {
+    display: flex;
   }
 
   .filter-section .form-input,

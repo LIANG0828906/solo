@@ -14,8 +14,9 @@ export interface Book {
   coverUrl: string;
   city: string;
   exchangeType: string;
-  status: string;
+  status: '可交换' | '交换中';
   ownerId: string;
+  version: number;
 }
 
 export interface ExchangeRequest {
@@ -25,12 +26,42 @@ export interface ExchangeRequest {
   ownerId: string;
   message: string;
   desiredBook: string;
-  status: string;
+  status: '待确认' | '已接受' | '已拒绝' | '已完成';
   isRead: boolean;
   createdAt: string;
+  version: number;
 }
 
+export type BookStatus = Book['status'];
+export type ExchangeStatus = ExchangeRequest['status'];
+
 const STORAGE_KEY = 'bookExchangeData';
+let updateLock = false;
+const updateQueue: Array<() => void> = [];
+
+function acquireLock(): boolean {
+  if (updateLock) return false;
+  updateLock = true;
+  return true;
+}
+
+function releaseLock() {
+  updateLock = false;
+  const next = updateQueue.shift();
+  if (next) next();
+}
+
+function executeWithLock(fn: () => void) {
+  if (acquireLock()) {
+    try {
+      fn();
+    } finally {
+      releaseLock();
+    }
+  } else {
+    updateQueue.push(() => executeWithLock(fn));
+  }
+}
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
@@ -77,6 +108,7 @@ const defaultBooks: Book[] = [
     exchangeType: '等价交换',
     status: '可交换',
     ownerId: 'u1',
+    version: 1,
   },
   {
     id: 'b2',
@@ -89,6 +121,7 @@ const defaultBooks: Book[] = [
     exchangeType: '低价转让',
     status: '可交换',
     ownerId: 'u2',
+    version: 1,
   },
   {
     id: 'b3',
@@ -101,6 +134,7 @@ const defaultBooks: Book[] = [
     exchangeType: '免费赠予',
     status: '可交换',
     ownerId: 'u3',
+    version: 1,
   },
   {
     id: 'b4',
@@ -113,6 +147,7 @@ const defaultBooks: Book[] = [
     exchangeType: '等价交换',
     status: '可交换',
     ownerId: 'u4',
+    version: 1,
   },
   {
     id: 'b5',
@@ -125,6 +160,7 @@ const defaultBooks: Book[] = [
     exchangeType: '低价转让',
     status: '可交换',
     ownerId: 'u5',
+    version: 1,
   },
   {
     id: 'b6',
@@ -137,6 +173,7 @@ const defaultBooks: Book[] = [
     exchangeType: '免费赠予',
     status: '可交换',
     ownerId: 'u6',
+    version: 1,
   },
   {
     id: 'b7',
@@ -149,6 +186,7 @@ const defaultBooks: Book[] = [
     exchangeType: '低价转让',
     status: '可交换',
     ownerId: 'u2',
+    version: 1,
   },
   {
     id: 'b8',
@@ -161,6 +199,7 @@ const defaultBooks: Book[] = [
     exchangeType: '免费赠予',
     status: '可交换',
     ownerId: 'u1',
+    version: 1,
   },
   {
     id: 'b9',
@@ -173,6 +212,7 @@ const defaultBooks: Book[] = [
     exchangeType: '等价交换',
     status: '可交换',
     ownerId: 'u3',
+    version: 1,
   },
   {
     id: 'b10',
@@ -185,6 +225,7 @@ const defaultBooks: Book[] = [
     exchangeType: '低价转让',
     status: '可交换',
     ownerId: 'u4',
+    version: 1,
   },
   {
     id: 'b11',
@@ -197,6 +238,7 @@ const defaultBooks: Book[] = [
     exchangeType: '等价交换',
     status: '可交换',
     ownerId: 'u5',
+    version: 1,
   },
   {
     id: 'b12',
@@ -209,6 +251,7 @@ const defaultBooks: Book[] = [
     exchangeType: '等价交换',
     status: '可交换',
     ownerId: 'u6',
+    version: 1,
   },
 ];
 
@@ -216,6 +259,19 @@ const storedData = loadFromStorage<{ users: User[]; books: Book[]; exchangeReque
   STORAGE_KEY,
   { users: defaultUsers, books: defaultBooks, exchangeRequests: [] }
 );
+
+storedData.books = storedData.books.map((book) => ({
+  ...book,
+  version: book.version || 1,
+  status: (book.status as BookStatus) || '可交换',
+}));
+
+storedData.exchangeRequests = storedData.exchangeRequests.map((req) => ({
+  ...req,
+  version: req.version || 1,
+  status: (req.status as ExchangeStatus) || '待确认',
+  isRead: req.isRead !== undefined ? req.isRead : false,
+}));
 
 const users: User[] = storedData.users;
 const books: Book[] = storedData.books;
@@ -265,12 +321,15 @@ export function getBookById(id: string): Book | undefined {
   return books.find((b) => b.id === id);
 }
 
-export function updateBookStatus(bookId: string, status: string): void {
-  const book = books.find((b) => b.id === bookId);
-  if (book) {
-    book.status = status;
-    notifyListeners();
-  }
+export function updateBookStatus(bookId: string, status: BookStatus): void {
+  executeWithLock(() => {
+    const book = books.find((b) => b.id === bookId);
+    if (book) {
+      book.status = status;
+      book.version += 1;
+      notifyListeners();
+    }
+  });
 }
 
 export function getExchangeRequests(): ExchangeRequest[] {
@@ -296,49 +355,72 @@ export function createExchangeRequest(
   message: string,
   desiredBook: string
 ): ExchangeRequest {
-  const request: ExchangeRequest = {
-    id: 'e' + (exchangeRequests.length + 1),
-    bookId,
-    requesterId,
-    ownerId,
-    message,
-    desiredBook,
-    status: '待确认',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-  };
-  exchangeRequests.unshift(request);
-  updateBookStatus(bookId, '交换中');
-  return request;
+  let request: ExchangeRequest | null = null;
+  executeWithLock(() => {
+    request = {
+      id: 'e' + (exchangeRequests.length + 1),
+      bookId,
+      requesterId,
+      ownerId,
+      message,
+      desiredBook,
+      status: '待确认',
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      version: 1,
+    };
+    exchangeRequests.unshift(request);
+    const book = books.find((b) => b.id === bookId);
+    if (book) {
+      book.status = '交换中';
+      book.version += 1;
+    }
+    notifyListeners();
+  });
+  return request!;
 }
 
 export function markExchangeAsRead(requestId: string): void {
-  const req = exchangeRequests.find((r) => r.id === requestId);
-  if (req) {
-    req.isRead = true;
-    notifyListeners();
-  }
+  executeWithLock(() => {
+    const req = exchangeRequests.find((r) => r.id === requestId);
+    if (req) {
+      req.isRead = true;
+      req.version += 1;
+      notifyListeners();
+    }
+  });
 }
 
 export function updateExchangeStatus(
   requestId: string,
-  newStatus: string
+  newStatus: ExchangeStatus
 ): void {
-  const req = exchangeRequests.find((r) => r.id === requestId);
-  if (!req) return;
+  executeWithLock(() => {
+    const req = exchangeRequests.find((r) => r.id === requestId);
+    if (!req) return;
 
-  req.status = newStatus;
-  req.isRead = true;
+    req.status = newStatus;
+    req.isRead = true;
+    req.version += 1;
 
-  if (newStatus === '已拒绝') {
-    updateBookStatus(req.bookId, '可交换');
-  } else if (newStatus === '已完成') {
-    const owner = users.find((u) => u.id === req.ownerId);
-    const requester = users.find((u) => u.id === req.requesterId);
-    if (owner) owner.completedExchanges += 1;
-    if (requester) requester.completedExchanges += 1;
-    updateBookStatus(req.bookId, '可交换');
-  }
+    if (newStatus === '已拒绝') {
+      const book = books.find((b) => b.id === req.bookId);
+      if (book) {
+        book.status = '可交换';
+        book.version += 1;
+      }
+    } else if (newStatus === '已完成') {
+      const owner = users.find((u) => u.id === req.ownerId);
+      const requester = users.find((u) => u.id === req.requesterId);
+      if (owner) owner.completedExchanges += 1;
+      if (requester) requester.completedExchanges += 1;
+      const book = books.find((b) => b.id === req.bookId);
+      if (book) {
+        book.status = '可交换';
+        book.version += 1;
+      }
+    }
 
-  notifyListeners();
+    notifyListeners();
+  });
 }

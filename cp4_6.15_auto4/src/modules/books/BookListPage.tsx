@@ -18,6 +18,7 @@ export default function BookListPage() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const debouncedSearch = useDebounce(searchText, 300);
 
@@ -53,7 +54,16 @@ export default function BookListPage() {
       <Navbar />
 
       <div className="page-container">
-        <div className="filter-section">
+        <div className="filter-header">
+          <button
+            className="filter-hamburger"
+            onMouseDown={addRipple}
+            onClick={() => setFilterOpen(!filterOpen)}
+          >
+            {filterOpen ? '✕ 筛选' : '☰ 筛选'}
+          </button>
+        </div>
+        <div className={`filter-section ${filterOpen ? 'filter-open' : ''}`}>
           <input
             type="text"
             className="form-input"
