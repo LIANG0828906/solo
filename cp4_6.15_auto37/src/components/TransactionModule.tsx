@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { XCircle, Clock, ShoppingBag, User } from 'lucide-react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { XCircle, Clock, ShoppingBag, User, AlertCircle } from 'lucide-react';
 import { useMarketStore } from '@/store/useMarketStore';
 
 function formatTime(ts: number): string {
@@ -24,9 +24,31 @@ export function TransactionModule() {
   const transactions = useMarketStore(s => s.transactions);
   const cancelTransaction = useMarketStore(s => s.cancelTransaction);
 
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const sorted = useMemo(
     () => [...transactions].sort((a, b) => b.createdAt - a.createdAt),
     [transactions]
+  );
+
+  const handleCancel = useCallback(
+    (txId: string, createdAt: number) => {
+      if (!canCancel(createdAt)) {
+        alert('可取消时间已过');
+        return;
+      }
+      if (confirm('确定取消这笔交易吗？库存将被恢复。')) {
+        const ok = cancelTransaction(txId);
+        if (!ok) {
+          alert('取消失败，请刷新后重试');
+        }
+      }
+    },
+    [cancelTransaction]
   );
 
   if (sorted.length === 0) {
@@ -85,17 +107,19 @@ export function TransactionModule() {
               </div>
 
               {canCancelNow && (
-                <button
-                  onClick={() => {
-                    if (confirm('确定取消这笔交易吗？库存将被恢复。')) {
-                      cancelTransaction(tx.id);
-                    }
-                  }}
-                  className="btn-danger flex items-center gap-1 !py-1.5 !px-3 !text-sm whitespace-nowrap"
-                >
-                  <XCircle size={14} />
-                  取消交易
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                    <AlertCircle size={12} />
+                    {remainingTime(tx.createdAt)}
+                  </span>
+                  <button
+                    onClick={() => handleCancel(tx.id, tx.createdAt)}
+                    className="btn-danger flex items-center gap-1 !py-1.5 !px-3 !text-sm whitespace-nowrap"
+                  >
+                    <XCircle size={14} />
+                    取消交易
+                  </button>
+                </div>
               )}
             </div>
           </div>

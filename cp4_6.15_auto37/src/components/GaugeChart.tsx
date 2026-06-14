@@ -6,12 +6,13 @@ interface GaugeChartProps {
 }
 
 export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps) {
-  const percent = Math.min(100, Math.round((value / max) * 100));
+  const ratio = max > 0 ? value / max : 0;
+  const percent = Math.min(100, Math.round(ratio * 100));
   const radius = 80;
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
   const arcLength = circumference * 0.75;
-  const dashOffset = arcLength - (arcLength * percent) / 100;
+  const dashOffset = arcLength - arcLength * ratio;
 
   return (
     <div className="flex flex-col items-center">
@@ -48,17 +49,26 @@ export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps
         />
         <text
           x="110"
-          y="105"
+          y="88"
+          textAnchor="middle"
+          className="fill-amber-500 font-display"
+          style={{ fontSize: '16px', fontWeight: 600 }}
+        >
+          {percent}%
+        </text>
+        <text
+          x="110"
+          y="114"
           textAnchor="middle"
           className="fill-amber-900 font-display"
-          style={{ fontSize: '28px', fontWeight: 700 }}
+          style={{ fontSize: '24px', fontWeight: 700 }}
         >
           {prefix}
           {value.toLocaleString()}
         </text>
         <text
           x="110"
-          y="130"
+          y="136"
           textAnchor="middle"
           className="fill-amber-700"
           style={{ fontSize: '13px' }}
@@ -67,7 +77,7 @@ export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps
         </text>
         <text
           x="110"
-          y="155"
+          y="160"
           textAnchor="middle"
           className="fill-amber-600"
           style={{ fontSize: '11px' }}

@@ -71,6 +71,20 @@
     @apply bg-amber-200/80 rounded px-0.5;
   }
 
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .nav-link {
     @apply px-3 py-2 rounded-lg text-white/80 hover:text-white
            transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]

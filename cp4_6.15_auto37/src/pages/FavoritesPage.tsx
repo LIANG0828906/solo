@@ -28,15 +28,19 @@ export function FavoritesPage() {
 
   const handleRemove = useCallback(
     (productId: string) => {
-      setRemovingIds(prev => new Set(prev).add(productId));
+      setRemovingIds(prev => {
+        const next = new Set(prev);
+        next.add(productId);
+        return next;
+      });
       setTimeout(() => {
         toggleFavorite(productId);
         setRemovingIds(prev => {
-          const n = new Set(prev);
-          n.delete(productId);
-          return n;
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
         });
-      }, 300);
+      }, 350);
     },
     [toggleFavorite]
   );
@@ -120,22 +124,29 @@ export function FavoritesPage() {
           没有符合筛选条件的商品
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {favoriteProducts.map((product, idx) => {
             const stall = stalls.find(s => s.id === product.stallId);
             const removing = removingIds.has(product.id);
             return (
               <div
                 key={product.id}
-                className={`break-inside-avoid glass-card glass-card-hover overflow-hidden
-                           ${removing ? 'animate-scale-out' : 'animate-fade-in-up opacity-0'}`}
-                style={{ animationDelay: removing ? undefined : `${Math.min(idx * 50, 300)}ms` }}
+                className={`glass-card glass-card-hover overflow-hidden
+                           ${removing
+                             ? 'scale-75 opacity-0 translate-x-full'
+                             : 'scale-100 opacity-100 translate-x-0'}`}
+                style={{
+                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                  animation: !removing
+                    ? `fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${Math.min(idx * 50, 300)}ms both`
+                    : undefined,
+                }}
               >
                 <div className="relative">
                   <img
                     src={product.imageUrl}
                     alt={product.name}
-                    className="w-full object-cover"
+                    className="w-full h-48 sm:h-56 object-cover"
                     loading="lazy"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src =
@@ -145,7 +156,8 @@ export function FavoritesPage() {
                   <button
                     onClick={() => handleRemove(product.id)}
                     className="absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
-                               hover:bg-red-50 hover:scale-110 transition-all"
+                               hover:bg-red-50 hover:scale-110 active:scale-95
+                               transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
                     aria-label="取消收藏"
                   >
                     <HeartOff size={16} className="text-red-500" />
@@ -157,10 +169,13 @@ export function FavoritesPage() {
                   </div>
                 </div>
                 <div className="p-3">
-                  <h3 className="font-display font-semibold text-amber-900">{product.name}</h3>
+                  <h3 className="font-display font-semibold text-amber-900 line-clamp-1">
+                    {product.name}
+                  </h3>
                   {stall && (
-                    <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
-                      <Store size={12} /> {stall.name}
+                    <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1 truncate">
+                      <Store size={12} className="flex-shrink-0" />
+                      <span className="truncate">{stall.name}</span>
                     </p>
                   )}
                   <div className="flex items-end justify-between mt-2">
