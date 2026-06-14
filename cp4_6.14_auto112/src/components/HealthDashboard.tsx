@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { HealthAnalysis, PlantStatus } from '@/types'
 import {
-  PieChart, Pie, Cell, Tooltip as RechartsTooltip,
+  PieChart, Pie, Cell, Tooltip as RechartsTooltip, LabelList,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
 } from 'recharts'
 
@@ -18,12 +19,20 @@ const statusLabels: Record<PlantStatus, string> = {
   pest: '虫害',
 }
 
+const eventTypeLabels: Record<string, string> = {
+  water: '浇水',
+  fertilize: '施肥',
+  repot: '换盆',
+  prune: '修剪',
+}
+
 interface HealthDashboardProps {
   data: HealthAnalysis
 }
 
 export default function HealthDashboard({ data }: HealthDashboardProps) {
   const scoreColor = data.score >= 75 ? '#22c55e' : data.score >= 50 ? '#f97316' : '#ef4444'
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null)
 
   const pieData = data.statusDistribution.map((d) => ({
     name: statusLabels[d.status as PlantStatus] || d.status,
@@ -40,8 +49,11 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
   }))
 
   return (
-    <div className="animate-fade-in-up opacity-0 flex flex-col lg:flex-row gap-6">
-      <div className="lg:w-7/12 flex flex-col gap-6">
+    <div
+      className="animate-fade-in-up opacity-0 flex flex-col gap-6 md:flex-row"
+      style={{ alignItems: 'flex-start' }}
+    >
+      <div className="flex flex-col gap-6 md:w-7/12 w-full">
         <div
           className="p-6 animate-fade-in-up opacity-0 stagger-1"
           style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0' }}
@@ -50,7 +62,7 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
             状态分布
           </h3>
           <div className="flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={pieData}
@@ -60,32 +72,70 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                   outerRadius={90}
                   dataKey="value"
                   paddingAngle={2}
-                  onMouseEnter={(_, index) => {
-                    const cells = document.querySelectorAll('.recharts-pie-sector')
-                    cells.forEach((cell, i) => {
-                      if (i === index) {
-                        (cell as SVGElement).setAttribute(
-                          'transform',
-                          `translate(${Math.cos(((index * 90) / pieData.length) * Math.PI / 180) * 8}, ${Math.sin(((index * 90) / pieData.length) * Math.PI / 180) * 8})`
-                        )
-                      }
-                    })
+                  activeIndex={activePieIndex ?? undefined}
+                  activeShape={(props: any) => {
+                    const RADIAN = Math.PI / 180
+                    const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+                    const x = cx + (outerRadius + 16) * Math.cos(-midAngle * RADIAN)
+                    const y = cy + (outerRadius + 16) * Math.sin(-midAngle * RADIAN)
+                    return (
+                      <g>
+                        <path
+                          d={describeArc(cx, cy, outerRadius + 8, startAngle, endAngle, innerRadius + 8)}
+                          fill={fill}
+                          style={{ transition: 'all 0.3s ease' }}
+                        />
+                        <text
+                          x={x}
+                          y={y}
+                          fill={fill}
+                          textAnchor={x > cx ? 'start' : 'end'}
+                          dominantBaseline="central"
+                          fontSize={13}
+                          fontWeight={700}
+                        >
+                          {`${payload.name} ${(percent * 100).toFixed(0)}%`}
+                        </text>
+                      </g>
+                    )
                   }}
+                  onMouseEnter={(_, index) => setActivePieIndex(index)}
+                  onMouseLeave={() => setActivePieIndex(null)}
                 >
                   {pieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} style={{ transition: 'all 0.2s ease', cursor: 'pointer' }} />
+                    <Cell
+                      key={index}
+                      fill={entry.color}
+                      stroke="#fff"
+                      strokeWidth={1}
+                      style={{ transition: 'all 0.2s ease', cursor: 'pointer' }}
+                    />
                   ))}
+                  <LabelList
+                    type="inner"
+                    dataKey="name"
+                    className="hidden"
+                    position="center"
+                  />
                 </Pie>
                 <RechartsTooltip
-                  formatter={(value: number, name: string, props: { payload: { percentage: number } }) => [
+                  formatter={(value: number, _name: string, props: { payload: { percentage: number; name: string } }) => [
                     `${value} 棵 (${props.payload.percentage}%)`,
-                    name,
+                    props.payload.name,
                   ]}
+                  contentStyle={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-4 mt-2">
+          <div className="flex justify-center gap-4 mt-2 flex-wrap">
             {pieData.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5">
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.color }} />
@@ -109,27 +159,51 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                 dataKey="date"
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 interval={4}
+                tickMargin={8}
               />
               <YAxis
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 allowDecimals={false}
+                tickMargin={8}
               />
               <RechartsTooltip
                 content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
+                  if (!active || !payload?.length || !payload[0]) return null
                   const d = payload[0].payload
                   return (
                     <div
                       style={{
-                        background: '#fff',
+                        background: '#ffffff',
                         border: '1px solid #e2e8f0',
-                        borderRadius: 8,
-                        padding: '8px 12px',
+                        borderRadius: 10,
+                        padding: '10px 14px',
                         fontSize: 12,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        maxWidth: 280,
                       }}
                     >
-                      <div style={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}>{d.fullDate}</div>
-                      <div style={{ color: '#6366f1' }}>事件数: {d.count}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>
+                        {d.fullDate}
+                      </div>
+                      <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>
+                        事件数: {d.count}
+                      </div>
+                      {d.events && d.events.length > 0 && (
+                        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 6 }}>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>事件详情:</div>
+                          {d.events.slice(0, 5).map((e: { type: string; notes: string }, i: number) => (
+                            <div key={i} style={{ padding: '2px 0', color: '#64748b' }}>
+                              • {eventTypeLabels[e.type] || e.type}
+                              {e.notes ? ` - ${e.notes.length > 12 ? e.notes.slice(0, 12) + '...' : e.notes}` : ''}
+                            </div>
+                          ))}
+                          {d.events.length > 5 && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', paddingTop: 2 }}>
+                              还有 {d.events.length - 5} 条...
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 }}
@@ -138,16 +212,16 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                 type="monotone"
                 dataKey="count"
                 stroke="#6366f1"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 dot={{ r: 3, fill: '#818cf8', strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: '#6366f1', stroke: '#ffffff', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="lg:w-3/12 flex flex-col gap-6">
+      <div className="flex flex-col gap-6 md:w-3/12 w-full">
         <div
           className="p-6 text-center animate-fade-in-up opacity-0 stagger-3"
           style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0' }}
@@ -158,7 +232,7 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
           <div style={{ fontSize: 80, fontWeight: 800, color: scoreColor, lineHeight: 1.1 }}>
             {data.score}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 400, color: '#475569', marginTop: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 400, color: '#475569', marginTop: 12, lineHeight: 1.6 }}>
             {data.suggestion}
           </div>
         </div>
@@ -173,7 +247,7 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
           {data.statusDistribution.map((d) => {
             const status = d.status as PlantStatus
             return (
-              <div key={status} className="flex items-center justify-between mb-2">
+              <div key={status} className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColors[status] }} />
                   <span style={{ fontSize: 13, color: '#475569' }}>{statusLabels[status]}</span>
@@ -188,4 +262,27 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
       </div>
     </div>
   )
+}
+
+function describeArc(x: number, y: number, r: number, startAngle: number, endAngle: number, innerR: number) {
+  const start = polarToCartesian(x, y, r, endAngle)
+  const end = polarToCartesian(x, y, r, startAngle)
+  const innerStart = polarToCartesian(x, y, innerR, endAngle)
+  const innerEnd = polarToCartesian(x, y, innerR, startAngle)
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1'
+  return [
+    'M', start.x, start.y,
+    'A', r, r, 0, largeArcFlag, 0, end.x, end.y,
+    'L', innerEnd.x, innerEnd.y,
+    'A', innerR, innerR, 0, largeArcFlag, 1, innerStart.x, innerStart.y,
+    'Z',
+  ].join(' ')
+}
+
+function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians)),
+  }
 }
