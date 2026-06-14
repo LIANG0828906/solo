@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getBookById, getUserById, subscribe } from '../../shared/dataStore';
+import { addRipple } from '../../shared/utils';
+import Navbar from '../../shared/Navbar';
 import ExchangeModal from '../exchange/ExchangeModal';
 import type { Book } from '../../shared/dataStore';
 
@@ -36,21 +38,7 @@ export default function BookDetailPage() {
 
   return (
     <>
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <Link to="/">二手书交换</Link>
-        </div>
-        <div className="navbar-links">
-          <Link to="/">书籍列表</Link>
-          <Link to="/exchange-history">交换记录</Link>
-          <div className="nav-user">
-            <span className="nav-user-nickname">{user?.nickname}</span>
-            <button className="btn-logout" onClick={() => {
-              navigate('/login', { replace: true });
-            }}>登出</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="page-container">
         <div className="book-detail">
@@ -77,10 +65,10 @@ export default function BookDetailPage() {
               <p className="book-detail-desc">{book.description}</p>
               {!isOwner && book.status !== '交换中' && (
                 <div className="book-detail-actions">
-                  <button className="btn-primary" onClick={() => setShowModal(true)}>
+                  <button className="btn-primary" onMouseDown={addRipple} onClick={() => setShowModal(true)}>
                     交换此书
                   </button>
-                  <button className="btn-outline" onClick={() => setShowModal(true)}>
+                  <button className="btn-outline" onMouseDown={addRipple} onClick={() => setShowModal(true)}>
                     联系主人
                   </button>
                 </div>

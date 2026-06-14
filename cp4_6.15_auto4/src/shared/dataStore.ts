@@ -30,7 +30,33 @@ export interface ExchangeRequest {
   createdAt: string;
 }
 
-const users: User[] = [
+const STORAGE_KEY = 'bookExchangeData';
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('Failed to load from storage:', e);
+  }
+  return fallback;
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      users,
+      books,
+      exchangeRequests,
+    }));
+  } catch (e) {
+    console.warn('Failed to save to storage:', e);
+  }
+}
+
+const defaultUsers: User[] = [
   { id: 'u1', nickname: '林小书', creditLevel: 'A', completedExchanges: 12 },
   { id: 'u2', nickname: '王阅读', creditLevel: 'B+', completedExchanges: 8 },
   { id: 'u3', nickname: '赵墨香', creditLevel: 'A+', completedExchanges: 25 },
@@ -39,7 +65,7 @@ const users: User[] = [
   { id: 'u6', nickname: '孙知行', creditLevel: 'A', completedExchanges: 18 },
 ];
 
-const books: Book[] = [
+const defaultBooks: Book[] = [
   {
     id: 'b1',
     title: '百年孤独',
@@ -186,11 +212,19 @@ const books: Book[] = [
   },
 ];
 
-const exchangeRequests: ExchangeRequest[] = [];
+const storedData = loadFromStorage<{ users: User[]; books: Book[]; exchangeRequests: ExchangeRequest[] }>(
+  STORAGE_KEY,
+  { users: defaultUsers, books: defaultBooks, exchangeRequests: [] }
+);
+
+const users: User[] = storedData.users;
+const books: Book[] = storedData.books;
+const exchangeRequests: ExchangeRequest[] = storedData.exchangeRequests;
 
 let listeners: Array<() => void> = [];
 
 function notifyListeners() {
+  saveToStorage();
   listeners.forEach((fn) => fn());
 }
 

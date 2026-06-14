@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
   getExchangeRequestsByUser,
@@ -9,13 +8,13 @@ import {
   updateExchangeStatus,
   subscribe,
 } from '../../shared/dataStore';
+import { addRipple } from '../../shared/utils';
+import Navbar from '../../shared/Navbar';
 import type { ExchangeRequest } from '../../shared/dataStore';
 
 export default function ExchangeHistoryPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<ExchangeRequest[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -31,11 +30,6 @@ export default function ExchangeHistoryPage() {
     });
     return unsubscribe;
   }, [user]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
 
   const handleClick = (request: ExchangeRequest) => {
     if (request.ownerId === user?.id && !request.isRead) {
@@ -95,12 +89,14 @@ export default function ExchangeHistoryPage() {
             <div className="status-actions">
               <button
                 className="btn-small btn-accept"
+                onMouseDown={addRipple}
                 onClick={(e) => { e.stopPropagation(); handleStatusChange(request.id, '已接受'); }}
               >
                 接受
               </button>
               <button
                 className="btn-small btn-reject"
+                onMouseDown={addRipple}
                 onClick={(e) => { e.stopPropagation(); handleStatusChange(request.id, '已拒绝'); }}
               >
                 拒绝
@@ -111,6 +107,7 @@ export default function ExchangeHistoryPage() {
             <div className="status-actions">
               <button
                 className="btn-small btn-complete"
+                onMouseDown={addRipple}
                 onClick={(e) => { e.stopPropagation(); handleStatusChange(request.id, '已完成'); }}
               >
                 完成交换
@@ -124,31 +121,7 @@ export default function ExchangeHistoryPage() {
 
   return (
     <>
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <Link to="/">二手书交换</Link>
-        </div>
-        <div className="navbar-links">
-          <Link to="/">书籍列表</Link>
-          <Link to="/exchange-history" className="active">交换记录</Link>
-          <div className="nav-user">
-            <span className="nav-user-nickname">{user?.nickname}</span>
-            <button className="btn-logout" onClick={handleLogout}>登出</button>
-          </div>
-        </div>
-        <button className="nav-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? '✕' : '☰'}
-        </button>
-      </nav>
-
-      <div className={`nav-mobile-menu ${menuOpen ? 'open' : ''}`}>
-        <Link to="/" onClick={() => setMenuOpen(false)}>书籍列表</Link>
-        <Link to="/exchange-history" onClick={() => setMenuOpen(false)}>交换记录</Link>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-          <span style={{ color: 'var(--color-mint)' }}>{user?.nickname}</span>
-          <button className="btn-logout" onClick={handleLogout}>登出</button>
-        </div>
-      </div>
+      <Navbar />
 
       <div className="page-container">
         <h1 className="page-title">交换记录</h1>

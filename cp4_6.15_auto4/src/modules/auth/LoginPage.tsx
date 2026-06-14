@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { addRipple } from '../../shared/utils';
 
 export default function LoginPage() {
   const [nickname, setNickname] = useState('');
@@ -41,7 +42,7 @@ export default function LoginPage() {
             />
             {error && <span style={{ color: 'var(--color-red)', fontSize: '0.85rem' }}>{error}</span>}
           </div>
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" onMouseDown={addRipple}>
             进入书屋
           </button>
         </form>

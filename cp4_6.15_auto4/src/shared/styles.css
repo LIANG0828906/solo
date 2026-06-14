@@ -841,6 +841,8 @@ input, select, textarea {
   border-radius: var(--radius-sm);
   font-weight: 600;
   transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-accept {

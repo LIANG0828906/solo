@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getBooks, subscribe } from '../../shared/dataStore';
+import { addRipple } from '../../shared/utils';
+import Navbar from '../../shared/Navbar';
 import type { Book } from '../../shared/dataStore';
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -14,12 +15,9 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function BookListPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const debouncedSearch = useDebounce(searchText, 300);
 
@@ -29,11 +27,6 @@ export default function BookListPage() {
     });
     return unsubscribe;
   }, []);
-
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate('/login', { replace: true });
-  }, [logout, navigate]);
 
   const filteredBooks = useMemo(() => {
     return books.filter((book) => {
@@ -57,33 +50,7 @@ export default function BookListPage() {
 
   return (
     <>
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <Link to="/">二手书交换</Link>
-        </div>
-        <div className="navbar-links">
-          <Link to="/" className="active">书籍列表</Link>
-          <Link to="/exchange-history">
-            交换记录
-          </Link>
-          <div className="nav-user">
-            <span className="nav-user-nickname">{user?.nickname}</span>
-            <button className="btn-logout" onClick={handleLogout}>登出</button>
-          </div>
-        </div>
-        <button className="nav-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? '✕' : '☰'}
-        </button>
-      </nav>
-
-      <div className={`nav-mobile-menu ${menuOpen ? 'open' : ''}`}>
-        <Link to="/" onClick={() => setMenuOpen(false)}>书籍列表</Link>
-        <Link to="/exchange-history" onClick={() => setMenuOpen(false)}>交换记录</Link>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-          <span style={{ color: 'var(--color-mint)' }}>{user?.nickname}</span>
-          <button className="btn-logout" onClick={handleLogout}>登出</button>
-        </div>
-      </div>
+      <Navbar />
 
       <div className="page-container">
         <div className="filter-section">
