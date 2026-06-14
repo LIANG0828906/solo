@@ -15,12 +15,17 @@ const CardList: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [sentHearts, setSentHearts] = useState<Set<string>>(new Set());
   const [excludeIds, setExcludeIds] = useState<string[]>([]);
-  const observerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const excludeIdsRef = useRef<string[]>([]);
 
   const loadUsers = useCallback(
     async (pageNum: number, reset: boolean = false) => {
-      if (!currentUser || loading) return;
+      if (!currentUser || loadingRef.current) return;
 
+      loadingRef.current = true;
       setLoading(true);
       try {
         const startTime = Date.now();
@@ -28,7 +33,7 @@ const CardList: React.FC = () => {
           currentUser.id,
           pageNum,
           10,
-          reset ? [] : excludeIds
+          reset ? [] : excludeIdsRef.current
         );
 
         if (pageNum > 1) {
@@ -40,48 +45,66 @@ const CardList: React.FC = () => {
 
         if (reset) {
           setUsers(response.users);
-          setExcludeIds(response.users.map((u) => u.id));
+          const newIds = response.users.map((u) => u.id);
+          setExcludeIds(newIds);
+          excludeIdsRef.current = newIds;
         } else {
           setUsers((prev) => [...prev, ...response.users]);
-          setExcludeIds((prev) => [...prev, ...response.users.map((u) => u.id)]);
+          const newIds = [...excludeIdsRef.current, ...response.users.map((u) => u.id)];
+          setExcludeIds(newIds);
+          excludeIdsRef.current = newIds;
         }
         setHasMore(response.hasMore);
+        hasMoreRef.current = response.hasMore;
+        pageRef.current = pageNum;
+        setPage(pageNum);
       } catch (error) {
         console.error('加载用户失败:', error);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
         setInitialLoading(false);
       }
     },
-    [currentUser, loading, excludeIds]
+    [currentUser]
   );
 
   useEffect(() => {
     if (currentUser) {
+      pageRef.current = 1;
+      setPage(1);
+      excludeIdsRef.current = [];
+      setExcludeIds([]);
+      hasMoreRef.current = true;
+      setHasMore(true);
       loadUsers(1, true);
     }
-  }, [currentUser]);
+  }, [currentUser, loadUsers]);
 
   useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !initialLoading) {
-          setPage((prev) => {
-            const nextPage = prev + 1;
-            loadUsers(nextPage);
-            return nextPage;
-          });
+        if (
+          entries[0].isIntersecting &&
+          hasMoreRef.current &&
+          !loadingRef.current
+        ) {
+          const nextPage = pageRef.current + 1;
+          loadUsers(nextPage);
         }
       },
-      { threshold: 0.1 }
+      { rootMargin: '200px', threshold: 0 }
     );
 
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
-    }
+    observer.observe(sentinel);
 
-    return () => observer.disconnect();
-  }, [hasMore, loading, initialLoading, loadUsers]);
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadUsers, users]);
 
   const handleSendHeart = async (toUserId: string) => {
     if (!currentUser || sentHearts.has(toUserId)) return;
@@ -111,12 +134,12 @@ const CardList: React.FC = () => {
 
   if (users.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-r from-[#FF6B6B] to-[#FFB26B] flex items-center justify-center">
-          <Sparkles className="w-12 h-12 text-white" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4 md:px-6">
+        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-r from-[#FF6B6B] to-[#FFB26B] flex items-center justify-center">
+          <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800">暂无推荐</h2>
-        <p className="text-gray-500 max-w-md">
+        <h2 className="text-xl md:text-2xl font-bold text-gray-800">暂无推荐</h2>
+        <p className="text-gray-500 max-w-md text-sm md:text-base">
           暂时没有符合您偏好的用户，请稍后再来看看，或者调整您的择偶偏好
         </p>
       </div>
@@ -124,19 +147,19 @@ const CardList: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Sparkles className="w-7 h-7 text-[#FF6B6B]" />
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Sparkles className="w-6 h-6 md:w-7 md:h-7 text-[#FF6B6B]" />
             为你推荐
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1 text-sm md:text-base">
             根据您的择偶偏好，为您精选了{users.length}位优质用户
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
           {users.map((user) => (
             <UserCard
               key={user.id}
@@ -147,7 +170,7 @@ const CardList: React.FC = () => {
           ))}
         </div>
 
-        <div ref={observerRef} className="py-8 flex justify-center">
+        <div ref={sentinelRef} className="py-6 md:py-8 flex justify-center min-h-[60px]">
           {loading && (
             <div className="flex items-center gap-2 text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -155,7 +178,7 @@ const CardList: React.FC = () => {
             </div>
           )}
           {!hasMore && users.length > 0 && (
-            <p className="text-gray-400">已加载全部推荐</p>
+            <p className="text-gray-400 text-sm">已加载全部推荐</p>
           )}
         </div>
       </div>

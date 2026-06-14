@@ -48,10 +48,14 @@ export const getMatches = async (userId: string): Promise<Match[]> => {
   return response.data;
 };
 
-export const getMessages = async (matchId: string, since?: string): Promise<Message[]> => {
-  const response = await api.get(`/messages/${matchId}`, {
-    params: since ? { since } : {},
-  });
+export const getMessages = async (
+  matchId: string,
+  since?: string,
+  limit: number = 100
+): Promise<Message[]> => {
+  const params: Record<string, string | number> = { limit };
+  if (since) params.since = since;
+  const response = await api.get(`/messages/${matchId}`, { params });
   return response.data;
 };
 
