@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { Fragment, generateFragments } from '@/modules/puzzleManager';
+import {
+  Fragment,
+  generateFragments,
+  addFragment,
+  getPlacedCount,
+  getTotalCount,
+  getProgress,
+  isComplete,
+  resetFragments,
+} from '@/modules/puzzleManager';
 
 interface GameStore {
   fragments: Fragment[];
@@ -10,6 +19,7 @@ interface GameStore {
   flashRed: string | null;
 
   setFragments: (fragments: Fragment[]) => void;
+  addFragment: (fragment: Omit<Fragment, 'id'> & Partial<Pick<Fragment, 'id'>>) => void;
   updateFragmentPosition: (id: string, x: number, y: number) => void;
   setFragmentCorrect: (id: string, correct: boolean) => void;
   setDraggingId: (id: string | null) => void;
@@ -19,6 +29,11 @@ interface GameStore {
   setFlashOrange: (flash: boolean) => void;
   setFlashRed: (id: string | null) => void;
   resetGame: () => void;
+
+  getPlacedCount: () => number;
+  getTotalCount: () => number;
+  getProgress: () => number;
+  isComplete: () => boolean;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -30,6 +45,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   flashRed: null,
 
   setFragments: (fragments) => set({ fragments }),
+
+  addFragment: (fragment) =>
+    set((state) => ({
+      fragments: addFragment(state.fragments, fragment),
+    })),
 
   updateFragmentPosition: (id, x, y) =>
     set((state) => ({
@@ -70,6 +90,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       flashOrange: false,
       flashRed: null,
     }),
+
+  getPlacedCount: () => getPlacedCount(get().fragments),
+  getTotalCount: () => getTotalCount(get().fragments),
+  getProgress: () => getProgress(get().fragments),
+  isComplete: () => isComplete(get().fragments),
 }));
 
 export default useGameStore;

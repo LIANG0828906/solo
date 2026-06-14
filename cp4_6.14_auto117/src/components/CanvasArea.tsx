@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Fragment } from '@/modules/puzzleManager';
 import { useGameStore } from '@/store/gameStore';
@@ -9,6 +9,22 @@ interface PlacedFragmentProps {
 }
 
 const PlacedFragment: React.FC<PlacedFragmentProps> = memo(({ fragment, flashRed }) => {
+  const [isBouncingBack, setIsBouncingBack] = React.useState(false);
+  const prevFlashRed = useRef(flashRed);
+
+  useEffect(() => {
+    if (prevFlashRed.current && !flashRed) {
+      setIsBouncingBack(true);
+      const timer = setTimeout(() => {
+        setIsBouncingBack(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    prevFlashRed.current = flashRed;
+  }, [flashRed]);
+
+  const shouldShow = !isBouncingBack && (fragment.isPlaced || fragment.isCorrect);
+
   const style: React.CSSProperties = {
     position: 'absolute',
     left: fragment.currentX,
@@ -17,9 +33,15 @@ const PlacedFragment: React.FC<PlacedFragmentProps> = memo(({ fragment, flashRed
     height: fragment.height,
     backgroundColor: fragment.bgColor,
     borderRadius: 8,
-    border: `2px solid ${fragment.isCorrect ? 'var(--color-success)' : flashRed ? 'var(--color-error)' : 'transparent'}`,
+    border: `2px solid ${
+      fragment.isCorrect
+        ? '#22c55e'
+        : flashRed
+        ? '#ef4444'
+        : 'transparent'
+    }`,
     transform: `rotate(${fragment.rotation}deg)`,
-    transition: 'all var(--transition-normal)',
+    transition: flashRed ? 'none' : 'all 0.3s ease-out',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -28,9 +50,15 @@ const PlacedFragment: React.FC<PlacedFragmentProps> = memo(({ fragment, flashRed
     fontWeight: 500,
     textShadow: '0 1px 2px rgba(0,0,0,0.3)',
     cursor: fragment.isCorrect ? 'default' : 'grab',
-    boxShadow: fragment.isCorrect ? '0 0 0 2px var(--color-success)' : 'none',
-    animation: flashRed ? 'shake 0.2s ease-in-out' : fragment.isCorrect ? 'none' : undefined,
-    willChange: 'transform',
+    boxShadow: fragment.isCorrect
+      ? '0 0 0 2px #22c55e'
+      : flashRed
+      ? '0 0 0 2px #ef4444'
+      : '0 2px 8px rgba(0, 0, 0, 0.1)',
+    animation: flashRed ? 'shake 0.2s ease-in-out' : 'none',
+    willChange: 'transform, opacity',
+    opacity: shouldShow ? 1 : 0,
+    pointerEvents: fragment.isCorrect ? 'none' : 'auto',
   };
 
   const checkmarkStyle: React.CSSProperties = {
@@ -39,7 +67,7 @@ const PlacedFragment: React.FC<PlacedFragmentProps> = memo(({ fragment, flashRed
     right: -10,
     width: 24,
     height: 24,
-    backgroundColor: 'var(--color-success)',
+    backgroundColor: '#22c55e',
     borderRadius: '50%',
     display: fragment.isCorrect ? 'flex' : 'none',
     alignItems: 'center',
@@ -51,13 +79,8 @@ const PlacedFragment: React.FC<PlacedFragmentProps> = memo(({ fragment, flashRed
     zIndex: 10,
   };
 
-  const bounceStyle: React.CSSProperties = {
-    animation: flashRed ? 'none' : undefined,
-    transition: flashRed ? 'none' : 'all var(--transition-normal)',
-  };
-
   return (
-    <div style={{ ...style, ...bounceStyle }}>
+    <div style={style}>
       <div style={checkmarkStyle}>✓</div>
       {fragment.name}
     </div>
@@ -93,14 +116,14 @@ const CanvasArea: React.FC = () => {
   const canvasStyle: React.CSSProperties = {
     width: 600,
     height: 700,
-    backgroundColor: flashOrange ? 'var(--color-reward)' : 'var(--color-canvas)',
+    backgroundColor: flashOrange ? '#f97316' : '#f1f5f9',
     borderRadius: 'var(--radius-canvas)',
     position: 'relative',
     overflow: 'hidden',
     backgroundImage: `url(${gridPattern})`,
     backgroundSize: '20px 20px',
-    transition: 'background-color var(--transition-slow)',
-    border: isOver ? '2px dashed var(--color-highlight)' : 'none',
+    transition: 'background-color 0.4s ease-in-out',
+    border: isOver ? '2px dashed #3b82f6' : 'none',
     flexShrink: 0,
   };
 
@@ -134,16 +157,19 @@ const CanvasArea: React.FC = () => {
         }
         @media (max-width: 1000px) {
           .canvas-area {
-            width: calc(100% - 360px) !important;
+            width: calc(100vw - 360px) !important;
             max-width: 600px;
             min-width: 320px;
+            height: calc(100vh - 80px) !important;
+            max-height: 700px;
           }
         }
         @media (max-width: 768px) {
           .canvas-area {
             width: 100% !important;
             max-width: 600px;
-            height: 500px !important;
+            height: calc(100vh - 400px) !important;
+            min-height: 400px;
           }
         }
       `}</style>

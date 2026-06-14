@@ -22,6 +22,7 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0 : 1,
     cursor: fragment.isCorrect ? 'not-allowed' : 'grab',
+    position: 'relative',
   };
 
   const cardStyle: React.CSSProperties = {
@@ -30,12 +31,32 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     minHeight: 80,
     backgroundColor: '#ffffff',
     borderRadius: 'var(--radius-card)',
-    border: `1px solid ${fragment.isCorrect ? 'var(--color-success)' : flashRed ? 'var(--color-error)' : 'var(--color-border)'}`,
+    border: `1px solid ${
+      fragment.isCorrect
+        ? 'var(--color-success)'
+        : flashRed
+        ? 'var(--color-error)'
+        : 'var(--color-border)'
+    }`,
     padding: 8,
     transition: 'all var(--transition-fast)',
-    boxShadow: isDragging ? 'var(--shadow-drag)' : 'none',
     position: 'relative',
     overflow: 'hidden',
+    zIndex: 1,
+  };
+
+  const shadowStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    width: '100%',
+    height: 'calc(100% - 16px)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 'var(--radius-card)',
+    opacity: isDragging ? 1 : 0,
+    transition: 'opacity var(--transition-fast)',
+    zIndex: -1,
+    pointerEvents: 'none',
   };
 
   const contentStyle: React.CSSProperties = {
@@ -53,6 +74,8 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     fontSize: 12,
     fontWeight: 500,
     textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+    position: 'relative',
+    zIndex: 2,
   };
 
   const checkmarkStyle: React.CSSProperties = {
@@ -70,7 +93,7 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     fontSize: 12,
     fontWeight: 700,
     animation: 'checkmark 0.3s ease-out',
-    zIndex: 2,
+    zIndex: 10,
   };
 
   const labelStyle: React.CSSProperties = {
@@ -78,6 +101,8 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     fontSize: 12,
     color: 'var(--color-text-secondary)',
     textAlign: 'center',
+    position: 'relative',
+    zIndex: 2,
   };
 
   const cardClass = flashRed ? 'fragment-shake' : '';
@@ -90,10 +115,8 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
       {...attributes}
       {...listeners}
     >
-      <div
-        className={`fragment-card ${cardClass}`}
-        style={cardStyle}
-      >
+      <div className={`fragment-card ${cardClass}`} style={cardStyle}>
+        <div style={shadowStyle} />
         <div style={checkmarkStyle}>✓</div>
         <div className="fragment-content" style={contentStyle}>
           {fragment.name}
@@ -143,7 +166,14 @@ const FragmentPanel: React.FC = () => {
         />
       ))}
       {unplacedFragments.length === 0 && (
-        <div style={{ color: 'var(--color-text-secondary)', fontSize: 14, textAlign: 'center', padding: 20 }}>
+        <div
+          style={{
+            color: 'var(--color-text-secondary)',
+            fontSize: 14,
+            textAlign: 'center',
+            padding: 20,
+          }}
+        >
           所有碎片已放置完成
         </div>
       )}
@@ -170,6 +200,9 @@ const FragmentPanel: React.FC = () => {
           }
           .fragment-card {
             width: 100% !important;
+          }
+          .fragment-content {
+            font-size: 10px !important;
           }
         }
         @media (max-width: 768px) {

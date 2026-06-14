@@ -14,11 +14,12 @@ const PreviewFragment: React.FC<PreviewFragmentProps> = memo(({ fragment, isHigh
     top: `${fragment.previewY}%`,
     width: `${fragment.previewW}%`,
     height: `${fragment.previewH}%`,
-    backgroundColor: isHighlighted ? 'var(--color-highlight-bg)' : fragment.bgColor,
-    border: isHighlighted ? '3px solid var(--color-highlight)' : 'none',
+    backgroundColor: isHighlighted ? '#e0f2fe' : fragment.bgColor,
+    border: isHighlighted ? '3px solid #3b82f6' : 'none',
     borderRadius: 2,
-    transition: 'all var(--transition-normal)',
+    transition: 'all 0.3s ease-out',
     opacity: fragment.isCorrect ? 0.3 : 1,
+    boxSizing: 'border-box',
   };
 
   return <div style={style} />;
@@ -54,6 +55,7 @@ const PreviewPanel: React.FC = () => {
     backgroundColor: 'var(--color-canvas)',
     borderRadius: 8,
     overflow: 'hidden',
+    border: '1px solid var(--color-border)',
   };
 
   const previewInnerStyle: React.CSSProperties = {
@@ -66,7 +68,7 @@ const PreviewPanel: React.FC = () => {
 
   const hintStyle: React.CSSProperties = {
     fontSize: 14,
-    color: 'var(--color-text-secondary)',
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 1.5,
   };
@@ -91,6 +93,7 @@ const PreviewPanel: React.FC = () => {
     height: 16,
     backgroundColor: color,
     borderRadius: 4,
+    border: color === '#22c55e' ? '1px solid #22c55e' : '1px solid var(--color-border)',
   });
 
   return (
@@ -110,11 +113,11 @@ const PreviewPanel: React.FC = () => {
       <p style={hintStyle}>将碎片拖放到对应位置</p>
       <div style={legendStyle}>
         <div style={legendItemStyle}>
-          <div style={colorBoxStyle('var(--color-success)')} />
+          <div style={colorBoxStyle('#22c55e')} />
           <span>已放置正确</span>
         </div>
         <div style={legendItemStyle}>
-          <div style={colorBoxStyle('var(--color-highlight)')} />
+          <div style={colorBoxStyle('#3b82f6')} />
           <span>当前拖拽区域</span>
         </div>
       </div>

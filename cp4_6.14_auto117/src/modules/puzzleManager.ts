@@ -62,31 +62,44 @@ function shuffle<T>(array: T[]): T[] {
 export function generateFragments(): Fragment[] {
   const count = randomInt(5, 7);
   const selectedPresets = shuffle(presets).slice(0, count);
-  
-  return shuffle(selectedPresets.map((preset) => {
-    const width = randomInt(Math.max(80, preset.minW), Math.min(240, preset.maxW));
-    const height = randomInt(Math.max(60, preset.minH), Math.min(180, preset.maxH));
-    const rotation = (Math.random() - 0.5) * 6;
-    
-    return {
-      id: uuidv4(),
-      name: preset.name,
-      width,
-      height,
-      targetX: preset.targetX,
-      targetY: preset.targetY,
-      currentX: 0,
-      currentY: 0,
-      rotation,
-      isPlaced: false,
-      isCorrect: false,
-      bgColor: preset.color,
-      previewX: (preset.targetX / CANVAS_WIDTH) * 100,
-      previewY: (preset.targetY / CANVAS_HEIGHT) * 100,
-      previewW: (preset.w / CANVAS_WIDTH) * 100,
-      previewH: (preset.h / CANVAS_HEIGHT) * 100,
-    };
-  }));
+
+  return shuffle(
+    selectedPresets.map((preset) => {
+      const width = randomInt(Math.max(80, preset.minW), Math.min(240, preset.maxW));
+      const height = randomInt(Math.max(60, preset.minH), Math.min(180, preset.maxH));
+      const rotation = (Math.random() - 0.5) * 6;
+
+      return {
+        id: uuidv4(),
+        name: preset.name,
+        width,
+        height,
+        targetX: preset.targetX,
+        targetY: preset.targetY,
+        currentX: 0,
+        currentY: 0,
+        rotation,
+        isPlaced: false,
+        isCorrect: false,
+        bgColor: preset.color,
+        previewX: (preset.targetX / CANVAS_WIDTH) * 100,
+        previewY: (preset.targetY / CANVAS_HEIGHT) * 100,
+        previewW: (preset.w / CANVAS_WIDTH) * 100,
+        previewH: (preset.h / CANVAS_HEIGHT) * 100,
+      };
+    })
+  );
+}
+
+export function addFragment(
+  fragments: Fragment[],
+  fragment: Omit<Fragment, 'id'> & Partial<Pick<Fragment, 'id'>>
+): Fragment[] {
+  const newFragment: Fragment = {
+    ...fragment,
+    id: fragment.id || uuidv4(),
+  };
+  return [...fragments, newFragment];
 }
 
 export function checkPlacement(
@@ -114,12 +127,34 @@ export function getTotalCount(fragments: Fragment[]): number {
   return fragments.length;
 }
 
+export function getProgress(fragments: Fragment[]): number {
+  const total = fragments.length;
+  if (total === 0) return 0;
+  return getPlacedCount(fragments) / total;
+}
+
+export function resetFragments(fragments: Fragment[]): Fragment[] {
+  return shuffle(
+    fragments.map((f) => ({
+      ...f,
+      currentX: 0,
+      currentY: 0,
+      isPlaced: false,
+      isCorrect: false,
+      rotation: (Math.random() - 0.5) * 6,
+    }))
+  );
+}
+
 export const puzzleManager = {
   generateFragments,
+  addFragment,
   checkPlacement,
   isComplete,
   getPlacedCount,
   getTotalCount,
+  getProgress,
+  resetFragments,
 };
 
 export default puzzleManager;

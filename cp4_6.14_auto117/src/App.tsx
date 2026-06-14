@@ -26,8 +26,8 @@ function SuccessModalComponent({ onRestart }: SuccessModalProps) {
   };
 
   const modalStyle: React.CSSProperties = {
-    backgroundColor: 'var(--color-white)',
-    borderRadius: 'var(--radius-modal)',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
     padding: '48px 64px',
     textAlign: 'center',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
@@ -48,8 +48,8 @@ function SuccessModalComponent({ onRestart }: SuccessModalProps) {
   };
 
   const buttonStyle: React.CSSProperties = {
-    backgroundColor: 'var(--color-highlight)',
-    color: 'var(--color-white)',
+    backgroundColor: '#3b82f6',
+    color: '#ffffff',
     border: 'none',
     padding: '12px 32px',
     fontSize: 16,
@@ -71,7 +71,7 @@ function SuccessModalComponent({ onRestart }: SuccessModalProps) {
             e.currentTarget.style.backgroundColor = '#2563eb';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-highlight)';
+            e.currentTarget.style.backgroundColor = '#3b82f6';
           }}
         >
           再玩一次
@@ -85,10 +85,10 @@ const SuccessModal = memo(SuccessModalComponent);
 SuccessModal.displayName = 'SuccessModal';
 
 function AppComponent() {
-  const { fragments, showSuccess, resetGame } = useGameStore();
+  const { fragments, showSuccess, resetGame, getPlacedCount: storeGetPlacedCount, getTotalCount: storeGetTotalCount } = useGameStore();
 
-  const placedCount = getPlacedCount(fragments);
-  const totalCount = getTotalCount(fragments);
+  const placedCount = storeGetPlacedCount();
+  const totalCount = storeGetTotalCount();
 
   const handleRestart = useCallback(() => {
     resetGame();
@@ -103,23 +103,25 @@ function AppComponent() {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'var(--color-bg)',
+    backgroundColor: '#f8fafc',
+    overflow: 'hidden',
   };
 
   const headerStyle: React.CSSProperties = {
     padding: '16px 24px',
-    backgroundColor: 'var(--color-white)',
-    borderBottom: '1px solid var(--color-border)',
+    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #e2e8f0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexShrink: 0,
+    zIndex: 10,
   };
 
   const titleStyle: React.CSSProperties = {
     fontSize: 20,
     fontWeight: 700,
-    color: 'var(--color-text)',
+    color: '#0f172a',
   };
 
   const toolbarStyle: React.CSSProperties = {
@@ -131,17 +133,17 @@ function AppComponent() {
   const progressStyle: React.CSSProperties = {
     fontSize: 18,
     fontWeight: 600,
-    color: 'var(--color-text)',
+    color: '#0f172a',
   };
 
   const resetBtnStyle: React.CSSProperties = {
-    backgroundColor: 'var(--color-btn-bg)',
-    color: 'var(--color-white)',
+    backgroundColor: '#1e293b',
+    color: '#ffffff',
     border: 'none',
     padding: '10px 20px',
     fontSize: 14,
     fontWeight: 500,
-    borderRadius: 'var(--radius-btn)',
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'background-color var(--transition-fast)',
   };
@@ -150,7 +152,7 @@ function AppComponent() {
     flex: 1,
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 0,
     overflow: 'hidden',
   };
@@ -159,11 +161,14 @@ function AppComponent() {
     display: 'flex',
     height: '100%',
     overflow: 'hidden',
+    width: '100%',
+    maxWidth: 1120,
+    margin: '0 auto',
   };
 
   return (
-    <div style={appStyle}>
-      <header style={headerStyle}>
+    <div style={appStyle} className="app-container">
+      <header style={headerStyle} className="app-header">
         <h1 style={titleStyle}>布局碎片还原训练</h1>
         <div style={toolbarStyle}>
           <span style={progressStyle}>进度：{placedCount} / {totalCount}</span>
@@ -171,10 +176,10 @@ function AppComponent() {
             style={resetBtnStyle}
             onClick={handleReset}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-btn-hover)';
+              e.currentTarget.style.backgroundColor = '#334155';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-btn-bg)';
+              e.currentTarget.style.backgroundColor = '#1e293b';
             }}
           >
             重置
@@ -182,8 +187,8 @@ function AppComponent() {
         </div>
       </header>
       <DragProvider>
-        <main style={mainStyle}>
-          <div style={contentStyle}>
+        <main style={mainStyle} className="app-main">
+          <div style={contentStyle} className="app-content">
             <FragmentPanel />
             <CanvasArea />
             <PreviewPanel />
@@ -192,12 +197,21 @@ function AppComponent() {
       </DragProvider>
       {showSuccess && <SuccessModal onRestart={handleRestart} />}
       <style>{`
+        @media (max-width: 1000px) {
+          .app-content {
+            max-width: 100% !important;
+          }
+        }
         @media (max-width: 768px) {
           .app-content {
             flex-direction: column !important;
             width: 100% !important;
             height: 100% !important;
             overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+          .app-main {
+            align-items: flex-start !important;
           }
         }
       `}</style>
