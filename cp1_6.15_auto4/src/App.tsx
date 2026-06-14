@@ -11,10 +11,8 @@ export default function App() {
     fetchInitialData,
     projectName,
     setProjectName,
-    requiredSkills,
-    setRequiredSkills,
-    bonusSkills,
-    setBonusSkills,
+    projectSkills,
+    setProjectSkills,
     runRecommendation,
     setShowMemberModal,
     members,
@@ -24,7 +22,8 @@ export default function App() {
     fetchInitialData()
   }, [fetchInitialData])
 
-  const isDisabled = requiredSkills.length < 2
+  const requiredCount = projectSkills.filter(s => s.priority === 'required').length
+  const isDisabled = requiredCount < 2
 
   return (
     <div className="min-h-screen">
@@ -142,19 +141,12 @@ export default function App() {
                 </div>
 
                 <SkillTagInput
-                  title="必需技能"
-                  skills={requiredSkills}
-                  onChange={setRequiredSkills}
-                  placeholder="输入必需技能，回车添加..."
-                  priority="required"
-                />
-
-                <SkillTagInput
-                  title="加分技能"
-                  skills={bonusSkills}
-                  onChange={setBonusSkills}
-                  placeholder="输入加分技能，回车添加..."
-                  priority="bonus"
+                  title="项目技能需求"
+                  skills={projectSkills}
+                  onChange={setProjectSkills}
+                  placeholder="输入技能名称，回车添加..."
+                  defaultPriority="required"
+                  requiredCount={2}
                 />
 
                 <div className="pt-2">
@@ -178,7 +170,7 @@ export default function App() {
                   </button>
                   {isDisabled && (
                     <p className="text-xs text-center mt-2.5 text-[color:var(--text-muted)]">
-                      请至少添加 2 个必需技能 ({requiredSkills.length}/2)
+                      请至少添加 2 个必需技能 ({requiredCount}/2)
                     </p>
                   )}
                 </div>

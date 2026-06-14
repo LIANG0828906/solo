@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Member, Collaboration, RecommendationResult } from '@/utils/recommendationEngine'
 import { calculateRecommendations } from '@/utils/recommendationEngine'
+import type { SkillWithPriority } from '@/components/SkillTagInput'
 
 interface AppState {
   members: Member[];
@@ -8,8 +9,7 @@ interface AppState {
   recommendations: RecommendationResult[];
   selectedMember: Member | null;
   projectName: string;
-  requiredSkills: string[];
-  bonusSkills: string[];
+  projectSkills: SkillWithPriority[];
   isLoading: boolean;
   showMemberModal: boolean;
   editingMember: Member | null;
@@ -21,8 +21,7 @@ interface AppState {
   deleteMember: (id: string) => void;
   setCollaborations: (collaborations: Collaboration[]) => void;
   setProjectName: (name: string) => void;
-  setRequiredSkills: (skills: string[]) => void;
-  setBonusSkills: (skills: string[]) => void;
+  setProjectSkills: (skills: SkillWithPriority[]) => void;
   runRecommendation: () => void;
   setSelectedMember: (member: Member | null) => void;
   setShowMemberModal: (show: boolean) => void;
@@ -37,8 +36,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   recommendations: [],
   selectedMember: null,
   projectName: '',
-  requiredSkills: [],
-  bonusSkills: [],
+  projectSkills: [],
   isLoading: false,
   showMemberModal: false,
   editingMember: null,
@@ -80,12 +78,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setProjectName: (name) => set({ projectName: name }),
 
-  setRequiredSkills: (skills) => set({ requiredSkills: skills }),
-
-  setBonusSkills: (skills) => set({ bonusSkills: skills }),
+  setProjectSkills: (skills) => set({ projectSkills: skills }),
 
   runRecommendation: () => {
-    const { members, collaborations, requiredSkills, bonusSkills } = get()
+    const { members, collaborations, projectSkills } = get()
+    const requiredSkills = projectSkills.filter(s => s.priority === 'required').map(s => s.name)
+    const bonusSkills = projectSkills.filter(s => s.priority === 'bonus').map(s => s.name)
     const recommendations = calculateRecommendations(members, collaborations, requiredSkills, bonusSkills)
     set({ recommendations })
   },

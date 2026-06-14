@@ -33,8 +33,8 @@ export default function MemberFormModal() {
 
   const [name, setName] = useState('')
   const [skills, setSkills] = useState<Skill[]>([{ name: '', proficiency: 3 }])
-  const [collaborations, setCollaborationsState] = useState<CollaborationEntry[]>([])
-  const [errors, setErrors] = useState<{ name?: string; skills?: string }>({})
+  const [localCollaborations, setLocalCollaborations] = useState<CollaborationEntry[]>([])
+  const [errors, setErrors] = useState<{ name?: string; skills?: string; collaborations?: string }>({})
 
   const isEditing = !!editingMember
 
@@ -55,11 +55,11 @@ export default function MemberFormModal() {
           projectCount: c.projectCount,
           lastDate: c.lastDate,
         }))
-      setCollaborationsState(existingCollabs.length > 0 ? existingCollabs : [])
+      setLocalCollaborations(existingCollabs.length > 0 ? existingCollabs : [])
     } else {
       setName('')
       setSkills([{ name: '', proficiency: 3 }])
-      setCollaborationsState([])
+      setLocalCollaborations([])
     }
     setErrors({})
   }, [editingMember, showMemberModal, storeCollaborations])
@@ -85,14 +85,15 @@ export default function MemberFormModal() {
   }
 
   const addCollaboration = () => {
-    setCollaborationsState([
-      ...collaborations,
-      { otherMemberId: '', projectCount: 1, lastDate: getTodayDate() },
+    if (otherMembers.length === 0) return
+    setLocalCollaborations([
+      ...localCollaborations,
+      { otherMemberId: otherMembers[0].id, projectCount: 1, lastDate: getTodayDate() },
     ])
   }
 
   const removeCollaboration = (index: number) => {
-    setCollaborationsState(collaborations.filter((_, i) => i !== index))
+    setLocalCollaborations(localCollaborations.filter((_, i) => i !== index))
   }
 
   const updateCollaboration = (
@@ -100,9 +101,9 @@ export default function MemberFormModal() {
     field: 'otherMemberId' | 'projectCount' | 'lastDate',
     value: string | number
   ) => {
-    const newCollabs = [...collaborations]
+    const newCollabs = [...localCollaborations]
     newCollabs[index] = { ...newCollabs[index], [field]: value }
-    setCollaborationsState(newCollabs)
+    setLocalCollaborations(newCollabs)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,6 +129,22 @@ export default function MemberFormModal() {
       }
     }
 
+    if (isEditing) {
+      const invalidCollabs = localCollaborations.filter(c => !c.otherMemberId || c.projectCount < 1 || !c.lastDate)
+      if (invalidCollabs.length > 0) {
+        setErrors({ ...newErrors, collaborations: '请完善所有协作记录（成员、项目数和日期均不能为空）' })
+        return
+      }
+
+      const duplicateMembers = localCollaborations
+        .map(c => c.otherMemberId)
+        .filter((id, idx, arr) => arr.indexOf(id) !== idx)
+      if (duplicateMembers.length > 0) {
+        setErrors({ ...newErrors, collaborations: '同一成员不能有重复的协作记录' })
+        return
+      }
+    }
+
     const memberId = editingMember?.id || uuidv4()
     const memberData: Member = {
       id: memberId,
@@ -145,18 +162,20 @@ export default function MemberFormModal() {
         await addMember(memberData)
       }
 
-      const validCollabs = collaborations.filter((c) => c.otherMemberId && c.projectCount >= 1 && c.lastDate)
-      for (const collab of validCollabs) {
-        await fetch('/api/collaborations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            memberIdA: memberId,
-            memberIdB: collab.otherMemberId,
-            projectCount: collab.projectCount,
-            lastDate: collab.lastDate,
-          }),
-        })
+      if (isEditing) {
+        const validCollabs = localCollaborations.filter((c) => c.otherMemberId && c.projectCount >= 1 && c.lastDate)
+        for (const collab of validCollabs) {
+          await fetch('/api/collaborations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              memberIdA: memberId,
+              memberIdB: collab.otherMemberId,
+              projectCount: collab.projectCount,
+              lastDate: collab.lastDate,
+            }),
+          })
+        }
       }
 
       await fetchInitialData()
@@ -169,6 +188,7 @@ export default function MemberFormModal() {
   if (!showMemberModal) return null
 
   const otherMembers = members.filter((m) => m.id !== editingMember?.id)
+  const canEditCollaborations = isEditing && otherMembers.length > 0
 
   return (
     <div
@@ -350,7 +370,7 @@ export default function MemberFormModal() {
               <button
                 type="button"
                 onClick={addCollaboration}
-                disabled={otherMembers.length === 0}
+                disabled={!canEditCollaborations}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   background: 'rgba(74, 237, 196, 0.1)',
@@ -363,7 +383,25 @@ export default function MemberFormModal() {
               </button>
             </div>
 
-            {otherMembers.length === 0 ? (
+            {errors.collaborations && (
+              <p className="mb-2 text-xs" style={{ color: 'var(--danger)' }}>
+                {errors.collaborations}
+              </p>
+            )}
+
+            {!isEditing ? (
+              <div
+                className="flex items-center gap-2.5 p-4 rounded-xl text-xs"
+                style={{
+                  background: 'rgba(10, 22, 40, 0.3)',
+                  border: '1px solid rgba(74, 237, 196, 0.08)',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <Info size={16} style={{ color: 'var(--amber)', flexShrink: 0 }} />
+                <span>成员保存后可添加协作关系记录</span>
+              </div>
+            ) : otherMembers.length === 0 ? (
               <div
                 className="flex items-center gap-2.5 p-4 rounded-xl text-xs"
                 style={{
@@ -377,12 +415,12 @@ export default function MemberFormModal() {
               </div>
             ) : (
               <div className="space-y-3">
-                {collaborations.length === 0 ? (
+                {localCollaborations.length === 0 ? (
                   <p className="text-xs text-[color:var(--text-muted)]">
                     暂无协作记录，点击上方按钮添加
                   </p>
                 ) : (
-                  collaborations.map((collab, index) => (
+                  localCollaborations.map((collab, index) => (
                     <div
                       key={index}
                       className="p-3 rounded-xl animate-fadeInUp space-y-2.5"
