@@ -22,10 +22,15 @@ export enum LODLevel {
 }
 
 export interface IPhysicsBody {
+  id: string;
   position: { x: number; z: number };
   velocity: { x: number; z: number };
-  collisionRadius: number;
+  halfWidth: number;
+  halfDepth: number;
+  rotation: number;
   mass: number;
+  isStatic: boolean;
+  restitution: number;
 }
 
 export interface IWindowLightState {
@@ -33,7 +38,8 @@ export interface IWindowLightState {
   currentBrightness: number;
   toggleInterval: number;
   nextToggleTime: number;
-  color?: THREE.Color;
+  color: THREE.Color;
+  baseColor: THREE.Color;
 }
 
 export interface IBuilding {
@@ -46,12 +52,13 @@ export interface IBuilding {
   isComplete: boolean;
   mesh: THREE.Group;
   floors: THREE.Mesh[];
+  decorativeMeshes: THREE.Object3D[];
   beaconLight?: THREE.PointLight;
   beaconMesh?: THREE.Mesh;
   windowLights: THREE.Mesh[];
-  windowStates?: Map<string, IWindowLightState>;
-  animationState?: AnimationState;
-  physicsBody?: IPhysicsBody;
+  windowStates: Map<number, IWindowLightState>;
+  animationState: AnimationState;
+  physicsBody: IPhysicsBody;
   growthProgress: number;
   lastGrowthTime: number;
   targetFloor: number;
@@ -62,22 +69,36 @@ export interface IBuilding {
     isComplete: boolean;
   };
   pushOffset: { x: number; z: number };
-  lodLevel: number;
+  lodLevel: LODLevel;
+  growthTimeline?: any;
+  width: number;
+  depth: number;
 }
 
 export interface BuildingStyleGeometry {
   columnCount: number;
+  columnRadius: number;
+  columnHeightRatio: number;
   panelWidth: number;
   panelHeight: number;
+  panelDepth: number;
   hasCornice: boolean;
+  corniceHeight: number;
+  corniceOverhang: number;
   hasBase: boolean;
   baseHeight: number;
+  baseStepCount: number;
+  hasAngularPanels: boolean;
+  panelAngle: number;
+  hasRoofStructure: boolean;
+  roofAntennaCount: number;
 }
 
 export interface BuildingStyleConfig {
   bodyColor: number;
   edgeColor: number;
   windowColor: number;
+  accentColor: number;
   roughness: number;
   metalness: number;
   edgeWidth: number;
@@ -94,61 +115,97 @@ export const MIN_BUILDING_FLOORS = 5;
 export const MAX_BUILDING_FLOORS = 25;
 export const BUILDING_BASE_WIDTH = 1.5;
 export const BUILDING_BASE_DEPTH = 1.5;
-export const COLLISION_RADIUS = 4;
-export const PUSH_FORCE = 0.3;
-export const PHYSICS_DAMPING = 0.95;
-export const COLLISION_FORCE_MULTIPLIER = 2.0;
-export const SPRING_STIFFNESS = 0.5;
+export const COLLISION_PADDING = 0.15;
+export const PHYSICS_DAMPING = 0.92;
+export const COLLISION_FORCE_MULTIPLIER = 3.0;
+export const SPRING_STIFFNESS = 0.8;
+export const MAX_PHYSICS_VELOCITY = 1.5;
 export const BREATHING_SPEED = 0.002;
 export const BREATHING_INTENSITY = 0.15;
+export const MIN_WINDOW_TOGGLE_INTERVAL = 1.0;
+export const MAX_WINDOW_TOGGLE_INTERVAL = 5.0;
+export const WINDOW_BRIGHTNESS_CHANGE_SPEED = 2.0;
 
 export const STYLE_CONFIGS: Record<BuildingStyle, BuildingStyleConfig> = {
   [BuildingStyle.MODERN_GLASS]: {
     bodyColor: 0x2a3a5a,
     edgeColor: 0x00ffff,
     windowColor: 0x88ccff,
+    accentColor: 0x00ffcc,
     roughness: 0.1,
     metalness: 0.9,
     edgeWidth: 0.02,
     geometry: {
-      columnCount: 6,
+      columnCount: 0,
+      columnRadius: 0,
+      columnHeightRatio: 0,
       panelWidth: 0.8,
       panelHeight: 1.0,
+      panelDepth: 0.02,
       hasCornice: false,
+      corniceHeight: 0,
+      corniceOverhang: 0,
       hasBase: true,
-      baseHeight: 0.3
+      baseHeight: 0.3,
+      baseStepCount: 1,
+      hasAngularPanels: false,
+      panelAngle: 0,
+      hasRoofStructure: true,
+      roofAntennaCount: 2
     }
   },
   [BuildingStyle.CLASSICAL_STONE]: {
     bodyColor: 0x8b7355,
     edgeColor: 0xffd700,
     windowColor: 0xffcc33,
+    accentColor: 0xdaa520,
     roughness: 0.8,
     metalness: 0.1,
     edgeWidth: 0.03,
     geometry: {
-      columnCount: 8,
+      columnCount: 6,
+      columnRadius: 0.08,
+      columnHeightRatio: 0.85,
       panelWidth: 0.6,
       panelHeight: 1.2,
+      panelDepth: 0.04,
       hasCornice: true,
+      corniceHeight: 0.25,
+      corniceOverhang: 0.2,
       hasBase: true,
-      baseHeight: 0.5
+      baseHeight: 0.5,
+      baseStepCount: 3,
+      hasAngularPanels: false,
+      panelAngle: 0,
+      hasRoofStructure: false,
+      roofAntennaCount: 0
     }
   },
   [BuildingStyle.FUTURISTIC_METAL]: {
     bodyColor: 0x1a1a2e,
     edgeColor: 0xff00ff,
     windowColor: 0x00ffcc,
+    accentColor: 0xff00aa,
     roughness: 0.2,
-    metalness: 0.8,
+    metalness: 0.85,
     edgeWidth: 0.025,
     geometry: {
-      columnCount: 4,
+      columnCount: 0,
+      columnRadius: 0,
+      columnHeightRatio: 0,
       panelWidth: 1.0,
       panelHeight: 0.9,
+      panelDepth: 0.06,
       hasCornice: true,
+      corniceHeight: 0.15,
+      corniceOverhang: 0.15,
       hasBase: false,
-      baseHeight: 0.2
+      baseHeight: 0.2,
+      baseStepCount: 1,
+      hasAngularPanels: true,
+      panelAngle: 0.35,
+      hasRoofStructure: true,
+      roofAntennaCount: 4
     }
   }
 };
@@ -183,4 +240,8 @@ export function worldToGrid(worldX: number, worldZ: number): { x: number; z: num
     return { x: gridX, z: gridZ };
   }
   return null;
+}
+
+export function getRandomWindowToggleTime(): number {
+  return MIN_WINDOW_TOGGLE_INTERVAL + Math.random() * (MAX_WINDOW_TOGGLE_INTERVAL - MIN_WINDOW_TOGGLE_INTERVAL);
 }
