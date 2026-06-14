@@ -1,15 +1,11 @@
-import express from 'express';
-import cors from 'cors';
-import { Low, JSONFile } from 'lowdb';
-import { v4 as uuidv4 } from 'uuid';
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require('express');
+const cors = require('cors');
+const { Low, JSONFile } = require('lowdb');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());
@@ -64,77 +60,81 @@ function createSeedData() {
   return { wines, tastings };
 }
 
-await db.read();
-if (!db.data || db.data.wines.length === 0) {
-  db.data = createSeedData();
-  await db.write();
+async function initDb() {
+  await db.read();
+  if (!db.data || db.data.wines.length === 0) {
+    db.data = createSeedData();
+    await db.write();
+  }
 }
 
-app.get('/api/wines', (req, res) => {
-  const { region } = req.query;
-  let wines = db.data.wines;
-  if (region && region !== 'all') {
-    wines = wines.filter(w => w.region === region);
-  }
-  res.json(wines);
-});
+initDb().then(() => {
+  app.get('/api/wines', (req, res) => {
+    const { region } = req.query;
+    let wines = db.data.wines;
+    if (region && region !== 'all') {
+      wines = wines.filter(w => w.region === region);
+    }
+    res.json(wines);
+  });
 
-app.get('/api/wines/:id', (req, res) => {
-  const wine = db.data.wines.find(w => w.id === req.params.id);
-  if (!wine) return res.status(404).json({ error: 'Wine not found' });
-  res.json(wine);
-});
+  app.get('/api/wines/:id', (req, res) => {
+    const wine = db.data.wines.find(w => w.id === req.params.id);
+    if (!wine) return res.status(404).json({ error: 'Wine not found' });
+    res.json(wine);
+  });
 
-app.post('/api/wines', async (req, res) => {
-  const wine = { id: uuidv4(), tastingCount: 0, forExchange: false, logoColor: '#722F37', ...req.body };
-  db.data.wines.push(wine);
-  await db.write();
-  res.status(201).json(wine);
-});
+  app.post('/api/wines', async (req, res) => {
+    const wine = { id: uuidv4(), tastingCount: 0, forExchange: false, logoColor: '#722F37', ...req.body };
+    db.data.wines.push(wine);
+    await db.write();
+    res.status(201).json(wine);
+  });
 
-app.put('/api/wines/:id', async (req, res) => {
-  const idx = db.data.wines.findIndex(w => w.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Wine not found' });
-  db.data.wines[idx] = { ...db.data.wines[idx], ...req.body, id: req.params.id };
-  await db.write();
-  res.json(db.data.wines[idx]);
-});
+  app.put('/api/wines/:id', async (req, res) => {
+    const idx = db.data.wines.findIndex(w => w.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Wine not found' });
+    db.data.wines[idx] = { ...db.data.wines[idx], ...req.body, id: req.params.id };
+    await db.write();
+    res.json(db.data.wines[idx]);
+  });
 
-app.delete('/api/wines/:id', async (req, res) => {
-  const idx = db.data.wines.findIndex(w => w.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Wine not found' });
-  db.data.wines.splice(idx, 1);
-  db.data.tastings = db.data.tastings.filter(t => t.wineId !== req.params.id);
-  await db.write();
-  res.json({ success: true });
-});
+  app.delete('/api/wines/:id', async (req, res) => {
+    const idx = db.data.wines.findIndex(w => w.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Wine not found' });
+    db.data.wines.splice(idx, 1);
+    db.data.tastings = db.data.tastings.filter(t => t.wineId !== req.params.id);
+    await db.write();
+    res.json({ success: true });
+  });
 
-app.get('/api/tastings', (req, res) => {
-  res.json(db.data.tastings);
-});
+  app.get('/api/tastings', (req, res) => {
+    res.json(db.data.tastings);
+  });
 
-app.get('/api/wines/:id/tastings', (req, res) => {
-  const tastings = db.data.tastings.filter(t => t.wineId === req.params.id);
-  tastings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  res.json(tastings);
-});
+  app.get('/api/wines/:id/tastings', (req, res) => {
+    const tastings = db.data.tastings.filter(t => t.wineId === req.params.id);
+    tastings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    res.json(tastings);
+  });
 
-app.post('/api/tastings', async (req, res) => {
-  const tasting = { id: uuidv4(), ...req.body };
-  db.data.tastings.push(tasting);
+  app.post('/api/tastings', async (req, res) => {
+    const tasting = { id: uuidv4(), ...req.body };
+    db.data.tastings.push(tasting);
 
-  const wineIdx = db.data.wines.findIndex(w => w.id === req.body.wineId);
-  if (wineIdx !== -1) {
-    const wineTastings = db.data.tastings.filter(t => t.wineId === req.body.wineId);
-    const avgRating = wineTastings.reduce((sum, t) => sum + t.rating, 0) / wineTastings.length;
-    db.data.wines[wineIdx].rating = Math.round(avgRating * 10) / 10;
-    db.data.wines[wineIdx].tastingCount = wineTastings.length;
-  }
+    const wineIdx = db.data.wines.findIndex(w => w.id === req.body.wineId);
+    if (wineIdx !== -1) {
+      const wineTastings = db.data.tastings.filter(t => t.wineId === req.body.wineId);
+      const avgRating = wineTastings.reduce((sum, t) => sum + t.rating, 0) / wineTastings.length;
+      db.data.wines[wineIdx].rating = Math.round(avgRating * 10) / 10;
+      db.data.wines[wineIdx].tastingCount = wineTastings.length;
+    }
 
-  await db.write();
-  res.status(201).json(tasting);
-});
+    await db.write();
+    res.status(201).json(tasting);
+  });
 
-app.listen(PORT, () => {
-  console.log(`🍷 Wine Cellar API running on http://localhost:${PORT}`);
+  app.listen(PORT, () => {
+    console.log('\ud83c\udf77 Wine Cellar API running on http://localhost:' + PORT);
+  });
 });

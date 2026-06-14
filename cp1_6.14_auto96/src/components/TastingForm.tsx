@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Eye, Wind, Flame, Droplets, Utensils, Star } from 'lucide-react';
 import type { TastingRecord } from '@/types';
 import { AROMA_OPTIONS } from '@/types';
+import './TastingForm.css';
 
 interface TastingFormProps {
   wineId: string;

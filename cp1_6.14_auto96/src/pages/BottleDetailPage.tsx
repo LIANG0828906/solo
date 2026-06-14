@@ -5,6 +5,7 @@ import { ArrowLeft, Wine, Info, ClipboardList, ArrowLeftRight, MapPin, Grape, Ca
 import type { Wine, TastingRecord, RegionKey } from '@/types';
 import { REGION_CONFIG, AROMA_OPTIONS } from '@/types';
 import TastingForm from '@/components/TastingForm';
+import './BottleDetailPage.css';
 
 type TabKey = 'info' | 'tastings' | 'exchange';
 

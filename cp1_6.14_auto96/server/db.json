@@ -1,7 +1,7 @@
 {
   "wines": [
     {
-      "id": "b6174048-f816-48bf-8c32-e547091657b5",
+      "id": "120a7c52-2e53-4dbb-8597-20605b46ab18",
       "name": "Château Margaux",
       "chateau": "Château Margaux",
       "region": "bordeaux",
@@ -16,7 +16,7 @@
       "tastingCount": 2
     },
     {
-      "id": "897c2d3d-f89d-4981-b1f9-457cee98870e",
+      "id": "836b9537-809b-4006-97d6-9c6968586145",
       "name": "Château Lafite Rothschild",
       "chateau": "Château Lafite Rothschild",
       "region": "bordeaux",
@@ -36,7 +36,7 @@
       "tastingCount": 1
     },
     {
-      "id": "551d92ba-faf4-4259-a0dd-4c8386f3e35d",
+      "id": "4f920a93-01e7-4a4b-95e1-401004e5ee6f",
       "name": "Château Mouton Rothschild",
       "chateau": "Château Mouton Rothschild",
       "region": "bordeaux",
@@ -51,7 +51,7 @@
       "tastingCount": 1
     },
     {
-      "id": "37d3e31c-f62a-4cb3-9000-158cf294d912",
+      "id": "c3805209-c864-4bba-9b63-f6d127e9872d",
       "name": "Château Haut-Brion",
       "chateau": "Château Haut-Brion",
       "region": "bordeaux",
@@ -66,7 +66,7 @@
       "tastingCount": 0
     },
     {
-      "id": "7c21debc-e0a5-40b6-80af-faeb06d5f182",
+      "id": "749e2b72-a011-4b39-b567-ff97a790a233",
       "name": "Château Palmer",
       "chateau": "Château Palmer",
       "region": "bordeaux",
@@ -85,7 +85,7 @@
       "tastingCount": 1
     },
     {
-      "id": "bf98fdf2-3031-462d-a401-9bc54471be84",
+      "id": "752aa66d-1239-40cc-a78f-d68bad788e83",
       "name": "Pauillac Reserve",
       "chateau": "Pauillac Estate",
       "region": "bordeaux",
@@ -102,7 +102,7 @@
       "tastingCount": 0
     },
     {
-      "id": "84e35e38-016a-4ea7-96ae-d4375d9633b5",
+      "id": "9de0eb69-b211-4ed3-a871-8d4952470421",
       "name": "Opus One",
       "chateau": "Opus One Winery",
       "region": "napa",
@@ -117,7 +117,7 @@
       "tastingCount": 2
     },
     {
-      "id": "7c75e03d-d7fd-4637-9788-f7c3b5780613",
+      "id": "f3dda845-6e8d-4302-992c-4b74451cffa6",
       "name": "Screaming Eagle",
       "chateau": "Screaming Eagle",
       "region": "napa",
@@ -132,7 +132,7 @@
       "tastingCount": 1
     },
     {
-      "id": "9fe9e8de-45f3-4891-8ec1-aa39e8af90ea",
+      "id": "004bbaf4-f3a3-47e9-8957-3f9e282b4e90",
       "name": "Harlan Estate",
       "chateau": "Harlan Estate",
       "region": "napa",
@@ -152,7 +152,7 @@
       "tastingCount": 0
     },
     {
-      "id": "48e0dd2e-52dc-4f1a-a9d1-b04f7865cdce",
+      "id": "4e78e70f-a3b0-4089-af6f-8f8fbbabbd04",
       "name": "Dominus",
       "chateau": "Dominus Estate",
       "region": "napa",
@@ -167,7 +167,7 @@
       "tastingCount": 0
     },
     {
-      "id": "e771ee76-5668-44db-b469-a4f6a0699013",
+      "id": "3c959902-019a-43a9-8d78-9b535d06232e",
       "name": "Silver Oak",
       "chateau": "Silver Oak Cellars",
       "region": "napa",
@@ -182,7 +182,7 @@
       "tastingCount": 1
     },
     {
-      "id": "1b52638b-08ac-4a75-8ad7-2dd6001c779b",
+      "id": "602b63ac-eb8a-41d0-aa5c-68cbe4826b26",
       "name": "Stag's Leap",
       "chateau": "Stag's Leap Wine Cellars",
       "region": "napa",
@@ -199,7 +199,7 @@
       "tastingCount": 0
     },
     {
-      "id": "9a251c48-e90d-4c5d-87bf-8c7d459eafec",
+      "id": "8343e71b-33cb-4643-8a98-c61efc8b1eb6",
       "name": "Sassicaia",
       "chateau": "Tenuta San Guido",
       "region": "tuscany",
@@ -214,7 +214,7 @@
       "tastingCount": 1
     },
     {
-      "id": "25cd17f4-b1a5-4f43-bfa6-e9a11071e099",
+      "id": "6a6a5c5c-5cc7-4a43-8cc2-2a11407650f7",
       "name": "Tignanello",
       "chateau": "Antinori",
       "region": "tuscany",
@@ -229,7 +229,7 @@
       "tastingCount": 0
     },
     {
-      "id": "c84e614c-6c05-44a6-a0eb-e019cffd8488",
+      "id": "0e81d6fc-590c-48b8-84c3-8bb6215a003e",
       "name": "Ornellaia",
       "chateau": "Ornellaia",
       "region": "tuscany",
@@ -248,7 +248,7 @@
       "tastingCount": 0
     },
     {
-      "id": "95c94976-d0fc-4180-b0d7-5aa3d709b396",
+      "id": "f177344b-2c8c-423b-8af3-1ce6a23923e9",
       "name": "Brunello di Montalcino",
       "chateau": "Biondi-Santi",
       "region": "tuscany",
@@ -263,7 +263,7 @@
       "tastingCount": 0
     },
     {
-      "id": "84b11ed1-83af-4f3b-a34e-10bd0a979fbe",
+      "id": "e5b11edc-5156-424d-8b80-a5ceef823819",
       "name": "Super Tuscan Reserve",
       "chateau": "Michele Satta",
       "region": "tuscany",
@@ -278,7 +278,7 @@
       "tastingCount": 0
     },
     {
-      "id": "4d2c82c0-4e73-430f-b03f-eda603076fc3",
+      "id": "0211f6fa-6c58-4279-bf75-1ba919760b56",
       "name": "Chianti Classico Riserva",
       "chateau": "Fontodi",
       "region": "tuscany",
@@ -295,7 +295,7 @@
       "tastingCount": 0
     },
     {
-      "id": "41edce1d-460b-4976-bed0-f2a4835d9d1a",
+      "id": "e27014a9-0efa-4202-afd1-cb0a8eb0abb1",
       "name": "Domaine Romanée-Conti",
       "chateau": "Domaine de la Romanée-Conti",
       "region": "burgundy",
@@ -310,7 +310,7 @@
       "tastingCount": 1
     },
     {
-      "id": "2d6ce3f9-05a8-4f3c-93e5-35779277ea94",
+      "id": "f53b59aa-68a7-4861-873f-6d3509c09b68",
       "name": "Montrachet",
       "chateau": "Domaine Leflaive",
       "region": "burgundy",
@@ -325,7 +325,7 @@
       "tastingCount": 0
     },
     {
-      "id": "5bfe77e3-d66d-40c3-8720-ad6893431165",
+      "id": "2c2678eb-c5d8-4cf2-be27-ca8f029ea003",
       "name": "Gevrey-Chambertin",
       "chateau": "Domaine Armand Rousseau",
       "region": "burgundy",
@@ -340,7 +340,7 @@
       "tastingCount": 0
     },
     {
-      "id": "bf4639b8-9ba5-4359-895e-5367c7666fcf",
+      "id": "1f69838d-4398-4fcd-89b7-a37b449c50f4",
       "name": "Puligny-Montrachet",
       "chateau": "Domaine Bouchard Père & Fils",
       "region": "burgundy",
@@ -357,7 +357,7 @@
       "tastingCount": 0
     },
     {
-      "id": "7aa27e2b-a941-4d2a-b5c3-19d3134031ef",
+      "id": "6f20a87c-040e-48a7-8721-863f195cdf47",
       "name": "Nuits-Saint-Georges",
       "chateau": "Domaine Henri Gouges",
       "region": "burgundy",
@@ -372,7 +372,7 @@
       "tastingCount": 0
     },
     {
-      "id": "63e7980b-9d28-434c-8c86-49b4d456cd4d",
+      "id": "7f537baa-f355-48f3-87c8-14d3fc59b92b",
       "name": "Meursault",
       "chateau": "Domaine Coche-Dury",
       "region": "burgundy",
@@ -389,8 +389,8 @@
   ],
   "tastings": [
     {
-      "id": "69720218-5516-4301-9468-801aa338af08",
-      "wineId": "b6174048-f816-48bf-8c32-e547091657b5",
+      "id": "cdb57376-2d3c-4e01-bad2-753ee2e1c874",
+      "wineId": "120a7c52-2e53-4dbb-8597-20605b46ab18",
       "date": "2026-03-15",
       "appearance": "深宝石红色，边缘微带砖红",
       "clarity": 4,
@@ -407,8 +407,8 @@
       "rating": 5
     },
     {
-      "id": "cc0b5fc9-00a3-46e3-857d-b07cb30c55d3",
-      "wineId": "b6174048-f816-48bf-8c32-e547091657b5",
+      "id": "39b725a4-7b5a-4936-af71-622f160acb33",
+      "wineId": "120a7c52-2e53-4dbb-8597-20605b46ab18",
       "date": "2026-01-20",
       "appearance": "浓郁的紫红色",
       "clarity": 5,
@@ -424,8 +424,8 @@
       "rating": 4
     },
     {
-      "id": "4e1f6ab2-a98c-447d-82af-9e2e5d4d854b",
-      "wineId": "897c2d3d-f89d-4981-b1f9-457cee98870e",
+      "id": "65667248-c95d-437d-ab52-2e8f0c9afc8f",
+      "wineId": "836b9537-809b-4006-97d6-9c6968586145",
       "date": "2026-02-10",
       "appearance": "深邃的红宝石色",
       "clarity": 5,
@@ -442,8 +442,8 @@
       "rating": 5
     },
     {
-      "id": "558b92be-a8bd-470b-8546-05cbb4ea4041",
-      "wineId": "551d92ba-faf4-4259-a0dd-4c8386f3e35d",
+      "id": "1ca98f14-23e0-475c-bd86-7b6d19ab508d",
+      "wineId": "4f920a93-01e7-4a4b-95e1-401004e5ee6f",
       "date": "2025-12-25",
       "appearance": "明亮的樱桃红",
       "clarity": 4,
@@ -459,8 +459,8 @@
       "rating": 4
     },
     {
-      "id": "744fc80c-dcf7-4597-bed7-ef626bf6515d",
-      "wineId": "7c21debc-e0a5-40b6-80af-faeb06d5f182",
+      "id": "650375b2-6c0a-4ebe-bed5-6f23bdd6f3ba",
+      "wineId": "749e2b72-a011-4b39-b567-ff97a790a233",
       "date": "2026-04-01",
       "appearance": "深紫色",
       "clarity": 4,
@@ -477,8 +477,8 @@
       "rating": 4
     },
     {
-      "id": "37a41aba-1560-4fd1-aa96-293b235db720",
-      "wineId": "84e35e38-016a-4ea7-96ae-d4375d9633b5",
+      "id": "ced79c0d-9ab1-4b1a-ab1e-e546fe5bf5c2",
+      "wineId": "9de0eb69-b211-4ed3-a871-8d4952470421",
       "date": "2026-03-20",
       "appearance": "深沉的紫红色",
       "clarity": 5,
@@ -495,8 +495,8 @@
       "rating": 5
     },
     {
-      "id": "501134e7-279b-498a-a11a-33db4b0a2abc",
-      "wineId": "84e35e38-016a-4ea7-96ae-d4375d9633b5",
+      "id": "10e69a15-7eb6-40d4-a9f3-9a0dbb79324a",
+      "wineId": "9de0eb69-b211-4ed3-a871-8d4952470421",
       "date": "2025-11-15",
       "appearance": "深紫红色",
       "clarity": 4,
@@ -512,8 +512,8 @@
       "rating": 5
     },
     {
-      "id": "384617b0-f0cd-4808-ba4c-f63f69c9da1a",
-      "wineId": "7c75e03d-d7fd-4637-9788-f7c3b5780613",
+      "id": "4d55fd26-5e2d-4626-b092-d52a34aa459b",
+      "wineId": "f3dda845-6e8d-4302-992c-4b74451cffa6",
       "date": "2026-02-28",
       "appearance": "不透明深紫色",
       "clarity": 5,
@@ -530,8 +530,8 @@
       "rating": 5
     },
     {
-      "id": "a43a76ef-7034-4d83-a873-04fa8c55f140",
-      "wineId": "e771ee76-5668-44db-b469-a4f6a0699013",
+      "id": "7c5d0a57-3226-4080-9a7e-7bc2af65dff0",
+      "wineId": "3c959902-019a-43a9-8d78-9b535d06232e",
       "date": "2026-05-01",
       "appearance": "明亮红宝石色",
       "clarity": 4,
@@ -547,8 +547,8 @@
       "rating": 4
     },
     {
-      "id": "927a9ebb-2faf-4b66-a29b-cbaa61c647c8",
-      "wineId": "9a251c48-e90d-4c5d-87bf-8c7d459eafec",
+      "id": "131d1250-1e0c-4a22-b98f-db648a6ef141",
+      "wineId": "8343e71b-33cb-4643-8a98-c61efc8b1eb6",
       "date": "2026-04-10",
       "appearance": "深石榴红色",
       "clarity": 5,
@@ -565,8 +565,8 @@
       "rating": 5
     },
     {
-      "id": "d21022b3-6b2e-4258-bbca-bf91ec887429",
-      "wineId": "41edce1d-460b-4976-bed0-f2a4835d9d1a",
+      "id": "f1bbe282-41b6-48e7-8af0-2a5ab36e36ca",
+      "wineId": "e27014a9-0efa-4202-afd1-cb0a8eb0abb1",
       "date": "2026-03-05",
       "appearance": "通透的淡红宝石色",
       "clarity": 5,

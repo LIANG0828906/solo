@@ -1,6 +1,6 @@
 {
   "watch": ["server"],
-  "ext": "js,json",
+  "ext": "js,json,cjs",
   "ignore": ["server/db.json"],
-  "exec": "node server/index.js"
+  "exec": "node"
 }

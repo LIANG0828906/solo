@@ -4,6 +4,7 @@ import { Wine, Search } from 'lucide-react';
 import WineCard from '@/components/WineCard';
 import type { Wine as WineType, TastingRecord, RegionKey } from '@/types';
 import { REGION_CONFIG } from '@/types';
+import './CellarPage.css';
 
 const REGIONS: { key: string; label: string }[] = [
   { key: 'all', label: '全部' },

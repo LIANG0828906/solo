@@ -4,6 +4,7 @@ import { GlassWater, Handshake } from 'lucide-react';
 import type { Wine, TastingRecord } from '@/types';
 import { REGION_CONFIG } from '@/types';
 import type { RegionKey } from '@/types';
+import './WineCard.css';
 
 interface WineCardProps {
   wine: Wine;
