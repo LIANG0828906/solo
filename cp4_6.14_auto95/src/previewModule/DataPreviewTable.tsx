@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 import { Trash2, RotateCcw } from 'lucide-react';
 import type { DataRow, FieldRule } from '../types';
 
@@ -12,18 +13,106 @@ interface DataPreviewTableProps {
 
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 44;
-const BUFFER_ROWS = 5;
+
+interface RowRendererProps extends ListChildComponentProps {
+  data: {
+    data: DataRow[];
+    sortedRules: FieldRule[];
+    onDelete: (index: number) => void;
+    deletingRows: Set<number>;
+    hoveredRow: number | null;
+    setHoveredRow: (index: number | null) => void;
+    handleCellHover: (e: React.MouseEvent<HTMLDivElement>, value: string | number) => void;
+    handleCellLeave: () => void;
+  };
+}
+
+const RowRenderer: React.FC<RowRendererProps> = ({ index, style, data }) => {
+  const {
+    data: rows,
+    sortedRules,
+    onDelete,
+    deletingRows,
+    hoveredRow,
+    setHoveredRow,
+    handleCellHover,
+    handleCellLeave,
+  } = data;
+
+  const row = rows[index];
+  const isEven = index % 2 === 0;
+  const isHovered = hoveredRow === index;
+  const isDeleting = deletingRows.has(index);
+
+  return (
+    <div
+      style={{
+        ...style,
+        display: 'flex',
+        alignItems: 'center',
+        width: '100%',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          width: '100%',
+          height: ROW_HEIGHT,
+          backgroundColor: isHovered
+            ? '#e2e8f0'
+            : isEven
+            ? '#ffffff'
+            : '#f1f5f9',
+          opacity: isDeleting ? 0 : 1,
+          transform: isDeleting ? 'translateX(100%)' : 'translateX(0)',
+          transition: 'opacity 0.2s ease, transform 0.2s ease',
+        }}
+        onMouseEnter={() => setHoveredRow(index)}
+        onMouseLeave={() => setHoveredRow(null)}
+      >
+        {sortedRules.map((rule) => (
+          <div
+            key={rule.id}
+            style={cellStyle}
+            onMouseEnter={(e) => handleCellHover(e, row[rule.fieldName])}
+            onMouseLeave={handleCellLeave}
+          >
+            {String(row[rule.fieldName] ?? '')}
+          </div>
+        ))}
+        <div style={{ ...cellStyle, width: 60, flexShrink: 0 }}>
+          <button
+            onClick={() => onDelete(index)}
+            style={{
+              ...rowDeleteBtnStyle,
+              opacity: isHovered ? 1 : 0,
+              backgroundColor: isHovered ? '#ef4444' : 'transparent',
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = '#dc2626')
+            }
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = isHovered
+                ? '#ef4444'
+                : 'transparent';
+            }}
+          >
+            <Trash2 size={14} style={{ color: 'white' }} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   data,
   rules,
   onDeleteRow,
   onClearAll,
-  deletedRowIndex,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(500);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -33,12 +122,16 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   }>({ visible: false, text: '', x: 0, y: 0 });
   const [deletingRows, setDeletingRows] = useState<Set<number>>(new Set());
 
-  const sortedRules = [...rules].sort((a, b) => a.sortIndex - b.sortIndex);
+  const sortedRules = useMemo(
+    () => [...rules].sort((a, b) => a.sortIndex - b.sortIndex),
+    [rules]
+  );
 
   useEffect(() => {
     const updateHeight = () => {
       if (containerRef.current) {
-        setContainerHeight(containerRef.current.clientHeight);
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerHeight(rect.height);
       }
     };
     updateHeight();
@@ -46,50 +139,54 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
+  const handleDelete = useCallback(
+    (index: number) => {
+      setDeletingRows((prev) => new Set(prev).add(index));
+      setTimeout(() => {
+        onDeleteRow(index);
+        setDeletingRows((prev) => {
+          const next = new Set(prev);
+          next.delete(index);
+          return next;
+        });
+      }, 200);
+    },
+    [onDeleteRow]
+  );
+
+  const handleCellHover = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, value: string | number) => {
+      const cell = e.currentTarget;
+      const isOverflowing = cell.scrollWidth > cell.clientWidth;
+      if (isOverflowing) {
+        setTooltip({
+          visible: true,
+          text: String(value),
+          x: e.clientX + 10,
+          y: e.clientY + 10,
+        });
+      }
+    },
+    []
+  );
+
+  const handleCellLeave = useCallback(() => {
+    setTooltip((prev) => ({ ...prev, visible: false }));
   }, []);
 
-  const handleDelete = (index: number) => {
-    setDeletingRows((prev) => new Set(prev).add(index));
-    setTimeout(() => {
-      onDeleteRow(index);
-      setDeletingRows((prev) => {
-        const next = new Set(prev);
-        next.delete(index);
-        return next;
-      });
-    }, 200);
-  };
-
-  const handleCellHover = (
-    e: React.MouseEvent<HTMLTableCellElement>,
-    value: string | number
-  ) => {
-    const cell = e.currentTarget;
-    const isOverflowing = cell.scrollWidth > cell.clientWidth;
-    if (isOverflowing) {
-      setTooltip({
-        visible: true,
-        text: String(value),
-        x: e.clientX + 10,
-        y: e.clientY + 10,
-      });
-    }
-  };
-
-  const handleCellLeave = () => {
-    setTooltip((prev) => ({ ...prev, visible: false }));
-  };
-
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
-  const endIndex = Math.min(
-    data.length,
-    Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_ROWS
+  const listItemData = useMemo(
+    () => ({
+      data,
+      sortedRules,
+      onDelete: handleDelete,
+      deletingRows,
+      hoveredRow,
+      setHoveredRow,
+      handleCellHover,
+      handleCellLeave,
+    }),
+    [data, sortedRules, handleDelete, deletingRows, hoveredRow, handleCellHover, handleCellLeave]
   );
-  const visibleRows = data.slice(startIndex, endIndex);
-  const totalHeight = data.length * ROW_HEIGHT;
-  const offsetY = startIndex * ROW_HEIGHT;
 
   return (
     <div style={tableWrapperStyle}>
@@ -119,83 +216,36 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
 
       <div
         ref={containerRef}
-        style={tableBodyStyle}
-        onScroll={handleScroll}
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+        }}
       >
-        <div style={{ height: totalHeight, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: offsetY, width: '100%' }}>
-            {visibleRows.map((row, idx) => {
-              const actualIndex = startIndex + idx;
-              const isEven = actualIndex % 2 === 0;
-              const isHovered = hoveredRow === actualIndex;
-              const isDeleting = deletingRows.has(actualIndex);
-
-              return (
-                <div
-                  key={actualIndex}
-                  style={{
-                    ...rowStyle,
-                    backgroundColor: isHovered
-                      ? '#e2e8f0'
-                      : isEven
-                      ? '#ffffff'
-                      : '#f1f5f9',
-                    height: ROW_HEIGHT,
-                    opacity: isDeleting ? 0 : 1,
-                    transform: isDeleting ? 'translateX(100%)' : 'translateX(0)',
-                    transition: 'opacity 0.2s ease, transform 0.2s ease',
-                  }}
-                  onMouseEnter={() => setHoveredRow(actualIndex)}
-                  onMouseLeave={() => setHoveredRow(null)}
-                >
-                  {sortedRules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      style={cellStyle}
-                      onMouseEnter={(e) => handleCellHover(e, row[rule.fieldName])}
-                      onMouseLeave={handleCellLeave}
-                    >
-                      {String(row[rule.fieldName] ?? '')}
-                    </div>
-                  ))}
-                  <div style={{ ...cellStyle, width: 60, flexShrink: 0 }}>
-                    <button
-                      onClick={() => handleDelete(actualIndex)}
-                      style={{
-                        ...rowDeleteBtnStyle,
-                        opacity: isHovered ? 1 : 0,
-                        backgroundColor: isHovered ? '#ef4444' : 'transparent',
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = '#dc2626')
-                      }
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = isHovered
-                          ? '#ef4444'
-                          : 'transparent';
-                      }}
-                    >
-                      <Trash2 size={14} style={{ color: 'white' }} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {data.length === 0 && (
+        {data.length === 0 ? (
           <div style={emptyStateStyle}>
             <div style={emptyIconStyle}>📊</div>
             <div style={emptyTextStyle}>暂无数据</div>
-            <div style={emptySubTextStyle}>添加字段并点击生成按钮创建测试数据</div>
+            <div style={emptySubTextStyle}>
+              添加字段并点击生成按钮创建测试数据
+            </div>
           </div>
+        ) : (
+          <List
+            height={containerHeight}
+            itemCount={data.length}
+            itemSize={ROW_HEIGHT}
+            width="100%"
+            itemData={listItemData}
+            overscanCount={10}
+          >
+            {RowRenderer}
+          </List>
         )}
       </div>
 
-      <div style={tableFooterStyle}>
-        共 {data.length} 条数据
-      </div>
+      <div style={tableFooterStyle}>共 {data.length} 条数据</div>
 
       {tooltip.visible && (
         <div
@@ -220,17 +270,20 @@ const tableWrapperStyle: React.CSSProperties = {
   borderRadius: 12,
   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
   overflow: 'hidden',
+  width: '100%',
 };
 
 const tableHeaderStyle: React.CSSProperties = {
   flexShrink: 0,
   backgroundColor: '#475569',
   height: HEADER_HEIGHT,
+  width: '100%',
 };
 
 const headerRowStyle: React.CSSProperties = {
   display: 'flex',
   height: '100%',
+  width: '100%',
 };
 
 const headerCellStyle: React.CSSProperties = {
@@ -245,21 +298,6 @@ const headerCellStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  position: 'sticky',
-  top: 0,
-};
-
-const tableBodyStyle: React.CSSProperties = {
-  flex: 1,
-  overflowY: 'auto',
-  overflowX: 'auto',
-  position: 'relative',
-};
-
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  width: '100%',
-  boxSizing: 'border-box',
 };
 
 const cellStyle: React.CSSProperties = {

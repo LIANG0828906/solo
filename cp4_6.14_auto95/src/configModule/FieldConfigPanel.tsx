@@ -267,12 +267,17 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             <div
               style={{
                 ...fieldItemStyle,
-                borderLeftColor: FIELD_TYPE_COLORS[rule.type],
                 animation: deletingIds.has(rule.id)
                   ? 'slideOutLeft 0.2s ease-in forwards'
                   : 'none',
               }}
             >
+              <div
+                style={{
+                  ...colorBarStyle,
+                  backgroundColor: FIELD_TYPE_COLORS[rule.type],
+                }}
+              />
               <div style={dragHandleStyle}>
                 <GripVertical size={16} style={{ color: '#94a3b8' }} />
               </div>
@@ -622,12 +627,22 @@ const fieldItemStyle: React.CSSProperties = {
   height: 60,
   backgroundColor: '#f8fafc',
   borderRadius: 8,
-  borderLeft: '4px solid',
   display: 'flex',
   alignItems: 'center',
   padding: '0 8px 0 0',
   boxSizing: 'border-box',
   cursor: 'pointer',
+  overflow: 'hidden',
+  position: 'relative',
+};
+
+const colorBarStyle: React.CSSProperties = {
+  width: 4,
+  height: 44,
+  borderRadius: 4,
+  marginLeft: 8,
+  marginRight: 0,
+  flexShrink: 0,
 };
 
 const dragHandleStyle: React.CSSProperties = {
