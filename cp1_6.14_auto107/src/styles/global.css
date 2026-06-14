@@ -182,6 +182,43 @@ html, body, #root {
   }
 }
 
+/* ---------- Dot Burst Particles (Favorite Button) ---------- */
+.dot-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100;
+  animation: dotBurst 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  transform-origin: center;
+}
+
+.dot-particle:nth-child(odd) {
+  width: 6px;
+  height: 6px;
+}
+
+.dot-particle:nth-child(3n) {
+  width: 10px;
+  height: 10px;
+}
+
+@keyframes dotBurst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.3);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(var(--vx, 0) * 0.5), calc(var(--vy, 0) * 0.5)) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--vx, 0), var(--vy, 0)) scale(0.2);
+  }
+}
+
 /* ---------- Ingradient Slider ---------- */
 .gradient-slider .ant-slider-rail {
   background: linear-gradient(to right, #ff6b6b 0%, #ffd480 25%, #51cf66 50%, #ffd480 75%, #ff6b6b 100%) !important;
@@ -306,9 +343,22 @@ html, body, #root {
 }
 
 @keyframes alertShake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  75% { transform: translateX(3px); }
+  0% { transform: translateX(0) rotate(0deg); }
+  6% { transform: translateX(-8px) rotate(-0.6deg); }
+  12% { transform: translateX(7px) rotate(0.5deg); }
+  18% { transform: translateX(-6px) rotate(-0.4deg); }
+  24% { transform: translateX(5px) rotate(0.3deg); }
+  30% { transform: translateX(-4px) rotate(-0.2deg); }
+  36% { transform: translateX(3px) rotate(0.15deg); }
+  42% { transform: translateX(-2px) rotate(-0.1deg); }
+  48% { transform: translateX(1.5px) rotate(0.08deg); }
+  54% { transform: translateX(-1px) rotate(-0.05deg); }
+  60% { transform: translateX(0.8px) rotate(0.03deg); }
+  66% { transform: translateX(-0.5px) rotate(-0.02deg); }
+  72% { transform: translateX(0.3px) rotate(0); }
+  78% { transform: translateX(-0.2px) rotate(0); }
+  84% { transform: translateX(0.1px) rotate(0); }
+  100% { transform: translateX(0) rotate(0); }
 }
 
 /* ---------- Notification ---------- */

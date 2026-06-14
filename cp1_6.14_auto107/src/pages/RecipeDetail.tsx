@@ -52,10 +52,21 @@ import jsPDF from 'jspdf';
 const { Header, Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
-const TIMELINE_COLORS = [
-  '#DE944A', '#CD853F', '#8B5A2B', '#D2691E', '#FF8C00',
-  '#F4A460', '#DAA520', '#B8860B', '#E9967A', '#FA8072',
+const TIMELINE_BASE_HUES = [
+  25, 30, 20, 35, 15, 40, 45, 10, 50, 5,
 ];
+
+function getTimelineColor(totalTime: number, hueIndex: number): string {
+  const hue = TIMELINE_BASE_HUES[hueIndex % TIMELINE_BASE_HUES.length];
+  let saturation = 60;
+  let lightness: number;
+  if (totalTime <= 15) lightness = 78;
+  else if (totalTime <= 30) lightness = 68;
+  else if (totalTime <= 60) lightness = 55;
+  else if (totalTime <= 120) lightness = 45;
+  else lightness = 35;
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +75,7 @@ export default function RecipeDetail() {
 
   const recipe = recipes.find(r => r.id === id);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [displayIngredients, setDisplayIngredients] = useState<Ingredient[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [prevValues, setPrevValues] = useState({ cost: 0, moisture: 0, softness: 0, calories: 0 });
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'menu'>('ingredients');
@@ -73,6 +85,7 @@ export default function RecipeDetail() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [ghostPosition, setGhostPosition] = useState({ x: 0, y: 0 });
   const dragGhostRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [selectedMenuRecipes, setSelectedMenuRecipes] = useState<string[]>([]);
@@ -82,7 +95,9 @@ export default function RecipeDetail() {
 
   useEffect(() => {
     if (recipe) {
-      setIngredients(recipe.ingredients.map(i => ({ ...i, adjustment: 0 })));
+      const initIng = recipe.ingredients.map(i => ({ ...i, adjustment: 0 }));
+      setIngredients(initIng);
+      setDisplayIngredients(initIng);
       setSteps(recipe.steps.map(s => ({
         ...s,
         timerActive: false,
@@ -91,6 +106,12 @@ export default function RecipeDetail() {
       })));
     }
   }, [recipe?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   const calculated = useMemo(() => {
     if (!recipe) return { cost: 0, moisture: 0, softness: 0, calories: 0 };
@@ -142,12 +163,24 @@ export default function RecipeDetail() {
     return () => clearTimeout(timer);
   }, [calculated]);
 
-  const handleIngredientAdjust = useCallback((ingId: string, value: number | null) => {
+  const handleIngredientAdjust = useCallback((ingId: string, value: number | null, immediate = false) => {
     if (value === null) return;
-    setIngredients(prev => prev.map(i =>
+
+    const newDisplay = displayIngredients.map(i =>
       i.id === ingId ? { ...i, adjustment: value } : i
-    ));
-  }, []);
+    );
+    setDisplayIngredients(newDisplay);
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    if (immediate) {
+      setIngredients(newDisplay);
+    } else {
+      debounceTimerRef.current = setTimeout(() => {
+        setIngredients(newDisplay);
+      }, 300);
+    }
+  }, [displayIngredients]);
 
   useEffect(() => {
     const intervals: ReturnType<typeof setInterval>[] = [];
@@ -264,12 +297,13 @@ export default function RecipeDetail() {
   const menuRecipes = useMemo<MenuRecipe[]>(() => {
     return selectedMenuRecipes.map((rid, idx) => {
       const r = recipes.find(x => x.id === rid);
+      const totalTime = r?.totalTime || 0;
       return {
         recipeId: rid,
         recipeName: r?.name || '',
         order: idx,
-        totalTime: r?.totalTime || 0,
-        color: TIMELINE_COLORS[idx % TIMELINE_COLORS.length],
+        totalTime,
+        color: getTimelineColor(totalTime, idx),
       };
     });
   }, [selectedMenuRecipes, recipes]);
@@ -448,7 +482,7 @@ export default function RecipeDetail() {
                   bodyStyle={{ padding: 16 }}
                 >
                   <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    {ingredients.map(ing => {
+                    {displayIngredients.map(ing => {
                       const factor = 1 + ing.adjustment / 100;
                       const adjusted = (ing.baseAmount * factor);
                       return (
@@ -487,7 +521,8 @@ export default function RecipeDetail() {
                               max={50}
                               step={1}
                               value={ing.adjustment}
-                              onChange={(v) => handleIngredientAdjust(ing.id, v as number)}
+                              onChange={(v) => handleIngredientAdjust(ing.id, v as number, false)}
+                              onChangeComplete={(v) => handleIngredientAdjust(ing.id, v as number, true)}
                               tooltip={{
                                 formatter: (v) => `${v! >= 0 ? '+' : ''}${v}%`,
                               }}
@@ -500,7 +535,7 @@ export default function RecipeDetail() {
                               max={50}
                               step={1}
                               value={ing.adjustment}
-                              onChange={(v) => handleIngredientAdjust(ing.id, v as number)}
+                              onChange={(v) => handleIngredientAdjust(ing.id, v as number, true)}
                               style={{ width: '100%', borderRadius: 8 }}
                               formatter={v => `${v! >= 0 ? '+' : ''}${v}%`}
                               parser={v => Number(v!.replace('%', ''))}
@@ -998,21 +1033,30 @@ export default function RecipeDetail() {
                         {menuRecipes.map((m) => {
                           const percent = (m.totalTime / menuTotalTime) * 100;
                           return (
-                            <div
+                            <Tooltip
                               key={m.recipeId}
-                              className="timeline-block"
-                              style={{
-                                width: `${percent}%`,
-                                background: m.color,
-                              }}
+                              title={
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                    步骤 {m.order + 1}: {m.recipeName}
+                                  </div>
+                                  <div style={{ opacity: 0.85 }}>预计用时 {formatTime(m.totalTime)}</div>
+                                </div>
+                              }
+                              placement="top"
+                              mouseEnterDelay={0.1}
+                              color="rgba(61, 41, 20, 0.95)"
                             >
-                              {percent > 8 && formatTime(m.totalTime)}
-                              <div className="timeline-tooltip">
-                                步骤 {m.order + 1}: {m.recipeName}
-                                <br />
-                                <span style={{ opacity: 0.7 }}>用时 {formatTime(m.totalTime)}</span>
+                              <div
+                                className="timeline-block"
+                                style={{
+                                  width: `${percent}%`,
+                                  background: m.color,
+                                }}
+                              >
+                                {percent > 8 && formatTime(m.totalTime)}
                               </div>
-                            </div>
+                            </Tooltip>
                           );
                         })}
                       </div>
@@ -1210,16 +1254,36 @@ export default function RecipeDetail() {
             background: '#E8E8E8',
             padding: 24,
             borderRadius: 8,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
           }}
         >
-          <div className="export-card" ref={exportCardRef}>
-            <div className="export-oven-icon">
+          <div
+            className="export-card"
+            ref={exportCardRef}
+            style={{
+              width: '210mm',
+              minHeight: '297mm',
+              maxWidth: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '18mm 16mm',
+              position: 'relative',
+              background: '#FFFFFF',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
+              borderRadius: 2,
+              fontFamily: "'Noto Serif SC', serif",
+            }}
+          >
+            <div className="export-oven-icon" style={{ position: 'absolute', top: '12mm', left: '12mm' }}>
               <svg viewBox="64 64 896 896" width="36" height="36" fill="currentColor">
                 <path d="M832 384h-64V192H256v192h-64a32 32 0 0 0-32 32v448a32 32 0 0 0 32 32h640a32 32 0 0 0 32-32V416a32 32 0 0 0-32-32zM320 256h384v128H320V256zm448 480H256V480h512v256zm-240-80a48 48 0 1 0 0-96 48 48 0 0 0 0 96z" />
               </svg>
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: 32, paddingTop: 12 }}>
+            <div style={{ textAlign: 'center', marginBottom: 24, paddingTop: 4, width: '100%' }}>
               <div style={{ fontSize: 11, color: '#B8A389', letterSpacing: 4, marginBottom: 8 }}>
                 BAKING LAB RECIPE
               </div>
@@ -1229,21 +1293,22 @@ export default function RecipeDetail() {
                   margin: 0,
                   color: '#8B5A2B',
                   fontFamily: "'Noto Serif SC', serif",
-                  fontSize: 32,
+                  fontSize: 30,
                   letterSpacing: 2,
                 }}
               >
                 {(menuRecipes.length > 0 ? '专属烘焙菜单' : recipe.name)}
               </Title>
-              <div style={{ marginTop: 12, color: '#8B7355', fontSize: 13 }}>
+              <div style={{ marginTop: 10, color: '#8B7355', fontSize: 12 }}>
                 {menuRecipes.length > 0
                   ? `共 ${menuRecipes.length} 道 · 总时长 ${formatTime(menuTotalTime)}`
                   : recipe.description}
               </div>
             </div>
 
-            <Divider style={{ borderColor: '#F5E6D3', margin: '24px 0' }} />
+            <Divider style={{ borderColor: '#F5E6D3', margin: '0 0 20px 0', width: '100%' }} />
 
+            <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column' }}>
             {menuRecipes.length > 0 ? (
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#8B5A2B', marginBottom: 16, textAlign: 'center' }}>
@@ -1404,8 +1469,9 @@ export default function RecipeDetail() {
                 </Col>
               </Row>
             )}
+            </div>
 
-            <Divider style={{ borderColor: '#F5E6D3', margin: '28px 0 16px' }} />
+            <Divider style={{ borderColor: '#F5E6D3', margin: '16px 0', width: '100%' }} />
 
             <div style={{ textAlign: 'center', color: '#B8A389', fontSize: 10 }}>
               <SwapOutlined style={{ marginRight: 6 }} />

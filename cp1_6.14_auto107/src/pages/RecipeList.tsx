@@ -35,7 +35,10 @@ interface HeartParticle {
   y: number;
   tx: number;
   ty: number;
+  vx: number;
+  vy: number;
   color: string;
+  size: number;
 }
 
 export default function RecipeList() {
@@ -60,24 +63,30 @@ export default function RecipeList() {
   const favoriteCounts = useMemo(() => recipes.filter(r => r.isFavorite).length, [recipes]);
 
   const spawnHeartParticles = useCallback((centerX: number, centerY: number) => {
-    const colors = ['#ff6b9d', '#ff85a2', '#ffb3c1', '#ff4757', '#ff6348'];
+    const colors = ['#ff6b9d', '#ff85a2', '#ffb3c1', '#ff4757', '#ff6348', '#ffa502', '#ff7f50'];
     const newParticles: HeartParticle[] = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      const distance = 20 + Math.random() * 30;
+    const particleCount = 12;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const distance = 35 + Math.random() * 45;
+      const vx = Math.cos(angle) * distance;
+      const vy = Math.sin(angle) * distance;
       newParticles.push({
         id: ++particleIdRef.current,
         x: centerX,
         y: centerY,
-        tx: Math.cos(angle) * distance,
-        ty: Math.sin(angle) * distance - 20,
+        tx: vx,
+        ty: vy,
+        vx,
+        vy,
         color: colors[Math.floor(Math.random() * colors.length)],
+        size: 5 + Math.floor(Math.random() * 6),
       });
     }
     setParticles(prev => [...prev, ...newParticles]);
     setTimeout(() => {
       setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
-    }, 900);
+    }, 800);
   }, []);
 
   const handleFavoriteClick = useCallback((e: React.MouseEvent, recipe: Recipe) => {
@@ -122,17 +131,19 @@ export default function RecipeList() {
       {particles.map(p => (
         <div
           key={p.id}
-          className="heart-particle"
+          className="dot-particle"
           style={{
             left: p.x,
             top: p.y,
+            width: p.size,
+            height: p.size,
+            background: `radial-gradient(circle at 30% 30%, ${p.color} 0%, ${p.color} 60%, ${p.color}99 100%)`,
+            boxShadow: `0 0 ${p.size}px ${p.color}88`,
             // @ts-ignore CSS custom properties
-            '--tx': `${p.tx}px`,
-            '--ty': `${p.ty}px`,
+            '--vx': `${p.vx}px`,
+            '--vy': `${p.vy}px`,
           }}
-        >
-          <HeartFilled style={{ fontSize: 18, color: p.color }} />
-        </div>
+        />
       ))}
 
       <Header
