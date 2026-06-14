@@ -8,7 +8,7 @@ import { Clock, Plus, X, ChefHat, GripVertical } from 'lucide-react';
 
 interface IngredientInput {
   name: string;
-  quantity: number;
+  quantity: number | '';
   unit: string;
   zone: Zone;
 }
@@ -21,10 +21,13 @@ function RecipeCard({ recipe, isFlyIn }: { recipe: Recipe; isFlyIn: boolean }) {
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('recipeId', recipe.id);
+        e.dataTransfer.effectAllowed = 'move';
         (e.currentTarget as HTMLElement).classList.add('dragging');
       }}
-      onDragEnd={(e) => (e.currentTarget as HTMLElement).classList.remove('dragging')}
-      className={`drag-card bg-white rounded-lg p-2 cursor-grab hover:shadow-md transition-shadow ${isFlyIn ? 'animate-fly-in' : ''}`}
+      onDragEnd={(e) => {
+        (e.currentTarget as HTMLElement).classList.remove('dragging');
+      }}
+      className={`drag-card bg-white rounded-lg p-2 shadow-sm ${isFlyIn ? 'animate-fly-in' : ''}`}
     >
       <div className="flex items-center gap-1 mb-1">
         <GripVertical size={14} className="text-gray-300" />
@@ -57,10 +60,15 @@ function MealSlot({ day, meal, justDropped, onDropped }: { day: DayOfWeek; meal:
 
   return (
     <div
-      className={`meal-slot min-h-[56px] rounded-lg p-1.5 transition-colors ${justDropped ? 'just-dropped' : ''}`}
+      key={justDropped ? `${day}-${meal}-drop` : `${day}-${meal}`}
+      className={`meal-slot min-h-[56px] rounded-lg p-1.5 ${justDropped ? 'just-dropped' : ''}`}
       style={recipe ? { borderLeft: `3px solid ${CATEGORY_COLORS[recipe.category]}` } : {}}
-      onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add('drag-over'); }}
-      onDragLeave={(e) => (e.currentTarget as HTMLElement).classList.remove('drag-over')}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; (e.currentTarget as HTMLElement).classList.add('drag-over'); }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          (e.currentTarget as HTMLElement).classList.remove('drag-over');
+        }
+      }}
       onDrop={handleDrop}
     >
       {recipe ? (

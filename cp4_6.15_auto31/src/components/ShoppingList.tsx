@@ -111,26 +111,29 @@ function ZoneSection({ zone, items }: { zone: Zone; items: ShoppingItem[] }) {
       </div>
       <div className={`zone-content ${expanded ? 'expanded' : 'collapsed'}`}>
         <div className="pl-3 pr-1 py-1">
-          {items.map((item) => (
-            <div key={item.name} className="flex items-center gap-3 py-1.5">
-              <div
-                className={`circular-checkbox ${item.checked ? 'checked' : ''}`}
-                onClick={() => toggleShoppingItem(item.name)}
-              >
-                {item.checked && <Check size={14} className="check-icon" />}
+          {items.map((item) => {
+            const itemKey = `${item.name}-${item.unit}`;
+            return (
+              <div key={itemKey} className="flex items-center gap-3 py-1.5">
+                <div
+                  className={`circular-checkbox ${item.checked ? 'checked' : ''}`}
+                  onClick={() => toggleShoppingItem(itemKey)}
+                >
+                  {item.checked && <Check size={14} className="check-icon" />}
+                </div>
+                <span
+                  className={`text-sm flex-1 ${
+                    item.checked ? 'line-through text-warm-dark/40' : 'text-warm-dark'
+                  }`}
+                >
+                  {item.name}
+                </span>
+                <span className="text-warm-dark/50 text-xs whitespace-nowrap">
+                  {item.quantity} {item.unit}
+                </span>
               </div>
-              <span
-                className={`text-sm flex-1 ${
-                  item.checked ? 'line-through text-warm-dark/40' : 'text-warm-dark'
-                }`}
-              >
-                {item.name}
-              </span>
-              <span className="text-warm-dark/50 text-xs whitespace-nowrap">
-                {item.quantity} {item.unit}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

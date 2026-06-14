@@ -129,7 +129,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     const { weekShoppingItems, weekCheckedItems, currentWeek } = get();
     const items = weekShoppingItems[currentWeek] || [];
     const checked = weekCheckedItems[currentWeek] || {};
-    return items.map((item) => ({ ...item, checked: checked[item.name] ?? false }));
+    return items.map((item) => ({ ...item, checked: checked[`${item.name}-${item.unit}`] ?? false }));
   },
 
   addCustomRecipe: (recipe: Recipe) => {
@@ -175,11 +175,11 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     }));
   },
 
-  toggleShoppingItem: (itemName: string) => {
+  toggleShoppingItem: (itemKey: string) => {
     set((state) => {
       const week = state.currentWeek;
       const checked = { ...state.weekCheckedItems[week] };
-      checked[itemName] = !checked[itemName];
+      checked[itemKey] = !checked[itemKey];
       return {
         weekCheckedItems: { ...state.weekCheckedItems, [week]: checked },
       };
