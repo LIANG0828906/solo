@@ -34,7 +34,6 @@ export default function Activities() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [signupActivity, setSignupActivity] = useState<Activity | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [signupMemberName, setSignupMemberName] = useState<string>('');
   const [signupMemberTouched, setSignupMemberTouched] = useState(false);
 
@@ -94,7 +93,6 @@ export default function Activities() {
 
   const openSignup = useCallback((a: Activity) => {
     setSignupActivity(a);
-    setSelectedMemberId('');
     setSignupMemberName('');
     setSignupMemberTouched(false);
   }, []);
@@ -247,4 +245,98 @@ export default function Activities() {
               />
               {touched.endTime && formErrors.endTime && <div className="form-error">{formErrors.endTime}</div>}
             </div>
-          </div
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">地点 <span className="required">*</span></label>
+            <input
+              type="text"
+              className={'form-input' + (touched.location && formErrors.location ? ' error' : '')}
+              value={form.location}
+              onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+              onBlur={() => setTouched(t => ({ ...t, location: true }))}
+            />
+            {touched.location && formErrors.location && <div className="form-error">{formErrors.location}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">最大参与人数 <span className="required">*</span></label>
+            <input
+              type="number"
+              min={30}
+              max={100}
+              className={'form-input' + (touched.maxParticipants && formErrors.maxParticipants ? ' error' : '')}
+              value={form.maxParticipants}
+              onChange={e => setForm(f => ({ ...f, maxParticipants: parseInt(e.target.value) || 0 }))}
+              onBlur={() => setTouched(t => ({ ...t, maxParticipants: true }))}
+            />
+            {touched.maxParticipants && formErrors.maxParticipants && <div className="form-error">{formErrors.maxParticipants}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">活动简介</label>
+            <textarea
+              className={'form-input' + (touched.description && formErrors.description ? ' error' : '')}
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              onBlur={() => setTouched(t => ({ ...t, description: true }))}
+              rows={3}
+              maxLength={500}
+              placeholder="最多500字"
+            />
+            {touched.description && formErrors.description && <div className="form-error">{formErrors.description}</div>}
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={closeAdd}>取消</button>
+          <button className="btn-primary" onClick={handleCreate}>创建</button>
+        </div>
+      </Modal>
+
+      <Modal open={!!signupActivity} onClose={closeSignup} width={400}>
+        {signupActivity && (
+          <>
+            <div className="modal-header">
+              <h3 className="modal-title">报名确认</h3>
+              <button className="modal-close" onClick={closeSignup}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <h4 style={{ fontSize: 16, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>
+                {signupActivity.name}
+              </h4>
+              <div className="signup-progress-label">
+                已报名 {signupActivity.participantIds.length} / {signupActivity.maxParticipants} 人
+              </div>
+              <div className="signup-progress-bar">
+                <div
+                  className="signup-progress-fill"
+                  style={{ width: `${Math.min(100, (signupActivity.participantIds.length / signupActivity.maxParticipants) * 100)}%` }}
+                />
+              </div>
+              <div className="signup-member-select">
+                <label className="form-label">报名人姓名 <span className="required">*</span></label>
+                <input
+                  type="text"
+                  className={'signup-member-input' + (signupMemberTouched && memberNameError ? ' error' : '')}
+                  value={signupMemberName}
+                  onChange={e => setSignupMemberName(e.target.value)}
+                  onBlur={() => setSignupMemberTouched(true)}
+                  placeholder="请输入2-10个汉字姓名"
+                />
+                {signupMemberTouched && memberNameError && (
+                  <div className="signup-member-error">{memberNameError}</div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={closeSignup}>取消</button>
+              <button className="btn-success" onClick={handleSignup}>确认报名</button>
+            </div>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}

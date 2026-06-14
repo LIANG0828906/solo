@@ -40,6 +40,7 @@ export default function Members() {
 
   const phoneError = useMemo(() => {
     if (!form.phone) return '';
+    if (!/^\d*$/.test(form.phone)) return '手机号只能输入数字';
     if (!validatePhone(form.phone)) return '请输入正确的11位手机号';
     return '';
   }, [form.phone]);
@@ -193,7 +194,17 @@ export default function Members() {
               type="text"
               className={'form-input' + (touched.phone && phoneError ? ' error' : '')}
               value={form.phone}
-              onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^\d]/g, '');
+                setForm(f => ({ ...f, phone: val }));
+                setTouched(t => ({ ...t, phone: true }));
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData.getData('text') || '').replace(/[^\d]/g, '');
+                setForm(f => ({ ...f, phone: (f.phone + pasted).slice(0, 11) }));
+                setTouched(t => ({ ...t, phone: true }));
+              }}
               onBlur={() => setTouched(t => ({ ...t, phone: true }))}
               placeholder="选填，11位手机号"
               maxLength={11}
