@@ -9,7 +9,7 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [activeFilter, setActiveFilter] = useState<FilterTagType>('全部')
+  const [activeFilter, setActiveFilter] = useState<FilterTagType>('all')
 
   useEffect(() => {
     const start = performance.now()

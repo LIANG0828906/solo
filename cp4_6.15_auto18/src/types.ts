@@ -1,4 +1,18 @@
-export type TagType = '写作' | '设计' | '编程' | '其他'
+export enum TagCategory {
+  WRITING = 'writing',
+  DESIGN = 'design',
+  CODING = 'coding',
+  OTHER = 'other'
+}
+
+export const TagLabelMap: Record<TagCategory, string> = {
+  [TagCategory.WRITING]: '写作',
+  [TagCategory.DESIGN]: '设计',
+  [TagCategory.CODING]: '编程',
+  [TagCategory.OTHER]: '其他'
+}
+
+export type TagType = TagCategory
 
 export interface Inspiration {
   id: string
@@ -9,13 +23,14 @@ export interface Inspiration {
   createdAt: number
   order: number
   isArchived: boolean
+  isRemoving?: boolean
 }
 
 export interface PlanStep {
   id: string
   title: string
   description: string
-  duration: number
+  estimatedMinutes: number
   prerequisites: string[]
   inspirationIds: string[]
   order: number
@@ -31,4 +46,15 @@ export interface GeneratedPlan {
   selectedInspirationIds: string[]
 }
 
-export type FilterTagType = TagType | '全部'
+export type FilterTagType = TagType | 'all'
+
+export const FilterTagLabelMap: Record<FilterTagType, string> = {
+  all: '全部',
+  ...TagLabelMap
+}
+
+export interface DragItem<T> {
+  id: string
+  data: T
+  index: number
+}

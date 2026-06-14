@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Inspiration, FilterTagType, TagType } from './types'
+import DragSortable from './components/DragSortable'
+import type { GetItemPropsFn } from './components/DragSortable'
+import AnimationWrapper from './components/AnimationWrapper'
+import { TagCategory, TagLabelMap, FilterTagLabelMap } from './types'
+import type { Inspiration, FilterTagType } from './types'
 import { generateId, extractKeywords, autoDetectTags } from './utils'
 
 interface InspirationPoolProps {
@@ -14,7 +18,7 @@ interface InspirationPoolProps {
   onFilterChange: (filter: FilterTagType) => void
 }
 
-const FILTER_TAGS: FilterTagType[] = ['全部', '写作', '设计', '编程', '其他']
+const FILTER_TAGS: FilterTagType[] = ['all', TagCategory.WRITING, TagCategory.DESIGN, TagCategory.CODING, TagCategory.OTHER]
 
 function InspirationPool({
   inspirations,
@@ -31,8 +35,7 @@ function InspirationPool({
   const [description, setDescription] = useState('')
   const [isInputFocused, setIsInputFocused] = useState(false)
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
-  const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [newlyAddedIds, setNewlyAddedIds] = useState<Set<string>>(new Set())
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -50,6 +53,7 @@ function InspirationPool({
   }, [])
 
   const handleSubmit = useCallback(() => {
+    const start = performance.now()
     const trimmedTitle = title.trim()
     const trimmedDesc = description.trim()
 
@@ -71,9 +75,23 @@ function InspirationPool({
       isArchived: false,
     }
 
+    setNewlyAddedIds(prev => new Set(prev).add(newInspiration.id))
+    setTimeout(() => {
+      setNewlyAddedIds(prev => {
+        const next = new Set(prev)
+        next.delete(newInspiration.id)
+        return next
+      })
+    }, 500)
+
     onAdd(newInspiration)
     setTitle('')
     setDescription('')
+
+    const duration = performance.now() - start
+    if (duration > 100) {
+      console.warn(`添加灵感响应耗时: ${duration.toFixed(2)}ms`)
+    }
   }, [title, description, inspirations.length, onAdd])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -86,6 +104,8 @@ function InspirationPool({
   const handleRemove = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation()
+      const start = performance.now()
+
       setRemovingIds(prev => new Set(prev).add(id))
       setTimeout(() => {
         onRemove(id)
@@ -95,6 +115,11 @@ function InspirationPool({
           return next
         })
       }, 280)
+
+      const duration = performance.now() - start
+      if (duration > 100) {
+        console.warn(`删除灵感响应耗时: ${duration.toFixed(2)}ms`)
+      }
     },
     [onRemove]
   )
@@ -102,6 +127,8 @@ function InspirationPool({
   const handleArchive = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation()
+      const start = performance.now()
+
       setRemovingIds(prev => new Set(prev).add(id))
       setTimeout(() => {
         onArchive(id)
@@ -111,57 +138,83 @@ function InspirationPool({
           return next
         })
       }, 280)
+
+      const duration = performance.now() - start
+      if (duration > 100) {
+        console.warn(`归档灵感响应耗时: ${duration.toFixed(2)}ms`)
+      }
     },
     [onArchive]
   )
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedId(id)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', id)
-  }
-
-  const handleDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (draggedId && draggedId !== id) {
-      setDragOverId(id)
-    }
-  }
-
-  const handleDragLeave = () => {
-    setDragOverId(null)
-  }
-
-  const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault()
-    if (!draggedId || draggedId === targetId) {
-      return
-    }
-
-    const newInspirations = [...inspirations]
-    const draggedIndex = newInspirations.findIndex(i => i.id === draggedId)
-    const targetIndex = newInspirations.findIndex(i => i.id === targetId)
-
-    const [removed] = newInspirations.splice(draggedIndex, 1)
-    newInspirations.splice(targetIndex, 0, removed)
-
-    const reordered = newInspirations.map((item, idx) => ({ ...item, order: idx }))
+  const handleOrderChange = useCallback((newOrder: Inspiration[]) => {
+    const reordered = newOrder.map((item, idx) => ({ ...item, order: idx }))
     onOrderChange(reordered)
-
-    setDraggedId(null)
-    setDragOverId(null)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedId(null)
-    setDragOverId(null)
-  }
+  }, [onOrderChange])
 
   const filteredInspirations =
-    activeFilter === '全部'
+    activeFilter === 'all'
       ? inspirations
-      : inspirations.filter(i => i.tags.includes(activeFilter as TagType))
+      : inspirations.filter(i => i.tags.includes(activeFilter))
+
+  const renderInspirationCard = (
+    inspiration: Inspiration,
+    getItemProps: GetItemPropsFn<Inspiration>,
+    draggingId: string | null,
+    index: number
+  ) => {
+    const isRemoving = removingIds.has(inspiration.id)
+    const isNewlyAdded = newlyAddedIds.has(inspiration.id)
+    const isSelected = selectedIds.includes(inspiration.id)
+    const isDragging = draggingId === inspiration.id
+
+    const cardClassName = `inspiration-card
+      ${isSelected ? 'selected' : ''}
+      ${isDragging ? 'dragging' : ''}`
+
+    return (
+      <AnimationWrapper
+        key={inspiration.id}
+        animation={isRemoving ? 'shrinkFadeOut' : isNewlyAdded ? 'bounceInUp' : 'none'}
+        duration={isRemoving ? 300 : 400}
+        delay={isNewlyAdded ? index * 30 : 0}
+        visible={!isRemoving}
+        className={cardClassName}
+        {...getItemProps(inspiration, index)}
+        onClick={() => onToggleSelect(inspiration.id)}
+      >
+        <div className="inspiration-card-header">
+          <h3 className="inspiration-card-title">{inspiration.title}</h3>
+          <div className="inspiration-card-actions">
+            <button
+              className="icon-btn"
+              title="归档"
+              onClick={e => handleArchive(inspiration.id, e)}
+            >
+              📁
+            </button>
+            <button
+              className="icon-btn danger"
+              title="删除"
+              onClick={e => handleRemove(inspiration.id, e)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        {inspiration.description && (
+          <p className="inspiration-card-desc">{inspiration.description}</p>
+        )}
+        <div className="inspiration-card-tags">
+          {inspiration.tags.map(tag => (
+            <span key={tag} className={`tag tag-${tag}`}>
+              {TagLabelMap[tag]}
+            </span>
+          ))}
+        </div>
+      </AnimationWrapper>
+    )
+  }
 
   return (
     <div ref={containerRef}>
@@ -177,71 +230,36 @@ function InspirationPool({
               className={`tag-filter-btn ${activeFilter === tag ? 'active' : ''}`}
               onClick={() => onFilterChange(tag)}
             >
-              {tag}
+              {FilterTagLabelMap[tag]}
             </button>
           ))}
         </div>
       </div>
 
       {filteredInspirations.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">✨</div>
-          <p className="empty-state-text">
-            还没有灵感记录
-            <br />
-            点击下方输入框或按 <kbd>Ctrl + K</kbd> 开始捕获你的第一个灵感
-          </p>
-        </div>
+        <AnimationWrapper animation="fadeIn" duration={300}>
+          <div className="empty-state">
+            <div className="empty-state-icon">✨</div>
+            <p className="empty-state-text">
+              还没有灵感记录
+              <br />
+              点击下方输入框或按 <kbd>Ctrl + K</kbd> 开始捕获你的第一个灵感
+            </p>
+          </div>
+        </AnimationWrapper>
       ) : (
-        <div className="inspiration-grid">
-          {filteredInspirations.map(inspiration => (
-            <div
-              key={inspiration.id}
-              className={`inspiration-card
-                ${selectedIds.includes(inspiration.id) ? 'selected' : ''}
-                ${removingIds.has(inspiration.id) ? 'removing' : ''}
-                ${draggedId === inspiration.id ? 'dragging' : ''}
-                ${dragOverId === inspiration.id ? 'drag-over' : ''}`}
-              draggable
-              onDragStart={e => handleDragStart(e, inspiration.id)}
-              onDragOver={e => handleDragOver(e, inspiration.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, inspiration.id)}
-              onDragEnd={handleDragEnd}
-              onClick={() => onToggleSelect(inspiration.id)}
-            >
-              <div className="inspiration-card-header">
-                <h3 className="inspiration-card-title">{inspiration.title}</h3>
-                <div className="inspiration-card-actions">
-                  <button
-                    className="icon-btn"
-                    title="归档"
-                    onClick={e => handleArchive(inspiration.id, e)}
-                  >
-                    📁
-                  </button>
-                  <button
-                    className="icon-btn danger"
-                    title="删除"
-                    onClick={e => handleRemove(inspiration.id, e)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              {inspiration.description && (
-                <p className="inspiration-card-desc">{inspiration.description}</p>
+        <DragSortable<Inspiration>
+          items={filteredInspirations}
+          onOrderChange={handleOrderChange}
+        >
+          {({ items, getItemProps, draggingId }) => (
+            <div className="inspiration-grid">
+              {items.map((inspiration, index) =>
+                renderInspirationCard(inspiration, getItemProps, draggingId, index)
               )}
-              <div className="inspiration-card-tags">
-                {inspiration.tags.map(tag => (
-                  <span key={tag} className={`tag tag-${tag}`}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </DragSortable>
       )}
 
       <div className="floating-input-container">

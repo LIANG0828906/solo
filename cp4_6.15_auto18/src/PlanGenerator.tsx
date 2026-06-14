@@ -1,4 +1,5 @@
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
+import AnimationWrapper from './components/AnimationWrapper'
 import type { Inspiration, GeneratedPlan, PlanStep } from './types'
 import { generateId, calculateRelevance } from './utils'
 
@@ -25,6 +26,8 @@ function PlanGenerator({
   onPlanGenerated,
   onError,
 }: PlanGeneratorProps) {
+  const [showPlan, setShowPlan] = useState(false)
+
   const selectedInspirations = useMemo(
     () => inspirations.filter(i => selectedIds.includes(i.id)),
     [inspirations, selectedIds]
@@ -38,11 +41,13 @@ function PlanGenerator({
     }
 
     onGenerate()
+    setShowPlan(false)
 
     setTimeout(() => {
       try {
         const plan = createPlanFromInspirations(selectedInspirations)
         onPlanGenerated(plan)
+        setShowPlan(true)
       } catch (e) {
         console.error('生成计划失败:', e)
         onError()
@@ -53,7 +58,7 @@ function PlanGenerator({
   const createPlanFromInspirations = (items: Inspiration[]): GeneratedPlan => {
     const sorted = sortByRelevance(items)
     const steps = generateSteps(sorted)
-    const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
+    const totalDuration = steps.reduce((sum, step) => sum + step.estimatedMinutes, 0)
 
     const allKeywords = sorted.flatMap(i => i.keywords)
     const topKeywords = [...new Set(allKeywords)].slice(0, 3)
@@ -109,8 +114,8 @@ function PlanGenerator({
       })
 
       if (nextItem) {
-        visited.add(nextItem.id)
-        result.push(nextItem)
+        visited.add((nextItem as Inspiration).id)
+        result.push(nextItem as Inspiration)
       } else {
         const remaining = items.find(i => !visited.has(i.id))
         if (remaining) {
@@ -130,7 +135,7 @@ function PlanGenerator({
       id: generateId(),
       title: '需求梳理与框架搭建',
       description: `整合灵感：${sortedItems.map(i => i.title).join('、')}。明确核心目标与产出物，搭建整体框架。`,
-      duration: 30,
+      estimatedMinutes: 30,
       prerequisites: ['整理所有灵感素材', '确认最终目标'],
       inspirationIds: sortedItems.map(i => i.id),
       order: 0,
@@ -173,7 +178,7 @@ function PlanGenerator({
         id: generateId(),
         title: stepTitles[index % stepTitles.length],
         description: stepDescs[index % stepDescs.length],
-        duration: baseDuration,
+        estimatedMinutes: baseDuration,
         prerequisites,
         inspirationIds: [item.id],
         order: steps.length,
@@ -184,7 +189,7 @@ function PlanGenerator({
       id: generateId(),
       title: '整合优化与最终审查',
       description: '将所有部分整合为完整作品，进行全面检查与优化，确保质量达标。',
-      duration: 60,
+      estimatedMinutes: 60,
       prerequisites: [
         '完成所有创作步骤',
         '检查各部分衔接流畅度',
@@ -221,33 +226,35 @@ function PlanGenerator({
         </h2>
       </div>
 
-      <div className="selection-info">
-        <div className="selection-count">
-          已选择 <strong>{selectedIds.length}</strong> 个灵感
-          <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
-            (需选择 2-5 个)
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {selectedIds.length > 0 && (
+      <AnimationWrapper animation="fadeIn" duration={250}>
+        <div className="selection-info">
+          <div className="selection-count">
+            已选择 <strong>{selectedIds.length}</strong> 个灵感
+            <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+              (需选择 2-5 个)
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {selectedIds.length > 0 && (
+              <button
+                className="icon-btn"
+                onClick={onClearSelection}
+                title="清空选择"
+                style={{ width: 'auto', padding: '0 16px', fontWeight: 500 }}
+              >
+                清空
+              </button>
+            )}
             <button
-              className="icon-btn"
-              onClick={onClearSelection}
-              title="清空选择"
-              style={{ width: 'auto', padding: '0 16px', fontWeight: 500 }}
+              className="generate-btn"
+              onClick={generatePlan}
+              disabled={!canGenerate || isGenerating}
             >
-              清空
+              {isGenerating ? '生成中...' : '✨ 生成计划'}
             </button>
-          )}
-          <button
-            className="generate-btn"
-            onClick={generatePlan}
-            disabled={!canGenerate || isGenerating}
-          >
-            {isGenerating ? '生成中...' : '✨ 生成计划'}
-          </button>
+          </div>
         </div>
-      </div>
+      </AnimationWrapper>
 
       <div className="selected-inspirations">
         {selectedInspirations.length === 0 ? (
@@ -261,103 +268,124 @@ function PlanGenerator({
             点击左侧灵感卡片进行选择
           </span>
         ) : (
-          selectedInspirations.map(inspiration => (
-            <div key={inspiration.id} className="selected-tag">
-              {inspiration.title}
-              <button onClick={() => onToggleSelect(inspiration.id)}>✕</button>
-            </div>
+          selectedInspirations.map((inspiration, index) => (
+            <AnimationWrapper
+              key={inspiration.id}
+              animation="fadeInUp"
+              duration={200}
+              delay={index * 50}
+            >
+              <div className="selected-tag">
+                {inspiration.title}
+                <button onClick={() => onToggleSelect(inspiration.id)}>✕</button>
+              </div>
+            </AnimationWrapper>
           ))
         )}
       </div>
 
       {isGenerating && (
-        <div className="loading-overlay">
-          <svg className="hourglass" viewBox="0 0 100 100" fill="none">
-            <path
-              d="M30 10h40v20c0 15-10 25-20 25s-20-10-20-25V10z"
-              fill="var(--accent-gold)"
-              opacity="0.9"
-            />
-            <path
-              d="M30 90h40V70c0-15-10-25-20-25s-20 10-20 25v20z"
-              fill="var(--accent-gold)"
-            />
-            <rect x="25" y="8" width="50" height="4" fill="var(--accent-gold-dim)" rx="2" />
-            <rect x="25" y="88" width="50" height="4" fill="var(--accent-gold-dim)" rx="2" />
-          </svg>
-          <div className="loading-text">正在为您生成创作计划...</div>
-        </div>
+        <AnimationWrapper animation="fadeIn" duration={300}>
+          <div className="loading-overlay">
+            <svg className="hourglass" viewBox="0 0 100 100" fill="none">
+              <path
+                d="M30 10h40v20c0 15-10 25-20 25s-20-10-20-25V10z"
+                fill="var(--accent-gold)"
+                opacity="0.9"
+              />
+              <path
+                d="M30 90h40V70c0-15-10-25-20-25s-20 10-20 25v20z"
+                fill="var(--accent-gold)"
+              />
+              <rect x="25" y="8" width="50" height="4" fill="var(--accent-gold-dim)" rx="2" />
+              <rect x="25" y="88" width="50" height="4" fill="var(--accent-gold-dim)" rx="2" />
+            </svg>
+            <div className="loading-text">正在为您生成创作计划...</div>
+          </div>
+        </AnimationWrapper>
       )}
 
-      {generatedPlan && (
-        <div className="plan-results">
-          <div className="plan-header">
-            <h3 className="plan-title">{generatedPlan.title}</h3>
-            <p className="plan-desc">{generatedPlan.description}</p>
-            <div className="plan-stats">
-              <div className="plan-stat">
-                <div className="plan-stat-value">{generatedPlan.steps.length}</div>
-                <div className="plan-stat-label">步骤</div>
-              </div>
-              <div className="plan-stat">
-                <div className="plan-stat-value">
-                  {formatDuration(generatedPlan.totalDuration)}
+      {generatedPlan && showPlan && (
+        <AnimationWrapper animation="fadeInUp" duration={400}>
+          <div className="plan-results">
+            <div className="plan-header">
+              <h3 className="plan-title">{generatedPlan.title}</h3>
+              <p className="plan-desc">{generatedPlan.description}</p>
+              <div className="plan-stats">
+                <div className="plan-stat">
+                  <div className="plan-stat-value">{generatedPlan.steps.length}</div>
+                  <div className="plan-stat-label">步骤</div>
                 </div>
-                <div className="plan-stat-label">预计时长</div>
+                <div className="plan-stat">
+                  <div className="plan-stat-value">
+                    {formatDuration(generatedPlan.totalDuration)}
+                  </div>
+                  <div className="plan-stat-label">预计时长</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="plan-masonry">
-            {generatedPlan.steps.map((step, index) => (
-              <div key={step.id} className="plan-step-card">
-                <div className="step-number">{index + 1}</div>
-                <h4 className="step-title">{step.title}</h4>
-                <p className="step-desc">{step.description}</p>
-                <div className="step-meta">
-                  <div className="step-meta-item">
-                    <span>⏱</span>
-                    <strong>{formatDuration(step.duration)}</strong>
-                  </div>
-                </div>
-                {step.prerequisites.length > 0 && (
-                  <div className="step-prerequisites">
-                    <div className="prereq-label">前置条件</div>
-                    <div className="prereq-list">
-                      {step.prerequisites.map((prereq, pIndex) => (
-                        <span key={pIndex} className="prereq-tag">
-                          {prereq}
-                        </span>
-                      ))}
+            <div className="plan-masonry">
+              {generatedPlan.steps.map((step, index) => (
+                <AnimationWrapper
+                  key={step.id}
+                  animation="fadeInUp"
+                  duration={400}
+                  delay={50 + index * 50}
+                  className="plan-step-card"
+                >
+                  <div className="step-number">{index + 1}</div>
+                  <h4 className="step-title">{step.title}</h4>
+                  <p className="step-desc">{step.description}</p>
+                  <div className="step-meta">
+                    <div className="step-meta-item">
+                      <span>⏱</span>
+                      <strong>{formatDuration(step.estimatedMinutes)}</strong>
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
+                  {step.prerequisites.length > 0 && (
+                    <div className="step-prerequisites">
+                      <div className="prereq-label">前置条件</div>
+                      <div className="prereq-list">
+                        {step.prerequisites.map((prereq, pIndex) => (
+                          <span key={pIndex} className="prereq-tag">
+                            {prereq}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </AnimationWrapper>
+              ))}
+            </div>
           </div>
-        </div>
+        </AnimationWrapper>
       )}
 
       {!generatedPlan && !isGenerating && selectedInspirations.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-state-icon">📋</div>
-          <p className="empty-state-text">
-            选择 2-5 个灵感卡片
-            <br />
-            系统将根据灵感关联度自动生成可执行的创作计划
-          </p>
-        </div>
+        <AnimationWrapper animation="fadeIn" duration={300}>
+          <div className="empty-state">
+            <div className="empty-state-icon">📋</div>
+            <p className="empty-state-text">
+              选择 2-5 个灵感卡片
+              <br />
+              系统将根据灵感关联度自动生成可执行的创作计划
+            </p>
+          </div>
+        </AnimationWrapper>
       )}
 
       {!generatedPlan && !isGenerating && selectedInspirations.length > 0 && selectedInspirations.length < 2 && (
-        <div className="empty-state">
-          <div className="empty-state-icon">💡</div>
-          <p className="empty-state-text">
-            再选择 {2 - selectedInspirations.length} 个灵感
-            <br />
-            就可以生成创作计划了
-          </p>
-        </div>
+        <AnimationWrapper animation="fadeIn" duration={300}>
+          <div className="empty-state">
+            <div className="empty-state-icon">💡</div>
+            <p className="empty-state-text">
+              再选择 {2 - selectedInspirations.length} 个灵感
+              <br />
+              就可以生成创作计划了
+            </p>
+          </div>
+        </AnimationWrapper>
       )}
     </div>
   )
