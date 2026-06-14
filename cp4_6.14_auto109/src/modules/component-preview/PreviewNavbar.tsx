@@ -33,7 +33,7 @@ const PreviewNavbar: React.FC<PreviewNavbarProps> = ({ tokens }) => {
     const handleResize = () => updateUnderline()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [updateUnderline])
+  }, [updateUnderline, activeIndex])
 
   const navbarStyle = useMemo<React.CSSProperties>(
     () => ({

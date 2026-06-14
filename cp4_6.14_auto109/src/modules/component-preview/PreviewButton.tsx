@@ -15,7 +15,7 @@ const PreviewButton: React.FC<PreviewButtonProps> = ({ tokens }) => {
       color: colors.text,
       fontFamily: fonts.body,
       boxShadow: `0 ${shadows.md}px ${shadows.md * 2}px rgba(0,0,0,0.15)`,
-      transition: 'all 0.2s ease',
+      transition: 'all 0.3s ease',
     }),
     [colors, spacing, fonts, shadows]
   )
