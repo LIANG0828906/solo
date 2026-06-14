@@ -128,7 +128,6 @@ export const Orders: React.FC = () => {
                   key={order.id}
                   order={order}
                   status={status}
-                  onDragEnd={(id, newStatus) => updateOrderStatus(id, newStatus)}
                 />
               ))}
           </div>

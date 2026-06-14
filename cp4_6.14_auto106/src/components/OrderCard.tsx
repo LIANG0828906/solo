@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Order, OrderStatus } from '../api';
 
 interface OrderCardProps {
   order: Order;
   status: OrderStatus;
-  onDragEnd: (orderId: string, newStatus: OrderStatus) => void;
 }
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -22,31 +21,33 @@ const formatTime = (iso: string) => {
   return `${month}/${day} ${hour}:${minute}`;
 };
 
-export const OrderCard: React.FC<OrderCardProps> = ({ order, status, onDragEnd }) => {
+export const OrderCard: React.FC<OrderCardProps> = ({ order, status }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [isDropped, setIsDropped] = useState(false);
+  const [justDropped, setJustDropped] = useState(false);
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', order.id);
-  };
+    const el = e.currentTarget as HTMLElement;
+    requestAnimationFrame(() => {
+      el.style.opacity = '0.7';
+      el.style.transform = 'scale(0.95)';
+    });
+  }, [order.id]);
 
-  const handleDragEnd = (e: React.DragEvent) => {
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
     setIsDragging(false);
-    const targetStatus = e.dataTransfer.dropEffect === 'none'
-      ? null
-      : (e.currentTarget.closest('[data-status]') as HTMLElement | null)?.dataset.status;
-    if (targetStatus && targetStatus !== status) {
-      setIsDropped(true);
-      setTimeout(() => setIsDropped(false), 300);
-      onDragEnd(order.id, targetStatus as OrderStatus);
-    }
-  };
+    const el = e.currentTarget as HTMLElement;
+    el.style.opacity = '';
+    el.style.transform = '';
+    setJustDropped(true);
+    setTimeout(() => setJustDropped(false), 300);
+  }, []);
 
   return (
     <div
-      className={`order-card ${isDragging ? 'dragging' : ''} ${isDropped ? 'dropped' : ''}`}
+      className={`order-card ${isDragging ? 'dragging' : ''} ${justDropped ? 'dropped' : ''}`}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
