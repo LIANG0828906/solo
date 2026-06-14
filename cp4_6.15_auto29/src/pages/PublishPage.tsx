@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useDataStore } from '@/utils/dataStore';
 import { CATEGORY_LABELS, type Category } from '@/types';
 
@@ -52,6 +52,44 @@ export default function PublishPage() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+  const mouseYRef = useRef<number>(0);
+
+  const startAutoScroll = () => {
+    const scrollStep = () => {
+      const mouseY = mouseYRef.current;
+      const viewportHeight = window.innerHeight;
+      const edgeSize = 80;
+      const scrollSpeed = 10;
+
+      if (mouseY < edgeSize) {
+        window.scrollBy(0, -scrollSpeed);
+      } else if (mouseY > viewportHeight - edgeSize) {
+        window.scrollBy(0, scrollSpeed);
+      }
+
+      autoScrollRafRef.current = requestAnimationFrame(scrollStep);
+    };
+    autoScrollRafRef.current = requestAnimationFrame(scrollStep);
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseYRef.current = e.clientY;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      stopAutoScroll();
+    };
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -100,6 +138,8 @@ export default function PublishPage() {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
     setDragIndex(index);
+    mouseYRef.current = e.clientY;
+    startAutoScroll();
   };
 
   const handleItemDragOver = (e: React.DragEvent, index: number) => {
@@ -117,6 +157,7 @@ export default function PublishPage() {
 
   const handleItemDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
+    stopAutoScroll();
     if (dragIndex === null || dragIndex === targetIndex) {
       setDragIndex(null);
       setDragOverIndex(null);
@@ -131,6 +172,7 @@ export default function PublishPage() {
   };
 
   const handleItemDragEnd = () => {
+    stopAutoScroll();
     setDragIndex(null);
     setDragOverIndex(null);
   };
@@ -175,6 +217,9 @@ export default function PublishPage() {
 
   return (
     <div className="page-container">
+      {dragIndex !== null && (
+        <div className="drag-hint-bar">拖拽中...松开调整顺序</div>
+      )}
       <div className="page-header">
         <div className="page-header-inner" style={{ maxWidth: 768 }}>
           <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -201,33 +246,37 @@ export default function PublishPage() {
               const isDragging = dragIndex === index;
               const isDragOver = dragOverIndex === index && dragIndex !== index;
               return (
-                <div
-                  key={index}
-                  className={`upload-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
-                  draggable
-                  onDragStart={(e) => handleItemDragStart(e, index)}
-                  onDragOver={(e) => handleItemDragOver(e, index)}
-                  onDragLeave={handleItemDragLeave}
-                  onDrop={(e) => handleItemDrop(e, index)}
-                  onDragEnd={handleItemDragEnd}
-                >
-                  <img src={img} alt={`图片 ${index + 1}`} />
-                  <div className="upload-item-overlay">
-                    <span className="upload-item-index">{index + 1}</span>
-                    <div className="upload-item-actions">
-                      <GripIcon className="upload-drag-hint" />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          removeImage(index);
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="upload-remove-btn"
-                        aria-label="删除图片"
-                      >
-                        <XIcon style={{ width: 14, height: 14 }} />
-                      </button>
+                <div key={`wrapper-${index}`} style={{ position: 'relative' }}>
+                  {isDragging && <div className="upload-placeholder" />}
+                  <div
+                    key={index}
+                    className={`upload-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                    style={isDragging ? { position: 'absolute', inset: 0, zIndex: 10 } : undefined}
+                    draggable
+                    onDragStart={(e) => handleItemDragStart(e, index)}
+                    onDragOver={(e) => handleItemDragOver(e, index)}
+                    onDragLeave={handleItemDragLeave}
+                    onDrop={(e) => handleItemDrop(e, index)}
+                    onDragEnd={handleItemDragEnd}
+                  >
+                    <img src={img} alt={`图片 ${index + 1}`} />
+                    <div className="upload-item-overlay">
+                      <span className="upload-item-index">{index + 1}</span>
+                      <div className="upload-item-actions">
+                        <GripIcon className="upload-drag-hint" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            removeImage(index);
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="upload-remove-btn"
+                          aria-label="删除图片"
+                        >
+                          <XIcon style={{ width: 14, height: 14 }} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -56,6 +56,10 @@ function NavBar() {
 
   const navItem = (route: RouteName) => ({
     onClick: () => navigate({ name: route }),
+    style: {
+      transform: currentRoute === route ? 'scale(1.05)' : 'scale(1)',
+      transition: 'all 200ms ease',
+    },
     className: `nav-item ${currentRoute === route ? 'active' : ''}`,
   });
 
@@ -84,26 +88,34 @@ function AppContent() {
   const { route } = state;
 
   let page: React.ReactNode;
+  let pageKey: string;
   switch (route.name) {
     case 'browse':
-      page = <BrowsePage key="browse" />;
+      page = <BrowsePage />;
+      pageKey = 'browse';
       break;
     case 'publish':
-      page = <PublishPage key="publish" />;
+      page = <PublishPage />;
+      pageKey = 'publish';
       break;
     case 'detail':
-      page = <DetailPage key={`detail-${route.params?.id || ''}`} />;
+      page = <DetailPage />;
+      pageKey = `detail-${route.params?.id || ''}`;
       break;
     case 'profile':
-      page = <ProfilePage key="profile" />;
+      page = <ProfilePage />;
+      pageKey = 'profile';
       break;
     default:
-      page = <BrowsePage key="browse" />;
+      page = <BrowsePage />;
+      pageKey = 'browse';
   }
 
   return (
     <div className="app-root">
-      {page}
+      <div key={pageKey} className="animate-fade-in">
+        {page}
+      </div>
       <NavBar />
     </div>
   );

@@ -110,10 +110,28 @@ export default function DetailPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isModalClosing, setIsModalClosing] = useState(false);
+  const [isSuccessClosing, setIsSuccessClosing] = useState(false);
   const [offerDescription, setOfferDescription] = useState('');
   const [contactInfo, setContactInfo] = useState('');
 
   const isOwner = product?.ownerId === state.currentUserId;
+
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsModalClosing(false);
+    }, 300);
+  };
+
+  const closeSuccess = () => {
+    setIsSuccessClosing(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      setIsSuccessClosing(false);
+    }, 300);
+  };
 
   const handleSubmit = () => {
     if (!offerDescription.trim()) {
@@ -131,8 +149,10 @@ export default function DetailPage() {
       contactInfo: contactInfo.trim(),
       requesterId: state.currentUserId,
     });
-    setShowModal(false);
-    setShowSuccess(true);
+    closeModal();
+    setTimeout(() => {
+      setShowSuccess(true);
+    }, 300);
     setOfferDescription('');
     setContactInfo('');
   };
@@ -263,7 +283,12 @@ export default function DetailPage() {
             <button
               onClick={() => setShowModal(true)}
               className="btn btn-primary btn-block btn-lg"
-              style={{ gap: 8 }}
+              style={{ gap: 8, transition: 'all 300ms ease' }}
+              onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
+              onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              onTouchStart={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
+              onTouchEnd={(e) => (e.currentTarget.style.transform = 'scale(1)')}
             >
               <MessageSquareIcon style={{ width: 20, height: 20 }} />
               申请交换
@@ -273,11 +298,17 @@ export default function DetailPage() {
       </div>
 
       {showModal && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`modal-backdrop ${isModalClosing ? 'animate-fade-out' : ''}`}
+          onClick={closeModal}
+        >
+          <div
+            className={`modal ${isModalClosing ? 'animate-scale-out' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3 className="modal-title">申请交换</h3>
-              <button onClick={() => setShowModal(false)} className="modal-close" aria-label="关闭">
+              <button onClick={closeModal} className="modal-close" aria-label="关闭">
                 <XIcon style={{ width: 18, height: 18 }} />
               </button>
             </div>
@@ -311,7 +342,7 @@ export default function DetailPage() {
               </div>
 
               <div className="modal-footer">
-                <button onClick={() => setShowModal(false)} className="btn btn-secondary">
+                <button onClick={closeModal} className="btn btn-secondary">
                   取消
                 </button>
                 <button onClick={handleSubmit} className="btn btn-primary">
@@ -324,8 +355,15 @@ export default function DetailPage() {
       )}
 
       {showSuccess && (
-        <div className="modal-backdrop" onClick={() => setShowSuccess(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 384 }}>
+        <div
+          className={`modal-backdrop ${isSuccessClosing ? 'animate-fade-out' : ''}`}
+          onClick={closeSuccess}
+        >
+          <div
+            className={`modal ${isSuccessClosing ? 'animate-scale-out' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 384 }}
+          >
             <div className="modal-body">
               <div style={{ textAlign: 'center' }}>
                 <div className="success-icon-wrap" style={{ animation: 'scaleIn 300ms ease-out' }}>
@@ -335,8 +373,10 @@ export default function DetailPage() {
                 <p className="success-desc">物主会收到你的交换申请，请耐心等待回复</p>
                 <button
                   onClick={() => {
-                    setShowSuccess(false);
-                    navigate({ name: 'browse' });
+                    closeSuccess();
+                    setTimeout(() => {
+                      navigate({ name: 'browse' });
+                    }, 300);
                   }}
                   className="btn btn-primary"
                   style={{ padding: '10px 32px', borderRadius: 999, marginTop: 8 }}

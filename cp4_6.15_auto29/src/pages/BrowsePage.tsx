@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useDataStore } from '@/utils/dataStore';
 import { CATEGORY_LABELS, type Category, type Product } from '@/types';
 import { Icon } from '@/App';
@@ -34,10 +34,12 @@ function ProductCard({
   product,
   index,
   onVisible,
+  onImageLoad,
 }: {
   product: Product;
   index: number;
   onVisible: () => void;
+  onImageLoad: () => void;
 }) {
   const { navigate } = useDataStore();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,10 @@ function ProductCard({
     navigate({ name: 'detail', params: { id: product.id } });
   };
 
+  const handleImgLoad = () => {
+    onImageLoad();
+  };
+
   const conditionLabel = (condition: number) => {
     if (condition >= 9) return '几乎全新';
     if (condition >= 7) return '成色较好';
@@ -82,40 +88,39 @@ function ProductCard({
     <div
       ref={cardRef}
       onClick={handleClick}
-      className={`product-card ${visible ? 'visible' : ''}`}
+      className={`product-card card ${visible ? 'visible' : ''}`}
     >
-      <div className="card" style={{ transition: 'box-shadow 300ms ease, transform 300ms ease' }}>
-        <div className="product-card-image-wrap">
-          {imgLoaded && product.images[0] ? (
-            <img
-              src={product.images[0]}
-              alt={product.title}
-              className="product-card-image"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid var(--morandi-blue)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-            </div>
-          )}
-          {product.status === 'sold' && (
-            <div className="product-card-sold">已交换</div>
-          )}
-          <div className="product-card-category">
-            {CATEGORY_LABELS[product.category]}
+      <div className="product-card-image-wrap">
+        {imgLoaded && product.images[0] ? (
+          <img
+            src={product.images[0]}
+            alt={product.title}
+            className="product-card-image"
+            loading="lazy"
+            onLoad={handleImgLoad}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid var(--morandi-blue)', borderTopColor: 'transparent', borderRadius: '50%' }} />
           </div>
+        )}
+        {product.status === 'sold' && (
+          <div className="product-card-sold">已交换</div>
+        )}
+        <div className="product-card-category">
+          {CATEGORY_LABELS[product.category]}
         </div>
-        <div className="product-card-content">
-          <h3 className="product-card-title">{product.title}</h3>
-          <div className="product-card-condition">
-            <span className="condition-bar">
-              <span className="condition-track">
-                <span className="condition-fill" style={{ width: `${product.condition * 10}%` }} />
-              </span>
-              <span>{product.condition}/10</span>
+      </div>
+      <div className="product-card-content">
+        <h3 className="product-card-title">{product.title}</h3>
+        <div className="product-card-condition">
+          <span className="condition-bar">
+            <span className="condition-track">
+              <span className="condition-fill" style={{ width: `${product.condition * 10}%` }} />
             </span>
-            <span className="condition-label">{conditionLabel(product.condition)}</span>
-          </div>
+            <span>{product.condition}/10</span>
+          </span>
+          <span className="condition-label">{conditionLabel(product.condition)}</span>
         </div>
       </div>
     </div>
@@ -141,13 +146,27 @@ export default function BrowsePage() {
     typeof window !== 'undefined' ? window.innerWidth : 1024
   );
   const [visibleCount, setVisibleCount] = useState(0);
+  const [updateTick, setUpdateTick] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const resizeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const handleResize = () => setContainerWidth(window.innerWidth);
+    const handleResize = () => {
+      if (resizeTimerRef.current !== null) {
+        window.clearTimeout(resizeTimerRef.current);
+      }
+      resizeTimerRef.current = window.setTimeout(() => {
+        setContainerWidth(window.innerWidth);
+      }, 100);
+    };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimerRef.current !== null) {
+        window.clearTimeout(resizeTimerRef.current);
+      }
+    };
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -169,7 +188,11 @@ export default function BrowsePage() {
       columns[targetColumn].push(product);
     });
     return columns;
-  }, [filteredProducts, columnCount]);
+  }, [filteredProducts, columnCount, updateTick]);
+
+  const handleImageLoad = useCallback(() => {
+    setUpdateTick((t) => t + 1);
+  }, []);
 
   const productIndexMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -287,6 +310,7 @@ export default function BrowsePage() {
                     product={product}
                     index={productIndexMap[product.id]}
                     onVisible={handleCardVisible}
+                    onImageLoad={handleImageLoad}
                   />
                 ))}
               </div>

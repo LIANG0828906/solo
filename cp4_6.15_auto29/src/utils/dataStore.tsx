@@ -2,7 +2,6 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import type {
   Product,
   ExchangeRequest,
-  Category,
   AppState,
   AppAction,
   RouteState,
@@ -19,6 +18,52 @@ const generateId = (): string => {
 const createMockProducts = (): Product[] => {
   const now = Date.now();
   return [
+    {
+      id: 'mock_mine_1',
+      title: 'iPad Air 4 64G 深空灰',
+      category: 'electronics',
+      condition: 8,
+      description:
+        '自用 iPad Air 第4代，64G WiFi版，深空灰色。购于2021年，平时看剧做笔记用，屏幕无划痕，边框有一处轻微磕碰。附带原装充电器和保护套。',
+      images: [
+        'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=80',
+        'https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?w=600&q=80',
+      ],
+      exchangePreference: '想换一台任天堂 Switch OLED',
+      status: 'published',
+      ownerId: CURRENT_USER_ID,
+      createdAt: now - 86400000 * 3,
+    },
+    {
+      id: 'mock_mine_2',
+      title: 'MUJI 无印良品 懒人沙发',
+      category: 'home',
+      condition: 7,
+      description:
+        'MUJI 经典款懒人沙发，米白色。买了两年多，平时放卧室很少用，面料有轻微使用痕迹，填充物依然饱满。自提优先。',
+      images: [
+        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
+      ],
+      exchangePreference: '想换书架或收纳柜',
+      status: 'published',
+      ownerId: CURRENT_USER_ID,
+      createdAt: now - 86400000 * 6,
+    },
+    {
+      id: 'mock_mine_3',
+      title: '《设计心理学》全四册',
+      category: 'books',
+      condition: 9,
+      description:
+        '唐纳德·诺曼设计心理学套装，全4册。几乎全新，只翻过第一本前几页，做设计的朋友推荐必看系列。',
+      images: [
+        'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=600&q=80',
+      ],
+      exchangePreference: '想换其他设计/产品相关书籍',
+      status: 'published',
+      ownerId: CURRENT_USER_ID,
+      createdAt: now - 86400000 * 10,
+    },
     {
       id: 'mock_1',
       title: 'Kindle Paperwhite 电子书阅读器',
@@ -147,6 +192,67 @@ const createMockProducts = (): Product[] => {
   ];
 };
 
+const createMockRequests = (): ExchangeRequest[] => {
+  const now = Date.now();
+  return [
+    {
+      id: 'req_1',
+      productId: 'mock_mine_1',
+      offerDescription:
+        '我有一台日版 Switch OLED，白色，购于2022年底，成色9成新，配件齐全，带原装底座和手柄。玩过塞尔达和马里奥，现在不太玩了想换个平板看剧。',
+      contactInfo: '微信：gamer_switch_88',
+      requesterId: 'user_other_1',
+      status: 'pending',
+      isRead: false,
+      createdAt: now - 3600000 * 2,
+    },
+    {
+      id: 'req_2',
+      productId: 'mock_mine_1',
+      offerDescription:
+        '可以用 iPad Pro 9.7寸 32G + Apple Pencil 第一代交换，iPad 成色8成新，有贴膜带套，功能一切正常。或者补差价也可以商量。',
+      contactInfo: '电话：138****5678',
+      requesterId: 'user_other_2',
+      status: 'pending',
+      isRead: false,
+      createdAt: now - 3600000 * 5,
+    },
+    {
+      id: 'req_3',
+      productId: 'mock_mine_2',
+      offerDescription:
+        '我有一个宜家的毕利书架，白色，80x28x202cm，买了一年多很新，因为搬家带不走想换个懒人沙发放出租屋。自提可以约在地铁站附近。',
+      contactInfo: '微信：ikea_fan_2023',
+      requesterId: 'user_other_3',
+      status: 'pending',
+      isRead: true,
+      createdAt: now - 86400000 * 1,
+    },
+    {
+      id: 'req_4',
+      productId: 'mock_mine_3',
+      offerDescription:
+        '我有一套《写给大家看的设计书》+《点石成金》，都是设计经典，书的品相很好几乎全新。或者你有其他想看的书我也可以看看有没有。',
+      contactInfo: '微信：design_book_swap',
+      requesterId: 'user_other_1',
+      status: 'rejected',
+      isRead: true,
+      createdAt: now - 86400000 * 4,
+    },
+    {
+      id: 'req_5',
+      productId: 'mock_mine_2',
+      offerDescription:
+        '有一个无印良品的亚克力收纳柜，5层抽屉式，放在卧室放衣物和杂物很方便，使用半年九成新。不包邮，最好同城自提。',
+      contactInfo: '微信：muji_storage',
+      requesterId: 'user_other_2',
+      status: 'accepted',
+      isRead: true,
+      createdAt: now - 86400000 * 7,
+    },
+  ];
+};
+
 const initialState: AppState = {
   products: [],
   requests: [],
@@ -227,12 +333,19 @@ export function DataStoreProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
       }
 
+      if (requests.length === 0) {
+        requests = createMockRequests();
+        localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+      }
+
       dispatch({ type: 'SET_PRODUCTS', payload: products });
       dispatch({ type: 'SET_REQUESTS', payload: requests });
     } catch (e) {
+      console.warn('Failed to load from localStorage, using mock data:', e);
       const mockProducts = createMockProducts();
+      const mockRequests = createMockRequests();
       dispatch({ type: 'SET_PRODUCTS', payload: mockProducts });
-      dispatch({ type: 'SET_REQUESTS', payload: [] });
+      dispatch({ type: 'SET_REQUESTS', payload: mockRequests });
     }
   }, []);
 

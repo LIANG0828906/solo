@@ -131,6 +131,17 @@ img {
   to { transform: rotate(360deg); }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-slide-up {
   animation: slideUp var(--transition-normal) ease-out forwards;
 }
@@ -680,6 +691,13 @@ img {
 .upload-item.drag-over {
   box-shadow: 0 0 0 2px var(--morandi-blue);
   transform: scale(1.02);
+}
+
+.upload-placeholder {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-card);
+  border: 2px dashed var(--morandi-blue-light);
+  background-color: rgba(124, 152, 166, 0.08);
 }
 
 .upload-item img {
@@ -1701,7 +1719,24 @@ img {
   .hidden-sm { display: inline-flex; }
 }
 
-/* 瀑布流响应式列数 */
+/* ====== 拖拽提示条 ====== */
+.drag-hint-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: var(--morandi-blue);
+  color: white;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 12px rgba(124, 152, 166, 0.4);
+  animation: slideDown 300ms ease-out forwards;
+}
+
+/* ====== 瀑布流响应式列数 ====== */
 @media (min-width: 1024px) {
   .waterfall-container { gap: 16px; }
 }
@@ -1714,4 +1749,32 @@ img {
     padding-left: 16px;
     padding-right: 16px;
   }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOut var(--transition-normal) ease-out forwards;
+}
+
+.animate-scale-out {
+  animation: scaleOut var(--transition-normal) ease-out forwards;
 }
