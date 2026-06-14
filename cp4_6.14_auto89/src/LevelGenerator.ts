@@ -7,8 +7,10 @@ export interface Platform {
   color: string;
   isNew: boolean;
   spawnTime: number;
+  slideFromX: number;
   fadeOut: boolean;
   fadeOutStartTime: number;
+  fadeOutStartX: number;
 }
 
 const PLATFORM_COLORS = ['#22c55e', '#3b82f6', '#a855f7'];
@@ -48,8 +50,10 @@ export class LevelGenerator {
         color,
         isNew: false,
         spawnTime: 0,
+        slideFromX: currentX,
         fadeOut: false,
         fadeOutStartTime: 0,
+        fadeOutStartX: 0,
       });
 
       const gapX = this.randomRange(MIN_GAP_HORIZONTAL, MAX_GAP_HORIZONTAL);
@@ -81,29 +85,30 @@ export class LevelGenerator {
       const heightDiff = this.randomRange(-40, 40);
       newY = Math.max(80, Math.min(CANVAS_HEIGHT - GROUND_HEIGHT - 40, nearestPlatform.y + heightDiff));
     } else {
-      newX = CANVAS_WIDTH + 20;
+      newX = CANVAS_WIDTH - 150;
       newY = CANVAS_HEIGHT - GROUND_HEIGHT - 100;
     }
 
-    newX = Math.max(20, Math.min(CANVAS_WIDTH - 100, newX));
+    newX = Math.max(20, Math.min(CANVAS_WIDTH - 60, newX));
 
     const width = this.randomRange(MIN_PLATFORM_WIDTH, MAX_PLATFORM_WIDTH);
     const color = PLATFORM_COLORS[Math.floor(Math.random() * PLATFORM_COLORS.length)];
+    const slideFromX = CANVAS_WIDTH + 30;
 
     const newPlatform: Platform = {
       id: this.nextId++,
-      x: CANVAS_WIDTH + 10,
+      x: newX,
       y: newY,
       width,
       height: PLATFORM_HEIGHT,
       color,
       isNew: true,
       spawnTime: currentTime,
+      slideFromX,
       fadeOut: false,
       fadeOutStartTime: 0,
+      fadeOutStartX: 0,
     };
-
-    newPlatform.x = newX;
 
     this.platforms.push(newPlatform);
     this.levelNumber++;
@@ -113,11 +118,12 @@ export class LevelGenerator {
   }
 
   removeOldestPlatform(currentTime: number): void {
-    const activePlatforms = this.platforms.filter(p => !p.fadeOut && p.spawnTime <= currentTime - 300);
+    const activePlatforms = this.platforms.filter(p => !p.fadeOut);
     if (activePlatforms.length > 0) {
-      const oldest = activePlatforms.reduce((a, b) => a.spawnTime < b.spawnTime ? a : b);
+      const oldest = activePlatforms.reduce((a, b) => a.id < b.id ? a : b);
       oldest.fadeOut = true;
       oldest.fadeOutStartTime = currentTime;
+      oldest.fadeOutStartX = oldest.x;
     }
   }
 
@@ -145,11 +151,19 @@ export class LevelGenerator {
     }
   }
 
-  getPlatformSlideProgress(platform: Platform, currentTime: number): number {
-    if (!platform.isNew) return 1;
-    const elapsed = currentTime - platform.spawnTime;
-    const progress = Math.min(1, elapsed / 500);
-    return this.easeOut(progress);
+  getPlatformRenderX(platform: Platform, currentTime: number): number {
+    if (platform.isNew) {
+      const elapsed = currentTime - platform.spawnTime;
+      const progress = Math.min(1, elapsed / 500);
+      const eased = this.easeOut(progress);
+      return platform.slideFromX + (platform.x - platform.slideFromX) * eased;
+    }
+    if (platform.fadeOut) {
+      const elapsed = currentTime - platform.fadeOutStartTime;
+      const progress = Math.min(1, elapsed / 300);
+      return platform.fadeOutStartX - 60 * progress;
+    }
+    return platform.x;
   }
 
   getPlatformFadeOpacity(platform: Platform, currentTime: number): number {
@@ -202,13 +216,15 @@ export class LevelGenerator {
     const activePlatforms = this.platforms.filter(p => !p.fadeOut);
     if (activePlatforms.length < 2) return;
 
+    const sorted = [...activePlatforms].sort((a, b) => a.id - b.id);
+
     let totalGap = 0;
     let totalHeightDiff = 0;
     let count = 0;
 
-    for (let i = 0; i < activePlatforms.length - 1; i++) {
-      const a = activePlatforms[i];
-      const b = activePlatforms[i + 1];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i];
+      const b = sorted[i + 1];
       const gap = Math.abs(b.x - (a.x + a.width));
       const heightDiff = Math.abs(b.y - a.y);
       totalGap += gap;

@@ -17,8 +17,8 @@ class Game {
 
   private lastTime: number = 0;
   private timeSinceLastPlatform: number = 0;
-  private mouseX: number = 0;
-  private mouseY: number = 0;
+  private mouseX: number = -100;
+  private mouseY: number = -100;
 
   private scoreDisplay: HTMLElement;
   private timerDisplay: HTMLElement;
@@ -40,6 +40,7 @@ class Game {
     this.levelGenerator = new LevelGenerator();
     this.playerController = new PlayerController(this.audioManager);
     this.renderer = new Renderer(this.canvas);
+    this.renderer.setLevelGenerator(this.levelGenerator);
 
     this.scoreDisplay = document.getElementById('scoreDisplay')!;
     this.timerDisplay = document.getElementById('timerDisplay')!;
@@ -69,6 +70,11 @@ class Game {
       const scaleY = CANVAS_HEIGHT / rect.height;
       this.mouseX = (e.clientX - rect.left) * scaleX;
       this.mouseY = (e.clientY - rect.top) * scaleY;
+    });
+
+    this.canvas.addEventListener('mouseleave', () => {
+      this.mouseX = -100;
+      this.mouseY = -100;
     });
 
     this.regenButton.addEventListener('click', () => {

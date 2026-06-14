@@ -41,7 +41,9 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 const GROUND_HEIGHT = 40;
 const GRAVITY = 0.5;
-const MOVE_SPEED = 4;
+const MOVE_ACCEL = 0.6;
+const MAX_MOVE_SPEED = 4;
+const FRICTION = 0.82;
 const JUMP_FORCE = -11;
 const PLAYER_SIZE = 16;
 const MAX_FALL_SPEED = 12;
@@ -67,6 +69,7 @@ export class PlayerController {
   private audioManager: AudioManager;
   private canJump: boolean = true;
   private wasInAir: boolean = false;
+  private prevVx: number = 0;
 
   constructor(audioManager: AudioManager) {
     this.audioManager = audioManager;
@@ -121,17 +124,22 @@ export class PlayerController {
   update(deltaTime: number, platforms: Platform[], currentTime: number): void {
     const dt = deltaTime / 16.67;
 
+    this.prevVx = this.player.vx;
+
     if (this.keys.left) {
-      this.player.vx = -MOVE_SPEED;
+      this.player.vx -= MOVE_ACCEL * dt;
     } else if (this.keys.right) {
-      this.player.vx = MOVE_SPEED;
+      this.player.vx += MOVE_ACCEL * dt;
     } else {
-      this.player.vx *= 0.8;
+      this.player.vx *= FRICTION;
       if (Math.abs(this.player.vx) < 0.1) this.player.vx = 0;
     }
 
-    const targetTilt = this.player.vx * 2 / MOVE_SPEED;
-    this.player.tiltAngle += (targetTilt - this.player.tiltAngle) * 0.2;
+    this.player.vx = Math.max(-MAX_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, this.player.vx));
+
+    const acceleration = this.player.vx - this.prevVx;
+    const targetTilt = Math.max(-2, Math.min(2, acceleration * 1.5));
+    this.player.tiltAngle += (targetTilt - this.player.tiltAngle) * 0.25;
 
     this.player.vy += GRAVITY * dt;
     if (this.player.vy > MAX_FALL_SPEED) this.player.vy = MAX_FALL_SPEED;
@@ -250,13 +258,13 @@ export class PlayerController {
   private spawnLandParticles(): void {
     const count = 8;
     for (let i = 0; i < count; i++) {
-      const angle = Math.PI + (Math.random() - 0.5) * Math.PI;
-      const speed = 1 + Math.random() * 2;
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.7;
+      const speed = 0.5 + Math.random() * 1.5;
       this.particles.push({
-        x: this.player.x + this.player.width / 2,
+        x: this.player.x + this.player.width / 2 + (Math.random() - 0.5) * this.player.width * 0.8,
         y: this.player.y + this.player.height,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 1,
+        vy: Math.sin(angle) * speed,
         life: 0.3,
         maxLife: 0.3,
         color: '#94a3b8',
@@ -289,7 +297,7 @@ export class PlayerController {
       const p = this.particles[i];
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.1;
+      p.vy += 0.05;
       p.life -= dt;
       if (p.life <= 0) {
         this.particles.splice(i, 1);
@@ -343,5 +351,6 @@ export class PlayerController {
     this.screenShake.offsetX = 0;
     this.screenShake.offsetY = 0;
     this.screenShake.duration = 0;
+    this.prevVx = 0;
   }
 }

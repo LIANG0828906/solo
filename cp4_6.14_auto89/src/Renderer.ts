@@ -1,3 +1,4 @@
+import { LevelGenerator } from './LevelGenerator';
 import type { Platform } from './LevelGenerator';
 import type { Player, Particle, Ripple } from './PlayerController';
 
@@ -7,6 +8,7 @@ const GROUND_HEIGHT = 40;
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
+  private levelGenerator: LevelGenerator | null = null;
   private bgGradient: CanvasGradient;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -14,6 +16,10 @@ export class Renderer {
     if (!ctx) throw new Error('无法获取Canvas上下文');
     this.ctx = ctx;
     this.bgGradient = this.createBackgroundGradient();
+  }
+
+  setLevelGenerator(lg: LevelGenerator): void {
+    this.levelGenerator = lg;
   }
 
   private createBackgroundGradient(): CanvasGradient {
@@ -47,16 +53,15 @@ export class Renderer {
 
   drawPlatforms(platforms: Platform[], currentTime: number, mouseX: number, mouseY: number): void {
     const activePlatforms = platforms.filter(p => !p.fadeOut);
-
-    this.drawDashedConnections(activePlatforms);
+    this.drawDashedConnections(activePlatforms, currentTime);
 
     for (const platform of platforms) {
       this.drawPlatform(platform, currentTime, mouseX, mouseY);
     }
   }
 
-  private drawDashedConnections(platforms: Platform[]): void {
-    if (platforms.length < 2) return;
+  private drawDashedConnections(platforms: Platform[], currentTime: number): void {
+    if (platforms.length < 2 || !this.levelGenerator) return;
 
     this.ctx.save();
     this.ctx.strokeStyle = '#ffffff33';
@@ -67,13 +72,13 @@ export class Renderer {
       const a = platforms[i];
       const b = platforms[i + 1];
 
-      const ax = a.x + a.width / 2;
+      const ax = this.levelGenerator.getPlatformRenderX(a, currentTime) + a.width / 2;
       const ay = a.y + a.height / 2;
-      const bx = b.x + b.width / 2;
+      const bx = this.levelGenerator.getPlatformRenderX(b, currentTime) + b.width / 2;
       const by = b.y + b.height / 2;
 
       const dist = Math.hypot(bx - ax, by - ay);
-      if (dist < 200) {
+      if (dist < 250) {
         this.ctx.beginPath();
         this.ctx.moveTo(ax, ay);
         this.ctx.lineTo(bx, by);
@@ -86,16 +91,21 @@ export class Renderer {
 
   private drawPlatform(platform: Platform, currentTime: number, mouseX: number, mouseY: number): void {
     const ctx = this.ctx;
-    const progress = this.getSlideProgress(platform, currentTime);
-    const opacity = this.getFadeOpacity(platform, currentTime);
 
-    const targetX = platform.x;
-    const startX = CANVAS_WIDTH + 20;
-    const x = startX + (targetX - startX) * progress;
+    let renderX: number;
+    let opacity: number;
+
+    if (this.levelGenerator) {
+      renderX = this.levelGenerator.getPlatformRenderX(platform, currentTime);
+      opacity = this.levelGenerator.getPlatformFadeOpacity(platform, currentTime);
+    } else {
+      renderX = platform.x;
+      opacity = 1;
+    }
 
     const isHovered = this.isPointInRect(
       mouseX, mouseY,
-      x, platform.y,
+      renderX, platform.y,
       platform.width, platform.height
     );
 
@@ -105,13 +115,19 @@ export class Renderer {
     const color = isHovered ? this.brightenColor(platform.color, 20) : platform.color;
 
     ctx.fillStyle = color;
-    ctx.fillRect(x, platform.y, platform.width, platform.height);
+    ctx.fillRect(renderX, platform.y, platform.width, platform.height);
 
     ctx.fillStyle = this.brightenColor(color, 30);
-    ctx.fillRect(x, platform.y, platform.width, 2);
+    ctx.fillRect(renderX, platform.y, platform.width, 2);
 
     ctx.fillStyle = this.darkenColor(color, 20);
-    ctx.fillRect(x, platform.y + platform.height - 2, platform.width, 2);
+    ctx.fillRect(renderX, platform.y + platform.height - 2, platform.width, 2);
+
+    if (isHovered) {
+      ctx.strokeStyle = this.brightenColor(platform.color, 40);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(renderX, platform.y, platform.width, platform.height);
+    }
 
     ctx.restore();
   }
@@ -177,7 +193,7 @@ export class Renderer {
 
     const w = canvas.width;
     const h = canvas.height;
-    const padding = { top: 10, right: 10, bottom: 15, left: 25 };
+    const padding = { top: 10, right: 10, bottom: 15, left: 30 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
 
@@ -221,11 +237,11 @@ export class Renderer {
 
     const drawLine = (
       values: number[],
-      color: string,
+      lineColor: string,
       dotColor: string
     ) => {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
 
       for (let i = 0; i < values.length; i++) {
@@ -246,7 +262,7 @@ export class Renderer {
 
         ctx.fillStyle = dotColor;
         ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
     };
@@ -257,29 +273,23 @@ export class Renderer {
       '#22c55e'
     );
 
+    drawLine(
+      data.map(d => d.avgHeightDiff),
+      '#a855f7',
+      '#f472b6'
+    );
+
     ctx.fillStyle = '#64748b';
-    ctx.font = '9px sans-serif';
+    ctx.font = '8px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(Math.round(maxVal).toString(), padding.left - 3, padding.top + 3);
-    ctx.fillText('0', padding.left - 3, h - padding.bottom);
-  }
+    ctx.fillText(Math.round(maxVal).toString(), padding.left - 3, padding.top + 5);
+    ctx.fillText('0', padding.left - 3, h - padding.bottom + 2);
 
-  private getSlideProgress(platform: Platform, currentTime: number): number {
-    if (!platform.isNew) return 1;
-    const elapsed = currentTime - platform.spawnTime;
-    const progress = Math.min(1, elapsed / 500);
-    return this.easeOut(progress);
-  }
-
-  private getFadeOpacity(platform: Platform, currentTime: number): number {
-    if (!platform.fadeOut) return 1;
-    const elapsed = currentTime - platform.fadeOutStartTime;
-    const progress = Math.min(1, elapsed / 300);
-    return 1 - progress;
-  }
-
-  private easeOut(t: number): number {
-    return 1 - Math.pow(1 - t, 3);
+    ctx.textAlign = 'center';
+    for (let i = 0; i < dataPoints; i++) {
+      const x = padding.left + (chartW / (dataPoints - 1)) * i;
+      ctx.fillText((i + 1).toString(), x, h - 1);
+    }
   }
 
   private isPointInRect(
