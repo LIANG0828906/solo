@@ -23,6 +23,8 @@ function Terrain() {
   const noise2D2 = useMemo(() => createNoise2D(456), [])
   const size = 400
   const segments = 256
+  const depth = useStore((s) => s.depth)
+  const baseColorsRef = useRef<Float32Array | null>(null)
 
   const geometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(size, size, segments, segments)
@@ -40,27 +42,41 @@ function Terrain() {
 
       positions.setZ(i, -80 + height)
 
-      const depthFactor = Math.max(0, Math.min(1, (-height - 5) / 40))
-      const r = 0.05 + depthFactor * 0.1
-      const g = 0.15 + depthFactor * 0.25
-      const b = 0.25 + depthFactor * 0.35
-
-      colors[i * 3] = r
-      colors[i * 3 + 1] = g
-      colors[i * 3 + 2] = b
+      const localDepthFactor = Math.max(0, Math.min(1, (-height) / 50))
+      colors[i * 3] = 0.04 + localDepthFactor * 0.08
+      colors[i * 3 + 1] = 0.12 + localDepthFactor * 0.18
+      colors[i * 3 + 2] = 0.22 + localDepthFactor * 0.25
     }
 
+    baseColorsRef.current = new Float32Array(colors)
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     geo.computeVertexNormals()
     return geo
   }, [noise2D, noise2D2])
 
+  useFrame(() => {
+    if (!meshRef.current || !baseColorsRef.current) return
+    const colorAttr = meshRef.current.geometry.attributes.color as THREE.BufferAttribute
+    const colors = colorAttr.array as Float32Array
+    const base = baseColorsRef.current
+    const globalDepthFactor = Math.min(1, depth / 80)
+    const darken = 1 - globalDepthFactor * 0.55
+    const blueShift = globalDepthFactor * 0.15
+
+    for (let i = 0; i < colors.length; i += 3) {
+      colors[i] = base[i] * darken
+      colors[i + 1] = base[i + 1] * darken
+      colors[i + 2] = Math.min(1, base[i + 2] * darken + blueShift)
+    }
+    colorAttr.needsUpdate = true
+  })
+
   return (
     <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} receiveShadow geometry={geometry}>
       <meshStandardMaterial
         vertexColors
-        roughness={0.9}
-        metalness={0.1}
+        roughness={0.95}
+        metalness={0.05}
       />
     </mesh>
   )
@@ -76,12 +92,12 @@ function SeaGrass() {
       const z = (Math.random() - 0.5) * 300
       const h = noise2D(x * 0.008, z * 0.008) * 25 + noise2D(x * 0.02, z * 0.02) * 8
       const y = -80 + h
-      if (y > -50 && Math.random() > 0.5) {
+      if (y > -55 && Math.random() > 0.5) {
         data.push({
           position: new THREE.Vector3(x, y, z),
           rotation: Math.random() * Math.PI * 2,
-          height: 1 + Math.random() * 4,
-          color: `hsl(${100 + Math.random() * 40}, ${60 + Math.random() * 30}%, ${25 + Math.random() * 20}%)`
+          height: 1.5 + Math.random() * 4.5,
+          color: `hsl(${95 + Math.random() * 50}, ${55 + Math.random() * 35}%, ${22 + Math.random() * 22}%)`
         })
       }
     }
@@ -92,8 +108,10 @@ function SeaGrass() {
     if (!groupRef.current) return
     const time = state.clock.elapsedTime
     groupRef.current.children.forEach((child, i) => {
-      const sway = Math.sin(time * 1.5 + i * 0.5) * 0.15
+      const sway = Math.sin(time * 1.8 + i * 0.45) * 0.2
+      const sway2 = Math.cos(time * 1.2 + i * 0.6) * 0.1
       child.rotation.z = sway
+      child.rotation.x = sway2
     })
   })
 
@@ -101,8 +119,8 @@ function SeaGrass() {
     <group ref={groupRef}>
       {instances.map((inst, i) => (
         <mesh key={i} position={inst.position} rotation={[0, inst.rotation, 0]}>
-          <cylinderGeometry args={[0.05, 0.15, inst.height, 4]} />
-          <meshStandardMaterial color={inst.color} side={THREE.DoubleSide} />
+          <cylinderGeometry args={[0.06, 0.18, inst.height, 5]} />
+          <meshStandardMaterial color={inst.color} side={THREE.DoubleSide} roughness={0.8} />
         </mesh>
       ))}
     </group>
@@ -127,20 +145,20 @@ function Corals() {
 
         const instances: CoralInstance[] = []
         data.forEach((coral) => {
-          for (let i = 0; i < 8; i++) {
-            const x = (Math.random() - 0.5) * 250
-            const z = (Math.random() - 0.5) * 250
+          for (let i = 0; i < 10; i++) {
+            const x = (Math.random() - 0.5) * 260
+            const z = (Math.random() - 0.5) * 260
             const h1 = noise2D(x * 0.008, z * 0.008) * 25
             const h2 = noise2D2(x * 0.02, z * 0.02) * 8
             const y = -80 + h1 + h2
 
-            if (y > -70) {
+            if (y > -72) {
               instances.push({
                 id: `${coral.id}-${i}`,
                 coralId: coral.id,
                 position: new THREE.Vector3(x, y, z),
                 rotation: new THREE.Euler(0, Math.random() * Math.PI * 2, 0),
-                scale: 0.6 + Math.random() * 1.2,
+                scale: 0.7 + Math.random() * 1.5,
                 color: coral.color,
                 type: coral.id
               })
@@ -160,56 +178,60 @@ function Corals() {
       case 'braincoral':
         return (
           <mesh>
-            <sphereGeometry args={[scale * 0.8, 16, 12]} />
-            <meshStandardMaterial color={color} roughness={0.9} />
+            <sphereGeometry args={[scale * 0.85, 20, 14]} />
+            <meshStandardMaterial color={color} roughness={0.92} />
           </mesh>
         )
       case 'staghorn':
         return (
           <group>
-            {[0, 0.5, -0.5, 0.3, -0.3].map((offset, i) => (
-              <mesh key={i} position={[offset * scale, scale * 0.5, offset * scale * 0.5]} rotation={[0, 0, offset * 0.5]}>
-                <cylinderGeometry args={[scale * 0.08, scale * 0.12, scale * 1.5, 6]} />
-                <meshStandardMaterial color={color} roughness={0.8} />
+            {[0, 0.4, -0.4, 0.25, -0.25, 0.6, -0.6].map((offset, i) => (
+              <mesh key={i} position={[offset * scale, scale * 0.6, offset * scale * 0.6]} rotation={[0, i * 0.4, offset * 0.6]}>
+                <cylinderGeometry args={[scale * 0.07, scale * 0.13, scale * 1.7, 6]} />
+                <meshStandardMaterial color={color} roughness={0.85} />
               </mesh>
             ))}
-            <mesh position={[0, scale * 0.3, 0]}>
-              <cylinderGeometry args={[scale * 0.15, scale * 0.2, scale * 0.8, 6]} />
-              <meshStandardMaterial color={color} roughness={0.8} />
+            <mesh position={[0, scale * 0.35, 0]}>
+              <cylinderGeometry args={[scale * 0.17, scale * 0.24, scale * 0.9, 6]} />
+              <meshStandardMaterial color={color} roughness={0.85} />
             </mesh>
           </group>
         )
       case 'tablecoral':
         return (
           <group>
-            <mesh position={[0, scale * 0.4, 0]}>
-              <cylinderGeometry args={[scale * 0.1, scale * 0.15, scale * 0.8, 8]} />
-              <meshStandardMaterial color={color} roughness={0.8} />
+            <mesh position={[0, scale * 0.45, 0]}>
+              <cylinderGeometry args={[scale * 0.11, scale * 0.17, scale * 0.9, 8]} />
+              <meshStandardMaterial color={color} roughness={0.85} />
             </mesh>
-            <mesh position={[0, scale * 0.85, 0]}>
-              <cylinderGeometry args={[scale * 1.0, scale * 0.9, scale * 0.15, 16]} />
-              <meshStandardMaterial color={color} roughness={0.7} />
+            <mesh position={[0, scale * 0.95, 0]}>
+              <cylinderGeometry args={[scale * 1.1, scale * 0.95, scale * 0.2, 20]} />
+              <meshStandardMaterial color={color} roughness={0.75} />
             </mesh>
           </group>
         )
       case 'fan coral':
         return (
           <group>
-            <mesh position={[0, scale * 0.3, 0]}>
-              <cylinderGeometry args={[scale * 0.08, scale * 0.12, scale * 0.6, 6]} />
-              <meshStandardMaterial color={color} roughness={0.7} />
+            <mesh position={[0, scale * 0.35, 0]}>
+              <cylinderGeometry args={[scale * 0.09, scale * 0.14, scale * 0.7, 6]} />
+              <meshStandardMaterial color={color} roughness={0.75} />
             </mesh>
-            <mesh position={[0, scale * 1.0, 0]}>
-              <ringGeometry args={[scale * 0.3, scale * 1.2, 16]} />
-              <meshStandardMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.85} />
+            <mesh position={[0, scale * 1.1, 0]}>
+              <ringGeometry args={[scale * 0.35, scale * 1.35, 24]} />
+              <meshStandardMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.88} />
+            </mesh>
+            <mesh position={[0, scale * 1.1, 0]} rotation={[0, Math.PI / 2, 0]}>
+              <ringGeometry args={[scale * 0.35, scale * 1.35, 24]} />
+              <meshStandardMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.6} />
             </mesh>
           </group>
         )
       case 'mushroom':
         return (
           <mesh position={[0, scale * 0.2, 0]}>
-            <sphereGeometry args={[scale * 0.8, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-            <meshStandardMaterial color={color} roughness={0.9} />
+            <sphereGeometry args={[scale * 0.9, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color={color} roughness={0.92} />
           </mesh>
         )
       default:
@@ -243,11 +265,22 @@ function Corals() {
         >
           {selectedCreatureId === inst.coralId && (
             <mesh>
-              <sphereGeometry args={[inst.scale * 2, 32, 32]} />
+              <sphereGeometry args={[inst.scale * 2.2, 32, 32]} />
               <meshBasicMaterial
                 color="#4dd0e1"
                 transparent
-                opacity={0.2}
+                opacity={0.22}
+                side={THREE.BackSide}
+              />
+            </mesh>
+          )}
+          {selectedCreatureId === inst.coralId && (
+            <mesh>
+              <ringGeometry args={[inst.scale * 1.5, inst.scale * 1.9, 48]} />
+              <meshBasicMaterial
+                color="#4dd0e1"
+                transparent
+                opacity={0.55}
                 side={THREE.DoubleSide}
               />
             </mesh>
@@ -263,27 +296,29 @@ function WaterParticles() {
   const pointsRef = useRef<THREE.Points>(null)
   const count = 1500
 
-  const [positions, sizes] = useMemo(() => {
+  const [positions] = useMemo(() => {
     const pos = new Float32Array(count * 3)
-    const siz = new Float32Array(count)
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 350
-      pos[i * 3 + 1] = -Math.random() * 110
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 350
-      siz[i] = 0.1 + Math.random() * 0.3
+      pos[i * 3] = (Math.random() - 0.5) * 360
+      pos[i * 3 + 1] = -Math.random() * 115
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 360
     }
-    return [pos, siz]
+    return [pos]
   }, [])
 
   useFrame((state) => {
     if (!pointsRef.current) return
-    const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
+    const posArr = pointsRef.current.geometry.attributes.position.array as Float32Array
     const time = state.clock.elapsedTime
     for (let i = 0; i < count; i++) {
-      positions[i * 3] += Math.sin(time * 0.2 + i * 0.01) * 0.01
-      positions[i * 3 + 1] += Math.sin(time * 0.15 + i * 0.015) * 0.008
-      positions[i * 3 + 2] += Math.cos(time * 0.1 + i * 0.02) * 0.01
-      if (positions[i * 3 + 1] > 0) positions[i * 3 + 1] = -110
+      posArr[i * 3] += Math.sin(time * 0.25 + i * 0.01) * 0.012
+      posArr[i * 3 + 1] += 0.006 + Math.sin(time * 0.12 + i * 0.015) * 0.008
+      posArr[i * 3 + 2] += Math.cos(time * 0.15 + i * 0.02) * 0.012
+      if (posArr[i * 3 + 1] > -2) {
+        posArr[i * 3 + 1] = -115
+        posArr[i * 3] = (Math.random() - 0.5) * 360
+        posArr[i * 3 + 2] = (Math.random() - 0.5) * 360
+      }
     }
     pointsRef.current.geometry.attributes.position.needsUpdate = true
   })
@@ -297,18 +332,12 @@ function WaterParticles() {
           array={positions}
           itemSize={3}
         />
-        <bufferAttribute
-          attach="attributes-size"
-          count={count}
-          array={sizes}
-          itemSize={1}
-        />
       </bufferGeometry>
       <pointsMaterial
         color="#aaddff"
-        size={0.2}
+        size={0.25}
         transparent
-        opacity={0.4}
+        opacity={0.5}
         sizeAttenuation
       />
     </points>
@@ -320,73 +349,90 @@ function DepthLighting() {
   const depth = useStore((s) => s.depth)
   const ambientRef = useRef<THREE.AmbientLight>(null)
   const dirRef = useRef<THREE.DirectionalLight>(null)
+  const hemiRef = useRef<THREE.HemisphereLight>(null)
 
   useFrame(() => {
     const depthFactor = Math.min(1, depth / 80)
-    const shallowColor = new THREE.Color(0x87ceeb)
-    const midColor = new THREE.Color(0x1a4d7a)
-    const deepColor = new THREE.Color(0x0a1f2e)
+    const shallowColor = new THREE.Color(0x7ec8e3)
+    const midColor = new THREE.Color(0x0f3d5c)
+    const deepColor = new THREE.Color(0x071a1f)
 
     let bgColor: THREE.Color
-    if (depthFactor < 0.3) {
-      bgColor = shallowColor.clone().lerp(midColor, depthFactor / 0.3)
+    if (depthFactor < 0.35) {
+      bgColor = shallowColor.clone().lerp(midColor, depthFactor / 0.35)
     } else {
-      bgColor = midColor.clone().lerp(deepColor, (depthFactor - 0.3) / 0.7)
+      bgColor = midColor.clone().lerp(deepColor, (depthFactor - 0.35) / 0.65)
     }
     scene.background = bgColor
-    scene.fog = new THREE.FogExp2(bgColor.getHex(), 0.008 + depthFactor * 0.012)
+    scene.fog = new THREE.FogExp2(bgColor.getHex(), 0.009 + depthFactor * 0.015)
 
     if (ambientRef.current) {
-      const ambientIntensity = Math.max(0.15, 0.8 - depthFactor * 0.6)
+      const ambientIntensity = Math.max(0.12, 0.75 - depthFactor * 0.6)
       ambientRef.current.intensity = ambientIntensity
-      ambientRef.current.color.copy(bgColor).offsetHSL(0.05, 0.1, 0.1)
+      const tint = bgColor.clone().offsetHSL(0.05, 0.08, 0.08)
+      ambientRef.current.color.copy(tint)
     }
     if (dirRef.current) {
-      dirRef.current.intensity = Math.max(0.2, 1.2 - depthFactor * 1.0)
+      dirRef.current.intensity = Math.max(0.15, 1.1 - depthFactor * 0.95)
       const lightColor = new THREE.Color(0xffffee).lerp(new THREE.Color(0x66ccff), depthFactor)
       dirRef.current.color.copy(lightColor)
+    }
+    if (hemiRef.current) {
+      hemiRef.current.intensity = Math.max(0.05, 0.35 - depthFactor * 0.3)
     }
   })
 
   return (
     <>
-      <ambientLight ref={ambientRef} intensity={0.8} color="#88ccff" />
+      <ambientLight ref={ambientRef} intensity={0.75} color="#99ccff" />
+      <hemisphereLight ref={hemiRef} args={['#88ccff', '#113344', 0.35]} />
       <directionalLight
         ref={dirRef}
-        position={[50, 80, 50]}
-        intensity={1.2}
+        position={[60, 90, 60]}
+        intensity={1.1}
         castShadow
         shadow-mapSize={[1024, 1024]}
       />
-      <pointLight position={[0, -20, 0]} intensity={0.4} color="#4dd0e1" distance={100} />
+      <pointLight position={[0, -25, 0]} intensity={0.5} color="#4dd0e1" distance={120} />
     </>
   )
 }
 
-function ClickHandler() {
+function SceneGround() {
   const setSelectedCreatureId = useStore((s) => s.actions.setSelectedCreatureId)
   return (
     <mesh
-      onClick={() => setSelectedCreatureId(null)}
-      position={[0, -1000, 0]}
+      onClick={(e) => {
+        e.stopPropagation()
+        setSelectedCreatureId(null)
+      }}
+      position={[0, -150, 0]}
       rotation={[-Math.PI / 2, 0, 0]}
     >
-      <planeGeometry args={[5000, 5000]} />
+      <planeGeometry args={[2000, 2000]} />
       <meshBasicMaterial transparent opacity={0} />
     </mesh>
   )
 }
 
 export default function EcoSystem() {
+  const setSelectedCreatureId = useStore((s) => s.actions.setSelectedCreatureId)
+
   return (
     <Canvas
-      camera={{ fov: 70, near: 0.1, far: 1000 }}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
-      onCreated={({ gl }) => {
+      camera={{ fov: 70, near: 0.1, far: 1500, position: [0, -20, 0] }}
+      gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}
+      onCreated={({ gl, scene }) => {
         gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = 1.1
+        scene.onPointerMissed = () => {
+          setSelectedCreatureId(null)
+        }
       }}
+      onPointerMissed={() => setSelectedCreatureId(null)}
     >
-      <ClickHandler />
+      <SceneGround />
       <DepthLighting />
       <Terrain />
       <SeaGrass />

@@ -1,12 +1,14 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Vector3 } from 'three'
+import * as THREE from 'three'
 import { useStore } from '@/store/useStore'
 
-const MOVE_SPEED = 25
+const MOVE_ACCEL = 60
 const DAMPING = 0.92
-const ROTATION_SPEED = 0.003
+const MOUSE_SENSITIVITY = 0.0025
+const ROTATION_DAMPING = 0.9
 const BOUNDS = { min: -200, max: 200, minY: -120, maxY: -5 }
+const MAX_SPEED = 40
 
 interface KeyState {
   w: boolean
@@ -24,12 +26,15 @@ export default function ObservationChamber() {
   const setChamberRotation = useStore((s) => s.actions.setChamberRotation)
   const setDepth = useStore((s) => s.actions.setDepth)
 
-  const velocity = useRef(new Vector3(0, 0, 0))
+  const velocity = useRef(new THREE.Vector3(0, 0, 0))
   const keys = useRef<KeyState>({ w: false, a: false, s: false, d: false, q: false, e: false })
   const isDragging = useRef(false)
   const lastMousePos = useRef({ x: 0, y: 0 })
+  const angularVelocity = useRef({ x: 0, y: 0 })
   const euler = useRef({ x: 0, y: 0 })
-  const position = useRef(new Vector3(0, -20, 0))
+  const position = useRef(new THREE.Vector3(0, -20, 0))
+  const targetLook = useRef(new THREE.Vector3(0, -20, -1))
+  const up = useRef(new THREE.Vector3(0, 1, 0))
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const key = e.key.toLowerCase()
@@ -56,9 +61,14 @@ export default function ObservationChamber() {
     if (!isDragging.current) return
     const dx = e.clientX - lastMousePos.current.x
     const dy = e.clientY - lastMousePos.current.y
-    euler.current.y -= dx * ROTATION_SPEED
-    euler.current.x -= dy * ROTATION_SPEED
-    euler.current.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, euler.current.x))
+
+    angularVelocity.current.y = -dx * MOUSE_SENSITIVITY
+    angularVelocity.current.x = -dy * MOUSE_SENSITIVITY
+
+    euler.current.y += angularVelocity.current.y
+    euler.current.x += angularVelocity.current.x
+    euler.current.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, euler.current.x))
+
     lastMousePos.current = { x: e.clientX, y: e.clientY }
   }, [])
 
@@ -68,7 +78,7 @@ export default function ObservationChamber() {
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
-    velocity.current.y -= e.deltaY * 0.002
+    velocity.current.y -= e.deltaY * 0.003
   }, [])
 
   useEffect(() => {
@@ -79,6 +89,7 @@ export default function ObservationChamber() {
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('wheel', handleWheel, { passive: false })
+    canvas.style.touchAction = 'none'
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
@@ -90,24 +101,42 @@ export default function ObservationChamber() {
   }, [handleKeyDown, handleKeyUp, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, gl])
 
   useFrame((_, delta) => {
-    const forward = new Vector3(
-      -Math.sin(euler.current.y) * Math.cos(euler.current.x),
-      Math.sin(euler.current.x),
-      -Math.cos(euler.current.y) * Math.cos(euler.current.x)
-    )
-    const right = new Vector3().crossVectors(forward, new Vector3(0, 1, 0)).normalize()
+    angularVelocity.current.x *= ROTATION_DAMPING
+    angularVelocity.current.y *= ROTATION_DAMPING
 
-    const moveDir = new Vector3(0, 0, 0)
+    if (!isDragging.current && (Math.abs(angularVelocity.current.x) > 0.0001 || Math.abs(angularVelocity.current.y) > 0.0001)) {
+      euler.current.y += angularVelocity.current.y
+      euler.current.x += angularVelocity.current.x
+      euler.current.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, euler.current.x))
+    }
+
+    const sinY = Math.sin(euler.current.y)
+    const cosY = Math.cos(euler.current.y)
+    const sinX = Math.sin(euler.current.x)
+    const cosX = Math.cos(euler.current.x)
+
+    const forward = new THREE.Vector3(-sinY * cosX, sinX, -cosY * cosX)
+    const right = new THREE.Vector3(cosY, 0, -sinY)
+    const worldUp = new THREE.Vector3(0, 1, 0)
+
+    const moveDir = new THREE.Vector3(0, 0, 0)
     if (keys.current.w) moveDir.add(forward)
     if (keys.current.s) moveDir.sub(forward)
     if (keys.current.d) moveDir.add(right)
     if (keys.current.a) moveDir.sub(right)
-    if (keys.current.e) moveDir.y += 1
-    if (keys.current.q) moveDir.y -= 1
+    if (keys.current.e) moveDir.add(worldUp)
+    if (keys.current.q) moveDir.sub(worldUp)
 
-    if (moveDir.length() > 0) moveDir.normalize()
+    if (moveDir.lengthSq() > 0.0001) {
+      moveDir.normalize()
+      velocity.current.addScaledVector(moveDir, MOVE_ACCEL * delta)
+    }
 
-    velocity.current.addScaledVector(moveDir, MOVE_SPEED * delta)
+    const speed = velocity.current.length()
+    if (speed > MAX_SPEED) {
+      velocity.current.multiplyScalar(MAX_SPEED / speed)
+    }
+
     velocity.current.multiplyScalar(DAMPING)
 
     position.current.addScaledVector(velocity.current, delta)
@@ -115,10 +144,11 @@ export default function ObservationChamber() {
     position.current.y = Math.max(BOUNDS.minY, Math.min(BOUNDS.maxY, position.current.y))
     position.current.z = Math.max(BOUNDS.min, Math.min(BOUNDS.max, position.current.z))
 
-    const lookTarget = position.current.clone().add(forward)
+    targetLook.current.copy(position.current).add(forward)
 
-    camera.position.copy(position.current)
-    camera.lookAt(lookTarget)
+    camera.position.lerp(position.current, 0.15)
+    camera.up.copy(up.current)
+    camera.lookAt(targetLook.current)
 
     const depth = Math.max(0, -position.current.y)
     setDepth(depth)
@@ -128,26 +158,26 @@ export default function ObservationChamber() {
   })
 
   return (
-    <mesh position={position.current}>
+    <mesh position={position.current} raycast={() => null}>
       <sphereGeometry args={[3, 48, 48]} />
       <meshPhysicalMaterial
         transparent
-        opacity={0.08}
-        transmission={0.95}
+        opacity={0.06}
+        transmission={0.97}
         thickness={0.5}
-        roughness={0.1}
-        metalness={0.1}
+        roughness={0.05}
+        metalness={0.05}
         color="#88ddff"
         emissive="#113355"
-        emissiveIntensity={0.3}
+        emissiveIntensity={0.2}
       />
-      <mesh>
+      <mesh raycast={() => null}>
         <sphereGeometry args={[3.02, 48, 48]} />
         <meshBasicMaterial
           color="#4dd0e1"
           wireframe
           transparent
-          opacity={0.1}
+          opacity={0.08}
         />
       </mesh>
     </mesh>
