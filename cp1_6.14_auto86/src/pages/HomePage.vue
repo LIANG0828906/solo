@@ -10,7 +10,7 @@ useTimelineData();
 <template>
   <div class="app-shell">
     <FilterToolbar />
-    <main class="app-main">
+    <main class="app-main" ref="mainRef">
       <Timeline />
     </main>
     <EventModal />
@@ -21,6 +21,7 @@ useTimelineData();
 .app-shell {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: #f5f5f5;
@@ -30,15 +31,11 @@ useTimelineData();
 .app-main {
   flex: 1;
   width: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
 @media (max-width: 768px) {
-  .app-shell {
-    height: 100vh;
-    height: 100dvh;
-  }
-
   .app-main {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
