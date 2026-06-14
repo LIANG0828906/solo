@@ -9,38 +9,52 @@ export default function RoomBoard() {
   const { rooms, loading, fetchRooms, reorderRooms } = useStore();
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
 
-  const onDragStart = (id: string) => {
+  const handleDragStart = (id: string) => {
     setDraggedId(id);
   };
 
-  const onDragOver = (e: React.DragEvent, id: string) => {
+  const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (dragOverId !== id) {
       setDragOverId(id);
     }
   };
 
-  const onDrop = (e: React.DragEvent, targetId: string) => {
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    if (draggedId && draggedId !== targetId) {
-      const newRooms = [...rooms];
-      const draggedIndex = newRooms.findIndex((r) => r.id === draggedId);
-      const targetIndex = newRooms.findIndex((r) => r.id === targetId);
-      const [draggedRoom] = newRooms.splice(draggedIndex, 1);
-      newRooms.splice(targetIndex, 0, draggedRoom);
-      const newReorderedRooms = newRooms.map((r, i) => ({ id: r.id, order: i }));
-      reorderRooms(newReorderedRooms as any);
-    }
-  };
+    if (!draggedId || draggedId === targetId || isReordering) return;
 
-  const onDragEnd = () => {
+    setIsReordering(true);
+    const draggedIndex = rooms.findIndex((r) => r.id === draggedId);
+    const targetIndex = rooms.findIndex((r) => r.id === targetId);
+
+    const newRooms = [...rooms];
+    const [draggedRoom] = newRooms.splice(draggedIndex, 1);
+    newRooms.splice(targetIndex, 0, draggedRoom);
+    const reordered = newRooms.map((r, i) => ({ ...r, order: i }));
+
+    await reorderRooms(reordered);
+    setIsReordering(false);
     setDraggedId(null);
     setDragOverId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleCardClick = (id: string) => {
+    if (!draggedId) {
+      navigate(`/rooms/${id}`);
+    }
   };
 
   return (
@@ -49,7 +63,7 @@ export default function RoomBoard() {
         <h1 className="font-serif text-3xl mb-2" style={{ color: '#5A4524' }}>
           🏠 筑家 · 装修规划
         </h1>
-        <p className="text-wood-500">轻松管理装修预算与进度</p>
+        <p style={{ color: '#8B7355' }}>轻松管理装修预算与进度，拖拽卡片可调整房间顺序</p>
       </div>
 
       {loading ? (
@@ -68,18 +82,17 @@ export default function RoomBoard() {
       ) : (
         <div className="grid-rooms">
           {rooms.map((room) => (
-            <div
+            <RoomCard
               key={room.id}
-              draggable
-              onDragStart={() => onDragStart(room.id)}
-              onDragOver={(e) => onDragOver(e, room.id)}
-              onDrop={(e) => onDrop(e, room.id)}
-              onDragEnd={onDragEnd}
-              className={`${draggedId === room.id ? 'dragging' : ''} ${dragOverId === room.id ? 'drag-over' : ''}`}
-              onClick={() => navigate(`/rooms/${room.id}`)}
-            >
-              <RoomCard room={room} />
-            </div>
+              room={room}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              isDragging={draggedId === room.id}
+              isDragOver={dragOverId === room.id && draggedId !== room.id}
+              onClick={() => handleCardClick(room.id)}
+            />
           ))}
         </div>
       )}
