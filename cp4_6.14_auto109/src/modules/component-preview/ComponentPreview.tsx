@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { Download } from 'lucide-react'
 import { useDesignTokens } from '../../context/DesignTokensContext'
 import { generateCssVariables } from '../../utils/cssVarGenerator'
@@ -16,10 +16,18 @@ const ComponentPreview: React.FC = () => {
     [tokens]
   )
 
+  const handleExportClick = useCallback(() => {
+    setShowModal(true)
+  }, [])
+
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false)
+  }, [])
+
   return (
     <div className="preview-panel" style={previewStyle}>
       <div className="preview-header">
-        <button className="export-button" onClick={() => setShowModal(true)}>
+        <button className="export-button" onClick={handleExportClick}>
           <Download size={16} />
           导出令牌
         </button>
@@ -29,7 +37,7 @@ const ComponentPreview: React.FC = () => {
         <PreviewButton tokens={tokens} />
         <PreviewCard tokens={tokens} />
       </div>
-      {showModal && <ExportModal tokens={tokens} onClose={() => setShowModal(false)} />}
+      {showModal && <ExportModal tokens={tokens} onClose={handleCloseModal} />}
     </div>
   )
 }

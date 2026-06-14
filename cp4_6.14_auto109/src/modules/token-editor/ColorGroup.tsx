@@ -39,4 +39,4 @@ const ColorGroup: React.FC = () => {
   )
 }
 
-export default ColorGroup
+export default React.memo(ColorGroup)

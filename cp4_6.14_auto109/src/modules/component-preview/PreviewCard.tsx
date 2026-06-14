@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { DesignTokens } from '../../context/DesignTokensContext'
 
 interface PreviewCardProps {
@@ -8,22 +8,34 @@ interface PreviewCardProps {
 const PreviewCard: React.FC<PreviewCardProps> = ({ tokens }) => {
   const { colors, spacing, fonts, shadows } = tokens
 
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: colors.background,
-    border: `1px solid ${colors.primary}`,
-    padding: `${spacing.m}px`,
-    boxShadow: `0 ${shadows.lg}px ${shadows.lg * 2}px rgba(0,0,0,0.15)`,
-  }
+  const cardStyle = useMemo<React.CSSProperties>(
+    () => ({
+      backgroundColor: colors.background,
+      border: `1px solid ${colors.primary}`,
+      padding: `${spacing.m}px`,
+      boxShadow: `0 ${shadows.lg}px ${shadows.lg * 2}px rgba(0,0,0,0.15)`,
+      transition: 'all 0.2s ease',
+    }),
+    [colors, spacing, shadows]
+  )
 
-  const titleStyle: React.CSSProperties = {
-    color: colors.text,
-    fontFamily: fonts.heading,
-  }
+  const titleStyle = useMemo<React.CSSProperties>(
+    () => ({
+      color: colors.text,
+      fontFamily: fonts.heading,
+      transition: 'all 0.2s ease',
+    }),
+    [colors, fonts]
+  )
 
-  const contentStyle: React.CSSProperties = {
-    color: colors.text,
-    fontFamily: fonts.body,
-  }
+  const contentStyle = useMemo<React.CSSProperties>(
+    () => ({
+      color: colors.text,
+      fontFamily: fonts.body,
+      transition: 'all 0.2s ease',
+    }),
+    [colors, fonts]
+  )
 
   return (
     <div className="preview-card" style={cardStyle}>
@@ -37,4 +49,4 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ tokens }) => {
   )
 }
 
-export default PreviewCard
+export default React.memo(PreviewCard)

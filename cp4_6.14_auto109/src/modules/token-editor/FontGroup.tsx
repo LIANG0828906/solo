@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useDesignTokens, FontTokens, FontFamily } from '../../context/DesignTokensContext'
 
 const fontLabels: Record<keyof FontTokens, string> = {
@@ -16,6 +16,13 @@ const FontGroup: React.FC = () => {
   const { tokens, updateFont } = useDesignTokens()
   const { fonts } = tokens
 
+  const handleChange = useCallback(
+    (key: keyof FontTokens) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+      updateFont(key, e.target.value as FontFamily)
+    },
+    [updateFont]
+  )
+
   return (
     <>
       {(Object.keys(fontLabels) as (keyof FontTokens)[]).map((key) => (
@@ -24,7 +31,7 @@ const FontGroup: React.FC = () => {
           <select
             className="font-select"
             value={fonts[key]}
-            onChange={(e) => updateFont(key, e.target.value as FontFamily)}
+            onChange={handleChange(key)}
           >
             {fontOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -38,4 +45,4 @@ const FontGroup: React.FC = () => {
   )
 }
 
-export default FontGroup
+export default React.memo(FontGroup)

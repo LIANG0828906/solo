@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useDesignTokens, SpacingTokens } from '../../context/DesignTokensContext'
+import CustomSlider from '../../components/CustomSlider'
 
 const spacingLabels: Record<keyof SpacingTokens, string> = {
   xs: 'XS',
@@ -13,6 +14,13 @@ const SpacingGroup: React.FC = () => {
   const { tokens, updateSpacing } = useDesignTokens()
   const { spacing } = tokens
 
+  const handleChange = useCallback(
+    (key: keyof SpacingTokens) => (value: number) => {
+      updateSpacing(key, value)
+    },
+    [updateSpacing]
+  )
+
   return (
     <>
       {(Object.keys(spacingLabels) as (keyof SpacingTokens)[]).map((key) => (
@@ -21,14 +29,12 @@ const SpacingGroup: React.FC = () => {
             <span className="slider-label">{spacingLabels[key]}</span>
             <span className="slider-value">{spacing[key]}px</span>
           </div>
-          <input
-            className="custom-slider"
-            type="range"
+          <CustomSlider
+            value={spacing[key]}
             min={0}
             max={64}
             step={4}
-            value={spacing[key]}
-            onChange={(e) => updateSpacing(key, parseInt(e.target.value, 10))}
+            onChange={handleChange(key)}
           />
         </div>
       ))}
@@ -36,4 +42,4 @@ const SpacingGroup: React.FC = () => {
   )
 }
 
-export default SpacingGroup
+export default React.memo(SpacingGroup)

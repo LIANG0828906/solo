@@ -64,6 +64,9 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
   const hueRef = useRef<HTMLDivElement>(null)
   const isDraggingSaturation = useRef(false)
   const isDraggingHue = useRef(false)
+  const rafIdRef = useRef<number | null>(null)
+  const pendingSaturation = useRef<{ x: number; y: number } | null>(null)
+  const pendingHue = useRef<number | null>(null)
 
   useEffect(() => {
     const newHsv = hexToHsv(color)
@@ -83,11 +86,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  const updateFromSaturation = useCallback((clientX: number, clientY: number) => {
-    if (!saturationRef.current) return
-    const rect = saturationRef.current.getBoundingClientRect()
-    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+  const flushSaturation = useCallback((x: number, y: number) => {
     const newS = x
     const newV = 1 - y
     setHsv((prev) => {
@@ -98,10 +97,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
     })
   }, [onChange])
 
-  const updateFromHue = useCallback((clientX: number) => {
-    if (!hueRef.current) return
-    const rect = hueRef.current.getBoundingClientRect()
-    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+  const flushHue = useCallback((x: number) => {
     const newH = x * 360
     setHsv((prev) => {
       const newHsv = { ...prev, h: newH }
@@ -111,13 +107,71 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
     })
   }, [onChange])
 
+  const rafSaturationUpdate = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!saturationRef.current) return
+      const rect = saturationRef.current.getBoundingClientRect()
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+
+      if (rafIdRef.current !== null) {
+        pendingSaturation.current = { x, y }
+        return
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
+        flushSaturation(x, y)
+        rafIdRef.current = null
+        if (pendingSaturation.current) {
+          const p = pendingSaturation.current
+          pendingSaturation.current = null
+          rafSaturationUpdate(
+            saturationRef.current
+              ? saturationRef.current.getBoundingClientRect().left +
+                p.x * saturationRef.current.getBoundingClientRect().width
+              : 0,
+            saturationRef.current
+              ? saturationRef.current.getBoundingClientRect().top +
+                p.y * saturationRef.current.getBoundingClientRect().height
+              : 0
+          )
+        }
+      })
+    },
+    [flushSaturation]
+  )
+
+  const rafHueUpdate = useCallback(
+    (clientX: number) => {
+      if (!hueRef.current) return
+      const rect = hueRef.current.getBoundingClientRect()
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+
+      if (rafIdRef.current !== null) {
+        pendingHue.current = x
+        return
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
+        flushHue(x)
+        rafIdRef.current = null
+        if (pendingHue.current !== null) {
+          const p = pendingHue.current
+          pendingHue.current = null
+          if (hueRef.current) {
+            rafHueUpdate(hueRef.current.getBoundingClientRect().left + p * hueRef.current.getBoundingClientRect().width)
+          }
+        }
+      })
+    },
+    [flushHue]
+  )
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingSaturation.current) {
-        updateFromSaturation(e.clientX, e.clientY)
+        rafSaturationUpdate(e.clientX, e.clientY)
       }
       if (isDraggingHue.current) {
-        updateFromHue(e.clientX)
+        rafHueUpdate(e.clientX)
       }
     }
     const handleMouseUp = () => {
@@ -129,8 +183,11 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+      }
     }
-  }, [updateFromSaturation, updateFromHue])
+  }, [rafSaturationUpdate, rafHueUpdate])
 
   const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -157,7 +214,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
             style={{ backgroundColor: hueBackground }}
             onMouseDown={(e) => {
               isDraggingSaturation.current = true
-              updateFromSaturation(e.clientX, e.clientY)
+              rafSaturationUpdate(e.clientX, e.clientY)
             }}
           >
             <div className="saturation-white" />
@@ -172,7 +229,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
             className="hue-slider"
             onMouseDown={(e) => {
               isDraggingHue.current = true
-              updateFromHue(e.clientX)
+              rafHueUpdate(e.clientX)
             }}
           >
             <div className="hue-pointer" style={{ left: `${(hsv.h / 360) * 100}%` }} />
