@@ -12,13 +12,14 @@ interface BookForm {
   category: string;
   isbn: string;
   description: string;
+  cover: string;
   totalQuantity: number;
   availableQuantity: number;
 }
 
 const emptyForm: BookForm = {
   title: '', author: '', category: '文学', isbn: '',
-  description: '', totalQuantity: 1, availableQuantity: 1,
+  description: '', cover: '', totalQuantity: 1, availableQuantity: 1,
 };
 
 export default function BookManagement() {
@@ -52,7 +53,7 @@ export default function BookManagement() {
     setEditingId(book.id);
     setForm({
       title: book.title, author: book.author, category: book.category,
-      isbn: book.isbn, description: book.description,
+      isbn: book.isbn, description: book.description, cover: book.cover,
       totalQuantity: book.totalQuantity, availableQuantity: book.availableQuantity,
     });
     setCoverFile(null);
@@ -80,20 +81,21 @@ export default function BookManagement() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const fd = new FormData();
-      fd.append('title', form.title);
-      fd.append('author', form.author);
-      fd.append('category', form.category);
-      fd.append('isbn', form.isbn);
-      fd.append('description', form.description);
-      fd.append('totalQuantity', String(form.totalQuantity));
-      fd.append('availableQuantity', String(form.availableQuantity));
-      if (coverFile) fd.append('cover', coverFile);
+      const bookData = {
+        title: form.title,
+        author: form.author,
+        category: form.category,
+        isbn: form.isbn,
+        description: form.description,
+        totalQuantity: form.totalQuantity,
+        availableQuantity: form.availableQuantity,
+        cover: coverPreview || form.cover || '',
+      };
 
       if (editingId) {
-        await updateBook(editingId, fd);
+        await updateBook(editingId, bookData);
       } else {
-        await createBook(fd);
+        await createBook(bookData);
       }
       setShowForm(false);
       loadBooks();
@@ -196,13 +198,18 @@ export default function BookManagement() {
                 { label: '书名', key: 'title' as const, type: 'text' },
                 { label: '作者', key: 'author' as const, type: 'text' },
                 { label: 'ISBN', key: 'isbn' as const, type: 'text' },
+                { label: '封面URL', key: 'cover' as const, type: 'text' },
               ].map(({ label, key, type }) => (
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
                   <input
                     type={type}
                     value={form[key]}
-                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, [key]: e.target.value }));
+                      if (key === 'cover') setCoverPreview(e.target.value);
+                    }}
+                    placeholder={key === 'cover' ? 'https://...' : ''}
                     className="w-full px-4 py-2.5 rounded-lg border border-secondary/60 bg-bg focus:outline-none focus:border-accent"
                   />
                 </div>

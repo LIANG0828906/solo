@@ -40,6 +40,7 @@ export interface Notification {
   content: string;
   isRead: boolean;
   sentAt: string;
+  reader?: Reader;
 }
 
 export interface LibraryConfig {
@@ -59,4 +60,12 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
+  code?: string;
+}
+
+export interface NotificationPage {
+  items: Notification[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

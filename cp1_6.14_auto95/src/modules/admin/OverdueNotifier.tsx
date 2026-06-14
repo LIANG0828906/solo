@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bell, Clock, User, BookOpen } from 'lucide-react';
+import { Bell, Clock, User } from 'lucide-react';
 import { getNotifications, markNotificationRead } from '../../api';
 import Skeleton from '../../components/Skeleton';
-import type { Notification } from '../../types';
+import type { Notification, NotificationPage } from '../../types';
 
 export default function OverdueNotifier() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -17,19 +17,16 @@ export default function OverdueNotifier() {
     else setLoadingMore(true);
 
     try {
-      const since = new Date();
-      since.setDate(since.getDate() - 7);
-      const data = await getNotifications({
+      const data: NotificationPage = await getNotifications({
         page: String(pageNum),
-        limit: '10',
-        since: since.toISOString(),
+        pageSize: '10',
       });
       if (append) {
-        setNotifications((prev) => [...prev, ...data]);
+        setNotifications((prev) => [...prev, ...data.items]);
       } else {
-        setNotifications(data);
+        setNotifications(data.items);
       }
-      setHasMore(data.length >= 10);
+      setHasMore(data.items.length >= data.pageSize && notifications.length + data.items.length < data.total);
     } catch {
       if (!append) setNotifications([]);
       setHasMore(false);
@@ -37,7 +34,7 @@ export default function OverdueNotifier() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [notifications.length]);
 
   useEffect(() => {
     fetchNotifications(1);

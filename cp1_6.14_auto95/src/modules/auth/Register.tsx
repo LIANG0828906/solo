@@ -33,7 +33,7 @@ export default function Register() {
         const loginRes = await loginApi(email, password);
         if (loginRes.success && loginRes.data) {
           localStorage.setItem('token', loginRes.data.token);
-          const user: UserType = loginRes.data.user;
+          const user: UserType = loginRes.data.reader;
           localStorage.setItem('user', JSON.stringify(user));
           navigate('/');
         } else {

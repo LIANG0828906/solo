@@ -19,7 +19,7 @@ export default function Login() {
       const res = await loginApi(email, password);
       if (res.success && res.data) {
         localStorage.setItem('token', res.data.token);
-        const user: User = res.data.user;
+        const user: User = res.data.reader;
         localStorage.setItem('user', JSON.stringify(user));
         navigate('/');
       } else {

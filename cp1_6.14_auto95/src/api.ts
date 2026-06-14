@@ -1,8 +1,9 @@
 import axios from 'axios';
-import type { Book, Loan, Notification, Reader } from './types';
+import type { Book, Loan, Notification, Reader, LibraryConfig, ApiResponse, User } from './types';
 
 const api = axios.create({
   baseURL: '/api',
+  timeout: 8000,
 });
 
 api.interceptors.request.use((config) => {
@@ -25,101 +26,111 @@ api.interceptors.response.use(
   }
 );
 
-export async function getBooks(params?: Record<string, string>) {
-  const { data } = await api.get('/books', { params });
-  return data.data as Book[];
+export async function getBooks(params?: Record<string, string>): Promise<Book[]> {
+  const { data } = await api.get<ApiResponse<Book[]>>('/books', { params });
+  return data.data || [];
 }
 
-export async function getBookDetail(id: string) {
-  const { data } = await api.get(`/books/${id}`);
-  return data.data as Book & { loans?: Loan[] };
+export async function getBookDetail(id: string): Promise<Book & { loanHistory?: Loan[] }> {
+  const { data } = await api.get<ApiResponse<Book & { loanHistory?: Loan[] }>>(`/books/${id}`);
+  return data.data as Book & { loanHistory?: Loan[] };
 }
 
-export async function borrowBook(bookId: string) {
-  const { data } = await api.post('/loans/borrow', { bookId });
+export async function borrowBook(bookId: string): Promise<ApiResponse<Loan>> {
+  const { data } = await api.post<ApiResponse<Loan>>('/loans', { bookId });
   return data;
 }
 
-export async function returnBook(loanId: string) {
-  const { data } = await api.post(`/loans/${loanId}/return`);
+export async function returnBook(loanId: string): Promise<ApiResponse<Loan>> {
+  const { data } = await api.post<ApiResponse<Loan>>('/loans/return', { loanId });
   return data;
 }
 
-export async function getReaderLoans(readerId: string) {
-  const { data } = await api.get(`/loans/reader/${readerId}`);
-  return data.data as Loan[];
+export async function getReaderLoans(readerId: string): Promise<Loan[]> {
+  const { data } = await api.get<ApiResponse<Loan[]>>(`/loans/reader/${readerId}/loans`);
+  return data.data || [];
 }
 
-export async function getReaderHistory(readerId: string) {
-  const { data } = await api.get(`/loans/reader/${readerId}/history`);
-  return data.data as Loan[];
+export async function getReaderHistory(readerId: string): Promise<Loan[]> {
+  const { data } = await api.get<ApiResponse<Loan[]>>(`/loans/reader/${readerId}/history`);
+  return data.data || [];
 }
 
-export async function login(email: string, password: string) {
-  const { data } = await api.post('/auth/login', { email, password });
+export async function login(email: string, password: string): Promise<ApiResponse<{ token: string; reader: User }>> {
+  const { data } = await api.post<ApiResponse<{ token: string; reader: User }>>('/auth/login', { email, password });
   return data;
 }
 
-export async function register(name: string, email: string, password: string) {
-  const { data } = await api.post('/auth/register', { name, email, password });
+export async function register(name: string, email: string, password: string): Promise<ApiResponse<{ token: string; reader: User }>> {
+  const { data } = await api.post<ApiResponse<{ token: string; reader: User }>>('/auth/register', { name, email, password });
   return data;
 }
 
-export async function getNotifications(params?: Record<string, string>) {
-  const { data } = await api.get('/notifications', { params });
-  return data.data as Notification[];
+export async function getNotifications(params?: Record<string, string>): Promise<{ items: Notification[]; total: number; page: number; pageSize: number }> {
+  const { data } = await api.get<ApiResponse<{ items: Notification[]; total: number; page: number; pageSize: number }>>('/admin/notifications', { params });
+  return data.data || { items: [], total: 0, page: 1, pageSize: 20 };
 }
 
-export async function markNotificationRead(id: string) {
-  const { data } = await api.put(`/notifications/${id}/read`);
+export async function markNotificationRead(id: string): Promise<ApiResponse<Notification>> {
+  const { data } = await api.put<ApiResponse<Notification>>(`/admin/notifications/${id}/read`);
   return data;
 }
 
-export async function getReports() {
-  const { data } = await api.get('/reports');
-  return data.data;
-}
-
-export async function createBook(formData: FormData) {
-  const { data } = await api.post('/books', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+export async function getReports(): Promise<ApiResponse<{
+  totalLoans: number;
+  activeLoans: number;
+  overdueLoans: number;
+  monthlyStats: { month: string; count: number }[];
+  categoryStats: { category: string; count: number }[];
+}>> {
+  const { data } = await api.get<ApiResponse<{
+    totalLoans: number;
+    activeLoans: number;
+    overdueLoans: number;
+    monthlyStats: { month: string; count: number }[];
+    categoryStats: { category: string; count: number }[];
+  }>>('/admin/reports');
   return data;
 }
 
-export async function updateBook(id: string, formData: FormData) {
-  const { data } = await api.put(`/books/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+export async function createBook(bookData: Partial<Book>): Promise<ApiResponse<Book>> {
+  const { data } = await api.post<ApiResponse<Book>>('/books', bookData);
   return data;
 }
 
-export async function deleteBook(id: string) {
-  const { data } = await api.delete(`/books/${id}`);
+export async function updateBook(id: string, bookData: Partial<Book>): Promise<ApiResponse<Book>> {
+  const { data } = await api.put<ApiResponse<Book>>(`/books/${id}`, bookData);
   return data;
 }
 
-export async function getReaders() {
-  const { data } = await api.get('/readers');
-  return data.data as Reader[];
-}
-
-export async function addLateFee(loanId: string, amount: number) {
-  const { data } = await api.post(`/loans/${loanId}/late-fee`, { amount });
+export async function deleteBook(id: string): Promise<ApiResponse<void>> {
+  const { data } = await api.delete<ApiResponse<void>>(`/books/${id}`);
   return data;
 }
 
-export async function getAllLoans() {
-  const { data } = await api.get('/loans');
-  return data.data as Loan[];
+export async function getReaders(): Promise<Reader[]> {
+  const { data } = await api.get<ApiResponse<Reader[]>>('/admin/readers');
+  return data.data || [];
 }
 
-export async function updateConfig(config: { maxBorrowCount?: number; loanDays?: number; lateFeePerDay?: number }) {
-  const { data } = await api.put('/config', config);
+export async function addLateFee(loanId: string, fee: number): Promise<ApiResponse<Loan>> {
+  const { data } = await api.put<ApiResponse<Loan>>(`/admin/loans/${loanId}/fee`, { fee });
   return data;
 }
 
-export async function getConfig() {
-  const { data } = await api.get('/config');
-  return data.data as { maxBorrowCount: number; loanDays: number; lateFeePerDay: number };
+export async function getAllLoans(): Promise<Loan[]> {
+  const { data } = await api.get<ApiResponse<Loan[]>>('/admin/loans');
+  return data.data || [];
 }
+
+export async function updateConfig(config: Partial<LibraryConfig>): Promise<ApiResponse<LibraryConfig>> {
+  const { data } = await api.put<ApiResponse<LibraryConfig>>('/admin/config', config);
+  return data;
+}
+
+export async function getConfig(): Promise<LibraryConfig> {
+  const { data } = await api.get<ApiResponse<LibraryConfig>>('/admin/config');
+  return data.data as LibraryConfig;
+}
+
+export default api;

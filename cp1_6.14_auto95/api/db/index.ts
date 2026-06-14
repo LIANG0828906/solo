@@ -271,3 +271,32 @@ export async function markNotificationRead(id: string): Promise<Notification | n
 export async function getConfig() {
   return db.data.config
 }
+
+export async function updateConfig(updates: Partial<LibraryConfig>): Promise<LibraryConfig> {
+  db.data.config = { ...db.data.config, ...updates }
+  await db.write()
+  return db.data.config
+}
+
+export async function updateReader(
+  id: string,
+  updates: Partial<Omit<Reader, 'id' | 'createdAt' | 'passwordHash'>>,
+): Promise<Reader | null> {
+  const idx = db.data.readers.findIndex((r) => r.id === id)
+  if (idx === -1) return null
+  db.data.readers[idx] = { ...db.data.readers[idx], ...updates }
+  await db.write()
+  return db.data.readers[idx]
+}
+
+export async function deleteReader(id: string): Promise<boolean> {
+  const idx = db.data.readers.findIndex((r) => r.id === id)
+  if (idx === -1) return false
+  db.data.readers.splice(idx, 1)
+  await db.write()
+  return true
+}
+
+export async function getLoanById(id: string): Promise<Loan | undefined> {
+  return db.data.loans.find((l) => l.id === id)
+}

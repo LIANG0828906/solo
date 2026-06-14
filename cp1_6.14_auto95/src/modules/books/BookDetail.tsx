@@ -20,7 +20,7 @@ export default function BookDetail() {
     getBookDetail(id)
       .then((data) => {
         setBook(data);
-        setLoans(data.loans || []);
+        setLoans(data.loanHistory || []);
       })
       .catch(() => setBook(null))
       .finally(() => setLoading(false));

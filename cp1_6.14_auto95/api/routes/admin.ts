@@ -1,5 +1,17 @@
 import { Router, type Request, type Response } from 'express'
-import { db, getAllReaders, getAllLoans, getNotifications, markNotificationRead, updateLoanFee } from '../db/index.js'
+import {
+  db,
+  getAllReaders,
+  getAllLoans,
+  getNotifications,
+  markNotificationRead,
+  updateLoanFee,
+  getConfig,
+  updateConfig,
+  getLoanById,
+  updateReader,
+  deleteReader,
+} from '../db/index.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
@@ -91,6 +103,48 @@ router.put('/loans/:id/fee', authenticateToken, requireAdmin, async (req: Reques
     return
   }
   res.json({ success: true, data: loan })
+})
+
+router.get('/loans', authenticateToken, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const loans = await getAllLoans()
+  const loansWithDetails = loans.map((loan) => {
+    const book = db.data.books.find((b) => b.id === loan.bookId)
+    const reader = db.data.readers.find((r) => r.id === loan.readerId)
+    const { passwordHash, ...safeReader } = reader || {} as any
+    return { ...loan, book, reader: safeReader }
+  })
+  res.json({ success: true, data: loansWithDetails })
+})
+
+router.get('/config', authenticateToken, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const config = await getConfig()
+  res.json({ success: true, data: config })
+})
+
+router.put('/config', authenticateToken, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const updates = req.body
+  const config = await updateConfig(updates)
+  res.json({ success: true, data: config })
+})
+
+router.put('/readers/:id', authenticateToken, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const updates = req.body
+  const reader = await updateReader(req.params.id, updates)
+  if (!reader) {
+    res.status(404).json({ success: false, message: '读者不存在' })
+    return
+  }
+  const { passwordHash, ...safeReader } = reader
+  res.json({ success: true, data: safeReader })
+})
+
+router.delete('/readers/:id', authenticateToken, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const deleted = await deleteReader(req.params.id)
+  if (!deleted) {
+    res.status(404).json({ success: false, message: '读者不存在' })
+    return
+  }
+  res.json({ success: true, message: '读者已删除' })
 })
 
 export default router
