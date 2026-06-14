@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend
@@ -17,7 +17,6 @@ import {
   calculateMonthlySaved,
   calculateMaxGreenStreak,
   generateLeaderboard,
-  animateNumber,
 } from './utils';
 
 interface StatsDashboardProps {
@@ -28,24 +27,152 @@ interface StatsDashboardProps {
 const COLORS = ['#2E7D32', '#4CAF50', '#81C784', '#FFC107', '#FF9800', '#F44336'];
 const PIE_COLORS = ['#2E7D32', '#E0E0E0'];
 
+const useAnimatedNumber = (targetValue: number, duration: number = 1000, decimals: number = 0) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const animationRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const startValueRef = useRef(0);
+
+  useEffect(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    startValueRef.current = displayValue;
+    startTimeRef.current = null;
+
+    const animate = (timestamp: number) => {
+      if (startTimeRef.current === null) {
+        startTimeRef.current = timestamp;
+      }
+
+      const elapsed = timestamp - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = startValueRef.current + (targetValue - startValueRef.current) * easeProgress;
+
+      setDisplayValue(currentValue);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [targetValue, duration]);
+
+  return Number(displayValue.toFixed(decimals));
+};
+
 const AnimatedNumber: React.FC<{ value: number; suffix?: string; decimals?: number; duration?: number }> = ({
   value,
   suffix = '',
   decimals = 0,
   duration = 800,
 }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  const prevValue = useRef(0);
+  const displayValue = useAnimatedNumber(value, duration, decimals);
+  return <span>{displayValue}{suffix}</span>;
+};
 
-  useEffect(() => {
-    const cancel = animateNumber(prevValue.current, value, duration, (v) => {
-      setDisplayValue(v);
-    });
-    prevValue.current = value;
-    return cancel;
-  }, [value, duration]);
+const SparkleParticle: React.FC<{ delay: number; angle: number; distance: number }> = ({ delay, angle, distance }) => {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        width: 6,
+        height: 6,
+        background: 'radial-gradient(circle, #FFD700 0%, #FFA500 50%, transparent 75%)',
+        borderRadius: '50%',
+        animation: `sparkle 1.2s ease-in-out ${delay}s infinite`,
+        transform: `rotate(${angle}deg) translateY(-${distance}px)`,
+        pointerEvents: 'none',
+        zIndex: 20,
+        boxShadow: '0 0 8px 2px rgba(255, 215, 0, 0.6)',
+      }}
+    />
+  );
+};
 
-  return <span>{displayValue.toFixed(decimals)}{suffix}</span>;
+const SparkleEffect: React.FC = () => {
+  const particles = Array.from({ length: 16 }, (_, i) => ({
+    id: i,
+    angle: (i / 16) * 360,
+    delay: (i % 8) * 0.08,
+    distance: 35 + (i % 3) * 15,
+    size: 4 + (i % 4) * 2,
+  }));
+
+  return (
+    <>
+      {particles.map((p) => (
+        <SparkleParticle key={p.id} delay={p.delay} angle={p.angle} distance={p.distance} />
+      ))}
+    </>
+  );
+};
+
+const AchievementCard: React.FC<{ achievement: Achievement; isNew: boolean }> = ({ achievement, isNew }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const isRecentlyUnlocked = achievement.unlocked && achievement.unlockedAt && Date.now() - achievement.unlockedAt < 6000;
+  const shouldShowSparkle = (isRecentlyUnlocked || isNew) && achievement.unlocked;
+
+  return (
+    <div
+      style={{
+        ...styles.achievementCard,
+        ...(achievement.unlocked ? styles.achievementUnlocked : styles.achievementLocked),
+        ...(isHovered && achievement.unlocked ? styles.achievementHovered : {}),
+        animation: shouldShowSparkle ? 'bounce 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) 2' : 'none',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {shouldShowSparkle && <SparkleEffect />}
+
+      <div style={{
+        ...styles.achievementIconWrapper,
+        ...(achievement.unlocked ? {} : { filter: 'grayscale(100%) opacity(0.4)' }),
+        transform: isHovered && achievement.unlocked ? 'scale(1.15)' : 'scale(1)',
+        transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+      }}>
+        {achievement.unlocked ? achievement.icon : '🔒'}
+      </div>
+
+      <div style={{
+        ...styles.achievementName,
+        opacity: achievement.unlocked ? 1 : 0.5,
+      }}>
+        {achievement.name}
+      </div>
+
+      <div style={{
+        ...styles.achievementDesc,
+        opacity: achievement.unlocked ? 1 : 0.4,
+      }}>
+        {achievement.description}
+      </div>
+
+      <div style={{
+        ...styles.achievementStatus,
+        backgroundColor: achievement.unlocked ? 'var(--primary-green)' : '#9E9E9E',
+        opacity: achievement.unlocked ? 1 : 0.7,
+      }}>
+        {achievement.unlocked ? '✓ 已解锁' : '🔒 未解锁'}
+      </div>
+
+      {isHovered && achievement.unlocked && (
+        <div style={styles.achievementGlow} />
+      )}
+    </div>
+  );
 };
 
 const ProgressRing: React.FC<{
@@ -53,25 +180,10 @@ const ProgressRing: React.FC<{
   size?: number;
   strokeWidth?: number;
 }> = ({ totalSaved, size = 200, strokeWidth = 12 }) => {
-  const [animatedProgress, setAnimatedProgress] = useState(0);
-  const [displayTotal, setDisplayTotal] = useState(0);
-  const prevSaved = useRef(0);
-
-  useEffect(() => {
-    const maxThreshold = 500000;
-    const targetProgress = Math.min((totalSaved / maxThreshold) * 100, 100);
-    const cancel1 = animateNumber(prevSaved.current, targetProgress, 1200, (v) => {
-      setAnimatedProgress(v);
-    });
-    const cancel2 = animateNumber(prevSaved.current, totalSaved, 1200, (v) => {
-      setDisplayTotal(v);
-    });
-    prevSaved.current = totalSaved;
-    return () => {
-      cancel1();
-      cancel2();
-    };
-  }, [totalSaved]);
+  const maxThreshold = 500000;
+  const targetProgress = Math.min((totalSaved / maxThreshold) * 100, 100);
+  const animatedProgress = useAnimatedNumber(targetProgress, 1200, 2);
+  const animatedValue = useAnimatedNumber(totalSaved, 1200, 1);
 
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -87,6 +199,12 @@ const ProgressRing: React.FC<{
       alignItems: 'center',
     }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <defs>
+          <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#81C784" />
+            <stop offset="100%" stopColor="#2E7D32" />
+          </linearGradient>
+        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -105,14 +223,8 @@ const ProgressRing: React.FC<{
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           fill="none"
-          style={{ transition: 'stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          style={{ transition: 'stroke-dashoffset 0.1s linear' }}
         />
-        <defs>
-          <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#81C784" />
-            <stop offset="100%" stopColor="#2E7D32" />
-          </linearGradient>
-        </defs>
       </svg>
       <div style={{
         position: 'absolute',
@@ -122,8 +234,10 @@ const ProgressRing: React.FC<{
           fontSize: 28,
           fontWeight: 700,
           color: 'var(--primary-green)',
+          fontFeatureSettings: 'tnum',
+          fontVariantNumeric: 'tabular-nums',
         }}>
-          {(displayTotal / 1000).toFixed(1)} kg
+          {(animatedValue / 1000).toFixed(1)} kg
         </div>
         <div style={{
           fontSize: 12,
@@ -132,82 +246,6 @@ const ProgressRing: React.FC<{
         }}>
           累计减碳
         </div>
-      </div>
-    </div>
-  );
-};
-
-const SparkleEffect: React.FC = () => {
-  const particles = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
-    angle: (i / 12) * 360,
-    delay: i * 0.08,
-    size: 4 + (i % 3) * 3,
-  }));
-
-  return (
-    <>
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: p.size,
-            height: p.size,
-            background: 'radial-gradient(circle, #FFD700 0%, #FFA500 50%, transparent 70%)',
-            borderRadius: '50%',
-            animation: `sparkle 1.5s ease-in-out ${p.delay}s infinite`,
-            transform: `rotate(${p.angle}deg) translateY(-45px)`,
-            pointerEvents: 'none',
-            zIndex: 10,
-            boxShadow: '0 0 6px #FFD700',
-          }}
-        />
-      ))}
-    </>
-  );
-};
-
-const AchievementCard: React.FC<{ achievement: Achievement; isNew: boolean }> = ({ achievement, isNew }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const isRecentlyUnlocked = achievement.unlocked && achievement.unlockedAt && Date.now() - achievement.unlockedAt < 8000;
-
-  return (
-    <div
-      style={{
-        ...styles.achievementCard,
-        ...(achievement.unlocked ? styles.achievementUnlocked : styles.achievementLocked),
-        ...(isHovered && achievement.unlocked ? styles.achievementHovered : {}),
-        animation: isRecentlyUnlocked || isNew ? 'bounce 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) 2' : 'none',
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {((isRecentlyUnlocked || isNew) && achievement.unlocked) && <SparkleEffect />}
-      <div style={{
-        ...styles.achievementIconWrapper,
-        filter: achievement.unlocked ? 'none' : 'grayscale(100%) opacity(0.5)',
-        transform: isHovered && achievement.unlocked ? 'scale(1.1)' : 'scale(1)',
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      }}>
-        {achievement.unlocked ? achievement.icon : '🔒'}
-      </div>
-      <div style={styles.achievementName}>
-        {achievement.name}
-      </div>
-      <div style={{
-        ...styles.achievementDesc,
-        opacity: achievement.unlocked ? 1 : 0.6,
-      }}>
-        {achievement.description}
-      </div>
-      <div style={{
-        ...styles.achievementStatus,
-        backgroundColor: achievement.unlocked ? 'var(--primary-green)' : '#9E9E9E',
-      }}>
-        {achievement.unlocked ? '✓ 已解锁' : '🔒 未解锁'}
       </div>
     </div>
   );
@@ -262,7 +300,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
 
   const pieData = [
     { name: '绿色出行', value: greenRatio },
-    { name: '其他出行', value: 100 - greenRatio },
+    { name: '其他出行', value: Math.max(0, 100 - greenRatio) },
   ];
 
   const lineData = dailyStats.map((s) => ({
@@ -271,9 +309,11 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
     减碳量: Number((s.totalSaved / 1000).toFixed(2)),
   }));
 
-  const handlePeriodChange = (period: 'weekly' | 'monthly') => {
+  const handlePeriodChange = useCallback((period: 'weekly' | 'monthly') => {
     setLeaderboardPeriod(period);
-  };
+  }, []);
+
+  const listKey = `${leaderboardPeriod}-${lastUpdateKey}`;
 
   return (
     <div style={styles.container}>
@@ -350,8 +390,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
                     strokeWidth={2.5}
                     dot={{ fill: '#F44336', strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6 }}
-                    animationDuration={800}
+                    animationDuration={1000}
                     animationEasing="ease-out"
+                    animationBegin={0}
                   />
                   <Line
                     type="monotone"
@@ -360,8 +401,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
                     strokeWidth={2.5}
                     dot={{ fill: '#2E7D32', strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6 }}
-                    animationDuration={800}
+                    animationDuration={1000}
                     animationEasing="ease-out"
+                    animationBegin={200}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -386,8 +428,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
                   <Bar
                     dataKey="value"
                     name="里程(km)"
-                    animationDuration={900}
+                    animationDuration={1100}
                     animationEasing="ease-out"
+                    animationBegin={100}
                     radius={[6, 6, 0, 0]}
                   >
                     {barData.map((entry, index) => (
@@ -411,8 +454,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
                     innerRadius={55}
                     outerRadius={90}
                     dataKey="value"
-                    animationDuration={1000}
+                    animationDuration={1200}
                     animationEasing="ease-out"
+                    animationBegin={150}
                     label={({ name, value }) => `${name} ${value}%`}
                     labelLine={false}
                   >
@@ -458,7 +502,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
               }}
               onClick={() => handlePeriodChange('weekly')}
             >
-              周榜
+              📅 周榜
             </button>
             <button
               style={{
@@ -467,17 +511,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
               }}
               onClick={() => handlePeriodChange('monthly')}
             >
-              月榜
+              🗓️ 月榜
             </button>
           </div>
-          <div key={leaderboardPeriod + lastUpdateKey} style={styles.leaderboardList}>
+          <div key={listKey} style={styles.leaderboardList}>
             {leaderboard.map((user, index) => (
               <div
                 key={user.id}
                 style={{
                   ...styles.leaderboardItem,
                   ...(user.isCurrentUser ? styles.currentUserItem : {}),
-                  animation: `fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s both`,
+                  animation: `fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.1}s both`,
                 }}
               >
                 <div style={{
@@ -489,13 +533,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ trips, achieveme
                 <div style={styles.userAvatar}>{user.avatar}</div>
                 <div style={styles.userName}>
                   <div style={styles.userNameText}>{user.name}</div>
-                  {user.isCurrentUser && <span style={styles.currentUserTag}>就是你</span>}
+                  {user.isCurrentUser && <span style={styles.currentUserTag}>就是你 ⭐</span>}
                 </div>
-                <div style={styles.userScore}>
+                <div style={{
+                  ...styles.userScore,
+                  color: user.isCurrentUser ? 'var(--primary-green-dark)' : 'var(--primary-green)',
+                }}>
                   <AnimatedNumber
                     value={leaderboardPeriod === 'weekly' ? user.weeklySaved : user.monthlySaved}
                     decimals={1}
                     suffix=" kg"
+                    duration={1000 + index * 100}
                   />
                 </div>
               </div>
@@ -512,6 +560,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 24,
+    animation: 'fadeIn 0.5s ease',
   },
   section: {
     backgroundColor: '#fff',
@@ -578,6 +627,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: 'var(--text-dark)',
     marginTop: 2,
+    fontFeatureSettings: 'tnum',
+    fontVariantNumeric: 'tabular-nums',
   },
   chartsGrid: {
     display: 'grid',
@@ -609,13 +660,14 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 20,
     borderRadius: 16,
     textAlign: 'center',
-    transition: 'var(--transition)',
+    transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
     cursor: 'pointer',
     overflow: 'hidden',
   },
   achievementIconWrapper: {
     fontSize: 44,
     marginBottom: 4,
+    transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   achievementUnlocked: {
     background: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
@@ -629,16 +681,29 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'translateY(-6px)',
     boxShadow: '0 12px 32px rgba(46, 125, 50, 0.25)',
   },
+  achievementGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+    boxShadow: 'inset 0 0 20px rgba(46, 125, 50, 0.3)',
+    animation: 'glow 1.5s ease-in-out infinite',
+    pointerEvents: 'none',
+  },
   achievementName: {
     fontSize: 14,
     fontWeight: 600,
     color: 'var(--text-dark)',
     marginTop: 8,
+    transition: 'opacity 0.3s ease',
   },
   achievementDesc: {
     fontSize: 12,
     color: 'var(--text-gray)',
     marginTop: 4,
+    transition: 'opacity 0.3s ease',
   },
   achievementStatus: {
     display: 'inline-block',
@@ -648,6 +713,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     color: '#fff',
     fontWeight: 500,
+    transition: 'background-color 0.3s ease, opacity 0.3s ease',
   },
   leaderboard: {
     backgroundColor: 'var(--bg-gray)',
@@ -666,7 +732,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 500,
     cursor: 'pointer',
-    transition: 'var(--transition)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     backgroundColor: '#fff',
     color: 'var(--text-gray)',
     fontFamily: 'inherit',
@@ -675,6 +741,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'var(--primary-green)',
     color: '#fff',
     boxShadow: '0 2px 8px rgba(46, 125, 50, 0.3)',
+    transform: 'scale(1.02)',
   },
   leaderboardList: {
     display: 'flex',
@@ -688,14 +755,15 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 16px',
     backgroundColor: '#fff',
     borderRadius: 10,
-    transition: 'var(--transition)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     opacity: 0,
+    border: '2px solid transparent',
   },
   currentUserItem: {
-    background: 'linear-gradient(135deg, #E8F5E9 0%, #A5D6A7 100%)',
+    background: 'linear-gradient(135deg, #E8F5E9 0%, #A5D6A7 50%, #81C784 100%)',
     fontWeight: 600,
     border: '2px solid var(--primary-green-light)',
-    boxShadow: '0 2px 8px rgba(46, 125, 50, 0.15)',
+    boxShadow: '0 4px 12px rgba(46, 125, 50, 0.15)',
   },
   rankBadge: {
     width: 30,
@@ -709,19 +777,20 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     backgroundColor: '#BDBDBD',
     flexShrink: 0,
+    transition: 'all 0.3s ease',
   },
   rankGold: {
-    backgroundColor: '#FFD700',
+    background: 'linear-gradient(135deg, #FFD700 0%, #FFB300 100%)',
     color: '#8B6914',
     boxShadow: '0 2px 8px rgba(255, 215, 0, 0.4)',
   },
   rankSilver: {
-    backgroundColor: '#C0C0C0',
+    background: 'linear-gradient(135deg, #E0E0E0 0%, #BDBDBD 100%)',
     color: '#555',
     boxShadow: '0 2px 8px rgba(192, 192, 192, 0.4)',
   },
   rankBronze: {
-    backgroundColor: '#CD7F32',
+    background: 'linear-gradient(135deg, #FFAB91 0%, #CD7F32 100%)',
     color: '#fff',
     boxShadow: '0 2px 8px rgba(205, 127, 50, 0.4)',
   },
@@ -742,11 +811,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   currentUserTag: {
     fontSize: 10,
-    color: 'var(--primary-green)',
-    fontWeight: 600,
-    backgroundColor: 'rgba(46, 125, 50, 0.1)',
-    padding: '2px 6px',
-    borderRadius: 4,
+    color: 'var(--primary-green-dark)',
+    fontWeight: 700,
+    backgroundColor: 'rgba(46, 125, 50, 0.15)',
+    padding: '2px 8px',
+    borderRadius: 10,
     alignSelf: 'flex-start',
   },
   userScore: {
@@ -754,6 +823,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: 'var(--primary-green)',
     flexShrink: 0,
+    fontFeatureSettings: 'tnum',
+    fontVariantNumeric: 'tabular-nums',
   },
 };
 

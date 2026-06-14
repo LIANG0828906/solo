@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TransportMode, TripRecord, TRANSPORT_OPTIONS } from './Types';
 import {
   generateId,
@@ -12,6 +12,49 @@ interface TripTrackerProps {
   trips: TripRecord[];
   onTripsChange: (trips: TripRecord[]) => void;
 }
+
+const highlightText = (text: string, query: string): React.ReactNode => {
+  if (!query.trim()) return text;
+
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <mark
+        key={index}
+        style={{
+          backgroundColor: '#FFF59D',
+          color: '#2E7D32',
+          fontWeight: 600,
+          padding: '0 2px',
+          borderRadius: 2,
+        }}
+      >
+        {part}
+      </mark>
+    ) : (
+      <span key={index}>{part}</span>
+    )
+  );
+};
+
+const fuzzyMatch = (text: string, query: string): boolean => {
+  if (!query.trim()) return true;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
+
+  if (lowerText.includes(lowerQuery)) return true;
+
+  let queryIndex = 0;
+  for (let i = 0; i < lowerText.length && queryIndex < lowerQuery.length; i++) {
+    if (lowerText[i] === lowerQuery[queryIndex]) {
+      queryIndex++;
+    }
+  }
+
+  return queryIndex === lowerQuery.length;
+};
 
 export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }) => {
   const [selectedMode, setSelectedMode] = useState<TransportMode | ''>('');
@@ -36,9 +79,9 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
 
   const filteredOptions = TRANSPORT_OPTIONS.filter(
     (opt) =>
-      opt.label.includes(searchQuery) ||
-      opt.mode.includes(searchQuery.toLowerCase()) ||
-      searchQuery === ''
+      fuzzyMatch(opt.label, searchQuery) ||
+      fuzzyMatch(opt.mode, searchQuery) ||
+      fuzzyMatch(opt.label, searchQuery)
   );
 
   const validate = (): boolean => {
@@ -81,31 +124,40 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
     setTimeout(() => setShowSuccess(false), 2000);
   };
 
-  const handleSelectMode = (mode: TransportMode) => {
+  const handleSelectMode = useCallback((mode: TransportMode) => {
     const opt = TRANSPORT_OPTIONS.find((o) => o.mode === mode);
     setSelectedMode(mode);
     setSearchQuery(opt ? opt.label : '');
     setDropdownOpen(false);
-  };
+    inputRef.current?.blur();
+  }, []);
 
   const handleInputClick = () => {
     setDropdownOpen(true);
-    if (!selectedMode) {
-      inputRef.current?.focus();
-    }
+    inputRef.current?.focus();
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
     setDropdownOpen(true);
-    const matched = TRANSPORT_OPTIONS.find(
-      (opt) => opt.label === value || opt.mode === value.toLowerCase()
-    );
-    if (matched) {
-      setSelectedMode(matched.mode);
+
+    if (value.trim()) {
+      const exactMatch = TRANSPORT_OPTIONS.find(
+        (opt) => opt.label === value || opt.mode === value.toLowerCase()
+      );
+      if (exactMatch) {
+        setSelectedMode(exactMatch.mode);
+      }
     } else {
       setSelectedMode('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredOptions.length > 0 && !selectedMode) {
+      e.preventDefault();
+      handleSelectMode(filteredOptions[0].mode);
     }
   };
 
@@ -129,18 +181,21 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
               style={{
                 ...styles.input,
                 ...styles.selectInput,
-                borderColor: errors.mode ? '#e74c3c' : 'var(--border-light)',
+                borderColor: errors.mode ? '#e74c3c' : dropdownOpen ? 'var(--primary-green)' : 'var(--border-light)',
+                boxShadow: dropdownOpen ? '0 0 0 3px rgba(46, 125, 50, 0.1)' : 'none',
               }}
               onClick={handleInputClick}
             >
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="搜索出行方式（如：步行、公交）..."
+                placeholder="搜索出行方式（如：步行、公交、地铁）..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onFocus={() => setDropdownOpen(true)}
+                onKeyDown={handleKeyDown}
                 style={styles.searchInput}
+                autoComplete="off"
               />
               <span
                 style={{
@@ -154,42 +209,57 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
             <div
               style={{
                 ...styles.dropdown,
-                maxHeight: dropdownOpen ? '300px' : '0px',
+                maxHeight: dropdownOpen ? '320px' : '0px',
                 opacity: dropdownOpen ? 1 : 0,
                 pointerEvents: dropdownOpen ? 'auto' : 'none',
+                overflow: dropdownOpen ? 'auto' : 'hidden',
               }}
             >
-              {filteredOptions.length === 0 ? (
-                <div style={styles.noResults}>未找到匹配的出行方式</div>
+              {searchQuery.trim() !== '' && filteredOptions.length === 0 ? (
+                <div style={styles.noResults}>
+                  <span style={{ fontSize: 24, marginBottom: 8 }}>🔍</span>
+                  <div>未找到匹配的出行方式</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-gray)', marginTop: 4 }}>
+                    试试其他关键词，如：{TRANSPORT_OPTIONS.map((o) => o.label).join('、')}
+                  </div>
+                </div>
               ) : (
                 filteredOptions.map((opt, index) => (
                   <div
                     key={opt.mode}
                     style={{
                       ...styles.dropdownItem,
-                      animation: dropdownOpen ? `slideDown 0.3s ease ${index * 0.03}s both` : 'none',
-                      backgroundColor: selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.1)' : 'transparent',
+                      opacity: 0,
+                      animation: dropdownOpen ? `slideDown 0.3s ease ${index * 0.04}s forwards` : 'none',
+                      backgroundColor: selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.12)' : 'transparent',
                     }}
                     onClick={() => handleSelectMode(opt.mode)}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(46, 125, 50, 0.05)';
+                      (e.currentTarget as HTMLElement).style.backgroundColor =
+                        selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.12)' : 'rgba(46, 125, 50, 0.06)';
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLElement).style.backgroundColor =
-                        selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.1)' : 'transparent';
+                        selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.12)' : 'transparent';
                     }}
                   >
-                    <span style={{ fontSize: 20, marginRight: 12 }}>{opt.icon}</span>
-                    <span style={{ flex: 1 }}>{opt.label}</span>
-                    <span style={styles.emissionTag}>
-                      {opt.emissionFactor === 0 ? '零排放' : `${opt.emissionFactor} g CO₂/km`}
+                    <span style={styles.dropdownIcon}>{opt.icon}</span>
+                    <span style={styles.dropdownLabel}>
+                      {highlightText(opt.label, searchQuery)}
+                    </span>
+                    <span style={{
+                      ...styles.emissionTag,
+                      backgroundColor: opt.isGreen ? 'rgba(46, 125, 50, 0.1)' : 'rgba(244, 67, 54, 0.1)',
+                      color: opt.isGreen ? 'var(--primary-green)' : '#e74c3c',
+                    }}>
+                      {opt.emissionFactor === 0 ? '零排放 ✓' : `${opt.emissionFactor} g CO₂/km`}
                     </span>
                   </div>
                 ))
               )}
             </div>
           </div>
-          {errors.mode && <span style={styles.error}>{errors.mode}</span>}
+          {errors.mode && <span style={styles.error}>⚠️ {errors.mode}</span>}
         </div>
 
         <div style={styles.divider} />
@@ -202,13 +272,21 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
             min="0"
             value={distance}
             onChange={(e) => setDistance(e.target.value)}
-            placeholder="请输入出行距离"
+            placeholder="请输入出行距离，如：2.5"
             style={{
               ...styles.input,
               borderColor: errors.distance ? '#e74c3c' : 'var(--border-light)',
             }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--primary-green)';
+              e.target.style.boxShadow = '0 0 0 3px rgba(46, 125, 50, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = errors.distance ? '#e74c3c' : 'var(--border-light)';
+              e.target.style.boxShadow = 'none';
+            }}
           />
-          {errors.distance && <span style={styles.error}>{errors.distance}</span>}
+          {errors.distance && <span style={styles.error}>⚠️ {errors.distance}</span>}
         </div>
 
         <div style={styles.divider} />
@@ -219,41 +297,70 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            max={getToday()}
             style={{
               ...styles.input,
               borderColor: errors.date ? '#e74c3c' : 'var(--border-light)',
             }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--primary-green)';
+              e.target.style.boxShadow = '0 0 0 3px rgba(46, 125, 50, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = errors.date ? '#e74c3c' : 'var(--border-light)';
+              e.target.style.boxShadow = 'none';
+            }}
           />
-          {errors.date && <span style={styles.error}>{errors.date}</span>}
+          {errors.date && <span style={styles.error}>⚠️ {errors.date}</span>}
         </div>
 
         {selectedMode && distance && !isNaN(parseFloat(distance)) && parseFloat(distance) > 0 && (
           <div style={styles.preview}>
+            <div style={styles.previewTitle}>
+              {selectedOption?.icon} {selectedOption?.label} · {distance} 公里
+            </div>
             <div style={styles.previewItem}>
-              <span style={styles.previewLabel}>预计碳排放：</span>
+              <span style={styles.previewLabel}>💨 预计碳排放：</span>
               <span style={{ ...styles.previewValue, color: '#e74c3c' }}>
                 {calculateEmission(selectedMode, parseFloat(distance)).toFixed(2)} g CO₂
               </span>
             </div>
             <div style={styles.previewItem}>
-              <span style={styles.previewLabel}>减碳量：</span>
-              <span style={{ ...styles.previewValue, color: 'var(--primary-green)' }}>
+              <span style={styles.previewLabel}>🌱 减少碳排放：</span>
+              <span style={{ ...styles.previewValue, color: 'var(--primary-green)', fontWeight: 700 }}>
                 {calculateCarbonSaved(selectedMode, parseFloat(distance)).toFixed(2)} g CO₂
               </span>
             </div>
           </div>
         )}
 
-        <button type="submit" style={styles.submitButton}>
+        <button
+          type="submit"
+          style={styles.submitButton}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(46, 125, 50, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(46, 125, 50, 0.3)';
+          }}
+          onMouseDown={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0) scale(0.98)';
+          }}
+          onMouseUp={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+          }}
+        >
           提交记录 🌱
         </button>
 
-        {showSuccess && <div style={styles.successMessage}>记录成功！🌱</div>}
+        {showSuccess && <div style={styles.successMessage}>✅ 记录成功！为地球减碳贡献了一份力量！</div>}
       </form>
 
       {trips.length > 0 && (
         <div style={styles.tripList}>
-          <h3 style={styles.listTitle}>最近记录</h3>
+          <h3 style={styles.listTitle}>📋 最近记录</h3>
           <div style={styles.listContainer}>
             {trips.slice(0, 5).map((trip, index) => {
               const opt = TRANSPORT_OPTIONS.find((o) => o.mode === trip.mode);
@@ -262,7 +369,7 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
                   key={trip.id}
                   style={{
                     ...styles.tripItem,
-                    animation: `fadeInUp 0.4s ease ${index * 0.05}s both`,
+                    animation: `fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.05}s both`,
                   }}
                 >
                   <div style={styles.tripIcon}>{opt?.icon}</div>
@@ -274,16 +381,24 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
                   </div>
                   <div style={styles.tripStats}>
                     <div style={{ ...styles.tripStat, color: '#e74c3c' }}>
-                      {trip.carbonEmission.toFixed(1)}g
+                      💨 {trip.carbonEmission.toFixed(1)}g
                     </div>
                     <div style={{ ...styles.tripStat, color: 'var(--primary-green)' }}>
-                      -{trip.carbonSaved.toFixed(1)}g
+                      🌱 -{trip.carbonSaved.toFixed(1)}g
                     </div>
                   </div>
                   <button
                     onClick={() => handleDeleteTrip(trip.id)}
                     style={styles.deleteButton}
                     title="删除记录"
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color = '#e74c3c';
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-gray)';
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                    }}
                   >
                     ×
                   </button>
@@ -305,6 +420,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: 'var(--shadow-sm)',
     transition: 'var(--transition)',
     position: 'relative',
+    animation: 'fadeIn 0.5s ease',
   },
   title: {
     fontSize: 20,
@@ -325,7 +441,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   divider: {
     height: 1,
-    background: 'linear-gradient(90deg, transparent 0%, rgba(46, 125, 50, 0.1) 50%, transparent 100%)',
+    background: 'linear-gradient(90deg, transparent 0%, rgba(46, 125, 50, 0.15) 50%, transparent 100%)',
     margin: '4px 0',
   },
   label: {
@@ -368,7 +484,7 @@ const styles: Record<string, React.CSSProperties> = {
   dropdownArrow: {
     color: 'var(--text-gray)',
     fontSize: 12,
-    transition: 'transform 0.3s ease',
+    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     flexShrink: 0,
   },
   dropdownContainer: {
@@ -379,52 +495,69 @@ const styles: Record<string, React.CSSProperties> = {
     top: '100%',
     left: 0,
     right: 0,
-    marginTop: 4,
+    marginTop: 6,
     backgroundColor: '#fff',
     border: '1.5px solid var(--border-light)',
-    borderRadius: 10,
-    overflow: 'hidden',
-    boxShadow: 'var(--shadow-md)',
-    zIndex: 100,
-    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease',
+    borderRadius: 12,
+    boxShadow: 'var(--shadow-lg)',
+    zIndex: 1000,
+    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
   },
   dropdownItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '12px 16px',
+    padding: '14px 16px',
     cursor: 'pointer',
     transition: 'background-color 0.15s ease',
-    borderBottom: '1px solid var(--border-light)',
+    borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
     fontSize: 15,
-    opacity: 0,
+  },
+  dropdownIcon: {
+    fontSize: 22,
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  dropdownLabel: {
+    flex: 1,
   },
   noResults: {
-    padding: 16,
+    padding: 24,
     textAlign: 'center',
     color: 'var(--text-gray)',
     fontSize: 14,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   emissionTag: {
     fontSize: 12,
-    color: 'var(--text-gray)',
-    backgroundColor: 'var(--bg-gray)',
-    padding: '4px 8px',
-    borderRadius: 6,
+    padding: '4px 10px',
+    borderRadius: 8,
     whiteSpace: 'nowrap',
+    fontWeight: 500,
   },
   error: {
     display: 'block',
     color: '#e74c3c',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: 500,
   },
   preview: {
-    backgroundColor: 'var(--bg-gray)',
-    borderRadius: 10,
+    background: 'linear-gradient(135deg, #F1F8E9 0%, #E8F5E9 100%)',
+    borderRadius: 12,
     padding: 16,
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
+    gap: 10,
+    border: '1px solid rgba(46, 125, 50, 0.2)',
+    animation: 'fadeIn 0.3s ease',
+  },
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'var(--primary-green)',
+    marginBottom: 4,
   },
   previewItem: {
     display: 'flex',
@@ -432,7 +565,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
   },
   previewLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: 'var(--text-gray)',
   },
   previewValue: {
@@ -449,7 +582,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: 12,
     cursor: 'pointer',
-    transition: 'var(--transition)',
+    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     boxShadow: '0 4px 12px rgba(46, 125, 50, 0.3)',
     fontFamily: 'inherit',
   },
@@ -464,9 +597,10 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 25,
     fontSize: 14,
     fontWeight: 500,
-    animation: 'fadeIn 0.3s ease',
+    animation: 'slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
     boxShadow: 'var(--shadow-md)',
     whiteSpace: 'nowrap',
+    zIndex: 10,
   },
   tripList: {
     marginTop: 32,
@@ -478,6 +612,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: 'var(--text-dark)',
     marginBottom: 16,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
   },
   listContainer: {
     display: 'flex',
@@ -490,8 +627,10 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     padding: 12,
     backgroundColor: 'var(--bg-gray)',
-    borderRadius: 10,
+    borderRadius: 12,
     position: 'relative',
+    transition: 'var(--transition)',
+    opacity: 0,
   },
   tripIcon: {
     fontSize: 28,
@@ -501,7 +640,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     boxShadow: 'var(--shadow-sm)',
   },
   tripInfo: {
@@ -524,7 +663,7 @@ const styles: Record<string, React.CSSProperties> = {
   tripStat: {
     fontSize: 13,
     fontWeight: 600,
-    lineHeight: 1.4,
+    lineHeight: 1.6,
   },
   deleteButton: {
     position: 'absolute',
@@ -532,12 +671,13 @@ const styles: Record<string, React.CSSProperties> = {
     right: 8,
     background: 'none',
     border: 'none',
-    fontSize: 20,
+    fontSize: 22,
     color: 'var(--text-gray)',
     cursor: 'pointer',
     padding: '4px 8px',
-    transition: 'color 0.2s ease',
+    transition: 'all 0.2s ease',
     lineHeight: 1,
+    fontWeight: 300,
   },
 };
 
