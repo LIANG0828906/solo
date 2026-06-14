@@ -60,7 +60,8 @@ class GameEngine {
       }
     }, 250);
 
-    this.startHintCooldown();
+    this.hintCooldown = 0;
+    this.emit('hint_cooldown', { cooldown: 0, max: 10 });
     this.emit('round_start', data);
   }
 
@@ -70,6 +71,12 @@ class GameEngine {
     this.hintCooldownInterval = setInterval(() => {
       this.hintCooldown = Math.max(0, this.hintCooldown - 0.1);
       this.emit('hint_cooldown', { cooldown: this.hintCooldown, max: 10 });
+      if (this.hintCooldown <= 0) {
+        if (this.hintCooldownInterval) {
+          clearInterval(this.hintCooldownInterval);
+          this.hintCooldownInterval = null;
+        }
+      }
     }, 100);
   }
 

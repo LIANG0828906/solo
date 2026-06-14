@@ -206,4 +206,103 @@ const Room: React.FC = () => {
             >
               {room.players.length < 2
                 ? `至少需要 2 名玩家 (${room.players.length}/2)`
-                : `🚀 开始对战 (${room.players.length}人) 🏆`
+                : `🚀 开始对战 (${room.players.length}人) 🏆`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {teamsModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => {}}
+        >
+          <div className="card fade-in" style={{ maxWidth: 600, width: '90%' }}>
+            <h2
+              style={{
+                textAlign: 'center',
+                fontSize: 28,
+                fontWeight: 800,
+                marginBottom: 24,
+                background: 'linear-gradient(90deg, #e94560, #f59e0b)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              🎮 队伍已分配！
+            </h2>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${teamsModal.length}, 1fr)`,
+                gap: 16
+              }}
+            >
+              {teamsModal.map((team, idx) => (
+                <div
+                  key={team.id}
+                  className="fade-in"
+                  style={{
+                    animationDelay: `${idx * 0.2}s`,
+                    animation: 'flipCard 0.8s ease forwards',
+                    opacity: 0,
+                    padding: 20,
+                    borderRadius: 16,
+                    background: `linear-gradient(135deg, ${['#e94560', '#0f3460', '#f59e0b', '#10b981'][idx % 4]}22, transparent)`,
+                    border: `2px solid ${['#e94560', '#0f3460', '#f59e0b', '#10b981'][idx % 4]}66`,
+                    perspective: '1000px'
+                  }}
+                >
+                  <h3
+                    style={{
+                      textAlign: 'center',
+                      marginBottom: 16,
+                      color: ['#e94560', '#0f3460', '#f59e0b', '#10b981'][idx % 4],
+                      fontSize: 20,
+                      fontWeight: 800
+                    }}
+                  >
+                    {team.name}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {team.players.map((p) => (
+                      <div
+                        key={p.id}
+                        className="fade-in"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: 12,
+                          borderRadius: 12,
+                          background: 'rgba(255,255,255,0.05)'
+                        }}
+                      >
+                        <div style={{ fontSize: 32 }}>{p.avatar}</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{p.nickname}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 20, color: '#a0aec0' }}>
+              即将开始游戏...
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Room;

@@ -20,8 +20,9 @@ interface Point {
   y: number;
 }
 
-const COLORS = ['#ffffff', '#e94560', '#10b981'];
-const SIZES = [2, 5, 10];
+const COLORS = ['#000000', '#e94560', '#3b82f6', '#10b981', '#f59e0b'];
+const SIZES = [2, 5, 8];
+const SIZE_LABELS = ['细', '中', '粗'];
 
 const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wordCategory, flashState, onDraw }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -315,6 +316,7 @@ const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wor
           }}
         >
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#a0aec0', marginRight: 4 }}>颜色:</span>
             {COLORS.map((c) => (
               <button
                 key={c}
@@ -323,40 +325,47 @@ const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wor
                   setIsEraser(false);
                 }}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   background: c,
                   border:
                     color === c && !isEraser
                       ? '3px solid #e94560'
-                      : '2px solid rgba(255,255,255,0.2)',
+                      : '2px solid rgba(255,255,255,0.3)',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  transform: color === c && !isEraser ? 'scale(1.1)' : 'scale(1)'
+                  transform: color === c && !isEraser ? 'scale(1.15)' : 'scale(1)',
+                  boxShadow: color === c && !isEraser ? '0 0 10px rgba(233, 69, 96, 0.5)' : 'none'
                 }}
+                title={c === '#000000' ? '黑色' : c === '#e94560' ? '红色' : c === '#3b82f6' ? '蓝色' : c === '#10b981' ? '绿色' : '橙色'}
               />
             ))}
           </div>
 
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', margin: '0 6px' }} />
 
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {SIZES.map((s) => (
+            <span style={{ fontSize: 12, color: '#a0aec0', marginRight: 4 }}>粗细:</span>
+            {SIZES.map((s, idx) => (
               <button
                 key={s}
                 onClick={() => setSize(s)}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 44,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(255,255,255,0.08)',
+                  background: size === s ? 'rgba(233, 69, 96, 0.3)' : 'rgba(255,255,255,0.08)',
                   border:
                     size === s ? '2px solid #e94560' : '1px solid rgba(255,255,255,0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: size === s ? '#fff' : '#a0aec0',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  gap: 6
                 }}
               >
                 <div
@@ -364,9 +373,10 @@ const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wor
                     width: s + 2,
                     height: s + 2,
                     borderRadius: '50%',
-                    background: '#fff'
+                    background: isEraser ? '#fff' : color
                   }}
                 />
+                <span>{SIZE_LABELS[idx]}</span>
               </button>
             ))}
           </div>

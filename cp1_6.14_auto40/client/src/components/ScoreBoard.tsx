@@ -31,13 +31,16 @@ const ScoreBoard: React.FC<Props> = ({
   showFinalRankings
 }) => {
   const [bounceTeams, setBounceTeams] = useState<Set<number>>(new Set());
+  const [scoreAnimKey, setScoreAnimKey] = useState(0);
   const timePct = totalRounds > 0 ? (timeRemaining / 90) * 100 : 0;
   const prevScores = useRef<Map<number, number>>(new Map());
 
   useEffect(() => {
     if (!recentScore) return;
+    prevScores.current.set(recentScore.teamId, recentScore.score);
     setBounceTeams(new Set([recentScore.teamId]));
-    const t = setTimeout(() => setBounceTeams(new Set()), 600);
+    setScoreAnimKey((k) => k + 1);
+    const t = setTimeout(() => setBounceTeams(new Set()), 800);
     return () => clearTimeout(t);
   }, [recentScore]);
 
@@ -65,9 +68,9 @@ const ScoreBoard: React.FC<Props> = ({
           {showFinalRankings.map((r, idx) => (
             <div
               key={r.teamId}
-              className="fade-in"
+              className="ranking-fade-in"
               style={{
-                animationDelay: `${idx * 0.15}s`,
+                animationDelay: `${idx * 0.2}s`,
                 opacity: 0,
                 padding: 16,
                 borderRadius: 14,
@@ -101,6 +104,8 @@ const ScoreBoard: React.FC<Props> = ({
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div
+                    key={`score-${scoreAnimKey}`}
+                    className="score-bounce"
                     style={{
                       fontSize: 28,
                       fontWeight: 800,
@@ -263,6 +268,8 @@ const ScoreBoard: React.FC<Props> = ({
                   </span>
                 </div>
                 <div
+                  key={`team-score-${team.id}-${scoreAnimKey}`}
+                  className={isBouncing ? 'score-bounce' : ''}
                   style={{
                     fontWeight: 800,
                     fontSize: 24,
@@ -270,16 +277,17 @@ const ScoreBoard: React.FC<Props> = ({
                   }}
                 >
                   {team.score}
-                  {prevScore !== team.score && team.score > 0 && (
+                  {isBouncing && recentScore && recentScore.teamId === team.id && (
                     <span
                       style={{
                         marginLeft: 6,
-                        fontSize: 12,
+                        fontSize: 14,
                         color: '#10b981',
-                        animation: 'bounceScale 0.5s ease'
+                        display: 'inline-block',
+                        animation: 'bounceScale 0.6s ease'
                       }}
                     >
-                      +{team.score - prevScore}
+                      +{recentScore.score}
                     </span>
                   )}
                 </div>

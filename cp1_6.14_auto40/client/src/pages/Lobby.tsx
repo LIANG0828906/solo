@@ -72,7 +72,7 @@ const Lobby: React.FC = () => {
       setError('请输入昵称');
       return;
     }
-    if (!joinCode.trim().length < 4) {
+    if (joinCode.trim().length < 4) {
       setError('请输入有效的房间码');
       return;
     }
@@ -149,6 +149,7 @@ const Lobby: React.FC = () => {
                   fontWeight: 600
                 }}
               >
+                你的昵称
               </label>
               <input
                 value={nickname}
@@ -208,7 +209,7 @@ const Lobby: React.FC = () => {
             <div style={{ fontSize: 52 }}>🎉</div>
             <div>
               <div style={{ fontSize: 15, color: '#a0aec0', marginBottom: 10 }}>
-              >
+                你的房间码已生成
               </div>
               <div
                 style={{
@@ -325,17 +326,6 @@ const Lobby: React.FC = () => {
                 🚀 加入
               </button>
             </div>
-          </div>
-          <button
-              onClick={() => {
-                setMode('menu');
-                setError('');
-              }}
-              className="btn btn-secondary"
-              style={{ width: '100%' }}
-            >
-              ← 返回主菜单
-            </button>
           </div>
         )}
 

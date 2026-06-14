@@ -22,8 +22,7 @@ const GuessingPanel: React.FC<Props> = ({
   guessHistory = []
 }) => {
   const [guess, setGuess] = useState('');
-  const [hintPct, setHintPct] = useState(100);
-  const [hintReady, setHintReady] = useState(false);
+  const [hintCooldown, setHintCooldown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,8 +34,11 @@ const GuessingPanel: React.FC<Props> = ({
   useEffect(() => {
     const unsub = gameEngine.on((type, data) => {
       if (type === 'hint_cooldown') {
-        setHintPct(data.cooldown === 0 ? 0 : ((10 - data.cooldown) / 10) * 100);
-        setHintReady(data.cooldown <= 0);
+        setHintCooldown(data.cooldown);
+      }
+      if (type === 'round_start') {
+        setHintCooldown(0);
+        setGuess('');
       }
     });
     return unsub;
@@ -53,10 +55,15 @@ const GuessingPanel: React.FC<Props> = ({
   };
 
   const handleHint = () => {
-    if (!hintReady && !isDrawer) return;
+    if (hintCooldown > 0 || isDrawer) return;
     roomManager.requestHint();
     gameEngine.resetHintCooldown();
   };
+
+  const hintReady = hintCooldown <= 0;
+  const circumference = 2 * Math.PI * 21;
+  const progressPct = Math.max(0, Math.min(100, (hintCooldown / 10) * 100));
+  const dashOffset = circumference * (1 - progressPct / 100);
 
   const displayChars: React.ReactNode[] = [];
   for (let i = 0; i < wordLength; i++) {
@@ -181,7 +188,7 @@ const GuessingPanel: React.FC<Props> = ({
           <div style={{ position: 'relative' }}>
             <button
               onClick={handleHint}
-              title="获取字母提示（10秒冷却）"
+              title={`获取字母提示${hintCooldown > 0 ? ` (${Math.ceil(hintCooldown)}秒后可用)` : ''}`}
               style={{
                 width: 48,
                 height: 48,
@@ -203,28 +210,55 @@ const GuessingPanel: React.FC<Props> = ({
             >
               💡
             </button>
-            {!hintReady && hintPct < 100 && (
-              <svg
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: 48,
-                  height: 48,
-                  transform: 'rotate(-90deg)',
-                  pointerEvents: 'none'
-                }}
-              >
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="21"
-                  fill="none"
-                  stroke="rgba(233, 69, 96, 0.6)"
-                  strokeWidth="3"
-                  strokeDasharray={`${(hintPct / 100) * 132} 132`}
-                />
-              </svg>
+            {hintCooldown > 0 && (
+              <>
+                <svg
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: 48,
+                    height: 48,
+                    transform: 'rotate(-90deg)',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <circle
+                    cx="24"
+                    cy="24"
+                    r="21"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.1)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="24"
+                    cy="24"
+                    r="21"
+                    fill="none"
+                    stroke="rgba(245, 158, 11, 0.8)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+                  />
+                </svg>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#fbbf24',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  {Math.ceil(hintCooldown)}
+                </div>
+              </>
             )}
           </div>
         </div>
