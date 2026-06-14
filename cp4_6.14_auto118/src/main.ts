@@ -1,3 +1,5 @@
+console.log('[Main] main.ts loaded, initializing app...');
+
 import { SceneManager } from './scene';
 import { Drone, RotorAngles } from './drone';
 import { ControlPanel } from './controls';
@@ -7,10 +9,14 @@ interface WorkerResponse {
   type: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  matrix?: number[];
   speeds?: [number, number, number, number];
-  particles?: Array<{ pos: [number, number, number]; alpha: number }>;
+  rotations?: [number, number, number, number];
+  particles?: Array<{ pos: [number, number, number]; alpha: number; lifeProgress?: number }>;
   pitch?: number;
   yaw?: number;
+  message?: string;
+  data?: unknown;
 }
 
 class App {
@@ -25,20 +31,42 @@ class App {
   private waypoints: Array<[number, number, number]>;
 
   constructor() {
-    this.sceneManager = new SceneManager('canvas-container');
-    this.drone = new Drone();
-    this.waypoints = this.generateWaypoints(50);
-    
-    this.controls = new ControlPanel({
-      onAngleChange: (angles) => this.handleAngleChange(angles),
-      onStart: () => this.handleStart(),
-      onReset: () => this.handleReset()
-    });
-    
-    this.flightWorker = new FlightWorker();
-    this.flightWorker.onmessage = (e: MessageEvent<WorkerResponse>) => this.handleWorkerMessage(e.data);
-    
-    this.init();
+    try {
+      console.log('[Main] Creating SceneManager...');
+      this.sceneManager = new SceneManager('canvas-container');
+      console.log('[Main] SceneManager created successfully');
+      
+      console.log('[Main] Creating Drone...');
+      this.drone = new Drone();
+      console.log('[Main] Drone created successfully');
+      
+      console.log('[Main] Generating waypoints...');
+      this.waypoints = this.generateWaypoints(50);
+      console.log(`[Main] Generated ${this.waypoints.length} waypoints`);
+      
+      console.log('[Main] Creating ControlPanel...');
+      this.controls = new ControlPanel({
+        onAngleChange: (angles) => this.handleAngleChange(angles),
+        onStart: () => this.handleStart(),
+        onReset: () => this.handleReset()
+      });
+      console.log('[Main] ControlPanel created successfully');
+      
+      console.log('[Main] Creating FlightWorker...');
+      this.flightWorker = new FlightWorker();
+      this.flightWorker.onmessage = (e: MessageEvent<WorkerResponse>) => this.handleWorkerMessage(e.data);
+      this.flightWorker.onerror = (error) => {
+        console.error('[Main] Worker error:', error);
+      };
+      console.log('[Main] FlightWorker created successfully');
+      
+      console.log('[Main] Calling init()...');
+      this.init();
+      console.log('[Main] App initialization complete');
+    } catch (error) {
+      console.error('[Main] Error during initialization:', error);
+      throw error;
+    }
   }
 
   private generateWaypoints(count: number): Array<[number, number, number]> {
@@ -112,12 +140,20 @@ class App {
         if (data.position && data.rotation) {
           this.drone.setPosition(data.position[0], data.position[1], data.position[2]);
           this.drone.setRotation(data.rotation[0], data.rotation[1], data.rotation[2]);
+          
+          if (data.matrix) {
+            console.debug(`[Main] Transform matrix received: [${data.matrix.slice(0, 4).join(', ')}...]`);
+          }
         }
         break;
         
       case 'rotorSpeeds':
         if (data.speeds) {
           this.drone.setRotorSpeeds(data.speeds);
+          
+          if (data.rotations) {
+            console.debug(`[Main] Rotor rotations: FL=${(data.rotations[0] * 180 / Math.PI).toFixed(1)}°`);
+          }
         }
         break;
         
@@ -132,10 +168,16 @@ class App {
           this.controls.updateAttitude(data.pitch, data.yaw);
         }
         break;
+        
+      case 'debug':
+        console.log(`[Worker Debug] ${data.message}`, data.data);
+        break;
     }
   }
 
   private startMainLoop(): void {
+    let frameCount = 0;
+    
     const animate = (currentTime: number) => {
       this.animationFrameId = requestAnimationFrame(animate);
       
@@ -143,7 +185,17 @@ class App {
       this.lastTime = currentTime;
       
       this.drone.update(deltaTime, this.isFlying);
+      
+      const attitude = this.drone.getAttitude();
+      this.controls.updateAttitude(attitude.pitch, attitude.yaw);
+      
       this.sceneManager.render();
+      
+      frameCount++;
+      if (frameCount % 60 === 0) {
+        console.log(`[Main] Frame update: pitch=${attitude.pitch.toFixed(1)}°, yaw=${attitude.yaw.toFixed(1)}°, isFlying=${this.isFlying}`);
+        console.log(`[Main] Drone position: (${this.drone.group.position.x.toFixed(2)}, ${this.drone.group.position.y.toFixed(2)}, ${this.drone.group.position.z.toFixed(2)})`);
+      }
     };
     
     this.animationFrameId = requestAnimationFrame(animate);

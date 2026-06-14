@@ -19,12 +19,13 @@ interface RotorData {
   targetAngle: number;
   currentAngle: number;
   label: THREE.Sprite;
+  labelOffset: THREE.Vector3;
   rotationSpeed: number;
 }
 
 export class Drone {
   public group: THREE.Group;
-  private body: THREE.Mesh;
+  private body!: THREE.Mesh;
   private rotors: Map<string, RotorData>;
   private rotorPositions: Record<string, [number, number, number]>;
   private animationDuration: number = 0.3;
@@ -133,7 +134,7 @@ export class Drone {
       rotorGroup.add(blade);
       
       const label = this.createAngleLabel(this.initialAngles[key as keyof RotorAngles]);
-      label.position.y = 2;
+      const labelOffset = new THREE.Vector3(0, 2, 0);
       rotorGroup.add(label);
       
       this.rotors.set(key, {
@@ -142,6 +143,7 @@ export class Drone {
         targetAngle: this.initialAngles[key as keyof RotorAngles],
         currentAngle: this.initialAngles[key as keyof RotorAngles],
         label,
+        labelOffset,
         rotationSpeed: 0
       });
       
@@ -152,43 +154,75 @@ export class Drone {
   }
 
   private createBlade(): THREE.Mesh {
-    const bladeShape = new THREE.Shape();
-    const bladeWidth = 0.12;
     const bladeLength = 0.6;
-    const segments = 30;
+    const bladeWidth = 0.12;
+    const bladeThickness = 0.015;
+    const segmentsLength = 14;
+    const segmentsWidth = 2;
     
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
+    const vertices: number[] = [];
+    const indices: number[] = [];
+    
+    const profile = (t: number): number => Math.sin(t * Math.PI) * bladeWidth / 2;
+    
+    for (let i = 0; i <= segmentsLength; i++) {
+      const t = i / segmentsLength;
       const x = -bladeLength / 2 + t * bladeLength;
-      const profile = Math.sin(t * Math.PI);
-      const y = profile * bladeWidth / 2;
+      const halfWidth = profile(t);
       
-      if (i === 0) {
-        bladeShape.moveTo(x, y);
-      } else {
-        bladeShape.lineTo(x, y);
+      for (let j = 0; j <= segmentsWidth; j++) {
+        const s = j / segmentsWidth;
+        const z = -halfWidth + s * halfWidth * 2;
+        const yTop = bladeThickness / 2;
+        const yBottom = -bladeThickness / 2;
+        
+        vertices.push(x, yTop, z);
+        vertices.push(x, yBottom, z);
       }
     }
     
-    for (let i = segments; i >= 0; i--) {
-      const t = i / segments;
-      const x = -bladeLength / 2 + t * bladeLength;
-      const profile = Math.sin(t * Math.PI);
-      const y = -profile * bladeWidth / 2;
-      bladeShape.lineTo(x, y);
+    const vertsPerSegment = (segmentsWidth + 1) * 2;
+    
+    for (let i = 0; i < segmentsLength; i++) {
+      for (let j = 0; j < segmentsWidth * 2; j++) {
+        const a = i * vertsPerSegment + j;
+        const b = a + 1;
+        const c = a + vertsPerSegment;
+        const d = c + 1;
+        
+        indices.push(a, c, b);
+        indices.push(b, c, d);
+      }
     }
     
-    const extrudeSettings = {
-      depth: 0.015,
-      bevelEnabled: false,
-      steps: 1
-    };
-    
-    const bladeGeometry = new THREE.ExtrudeGeometry(bladeShape, extrudeSettings);
-    const triangles = bladeGeometry.attributes.position.count / 3;
-    if (triangles < 120) {
-      bladeGeometry.subdivide(2);
+    for (let j = 0; j < segmentsWidth; j++) {
+      const topStart = j * 2;
+      const bottomStart = (segmentsLength) * vertsPerSegment + j * 2;
+      
+      indices.push(topStart, topStart + 2, topStart + 1);
+      indices.push(topStart + 1, topStart + 2, topStart + 3);
+      
+      indices.push(bottomStart, bottomStart + 1, bottomStart + 2);
+      indices.push(bottomStart + 1, bottomStart + 3, bottomStart + 2);
     }
+    
+    const expectedCount = segmentsLength * segmentsWidth * 4 + segmentsWidth * 4;
+    console.log(`[Drone] Expected triangles from formula: ${expectedCount} (4*${segmentsLength}*${segmentsWidth} + 4*${segmentsWidth})`);
+    
+    const triangleCount = indices.length / 3;
+    console.log(`[Drone] Rotor blade triangles: ${triangleCount} (target: 120), vertices: ${vertices.length / 3}`);
+    
+    if (triangleCount !== 120) {
+      console.warn(`[Drone] Warning: Expected 120 triangles, got ${triangleCount}`);
+    } else {
+      console.log(`[Drone] Success: Rotor blade has exactly 120 triangles as required`);
+    }
+    
+    const bladeGeometry = new THREE.BufferGeometry();
+    bladeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    bladeGeometry.setIndex(indices);
+    bladeGeometry.computeVertexNormals();
+    console.log(`[Drone] Vertex normals computed for rotor blade`);
     
     const bladeMaterial = new THREE.MeshStandardMaterial({
       color: 0x2563eb,
@@ -317,7 +351,20 @@ export class Drone {
       if (isFlying) {
         rotor.blade.rotation.z += rotor.rotationSpeed * deltaTime;
       }
+      
+      this.updateLabelPosition(rotor);
     });
+  }
+  
+  private updateLabelPosition(rotor: RotorData): void {
+    const rotatedOffset = rotor.labelOffset.clone();
+    const rotationMatrix = new THREE.Matrix4();
+    rotationMatrix.makeRotationX(rotor.mesh.rotation.x);
+    rotatedOffset.applyMatrix4(rotationMatrix);
+    
+    rotor.label.position.copy(rotatedOffset);
+    
+    console.log(`[Drone] Label position updated: offset=(${rotatedOffset.x.toFixed(2)}, ${rotatedOffset.y.toFixed(2)}, ${rotatedOffset.z.toFixed(2)}), rotation=${rotor.currentAngle.toFixed(1)}°`);
   }
 
   public setPosition(x: number, y: number, z: number): void {
@@ -345,7 +392,9 @@ export class Drone {
       rotor.rotationSpeed = 0;
       rotor.blade.rotation.z = 0;
       rotor.mesh.rotation.x = THREE.MathUtils.degToRad(15);
+      rotor.labelOffset.set(0, 2, 0);
       this.updateAngleLabel(rotor, 15);
+      this.updateLabelPosition(rotor);
     });
   }
 }

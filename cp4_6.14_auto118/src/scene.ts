@@ -154,6 +154,11 @@ export class SceneManager {
     const curve = new THREE.CatmullRomCurve3(points);
     const curvePoints = curve.getPoints(200);
     
+    const testPoint = curve.getPoint(0);
+    console.log(`[Scene] CatmullRomCurve3 created with ${waypoints.length} waypoints, 200 sample points`);
+    console.log(`[Scene] Curve test point at t=0: (${testPoint.x.toFixed(2)}, ${testPoint.y.toFixed(2)}, ${testPoint.z.toFixed(2)})`);
+    console.log(`[Scene] Curve test point at t=0.5: (${curve.getPoint(0.5).x.toFixed(2)}, ${curve.getPoint(0.5).y.toFixed(2)}, ${curve.getPoint(0.5).z.toFixed(2)})`);
+    
     const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
     const material = new THREE.LineDashedMaterial({
       color: 0x60a5fa,
@@ -185,19 +190,14 @@ export class SceneManager {
     const colors = new Float32Array(count * 3);
     const alphas = new Float32Array(count);
     
-    const startColor = new THREE.Color(0x60a5fa);
-    const endColor = new THREE.Color(0x8b5cf6);
-    
     for (let i = 0; i < count; i++) {
       positions[i * 3] = 0;
       positions[i * 3 + 1] = -100;
       positions[i * 3 + 2] = 0;
       
-      const t = i / count;
-      const color = startColor.clone().lerp(endColor, t);
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+      colors[i * 3] = 0.376;
+      colors[i * 3 + 1] = 0.647;
+      colors[i * 3 + 2] = 0.980;
       
       alphas[i] = 0;
     }
@@ -216,23 +216,44 @@ export class SceneManager {
     
     this.trailParticles = new THREE.Points(geometry, material);
     this.trailParticles.userData.alphas = alphas;
+    this.trailParticles.userData.startColor = new THREE.Color(0x60a5fa);
+    this.trailParticles.userData.endColor = new THREE.Color(0x8b5cf6);
     this.scene.add(this.trailParticles);
+    
+    console.log(`[Scene] Trail particles initialized: ${count} particles, color gradient from #60a5fa to #8b5cf6`);
   }
 
-  public updateTrailParticles(particles: Array<{ pos: [number, number, number]; alpha: number }>): void {
+  public updateTrailParticles(particles: Array<{ pos: [number, number, number]; alpha: number; lifeProgress?: number }>): void {
     if (!this.trailParticles) return;
     
     const positions = this.trailParticles.geometry.attributes.position.array as Float32Array;
+    const colors = this.trailParticles.geometry.attributes.color.array as Float32Array;
     const alphas = this.trailParticles.userData.alphas as Float32Array;
+    const startColor = this.trailParticles.userData.startColor as THREE.Color;
+    const endColor = this.trailParticles.userData.endColor as THREE.Color;
+    
+    const tempColor = new THREE.Color();
     
     for (let i = 0; i < particles.length; i++) {
       positions[i * 3] = particles[i].pos[0];
       positions[i * 3 + 1] = particles[i].pos[1];
       positions[i * 3 + 2] = particles[i].pos[2];
       alphas[i] = particles[i].alpha;
+      
+      const progress = particles[i].lifeProgress ?? (1 - particles[i].alpha);
+      tempColor.copy(startColor).lerp(endColor, progress);
+      
+      colors[i * 3] = tempColor.r;
+      colors[i * 3 + 1] = tempColor.g;
+      colors[i * 3 + 2] = tempColor.b;
+      
+      if (i === 0 && particles[i].alpha > 0) {
+        console.log(`[Scene] Trail particle[0] color: #${tempColor.getHexString()}, progress: ${progress.toFixed(2)}, alpha: ${particles[i].alpha.toFixed(2)}`);
+      }
     }
     
     this.trailParticles.geometry.attributes.position.needsUpdate = true;
+    this.trailParticles.geometry.attributes.color.needsUpdate = true;
   }
 
   public clearTrailParticles(): void {
