@@ -90,6 +90,19 @@ export class UIController {
       this.controlPanel!.appendChild(this.createSlider(config));
     });
 
+    const styleResetBtn = document.createElement('style');
+    styleResetBtn.textContent = `
+      @keyframes resetBtnPulse {
+        0%   { transform: scale(1); }
+        50%  { transform: scale(0.95); }
+        100% { transform: scale(1); }
+      }
+      .reset-btn-animate {
+        animation: resetBtnPulse 0.2s ease-in-out forwards;
+      }
+    `;
+    document.head.appendChild(styleResetBtn);
+
     const resetBtn = document.createElement('button');
     resetBtn.textContent = '重置参数';
     resetBtn.style.cssText = `
@@ -103,10 +116,11 @@ export class UIController {
       border-radius: 8px;
       cursor: pointer;
       margin-top: 20px;
-      transition: background 0.2s ease, transform 0.1s ease;
+      transition: background 0.2s ease;
       font-family: inherit;
       outline: none;
       user-select: none;
+      transform-origin: center;
     `;
 
     resetBtn.addEventListener('mouseenter', () => {
@@ -116,10 +130,14 @@ export class UIController {
       resetBtn.style.background = '#3b82f6';
     });
     resetBtn.addEventListener('click', () => {
-      resetBtn.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        resetBtn.style.transform = 'scale(1)';
-      }, 100);
+      resetBtn.classList.remove('reset-btn-animate');
+      void resetBtn.offsetWidth;
+      resetBtn.classList.add('reset-btn-animate');
+      const onAnimEnd = () => {
+        resetBtn.classList.remove('reset-btn-animate');
+        resetBtn.removeEventListener('animationend', onAnimEnd);
+      };
+      resetBtn.addEventListener('animationend', onAnimEnd);
 
       this.physicsEngine.reset();
       sliders.forEach((config) => {

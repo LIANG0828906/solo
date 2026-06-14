@@ -10,6 +10,9 @@ const MAX_ZOOM = 30;
 const DAMPING = 0.95;
 const FLYBACK_DURATION = 1.5;
 const FPS_WINDOW_SIZE = 60;
+const PERFORMANCE_UPDATE_INTERVAL = 500;
+const FPS_INITIAL_SMOOTH_FRAMES = 30;
+const DEFAULT_FPS = 60;
 
 class GalaxyApp {
   private scene: THREE.Scene;
@@ -39,7 +42,8 @@ class GalaxyApp {
   private flybackStartPhi: number = 0;
   private flybackStartDistance: number = 0;
 
-  private deltaTimes: number[] = [];
+  private frameTimestamps: number[] = [];
+  private smoothedFps: number = DEFAULT_FPS;
   private updateCount: number = 0;
   private updateWindowStart: number = 0;
   private lastPerformanceUpdate: number = 0;
@@ -153,19 +157,49 @@ class GalaxyApp {
     });
   }
 
+  private computeAverageFps(now: number): number {
+    this.frameTimestamps.push(now);
+    if (this.frameTimestamps.length > FPS_WINDOW_SIZE) {
+      this.frameTimestamps.shift();
+    }
+
+    const frames = this.frameTimestamps.length;
+    if (frames < 2) {
+      return DEFAULT_FPS;
+    }
+
+    const actualFrames = frames - 1;
+    const totalTime = (this.frameTimestamps[frames - 1] - this.frameTimestamps[0]) / 1000;
+    if (totalTime <= 0) {
+      return DEFAULT_FPS;
+    }
+    const rawFps = actualFrames / totalTime;
+
+    if (frames < FPS_INITIAL_SMOOTH_FRAMES) {
+      const alpha = actualFrames / FPS_INITIAL_SMOOTH_FRAMES;
+      this.smoothedFps = DEFAULT_FPS * (1 - alpha) + rawFps * alpha;
+    } else {
+      const smoothing = 0.85;
+      this.smoothedFps = this.smoothedFps * smoothing + rawFps * (1 - smoothing);
+    }
+
+    return this.smoothedFps;
+  }
+
   private animate(): void {
     requestAnimationFrame(this.animate);
 
     const now = performance.now();
 
-    let deltaTime = this.deltaTimes.length > 0
-      ? (now - (this.deltaTimes[this.deltaTimes.length - 1] || now)) / 1000
-      : 1 / 60;
-
-    this.deltaTimes.push(now);
-    if (this.deltaTimes.length > FPS_WINDOW_SIZE) {
-      this.deltaTimes.shift();
+    let deltaTime: number;
+    if (this.frameTimestamps.length === 0) {
+      deltaTime = 1 / DEFAULT_FPS;
+    } else {
+      deltaTime = (now - this.frameTimestamps[this.frameTimestamps.length - 1]) / 1000;
     }
+    deltaTime = Math.min(deltaTime, 0.05);
+
+    const currentFps = this.computeAverageFps(now);
 
     if (this.isFlyingBack) {
       const t = Math.min(1, (now - this.flybackStartTime) / (FLYBACK_DURATION * 1000));
@@ -199,28 +233,27 @@ class GalaxyApp {
       }
     }
 
+    this.particleSystem.updateParticleScale(this.cameraDistance);
+
     const particlesUpdated = this.physicsEngine.update(deltaTime);
     this.updateCount++;
 
     this.renderer.render(this.scene, this.camera);
 
-    if (this.deltaTimes.length >= 2 && now - this.lastPerformanceUpdate >= 500) {
-      const totalWindowTime = (this.deltaTimes[this.deltaTimes.length - 1] - this.deltaTimes[0]) / 1000;
-      const numFrames = this.deltaTimes.length - 1;
-      const fps = totalWindowTime > 0 ? numFrames / totalWindowTime : 60;
+    if (this.updateWindowStart === 0) {
+      this.updateWindowStart = now;
+    }
 
+    if (now - this.lastPerformanceUpdate >= PERFORMANCE_UPDATE_INTERVAL &&
+        this.frameTimestamps.length >= 2) {
       const updateWindowDuration = (now - this.updateWindowStart) / 1000;
-      const ups = updateWindowDuration > 0 ? this.updateCount / updateWindowDuration : 60;
+      const ups = updateWindowDuration > 0 ? this.updateCount / updateWindowDuration : DEFAULT_FPS;
 
-      this.uiController.updatePerformance(fps, particlesUpdated, ups);
+      this.uiController.updatePerformance(currentFps, particlesUpdated, ups);
 
       this.updateCount = 0;
       this.updateWindowStart = now;
       this.lastPerformanceUpdate = now;
-    }
-
-    if (this.updateWindowStart === 0) {
-      this.updateWindowStart = now;
     }
   }
 }
