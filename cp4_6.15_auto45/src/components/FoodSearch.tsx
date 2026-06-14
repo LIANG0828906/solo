@@ -29,10 +29,17 @@ const FoodSearch: React.FC<FoodSearchProps> = ({ onSelectFood, placeholder = 'æ
     }
 
     setIsLoading(true);
+    const startTime = Date.now();
     debounceTimer.current = setTimeout(() => {
       const matched = searchFood(keyword);
-      setResults(matched);
-      setIsLoading(false);
+      const elapsed = Date.now() - startTime;
+      const minDisplayTime = 200;
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+      setTimeout(() => {
+        setResults(matched);
+        setIsLoading(false);
+      }, remainingTime);
     }, 300);
 
     return () => {
@@ -62,9 +69,6 @@ const FoodSearch: React.FC<FoodSearchProps> = ({ onSelectFood, placeholder = 'æ
   const handleConfirm = () => {
     if (selectedFood) {
       onSelectFood(selectedFood, amount);
-      if (navigator.vibrate) {
-        navigator.vibrate(10);
-      }
       setKeyword('');
       setSelectedFood(null);
       setAmount(100);
@@ -96,7 +100,12 @@ const FoodSearch: React.FC<FoodSearchProps> = ({ onSelectFood, placeholder = 'æ
           className="w-full pl-10 pr-10 py-3 rounded-xl border-2 border-gray-100 bg-white focus:border-[#98D8C8] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400"
           style={{ fontFamily: "'Quicksand', sans-serif" }}
         />
-        {keyword && (
+        {isLoading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#98D8C8]">
+            <Loader2 size={18} className="animate-spin-slow" />
+          </div>
+        )}
+        {keyword && !isLoading && (
           <button
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"

@@ -25,6 +25,7 @@ interface MealCardProps {
   calorieGoal: number;
   onAddFood: (mealType: MealType, food: Food, amount: number) => void;
   onRemoveFood: (mealType: MealType, entryId: string) => void;
+  newEntryIds?: Set<string>;
 }
 
 const mealConfig: Record<MealType, {
@@ -82,6 +83,7 @@ const MealCard: React.FC<MealCardProps> = ({
   calorieGoal,
   onAddFood,
   onRemoveFood,
+  newEntryIds = new Set(),
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
@@ -142,30 +144,49 @@ const MealCard: React.FC<MealCardProps> = ({
       {expanded && (
         <div className="px-4 pb-4 animate-fade-in">
           <div className="space-y-2">
-            {entries.map((entry, index) => (
-              <div
-                key={entry.id}
-                className="bg-white/80 rounded-xl p-3 flex items-center gap-3 animate-slide-up"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <span className="text-2xl">{entry.icon}</span>
-                <div className="flex-1">
-                  <div className="font-medium text-gray-800">{entry.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {entry.amount}{entry.unit} · {entry.calories} kcal
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveFood(mealType, entry.id);
+            {entries.map((entry, index) => {
+              const isNew = newEntryIds.has(entry.id);
+              return (
+                <div
+                  key={entry.id}
+                  className={`bg-white/80 rounded-xl p-3 flex items-center gap-3 ${
+                    isNew ? 'animate-bounce-in' : 'animate-slide-up'
+                  }`}
+                  style={{
+                    animationDelay: isNew ? '0ms' : `${index * 50}ms`,
                   }}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+                  <span className="text-2xl">{entry.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">
+                      {entry.name}
+                    </div>
+                    <div className="text-xs text-gray-500 flex items-center gap-2">
+                      <span>
+                        {entry.amount}
+                        {entry.unit}
+                      </span>
+                      <span className="text-[#98D8C8] font-medium">
+                        {entry.calories} kcal
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end text-xs text-gray-400 mr-2">
+                    <div>蛋白 {entry.protein}g</div>
+                    <div>碳水 {entry.carbs}g</div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFood(mealType, entry.id);
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {showSearch ? (

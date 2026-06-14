@@ -76,11 +76,13 @@ const App: React.FC = () => {
   const currentDate = getTodayDate();
   const [records, setRecords] = useState<Record<string, Record<MealType, FoodEntry[]>>>(generateSampleData);
   const [calorieGoal] = useState(2000);
+  const [newEntryIds, setNewEntryIds] = useState<Set<string>>(new Set());
 
   const addFoodEntry = (date: string, mealType: MealType, food: Food, amount: number) => {
     const nutrition = calculateNutrition(food, amount, food.defaultUnit);
+    const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const newEntry: FoodEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: newId,
       foodId: food.id,
       name: food.name,
       icon: food.icon,
@@ -88,6 +90,19 @@ const App: React.FC = () => {
       unit: food.defaultUnit,
       ...nutrition,
     };
+
+    setNewEntryIds((prev) => new Set(prev).add(newId));
+    setTimeout(() => {
+      setNewEntryIds((prev) => {
+        const next = new Set(prev);
+        next.delete(newId);
+        return next;
+      });
+    }, 1000);
+
+    if (navigator.vibrate) {
+      navigator.vibrate([10, 50, 10]);
+    }
 
     setRecords((prev) => {
       const dayRecord = prev[date] || { breakfast: [], lunch: [], dinner: [], snack: [] };
@@ -162,6 +177,7 @@ const App: React.FC = () => {
                   calorieGoal={calorieGoal}
                   onAddFood={(mt, food, amount) => addFoodEntry(currentDate, mt, food, amount)}
                   onRemoveFood={(mt, entryId) => removeFoodEntry(currentDate, mt, entryId)}
+                  newEntryIds={newEntryIds}
                 />
               </div>
             ))}
