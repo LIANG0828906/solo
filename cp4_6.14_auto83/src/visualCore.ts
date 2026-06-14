@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { dataManager, MetricType, WeatherDataPoint } from './dataManager';
 import { ScatterCube } from './scatterCube';
 import { TimeSlider } from './timeSlider';
@@ -14,6 +15,7 @@ export class VisualCore {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
+  public css2DRenderer: CSS2DRenderer;
   public controls: OrbitControls;
   public scatterCube: ScatterCube;
   public timeSlider: TimeSlider;
@@ -21,8 +23,6 @@ export class VisualCore {
   private clock: THREE.Clock;
   private animationId: number | null = null;
   private mouse: THREE.Vector2;
-  private tooltip: HTMLElement | null = null;
-  private hoveredData: WeatherDataPoint | null = null;
   private isDraggingPlane: boolean = false;
   private onReadyCallback: (() => void) | null = null;
   private activeMetric: MetricType = 'temperature';
@@ -40,6 +40,7 @@ export class VisualCore {
     this.scene = this.createScene();
     this.camera = this.createCamera();
     this.renderer = this.createRenderer();
+    this.css2DRenderer = this.createCSS2DRenderer();
     this.controls = this.createControls();
 
     dataManager.getCities().forEach((c) => this.activeCityIndices.add(c.index));
@@ -47,8 +48,6 @@ export class VisualCore {
     this.scatterCube = new ScatterCube(this.scene);
     this.timeSlider = new TimeSlider(this.scene, this.scatterCube);
     this.analysisPanel = new AnalysisPanel();
-
-    this.tooltip = document.getElementById('tooltip');
 
     this.setupInteractions();
     this.setupModuleCallbacks();
@@ -126,6 +125,18 @@ export class VisualCore {
     return renderer;
   }
 
+  private createCSS2DRenderer(): CSS2DRenderer {
+    const renderer = new CSS2DRenderer();
+    renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.pointerEvents = 'none';
+    renderer.domElement.style.zIndex = '1';
+    this.container.appendChild(renderer.domElement);
+    return renderer;
+  }
+
   private createControls(): OrbitControls {
     const controls = new OrbitControls(this.camera, this.renderer.domElement);
     controls.enableDamping = true;
@@ -139,10 +150,6 @@ export class VisualCore {
   }
 
   private setupModuleCallbacks(): void {
-    this.scatterCube.onPointHover = (point, data) => {
-      this.handlePointHover(point, data);
-    };
-
     this.scatterCube.onPointClick = (cityIndex) => {
       this.scatterCube.blinkCity(cityIndex);
     };
@@ -198,7 +205,6 @@ export class VisualCore {
         this.controls.enabled = true;
       }
       this.scatterCube.handleRaycast(this.camera, new THREE.Vector2(9999, 9999));
-      this.hideTooltip();
     });
 
     dom.addEventListener('click', (e) => {
@@ -214,53 +220,6 @@ export class VisualCore {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  }
-
-  private handlePointHover(point: THREE.Mesh | null, data: WeatherDataPoint | null): void {
-    this.hoveredData = data;
-    if (!point || !data || !this.tooltip) {
-      this.hideTooltip();
-      return;
-    }
-
-    const metric = this.scatterCube.getMetric();
-    const value = data[metric];
-    const unit = dataManager.getMetricUnit(metric);
-    const metricLabel = dataManager.getMetricLabel(metric);
-
-    this.tooltip.innerHTML = `
-      <div style="font-weight:600;font-size:13px;color:#3b82f6;margin-bottom:4px;">${data.city}</div>
-      <div style="font-size:11px;color:#94a3b8;">${data.date}</div>
-      <div style="margin-top:4px;">
-        <span style="color:#cbd5e1;">${metricLabel}:</span>
-        <span style="color:#ffffff;font-weight:500;">${value}${unit}</span>
-      </div>
-    `;
-
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const vector = point.position.clone();
-    vector.project(this.camera);
-    const screenX = (vector.x + 1) / 2 * width;
-    const screenY = (-vector.y + 1) / 2 * height;
-
-    let left = screenX + 15;
-    let top = screenY - 50;
-    const tipWidth = 128;
-    const tipHeight = 80;
-    if (left + tipWidth > width - 10) left = screenX - tipWidth - 15;
-    if (top < 10) top = screenY + 20;
-    if (top + tipHeight > height - 10) top = height - tipHeight - 10;
-
-    this.tooltip.style.left = `${left}px`;
-    this.tooltip.style.top = `${top}px`;
-    this.tooltip.style.display = 'block';
-  }
-
-  private hideTooltip(): void {
-    if (this.tooltip) {
-      this.tooltip.style.display = 'none';
-    }
   }
 
   private updateDateDisplay(dayIndex: number, date: string): void {
@@ -329,6 +288,7 @@ export class VisualCore {
       this.scatterCube.update(delta);
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
+      this.css2DRenderer.render(this.scene, this.camera);
     };
 
     animate();
@@ -351,6 +311,7 @@ export class VisualCore {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    this.css2DRenderer.setSize(width, height);
   }
 
   public dispose(): void {
@@ -362,6 +323,9 @@ export class VisualCore {
     this.renderer.dispose();
     if (this.renderer.domElement.parentNode === this.container) {
       this.container.removeChild(this.renderer.domElement);
+    }
+    if (this.css2DRenderer.domElement.parentNode === this.container) {
+      this.container.removeChild(this.css2DRenderer.domElement);
     }
   }
 }

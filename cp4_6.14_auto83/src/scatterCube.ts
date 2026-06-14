@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { dataManager, MetricType, WeatherDataPoint, CityInfo } from './dataManager';
 
 export interface PointUserData {
@@ -7,14 +8,13 @@ export interface PointUserData {
   baseScale: number;
   isHovered: boolean;
   isHighlighted: boolean;
-  isBlinking: boolean;
 }
 
 const AXIS_X_RANGE = 8;
 const AXIS_Y_RANGE = 10;
 const AXIS_Z_RANGE = 10;
 const SPHERE_RADIUS = 0.06;
-const SPHERE_DETAIL = 16;
+const SPHERE_DETAIL = 12;
 
 function lerpColor(color1: THREE.Color, color2: THREE.Color, t: number): THREE.Color {
   return new THREE.Color().lerpColors(color1, color2, t);
@@ -61,17 +61,17 @@ export class ScatterCube {
   private group: THREE.Group;
   private pointsGroup: THREE.Group;
   private axesGroup: THREE.Group;
-  private labelsGroup: THREE.Group;
   private activeMetric: MetricType = 'temperature';
   private activeCityIndices: Set<number> = new Set();
   private pointsMap: Map<string, THREE.Mesh> = new Map();
   private currentSliceDay: number = -1;
   private hoveredPoint: THREE.Mesh | null = null;
-  private blinkingCities: Set<number> = new Set();
   private raycaster: THREE.Raycaster;
   private baseSphereGeometry: THREE.SphereGeometry;
   private cities: CityInfo[];
   private totalDays: number;
+  private hoverLabel: CSS2DObject | null = null;
+  private hoverLabelDiv: HTMLDivElement | null = null;
   public onPointHover: ((point: THREE.Mesh | null, data: WeatherDataPoint | null) => void) | null = null;
   public onPointClick: ((cityIndex: number) => void) | null = null;
 
@@ -94,13 +94,58 @@ export class ScatterCube {
     this.axesGroup.name = 'axes';
     this.group.add(this.axesGroup);
 
-    this.labelsGroup = new THREE.Group();
-    this.labelsGroup.name = 'labels';
-    this.group.add(this.labelsGroup);
-
     this.cities.forEach((c) => this.activeCityIndices.add(c.index));
+    this.createHoverLabel();
     this.createAxes();
     this.rebuild();
+  }
+
+  private createHoverLabel(): void {
+    const div = document.createElement('div');
+    div.style.width = '120px';
+    div.style.height = '60px';
+    div.style.backgroundColor = '#1e293b';
+    div.style.color = '#ffffff';
+    div.style.borderRadius = '4px';
+    div.style.padding = '6px 8px';
+    div.style.fontSize = '11px';
+    div.style.lineHeight = '1.6';
+    div.style.pointerEvents = 'none';
+    div.style.display = 'none';
+    div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
+    div.style.fontFamily = "'Microsoft YaHei','PingFang SC',sans-serif";
+    div.style.overflow = 'hidden';
+    div.style.whiteSpace = 'nowrap';
+    div.style.textOverflow = 'ellipsis';
+    div.style.border = '1px solid rgba(255,255,255,0.15)';
+
+    this.hoverLabelDiv = div;
+    this.hoverLabel = new CSS2DObject(div);
+    this.hoverLabel.name = 'hoverLabel';
+    this.group.add(this.hoverLabel);
+  }
+
+  private showHoverLabel(point: THREE.Mesh, data: WeatherDataPoint): void {
+    if (!this.hoverLabelDiv || !this.hoverLabel) return;
+
+    const metric = this.activeMetric;
+    const value = data[metric];
+    const unit = dataManager.getMetricUnit(metric);
+    const metricLabel = dataManager.getMetricLabel(metric);
+
+    this.hoverLabelDiv.innerHTML =
+      '<div style="font-weight:600;color:#3b82f6;font-size:12px;">' + data.city + '</div>' +
+      '<div style="color:#94a3b8;font-size:10px;">' + data.date + '</div>' +
+      '<div style="margin-top:2px;">' + metricLabel + ': <span style="font-weight:500;">' + value + unit + '</span></div>';
+    this.hoverLabelDiv.style.display = 'block';
+
+    this.hoverLabel.position.set(point.position.x, point.position.y + 0.7, point.position.z);
+  }
+
+  private hideHoverLabel(): void {
+    if (this.hoverLabelDiv) {
+      this.hoverLabelDiv.style.display = 'none';
+    }
   }
 
   private createAxes(): void {
@@ -108,12 +153,7 @@ export class ScatterCube {
       const child = this.axesGroup.children[0];
       this.axesGroup.remove(child);
     }
-    while (this.labelsGroup.children.length > 0) {
-      const child = this.labelsGroup.children[0];
-      this.labelsGroup.remove(child);
-    }
 
-    const axisMaterial = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.6 });
     const halfX = AXIS_X_RANGE / 2;
     const halfY = AXIS_Y_RANGE / 2;
     const halfZ = AXIS_Z_RANGE / 2;
@@ -123,28 +163,25 @@ export class ScatterCube {
     const yEnd = new THREE.Vector3(-halfX, halfY, -halfZ);
     const zEnd = new THREE.Vector3(-halfX, -halfY, halfZ);
 
-    const xAxis = new THREE.Line(
+    this.axesGroup.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([origin, xEnd]),
       new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.8 })
-    );
-    const yAxis = new THREE.Line(
+    ));
+    this.axesGroup.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([origin, yEnd]),
       new THREE.LineBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.8 })
-    );
-    const zAxis = new THREE.Line(
+    ));
+    this.axesGroup.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([origin, zEnd]),
       new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.8 })
-    );
-    this.axesGroup.add(xAxis, yAxis, zAxis);
+    ));
 
     for (let i = 0; i <= 10; i++) {
       const t = i / 10;
       const gridMat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.25 });
-
       const x1 = new THREE.Vector3(-halfX + t * AXIS_X_RANGE, -halfY, -halfZ);
       const x2 = new THREE.Vector3(-halfX + t * AXIS_X_RANGE, -halfY, halfZ);
       this.axesGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([x1, x2]), gridMat));
-
       const z1 = new THREE.Vector3(-halfX, -halfY, -halfZ + t * AXIS_Z_RANGE);
       const z2 = new THREE.Vector3(halfX, -halfY, -halfZ + t * AXIS_Z_RANGE);
       this.axesGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([z1, z2]), gridMat));
@@ -196,10 +233,10 @@ export class ScatterCube {
 
       const color = getMetricColor(this.activeMetric, value);
       const material = new THREE.MeshStandardMaterial({
-        color: color,
+        color: color.clone(),
         metalness: 0.2,
         roughness: 0.5,
-        emissive: color,
+        emissive: color.clone(),
         emissiveIntensity: 0.15,
         transparent: true,
         opacity: 0.9,
@@ -216,7 +253,6 @@ export class ScatterCube {
         baseScale: 1,
         isHovered: false,
         isHighlighted: data.dayIndex === this.currentSliceDay,
-        isBlinking: false,
       };
       mesh.userData = userData;
 
@@ -256,39 +292,26 @@ export class ScatterCube {
     const userData = mesh.userData as PointUserData;
     const mat = mesh.material as THREE.MeshStandardMaterial;
 
-    let targetScale = userData.baseScale;
-    let targetEmissiveIntensity = 0.15;
-    let opacity = 0.9;
-
     if (userData.isHovered) {
-      targetScale = 1.5;
-      targetEmissiveIntensity = 0.8;
+      mesh.scale.setScalar(1.5);
       mat.color.set('#ffd700');
       mat.emissive.set('#ffd700');
+      mat.emissiveIntensity = 0.8;
+      mat.opacity = 1;
     } else if (userData.isHighlighted) {
-      targetScale = 2;
-      targetEmissiveIntensity = 0.9;
+      mesh.scale.setScalar(2);
       mat.color.set('#ffd700');
       mat.emissive.set('#ffd700');
-      opacity = 1;
+      mat.emissiveIntensity = 0.9;
+      mat.opacity = 1;
     } else {
-      targetScale = userData.baseScale;
+      mesh.scale.setScalar(userData.baseScale);
       const color = getMetricColor(userData.metric, userData.data[userData.metric]);
       mat.color.copy(color);
       mat.emissive.copy(color);
+      mat.emissiveIntensity = 0.15;
+      mat.opacity = 0.9;
     }
-
-    if (userData.isBlinking) {
-      const blinkIntensity = 0.6 + Math.sin(Date.now() / 50) * 0.4;
-      targetEmissiveIntensity = blinkIntensity;
-      targetScale = 1.8;
-      mat.color.set('#ffffff');
-      mat.emissive.set('#ffffff');
-    }
-
-    mesh.scale.setScalar(targetScale);
-    mat.emissiveIntensity = targetEmissiveIntensity;
-    mat.opacity = opacity;
     mat.needsUpdate = true;
   }
 
@@ -300,21 +323,26 @@ export class ScatterCube {
       const point = intersects[0].object as THREE.Mesh;
       if (this.hoveredPoint !== point) {
         if (this.hoveredPoint) {
-          (this.hoveredPoint.userData as PointUserData).isHovered = false;
+          const prevData = this.hoveredPoint.userData as PointUserData;
+          prevData.isHovered = false;
           this.applyPointVisualState(this.hoveredPoint);
         }
         this.hoveredPoint = point;
-        (point.userData as PointUserData).isHovered = true;
+        const userData = point.userData as PointUserData;
+        userData.isHovered = true;
         this.applyPointVisualState(point);
+        this.showHoverLabel(point, userData.data);
       }
       if (this.onPointHover) {
         this.onPointHover(point, (point.userData as PointUserData).data);
       }
     } else {
       if (this.hoveredPoint) {
-        (this.hoveredPoint.userData as PointUserData).isHovered = false;
+        const prevData = this.hoveredPoint.userData as PointUserData;
+        prevData.isHovered = false;
         this.applyPointVisualState(this.hoveredPoint);
         this.hoveredPoint = null;
+        this.hideHoverLabel();
         if (this.onPointHover) {
           this.onPointHover(null, null);
         }
@@ -335,50 +363,60 @@ export class ScatterCube {
   }
 
   public blinkCity(cityIndex: number): void {
-    this.blinkingCities.add(cityIndex);
-    const startTime = Date.now();
-    const duration = 800;
+    const BLINK_INTERVAL = 200;
+    const TOTAL_DURATION = BLINK_INTERVAL * 3;
 
+    const cityMeshes: THREE.Mesh[] = [];
     this.pointsMap.forEach((mesh) => {
       const userData = mesh.userData as PointUserData;
       if (userData.data.cityIndex === cityIndex) {
-        userData.isBlinking = true;
+        cityMeshes.push(mesh);
       }
     });
 
-    const animate = () => {
+    if (cityMeshes.length === 0) return;
+
+    const startTime = Date.now();
+
+    const animateBlink = () => {
       const elapsed = Date.now() - startTime;
-      if (elapsed >= duration) {
-        this.blinkingCities.delete(cityIndex);
-        this.pointsMap.forEach((mesh) => {
-          const userData = mesh.userData as PointUserData;
-          if (userData.data.cityIndex === cityIndex) {
-            userData.isBlinking = false;
-            this.applyPointVisualState(mesh);
-          }
+
+      if (elapsed >= TOTAL_DURATION) {
+        cityMeshes.forEach((mesh) => {
+          this.applyPointVisualState(mesh);
         });
         return;
       }
-      this.pointsMap.forEach((mesh) => {
-        const userData = mesh.userData as PointUserData;
-        if (userData.data.cityIndex === cityIndex) {
-          this.applyPointVisualState(mesh);
+
+      const phase = Math.floor(elapsed / BLINK_INTERVAL);
+      const isOn = phase === 0 || phase === 2;
+
+      cityMeshes.forEach((mesh) => {
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        if (isOn) {
+          mat.color.set('#ffd700');
+          mat.emissive.set('#ffd700');
+          mat.emissiveIntensity = 1.0;
+          mesh.scale.setScalar(1.8);
+          mat.opacity = 1;
+        } else {
+          const userData = mesh.userData as PointUserData;
+          const color = getMetricColor(userData.metric, userData.data[userData.metric]);
+          mat.color.copy(color);
+          mat.emissive.copy(color);
+          mat.emissiveIntensity = 0.15;
+          mesh.scale.setScalar(userData.baseScale);
+          mat.opacity = 0.9;
         }
+        mat.needsUpdate = true;
       });
-      requestAnimationFrame(animate);
+
+      requestAnimationFrame(animateBlink);
     };
-    animate();
+    animateBlink();
   }
 
-  public update(delta: number): void {
-    if (this.blinkingCities.size > 0) {
-      this.pointsMap.forEach((mesh) => {
-        const userData = mesh.userData as PointUserData;
-        if (userData.isBlinking) {
-          this.applyPointVisualState(mesh);
-        }
-      });
-    }
+  public update(_delta: number): void {
   }
 
   public getBoundingBox(): { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } {

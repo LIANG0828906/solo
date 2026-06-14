@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { dataManager } from './dataManager';
 import { ScatterCube } from './scatterCube';
 
-const MAX_STEP_PER_FRAME = 0.02;
+const MAX_WORLD_STEP_PER_FRAME = 0.02;
 
 export class TimeSlider {
   private scene: THREE.Scene;
@@ -17,7 +17,7 @@ export class TimeSlider {
   private raycaster: THREE.Raycaster;
   private onDateChangeCallback: ((dayIndex: number, date: string) => void) | null = null;
   private bbox: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
-  private lastFrameTime: number = 0;
+  private lastNotifiedDay: number = -1;
 
   constructor(scene: THREE.Scene, scatterCube: ScatterCube) {
     this.scene = scene;
@@ -97,6 +97,9 @@ export class TimeSlider {
 
   private notifyChange(): void {
     const rounded = Math.round(this.currentDayIndex);
+    if (rounded === this.lastNotifiedDay) return;
+    this.lastNotifiedDay = rounded;
+
     const date = dataManager.getDateByIndex(rounded);
     this.scatterCube.updateSliceHighlight(rounded);
     if (this.onDateChangeCallback) {
@@ -106,23 +109,21 @@ export class TimeSlider {
 
   public update(delta: number): void {
     const diff = this.targetDayIndex - this.currentDayIndex;
-    if (Math.abs(diff) > 0.001) {
-      const maxStep = MAX_STEP_PER_FRAME * (delta / (1 / 60));
-      const step = Math.max(-maxStep, Math.min(maxStep, diff));
-      this.currentDayIndex += step;
+    if (Math.abs(diff) < 0.001) return;
 
-      if (Math.abs(this.targetDayIndex - this.currentDayIndex) < 0.01) {
-        this.currentDayIndex = this.targetDayIndex;
-      }
+    const worldRange = this.bbox.maxX - this.bbox.minX;
+    const dayToWorld = worldRange / (this.totalDays - 1);
+    const maxDayStep = MAX_WORLD_STEP_PER_FRAME / dayToWorld;
+    const step = Math.max(-maxDayStep, Math.min(maxDayStep, diff));
 
-      this.updatePlanePosition(this.currentDayIndex);
+    this.currentDayIndex += step;
 
-      const roundedCurrent = Math.round(this.currentDayIndex);
-      const roundedTarget = Math.round(this.targetDayIndex);
-      if (roundedCurrent !== Math.round(this.currentDayIndex - step) || this.currentDayIndex === this.targetDayIndex) {
-        this.notifyChange();
-      }
+    if (Math.abs(this.targetDayIndex - this.currentDayIndex) < 0.01) {
+      this.currentDayIndex = this.targetDayIndex;
     }
+
+    this.updatePlanePosition(this.currentDayIndex);
+    this.notifyChange();
   }
 
   public setDragging(dragging: boolean): void {
