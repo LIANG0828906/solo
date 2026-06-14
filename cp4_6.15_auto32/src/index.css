@@ -67,19 +67,32 @@ select:focus {
 
 @keyframes portBreathe {
   0%, 100% {
-    box-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 12px currentColor;
-    opacity: 0.7;
+    box-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 14px currentColor;
+    opacity: 0.6;
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor;
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
     opacity: 1;
-    transform: scale(1.15);
+    transform: scale(1.25);
   }
 }
 
 .port-wrapper .port-glow {
   animation: portBreathe 2s ease-in-out infinite;
+}
+
+@keyframes connectionFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -40;
+  }
+}
+
+.connection-flow {
+  animation: connectionFlow 1.5s linear infinite;
 }
 
 @keyframes connectionPulse {
@@ -97,14 +110,14 @@ select:focus {
 
 @keyframes endpointPulse {
   0%, 100% {
+    opacity: 0.7;
     r: 4;
-    opacity: 0.75;
     filter: drop-shadow(0 0 2px currentColor);
   }
   50% {
-    r: 5.5;
     opacity: 1;
-    filter: drop-shadow(0 0 6px currentColor);
+    r: 6;
+    filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 12px currentColor);
   }
 }
 

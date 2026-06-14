@@ -365,7 +365,7 @@ export default function ModuleCard({
         width: MODULE_WIDTH,
         transition: dragRef.current ? 'none' : 'left 0ms, top 0ms, transform 200ms ease-out',
         animation: 'moduleSlideIn 0.3s ease-out',
-        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+        transform: isHovered ? 'translateY(-7px)' : 'translateY(0)',
       }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => setIsHovered(true)}
@@ -376,7 +376,7 @@ export default function ModuleCard({
         style={{
           background: 'linear-gradient(135deg, #0f3460, #16213e)',
           boxShadow: isHovered
-            ? '0 10px 32px rgba(0,0,0,0.6), 0 0 0 2px #00aaff, 0 0 20px rgba(0,170,255,0.5), 0 0 40px rgba(0,170,255,0.25)'
+            ? '0 14px 40px rgba(0,0,0,0.7), 0 0 0 2px #00aaff, 0 0 8px rgba(0,170,255,0.6), 0 0 24px rgba(0,170,255,0.45), 0 0 48px rgba(0,170,255,0.25)'
             : '0 4px 20px rgba(0,0,0,0.5), 0 0 1px rgba(233,69,96,0.3)',
           border: isHovered ? '1px solid #00aaff' : '1px solid rgba(255,255,255,0.06)',
           transition: 'box-shadow 200ms ease-out, border-color 200ms ease-out',

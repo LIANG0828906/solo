@@ -70,8 +70,8 @@ export default function ModulePanel({ onAddModule, isOpen, onToggle }: ModulePan
                     border: '1px solid rgba(255,255,255,0.04)',
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-5px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 24px rgba(0,0,0,0.5), 0 0 8px #00aaff, 0 0 18px rgba(0,170,255,0.4)';
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-7px)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(0,0,0,0.6), 0 0 8px rgba(0,170,255,0.6), 0 0 20px rgba(0,170,255,0.4), 0 0 0 2px #00aaff';
                     (e.currentTarget as HTMLElement).style.borderColor = '#00aaff';
                   }}
                   onMouseLeave={e => {

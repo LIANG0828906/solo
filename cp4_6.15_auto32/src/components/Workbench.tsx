@@ -169,7 +169,7 @@ export default function Workbench({
           fill="none"
           stroke={color}
           strokeWidth={2.5}
-          opacity={0.2}
+          opacity={0.15}
         />
         <path
           d={path}
@@ -178,28 +178,32 @@ export default function Workbench({
           strokeWidth={2}
           opacity={0.9}
           strokeLinecap="round"
+          strokeDasharray="14 6"
+          className="connection-flow"
         />
-        <circle r={5} fill={color} filter="url(#glow)" opacity={0.9}>
-          <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
+        <circle r={6} fill={color} filter="url(#glow)" opacity={0.95}>
+          <animateMotion dur="1.5s" repeatCount="indefinite" path={path} />
         </circle>
-        <circle r={3} fill="#ffffff" opacity={0.95}>
-          <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
+        <circle r={3} fill="#ffffff" opacity={1}>
+          <animateMotion dur="1.5s" repeatCount="indefinite" path={path} />
         </circle>
         <circle
           cx={from.x}
           cy={from.y}
-          r={4}
+          r={4.5}
           fill={color}
-          opacity={0.85}
+          opacity={0.9}
           className="connection-endpoint"
+          style={{ color }}
         />
         <circle
           cx={to.x}
           cy={to.y}
-          r={4}
+          r={4.5}
           fill={color}
-          opacity={0.85}
+          opacity={0.9}
           className="connection-endpoint"
+          style={{ color }}
         />
         <path
           d={path}

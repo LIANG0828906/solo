@@ -135,6 +135,7 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [cpuUsage, setCpuUsage] = useState(0);
   const [sampleRate, setSampleRate] = useState(44100);
+  const [latencyMs, setLatencyMs] = useState(0);
   const [audioInitialized, setAudioInitialized] = useState(false);
   const moduleCounterRef = useRef(0);
 
@@ -143,6 +144,7 @@ export default function App() {
       const engine = audioEngineRef.current;
       setCpuUsage(engine.cpuUsage);
       setSampleRate(engine.sampleRate);
+      setLatencyMs(engine.totalLatencyMs);
     }, 500);
     return () => clearInterval(interval);
   }, []);
@@ -274,6 +276,9 @@ export default function App() {
             </span>
             <span className="text-white/40">
               采样率: <span style={{ color: '#00e5ff' }}>{sampleRate}Hz</span>
+            </span>
+            <span className="text-white/40">
+              延迟: <span style={{ color: latencyMs > 20 ? '#e94560' : '#00e5ff' }}>{latencyMs.toFixed(1)}ms</span>
             </span>
             <span className="text-white/40">
               模块: <span style={{ color: '#ffd600' }}>{state.modules.length}</span>

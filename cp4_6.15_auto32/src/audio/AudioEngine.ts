@@ -73,7 +73,32 @@ export class AudioEngine {
     });
     this._sampleRate = this.context.sampleRate;
     await this.context.resume();
+
+    try {
+      if ('sinkId' in AudioContext.prototype) {
+        await (this.context as any).setSinkId?.({ latencyHint: 0.005 });
+      }
+    } catch (_) { /* ignore if unsupported */ }
+
     this.startCpuMonitoring();
+  }
+
+  get baseLatency(): number {
+    if (this.context) {
+      return this.context.baseLatency || 0;
+    }
+    return 0;
+  }
+
+  get outputLatency(): number {
+    if (this.context) {
+      return this.context.outputLatency || 0;
+    }
+    return 0;
+  }
+
+  get totalLatencyMs(): number {
+    return (this.baseLatency + this.outputLatency) * 1000;
   }
 
   private startCpuMonitoring(): void {
