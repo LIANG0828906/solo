@@ -15,8 +15,6 @@ export class ParticleSystem {
   public material: THREE.PointsMaterial;
 
   private basePositions: Float32Array;
-  private targetPositions: Float32Array;
-  private velocity: Float32Array;
   private glowTimers: Float32Array;
   private glowIntensities: Float32Array;
 
@@ -31,15 +29,12 @@ export class ParticleSystem {
 
     this.geometry = new THREE.BufferGeometry();
     this.basePositions = new Float32Array(this.particleCount * 3);
-    this.targetPositions = new Float32Array(this.particleCount * 3);
-    this.velocity = new Float32Array(this.particleCount * 3);
     this.glowTimers = new Float32Array(this.particleCount);
     this.glowIntensities = new Float32Array(this.particleCount);
 
     this.generateSphereSurfacePositions();
 
     const currentPositions = new Float32Array(this.basePositions);
-    this.targetPositions.set(this.basePositions);
 
     const colors = new Float32Array(this.particleCount * 3);
     const sizes = new Float32Array(this.particleCount);
@@ -51,9 +46,6 @@ export class ParticleSystem {
       sizes[i] = 0.1;
       this.glowTimers[i] = 0;
       this.glowIntensities[i] = 0;
-      this.velocity[i * 3] = 0;
-      this.velocity[i * 3 + 1] = 0;
-      this.velocity[i * 3 + 2] = 0;
     }
 
     this.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
@@ -83,30 +75,39 @@ export class ParticleSystem {
   private generateSphereSurfacePositions(): void {
     const n = this.particleCount;
     const phi = Math.PI * (3 - Math.sqrt(5));
+    const radius = 8;
 
     for (let i = 0; i < n; i++) {
       const y = 1 - (i / (n - 1)) * 2;
       const radiusAtY = Math.sqrt(1 - y * y);
       const theta = phi * i;
 
-      const x = Math.cos(theta) * radiusAtY;
-      const z = Math.sin(theta) * radiusAtY;
+      let x = Math.cos(theta) * radiusAtY;
+      let z = Math.sin(theta) * radiusAtY;
 
-      const r = 8;
-      this.basePositions[i * 3] = x * r;
-      this.basePositions[i * 3 + 1] = y * r;
-      this.basePositions[i * 3 + 2] = z * r;
+      const len = Math.sqrt(x * x + y * y + z * z);
+      x = (x / len) * radius;
+      const ny = (y / len) * radius;
+      z = (z / len) * radius;
+
+      this.basePositions[i * 3] = x;
+      this.basePositions[i * 3 + 1] = ny;
+      this.basePositions[i * 3 + 2] = z;
     }
   }
 
   update(params: ParticleSystemUpdateParams, deltaTime: number): void {
     const { lowEnergy, midEnergy, highEnergy } = params;
 
-    const lowOffset = (lowEnergy * 2 - 1) * this.MAX_OFFSET;
-    const midOffset = (midEnergy * 2 - 1) * this.MAX_OFFSET;
-    const highOffset = (highEnergy * 2 - 1) * this.MAX_OFFSET;
+    const clampedLow = Math.max(0, Math.min(1, lowEnergy));
+    const clampedMid = Math.max(0, Math.min(1, midEnergy));
+    const clampedHigh = Math.max(0, Math.min(1, highEnergy));
 
-    const avgEnergy = (lowEnergy + midEnergy + highEnergy) / 3;
+    const lowOffset = (clampedLow * 2 - 1) * this.MAX_OFFSET;
+    const midOffset = (clampedMid * 2 - 1) * this.MAX_OFFSET;
+    const highOffset = (clampedHigh * 2 - 1) * this.MAX_OFFSET;
+
+    const avgEnergy = (clampedLow + clampedMid + clampedHigh) / 3;
     const maxOffsetMag = Math.abs(lowOffset) + Math.abs(midOffset) + Math.abs(highOffset);
     const offsetRatio = Math.min(1, maxOffsetMag / (this.MAX_OFFSET * 3));
 
@@ -118,6 +119,8 @@ export class ParticleSystem {
     const colorG = COLOR_LOW[1] + (COLOR_HIGH[1] - COLOR_LOW[1]) * avgEnergy;
     const colorB = COLOR_LOW[2] + (COLOR_HIGH[2] - COLOR_LOW[2]) * avgEnergy;
 
+    const smoothing = 1 - this.DAMPING;
+
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
 
@@ -125,17 +128,13 @@ export class ParticleSystem {
       const noiseY = (Math.sin(i * 78.233 + 12.9898) * 43758.5453) % 1;
       const particlePhase = Math.abs(noiseX) * 0.4 + 0.6;
 
-      this.targetPositions[i3] = this.basePositions[i3] + midOffset * particlePhase;
-      this.targetPositions[i3 + 1] = this.basePositions[i3 + 1] + highOffset * particlePhase;
-      this.targetPositions[i3 + 2] = this.basePositions[i3 + 2] + lowOffset * particlePhase;
+      const targetX = this.basePositions[i3] + midOffset * particlePhase;
+      const targetY = this.basePositions[i3 + 1] + highOffset * particlePhase;
+      const targetZ = this.basePositions[i3 + 2] + lowOffset * particlePhase;
 
-      this.velocity[i3] = this.velocity[i3] * this.DAMPING + (this.targetPositions[i3] - positions[i3]) * (1 - this.DAMPING);
-      this.velocity[i3 + 1] = this.velocity[i3 + 1] * this.DAMPING + (this.targetPositions[i3 + 1] - positions[i3 + 1]) * (1 - this.DAMPING);
-      this.velocity[i3 + 2] = this.velocity[i3 + 2] * this.DAMPING + (this.targetPositions[i3 + 2] - positions[i3 + 2]) * (1 - this.DAMPING);
-
-      positions[i3] += this.velocity[i3];
-      positions[i3 + 1] += this.velocity[i3 + 1];
-      positions[i3 + 2] += this.velocity[i3 + 2];
+      positions[i3] += (targetX - positions[i3]) * smoothing;
+      positions[i3 + 1] += (targetY - positions[i3 + 1]) * smoothing;
+      positions[i3 + 2] += (targetZ - positions[i3 + 2]) * smoothing;
 
       const particleGlow = Math.abs(noiseY) * 0.3 + 0.7;
       if (offsetRatio > this.GLOW_THRESHOLD * particleGlow) {
@@ -174,14 +173,6 @@ export class ParticleSystem {
       positions[i3] = this.basePositions[i3];
       positions[i3 + 1] = this.basePositions[i3 + 1];
       positions[i3 + 2] = this.basePositions[i3 + 2];
-
-      this.targetPositions[i3] = this.basePositions[i3];
-      this.targetPositions[i3 + 1] = this.basePositions[i3 + 1];
-      this.targetPositions[i3 + 2] = this.basePositions[i3 + 2];
-
-      this.velocity[i3] = 0;
-      this.velocity[i3 + 1] = 0;
-      this.velocity[i3 + 2] = 0;
 
       this.glowTimers[i] = 0;
       this.glowIntensities[i] = 0;
