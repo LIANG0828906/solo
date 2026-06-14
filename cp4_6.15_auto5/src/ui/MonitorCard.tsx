@@ -561,7 +561,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '0%',
     height: 'calc(100% - 20px)',
     borderRadius: '2px 2px 0 0',
-    transition: 'background-color 300ms ease',
+    transition: 'none',
   },
   chartFooter: {
     position: 'absolute',
