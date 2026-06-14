@@ -1,18 +1,30 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, createRoot } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import axios from 'axios';
 import Exhibition from './Exhibition';
 import Tour from './Tour';
 import Stats from './Stats';
+import './styles.css';
 
-interface ExhibitionData {
+export interface Artwork {
+  id: string;
+  name: string;
+  artist: string;
+  description: string;
+  image: string;
+  audioTracks: string[];
+  position?: { x: number; y: number; wall: string };
+  order?: number;
+}
+
+export interface ExhibitionData {
   id: string;
   name: string;
   openingDate: string;
   backgroundColor: string;
   backgroundMode: 'solid' | 'gradient';
   backgroundGradientEnd?: string;
-  artworks: any[];
+  artworks: Artwork[];
 }
 
 function App() {
@@ -112,5 +124,15 @@ function App() {
     </div>
   );
 }
+
+const root = createRoot(document.getElementById('root')!);
+import { BrowserRouter } from 'react-router-dom';
+root.render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);
 
 export default App;
