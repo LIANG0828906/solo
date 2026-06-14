@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Heart, HeartOff, Store, Filter } from 'lucide-react';
 import { useMarketStore } from '@/store/useMarketStore';
 import { CATEGORY_LABELS, type ProductCategory } from '@/types';
@@ -28,11 +28,13 @@ export function FavoritesPage() {
 
   const handleRemove = useCallback(
     (productId: string) => {
+      if (removingIds.has(productId)) return;
       setRemovingIds(prev => {
         const next = new Set(prev);
         next.add(productId);
         return next;
       });
+
       setTimeout(() => {
         toggleFavorite(productId);
         setRemovingIds(prev => {
@@ -42,7 +44,7 @@ export function FavoritesPage() {
         });
       }, 350);
     },
-    [toggleFavorite]
+    [removingIds, toggleFavorite]
   );
 
   const allCategories = useMemo(() => {
@@ -56,6 +58,21 @@ export function FavoritesPage() {
     favoriteProducts.forEach(p => set.add(p.stallId));
     return stalls.filter(s => set.has(s.id));
   }, [favoriteProducts, stalls]);
+
+  useEffect(() => {
+    setRemovingIds(prev => {
+      const favIds = new Set(favorites.map(f => f.productId));
+      let changed = false;
+      const next = new Set(prev);
+      prev.forEach(id => {
+        if (!favIds.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [favorites]);
 
   if (favorites.length === 0) {
     return (
@@ -80,7 +97,7 @@ export function FavoritesPage() {
           <Heart className="text-red-500 fill-red-500" /> 我的收藏
         </h1>
         <p className="text-amber-700 mt-1 text-sm">
-          已收藏 {favoriteProducts.length} 件商品
+          已收藏 {favoriteProducts.filter(p => !removingIds.has(p.id)).length} 件商品
         </p>
       </div>
 
@@ -124,63 +141,70 @@ export function FavoritesPage() {
           没有符合筛选条件的商品
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="flex flex-wrap gap-4">
           {favoriteProducts.map((product, idx) => {
             const stall = stalls.find(s => s.id === product.stallId);
             const removing = removingIds.has(product.id);
             return (
               <div
                 key={product.id}
-                className={`glass-card glass-card-hover overflow-hidden
-                           ${removing
-                             ? 'scale-75 opacity-0 translate-x-full'
-                             : 'scale-100 opacity-100 translate-x-0'}`}
+                className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)] xl:w-[calc(25%-0.75rem)]"
                 style={{
-                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                  animation: !removing
-                    ? `fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${Math.min(idx * 50, 300)}ms both`
-                    : undefined,
+                  transition: 'width 0.3s ease-out 0.05s, opacity 0.3s ease-out',
+                  opacity: removing ? 0 : 1,
                 }}
               >
-                <div className="relative">
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-48 sm:h-56 object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=flea%20market%20${product.category}&image_size=portrait_4_3`;
-                    }}
-                  />
-                  <button
-                    onClick={() => handleRemove(product.id)}
-                    className="absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
-                               hover:bg-red-50 hover:scale-110 active:scale-95
-                               transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
-                    aria-label="取消收藏"
-                  >
-                    <HeartOff size={16} className="text-red-500" />
-                  </button>
-                  <div className="absolute top-2 left-2">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-600 text-white">
-                      {CATEGORY_LABELS[product.category]}
-                    </span>
+                <div
+                  className={`glass-card overflow-hidden h-full
+                             ${removing ? 'scale-75 opacity-0' : 'scale-100 opacity-100'}`}
+                  style={{
+                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-out',
+                    transformOrigin: 'center center',
+                    animation: !removing
+                      ? `fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${Math.min(idx * 50, 300)}ms both`
+                      : undefined,
+                  }}
+                >
+                  <div className="relative">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-48 sm:h-56 object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=flea%20market%20${product.category}&image_size=portrait_4_3`;
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRemove(product.id)}
+                      className="absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
+                                 hover:bg-red-50 hover:scale-110 active:scale-95
+                                 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                      aria-label="取消收藏"
+                    >
+                      <HeartOff size={16} className="text-red-500" />
+                    </button>
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-600 text-white">
+                        {CATEGORY_LABELS[product.category]}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="p-3">
-                  <h3 className="font-display font-semibold text-amber-900 line-clamp-1">
-                    {product.name}
-                  </h3>
-                  {stall && (
-                    <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1 truncate">
-                      <Store size={12} className="flex-shrink-0" />
-                      <span className="truncate">{stall.name}</span>
-                    </p>
-                  )}
-                  <div className="flex items-end justify-between mt-2">
-                    <span className="text-lg font-bold text-amber-700">¥{product.price}</span>
-                    <span className="text-xs text-amber-600">库存 {product.quantity}</span>
+                  <div className="p-3">
+                    <h3 className="font-display font-semibold text-amber-900 line-clamp-1">
+                      {product.name}
+                    </h3>
+                    {stall && (
+                      <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1 truncate">
+                        <Store size={12} className="flex-shrink-0" />
+                        <span className="truncate">{stall.name}</span>
+                      </p>
+                    )}
+                    <div className="flex items-end justify-between mt-2">
+                      <span className="text-lg font-bold text-amber-700">¥{product.price}</span>
+                      <span className="text-xs text-amber-600">库存 {product.quantity}</span>
+                    </div>
                   </div>
                 </div>
               </div>

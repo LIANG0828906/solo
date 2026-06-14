@@ -77,10 +77,11 @@ function ProductCardInner({
   return (
     <>
       <div
-        className={`glass-card glass-card-hover overflow-hidden will-change-transform opacity-0 animate-slide-in-left`}
+        className={`glass-card glass-card-hover overflow-hidden will-change-transform opacity-0 animate-slide-in-left
+                   flex flex-col`}
         style={{ animationDelay: `${Math.min(index * 50, 400)}ms` }}
       >
-        <div className="relative aspect-square bg-amber-100/50 overflow-hidden">
+        <div className="relative aspect-square sm:aspect-square bg-amber-100/50 overflow-hidden flex-shrink-0">
           <img
             src={product.imageUrl}
             alt={product.name}
@@ -91,17 +92,17 @@ function ProductCardInner({
                 `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=flea%20market%20${product.category}%20product&image_size=square`;
             }}
           />
-          <div className="absolute top-2 right-2 flex flex-col gap-2">
+          <div className="absolute top-2 right-2 flex flex-col gap-1.5 sm:gap-2">
             {!showManagement && (
               <button
                 onClick={handleToggleFavorite}
-                className={`p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
+                className={`p-1.5 sm:p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
                            transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
                            hover:scale-110 ${favAnimating ? 'scale-125' : ''}`}
                 aria-label={isFavorite ? '取消收藏' : '收藏'}
               >
                 <Heart
-                  size={18}
+                  size={16}
                   className={isFavorite ? 'text-red-500 fill-red-500' : 'text-amber-700'}
                 />
               </button>
@@ -110,62 +111,63 @@ function ProductCardInner({
               <div className="flex flex-col gap-1">
                 <button
                   onClick={() => onEdit?.(product)}
-                  className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
+                  className="p-1.5 sm:p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
                              hover:bg-white hover:scale-110 transition-all"
                   aria-label="编辑"
                 >
-                  <Edit2 size={16} className="text-amber-700" />
+                  <Edit2 size={14} className="text-amber-700" />
                 </button>
                 <button
                   onClick={() => onDelete?.(product.id)}
-                  className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
+                  className="p-1.5 sm:p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md
                              hover:bg-red-50 hover:scale-110 transition-all"
                   aria-label="删除"
                 >
-                  <Trash2 size={16} className="text-red-500" />
+                  <Trash2 size={14} className="text-red-500" />
                 </button>
               </div>
             )}
           </div>
           <div className="absolute top-2 left-2">
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-600 text-white">
+            <span className="px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-amber-600 text-white rounded-full">
               {CATEGORY_LABELS[product.category]}
             </span>
           </div>
           {product.quantity <= 0 && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <span className="text-white font-semibold">已售罄</span>
+              <span className="text-white font-semibold text-sm sm:text-base">已售罄</span>
             </div>
           )}
         </div>
 
-        <div className="p-3">
-          <h3 className="font-display font-semibold text-amber-900 truncate">
+        <div className="p-2.5 sm:p-3 flex-1 flex flex-col">
+          <h3 className="font-display font-semibold text-amber-900 truncate text-sm sm:text-base">
             {highlight(product.name, highlightText)}
           </h3>
           {stall && (
-            <p className="text-xs text-amber-600 mt-0.5 truncate">
+            <p className="text-[11px] sm:text-xs text-amber-600 mt-0.5 truncate">
               {highlight(stall.name, highlightText)} · {stall.area}
             </p>
           )}
-          <p className="text-xs text-amber-700/80 mt-1 line-clamp-2">
+          <p className="text-[11px] sm:text-xs text-amber-700/80 mt-1 line-clamp-2 flex-1">
             {product.description}
           </p>
 
-          <div className="flex items-end justify-between mt-3">
+          <div className="flex items-end justify-between mt-2 sm:mt-3">
             <div>
-              <span className="text-lg font-bold text-amber-700">¥{product.price}</span>
-              <span className="text-xs text-amber-600 ml-2">库存 {product.quantity}</span>
+              <span className="text-base sm:text-lg font-bold text-amber-700">¥{product.price}</span>
+              <span className="text-[10px] sm:text-xs text-amber-600 ml-1.5">库存 {product.quantity}</span>
             </div>
             {!showManagement && (
               <button
                 onClick={handleBuy}
                 disabled={product.quantity <= 0}
-                className={`btn-primary !px-3 !py-1.5 !text-sm flex items-center gap-1
+                className={`!px-2.5 !py-1.5 sm:!px-3 sm:!py-1.5 !text-[11px] sm:!text-sm btn-primary flex items-center gap-1
                            ${outOfStock ? 'animate-pulse' : ''}`}
               >
-                <ShoppingCart size={14} />
-                购买
+                <ShoppingCart size={12} className="sm:hidden" />
+                <ShoppingCart size={14} className="hidden sm:inline" />
+                <span className="sm:inline">购买</span>
               </button>
             )}
           </div>

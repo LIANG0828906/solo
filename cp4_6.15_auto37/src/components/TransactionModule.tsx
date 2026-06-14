@@ -1,6 +1,9 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { XCircle, Clock, ShoppingBag, User, AlertCircle } from 'lucide-react';
+import { XCircle, Clock, ShoppingBag, User, AlertCircle, Zap } from 'lucide-react';
 import { useMarketStore } from '@/store/useMarketStore';
+
+const CANCEL_WINDOW_MS = 5 * 60 * 1000;
+const QUICK_CANCEL_MS = 30 * 1000;
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -10,11 +13,15 @@ function formatTime(ts: number): string {
 }
 
 function canCancel(createdAt: number): boolean {
-  return Date.now() - createdAt < 5 * 60 * 1000;
+  return Date.now() - createdAt < CANCEL_WINDOW_MS;
+}
+
+function isQuickCancel(createdAt: number): boolean {
+  return Date.now() - createdAt < QUICK_CANCEL_MS;
 }
 
 function remainingTime(createdAt: number): string {
-  const left = Math.max(0, 5 * 60 * 1000 - (Date.now() - createdAt));
+  const left = Math.max(0, CANCEL_WINDOW_MS - (Date.now() - createdAt));
   const mins = Math.floor(left / 60000);
   const secs = Math.floor((left % 60000) / 1000);
   return `${mins}:${String(secs).padStart(2, '0')}`;
@@ -37,10 +44,13 @@ export function TransactionModule() {
 
   const handleCancel = useCallback(
     (txId: string, createdAt: number) => {
-      if (!canCancel(createdAt)) {
-        alert('可取消时间已过');
+      if (!canCancel(createdAt)) return;
+
+      if (isQuickCancel(createdAt)) {
+        cancelTransaction(txId);
         return;
       }
+
       if (confirm('确定取消这笔交易吗？库存将被恢复。')) {
         const ok = cancelTransaction(txId);
         if (!ok) {
@@ -66,6 +76,7 @@ export function TransactionModule() {
       {sorted.map((tx, idx) => {
         const isCancelled = tx.status === 'cancelled';
         const canCancelNow = !isCancelled && canCancel(tx.createdAt);
+        const quickNow = !isCancelled && isQuickCancel(tx.createdAt);
 
         return (
           <div
@@ -88,6 +99,12 @@ export function TransactionModule() {
                       已完成
                     </span>
                   )}
+                  {quickNow && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500 text-white animate-pulse">
+                      <Zap size={12} />
+                      可快速撤销
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-amber-700">
                   <span className="flex items-center gap-1">
@@ -102,22 +119,36 @@ export function TransactionModule() {
                 <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
                   <Clock size={12} />
                   <span>{formatTime(tx.createdAt)}</span>
-                  {canCancelNow && <span className="text-amber-600">· 可取消 ({remainingTime(tx.createdAt)})</span>}
+                  {canCancelNow && (
+                    <span className="text-amber-600 flex items-center gap-1">
+                      · 剩余 {remainingTime(tx.createdAt)} 可取消
+                    </span>
+                  )}
                 </div>
               </div>
 
               {canCancelNow && (
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                  <span
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                      quickNow
+                        ? 'bg-orange-100 text-orange-700 font-medium'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
                     <AlertCircle size={12} />
                     {remainingTime(tx.createdAt)}
                   </span>
                   <button
                     onClick={() => handleCancel(tx.id, tx.createdAt)}
-                    className="btn-danger flex items-center gap-1 !py-1.5 !px-3 !text-sm whitespace-nowrap"
+                    className={`flex items-center gap-1 !py-1.5 !px-3 !text-sm whitespace-nowrap
+                               transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+                               ${quickNow
+                                 ? 'bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium hover:scale-105 active:scale-95'
+                                 : 'btn-danger'}`}
                   >
                     <XCircle size={14} />
-                    取消交易
+                    {quickNow ? '快速撤销' : '取消交易'}
                   </button>
                 </div>
               )}

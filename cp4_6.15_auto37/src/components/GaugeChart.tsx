@@ -6,8 +6,10 @@ interface GaugeChartProps {
 }
 
 export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps) {
-  const ratio = max > 0 ? value / max : 0;
-  const percent = Math.min(100, Math.round(ratio * 100));
+  const safeMax = Math.max(0, max);
+  const safeValue = Math.max(0, Math.min(value, safeMax));
+  const ratio = safeMax > 0 ? safeValue / safeMax : 0;
+  const percent = Math.round(ratio * 100);
   const radius = 80;
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
@@ -64,7 +66,7 @@ export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps
           style={{ fontSize: '24px', fontWeight: 700 }}
         >
           {prefix}
-          {value.toLocaleString()}
+          {Math.max(0, value).toLocaleString()}
         </text>
         <text
           x="110"
@@ -83,7 +85,7 @@ export function GaugeChart({ value, max, label, prefix = '¥' }: GaugeChartProps
           style={{ fontSize: '11px' }}
         >
           目标 {prefix}
-          {max.toLocaleString()}
+          {safeMax.toLocaleString()}
         </text>
       </svg>
     </div>
