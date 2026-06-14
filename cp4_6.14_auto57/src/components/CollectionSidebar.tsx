@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 
 interface CollectedItem {
   emoji: string;
@@ -24,18 +24,44 @@ function CollectionSidebar({
   onClose
 }: CollectionSidebarProps) {
   const [removingEmoji, setRemovingEmoji] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const sortedCollected = useMemo(
     () => [...collected].sort((a, b) => b.addedAt - a.addedAt),
     [collected]
   );
 
+  useEffect(() => {
+    itemRefs.current.clear();
+  }, [sortedCollected]);
+
   const handleRemove = (emoji: string) => {
+    const el = itemRefs.current.get(emoji);
+    if (el && contentRef.current) {
+      const container = contentRef.current;
+      const elRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      if (
+        elRect.top < containerRect.top ||
+        elRect.bottom > containerRect.bottom
+      ) {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
     setRemovingEmoji(emoji);
     setTimeout(() => {
       onRemove(emoji);
       setRemovingEmoji(null);
     }, 300);
+  };
+
+  const setItemRef = (emoji: string, el: HTMLDivElement | null) => {
+    if (el) {
+      itemRefs.current.set(emoji, el);
+    } else {
+      itemRefs.current.delete(emoji);
+    }
   };
 
   const formatName = (name: string) => {
@@ -47,7 +73,7 @@ function CollectionSidebar({
 
   return (
     <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
-      <div className="sidebar-header" style={{ position: 'relative' }}>
+      <div className="sidebar-header">
         <h2 className="sidebar-title">我的收藏夹</h2>
         <p className="sidebar-count">
           已收藏 {sortedCollected.length} 个
@@ -75,7 +101,7 @@ function CollectionSidebar({
         </button>
       </div>
 
-      <div className="sidebar-content">
+      <div className="sidebar-content" ref={contentRef}>
         {sortedCollected.length === 0 ? (
           <div className="sidebar-empty">
             <div className="sidebar-empty-icon">💝</div>
@@ -90,6 +116,7 @@ function CollectionSidebar({
             {sortedCollected.map((item) => (
               <div
                 key={item.emoji}
+                ref={(el) => setItemRef(item.emoji, el)}
                 className={`collection-item ${
                   removingEmoji === item.emoji ? 'removing' : ''
                 }`}

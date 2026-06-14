@@ -12,8 +12,6 @@ interface EmojiGridProps {
   searchResults: EmojiItem[] | null;
   onEmojiClick: (item: EmojiItem) => void;
   isCollected: (emoji: string) => boolean;
-  matchesQuery: (item: EmojiItem, query: string) => boolean;
-  searchQuery: string;
 }
 
 function EmojiGrid({
@@ -21,9 +19,7 @@ function EmojiGrid({
   emojis,
   searchResults,
   onEmojiClick,
-  isCollected,
-  matchesQuery,
-  searchQuery
+  isCollected
 }: EmojiGridProps) {
   const categorizedEmojis = useMemo(() => {
     if (searchResults !== null) {
@@ -40,15 +36,11 @@ function EmojiGrid({
         .map((c) => ({ ...c, emojis: map.get(c.id) ?? [] }));
     }
 
-    return categories.map((c) => {
-      const catEmojis = searchQuery.trim()
-        ? emojis.filter(
-            (e) => e.category === c.id && matchesQuery(e, searchQuery)
-          )
-        : emojis.filter((e) => e.category === c.id);
-      return { ...c, emojis: catEmojis };
-    });
-  }, [categories, emojis, searchResults, searchQuery, matchesQuery]);
+    return categories.map((c) => ({
+      ...c,
+      emojis: emojis.filter((e) => e.category === c.id)
+    }));
+  }, [categories, emojis, searchResults]);
 
   if (searchResults !== null && searchResults.length === 0) {
     return (

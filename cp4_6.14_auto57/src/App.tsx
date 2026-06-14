@@ -13,16 +13,23 @@ interface CollectedItem {
 }
 
 function App() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [collected, setCollected] = useState<CollectedItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isFullWarning, setIsFullWarning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
     setToast(msg);
-    setTimeout(() => setToast(null), 2000);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 2500);
   }, []);
 
   useEffect(() => {
@@ -47,25 +54,35 @@ function App() {
     }
   }, [collected]);
 
-  const collectedEmojis = useMemo(() => new Set(collected.map((c) => c.emoji)), [collected]);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const collectedEmojis = useMemo(
+    () => new Set(collected.map((c) => c.emoji)),
+    [collected]
+  );
 
   const matchesQuery = useCallback(
     (item: EmojiItem, query: string): boolean => {
-      if (!query) return true;
-      const q = query.toLowerCase().trim();
-      if (!q) return true;
-      if (item.name.toLowerCase().includes(q)) return true;
+      const trimmed = query.trim().toLowerCase();
+      if (!trimmed) return true;
+      if (item.name.toLowerCase().includes(trimmed)) return true;
       for (const kw of item.keywords) {
-        if (kw.toLowerCase().includes(q)) return true;
+        if (kw.toLowerCase().includes(trimmed)) return true;
       }
       const category = CATEGORIES.find((c) => c.id === item.category);
-      if (category && category.label.toLowerCase().includes(q)) return true;
+      if (category && category.label.toLowerCase().includes(trimmed)) return true;
       return false;
     },
     []
   );
 
-  const filteredBySearch = useMemo(() => {
+  const filteredBySearch = useMemo<EmojiItem[] | null>(() => {
     if (!searchQuery.trim()) return null;
     return EMOJIS.filter((e) => matchesQuery(e, searchQuery));
   }, [searchQuery, matchesQuery]);
@@ -73,36 +90,51 @@ function App() {
   const addToCollection = useCallback(
     (item: EmojiItem) => {
       setCollected((prev) => {
-        if (prev.some((c) => c.emoji === item.emoji)) return prev;
+        if (prev.some((c) => c.emoji === item.emoji)) {
+          showToast(`「${item.emoji}」已在收藏夹中`);
+          return prev;
+        }
         if (prev.length >= MAX_COLLECTION) {
           setIsFullWarning(true);
+          showToast('收藏已满，请先移除部分表情');
           return prev;
         }
         setIsFullWarning(false);
+        showToast(`已收藏「${item.emoji}」`);
         return [{ emoji: item.emoji, name: item.name, addedAt: Date.now() }, ...prev];
       });
     },
-    []
+    [showToast]
   );
 
-  const removeFromCollection = useCallback((emoji: string) => {
-    setCollected((prev) => {
-      const result = prev.filter((c) => c.emoji !== emoji);
-      if (result.length < MAX_COLLECTION) {
-        setIsFullWarning(false);
-      }
-      return result;
-    });
-  }, []);
+  const removeFromCollection = useCallback(
+    (emoji: string) => {
+      setCollected((prev) => {
+        const target = prev.find((c) => c.emoji === emoji);
+        const result = prev.filter((c) => c.emoji !== emoji);
+        if (result.length < MAX_COLLECTION) {
+          setIsFullWarning(false);
+        }
+        if (target) {
+          showToast(`已移除「${target.emoji}」`);
+        }
+        return result;
+      });
+    },
+    [showToast]
+  );
 
   const isCollected = useCallback(
     (emoji: string) => collectedEmojis.has(emoji),
     [collectedEmojis]
   );
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+    },
+    []
+  );
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
@@ -120,7 +152,10 @@ function App() {
   }, []);
 
   const exportCollection = useCallback(() => {
-    if (collected.length === 0) return;
+    if (collected.length === 0) {
+      showToast('收藏夹为空，无需导出');
+      return;
+    }
     const sorted = [...collected].sort((a, b) => b.addedAt - a.addedAt);
     const lines = sorted.map((c) => `${c.emoji}\t${c.name}`);
     const content = lines.join('\n');
@@ -138,7 +173,7 @@ function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`已导出 ${sorted.length} 个表情到 ${filename}`);
+    showToast(`导出成功：${filename}（共 ${sorted.length} 个表情）`);
   }, [collected, showToast]);
 
   return (
@@ -168,12 +203,35 @@ function App() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
+                ref={searchInputRef}
                 type="text"
                 className="search-input"
                 placeholder="搜索表情符号，如：微笑、smile..."
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
+              {searchQuery.length > 0 && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={handleClearSearch}
+                  aria-label="清空搜索"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
@@ -189,8 +247,6 @@ function App() {
             searchResults={filteredBySearch}
             onEmojiClick={addToCollection}
             isCollected={isCollected}
-            matchesQuery={matchesQuery}
-            searchQuery={searchQuery}
           />
         </main>
 
@@ -221,6 +277,12 @@ function App() {
           <span className="floating-badge">{collected.length}</span>
         )}
       </button>
+
+      {toast !== null && (
+        <div className="toast-notification" role="status" aria-live="polite">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
