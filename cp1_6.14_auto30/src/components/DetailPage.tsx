@@ -28,7 +28,6 @@ export default function DetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showViewer, setShowViewer] = useState<number | null>(null);
 
-  const carouselRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
 
@@ -99,7 +98,7 @@ export default function DetailPage() {
         const blob = await compressImage(f);
         const url = await uploadApi.image(blob, f.name);
         setCommentImages((arr) => [...arr, url]);
-      } catch {}
+      } catch { /* skip failed */ }
     }
   };
 
@@ -143,7 +142,7 @@ export default function DetailPage() {
       await explorationApi.remove(id);
       removeExploration(id);
       navigate('/', { replace: true });
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const isOwner = detail?.exploration.createdBy === user.id;
@@ -219,7 +218,7 @@ export default function DetailPage() {
               onClick={toggleFav}
               disabled={favLoading}
               className={cn(
-                'p-2.5 rounded-xl transition-all relative',
+                'p-2.5 rounded-xl transition-all',
                 isFav
                   ? 'bg-red-50 text-red-500 hover:bg-red-100'
                   : 'text-city-light hover:text-red-500 hover:bg-red-50'
@@ -234,7 +233,6 @@ export default function DetailPage() {
 
       <div className="max-w-5xl mx-auto">
         <div
-          ref={carouselRef}
           className="relative w-full bg-slate-100 overflow-hidden select-none"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
@@ -532,5 +530,27 @@ export default function DetailPage() {
       )}
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="card p-6 max-w-sm w-full animate-pop">
+            <h3 className="font-display font-bold text-lg text-city-dark mb-2">确认删除</h3>
+            <p className="text-city-light text-sm mb-6">删除后将无法恢复，确定要删除「{exploration.title}」吗？</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-secondary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl px-5 py-2.5 transition-all shadow-sm"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

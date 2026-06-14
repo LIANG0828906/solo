@@ -11,12 +11,13 @@ import type { DatabaseSchema, Exploration, Comment, Favorite, User } from './typ
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
+const ROOT = path.join(__dirname, '..');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
+const uploadDir = path.join(ROOT, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
 
@@ -29,14 +30,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (/^image\/(jpe?g|png|gif|webp)$/i.test(file.mimetype)) cb(null, true);
     else cb(new Error('仅支持图片文件'));
   },
 });
 
-const dbFile = path.join(__dirname, '..', 'db.json');
 const defaultData: DatabaseSchema = {
   users: [
     { id: 'user-local', nickname: '城市漫游者', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=cityexplorer' },
@@ -155,10 +155,15 @@ const defaultData: DatabaseSchema = {
   favorites: [],
 };
 
-const db = new Low<DatabaseSchema>(new JSONFile<DatabaseSchema>(dbFile), defaultData);
+const dbFile = path.join(ROOT, 'db.json');
+const adapter = new JSONFile<DatabaseSchema>(dbFile);
+const db = new Low<DatabaseSchema>(adapter, defaultData);
+
 await db.read();
-if (!db.data || !db.data.explorations) db.data = defaultData;
-await db.write();
+if (!db.data) {
+  db.data = defaultData;
+  await db.write();
+}
 
 function calcAvg(e: Exploration) {
   if (e.ratingCount === 0) return 0;
@@ -173,23 +178,23 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 app.get('/api/explorations', async (_req, res) => {
   await db.read();
-  res.json(db.data!.explorations);
+  res.json(db.data.explorations);
 });
 
 app.get('/api/explorations/:id', async (req, res) => {
   await db.read();
   const { id } = req.params;
   const userId = req.query.userId as string || 'user-local';
-  const exploration = db.data!.explorations.find((e) => e.id === id);
+  const exploration = db.data.explorations.find((e) => e.id === id);
   if (!exploration) return res.status(404).json({ error: '未找到该探险点' });
-  const comments = db.data!.comments
+  const comments = db.data.comments
     .filter((c) => c.explorationId === id)
     .sort((a, b) => b.createdAt - a.createdAt);
   const ratingDistribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
   comments.forEach((c) => {
     if (c.rating >= 1 && c.rating <= 5) ratingDistribution[c.rating]++;
   });
-  const isFavorited = db.data!.favorites.some(
+  const isFavorited = db.data.favorites.some(
     (f) => f.explorationId === id && f.userId === userId
   );
   res.json({ exploration, comments, ratingDistribution, isFavorited });
@@ -219,7 +224,7 @@ app.post('/api/explorations', async (req, res) => {
   if (!newExp.title || !newExp.type || !newExp.lat || !newExp.lng) {
     return res.status(400).json({ error: '缺少必填字段' });
   }
-  db.data!.explorations.push(newExp);
+  db.data.explorations.push(newExp);
   await db.write();
   res.status(201).json(newExp);
 });
@@ -227,30 +232,30 @@ app.post('/api/explorations', async (req, res) => {
 app.put('/api/explorations/:id', async (req, res) => {
   await db.read();
   const { id } = req.params;
-  const idx = db.data!.explorations.findIndex((e) => e.id === id);
+  const idx = db.data.explorations.findIndex((e) => e.id === id);
   if (idx < 0) return res.status(404).json({ error: '未找到' });
   const body = req.body;
-  db.data!.explorations[idx] = {
-    ...db.data!.explorations[idx],
-    title: body.title !== undefined ? String(body.title).trim() : db.data!.explorations[idx].title,
-    description: body.description !== undefined ? String(body.description).trim() : db.data!.explorations[idx].description,
-    type: body.type || db.data!.explorations[idx].type,
-    images: Array.isArray(body.images) ? body.images : db.data!.explorations[idx].images,
-    lat: body.lat !== undefined ? Number(body.lat) : db.data!.explorations[idx].lat,
-    lng: body.lng !== undefined ? Number(body.lng) : db.data!.explorations[idx].lng,
-    address: body.address !== undefined ? String(body.address) : db.data!.explorations[idx].address,
+  db.data.explorations[idx] = {
+    ...db.data.explorations[idx],
+    title: body.title !== undefined ? String(body.title).trim() : db.data.explorations[idx].title,
+    description: body.description !== undefined ? String(body.description).trim() : db.data.explorations[idx].description,
+    type: body.type || db.data.explorations[idx].type,
+    images: Array.isArray(body.images) ? body.images : db.data.explorations[idx].images,
+    lat: body.lat !== undefined ? Number(body.lat) : db.data.explorations[idx].lat,
+    lng: body.lng !== undefined ? Number(body.lng) : db.data.explorations[idx].lng,
+    address: body.address !== undefined ? String(body.address) : db.data.explorations[idx].address,
     updatedAt: Date.now(),
   };
   await db.write();
-  res.json(db.data!.explorations[idx]);
+  res.json(db.data.explorations[idx]);
 });
 
 app.delete('/api/explorations/:id', async (req, res) => {
   await db.read();
   const { id } = req.params;
-  db.data!.explorations = db.data!.explorations.filter((e) => e.id !== id);
-  db.data!.comments = db.data!.comments.filter((c) => c.explorationId !== id);
-  db.data!.favorites = db.data!.favorites.filter((f) => f.explorationId !== id);
+  db.data.explorations = db.data.explorations.filter((e) => e.id !== id);
+  db.data.comments = db.data.comments.filter((c) => c.explorationId !== id);
+  db.data.favorites = db.data.favorites.filter((f) => f.explorationId !== id);
   await db.write();
   res.json({ ok: true });
 });
@@ -258,7 +263,7 @@ app.delete('/api/explorations/:id', async (req, res) => {
 app.post('/api/explorations/:id/visit', async (req, res) => {
   await db.read();
   const { id } = req.params;
-  const exp = db.data!.explorations.find((e) => e.id === id);
+  const exp = db.data.explorations.find((e) => e.id === id);
   if (!exp) return res.status(404).json({ error: '未找到' });
   exp.visitCount += 1;
   await db.write();
@@ -281,8 +286,8 @@ app.post('/api/comments', async (req, res) => {
     createdAt: now,
   };
   if (!comment.content || !comment.rating) return res.status(400).json({ error: '内容和评分必填' });
-  db.data!.comments.push(comment);
-  const exp = db.data!.explorations.find((e) => e.id === comment.explorationId);
+  db.data.comments.push(comment);
+  const exp = db.data.explorations.find((e) => e.id === comment.explorationId);
   if (exp) {
     exp.ratingCount += 1;
     exp.ratingSum += comment.rating;
@@ -296,15 +301,15 @@ app.post('/api/comments', async (req, res) => {
 app.delete('/api/comments/:id', async (req, res) => {
   await db.read();
   const { id } = req.params;
-  const cm = db.data!.comments.find((c) => c.id === id);
+  const cm = db.data.comments.find((c) => c.id === id);
   if (!cm) return res.status(404).json({ error: '未找到' });
-  const exp = db.data!.explorations.find((e) => e.id === cm.explorationId);
+  const exp = db.data.explorations.find((e) => e.id === cm.explorationId);
   if (exp) {
     exp.ratingCount = Math.max(0, exp.ratingCount - 1);
     exp.ratingSum = Math.max(0, exp.ratingSum - cm.rating);
     exp.avgRating = calcAvg(exp);
   }
-  db.data!.comments = db.data!.comments.filter((c) => c.id !== id);
+  db.data.comments = db.data.comments.filter((c) => c.id !== id);
   await db.write();
   res.json({ ok: true });
 });
@@ -312,10 +317,10 @@ app.delete('/api/comments/:id', async (req, res) => {
 app.get('/api/favorites', async (req, res) => {
   await db.read();
   const userId = (req.query.userId as string) || 'user-local';
-  const favIds = db.data!.favorites
+  const favIds = db.data.favorites
     .filter((f) => f.userId === userId)
     .map((f) => f.explorationId);
-  const list = db.data!.explorations.filter((e) => favIds.includes(e.id));
+  const list = db.data.explorations.filter((e) => favIds.includes(e.id));
   res.json(list);
 });
 
@@ -323,7 +328,7 @@ app.post('/api/favorites/:explorationId', async (req, res) => {
   await db.read();
   const { explorationId } = req.params;
   const userId = (req.body.userId as string) || 'user-local';
-  const exists = db.data!.favorites.find(
+  const exists = db.data.favorites.find(
     (f) => f.explorationId === explorationId && f.userId === userId
   );
   if (exists) return res.json({ favorited: true });
@@ -333,7 +338,7 @@ app.post('/api/favorites/:explorationId', async (req, res) => {
     userId,
     createdAt: Date.now(),
   };
-  db.data!.favorites.push(fav);
+  db.data.favorites.push(fav);
   await db.write();
   res.status(201).json({ favorited: true });
 });
@@ -342,7 +347,7 @@ app.delete('/api/favorites/:explorationId', async (req, res) => {
   await db.read();
   const { explorationId } = req.params;
   const userId = (req.query.userId as string) || 'user-local';
-  db.data!.favorites = db.data!.favorites.filter(
+  db.data.favorites = db.data.favorites.filter(
     (f) => !(f.explorationId === explorationId && f.userId === userId)
   );
   await db.write();
@@ -352,7 +357,7 @@ app.delete('/api/favorites/:explorationId', async (req, res) => {
 app.get('/api/mine/explorations', async (req, res) => {
   await db.read();
   const userId = (req.query.userId as string) || 'user-local';
-  const list = db.data!.explorations
+  const list = db.data.explorations
     .filter((e) => e.createdBy === userId)
     .sort((a, b) => b.createdAt - a.createdAt);
   res.json(list);
@@ -360,7 +365,7 @@ app.get('/api/mine/explorations', async (req, res) => {
 
 app.get('/api/users/:id', async (req, res) => {
   await db.read();
-  const user = db.data!.users.find((u: User) => u.id === req.params.id) || db.data!.users[0];
+  const user = db.data.users.find((u: User) => u.id === req.params.id) || db.data.users[0];
   res.json(user);
 });
 

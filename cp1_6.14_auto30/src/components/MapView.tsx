@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L, { LatLngExpression } from 'leaflet';
 import { Plus, User, Filter, Search, MapPin, Eye, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -25,40 +25,17 @@ function FlyHandler({ target }: { target: Exploration | null }) {
   return null;
 }
 
-function MapEvents({ onClick }: { onClick?: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onClick?.(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
-
-interface MarkerIconProps {
-  exp: Exploration;
-  active: boolean;
-}
-
-function MarkerIcon({ exp, active }: MarkerIconProps) {
+function buildMarkerIcon(exp: Exploration) {
   const color = ExplorationTypeColors[exp.type];
-  return (
-    <div
-      className={cn('custom-marker relative flex items-end justify-center', active && 'custom-marker-active')}
-      style={{ width: 44, height: 54, marginLeft: -22, marginTop: -50 }}
-    >
-      <div
-        className="marker-pin"
-        style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}
-      >
-        <span className="marker-pin-inner">{typeIcon(exp.type)}</span>
+  const icon = typeIcon(exp.type);
+  const html = `
+    <div style="position:relative;width:44px;height:54px;margin-left:-22px;margin-top:-50px;transform-origin:bottom center;transition:transform .25s cubic-bezier(.34,1.56,.64,1);will-change:transform;">
+      <div style="width:38px;height:38px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 5px 15px -3px rgba(15,23,42,.35);border:2.5px solid #fff;background:linear-gradient(135deg,${color},${color}dd);">
+        <span style="transform:rotate(45deg);color:#fff;font-size:16px;font-weight:700;line-height:1;">${icon}</span>
       </div>
-    </div>
-  );
-}
-
-function createDivIcon(content: string) {
+    </div>`;
   return L.divIcon({
-    html: content,
+    html,
     className: 'custom-marker-wrapper',
     iconSize: [44, 54],
     iconAnchor: [22, 50],
@@ -158,103 +135,75 @@ export default function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={19}
         />
-        <MapEvents />
         <FlyHandler target={selectedExploration} />
-        {filteredList.map((exp) => {
-          const active = selectedExploration?.id === exp.id;
-          const iconDiv = `<div id="marker-${exp.id}"></div>`;
-          return (
-            <Marker
-              key={exp.id}
-              position={[exp.lat, exp.lng]}
-              icon={createDivIcon(iconDiv)}
-              eventHandlers={{
-                click: () => handleMarkerClick(exp),
-              }}
+        {filteredList.map((exp) => (
+          <Marker
+            key={exp.id}
+            position={[exp.lat, exp.lng]}
+            icon={buildMarkerIcon(exp)}
+            eventHandlers={{
+              click: () => handleMarkerClick(exp),
+            }}
+          >
+            <Popup
+              closeButton
+              maxWidth={280}
+              minWidth={260}
+              offset={[0, -38]}
             >
-              <Popup
-                closeButton
-                maxWidth={280}
-                minWidth={260}
-                offset={[0, -38]}
-              >
-                <div className="popup-card">
-                  {exp.images?.[0] ? (
-                    <LazyImage
-                      src={exp.images[0]}
-                      aspectRatio="16/10"
-                      alt={exp.title}
-                    />
-                  ) : (
-                    <div
-                      className="w-full flex items-center justify-center relative overflow-hidden"
-                      style={{ aspectRatio: '16/10', background: `linear-gradient(135deg, ${ExplorationTypeColors[exp.type]}33, ${ExplorationTypeColors[exp.type]}11)` }}
+              <div className="popup-card">
+                {exp.images?.[0] ? (
+                  <LazyImage
+                    src={exp.images[0]}
+                    aspectRatio="16/10"
+                    alt={exp.title}
+                  />
+                ) : (
+                  <div
+                    className="w-full flex items-center justify-center relative overflow-hidden"
+                    style={{ aspectRatio: '16/10', background: `linear-gradient(135deg, ${ExplorationTypeColors[exp.type]}33, ${ExplorationTypeColors[exp.type]}11)` }}
+                  >
+                    <MapPin size={36} className="text-white/80" strokeWidth={1.5} />
+                    <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-40">
+                      {typeIcon(exp.type)}
+                    </div>
+                  </div>
+                )}
+                <div className="p-3.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className="chip text-white"
+                      style={{ background: ExplorationTypeColors[exp.type] }}
                     >
-                      <MapPin size={36} className="text-white/80" strokeWidth={1.5} />
-                      <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-40">
-                        {typeIcon(exp.type)}
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-3.5">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span
-                        className="chip text-white"
-                        style={{ background: ExplorationTypeColors[exp.type] }}
-                      >
-                        <span>{typeIcon(exp.type)}</span>
-                        {ExplorationTypeLabels[exp.type]}
-                      </span>
-                      {exp.avgRating > 0 && (
-                        <StarRating value={exp.avgRating} readonly size="sm" showValue />
-                      )}
-                    </div>
-                    <h3 className="font-display font-bold text-city-dark text-lg leading-tight mb-1 line-clamp-1">
-                      {exp.title}
-                    </h3>
-                    <p className="text-xs text-city-light line-clamp-2 leading-relaxed mb-3">
-                      {exp.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 text-xs text-city-light">
-                        <Eye size={12} /> {exp.visitCount}
-                      </span>
-                      <button
-                        onClick={() => openDetail(exp.id)}
-                        className="text-xs font-medium text-accent hover:text-accent-dark transition-colors flex items-center gap-1"
-                      >
-                        查看详情 →
-                      </button>
-                    </div>
+                      <span>{typeIcon(exp.type)}</span>
+                      {ExplorationTypeLabels[exp.type]}
+                    </span>
+                    {exp.avgRating > 0 && (
+                      <StarRating value={exp.avgRating} readonly size="sm" showValue />
+                    )}
+                  </div>
+                  <h3 className="font-display font-bold text-city-dark text-lg leading-tight mb-1 line-clamp-1">
+                    {exp.title}
+                  </h3>
+                  <p className="text-xs text-city-light line-clamp-2 leading-relaxed mb-3">
+                    {exp.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 text-xs text-city-light">
+                      <Eye size={12} /> {exp.visitCount}
+                    </span>
+                    <button
+                      onClick={() => openDetail(exp.id)}
+                      className="text-xs font-medium text-accent hover:text-accent-dark transition-colors flex items-center gap-1"
+                    >
+                      查看详情 →
+                    </button>
                   </div>
                 </div>
-                <style>{`
-                  #marker-${exp.id}{ display:flex;align-items:flex-end;justify-content:center;position:relative;width:44px;height:54px;margin:-50px 0 0 -22px; }
-                  #marker-${exp.id}::after{ content:"";position:absolute;inset:auto 0 0 0;margin:auto;width:44px;height:54px; }
-                `}</style>
-              </Popup>
-            </Marker>
-          );
-        })}
-        {(() => {
-          // Inject custom marker DOM for each marker
-          if (typeof window !== 'undefined' && explorations.length) {
-            filteredList.forEach((exp) => {
-              const el = document.getElementById(`marker-${exp.id}`);
-              if (el && !el.dataset.injected) {
-                el.dataset.injected = '1';
-                const active = selectedExploration?.id === exp.id;
-                const color = ExplorationTypeColors[exp.type];
-                el.outerHTML = `<div class="custom-marker ${active ? 'custom-marker-active' : ''}" style="position:relative;width:44px;height:54px;margin-left:-22px;margin-top:-50px;transform-origin:bottom center;transition:transform .25s cubic-bezier(.34,1.56,.64,1);will-change:transform;${active ? 'transform:scale(1.22) translateY(-4px);z-index:1000;' : ''}">
-                  <div class="marker-pin" style="width:38px;height:38px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 5px 15px -3px rgba(15,23,42,.35);border:2.5px solid #fff;background:linear-gradient(135deg,${color},${color}dd);${active ? 'box-shadow:0 10px 25px -5px rgba(249,115,22,.55),0 0 0 3px rgba(249,115,22,.2);' : ''}">
-                    <span style="transform:rotate(45deg);color:#fff;font-size:16px;font-weight:700;line-height:1;">${typeIcon(exp.type)}</span>
-                  </div>
-                </div>`;
-              }
-            });
-          }
-          return null;
-        })()}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       <div className="absolute bottom-0 left-0 right-0 z-[1000] px-3 sm:px-6 pb-4 sm:pb-6 pointer-events-none">
