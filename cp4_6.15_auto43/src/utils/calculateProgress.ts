@@ -131,6 +131,16 @@ export function getIntensityColor(progress: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+export function getGradientStyle(progress: number): { background: string } {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  const startColor = '#f0f4f8';
+  const endColor = '#2563eb';
+  const angle = 135 + clampedProgress * 45;
+  return {
+    background: `linear-gradient(${angle}deg, ${startColor} 0%, ${endColor} ${clampedProgress * 100}%)`,
+  };
+}
+
 export function generateChartData(
   dailyAssignments: DailyAssignment[],
   memberProgress: { date: string; pagesRead: number }[]

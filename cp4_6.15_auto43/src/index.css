@@ -39,11 +39,11 @@ body {
 @keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-40px);
+    transform: translateX(-60px) scale(0.8);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
   }
 }
 
@@ -87,6 +87,21 @@ body {
   }
 }
 
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.9));
+  }
+}
+
+@keyframes ringProgress {
+  0% {
+    stroke-dashoffset: 565.48;
+  }
+}
+
 .glass-card {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px);
@@ -102,15 +117,16 @@ body {
   border: none;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
   font-size: 14px;
   display: inline-block;
   text-decoration: none;
+  user-select: none;
 }
 
 .btn:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 .btn-primary {
@@ -120,8 +136,13 @@ body {
 }
 
 .btn-primary:hover {
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  transform: translateY(-1px);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active {
+  transform: scale(0.94) translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .btn-secondary {
@@ -132,8 +153,13 @@ body {
 
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.btn-secondary:active {
+  transform: scale(0.94) translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .input {
@@ -864,13 +890,28 @@ body {
   border: 3px solid white;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.member-avatar-ranking:hover {
+  transform: scale(1.1);
 }
 
 .member-avatar-glow {
   position: absolute;
-  inset: 0;
+  inset: -4px;
   border-radius: 50%;
-  opacity: 0.3;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+  filter: blur(6px);
+}
+
+.member-avatar-ranking:hover .member-avatar-glow {
+  opacity: 0.8;
+  inset: -8px;
+  filter: blur(10px);
+  transform: scale(1.2);
 }
 
 .member-avatar-content {
@@ -985,19 +1026,31 @@ body {
 
 .timeline-marker {
   position: absolute;
-  left: -26px;
-  top: 16px;
-  width: 32px;
-  height: 32px;
+  left: -28px;
+  top: 14px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4), 0 0 20px rgba(72, 187, 120, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 10;
   background: linear-gradient(135deg, #48bb78, #38a169);
   border: 3px solid white;
+  transition: all 0.3s ease;
+}
+
+.timeline-item:hover .timeline-marker {
+  transform: scale(1.15);
+  box-shadow: 0 6px 20px rgba(72, 187, 120, 0.5), 0 0 30px rgba(72, 187, 120, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.milestone-medal-icon {
+  color: white;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .milestone-card {

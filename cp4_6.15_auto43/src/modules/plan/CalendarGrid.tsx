@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { DailyAssignment } from '../../types';
-import { getIntensityColor } from '../../utils/calculateProgress';
+import { getIntensityColor, getGradientStyle } from '../../utils/calculateProgress';
 
 interface CalendarGridProps {
   assignments: DailyAssignment[];
@@ -162,7 +162,7 @@ export default function CalendarGrid({
               <div
                 className="date-cell-inner"
                 style={{
-                  background: getIntensityColor(progress),
+                  ...getGradientStyle(progress),
                   border: isToday
                     ? '2px solid #667eea'
                     : assignment.isCompleted

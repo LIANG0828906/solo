@@ -247,14 +247,14 @@ export default function ProgressDashboard({
                   <div
                     className="member-avatar-ranking"
                     style={{
-                      background: `${member.color}22`,
-                      boxShadow: `0 0 16px ${member.color}44`,
+                      background: `${member.color}33`,
+                      boxShadow: `0 0 0 2px ${member.color}40, 0 0 20px ${member.color}60, 0 4px 12px rgba(0, 0, 0, 0.15)`,
                     }}
                   >
                     <div
                       className="member-avatar-glow"
                       style={{
-                        background: `radial-gradient(circle, ${member.color} 0%, transparent 70%)`,
+                        background: `radial-gradient(circle, ${member.color} 0%, ${member.color}66 40%, transparent 70%)`,
                       }}
                     />
                     <span className="member-avatar-content">{member.avatar}</span>
@@ -317,7 +317,9 @@ export default function ProgressDashboard({
                   animation: `slideInLeft 0.5s ease ${idx * 0.1}s both`,
                 }}
               >
-                <div className="timeline-marker">🏅</div>
+                <div className="timeline-marker">
+                  <span className="milestone-medal-icon">✓</span>
+                </div>
 
                 <div className="glass-card milestone-card">
                   <div className="milestone-header">
