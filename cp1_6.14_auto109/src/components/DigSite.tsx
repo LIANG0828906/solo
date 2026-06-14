@@ -1,35 +1,54 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Hammer, Wrench, Archive } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Text } from '@react-three/drei';
 import { useGameStore } from '../stores/gameStore';
-import { getRandomArtifactForSite } from '../data/artifacts';
-import type { SiteType, Particle, FlareCell, FragmentData } from '../types';
+import { getRandomArtifactForSite, getArtifactById } from '../data/artifacts';
+import { ArrowLeft, Hammer, Wrench, Archive } from 'lucide-react';
+import * as THREE from 'three';
+import type { SiteType, FragmentData } from '../types';
 
 const CELL_SIZE = 58;
 const GAP = 3;
 
-const SITE_COLORS: Record<SiteType, { bg: string; stop1: string; stop2: string; dust: string[]; cursor: string }> = {
+const SITE_COLORS: Record<SiteType, {
+  bg: string;
+  stop1: string;
+  stop2: string;
+  dust: number[][];
+}> = {
   desert: {
     bg: 'linear-gradient(135deg,#2a1810 0%,#3d2415 50%,#5a3620 100%)',
     stop1: '#f4a460',
     stop2: '#cd853f',
-    dust: ['#d4a574', '#e8c79a', '#c2956a', '#b8865b'],
-    cursor: 'default',
+    dust: [
+      [0.83, 0.65, 0.45],
+      [0.91, 0.78, 0.6],
+      [0.76, 0.58, 0.42],
+      [0.72, 0.53, 0.36],
+    ],
   },
   jungle: {
     bg: 'linear-gradient(135deg,#0f1e10 0%,#1a3320 50%,#2d4a2e 100%)',
     stop1: '#556b2f',
     stop2: '#2f4f2f',
-    dust: ['#6b8e4e', '#4a6741', '#5c7a52', '#7a9b68'],
-    cursor: 'default',
+    dust: [
+      [0.42, 0.56, 0.31],
+      [0.29, 0.4, 0.25],
+      [0.36, 0.48, 0.32],
+      [0.48, 0.61, 0.41],
+    ],
   },
   ocean: {
     bg: 'linear-gradient(135deg,#0a1a2e 0%,#12294a 50%,#1e3a5f 100%)',
     stop1: '#4682b4',
     stop2: '#1e90ff',
-    dust: ['#5fa8d3', '#87ceeb', '#4a90b8', '#6baed6'],
-    cursor: 'default',
+    dust: [
+      [0.37, 0.66, 0.83],
+      [0.53, 0.81, 0.92],
+      [0.29, 0.56, 0.72],
+      [0.42, 0.68, 0.84],
+    ],
   },
 };
 
@@ -51,16 +70,267 @@ const getCellColor = (row: number, col: number, site: SiteType): string => {
   return `rgb(${r},${g},${bl})`;
 };
 
+interface Burst {
+  id: number;
+  origin: THREE.Vector3;
+  startTime: number;
+  colors: number[][];
+  count: number;
+}
+
+function ThreeParticleField({ burstsRef, colors }: { burstsRef: React.MutableRefObject<Burst[]>; colors: number[][] }) {
+  const MAX_PARTICLES = 60;
+  const pointsRef = useRef<THREE.Points>(null);
+  const { scene } = useThree();
+  const velocities = useRef<Float32Array | null>(null);
+  const lifetimes = useRef<Float32Array | null>(null);
+  void scene;
+  useEffect(() => {
+    if (!pointsRef.current) return;
+    const geom = pointsRef.current.geometry as THREE.BufferGeometry;
+    const pos = new Float32Array(MAX_PARTICLES * 3);
+    const col = new Float32Array(MAX_PARTICLES * 3);
+    const size = new Float32Array(MAX_PARTICLES);
+    velocities.current = new Float32Array(MAX_PARTICLES * 3);
+    lifetimes.current = new Float32Array(MAX_PARTICLES);
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      pos[i * 3] = -1000;
+      pos[i * 3 + 1] = -1000;
+      pos[i * 3 + 2] = -1000;
+      lifetimes.current[i] = 0;
+      size[i] = 0;
+      col[i * 3] = 1;
+      col[i * 3 + 1] = 1;
+      col[i * 3 + 2] = 1;
+    }
+    geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geom.setAttribute('size', new THREE.BufferAttribute(size, 1));
+  }, []);
+
+  useFrame((state, delta) => {
+    if (!pointsRef.current || !velocities.current || !lifetimes.current) return;
+    const geom = pointsRef.current.geometry as THREE.BufferGeometry;
+    const posAttr = geom.attributes.position as THREE.BufferAttribute;
+    const colAttr = geom.attributes.color as THREE.BufferAttribute;
+    const sizeAttr = geom.attributes.size as THREE.BufferAttribute;
+    const pos = posAttr.array as Float32Array;
+    const col = colAttr.array as Float32Array;
+    const size = sizeAttr.array as Float32Array;
+    const vel = velocities.current;
+    const life = lifetimes.current;
+
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      if (life[i] > 0) {
+        life[i] -= delta * 60;
+        if (life[i] <= 0) {
+          pos[i * 3] = -1000;
+          pos[i * 3 + 1] = -1000;
+          pos[i * 3 + 2] = -1000;
+          size[i] = 0;
+        } else {
+            pos[i * 3] += vel[i * 3] * delta * 60;
+            pos[i * 3 + 1] += vel[i * 3 + 1] * delta * 60;
+            pos[i * 3 + 2] += vel[i * 3 + 2] * delta * 60;
+            vel[i * 3 + 1] -= delta * 4;
+            const alpha = Math.max(0, life[i] / 60);
+          size[i] = 0.22 * alpha + 0.05;
+          col[i * 3 + 3] = alpha;
+        }
+      }
+    }
+
+    while (burstsRef.current.length > 0) {
+      const burst = burstsRef.current.shift()!;
+      let cursor = 0;
+      for (let attempt = 0; attempt < MAX_PARTICLES * 3 && cursor < burst.count; attempt++) {
+        const idx = attempt % MAX_PARTICLES;
+        if (life[idx] <= 0) {
+          const angle = Math.random() * Math.PI * 2;
+          const zenith = Math.random() * Math.PI * 0.45;
+          const speed = 0.06 + Math.random() * 0.07;
+          const vx = Math.cos(angle) * Math.sin(zenith) * speed;
+          const vy = Math.cos(zenith) * speed + 0.05;
+          const vz = Math.sin(angle) * Math.sin(zenith) * speed;
+          pos[idx * 3] = burst.origin.x;
+          pos[idx * 3 + 1] = burst.origin.y + 0.02;
+          pos[idx * 3 + 2] = burst.origin.z;
+          vel[idx * 3] = vx;
+          vel[idx * 3 + 1] = vy;
+          vel[idx * 3 + 2] = vz;
+          life[idx] = 45 + Math.random() * 25;
+          const ci = cursor % burst.colors.length;
+          const c = burst.colors[ci];
+          col[idx * 3] = c[0];
+          col[idx * 3 + 1] = c[1];
+          col[idx * 3 + 2] = c[2];
+          size[idx] = 0.25;
+          cursor++;
+        }
+      }
+    }
+
+    posAttr.needsUpdate = true;
+    colAttr.needsUpdate = true;
+    sizeAttr.needsUpdate = true;
+    void state;
+  });
+
+  const mat = useMemo(() => {
+    const m = new THREE.PointsMaterial({
+      size: 0.25,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    return m;
+  }, []);
+  void colors;
+  return <points ref={pointsRef} material={mat} />;
+}
+
+function FloatFragment({
+  frag,
+  r,
+  c,
+  gridSize,
+}: {
+  frag: FragmentData;
+  r: number;
+  c: number;
+  gridSize: { rows: number; cols: number };
+}) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const t = clock.getElapsedTime();
+    ref.current.position.y = 0.55 + Math.sin(t * 2.2 + c * 0.5) * 0.12;
+    ref.current.rotation.y = t * 0.7 + c * 0.5;
+    ref.current.rotation.z = Math.sin(t * 1.4 + r * 0.6) * 0.2;
+  });
+  const x = (c - gridSize.cols / 2) * (CELL_SIZE / 100);
+  const z = (r - gridSize.rows / 2) * (CELL_SIZE / 100);
+  return (
+    <group ref={ref} position={[x, 0.55, z]}>
+      <mesh>
+        <icosahedronGeometry args={[0.18, 0]} />
+        <meshStandardMaterial color={frag.color} flatShading roughness={0.7} metalness={0.15} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.22, 16, 16]} />
+        <meshBasicMaterial color="#fde68a" transparent opacity={0.1} />
+      </mesh>
+      <pointLight color="#fde68a" intensity={1.5} distance={1.5} />
+    </group>
+  );
+}
+
+interface ThreeGridProps {
+  gridRef: React.MutableRefObject<ReturnType<typeof useGameStore.getState>['grid']>;
+  onCellClick: (r: number, c: number, p: THREE.Vector3) => void;
+  flareRef: React.MutableRefObject<Array<{ r: number; c: number; time: number }>>;
+  floatingRef: React.MutableRefObject<
+    Array<{ r: number; c: number; time: number; id: string; frag: FragmentData }>
+  >;
+  site: SiteType;
+  gridSize: { rows: number; cols: number };
+}
+
+function ThreeGrid({ gridRef, onCellClick, flareRef, floatingRef, site, gridSize }: ThreeGridProps) {
+  const cells = useMemo(() => {
+    const all: { r: number; c: number; x: number; z: number }[] = [];
+    const { rows, cols } = gridSize;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = (c - cols / 2) * (CELL_SIZE / 100);
+        const z = (r - rows / 2) * (CELL_SIZE / 100);
+        all.push({ r, c, x, z });
+      }
+    }
+    return all;
+  }, [gridSize]);
+
+  const groupRef = useRef<THREE.Group>(null);
+  const meshMap = useRef<Map<string, THREE.Mesh>>(new Map());
+
+  const [, forceTick] = useState(0);
+  useFrame((_, delta) => {
+    const now = Date.now();
+    let changed = false;
+    flareRef.current.forEach((f) => {
+      if (now - f.time > 500) {
+        flareRef.current = flareRef.current.filter((x) => x !== f);
+        changed = true;
+      }
+    });
+    if (changed) forceTick((v) => v + 1);
+
+    meshMap.current.forEach((mesh, key) => {
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      const [r, c] = key.split('_').map(Number);
+      const st = flareRef.current.find((f) => f.r === r && f.c === c);
+      if (st) {
+        const t = (now - st.time) / 500;
+        const emissive = Math.sin(t * Math.PI);
+        mat.emissiveIntensity = emissive * 3;
+        mat.opacity = 0.6 + Math.sin(now / 80 + r * 0.3 + c * 0.4) * 0.02;
+      } else {
+        mat.emissiveIntensity = 0;
+      }
+    });
+    void delta;
+  });
+
+  return (
+    <group ref={groupRef}>
+      {cells.map(({ r, c, x, z }) => {
+        const color = getCellColor(r, c, site);
+        const key = `${r}_${c}`;
+        return (
+          <mesh
+            key={key}
+            ref={(el) => {
+              if (el) meshMap.current.set(key, el);
+              else meshMap.current.delete(key);
+            }}
+            position={[x, 0, z]}
+            onPointerDown={(ev) => {
+              ev.stopPropagation();
+              const gridStoreState = useGameStore.getState();
+              const cell = gridRef.current[r]?.[c];
+              if (!cell || cell.excavated) return;
+              const gridCopy = gridRef.current.map((row) => row.map((cc) => ({ ...cc })));
+              gridCopy[r][c].excavated = true;
+              gridRef.current = gridCopy;
+              onCellClick(r, c, new THREE.Vector3(x, 0.1, z));
+            }}
+          >
+            <boxGeometry args={[CELL_SIZE / 100 - 0.02, 0.04, CELL_SIZE / 100 - 0.02]} />
+            <meshStandardMaterial
+              color={color}
+              metalness={0.08}
+              roughness={0.85}
+              transparent
+              emissive={'#ffffff'}
+              emissiveIntensity={0}
+            />
+          </mesh>
+        );
+      })}
+      {floatingRef.current.map((f, i) => (
+        <FloatFragment key={`float-${f.id}-${i}`} frag={f.frag} r={f.r} c={f.c} gridSize={gridSize} />
+      ))}
+    </group>
+  );
+}
+
 export default function DigSite() {
   const { site } = useParams<{ site: string }>();
   const navigate = useNavigate();
-  const grid = useGameStore((s) => s.grid);
   const gridSize = useGameStore((s) => s.gridSize);
-  const particles = useGameStore((s) => s.particles);
-  const setParticles = useGameStore((s) => s.setParticles);
-  const flareCells = useGameStore((s) => s.flareCells);
-  const addFlareCell = useGameStore((s) => s.addFlareCell);
-  const clearFlareCell = useGameStore((s) => s.clearFlareCell);
   const excavatedFragments = useGameStore((s) => s.excavatedFragments);
   const addFragment = useGameStore((s) => s.addFragment);
   const initGrid = useGameStore((s) => s.initGrid);
@@ -70,15 +340,15 @@ export default function DigSite() {
   const digStartTime = useGameStore((s) => s.digStartTime);
   const [elapsed, setElapsed] = useState(0);
   const [initialized, setInitialized] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const animRef = useRef<number>(0);
+
+  const burstsRef = useRef<Burst[]>([]);
+  const flareRef = useRef<{ r: number; c: number; time: number }[]>([]);
+  const floatingRef = useRef<Array<{ r: number; c: number; time: number; id: string; frag: FragmentData }>>([]);
+  const gridStoreRef = useRef<ReturnType<typeof useGameStore.getState>['grid']>(useGameStore.getState().grid);
+  const [tick, setTick] = useState(0);
 
   const siteType = (site as SiteType) ?? 'desert';
   const conf = SITE_COLORS[siteType];
-
-  const [floatingFragments, setFloatingFragments] = useState<
-    { id: string; cellRow: number; cellCol: number; phase: number; fragment: FragmentData }[]
-  >([]);
 
   useEffect(() => {
     if (initialized) return;
@@ -87,130 +357,60 @@ export default function DigSite() {
     setCurrentArtifactId(artifact.id);
     initGrid(artifact.fragments);
     startDigTimer();
+    gridStoreRef.current = useGameStore.getState().grid;
     setInitialized(true);
-    void currentArtifactId;
-  }, [site, initialized, initGrid, setCurrentArtifactId, startDigTimer, currentArtifactId]);
+  }, [site, initialized, initGrid, setCurrentArtifactId, startDigTimer]);
 
   useEffect(() => {
     const t = setInterval(() => {
+      setTick((v) => v + 1);
       if (digStartTime) setElapsed(Math.floor((Date.now() - digStartTime) / 1000));
     }, 1000);
     return () => clearInterval(t);
   }, [digStartTime]);
 
-  useEffect(() => {
-    let running = true;
-    const step = () => {
-      if (!running) return;
-      setParticles(
-        particles
-          .map((p) => ({
-            ...p,
-            x: p.x + p.vx,
-            y: p.y + p.vy,
-            vy: p.vy + 0.15,
-            life: p.life - 1,
-          }))
-          .filter((p) => p.life > 0)
-      );
-      animRef.current = requestAnimationFrame(step);
-    };
-    animRef.current = requestAnimationFrame(step);
-    return () => {
-      running = false;
-      cancelAnimationFrame(animRef.current);
-    };
-  }, [particles, setParticles]);
+  const onCellClick = (r: number, c: number, worldPos: THREE.Vector3) => {
+    const cell = gridStoreRef.current[r][c];
+    const burstCount = 10 + Math.floor(Math.random() * 6);
+    burstsRef.current.push({
+      id: Date.now() + Math.random(),
+      origin: worldPos.clone().setY(0.12),
+      startTime: performance.now() / 1000,
+      colors: conf.dust,
+      count: burstCount,
+    });
 
-  useEffect(() => {
-    const iv = setInterval(() => {
-      const now = Date.now();
-      flareCells.forEach((c) => {
-        if (now - c.time > 500) clearFlareCell(c.row, c.col);
-      });
-    }, 100);
-    return () => clearInterval(iv);
-  }, [flareCells, clearFlareCell]);
-
-  const emitParticles = (cx: number, cy: number) => {
-    const n = 10 + Math.floor(Math.random() * 6);
-    const newPs: Particle[] = [];
-    for (let i = 0; i < n; i++) {
-      const angle = (Math.PI * 2 * i) / n + Math.random() * 0.4;
-      const spd = 2 + Math.random() * 3;
-      newPs.push({
-        id: uuidv4(),
-        x: cx,
-        y: cy,
-        vx: Math.cos(angle) * spd,
-        vy: Math.sin(angle) * spd - 1.5,
-        life: 35 + Math.floor(Math.random() * 15),
-        maxLife: 50,
-        color: conf.dust[i % conf.dust.length],
-        size: 4 + Math.random() * 4,
-      });
-    }
-    setParticles([...particles, ...newPs]);
-  };
-
-  const spawnFlare = (row: number, col: number) => {
-    addFlareCell({ row, col, time: Date.now() });
-  };
-
-  const handleCellClick = (row: number, col: number, ev: React.MouseEvent) => {
-    const cell = grid[row]?.[col];
-    if (!cell || cell.excavated) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    const cx = rect ? ev.clientX - rect.left : 0;
-    const cy = rect ? ev.clientY - rect.top : 0;
-    emitParticles(cx, cy);
-    const gridCopy = grid.map((r) => r.map((c) => ({ ...c })));
-    gridCopy[row][col].excavated = true;
-    useGameStore.setState({ grid: gridCopy });
     if (cell.hasFragment && cell.fragmentId) {
-      spawnFlare(row, col);
-      const artId = currentArtifactId;
-      if (artId) {
-        const { getArtifactById } = require('../data/artifacts');
-        const art = getArtifactById(artId);
-        const frag = art?.fragments.find((f: FragmentData) => f.id === cell.fragmentId);
-        if (frag && !excavatedFragments.find((f) => f.id === frag.id)) {
-          addFragment(frag);
-          setFloatingFragments((prev) => [
-            ...prev,
-            { id: frag.id, cellRow: row, cellCol: col, phase: Math.random() * Math.PI * 2, fragment: frag },
-          ]);
-        }
+      flareRef.current.push({ r, c, time: Date.now() });
+      const art = currentArtifactId ? getArtifactById(currentArtifactId) : null;
+      const frag = art?.fragments.find((f) => f.id === cell.fragmentId);
+      if (frag) {
+        addFragment(frag);
+        floatingRef.current.push({ r, c, time: Date.now(), id: frag.id, frag });
       }
     }
   };
-
-  const gridWidth = gridSize.cols * (CELL_SIZE + GAP) + GAP;
-  const gridHeight = gridSize.rows * (CELL_SIZE + GAP) + GAP;
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const ss = s % 60;
     return `${m.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
   };
+  void tick;
 
   const digProgress = useMemo(() => {
     const total = gridSize.rows * gridSize.cols;
     let done = 0;
-    for (const r of grid) for (const c of r) if (c.excavated) done++;
+    const g = gridStoreRef.current;
+    for (const row of g) for (const c of row) if (c.excavated) done++;
     return Math.round((done / total) * 100);
-  }, [grid, gridSize]);
+  }, [gridSize, tick]);
+
+  const camPos: [number, number, number] = [0, 8.5, 9.2];
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: conf.bg }}>
-      <div className="absolute inset-0 opacity-20 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.08), transparent 60%)',
-        }}
-      />
-
-      <header className="relative z-20 max-w-7xl mx-auto px-5 py-5 flex items-center justify-between">
+      <header className="relative z-10 max-w-7xl mx-auto px-5 py-5 flex items-center justify-between">
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 px-4 h-10 rounded-xl bg-black/30 backdrop-blur hover:bg-black/50 text-amber-100 transition-all duration-200 hover:scale-105"
@@ -218,7 +418,6 @@ export default function DigSite() {
           <ArrowLeft className="w-4 h-4" />
           <span className="font-[Lora] text-sm">返回</span>
         </button>
-
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/30 backdrop-blur">
             <Hammer className="w-4 h-4 text-amber-300" />
@@ -234,7 +433,6 @@ export default function DigSite() {
             ⏱ {formatTime(elapsed)}
           </div>
         </div>
-
         <button
           onClick={() => navigate('/workbench')}
           disabled={excavatedFragments.length === 0}
@@ -249,157 +447,43 @@ export default function DigSite() {
         </button>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-5 pt-4 pb-10 flex flex-col items-center">
-        <div
-          ref={containerRef}
-          className="relative rounded-2xl p-2 mt-4"
-          style={{
-            background: 'linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.2))',
-            boxShadow: '0 25px 60px -20px rgba(0,0,0,0.7),inset 0 0 0 1px rgba(255,255,255,0.05)',
-            width: gridWidth + 16,
-          }}
-        >
-          <div
-            className="relative grid"
-            style={{
-              gridTemplateColumns: `repeat(${gridSize.cols}, ${CELL_SIZE}px)`,
-              gridTemplateRows: `repeat(${gridSize.rows}, ${CELL_SIZE}px)`,
-              gap: `${GAP}px`,
-              padding: GAP,
-              width: gridWidth,
-              height: gridHeight,
-              cursor: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M4 28 L12 20 L10 18 L2 26 Z M14 18 L24 8 L28 12 L18 22 Z' fill='%23b45309' stroke='%23fcd34d' stroke-width='1'/></svg>") 4 28, pointer`,
-            }}
-          >
-            {grid.map((rowArr, ri) =>
-              rowArr.map((cell, ci) => {
-                const color = getCellColor(ri, ci, siteType);
-                const flare = flareCells.find((f) => f.row === ri && f.col === ci);
-                const float = floatingFragments.find((f) => f.cellRow === ri && f.cellCol === ci);
-                return (
-                  <div
-                    key={`${ri}-${ci}`}
-                    onClick={(e) => handleCellClick(ri, ci, e)}
-                    className="relative rounded-md overflow-hidden transition-all duration-150"
-                    style={{
-                      width: CELL_SIZE,
-                      height: CELL_SIZE,
-                      background: cell.excavated
-                        ? 'rgba(0,0,0,0.55)'
-                        : color,
-                      boxShadow: cell.excavated
-                        ? 'inset 0 2px 6px rgba(0,0,0,0.6)'
-                        : 'inset 0 1px 0 rgba(255,255,255,0.15),inset 0 -2px 0 rgba(0,0,0,0.2)',
-                      cursor: cell.excavated ? 'default' : 'pointer',
-                    }}
-                  >
-                    {!cell.excavated && (
-                      <div
-                        className="absolute inset-0 opacity-30 hover:opacity-60 transition-opacity"
-                        style={{
-                          background:
-                            'linear-gradient(135deg,rgba(255,255,255,0.25),transparent 60%)',
-                        }}
-                      />
-                    )}
-                    {flare && (
-                      <div
-                        className="absolute inset-0 rounded-md pointer-events-none animate-flare"
-                        style={{
-                          background:
-                            'radial-gradient(circle at center, rgba(255,255,255,0.95) 0%,rgba(255,255,230,0.6) 35%,rgba(255,255,180,0) 70%)',
-                        }}
-                      />
-                    )}
-                    {float && (
-                      <FragmentFloat fragment={float.fragment} phase={float.phase} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+      <div className="relative max-w-6xl mx-auto px-5" style={{ height: '70vh' }}>
+        <Canvas camera={{ position: camPos, fov: 45 }} shadows dpr={[1, 1.6]} gl={{ alpha: true }}>
+          <ambientLight intensity={0.55} />
+          <directionalLight castShadow position={[4, 10, 5]} intensity={0.9} />
+          <pointLight position={[-5, 4, 3]} intensity={0.5} color={siteType === 'ocean' ? '#93c5fd' : '#fde68a'} />
+          <fog attach="fog" args={[new THREE.Color(0, 0, 0.02), 14, 30]} />
+          <ThreeGrid
+            gridRef={gridStoreRef}
+            onCellClick={onCellClick}
+            flareRef={flareRef}
+            floatingRef={floatingRef}
+            site={siteType}
+            gridSize={gridSize}
+          />
+          <ThreeParticleField burstsRef={burstsRef} colors={conf.dust} />
+          <OrbitControls
+            enablePan={false} minDistance={4} maxDistance={18} minPolarAngle={0.3} maxPolarAngle={Math.PI / 2.2}
+          />
+          {excavatedFragments.length > 0 && (
+            <Text
+              position={[0, 4, 0]}
+              fontSize={0.25}
+              color="#fde68a"
+              anchorX="center"
+              anchorY="middle"
+            >
+              ✦ 发现碎片 ✦
+            </Text>
+          )}
+        </Canvas>
+      </div>
 
-          {particles.map((p) => (
-            <div
-              key={p.id}
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                left: p.x,
-                top: p.y,
-                width: p.size,
-                height: p.size,
-                background: p.color,
-                opacity: Math.max(0, p.life / p.maxLife),
-                boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="mt-8 text-center max-w-xl">
-          <p className="font-[Lora] text-amber-100/70 text-base leading-relaxed">
-            点击土层进行挖掘 · 发现文物碎片后将飘浮出现 · 进入修复工作台开始拼图
-          </p>
-        </div>
-      </main>
-
-      <style>{`
-        @keyframes flare-anim {
-          0% { opacity: 0; transform: scale(0.3); }
-          30% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.6); }
-        }
-        .animate-flare { animation: flare-anim 0.5s ease-out forwards; }
-        @keyframes float-frag {
-          0%,100% { transform: translate(-50%,-130%) rotate(-3deg); }
-          50% { transform: translate(-50%,-150%) rotate(3deg); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function FragmentFloat({ fragment, phase }: { fragment: FragmentData; phase: number }) {
-  const [yOff, setYOff] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    let t = phase;
-    const tick = () => {
-      t += 0.04;
-      setYOff(Math.sin(t) * 6);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [phase]);
-  const pathD =
-    'M ' +
-    fragment.shape
-      .map((p, i) => {
-        const sx = (p[0] / 160) * 42;
-        const sy = (p[1] / 160) * 42;
-        return `${i === 0 ? '' : 'L '}${sx.toFixed(1)} ${sy.toFixed(1)}`;
-      })
-      .join(' ') +
-    ' Z';
-  return (
-    <div
-      className="absolute left-1/2"
-      style={{
-        top: '50%',
-        transform: `translate(-50%,calc(-140% + ${yOff}px))`,
-        transition: 'none',
-        filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))',
-      }}
-    >
-      <svg width="50" height="50" viewBox="0 0 50 50">
-        <path d={pathD} fill={fragment.color} stroke="#ffffff88" strokeWidth="0.8" />
-      </svg>
-      <div
-        className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-yellow-300"
-        style={{ boxShadow: '0 0 12px 4px rgba(253,224,71,0.7)' }}
-      />
+      <div className="relative z-10 mt-4 text-center max-w-xl mx-auto px-5">
+        <p className="font-[Lora] text-amber-100/70 text-base leading-relaxed">
+          点击土层方块进行挖掘 · Three.js 粒子系统模拟碎土飞溅 · 发现碎片后将金色浮动在网格上方
+        </p>
+      </div>
     </div>
   );
 }

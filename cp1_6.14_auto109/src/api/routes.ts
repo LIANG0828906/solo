@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { Low } from 'lowdb';
 import { JSONFilePreset } from 'lowdb/node';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import type { ArtifactData, RestorationRecord } from '../types.js';
-import { ALL_ARTIFACTS } from '../data/artifacts.js';
+import type { ArtifactData, RestorationRecord } from '../types';
+import { ALL_ARTIFACTS } from '../data/artifacts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +16,15 @@ interface DBSchema {
   artifacts: ArtifactData[];
 }
 
-const dbPath = path.join(__dirname, '..', '..', 'data', 'db.json');
+const dataDir = path.join(__dirname, '..', '..', 'data');
+if (!fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (_e) {
+    void _e;
+  }
+}
+const dbPath = path.join(dataDir, 'db.json');
 
 const router = Router();
 let db: Low<DBSchema> | null = null;
