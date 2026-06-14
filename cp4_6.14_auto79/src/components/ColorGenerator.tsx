@@ -1,284 +1,252 @@
-import React, { useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Save, RotateCcw, Palette } from 'lucide-react';
 import { useGradientStore } from '../store';
 import { debounce } from '../utils/debounce';
 import { generateGradientCss } from '../utils/cssGenerator';
+import type { Gradient } from '../types';
 
-export const ColorGenerator: React.FC = () => {
+export default function ColorGenerator() {
   const currentGradient = useGradientStore((s) => s.currentGradient);
   const setStartColor = useGradientStore((s) => s.setStartColor);
   const setEndColor = useGradientStore((s) => s.setEndColor);
   const setAngle = useGradientStore((s) => s.setAngle);
   const saveToPalette = useGradientStore((s) => s.saveToPalette);
 
+  const [localStart, setLocalStart] = useState(currentGradient.startColor);
+  const [localEnd, setLocalEnd] = useState(currentGradient.endColor);
+  const [localAngle, setLocalAngle] = useState(currentGradient.angle);
+
+  const angleInputRef = useRef<HTMLInputElement>(null);
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalStart(currentGradient.startColor);
+    setLocalEnd(currentGradient.endColor);
+    setLocalAngle(currentGradient.angle);
+  }, [currentGradient]);
+
   const debouncedSetStart = useMemo(
-    () => debounce((color: string) => setStartColor(color), 150),
+    () => debounce((c: string) => setStartColor(c), 150),
     [setStartColor]
   );
   const debouncedSetEnd = useMemo(
-    () => debounce((color: string) => setEndColor(color), 150),
+    () => debounce((c: string) => setEndColor(c), 150),
     [setEndColor]
   );
   const debouncedSetAngle = useMemo(
-    () => debounce((angle: number) => setAngle(angle), 150),
+    () => debounce((a: number) => setAngle(a), 150),
     [setAngle]
   );
 
-  const previewStyle = useMemo(
-    () => ({
-      background: generateGradientCss(currentGradient),
-      transition: 'background 200ms ease-out'
-    }),
-    [currentGradient]
-  );
-
   const handleStartChange = useCallback(
-    (color: string) => {
-      setStartColor(color);
-      debouncedSetStart(color);
+    (c: string) => {
+      setLocalStart(c);
+      debouncedSetStart(c);
     },
-    [setStartColor, debouncedSetStart]
+    [debouncedSetStart]
   );
 
   const handleEndChange = useCallback(
-    (color: string) => {
-      setEndColor(color);
-      debouncedSetEnd(color);
+    (c: string) => {
+      setLocalEnd(c);
+      debouncedSetEnd(c);
     },
-    [setEndColor, debouncedSetEnd]
+    [debouncedSetEnd]
   );
 
   const handleAngleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = parseInt(e.target.value, 10);
-      setAngle(val);
+      const val = Number(e.target.value);
+      setLocalAngle(val);
       debouncedSetAngle(val);
     },
-    [setAngle, debouncedSetAngle]
+    [debouncedSetAngle]
   );
 
+  const handleStartInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      let v = e.target.value.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+        handleStartChange(v);
+      }
+    },
+    [handleStartChange]
+  );
+
+  const handleEndInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      let v = e.target.value.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+        handleEndChange(v);
+      }
+    },
+    [handleEndChange]
+  );
+
+  const handleAngleInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = Number(e.target.value);
+      if (!Number.isNaN(v) && v >= 0 && v <= 360) {
+        const intVal = Math.round(v);
+        setLocalAngle(intVal);
+        debouncedSetAngle(intVal);
+      }
+    },
+    [debouncedSetAngle]
+  );
+
+  const handleReset = useCallback(() => {
+    const g: Gradient = { startColor: '#6366f1', endColor: '#ec4899', angle: 135 };
+    setLocalStart(g.startColor);
+    setLocalEnd(g.endColor);
+    setLocalAngle(g.angle);
+    setStartColor(g.startColor);
+    setEndColor(g.endColor);
+    setAngle(g.angle);
+  }, [setStartColor, setEndColor, setAngle]);
+
+  const localGradient: Gradient = {
+    startColor: localStart,
+    endColor: localEnd,
+    angle: localAngle
+  };
+
+  const previewBg = generateGradientCss(localGradient);
+
   return (
-    <div
-      style={{
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-        padding: 24
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Palette size={22} color="#3b82f6" />
-        <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3 }}>
-          渐变色生成器
-        </h1>
-      </div>
+    <div style={styles.wrapper}>
+      <header style={styles.header}>
+        <Palette size={20} style={{ marginRight: 8, color: '#3b82f6' }} />
+        <span style={styles.title}>渐变生成器</span>
+      </header>
 
-      <div
-        style={{
-          width: 400,
-          maxWidth: '100%',
-          height: 200,
-          borderRadius: 12,
-          ...previewStyle
-        }}
-      />
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 16
-        }}
-      >
+      <div style={styles.previewCard}>
         <div
           style={{
-            backgroundColor: 'var(--color-bg-card)',
-            borderRadius: 12,
-            padding: 14,
-            transition: 'transform 150ms ease, box-shadow 150ms ease',
-            cursor: 'default'
+            ...styles.previewBox,
+            background: previewBg,
+            transition: 'background 200ms ease-out'
           }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLDivElement).style.transform =
-              'translateY(-2px)';
-            (e.currentTarget as HTMLDivElement).style.boxShadow =
-              '0 4px 12px rgba(0,0,0,0.12)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLDivElement).style.transform =
-              'translateY(0)';
-            (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 10
-            }}
-          >
-            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-              起始色
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                padding: '3px 8px',
-                backgroundColor: 'var(--color-bg-input)',
-                borderRadius: 4,
-                color: 'var(--color-text-primary)'
-              }}
-            >
-              {currentGradient.startColor.toUpperCase()}
-            </span>
-          </div>
+        />
+        <div style={styles.previewLabel}>
+          <code style={styles.codeLabel}>
+            linear-gradient({localAngle}deg, {localStart}, {localEnd})
+          </code>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <span style={styles.sectionLabel}>起始色</span>
+          <input
+            ref={startInputRef}
+            value={localStart}
+            onChange={handleStartInput}
+            style={styles.hexInput}
+            spellCheck={false}
+          />
+        </div>
+        <div style={styles.pickerCard}>
           <HexColorPicker
-            color={currentGradient.startColor}
+            color={localStart}
             onChange={handleStartChange}
-          />
-        </div>
-
-        <div
-          style={{
-            backgroundColor: 'var(--color-bg-card)',
-            borderRadius: 12,
-            padding: 14,
-            transition: 'transform 150ms ease, box-shadow 150ms ease',
-            cursor: 'default'
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLDivElement).style.transform =
-              'translateY(-2px)';
-            (e.currentTarget as HTMLDivElement).style.boxShadow =
-              '0 4px 12px rgba(0,0,0,0.12)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLDivElement).style.transform =
-              'translateY(0)';
-            (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 10
-            }}
-          >
-            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-              终止色
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                padding: '3px 8px',
-                backgroundColor: 'var(--color-bg-input)',
-                borderRadius: 4,
-                color: 'var(--color-text-primary)'
-              }}
-            >
-              {currentGradient.endColor.toUpperCase()}
-            </span>
-          </div>
-          <HexColorPicker
-            color={currentGradient.endColor}
-            onChange={handleEndChange}
+            style={{ width: '100%', height: 180 }}
           />
         </div>
       </div>
 
-      <div
-        style={{
-          backgroundColor: 'var(--color-bg-card)',
-          borderRadius: 12,
-          padding: 18,
-          transition: 'transform 150ms ease, box-shadow 150ms ease'
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow =
-            '0 4px 12px rgba(0,0,0,0.12)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 12
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <RotateCcw size={16} color="var(--color-text-secondary)" />
-            <span style={{ fontSize: 14, fontWeight: 500 }}>渐变角度</span>
-          </div>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 18,
-              fontWeight: 600,
-              color: 'var(--color-accent)'
-            }}
-          >
-            {currentGradient.angle}°
-          </span>
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <span style={styles.sectionLabel}>终止色</span>
+          <input
+            ref={endInputRef}
+            value={localEnd}
+            onChange={handleEndInput}
+            style={styles.hexInput}
+            spellCheck={false}
+          />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={styles.pickerCard}>
+          <HexColorPicker
+            color={localEnd}
+            onChange={handleEndChange}
+            style={{ width: '100%', height: 180 }}
+          />
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <span style={styles.sectionLabel}>角度</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              ref={angleInputRef}
+              type="number"
+              min={0}
+              max={360}
+              step={1}
+              value={localAngle}
+              onChange={handleAngleInput}
+              style={styles.angleNumber}
+            />
+            <span style={styles.degreeSymbol}>°</span>
+          </div>
+        </div>
+        <div style={styles.sliderRow}>
           <input
             type="range"
             min={0}
             max={360}
             step={1}
-            value={currentGradient.angle}
+            value={localAngle}
             onChange={handleAngleChange}
-            style={{ flex: 1 }}
+            style={{ flex: 1, height: 28 }}
           />
+        </div>
+        <div style={styles.angleMarks}>
+          {[0, 90, 180, 270, 360].map((v) => (
+            <span key={v} style={styles.angleMark}>
+              {v}°
+            </span>
+          ))}
         </div>
       </div>
 
-      <button
-        onClick={saveToPalette}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          height: 48,
-          borderRadius: 12,
-          backgroundColor: 'var(--color-accent)',
-          color: 'white',
-          fontSize: 15,
-          fontWeight: 600,
-          transition: 'all 150ms ease'
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-            'var(--color-accent-hover)';
-          (e.currentTarget as HTMLButtonElement).style.transform =
-            'translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-            'var(--color-accent)';
-          (e.currentTarget as HTMLButtonElement).style.transform =
-            'translateY(0)';
-        }}
-      >
-        <Save size={18} />
-        保存到调色板
-      </button>
+      <div style={styles.buttonRow}>
+        <button onClick={handleReset} style={styles.btnSecondary}>
+          <RotateCcw size={16} />
+          <span style={{ marginLeft: 6 }}>重置</span>
+        </button>
+        <button onClick={saveToPalette} style={styles.btnPrimary}>
+          <Save size={16} />
+          <span style={{ marginLeft: 6 }}>保存到调色板</span>
+        </button>
+      </div>
     </div>
   );
-};
+}
 
-export default ColorGenerator;
+const styles: Record<string, React.CSSProperties> = {
+  wrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
+    padding: 20,
+    width: '100%',
+    height: '100%',
+    overflowY: 'auto'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottom: '1px solid #334155'
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: '#f8fafc',
