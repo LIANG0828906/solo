@@ -18,7 +18,6 @@ const COLOR_THEMES: Record<string, { primary: THREE.Color; secondary: THREE.Colo
 interface NodeObj {
   mesh: THREE.Mesh
   glowMesh: THREE.Mesh
-  ringMesh: THREE.Mesh
   position: THREE.Vector3
   colorFactor: number
   rotationAxis: THREE.Vector3
@@ -53,9 +52,9 @@ const particleFragmentShader = `
     vec2 center = gl_PointCoord - vec2(0.5);
     float dist = length(center);
     if (dist > 0.5) discard;
-    float glow = smoothstep(0.5, 0.05, dist);
-    float alpha = glow * vOpacity;
-    vec3 finalColor = vColor * (1.0 + glow * 0.4);
+    float glow = smoothstep(0.5, 0.02, dist);
+    float alpha = vOpacity * glow;
+    vec3 finalColor = vColor * (1.2 + glow * 0.6);
     gl_FragColor = vec4(finalColor, alpha);
   }
 `
@@ -81,6 +80,7 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
   let particlePoints: THREE.Points
   let particleData: { connIdx: number; progress: number }[] = []
   let activeParticles = 0
+  let totalParticleCount = 0
 
   let currentNodeCount = 20
   let currentFlowSpeed = 5
@@ -104,7 +104,6 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
 
   const nodeGeometry = new THREE.SphereGeometry(NODE_RADIUS, 24, 24)
   const glowGeometry = new THREE.SphereGeometry(NODE_RADIUS * GLOW_SCALE, 16, 16)
-  const ringGeometry = new THREE.TorusGeometry(NODE_RADIUS * 1.6, 0.04, 8, 48)
 
   function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
     const pts: THREE.Vector3[] = []
@@ -172,33 +171,20 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
       const glowMesh = new THREE.Mesh(glowGeometry, glowMat)
       glowMesh.position.copy(positions[i])
 
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
       const axis = new THREE.Vector3(
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1
-      ).normalize()
-
-      const ringMat = new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.55,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-      const ringMesh = new THREE.Mesh(ringGeometry, ringMat)
-      ringMesh.position.copy(positions[i])
-      const up = new THREE.Vector3(0, 1, 0)
-      const q = new THREE.Quaternion().setFromUnitVectors(up, axis)
-      ringMesh.quaternion.copy(q)
+        Math.sin(phi) * Math.cos(theta),
+        Math.sin(phi) * Math.sin(theta),
+        Math.cos(phi)
+      )
 
       nodeGroup.add(mesh)
       nodeGroup.add(glowMesh)
-      nodeGroup.add(ringMesh)
 
       nodeObjs.push({
         mesh,
         glowMesh,
-        ringMesh,
         position: positions[i],
         colorFactor: factor,
         rotationAxis: axis,
@@ -287,21 +273,25 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
 
   function distributeParticles() {
     particleData = []
+    totalParticleCount = 0
     if (connObjs.length === 0) {
       activeParticles = 0
       particleGeometry.setDrawRange(0, 0)
       return
     }
 
-    const perConn = Math.floor(MAX_PARTICLES / connObjs.length)
-    const remainder = MAX_PARTICLES % connObjs.length
     for (let i = 0; i < connObjs.length; i++) {
-      const count = perConn + (i < remainder ? 1 : 0)
+      if (totalParticleCount >= MAX_PARTICLES) break
+      const remaining = MAX_PARTICLES - totalParticleCount
+      const perConn = Math.max(1, Math.floor(MAX_PARTICLES / connObjs.length))
+      const count = Math.min(perConn, remaining)
       for (let j = 0; j < count; j++) {
+        if (totalParticleCount >= MAX_PARTICLES) break
         particleData.push({
           connIdx: i,
           progress: Math.random()
         })
+        totalParticleCount++
       }
     }
     activeParticles = particleData.length

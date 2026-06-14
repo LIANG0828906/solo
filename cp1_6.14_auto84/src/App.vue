@@ -25,14 +25,12 @@ import { useFlowScene } from './composable/useFlowScene'
 
 const canvasContainer = ref<HTMLElement | null>(null)
 const nodeLabel = ref<HTMLElement | null>(null)
-const labelVisible = ref(false)
-const labelText = ref('')
 
 const nodeCount = ref(20)
 const flowSpeed = ref(5)
 const colorTheme = ref('cyberpunk')
 
-const { init, dispose, fps, setNodeCount, setFlowSpeed, setColorTheme, setLabelElement } = useFlowScene(canvasContainer)
+const { init, dispose, fps, labelVisible, labelText, setNodeCount, setFlowSpeed, setColorTheme, setLabelElement } = useFlowScene(canvasContainer)
 
 onMounted(() => {
   if (nodeLabel.value) {
