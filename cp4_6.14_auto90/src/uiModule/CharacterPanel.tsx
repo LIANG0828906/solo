@@ -54,6 +54,7 @@ const CharacterPanel: React.FC = () => {
             <button
               key={r.id}
               onClick={() => setRace(r.id as Race)}
+              className={`select-card ${race === r.id ? 'selected' : ''}`}
               style={{
                 ...styles.selectCard,
                 ...(race === r.id ? styles.selectedCard : {}),
@@ -73,6 +74,7 @@ const CharacterPanel: React.FC = () => {
             <button
               key={c.id}
               onClick={() => setClass(c.id as CharacterClass)}
+              className={`select-card ${characterClass === c.id ? 'selected' : ''}`}
               style={{
                 ...styles.selectCard,
                 ...(characterClass === c.id ? styles.selectedCard : {}),
@@ -102,6 +104,7 @@ const CharacterPanel: React.FC = () => {
                 <span>{ATTRIBUTE_LABELS[attr]}</span>
               </div>
               <button
+                className="adj-btn"
                 style={styles.adjBtn}
                 onClick={() => allocatePoints(attr, -1)}
                 disabled={baseVal <= BASE_ATTRIBUTE}
@@ -117,6 +120,7 @@ const CharacterPanel: React.FC = () => {
                 )}
               </div>
               <button
+                className="adj-btn"
                 style={styles.adjBtn}
                 onClick={() => allocatePoints(attr, 1)}
                 disabled={baseVal >= MAX_ATTRIBUTE || freePoints <= 0}
@@ -137,6 +141,7 @@ const CharacterPanel: React.FC = () => {
           <span style={styles.skillPts}>技能点: {skillPoints}</span>
         </h3>
         <div
+          className="exp-bar-container"
           style={styles.expBarContainer}
           onClick={() => addExperience(25)}
           title="点击获取经验"
@@ -148,7 +153,7 @@ const CharacterPanel: React.FC = () => {
         </div>
       </div>
 
-      <button style={styles.resetBtn} onClick={reset}>
+      <button className="reset-btn" style={styles.resetBtn} onClick={reset}>
         重置角色
       </button>
     </div>
@@ -187,7 +192,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   selectCard: {
     backgroundColor: '#0f172a',
-    border: '2px solid #334155',
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: '#334155',
     borderRadius: '8px',
     padding: '10px 8px',
     cursor: 'pointer',

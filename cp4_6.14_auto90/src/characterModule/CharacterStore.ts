@@ -85,8 +85,24 @@ function getRaceBonuses(race: Race): Partial<Attributes> {
   return raceData ? raceData.bonuses : {};
 }
 
+function loadInitialState(): CharacterState {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      return {
+        ...data,
+        loaded: true,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return { ...defaultState, loaded: false };
+}
+
 export const useCharacterStore = create<CharacterState & CharacterActions>((set, get) => ({
-  ...defaultState,
+  ...loadInitialState(),
 
   setRace: (race: Race) => {
     set((state) => {

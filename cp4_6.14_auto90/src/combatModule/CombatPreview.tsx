@@ -1,14 +1,52 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useCharacterStore } from '../characterModule/CharacterStore';
 import { calculateCombatStats } from '../skillModule/SkillEngine';
+import { Attributes } from '../shared/types';
+import { eventBus } from '../shared/eventBus';
 
 const CombatPreview: React.FC = () => {
-  const getTotalAttributes = useCharacterStore((s) => s.getTotalAttributes);
+  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateRef = useRef<number>(0);
+
+  const race = useCharacterStore((s) => s.race);
+  const attributes = useCharacterStore((s) => s.attributes);
   const activatedSkills = useCharacterStore((s) => s.activatedSkills);
   const level = useCharacterStore((s) => s.level);
   const skillPoints = useCharacterStore((s) => s.skillPoints);
+  const getTotalAttributes = useCharacterStore((s) => s.getTotalAttributes);
 
-  const totalAttrs = getTotalAttributes();
+  const [totalAttrs, setTotalAttrs] = React.useState<Attributes>(() => getTotalAttributes());
+
+  useEffect(() => {
+    const updateAttrs = () => {
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastUpdateRef.current;
+
+      const throttledUpdate = () => {
+        setTotalAttrs(getTotalAttributes());
+        lastUpdateRef.current = Date.now();
+      };
+
+      if (timeSinceLastUpdate >= 50) {
+        throttledUpdate();
+      } else {
+        if (throttleTimerRef.current) clearTimeout(throttleTimerRef.current);
+        throttleTimerRef.current = setTimeout(throttledUpdate, 50 - timeSinceLastUpdate);
+      }
+    };
+
+    updateAttrs();
+
+    const unsub1 = eventBus.on('character:raceChanged', updateAttrs);
+    const unsub2 = eventBus.on('character:attributesChanged', updateAttrs);
+
+    return () => {
+      unsub1();
+      unsub2();
+      if (throttleTimerRef.current) clearTimeout(throttleTimerRef.current);
+    };
+  }, [race, attributes, getTotalAttributes]);
+
   const combatStats = useMemo(
     () => calculateCombatStats(totalAttrs, activatedSkills),
     [totalAttrs, activatedSkills]
@@ -27,7 +65,7 @@ const CombatPreview: React.FC = () => {
 
       <div style={styles.cardGrid}>
         {statCards.map((card) => (
-          <div key={card.label} style={styles.statCard}>
+          <div key={card.label} className="stat-card" style={styles.statCard}>
             <div style={styles.statLabel}>{card.label}</div>
             <div style={styles.statRow}>
               <span style={styles.statValue}>{card.value}</span>
@@ -43,7 +81,7 @@ const CombatPreview: React.FC = () => {
           <div style={styles.emptyText}>尚未激活任何技能</div>
         )}
         {combatStats.skillSequence.map((skill) => (
-          <div key={skill.id} style={styles.skillItem}>
+          <div key={skill.id} className="skill-item" style={styles.skillItem}>
             <span style={styles.skillIcon}>{skill.icon}</span>
             <span style={styles.skillName}>{skill.name}</span>
             <span style={styles.skillCooldown}>{skill.cooldown}s</span>
@@ -54,23 +92,23 @@ const CombatPreview: React.FC = () => {
       <div style={styles.infoSection}>
         <h3 style={styles.sectionTitle}>属性总览</h3>
         <div style={styles.attrSummary}>
-          <div style={styles.attrLine}>
+          <div className="attr-line" style={styles.attrLine}>
             <span style={styles.attrLabel}>力量</span>
             <span style={styles.attrVal}>{totalAttrs.strength}</span>
           </div>
-          <div style={styles.attrLine}>
+          <div className="attr-line" style={styles.attrLine}>
             <span style={styles.attrLabel}>敏捷</span>
             <span style={styles.attrVal}>{totalAttrs.agility}</span>
           </div>
-          <div style={styles.attrLine}>
+          <div className="attr-line" style={styles.attrLine}>
             <span style={styles.attrLabel}>智力</span>
             <span style={styles.attrVal}>{totalAttrs.intelligence}</span>
           </div>
-          <div style={styles.attrLine}>
+          <div className="attr-line" style={styles.attrLine}>
             <span style={styles.attrLabel}>体质</span>
             <span style={styles.attrVal}>{totalAttrs.constitution}</span>
           </div>
-          <div style={styles.attrLine}>
+          <div className="attr-line" style={styles.attrLine}>
             <span style={styles.attrLabel}>精神</span>
             <span style={styles.attrVal}>{totalAttrs.spirit}</span>
           </div>
