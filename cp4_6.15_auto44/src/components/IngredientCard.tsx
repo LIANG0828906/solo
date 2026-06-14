@@ -33,9 +33,9 @@ export default function IngredientCard({ ingredient, onUpdateQuantity, onRemove 
   const emoji = CategoryEmoji[ingredient.category];
 
   return (
-    <div className={`group relative h-[120px] [perspective:1000px] ${critical ? 'animate-blink' : ''}`}>
-      <div className="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-        <div className={`absolute inset-0 flex flex-col justify-between rounded-lg border border-l-[3px] p-3 shadow-md [backface-visibility:hidden] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ${style}`}>
+    <div className={`card-flip-container relative h-[120px] ${critical ? 'animate-blink' : ''}`}>
+      <div className="card-flip-inner">
+        <div className={`card-flip-front flex flex-col justify-between rounded-lg border border-l-[3px] p-3 shadow-md hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ${style}`}>
           <div className="flex items-start justify-between">
             <span className="text-xl">{emoji}</span>
             <span className={`text-xs font-medium ${getDaysColor(days)}`}>
@@ -51,30 +51,47 @@ export default function IngredientCard({ ingredient, onUpdateQuantity, onRemove 
           )}
         </div>
 
-        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg border border-l-[3px] p-3 shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)] ${style}`}>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onUpdateQuantity(ingredient.id, ingredient.quantity - 1)}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70 text-gray-700 shadow-sm hover:bg-white transition-colors"
-            >
-              <Minus size={14} />
-            </button>
-            <span className="min-w-[3rem] text-center text-sm font-semibold text-gray-800">
-              {ingredient.quantity}{ingredient.unit}
+        <div className={`card-flip-back flex flex-col justify-between rounded-lg border border-l-[3px] p-3 shadow-md ${style}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-lg">{emoji}</span>
+            <span className={`text-xs font-medium ${getDaysColor(days)}`}>
+              {days > 0 ? `剩${days}天` : '已过期'}
             </span>
-            <button
-              type="button"
-              onClick={() => onUpdateQuantity(ingredient.id, ingredient.quantity + 1)}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70 text-gray-700 shadow-sm hover:bg-white transition-colors"
-            >
-              <Plus size={14} />
-            </button>
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateQuantity(ingredient.id, ingredient.quantity - 1);
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-gray-700 shadow-sm hover:bg-white transition-colors active:scale-90"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="min-w-[3rem] text-center text-sm font-semibold text-gray-800">
+                {ingredient.quantity}{ingredient.unit}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateQuantity(ingredient.id, ingredient.quantity + 1);
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-gray-700 shadow-sm hover:bg-white transition-colors active:scale-90"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => onRemove(ingredient.id)}
-            className="flex items-center gap-1 rounded-md bg-expiry-danger/10 px-3 py-1 text-xs text-expiry-danger hover:bg-expiry-danger/20 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(ingredient.id);
+            }}
+            className="flex items-center justify-center gap-1 rounded-md bg-expiry-danger/15 px-2 py-1 text-xs font-medium text-expiry-danger hover:bg-expiry-danger/25 transition-colors"
           >
             <Trash2 size={12} />
             删除

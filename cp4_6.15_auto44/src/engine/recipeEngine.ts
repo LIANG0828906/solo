@@ -2,6 +2,7 @@ import type { Ingredient, Recipe, RecipeIngredient } from '../types';
 
 export interface MatchedRecipe extends Recipe {
   matchRate: number;
+  utilizationRate: number;
   availableIngredients: string[];
   missingIngredients: RecipeIngredient[];
 }
@@ -28,6 +29,7 @@ function isIngredientAvailable(recipeIngredientName: string, availableNames: str
 
 export function matchRecipes(ingredients: Ingredient[], recipes: Recipe[]): MatchedRecipe[] {
   const availableNames = ingredients.map((i) => i.name);
+  const totalIngredients = availableNames.length;
 
   const matched: MatchedRecipe[] = [];
 
@@ -47,11 +49,13 @@ export function matchRecipes(ingredients: Ingredient[], recipes: Recipe[]): Matc
     if (total === 0) continue;
 
     const matchRate = availableIngredients.length / total;
+    const utilizationRate = totalIngredients > 0 ? availableIngredients.length / totalIngredients : 0;
 
     if (matchRate >= 0.7) {
       matched.push({
         ...recipe,
         matchRate,
+        utilizationRate,
         availableIngredients,
         missingIngredients,
       });
@@ -60,6 +64,7 @@ export function matchRecipes(ingredients: Ingredient[], recipes: Recipe[]): Matc
 
   matched.sort((a, b) => {
     if (b.matchRate !== a.matchRate) return b.matchRate - a.matchRate;
+    if (b.utilizationRate !== a.utilizationRate) return b.utilizationRate - a.utilizationRate;
     return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
   });
 
