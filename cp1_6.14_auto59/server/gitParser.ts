@@ -56,7 +56,9 @@ function parseGitLogOutput(output: string): CommitData[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
     const commitMatch = trimmed.match(/^"?([0-9a-f]{40})\|([^|]+)\|([^|]+)\|(.+)"?$/);
     if (commitMatch) {
       if (currentCommit) {
@@ -69,11 +71,19 @@ function parseGitLogOutput(output: string): CommitData[] {
         message: commitMatch[4].trim(),
         files: [],
       };
-    } else {
+    } else if (currentCommit) {
       const numstatMatch = trimmed.match(/^(\d+|-)\s+(\d+|-)\s+(.+)$/);
-      if (numstatMatch && currentCommit) {
-        const additions = numstatMatch[1] === '-' ? 0 : parseInt(numstatMatch[1], 10);
-        const deletions = numstatMatch[2] === '-' ? 0 : parseInt(numstatMatch[2], 10);
+      if (numstatMatch) {
+        let additions = 0;
+        let deletions = 0;
+        if (numstatMatch[1] !== '-') {
+          const parsedAdd = parseInt(numstatMatch[1], 10);
+          if (!isNaN(parsedAdd)) additions = parsedAdd;
+        }
+        if (numstatMatch[2] !== '-') {
+          const parsedDel = parseInt(numstatMatch[2], 10);
+          if (!isNaN(parsedDel)) deletions = parsedDel;
+        }
         const filename = numstatMatch[3].trim();
         currentCommit.files.push({ filename, additions, deletions });
       }
@@ -105,7 +115,7 @@ export function getMockCommits(): CommitData[] {
   const now = new Date();
 
   for (let i = 0; i < 85; i++) {
-    const date = new Date(now.getTime() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000);
+    const date = new Date(now.getTime() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000));
     const fileCount = Math.floor(Math.random() * 8) + 1;
     const files: FileChange[] = [];
     let totalAdd = 0;
