@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Users,
@@ -33,12 +33,26 @@ const TableDetail: React.FC<TableDetailProps> = ({
   const [dishName, setDishName] = useState('');
   const [chatInput, setChatInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const hasJoined = table.participants.some((p) => p.userId === currentUser.id);
   const isFull = table.status === 'full';
 
+  const scrollToBottom = useCallback(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+  }, []);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [scrollToBottom]);
 
   const handleJoin = () => {
     if (!joinType || hasJoined || isFull) return;
@@ -253,7 +267,7 @@ const TableDetail: React.FC<TableDetailProps> = ({
           </div>
 
           <div className="chat-section">
-            <div className="chat-messages">
+            <div className="chat-messages" ref={chatContainerRef}>
               {messages.length === 0 && (
                 <div className="empty-state">
                   <span className="empty-emoji">💬</span>

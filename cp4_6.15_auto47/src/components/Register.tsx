@@ -137,6 +137,7 @@ const Register: React.FC<RegisterProps> = ({ onComplete }) => {
                   step={1}
                   value={spicyLevel}
                   onChange={(e) => setSpicyLevel(parseInt(e.target.value))}
+                  onInput={(e) => setSpicyLevel(parseInt((e.target as HTMLInputElement).value))}
                   className="slider"
                 />
                 <div className="slider-labels">

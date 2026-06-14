@@ -10,7 +10,7 @@ interface TableCardProps {
 }
 
 const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
-  const [flipped, setFlipped] = useState(false);
+  const [flipping, setFlipping] = useState(false);
   const isFull = table.status === 'full';
   const joinedCount = table.participants.length;
   const remaining = table.maxPeople - joinedCount;
@@ -20,9 +20,12 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (isFull) return;
-    setFlipped(true);
-    setTimeout(() => setFlipped(false), 500);
+    setFlipping(true);
     onClick();
+  };
+
+  const handleFlipEnd = () => {
+    setFlipping(false);
   };
 
   const handleJoinClick = (e: React.MouseEvent) => {
@@ -31,10 +34,15 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
     onJoin();
   };
 
+  const progressStroke = isFull ? 'var(--text-muted)' : 'var(--coral)';
+  const progressBgStroke = isFull ? '#E9ECEF' : 'var(--border)';
+  const progressNumColor = isFull ? 'var(--text-muted)' : 'var(--coral)';
+
   return (
     <div
-      className={`table-card ${flipped ? 'flip' : ''} ${isFull ? 'full' : ''}`}
+      className={`table-card ${flipping ? 'flip' : ''} ${isFull ? 'full' : ''}`}
       onClick={handleCardClick}
+      onAnimationEnd={handleFlipEnd}
     >
       <img src={table.foodImage} alt="" className="table-card-image" loading="lazy" />
       {isFull && <span className="card-full-badge">已满员</span>}
@@ -69,7 +77,7 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
         <div className="card-bottom">
           <div className="progress-wrapper">
             <svg className="progress-svg" width="54" height="54" viewBox="0 0 54 54">
-              <circle className="progress-bg" cx="27" cy="27" r="22" />
+              <circle className="progress-bg" cx="27" cy="27" r="22" style={{ stroke: progressBgStroke }} />
               <circle
                 className="progress-fill"
                 cx="27"
@@ -77,18 +85,21 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
                 r="22"
                 strokeDasharray={circumference}
                 strokeDashoffset={dashOffset}
+                style={{ stroke: progressStroke }}
               />
             </svg>
             <div className="progress-text">
-              <span className="progress-num">{remaining > 0 ? remaining : 0}</span>
-              <span className="progress-label">缺</span>
+              <span className="progress-num" style={{ color: progressNumColor }}>
+                {remaining > 0 ? remaining : '✓'}
+              </span>
+              <span className="progress-label">{remaining > 0 ? '缺' : '满'}</span>
             </div>
           </div>
 
           <div className="card-cost">
             <div className="cost-label">人均约</div>
             <div>
-              <span className="cost-value">¥{table.costPerPerson}</span>
+              <span className="cost-value" style={isFull ? { color: 'var(--text-secondary)' } : undefined}>¥{table.costPerPerson}</span>
               <span className="cost-unit">/人</span>
             </div>
           </div>

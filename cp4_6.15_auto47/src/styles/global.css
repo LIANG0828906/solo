@@ -89,13 +89,17 @@ input, textarea, select {
 }
 
 @keyframes messageIn {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.95);
   }
-  to {
+  60% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -258,6 +262,7 @@ input, textarea, select {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
+  align-items: start;
 }
 
 @media (max-width: 1023px) {
@@ -287,7 +292,7 @@ input, textarea, select {
   box-shadow: var(--shadow-md);
   overflow: hidden;
   cursor: pointer;
-  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 280ms ease;
+  transition: box-shadow 280ms ease;
   position: relative;
   will-change: transform;
   animation: slideUp 400ms ease-out backwards;
@@ -306,13 +311,20 @@ input, textarea, select {
 }
 
 .table-card.flip {
-  animation: flipUp 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: flipUp 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .table-card.full {
-  filter: grayscale(0.7);
-  opacity: 0.8;
+  opacity: 0.85;
   cursor: not-allowed;
+}
+
+.table-card.full .table-card-image {
+  filter: grayscale(0.6);
+}
+
+.table-card.full .table-card-body {
+  opacity: 0.65;
 }
 
 .table-card-image {
@@ -948,7 +960,7 @@ input, textarea, select {
   display: flex;
   gap: 10px;
   max-width: 78%;
-  animation: messageIn 320ms ease-out both;
+  animation: messageIn 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .message.self {
@@ -1199,6 +1211,22 @@ input, textarea, select {
 
 .slider::-webkit-slider-thumb:hover {
   transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral) 0%, var(--coral-light) 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.35);
+  border: none;
+}
+
+.slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
 }
 
 .slider-labels {
