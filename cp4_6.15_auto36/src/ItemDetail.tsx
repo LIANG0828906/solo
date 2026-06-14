@@ -12,33 +12,45 @@ export const ItemDetail = () => {
   const navigate = useNavigate();
   const { getItemById, getCommentsByItem, addComment } = useItemStore();
   const { getUserById, currentUser } = useUserStore();
-  const { addRequest } = useExchangeStore();
+  const { addRequest, subscribe } = useExchangeStore();
 
   const [comment, setComment] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
-  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [newCommentId, setNewCommentId] = useState<string | null>(null);
+  const [comments, setComments] = useState(getCommentsByItem(id || ''));
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   const item = id ? getItemById(id) : undefined;
   const owner = item ? getUserById(item.userId) : undefined;
-  const comments = item ? getCommentsByItem(item.id) : [];
+
+  useEffect(() => {
+    if (!id) return;
+    const unsubscribe = subscribe(() => {
+      setComments(getCommentsByItem(id));
+    });
+    setComments(getCommentsByItem(id));
+    return unsubscribe;
+  }, [id, subscribe, getCommentsByItem]);
 
   const daysLeft = item ? getDaysLeft(item.createdAt) : 0;
 
   const handleSubmitComment = () => {
     if (!comment.trim() || !item || !currentUser) return;
 
+    const newId = 'comment_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     addComment({
       itemId: item.id,
       userId: currentUser.id,
       content: comment.trim(),
     });
 
-    const newCommentId = 'comment_' + Date.now();
-    setHighlightedCommentId(newCommentId);
+    setNewCommentId(newId);
     setComment('');
 
-    setTimeout(() => setHighlightedCommentId(null), 1000);
+    setTimeout(() => {
+      setComments(getCommentsByItem(item.id));
+      setTimeout(() => setNewCommentId(null), 1000);
+    }, 50);
 
     setTimeout(() => {
       commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,14 +59,14 @@ export const ItemDetail = () => {
 
   const handleExchangeRequest = () => {
     if (!item || !currentUser) return;
-    addRequest({
+    const request = addRequest({
       fromUserId: currentUser.id,
       toUserId: item.userId,
       itemId: item.id,
       status: 'pending',
     });
     setShowConfirm(false);
-    alert('交换请求已发送！等待对方确认~');
+    alert(`交换请求已发送！\n\n请求ID: ${request.id}\n对方: ${owner?.nickname || '物品主人'}\n\n请耐心等待对方确认~`);
   };
 
   if (!item) {
@@ -158,15 +170,24 @@ export const ItemDetail = () => {
                   还没有留言，来说点什么吧~
                 </p>
               ) : (
-                comments.map((c) => {
+                comments.map((c, index) => {
                   const commentUser = getUserById(c.userId);
+                  const isNew = newCommentId === c.id;
+                  const isLast = index === comments.length - 1;
                   return (
                     <div
                       key={c.id}
                       className={cn(
-                        'flex gap-3 p-3 rounded-2xl transition-colors duration-500',
-                        highlightedCommentId === c.id ? 'bg-orange-100 animate-highlight' : 'bg-orange-50/50'
+                        'flex gap-3 p-3 rounded-2xl transition-all duration-500',
+                        isNew
+                          ? 'bg-orange-100 animate-highlight'
+                          : 'bg-orange-50/50',
+                        isNew && 'animate-slide-in-bottom'
                       )}
+                      style={{
+                        transform: isNew ? 'translateY(0)' : undefined,
+                        opacity: isNew ? 1 : undefined,
+                      }}
                     >
                       <img
                         src={commentUser?.avatar}

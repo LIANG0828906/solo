@@ -23,6 +23,7 @@ export const PublishPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddImage = () => {
@@ -35,24 +36,45 @@ export const PublishPage = () => {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex === null || draggedIndex === index) {
+      setDragOverIndex(null);
+      return;
+    }
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) {
+      setDragOverIndex(null);
+      return;
+    }
 
     const newImages = [...images];
     const draggedItem = newImages[draggedIndex];
     newImages.splice(draggedIndex, 1);
     newImages.splice(index, 0, draggedItem);
     setImages(newImages);
-    setDraggedIndex(index);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleCategoryToggle = (cat: string) => {
@@ -120,22 +142,35 @@ export const PublishPage = () => {
             <div className="grid grid-cols-3 gap-3">
               {images.map((img, index) => (
                 <div
-                  key={index}
+                  key={img + '_' + index}
                   draggable
-                  onDragStart={() => handleDragStart(index)}
+                  onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
                   className={cn(
-                    'relative aspect-square rounded-2xl overflow-hidden cursor-move transition-transform',
-                    draggedIndex === index && 'scale-95 opacity-50'
+                    'relative aspect-square rounded-2xl overflow-hidden cursor-move transition-all duration-200',
+                    draggedIndex === index && 'scale-95 opacity-50 rotate-2',
+                    dragOverIndex === index && 'ring-4 ring-orange-400 ring-offset-2 scale-105'
                   )}
+                  style={{
+                    transform: draggedIndex === index
+                      ? 'scale(0.95) rotate(2deg)'
+                      : dragOverIndex === index
+                      ? 'scale(1.05)'
+                      : 'scale(1)',
+                  }}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                   <div className="absolute top-1.5 left-1.5 w-6 h-6 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
                     <GripVertical className="w-4 h-4 text-white" />
                   </div>
                   <button
-                    onClick={() => handleRemoveImage(index)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveImage(index);
+                    }}
                     className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center btn-bounce"
                   >
                     <X className="w-4 h-4 text-white" />

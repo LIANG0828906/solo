@@ -7,9 +7,12 @@ interface ItemCardProps {
   index?: number;
 }
 
+const imageHeights = [180, 200, 220, 240, 260, 160];
+
 export const ItemCard = ({ item, index = 0 }: ItemCardProps) => {
   const navigate = useNavigate();
   const daysLeft = getDaysLeft(item.createdAt);
+  const imgHeight = imageHeights[item.id.charCodeAt(item.id.length - 1) % imageHeights.length];
 
   const handleClick = () => {
     navigate(`/item/${item.id}`);
@@ -29,7 +32,7 @@ export const ItemCard = ({ item, index = 0 }: ItemCardProps) => {
             src={item.images[0]}
             alt={item.title}
             className="w-full object-cover"
-            style={{ maxHeight: '250px' }}
+            style={{ height: `${imgHeight}px` }}
             loading="lazy"
           />
           <div className="absolute top-3 left-3">

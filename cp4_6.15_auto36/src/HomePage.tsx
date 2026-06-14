@@ -76,8 +76,10 @@ export const HomePage = () => {
           <div className="relative">
             <div
               className={cn(
-                'transition-opacity duration-200',
-                isTransitioning ? 'opacity-0' : 'opacity-100'
+                'transition-all duration-300 ease-out',
+                isTransitioning
+                  ? 'opacity-0 transform translate-y-2'
+                  : 'opacity-100 transform translate-y-0'
               )}
             >
               {displayedItems.length > 0 ? (
