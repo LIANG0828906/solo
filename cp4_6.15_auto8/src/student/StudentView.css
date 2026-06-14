@@ -216,16 +216,16 @@
 }
 
 .timer-progress-circle {
-  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
 }
 
-.circular-timer.urgent .timer-progress-circle {
-  animation: urgentPulse 0.5s ease-in-out infinite;
+.timer-progress-circle.urgent-ring {
+  animation: ringBlink 0.5s ease-in-out infinite;
 }
 
-@keyframes urgentPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+@keyframes ringBlink {
+  0%, 100% { opacity: 1; stroke: #ef4444; }
+  50% { opacity: 0.3; stroke: #fca5a5; }
 }
 
 .timer-number {
@@ -238,14 +238,14 @@
   color: white;
 }
 
-.circular-timer.urgent .timer-number {
+.timer-number.urgent-text {
   color: #fecaca;
-  animation: blink 0.5s ease-in-out infinite;
+  animation: textBlink 0.5s ease-in-out infinite;
 }
 
-@keyframes blink {
+@keyframes textBlink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
 .question-card {

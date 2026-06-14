@@ -43,7 +43,16 @@
 }
 
 .timer-progress {
-  transition: stroke-dasharray 0.3s ease, stroke 0.3s ease;
+  transition: stroke-dasharray 0.1s linear, stroke 0.3s ease;
+}
+
+.timer-progress.urgent-path {
+  animation: pathBlink 0.5s ease-in-out infinite;
+}
+
+@keyframes pathBlink {
+  0%, 100% { opacity: 1; stroke: #ef4444; }
+  50% { opacity: 0.3; stroke: #fca5a5; }
 }
 
 .timer-text {
@@ -56,14 +65,14 @@
   color: #1e3a5f;
 }
 
-.timer-display.urgent .timer-text {
+.timer-text.urgent-timer-text {
   color: #ef4444;
-  animation: blink 0.5s ease-in-out infinite;
+  animation: timerTextBlink 0.5s ease-in-out infinite;
 }
 
-@keyframes blink {
+@keyframes timerTextBlink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
 .empty-state {

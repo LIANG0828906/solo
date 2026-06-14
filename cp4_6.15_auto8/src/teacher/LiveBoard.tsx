@@ -85,7 +85,7 @@ function LiveBoard({ currentQuestion, timeRemaining, isActive, answers, scores }
                   strokeWidth="3"
                 />
                 <path
-                  className="timer-progress"
+                  className={`timer-progress ${isUrgent ? 'urgent-path' : ''}`}
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
                   stroke={isUrgent ? '#ef4444' : '#4facfe'}
@@ -94,7 +94,9 @@ function LiveBoard({ currentQuestion, timeRemaining, isActive, answers, scores }
                   strokeLinecap="round"
                 />
               </svg>
-              <span className="timer-text">{timeRemaining}s</span>
+              <span className={`timer-text ${isUrgent ? 'urgent-timer-text' : ''}`}>
+                {timeRemaining}s
+              </span>
             </div>
           </div>
         )}
@@ -171,27 +173,27 @@ function LiveBoard({ currentQuestion, timeRemaining, isActive, answers, scores }
               )}
             </div>
           )}
-
-          <div className="leaderboard-section">
-            <h4 className="section-title">📈 总积分排行榜</h4>
-            {leaderboard.length > 0 ? (
-              <div className="leaderboard-list">
-                {leaderboard.slice(0, 10).map((entry) => (
-                  <div key={entry.studentId} className="leaderboard-item">
-                    <span className={`leaderboard-rank ${entry.rank <= 3 ? 'top' : ''}`}>
-                      {entry.rank}
-                    </span>
-                    <span className="leaderboard-name">{entry.studentName}</span>
-                    <span className="leaderboard-score">{entry.score}分</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="no-scores">暂无积分数据</p>
-            )}
-          </div>
         </>
       )}
+
+      <div className="leaderboard-section">
+        <h4 className="section-title">📈 总积分排行榜</h4>
+        {leaderboard.length > 0 ? (
+          <div className="leaderboard-list">
+            {leaderboard.slice(0, 10).map((entry) => (
+              <div key={entry.studentId} className="leaderboard-item">
+                <span className={`leaderboard-rank ${entry.rank <= 3 ? 'top' : ''}`}>
+                  {entry.rank}
+                </span>
+                <span className="leaderboard-name">{entry.studentName}</span>
+                <span className="leaderboard-score">{entry.score}分</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="no-scores">暂无积分数据</p>
+        )}
+      </div>
     </div>
   );
 }

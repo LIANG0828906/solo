@@ -41,7 +41,6 @@ function StudentView({
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [answerHistory, setAnswerHistory] = useState<StudentAnswerRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const isSubmittingRef = useRef(false);
   const submittedQuestionIdRef = useRef<string | null>(null);
 
   const [studentId] = useState(() => {
@@ -71,7 +70,6 @@ function StudentView({
     if (currentQuestion && isQuestionActive) {
       setSelectedAnswer(null);
       setHasSubmitted(false);
-      isSubmittingRef.current = false;
       submittedQuestionIdRef.current = null;
     }
   }, [currentQuestion, isQuestionActive]);
@@ -84,17 +82,16 @@ function StudentView({
   };
 
   const handleSelectOption = (index: number) => {
-    if (!isQuestionActive || hasSubmitted || isSubmittingRef.current) return;
+    if (!isQuestionActive || hasSubmitted) return;
     setSelectedAnswer(index);
   };
 
   const handleSubmit = () => {
     if (!currentQuestion || selectedAnswer === null || hasSubmitted || !isQuestionActive) return;
-    if (isSubmittingRef.current) return;
     if (submittedQuestionIdRef.current === currentQuestion.id) return;
 
-    isSubmittingRef.current = true;
     submittedQuestionIdRef.current = currentQuestion.id;
+    setHasSubmitted(true);
 
     const answer: StudentAnswer = {
       questionId: currentQuestion.id,
@@ -119,7 +116,6 @@ function StudentView({
     };
 
     setAnswerHistory((prev) => [record, ...prev]);
-    setHasSubmitted(true);
   };
 
   const progress = currentQuestion
@@ -194,22 +190,12 @@ function StudentView({
                       {String.fromCharCode(65 + record.selectedIndex)}. {record.selectedOption}
                     </span>
                   </div>
-                  {!record.isCorrect && (
-                    <div className="history-correct">
-                      <span className="answer-label">正确答案：</span>
-                      <span className="answer-text correct">
-                        {String.fromCharCode(65 + record.correctIndex)}. {record.correctOption}
-                      </span>
-                    </div>
-                  )}
-                  {record.isCorrect && (
-                    <div className="history-correct">
-                      <span className="answer-label">正确答案：</span>
-                      <span className="answer-text correct">
-                        {String.fromCharCode(65 + record.correctIndex)}. {record.correctOption}
-                      </span>
-                    </div>
-                  )}
+                  <div className="history-correct">
+                    <span className="answer-label">正确答案：</span>
+                    <span className="answer-text correct">
+                      {String.fromCharCode(65 + record.correctIndex)}. {record.correctOption}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -258,7 +244,7 @@ function StudentView({
                     strokeWidth="8"
                   />
                   <circle
-                    className="timer-progress-circle"
+                    className={`timer-progress-circle ${isUrgent ? 'urgent-ring' : ''}`}
                     cx="50"
                     cy="50"
                     r="45"
@@ -271,7 +257,9 @@ function StudentView({
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <span className="timer-number">{timeRemaining}</span>
+                <span className={`timer-number ${isUrgent ? 'urgent-text' : ''}`}>
+                  {timeRemaining}
+                </span>
               </div>
             </div>
 
@@ -287,7 +275,6 @@ function StudentView({
                 const isSelected = selectedAnswer === index;
                 const showResult = !isQuestionActive;
                 const isCorrectOption = index === currentQuestion.correctIndex;
-                const isDisabled = hasSubmitted || isSubmittingRef.current || !isQuestionActive;
 
                 return (
                   <button
@@ -299,7 +286,7 @@ function StudentView({
                       ${showResult && isSelected && !isCorrectOption ? 'wrong-option' : ''}
                     `}
                     onClick={() => handleSelectOption(index)}
-                    disabled={isDisabled}
+                    disabled={hasSubmitted || !isQuestionActive}
                   >
                     <span className="option-letter">
                       {String.fromCharCode(65 + index)}
@@ -317,9 +304,9 @@ function StudentView({
               <button
                 className="submit-btn"
                 onClick={handleSubmit}
-                disabled={selectedAnswer === null || isSubmittingRef.current}
+                disabled={selectedAnswer === null}
               >
-                {isSubmittingRef.current ? '提交中...' : '提交答案'}
+                提交答案
               </button>
             )}
 

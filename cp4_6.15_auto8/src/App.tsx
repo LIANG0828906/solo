@@ -106,7 +106,13 @@ function App() {
       endedAt: Date.now(),
     };
 
-    setHistory((prev) => [historyItem, ...prev]);
+    setHistory((prev) => {
+      const updated = [historyItem, ...prev];
+      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(updated));
+      return updated;
+    });
+    localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(newScores));
+
     setIsQuestionActive(false);
     setTimeRemaining(0);
     eventBus.emit(EVENTS.QUESTION_ENDED, historyItem);
@@ -224,39 +230,77 @@ function App() {
               <p className="empty-history">暂无历史记录</p>
             ) : (
               <div className="history-list">
-                {history.map((item, idx) => (
-                  <div key={idx} className="history-item-card">
-                    <h3>{item.question.title}</h3>
-                    <div className="history-options">
-                      {item.question.options.map((opt, i) => (
-                        <div
-                          key={i}
-                          className={`history-option ${
-                            i === item.question.correctIndex ? 'correct' : ''
-                          }`}
-                        >
-                          <span className="option-label">{String.fromCharCode(65 + i)}.</span>
-                          <span className="option-text">{opt}</span>
-                          <span className="option-count">{item.stats.optionCounts[i]}人</span>
-                        </div>
-                      ))}
+                {history.map((item, idx) => {
+                  const maxOptionCount = Math.max(...item.stats.optionCounts, 1);
+                  return (
+                    <div key={idx} className="history-item-card">
+                      <div className="history-card-top">
+                        <span className="history-number">第 {history.length - idx} 题</span>
+                        <span className="history-time">
+                          {new Date(item.endedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <h3>{item.question.title}</h3>
+                      <div className="history-options">
+                        {item.question.options.map((opt, i) => (
+                          <div
+                            key={i}
+                            className={`history-option ${
+                              i === item.question.correctIndex ? 'correct' : ''
+                            }`}
+                          >
+                            <span className="option-label">{String.fromCharCode(65 + i)}.</span>
+                            <span className="option-text">{opt}</span>
+                            <span className="option-count">{item.stats.optionCounts[i]}人</span>
+                            {i === item.question.correctIndex && (
+                              <span className="correct-answer-tag">正确答案</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="history-bar-chart">
+                        {item.question.options.map((_opt, i) => {
+                          const height = (item.stats.optionCounts[i] / maxOptionCount) * 100;
+                          const isCorrect = i === item.question.correctIndex;
+                          return (
+                            <div key={i} className="history-bar-col">
+                              <span className="history-bar-val">{item.stats.optionCounts[i]}</span>
+                              <div className="history-bar-wrap">
+                                <div
+                                  className={`history-bar ${isCorrect ? 'correct' : ''}`}
+                                  style={{ height: `${Math.max(height, 2)}%` }}
+                                />
+                              </div>
+                              <span className="history-bar-label">
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="history-stats-row">
+                        <span>总作答：{item.stats.totalAnswers}人</span>
+                        <span>答对：{item.stats.optionCounts[item.question.correctIndex]}人</span>
+                      </div>
+                      <div className="history-top">
+                        <h4>🏆 最快答对前5名</h4>
+                        {item.topStudents.length > 0 ? (
+                          <div className="history-top-list">
+                            {item.topStudents.map((s) => (
+                              <div key={s.studentId} className="history-top-item">
+                                <span className={`rank-badge rank-${s.rank}`}>{s.rank}</span>
+                                <span className="top-student-name">{s.studentName}</span>
+                                <span className="score-badge">+10分</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="no-winners">暂无答对者</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="history-top">
-                      <h4>最快答对前5名</h4>
-                      {item.topStudents.length > 0 ? (
-                        <ol>
-                          {item.topStudents.map((s) => (
-                            <li key={s.studentId}>
-                              {s.rank}. {s.studentName}
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <p className="no-winners">暂无答对者</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

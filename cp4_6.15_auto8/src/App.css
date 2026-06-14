@@ -165,6 +165,27 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
+.history-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-number {
+  font-weight: 600;
+  color: #4facfe;
+  font-size: 0.9rem;
+  background: #eff6ff;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.history-item-card .history-time {
+  font-size: 0.85rem;
+  color: #a0aec0;
+}
+
 .history-item-card h3 {
   color: #1e3a5f;
   margin-bottom: 16px;
@@ -194,6 +215,134 @@
   background: #ecfdf5;
 }
 
+.correct-answer-tag {
+  font-size: 0.75rem;
+  background: #10b981;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.history-bar-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 120px;
+  padding: 12px 0;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.history-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
+}
+
+.history-bar-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4a5568;
+  min-height: 18px;
+}
+
+.history-bar-wrap {
+  width: 100%;
+  max-width: 40px;
+  height: 80px;
+  background: #f0f4f8;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.history-bar {
+  width: 100%;
+  background: linear-gradient(180deg, #60a5fa 0%, #1d4ed8 100%);
+  border-radius: 6px;
+  transition: height 0.3s ease;
+  min-height: 3px;
+}
+
+.history-bar.correct {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+}
+
+.history-bar-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #718096;
+}
+
+.history-stats-row {
+  display: flex;
+  gap: 20px;
+  padding: 10px 0;
+  border-top: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.history-top h4 {
+  color: #4a5568;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.history-top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-top-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.top-student-name {
+  flex: 1;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.rank-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.rank-1 { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+.rank-2 { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); }
+.rank-3 { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+.rank-4, .rank-5 { background: #9ca3af; }
+
+.score-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
 .option-label {
   font-weight: 600;
   color: #4a5568;
@@ -208,23 +357,6 @@
 .option-count {
   color: #718096;
   font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.history-top h4 {
-  color: #4a5568;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-}
-
-.history-top ol {
-  list-style: none;
-  padding: 0;
-}
-
-.history-top li {
-  padding: 6px 0;
-  color: #2d3748;
   font-weight: 500;
 }
 
