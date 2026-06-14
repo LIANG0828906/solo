@@ -2,6 +2,11 @@ import { PortfolioState, SaveResponse, PublishResponse } from '../types'
 
 const API_BASE = '/api'
 
+export interface ApiError {
+  message: string
+  code?: number
+}
+
 class ApiService {
   private async request<T>(
     endpoint: string,
@@ -13,21 +18,31 @@ class ApiService {
           'Content-Type': 'application/json',
           ...options.headers,
         },
+        credentials: 'same-origin',
         ...options,
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch {
+        data = { message: '服务器响应格式错误' }
+      }
 
       if (!response.ok) {
-        throw new Error(data.message || '请求失败')
+        const error: ApiError = {
+          message: data.message || `请求失败 (${response.status})`,
+          code: response.status,
+        }
+        throw error
       }
 
       return data as T
     } catch (error) {
-      if (error instanceof Error) {
+      if ((error as ApiError).message) {
         throw error
       }
-      throw new Error('网络请求失败')
+      throw { message: '网络连接失败，请检查网络' }
     }
   }
 
@@ -47,6 +62,16 @@ class ApiService {
 
   async getProject(projectId: string): Promise<PortfolioState> {
     return this.request<PortfolioState>(`/projects/${projectId}`)
+  }
+
+  async deleteProject(projectId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/projects/${projectId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async listProjects(): Promise<{ id: string; updatedAt: string }[]> {
+    return this.request<{ id: string; updatedAt: string }[]>('/projects')
   }
 }
 

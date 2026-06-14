@@ -49,6 +49,10 @@ const defaultCard: Omit<ProjectCard, 'id' | 'x' | 'y'> = {
   link: '',
 }
 
+interface ToastWithClosing extends Toast {
+  closing: boolean
+}
+
 export default function PortfolioEditor() {
   const [template, setTemplate] = useState<TemplateStyle>('minimal')
   const [cards, setCards] = useState<ProjectCard[]>([])
@@ -64,32 +68,52 @@ export default function PortfolioEditor() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const [fadeCanvas, setFadeCanvas] = useState(false)
+  const [toasts, setToasts] = useState<ToastWithClosing[]>([])
+  const [canvasTransition, setCanvasTransition] = useState<'idle' | 'fade-out' | 'fade-in'>('idle')
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
-  const [bouncingCardId, setBouncingCardId] = useState<string | null>(null)
+  const [snappingCardId, setSnappingCardId] = useState<string | null>(null)
+  const [newCardId, setNewCardId] = useState<string | null>(null)
 
   const canvasRef = useRef<HTMLDivElement>(null)
-  const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const dragStateRef = useRef({
+    offsetX: 0,
+    offsetY: 0,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    velocityX: 0,
+    velocityY: 0,
+    lastTime: 0,
+    rafId: 0,
+  })
   const toastIdRef = useRef(0)
 
   const showToast = useCallback((type: ToastType, message: string) => {
     const id = `toast-${++toastIdRef.current}`
-    const toast: Toast = { id, type, message }
+    const toast: ToastWithClosing = { id, type, message, closing: false }
     setToasts((prev) => [...prev, toast])
 
     setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 3000)
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, closing: true } : t))
+      )
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id))
+      }, 300)
+    }, 2700)
   }, [])
 
   const handleTemplateChange = useCallback((newTemplate: TemplateStyle) => {
     if (newTemplate === template) return
-    setFadeCanvas(true)
+    setCanvasTransition('fade-out')
     setTimeout(() => {
       setTemplate(newTemplate)
-      setFadeCanvas(false)
-    }, 150)
+      setCanvasTransition('fade-in')
+      setTimeout(() => {
+        setCanvasTransition('idle')
+      }, 300)
+    }, 300)
   }, [template])
 
   const snapToGrid = useCallback((value: number) => {
@@ -97,9 +121,6 @@ export default function PortfolioEditor() {
   }, [])
 
   const handleAddCard = useCallback(() => {
-    const canvasRect = canvasRef.current?.getBoundingClientRect()
-    if (!canvasRect) return
-
     const newCard: ProjectCard = {
       ...defaultCard,
       id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -108,47 +129,76 @@ export default function PortfolioEditor() {
     }
 
     setCards((prev) => [...prev, newCard])
-    setBouncingCardId(newCard.id)
-    setTimeout(() => setBouncingCardId(null), 300)
+    setNewCardId(newCard.id)
+    setTimeout(() => setNewCardId(null), 400)
   }, [cards.length, settings.spacing, snapToGrid])
+
+  const applySpringPhysics = useCallback(() => {
+    const state = dragStateRef.current
+    if (!draggingCardId) {
+      cancelAnimationFrame(state.rafId)
+      return
+    }
+
+    const targetX = state.currentX - state.offsetX
+    const targetY = state.currentY - state.offsetY
+
+    setCards((prev) =>
+      prev.map((card) =>
+        card.id === draggingCardId
+          ? { ...card, x: Math.max(0, targetX), y: Math.max(0, targetY) }
+          : card
+      )
+    )
+
+    state.rafId = requestAnimationFrame(applySpringPhysics)
+  }, [draggingCardId])
 
   const handleCardMouseDown = useCallback(
     (e: React.MouseEvent, cardId: string) => {
       e.preventDefault()
+      e.stopPropagation()
       const card = cards.find((c) => c.id === cardId)
-      if (!card) return
+      if (!card || !canvasRef.current) return
 
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-      dragOffsetRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      }
+      const canvasRect = canvasRef.current.getBoundingClientRect()
+      const state = dragStateRef.current
+
+      state.offsetX = e.clientX - canvasRect.left - card.x
+      state.offsetY = e.clientY - canvasRect.top - card.y
+      state.startX = e.clientX
+      state.startY = e.clientY
+      state.currentX = e.clientX
+      state.currentY = e.clientY
+      state.lastTime = performance.now()
+
       setDraggingCardId(cardId)
+      state.rafId = requestAnimationFrame(applySpringPhysics)
     },
-    [cards]
+    [cards, applySpringPhysics]
   )
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!draggingCardId || !canvasRef.current) return
+      if (!draggingCardId) return
+      const state = dragStateRef.current
+      const now = performance.now()
+      const dt = Math.max(now - state.lastTime, 1)
 
-      const canvasRect = canvasRef.current.getBoundingClientRect()
-      const newX = e.clientX - canvasRect.left - dragOffsetRef.current.x
-      const newY = e.clientY - canvasRect.top - dragOffsetRef.current.y
-
-      setCards((prev) =>
-        prev.map((card) =>
-          card.id === draggingCardId
-            ? { ...card, x: Math.max(0, newX), y: Math.max(0, newY) }
-            : card
-        )
-      )
+      state.velocityX = (e.clientX - state.currentX) / dt
+      state.velocityY = (e.clientY - state.currentY) / dt
+      state.currentX = e.clientX
+      state.currentY = e.clientY
+      state.lastTime = now
     },
     [draggingCardId]
   )
 
   const handleMouseUp = useCallback(() => {
     if (!draggingCardId) return
+
+    cancelAnimationFrame(dragStateRef.current.rafId)
+    setSnappingCardId(draggingCardId)
 
     setCards((prev) =>
       prev.map((card) =>
@@ -157,8 +207,8 @@ export default function PortfolioEditor() {
           : card
       )
     )
-    setBouncingCardId(draggingCardId)
-    setTimeout(() => setBouncingCardId(null), 300)
+
+    setTimeout(() => setSnappingCardId(null), 200)
     setDraggingCardId(null)
   }, [draggingCardId, snapToGrid])
 
@@ -166,9 +216,11 @@ export default function PortfolioEditor() {
     if (draggingCardId) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'grabbing'
       return () => {
         window.removeEventListener('mousemove', handleMouseMove)
         window.removeEventListener('mouseup', handleMouseUp)
+        document.body.style.cursor = ''
       }
     }
   }, [draggingCardId, handleMouseMove, handleMouseUp])
@@ -179,7 +231,8 @@ export default function PortfolioEditor() {
 
   const handleDeleteCard = useCallback((cardId: string) => {
     setCards((prev) => prev.filter((c) => c.id !== cardId))
-  }, [])
+    showToast('success', '卡片已删除')
+  }, [showToast])
 
   const handleSaveCard = useCallback(() => {
     if (!editingCard) return
@@ -187,7 +240,8 @@ export default function PortfolioEditor() {
       prev.map((c) => (c.id === editingCard.id ? editingCard : c))
     )
     setEditingCard(null)
-  }, [editingCard])
+    showToast('success', '卡片已保存')
+  }, [editingCard, showToast])
 
   const handleSaveDraft = useCallback(async () => {
     setIsSaving(true)
@@ -251,6 +305,22 @@ export default function PortfolioEditor() {
     [settings]
   )
 
+  const getCanvasClass = () => {
+    const classes = ['canvas', `template-${template}`]
+    if (canvasTransition === 'fade-out') classes.push('fade-out')
+    if (canvasTransition === 'fade-in') classes.push('fade-in')
+    if (cards.length === 0) classes.push('empty')
+    return classes.join(' ')
+  }
+
+  const getCardClass = (card: ProjectCard) => {
+    const classes = ['project-card']
+    if (draggingCardId === card.id) classes.push('dragging')
+    if (snappingCardId === card.id) classes.push('snap-animation')
+    if (newCardId === card.id) classes.push('bounce-in')
+    return classes.join(' ')
+  }
+
   const currentTemplate = TEMPLATES.find((t) => t.id === template)
 
   return (
@@ -260,6 +330,7 @@ export default function PortfolioEditor() {
           <button
             className="hamburger-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="菜单"
           >
             ☰
           </button>
@@ -383,13 +454,13 @@ export default function PortfolioEditor() {
           <div className="canvas-wrapper">
             <div
               ref={canvasRef}
-              className={`canvas template-${template} ${fadeCanvas ? 'fade-in' : ''} ${
-                cards.length === 0 ? 'empty' : ''
-              }`}
+              className={getCanvasClass()}
               style={getCanvasStyle()}
             >
-              {currentTemplate && (
-                <div className="template-label">{currentTemplate.name}</div>
+              {currentTemplate && canvasTransition !== 'fade-out' && (
+                <div key={template} className="template-label">
+                  {currentTemplate.name}
+                </div>
               )}
 
               {cards.length === 0 && (
@@ -402,9 +473,7 @@ export default function PortfolioEditor() {
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className={`project-card ${
-                    draggingCardId === card.id ? 'dragging' : ''
-                  } ${bouncingCardId === card.id ? 'bounce' : ''}`}
+                  className={getCardClass(card)}
                   style={getCardStyle(card)}
                   onMouseDown={(e) => handleCardMouseDown(e, card.id)}
                 >
@@ -413,7 +482,9 @@ export default function PortfolioEditor() {
                       src={card.thumbnailUrl}
                       alt={card.name}
                       className="card-thumbnail"
-                      style={{ borderRadius: `${settings.borderRadius}px ${settings.borderRadius}px 0 0` }}
+                      style={{
+                        borderRadius: `${settings.borderRadius}px ${settings.borderRadius}px 0 0`,
+                      }}
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none'
                       }}
@@ -421,7 +492,9 @@ export default function PortfolioEditor() {
                   ) : (
                     <div
                       className="card-thumbnail-placeholder"
-                      style={{ borderRadius: `${settings.borderRadius}px ${settings.borderRadius}px 0 0` }}
+                      style={{
+                        borderRadius: `${settings.borderRadius}px ${settings.borderRadius}px 0 0`,
+                      }}
                     >
                       🖼️
                     </div>
@@ -494,22 +567,36 @@ export default function PortfolioEditor() {
                 : { backgroundColor: settings.backgroundColor }
             }
           >
-            <div className="preview-content" style={{ fontFamily: settings.fontFamily }}>
+            <div
+              className="preview-content"
+              style={{ fontFamily: settings.fontFamily }}
+            >
               {cards.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center' }}>
+                <p
+                  style={{
+                    color: 'var(--text-secondary)',
+                    fontSize: 12,
+                    textAlign: 'center',
+                  }}
+                >
                   暂无卡片
                 </p>
               ) : (
-                cards.map((card) => (
-                  <div
-                    key={card.id}
-                    className="preview-card"
-                    style={{ borderRadius: settings.borderRadius }}
-                  >
-                    <div className="preview-card-name">{card.name}</div>
-                    <div className="preview-card-desc">{card.description}</div>
-                  </div>
-                ))
+                [...cards]
+                  .sort((a, b) => {
+                    if (a.y !== b.y) return a.y - b.y
+                    return a.x - b.x
+                  })
+                  .map((card) => (
+                    <div
+                      key={card.id}
+                      className="preview-card"
+                      style={{ borderRadius: settings.borderRadius }}
+                    >
+                      <div className="preview-card-name">{card.name}</div>
+                      <div className="preview-card-desc">{card.description}</div>
+                    </div>
+                  ))
               )}
             </div>
           </div>
@@ -583,7 +670,10 @@ export default function PortfolioEditor() {
                   type="text"
                   placeholder="输入标签后回车"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                    if (
+                      e.key === 'Enter' &&
+                      (e.target as HTMLInputElement).value.trim()
+                    ) {
                       e.preventDefault()
                       const newTag = (e.target as HTMLInputElement).value.trim()
                       if (!editingCard.tags.includes(newTag)) {
@@ -631,7 +721,10 @@ export default function PortfolioEditor() {
 
       <div className="toast-container">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast ${toast.type}`}>
+          <div
+            key={toast.id}
+            className={`toast ${toast.type} ${toast.closing ? 'closing' : ''}`}
+          >
             <div className="toast-icon">{toast.type === 'success' ? '✓' : '✕'}</div>
             <div className="toast-message">{toast.message}</div>
           </div>
