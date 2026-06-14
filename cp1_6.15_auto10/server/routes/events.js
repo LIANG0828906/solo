@@ -86,11 +86,20 @@ router.post('/:id/register', async (req, res, next) => {
   try {
     const { name, email } = req.body;
     
-    if (!name || !email) {
-      return res.status(400).json({ error: '姓名和邮箱为必填项' });
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: '姓名不能为空' });
     }
     
-    const tempReg = registerEvent(req.params.id, { name, email });
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: '邮箱不能为空' });
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: '邮箱格式不正确' });
+    }
+    
+    const tempReg = registerEvent(req.params.id, { name: name.trim(), email: email.trim() });
     
     const qrCodeData = `registration:${tempReg.id}`;
     const qrCode = await QRCode.toDataURL(qrCodeData);

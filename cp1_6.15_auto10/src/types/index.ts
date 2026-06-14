@@ -22,12 +22,6 @@ export interface Registration {
   registeredAt: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
 export interface EventStats {
   total: number;
   signedIn: number;
@@ -47,7 +41,6 @@ export interface RegisterData {
   email: string;
 }
 
-export interface SignInData {
-  email?: string;
-  registrationId?: string;
-}
+export type SignInData =
+  | { email: string; registrationId?: never }
+  | { email?: never; registrationId: string };
