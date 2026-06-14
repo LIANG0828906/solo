@@ -1,0 +1,245 @@
+.container {
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: var(--transition-all);
+}
+
+.label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+  transition: var(--transition-all);
+}
+
+.value.pop {
+  animation: value-pop 0.3s ease-out;
+}
+
+@keyframes value-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.comboValue {
+  color: var(--perfect-color);
+  text-shadow: 0 0 10px var(--perfect-color);
+}
+
+.comboValue.pulse {
+  animation: combo-pulse 0.5s ease-out;
+}
+
+@keyframes combo-pulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.3); filter: brightness(1.5); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.accuracyBar {
+  width: 100%;
+  height: 8px;
+  background: var(--track-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.accuracyFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--perfect-color));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+}
+
+.statValue {
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 10px;
+  transition: var(--transition-all);
+}
+
+.badge.bronze {
+  background: linear-gradient(135deg, #cd7f32, #8b4513);
+  color: white;
+}
+
+.badge.silver {
+  background: linear-gradient(135deg, #c0c0c0, #808080);
+  color: white;
+}
+
+.badge.gold {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #1a1a2e;
+  box-shadow: 0 0 15px #ffd700;
+}
+
+.badge.platinum {
+  background: linear-gradient(135deg, #e5e4e2, #00bfff);
+  color: #1a1a2e;
+  box-shadow: 0 0 15px #00bfff;
+}
+
+.resultStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.resultCard {
+  background: var(--track-bg);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  transition: var(--transition-all);
+}
+
+.resultCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.resultCardLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.resultCardValue {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.resultCardValue.perfect { color: var(--perfect-color); }
+.resultCardValue.good { color: var(--good-color); }
+.resultCardValue.miss { color: var(--miss-color); }
+
+.progressBarContainer {
+  margin-bottom: 30px;
+}
+
+.progressBarLabel {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.progressBarTrack {
+  width: 100%;
+  height: 20px;
+  background: var(--track-bg);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+}
+
+.progressSegment {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.progressSegment.perfect {
+  background: var(--perfect-color);
+  box-shadow: 0 0 10px var(--perfect-color);
+}
+
+.progressSegment.good {
+  background: var(--good-color);
+  box-shadow: 0 0 10px var(--good-color);
+}
+
+.progressSegment.miss {
+  background: var(--miss-color);
+  box-shadow: 0 0 10px var(--miss-color);
+}
+
+.gradeDisplay {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.grade {
+  font-family: var(--font-display);
+  font-size: 80px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--perfect-color), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 0 20px var(--perfect-color));
+}
+
+.gradeLabel {
+  font-size: 16px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 4px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+  
+  .value {
+    font-size: 24px;
+  }
+  
+  .resultStats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .resultCard {
+    padding: 15px;
+  }
+  
+  .resultCardValue {
+    font-size: 20px;
+  }
+  
+  .grade {
+    font-size: 60px;
+  }
+}
