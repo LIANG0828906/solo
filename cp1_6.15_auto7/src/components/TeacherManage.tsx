@@ -17,11 +17,39 @@ for (let i = 0; i < TOTAL_SLOTS; i++) {
   SLOT_LABELS.push(`${hour}:${min}`);
 }
 
+function normalizeSlot(slot: TimeSlot): TimeSlot[] {
+  const result: TimeSlot[] = [];
+  const validDay = Math.max(0, Math.min(4, slot.day));
+  const validStart = Math.max(0, Math.min(TOTAL_SLOTS, slot.startSlot));
+  let validEnd = Math.max(0, Math.min(TOTAL_SLOTS, slot.endSlot));
+
+  if (validEnd <= validStart) {
+    return result;
+  }
+
+  if (slot.startSlot < 0 || slot.endSlot > TOTAL_SLOTS) {
+    const clampedStart = Math.max(0, slot.startSlot);
+    const clampedEnd = Math.min(TOTAL_SLOTS, slot.endSlot);
+    if (clampedEnd > clampedStart) {
+      result.push({ day: validDay, startSlot: clampedStart, endSlot: clampedEnd });
+    }
+  } else {
+    result.push({ day: validDay, startSlot: validStart, endSlot: validEnd });
+  }
+
+  return result;
+}
+
 function slotsToGrid(availableSlots: TimeSlot[]): boolean[][] {
   const grid: boolean[][] = Array.from({ length: 5 }, () => Array(TOTAL_SLOTS).fill(false));
-  for (const slot of availableSlots) {
-    for (let s = slot.startSlot; s < slot.endSlot; s++) {
-      grid[slot.day][s] = true;
+  for (const rawSlot of availableSlots) {
+    const normalized = normalizeSlot(rawSlot);
+    for (const slot of normalized) {
+      for (let s = slot.startSlot; s < slot.endSlot; s++) {
+        if (s >= 0 && s < TOTAL_SLOTS && slot.day >= 0 && slot.day < 5) {
+          grid[slot.day][s] = true;
+        }
+      }
     }
   }
   return grid;
@@ -30,13 +58,18 @@ function slotsToGrid(availableSlots: TimeSlot[]): boolean[][] {
 function gridToSlots(grid: boolean[][]): TimeSlot[] {
   const slots: TimeSlot[] = [];
   for (let day = 0; day < 5; day++) {
+    if (!grid[day]) continue;
     let start: number | null = null;
     for (let s = 0; s <= TOTAL_SLOTS; s++) {
-      const available = s < TOTAL_SLOTS && grid[day][s];
+      const available = s < TOTAL_SLOTS && grid[day][s] === true;
       if (available && start === null) {
         start = s;
       } else if (!available && start !== null) {
-        slots.push({ day, startSlot: start, endSlot: s });
+        const safeStart = Math.max(0, Math.min(TOTAL_SLOTS - 1, start));
+        const safeEnd = Math.max(safeStart + 1, Math.min(TOTAL_SLOTS, s));
+        if (safeEnd > safeStart) {
+          slots.push({ day, startSlot: safeStart, endSlot: safeEnd });
+        }
         start = null;
       }
     }

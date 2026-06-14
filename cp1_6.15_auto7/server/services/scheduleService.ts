@@ -12,8 +12,57 @@ import {
   type ConflictInfo,
 } from '../models/dataStore.js';
 
+const TOTAL_SLOTS = 20;
+
 function slotsOverlap(start1: number, duration1: number, start2: number, duration2: number): boolean {
   return start1 < start2 + duration2 && start2 < start1 + duration1;
+}
+
+function normalizeSlot(slot: TimeSlot): TimeSlot | null {
+  const day = Math.max(0, Math.min(4, slot.day));
+  const startSlot = Math.max(0, Math.min(TOTAL_SLOTS, slot.startSlot));
+  const endSlot = Math.max(0, Math.min(TOTAL_SLOTS, slot.endSlot));
+  if (endSlot <= startSlot) return null;
+  return { day, startSlot, endSlot };
+}
+
+function normalizeSlots(slots: TimeSlot[]): TimeSlot[] {
+  const normalized: TimeSlot[] = [];
+  for (const s of slots) {
+    const n = normalizeSlot(s);
+    if (n) normalized.push(n);
+  }
+  return normalized;
+}
+
+export function validateSchedule(entries: ScheduleEntry[]): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    const a = entries[i];
+    const aDuration = getCourseDuration(a.courseId);
+
+    for (let j = i + 1; j < entries.length; j++) {
+      const b = entries[j];
+      const bDuration = getCourseDuration(b.courseId);
+
+      if (a.day !== b.day) continue;
+
+      if (a.teacherId === b.teacherId && slotsOverlap(a.startSlot, aDuration, b.startSlot, bDuration)) {
+        errors.push(`教师冲突：课程 ${getCourseName(a.courseId)} 和 ${getCourseName(b.courseId)} 在第${a.day + 1}天同时分配给了同一位教师`);
+      }
+
+      if (a.classroomId === b.classroomId && slotsOverlap(a.startSlot, aDuration, b.startSlot, bDuration)) {
+        errors.push(`教室冲突：课程 ${getCourseName(a.courseId)} 和 ${getCourseName(b.courseId)} 在第${a.day + 1}天占用了同一教室`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function getCourseName(courseId: string): string {
+  return courses.get(courseId)?.name ?? '未知课程';
 }
 
 export function getAllTeachers(): Teacher[] {
@@ -56,7 +105,7 @@ export function deleteTeacher(id: string): boolean {
 export function updateTeacherSlots(id: string, slots: TimeSlot[]): Teacher | null {
   const teacher = teachers.get(id);
   if (!teacher) return null;
-  teacher.availableSlots = slots;
+  teacher.availableSlots = normalizeSlots(slots);
   teachers.set(id, teacher);
   return teacher;
 }
@@ -147,7 +196,7 @@ export function getClassroomOccupancy(classroomId: string): ScheduleEntry[] {
   return Array.from(schedule.values()).filter(e => e.classroomId === classroomId);
 }
 
-export function autoSchedule(): { schedule: ScheduleEntry[]; conflicts: string[] } {
+export function autoSchedule(): { schedule: ScheduleEntry[]; conflicts: string[]; validation: { valid: boolean; errors: string[] } } {
   schedule.clear();
 
   const sessions: { course: Course; sessionIndex: number }[] = [];
@@ -172,58 +221,76 @@ export function autoSchedule(): { schedule: ScheduleEntry[]; conflicts: string[]
   for (const c of classrooms.keys()) classroomUsageCounts.set(c, 0);
 
   const conflicts: string[] = [];
+  const allEntries = Array.from(schedule.values());
 
   for (const session of sessions) {
     const { course, sessionIndex } = session;
-    const preferredTeachers = course.preferredTeacherIds
-      .map(id => ({ id, teacher: teachers.get(id) }))
-      .filter(t => t.teacher !== undefined)
-      .sort((a, b) => (teacherAssignmentCounts.get(a.id) ?? 0) - (teacherAssignmentCounts.get(b.id) ?? 0));
-
     let placed = false;
 
-    for (const { id: teacherId, teacher } of preferredTeachers) {
-      for (let day = 0; day < 5; day++) {
-        const availableOnDay = teacher!.availableSlots.filter(s => s.day === day);
+    let bestCandidate: { teacherId: string; classroomId: string; day: number; startSlot: number; teacherLoad: number } | null = null;
 
-        for (const slot of availableOnDay) {
-          for (let startSlot = slot.startSlot; startSlot + course.duration <= slot.endSlot; startSlot++) {
+    for (let day = 0; day < 5 && !placed; day++) {
+      for (let startSlot = 0; startSlot + course.duration <= TOTAL_SLOTS && !placed; startSlot++) {
+        const availablePreferredTeachers = course.preferredTeacherIds
+          .map(tid => {
+            const t = teachers.get(tid);
+            if (!t) return null;
+            const availableOnDay = t.availableSlots.filter(s => s.day === day);
+            const hasAvailability = availableOnDay.some(s => s.startSlot <= startSlot && s.endSlot >= startSlot + course.duration);
+            if (!hasAvailability) return null;
             const teacherBusy = Array.from(schedule.values()).some(
-              e => e.teacherId === teacherId && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
+              e => e.teacherId === tid && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
             );
-            if (teacherBusy) continue;
+            if (teacherBusy) return null;
+            return { id: tid, load: teacherAssignmentCounts.get(tid) ?? 0 };
+          })
+          .filter((x): x is { id: string; load: number } => x !== null)
+          .sort((a, b) => a.load - b.load);
 
-            const matchingClassrooms = Array.from(classrooms.values())
-              .filter(c => c.type === course.requiredRoomType)
-              .sort((a, b) => (classroomUsageCounts.get(a.id) ?? 0) - (classroomUsageCounts.get(b.id) ?? 0));
+        if (availablePreferredTeachers.length === 0) continue;
 
-            for (const classroom of matchingClassrooms) {
-              const classroomBusy = Array.from(schedule.values()).some(
-                e => e.classroomId === classroom.id && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
-              );
-              if (classroomBusy) continue;
+        const matchingClassrooms = Array.from(classrooms.values())
+          .filter(c => c.type === course.requiredRoomType)
+          .map(c => {
+            const classroomBusy = Array.from(schedule.values()).some(
+              e => e.classroomId === c.id && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
+            );
+            if (classroomBusy) return null;
+            return { id: c.id, usage: classroomUsageCounts.get(c.id) ?? 0 };
+          })
+          .filter((x): x is { id: string; usage: number } => x !== null)
+          .sort((a, b) => a.usage - b.usage);
 
-              const entry: ScheduleEntry = {
-                id: uuidv4(),
-                courseId: course.id,
-                teacherId,
-                classroomId: classroom.id,
-                day,
-                startSlot,
-              };
-              schedule.set(entry.id, entry);
-              teacherAssignmentCounts.set(teacherId, (teacherAssignmentCounts.get(teacherId) ?? 0) + 1);
-              classroomUsageCounts.set(classroom.id, (classroomUsageCounts.get(classroom.id) ?? 0) + 1);
-              placed = true;
-              break;
-            }
-            if (placed) break;
-          }
-          if (placed) break;
+        if (matchingClassrooms.length === 0) continue;
+
+        const bestTeacher = availablePreferredTeachers[0];
+        const bestClassroom = matchingClassrooms[0];
+
+        if (!bestCandidate || bestTeacher.load < bestCandidate.teacherLoad) {
+          bestCandidate = {
+            teacherId: bestTeacher.id,
+            classroomId: bestClassroom.id,
+            day,
+            startSlot,
+            teacherLoad: bestTeacher.load,
+          };
         }
-        if (placed) break;
       }
-      if (placed) break;
+    }
+
+    if (bestCandidate) {
+      const entry: ScheduleEntry = {
+        id: uuidv4(),
+        courseId: course.id,
+        teacherId: bestCandidate.teacherId,
+        classroomId: bestCandidate.classroomId,
+        day: bestCandidate.day,
+        startSlot: bestCandidate.startSlot,
+      };
+      schedule.set(entry.id, entry);
+      teacherAssignmentCounts.set(entry.teacherId, (teacherAssignmentCounts.get(entry.teacherId) ?? 0) + 1);
+      classroomUsageCounts.set(entry.classroomId, (classroomUsageCounts.get(entry.classroomId) ?? 0) + 1);
+      placed = true;
     }
 
     if (!placed) {
@@ -231,7 +298,9 @@ export function autoSchedule(): { schedule: ScheduleEntry[]; conflicts: string[]
     }
   }
 
-  return { schedule: Array.from(schedule.values()), conflicts };
+  const finalEntries = Array.from(schedule.values());
+  const validation = validateSchedule(finalEntries);
+  return { schedule: finalEntries, conflicts, validation };
 }
 
 function getCourseDuration(courseId: string): number {

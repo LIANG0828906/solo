@@ -115,10 +115,10 @@ export async function moveScheduleEntry(
   newStartSlot: number,
   newClassroomId?: string
 ): Promise<{ success: boolean; conflicts?: ConflictInfo[] }> {
-  const res = await fetch(`${API_BASE}/schedule/${entryId}/move`, {
+  const res = await fetch(`${API_BASE}/schedule/move`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newDay, newStartSlot, newClassroomId }),
+    body: JSON.stringify({ entryId, newDay, newStartSlot, newClassroomId }),
   });
   return res.json();
 }
@@ -128,6 +128,6 @@ export async function deleteScheduleEntry(id: string): Promise<void> {
 }
 
 export async function fetchClassroomOccupancy(classroomId: string): Promise<ScheduleEntry[]> {
-  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/occupancy`);
+  const res = await fetch(`${API_BASE}/schedule/classroom/${classroomId}/occupancy`);
   return res.json();
 }
