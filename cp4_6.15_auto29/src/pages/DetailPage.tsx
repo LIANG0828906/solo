@@ -1,30 +1,121 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Tag, Sparkles, MessageSquare, Check, X } from 'lucide-react';
+import { useState } from 'react';
 import { useDataStore } from '@/utils/dataStore';
-import { CATEGORY_LABELS } from '@/types';
-import ImageCarousel from '@/components/ImageCarousel';
-import Modal from '@/components/Modal';
+import { CATEGORY_LABELS, type Product } from '@/types';
+
+const ArrowLeftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m12 19-7-7 7-7" />
+    <path d="M19 12H5" />
+  </svg>
+);
+
+const ArrowRightIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </svg>
+);
+
+const ChevronLeftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+);
+
+const TagIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+    <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+  </svg>
+);
+
+const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  </svg>
+);
+
+const MessageSquareIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+const CheckIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+function ImageCarousel({ images }: { images: string[] }) {
+  const [current, setCurrent] = useState(0);
+
+  const goPrev = () => setCurrent((c) => (c === 0 ? images.length - 1 : c - 1));
+  const goNext = () => setCurrent((c) => (c === images.length - 1 ? 0 : c + 1));
+
+  if (images.length === 0) {
+    return (
+      <div style={{ width: '100%', aspectRatio: '4/3', backgroundColor: 'var(--morandi-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--morandi-brown)' }}>
+        暂无图片
+      </div>
+    );
+  }
+
+  return (
+    <div className="carousel">
+      <div
+        className="carousel-track"
+        style={{ transform: `translateX(-${current * 100}%)` }}
+      >
+        {images.map((img, i) => (
+          <div key={i} className="carousel-slide">
+            <img src={img} alt={`图片 ${i + 1}`} />
+          </div>
+        ))}
+      </div>
+      {images.length > 1 && (
+        <>
+          <button onClick={goPrev} className="carousel-arrow prev" aria-label="上一张">
+            <ChevronLeftIcon style={{ width: 20, height: 20 }} />
+          </button>
+          <button onClick={goNext} className="carousel-arrow next" aria-label="下一张">
+            <ArrowRightIcon style={{ width: 20, height: 20 }} />
+          </button>
+          <div className="carousel-dots">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`carousel-dot ${current === i ? 'active' : ''}`}
+                aria-label={`第 ${i + 1} 张图片`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function DetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const getProduct = useDataStore((state) => state.getProduct);
-  const addRequest = useDataStore((state) => state.addRequest);
-  const currentUserId = useDataStore((state) => state.currentUserId);
+  const { state, navigate, addRequest } = useDataStore();
+  const productId = state.route.params?.id;
+  const product: Product | undefined = state.products.find((p) => p.id === productId);
 
-  const [showExchangeModal, setShowExchangeModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [offerDescription, setOfferDescription] = useState('');
   const [contactInfo, setContactInfo] = useState('');
 
-  const product = id ? getProduct(id) : undefined;
+  const isOwner = product?.ownerId === state.currentUserId;
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [id]);
-
-  const handleSubmitExchange = () => {
+  const handleSubmit = () => {
     if (!offerDescription.trim()) {
       alert('请填写你能提供的物品描述');
       return;
@@ -34,27 +125,23 @@ export default function DetailPage() {
       return;
     }
     if (!product) return;
-
     addRequest({
       productId: product.id,
       offerDescription: offerDescription.trim(),
       contactInfo: contactInfo.trim(),
-      requesterId: currentUserId,
+      requesterId: state.currentUserId,
     });
-
-    setShowExchangeModal(false);
-    setShowSuccessModal(true);
+    setShowModal(false);
+    setShowSuccess(true);
     setOfferDescription('');
     setContactInfo('');
   };
 
-  const isOwner = product?.ownerId === currentUserId;
-
-  const conditionLabel = (condition: number) => {
-    if (condition >= 9) return '几乎全新';
-    if (condition >= 7) return '成色较好';
-    if (condition >= 5) return '有使用痕迹';
-    if (condition >= 3) return '有明显磨损';
+  const conditionLabel = (v: number) => {
+    if (v >= 9) return '几乎全新';
+    if (v >= 7) return '成色较好';
+    if (v >= 5) return '有使用痕迹';
+    if (v >= 3) return '有明显磨损';
     return '品相一般';
   };
 
@@ -70,12 +157,26 @@ export default function DetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-morandi-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-morandi-brown mb-4">物品不存在或已下架</p>
+      <div className="page-container">
+        <div className="page-header">
+          <div className="page-header-inner" style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 768 }}>
+            <button
+              onClick={() => navigate({ name: 'browse' })}
+              style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--morandi-brown)', transition: 'all 300ms' }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'var(--morandi-gray)')}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              aria-label="返回"
+            >
+              <ArrowLeftIcon style={{ width: 22, height: 22 }} />
+            </button>
+            <h1 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>物品详情</h1>
+          </div>
+        </div>
+        <div style={{ padding: '64px 16px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--morandi-brown)', marginBottom: 16 }}>物品不存在或已下架</p>
           <button
-            onClick={() => navigate('/')}
-            className="px-6 py-2 bg-morandi-blue text-white rounded-full text-sm hover:bg-morandi-blue-dark transition-colors duration-300"
+            onClick={() => navigate({ name: 'browse' })}
+            className="btn btn-primary"
           >
             返回首页
           </button>
@@ -85,175 +186,168 @@ export default function DetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-morandi-white pb-24">
-      <div className="sticky top-0 z-30 bg-morandi-white/90 backdrop-blur-sm border-b border-morandi-gray">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-header-inner" style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 768 }}>
           <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center text-morandi-brown hover:text-morandi-blue hover:bg-morandi-gray rounded-full transition-all duration-300"
+            onClick={() => navigate({ name: 'browse' })}
+            style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--morandi-brown)', transition: 'all 300ms' }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'var(--morandi-gray)')}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             aria-label="返回"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeftIcon style={{ width: 22, height: 22 }} />
           </button>
-          <h1 className="text-lg font-medium text-gray-700 truncate flex-1">
-            物品详情
-          </h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>物品详情</h1>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto animate-fade-in">
+      <div style={{ animation: 'fadeIn 300ms ease-out' }}>
         <ImageCarousel images={product.images} />
 
-        <div className="px-4 py-5 bg-white border-b border-morandi-gray">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <h2 className="text-xl font-semibold text-gray-700">{product.title}</h2>
-            <span className="flex-shrink-0 px-3 py-1 bg-morandi-blue/10 text-morandi-blue text-sm rounded-full">
-              {CATEGORY_LABELS[product.category]}
-            </span>
-          </div>
+        <div className="detail-info">
+          <div style={{ maxWidth: 768, margin: '0 auto' }}>
+            <div className="detail-title-row">
+              <h2 className="detail-title">{product.title}</h2>
+              <span className="detail-category">{CATEGORY_LABELS[product.category]}</span>
+            </div>
 
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-morandi-green" />
-              <span className="text-sm text-gray-600">
-                新旧程度：
-                <span className="font-medium text-morandi-green">
-                  {product.condition}/10
-                </span>
+            <div className="detail-condition-row">
+              <span className="detail-condition-item">
+                <SparklesIcon style={{ width: 16, height: 16, color: 'var(--morandi-green)' }} />
+                <span>新旧程度：<span className="detail-condition-value">{product.condition}/10</span></span>
               </span>
+              <span className="detail-condition-label">{conditionLabel(product.condition)}</span>
             </div>
-            <div className="text-sm text-morandi-brown">
-              {conditionLabel(product.condition)}
+
+            <div className="detail-full-bar">
+              <div
+                className="detail-full-bar-fill"
+                style={{ width: `${product.condition * 10}%` }}
+              />
             </div>
-          </div>
 
-          <div className="w-full h-2 bg-morandi-gray rounded-full mb-4 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-morandi-green to-morandi-green-dark rounded-full transition-all duration-500"
-              style={{ width: `${product.condition * 10}%` }}
-            />
-          </div>
+            <div className="detail-preference">
+              <TagIcon style={{ width: 16, height: 16, color: 'var(--morandi-sand)' }} />
+              <span className="detail-preference-label">交换意向：</span>
+              <span className="detail-preference-value">{product.exchangePreference}</span>
+            </div>
 
-          <div className="flex items-center gap-2 mb-4">
-            <Tag size={16} className="text-morandi-sand" />
-            <span className="text-sm text-gray-600">交换意向：</span>
-            <span className="text-sm font-medium text-morandi-brown">
-              {product.exchangePreference}
-            </span>
-          </div>
-
-          <div className="text-xs text-morandi-brown">
-            发布于 {formatDate(product.createdAt)}
+            <div className="detail-date">发布于 {formatDate(product.createdAt)}</div>
           </div>
         </div>
 
-        <div className="px-4 py-5">
-          <h3 className="text-base font-medium text-gray-700 mb-3">物品描述</h3>
-          <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-wrap">
-            {product.description || '暂无详细描述'}
-          </p>
+        <div className="detail-description">
+          <div style={{ maxWidth: 768, margin: '0 auto' }}>
+            <h3 className="detail-section-title">物品描述</h3>
+            <p className="detail-description-text">
+              {product.description || '暂无详细描述'}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="fixed bottom-16 left-0 right-0 z-20 bg-white border-t border-morandi-gray px-4 py-3">
-        <div className="max-w-3xl mx-auto">
+      <div className="detail-bottom-bar">
+        <div className="detail-bottom-inner">
           {isOwner ? (
-            <div className="flex items-center justify-center gap-3 py-2 text-morandi-brown">
-              <MessageSquare size={18} />
-              <span className="text-sm">这是你发布的物品</span>
+            <div className="detail-owner-hint">
+              <MessageSquareIcon style={{ width: 18, height: 18 }} />
+              <span>这是你发布的物品</span>
             </div>
           ) : product.status === 'sold' ? (
-            <div className="flex items-center justify-center gap-2 py-2 text-morandi-brown">
-              <Check size={18} className="text-morandi-green" />
-              <span className="text-sm">这件物品已被交换</span>
+            <div className="detail-owner-hint">
+              <CheckIcon style={{ width: 18, height: 18, color: 'var(--morandi-green)' }} />
+              <span>这件物品已被交换</span>
             </div>
           ) : (
             <button
-              onClick={() => setShowExchangeModal(true)}
-              className="w-full py-3.5 bg-morandi-blue text-white rounded-card font-medium hover:bg-morandi-blue-dark active:scale-[0.98] transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              onClick={() => setShowModal(true)}
+              className="btn btn-primary btn-block btn-lg"
+              style={{ gap: 8 }}
             >
-              <MessageSquare size={20} />
+              <MessageSquareIcon style={{ width: 20, height: 20 }} />
               申请交换
             </button>
           )}
         </div>
       </div>
 
-      <Modal
-        isOpen={showExchangeModal}
-        onClose={() => setShowExchangeModal(false)}
-        title="申请交换"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-morandi-brown mb-4">
-            请描述你能提供的物品，以及联系方式，物主会与你联系。
-          </p>
+      {showModal && (
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">申请交换</h3>
+              <button onClick={() => setShowModal(false)} className="modal-close" aria-label="关闭">
+                <XIcon style={{ width: 18, height: 18 }} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: 'var(--morandi-brown)', marginBottom: 20 }}>
+                请描述你能提供的物品，以及联系方式，物主会与你联系。
+              </p>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              你能提供的物品
-            </label>
-            <textarea
-              value={offerDescription}
-              onChange={(e) => setOfferDescription(e.target.value)}
-              placeholder="描述一下你想用来交换的物品..."
-              rows={3}
-              className="w-full px-4 py-3 bg-morandi-white border border-morandi-gray rounded-card text-gray-700 placeholder:text-morandi-brown/60 focus:outline-none focus:border-morandi-blue focus:ring-2 focus:ring-morandi-blue/20 transition-all duration-300 resize-none"
-              maxLength={300}
-            />
-          </div>
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">你能提供的物品</label>
+                <textarea
+                  value={offerDescription}
+                  onChange={(e) => setOfferDescription(e.target.value)}
+                  placeholder="描述一下你想用来交换的物品..."
+                  rows={3}
+                  className="textarea"
+                  maxLength={300}
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              联系方式
-            </label>
-            <input
-              type="text"
-              value={contactInfo}
-              onChange={(e) => setContactInfo(e.target.value)}
-              placeholder="微信号 / 手机号 / 其他"
-              className="w-full px-4 py-3 bg-morandi-white border border-morandi-gray rounded-card text-gray-700 placeholder:text-morandi-brown/60 focus:outline-none focus:border-morandi-blue focus:ring-2 focus:ring-morandi-blue/20 transition-all duration-300"
-              maxLength={50}
-            />
-          </div>
+              <div className="input-group" style={{ marginBottom: 20 }}>
+                <label className="input-label">联系方式</label>
+                <input
+                  type="text"
+                  value={contactInfo}
+                  onChange={(e) => setContactInfo(e.target.value)}
+                  placeholder="微信号 / 手机号 / 其他"
+                  className="input"
+                  maxLength={50}
+                />
+              </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setShowExchangeModal(false)}
-              className="flex-1 py-3 border border-morandi-gray text-morandi-brown rounded-card font-medium hover:bg-morandi-gray transition-colors duration-300"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleSubmitExchange}
-              className="flex-1 py-3 bg-morandi-blue text-white rounded-card font-medium hover:bg-morandi-blue-dark transition-colors duration-300"
-            >
-              提交申请
-            </button>
+              <div className="modal-footer">
+                <button onClick={() => setShowModal(false)} className="btn btn-secondary">
+                  取消
+                </button>
+                <button onClick={handleSubmit} className="btn btn-primary">
+                  提交申请
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </Modal>
+      )}
 
-      <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)}>
-        <div className="text-center py-4">
-          <div className="w-16 h-16 mx-auto mb-4 bg-morandi-green/20 rounded-full flex items-center justify-center animate-scale-in">
-            <Check size={32} className="text-morandi-green" />
+      {showSuccess && (
+        <div className="modal-backdrop" onClick={() => setShowSuccess(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 384 }}>
+            <div className="modal-body">
+              <div style={{ textAlign: 'center' }}>
+                <div className="success-icon-wrap" style={{ animation: 'scaleIn 300ms ease-out' }}>
+                  <CheckIcon style={{ width: 32, height: 32 }} />
+                </div>
+                <h3 className="success-title">申请已发送！</h3>
+                <p className="success-desc">物主会收到你的交换申请，请耐心等待回复</p>
+                <button
+                  onClick={() => {
+                    setShowSuccess(false);
+                    navigate({ name: 'browse' });
+                  }}
+                  className="btn btn-primary"
+                  style={{ padding: '10px 32px', borderRadius: 999, marginTop: 8 }}
+                >
+                  返回首页
+                </button>
+              </div>
+            </div>
           </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">申请已发送！</h3>
-          <p className="text-sm text-morandi-brown mb-6">
-            物主会收到你的交换申请，请耐心等待回复
-          </p>
-          <button
-            onClick={() => {
-              setShowSuccessModal(false);
-              navigate('/');
-            }}
-            className="px-8 py-2.5 bg-morandi-blue text-white rounded-full text-sm hover:bg-morandi-blue-dark transition-colors duration-300"
-          >
-            返回首页
-          </button>
         </div>
-      </Modal>
+      )}
     </div>
   );
 }

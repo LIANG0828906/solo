@@ -1,86 +1,139 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  User,
-  Package,
-  Inbox,
-  Check,
-  X,
-  Eye,
-  EyeOff,
-  ChevronRight,
-  Phone,
-  Gift,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Trash2,
-} from 'lucide-react';
 import { useDataStore } from '@/utils/dataStore';
-import { CATEGORY_LABELS } from '@/types';
-import type { ExchangeRequest, Product } from '@/types';
+import { CATEGORY_LABELS, type ExchangeRequest, type Product } from '@/types';
+
+const UserIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const PackageIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m7.5 4.27 9 5.15" />
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+    <path d="m3.3 7 8.7 5 8.7-5" />
+    <path d="M12 22V12" />
+  </svg>
+);
+
+const InboxIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+  </svg>
+);
+
+const EyeIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" x2="22" y1="2" y2="22" />
+  </svg>
+);
+
+const TrashIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M3 6h18" />
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+  </svg>
+);
+
+const ChevronIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
+const GiftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="3" y="8" width="18" height="4" rx="1" />
+    <path d="M12 8v13" />
+    <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+    <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+  </svg>
+);
+
+const ClockIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const CheckCircleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <path d="m9 11 3 3L22 4" />
+  </svg>
+);
+
+const XCircleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m15 9-6 6" />
+    <path d="m9 9 6 6" />
+  </svg>
+);
+
+const PhoneIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+
+const PackageBoxIcon = PackageIcon;
 
 type TabType = 'products' | 'requests';
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
-  const getMyProducts = useDataStore((state) => state.getMyProducts);
-  const getMyReceivedRequests = useDataStore((state) => state.getMyReceivedRequests);
-  const getProduct = useDataStore((state) => state.getProduct);
-  const updateProduct = useDataStore((state) => state.updateProduct);
-  const markRequestRead = useDataStore((state) => state.markRequestRead);
-  const acceptRequest = useDataStore((state) => state.acceptRequest);
-  const rejectRequest = useDataStore((state) => state.rejectRequest);
-  const deleteProduct = useDataStore((state) => state.deleteProduct);
+  const {
+    state,
+    navigate,
+    updateProduct,
+    deleteProduct,
+    getMyProducts,
+    getMyReceivedRequests,
+    markRequestRead,
+    acceptRequest,
+    rejectRequest,
+  } = useDataStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('products');
-  const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const myProducts = useMemo(() => getMyProducts(), [getMyProducts]);
+  const myProducts = useMemo(() => getMyProducts(), [state.products]);
   const receivedRequests = useMemo(
     () => getMyReceivedRequests(),
-    [getMyReceivedRequests]
+    [state.requests, state.products]
   );
 
   const unreadCount = receivedRequests.filter((r) => !r.isRead).length;
+
+  const getProduct = (id: string) => state.products.find((p) => p.id === id);
 
   const handleRequestClick = (request: ExchangeRequest) => {
     if (!request.isRead) {
       markRequestRead(request.id);
     }
-    setExpandedRequest(expandedRequest === request.id ? null : request.id);
-  };
-
-  const handleAccept = (requestId: string) => {
-    acceptRequest(requestId);
-  };
-
-  const handleReject = (requestId: string) => {
-    rejectRequest(requestId);
-  };
-
-  const toggleProductStatus = (product: Product) => {
-    if (product.status === 'published') {
-      updateProduct(product.id, { status: 'offline' });
-    } else if (product.status === 'offline') {
-      updateProduct(product.id, { status: 'published' });
-    }
-  };
-
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm('确定要删除这件商品吗？')) {
-      deleteProduct(productId);
-    }
-  };
-
-  const getRequestProduct = (productId: string) => {
-    return getProduct(productId);
+    setExpandedId(expandedId === request.id ? null : request.id);
   };
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const diff = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
     const timeStr = date.toLocaleTimeString('zh-CN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -91,169 +144,146 @@ export default function ProfilePage() {
     return date.toLocaleDateString('zh-CN');
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'published':
-        return '上架中';
-      case 'sold':
-        return '已交换';
-      case 'offline':
-        return '已下架';
-      default:
-        return status;
-    }
+  const getStatusText = (s: string) =>
+    s === 'published' ? '上架中' : s === 'sold' ? '已交换' : '已下架';
+  const getStatusClass = (s: string) =>
+    s === 'published'
+      ? 'published'
+      : s === 'sold'
+      ? 'sold'
+      : 'offline';
+
+  const toggleStatus = (p: Product) => {
+    updateProduct(p.id, {
+      status: p.status === 'published' ? 'offline' : 'published',
+    });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published':
-        return 'text-morandi-green';
-      case 'sold':
-        return 'text-morandi-blue';
-      case 'offline':
-        return 'text-morandi-brown';
-      default:
-        return 'text-gray-500';
+  const handleDelete = (id: string) => {
+    if (window.confirm('确定要删除这件商品吗？')) {
+      deleteProduct(id);
     }
   };
 
   return (
-    <div className="min-h-screen bg-morandi-white pb-24">
-      <div className="bg-morandi-blue pt-8 pb-6 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <User size={32} className="text-white" />
-            </div>
-            <div className="text-white">
-              <h1 className="text-xl font-semibold">我的好物</h1>
-              <p className="text-sm opacity-90">让闲置流转起来</p>
-            </div>
+    <div className="page-container">
+      <div className="profile-hero">
+        <div className="profile-hero-inner">
+          <div className="profile-avatar">
+            <UserIcon style={{ width: 32, height: 32 }} />
+          </div>
+          <div>
+            <h1 className="profile-title">我的好物</h1>
+            <p className="profile-subtitle">让闲置流转起来</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto -mt-4 px-4">
-        <div className="bg-white rounded-card shadow-sm flex overflow-hidden">
+      <div className="profile-tabs-wrap">
+        <div className="profile-tabs">
           <button
             onClick={() => setActiveTab('products')}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all duration-300 ${
-              activeTab === 'products'
-                ? 'text-morandi-blue bg-morandi-blue/5 border-b-2 border-morandi-blue'
-                : 'text-morandi-brown hover:bg-morandi-gray/50'
-            }`}
+            className={`profile-tab ${activeTab === 'products' ? 'active' : ''}`}
           >
-            <Package size={18} />
-            <span className="text-sm font-medium">我的发布</span>
-            <span className="px-1.5 py-0.5 text-xs bg-morandi-gray rounded-full">
-              {myProducts.length}
-            </span>
+            <PackageIcon style={{ width: 18, height: 18 }} />
+            <span>我的发布</span>
+            <span className="profile-tab-count">{myProducts.length}</span>
           </button>
           <button
             onClick={() => setActiveTab('requests')}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all duration-300 relative ${
-              activeTab === 'requests'
-                ? 'text-morandi-blue bg-morandi-blue/5 border-b-2 border-morandi-blue'
-                : 'text-morandi-brown hover:bg-morandi-gray/50'
-            }`}
+            className={`profile-tab ${activeTab === 'requests' ? 'active' : ''}`}
           >
-            <Inbox size={18} />
-            <span className="text-sm font-medium">收到的申请</span>
-            {unreadCount > 0 && (
-              <span className="px-1.5 py-0.5 text-xs bg-morandi-red text-white rounded-full">
-                {unreadCount}
-              </span>
+            <InboxIcon style={{ width: 18, height: 18 }} />
+            <span>收到的申请</span>
+            {unreadCount > 0 ? (
+              <span className="profile-tab-count unread">{unreadCount}</span>
+            ) : (
+              <span className="profile-tab-count">{receivedRequests.length}</span>
             )}
           </button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <div className="profile-list">
         {activeTab === 'products' && (
-          <div className="space-y-3 animate-fade-in">
+          <>
             {myProducts.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-4 bg-morandi-gray rounded-full flex items-center justify-center">
-                  <Package size={32} className="text-morandi-brown" />
+              <div className="empty-state">
+                <div className="empty-icon-wrap">
+                  <PackageBoxIcon style={{ width: 32, height: 32 }} />
                 </div>
-                <p className="text-morandi-brown mb-2">还没有发布任何物品</p>
+                <p className="empty-title">还没有发布任何物品</p>
                 <button
-                  onClick={() => navigate('/publish')}
-                  className="px-6 py-2 bg-morandi-blue text-white rounded-full text-sm hover:bg-morandi-blue-dark transition-colors duration-300"
+                  onClick={() => navigate({ name: 'publish' })}
+                  className="btn btn-primary"
+                  style={{ borderRadius: 999, padding: '10px 24px', marginTop: 8 }}
                 >
                   去发布
                 </button>
               </div>
             ) : (
-              myProducts.map((product, index) => (
+              myProducts.map((product, i) => (
                 <div
                   key={product.id}
-                  className="bg-white rounded-card p-4 shadow-sm border border-morandi-gray/50 hover:shadow-card transition-all duration-300 animate-slide-up"
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  className="my-product-card"
+                  style={{ animationDelay: `${i * 50}ms` }}
                 >
                   <div
-                    className="flex gap-4 cursor-pointer"
-                    onClick={() => navigate(`/product/${product.id}`)}
+                    className="my-product-row"
+                    onClick={() =>
+                      navigate({ name: 'detail', params: { id: product.id } })
+                    }
                   >
-                    <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-morandi-gray">
+                    <div className="my-product-thumb">
                       {product.images[0] && (
-                        <img
-                          src={product.images[0]}
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={product.images[0]} alt={product.title} />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-700 line-clamp-1 mb-1">
-                        {product.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-morandi-brown">
-                          {CATEGORY_LABELS[product.category]}
-                        </span>
-                        <span className="text-xs text-morandi-brown">·</span>
-                        <span className="text-xs text-morandi-brown">
-                          {product.condition}/10成新
-                        </span>
+                    <div className="my-product-info">
+                      <div>
+                        <div className="my-product-title">{product.title}</div>
+                        <div className="my-product-meta">
+                          <span>{CATEGORY_LABELS[product.category]}</span>
+                          <span style={{ color: 'var(--morandi-gray-dark)' }}>·</span>
+                          <span>{product.condition}/10成新</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium ${getStatusColor(product.status)}`}>
-                          {getStatusText(product.status)}
-                        </span>
+                      <div
+                        className={`my-product-status ${getStatusClass(
+                          product.status
+                        )}`}
+                      >
+                        {getStatusText(product.status)}
                       </div>
                     </div>
-                    <ChevronRight size={20} className="text-morandi-brown self-center" />
+                    <ChevronIcon
+                      className="my-product-chevron"
+                      style={{ width: 20, height: 20 }}
+                    />
                   </div>
                   {product.status !== 'sold' && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-morandi-gray/50">
+                    <div className="my-product-actions">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleProductStatus(product);
-                        }}
-                        className="flex-1 py-2 text-xs rounded-full border border-morandi-gray text-morandi-brown hover:bg-morandi-gray/50 transition-colors duration-300 flex items-center justify-center gap-1"
+                        onClick={() => toggleStatus(product)}
+                        className="btn btn-secondary"
                       >
                         {product.status === 'published' ? (
                           <>
-                            <EyeOff size={14} />
+                            <EyeOffIcon style={{ width: 14, height: 14 }} />
                             下架
                           </>
                         ) : (
                           <>
-                            <Eye size={14} />
+                            <EyeIcon style={{ width: 14, height: 14 }} />
                             上架
                           </>
                         )}
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteProduct(product.id);
-                        }}
-                        className="flex-1 py-2 text-xs rounded-full border border-morandi-red/30 text-morandi-red hover:bg-morandi-red/10 transition-colors duration-300 flex items-center justify-center gap-1"
+                        onClick={() => handleDelete(product.id)}
+                        className="btn btn-danger"
                       >
-                        <Trash2 size={14} />
+                        <TrashIcon style={{ width: 14, height: 14 }} />
                         删除
                       </button>
                     </div>
@@ -261,63 +291,49 @@ export default function ProfilePage() {
                 </div>
               ))
             )}
-          </div>
+          </>
         )}
 
         {activeTab === 'requests' && (
-          <div className="space-y-3 animate-fade-in">
+          <>
             {receivedRequests.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-4 bg-morandi-gray rounded-full flex items-center justify-center">
-                  <Inbox size={32} className="text-morandi-brown" />
+              <div className="empty-state">
+                <div className="empty-icon-wrap">
+                  <InboxIcon style={{ width: 32, height: 32 }} />
                 </div>
-                <p className="text-morandi-brown mb-2">还没有收到交换申请</p>
-                <p className="text-sm text-morandi-brown/70">
+                <p className="empty-title">还没有收到交换申请</p>
+                <p className="empty-desc">
                   发布好物后，别人就可以向你发起交换申请啦
                 </p>
               </div>
             ) : (
-              receivedRequests.map((request, index) => {
-                const product = getRequestProduct(request.productId);
-                const isExpanded = expandedRequest === request.id;
-
+              receivedRequests.map((request, i) => {
+                const product = getProduct(request.productId);
+                const isExpanded = expandedId === request.id;
                 return (
                   <div
                     key={request.id}
-                    className={`bg-white rounded-card shadow-sm border border-morandi-gray/50 overflow-hidden transition-all duration-300 animate-slide-up ${
-                      !request.isRead ? 'ring-1 ring-morandi-blue/30' : ''
-                    }`}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className={`request-card ${!request.isRead ? 'has-unread' : ''}`}
+                    style={{ animationDelay: `${i * 50}ms` }}
                   >
                     <div
-                      className="flex cursor-pointer"
+                      className="request-card-row"
                       onClick={() => handleRequestClick(request)}
                     >
                       <div
-                        className={`w-1 flex-shrink-0 transition-colors duration-300 ${
-                          !request.isRead ? 'bg-morandi-blue' : 'bg-morandi-gray'
-                        }`}
+                        className={`request-marker ${request.isRead ? '' : 'unread'}`}
                       />
-                      <div className="flex-1 p-4 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <Gift size={16} className="text-morandi-sand" />
-                            <span className="text-sm font-medium text-gray-700">
-                              交换申请
-                            </span>
-                            {!request.isRead && (
-                              <span className="w-2 h-2 bg-morandi-blue rounded-full" />
-                            )}
+                      <div className="request-content">
+                        <div className="request-header">
+                          <div className="request-title-row">
+                            <GiftIcon
+                              className="request-icon"
+                              style={{ width: 16, height: 16 }}
+                            />
+                            <span className="request-title">交换申请</span>
+                            {!request.isRead && <span className="unread-dot" />}
                           </div>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              request.status === 'accepted'
-                                ? 'bg-morandi-green/20 text-morandi-green-dark'
-                                : request.status === 'rejected'
-                                ? 'bg-morandi-red/20 text-morandi-red-dark'
-                                : 'bg-morandi-yellow/20 text-morandi-brown'
-                            }`}
-                          >
+                          <span className={`request-status ${request.status}`}>
                             {request.status === 'accepted'
                               ? '已接受'
                               : request.status === 'rejected'
@@ -325,77 +341,68 @@ export default function ProfilePage() {
                               : '待处理'}
                           </span>
                         </div>
-
                         {product && (
-                          <div className="flex items-center gap-2 mb-2 p-2 bg-morandi-gray/30 rounded-lg">
-                            <div className="w-10 h-10 rounded overflow-hidden bg-morandi-gray flex-shrink-0">
+                          <div className="request-product">
+                            <div className="request-product-thumb">
                               {product.images[0] && (
                                 <img
                                   src={product.images[0]}
                                   alt={product.title}
-                                  className="w-full h-full object-cover"
                                 />
                               )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs text-gray-600 truncate">
-                                物品：{product.title}
-                              </p>
-                            </div>
+                            <span className="request-product-name">
+                              物品：{product.title}
+                            </span>
                           </div>
                         )}
-
-                        <p className="text-sm text-morandi-brown line-clamp-2 mb-1">
+                        <p className="request-offer-preview">
                           提供：{request.offerDescription}
                         </p>
-
-                        <div className="flex items-center gap-2 text-xs text-morandi-brown">
-                          <Clock size={12} />
+                        <div className="request-date">
+                          <ClockIcon style={{ width: 12, height: 12 }} />
                           <span>{formatDate(request.createdAt)}</span>
                         </div>
-
                         {isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-morandi-gray/50 animate-fade-in">
-                            <div className="mb-3">
-                              <p className="text-xs text-morandi-brown mb-1">
-                                提供的物品描述
-                              </p>
-                              <p className="text-sm text-gray-700">
+                          <div className="request-detail">
+                            <div className="request-detail-section">
+                              <div className="request-detail-label">提供的物品描述</div>
+                              <div className="request-detail-text">
                                 {request.offerDescription}
-                              </p>
-                            </div>
-                            <div className="mb-3">
-                              <p className="text-xs text-morandi-brown mb-1">
-                                联系方式
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <Phone size={14} className="text-morandi-green" />
-                                <p className="text-sm text-gray-700 font-medium">
-                                  {request.contactInfo}
-                                </p>
                               </div>
                             </div>
-
+                            <div className="request-detail-section">
+                              <div className="request-detail-label">联系方式</div>
+                              <div className="request-contact">
+                                <PhoneIcon
+                                  className="request-contact-icon"
+                                  style={{ width: 16, height: 16 }}
+                                />
+                                <span className="request-contact-value">
+                                  {request.contactInfo}
+                                </span>
+                              </div>
+                            </div>
                             {request.status === 'pending' && (
-                              <div className="flex gap-2">
+                              <div className="request-actions">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleReject(request.id);
+                                    rejectRequest(request.id);
                                   }}
-                                  className="flex-1 py-2 text-sm rounded-full border border-morandi-gray text-morandi-brown hover:bg-morandi-gray/50 transition-colors duration-300 flex items-center justify-center gap-1"
+                                  className="btn btn-secondary"
                                 >
-                                  <XCircle size={16} />
+                                  <XCircleIcon style={{ width: 16, height: 16 }} />
                                   拒绝
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAccept(request.id);
+                                    acceptRequest(request.id);
                                   }}
-                                  className="flex-1 py-2 text-sm rounded-full bg-morandi-green text-white hover:bg-morandi-green-dark transition-colors duration-300 flex items-center justify-center gap-1"
+                                  className="btn btn-success"
                                 >
-                                  <CheckCircle size={16} />
+                                  <CheckCircleIcon style={{ width: 16, height: 16 }} />
                                   接受
                                 </button>
                               </div>
@@ -403,20 +410,16 @@ export default function ProfilePage() {
                           </div>
                         )}
                       </div>
-                      <div className="pr-4 self-center">
-                        <ChevronRight
-                          size={20}
-                          className={`text-morandi-brown transition-transform duration-300 ${
-                            isExpanded ? 'rotate-90' : ''
-                          }`}
-                        />
-                      </div>
+                      <ChevronIcon
+                        className={`request-chevron ${isExpanded ? 'expanded' : ''}`}
+                        style={{ width: 20, height: 20 }}
+                      />
                     </div>
                   </div>
                 );
               })
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

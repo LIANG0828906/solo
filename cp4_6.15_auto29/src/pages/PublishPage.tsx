@@ -1,12 +1,42 @@
-import { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Upload, X, GripVertical, Image as ImageIcon } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { useDataStore } from '@/utils/dataStore';
 import { CATEGORY_LABELS, type Category } from '@/types';
 
+const UploadIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" x2="12" y1="3" y2="15" />
+  </svg>
+);
+
+const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+const GripIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="9" cy="5" r="1" />
+    <circle cx="9" cy="12" r="1" />
+    <circle cx="9" cy="19" r="1" />
+    <circle cx="15" cy="5" r="1" />
+    <circle cx="15" cy="12" r="1" />
+    <circle cx="15" cy="19" r="1" />
+  </svg>
+);
+
+const ImageIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+  </svg>
+);
+
 export default function PublishPage() {
-  const navigate = useNavigate();
-  const addProduct = useDataStore((state) => state.addProduct);
+  const { addProduct, navigate } = useDataStore();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Category>('other');
@@ -15,83 +45,98 @@ export default function PublishPage() {
   const [exchangePreference, setExchangePreference] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [showSuccessCard, setShowSuccessCard] = useState(false);
-  const [newProductId, setNewProductId] = useState('');
+  const [newProductImage, setNewProductImage] = useState('');
+  const [newProductTitle, setNewProductTitle] = useState('');
+
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
-    const remainingSlots = 6 - images.length;
-    const filesToProcess = Array.from(files).slice(0, remainingSlots);
-
-    filesToProcess.forEach((file) => {
+    const remaining = 6 - images.length;
+    const toProcess = Array.from(files).slice(0, remaining);
+    toProcess.forEach((file) => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string;
           setImages((prev) => [...prev, result]);
         };
         reader.readAsDataURL(file);
       }
     });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const files = e.dataTransfer.files;
-      if (!files) return;
-
-      const remainingSlots = 6 - images.length;
-      const filesToProcess = Array.from(files).slice(0, remainingSlots);
-
-      filesToProcess.forEach((file) => {
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+    const dt = e.dataTransfer;
+    if (dt.files && dt.files.length > 0) {
+      const remaining = 6 - images.length;
+      const toProcess = Array.from(dt.files).slice(0, remaining);
+      toProcess.forEach((file) => {
         if (file.type.startsWith('image/')) {
           const reader = new FileReader();
-          reader.onload = (event) => {
-            const result = event.target?.result as string;
+          reader.onload = (ev) => {
+            const result = ev.target?.result as string;
             setImages((prev) => [...prev, result]);
           };
           reader.readAsDataURL(file);
         }
       });
-    },
-    [images.length]
-  );
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleItemDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    setDragIndex(index);
+  };
+
+  const handleItemDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndex === null || dragIndex === index) return;
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleItemDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleItemDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === targetIndex) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const newImages = [...images];
+    const [movedItem] = newImages.splice(dragIndex, 1);
+    newImages.splice(targetIndex, 0, movedItem);
+    setImages(newImages);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleItemDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDragIndex(null);
-  };
-
-  const handleDragOverItem = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === index) return;
-
-    const newImages = [...images];
-    const dragItem = newImages[dragIndex];
-    newImages.splice(dragIndex, 1);
-    newImages.splice(index, 0, dragItem);
-    setImages(newImages);
-    setDragIndex(index);
   };
 
   const handleSubmit = () => {
@@ -103,7 +148,6 @@ export default function PublishPage() {
       alert('请至少上传一张图片');
       return;
     }
-
     const newProduct = addProduct({
       title: title.trim(),
       category,
@@ -112,12 +156,12 @@ export default function PublishPage() {
       images,
       exchangePreference: exchangePreference.trim() || '不限',
     });
-
-    setNewProductId(newProduct.id);
+    setNewProductImage(images[0]);
+    setNewProductTitle(title.trim());
     setShowSuccessCard(true);
-
     setTimeout(() => {
-      navigate('/');
+      setShowSuccessCard(false);
+      navigate({ name: 'browse' });
     }, 2000);
   };
 
@@ -130,64 +174,73 @@ export default function PublishPage() {
   };
 
   return (
-    <div className="min-h-screen bg-morandi-white pb-24">
-      <div className="sticky top-0 z-30 bg-morandi-white/90 backdrop-blur-sm border-b border-morandi-gray">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-gray-700">发布闲置</h1>
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-header-inner" style={{ maxWidth: 768 }}>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            发布闲置
+          </h1>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 animate-fade-in">
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-600 mb-3">
+      <div className="page-content py-6 animate-fade-in" style={{ maxWidth: 768 }}>
+        <div style={{ marginBottom: 24 }}>
+          <label className="input-label" style={{ display: 'block', marginBottom: 12 }}>
             物品照片
-            <span className="text-morandi-brown ml-1">（最多6张，拖拽可排序）</span>
+            <span style={{ marginLeft: 8, color: 'var(--morandi-brown)', fontWeight: 400, fontSize: 13 }}>
+              （最多6张，拖拽可排序）
+            </span>
           </label>
+
           <div
-            className="grid grid-cols-3 gap-3"
+            className="upload-grid"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
-            {images.map((img, index) => (
-              <div
-                key={index}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOverItem(e, index)}
-                className={`relative aspect-square rounded-card overflow-hidden bg-morandi-gray group ${
-                  dragIndex === index ? 'opacity-50 scale-95' : ''
-                } transition-all duration-200 cursor-move`}
-              >
-                <img
-                  src={img}
-                  alt={`图片 ${index + 1}`}
-                  className="w-full h-full object-cover"
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                <button
-                  onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-black/70"
-                  aria-label="删除图片"
+            {images.map((img, index) => {
+              const isDragging = dragIndex === index;
+              const isDragOver = dragOverIndex === index && dragIndex !== index;
+              return (
+                <div
+                  key={index}
+                  className={`upload-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                  draggable
+                  onDragStart={(e) => handleItemDragStart(e, index)}
+                  onDragOver={(e) => handleItemDragOver(e, index)}
+                  onDragLeave={handleItemDragLeave}
+                  onDrop={(e) => handleItemDrop(e, index)}
+                  onDragEnd={handleItemDragEnd}
                 >
-                  <X size={14} />
-                </button>
-                <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <GripVertical size={16} className="text-white drop-shadow" />
+                  <img src={img} alt={`图片 ${index + 1}`} />
+                  <div className="upload-item-overlay">
+                    <span className="upload-item-index">{index + 1}</span>
+                    <div className="upload-item-actions">
+                      <GripIcon className="upload-drag-hint" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          removeImage(index);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="upload-remove-btn"
+                        aria-label="删除图片"
+                      >
+                        <XIcon style={{ width: 14, height: 14 }} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-morandi-blue/80 text-white text-xs rounded">
-                  {index + 1}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {images.length < 6 && (
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-card border-2 border-dashed border-morandi-gray-dark bg-morandi-gray/50 flex flex-col items-center justify-center text-morandi-brown hover:border-morandi-blue hover:text-morandi-blue hover:bg-morandi-blue/5 transition-all duration-300"
+                className="upload-add-btn"
               >
-                <Upload size={24} className="mb-1" />
-                <span className="text-xs">添加图片</span>
+                <UploadIcon className="upload-add-icon" />
+                <span className="upload-add-text">添加图片</span>
               </button>
             )}
           </div>
@@ -197,39 +250,32 @@ export default function PublishPage() {
             accept="image/*"
             multiple
             onChange={handleFileSelect}
-            className="hidden"
+            style={{ display: 'none' }}
           />
         </div>
 
-        <div className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              物品名称
-            </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="input-group">
+            <label className="input-label">物品名称</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="例如：Kindle Paperwhite 电子书阅读器"
-              className="w-full px-4 py-3 bg-white border border-morandi-gray rounded-card text-gray-700 placeholder:text-morandi-brown/60 focus:outline-none focus:border-morandi-blue focus:ring-2 focus:ring-morandi-blue/20 transition-all duration-300"
+              className="input"
               maxLength={50}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              物品类别
-            </label>
-            <div className="flex flex-wrap gap-2">
+          <div className="input-group">
+            <label className="input-label">物品类别</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {(Object.keys(CATEGORY_LABELS) as Category[]).map((cat) => (
                 <button
                   key={cat}
+                  type="button"
                   onClick={() => setCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm transition-all duration-300 ${
-                    category === cat
-                      ? 'bg-morandi-blue text-white shadow-md'
-                      : 'bg-white text-morandi-brown border border-morandi-gray hover:border-morandi-blue hover:text-morandi-blue'
-                  }`}
+                  className={`tag ${category === cat ? 'active' : ''}`}
                 >
                   {CATEGORY_LABELS[cat]}
                 </button>
@@ -237,71 +283,68 @@ export default function PublishPage() {
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-600">
-                新旧程度
-              </label>
-              <span className="text-sm text-morandi-blue font-medium">
+          <div className="input-group">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <label className="input-label">新旧程度</label>
+              <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--morandi-blue)' }}>
                 {condition}/10 · {conditionLabel(condition)}
               </span>
             </div>
-            <div className="relative">
-              <input
-                type="range"
-                min={1}
-                max={10}
-                value={condition}
-                onChange={(e) => setCondition(Number(e.target.value))}
-                className="w-full h-2 bg-morandi-gray rounded-full appearance-none cursor-pointer slider-thumb"
-                style={{
-                  background: `linear-gradient(to right, #A8B5A0 0%, #A8B5A0 ${(condition - 1) * 11.11}%, #E8E6E1 ${(condition - 1) * 11.11}%, #E8E6E1 100%)`,
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-morandi-brown">
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={condition}
+              onChange={(e) => setCondition(Number(e.target.value))}
+              className="slider"
+              style={{
+                background: `linear-gradient(to right, #A8B5A0 0%, #A8B5A0 ${(condition - 1) * 11.11}%, #E8E6E1 ${(condition - 1) * 11.11}%, #E8E6E1 100%)`,
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: 'var(--morandi-brown)' }}>
               <span>较旧</span>
               <span>较新</span>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              详细描述
-            </label>
+          <div className="input-group">
+            <label className="input-label">详细描述</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="描述物品的使用情况、购买时间、是否有瑕疵等..."
               rows={4}
-              className="w-full px-4 py-3 bg-white border border-morandi-gray rounded-card text-gray-700 placeholder:text-morandi-brown/60 focus:outline-none focus:border-morandi-blue focus:ring-2 focus:ring-morandi-blue/20 transition-all duration-300 resize-none"
+              className="textarea"
               maxLength={500}
             />
-            <div className="text-right text-xs text-morandi-brown mt-1">
+            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--morandi-brown)' }}>
               {description.length}/500
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
+          <div className="input-group">
+            <label className="input-label">
               交换意向
-              <span className="text-morandi-brown font-normal ml-1">（想换什么类型的物品）</span>
+              <span style={{ marginLeft: 6, color: 'var(--morandi-brown)', fontWeight: 400, fontSize: 13 }}>
+                （想换什么类型的物品）
+              </span>
             </label>
             <input
               type="text"
               value={exchangePreference}
               onChange={(e) => setExchangePreference(e.target.value)}
               placeholder="例如：想换一套心理学书籍，或不限"
-              className="w-full px-4 py-3 bg-white border border-morandi-gray rounded-card text-gray-700 placeholder:text-morandi-brown/60 focus:outline-none focus:border-morandi-blue focus:ring-2 focus:ring-morandi-blue/20 transition-all duration-300"
+              className="input"
               maxLength={100}
             />
           </div>
         </div>
 
-        <div className="mt-8">
+        <div style={{ marginTop: 32 }}>
           <button
+            type="button"
             onClick={handleSubmit}
-            className="w-full py-4 bg-morandi-blue text-white rounded-card font-medium text-base hover:bg-morandi-blue-dark active:scale-[0.98] transition-all duration-300 shadow-md hover:shadow-lg"
+            className="btn btn-primary btn-block btn-lg"
           >
             发布物品
           </button>
@@ -309,35 +352,17 @@ export default function PublishPage() {
       </div>
 
       {showSuccessCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
-            onClick={() => setShowSuccessCard(false)}
-          />
-          <div className="relative w-full max-w-sm animate-slide-up">
-            <div className="bg-white rounded-card p-6 shadow-card text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-morandi-green/20 rounded-full flex items-center justify-center">
-                <ImageIcon size={28} className="text-morandi-green" />
+        <div className="modal-backdrop">
+          <div className="success-card">
+            <div style={{ backgroundColor: 'white', borderRadius: 12, padding: 24, textAlign: 'center' }}>
+              <div className="success-icon-wrap">
+                <ImageIcon style={{ width: 28, height: 28 }} />
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">
-                发布成功！
-              </h3>
-              <p className="text-sm text-morandi-brown mb-4">
-                你的商品卡片已生成，正在跳转到浏览页...
-              </p>
-              <div className="bg-morandi-white rounded-card p-3">
-                <div className="aspect-square rounded-lg overflow-hidden mb-2">
-                  {images[0] && (
-                    <img
-                      src={images[0]}
-                      alt={title}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {title}
-                </p>
+              <h3 className="success-title">发布成功！</h3>
+              <p className="success-desc">你的商品卡片已生成，正在跳转到浏览页...</p>
+              <div className="success-preview">
+                <img src={newProductImage} alt={newProductTitle} />
+                <p>{newProductTitle}</p>
               </div>
             </div>
           </div>
