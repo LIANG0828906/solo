@@ -1,9 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Ingredient, RecipeDifficulty, RecipeScore } from '@/shared/types';
 import { DIFFICULTY_LABELS } from '@/shared/types';
 import { useAppStore } from '@/shared/store';
 import { scoreRecipes } from '@/shared/utils';
 import { Search, ChefHat, Clock, Flame, Star, ShoppingCart, ChevronDown, ChevronUp, UtensilsCrossed } from 'lucide-react';
+
+function useDebounce<T>(value: T, delay: number = 200): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function RecipeRecommender() {
   const ingredients = useAppStore((s) => s.ingredients);
@@ -12,11 +21,19 @@ export default function RecipeRecommender() {
   const setCurrentPage = useAppStore((s) => s.setCurrentPage);
   const addToShoppingList = useAppStore((s) => s.addToShoppingList);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 200);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<RecipeDifficulty>('easy');
   const [results, setResults] = useState<RecipeScore[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+
+  const filteredIngredients: Ingredient[] = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return ingredients;
+    return ingredients.filter((i) => i.name.toLowerCase().includes(q));
+  }, [ingredients, debouncedSearch]);
 
   const toggleIngredient = (id: string) => {
     setSelectedIds((prev) => {
@@ -77,8 +94,18 @@ export default function RecipeRecommender() {
           <h2 className="text-lg font-semibold text-wood-700">选择食材</h2>
           <span className="text-sm text-wood-500">已选择 {selectedIds.length}/5</span>
         </div>
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-wood-400" />
+          <input
+            type="text"
+            placeholder="搜索食材..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl border border-wood-200 bg-white py-2.5 pl-10 pr-4 text-sm text-wood-800 placeholder-wood-300 outline-none transition-shadow focus:border-olive-400 focus:shadow-md"
+          />
+        </div>
         <div className="flex flex-wrap gap-2">
-          {ingredients.map((ing) => {
+          {filteredIngredients.map((ing) => {
             const isSelected = selectedIds.includes(ing.id);
             return (
               <button
@@ -94,6 +121,9 @@ export default function RecipeRecommender() {
               </button>
             );
           })}
+          {filteredIngredients.length === 0 && (
+            <div className="w-full py-4 text-center text-wood-400 text-sm">没有找到匹配的食材</div>
+          )}
         </div>
       </div>
 

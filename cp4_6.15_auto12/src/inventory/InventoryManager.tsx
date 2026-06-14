@@ -64,15 +64,13 @@ export default function InventoryManager() {
     setDeletingIds((prev) => new Set(prev).add(id));
   }, []);
 
-  const handleAnimationEnd = useCallback((e: React.AnimationEvent<HTMLDivElement>, id: string) => {
-    if (e.animationName === 'slide-out-left') {
-      deleteIngredient(id);
-      setDeletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
+  const handleAnimationEnd = useCallback((_e: React.AnimationEvent<HTMLDivElement>, id: string) => {
+    deleteIngredient(id);
+    setDeletingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }, [deleteIngredient]);
 
   const grouped = useMemo(() => {

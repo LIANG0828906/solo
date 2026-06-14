@@ -1,33 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Recipe, RecipeStep } from '@/shared/types';
 import { useAppStore } from '@/shared/store';
-import { Timer, ChevronRight, ArrowLeft, Trophy, Star, RotateCcw } from 'lucide-react';
-
-const STEP_OUT_KEYFRAMES = `
-@keyframes stepOut {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(-100%); opacity: 0; }
-}`;
-const STEP_IN_KEYFRAMES = `
-@keyframes stepIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}`;
-const STEP_OUT_BACK_KEYFRAMES = `
-@keyframes stepOutBack {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(100%); opacity: 0; }
-}`;
-const STEP_IN_BACK_KEYFRAMES = `
-@keyframes stepInBack {
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}`;
-const PULSE_KEYFRAMES = `
-@keyframes timerPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(107,142,35,0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(107,142,35,0); }
-}`;
+import { Timer, ChevronRight, ArrowLeft, Trophy, RotateCcw } from 'lucide-react';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -144,7 +118,7 @@ function StepContent({
           <div
             className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors duration-300 ${
               timerFlashing
-                ? 'border-olive-500 animate-[timerPulse_1s_ease-in-out_infinite]'
+                ? 'border-olive-500 timer-pulse'
                 : timerSeconds === 0
                 ? 'border-olive-500'
                 : 'border-wood-200'
@@ -347,24 +321,17 @@ export default function CookingGuide() {
     return <CompletionScreen recipe={recipe} />;
   }
 
-  const animStyle: React.CSSProperties = isAnimating
-    ? animDirection === 'forward'
-      ? { animation: 'stepOut 300ms ease-in forwards' }
-      : { animation: 'stepOutBack 300ms ease-in forwards' }
-    : animDirection === 'forward'
-    ? { animation: 'stepIn 300ms ease-out forwards' }
-    : animDirection === 'backward'
-    ? { animation: 'stepInBack 300ms ease-out forwards' }
-    : {};
+  let animClass = '';
+  if (isAnimating) {
+    animClass = animDirection === 'forward' ? 'animate-step-out' : 'animate-step-out-back';
+  } else if (animDirection === 'forward') {
+    animClass = 'animate-step-in';
+  } else if (animDirection === 'backward') {
+    animClass = 'animate-step-in-back';
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <style>{STEP_OUT_KEYFRAMES}</style>
-      <style>{STEP_IN_KEYFRAMES}</style>
-      <style>{STEP_OUT_BACK_KEYFRAMES}</style>
-      <style>{STEP_IN_BACK_KEYFRAMES}</style>
-      <style>{PULSE_KEYFRAMES}</style>
-
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-serif text-2xl text-wood-800">{recipe.name}</h1>
         <div className="flex items-center gap-3">
@@ -382,8 +349,8 @@ export default function CookingGuide() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden" style={{ minHeight: 280 }}>
-        <div key={displayStep} style={animStyle}>
+      <div className="relative overflow-hidden perspective-container" style={{ minHeight: 280 }}>
+        <div key={displayStep} className={animClass}>
           <StepContent
             step={step}
             timerSeconds={timerSeconds}

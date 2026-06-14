@@ -21,15 +21,15 @@ body {
 }
 
 .glass-effect {
-  background-color: rgba(255, 248, 240, 0.75);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
+  border-color: rgba(139, 111, 71, 0.1);
 }
 
-@supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+@supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
   .glass-effect {
-    background-color: rgba(255, 248, 240, 0.95);
+    background-color: rgba(255, 255, 255, 0.95);
   }
 }
 
@@ -101,6 +101,10 @@ body {
     box-shadow: 0 0 0 14px rgba(107, 142, 35, 0);
     transform: scale(1.03);
   }
+}
+
+.timer-pulse {
+  animation: timerPulse 1s ease-in-out infinite;
 }
 
 .animate-step-out {
