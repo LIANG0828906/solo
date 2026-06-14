@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -15,13 +15,79 @@ import { useAppContext } from './App';
 import {
   getDeckMastery,
   getLast7DaysDays,
-  getCalendarDays,
   formatDate,
   DailyLog,
 } from './utils/spacedRepetition';
 
+interface HeatmapWeek {
+  days: (HeatmapDay | null)[];
+}
+
+interface HeatmapDay {
+  date: string;
+  count: number;
+  level: number;
+  isFuture: boolean;
+}
+
+function generateHeatmapData(dailyLogs: Record<string, DailyLog>): { weeks: HeatmapWeek[]; months: { label: string; weekIndex: number }[] } {
+  const today = new Date();
+  const todayStr = formatDate(today);
+
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 364);
+  const dayOfWeek = startDate.getDay();
+  startDate.setDate(startDate.getDate() - dayOfWeek);
+
+  const allDays: HeatmapDay[] = [];
+  const current = new Date(startDate);
+
+  while (formatDate(current) <= todayStr || current.getDay() !== 0) {
+    const dateStr = formatDate(current);
+    const isFuture = dateStr > todayStr;
+    const log = dailyLogs[dateStr];
+    const count = log?.reviewed || 0;
+    let level = 0;
+    if (!isFuture) {
+      if (count >= 1 && count < 5) level = 1;
+      else if (count >= 5 && count < 15) level = 2;
+      else if (count >= 15 && count < 30) level = 3;
+      else if (count >= 30) level = 4;
+    }
+    allDays.push({ date: dateStr, count, level, isFuture });
+    current.setDate(current.getDate() + 1);
+    if (isFuture && current.getDay() === 0 && formatDate(current) > todayStr) break;
+  }
+
+  const weeks: HeatmapWeek[] = [];
+  const months: { label: string; weekIndex: number }[] = [];
+  let seenMonths = new Set<string>();
+
+  for (let i = 0; i < allDays.length; i += 7) {
+    const weekDays: (HeatmapDay | null)[] = [];
+    for (let j = 0; j < 7; j++) {
+      weekDays.push(allDays[i + j] || null);
+    }
+    weeks.push({ days: weekDays });
+
+    const firstDay = weekDays.find(d => d !== null);
+    if (firstDay) {
+      const d = new Date(firstDay.date + 'T00:00:00');
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      const monthLabel = `${d.getMonth() + 1}月`;
+      if (!seenMonths.has(monthKey) && d.getDate() <= 7) {
+        seenMonths.add(monthKey);
+        months.push({ label: monthLabel, weekIndex: weeks.length - 1 });
+      }
+    }
+  }
+
+  return { weeks, months };
+}
+
 export default function StatsDashboard() {
   const { state } = useAppContext();
+  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
 
   const totalCards = state.decks.reduce((sum, d) => sum + d.cards.length, 0);
   const totalReviews = state.decks.reduce((sum, d) => sum + d.reviewCount, 0);
@@ -49,22 +115,13 @@ export default function StatsDashboard() {
     });
   }, [state.dailyLogs]);
 
-  const calendarData = useMemo(() => {
-    const now = new Date();
-    const days = getCalendarDays(now.getFullYear(), now.getMonth());
-    return days;
-  }, []);
-
-  const getCalendarLevel = (dateStr: string): number => {
-    const log = state.dailyLogs[dateStr];
-    if (!log || log.reviewed === 0) return 0;
-    if (log.reviewed < 5) return 1;
-    if (log.reviewed < 15) return 2;
-    if (log.reviewed < 30) return 3;
-    return 4;
-  };
+  const heatmapData = useMemo(() => {
+    return generateHeatmapData(state.dailyLogs);
+  }, [state.dailyLogs]);
 
   const COLORS = ['#8BA883', '#A8B5C3', '#D4CFC8', '#B8CCE0', '#A8C3A0'];
+
+  const dayLabels = ['', '一', '', '三', '', '五', ''];
 
   return (
     <div>
@@ -150,33 +207,61 @@ export default function StatsDashboard() {
         </div>
 
         <div className="stats-card">
-          <h3 className="stats-card-title">📅 本月复习打卡</h3>
-          <div className="calendar-container">
-            <div className="calendar-grid">
-              {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
-                <div key={d} className="calendar-day-header">
-                  {d}
+          <h3 className="stats-card-title">📅 复习打卡热力图</h3>
+          <div className="heatmap-scroll-container">
+            <div style={{ display: 'inline-block' }}>
+              <div className="heatmap-month-labels">
+                {heatmapData.months.map((m, i) => (
+                  <div
+                    key={i}
+                    className="heatmap-month-label"
+                    style={{
+                      position: 'relative',
+                      left: i === 0 ? `${m.weekIndex * 17}px` : undefined,
+                      marginLeft: i > 0 ? `${(m.weekIndex - heatmapData.months[i - 1].weekIndex) * 17 - (i > 0 ? 56 : 0)}px` : undefined,
+                    }}
+                  >
+                    {m.label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex' }}>
+                <div className="heatmap-day-labels">
+                  {dayLabels.map((label, i) => (
+                    <div key={i} className="heatmap-day-label">{label}</div>
+                  ))}
                 </div>
-              ))}
-              {calendarData.map((dateStr, i) => (
-                <div
-                  key={i}
-                  className={`calendar-day ${
-                    dateStr ? `level-${getCalendarLevel(dateStr)}` : ''
-                  }`}
-                  title={dateStr ? `${dateStr}: ${state.dailyLogs[dateStr]?.reviewed || 0}次复习` : ''}
-                  style={!dateStr ? { visibility: 'hidden' } : {}}
-                />
-              ))}
-            </div>
-            <div className="calendar-legend">
-              <span>少</span>
-              <div className="legend-box level-0" style={{ background: 'var(--color-bg)' }} />
-              <div className="legend-box level-1" />
-              <div className="legend-box level-2" />
-              <div className="legend-box level-3" />
-              <div className="legend-box level-4" />
-              <span>多</span>
+                <div className="heatmap-grid">
+                  {heatmapData.weeks.map((week, wi) => (
+                    <div key={wi} className="heatmap-row">
+                      {week.days.map((day, di) => (
+                        <div
+                          key={di}
+                          className={`heatmap-cell ${day ? (day.isFuture ? 'future' : `level-${day.level}`) : ''}`}
+                          onMouseEnter={() => day && setHoveredCell(day.date)}
+                          onMouseLeave={() => setHoveredCell(null)}
+                          style={{ position: 'relative' }}
+                        >
+                          {hoveredCell === day?.date && day && !day.isFuture && (
+                            <div className="heatmap-tooltip">
+                              {day.date}：{day.count} 次复习
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="calendar-legend" style={{ justifyContent: 'flex-start', paddingLeft: 30, marginTop: 10 }}>
+                <span style={{ fontSize: 11, color: '#888' }}>少</span>
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#f0ede8' }} />
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#d4e6d0' }} />
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#a8c3a0' }} />
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#7da575' }} />
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#5a8a50' }} />
+                <span style={{ fontSize: 11, color: '#888' }}>多</span>
+              </div>
             </div>
           </div>
         </div>
