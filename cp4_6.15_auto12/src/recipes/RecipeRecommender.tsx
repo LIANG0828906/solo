@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Ingredient, RecipeDifficulty, RecipeScore } from '@/shared/types';
 import { DIFFICULTY_LABELS } from '@/shared/types';
 import { useAppStore } from '@/shared/store';
@@ -26,16 +26,20 @@ export default function RecipeRecommender() {
     });
   };
 
-  const selectedIngredients: Ingredient[] = ingredients.filter((i) =>
-    selectedIds.includes(i.id)
+  const selectedIngredients: Ingredient[] = useMemo(
+    () => ingredients.filter((i) => selectedIds.includes(i.id)),
+    [ingredients, selectedIds]
   );
 
   const handleRecommend = () => {
     if (selectedIngredients.length < 2) return;
+    const start = performance.now();
     const scored = scoreRecipes(selectedIngredients, recipes, difficulty);
-    setResults(scored.slice(0, 5));
+    const top5 = scored.slice(0, 5);
+    setResults(top5);
     setHasSearched(true);
     setExpandedIds([]);
+    console.log(`推荐计算耗时: ${(performance.now() - start).toFixed(2)}ms`);
   };
 
   const toggleExpanded = (id: string) => {
@@ -152,7 +156,7 @@ export default function RecipeRecommender() {
             return (
               <div
                 key={recipe.id}
-                className="rounded-xl bg-white shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 overflow-hidden"
+                className="card-recipe overflow-hidden"
               >
                 <div
                   className="p-5 cursor-pointer"

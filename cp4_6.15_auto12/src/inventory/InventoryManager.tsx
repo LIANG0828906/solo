@@ -1,9 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Ingredient, IngredientCategory, IngredientUnit } from '@/shared/types';
 import { CATEGORY_LABELS, UNIT_LABELS } from '@/shared/types';
 import { useAppStore } from '@/shared/store';
 import { isExpired, isExpiringSoon, daysUntilExpiry, formatExpiryDate } from '@/shared/utils';
 import { Plus, Pencil, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Package } from 'lucide-react';
+
+function useDebounce<T>(value: T, delay: number = 200): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 const CATEGORY_BORDER_COLORS: Record<IngredientCategory, string> = {
   vegetables: 'border-l-green-500',
@@ -39,6 +48,7 @@ export default function InventoryManager() {
   const deleteIngredient = useAppStore((s) => s.deleteIngredient);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 200);
   const [expandedCategories, setExpandedCategories] = useState<Set<IngredientCategory>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
@@ -46,9 +56,24 @@ export default function InventoryManager() {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return q ? ingredients.filter((i) => i.name.toLowerCase().includes(q)) : ingredients;
-  }, [ingredients, searchQuery]);
+  }, [ingredients, debouncedSearch]);
+
+  const handleDelete = useCallback((id: string) => {
+    setDeletingIds((prev) => new Set(prev).add(id));
+  }, []);
+
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent<HTMLDivElement>, id: string) => {
+    if (e.animationName === 'slide-out-left') {
+      deleteIngredient(id);
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, [deleteIngredient]);
 
   const grouped = useMemo(() => {
     const map = new Map<IngredientCategory, Ingredient[]>();
@@ -126,18 +151,6 @@ export default function InventoryManager() {
     closeModal();
   };
 
-  const handleDelete = (id: string) => {
-    setDeletingIds((prev) => new Set(prev).add(id));
-    setTimeout(() => {
-      deleteIngredient(id);
-      setDeletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, 300);
-  };
-
   const getExpiryColor = (date: string) => {
     if (isExpired(date)) return 'text-red-600';
     if (isExpiringSoon(date)) return 'text-orange-500';
@@ -207,7 +220,8 @@ export default function InventoryManager() {
                         return (
                           <div
                             key={ingredient.id}
-                            className={`rounded-xl bg-white shadow-md transition-all hover:shadow-lg ${CATEGORY_BORDER_COLORS[ingredient.category]} border-l-4 ${deleting ? 'slide-out-left' : ''}`}
+                            onAnimationEnd={(e) => handleAnimationEnd(e, ingredient.id)}
+                            className={`card-ingredient overflow-hidden ${CATEGORY_BORDER_COLORS[ingredient.category]} border-l-4 ${deleting ? 'slide-out-left' : ''}`}
                           >
                             {expired && (
                               <div className="flex items-center gap-1.5 rounded-t-xl bg-yellow-100 px-4 py-1.5 text-xs font-medium text-yellow-800">
