@@ -16,7 +16,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": false,
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": false,
@@ -25,7 +25,7 @@
     "baseUrl": "./",
     "paths": {
       "@/*": [
-        "./src/*"
+        "./src/client/*"
       ]
     },
     "types": [
@@ -34,7 +34,7 @@
     ]
   },
   "include": [
-    "src",
-    "api"
+    "src/client",
+    "src/server"
   ]
 }
