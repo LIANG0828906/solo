@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useMixerStore } from '@store/useStore';
 import { useAudioEngine } from '@hooks/useAudioEngine';
 
@@ -53,7 +53,7 @@ export function MixerControls() {
     setIsDragging(false);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -213,6 +213,7 @@ export function MixerControls() {
           max={300}
           step={1}
           style={{
+            minWidth: '60px',
             width: '60px',
             height: '32px',
             padding: '0 8px',

@@ -30,6 +30,7 @@ export function TrackItem({ track, index, isSelected, onSelect, onEffectDrop }: 
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panKnobRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
 
   const bgColor = index % 2 === 0 ? '#f9fafb' : '#f3f4f6';
 
@@ -118,7 +119,13 @@ export function TrackItem({ track, index, isSelected, onSelect, onEffectDrop }: 
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
-    setDragOverSlot(slotIndex);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    rafRef.current = requestAnimationFrame(() => {
+      setDragOverSlot(slotIndex);
+      rafRef.current = null;
+    });
   };
 
   const handleSlotDragLeave = () => {
@@ -414,6 +421,7 @@ export function TrackItem({ track, index, isSelected, onSelect, onEffectDrop }: 
                 whiteSpace: 'nowrap',
                 textOverflow: 'ellipsis',
                 padding: '0 4px',
+                pointerEvents: effect?.bypassed ? 'none' : 'auto',
               }}
               title={config?.name || `插槽 ${i + 1}`}
             >

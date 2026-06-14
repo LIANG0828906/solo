@@ -63,16 +63,22 @@ export class EffectSlot implements IEffectSlot {
     return this.bypassed;
   }
 
+  private scheduleParam(param: AudioParam, value: number): void {
+    const t = this.audioContext.currentTime;
+    param.cancelScheduledValues(t);
+    param.setValueAtTime(param.value, t);
+    param.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+  }
+
   private applyBypassState(): void {
     if (!this.dryGain || !this.wetGain) return;
-    const t = this.audioContext.currentTime;
     if (this.bypassed) {
-      this.dryGain.gain.setTargetAtTime(1, t, PARAM_RAMP_TIME);
-      this.wetGain.gain.setTargetAtTime(0, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.dryGain.gain, 1);
+      this.scheduleParam(this.wetGain.gain, 0);
     } else {
       const wet = this.params['wet'] ?? 0.5;
-      this.dryGain.gain.setTargetAtTime(1 - wet, t, PARAM_RAMP_TIME);
-      this.wetGain.gain.setTargetAtTime(wet, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.dryGain.gain, 1 - wet);
+      this.scheduleParam(this.wetGain.gain, wet);
     }
   }
 
@@ -246,54 +252,49 @@ export class EffectSlot implements IEffectSlot {
   }
 
   private applyEQParam(name: string, value: number): void {
-    const t = this.audioContext.currentTime;
     if (name === 'lowGain' && this.eqFilters[0]) {
-      this.eqFilters[0].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.eqFilters[0].gain, value);
     } else if (name === 'midGain' && this.eqFilters[1]) {
-      this.eqFilters[1].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.eqFilters[1].gain, value);
     } else if (name === 'highGain' && this.eqFilters[2]) {
-      this.eqFilters[2].gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.eqFilters[2].gain, value);
     }
   }
 
   private applyCompressorParam(name: string, value: number): void {
     if (!this.compressorNode) return;
-    const t = this.audioContext.currentTime;
-    if (name === 'threshold') this.compressorNode.threshold.setTargetAtTime(value, t, PARAM_RAMP_TIME);
-    else if (name === 'ratio') this.compressorNode.ratio.setTargetAtTime(value, t, PARAM_RAMP_TIME);
-    else if (name === 'attack') this.compressorNode.attack.setTargetAtTime(value, t, PARAM_RAMP_TIME);
-    else if (name === 'release') this.compressorNode.release.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+    if (name === 'threshold') this.scheduleParam(this.compressorNode.threshold, value);
+    else if (name === 'ratio') this.scheduleParam(this.compressorNode.ratio, value);
+    else if (name === 'attack') this.scheduleParam(this.compressorNode.attack, value);
+    else if (name === 'release') this.scheduleParam(this.compressorNode.release, value);
   }
 
   private applyReverbParam(name: string, value: number): void {
-    const t = this.audioContext.currentTime;
     if (name === 'decay' && this.convolver) {
       this.generateImpulseResponse(this.convolver, value);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
-      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.dryGain.gain, 1 - value);
+      this.scheduleParam(this.wetGain.gain, value);
     }
   }
 
   private applyDelayParam(name: string, value: number): void {
-    const t = this.audioContext.currentTime;
     if (name === 'delayTime' && this.delayNode) {
-      this.delayNode.delayTime.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.delayNode.delayTime, value);
     } else if (name === 'feedback' && this.feedbackGain) {
-      this.feedbackGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.feedbackGain.gain, value);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
-      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.dryGain.gain, 1 - value);
+      this.scheduleParam(this.wetGain.gain, value);
     }
   }
 
   private applyDistortionParam(name: string, value: number): void {
-    const t = this.audioContext.currentTime;
     if (name === 'amount' && this.waveShaper) {
       this.waveShaper.curve = this.makeDistortionCurve(value);
     } else if (name === 'wet' && this.dryGain && this.wetGain && !this.bypassed) {
-      this.dryGain.gain.setTargetAtTime(1 - value, t, PARAM_RAMP_TIME);
-      this.wetGain.gain.setTargetAtTime(value, t, PARAM_RAMP_TIME);
+      this.scheduleParam(this.dryGain.gain, 1 - value);
+      this.scheduleParam(this.wetGain.gain, value);
     }
   }
 

@@ -1,5 +1,5 @@
 import { Track } from './Track.js';
-import { EffectType, AudioEngineState, PlaybackState, TrackState, IAudioEngine, ITrack } from '@types/index';
+import { EffectType, AudioEngineState, PlaybackState, TrackState, IAudioEngine, ITrack, WAVEFORM_REFRESH_INTERVAL } from '@types/index';
 import { v4 as uuidv4 } from 'uuid';
 
 type StateListener = (state: AudioEngineState) => void;
@@ -24,6 +24,8 @@ export class AudioEngine implements IAudioEngine {
 
   private soloTracks: Set<string> = new Set();
   private clipboards: Map<string, AudioBuffer> = new Map();
+
+  private waveformRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {}
 
@@ -117,7 +119,6 @@ export class AudioEngine implements IAudioEngine {
     if (!track) return false;
 
     track.stop();
-    track.stopWaveformRefresh();
     track.disconnect();
     track.destroy();
     this.tracks.delete(trackId);
@@ -306,8 +307,9 @@ export class AudioEngine implements IAudioEngine {
 
     this.tracks.forEach((track) => {
       track.play(this._currentTime);
-      track.startWaveformRefresh();
     });
+
+    this.startWaveformRefresh();
 
     this._isPlaying = true;
     this.lastUpdateTime = this.context.currentTime;
@@ -321,8 +323,9 @@ export class AudioEngine implements IAudioEngine {
     this.tracks.forEach((track) => {
       this._currentTime = track.getCurrentTime();
       track.pause();
-      track.stopWaveformRefresh();
     });
+
+    this.stopWaveformRefresh();
 
     this._isPlaying = false;
     this.stopAnimationFrame();
@@ -332,8 +335,9 @@ export class AudioEngine implements IAudioEngine {
   stop(): void {
     this.tracks.forEach((track) => {
       track.stop();
-      track.stopWaveformRefresh();
     });
+
+    this.stopWaveformRefresh();
 
     this._isPlaying = false;
     this._currentTime = 0;
@@ -384,6 +388,22 @@ export class AudioEngine implements IAudioEngine {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
+    }
+  }
+
+  private startWaveformRefresh(): void {
+    if (this.waveformRefreshTimer !== null) return;
+    this.waveformRefreshTimer = setInterval(() => {
+      this.tracks.forEach((track) => {
+        track.computeWaveformIfBuffer();
+      });
+    }, WAVEFORM_REFRESH_INTERVAL);
+  }
+
+  private stopWaveformRefresh(): void {
+    if (this.waveformRefreshTimer !== null) {
+      clearInterval(this.waveformRefreshTimer);
+      this.waveformRefreshTimer = null;
     }
   }
 
@@ -458,8 +478,8 @@ export class AudioEngine implements IAudioEngine {
 
   destroy(): void {
     this.stopAnimationFrame();
+    this.stopWaveformRefresh();
     this.tracks.forEach((track) => {
-      track.stopWaveformRefresh();
       track.destroy();
     });
     this.tracks.clear();

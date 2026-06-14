@@ -86,8 +86,7 @@ export interface ITrack {
   importAudioFile(file: File | ArrayBuffer, fileName?: string): Promise<void>;
   setBuffer(buffer: AudioBuffer, name?: string): void;
   getWaveformData(): Float32Array | null;
-  startWaveformRefresh(): void;
-  stopWaveformRefresh(): void;
+  computeWaveformIfBuffer(): void;
   setVolume(value: number): void;
   setPan(value: number): void;
   toggleMute(): boolean;

@@ -185,3 +185,11 @@ input[type="range"]::-moz-range-thumb {
     var(--slider-track) var(--value, 50%)
   );
 }
+
+.volume-slider::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--accent-blue-dark) var(--value, 50%),
+    var(--slider-track) var(--value, 50%)
+  );
+}

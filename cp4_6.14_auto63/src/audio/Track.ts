@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { EffectSlot } from './EffectSlot.js';
-import { EffectType, TrackState, ITrack, IEffectSlot, WAVEFORM_SAMPLES, WAVEFORM_REFRESH_INTERVAL, MAX_EFFECTS_PER_TRACK } from '@types/index';
+import { EffectType, TrackState, ITrack, IEffectSlot, WAVEFORM_SAMPLES, MAX_EFFECTS_PER_TRACK } from '@types/index';
 
 export class Track implements ITrack {
   id: string;
@@ -23,7 +23,6 @@ export class Track implements ITrack {
   private pausedAt: number = 0;
   private isPlaying: boolean = false;
   private isSoloMuted: boolean = false;
-  private waveformRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(audioContext: AudioContext, name: string = '新轨道') {
     this.id = uuidv4();
@@ -101,20 +100,9 @@ export class Track implements ITrack {
     return this.waveformData;
   }
 
-  startWaveformRefresh(): void {
-    this.stopWaveformRefresh();
-    this.computeWaveform();
-    this.waveformRefreshTimer = setInterval(() => {
-      if (this.buffer) {
-        this.computeWaveform();
-      }
-    }, WAVEFORM_REFRESH_INTERVAL);
-  }
-
-  stopWaveformRefresh(): void {
-    if (this.waveformRefreshTimer !== null) {
-      clearInterval(this.waveformRefreshTimer);
-      this.waveformRefreshTimer = null;
+  computeWaveformIfBuffer(): void {
+    if (this.buffer) {
+      this.computeWaveform();
     }
   }
 
@@ -125,7 +113,10 @@ export class Track implements ITrack {
 
   setPan(value: number): void {
     this.pan = Math.max(-100, Math.min(100, value));
-    this.panNode.pan.setTargetAtTime(this.pan / 100, this.audioContext.currentTime, 0.01);
+    const t = this.audioContext.currentTime;
+    this.panNode.pan.cancelScheduledValues(t);
+    this.panNode.pan.setValueAtTime(this.panNode.pan.value, t);
+    this.panNode.pan.setTargetAtTime(this.pan / 100, t, 0.01);
   }
 
   toggleMute(): boolean {
@@ -147,7 +138,10 @@ export class Track implements ITrack {
   private updateGain(): void {
     const shouldMute = this.muted || this.isSoloMuted;
     const targetGain = shouldMute ? 0 : this.volume / 100;
-    this.gainNode.gain.setTargetAtTime(targetGain, this.audioContext.currentTime, 0.01);
+    const t = this.audioContext.currentTime;
+    this.gainNode.gain.cancelScheduledValues(t);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, t);
+    this.gainNode.gain.setTargetAtTime(targetGain, t, 0.01);
   }
 
   addEffect(type: EffectType, slotIndex: number): IEffectSlot | null {
@@ -401,7 +395,6 @@ export class Track implements ITrack {
 
   destroy(): void {
     this.stop();
-    this.stopWaveformRefresh();
     this.disconnect();
     for (const effect of this.effects) {
       effect.destroy();
