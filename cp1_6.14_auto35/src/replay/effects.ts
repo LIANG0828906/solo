@@ -5,7 +5,11 @@ import {
 } from 'three';
 
 function disposeGroup(group: Group) {
-  group.parent?.remove(group);
+  if ((group as unknown as { _disposed?: boolean })._disposed) return;
+  (group as unknown as { _disposed: boolean })._disposed = true;
+  if (group.parent) {
+    group.parent.remove(group);
+  }
   group.traverse((child) => {
     if (child instanceof Mesh || child instanceof Line) {
       child.geometry.dispose();

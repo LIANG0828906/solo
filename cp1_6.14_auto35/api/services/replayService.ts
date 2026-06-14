@@ -70,27 +70,18 @@ export async function getReplayById(id: string): Promise<BattleLog> {
   if (!meta) {
     throw new ReplayNotFoundError(id)
   }
-
-  try {
-    const log = await getBattleLog(id)
-    if (!log) {
-      throw new BattleLogReadError(id)
-    }
-    return log
-  } catch (error) {
-    if (error instanceof ReplayNotFoundError || error instanceof BattleLogReadError) {
-      throw error
-    }
-    throw new BattleLogReadError(id, error)
-  }
+  return getBattleLog(id)
 }
 
-async function getBattleLog(id: string): Promise<BattleLog | null> {
+async function getBattleLog(id: string): Promise<BattleLog> {
   const filePath = join(battleLogsDir, `${id}.json`)
   try {
     const content = await readFile(filePath, 'utf-8')
     return JSON.parse(content) as BattleLog
-  } catch {
-    return null
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && (error as { code: string }).code === 'ENOENT') {
+      throw new ReplayNotFoundError(id)
+    }
+    throw new BattleLogReadError(id, error)
   }
 }

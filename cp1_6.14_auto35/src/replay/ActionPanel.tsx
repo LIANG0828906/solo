@@ -8,13 +8,15 @@ const SPEEDS = [1, 2, 4, 8]
 function HpBar({ unit, prevHp }: { unit: UnitState; prevHp: number | undefined }) {
   const pct = Math.max(0, (unit.hp / unit.maxHp) * 100)
   const diff = prevHp !== undefined ? unit.hp - prevHp : 0
-  const animClass = diff < 0 ? 'hp-bar-damage' : diff > 0 ? 'hp-bar-heal' : ''
+  const hasChanged = prevHp !== undefined && diff !== 0
+  const animClass = hasChanged ? (diff < 0 ? 'hp-bar-damage' : 'hp-bar-heal') : ''
+  const trailWidth = prevHp !== undefined ? Math.max(0, (prevHp / unit.maxHp) * 100) : pct
   const shieldPct = unit.maxShield > 0 ? (unit.shield / unit.maxShield) * 100 : 0
 
   return (
     <div className="space-y-0.5">
       <div className="relative h-3 w-full overflow-hidden rounded-sm bg-dungeon-border">
-        <div className="hp-bar-trail absolute inset-y-0 left-0 rounded-sm bg-red-400/30 transition-all duration-700" style={{ width: prevHp !== undefined ? Math.max(0, (prevHp / unit.maxHp) * 100) : pct }} />
+        <div className="hp-bar-trail absolute inset-y-0 left-0 rounded-sm bg-red-400/30 transition-all duration-700" style={{ width: trailWidth }} />
         <div className={`absolute inset-y-0 left-0 rounded-sm bg-gradient-to-r from-red-700 to-red-500 transition-all duration-300 ${animClass}`} style={{ width: pct }} />
       </div>
       {unit.maxShield > 0 && (
