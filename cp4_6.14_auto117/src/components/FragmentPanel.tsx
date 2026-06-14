@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Fragment } from '@/modules/puzzleManager';
@@ -17,12 +17,21 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     disabled: fragment.isCorrect,
   });
 
+  const cardTransform = useMemo(() => {
+    if (!transform) {
+      return `rotate(${fragment.rotation}deg)`;
+    }
+    return `${CSS.Translate.toString(transform)} rotate(${fragment.rotation}deg)`;
+  }, [transform, fragment.rotation]);
+
   const style: React.CSSProperties = {
     width: 260,
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0 : 1,
+    transform: cardTransform,
+    opacity: isDragging ? 0.4 : 1,
     cursor: fragment.isCorrect ? 'not-allowed' : 'grab',
     position: 'relative',
+    willChange: 'transform, opacity',
+    transition: isDragging ? 'none' : 'all 0.15s ease-out',
   };
 
   const cardStyle: React.CSSProperties = {
@@ -33,13 +42,12 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     borderRadius: 'var(--radius-card)',
     border: `1px solid ${
       fragment.isCorrect
-        ? 'var(--color-success)'
+        ? '#22c55e'
         : flashRed
-        ? 'var(--color-error)'
-        : 'var(--color-border)'
+        ? '#ef4444'
+        : '#e2e8f0'
     }`,
     padding: 8,
-    transition: 'all var(--transition-fast)',
     position: 'relative',
     overflow: 'hidden',
     zIndex: 1,
@@ -49,24 +57,24 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     position: 'absolute',
     top: 3,
     left: 3,
-    width: '100%',
-    height: 'calc(100% - 16px)',
+    right: -3,
+    bottom: -3,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 'var(--radius-card)',
-    opacity: isDragging ? 1 : 0,
-    transition: 'opacity var(--transition-fast)',
+    opacity: isDragging ? 0.3 : 0,
     zIndex: -1,
     pointerEvents: 'none',
+    transform: `rotate(${fragment.rotation}deg)`,
+    willChange: 'opacity',
+    transition: 'opacity 0.15s ease-out',
   };
 
   const contentStyle: React.CSSProperties = {
     width: '100%',
-    height: fragment.height * (260 / fragment.width),
+    height: fragment.height * (244 / fragment.width),
     maxHeight: 140,
     backgroundColor: fragment.bgColor,
     borderRadius: 8,
-    transform: `rotate(${fragment.rotation}deg)`,
-    transition: 'transform var(--transition-normal)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -84,7 +92,7 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
     right: 8,
     width: 20,
     height: 20,
-    backgroundColor: 'var(--color-success)',
+    backgroundColor: '#22c55e',
     borderRadius: '50%',
     display: fragment.isCorrect ? 'flex' : 'none',
     alignItems: 'center',
@@ -99,13 +107,13 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
   const labelStyle: React.CSSProperties = {
     marginTop: 8,
     fontSize: 12,
-    color: 'var(--color-text-secondary)',
+    color: '#64748b',
     textAlign: 'center',
     position: 'relative',
     zIndex: 2,
   };
 
-  const cardClass = flashRed ? 'fragment-shake' : '';
+  const cardClass = flashRed ? 'fragment-card fragment-card-shake' : 'fragment-card';
 
   return (
     <div
@@ -115,7 +123,7 @@ const FragmentCard: React.FC<FragmentCardProps> = memo(({ fragment, isDragging, 
       {...attributes}
       {...listeners}
     >
-      <div className={`fragment-card ${cardClass}`} style={cardStyle}>
+      <div className={cardClass} style={cardStyle}>
         <div style={shadowStyle} />
         <div style={checkmarkStyle}>✓</div>
         <div className="fragment-content" style={contentStyle}>
@@ -136,19 +144,20 @@ const FragmentPanel: React.FC = () => {
   const panelStyle: React.CSSProperties = {
     width: 280,
     padding: 16,
-    backgroundColor: 'var(--color-white)',
-    borderRight: '1px solid var(--color-border)',
+    backgroundColor: '#ffffff',
+    borderRight: '1px solid #e2e8f0',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
     overflowY: 'auto',
+    overflowX: 'hidden',
     flexShrink: 0,
   };
 
   const headerStyle: React.CSSProperties = {
     fontSize: 16,
     fontWeight: 600,
-    color: 'var(--color-text)',
+    color: '#0f172a',
     marginBottom: 4,
   };
 
@@ -168,7 +177,7 @@ const FragmentPanel: React.FC = () => {
       {unplacedFragments.length === 0 && (
         <div
           style={{
-            color: 'var(--color-text-secondary)',
+            color: '#64748b',
             fontSize: 14,
             textAlign: 'center',
             padding: 20,
@@ -179,13 +188,13 @@ const FragmentPanel: React.FC = () => {
       )}
       <style>{`
         .fragment-card:hover {
-          box-shadow: var(--shadow-hover);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
           transform: translateY(-4px);
         }
         .fragment-card:active {
           cursor: grabbing;
         }
-        .fragment-shake {
+        .fragment-card-shake {
           animation: shake 0.2s ease-in-out;
         }
         .fragment-item {
@@ -213,7 +222,7 @@ const FragmentPanel: React.FC = () => {
             overflow-x: auto !important;
             overflow-y: hidden !important;
             border-right: none !important;
-            border-bottom: 1px solid var(--color-border) !important;
+            border-bottom: 1px solid #e2e8f0 !important;
           }
           .fragment-item {
             width: 140px !important;

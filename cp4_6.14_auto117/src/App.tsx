@@ -1,6 +1,5 @@
 import React, { memo, useCallback } from 'react';
 import { DragProvider } from '@/modules/dragModule';
-import { getPlacedCount, getTotalCount } from '@/modules/puzzleManager';
 import { useGameStore } from '@/store/gameStore';
 import FragmentPanel from '@/components/FragmentPanel';
 import CanvasArea from '@/components/CanvasArea';
@@ -43,7 +42,7 @@ function SuccessModalComponent({ onRestart }: SuccessModalProps) {
 
   const subtitleStyle: React.CSSProperties = {
     fontSize: 16,
-    color: 'var(--color-text-secondary)',
+    color: '#64748b',
     marginBottom: 32,
   };
 
@@ -54,9 +53,9 @@ function SuccessModalComponent({ onRestart }: SuccessModalProps) {
     padding: '12px 32px',
     fontSize: 16,
     fontWeight: 600,
-    borderRadius: 'var(--radius-btn)',
+    borderRadius: 8,
     cursor: 'pointer',
-    transition: 'background-color var(--transition-fast)',
+    transition: 'background-color 0.15s ease-out',
   };
 
   return (
@@ -85,10 +84,10 @@ const SuccessModal = memo(SuccessModalComponent);
 SuccessModal.displayName = 'SuccessModal';
 
 function AppComponent() {
-  const { fragments, showSuccess, resetGame, getPlacedCount: storeGetPlacedCount, getTotalCount: storeGetTotalCount } = useGameStore();
+  const { showSuccess, resetGame, getPlacedCount, getTotalCount } = useGameStore();
 
-  const placedCount = storeGetPlacedCount();
-  const totalCount = storeGetTotalCount();
+  const placedCount = getPlacedCount();
+  const totalCount = getTotalCount();
 
   const handleRestart = useCallback(() => {
     resetGame();
@@ -145,7 +144,7 @@ function AppComponent() {
     fontWeight: 500,
     borderRadius: 8,
     cursor: 'pointer',
-    transition: 'background-color var(--transition-fast)',
+    transition: 'background-color 0.15s ease-out',
   };
 
   const mainStyle: React.CSSProperties = {
@@ -171,7 +170,9 @@ function AppComponent() {
       <header style={headerStyle} className="app-header">
         <h1 style={titleStyle}>布局碎片还原训练</h1>
         <div style={toolbarStyle}>
-          <span style={progressStyle}>进度：{placedCount} / {totalCount}</span>
+          <span style={progressStyle}>
+            进度：{placedCount} / {totalCount}
+          </span>
           <button
             style={resetBtnStyle}
             onClick={handleReset}

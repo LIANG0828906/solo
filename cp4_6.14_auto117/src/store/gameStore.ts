@@ -82,14 +82,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setFlashRed: (id) => set({ flashRed: id }),
 
   resetGame: () =>
-    set({
-      fragments: generateFragments(),
+    set((state) => ({
+      fragments: resetFragments(state.fragments),
       draggingId: null,
       correctStreak: 0,
       showSuccess: false,
       flashOrange: false,
       flashRed: null,
-    }),
+    })),
 
   getPlacedCount: () => getPlacedCount(get().fragments),
   getTotalCount: () => getTotalCount(get().fragments),

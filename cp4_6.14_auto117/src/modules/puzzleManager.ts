@@ -7,6 +7,8 @@ export interface Fragment {
   height: number;
   targetX: number;
   targetY: number;
+  targetWidth: number;
+  targetHeight: number;
   currentX: number;
   currentY: number;
   rotation: number;
@@ -32,9 +34,10 @@ interface FragmentPreset {
   maxH: number;
 }
 
-const CANVAS_WIDTH = 600;
-const CANVAS_HEIGHT = 700;
-const PLACEMENT_THRESHOLD = 30;
+export const CANVAS_WIDTH = 600;
+export const CANVAS_HEIGHT = 700;
+export const DEFAULT_PLACEMENT_THRESHOLD = 20;
+export const DEFAULT_ROTATION_RANGE = 6;
 
 const presets: FragmentPreset[] = [
   { name: '导航栏', targetX: 0, targetY: 0, w: 600, h: 60, color: '#334155', minW: 200, maxW: 240, minH: 50, maxH: 60 },
@@ -59,6 +62,10 @@ function shuffle<T>(array: T[]): T[] {
   return result;
 }
 
+function toRadians(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}
+
 export function generateFragments(): Fragment[] {
   const count = randomInt(5, 7);
   const selectedPresets = shuffle(presets).slice(0, count);
@@ -67,7 +74,7 @@ export function generateFragments(): Fragment[] {
     selectedPresets.map((preset) => {
       const width = randomInt(Math.max(80, preset.minW), Math.min(240, preset.maxW));
       const height = randomInt(Math.max(60, preset.minH), Math.min(180, preset.maxH));
-      const rotation = (Math.random() - 0.5) * 6;
+      const rotation = (Math.random() - 0.5) * DEFAULT_ROTATION_RANGE;
 
       return {
         id: uuidv4(),
@@ -76,6 +83,8 @@ export function generateFragments(): Fragment[] {
         height,
         targetX: preset.targetX,
         targetY: preset.targetY,
+        targetWidth: preset.w,
+        targetHeight: preset.h,
         currentX: 0,
         currentY: 0,
         rotation,
@@ -102,17 +111,96 @@ export function addFragment(
   return [...fragments, newFragment];
 }
 
+export function getRotatedCenter(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rotation: number
+): { cx: number; cy: number } {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+
+  if (rotation === 0) {
+    return { cx, cy };
+  }
+
+  const angle = toRadians(rotation);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  const corners = [
+    { x: x, y: y },
+    { x: x + width, y: y },
+    { x: x + width, y: y + height },
+    { x: x, y: y + height },
+  ];
+
+  const rotatedCorners = corners.map((corner) => ({
+    x: cos * (corner.x - cx) - sin * (corner.y - cy) + cx,
+    y: sin * (corner.x - cx) + cos * (corner.y - cy) + cy,
+  }));
+
+  const minX = Math.min(...rotatedCorners.map((c) => c.x));
+  const maxX = Math.max(...rotatedCorners.map((c) => c.x));
+  const minY = Math.min(...rotatedCorners.map((c) => c.y));
+  const maxY = Math.max(...rotatedCorners.map((c) => c.y));
+
+  return {
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+  };
+}
+
 export function checkPlacement(
-  targetX: number,
-  targetY: number,
-  currentX: number,
-  currentY: number,
-  threshold: number = PLACEMENT_THRESHOLD
+  fragment: Pick<Fragment, 'targetX' | 'targetY' | 'targetWidth' | 'targetHeight' | 'width' | 'height' | 'rotation' | 'currentX' | 'currentY'>,
+  threshold: number = DEFAULT_PLACEMENT_THRESHOLD
 ): boolean {
-  const dx = targetX - currentX;
-  const dy = targetY - currentY;
+  const target = getRotatedCenter(
+    fragment.targetX,
+    fragment.targetY,
+    fragment.targetWidth,
+    fragment.targetHeight,
+    0
+  );
+
+  const current = getRotatedCenter(
+    fragment.currentX,
+    fragment.currentY,
+    fragment.width,
+    fragment.height,
+    fragment.rotation
+  );
+
+  const dx = target.cx - current.cx;
+  const dy = target.cy - current.cy;
   const distance = Math.sqrt(dx * dx + dy * dy);
+
   return distance < threshold;
+}
+
+export function calculateDistance(
+  fragment: Pick<Fragment, 'targetX' | 'targetY' | 'targetWidth' | 'targetHeight' | 'width' | 'height' | 'rotation' | 'currentX' | 'currentY'>
+): number {
+  const target = getRotatedCenter(
+    fragment.targetX,
+    fragment.targetY,
+    fragment.targetWidth,
+    fragment.targetHeight,
+    0
+  );
+
+  const current = getRotatedCenter(
+    fragment.currentX,
+    fragment.currentY,
+    fragment.width,
+    fragment.height,
+    fragment.rotation
+  );
+
+  const dx = target.cx - current.cx;
+  const dy = target.cy - current.cy;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 export function isComplete(fragments: Fragment[]): boolean {
@@ -141,15 +229,21 @@ export function resetFragments(fragments: Fragment[]): Fragment[] {
       currentY: 0,
       isPlaced: false,
       isCorrect: false,
-      rotation: (Math.random() - 0.5) * 6,
+      rotation: (Math.random() - 0.5) * DEFAULT_ROTATION_RANGE,
     }))
   );
 }
 
 export const puzzleManager = {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  DEFAULT_PLACEMENT_THRESHOLD,
+  DEFAULT_ROTATION_RANGE,
   generateFragments,
   addFragment,
   checkPlacement,
+  calculateDistance,
+  getRotatedCenter,
   isComplete,
   getPlacedCount,
   getTotalCount,

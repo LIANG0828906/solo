@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Fragment } from '@/modules/puzzleManager';
 import { useGameStore } from '@/store/gameStore';
+import { useDragHandlers } from '@/modules/dragModule';
 
 interface PreviewFragmentProps {
   fragment: Fragment;
@@ -8,6 +9,10 @@ interface PreviewFragmentProps {
 }
 
 const PreviewFragment: React.FC<PreviewFragmentProps> = memo(({ fragment, isHighlighted }) => {
+  const fragmentClass = ['preview-fragment', isHighlighted ? 'preview-fragment-highlight' : '']
+    .filter(Boolean)
+    .join(' ');
+
   const style: React.CSSProperties = {
     position: 'absolute',
     left: `${fragment.previewX}%`,
@@ -15,26 +20,27 @@ const PreviewFragment: React.FC<PreviewFragmentProps> = memo(({ fragment, isHigh
     width: `${fragment.previewW}%`,
     height: `${fragment.previewH}%`,
     backgroundColor: isHighlighted ? '#e0f2fe' : fragment.bgColor,
-    border: isHighlighted ? '3px solid #3b82f6' : 'none',
     borderRadius: 2,
-    transition: 'all 0.3s ease-out',
     opacity: fragment.isCorrect ? 0.3 : 1,
     boxSizing: 'border-box',
   };
 
-  return <div style={style} />;
+  return <div className={fragmentClass} style={style} />;
 });
 
 PreviewFragment.displayName = 'PreviewFragment';
 
 const PreviewPanel: React.FC = () => {
-  const { fragments, draggingId } = useGameStore();
+  const { fragments } = useGameStore();
+  const { isDragging, draggingId } = useDragHandlers();
+
+  const shouldHighlight = isDragging && draggingId;
 
   const panelStyle: React.CSSProperties = {
     width: 240,
     padding: 16,
-    backgroundColor: 'var(--color-white)',
-    borderLeft: '1px solid var(--color-border)',
+    backgroundColor: '#ffffff',
+    borderLeft: '1px solid #e2e8f0',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
@@ -44,7 +50,7 @@ const PreviewPanel: React.FC = () => {
   const headerStyle: React.CSSProperties = {
     fontSize: 16,
     fontWeight: 600,
-    color: 'var(--color-text)',
+    color: '#0f172a',
     marginBottom: 4,
   };
 
@@ -52,10 +58,10 @@ const PreviewPanel: React.FC = () => {
     position: 'relative',
     width: '100%',
     paddingTop: `${(700 / 600) * 100}%`,
-    backgroundColor: 'var(--color-canvas)',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     overflow: 'hidden',
-    border: '1px solid var(--color-border)',
+    border: '1px solid #e2e8f0',
   };
 
   const previewInnerStyle: React.CSSProperties = {
@@ -79,7 +85,7 @@ const PreviewPanel: React.FC = () => {
     gap: 8,
     marginTop: 8,
     fontSize: 12,
-    color: 'var(--color-text-secondary)',
+    color: '#64748b',
   };
 
   const legendItemStyle: React.CSSProperties = {
@@ -93,7 +99,7 @@ const PreviewPanel: React.FC = () => {
     height: 16,
     backgroundColor: color,
     borderRadius: 4,
-    border: color === '#22c55e' ? '1px solid #22c55e' : '1px solid var(--color-border)',
+    border: color === '#22c55e' ? '1px solid #22c55e' : '1px solid #e2e8f0',
   });
 
   return (
@@ -105,7 +111,7 @@ const PreviewPanel: React.FC = () => {
             <PreviewFragment
               key={fragment.id}
               fragment={fragment}
-              isHighlighted={draggingId === fragment.id}
+              isHighlighted={shouldHighlight ? draggingId === fragment.id : false}
             />
           ))}
         </div>
@@ -122,6 +128,14 @@ const PreviewPanel: React.FC = () => {
         </div>
       </div>
       <style>{`
+        .preview-fragment {
+          transition: background-color 0.3s ease-out, border-color 0.3s ease-out;
+          border: none;
+        }
+        .preview-fragment-highlight {
+          background-color: #e0f2fe !important;
+          border: 3px solid #3b82f6 !important;
+        }
         @media (max-width: 1000px) {
           .preview-panel {
             width: 180px !important;
@@ -131,7 +145,7 @@ const PreviewPanel: React.FC = () => {
           .preview-panel {
             width: 100% !important;
             border-left: none !important;
-            border-top: 1px solid var(--color-border) !important;
+            border-top: 1px solid #e2e8f0 !important;
           }
         }
       `}</style>
