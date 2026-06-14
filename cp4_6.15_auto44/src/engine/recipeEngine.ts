@@ -50,8 +50,9 @@ export function matchRecipes(ingredients: Ingredient[], recipes: Recipe[]): Matc
 
     const matchRate = availableIngredients.length / total;
     const utilizationRate = totalIngredients > 0 ? availableIngredients.length / totalIngredients : 0;
+    const minUtilization = totalIngredients > 0 ? 0.7 : 0;
 
-    if (matchRate >= 0.7) {
+    if (matchRate >= 0.7 && utilizationRate >= minUtilization) {
       matched.push({
         ...recipe,
         matchRate,

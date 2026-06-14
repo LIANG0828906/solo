@@ -124,6 +124,14 @@ export const useStore = create<Store>()(
         ingredients: state.ingredients,
         wasteRecords: state.wasteRecords,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<StoreState>;
+        return {
+          ...currentState,
+          ...persisted,
+          sidebarOpen: false,
+        };
+      },
     }
   )
 )
