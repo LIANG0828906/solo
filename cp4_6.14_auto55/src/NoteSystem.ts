@@ -80,6 +80,10 @@ export class NoteSystem {
     this.trackPositions.set('down', centerX - trackSpacing * 0.5);
     this.trackPositions.set('left', centerX + trackSpacing * 0.5);
     this.trackPositions.set('right', centerX + trackSpacing * 1.5);
+    
+    const minTrackX = Math.min(...Array.from(this.trackPositions.values()));
+    const maxTrackX = Math.max(...Array.from(this.trackPositions.values()));
+    this.judgmentAreaWidth = maxTrackX - minTrackX + 100;
   }
 
   public start(currentTime: number): void {
@@ -255,6 +259,14 @@ export class NoteSystem {
 
   public getNotes(): Note[] {
     return this.notes.filter(n => !n.hit);
+  }
+
+  public consumeMissedNotes(): Note[] {
+    const missedNotes = this.notes.filter(n => n.missed && !n.hit);
+    for (const note of missedNotes) {
+      note.missed = false;
+    }
+    return missedNotes;
   }
 
   public getTrackPositions(): Map<Direction, number> {

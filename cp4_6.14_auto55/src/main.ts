@@ -252,13 +252,10 @@ class Game {
     this.scoreManager.update(currentTime);
     this.renderer.updateStars();
     
-    const notes = this.noteSystem.getNotes();
-    for (const note of notes) {
-      if (note.missed) {
-        this.scoreManager.onMiss();
-        this.enemySystem.onNoteMiss(note.direction);
-        note.missed = false;
-      }
+    const missedNotes = this.noteSystem.consumeMissedNotes();
+    for (const note of missedNotes) {
+      this.scoreManager.onMiss();
+      this.enemySystem.onNoteMiss(note.direction);
     }
   }
 
