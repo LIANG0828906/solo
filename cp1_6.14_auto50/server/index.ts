@@ -7,6 +7,7 @@ import {
   createActivity,
   addBlessing,
   likeBlessing,
+  getLikedBlessingIds,
   updateActivity,
   type Activity,
 } from './lowdb.js'
@@ -211,6 +212,82 @@ app.post('/api/activities/:activityId/blessings/:blessingId/like', async (req, r
   }
 
   res.json({ blessing: result, alreadyLiked: false, maxReached: result.likes >= 10 })
+})
+
+app.get('/api/activities/:id/blessings/liked', async (req, res) => {
+  const sessionId = req.query.sessionId as string
+  if (!sessionId) {
+    return res.status(400).json({ error: 'sessionId is required' })
+  }
+
+  const activity = await getActivityById(req.params.id)
+  if (!activity) {
+    return res.status(404).json({ error: 'Activity not found' })
+  }
+
+  const likedIds = await getLikedBlessingIds(req.params.id, sessionId)
+  const blessingLikeMap: Record<string, { liked: boolean; likes: number; maxReached: boolean }> = {}
+  for (const b of activity.blessings) {
+    blessingLikeMap[b.id] = {
+      liked: likedIds.includes(b.id),
+      likes: b.likes,
+      maxReached: b.likes >= 10,
+    }
+  }
+  res.json({ likedBlessingIds: likedIds, blessingLikeMap })
+})
+
+app.post('/api/video/convert', express.raw({ type: 'video/webm', limit: '10mb' }), async (req, res) => {
+  const inputBuffer = req.body
+  if (!inputBuffer || !Buffer.isBuffer(inputBuffer)) {
+    return res.status(400).json({ error: 'No video data provided' })
+  }
+
+  const { execFile } = await import('child_process')
+  const path = await import('path')
+  const os = await import('os')
+  const fs = await import('fs')
+
+  const tmpDir = os.tmpdir()
+  const inputPath = path.join(tmpDir, `card_input_${Date.now()}.webm`)
+  const outputPath = path.join(tmpDir, `card_output_${Date.now()}.mp4`)
+
+  try {
+    await fs.promises.writeFile(inputPath, inputBuffer)
+  } catch {
+    return res.status(500).json({ error: 'Failed to write temp file' })
+  }
+
+  const ffmpegArgs = [
+    '-i', inputPath,
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '128k',
+    '-movflags', '+faststart',
+    '-y',
+    outputPath,
+  ]
+
+  const child = execFile('ffmpeg', ffmpegArgs, { timeout: 30000 }, async (err) => {
+    try { await fs.promises.unlink(inputPath) } catch {}
+    if (err) {
+      try { await fs.promises.unlink(outputPath) } catch {}
+      return res.status(500).json({ error: 'FFmpeg conversion failed' })
+    }
+    try {
+      const outputBuffer = await fs.promises.readFile(outputPath)
+      await fs.promises.unlink(outputPath)
+      res.setHeader('Content-Type', 'video/mp4')
+      res.setHeader('Content-Disposition', 'attachment; filename="birthday-card.mp4"')
+      res.send(outputBuffer)
+    } catch {
+      res.status(500).json({ error: 'Failed to read converted file' })
+    }
+  })
+
+  child.stdin?.end()
 })
 
 app.get('/api/celebrations/:id', async (req, res) => {

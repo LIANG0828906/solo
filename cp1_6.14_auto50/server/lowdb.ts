@@ -91,6 +91,14 @@ export async function likeBlessing(activityId: string, blessingId: string, sessi
   return blessing
 }
 
+export async function getLikedBlessingIds(activityId: string, sessionId: string): Promise<string[]> {
+  const activity = db.data.activities.find((a) => a.id === activityId)
+  if (!activity) return []
+  return activity.blessings
+    .filter((b) => b.likedBy.includes(sessionId))
+    .map((b) => b.id)
+}
+
 export async function updateActivity(id: string, updates: Partial<Omit<Activity, 'id' | 'creatorToken' | 'createdAt' | 'blessings'>>): Promise<Activity | null> {
   const activity = db.data.activities.find((a) => a.id === id)
   if (!activity) return null
