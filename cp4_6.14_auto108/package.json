@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node dev.js",
+    "dev": "concurrently -n server,client -c green,blue \"npm run server:dev\" \"npm run client:dev\"",
     "client:dev": "vite",
     "server:dev": "node server.js",
     "build": "tsc -b && vite build",

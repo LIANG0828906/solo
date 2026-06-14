@@ -63,9 +63,8 @@ const StatsPage = () => {
               const height = count === 0 ? 4 : (count / maxCount) * 200;
               return (
                 <div key={cat} className="bar-item">
-                  <div className="bar-fill" style={{ height: `${height}px` }}>
-                    <span className="bar-number">{count}</span>
-                  </div>
+                  <span className="bar-number">{count}</span>
+                  <div className="bar-fill" style={{ height: `${height}px` }}></div>
                   <span className="bar-label">{cat}</span>
                 </div>
               );

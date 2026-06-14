@@ -205,11 +205,11 @@ textarea, select, input {
 
 .flash-card-back {
   transform: rotateY(180deg) scale(0.9);
-  transition: transform 0.3s ease;
 }
 
 .flash-card.flipped .flash-card-back {
   transform: rotateY(180deg) scale(0.9);
+  transition: transform 0.3s ease 0.5s;
 }
 
 .flash-card.flipped.scale-restored .flash-card-back {
@@ -674,7 +674,7 @@ textarea, select, input {
   justify-content: center;
   gap: 12px;
   height: 260px;
-  padding: 30px 12px 8px;
+  padding: 8px 12px;
   border-bottom: 2px solid #e2e8f0;
 }
 
@@ -687,23 +687,24 @@ textarea, select, input {
   justify-content: flex-end;
 }
 
+.bar-number {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+  line-height: 1;
+  height: 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
 .bar-fill {
   width: 40px;
   background-color: #3b82f6;
   border-radius: 6px 6px 0 0;
-  position: relative;
   transition: height 0.5s ease;
   min-height: 4px;
-}
-
-.bar-number {
-  position: absolute;
-  top: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e293b;
 }
 
 .bar-label {

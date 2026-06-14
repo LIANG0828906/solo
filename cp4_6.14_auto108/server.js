@@ -2,12 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import net from 'net';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT_FILE = path.join(__dirname, '.server-port');
+import { execSync } from 'child_process';
 
 const app = express();
 
@@ -23,9 +18,8 @@ const checkPortAvailable = (port) => {
   });
 };
 
-const killProcessOnPort = async (port) => {
+const killProcessOnPort = (port) => {
   try {
-    const { execSync } = await import('child_process');
     if (process.platform === 'win32') {
       const result = execSync(`netstat -ano | findstr :${port}`).toString();
       const lines = result.trim().split('\n');
@@ -37,18 +31,14 @@ const killProcessOnPort = async (port) => {
             try {
               execSync(`taskkill /F /PID ${pid}`);
               console.log(`Killed process ${pid} on port ${port}`);
-            } catch (e) {
-              // ignore
-            }
+            } catch (e) { /* ignore */ }
           }
         }
       }
     } else {
       execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
     }
-  } catch (e) {
-    // ignore errors
-  }
+  } catch (e) { /* ignore */ }
 };
 
 const findAvailablePort = async (startPort) => {
@@ -56,7 +46,7 @@ const findAvailablePort = async (startPort) => {
   while (port < startPort + 100) {
     let available = await checkPortAvailable(port);
     if (!available) {
-      await killProcessOnPort(port);
+      killProcessOnPort(port);
       available = await checkPortAvailable(port);
     }
     if (available) return port;
@@ -65,14 +55,10 @@ const findAvailablePort = async (startPort) => {
   return startPort;
 };
 
-const startServer = async () => {
-  const PORT = await findAvailablePort(3001);
-  fs.writeFileSync(PORT_FILE, String(PORT));
-
-  app.use(cors());
-  app.use(express.json());
-
 const categories = ['语文', '数学', '英语', '科学', '历史', '其他'];
+
+app.use(cors());
+app.use(express.json());
 
 let cards = [
   {
@@ -308,9 +294,11 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+const bootServer = async () => {
+  const PORT = await findAvailablePort(3001);
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 };
 
-startServer();
+bootServer();
