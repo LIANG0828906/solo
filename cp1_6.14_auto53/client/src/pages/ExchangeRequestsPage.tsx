@@ -190,7 +190,7 @@ const ExchangeRequestsPage: React.FC = () => {
                     {canRate && (
                       <button
                         className="btn btn-primary"
-                        onClick={() => handleRate(exchange, isOwner ? 'owner' : 'requester'}
+                        onClick={() => handleRate(exchange, isOwner ? 'owner' : 'requester')}
                       >
                         去评价
                       </button>
