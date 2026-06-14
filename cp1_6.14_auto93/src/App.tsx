@@ -1,12 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import Dashboard from "@/pages/Dashboard";
+import Plan from "@/pages/Plan";
+import Settings from "@/pages/Settings";
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/plan" element={<Plan />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
   );
