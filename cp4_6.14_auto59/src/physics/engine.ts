@@ -1,29 +1,61 @@
 import Matter from 'matter-js';
-import { BodyConfig, ObstacleType, OBSTACLE_PRESETS, BALL_CONFIG, TARGET_CONFIG } from './bodies';
+import { BodyConfig, ObstacleType, OBSTACLE_PRESETS, BALL_CONFIG, TARGET_CONFIG, createBodyConfig } from './bodies';
 
 export interface CollisionEvent {
   bodyA: Matter.Body;
   bodyB: Matter.Body;
   type: string;
+  bodyAVelocity: { x: number; y: number };
+  collisionPoint: { x: number; y: number };
 }
 
 type CollisionCallback = (event: CollisionEvent) => void;
+
+export type OnWoodBoxBreak = (x: number, y: number, velocity: { x: number; y: number }) => Matter.Body[];
+export type OnIronBlockHit = (x: number, y: number) => void;
+export type OnRubberBallBounce = (id: number, count: number) => void;
+export type OnSpikeTrapHit = (ballBody: Matter.Body, x: number, y: number) => void;
 
 export class PhysicsEngine {
   private engine: Matter.Engine;
   private world: Matter.World;
   private collisionCallbacks: CollisionCallback[] = [];
-  private bodyTypeMap: Map<number, ObstacleType | 'ball' | 'target'> = new Map();
+  private bodyTypeMap: Map<number, ObstacleType | 'ball' | 'target' | 'debris'> = new Map();
   private bodyAngleMap: Map<number, number> = new Map();
   private bounceCountMap: Map<number, number> = new Map();
   private ground: Matter.Body | null = null;
+  private processedCollisions: Set<string> = new Set();
+
+  private onWoodBoxBreak: OnWoodBoxBreak | null = null;
+  private onIronBlockHit: OnIronBlockHit | null = null;
+  private onRubberBallBounce: OnRubberBallBounce | null = null;
+  private onSpikeTrapHit: OnSpikeTrapHit | null = null;
 
   constructor() {
     this.engine = Matter.Engine.create({
-      gravity: { x: 0, y: 1, scale: 0.001 },
+      gravity: { x: 0, y: 1, scale: 0.0015 },
+      positionIterations: 8,
+      velocityIterations: 8,
+      enableSleeping: false,
     });
     this.world = this.engine.world;
     this.setupCollisionHandler();
+  }
+
+  setWoodBoxBreakHandler(handler: OnWoodBoxBreak): void {
+    this.onWoodBoxBreak = handler;
+  }
+
+  setIronBlockHitHandler(handler: OnIronBlockHit): void {
+    this.onIronBlockHit = handler;
+  }
+
+  setRubberBallBounceHandler(handler: OnRubberBallBounce): void {
+    this.onRubberBallBounce = handler;
+  }
+
+  setSpikeTrapHitHandler(handler: OnSpikeTrapHit): void {
+    this.onSpikeTrapHit = handler;
   }
 
   init(width: number, height: number): void {
@@ -191,21 +223,119 @@ export class PhysicsEngine {
         const { bodyA, bodyB } = pair;
         const typeA = this.bodyTypeMap.get(bodyA.id);
         const typeB = this.bodyTypeMap.get(bodyB.id);
+        const collisionPoint = {
+          x: (bodyA.position.x + bodyB.position.x) / 2,
+          y: (bodyA.position.y + bodyB.position.y) / 2,
+        };
+
+        let ballBody: Matter.Body | null = null;
+        let otherBody: Matter.Body | null = null;
+        let otherType: ObstacleType | 'target' | 'debris' | undefined;
 
         if (typeA === 'ball' && typeB) {
-          this.collisionCallbacks.forEach(cb => cb({
-            bodyA,
-            bodyB,
-            type: typeB,
-          }));
+          ballBody = bodyA;
+          otherBody = bodyB;
+          otherType = typeB as ObstacleType | 'target';
         } else if (typeB === 'ball' && typeA) {
+          ballBody = bodyB;
+          otherBody = bodyA;
+          otherType = typeA as ObstacleType | 'target';
+        }
+
+        if (ballBody && otherBody && otherType && otherType !== 'ball') {
+          const collisionKey = `${ballBody.id}-${otherBody.id}-${Date.now()}`;
+          this.processedCollisions.add(collisionKey);
+          setTimeout(() => this.processedCollisions.delete(collisionKey), 100);
+
           this.collisionCallbacks.forEach(cb => cb({
-            bodyA: bodyB,
-            bodyB: bodyA,
-            type: typeA,
+            bodyA: ballBody,
+            bodyB: otherBody,
+            type: otherType,
+            bodyAVelocity: ballBody.velocity,
+            collisionPoint,
           }));
+
+          if (otherType === 'woodbox') {
+            const vel = ballBody.velocity;
+            this.processWoodBoxBreak(otherBody, vel);
+          } else if (otherType === 'ironblock') {
+            if (this.onIronBlockHit) {
+              this.onIronBlockHit(collisionPoint.x, collisionPoint.y);
+            }
+          } else if (otherType === 'rubberball') {
+            const count = (this.bounceCountMap.get(otherBody.id) || 0) + 1;
+            this.bounceCountMap.set(otherBody.id, count);
+            if (this.onRubberBallBounce) {
+              this.onRubberBallBounce(otherBody.id, count);
+            }
+            if (count >= 10) {
+              Matter.Body.setStatic(otherBody, true);
+              Matter.Body.setVelocity(otherBody, { x: 0, y: 0 });
+              Matter.Body.setAngularVelocity(otherBody, 0);
+            }
+          } else if (otherType === 'spiketrap') {
+            if (this.onSpikeTrapHit) {
+              this.onSpikeTrapHit(ballBody, collisionPoint.x, collisionPoint.y);
+            }
+          } else if (otherType === 'springboard') {
+            this.processSpringboardHit(ballBody, otherBody);
+          }
         }
       }
+    });
+  }
+
+  private processWoodBoxBreak(woodBox: Matter.Body, impactVelocity: { x: number; y: number }): void {
+    const x = woodBox.position.x;
+    const y = woodBox.position.y;
+    const angle = woodBox.angle;
+
+    this.removeBody(woodBox.id);
+
+    if (this.onWoodBoxBreak) {
+      this.onWoodBoxBreak(x, y, impactVelocity);
+      return;
+    }
+
+    const halfW = OBSTACLE_PRESETS.woodbox.width / 4;
+    const halfH = OBSTACLE_PRESETS.woodbox.height / 4;
+    const offsets = [
+      { dx: -halfW, dy: -halfH },
+      { dx: halfW, dy: -halfH },
+      { dx: -halfW, dy: halfH },
+      { dx: halfW, dy: halfH },
+    ];
+
+    for (const off of offsets) {
+      const debrisConfig = createBodyConfig('woodbox', x + off.dx, y + off.dy, angle);
+      debrisConfig.width = 25;
+      debrisConfig.height = 25;
+      debrisConfig.density = 0.003;
+      debrisConfig.isStatic = false;
+      const debris = this.addBody(debrisConfig);
+      this.bodyTypeMap.set(debris.id, 'debris');
+      Matter.Body.setVelocity(debris, {
+        x: impactVelocity.x * 0.4 + off.dx * 0.08 + (Math.random() - 0.5) * 3,
+        y: impactVelocity.y * 0.4 - 2 - Math.random() * 3,
+      });
+      Matter.Body.setAngularVelocity(debris, (Math.random() - 0.5) * 0.2);
+    }
+  }
+
+  private processSpringboardHit(ball: Matter.Body, springboard: Matter.Body): void {
+    const boardAngle = springboard.angle;
+    const normalX = Math.sin(boardAngle);
+    const normalY = -Math.cos(boardAngle);
+    const vel = ball.velocity;
+    const dot = vel.x * normalX + vel.y * normalY;
+
+    const reflectX = vel.x - 2 * dot * normalX;
+    const reflectY = vel.y - 2 * dot * normalY;
+    const boost = 1.5;
+
+    Matter.Body.setVelocity(ball, {
+      x: reflectX * boost,
+      y: reflectY * boost - 4,
     });
   }
 }

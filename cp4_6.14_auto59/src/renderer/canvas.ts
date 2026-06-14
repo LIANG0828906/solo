@@ -120,6 +120,10 @@ export class Renderer {
       }
 
       ctx.restore();
+
+      if (this.angleDisplay.has(body.id)) {
+        this.renderSingleAngleText(body);
+      }
     }
   }
 
@@ -359,37 +363,38 @@ export class Renderer {
     this.angleDisplayTimer.set(bodyId, Date.now());
   }
 
-  private renderAngleTexts(): void {
+  private renderSingleAngleText(body: RenderableBody): void {
     const ctx = this.ctx;
     const now = Date.now();
-    const toRemove: number[] = [];
+    const time = this.angleDisplayTimer.get(body.id) || now;
+    const elapsed = now - time;
+    if (elapsed > 1500) return;
 
-    this.angleDisplayTimer.forEach((time, id) => {
-      if (now - time > 1500) {
-        toRemove.push(id);
-      }
-    });
+    let alpha = 1;
+    if (elapsed > 800) {
+      alpha = Math.max(0, 1 - (elapsed - 800) / 700);
+    }
+    if (alpha <= 0) return;
 
-    toRemove.forEach(id => {
-      this.angleDisplay.delete(id);
-      this.angleDisplayTimer.delete(id);
-    });
+    const angle = this.angleDisplay.get(body.id) || body.angle;
+    const halfH = (body.height || 50) / 2;
+    const textY = body.y - halfH - 10;
 
-    this.angleDisplay.forEach((angle, id) => {
-      const alpha = Math.min(1, 1 - (now - (this.angleDisplayTimer.get(id) || now) - 800) / 700);
-      if (alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.font = '12px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.strokeText(Math.round(angle * 180 / Math.PI) + '°', 0, -30);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(Math.round(angle * 180 / Math.PI) + '°', 0, -30);
-      ctx.restore();
-    });
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
+    const text = Math.round(angle * 180 / Math.PI) + '°';
+    ctx.strokeText(text, body.x, textY);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, body.x, textY);
+    ctx.restore();
+  }
+
+  private renderAngleTexts(): void {
   }
 
   clearBodyTracking(id: number): void {
