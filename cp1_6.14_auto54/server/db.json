@@ -11,7 +11,7 @@
         "life": 4.2,
         "transport": 4.5,
         "quiet": 3.8,
-        "green": 4.0,
+        "green": 4,
         "neighbor": 4.1
       },
       "reviewCount": 156,
@@ -41,13 +41,13 @@
       "lng": 116.3674,
       "scores": {
         "life": 3.8,
-        "transport": 4.0,
+        "transport": 4,
         "quiet": 4.5,
         "green": 4.7,
-        "neighbor": 4.0
+        "neighbor": 4
       },
       "reviewCount": 42,
-      "averageScore": 4.20
+      "averageScore": 4.2
     },
     {
       "id": "4",
@@ -72,7 +72,7 @@
       "lat": 39.9442,
       "lng": 116.4374,
       "scores": {
-        "life": 4.0,
+        "life": 4,
         "transport": 4.3,
         "quiet": 4.1,
         "green": 4.4,

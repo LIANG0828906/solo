@@ -16,6 +16,7 @@ export default function StarRating({
   size = 24,
 }: StarRatingProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null)
+  const [clickedStar, setClickedStar] = useState<number | null>(null)
 
   const handleMouseMove = (index: number) => {
     if (readOnly) return
@@ -30,6 +31,8 @@ export default function StarRating({
   const handleClick = (index: number) => {
     if (readOnly || !onChange) return
     onChange(index)
+    setClickedStar(index)
+    setTimeout(() => setClickedStar(null), 300)
   }
 
   const displayValue = hoverValue ?? value
@@ -39,22 +42,23 @@ export default function StarRating({
       {[1, 2, 3, 4, 5].map((index) => {
         const isFilled = index <= displayValue
         const isHovered = hoverValue === index
-        const isReadOnly = readOnly
+        const isClicked = clickedStar === index
 
         return (
           <button
             key={index}
             type="button"
             onClick={() => handleClick(index)}
-            onMouseMove={() => handleMouseMove(index)}
+            onMouseEnter={() => handleMouseMove(index)}
             onMouseLeave={handleMouseLeave}
             className={cn(
-              'transition-all duration-200 ease-out',
-              !isReadOnly && 'cursor-pointer',
-              isReadOnly && 'cursor-default',
+              'transition-transform duration-200 ease-out',
+              !readOnly && 'cursor-pointer',
+              readOnly && 'cursor-default',
               isHovered && 'scale-125',
+              isClicked && 'animate-star-bounce',
             )}
-            disabled={isReadOnly}
+            disabled={readOnly}
           >
             <Star
               size={size}
@@ -63,27 +67,42 @@ export default function StarRating({
                 isFilled
                   ? 'fill-yellow-400 text-yellow-400'
                   : 'fill-gray-200 text-gray-200',
+                isClicked && 'animate-star-fill',
               )}
-              style={{
-                animation: isFilled && isHovered ? 'starFill 0.3s ease-out' : 'none',
-              }}
             />
           </button>
         )
       })}
       <style>{`
-        @keyframes starFill {
+        @keyframes star-bounce {
           0% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.3);
-          }
-          100% {
-            transform: scale(1);
-          }
+          transform: scale(1);
         }
-      `}</style>
+        50% {
+          transform: scale(1.3);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes star-fill {
+        0% {
+          fill-opacity: 0;
+        }
+        50% {
+          fill-opacity: 1;
+        }
+        100% {
+          fill-opacity: 1;
+        }
+      }
+      .animate-star-bounce {
+        animation: star-bounce 0.3s ease-out;
+      }
+      .animate-star-fill {
+        animation: star-fill 0.3s ease-out;
+      }
+    `}</style>
     </div>
   )
 }

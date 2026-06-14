@@ -11,11 +11,11 @@ interface RadarChartProps {
 }
 
 const DIMENSIONS = [
-  { key: 'life', label: '生活' },
-  { key: 'transport', label: '交通' },
-  { key: 'quiet', label: '安静' },
-  { key: 'green', label: '绿化' },
-  { key: 'neighbor', label: '邻里' },
+  { key: 'life', label: '生活便利度' },
+  { key: 'transport', label: '交通便利度' },
+  { key: 'quiet', label: '安静程度' },
+  { key: 'green', label: '绿化程度' },
+  { key: 'neighbor', label: '邻里友善度' },
 ] as const
 
 export default function RadarChart({ scores }: RadarChartProps) {
@@ -30,10 +30,10 @@ export default function RadarChart({ scores }: RadarChartProps) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const size = 250
+    const size = 280
     const centerX = size / 2
     const centerY = size / 2
-    const maxRadius = 80
+    const maxRadius = 90
     const sides = 5
     const angleStep = (Math.PI * 2) / sides
     const startAngle = -Math.PI / 2
@@ -43,7 +43,7 @@ export default function RadarChart({ scores }: RadarChartProps) {
     prevScoresRef.current = scores
 
     let progress = 0
-    const duration = 500
+    const duration = 800
     const startTime = performance.now()
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
@@ -124,13 +124,13 @@ export default function RadarChart({ scores }: RadarChartProps) {
       }
 
       ctx.fillStyle = '#374151'
-      ctx.font = '12px system-ui, sans-serif'
+      ctx.font = '12px system-ui, -apple-system, sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
       for (let i = 0; i < sides; i++) {
         const angle = startAngle + i * angleStep
-        const labelRadius = maxRadius + 22
+        const labelRadius = maxRadius + 28
         const x = centerX + Math.cos(angle) * labelRadius
         const y = centerY + Math.sin(angle) * labelRadius
         ctx.fillText(DIMENSIONS[i].label, x, y)
@@ -160,8 +160,8 @@ export default function RadarChart({ scores }: RadarChartProps) {
   return (
     <canvas
       ref={canvasRef}
-      width={250}
-      height={250}
+      width={280}
+      height={280}
       className="block"
     />
   )
