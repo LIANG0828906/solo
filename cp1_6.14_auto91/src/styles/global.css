@@ -1056,8 +1056,28 @@ body {
 }
 
 .task-card.dragging {
-  opacity: 0.5;
-  transform: rotate(2deg);
+  opacity: 0.35;
+  transform: rotate(2deg) scale(0.98);
+}
+
+.task-card.task-animating {
+  animation: taskPlaceAnim 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes taskPlaceAnim {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.9) translateY(-6px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  }
+  60% {
+    transform: scale(1.04) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
 }
 
 .task-card:hover {

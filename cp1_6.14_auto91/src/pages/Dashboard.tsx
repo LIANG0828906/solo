@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   getSchedule,
   createTask,
@@ -66,6 +66,9 @@ const Dashboard: React.FC = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [animWeek, setAnimWeek] = useState(0);
   const [formState, setFormState] = useState<TaskFormState>(modalInit);
+  const [animatingTaskId, setAnimatingTaskId] = useState<string | null>(null);
+  const dragGhostRef = useRef<HTMLDivElement | null>(null);
+  const taskRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -152,10 +155,34 @@ const Dashboard: React.FC = () => {
     try {
       e.dataTransfer.setData('text/plain', id);
     } catch {}
+
+    const el = taskRefs.current.get(id);
+    if (el) {
+      const ghost = el.cloneNode(true) as HTMLDivElement;
+      ghost.style.width = `${el.offsetWidth}px`;
+      ghost.style.opacity = '0.6';
+      ghost.style.transform = 'rotate(3deg) scale(1.05)';
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      ghost.style.left = '-9999px';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.zIndex = '9999';
+      ghost.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
+      document.body.appendChild(ghost);
+      dragGhostRef.current = ghost;
+
+      try {
+        e.dataTransfer.setDragImage(ghost, el.offsetWidth / 2, el.offsetHeight / 2);
+      } catch {}
+    }
   };
 
   const handleDragEnd = () => {
     setDraggingId(null);
+    if (dragGhostRef.current) {
+      dragGhostRef.current.remove();
+      dragGhostRef.current = null;
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -172,6 +199,10 @@ const Dashboard: React.FC = () => {
     const id = draggingId || e.dataTransfer.getData('text/plain');
     if (!id) return;
     setDraggingId(null);
+
+    setAnimatingTaskId(id);
+    setTimeout(() => setAnimatingTaskId(null), 350);
+
     try {
       const res = await updateTask(id, { date, timeSlot });
       if (res.success) {
@@ -265,7 +296,11 @@ const Dashboard: React.FC = () => {
                         {cellTasks.map((t) => (
                           <div
                             key={t.id}
-                            className={`task-card ${draggingId === t.id ? 'dragging' : ''}`}
+                            ref={(el) => {
+                              if (el) taskRefs.current.set(t.id, el);
+                              else taskRefs.current.delete(t.id);
+                            }}
+                            className={`task-card ${draggingId === t.id ? 'dragging' : ''} ${animatingTaskId === t.id ? 'task-animating' : ''}`}
                             draggable
                             onDragStart={(e) => handleDragStart(e, t.id)}
                             onDragEnd={handleDragEnd}

@@ -126,17 +126,46 @@ export async function uploadPhotos(
   files: File[],
   onProgress?: (fileName: string, percent: number) => void
 ): Promise<{ success: boolean; photos: string[] }> {
-  const formData = new FormData();
-  files.forEach((f) => formData.append('photos', f));
+  const allPhotos: string[] = [];
 
-  const { data } = await api.post('/message/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress: (evt) => {
-      if (onProgress && evt.total) {
-        const percent = Math.round((evt.loaded * 100) / evt.total);
-        files.forEach((f) => onProgress(f.name, percent));
-      }
-    },
-  });
-  return data;
+  for (const file of files) {
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append('photos', file);
+
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable && onProgress) {
+          const percent = Math.round((evt.loaded * 100) / evt.total);
+          onProgress(file.name, percent);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const res = JSON.parse(xhr.responseText);
+            if (res.photos && res.photos.length > 0) {
+              allPhotos.push(...res.photos);
+            }
+            if (onProgress) onProgress(file.name, 100);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error during upload'));
+      };
+
+      xhr.open('POST', '/api/message/upload');
+      xhr.send(formData);
+    });
+  }
+
+  return { success: true, photos: allPhotos };
 }

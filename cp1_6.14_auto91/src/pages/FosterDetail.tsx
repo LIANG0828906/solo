@@ -165,9 +165,16 @@ const FosterDetail: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
+    setSlideIndex(0);
+  }, [family?.id]);
+
+  useEffect(() => {
     if (!family || family.photos.length < 2) return;
     const t = setInterval(() => {
-      setSlideIndex((i) => (i + 1) % family.photos.length);
+      setSlideIndex((i) => {
+        const next = i + 1;
+        return next >= family.photos.length ? 0 : next;
+      });
     }, 5000);
     return () => clearInterval(t);
   }, [family]);
@@ -199,8 +206,23 @@ const FosterDetail: React.FC = () => {
 
   const today = formatDate(new Date());
 
-  const handlePrev = () => setSlideIndex((i) => (i - 1 + family.photos.length) % family.photos.length);
-  const handleNext = () => setSlideIndex((i) => (i + 1) % family.photos.length);
+  const photoCount = family?.photos.length || 0;
+
+  const handlePrev = () => {
+    if (photoCount < 2) return;
+    setSlideIndex((i) => {
+      const prev = i - 1;
+      return prev < 0 ? photoCount - 1 : prev;
+    });
+  };
+
+  const handleNext = () => {
+    if (photoCount < 2) return;
+    setSlideIndex((i) => {
+      const next = i + 1;
+      return next >= photoCount ? 0 : next;
+    });
+  };
 
   const canSubmit = startDate && endDate && ownerName.trim() && petName.trim() && petType;
 
