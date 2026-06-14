@@ -1,0 +1,138 @@
+{
+  "users": [],
+  "communities": [
+    {
+      "id": "1",
+      "name": "阳光花园",
+      "address": "北京市朝阳区建国路88号",
+      "lat": 39.9142,
+      "lng": 116.4174,
+      "scores": {
+        "life": 4.2,
+        "transport": 4.5,
+        "quiet": 3.8,
+        "green": 4.0,
+        "neighbor": 4.1
+      },
+      "reviewCount": 156,
+      "averageScore": 4.12
+    },
+    {
+      "id": "2",
+      "name": "翠湖苑",
+      "address": "北京市海淀区中关村大街1号",
+      "lat": 39.9842,
+      "lng": 116.3174,
+      "scores": {
+        "life": 4.5,
+        "transport": 4.8,
+        "quiet": 3.5,
+        "green": 4.2,
+        "neighbor": 4.3
+      },
+      "reviewCount": 89,
+      "averageScore": 4.26
+    },
+    {
+      "id": "3",
+      "name": "碧水庄园",
+      "address": "北京市丰台区南三环西路56号",
+      "lat": 39.8542,
+      "lng": 116.3674,
+      "scores": {
+        "life": 3.8,
+        "transport": 4.0,
+        "quiet": 4.5,
+        "green": 4.7,
+        "neighbor": 4.0
+      },
+      "reviewCount": 42,
+      "averageScore": 4.20
+    },
+    {
+      "id": "4",
+      "name": "金色家园",
+      "address": "北京市西城区金融街15号",
+      "lat": 39.9242,
+      "lng": 116.3674,
+      "scores": {
+        "life": 4.8,
+        "transport": 4.9,
+        "quiet": 3.2,
+        "green": 3.5,
+        "neighbor": 3.9
+      },
+      "reviewCount": 203,
+      "averageScore": 4.06
+    },
+    {
+      "id": "5",
+      "name": "幸福里",
+      "address": "北京市东城区东直门外大街28号",
+      "lat": 39.9442,
+      "lng": 116.4374,
+      "scores": {
+        "life": 4.0,
+        "transport": 4.3,
+        "quiet": 4.1,
+        "green": 4.4,
+        "neighbor": 4.6
+      },
+      "reviewCount": 67,
+      "averageScore": 4.28
+    }
+  ],
+  "reviews": [
+    {
+      "id": "r1",
+      "userId": "u1",
+      "communityId": "1",
+      "username": "张小明",
+      "scores": {
+        "life": 5,
+        "transport": 4,
+        "quiet": 3
+      },
+      "content": "在阳光花园住了两年，生活非常便利，楼下就是超市和菜市场。但晚上靠近主路的楼栋会有些噪音，交通确实很方便，出门5分钟就是地铁站。小区绿化还可以，邻里关系也比较融洽。",
+      "images": [],
+      "likes": 12,
+      "likedBy": [],
+      "reported": false,
+      "createdAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "r2",
+      "userId": "u2",
+      "communityId": "1",
+      "username": "李华",
+      "scores": {
+        "life": 4,
+        "transport": 5,
+        "quiet": 4
+      },
+      "content": "整体来说是个不错的小区，物业管理很到位。交通真的很方便，去国贸CBD只需要20分钟。就是周末停车位有点紧张。",
+      "images": [],
+      "likes": 8,
+      "likedBy": [],
+      "reported": false,
+      "createdAt": "2024-01-10T14:20:00Z"
+    },
+    {
+      "id": "r3",
+      "userId": "u3",
+      "communityId": "2",
+      "username": "王芳",
+      "scores": {
+        "life": 5,
+        "transport": 5,
+        "quiet": 3
+      },
+      "content": "翠湖苑的位置太好了，旁边就是中关村，上班超近。周边配套设施齐全，吃饭购物都很方便。但因为靠近主干道，白天噪音有点大。",
+      "images": [],
+      "likes": 15,
+      "likedBy": [],
+      "reported": false,
+      "createdAt": "2024-01-08T09:15:00Z"
+    }
+  ]
+}
