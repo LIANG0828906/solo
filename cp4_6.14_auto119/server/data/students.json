@@ -1,0 +1,17 @@
+[
+  {
+    "id": "s1",
+    "name": "student001",
+    "courseIds": ["1", "2"]
+  },
+  {
+    "id": "s2",
+    "name": "alice2025",
+    "courseIds": ["1"]
+  },
+  {
+    "id": "s3",
+    "name": "bob_dev",
+    "courseIds": ["3"]
+  }
+]
