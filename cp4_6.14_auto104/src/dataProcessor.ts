@@ -119,7 +119,7 @@ export function createColorScale(threshold: number): (value: number) => [number,
     .clamp(true);
 
   return (value: number): [number, number, number] => {
-    const c = d3.color(scale(value))!;
+    const c = d3.rgb(scale(value));
     return [c.r / 255, c.g / 255, c.b / 255];
   };
 }

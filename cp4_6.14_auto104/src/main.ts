@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HeatmapRenderer } from './heatmapRenderer';
 import { parseCSV, getBounds, DataBounds, TimeSlice } from './dataProcessor';
 
@@ -423,14 +423,19 @@ function setupUI(): void {
   const panelToggle = document.getElementById('panelToggle')!;
   const controlPanel = document.getElementById('controlPanel')!;
   panelToggle.addEventListener('click', () => {
-    controlPanel.classList.toggle('expanded');
+    if (window.innerWidth < 768) {
+      controlPanel.classList.toggle('expanded');
+      controlPanel.classList.remove('collapsed');
+    }
   });
 
   function checkResponsive(): void {
     if (window.innerWidth < 768) {
+      controlPanel.classList.add('collapsed');
       controlPanel.classList.remove('expanded');
     } else {
-      controlPanel.classList.add('expanded');
+      controlPanel.classList.remove('collapsed');
+      controlPanel.classList.remove('expanded');
     }
   }
   checkResponsive();

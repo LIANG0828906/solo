@@ -15,9 +15,13 @@
       background: #0f172acc; border-radius: 12px; padding: 16px;
       width: 320px; backdrop-filter: blur(8px);
       transition: transform 0.3s ease, opacity 0.3s ease;
+      pointer-events: auto;
     }
     .control-panel.collapsed {
       transform: translateX(-340px); opacity: 0; pointer-events: none;
+    }
+    .control-panel.expanded {
+      transform: translateX(0); opacity: 1; pointer-events: auto;
     }
     .panel-toggle {
       position: fixed; top: 16px; left: 16px; z-index: 11;
@@ -146,6 +150,7 @@
     @media (max-width: 767px) {
       .control-panel { transform: translateX(-340px); opacity: 0; pointer-events: none; }
       .control-panel.expanded { transform: translateX(0); opacity: 1; pointer-events: auto; }
+      .control-panel.collapsed { transform: translateX(-340px); opacity: 0; pointer-events: none; }
       .panel-toggle { display: flex; }
       .legend-panel { right: 8px; }
       .legend-bar { height: 140px; }
