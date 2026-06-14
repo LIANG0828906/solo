@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Roadmap, Stage, SubTask } from '@/types/index';
 import { createRoadmap, getOverallProgress, isRoadmapCompleted } from '@/utils/dataHelpers';
 import StageCard from './StageCard';
@@ -17,7 +17,24 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
   const [targetDate, setTargetDate] = useState('');
   const [dragStageId, setDragStageId] = useState<string | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [wasCompleted, setWasCompleted] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const dragImageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const completed = roadmap ? isRoadmapCompleted(roadmap) : false;
+    if (completed && !wasCompleted && roadmap) {
+      setShowFireworks(true);
+      setWasCompleted(true);
+      const timer = setTimeout(() => setShowFireworks(false), 5000);
+      return () => clearTimeout(timer);
+    }
+    if (!completed && wasCompleted) {
+      setWasCompleted(false);
+    }
+  }, [roadmap, wasCompleted]);
 
   const handleCreate = useCallback(() => {
     if (!skillName.trim()) return;
@@ -128,15 +145,30 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
 
   const handleDragStart = useCallback((e: React.DragEvent, stageId: string) => {
     setDragStageId(stageId);
+    setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', stageId);
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = '0.4';
+    target.style.transform = 'scale(1.02)';
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = '1';
+    target.style.transform = '';
+    setDragStageId(null);
+    setDragOverStageId(null);
+    setIsDragging(false);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, stageId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverStageId(stageId);
-  }, []);
+    if (dragOverStageId !== stageId && dragStageId !== stageId) {
+      setDragOverStageId(stageId);
+    }
+  }, [dragOverStageId, dragStageId]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetStageId: string) => {
@@ -144,6 +176,7 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
       if (!roadmap || !dragStageId || dragStageId === targetStageId) {
         setDragStageId(null);
         setDragOverStageId(null);
+        setIsDragging(false);
         return;
       }
 
@@ -154,6 +187,7 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
       if (dragIndex === -1 || dropIndex === -1) {
         setDragStageId(null);
         setDragOverStageId(null);
+        setIsDragging(false);
         return;
       }
 
@@ -164,13 +198,13 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
       onRoadmapChange({ ...roadmap, stages: reordered });
       setDragStageId(null);
       setDragOverStageId(null);
+      setIsDragging(false);
     },
     [roadmap, dragStageId, onRoadmapChange]
   );
 
-  const handleDragEnd = useCallback(() => {
-    setDragStageId(null);
-    setDragOverStageId(null);
+  const handleDragLeave = useCallback(() => {
+    // 延迟清除，避免闪烁
   }, []);
 
   const handleDeleteRoadmap = useCallback(() => {
@@ -261,10 +295,18 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
         <div className="overall-progress-fill" style={{ width: `${overallProgress}%` }} />
       </div>
 
-      <div className="timeline-container" ref={timelineRef} onDragEnd={handleDragEnd}>
+      <div className={`timeline-container ${isDragging ? 'timeline-dragging' : ''}`} ref={timelineRef}>
         <div className="timeline-track">
           {roadmap.stages.map((stage, index) => (
-            <div key={stage.id} className="timeline-stage-wrapper">
+            <div
+              key={stage.id}
+              className={`timeline-stage-wrapper ${
+                dragStageId === stage.id ? 'wrapper-dragging' : ''
+              } ${dragOverStageId === stage.id && dragStageId !== stage.id ? 'wrapper-drag-over' : ''}`}
+              style={{
+                transition: isDragging ? 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
+              }}
+            >
               <StageCard
                 stage={stage}
                 onToggleSubTask={handleToggleSubTask}
@@ -276,8 +318,11 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                onDragLeave={handleDragLeave}
                 isDragging={dragStageId === stage.id}
                 dragOverStageId={dragOverStageId}
+                isGlobalDragging={isDragging}
               />
               {index < roadmap.stages.length - 1 && (
                 <div className="timeline-connector">
@@ -290,7 +335,7 @@ function SkillRoadmap({ roadmap, onRoadmapChange }: SkillRoadmapProps) {
         </div>
       </div>
 
-      {completed && <Fireworks active={completed} />}
+      {showFireworks && <Fireworks active={showFireworks} />}
     </div>
   );
 }

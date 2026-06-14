@@ -15,8 +15,11 @@ interface StageCardProps {
   onDragStart: (e: React.DragEvent, stageId: string) => void;
   onDragOver: (e: React.DragEvent, stageId: string) => void;
   onDrop: (e: React.DragEvent, stageId: string) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
   isDragging: boolean;
   dragOverStageId: string | null;
+  isGlobalDragging: boolean;
 }
 
 function StageCard({
