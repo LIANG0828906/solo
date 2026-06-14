@@ -5,6 +5,21 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
+function getTodayKeyFromDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return Math.abs(hash)
+}
+
 interface CreateCapsuleBody {
   type: 'text' | 'image'
   content: string
@@ -15,7 +30,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!
     const page = parseInt(req.query.page as string) || 1
-    const pageSize = parseInt(req.query.limit as string) || parseInt(req.query.pageSize as string) || 12
+    const pageSize = parseInt(req.query.pageSize as string) || parseInt(req.query.limit as string) || 12
 
     await db.read()
     
@@ -203,7 +218,7 @@ router.post('/:id/drift', authMiddleware, async (req: AuthRequest, res) => {
 
     const todayKey = getTodayKey()
     const todayDrifted = db.data!.capsules.filter(
-      c => c.userId === userId && c.driftedAt && new Date(c.driftedAt).toDateString() === new Date().toDateString()
+      c => c.userId === userId && c.driftedAt && getTodayKeyFromDate(c.driftedAt) === todayKey
     ).length
 
     if (todayDrifted >= 1) {
@@ -217,7 +232,7 @@ router.post('/:id/drift', authMiddleware, async (req: AuthRequest, res) => {
 
     const eligibleUsers = allUsers.filter(u => {
       const todayReceived = db.data!.drifts.filter(
-        d => d.toUserId === u.id && new Date(d.createdAt).toDateString() === new Date().toDateString()
+        d => d.toUserId === u.id && getTodayKeyFromDate(d.createdAt) === todayKey
       ).length
       return todayReceived < 3
     })
@@ -226,13 +241,16 @@ router.post('/:id/drift', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ message: '今日漂流瓶已全部送出，请明天再试' })
     }
 
-    const randomUser = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)]
+    eligibleUsers.sort((a, b) => a.username.localeCompare(b.username))
+    const hash = hashString(id + todayKey)
+    const selectedIndex = hash % eligibleUsers.length
+    const selectedUser = eligibleUsers[selectedIndex]
 
     const drift = {
       id: uuidv4(),
       capsuleId: id,
       fromUserId: userId,
-      toUserId: randomUser.id,
+      toUserId: selectedUser.id,
       createdAt: new Date().toISOString(),
     }
 

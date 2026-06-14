@@ -249,8 +249,6 @@ async function runTests() {
       if (!res.data.capsule?.isOpened) throw new Error('重复开封失败')
     })
 
-    let testUser2Id = ''
-
     await test('漂流胶囊', async () => {
       const res = await request.post(
         `/capsules/${testCapsuleId}/drift`,
@@ -262,19 +260,6 @@ async function runTests() {
       testDriftId = res.data.drift.id
       console.log(`   漂流ID: ${testDriftId}`)
       console.log(`   接收用户: ${res.data.drift.toUserId}`)
-
-      const dbPath = path.join(__dirname, 'data', 'db.json')
-      const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf-8'))
-      const user2 = dbData.users.find((u: any) => u.username === testUsername2)
-      if (user2) {
-        testUser2Id = user2.id
-        const drift = dbData.drifts.find((d: any) => d.id === testDriftId)
-        if (drift && drift.toUserId !== testUser2Id) {
-          drift.toUserId = testUser2Id
-          fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2))
-          console.log(`   已将漂流瓶接收者改为用户2`)
-        }
-      }
     })
 
     await test('重复漂流同一胶囊（应该失败）', async () => {

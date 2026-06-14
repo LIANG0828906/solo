@@ -4,11 +4,24 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
+function getTodayKey(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function getTodayKeyFromDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+export const DAILY_RECEIVE_LIMIT = 3
+export const DAILY_SEND_LIMIT = 1
+
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!
     const page = parseInt(req.query.page as string) || 1
-    const pageSize = parseInt(req.query.limit as string) || parseInt(req.query.pageSize as string) || 12
+    const pageSize = parseInt(req.query.pageSize as string) || parseInt(req.query.limit as string) || 12
 
     await db.read()
 

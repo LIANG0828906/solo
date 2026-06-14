@@ -27,19 +27,22 @@ interface CapsuleCardProps {
 
 function CapsuleCard({ capsule, onOpen }: CapsuleCardProps) {
   const [isOpening, setIsOpening] = useState(false)
-  const [showContent, setShowContent] = useState(false)
+  const [openStage, setOpenStage] = useState<number>(0)
 
   const handleClick = () => {
     if (capsule.isOpenable && !capsule.isOpened) {
       setIsOpening(true)
-      setTimeout(() => {
-        setShowContent(true)
-      }, 400)
+      setOpenStage(1)
+
+      setTimeout(() => setOpenStage(2), 500)
+      setTimeout(() => setOpenStage(3), 800)
+      setTimeout(() => setOpenStage(4), 1200)
+
       setTimeout(() => {
         onOpen?.(capsule)
         setIsOpening(false)
-        setShowContent(false)
-      }, 1200)
+        setOpenStage(0)
+      }, 2000)
     } else if (capsule.isOpened) {
       onOpen?.(capsule)
     }
@@ -68,17 +71,32 @@ function CapsuleCard({ capsule, onOpen }: CapsuleCardProps) {
 
       {isOpening ? (
         <div className="capsule-open-animation">
-          <div className="envelope-open">
-            <div className="envelope-open-body" />
-            <div className="envelope-open-flap-left" />
-            <div className="envelope-open-flap-right" />
+          <div className={`envelope-tear stage-${openStage}`}>
+            <div className="envelope-tear-body" />
+            <div className="envelope-tear-flap-left">
+              <div className="tear-edge" />
+            </div>
+            <div className="envelope-tear-flap-right">
+              <div className="tear-edge" />
+            </div>
+            <div className="envelope-tear-top" />
           </div>
-          {showContent && (
-            <div className="capsule-content-reveal">
-              {capsule.type === 'image' && capsule.imageUrl ? (
-                <img src={capsule.imageUrl} alt="胶囊内容" className="capsule-preview-small" />
-              ) : (
-                <p className="capsule-content-preview">{capsule.content.slice(0, 50)}...</p>
+
+          {openStage >= 2 && (
+            <div className={`capsule-content-wrapper stage-${openStage}`}>
+              {openStage >= 3 && (
+                <div className="capsule-content-title">
+                  {capsule.type === 'text' ? '💌 来自过去的一封信' : '🖼️ 一张珍贵的照片'}
+                </div>
+              )}
+              {openStage >= 4 && (
+                <div className="capsule-content-body">
+                  {capsule.type === 'image' && capsule.imageUrl ? (
+                    <img src={capsule.imageUrl} alt="胶囊内容" className="capsule-preview-small" />
+                  ) : (
+                    <p className="capsule-content-text">{capsule.content.slice(0, 60)}...</p>
+                  )}
+                </div>
               )}
             </div>
           )}

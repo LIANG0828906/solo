@@ -1,7 +1,7 @@
-import axios from 'axios'
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { getToken } from './auth'
 
-const request = axios.create({
+const request: AxiosInstance = axios.create({
   baseURL: '/api',
   timeout: 10000,
 })
@@ -34,5 +34,14 @@ request.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+declare module 'axios' {
+  interface AxiosInstance {
+    get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+    post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+    put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+    delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  }
+}
 
 export default request
