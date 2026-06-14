@@ -3,16 +3,19 @@ type ArtStyle = 'oil' | 'watercolor' | 'sketch';
 interface OilParams {
   brushSize: number;
   colorCount: number;
+  strokeDensity: number;
 }
 
 interface WatercolorParams {
   wetness: number;
   spreadRadius: number;
+  colorBleed: number;
 }
 
 interface SketchParams {
   lineDensity: number;
   backgroundBrightness: number;
+  pencilTexture: number;
 }
 
 interface StyleParams {
@@ -29,9 +32,9 @@ class ArtStyleApp {
   private splitPosition: number = 50;
   private isDragging: boolean = false;
   private params: StyleParams = {
-    oil: { brushSize: 8, colorCount: 16 },
-    watercolor: { wetness: 5, spreadRadius: 8 },
-    sketch: { lineDensity: 0.5, backgroundBrightness: 240 }
+    oil: { brushSize: 6, colorCount: 20, strokeDensity: 0.6 },
+    watercolor: { wetness: 6, spreadRadius: 10, colorBleed: 0.5 },
+    sketch: { lineDensity: 0.55, backgroundBrightness: 245, pencilTexture: 0.5 }
   };
   private canvasWidth: number = 360;
   private canvasHeight: number = 480;
@@ -48,23 +51,51 @@ class ArtStyleApp {
   private compareOverlayEl: HTMLElement | null = null;
   private leftBoxEl: HTMLElement | null = null;
   private splitterEl: HTMLElement | null = null;
+  private splitterHandleEl: HTMLElement | null = null;
+  private rightBoxEl: HTMLElement | null = null;
   private rightLabelEl: HTMLElement | null = null;
   private paramsAreaEl: HTMLElement | null = null;
+  private paperTexturePattern: CanvasPattern | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.originalCanvas = document.createElement('canvas');
-    this.originalCtx = this.originalCanvas.getContext('2d')!;
+    this.originalCtx = this.originalCanvas.getContext('2d', { willReadFrequently: true })!;
     this.filteredCanvas = document.createElement('canvas');
-    this.filteredCtx = this.filteredCanvas.getContext('2d')!;
+    this.filteredCtx = this.filteredCanvas.getContext('2d', { willReadFrequently: true })!;
     this.offscreenCanvas = document.createElement('canvas');
-    this.offscreenCtx = this.offscreenCanvas.getContext('2d')!;
-    this.buildUI();
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d', { willReadFrequently: true })!;
+    this.generatePaperTexture();
     this.setupGlobalStyles();
+    this.buildUI();
+  }
+
+  private generatePaperTexture(): void {
+    const tex = document.createElement('canvas');
+    tex.width = 256;
+    tex.height = 256;
+    const tctx = tex.getContext('2d')!;
+    const imgData = tctx.createImageData(256, 256);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      const v = 240 + (Math.random() - 0.5) * 25;
+      imgData.data[i] = v;
+      imgData.data[i + 1] = v;
+      imgData.data[i + 2] = v - 2;
+      imgData.data[i + 3] = 255;
+    }
+    tctx.putImageData(imgData, 0, 0);
+    for (let i = 0; i < 500; i++) {
+      tctx.fillStyle = `rgba(180,170,150,${Math.random() * 0.04})`;
+      tctx.fillRect(Math.random() * 256, Math.random() * 256, Math.random() * 3 + 1, Math.random() * 3 + 1);
+    }
+    this.paperTexturePattern = this.offscreenCtx.createPattern(tex, 'repeat');
   }
 
   private setupGlobalStyles(): void {
+    const existing = document.getElementById('ast-styles');
+    if (existing) existing.remove();
     const style = document.createElement('style');
+    style.id = 'ast-styles';
     style.textContent = `
       * {
         margin: 0;
@@ -78,13 +109,14 @@ class ArtStyleApp {
         background: linear-gradient(180deg, #2d2d2d 0%, #1a1a1a 100%);
         color: #e0e0e0;
         overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
       }
       #app {
         min-height: 100vh;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
-        padding: 24px 16px;
+        padding: 32px 16px;
       }
       .ast-card {
         width: 100%;
@@ -98,10 +130,11 @@ class ArtStyleApp {
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
       }
       .ast-title {
-        font-size: 24px;
-        font-weight: 600;
+        font-size: 26px;
+        font-weight: 700;
         text-align: center;
         margin-bottom: 4px;
+        letter-spacing: -0.5px;
         background: linear-gradient(135deg, #6ab7ff 0%, #4a90d9 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -112,11 +145,12 @@ class ArtStyleApp {
         font-size: 13px;
         color: #808080;
         margin-bottom: 28px;
+        font-weight: 400;
       }
       .ast-upload {
         border: 2px dashed #4a4a4a;
         border-radius: 12px;
-        padding: 40px 24px;
+        padding: 36px 24px;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -125,7 +159,7 @@ class ArtStyleApp {
         overflow: hidden;
       }
       .ast-upload:hover {
-        border-color: #5a5a5a;
+        border-color: #6a6a6a;
         background: rgba(255, 255, 255, 0.02);
       }
       .ast-upload.dragging {
@@ -138,15 +172,15 @@ class ArtStyleApp {
         50% { box-shadow: 0 0 0 12px rgba(74, 144, 217, 0); }
       }
       .ast-upload-icon {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 16px;
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 14px;
         color: #a0a0a0;
       }
       .ast-upload-text {
         font-size: 14px;
         color: #a0a0a0;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         font-weight: 500;
       }
       .ast-upload-hint {
@@ -162,6 +196,7 @@ class ArtStyleApp {
         gap: 16px;
         position: relative;
         justify-content: center;
+        flex-wrap: nowrap;
       }
       .ast-canvas-box {
         position: relative;
@@ -169,38 +204,41 @@ class ArtStyleApp {
         overflow: hidden;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         background: #1a1a1a;
+        flex-shrink: 0;
       }
       .ast-canvas-box canvas {
         display: block;
-        max-width: 100%;
       }
       .ast-canvas-label {
         position: absolute;
-        top: 8px;
-        left: 8px;
-        background: rgba(0, 0, 0, 0.6);
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
         padding: 4px 10px;
         border-radius: 4px;
         font-size: 11px;
-        font-weight: 500;
+        font-weight: 600;
         color: #fff;
         pointer-events: none;
-        z-index: 2;
+        z-index: 4;
+        backdrop-filter: blur(4px);
       }
       .ast-compare-hint {
         position: absolute;
-        bottom: 12px;
+        bottom: 14px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.75);
-        padding: 6px 14px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 6px 16px;
         border-radius: 20px;
         font-size: 12px;
         color: #fff;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.4s ease;
         pointer-events: none;
         white-space: nowrap;
+        backdrop-filter: blur(6px);
+        z-index: 4;
       }
       .ast-canvas-wrapper:hover .ast-compare-hint {
         opacity: 1;
@@ -210,27 +248,27 @@ class ArtStyleApp {
         top: 0;
         bottom: 0;
         width: 3px;
-        background: #fff;
+        background: transparent;
         cursor: ew-resize;
-        z-index: 5;
+        z-index: 10;
         display: none;
       }
       .ast-splitter.active {
         display: block;
       }
-      .ast-splitter::before {
-        content: '';
+      .ast-splitter-guide {
         position: absolute;
         top: 0;
         bottom: 0;
-        left: -1px;
-        right: -1px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 2px;
         background: repeating-linear-gradient(
           180deg,
-          transparent,
+          #fff,
+          #fff 6px,
           transparent 6px,
-          rgba(255, 255, 255, 0.6) 6px,
-          rgba(255, 255, 255, 0.6) 12px
+          transparent 12px
         );
         pointer-events: none;
       }
@@ -239,30 +277,36 @@ class ArtStyleApp {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
         background: #fff;
         border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: ew-resize;
       }
       .ast-splitter-handle:hover {
         background: #3a7bc8;
         transform: translate(-50%, -50%) scale(1.1);
+        box-shadow: 0 4px 16px rgba(58, 123, 200, 0.5);
       }
+      .ast-splitter-handle:active,
       .ast-splitter-handle.dragging {
         background: #ff8c42;
-        box-shadow: 0 4px 16px rgba(255, 140, 66, 0.5);
+        transform: translate(-50%, -50%) scale(1.05);
+        box-shadow: 0 4px 20px rgba(255, 140, 66, 0.6);
       }
       .ast-splitter-handle svg {
         width: 14px;
         height: 14px;
         color: #666;
+        transition: color 0.2s ease;
       }
       .ast-splitter-handle:hover svg,
+      .ast-splitter-handle:active svg,
       .ast-splitter-handle.dragging svg {
         color: #fff;
       }
@@ -289,7 +333,7 @@ class ArtStyleApp {
         margin-bottom: 24px;
       }
       .ast-style-btn {
-        padding: 10px 28px;
+        padding: 11px 32px;
         border: 1.5px solid #555;
         background: transparent;
         color: #a0a0a0;
@@ -309,21 +353,24 @@ class ArtStyleApp {
       }
       .ast-style-btn:hover {
         border-color: #6a6a6a;
-        color: #c0c0c0;
+        color: #d0d0d0;
+        background: rgba(255, 255, 255, 0.03);
       }
       .ast-style-btn.active {
-        background: #4a90d9;
+        background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
         border-color: #4a90d9;
         color: #fff;
+        box-shadow: 0 2px 12px rgba(74, 144, 217, 0.3);
       }
       .ast-params {
         margin-bottom: 24px;
-        padding: 20px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
+        padding: 20px 24px;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
       }
       .ast-param-row {
-        margin-bottom: 20px;
+        margin-bottom: 22px;
       }
       .ast-param-row:last-child {
         margin-bottom: 0;
@@ -332,7 +379,7 @@ class ArtStyleApp {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         font-size: 13px;
         color: #c0c0c0;
         font-weight: 500;
@@ -340,14 +387,15 @@ class ArtStyleApp {
       .ast-param-value {
         background: rgba(74, 144, 217, 0.2);
         color: #6ab7ff;
-        padding: 2px 10px;
-        border-radius: 10px;
+        padding: 3px 12px;
+        border-radius: 12px;
         font-size: 12px;
         font-weight: 600;
+        font-variant-numeric: tabular-nums;
       }
       .ast-slider {
         position: relative;
-        height: 28px;
+        height: 32px;
         display: flex;
         align-items: center;
         cursor: pointer;
@@ -355,54 +403,56 @@ class ArtStyleApp {
       .ast-slider-track {
         position: relative;
         width: 100%;
-        height: 4px;
-        background: #3a3a3a;
-        border-radius: 2px;
-        overflow: hidden;
+        height: 6px;
+        background: #333;
+        border-radius: 3px;
       }
       .ast-slider-fill {
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        background: linear-gradient(90deg, #666 0%, #4a90d9 100%);
-        border-radius: 2px;
+        background: linear-gradient(90deg, #888 0%, #4a90d9 100%);
+        border-radius: 3px;
+        box-shadow: 0 0 8px rgba(74, 144, 217, 0.3);
       }
       .ast-slider-thumb {
         position: absolute;
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
         background: #fff;
         border-radius: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(74, 144, 217, 0.3);
         cursor: grab;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         z-index: 2;
       }
       .ast-slider-thumb:hover {
-        box-shadow: 0 3px 10px rgba(74, 144, 217, 0.5);
+        box-shadow: 0 3px 12px rgba(74, 144, 217, 0.5), 0 0 0 3px rgba(74, 144, 217, 0.2);
       }
       .ast-slider-thumb:active {
         cursor: grabbing;
-        transform: translate(-50%, -50%) scale(1.1);
+        transform: translate(-50%, -50%) scale(1.15);
       }
       .ast-slider-tooltip {
         position: absolute;
-        top: -6px;
+        top: -8px;
         left: 50%;
         transform: translate(-50%, -100%);
         background: #4a90d9;
         color: #fff;
-        padding: 3px 8px;
-        border-radius: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
         font-size: 11px;
         font-weight: 600;
         white-space: nowrap;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.15s ease;
+        font-variant-numeric: tabular-nums;
+        box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
       }
       .ast-slider-tooltip::after {
         content: '';
@@ -418,7 +468,7 @@ class ArtStyleApp {
       }
       .ast-actions-row {
         display: flex;
-        gap: 16px;
+        gap: 14px;
         justify-content: center;
         align-items: center;
         flex-wrap: wrap;
@@ -429,57 +479,67 @@ class ArtStyleApp {
         gap: 10px;
         cursor: pointer;
         user-select: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: background 0.2s ease;
+      }
+      .ast-toggle-wrap:hover {
+        background: rgba(255, 255, 255, 0.04);
       }
       .ast-toggle-label {
         font-size: 13px;
         color: #b0b0b0;
+        font-weight: 500;
       }
       .ast-toggle {
         position: relative;
-        width: 42px;
-        height: 22px;
+        width: 44px;
+        height: 24px;
         background: #3a3a3a;
-        border-radius: 11px;
+        border-radius: 12px;
         transition: background 0.3s ease;
       }
       .ast-toggle.on {
-        background: #4a90d9;
+        background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
       }
       .ast-toggle-knob {
         position: absolute;
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         background: #fff;
         border-radius: 50%;
         top: 3px;
         left: 3px;
-        transition: left 0.3s ease;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       }
       .ast-toggle.on .ast-toggle-knob {
         left: 23px;
       }
       .ast-btn {
-        padding: 10px 22px;
+        padding: 11px 24px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         background: rgba(255, 255, 255, 0.08);
         color: #e0e0e0;
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         font-family: inherit;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
       }
       .ast-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.1);
       }
       .ast-btn:active {
-        transform: scale(0.96);
+        transform: scale(0.96) translateY(0);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
       .ast-btn svg {
@@ -489,6 +549,7 @@ class ArtStyleApp {
       .ast-btn-primary {
         background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
         color: #fff;
+        border-color: transparent;
       }
       .ast-btn-primary:hover {
         background: linear-gradient(135deg, #5a9fe9 0%, #4589cd 100%);
@@ -499,7 +560,7 @@ class ArtStyleApp {
         left: 50%;
         transform: translateX(-50%) translateY(-20px);
         padding: 10px 20px;
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 13px;
         font-weight: 500;
         display: flex;
@@ -507,70 +568,103 @@ class ArtStyleApp {
         gap: 8px;
         z-index: 9999;
         opacity: 0;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         pointer-events: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        max-width: 90vw;
       }
       .ast-toast.show {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
       }
       .ast-toast-success {
-        background: rgba(46, 160, 67, 0.95);
+        background: rgba(46, 160, 67, 0.96);
         color: #fff;
       }
       .ast-toast-error {
-        background: rgba(215, 58, 73, 0.95);
+        background: rgba(215, 58, 73, 0.96);
         color: #fff;
       }
       .ast-toast svg {
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
       }
-      .ast-empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 480px;
-        background: #1a1a1a;
-        border-radius: 8px;
-        color: #555;
-        font-size: 14px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      .ast-toast-detail {
+        font-size: 11px;
+        opacity: 0.85;
+        margin-top: 2px;
       }
       @media (max-width: 480px) {
+        #app {
+          padding: 16px 12px;
+        }
         .ast-card {
-          padding: 20px 16px;
+          padding: 20px 14px;
+          border-radius: 12px;
         }
         .ast-title {
           font-size: 20px;
         }
+        .ast-subtitle {
+          font-size: 12px;
+          margin-bottom: 20px;
+        }
         .ast-upload {
-          padding: 28px 16px;
+          padding: 24px 14px;
+          margin-bottom: 18px;
+        }
+        .ast-upload-icon {
+          width: 42px;
+          height: 42px;
+          margin-bottom: 10px;
+        }
+        .ast-upload-text {
+          font-size: 13px;
         }
         .ast-canvas-container {
           flex-direction: column;
           align-items: center;
+          gap: 12px;
         }
         .ast-canvas-box {
           width: 100%;
+          max-width: 340px;
         }
         .ast-canvas-box canvas {
           width: 100%;
           height: auto;
         }
-        .ast-actions-row {
-          flex-direction: column;
-          align-items: stretch;
+        .ast-canvas-wrapper {
+          margin-bottom: 16px;
         }
-        .ast-btn {
-          justify-content: center;
-        }
-        .ast-toggle-wrap {
-          justify-content: center;
+        .ast-style-switcher {
+          margin-bottom: 18px;
         }
         .ast-style-btn {
           padding: 8px 18px;
           font-size: 12px;
+          flex: 1;
+        }
+        .ast-params {
+          padding: 16px;
+          margin-bottom: 18px;
+        }
+        .ast-param-row {
+          margin-bottom: 18px;
+        }
+        .ast-actions-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 10px;
+        }
+        .ast-btn {
+          justify-content: center;
+          width: 100%;
+        }
+        .ast-toggle-wrap {
+          justify-content: center;
+          padding: 10px;
         }
       }
     `;
@@ -578,6 +672,8 @@ class ArtStyleApp {
   }
 
   private buildUI(): void {
+    this.container.innerHTML = '';
+
     const card = document.createElement('div');
     card.className = 'ast-card';
 
@@ -659,7 +755,10 @@ class ArtStyleApp {
       upload.addEventListener(evt, (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (evt === 'dragleave' && (e as DragEvent).relatedTarget) return;
+        if (evt === 'dragleave') {
+          const related = (e as DragEvent).relatedTarget as Node;
+          if (related && upload.contains(related)) return;
+        }
         upload.classList.remove('dragging');
       });
     });
@@ -698,7 +797,6 @@ class ArtStyleApp {
     this.originalCanvas.height = this.canvasHeight;
     this.originalCanvas.id = 'ast-original-canvas';
     leftBox.appendChild(this.originalCanvas);
-
     this.drawEmpty(this.originalCtx);
 
     const rightBox = document.createElement('div');
@@ -707,6 +805,7 @@ class ArtStyleApp {
     rightBox.style.width = this.canvasWidth + 'px';
     rightBox.style.height = this.canvasHeight + 'px';
     rightBox.style.position = 'relative';
+    this.rightBoxEl = rightBox;
 
     const rightLabel = document.createElement('div');
     rightLabel.className = 'ast-canvas-label';
@@ -719,7 +818,6 @@ class ArtStyleApp {
     this.filteredCanvas.height = this.canvasHeight;
     this.filteredCanvas.id = 'ast-filtered-canvas';
     rightBox.appendChild(this.filteredCanvas);
-
     this.drawEmpty(this.filteredCtx);
 
     const compareOverlay = document.createElement('div');
@@ -733,6 +831,11 @@ class ArtStyleApp {
     splitter.className = 'ast-splitter';
     splitter.id = 'ast-splitter';
     splitter.style.left = this.splitPosition + '%';
+
+    const guide = document.createElement('div');
+    guide.className = 'ast-splitter-guide';
+    splitter.appendChild(guide);
+
     const handle = document.createElement('div');
     handle.className = 'ast-splitter-handle';
     handle.id = 'ast-splitter-handle';
@@ -745,10 +848,10 @@ class ArtStyleApp {
     splitter.appendChild(handle);
     rightBox.appendChild(splitter);
     this.splitterEl = splitter;
+    this.splitterHandleEl = handle;
 
     container.appendChild(leftBox);
     container.appendChild(rightBox);
-
     wrapper.appendChild(container);
 
     const hint = document.createElement('div');
@@ -775,6 +878,7 @@ class ArtStyleApp {
       const rect = rightBox.getBoundingClientRect();
       let clientX: number;
       if ('touches' in e) {
+        if (!e.touches[0]) return;
         clientX = e.touches[0].clientX;
       } else {
         clientX = e.clientX;
@@ -793,11 +897,14 @@ class ArtStyleApp {
     };
 
     splitter.addEventListener('mousedown', startDrag);
+    handle.addEventListener('mousedown', startDrag);
     splitter.addEventListener('touchstart', startDrag, { passive: false });
+    handle.addEventListener('touchstart', startDrag, { passive: false });
     window.addEventListener('mousemove', onDrag);
     window.addEventListener('touchmove', onDrag as EventListener, { passive: false });
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('touchend', endDrag);
+    window.addEventListener('touchcancel', endDrag);
   }
 
   private updateCompareOverlay(): void {
@@ -816,12 +923,29 @@ class ArtStyleApp {
     cloneCtx.drawImage(this.originalCanvas, 0, 0);
     cloneCanvas.style.clipPath = `inset(0 ${100 - this.splitPosition}% 0 0)`;
     overlay.appendChild(cloneCanvas);
+
+    const origLabel = document.createElement('div');
+    origLabel.className = 'ast-canvas-label';
+    origLabel.textContent = '原图';
+    origLabel.style.top = '10px';
+    origLabel.style.left = '10px';
+    origLabel.style.position = 'absolute';
+    origLabel.style.background = 'rgba(0,0,0,0.7)';
+    origLabel.style.padding = '4px 10px';
+    origLabel.style.borderRadius = '4px';
+    origLabel.style.fontSize = '11px';
+    origLabel.style.color = '#fff';
+    origLabel.style.fontWeight = '600';
+    origLabel.style.zIndex = '5';
+    origLabel.style.pointerEvents = 'none';
+    origLabel.style.clipPath = `inset(0 ${100 - this.splitPosition}% 0 0)`;
+    overlay.appendChild(origLabel);
   }
 
   private drawEmpty(ctx: CanvasRenderingContext2D): void {
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-    ctx.fillStyle = '#333';
+    ctx.fillStyle = '#444';
     ctx.font = '13px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -900,6 +1024,7 @@ class ArtStyleApp {
         this.transitionRaf = requestAnimationFrame(animate);
       } else {
         this.transitionRaf = null;
+        if (this.compareMode) this.updateCompareOverlay();
       }
     };
     this.transitionRaf = requestAnimationFrame(animate);
@@ -920,27 +1045,30 @@ class ArtStyleApp {
     });
   }
 
-  private getParamDefs(): Array<{ key: string; label: string; min: number; max: number; step: number; value: number }> {
+  private getParamDefs(): Array<{ key: string; label: string; min: number; max: number; step: number; value: number; unit?: string }> {
     switch (this.currentStyle) {
       case 'oil':
         return [
-          { key: 'brushSize', label: '笔触大小', min: 2, max: 20, step: 1, value: this.params.oil.brushSize },
-          { key: 'colorCount', label: '颜色数量', min: 4, max: 32, step: 1, value: this.params.oil.colorCount }
+          { key: 'brushSize', label: '笔触大小', min: 2, max: 16, step: 1, value: this.params.oil.brushSize, unit: 'px' },
+          { key: 'colorCount', label: '颜色数量', min: 8, max: 32, step: 1, value: this.params.oil.colorCount, unit: '色' },
+          { key: 'strokeDensity', label: '笔触密度', min: 0.2, max: 1.0, step: 0.05, value: this.params.oil.strokeDensity }
         ];
       case 'watercolor':
         return [
           { key: 'wetness', label: '湿润度', min: 1, max: 10, step: 1, value: this.params.watercolor.wetness },
-          { key: 'spreadRadius', label: '扩散半径', min: 1, max: 15, step: 1, value: this.params.watercolor.spreadRadius }
+          { key: 'spreadRadius', label: '扩散半径', min: 2, max: 15, step: 1, value: this.params.watercolor.spreadRadius, unit: 'px' },
+          { key: 'colorBleed', label: '色彩晕染', min: 0, max: 1, step: 0.05, value: this.params.watercolor.colorBleed }
         ];
       case 'sketch':
         return [
           { key: 'lineDensity', label: '线条密度', min: 0.1, max: 1.0, step: 0.05, value: this.params.sketch.lineDensity },
-          { key: 'backgroundBrightness', label: '背景亮度', min: 0, max: 255, step: 1, value: this.params.sketch.backgroundBrightness }
+          { key: 'backgroundBrightness', label: '纸张亮度', min: 200, max: 255, step: 1, value: this.params.sketch.backgroundBrightness },
+          { key: 'pencilTexture', label: '铅笔纹理', min: 0, max: 1, step: 0.05, value: this.params.sketch.pencilTexture }
         ];
     }
   }
 
-  private buildSlider(def: { key: string; label: string; min: number; max: number; step: number; value: number }): HTMLElement {
+  private buildSlider(def: { key: string; label: string; min: number; max: number; step: number; value: number; unit?: string }): HTMLElement {
     const row = document.createElement('div');
     row.className = 'ast-param-row';
 
@@ -950,7 +1078,7 @@ class ArtStyleApp {
     labelText.textContent = def.label;
     const valueTag = document.createElement('span');
     valueTag.className = 'ast-param-value';
-    valueTag.textContent = this.formatValue(def.value, def.step);
+    valueTag.textContent = this.formatValue(def.value, def.step) + (def.unit || '');
     labelRow.appendChild(labelText);
     labelRow.appendChild(valueTag);
     row.appendChild(labelRow);
@@ -972,15 +1100,15 @@ class ArtStyleApp {
 
     const tooltip = document.createElement('div');
     tooltip.className = 'ast-slider-tooltip';
-    tooltip.textContent = this.formatValue(def.value, def.step);
+    tooltip.textContent = this.formatValue(def.value, def.step) + (def.unit || '');
     thumb.appendChild(tooltip);
 
     const updatePosition = (val: number) => {
       const pct = ((val - def.min) / (def.max - def.min)) * 100;
       fill.style.width = pct + '%';
       thumb.style.left = pct + '%';
-      tooltip.textContent = this.formatValue(val, def.step);
-      valueTag.textContent = this.formatValue(val, def.step);
+      tooltip.textContent = this.formatValue(val, def.step) + (def.unit || '');
+      valueTag.textContent = this.formatValue(val, def.step) + (def.unit || '');
     };
     updatePosition(def.value);
 
@@ -990,6 +1118,7 @@ class ArtStyleApp {
       const rect = slider.getBoundingClientRect();
       let clientX: number;
       if ('touches' in e) {
+        if (!e.touches[0]) return def.min;
         clientX = e.touches[0].clientX;
       } else {
         clientX = e.clientX;
@@ -1020,11 +1149,14 @@ class ArtStyleApp {
     };
 
     slider.addEventListener('mousedown', startDrag);
+    thumb.addEventListener('mousedown', startDrag);
     slider.addEventListener('touchstart', startDrag, { passive: false });
+    thumb.addEventListener('touchstart', startDrag, { passive: false });
     window.addEventListener('mousemove', onDrag);
     window.addEventListener('touchmove', onDrag as EventListener, { passive: false });
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('touchend', endDrag);
+    window.addEventListener('touchcancel', endDrag);
 
     row.appendChild(slider);
     this.sliderContainers[def.key] = row;
@@ -1139,7 +1271,13 @@ class ArtStyleApp {
         this.drawOriginal();
         this.renderFiltered();
       };
+      img.onerror = () => {
+        this.showToast('图片加载失败，请重试', 'error');
+      };
       img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      this.showToast('图片读取失败', 'error');
     };
     reader.readAsDataURL(file);
   }
@@ -1179,7 +1317,7 @@ class ArtStyleApp {
     const workCanvas = document.createElement('canvas');
     workCanvas.width = this.canvasWidth;
     workCanvas.height = this.canvasHeight;
-    const workCtx = workCanvas.getContext('2d')!;
+    const workCtx = workCanvas.getContext('2d', { willReadFrequently: true })!;
     workCtx.fillStyle = '#1a1a1a';
     workCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
     workCtx.drawImage(img, x, y, w, h);
@@ -1203,121 +1341,237 @@ class ArtStyleApp {
   }
 
   private applyOilEffect(ctx: CanvasRenderingContext2D): ImageData {
-    const { brushSize, colorCount } = this.params.oil;
+    const { brushSize, colorCount, strokeDensity } = this.params.oil;
     const w = this.canvasWidth;
     const h = this.canvasHeight;
     const src = ctx.getImageData(0, 0, w, h);
     const srcData = src.data;
 
-    const levels = Math.max(2, colorCount);
+    const levels = Math.max(4, colorCount);
     const step = 256 / levels;
+
+    const quantized = new Uint8ClampedArray(srcData.length);
+    for (let i = 0; i < srcData.length; i += 4) {
+      quantized[i] = Math.min(255, Math.floor(srcData[i] / step) * step + step / 2);
+      quantized[i + 1] = Math.min(255, Math.floor(srcData[i + 1] / step) * step + step / 2);
+      quantized[i + 2] = Math.min(255, Math.floor(srcData[i + 2] / step) * step + step / 2);
+      quantized[i + 3] = srcData[i + 3];
+    }
+
+    const gray = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < srcData.length; i += 4, j++) {
+      gray[j] = 0.299 * srcData[i] + 0.587 * srcData[i + 1] + 0.114 * srcData[i + 2];
+    }
 
     const out = ctx.createImageData(w, h);
     const outData = out.data;
+    const temp = new Uint8ClampedArray(srcData.length);
+    temp.set(srcData);
 
-    for (let y = 0; y < h; y += brushSize) {
-      for (let x = 0; x < w; x += brushSize) {
-        let rSum = 0, gSum = 0, bSum = 0, count = 0;
-        const bs = Math.min(brushSize, w - x);
-        const bh = Math.min(brushSize, h - y);
-        for (let dy = 0; dy < bh; dy++) {
-          for (let dx = 0; dx < bs; dx++) {
-            const i = ((y + dy) * w + (x + dx)) * 4;
-            rSum += srcData[i];
-            gSum += srcData[i + 1];
-            bSum += srcData[i + 2];
-            count++;
+    const bs = Math.max(2, brushSize);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, weight = 0;
+        for (let dy = -bs; dy <= bs; dy++) {
+          for (let dx = -bs; dx <= bs; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            const nidx = ny * w + nx;
+            const gradDiff = Math.abs(gray[idx] - gray[nidx]);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const gw = Math.max(0, 1 - dist / bs) * Math.max(0, 1 - gradDiff / 100);
+            if (gw <= 0) continue;
+            const pi = nidx * 4;
+            rSum += quantized[pi] * gw;
+            gSum += quantized[pi + 1] * gw;
+            bSum += quantized[pi + 2] * gw;
+            aSum += quantized[pi + 3] * gw;
+            weight += gw;
           }
         }
-        let rAvg = Math.floor(rSum / count / step) * step + step / 2;
-        let gAvg = Math.floor(gSum / count / step) * step + step / 2;
-        let bAvg = Math.floor(bSum / count / step) * step + step / 2;
-        rAvg = Math.min(255, rAvg);
-        gAvg = Math.min(255, gAvg);
-        bAvg = Math.min(255, bAvg);
-
-        for (let dy = 0; dy < bh; dy++) {
-          for (let dx = 0; dx < bs; dx++) {
-            const jitterR = (Math.random() - 0.5) * 30;
-            const jitterG = (Math.random() - 0.5) * 30;
-            const jitterB = (Math.random() - 0.5) * 30;
-            const i = ((y + dy) * w + (x + dx)) * 4;
-            outData[i] = Math.max(0, Math.min(255, rAvg + jitterR));
-            outData[i + 1] = Math.max(0, Math.min(255, gAvg + jitterG));
-            outData[i + 2] = Math.max(0, Math.min(255, bAvg + jitterB));
-            outData[i + 3] = srcData[i + 3];
-          }
+        if (weight > 0) {
+          const oi = idx * 4;
+          temp[oi] = rSum / weight;
+          temp[oi + 1] = gSum / weight;
+          temp[oi + 2] = bSum / weight;
+          temp[oi + 3] = aSum / weight;
         }
       }
     }
+
+    const strokeCount = Math.floor(w * h * strokeDensity * 0.002);
+    for (let s = 0; s < strokeCount; s++) {
+      const sx = Math.floor(Math.random() * w);
+      const sy = Math.floor(Math.random() * h);
+      const si = (sy * w + sx) * 4;
+      if (temp[si + 3] < 10) continue;
+
+      const gx = (sx > 0 ? gray[sy * w + sx - 1] : gray[sy * w + sx]) -
+        (sx < w - 1 ? gray[sy * w + sx + 1] : gray[sy * w + sx]);
+      const gy = (sy > 0 ? gray[(sy - 1) * w + sx] : gray[sy * w + sx]) -
+        (sy < h - 1 ? gray[(sy + 1) * w + sx] : gray[sy * w + sx]);
+      const angle = Math.atan2(gy, gx) + (Math.random() - 0.5) * 0.5;
+
+      const sr = bs * (0.5 + Math.random() * 0.8);
+      const sl = sr * (1.5 + Math.random() * 2.5);
+      const r = temp[si], g = temp[si + 1], b = temp[si + 2];
+      const alpha = 0.35 + Math.random() * 0.35;
+
+      const cosA = Math.cos(angle), sinA = Math.sin(angle);
+      for (let dy = -Math.ceil(sl); dy <= Math.ceil(sl); dy++) {
+        for (let dx = -Math.ceil(sr); dx <= Math.ceil(sr); dx++) {
+          const rx = dx * cosA + dy * sinA;
+          const ry = -dx * sinA + dy * cosA;
+          const dist = (rx * rx) / (sr * sr) + (ry * ry) / (sl * sl);
+          if (dist > 1) continue;
+          const nx = sx + dx, ny = sy + dy;
+          if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+          const falloff = 1 - dist;
+          const oi = (ny * w + nx) * 4;
+          const a = alpha * falloff * falloff;
+          outData[oi] = outData[oi] ? outData[oi] * (1 - a) + r * a : r;
+          outData[oi + 1] = outData[oi + 1] ? outData[oi + 1] * (1 - a) + g * a : g;
+          outData[oi + 2] = outData[oi + 2] ? outData[oi + 2] * (1 - a) + b * a : b;
+          outData[oi + 3] = 255;
+        }
+      }
+    }
+
+    for (let i = 0; i < outData.length; i += 4) {
+      if (outData[i + 3] === 0) {
+        outData[i] = temp[i];
+        outData[i + 1] = temp[i + 1];
+        outData[i + 2] = temp[i + 2];
+        outData[i + 3] = temp[i + 3];
+      } else {
+        const a = 0.75;
+        outData[i] = outData[i] * a + temp[i] * (1 - a);
+        outData[i + 1] = outData[i + 1] * a + temp[i + 1] * (1 - a);
+        outData[i + 2] = outData[i + 2] * a + temp[i + 2] * (1 - a);
+      }
+      const impasto = (Math.random() - 0.5) * 12;
+      outData[i] = Math.max(0, Math.min(255, outData[i] + impasto));
+      outData[i + 1] = Math.max(0, Math.min(255, outData[i + 1] + impasto));
+      outData[i + 2] = Math.max(0, Math.min(255, outData[i + 2] + impasto));
+    }
+
     return out;
   }
 
   private applyWatercolorEffect(ctx: CanvasRenderingContext2D): ImageData {
-    const { wetness, spreadRadius } = this.params.watercolor;
+    const { wetness, spreadRadius, colorBleed } = this.params.watercolor;
     const w = this.canvasWidth;
     const h = this.canvasHeight;
     const src = ctx.getImageData(0, 0, w, h);
     const srcData = src.data;
 
-    const blurRadius = Math.ceil(spreadRadius * 0.8);
-    const temp = ctx.createImageData(w, h);
-    const tempData = temp.data;
+    const blurR = Math.max(1, Math.ceil(spreadRadius * 0.6));
+    const temp = new Float32Array(srcData.length);
+    for (let i = 0; i < srcData.length; i++) {
+      temp[i] = srcData[i];
+    }
 
+    const hblur = new Float32Array(srcData.length);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        let r = 0, g = 0, b = 0, count = 0;
-        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
-          for (let dx = -blurRadius; dx <= blurRadius; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > blurRadius) continue;
-            const weight = 1 - (dist / blurRadius);
-            const i = (ny * w + nx) * 4;
-            r += srcData[i] * weight;
-            g += srcData[i + 1] * weight;
-            b += srcData[i + 2] * weight;
-            count += weight;
-          }
+        let r = 0, g = 0, b = 0, a = 0, wt = 0;
+        for (let dx = -blurR; dx <= blurR; dx++) {
+          const nx = Math.max(0, Math.min(w - 1, x + dx));
+          const dist = Math.abs(dx);
+          const gw = Math.exp(-(dist * dist) / (2 * blurR * blurR * 0.3));
+          const i = (y * w + nx) * 4;
+          r += temp[i] * gw;
+          g += temp[i + 1] * gw;
+          b += temp[i + 2] * gw;
+          a += temp[i + 3] * gw;
+          wt += gw;
         }
-        const i = (y * w + x) * 4;
-        tempData[i] = r / count;
-        tempData[i + 1] = g / count;
-        tempData[i + 2] = b / count;
-        tempData[i + 3] = srcData[i + 3];
+        const oi = (y * w + x) * 4;
+        hblur[oi] = r / wt;
+        hblur[oi + 1] = g / wt;
+        hblur[oi + 2] = b / wt;
+        hblur[oi + 3] = a / wt;
+      }
+    }
+
+    const blurred = new Float32Array(srcData.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let r = 0, g = 0, b = 0, a = 0, wt = 0;
+        for (let dy = -blurR; dy <= blurR; dy++) {
+          const ny = Math.max(0, Math.min(h - 1, y + dy));
+          const dist = Math.abs(dy);
+          const gw = Math.exp(-(dist * dist) / (2 * blurR * blurR * 0.3));
+          const i = (ny * w + x) * 4;
+          r += hblur[i] * gw;
+          g += hblur[i + 1] * gw;
+          b += hblur[i + 2] * gw;
+          a += hblur[i + 3] * gw;
+          wt += gw;
+        }
+        const oi = (y * w + x) * 4;
+        blurred[oi] = r / wt;
+        blurred[oi + 1] = g / wt;
+        blurred[oi + 2] = b / wt;
+        blurred[oi + 3] = a / wt;
+      }
+    }
+
+    const edge = new Float32Array(w * h);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = (y * w + x) * 4;
+        const g = 0.299 * blurred[idx] + 0.587 * blurred[idx + 1] + 0.114 * blurred[idx + 2];
+        const gl = 0.299 * blurred[idx - 4] + 0.587 * blurred[idx - 3] + 0.114 * blurred[idx - 2];
+        const gr = 0.299 * blurred[idx + 4] + 0.587 * blurred[idx + 5] + 0.114 * blurred[idx + 6];
+        const gu = 0.299 * blurred[idx - w * 4] + 0.587 * blurred[idx - w * 4 + 1] + 0.114 * blurred[idx - w * 4 + 2];
+        const gd = 0.299 * blurred[idx + w * 4] + 0.587 * blurred[idx + w * 4 + 1] + 0.114 * blurred[idx + w * 4 + 2];
+        edge[y * w + x] = Math.abs(gr - gl) + Math.abs(gd - gu);
       }
     }
 
     const out = ctx.createImageData(w, h);
     const outData = out.data;
-    const satBoost = 1 + wetness * 0.06;
+    const bleed = colorBleed * 0.4;
+    const satBoost = 1 + wetness * 0.05;
 
-    for (let i = 0; i < tempData.length; i += 4) {
-      let r = tempData[i];
-      let g = tempData[i + 1];
-      let b = tempData[i + 2];
+    for (let i = 0; i < outData.length; i += 4) {
+      let r = blurred[i];
+      let g = blurred[i + 1];
+      let b = blurred[i + 2];
+
       const gray = 0.299 * r + 0.587 * g + 0.114 * b;
       r = gray + (r - gray) * satBoost;
       g = gray + (g - gray) * satBoost;
       b = gray + (b - gray) * satBoost;
 
-      const lightBoost = wetness * 0.02;
+      const eIdx = Math.floor(i / 4);
+      const e = edge[eIdx] || 0;
+      if (e > 15) {
+        const damp = Math.max(0, 1 - (e - 15) * 0.015 * bleed);
+        r *= damp;
+        g *= damp;
+        b *= damp;
+      }
+
+      const lightBoost = wetness * 0.025;
       r = Math.min(255, r + (255 - r) * lightBoost);
       g = Math.min(255, g + (255 - g) * lightBoost);
       b = Math.min(255, b + (255 - b) * lightBoost);
 
-      const noise = (Math.random() - 0.5) * (wetness * 2);
+      const noise = (Math.random() - 0.5) * (wetness * 1.8 + 4);
       outData[i] = Math.max(0, Math.min(255, r + noise));
       outData[i + 1] = Math.max(0, Math.min(255, g + noise));
       outData[i + 2] = Math.max(0, Math.min(255, b + noise));
-      outData[i + 3] = tempData[i + 3];
+      outData[i + 3] = blurred[i + 3];
     }
+
     return out;
   }
 
   private applySketchEffect(ctx: CanvasRenderingContext2D): ImageData {
-    const { lineDensity, backgroundBrightness } = this.params.sketch;
+    const { lineDensity, backgroundBrightness, pencilTexture } = this.params.sketch;
     const w = this.canvasWidth;
     const h = this.canvasHeight;
     const src = ctx.getImageData(0, 0, w, h);
@@ -1328,90 +1582,160 @@ class ArtStyleApp {
       gray[j] = 0.299 * srcData[i] + 0.587 * srcData[i + 1] + 0.114 * srcData[i + 2];
     }
 
-    const edge = new Float32Array(w * h);
-    let maxEdge = 0;
+    const smoothR = 2;
+    const smooth = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let s = 0, c = 0;
+        for (let dy = -smoothR; dy <= smoothR; dy++) {
+          for (let dx = -smoothR; dx <= smoothR; dx++) {
+            const nx = Math.max(0, Math.min(w - 1, x + dx));
+            const ny = Math.max(0, Math.min(h - 1, y + dy));
+            s += gray[ny * w + nx];
+            c++;
+          }
+        }
+        smooth[y * w + x] = s / c;
+      }
+    }
+
+    const gx = new Float32Array(w * h);
+    const gy = new Float32Array(w * h);
+    const edgeMag = new Float32Array(w * h);
+    let maxMag = 0;
+
     for (let y = 1; y < h - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
         const idx = y * w + x;
-        const gx = -gray[idx - w - 1] + gray[idx - w + 1]
-          - 2 * gray[idx - 1] + 2 * gray[idx + 1]
-          - gray[idx + w - 1] + gray[idx + w + 1];
-        const gy = -gray[idx - w - 1] - 2 * gray[idx - w] - gray[idx - w + 1]
-          + gray[idx + w - 1] + 2 * gray[idx + w] + gray[idx + w + 1];
-        const mag = Math.sqrt(gx * gx + gy * gy);
-        edge[idx] = mag;
-        if (mag > maxEdge) maxEdge = mag;
+        const tl = smooth[idx - w - 1], tr = smooth[idx - w + 1];
+        const ml = smooth[idx - 1], mr = smooth[idx + 1];
+        const bl = smooth[idx + w - 1], br = smooth[idx + w + 1];
+        const tm = smooth[idx - w], bm = smooth[idx + w];
+
+        gx[idx] = -tl + tr - 2 * ml + 2 * mr - bl + br;
+        gy[idx] = -tl - 2 * tm - tr + bl + 2 * bm + br;
+        const mag = Math.sqrt(gx[idx] * gx[idx] + gy[idx] * gy[idx]);
+        edgeMag[idx] = mag;
+        if (mag > maxMag) maxMag = mag;
       }
     }
 
     const out = ctx.createImageData(w, h);
     const outData = out.data;
-    const threshold = (1 - lineDensity) * maxEdge * 0.5;
+    const threshold = (1 - lineDensity) * maxMag * 0.25;
+    const bv = backgroundBrightness;
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4;
         const j = y * w + x;
-        let v: number;
-        if (edge[j] > threshold) {
-          const intensity = Math.min(1, (edge[j] - threshold) / (maxEdge - threshold));
-          v = backgroundBrightness * (1 - intensity);
+        const mag = edgeMag[j];
+
+        let baseVal: number;
+        if (mag > threshold) {
+          const intensity = Math.min(1, (mag - threshold) / (maxMag - threshold));
+          const lineStrength = Math.pow(intensity, 0.7);
+          baseVal = bv - lineStrength * (bv * 0.95);
+
+          if (pencilTexture > 0.01) {
+            const angle = Math.atan2(gy[j], gx[j]);
+            const perpX = Math.sin(angle);
+            const perpY = -Math.cos(angle);
+            let hatch = 0;
+            const layers = 3;
+            for (let l = 0; l < layers; l++) {
+              const spacing = 6 + l * 4;
+              const offset = (x * perpX + y * perpY + l * 2.5) % spacing;
+              const distFromLine = Math.min(offset, spacing - offset);
+              const layerAmount = Math.exp(-distFromLine * distFromLine / 2) * pencilTexture * 0.25 * (1 - l * 0.2);
+              hatch += layerAmount;
+            }
+            baseVal -= hatch * bv * lineStrength;
+          }
         } else {
-          v = backgroundBrightness;
+          baseVal = bv;
+          const smoothGray = smooth[j];
+          const tone = (1 - smoothGray / 255) * 0.35 * lineDensity;
+          baseVal = bv - tone * bv;
+
+          if (pencilTexture > 0.01) {
+            let hatch = 0;
+            const layers = 2;
+            for (let l = 0; l < layers; l++) {
+              const spacing = 10 + l * 6;
+              const ang = 0.5 + l * 0.6;
+              const px = Math.sin(ang), py = Math.cos(ang);
+              const offset = (x * px + y * py + l * 3) % spacing;
+              const d = Math.min(offset, spacing - offset);
+              const amount = Math.exp(-d * d / 3) * pencilTexture * 0.12 * tone * 3;
+              hatch += amount;
+            }
+            baseVal -= hatch * bv;
+          }
         }
-        const paperNoise = (Math.random() - 0.5) * 8;
-        const val = Math.max(0, Math.min(255, v + paperNoise));
+
+        const paperNoise = (Math.random() - 0.5) * 10;
+        const fiberNoise = (Math.sin(x * 0.35 + y * 0.25) * 0.5 + Math.random() * 0.5 - 0.25) * 5;
+        const val = Math.max(150, Math.min(255, baseVal + paperNoise + fiberNoise));
+
         outData[i] = val;
-        outData[i + 1] = val;
-        outData[i + 2] = val;
+        outData[i + 1] = val * 0.99;
+        outData[i + 2] = val * 0.97;
         outData[i + 3] = 255;
       }
     }
+
     return out;
   }
 
   private buildExportCanvas(): HTMLCanvasElement {
-    const padding = 15;
-    const shadowWidth = 5;
+    const shadowSize = 5;
+    const padding = 6;
+    const totalPad = shadowSize + padding;
+
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = this.canvasWidth + padding * 2 + shadowWidth * 2;
-    exportCanvas.height = this.canvasHeight + padding * 2 + shadowWidth * 2;
+    exportCanvas.width = this.canvasWidth + totalPad * 2;
+    exportCanvas.height = this.canvasHeight + totalPad * 2;
     const ectx = exportCanvas.getContext('2d')!;
 
     ectx.fillStyle = '#ffffff';
     ectx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-    ectx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ectx.shadowBlur = shadowWidth * 3;
-    ectx.shadowOffsetX = 0;
-    ectx.shadowOffsetY = 0;
-
-    ectx.fillStyle = '#fff';
-    ectx.fillRect(
-      padding + shadowWidth,
-      padding + shadowWidth,
-      this.canvasWidth,
-      this.canvasHeight
-    );
+    const shadowLayers = 4;
+    for (let l = shadowLayers; l >= 1; l--) {
+      const alpha = 0.04 * l;
+      const blur = shadowSize * (l / shadowLayers);
+      ectx.shadowColor = `rgba(0, 0, 0, ${alpha})`;
+      ectx.shadowBlur = blur * 2.5;
+      ectx.shadowOffsetX = 0;
+      ectx.shadowOffsetY = blur * 0.4;
+      ectx.fillStyle = '#ffffff';
+      ectx.fillRect(
+        totalPad,
+        totalPad,
+        this.canvasWidth,
+        this.canvasHeight
+      );
+    }
 
     ectx.shadowColor = 'transparent';
     ectx.shadowBlur = 0;
     ectx.shadowOffsetX = 0;
     ectx.shadowOffsetY = 0;
 
-    ectx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+    ectx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
     ectx.lineWidth = 1;
     ectx.strokeRect(
-      padding + shadowWidth + 0.5,
-      padding + shadowWidth + 0.5,
+      totalPad + 0.5,
+      totalPad + 0.5,
       this.canvasWidth - 1,
       this.canvasHeight - 1
     );
 
     ectx.drawImage(
       this.filteredCanvas,
-      padding + shadowWidth,
-      padding + shadowWidth
+      totalPad,
+      totalPad
     );
 
     return exportCanvas;
@@ -1422,17 +1746,21 @@ class ArtStyleApp {
       this.showToast('请先上传一张图片', 'error');
       return;
     }
-    const exportCanvas = this.buildExportCanvas();
-    const link = document.createElement('a');
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    link.download = `artwork_${ts}.png`;
-    link.href = exportCanvas.toDataURL('image/png');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    this.showToast('图片已保存', 'success');
+    try {
+      const exportCanvas = this.buildExportCanvas();
+      const link = document.createElement('a');
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      link.download = `artwork_${ts}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      this.showToast('图片已保存', 'success');
+    } catch {
+      this.showToast('保存失败，请重试', 'error');
+    }
   }
 
   private async copyToClipboard(): Promise<void> {
@@ -1445,24 +1773,30 @@ class ArtStyleApp {
       const blob = await new Promise<Blob>((resolve, reject) => {
         exportCanvas.toBlob(b => {
           if (b) resolve(b);
-          else reject(new Error('Failed to create blob'));
+          else reject(new Error('创建图片数据失败'));
         }, 'image/png');
       });
 
-      if (navigator.clipboard && (navigator.clipboard as any).write) {
+      const w = window as any;
+      if (navigator.clipboard && w.ClipboardItem && typeof (navigator.clipboard as any).write === 'function') {
         await (navigator.clipboard as any).write([
-          new (window as any).ClipboardItem({ 'image/png': blob })
+          new w.ClipboardItem({ 'image/png': blob })
         ]);
         this.showToast('已复制到剪贴板', 'success');
       } else {
-        throw new Error('Clipboard API not supported');
+        throw new Error('当前浏览器不支持复制图片到剪贴板');
       }
-    } catch {
-      this.showToast('复制失败，请尝试右键保存图片', 'error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      this.showToast(
+        '复制失败，请右键图片选择"保存图片"手动保存',
+        'error',
+        msg && msg !== '复制失败' ? msg : undefined
+      );
     }
   }
 
-  private showToast(message: string, type: 'success' | 'error'): void {
+  private showToast(message: string, type: 'success' | 'error', detail?: string): void {
     const existing = document.querySelector('.ast-toast');
     if (existing) existing.remove();
 
@@ -1473,7 +1807,23 @@ class ArtStyleApp {
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
       : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
 
-    toast.innerHTML = iconSvg + `<span>${message}</span>`;
+    const textWrap = document.createElement('div');
+    textWrap.style.display = 'flex';
+    textWrap.style.flexDirection = 'column';
+
+    const mainText = document.createElement('span');
+    mainText.textContent = message;
+    textWrap.appendChild(mainText);
+
+    if (detail) {
+      const detailText = document.createElement('div');
+      detailText.className = 'ast-toast-detail';
+      detailText.textContent = detail;
+      textWrap.appendChild(detailText);
+    }
+
+    toast.innerHTML = iconSvg;
+    toast.appendChild(textWrap);
     document.body.appendChild(toast);
 
     requestAnimationFrame(() => {
@@ -1482,8 +1832,8 @@ class ArtStyleApp {
 
     setTimeout(() => {
       toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 300);
-    }, 2500);
+      setTimeout(() => toast.remove(), 350);
+    }, 3200);
   }
 }
 
