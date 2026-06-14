@@ -8,6 +8,11 @@ import {
   Point,
   GRID_SIZE,
   SNAP_DISTANCE,
+  SPRING_STIFFNESS,
+  SPRING_DAMPING,
+  ANIM_DURATION_DELETE,
+  GridSnapResult,
+  SpringAnimState,
 } from '../../types';
 import { wsService } from '../websocket/WebSocketService';
 import { recorder } from '../recording/Recorder';
@@ -26,6 +31,125 @@ interface WhiteboardProps {
 const STICKY_WIDTH = 180;
 const STICKY_HEIGHT = 140;
 
+function calcGridSnapEuclidean(x: number, y: number): GridSnapResult {
+  const baseX = Math.round(x / GRID_SIZE) * GRID_SIZE;
+  const baseY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+  const dx = baseX - x;
+  const dy = baseY - y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  if (distance <= SNAP_DISTANCE) {
+    return {
+      snappedX: baseX,
+      snappedY: baseY,
+      offsetX: dx,
+      offsetY: dy,
+      distance,
+      snapped: true,
+    };
+  }
+  return {
+    snappedX: x,
+    snappedY: y,
+    offsetX: 0,
+    offsetY: 0,
+    distance,
+    snapped: false,
+  };
+}
+
+function createPoint(x: number, y: number, pressure: number = 0.5): Point {
+  return { x, y, pressure };
+}
+
+function drawSmoothStroke(
+  ctx: CanvasRenderingContext2D,
+  stroke: Stroke
+): void {
+  if (stroke.points.length < 2) return;
+
+  const pts = stroke.points;
+  const color = stroke.tool === 'eraser' ? '#FFFFFF' : stroke.color;
+  const baseWidth = stroke.tool === 'eraser' ? stroke.width * 3 : stroke.width;
+
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = baseWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (stroke.tool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+  }
+
+  if (pts.length === 2) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const cx = (p0.x + p1.x) / 2;
+    const cy = (p0.y + p1.y) / 2;
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(p0.x, p0.y, cx, cy);
+    ctx.quadraticCurveTo(p1.x, p1.y, p1.x, p1.y);
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    return;
+  }
+
+  if (pts.length === 3) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const p2 = pts[2];
+    const c1x = p0.x + (p1.x - p0.x) * 0.5;
+    const c1y = p0.y + (p1.y - p0.y) * 0.5;
+    const c2x = p1.x + (p2.x - p1.x) * 0.5;
+    const c2y = p1.y + (p2.y - p1.y) * 0.5;
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(p0.x, p0.y, c1x, c1y);
+    ctx.quadraticCurveTo(p1.x, p1.y, c2x, c2y);
+    ctx.quadraticCurveTo(p2.x, p2.y, p2.x, p2.y);
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    return;
+  }
+
+  ctx.moveTo(pts[0].x, pts[0].y);
+
+  const cp1x = pts[0].x + (pts[1].x - pts[0].x) / 3;
+  const cp1y = pts[0].y + (pts[1].y - pts[0].y) / 3;
+  ctx.quadraticCurveTo(cp1x, cp1y, pts[1].x, pts[1].y);
+
+  for (let i = 1; i < pts.length - 2; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const next = pts[i + 1];
+    const next2 = pts[i + 2];
+
+    const v1x = curr.x - prev.x;
+    const v1y = curr.y - prev.y;
+    const v2x = next.x - curr.x;
+    const v2y = next.y - curr.y;
+    const v3x = next2.x - next.x;
+    const v3y = next2.y - next.y;
+
+    const c1x = curr.x + (v2x + v1x * 0.15) / 3;
+    const c1y = curr.y + (v2y + v1y * 0.15) / 3;
+    const c2x = next.x - (v3x + v2x * 0.15) / 3;
+    const c2y = next.y - (v3y + v2y * 0.15) / 3;
+    const midX = (curr.x + next.x) / 2;
+    const midY = (curr.y + next.y) / 2;
+
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, midX, midY);
+  }
+
+  const last = pts[pts.length - 1];
+  const lastPrev = pts[pts.length - 2];
+  const cpLx = lastPrev.x + (last.x - lastPrev.x) * 2 / 3;
+  const cpLy = lastPrev.y + (last.y - lastPrev.y) * 2 / 3;
+  ctx.quadraticCurveTo(cpLx, cpLy, last.x, last.y);
+
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 const Whiteboard: React.FC<WhiteboardProps> = ({
   sessionId,
   userId,
@@ -42,6 +166,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const [images, setImages] = useState<BoardImage[]>(boardState.images);
   const [undoStack, setUndoStack] = useState<BoardState[]>([]);
   const [redoStack, setRedoStack] = useState<BoardState[]>([]);
+  const [, setAnimTick] = useState(0);
 
   const drawingRef = useRef(false);
   const currentStrokeRef = useRef<Stroke | null>(null);
@@ -50,11 +175,15 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     id: string;
     offsetX: number;
     offsetY: number;
+    fromX: number;
+    fromY: number;
   } | null>(null);
   const selectedRef = useRef<{ type: 'sticky' | 'image'; id: string } | null>(null);
   const strokesRef = useRef(strokes);
   const stickiesRef = useRef(stickies);
   const imagesRef = useRef(images);
+  const animStatesRef = useRef(new Map<string, SpringAnimState>());
+  const rafAnimRef = useRef<number>(0);
 
   useEffect(() => { strokesRef.current = strokes; }, [strokes]);
   useEffect(() => { stickiesRef.current = stickies; }, [stickies]);
@@ -66,13 +195,6 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     setImages(boardState.images);
   }, [boardState]);
 
-  const snapToGrid = (val: number): number => {
-    const remainder = val % GRID_SIZE;
-    if (remainder < SNAP_DISTANCE) return val - remainder;
-    if (remainder > GRID_SIZE - SNAP_DISTANCE) return val + (GRID_SIZE - remainder);
-    return val;
-  };
-
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -80,7 +202,6 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -88,14 +209,14 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     ctx.lineWidth = 1;
     for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, canvas.height);
       ctx.stroke();
     }
     for (let y = 0; y <= canvas.height; y += GRID_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(canvas.width, y + 0.5);
       ctx.stroke();
     }
 
@@ -103,36 +224,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       ? [...strokesRef.current, currentStrokeRef.current]
       : strokesRef.current;
 
-    allStrokes.forEach((stroke) => {
-      if (stroke.points.length < 2) return;
-      ctx.beginPath();
-      ctx.strokeStyle = stroke.tool === 'eraser' ? '#FFFFFF' : stroke.color;
-      ctx.lineWidth = stroke.tool === 'eraser' ? stroke.width * 3 : stroke.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      if (stroke.tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-      }
-
-      const pts = stroke.points;
-      ctx.moveTo(pts[0].x, pts[0].y);
-
-      if (pts.length === 2) {
-        ctx.lineTo(pts[1].x, pts[1].y);
-      } else {
-        for (let i = 1; i < pts.length - 1; i++) {
-          const midX = (pts[i].x + pts[i + 1].x) / 2;
-          const midY = (pts[i].y + pts[i + 1].y) / 2;
-          ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
-        }
-        const last = pts[pts.length - 1];
-        ctx.lineTo(last.x, last.y);
-      }
-
-      ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
-    });
+    allStrokes.forEach((stroke) => drawSmoothStroke(ctx, stroke));
   }, []);
 
   useEffect(() => {
@@ -193,6 +285,87 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     applyState(next);
   }, [redoStack, applyState]);
 
+  const runAnimationLoop = useCallback(() => {
+    const now = performance.now();
+    const dt = 1 / 60;
+    let needsUpdate = false;
+
+    animStatesRef.current.forEach((state, id) => {
+      if (state.type === 'snap') {
+        const dx = state.toX - state.fromX;
+        const dy = state.toY - state.fromY;
+        const k = SPRING_STIFFNESS * 0.00005;
+        const d = SPRING_DAMPING * 0.001;
+        state.velocity = state.velocity + k * (state.progress - 1) * dt * 1000;
+        state.velocity *= (1 - d);
+        state.progress += state.velocity;
+
+        if (Math.abs(state.progress - 1) < 0.002 && Math.abs(state.velocity) < 0.002) {
+          state.progress = 1;
+          state.velocity = 0;
+          animStatesRef.current.delete(id);
+          if (state.fromX !== state.toX || state.fromY !== state.toY) {
+            const targetType = id.startsWith('sticky-') ? 'sticky' : 'image';
+            const targetId = id.replace(/^(sticky|image)-/, '');
+            if (targetType === 'sticky') {
+              setStickies((prev) => prev.map((s) => (s.id === targetId ? { ...s, x: state.toX, y: state.toY } : s)));
+            } else {
+              setImages((prev) => prev.map((i) => (i.id === targetId ? { ...i, x: state.toX, y: state.toY } : i)));
+            }
+          }
+        } else {
+          needsUpdate = true;
+          if (state.fromX !== state.toX || state.fromY !== state.toY) {
+            const newX = state.fromX + dx * state.progress;
+            const newY = state.fromY + dy * state.progress;
+            const targetType = id.startsWith('sticky-') ? 'sticky' : 'image';
+            const targetId = id.replace(/^(sticky|image)-/, '');
+            if (targetType === 'sticky') {
+              const idx = stickiesRef.current.findIndex((s) => s.id === targetId);
+              if (idx >= 0) {
+                stickiesRef.current[idx] = { ...stickiesRef.current[idx], x: newX, y: newY };
+                setStickies([...stickiesRef.current]);
+              }
+            } else {
+              const idx = imagesRef.current.findIndex((i) => i.id === targetId);
+              if (idx >= 0) {
+                imagesRef.current[idx] = { ...imagesRef.current[idx], x: newX, y: newY };
+                setImages([...imagesRef.current]);
+              }
+            }
+          }
+        }
+      } else if (state.type === 'delete') {
+        const elapsed = now - state.startTimestamp;
+        state.progress = Math.min(1, elapsed / ANIM_DURATION_DELETE);
+        if (state.progress >= 1) {
+          animStatesRef.current.delete(id);
+        } else {
+          needsUpdate = true;
+        }
+      }
+    });
+
+    if (needsUpdate) {
+      setAnimTick((t) => (t + 1) % 1000000);
+      rafAnimRef.current = requestAnimationFrame(runAnimationLoop);
+    } else {
+      rafAnimRef.current = 0;
+    }
+  }, []);
+
+  const startAnimLoopIfNeeded = useCallback(() => {
+    if (rafAnimRef.current === 0 && animStatesRef.current.size > 0) {
+      rafAnimRef.current = requestAnimationFrame(runAnimationLoop);
+    }
+  }, [runAnimationLoop]);
+
+  useEffect(() => {
+    return () => {
+      if (rafAnimRef.current) cancelAnimationFrame(rafAnimRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
@@ -205,28 +378,56 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
         e.preventDefault();
         const sel = selectedRef.current;
         saveSnapshot();
-        if (sel.type === 'sticky') {
-          const newStickies = stickiesRef.current.filter((s) => s.id !== sel.id);
-          setStickies(newStickies);
-          recorder.record('deleteSticky', { id: sel.id });
-          wsService.sendOperation('deleteSticky', { id: sel.id });
-        } else {
-          const newImages = imagesRef.current.filter((i) => i.id !== sel.id);
-          setImages(newImages);
-          recorder.record('deleteImage', { id: sel.id });
-          wsService.sendOperation('deleteImage', { id: sel.id });
+        const animId = `${sel.type}-${sel.id}`;
+        const cur = sel.type === 'sticky'
+          ? stickiesRef.current.find((s) => s.id === sel.id)
+          : imagesRef.current.find((i) => i.id === sel.id);
+        if (cur) {
+          animStatesRef.current.set(animId, {
+            id: animId,
+            type: 'delete',
+            progress: 0,
+            fromX: cur.x,
+            fromY: cur.y,
+            toX: cur.x,
+            toY: cur.y,
+            scaleFrom: 1,
+            scaleTo: 0,
+            opacityFrom: 1,
+            opacityTo: 0,
+            velocity: 0,
+            startTimestamp: performance.now(),
+          });
+          startAnimLoopIfNeeded();
         }
+        setTimeout(() => {
+          if (sel.type === 'sticky') {
+            const newStickies = stickiesRef.current.filter((s) => s.id !== sel.id);
+            setStickies(newStickies);
+            recorder.record('deleteSticky', { id: sel.id });
+            wsService.sendOperation('deleteSticky', { id: sel.id });
+          } else {
+            const newImages = imagesRef.current.filter((i) => i.id !== sel.id);
+            setImages(newImages);
+            recorder.record('deleteImage', { id: sel.id });
+            wsService.sendOperation('deleteImage', { id: sel.id });
+          }
+          animStatesRef.current.delete(animId);
+          setAnimTick((t) => (t + 1) % 1000000);
+        }, ANIM_DURATION_DELETE + 10);
         selectedRef.current = null;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, saveSnapshot]);
+  }, [undo, redo, saveSnapshot, startAnimLoopIfNeeded]);
 
-  const getCanvasPoint = (e: React.MouseEvent): Point => {
+  const getCanvasPoint = (e: React.MouseEvent, pressure: number = 0.5): Point => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const nativePressure = (e as any).nativeEvent?.pressure;
+    const p = typeof nativePressure === 'number' && nativePressure > 0 ? nativePressure : pressure;
+    return createPoint(e.clientX - rect.left, e.clientY - rect.top, p);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -248,28 +449,30 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (drawingRef.current && currentStrokeRef.current) {
-      currentStrokeRef.current.points.push(getCanvasPoint(e));
-      redraw();
+      const pt = getCanvasPoint(e);
+      const lastPt = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
+      const dx = pt.x - lastPt.x;
+      const dy = pt.y - lastPt.y;
+      if (dx * dx + dy * dy > 0.25) {
+        currentStrokeRef.current.points.push(pt);
+        redraw();
+      }
     }
 
     if (dragRef.current) {
       const pt = getCanvasPoint(e);
+      const rawX = pt.x - dragRef.current.offsetX;
+      const rawY = pt.y - dragRef.current.offsetY;
       if (dragRef.current.type === 'sticky') {
-        setStickies((prev) =>
-          prev.map((s) =>
-            s.id === dragRef.current!.id
-              ? { ...s, x: pt.x - dragRef.current!.offsetX, y: pt.y - dragRef.current!.offsetY }
-              : s
-          )
+        stickiesRef.current = stickiesRef.current.map((s) =>
+          s.id === dragRef.current!.id ? { ...s, x: rawX, y: rawY } : s
         );
+        setStickies([...stickiesRef.current]);
       } else {
-        setImages((prev) =>
-          prev.map((i) =>
-            i.id === dragRef.current!.id
-              ? { ...i, x: pt.x - dragRef.current!.offsetX, y: pt.y - dragRef.current!.offsetY }
-              : i
-          )
+        imagesRef.current = imagesRef.current.map((i) =>
+          i.id === dragRef.current!.id ? { ...i, x: rawX, y: rawY } : i
         );
+        setImages([...imagesRef.current]);
       }
     }
   };
@@ -291,30 +494,37 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     }
 
     if (dragRef.current) {
-      const { type, id } = dragRef.current;
-      const snappedX = snapToGrid(type === 'sticky'
-        ? stickiesRef.current.find((s) => s.id === id)!.x
-        : imagesRef.current.find((i) => i.id === id)!.x);
-      const snappedY = snapToGrid(type === 'sticky'
-        ? stickiesRef.current.find((s) => s.id === id)!.y
-        : imagesRef.current.find((i) => i.id === id)!.y);
+      const { type, id, fromX, fromY } = dragRef.current;
+      const curPos = type === 'sticky'
+        ? stickiesRef.current.find((s) => s.id === id)!
+        : imagesRef.current.find((i) => i.id === id)!;
 
-      if (type === 'sticky') {
-        setStickies((prev) =>
-          prev.map((s) =>
-            s.id === id ? { ...s, x: snappedX, y: snappedY } : s
-          )
-        );
-        recorder.record('moveSticky', { id, x: snappedX, y: snappedY });
-        wsService.sendOperation('moveSticky', { id, x: snappedX, y: snappedY });
-      } else {
-        setImages((prev) =>
-          prev.map((i) =>
-            i.id === id ? { ...i, x: snappedX, y: snappedY } : i
-          )
-        );
-        recorder.record('moveImage', { id, x: snappedX, y: snappedY });
-        wsService.sendOperation('moveImage', { id, x: snappedX, y: snappedY });
+      const snap = calcGridSnapEuclidean(curPos.x, curPos.y);
+      const finalX = snap.snapped ? snap.snappedX : curPos.x;
+      const finalY = snap.snapped ? snap.snappedY : curPos.y;
+
+      if (finalX !== fromX || finalY !== fromY || snap.snapped) {
+        const animId = `${type}-${id}`;
+        animStatesRef.current.set(animId, {
+          id: animId,
+          type: 'snap',
+          progress: 0,
+          fromX: curPos.x,
+          fromY: curPos.y,
+          toX: finalX,
+          toY: finalY,
+          scaleFrom: 1,
+          scaleTo: 1,
+          opacityFrom: 1,
+          opacityTo: 1,
+          velocity: 0,
+          startTimestamp: performance.now(),
+        });
+        startAnimLoopIfNeeded();
+
+        const opType = type === 'sticky' ? 'moveSticky' : 'moveImage';
+        recorder.record(opType, { id, x: finalX, y: finalY });
+        wsService.sendOperation(opType, { id, x: finalX, y: finalY });
       }
       dragRef.current = null;
     }
@@ -322,10 +532,15 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
 
   const addSticky = () => {
     const canvas = canvasRef.current!;
+    const rawX = canvas.width / 2 - STICKY_WIDTH / 2;
+    const rawY = canvas.height / 2 - STICKY_HEIGHT / 2;
+    const snap = calcGridSnapEuclidean(rawX, rawY);
     const note: StickyNote = {
       id: uuid(),
-      x: snapToGrid(canvas.width / 2 - STICKY_WIDTH / 2),
-      y: snapToGrid(canvas.height / 2 - STICKY_HEIGHT / 2),
+      x: snap.snapped ? snap.snappedX : rawX,
+      y: snap.snapped ? snap.snappedY : rawY,
+      width: STICKY_WIDTH,
+      height: STICKY_HEIGHT,
       text: '',
       color: '#FEF08A',
     };
@@ -350,10 +565,13 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
           h = Math.round(h * scale);
         }
         const canvas = canvasRef.current!;
+        const rawX = canvas.width / 2 - w / 2;
+        const rawY = canvas.height / 2 - h / 2;
+        const snap = calcGridSnapEuclidean(rawX, rawY);
         const boardImg: BoardImage = {
           id: uuid(),
-          x: snapToGrid(canvas.width / 2 - w / 2),
-          y: snapToGrid(canvas.height / 2 - h / 2),
+          x: snap.snapped ? snap.snappedX : rawX,
+          y: snap.snapped ? snap.snappedY : rawY,
           width: w,
           height: h,
           src,
@@ -431,6 +649,21 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     return unsub;
   }, []);
 
+  const getAnimStyle = (type: 'sticky' | 'image', id: string): React.CSSProperties => {
+    const animId = `${type}-${id}`;
+    const state = animStatesRef.current.get(animId);
+    if (!state) return {};
+    if (state.type === 'delete') {
+      const scale = 1 - state.progress;
+      return {
+        transform: `scale(${Math.max(0, scale)})`,
+        opacity: Math.max(0, 1 - state.progress),
+        transformOrigin: 'center center',
+      };
+    }
+    return {};
+  };
+
   return {
     undo,
     redo,
@@ -449,62 +682,76 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
           onMouseLeave={handleMouseUp}
         />
         <div className="whiteboard-overlays">
-          {stickies.map((note) => (
-            <div
-              key={note.id}
-              className={`sticky-note ${selectedRef.current?.id === note.id ? 'selected' : ''}`}
-              style={{
-                left: note.x,
-                top: note.y,
-                width: STICKY_WIDTH,
-                minHeight: STICKY_HEIGHT,
-                opacity: dragRef.current?.id === note.id ? 0.7 : 1,
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                selectedRef.current = { type: 'sticky', id: note.id };
-                dragRef.current = {
-                  type: 'sticky',
-                  id: note.id,
-                  offsetX: e.clientX - containerRef.current!.getBoundingClientRect().left - note.x,
-                  offsetY: e.clientY - containerRef.current!.getBoundingClientRect().top - note.y,
-                };
-              }}
-            >
-              <textarea
-                value={note.text}
-                onChange={(e) => handleStickyTextChange(note.id, e.target.value)}
-                placeholder="输入便签内容..."
-                maxLength={256}
-                className="sticky-textarea"
-              />
-            </div>
-          ))}
-          {images.map((img) => (
-            <div
-              key={img.id}
-              className={`board-image ${selectedRef.current?.id === img.id ? 'selected' : ''}`}
-              style={{
-                left: img.x,
-                top: img.y,
-                width: img.width,
-                height: img.height,
-                opacity: dragRef.current?.id === img.id ? 0.7 : 1,
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                selectedRef.current = { type: 'image', id: img.id };
-                dragRef.current = {
-                  type: 'image',
-                  id: img.id,
-                  offsetX: e.clientX - containerRef.current!.getBoundingClientRect().left - img.x,
-                  offsetY: e.clientY - containerRef.current!.getBoundingClientRect().top - img.y,
-                };
-              }}
-            >
-              <img src={img.src} alt={img.originalName} draggable={false} />
-            </div>
-          ))}
+          {stickies.map((note) => {
+            const animStyle = getAnimStyle('sticky', note.id);
+            const isDragging = dragRef.current?.id === note.id;
+            const isSelected = selectedRef.current?.id === note.id;
+            return (
+              <div
+                key={note.id}
+                className={`sticky-note ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+                style={{
+                  left: note.x,
+                  top: note.y,
+                  width: note.width,
+                  minHeight: note.height,
+                  ...animStyle,
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  selectedRef.current = { type: 'sticky', id: note.id };
+                  dragRef.current = {
+                    type: 'sticky',
+                    id: note.id,
+                    offsetX: e.clientX - containerRef.current!.getBoundingClientRect().left - note.x,
+                    offsetY: e.clientY - containerRef.current!.getBoundingClientRect().top - note.y,
+                    fromX: note.x,
+                    fromY: note.y,
+                  };
+                }}
+              >
+                <textarea
+                  value={note.text}
+                  onChange={(e) => handleStickyTextChange(note.id, e.target.value)}
+                  placeholder="输入便签内容..."
+                  maxLength={256}
+                  className="sticky-textarea"
+                />
+              </div>
+            );
+          })}
+          {images.map((img) => {
+            const animStyle = getAnimStyle('image', img.id);
+            const isDragging = dragRef.current?.id === img.id;
+            const isSelected = selectedRef.current?.id === img.id;
+            return (
+              <div
+                key={img.id}
+                className={`board-image ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+                style={{
+                  left: img.x,
+                  top: img.y,
+                  width: img.width,
+                  height: img.height,
+                  ...animStyle,
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  selectedRef.current = { type: 'image', id: img.id };
+                  dragRef.current = {
+                    type: 'image',
+                    id: img.id,
+                    offsetX: e.clientX - containerRef.current!.getBoundingClientRect().left - img.x,
+                    offsetY: e.clientY - containerRef.current!.getBoundingClientRect().top - img.y,
+                    fromX: img.x,
+                    fromY: img.y,
+                  };
+                }}
+              >
+                <img src={img.src} alt={img.originalName} draggable={false} />
+              </div>
+            );
+          })}
         </div>
       </div>
     ),
