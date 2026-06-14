@@ -1,10 +1,11 @@
 import { request } from '@/hooks/useApi'
-import type { Submission, ManualGradeDto } from '@shared/types'
+import type { GradingResult, ManualGradeDto } from '@shared/types'
 
-export async function autoGrade(submissionId: string): Promise<Submission> {
-  return request<Submission>({
+export async function autoGrade(submissionId: string): Promise<GradingResult> {
+  return request<GradingResult>({
     method: 'POST',
-    url: `/grading/auto/${submissionId}`,
+    url: '/grading/auto-grade',
+    data: { submissionId },
   })
 }
 
@@ -13,16 +14,16 @@ export async function manualGrade(
   questionId: string,
   score: number,
   comment?: string,
-): Promise<Submission> {
+): Promise<GradingResult> {
   const data: ManualGradeDto = {
     submissionId,
     questionId,
     score,
     comment,
   }
-  return request<Submission>({
+  return request<GradingResult>({
     method: 'POST',
-    url: '/grading/manual',
+    url: '/grading/manual-grade',
     data,
   })
 }

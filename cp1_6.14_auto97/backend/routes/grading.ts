@@ -115,7 +115,7 @@ router.post('/auto-grade', async (req: Request, res: Response): Promise<void> =>
     }
     await db.write();
 
-    res.status(200).json(gradingResult);
+    res.status(200).json({ success: true, data: gradingResult });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to auto grade' });
   }
@@ -157,7 +157,7 @@ router.post('/manual-grade', async (req: Request, res: Response): Promise<void> 
     gradingResult.gradedAt = new Date().toISOString();
 
     await db.write();
-    res.status(200).json(gradingResult);
+    res.status(200).json({ success: true, data: gradingResult });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to manual grade' });
   }
@@ -172,7 +172,7 @@ router.get('/:submissionId', async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ success: false, error: 'Grading result not found' });
       return;
     }
-    res.status(200).json(gradingResult);
+    res.status(200).json({ success: true, data: gradingResult });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get grading result' });
   }

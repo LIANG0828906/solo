@@ -7,7 +7,7 @@ const router = Router();
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const db = await getDb();
-    res.status(200).json(db.data.papers);
+    res.status(200).json({ success: true, data: db.data.papers });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get papers' });
   }
@@ -25,7 +25,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const questions = paper.questionIds
       .map((qid) => db.data.questions.find((q) => q.id === qid))
       .filter(Boolean);
-    res.status(200).json({ ...paper, questions });
+    res.status(200).json({ success: true, data: { ...paper, questions } });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get paper' });
   }
@@ -53,7 +53,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     };
     db.data.papers.push(newPaper);
     await db.write();
-    res.status(201).json(newPaper);
+    res.status(201).json({ success: true, data: newPaper });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create paper' });
   }
@@ -79,7 +79,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }, 0);
     }
     await db.write();
-    res.status(200).json(paper);
+    res.status(200).json({ success: true, data: paper });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update paper' });
   }

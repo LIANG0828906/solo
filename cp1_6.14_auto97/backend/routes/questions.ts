@@ -19,7 +19,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     if (difficulty) {
       questions = questions.filter((q) => q.difficulty === (difficulty as Difficulty));
     }
-    res.status(200).json(questions);
+    res.status(200).json({ success: true, data: questions });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get questions' });
   }
@@ -34,7 +34,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ success: false, error: 'Question not found' });
       return;
     }
-    res.status(200).json(question);
+    res.status(200).json({ success: true, data: question });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get question' });
   }
@@ -91,7 +91,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     };
     db.data.questions.push(newQuestion);
     await db.write();
-    res.status(201).json(newQuestion);
+    res.status(201).json({ success: true, data: newQuestion });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create question' });
   }
@@ -128,7 +128,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     await db.write();
-    res.status(200).json(question);
+    res.status(200).json({ success: true, data: question });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update question' });
   }

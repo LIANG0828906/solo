@@ -15,7 +15,7 @@ router.get('/weak-points', async (req: Request, res: Response): Promise<void> =>
 
     const studentSubmissions = db.data.submissions.filter((s) => s.studentName === studentName);
     if (studentSubmissions.length === 0) {
-      res.status(200).json([]);
+      res.status(200).json({ success: true, data: [] });
       return;
     }
 
@@ -47,7 +47,7 @@ router.get('/weak-points', async (req: Request, res: Response): Promise<void> =>
       return errorRateB - errorRateA;
     });
 
-    res.status(200).json(stats);
+    res.status(200).json({ success: true, data: stats });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get weak points' });
   }
@@ -122,7 +122,7 @@ router.get('/recommend', async (req: Request, res: Response): Promise<void> => {
 
     const finalRecommendations = [...unanswered, ...answered].slice(0, 10);
 
-    res.status(200).json(finalRecommendations);
+    res.status(200).json({ success: true, data: finalRecommendations });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get recommendations' });
   }

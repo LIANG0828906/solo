@@ -15,7 +15,7 @@ export async function fetchRecommendQuestions(
 ): Promise<Question[]> {
   return request<Question[]>({
     method: 'GET',
-    url: '/analysis/recommend-questions',
+    url: '/analysis/recommend',
     params: { studentName, knowledgePoint },
   })
 }

@@ -7,7 +7,7 @@ const router = Router();
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const db = await getDb();
-    res.status(200).json(db.data.courses);
+    res.status(200).json({ success: true, data: db.data.courses });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get courses' });
   }
@@ -29,7 +29,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     };
     db.data.courses.push(newCourse);
     await db.write();
-    res.status(201).json(newCourse);
+    res.status(201).json({ success: true, data: newCourse });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create course' });
   }
@@ -47,7 +47,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     }
     if (name !== undefined) course.name = name;
     await db.write();
-    res.status(200).json(course);
+    res.status(200).json({ success: true, data: course });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update course' });
   }
@@ -94,7 +94,7 @@ router.post('/:courseId/chapters', async (req: Request, res: Response): Promise<
     };
     course.chapters.push(newChapter);
     await db.write();
-    res.status(201).json(newChapter);
+    res.status(201).json({ success: true, data: newChapter });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create chapter' });
   }
@@ -117,7 +117,7 @@ router.put('/chapters/:id', async (req: Request, res: Response): Promise<void> =
     if (name !== undefined) chapter.name = name;
     if (knowledgePoints !== undefined) chapter.knowledgePoints = knowledgePoints;
     await db.write();
-    res.status(200).json(chapter);
+    res.status(200).json({ success: true, data: chapter });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update chapter' });
   }

@@ -12,7 +12,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     if (paperId) {
       submissions = submissions.filter((s) => s.paperId === paperId);
     }
-    res.status(200).json(submissions);
+    res.status(200).json({ success: true, data: submissions });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get submissions' });
   }
@@ -35,7 +35,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const questions = paper.questionIds
       .map((qid) => db.data.questions.find((q) => q.id === qid))
       .filter(Boolean);
-    res.status(200).json({ ...submission, paper, questions });
+    res.status(200).json({ success: true, data: { ...submission, paper, questions } });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to get submission' });
   }
@@ -66,7 +66,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     };
     db.data.submissions.push(newSubmission);
     await db.write();
-    res.status(201).json(newSubmission);
+    res.status(201).json({ success: true, data: newSubmission });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create submission' });
   }
