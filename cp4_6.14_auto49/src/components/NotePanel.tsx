@@ -13,19 +13,30 @@ export default function NotePanel({ onNavigateToAnnotation, isMobile }: NotePane
   const { currentBook, currentChapter, annotations, deleteAnnotation } = useBook();
   const [sortMode, setSortMode] = useState<SortMode>('chapter');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState('');
 
-  const sortedAnnotations = useMemo(() => {
-    const sorted = [...annotations];
+  const filteredAndSortedAnnotations = useMemo(() => {
+    let result = [...annotations];
+
+    if (filterText.trim()) {
+      const keyword = filterText.trim().toLowerCase();
+      result = result.filter((ann) =>
+        ann.text.toLowerCase().includes(keyword) ||
+        (ann.note && ann.note.toLowerCase().includes(keyword))
+      );
+    }
+
     if (sortMode === 'chapter') {
-      sorted.sort((a, b) => {
+      result.sort((a, b) => {
         if (a.chapterIndex !== b.chapterIndex) return a.chapterIndex - b.chapterIndex;
         return a.startOffset - b.startOffset;
       });
     } else {
-      sorted.sort((a, b) => b.createdAt - a.createdAt);
+      result.sort((a, b) => b.createdAt - a.createdAt);
     }
-    return sorted;
-  }, [annotations, sortMode]);
+
+    return result;
+  }, [annotations, sortMode, filterText]);
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id);
@@ -75,15 +86,36 @@ export default function NotePanel({ onNavigateToAnnotation, isMobile }: NotePane
         </select>
       </div>
 
+      <div className="filter-wrapper">
+        <input
+          type="text"
+          className="filter-input"
+          placeholder="搜索标注或笔记内容..."
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+        />
+        {filterText && (
+          <button
+            className="filter-clear-btn"
+            onClick={() => setFilterText('')}
+            title="清除筛选"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       <div className="note-list">
-        {sortedAnnotations.length === 0 ? (
+        {filteredAndSortedAnnotations.length === 0 ? (
           <div className="empty-notes">
-            {currentBook
-              ? '暂无标注，选择文本即可创建'
-              : '请先打开一本书籍'}
+            {filterText
+              ? '没有找到匹配的标注'
+              : currentBook
+                ? '暂无标注，选择文本即可创建'
+                : '请先打开一本书籍'}
           </div>
         ) : (
-          sortedAnnotations.map((ann) => (
+          filteredAndSortedAnnotations.map((ann) => (
             <div
               key={ann.id}
               className="note-item"

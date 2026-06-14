@@ -330,6 +330,47 @@ body {
   cursor: pointer;
 }
 
+.filter-wrapper {
+  position: relative;
+  padding: 12px 16px 0 16px;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.filter-input:focus {
+  border-color: var(--primary-color);
+}
+
+.filter-clear-btn {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-2px);
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.filter-clear-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
 .note-list {
   flex: 1;
   overflow-y: auto;
