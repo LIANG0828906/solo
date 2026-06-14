@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-python';
@@ -23,52 +23,39 @@ const languageMap: Record<Language, string> = {
 export function Editor({ code, language, onChange }: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
-  const [highlightedCode, setHighlightedCode] = useState('');
-  const animationFrameRef = useRef<number | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastCodeRef = useRef<string>('');
-  const lastLangRef = useRef<Language>('javascript');
-
-  const highlightCode = useCallback((value: string, lang: Language) => {
-    lastCodeRef.current = value;
-    lastLangRef.current = lang;
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+  const [debouncedCode, setDebouncedCode] = useState<string>(code);
+  const [highlightedCode, setHighlightedCode] = useState<string>(() => {
+    const grammar = Prism.languages[languageMap[language]];
+    if (grammar) {
+      return Prism.highlight(code, grammar, languageMap[language]);
     }
+    return code;
+  });
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-
     debounceTimerRef.current = setTimeout(() => {
-      animationFrameRef.current = requestAnimationFrame(() => {
-        const grammar = Prism.languages[languageMap[lastLangRef.current]];
-        if (grammar) {
-          const highlighted = Prism.highlight(lastCodeRef.current, grammar, languageMap[lastLangRef.current]);
-          setHighlightedCode(highlighted);
-        } else {
-          setHighlightedCode(lastCodeRef.current);
-        }
-        animationFrameRef.current = null;
-      });
-      debounceTimerRef.current = null;
+      setDebouncedCode(code);
     }, 300);
-  }, []);
-
-  useEffect(() => {
-    highlightCode(code, language);
-  }, [code, language, highlightCode]);
-
-  useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
-  }, []);
+  }, [code]);
+
+  useEffect(() => {
+    const grammar = Prism.languages[languageMap[language]];
+    if (grammar) {
+      const highlighted = Prism.highlight(debouncedCode, grammar, languageMap[language]);
+      setHighlightedCode(highlighted);
+    } else {
+      setHighlightedCode(debouncedCode);
+    }
+  }, [debouncedCode, language]);
 
   const handleScroll = () => {
     if (textareaRef.current && preRef.current) {

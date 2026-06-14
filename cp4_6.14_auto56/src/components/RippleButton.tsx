@@ -13,11 +13,10 @@ export const RippleButton = forwardRef<HTMLButtonElement, RippleButtonProps>(
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
       const button = buttonRef.current;
       if (button) {
-        const rect = button.getBoundingClientRect();
         const ripple = document.createElement('span');
         const size = 60;
-        const x = e.clientX - rect.left - size / 2;
-        const y = e.clientY - rect.top - size / 2;
+        const x = e.nativeEvent.offsetX - size / 2;
+        const y = e.nativeEvent.offsetY - size / 2;
 
         ripple.className = styles.ripple;
         ripple.style.width = ripple.style.height = `${size}px`;
