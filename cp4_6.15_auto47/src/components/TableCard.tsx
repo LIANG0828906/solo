@@ -1,0 +1,109 @@
+import React, { useState } from 'react';
+import { Clock, Users } from 'lucide-react';
+import type { TableRequest } from '@/types';
+import { formatShortDate } from '@/data';
+
+interface TableCardProps {
+  table: TableRequest;
+  onClick: () => void;
+  onJoin: () => void;
+}
+
+const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
+  const [flipped, setFlipped] = useState(false);
+  const isFull = table.status === 'full';
+  const joinedCount = table.participants.length;
+  const remaining = table.maxPeople - joinedCount;
+  const percent = (joinedCount / table.maxPeople) * 100;
+  const circumference = 2 * Math.PI * 22;
+  const dashOffset = circumference * (1 - percent / 100);
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isFull) return;
+    setFlipped(true);
+    setTimeout(() => setFlipped(false), 500);
+    onClick();
+  };
+
+  const handleJoinClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFull) return;
+    onJoin();
+  };
+
+  return (
+    <div
+      className={`table-card ${flipped ? 'flip' : ''} ${isFull ? 'full' : ''}`}
+      onClick={handleCardClick}
+    >
+      <img src={table.foodImage} alt="" className="table-card-image" loading="lazy" />
+      {isFull && <span className="card-full-badge">已满员</span>}
+      <div className="table-card-body">
+        <div className="card-host-row">
+          <div className="host-avatar" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            background: 'var(--cream-dark)'
+          }}>
+            {table.host.avatar}
+          </div>
+          <div className="host-info">
+            <div className="host-name">{table.host.nickname}</div>
+            <div className="host-community">{table.host.community}</div>
+          </div>
+        </div>
+
+        <div className="card-info-row">
+          <div className="card-time">
+            <Clock className="card-time-icon" strokeWidth={2} />
+            {formatShortDate(table.time)}
+          </div>
+          <div className="card-time" style={{ color: 'var(--text-muted)' }}>
+            <Users className="card-time-icon" style={{ color: 'var(--text-muted)', width: 15, height: 15 }} strokeWidth={2} />
+            {joinedCount}/{table.maxPeople}人
+          </div>
+        </div>
+
+        <div className="card-bottom">
+          <div className="progress-wrapper">
+            <svg className="progress-svg" width="54" height="54" viewBox="0 0 54 54">
+              <circle className="progress-bg" cx="27" cy="27" r="22" />
+              <circle
+                className="progress-fill"
+                cx="27"
+                cy="27"
+                r="22"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+              />
+            </svg>
+            <div className="progress-text">
+              <span className="progress-num">{remaining > 0 ? remaining : 0}</span>
+              <span className="progress-label">缺</span>
+            </div>
+          </div>
+
+          <div className="card-cost">
+            <div className="cost-label">人均约</div>
+            <div>
+              <span className="cost-value">¥{table.costPerPerson}</span>
+              <span className="cost-unit">/人</span>
+            </div>
+          </div>
+
+          <button
+            className={`btn ${isFull ? 'btn-ghost' : 'btn-primary'} btn-sm`}
+            onClick={handleJoinClick}
+            disabled={isFull}
+          >
+            {isFull ? '已约满' : '加入'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TableCard;
