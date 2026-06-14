@@ -1,11 +1,13 @@
 export const storage = {
   get<T>(key: string, defaultValue: T): T {
     try {
-      const item = localStorage.getItem(key)
-      if (item === null) return defaultValue
-      return JSON.parse(item) as T
-    } catch {
-      return defaultValue
+      const item = localStorage.getItem(key);
+      if (item === null) return defaultValue;
+      return JSON.parse(item) as T;
+    } catch (error) {
+      console.error(`Storage get error for key "${key}":`, error);
+      console.warn(`Returning default value for key "${key}" due to corrupted data.`);
+      return defaultValue;
     }
   },
 

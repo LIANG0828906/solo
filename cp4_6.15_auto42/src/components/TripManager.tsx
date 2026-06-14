@@ -49,7 +49,6 @@ const TripManager: React.FC<TripManagerProps> = ({
   getTripDays
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showActivityModal, setShowActivityModal] = useState(false);
   const [key, setKey] = useState(0);
 
   const [newTrip, setNewTrip] = useState({
@@ -438,18 +437,24 @@ const TripManager: React.FC<TripManagerProps> = ({
                     alert('请填写日期、时间和地点');
                     return;
                   }
-                  onAddActivity({
-                    tripId: currentTrip.id,
-                    ...newActivity
-                  });
-                  setNewActivity({
-                    date: newActivity.date,
-                    time: '',
-                    location: '',
-                    description: '',
-                    cost: 0,
-                    category: 'other'
-                  });
+                  try {
+                    onAddActivity({
+                      tripId: currentTrip.id,
+                      ...newActivity
+                    });
+                    setNewActivity({
+                      date: newActivity.date,
+                      time: '',
+                      location: '',
+                      description: '',
+                      cost: 0,
+                      category: 'other'
+                    });
+                  } catch (error) {
+                    if (error instanceof Error) {
+                      alert(error.message);
+                    }
+                  }
                 }}
               >
                 + 添加活动
@@ -526,19 +531,6 @@ const TripManager: React.FC<TripManagerProps> = ({
               </div>
             )}
         </>
-      )}
-
-      {showActivityModal && (
-        <div className="modal-overlay" onClick={() => setShowActivityModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">添加活动</h2>
-              <button className="modal-close" onClick={() => setShowActivityModal(false)}>
-                ×
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

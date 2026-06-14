@@ -67,6 +67,16 @@ export function useTrips() {
   }, []);
 
   const addActivity = useCallback((data: Omit<Activity, 'id' | 'completed'>) => {
+    const trip = trips.find(t => t.id === data.tripId);
+    if (!trip) {
+      throw new Error('行程不存在');
+    }
+    
+    const activityDate = data.date;
+    if (activityDate < trip.startDate || activityDate > trip.endDate) {
+      throw new Error(`活动日期必须在行程日期范围内 (${trip.startDate} ~ ${trip.endDate})`);
+    }
+    
     const newActivity: Activity = {
       ...data,
       id: uuidv4(),
@@ -74,7 +84,7 @@ export function useTrips() {
     };
     setActivities(prev => [...prev, newActivity]);
     return newActivity;
-  }, []);
+  }, [trips]);
 
   const updateActivity = useCallback((activityId: string, data: Partial<Omit<Activity, 'id' | 'tripId'>>) => {
     setActivities(prev => prev.map(a => a.id === activityId ? { ...a, ...data } : a));

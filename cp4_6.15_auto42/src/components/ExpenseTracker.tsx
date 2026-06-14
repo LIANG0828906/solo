@@ -98,7 +98,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ categoryTotals, dailySp
         <h3 className="chart-title">消费类别占比</h3>
         {pieData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
+            <PieChart key={`pie-${pieData.length}-${totalSpent}`}>
               <Pie
                 data={pieData}
                 cx="50%"
@@ -108,12 +108,13 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ categoryTotals, dailySp
                 outerRadius={100}
                 innerRadius={50}
                 dataKey="value"
+                isAnimationActive={true}
                 animationBegin={0}
                 animationDuration={800}
                 animationEasing="ease-out"
               >
                 {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}-${entry.category}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip content={<CustomPieTooltip />} />
@@ -133,7 +134,11 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ categoryTotals, dailySp
         <h3 className="chart-title">每日花费趋势</h3>
         {dailySpending.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dailySpending} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <LineChart 
+              key={`line-${dailySpending.length}`}
+              data={dailySpending} 
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="date"
@@ -155,6 +160,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ categoryTotals, dailySp
                 strokeWidth={3}
                 dot={{ fill: '#ff6b6b', strokeWidth: 2, r: 4 }}
                 activeDot={{ r: 6, fill: '#1a365d' }}
+                isAnimationActive={true}
                 animationBegin={0}
                 animationDuration={800}
                 animationEasing="ease-out"

@@ -43,6 +43,44 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tripIdFromUrl = urlParams.get('trip');
+    if (tripIdFromUrl) {
+      const tripExists = trips.some(t => t.id === tripIdFromUrl);
+      if (tripExists) {
+        setSelectedTripId(tripIdFromUrl);
+        setViewMode('detail');
+        setDetailTab('activities');
+      }
+    }
+  }, [trips]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tripIdFromUrl = urlParams.get('trip');
+      if (tripIdFromUrl) {
+        const tripExists = trips.some(t => t.id === tripIdFromUrl);
+        if (tripExists) {
+          setSelectedTripId(tripIdFromUrl);
+          setViewMode('detail');
+          setDetailTab('activities');
+        } else {
+          setSelectedTripId(null);
+          setViewMode('list');
+        }
+      } else {
+        setSelectedTripId(null);
+        setViewMode('list');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [trips]);
+
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true, hiding: false });
     setTimeout(() => {
@@ -57,12 +95,18 @@ function App() {
     setSelectedTripId(tripId);
     setViewMode('detail');
     setDetailTab('activities');
+    const url = new URL(window.location.href);
+    url.searchParams.set('trip', tripId);
+    window.history.pushState({}, '', url.toString());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackToList = () => {
     setViewMode('list');
     setSelectedTripId(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('trip');
+    window.history.pushState({}, '', url.toString());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -75,16 +119,20 @@ function App() {
     const days = getTripDays(trip);
     const tripActivities = activities.filter(a => a.tripId === selectedTripId);
 
+    const shareUrl = `${window.location.origin}${window.location.pathname}?trip=${selectedTripId}`;
+
     const summary = [
       `🌍 ${trip.destination}旅行`,
       `📅 ${trip.startDate} ~ ${trip.endDate} (${days}天)`,
       `💰 总花费: ¥${totalSpent.toLocaleString()} / 预算: ¥${trip.budget.toLocaleString()}`,
-      `📝 共${tripActivities.length}个活动安排`
+      `📝 共${tripActivities.length}个活动安排`,
+      ``,
+      `🔗 查看详情: ${shareUrl}`
     ].join('\n');
 
     navigator.clipboard.writeText(summary)
       .then(() => {
-        showToast('✓ 行程摘要已复制到剪贴板');
+        showToast('✓ 行程分享链接已复制到剪贴板');
       })
       .catch(() => {
         showToast('复制失败，请手动复制');
