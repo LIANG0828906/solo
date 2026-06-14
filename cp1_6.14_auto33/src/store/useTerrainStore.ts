@@ -22,8 +22,10 @@ type TerrainStore = TerrainConfig & {
   setSeed: (value: number) => void
   setCameraPosition: (value: [number, number, number]) => void
   setCameraTarget: (value: [number, number, number]) => void
+  setFogDensity: (value: number) => void
   applyConfig: (config: Partial<TerrainConfig>) => void
   randomizeSeed: () => void
+  configVersion: number
 }
 
 const clamp = (value: number, min: number, max: number) =>
