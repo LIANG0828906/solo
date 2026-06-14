@@ -117,7 +117,7 @@ function App() {
     try {
       const updated = await resolveComment(commentId, username);
       setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? updated : c)
+        prev.map((c) => (c.id === commentId ? updated : c))
       );
     } catch (error) {
       console.error('Failed to resolve comment:', error);

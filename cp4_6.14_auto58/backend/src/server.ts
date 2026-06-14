@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
-import { store, extractPlainText } from './store';
-import type { DiffSegment, RawDraftContentState } from './types';
+import { store } from './store';
+import type { DiffSegment } from './types';
 
 const app = express();
 const PORT = 3001;
@@ -16,7 +16,7 @@ app.get('/api/document', (_req: Request, res: Response) => {
 
 app.put('/api/document', (req: Request, res: Response) => {
   try {
-    const { content, updatedBy } = req.body as { content: RawDraftContentState; updatedBy?: string };
+    const { content, updatedBy } = req.body as { content: string; updatedBy?: string };
     if (!content) {
       res.status(400).json({ error: 'Content is required' });
       return;
@@ -125,11 +125,7 @@ app.get('/api/versions/diff', (req: Request, res: Response) => {
       res.status(404).json({ error: 'One or both versions not found' });
       return;
     }
-    const baseContent = JSON.parse(baseVersion.content) as RawDraftContentState;
-    const targetContent = JSON.parse(targetVersion.content) as RawDraftContentState;
-    const baseText = extractPlainText(baseContent);
-    const targetText = extractPlainText(targetContent);
-    const diff: DiffSegment[] = store.computeDiff(baseText, targetText);
+    const diff: DiffSegment[] = store.computeDiff(baseVersion.plainText, targetVersion.plainText);
     res.json({
       baseId,
       targetId,

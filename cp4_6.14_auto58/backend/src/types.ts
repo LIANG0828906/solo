@@ -1,19 +1,6 @@
-export interface RawDraftContentState {
-  entityMap: Record<string, unknown>;
-  blocks: Array<{
-    key: string;
-    type: string;
-    text: string;
-    depth: number;
-    inlineStyleRanges: Array<{ offset: number; length: number; style: string }>;
-    entityRanges: Array<{ offset: number; length: number; key: number }>;
-    data?: Record<string, unknown>;
-  }>;
-}
-
 export interface Document {
   id: string;
-  content: RawDraftContentState;
+  content: string;
   plainText: string;
   updatedAt: string;
   updatedBy: string;
@@ -44,6 +31,7 @@ export interface Version {
   id: string;
   version: number;
   content: string;
+  plainText: string;
   createdAt: string;
   createdBy: string;
   description?: string;
@@ -52,4 +40,5 @@ export interface Version {
 export interface DiffSegment {
   type: 'added' | 'removed' | 'unchanged';
   value: string;
+  lineNumber: number;
 }

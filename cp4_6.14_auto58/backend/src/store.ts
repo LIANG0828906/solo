@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Document, Comment, CommentReply, Version, DiffSegment, RawDraftContentState } from './types';
+import type { Document, Comment, CommentReply, Version, DiffSegment } from './types';
 
-function createInitialContent(text: string): RawDraftContentState {
+function createInitialContent(text: string): string {
   const lines = text.split('\n');
-  return {
+  const content = {
     entityMap: {},
     blocks: lines.map((line) => ({
       key: uuidv4().slice(0, 8),
@@ -15,10 +15,12 @@ function createInitialContent(text: string): RawDraftContentState {
       data: {},
     })),
   };
+  return JSON.stringify(content);
 }
 
-function extractPlainText(content: RawDraftContentState): string {
-  return content.blocks.map(block => block.text).join('\n');
+function extractPlainText(content: string): string {
+  const parsed = JSON.parse(content);
+  return parsed.blocks.map((block: { text: string }) => block.text).join('\n');
 }
 
 const initialDocumentId = uuidv4();
@@ -42,7 +44,8 @@ const initialVersions: Version[] = [
   {
     id: initialVersionId,
     version: 1,
-    content: JSON.stringify(initialDocument.content),
+    content: initialDocument.content,
+    plainText: initialDocument.plainText,
     createdAt: new Date().toISOString(),
     createdBy: 'system',
     description: '初始版本',
@@ -59,7 +62,11 @@ export const store = {
     return this.document;
   },
 
-  updateDocument(content: RawDraftContentState, updatedBy: string = 'user'): Document {
+  getDocumentPlainText(): string {
+    return this.document.plainText;
+  },
+
+  updateDocument(content: string, updatedBy: string = 'user'): Document {
     const plainText = extractPlainText(content);
     this.document = {
       ...this.document,
@@ -130,7 +137,8 @@ export const store = {
     const newVersion: Version = {
       id: uuidv4(),
       version: this.versionCounter,
-      content: JSON.stringify(this.document.content),
+      content: this.document.content,
+      plainText: this.document.plainText,
       createdAt: new Date().toISOString(),
       createdBy,
       description,
@@ -144,16 +152,16 @@ export const store = {
   },
 
   computeDiff(baseContent: string, targetContent: string): DiffSegment[] {
-    const baseArr = baseContent.split('');
-    const targetArr = targetContent.split('');
-    const m = baseArr.length;
-    const n = targetArr.length;
+    const baseLines = baseContent.split('\n');
+    const targetLines = targetContent.split('\n');
+    const m = baseLines.length;
+    const n = targetLines.length;
 
     const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
 
     for (let i = 1; i <= m; i++) {
       for (let j = 1; j <= n; j++) {
-        if (baseArr[i - 1] === targetArr[j - 1]) {
+        if (baseLines[i - 1] === targetLines[j - 1]) {
           dp[i][j] = dp[i - 1][j - 1] + 1;
         } else {
           dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -166,29 +174,20 @@ export const store = {
     let j = n;
 
     while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && baseArr[i - 1] === targetArr[j - 1]) {
-        segments.unshift({ type: 'unchanged', value: baseArr[i - 1] });
+      if (i > 0 && j > 0 && baseLines[i - 1] === targetLines[j - 1]) {
+        segments.unshift({ type: 'unchanged', value: baseLines[i - 1], lineNumber: j });
         i--;
         j--;
       } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        segments.unshift({ type: 'added', value: targetArr[j - 1] });
+        segments.unshift({ type: 'added', value: targetLines[j - 1], lineNumber: j });
         j--;
       } else {
-        segments.unshift({ type: 'removed', value: baseArr[i - 1] });
+        segments.unshift({ type: 'removed', value: baseLines[i - 1], lineNumber: j + 1 });
         i--;
       }
     }
 
-    const merged: DiffSegment[] = [];
-    for (const segment of segments) {
-      if (merged.length > 0 && merged[merged.length - 1].type === segment.type) {
-        merged[merged.length - 1].value += segment.value;
-      } else {
-        merged.push({ ...segment });
-      }
-    }
-
-    return merged;
+    return segments;
   },
 };
 
