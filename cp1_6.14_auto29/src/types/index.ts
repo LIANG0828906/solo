@@ -1,9 +1,14 @@
+export type IconType = 'bottle' | 'bag' | 'box' | 'plant' | 'umbrella' | 'cup'
+
 export interface User {
   id: string
   name: string
   totalPoints: number
   avatar?: string
 }
+
+// 调用关系：被 store/useStore.ts, utils/api.ts, 各组件引用
+// 定义前端共享的数据类型和 API 请求/响应结构
 
 export interface Product {
   id: string
@@ -12,7 +17,8 @@ export interface Product {
   stock: number
   image?: string
   description?: string
-  iconType?: string
+  iconType: 'bottle' | 'bag' | 'box' | 'plant' | 'umbrella' | 'cup'
+  iconColor: string
 }
 
 export interface PointRecord {

@@ -1,3 +1,6 @@
+// 调用关系：被 app.ts 引用，引用 db/lowdb.ts
+// 处理商品列表相关的 GET 请求
+
 import { Router, type Request, type Response } from 'express'
 import db from '../db/lowdb.js'
 

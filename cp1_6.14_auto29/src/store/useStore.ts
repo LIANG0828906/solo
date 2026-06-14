@@ -29,6 +29,7 @@ interface StoreState {
   fetchPointsData: () => Promise<void>
   fetchProducts: () => Promise<void>
   submitExchange: (productId: string, quantity: number) => Promise<boolean>
+  setUserAvatar: (dataUrl: string) => void
   showToast: (message: string, type: 'success' | 'error') => void
   hideToast: () => void
 }
@@ -96,7 +97,7 @@ export const useStore = create<StoreState>((set, get) => ({
           }
         })
 
-        get().showToast('兑换成功', 'success')
+        get().showToast(response.message || '兑换成功', 'success')
         return true
       } else {
         get().showToast(response.message || '兑换失败', 'error')
@@ -106,6 +107,12 @@ export const useStore = create<StoreState>((set, get) => ({
       get().showToast('兑换失败：网络错误', 'error')
       return false
     }
+  },
+
+  setUserAvatar: (dataUrl: string) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, avatar: dataUrl } : state.user,
+    }))
   },
 
   showToast: (message: string, type: 'success' | 'error') => {

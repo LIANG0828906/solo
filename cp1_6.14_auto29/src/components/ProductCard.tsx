@@ -228,7 +228,7 @@ export default function ProductCard({ product, onClick, className = '' }: Produc
     const size = canvas.width
     ctx.clearRect(0, 0, size, size)
 
-    drawIcon(ctx, size, product.iconType)
+    drawIcon(ctx, size, (product.iconType as IconType) || 'box')
   }, [product.iconType])
 
   return (
