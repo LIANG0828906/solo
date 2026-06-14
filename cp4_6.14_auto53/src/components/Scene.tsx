@@ -27,7 +27,6 @@ interface BuildingMeshProps {
 
 const SUN_DISTANCE = 50;
 const GROUND_SIZE = 80;
-const SPRING_DURATION = 0.2;
 const SHADOW_CAPTURE_SIZE = 1024;
 
 function calculateSunPosition(azimuth: number, altitude: number): [number, number, number] {
@@ -39,61 +38,120 @@ function calculateSunPosition(azimuth: number, altitude: number): [number, numbe
   return [x, y, z];
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
+class CriticallyDampedSpring {
+  private _current = new THREE.Vector3();
+  private _target = new THREE.Vector3();
+  private _velocity = new THREE.Vector3();
+  private _lambda: number;
+  private _settled = false;
+
+  constructor(period: number = 0.2) {
+    this._lambda = 4 * Math.PI / period;
+  }
+
+  setCurrent(v: THREE.Vector3) {
+    this._current.copy(v);
+    this._target.copy(v);
+    this._velocity.set(0, 0, 0);
+    this._settled = true;
+  }
+
+  setTarget(v: THREE.Vector3) {
+    if (!this._target.equals(v)) {
+      this._target.copy(v);
+      this._settled = false;
+    }
+  }
+
+  isSettled() {
+    return this._settled;
+  }
+
+  update(dt: number): THREE.Vector3 {
+    if (this._settled) return this._current;
+    const lambda = this._lambda;
+    const diff = new THREE.Vector3().subVectors(this._target, this._current);
+    const velDiff = this._velocity.clone();
+    const step = lambda * dt;
+    const exp = Math.exp(-step);
+    const v1 = new THREE.Vector3().multiplyVectors(
+      diff.clone().multiplyScalar(1 + step).add(velDiff.clone().multiplyScalar(dt)),
+      new THREE.Vector3(exp, exp, exp)
+    );
+    const v2 = new THREE.Vector3().multiplyVectors(
+      velDiff.clone().multiplyScalar(-step).add(diff.clone().multiplyScalar(-lambda * lambda * dt)),
+      new THREE.Vector3(exp, exp, exp)
+    );
+    this._current.copy(this._target.clone().sub(v1));
+    this._velocity.copy(v2);
+    const posTol = 0.0005;
+    const velTol = 0.005;
+    if (
+      Math.abs(diff.x) < posTol && Math.abs(diff.y) < posTol && Math.abs(diff.z) < posTol &&
+      Math.abs(this._velocity.x) < velTol && Math.abs(this._velocity.y) < velTol && Math.abs(this._velocity.z) < velTol
+    ) {
+      this._current.copy(this._target);
+      this._velocity.set(0, 0, 0);
+      this._settled = true;
+    }
+    return this._current;
+  }
 }
 
 function BuildingMesh({ building, isSelected, onClick, onDragEnd, onDragStart, onDragFinish }: BuildingMeshProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const dragPlane = useRef<THREE.Plane | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef(new THREE.Vector3());
-  const animStartPos = useRef(new THREE.Vector3());
-  const animTargetPos = useRef(new THREE.Vector3());
-  const animProgress = useRef(1);
-  const animating = useRef(false);
+  const springRef = useRef<CriticallyDampedSpring | null>(null);
+  const prevBuildingPos = useRef<[number, number, number]>(building.position);
+
+  if (!springRef.current) {
+    springRef.current = new CriticallyDampedSpring(0.2);
+    springRef.current.setCurrent(new THREE.Vector3(...building.position));
+  }
 
   useEffect(() => {
-    if (!groupRef.current || isDragging || animating.current) return;
-    groupRef.current.position.set(building.position[0], building.position[1], building.position[2]);
-  }, [building.position, building.size[1], isDragging]);
-
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
-
-    if (animating.current && animProgress.current < 1) {
-      animProgress.current = Math.min(1, animProgress.current + delta / SPRING_DURATION);
-      const t = easeOutCubic(animProgress.current);
-      groupRef.current.position.lerpVectors(animStartPos.current, animTargetPos.current, t);
-      if (animProgress.current >= 1) {
-        animating.current = false;
-        groupRef.current.position.copy(animTargetPos.current);
+    if (!groupRef.current || !springRef.current) return;
+    const prev = prevBuildingPos.current;
+    const next = building.position;
+    const prevDifferent = prev[0] !== next[0] || prev[1] !== next[1] || prev[2] !== next[2];
+    if (prevDifferent && !isDragging) {
+      if (!springRef.current.isSettled()) {
+        springRef.current.setTarget(new THREE.Vector3(...next));
+      } else {
+        springRef.current.setCurrent(new THREE.Vector3(...prev));
+        springRef.current.setTarget(new THREE.Vector3(...next));
       }
     }
-  });
+    prevBuildingPos.current = [next[0], next[1], next[2]];
+  }, [building.position, isDragging]);
 
-  const startSpringAnimation = (from: THREE.Vector3, to: THREE.Vector3) => {
-    animStartPos.current.copy(from);
-    animTargetPos.current.copy(to);
-    animProgress.current = 0;
-    animating.current = true;
-  };
+  useFrame((_, delta) => {
+    if (!groupRef.current || !springRef.current) return;
+    const clampedDelta = Math.min(delta, 1 / 30);
+    if (!isDragging) {
+      const pos = springRef.current.update(clampedDelta);
+      const cur = groupRef.current.position;
+      cur.x = pos.x;
+      cur.y = pos.y;
+      cur.z = pos.z;
+    }
+  });
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
     onClick();
-    if (!isSelected || !groupRef.current) return;
-
+    if (!isSelected || !groupRef.current || !springRef.current) return;
     setIsDragging(true);
     onDragStart();
     try { e.target.setPointerCapture(e.pointerId); } catch(_) {}
-
     dragPlane.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hitPoint = e.point.clone();
     hitPoint.y = 0;
     const currentXZ = new THREE.Vector3(groupRef.current.position.x, 0, groupRef.current.position.z);
     dragOffset.current.copy(currentXZ).sub(hitPoint);
+    springRef.current.setCurrent(new THREE.Vector3().copy(groupRef.current.position));
   };
 
   const handlePointerMove = (e: any) => {
@@ -114,7 +172,7 @@ function BuildingMesh({ building, isSelected, onClick, onDragEnd, onDragStart, o
   };
 
   const handlePointerUp = (e: any) => {
-    if (!isDragging || !groupRef.current) return;
+    if (!isDragging || !groupRef.current || !springRef.current) return;
     e.stopPropagation();
     setIsDragging(false);
     onDragFinish();
@@ -124,7 +182,9 @@ function BuildingMesh({ building, isSelected, onClick, onDragEnd, onDragStart, o
     const snappedZ = Math.round(pos.z * 2) / 2;
     const from = new THREE.Vector3(pos.x, building.position[1], pos.z);
     const to = new THREE.Vector3(snappedX, building.position[1], snappedZ);
-    startSpringAnimation(from, to);
+    springRef.current.setCurrent(from);
+    springRef.current.setTarget(to);
+    prevBuildingPos.current = [snappedX, building.position[1], snappedZ];
     onDragEnd(snappedX, snappedZ);
   };
 
@@ -133,7 +193,6 @@ function BuildingMesh({ building, isSelected, onClick, onDragEnd, onDragStart, o
   return (
     <group ref={groupRef} position={[building.position[0], building.position[1], building.position[2]]}>
       <mesh
-        ref={meshRef}
         castShadow
         receiveShadow
         onPointerDown={handlePointerDown}
@@ -142,18 +201,9 @@ function BuildingMesh({ building, isSelected, onClick, onDragEnd, onDragStart, o
         onPointerCancel={handlePointerUp}
       >
         <boxGeometry args={building.size} />
-        <meshStandardMaterial
-          color={building.color}
-          roughness={0.7}
-          metalness={0.1}
-        />
+        <meshStandardMaterial color={building.color} roughness={0.7} metalness={0.1} />
       </mesh>
-      <Edges
-        threshold={15}
-        color={edgeColor}
-        scale={1.002}
-        lineWidth={isSelected ? 2 : 1}
-      />
+      <Edges threshold={15} color={edgeColor} scale={1.002} lineWidth={isSelected ? 2 : 1} />
     </group>
   );
 }
@@ -165,30 +215,40 @@ function SunLight({ sunParams, lightRef }: { sunParams: SunParams; lightRef: Rea
   useFrame(() => {
     if (!lightRef.current) return;
     const [x, y, z] = calculateSunPosition(sunParams.azimuth, sunParams.altitude);
-    lightRef.current.position.set(x, y, z);
-    lightRef.current.target.position.set(0, 0, 0);
-    lightRef.current.target.updateMatrixWorld();
+    const light = lightRef.current;
+    light.position.set(x, y, z);
+    light.target.position.set(0, 0, 0);
+    light.target.updateMatrixWorld();
+    light.intensity = 0.8 + (sunParams.altitude / 90) * 1.2;
+    if (light.shadow) {
+      const softness = Math.max(0, Math.min(5, sunParams.shadowSoftness));
+      const intensity = Math.max(0.2, Math.min(1, sunParams.shadowIntensity));
+      light.shadow.radius = softness;
+      light.shadow.bias = -0.00005 - (intensity - 0.2) * 0.0012;
+      light.shadow.normalBias = 0.005 + (intensity - 0.2) * 0.04;
+      if (softness >= 3) {
+        const s = shadowMapSize;
+        if (light.shadow.mapSize.width !== s) light.shadow.mapSize.set(s, s);
+      }
+    }
   });
 
   useEffect(() => {
     if (!lightRef.current) return;
     const light = lightRef.current;
-    const intensityFactor = Math.max(0.2, sunParams.altitude / 90);
-    light.intensity = 0.8 + intensityFactor * 1.2;
-    light.shadow.bias = -0.0001 - (sunParams.shadowIntensity - 0.2) * 0.001;
-    light.shadow.normalBias = 0.008 + (sunParams.shadowIntensity - 0.2) * 0.035;
-    light.shadow.radius = sunParams.shadowSoftness;
+    light.castShadow = true;
+    light.color.set('#ffffff');
+    light.shadow.mapSize.set(shadowMapSize, shadowMapSize);
     light.shadow.camera.left = -shadowCameraSize;
     light.shadow.camera.right = shadowCameraSize;
     light.shadow.camera.top = shadowCameraSize;
     light.shadow.camera.bottom = -shadowCameraSize;
     light.shadow.camera.near = 0.1;
     light.shadow.camera.far = 200;
-    light.shadow.mapSize.set(shadowMapSize, shadowMapSize);
-    if (light.shadow.map) {
-      light.shadow.map.setSize(shadowMapSize, shadowMapSize);
-    }
-  }, [sunParams]);
+    light.shadow.radius = sunParams.shadowSoftness;
+    light.shadow.bias = -0.00005 - (sunParams.shadowIntensity - 0.2) * 0.0012;
+    light.shadow.normalBias = 0.005 + (sunParams.shadowIntensity - 0.2) * 0.04;
+  }, [sunParams.shadowSoftness, sunParams.shadowIntensity]);
 
   return (
     <directionalLight
@@ -204,7 +264,7 @@ function SunLight({ sunParams, lightRef }: { sunParams: SunParams; lightRef: Rea
       shadow-camera-right={shadowCameraSize}
       shadow-camera-top={shadowCameraSize}
       shadow-camera-bottom={-shadowCameraSize}
-      shadow-bias={-0.0003}
+      shadow-bias={-0.0005}
       shadow-normalBias={0.02}
       shadow-radius={sunParams.shadowSoftness}
     />
@@ -214,59 +274,35 @@ function SunLight({ sunParams, lightRef }: { sunParams: SunParams; lightRef: Rea
 function GroundTexture() {
   return useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 512; canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#3a5a3a');
-    gradient.addColorStop(1, '#2a4a2a');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, '#3a5a3a'); g.addColorStop(1, '#2a4a2a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
     for (let i = 0; i <= 20; i++) {
-      const pos = (i / 20) * canvas.width;
-      ctx.beginPath(); ctx.moveTo(pos, 0); ctx.lineTo(pos, canvas.height); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, pos); ctx.lineTo(canvas.width, pos); ctx.stroke();
+      const p = (i / 20) * canvas.width;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(canvas.width, p); ctx.stroke();
     }
     const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(4, 4);
-    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 4); tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   }, []);
 }
 
-function Ground({ sunParams }: { sunParams: SunParams }) {
-  const groundMatRef = useRef<THREE.MeshStandardMaterial>(null);
+function Ground() {
   const texture = GroundTexture();
-
-  useEffect(() => {
-    if (groundMatRef.current && groundMatRef.current.userData.shadowMaterial) {
-      (groundMatRef.current.userData.shadowMaterial as THREE.ShaderMaterial).uniforms.uShadowIntensity.value = sunParams.shadowIntensity;
-    }
-  }, [sunParams.shadowIntensity]);
-
   return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, 0, 0]}
-      receiveShadow
-    >
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
-      <meshStandardMaterial
-        ref={groundMatRef}
-        map={texture}
-        color="#3a5a3a"
-        roughness={1}
-        metalness={0}
-      />
+      <meshStandardMaterial map={texture} color="#3a5a3a" roughness={1} metalness={0} />
     </mesh>
   );
 }
 
-const ShadowColorContext = createContext<SunParams>({
+const ShadowParamsContext = createContext<SunParams>({
   azimuth: 0, altitude: 0, shadowSoftness: 0, shadowIntensity: 0.5, shadowColor: '#1a1a2e'
 });
 
@@ -279,12 +315,22 @@ function ShadowCapturePass({
   sunParams: SunParams;
   shadowCanvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
 }) {
-  const { gl } = useThree();
+  const { gl, scene: mainScene } = useThree();
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    console.log('[ShadowPass] Component MOUNTED, mainScene:', !!mainScene);
+    return () => console.log('[ShadowPass] Component UNMOUNTED');
+  }, [mainScene]);
+
   const orthoCam = useMemo(() => {
-    const size = GROUND_SIZE / 2;
-    const cam = new THREE.OrthographicCamera(-size, size, size, -size, 0.1, 200);
-    cam.position.set(0, 80, 0.01);
+    console.log('[ShadowPass] Creating ortho camera');
+    const s = GROUND_SIZE / 2;
+    const cam = new THREE.OrthographicCamera(-s, s, s, -s, 0.1, 200);
+    cam.position.set(0, 80, 0.001);
+    cam.up.set(0, 0, -1);
     cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld();
     return cam;
   }, []);
 
@@ -296,34 +342,36 @@ function ShadowCapturePass({
     colorSpace: THREE.LinearSRGBColorSpace
   }), []);
 
+  const pixelBuffer = useRef<Uint8Array | null>(null);
+  const flipBuffer = useRef<Uint8Array | null>(null);
+  const scratchCanvas = useRef<HTMLCanvasElement | null>(null);
+  const scratchCtx = useRef<CanvasRenderingContext2D | null>(null);
+  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const buildingMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map());
+  const frameCounter = useRef(0);
+  const lastLogFrame = useRef(0);
+
   const shadowScene = useMemo(() => {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xffffff);
 
-    const azimuthRad = (sunParams.azimuth * Math.PI) / 180;
-    const altitudeRad = (sunParams.altitude * Math.PI) / 180;
-    const dir = new THREE.Vector3(
-      -Math.sin(azimuthRad) * Math.cos(altitudeRad),
-      -Math.sin(altitudeRad),
-      -Math.cos(azimuthRad) * Math.cos(altitudeRad)
-    ).normalize();
-
-    const captureLight = new THREE.DirectionalLight(0x000000, 1);
-    captureLight.position.copy(dir).multiplyScalar(60);
-    captureLight.castShadow = true;
-    captureLight.shadow.mapSize.set(SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
-    captureLight.shadow.camera.left = -GROUND_SIZE / 2;
-    captureLight.shadow.camera.right = GROUND_SIZE / 2;
-    captureLight.shadow.camera.top = GROUND_SIZE / 2;
-    captureLight.shadow.camera.bottom = -GROUND_SIZE / 2;
-    captureLight.shadow.camera.near = 0.5;
-    captureLight.shadow.camera.far = 200;
-    captureLight.shadow.bias = -0.0005;
-    captureLight.shadow.radius = sunParams.shadowSoftness;
-    scene.add(captureLight);
-
     const amb = new THREE.AmbientLight(0xffffff, 1);
     scene.add(amb);
+
+    const captureLight = new THREE.DirectionalLight(0x000000, 1);
+    captureLight.castShadow = true;
+    captureLight.shadow.mapSize.set(SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
+    const hs = GROUND_SIZE / 2;
+    captureLight.shadow.camera.left = -hs;
+    captureLight.shadow.camera.right = hs;
+    captureLight.shadow.camera.top = hs;
+    captureLight.shadow.camera.bottom = -hs;
+    captureLight.shadow.camera.near = 0.5;
+    captureLight.shadow.camera.far = 200;
+    captureLight.shadow.bias = -0.001;
+    captureLight.shadow.radius = sunParams.shadowSoftness;
+    scene.add(captureLight);
+    sunLightRef.current = captureLight;
 
     const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
     const groundMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -340,17 +388,17 @@ function ShadowCapturePass({
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       (mesh as any).userData.buildingId = b.id;
+      buildingMeshesRef.current.set(b.id, mesh);
       scene.add(mesh);
     });
 
-    (scene as any).userData = { captureLight, buildings: [] };
+    initializedRef.current = true;
+    console.log('[ShadowPass] shadowScene initialized');
     return scene;
-  }, [sunParams.shadowSoftness]);
+  }, []);
 
   useEffect(() => {
-    const sceneMeshes = shadowScene.children.filter(c => (c as any).userData?.buildingId);
-    sceneMeshes.forEach(m => shadowScene.remove(m));
-
+    if (!initializedRef.current) return;
     const azimuthRad = (sunParams.azimuth * Math.PI) / 180;
     const altitudeRad = (sunParams.altitude * Math.PI) / 180;
     const dir = new THREE.Vector3(
@@ -359,131 +407,142 @@ function ShadowCapturePass({
       -Math.cos(azimuthRad) * Math.cos(altitudeRad)
     ).normalize();
 
-    const captureLight = (shadowScene as any).userData.captureLight as THREE.DirectionalLight;
-    if (captureLight) {
-      captureLight.position.copy(dir).multiplyScalar(60);
-      captureLight.shadow.radius = sunParams.shadowSoftness;
-      captureLight.shadow.bias = -0.0005 - (sunParams.shadowIntensity - 0.2) * 0.001;
+    if (sunLightRef.current) {
+      sunLightRef.current.position.copy(dir).multiplyScalar(60);
+      sunLightRef.current.target.position.set(0, 0, 0);
+      sunLightRef.current.target.updateMatrixWorld();
+      sunLightRef.current.shadow.radius = sunParams.shadowSoftness;
+      sunLightRef.current.shadow.bias = -0.0005 - (sunParams.shadowIntensity - 0.2) * 0.0015;
+      sunLightRef.current.shadow.normalBias = 0.006 + (sunParams.shadowIntensity - 0.2) * 0.03;
     }
 
+    const keep = new Set(buildings.map(b => b.id));
+    for (const [id, mesh] of buildingMeshesRef.current.entries()) {
+      if (!keep.has(id)) {
+        shadowScene.remove(mesh);
+        (mesh.geometry as THREE.BufferGeometry).dispose();
+        (mesh.material as THREE.Material).dispose();
+        buildingMeshesRef.current.delete(id);
+      }
+    }
     buildings.forEach(b => {
-      const geo = new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(b.position[0], b.position[1], b.position[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      (mesh as any).userData.buildingId = b.id;
-      shadowScene.add(mesh);
+      const mesh = buildingMeshesRef.current.get(b.id);
+      if (mesh) {
+        mesh.position.set(b.position[0], b.position[1], b.position[2]);
+        if (mesh.geometry instanceof THREE.BoxGeometry) {
+          const ps = mesh.geometry.parameters;
+          if (ps.width !== b.size[0] || ps.height !== b.size[1] || ps.depth !== b.size[2]) {
+            mesh.geometry.dispose();
+            mesh.geometry = new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]);
+          }
+        }
+      } else {
+        const geo = new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const newMesh = new THREE.Mesh(geo, mat);
+        newMesh.position.set(b.position[0], b.position[1], b.position[2]);
+        newMesh.castShadow = true;
+        newMesh.receiveShadow = true;
+        (newMesh as any).userData.buildingId = b.id;
+        buildingMeshesRef.current.set(b.id, newMesh);
+        shadowScene.add(newMesh);
+      }
     });
-  }, [buildings, sunParams.azimuth, sunParams.altitude, sunParams.shadowSoftness, sunParams.shadowIntensity, shadowScene]);
-
-  const pixelBuffer = useRef<Uint8Array | null>(null);
-  const frameCount = useRef(0);
+  }, [buildings, sunParams, shadowScene]);
 
   useFrame(() => {
-    frameCount.current++;
-    if (frameCount.current % 3 !== 0) return;
-    if (!shadowCanvasRef.current) return;
-
+    if (!shadowCanvasRef.current) {
+      if (frameCounter.current === 0) console.log('[ShadowPass] shadowCanvasRef.current is null!');
+      frameCounter.current++;
+      return;
+    }
+    if (!pixelBuffer.current) {
+      pixelBuffer.current = new Uint8Array(SHADOW_CAPTURE_SIZE * SHADOW_CAPTURE_SIZE * 4);
+      flipBuffer.current = new Uint8Array(SHADOW_CAPTURE_SIZE * SHADOW_CAPTURE_SIZE * 4);
+      console.log('[ShadowPass] buffers initialized');
+    }
     try {
+      const captureLight = sunLightRef.current;
+      if (captureLight && (!captureLight.shadow.map || captureLight.shadow.map.width !== SHADOW_CAPTURE_SIZE)) {
+        captureLight.shadow.mapSize.set(SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
+        if (captureLight.shadow.map) captureLight.shadow.map.dispose();
+        captureLight.shadow.map = null;
+      }
       const prevTarget = gl.getRenderTarget();
+      const prevClearColor = new THREE.Color();
+      gl.getClearColor(prevClearColor);
+      const prevClearAlpha = gl.getClearAlpha();
+
       gl.setRenderTarget(renderTarget);
       gl.setClearColor(0xffffff, 1);
       gl.clear(true, true, true);
       gl.render(shadowScene, orthoCam);
-      gl.setRenderTarget(prevTarget);
-
-      if (!pixelBuffer.current || pixelBuffer.current.length !== SHADOW_CAPTURE_SIZE * SHADOW_CAPTURE_SIZE * 4) {
-        pixelBuffer.current = new Uint8Array(SHADOW_CAPTURE_SIZE * SHADOW_CAPTURE_SIZE * 4);
-      }
-
       gl.readRenderTargetPixels(renderTarget, 0, 0, SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE, pixelBuffer.current);
+      gl.setRenderTarget(prevTarget);
+      gl.setClearColor(prevClearColor, prevClearAlpha);
 
-      const targetCanvas = shadowCanvasRef.current;
-      if (targetCanvas.width !== SHADOW_CAPTURE_SIZE) {
-        targetCanvas.width = SHADOW_CAPTURE_SIZE;
-        targetCanvas.height = SHADOW_CAPTURE_SIZE;
-      }
-
-      const tctx = targetCanvas.getContext('2d');
-      if (tctx) {
-        const imgData = tctx.createImageData(SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
-        const pixels = pixelBuffer.current;
-        const dst = imgData.data;
-        for (let i = 0; i < pixels.length; i += 4) {
-          const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-          const lum = 1 - (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          const alpha = Math.floor(Math.min(255, lum * sunParams.shadowIntensity * 1.4 * 255));
-          dst[i] = 0;
-          dst[i + 1] = 0;
-          dst[i + 2] = 0;
-          dst[i + 3] = alpha;
+      const H = SHADOW_CAPTURE_SIZE;
+      const W = SHADOW_CAPTURE_SIZE;
+      const src = pixelBuffer.current!;
+      const dst = flipBuffer.current!;
+      for (let y = 0; y < H; y++) {
+        const srcRow = y * W * 4;
+        const dstRow = (H - 1 - y) * W * 4;
+        for (let x = 0; x < W * 4; x++) {
+          dst[dstRow + x] = src[srcRow + x];
         }
-        tctx.putImageData(imgData, 0, 0);
       }
-    } catch(_) {}
+      const buf = dst;
+      const intensity = Math.max(0.2, Math.min(1, sunParams.shadowIntensity));
+      let nonWhite = 0;
+      for (let i = 0; i < buf.length; i += 4) {
+        const r = buf[i], g = buf[i + 1], b = buf[i + 2];
+        const lum = 1 - (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        if (lum > 0.02) nonWhite++;
+        const alpha = Math.min(1, lum * intensity * 1.6);
+        buf[i] = 0;
+        buf[i + 1] = 0;
+        buf[i + 2] = 0;
+        buf[i + 3] = Math.floor(alpha * 255);
+      }
+
+      const target = shadowCanvasRef.current;
+      if (target.width !== SHADOW_CAPTURE_SIZE) {
+        target.width = SHADOW_CAPTURE_SIZE;
+        target.height = SHADOW_CAPTURE_SIZE;
+      }
+      const tctx = target.getContext('2d');
+      if (!tctx) return;
+      if (!scratchCanvas.current) {
+        scratchCanvas.current = document.createElement('canvas');
+        scratchCanvas.current.width = SHADOW_CAPTURE_SIZE;
+        scratchCanvas.current.height = SHADOW_CAPTURE_SIZE;
+        scratchCtx.current = scratchCanvas.current.getContext('2d');
+      }
+      const sctx = scratchCtx.current!;
+      const imgData = sctx.createImageData(SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
+      imgData.data.set(buf);
+      sctx.putImageData(imgData, 0, 0);
+      tctx.clearRect(0, 0, SHADOW_CAPTURE_SIZE, SHADOW_CAPTURE_SIZE);
+      tctx.drawImage(scratchCanvas.current, 0, 0);
+
+      frameCounter.current++;
+      if (frameCounter.current === 1 || frameCounter.current - lastLogFrame.current >= 300 || nonWhite > 0 && lastLogFrame.current === 0) {
+        console.log(`[ShadowPass] frame=${frameCounter.current}, shadowPixels=${nonWhite}, canvas=${target.width}x${target.height}`);
+        lastLogFrame.current = frameCounter.current;
+      }
+    } catch (err: any) {
+      console.log('[ShadowPass] ERROR:', err?.message || String(err));
+    }
   });
 
-  return null;
-}
-
-function ShadowOverlay({ sunParams }: { sunParams: SunParams }) {
-  const matRef = useRef<THREE.ShaderMaterial>(null);
-
-  const uniforms = useMemo(() => {
-    const color = new THREE.Color(sunParams.shadowColor);
-    return {
-      uShadowColor: { value: new THREE.Vector3(color.r, color.g, color.b) },
-      uShadowIntensity: { value: sunParams.shadowIntensity }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (matRef.current) {
-      const c = new THREE.Color(sunParams.shadowColor);
-      matRef.current.uniforms.uShadowColor.value.set(c.r, c.g, c.b);
-      matRef.current.uniforms.uShadowIntensity.value = sunParams.shadowIntensity;
-      matRef.current.needsUpdate = true;
-    }
-  }, [sunParams]);
-
-  const vertShader = `
-    varying vec3 vWorldPos;
-    void main() {
-      vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `;
-
-  const fragShader = `
-    uniform vec3 uShadowColor;
-    uniform float uShadowIntensity;
-    varying vec3 vWorldPos;
-    void main() {
-      float edgeFade = 1.0 - smoothstep(30.0, 38.0, length(vWorldPos.xz));
-      float alpha = uShadowIntensity * 0.5 * edgeFade;
-      gl_FragColor = vec4(uShadowColor, alpha);
-    }
-  `;
-
   return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, 0.05, 0]}
-      renderOrder={998}
-    >
-      <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
-      <shaderMaterial
-        ref={matRef}
-        uniforms={uniforms}
-        vertexShader={vertShader}
-        fragmentShader={fragShader}
-        transparent
-        depthWrite={false}
-        blending={THREE.NormalBlending}
-      />
-    </mesh>
+    <group>
+      <mesh position={[0, -1000, 0]}>
+        <sphereGeometry args={[0.1]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </group>
   );
 }
 
@@ -523,7 +582,7 @@ function SceneContent({
   };
 
   return (
-    <ShadowColorContext.Provider value={sunParams}>
+    <ShadowParamsContext.Provider value={sunParams}>
       <OrbitControls
         ref={controlsRef}
         enableDamping
@@ -537,8 +596,7 @@ function SceneContent({
       <ambientLight intensity={0.45} color="#e2e8f0" />
       <hemisphereLight args={['#87ceeb', '#2d4a2d', 0.35]} />
       <SunLight sunParams={sunParams} lightRef={directionalLightRef} />
-      <Ground sunParams={sunParams} />
-      <ShadowOverlay sunParams={sunParams} />
+      <Ground />
       <gridHelper args={[GROUND_SIZE, 40, '#475569', '#334155']} position={[0, 0.01, 0]} />
       <axesHelper args={[5]} position={[0, 0.02, 0]} />
       <ShadowCapturePass buildings={buildings} sunParams={sunParams} shadowCanvasRef={shadowCanvasRef} />
@@ -556,7 +614,7 @@ function SceneContent({
           }}
         />
       ))}
-    </ShadowColorContext.Provider>
+    </ShadowParamsContext.Provider>
   );
 }
 
