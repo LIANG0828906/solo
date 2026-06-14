@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { OutlineNode } from '../../types';
 
@@ -115,20 +115,21 @@ const iconBtnStyle: React.CSSProperties = {
   transition: 'all 0.2s ease',
 };
 
-const childrenContainerStyle = (collapsed: boolean, height: number): React.CSSProperties => ({
+const childrenContainerStyle = (collapsed: boolean, measuredHeight: number): React.CSSProperties => ({
   overflow: 'hidden',
   transition: 'height 0.3s ease',
-  height: collapsed ? 0 : height,
+  height: collapsed ? 0 : measuredHeight,
   marginLeft: '20px',
   borderLeft: '2px solid rgba(59, 74, 107, 0.2)',
   paddingLeft: '12px',
 });
 
 const dropIndicatorStyle: React.CSSProperties = {
-  height: '3px',
+  height: '4px',
   background: '#74C0FC',
   borderRadius: '2px',
   margin: '2px 0',
+  boxShadow: '0 0 8px rgba(116, 192, 252, 0.6)',
   animation: 'fadeIn 0.15s ease',
 };
 
@@ -248,11 +249,30 @@ function TreeNode({
   const [showActions, setShowActions] = useState(false);
   const [childHeight, setChildHeight] = useState<number>(0);
   const childrenRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
 
   const hasChildren = node.children && node.children.length > 0;
   const isCollapsed = node.collapsed ?? false;
   const isSelected = selectedNodeId === node.id;
   const isDragging = draggedId === node.id;
+  const isChildDropTarget = dropTarget?.id === node.id && dropTarget.position === 'child';
+
+  useLayoutEffect(() => {
+    if (innerRef.current) {
+      setChildHeight(innerRef.current.scrollHeight);
+    }
+  }, [node.children, isCollapsed]);
+
+  useEffect(() => {
+    if (!innerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      if (innerRef.current) {
+        setChildHeight(innerRef.current.scrollHeight);
+      }
+    });
+    observer.observe(innerRef.current);
+    return () => observer.disconnect();
+  }, [node.children]);
 
   const handleToggleCollapse = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -351,19 +371,18 @@ function TreeNode({
     setDropTarget(null);
   };
 
-  const measureHeight = () => {
-    if (childrenRef.current) {
-      setChildHeight(childrenRef.current.scrollHeight);
-    }
-  };
-
   return (
     <div style={nodeContainerStyle}>
       {dropTarget?.id === node.id && dropTarget.position === 'before' && (
         <div style={dropIndicatorStyle} />
       )}
       <div
-        style={nodeContentStyle(isSelected, isDragging)}
+        style={{
+          ...nodeContentStyle(isSelected, isDragging),
+          ...(isChildDropTarget
+            ? { borderLeft: '3px solid #74C0FC', boxShadow: '0 0 8px rgba(116, 192, 252, 0.4)' }
+            : {}),
+        }}
         draggable
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
@@ -440,7 +459,7 @@ function TreeNode({
           </button>
         </div>
       </div>
-      {dropTarget?.id === node.id && dropTarget.position === 'after' && (
+      {dropTarget?.id === node.id && dropTarget.position === 'after' && !isChildDropTarget && (
         <div style={dropIndicatorStyle} />
       )}
 
@@ -448,9 +467,8 @@ function TreeNode({
         <div
           style={childrenContainerStyle(isCollapsed, childHeight)}
           ref={childrenRef}
-          onTransitionEnd={measureHeight}
         >
-          <div style={{ display: isCollapsed ? 'none' : 'block' }}>
+          <div ref={innerRef}>
             {node.children.map((child) => (
               <TreeNode
                 key={child.id}
@@ -469,10 +487,6 @@ function TreeNode({
             ))}
           </div>
         </div>
-      )}
-
-      {hasChildren && !isCollapsed && (
-        <div style={{ display: 'none' }} ref={measureHeight as any} />
       )}
     </div>
   );

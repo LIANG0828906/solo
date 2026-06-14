@@ -68,20 +68,21 @@ const cardsContainerStyle: React.CSSProperties = {
   columnGap: '10px',
 };
 
-const cardStyle = (color: string, isEditing: boolean, isDragging: boolean, isCompleted: boolean): React.CSSProperties => ({
+const cardStyle = (color: string, isEditing: boolean, isDragging: boolean, isCompleted: boolean, isShrinking: boolean = false): React.CSSProperties => ({
   background: color,
   borderRadius: '10px',
   padding: '12px',
   marginBottom: '10px',
   breakInside: 'avoid',
   cursor: isEditing ? 'text' : 'grab',
-  transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   position: 'relative',
   border: isEditing ? '2px dashed #3B4A6B' : 'none',
   opacity: isCompleted ? 0.6 : 1,
-  transform: isDragging ? 'scale(1.2) rotate(2deg)' : 'scale(1)',
+  transform: isShrinking ? 'scale(0.8)' : isDragging ? 'scale(1.2) rotate(2deg)' : 'scale(1)',
   zIndex: isDragging ? 100 : 1,
+  animation: isShrinking ? 'shrinkCheck 0.3s ease forwards' : undefined,
 });
 
 const colorTagStyle = (color: string): React.CSSProperties => ({
@@ -214,6 +215,8 @@ export default function InspirationBoard({
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+  const [shrinkingCardId, setShrinkingCardId] = useState<string | null>(null);
+  const [newCardId, setNewCardId] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
@@ -234,9 +237,11 @@ export default function InspirationBoard({
     };
     onCardsChange([newCard, ...cards]);
     setEditingCardId(newCard.id);
+    setNewCardId(newCard.id);
     setEditContent('');
     setEditColor(newCard.color);
     setEditPriority(newCard.priority);
+    setTimeout(() => setNewCardId(null), 500);
   };
 
   const handleLongPressStart = (cardId: string) => {
@@ -284,6 +289,17 @@ export default function InspirationBoard({
   const handleDragStart = (e: React.DragEvent, cardId: string) => {
     setDraggedCardId(cardId);
     e.dataTransfer.effectAllowed = 'move';
+    const target = e.currentTarget as HTMLElement;
+    const clone = target.cloneNode(true) as HTMLElement;
+    clone.style.transform = 'scale(1.2) rotate(2deg)';
+    clone.style.position = 'absolute';
+    clone.style.top = '-9999px';
+    clone.style.pointerEvents = 'none';
+    document.body.appendChild(clone);
+    e.dataTransfer.setDragImage(clone, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    requestAnimationFrame(() => {
+      document.body.removeChild(clone);
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -292,20 +308,24 @@ export default function InspirationBoard({
 
   const handleDropOnCompleted = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggedCardId) return;
+    const cardId = draggedCardId;
+    if (!cardId) return;
 
-    const card = cards.find((c) => c.id === draggedCardId);
+    const card = cards.find((c) => c.id === cardId);
     if (card && !card.completed) {
-      setShowSuccess(draggedCardId);
+      setShrinkingCardId(cardId);
       setTimeout(() => {
-        const updatedCards = cards.map((c) =>
-          c.id === draggedCardId ? { ...c, completed: true } : c
-        );
-        onCardsChange(updatedCards);
+        setShowSuccess(cardId);
+      }, 300);
+      setTimeout(() => {
+        onCardsChange(cards.map((c) =>
+          c.id === cardId ? { ...c, completed: true } : c
+        ));
         setShowSuccess(null);
-      }, 500);
+        setShrinkingCardId(null);
+      }, 600);
     }
-    setDraggedCardId(null);
+    setTimeout(() => setDraggedCardId(null), 50);
   };
 
   const handleCardDrop = (e: React.DragEvent, targetCardId: string) => {
@@ -324,7 +344,7 @@ export default function InspirationBoard({
 
     const reorderedCards = newCards.map((c, i) => ({ ...c, order: i }));
     onCardsChange(reorderedCards);
-    setDraggedCardId(null);
+    setTimeout(() => setDraggedCardId(null), 50);
   };
 
   const handlePriorityClick = (e: React.MouseEvent, cardId: string, priority: number) => {
@@ -382,13 +402,13 @@ export default function InspirationBoard({
             <p>记录你的灵感吧</p>
           </div>
         ) : (
-          activeCards.map((card, index) => (
+          activeCards.map((card) => (
             <div
               key={card.id}
               className="inspiration-card"
               style={{
-                ...cardStyle(card.color, editingCardId === card.id, draggedCardId === card.id, false),
-                ...newCardStyle(index < 3),
+                ...cardStyle(card.color, editingCardId === card.id, draggedCardId === card.id, false, shrinkingCardId === card.id),
+                ...newCardStyle(newCardId === card.id),
               }}
               draggable={editingCardId !== card.id}
               onDragStart={(e) => handleDragStart(e, card.id)}
@@ -518,6 +538,8 @@ export default function InspirationBoard({
                 padding: '8px',
                 marginBottom: '6px',
                 cursor: 'pointer',
+                transform: 'scale(0.95)',
+                fontSize: '0.75rem',
               }}
               onClick={() => handleRestoreCard(card.id)}
               title="点击恢复"
