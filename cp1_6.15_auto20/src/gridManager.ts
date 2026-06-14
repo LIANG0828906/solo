@@ -133,6 +133,7 @@ export class GridManager {
         new THREE.Vector3(-GRID_SIZE * CELL_SIZE / 2 + i * CELL_SIZE, 0, GRID_SIZE * CELL_SIZE / 2)
       ];
       const line1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points1), lineMat);
+      line1.raycast = () => {};
       gridGroup.add(line1);
       
       const points2 = [
@@ -140,6 +141,7 @@ export class GridManager {
         new THREE.Vector3(GRID_SIZE * CELL_SIZE / 2, 0, -GRID_SIZE * CELL_SIZE / 2 + i * CELL_SIZE)
       ];
       const line2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points2), lineMat);
+      line2.raycast = () => {};
       gridGroup.add(line2);
     }
     
