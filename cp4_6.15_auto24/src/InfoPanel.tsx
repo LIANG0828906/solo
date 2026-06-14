@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useMoleculeStore, getAtomicWeight, type Atom, type Bond, type MoleculeData, type Measurement } from '@/store'
+import { useMoleculeStore, type Atom, type Bond, type MoleculeData, type Measurement } from '@/store'
 import { ChevronDown, ChevronRight, Search, Copy, Check, ArrowUpDown, Trash2 } from 'lucide-react'
 
 type SortDir = 'asc' | 'desc'
