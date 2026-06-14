@@ -45,6 +45,12 @@ export interface AICompletingState {
   startTime: number
 }
 
+interface HistoryState {
+  layers: Layer[]
+  strokes: Record<string, Stroke>
+  activeLayerId: string
+}
+
 interface CanvasState {
   tool: ToolType
   color: string
@@ -59,14 +65,17 @@ interface CanvasState {
   mousePos: { x: number; y: number }
   isDrawing: boolean
   currentStroke: Stroke | null
+  history: HistoryState[]
+  historyIndex: number
+  maxHistory: number
 
   setTool: (tool: ToolType) => void
   setColor: (color: string) => void
   setBrushSize: (size: number) => void
   setMousePos: (x: number, y: number) => void
 
-  startDrawing: (x: number, y: number) => void
-  continueDrawing: (x: number, y: number) => void
+  startDrawing: (x: number, y: number, pressure?: number) => void
+  continueDrawing: (x: number, y: number, pressure?: number) => void
   endDrawing: () => void
 
   startSelection: (x: number, y: number) => void
@@ -76,6 +85,7 @@ interface CanvasState {
   addLayer: () => void
   setActiveLayer: (id: string) => void
   toggleLayerVisibility: (id: string) => void
+  deleteLayer: (id: string) => void
   deleteStroke: (id: string) => void
 
   setViewOffset: (x: number, y: number) => void
@@ -84,6 +94,12 @@ interface CanvasState {
   startAICompletion: (strokes: Stroke[]) => void
   updateAICompletion: (currentIndex: number) => void
   finishAICompletion: () => void
+
+  saveHistory: () => void
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => void
 }
 
 export const COLOR_PALETTE = [
@@ -97,20 +113,27 @@ export const COLOR_PALETTE = [
 
 export const useCanvasStore = create<CanvasState>((set, get) => {
   const initialLayerId = uuidv4()
+  const initialLayers: Layer[] = [
+    {
+      id: initialLayerId,
+      name: '图层 1',
+      visible: true,
+      locked: false,
+      strokeIds: []
+    }
+  ]
+
+  const createInitialHistory = (): HistoryState => ({
+    layers: JSON.parse(JSON.stringify(initialLayers)),
+    strokes: {},
+    activeLayerId: initialLayerId
+  })
 
   return {
     tool: 'pencil',
     color: '#000000',
     brushSize: 20,
-    layers: [
-      {
-        id: initialLayerId,
-        name: '图层 1',
-        visible: true,
-        locked: false,
-        strokeIds: []
-      }
-    ],
+    layers: initialLayers,
     activeLayerId: initialLayerId,
     strokes: {},
     selection: { active: false, startX: 0, startY: 0, endX: 0, endY: 0 },
@@ -120,13 +143,77 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
     mousePos: { x: 0, y: 0 },
     isDrawing: false,
     currentStroke: null,
+    history: [createInitialHistory()],
+    historyIndex: 0,
+    maxHistory: 50,
 
     setTool: (tool) => set({ tool }),
     setColor: (color) => set({ color }),
     setBrushSize: (size) => set({ brushSize: size }),
     setMousePos: (x, y) => set({ mousePos: { x, y } }),
 
-    startDrawing: (x, y) => {
+    saveHistory: () => {
+      const { layers, strokes, activeLayerId, history, historyIndex, maxHistory } = get()
+
+      const newHistory = history.slice(0, historyIndex + 1)
+
+      const historyState: HistoryState = {
+        layers: JSON.parse(JSON.stringify(layers)),
+        strokes: JSON.parse(JSON.stringify(strokes)),
+        activeLayerId
+      }
+
+      newHistory.push(historyState)
+
+      if (newHistory.length > maxHistory) {
+        newHistory.shift()
+      }
+
+      set({
+        history: newHistory,
+        historyIndex: newHistory.length - 1
+      })
+    },
+
+    undo: () => {
+      const { history, historyIndex } = get()
+      if (historyIndex <= 0) return
+
+      const newIndex = historyIndex - 1
+      const state = history[newIndex]
+
+      set({
+        layers: JSON.parse(JSON.stringify(state.layers)),
+        strokes: JSON.parse(JSON.stringify(state.strokes)),
+        activeLayerId: state.activeLayerId,
+        historyIndex: newIndex
+      })
+    },
+
+    redo: () => {
+      const { history, historyIndex } = get()
+      if (historyIndex >= history.length - 1) return
+
+      const newIndex = historyIndex + 1
+      const state = history[newIndex]
+
+      set({
+        layers: JSON.parse(JSON.stringify(state.layers)),
+        strokes: JSON.parse(JSON.stringify(state.strokes)),
+        activeLayerId: state.activeLayerId,
+        historyIndex: newIndex
+      })
+    },
+
+    canUndo: () => {
+      return get().historyIndex > 0
+    },
+
+    canRedo: () => {
+      return get().historyIndex < get().history.length - 1
+    },
+
+    startDrawing: (x, y, pressure = 0.5) => {
       const { tool, color, brushSize, activeLayerId } = get()
       if (tool === 'select') return
 
@@ -135,7 +222,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
         tool,
         color,
         baseSize: brushSize,
-        points: [{ x, y, timestamp: Date.now() }],
+        points: [{ x, y, pressure, timestamp: Date.now() }],
         layerId: activeLayerId,
         opacity: 1,
         createdAt: Date.now(),
@@ -144,9 +231,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
       if (tool === 'airbrush') {
         const particles = []
-        for (let i = 0; i < 15; i++) {
+        const pressureFactor = 0.5 + pressure * 0.5
+        for (let i = 0; i < Math.floor(15 * pressureFactor); i++) {
           const angle = Math.random() * Math.PI * 2
-          const dist = Math.random() * brushSize * 1.5
+          const dist = Math.random() * brushSize * 1.5 * pressureFactor
           particles.push({
             x: x + Math.cos(angle) * dist,
             y: y + Math.sin(angle) * dist,
@@ -161,18 +249,19 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
       set({ isDrawing: true, currentStroke: stroke })
     },
 
-    continueDrawing: (x, y) => {
+    continueDrawing: (x, y, pressure = 0.5) => {
       const { isDrawing, currentStroke } = get()
       if (!isDrawing || !currentStroke) return
 
-      const newPoints = [...currentStroke.points, { x, y, timestamp: Date.now() }]
+      const newPoints = [...currentStroke.points, { x, y, pressure, timestamp: Date.now() }]
       let newParticles = currentStroke.particles
 
       if (currentStroke.tool === 'airbrush') {
         const particles = [...(currentStroke.particles || [])]
-        for (let i = 0; i < 8; i++) {
+        const pressureFactor = 0.5 + pressure * 0.5
+        for (let i = 0; i < Math.floor(8 * pressureFactor); i++) {
           const angle = Math.random() * Math.PI * 2
-          const dist = Math.random() * currentStroke.baseSize * 1.5
+          const dist = Math.random() * currentStroke.baseSize * 1.5 * pressureFactor
           particles.push({
             x: x + Math.cos(angle) * dist,
             y: y + Math.sin(angle) * dist,
@@ -199,6 +288,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
         set({ isDrawing: false })
         return
       }
+
+      get().saveHistory()
 
       const newStrokes = { ...strokes, [currentStroke.id]: currentStroke }
       const newLayers = layers.map(layer => {
@@ -238,6 +329,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
     addLayer: () => {
       const { layers } = get()
+      get().saveHistory()
+
       const newLayer: Layer = {
         id: uuidv4(),
         name: `图层 ${layers.length + 1}`,
@@ -255,6 +348,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
     toggleLayerVisibility: (id) => {
       const { layers } = get()
+      get().saveHistory()
       set({
         layers: layers.map(layer =>
           layer.id === id ? { ...layer, visible: !layer.visible } : layer
@@ -262,10 +356,38 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
       })
     },
 
+    deleteLayer: (id) => {
+      const { layers, strokes, activeLayerId } = get()
+      if (layers.length <= 1) return
+
+      get().saveHistory()
+
+      const layer = layers.find(l => l.id === id)
+      if (!layer) return
+
+      const newStrokes = { ...strokes }
+      layer.strokeIds.forEach(sid => {
+        delete newStrokes[sid]
+      })
+
+      const newLayers = layers.filter(l => l.id !== id)
+      const newActiveId = activeLayerId === id
+        ? newLayers[newLayers.length - 1].id
+        : activeLayerId
+
+      set({
+        layers: newLayers,
+        strokes: newStrokes,
+        activeLayerId: newActiveId
+      })
+    },
+
     deleteStroke: (id) => {
       const { strokes, layers } = get()
       const stroke = strokes[id]
       if (!stroke) return
+
+      get().saveHistory()
 
       const newStrokes = { ...strokes }
       delete newStrokes[id]
@@ -301,6 +423,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
     finishAICompletion: () => {
       const { aiCompleting, layers, activeLayerId, strokes } = get()
+
+      get().saveHistory()
+
       const newStrokes = { ...strokes }
       const newStrokeIds: string[] = []
 

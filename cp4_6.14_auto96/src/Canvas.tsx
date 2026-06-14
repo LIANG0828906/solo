@@ -9,6 +9,57 @@ const MAJOR_GRID_SIZE = 50
 const MINOR_GRID_SIZE = 10
 const EDGE_BLEND_WIDTH = 8
 
+class SeededNoise {
+  private seed: number
+
+  constructor(seed: number) {
+    this.seed = seed % 2147483647
+    if (this.seed <= 0) this.seed += 2147483646
+  }
+
+  next(): number {
+    this.seed = (this.seed * 16807) % 2147483647
+    return (this.seed - 1) / 2147483646
+  }
+
+  nextRange(min: number, max: number): number {
+    return min + this.next() * (max - min)
+  }
+}
+
+const smoothStep = (t: number): number => {
+  return t * t * (3 - 2 * t)
+}
+
+const lerp = (a: number, b: number, t: number): number => {
+  return a + (b - a) * t
+}
+
+const perlinNoise1D = (noise: SeededNoise, progress: number, octaves: number = 3): number => {
+  let value = 0
+  let amplitude = 1
+  let frequency = 1
+  let maxValue = 0
+
+  for (let i = 0; i < octaves; i++) {
+    const x = progress * frequency
+    const x0 = Math.floor(x)
+    const x1 = x0 + 1
+    const t = x - x0
+
+    const v0 = noise.nextRange(-1, 1)
+    const v1 = noise.nextRange(-1, 1)
+
+    value += lerp(v0, v1, smoothStep(t)) * amplitude
+
+    maxValue += amplitude
+    amplitude *= 0.5
+    frequency *= 2
+  }
+
+  return value / maxValue
+}
+
 const Canvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -17,6 +68,9 @@ const Canvas: React.FC = () => {
   const isPanningRef = useRef(false)
   const panStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null)
   const lastMoveTimeRef = useRef<number>(0)
+  const lastSpeedRef = useRef<number>(0)
+  const strokeNoiseRef = useRef<Map<string, SeededNoise>>(new Map())
+  const speedSmoothingFactor = 0.3
 
   const {
     tool,
@@ -51,6 +105,21 @@ const Canvas: React.FC = () => {
       y: (screenY - viewOffset.y) / zoom
     }
   }, [viewOffset, zoom])
+
+  const getStrokeNoise = useCallback((strokeId: string): SeededNoise => {
+    let noise = strokeNoiseRef.current.get(strokeId)
+    if (!noise) {
+      noise = new SeededNoise(parseInt(strokeId.slice(0, 8), 16) || Date.now())
+      strokeNoiseRef.current.set(strokeId, noise)
+    }
+    return noise
+  }, [])
+
+  const getSmoothAlpha = useCallback((strokeId: string, progress: number): number => {
+    const noise = getStrokeNoise(strokeId)
+    const noiseVal = perlinNoise1D(noise, progress * 5, 2)
+    return 0.7 + (noiseVal + 1) * 0.15
+  }, [getStrokeNoise])
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.fillStyle = BG_COLOR
@@ -107,6 +176,8 @@ const Canvas: React.FC = () => {
     stroke: Stroke,
     from: Point,
     to: Point,
+    segmentIndex: number,
+    totalSegments: number,
     blendAlpha: number = 1
   ) => {
     if (stroke.tool === 'airbrush') return
@@ -115,16 +186,33 @@ const Canvas: React.FC = () => {
     const dy = to.y - from.y
     const dist = Math.sqrt(dx * dx + dy * dy)
     const dt = to.timestamp - from.timestamp
-    const speed = dt > 0 ? dist / dt : 0
-    const sizeFactor = Math.max(0.6, Math.min(1, 1 - speed * 0.003))
+    const rawSpeed = dt > 0 ? dist / dt : 0
 
-    const actualSize = stroke.baseSize * sizeFactor
+    let smoothedSpeed: number
+    if (segmentIndex === 0 || totalSegments <= 1) {
+      smoothedSpeed = 0
+      lastSpeedRef.current = 0
+    } else {
+      smoothedSpeed = lerp(lastSpeedRef.current, rawSpeed, speedSmoothingFactor)
+      lastSpeedRef.current = smoothedSpeed
+    }
+
+    const sizeFactor = Math.max(0.6, Math.min(1, 1 - smoothedSpeed * 0.003))
+
+    const pressureFrom = from.pressure ?? 0.5
+    const pressureTo = to.pressure ?? 0.5
+    const pressureAvg = (pressureFrom + pressureTo) / 2
+    const pressureFactor = 0.4 + pressureAvg * 0.6
+
+    const actualSize = stroke.baseSize * sizeFactor * pressureFactor
 
     let alpha = 1
+    const progress = segmentIndex / Math.max(1, totalSegments)
+
     if (stroke.tool === 'marker') {
       alpha = 0.5
     } else {
-      alpha = 0.7 + Math.random() * 0.3
+      alpha = getSmoothAlpha(stroke.id, progress)
     }
     alpha *= blendAlpha
 
@@ -148,7 +236,7 @@ const Canvas: React.FC = () => {
       ctx.stroke()
     }
     ctx.restore()
-  }, [])
+  }, [getSmoothAlpha])
 
   const drawStroke = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -194,6 +282,8 @@ const Canvas: React.FC = () => {
         }
       })
     } else {
+      lastSpeedRef.current = 0
+
       for (let i = 1; i < pointsToDraw; i++) {
         let blendAlpha = 1
 
@@ -220,7 +310,15 @@ const Canvas: React.FC = () => {
           blendAlpha *= Math.max(0, fadeIn)
         }
 
-        drawStrokeSegment(ctx, stroke, stroke.points[i - 1], stroke.points[i], blendAlpha)
+        drawStrokeSegment(
+          ctx,
+          stroke,
+          stroke.points[i - 1],
+          stroke.points[i],
+          i - 1,
+          totalPoints - 1,
+          blendAlpha
+        )
       }
     }
 
@@ -364,6 +462,8 @@ const Canvas: React.FC = () => {
     const screenY = e.clientY - rect.top
     const world = screenToWorld(screenX, screenY)
 
+    const pressure = e.pressure > 0 ? e.pressure : 0.5
+
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       isPanningRef.current = true
       panStartRef.current = {
@@ -377,11 +477,12 @@ const Canvas: React.FC = () => {
 
     lastPosRef.current = { x: world.x, y: world.y }
     lastMoveTimeRef.current = Date.now()
+    lastSpeedRef.current = 0
 
     if (tool === 'select') {
       startSelection(world.x, world.y)
     } else {
-      startDrawing(world.x, world.y)
+      startDrawing(world.x, world.y, pressure)
     }
   }, [tool, viewOffset, screenToWorld, startSelection, startDrawing])
 
@@ -403,10 +504,12 @@ const Canvas: React.FC = () => {
       return
     }
 
+    const pressure = e.pressure > 0 ? e.pressure : 0.5
+
     if (tool === 'select' && e.buttons) {
       updateSelection(world.x, world.y)
     } else if (isDrawing) {
-      continueDrawing(world.x, world.y)
+      continueDrawing(world.x, world.y, pressure)
     }
 
     lastPosRef.current = { x: world.x, y: world.y }
@@ -430,6 +533,7 @@ const Canvas: React.FC = () => {
     }
 
     lastPosRef.current = null
+    lastSpeedRef.current = 0
   }, [tool, isDrawing, endDrawing])
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -491,6 +595,26 @@ const Canvas: React.FC = () => {
       delete (window as any).handleAIComplete
     }
   }, [handleAIComplete])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) {
+          useCanvasStore.getState().redo()
+        } else {
+          useCanvasStore.getState().undo()
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault()
+        useCanvasStore.getState().redo()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <div
