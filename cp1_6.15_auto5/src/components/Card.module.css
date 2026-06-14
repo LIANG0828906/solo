@@ -3,20 +3,67 @@
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   overflow: hidden;
-  transition: all var(--transition-normal);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
   will-change: transform, box-shadow;
+  transform-origin: center center;
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.01);
   box-shadow: var(--shadow-card-hover);
 }
 
 .cardDragging {
-  transform: scale(1.05) rotate(2deg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   cursor: grabbing;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+  animation: elasticDrag 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes elasticDrag {
+  0% {
+    transform: scale(1) skewX(0deg) skewY(0deg);
+  }
+  20% {
+    transform: scale(1.06, 0.94) skewX(-2deg) skewY(1deg);
+  }
+  40% {
+    transform: scale(0.96, 1.06) skewX(2deg) skewY(-1deg);
+  }
+  60% {
+    transform: scale(1.04, 0.97) skewX(-1deg) skewY(0.5deg);
+  }
+  80% {
+    transform: scale(0.99, 1.02) skewX(0.5deg) skewY(-0.3deg);
+  }
+  100% {
+    transform: scale(1.05, 1) skewX(0deg) skewY(0deg);
+  }
+}
+
+.releaseBounce {
+  animation: releaseBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes releaseBounce {
+  0% {
+    transform: scale(1.05);
+  }
+  25% {
+    transform: scale(0.92) translateY(4px);
+  }
+  45% {
+    transform: scale(1.03) translateY(-2px);
+  }
+  65% {
+    transform: scale(0.98) translateY(1px);
+  }
+  80% {
+    transform: scale(1.01) translateY(-0.5px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
 }
 
 .cardInner {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import axios from 'axios';
 import Card from './Card';
 import TagFilter from './TagFilter';

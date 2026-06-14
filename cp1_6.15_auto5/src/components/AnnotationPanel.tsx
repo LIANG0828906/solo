@@ -67,7 +67,7 @@ function AnnotationPanel({ annotations, user, onAdd }: AnnotationPanelProps) {
                 ref={isLatest ? latestAnnotationRef : null}
                 className={`${styles.annotationItem} ${isLatest ? styles.latest : ''}`}
                 style={{
-                  animation: isLatest ? 'fadeInUp 0.4s ease-out' : 'none',
+                  animationDelay: `${Math.min(index * 0.05, 0.3)}s`,
                 }}
               >
                 <img src={annotation.avatar} alt={annotation.author} className={styles.avatar} />

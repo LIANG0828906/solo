@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AnnotationPanel from './AnnotationPanel';
 import type { RecipeCard, User, Annotation } from '../types';
 import styles from './Card.module.css';
@@ -13,6 +13,17 @@ interface CardProps {
 function Card({ card, user, onAnnotationAdd, isDragging }: CardProps) {
   const [showAnnotations, setShowAnnotations] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showReleaseBounce, setShowReleaseBounce] = useState(false);
+  const wasDragging = useRef(false);
+
+  useEffect(() => {
+    if (wasDragging.current && !isDragging) {
+      setShowReleaseBounce(true);
+      const timer = setTimeout(() => setShowReleaseBounce(false), 600);
+      return () => clearTimeout(timer);
+    }
+    wasDragging.current = isDragging;
+  }, [isDragging]);
 
   const handleAnnotationAdd = (annotation: Annotation) => {
     onAnnotationAdd(card.id, annotation);
@@ -24,7 +35,7 @@ function Card({ card, user, onAnnotationAdd, isDragging }: CardProps) {
 
   return (
     <div
-      className={`${styles.card} ${isDragging ? styles.cardDragging : ''}`}
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${showReleaseBounce ? styles.releaseBounce : ''}`}
     >
       <div
         className={styles.cardInner}

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type { ToastMessage } from '../types';
 import styles from './Toast.module.css';
 
@@ -5,7 +6,43 @@ interface ToastProps {
   toasts: ToastMessage[];
 }
 
+interface ToastItemState extends ToastMessage {
+  isLeaving: boolean;
+}
+
 function Toast({ toasts }: ToastProps) {
+  const [toastStates, setToastStates] = useState<ToastItemState[]>([]);
+
+  useEffect(() => {
+    const newToastIds = toasts.map(t => t.id);
+    const existingIds = toastStates.map(t => t.id);
+
+    const toastsToAdd = toasts
+      .filter(t => !existingIds.includes(t.id))
+      .map(t => ({ ...t, isLeaving: false }));
+
+    const toastsToRemove = toastStates
+      .filter(t => !newToastIds.includes(t.id) && !t.isLeaving)
+      .map(t => ({ ...t, isLeaving: true }));
+
+    if (toastsToAdd.length > 0 || toastsToRemove.length > 0) {
+      const remainingToasts = toastStates
+        .filter(t => !toastsToRemove.find(r => r.id === t.id) || t.isLeaving)
+        .map(t => {
+          const toRemove = toastsToRemove.find(r => r.id === t.id);
+          return toRemove ? { ...t, isLeaving: true } : t;
+        });
+
+      setToastStates([...remainingToasts, ...toastsToAdd]);
+
+      toastsToRemove.forEach(t => {
+        setTimeout(() => {
+          setToastStates(prev => prev.filter(s => s.id !== t.id));
+        }, 350);
+      });
+    }
+  }, [toasts, toastStates]);
+
   const getTypeStyles = (type: ToastMessage['type']) => {
     switch (type) {
       case 'success':
@@ -28,18 +65,16 @@ function Toast({ toasts }: ToastProps) {
     }
   };
 
-  if (toasts.length === 0) return null;
+  if (toastStates.length === 0) return null;
 
   return (
     <div className={styles.container}>
-      {toasts.map((toast, index) => (
+      {toastStates.map((toast, index) => (
         <div
           key={toast.id}
-          className={`${styles.toast} ${getTypeStyles(toast.type)}`}
+          className={`${styles.toast} ${getTypeStyles(toast.type)} ${toast.isLeaving ? styles.leaving : styles.entering}`}
           style={{
-            animation: 'slideInLeft 0.3s ease-out',
-            animationDelay: `${index * 0.1}s`,
-            animationFillMode: 'both',
+            animationDelay: toast.isLeaving ? '0ms' : `${index * 80}ms`,
           }}
         >
           <span className={styles.icon}>{getIcon(toast.type)}</span>
