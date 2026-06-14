@@ -15,7 +15,8 @@ import {
   Plus,
   Tag,
 } from 'lucide-react';
-import { useCRM, type FollowUpMethod, type FollowUpRecord, type LeadSource, type LeadStatus } from '@/context/CRMContext';
+import type { FollowUpMethod, FollowUpRecord, LeadSource, LeadStatus } from '@/types';
+import { useCRM } from '@/context/CRMContext';
 import { cn } from '@/lib/utils';
 
 const sourceColors: Record<LeadSource, string> = {
@@ -275,7 +276,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
     nextReminderDate?: string;
   }) => {
     addFollowUpRecord(leadId, data);
-    updateLeadStatus(leadId, '跟进中');
+    updateLeadStatus(leadId, '跟进中' as LeadStatus);
     setIsModalOpen(false);
     const updatedLead = getLeadById(leadId);
     if (updatedLead && updatedLead.followUpRecords.length > 0) {

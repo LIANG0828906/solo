@@ -14,7 +14,8 @@ import {
   MessageSquare,
   Clock,
 } from 'lucide-react';
-import { useCRM, type Customer, type Opportunity, type Lead, type OpportunityStatus } from '@/context/CRMContext';
+import type { Customer, Opportunity, Lead, OpportunityStatus } from '@/types';
+import { useCRM } from '@/context/CRMContext';
 import { cn } from '@/lib/utils';
 
 interface CustomerProfileProps {
@@ -89,7 +90,7 @@ export default function CustomerProfile({ customerId, onBack }: CustomerProfileP
     setShowAddForm(false);
   };
 
-  const handleCloseOpportunity = (opportunityId: string, status: '已赢单' | '已输单') => {
+  const handleCloseOpportunity = (opportunityId: string, status: OpportunityStatus) => {
     closeOpportunity(opportunityId, status);
   };
 

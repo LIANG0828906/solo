@@ -14,6 +14,13 @@ import type {
   DashboardMetrics,
 } from '@/types';
 
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface CRMState {
   leads: Lead[];
   customers: Customer[];
@@ -43,7 +50,7 @@ interface CRMContextType extends CRMState {
     customerId: string,
     data: { name: string; expectedAmount: number; expectedCloseDate: string }
   ) => void;
-  closeOpportunity: (opportunityId: string, status: '已赢单' | '已输单') => void;
+  closeOpportunity: (opportunityId: string, status: OpportunityStatus) => void;
   getCustomerConversionRate: (customerId: string) => number;
   getDashboardMetrics: () => DashboardMetrics;
 }
@@ -166,8 +173,8 @@ function generateMockData(): CRMState {
           leadId,
           method: followUpMethods[Math.floor(Math.random() * followUpMethods.length)],
           summary: ['电话沟通需求', '发送产品资料', '安排产品演示', '讨论合作方案', '确认报价细节'][Math.floor(Math.random() * 5)],
-          date: recordDate.toISOString().split('T')[0],
-          nextReminderDate: isToday ? recordDate.toISOString().split('T')[0] : undefined,
+          date: formatLocalDate(recordDate),
+          nextReminderDate: isToday ? formatLocalDate(recordDate) : undefined,
         });
       }
     }
@@ -179,7 +186,7 @@ function generateMockData(): CRMState {
       phone: `1${Math.floor(Math.random() * 9 + 3)}${Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('')}`,
       source: leadSources[Math.floor(Math.random() * leadSources.length)],
       status: leadStatuses[Math.floor(Math.random() * leadStatuses.length)],
-      createdAt: createdAt.toISOString().split('T')[0],
+      createdAt: formatLocalDate(createdAt),
       followUpRecords,
     };
 
@@ -196,7 +203,7 @@ function generateMockData(): CRMState {
         companyName: lead.companyName,
         contactPerson: lead.contactPerson,
         phone: lead.phone,
-        convertedAt: convertedAt.toISOString().split('T')[0],
+        convertedAt: formatLocalDate(convertedAt),
         conversionRate: 0,
       };
 
@@ -214,7 +221,7 @@ function generateMockData(): CRMState {
           customerId,
           name: `${lead.companyName} - 合作项目 ${j + 1}`,
           expectedAmount,
-          expectedCloseDate: expectedCloseDate.toISOString().split('T')[0],
+          expectedCloseDate: formatLocalDate(expectedCloseDate),
           progress: oppStatus === '已赢单' ? 100 : oppStatus === '已输单' ? 0 : Math.floor(Math.random() * 80) + 10,
           status: oppStatus,
         };
@@ -247,7 +254,7 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
     const newLead: Lead = {
       id: uuidv4(),
       ...data,
-      createdAt: new Date().toISOString().split('T')[0],
+      createdAt: formatLocalDate(new Date()),
       followUpRecords: [],
     };
     dispatch({ type: 'ADD_LEAD', payload: newLead });
@@ -266,7 +273,7 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
       id: uuidv4(),
       leadId,
       ...data,
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(new Date()),
     };
     dispatch({ type: 'ADD_FOLLOW_UP', payload: { leadId, record } });
   };
@@ -281,7 +288,7 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
       companyName: lead.companyName,
       contactPerson: lead.contactPerson,
       phone: lead.phone,
-      convertedAt: new Date().toISOString().split('T')[0],
+      convertedAt: formatLocalDate(new Date()),
       conversionRate: 0,
     };
 
@@ -327,10 +334,10 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       const prevDate = new Date(date);
       prevDate.setDate(prevDate.getDate() - 1);
-      const prevDateStr = prevDate.toISOString().split('T')[0];
+      const prevDateStr = formatLocalDate(prevDate);
 
       result.push({
         date: dateStr,

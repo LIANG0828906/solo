@@ -11,7 +11,8 @@ import {
   XCircle,
   ChevronDown,
 } from 'lucide-react';
-import { useCRM, type Lead, type LeadSource, type LeadStatus } from '@/context/CRMContext';
+import type { Lead, LeadSource, LeadStatus } from '@/types';
+import { useCRM } from '@/context/CRMContext';
 import { cn } from '@/lib/utils';
 
 const sourceColors: Record<LeadSource, string> = {
@@ -42,17 +43,27 @@ interface LeadCardProps {
   onMarkLost: (id: string) => void;
   onClick: (id: string) => void;
   index: number;
+  isNew: boolean;
 }
 
-function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick, index }: LeadCardProps) {
+function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick, index, isNew }: LeadCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [actionType, setActionType] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [showHighlight, setShowHighlight] = useState(isNew);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), index * 50);
     return () => clearTimeout(timer);
   }, [index]);
+
+  useEffect(() => {
+    if (isNew) {
+      setShowHighlight(true);
+      const timer = setTimeout(() => setShowHighlight(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
 
   const handleAction = useCallback((action: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -70,7 +81,8 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick, index }: L
         'relative bg-white border border-gray-200 rounded-xl p-5 cursor-pointer overflow-hidden',
         'transition-all duration-300 ease-out',
         'hover:shadow-lg hover:border-gray-300 hover:-translate-y-0.5',
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+        showHighlight && 'animate-highlight'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -127,42 +139,49 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick, index }: L
 
       <div className={cn(
         'absolute right-0 top-0 h-full flex flex-col justify-center gap-2 pr-3',
-        'transform transition-all duration-300 ease-out',
-        isHovered ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        'transform transition-all duration-500 ease-out',
+        isHovered ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
+        'pointer-events-none',
+        isHovered && 'pointer-events-auto'
       )}>
-        <button
-          onClick={(e) => handleAction('followUp', lead.id, e)}
-          className={cn(
-            'p-2 rounded-lg bg-blue-500 text-white',
-            'transition-all duration-300 ease-out hover:bg-blue-600',
-            actionType === 'followUp' && 'animate-bounce-in'
-          )}
-          title="跟进"
-        >
-          <MessageSquare className="w-4 h-4" />
-        </button>
-        <button
-          onClick={(e) => handleAction('convert', lead.id, e)}
-          className={cn(
-            'p-2 rounded-lg bg-green-500 text-white',
-            'transition-all duration-300 ease-out hover:bg-green-600',
-            actionType === 'convert' && 'animate-bounce-in'
-          )}
-          title="转为客户"
-        >
-          <UserCheck className="w-4 h-4" />
-        </button>
-        <button
-          onClick={(e) => handleAction('lost', lead.id, e)}
-          className={cn(
-            'p-2 rounded-lg bg-red-500 text-white',
-            'transition-all duration-300 ease-out hover:bg-red-600',
-            actionType === 'lost' && 'animate-bounce-in'
-          )}
-          title="标记流失"
-        >
-          <XCircle className="w-4 h-4" />
-        </button>
+        <div className="flex flex-col gap-2 animate-slide-in-fade">
+          <button
+            onClick={(e) => handleAction('followUp', lead.id, e)}
+            className={cn(
+              'p-2 rounded-lg bg-blue-500 text-white shadow-md',
+              'transition-all duration-300 ease-out hover:bg-blue-600 hover:scale-110 active:scale-95',
+              actionType === 'followUp' && 'animate-bounce-in'
+            )}
+            title="跟进"
+            style={{ transitionDelay: '0ms' }}
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => handleAction('convert', lead.id, e)}
+            className={cn(
+              'p-2 rounded-lg bg-green-500 text-white shadow-md',
+              'transition-all duration-300 ease-out hover:bg-green-600 hover:scale-110 active:scale-95',
+              actionType === 'convert' && 'animate-bounce-in'
+            )}
+            title="转为客户"
+            style={{ transitionDelay: '50ms' }}
+          >
+            <UserCheck className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => handleAction('lost', lead.id, e)}
+            className={cn(
+              'p-2 rounded-lg bg-red-500 text-white shadow-md',
+              'transition-all duration-300 ease-out hover:bg-red-600 hover:scale-110 active:scale-95',
+              actionType === 'lost' && 'animate-bounce-in'
+            )}
+            title="标记流失"
+            style={{ transitionDelay: '100ms' }}
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -180,12 +199,18 @@ interface LeadFormProps {
 }
 
 function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    companyName: string;
+    contactPerson: string;
+    phone: string;
+    source: LeadSource;
+    status: LeadStatus;
+  }>({
     companyName: '',
     contactPerson: '',
     phone: '',
-    source: '线上广告' as LeadSource,
-    status: '新建' as LeadStatus,
+    source: '线上广告',
+    status: '新建',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -306,13 +331,34 @@ function FilterDropdown({ label, value, options, onChange }: FilterDropdownProps
   );
 }
 
+const VIRTUAL_SCROLL_THRESHOLD = 200;
+const CARD_HEIGHT = 220;
+const GRID_GAP = 16;
+
 export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) => void }) {
   const { leads, addLead, updateLeadStatus, convertToCustomer } = useCRM();
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [newLeadIds, setNewLeadIds] = useState<Set<string>>(new Set());
   const renderStartTime = useRef<number>(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(800);
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (scrollContainerRef.current) {
+        setContainerHeight(scrollContainerRef.current.clientHeight);
+      }
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const searchIndex = useMemo(() => {
     const index = new Map<string, Lead>();
@@ -360,10 +406,23 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
   }) => {
     addLead(data);
     setShowForm(false);
-  }, [addLead]);
+    setTimeout(() => {
+      const newLead = leads[0];
+      if (newLead) {
+        setNewLeadIds(prev => new Set([...prev, newLead.id]));
+        setTimeout(() => {
+          setNewLeadIds(prev => {
+            const next = new Set(prev);
+            next.delete(newLead.id);
+            return next;
+          });
+        }, 5000);
+      }
+    }, 0);
+  }, [addLead, leads]);
 
   const handleFollowUp = useCallback((id: string) => {
-    updateLeadStatus(id, '跟进中');
+    updateLeadStatus(id, '跟进中' as LeadStatus);
     onLeadClick(id);
   }, [updateLeadStatus, onLeadClick]);
 
@@ -375,24 +434,53 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
   }, [convertToCustomer]);
 
   const handleMarkLost = useCallback((id: string) => {
-    updateLeadStatus(id, '已流失');
+    updateLeadStatus(id, '已流失' as LeadStatus);
   }, [updateLeadStatus]);
 
   const statusOptions = [
     { value: 'all', label: '全部状态' },
-    { value: '新建', label: '新建' },
-    { value: '跟进中', label: '跟进中' },
-    { value: '已转化', label: '已转化' },
-    { value: '已流失', label: '已流失' },
+    { value: '新建' as LeadStatus, label: '新建' },
+    { value: '跟进中' as LeadStatus, label: '跟进中' },
+    { value: '已转化' as LeadStatus, label: '已转化' },
+    { value: '已流失' as LeadStatus, label: '已流失' },
   ];
 
   const sourceOptions = [
     { value: 'all', label: '全部来源' },
-    { value: '线上广告', label: '线上广告' },
-    { value: '线下展会', label: '线下展会' },
-    { value: '朋友推荐', label: '朋友推荐' },
-    { value: '主动搜索', label: '主动搜索' },
+    { value: '线上广告' as LeadSource, label: '线上广告' },
+    { value: '线下展会' as LeadSource, label: '线下展会' },
+    { value: '朋友推荐' as LeadSource, label: '朋友推荐' },
+    { value: '主动搜索' as LeadSource, label: '主动搜索' },
   ];
+
+  const useVirtualScroll = filteredLeads.length > VIRTUAL_SCROLL_THRESHOLD;
+
+  const { visibleLeads, startIndex, totalHeight } = useMemo(() => {
+    if (!useVirtualScroll) {
+      return { visibleLeads: filteredLeads, startIndex: 0, totalHeight: 0 };
+    }
+
+    const cardsPerRow = 4;
+    const rowHeight = CARD_HEIGHT + GRID_GAP;
+    const visibleRows = Math.ceil(containerHeight / rowHeight) + 2;
+    const totalRows = Math.ceil(filteredLeads.length / cardsPerRow);
+    const totalHeight = totalRows * rowHeight;
+
+    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1);
+    const endRow = Math.min(totalRows, startRow + visibleRows);
+    const startIndex = startRow * cardsPerRow;
+    const endIndex = Math.min(filteredLeads.length, endRow * cardsPerRow);
+
+    return {
+      visibleLeads: filteredLeads.slice(startIndex, endIndex),
+      startIndex,
+      totalHeight,
+    };
+  }, [filteredLeads, useVirtualScroll, scrollTop, containerHeight]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
 
   renderStartTime.current = performance.now();
   setTimeout(() => {
@@ -401,7 +489,12 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div
+      ref={scrollContainerRef}
+      className="min-h-screen bg-gray-50 p-6 overflow-y-auto"
+      onScroll={useVirtualScroll ? handleScroll : undefined}
+      style={{ height: '100vh' }}
+    >
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">线索管理</h1>
@@ -449,19 +542,48 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredLeads.map((lead, index) => (
-            <LeadCard
-              key={lead.id}
-              lead={lead}
-              onFollowUp={handleFollowUp}
-              onConvert={handleConvert}
-              onMarkLost={handleMarkLost}
-              onClick={onLeadClick}
-              index={index}
-            />
-          ))}
-        </div>
+        {useVirtualScroll ? (
+          <div style={{ height: totalHeight, position: 'relative' }}>
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                transform: `translateY(${Math.floor(startIndex / 4) * (CARD_HEIGHT + GRID_GAP)}px)`,
+              }}
+            >
+              {visibleLeads.map((lead, index) => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  onFollowUp={handleFollowUp}
+                  onConvert={handleConvert}
+                  onMarkLost={handleMarkLost}
+                  onClick={onLeadClick}
+                  index={startIndex + index}
+                  isNew={newLeadIds.has(lead.id) || lead.createdAt === today}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredLeads.map((lead, index) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                onFollowUp={handleFollowUp}
+                onConvert={handleConvert}
+                onMarkLost={handleMarkLost}
+                onClick={onLeadClick}
+                index={index}
+                isNew={newLeadIds.has(lead.id) || lead.createdAt === today}
+              />
+            ))}
+          </div>
+        )}
 
         {filteredLeads.length === 0 && (
           <div className="text-center py-16">

@@ -12,7 +12,8 @@ import {
   Cell,
 } from 'recharts';
 import { Users, TrendingUp, DollarSign, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
-import { useCRM, type LeadSource } from '@/context/CRMContext';
+import type { LeadSource } from '@/types';
+import { useCRM } from '@/context/CRMContext';
 import { cn } from '@/lib/utils';
 
 interface MetricCardProps {
