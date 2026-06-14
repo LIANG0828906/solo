@@ -1,4 +1,4 @@
-import { EffectState, CardEffect, ResolvedEffect } from '../cards/types';
+import { EffectState, CardEffect, ResolvedEffect } from '../cards/effects';
 import { resolveChain } from '../cards/effects';
 
 export interface ChainStackItem {
@@ -116,11 +116,11 @@ export const rollbackToSnapshot = (
 
 export const executeChain = (
   playerState: PlayerState
-): { playerState: PlayerState; resolvedEffects: ResolvedEffect[] } | null => {
+): { playerState: PlayerState; resolvedEffects: ResolvedEffect[]; duration: number } | null => {
   if (playerState.chainStack.length === 0) return null;
   
   const effects = playerState.chainStack.map(item => item.effect);
-  const { finalState, resolvedEffects } = resolveChain(effects, playerState.state);
+  const { finalState, resolvedEffects, duration } = resolveChain(effects, playerState.state);
   
   return {
     playerState: {
@@ -132,7 +132,8 @@ export const executeChain = (
       },
       chainStack: []
     },
-    resolvedEffects
+    resolvedEffects,
+    duration
   };
 };
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { CardEffect, ResolvedEffect, EffectState } from '../cards/types';
+import { CardEffect, ResolvedEffect } from '../cards/effects';
 import { getCardById } from '../cards/data';
 import {
   PlayerState,
@@ -11,7 +11,9 @@ import {
   takeSnapshot,
   rollbackToSnapshot,
   executeChain,
-  sortChainByPriority
+  sortChainByPriority,
+  ChainStackItem,
+  StateSnapshot
 } from '../state/tracker';
 
 const STORAGE_KEY = 'card-chain-game-state';
@@ -24,17 +26,22 @@ interface GameState {
   isRollingBack: boolean;
   lastResolvedEffects: ResolvedEffect[];
   turnTransition: boolean;
-  
-  getCurrentPlayer: () => PlayerState;
+  lastExecutionDuration: number;
+  performanceWarning: boolean;
+
+  getCurrentPlayerState: () => PlayerState;
+  getCurrentPlayerEffectState: () => PlayerState['state'];
+  getCurrentPlayerChainStack: () => ChainStackItem[];
+  getCurrentPlayerHistory: () => StateSnapshot[];
+  getSortedChain: () => ChainStackItem[];
+
   addEffectToChain: (effectId: string) => void;
   removeEffectFromChain: (itemId: string) => void;
-  executeChain: () => void;
+  executeChainAction: () => void;
   rollbackLastSnapshot: () => void;
   nextTurn: () => void;
   setPlayerCount: (count: number) => void;
-  setAnimating: (value: boolean) => void;
   clearChain: () => void;
-  getSortedChain: () => { id: string; effect: CardEffect; addedAt: number }[];
   resetGame: () => void;
   loadFromStorage: () => void;
   saveToStorage: () => void;
@@ -52,10 +59,32 @@ export const useGameStore = create<GameState>((set, get) => ({
   isRollingBack: false,
   lastResolvedEffects: [],
   turnTransition: false,
+  lastExecutionDuration: 0,
+  performanceWarning: false,
 
-  getCurrentPlayer: () => {
+  getCurrentPlayerState: () => {
     const state = get();
     return state.players[state.currentPlayerIndex];
+  },
+
+  getCurrentPlayerEffectState: () => {
+    const state = get();
+    return state.players[state.currentPlayerIndex].state;
+  },
+
+  getCurrentPlayerChainStack: () => {
+    const state = get();
+    return state.players[state.currentPlayerIndex].chainStack;
+  },
+
+  getCurrentPlayerHistory: () => {
+    const state = get();
+    return state.players[state.currentPlayerIndex].history;
+  },
+
+  getSortedChain: () => {
+    const state = get();
+    return sortChainByPriority(state.players[state.currentPlayerIndex].chainStack);
   },
 
   addEffectToChain: (effectId: string) => {
@@ -64,11 +93,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set(state => {
       const currentPlayer = state.players[state.currentPlayerIndex];
+      if (currentPlayer.chainStack.length >= 20) return state;
+      
       const itemId = uuidv4();
       const updatedPlayer = addToChainStack(currentPlayer, effect, itemId);
       
-      const newPlayers = [...state.players];
-      newPlayers[state.currentPlayerIndex] = updatedPlayer;
+      const newPlayers = state.players.map((p, i) => 
+        i === state.currentPlayerIndex ? updatedPlayer : p
+      );
       
       return { players: newPlayers };
     });
@@ -81,8 +113,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[state.currentPlayerIndex];
       const updatedPlayer = removeFromChainStack(currentPlayer, itemId);
       
-      const newPlayers = [...state.players];
-      newPlayers[state.currentPlayerIndex] = updatedPlayer;
+      const newPlayers = state.players.map((p, i) => 
+        i === state.currentPlayerIndex ? updatedPlayer : p
+      );
       
       return { players: newPlayers };
     });
@@ -90,13 +123,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().saveToStorage();
   },
 
-  executeChain: () => {
+  executeChainAction: () => {
     const state = get();
     const currentPlayer = state.players[state.currentPlayerIndex];
     
     if (currentPlayer.chainStack.length === 0) return;
     
-    const { snapshot, playerState: playerWithSnapshot } = takeSnapshot(
+    const { playerState: playerWithSnapshot } = takeSnapshot(
       currentPlayer,
       `连锁执行前 (${currentPlayer.chainStack.length}个效果)`
     );
@@ -104,17 +137,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     const result = executeChain(playerWithSnapshot);
     if (!result) return;
     
+    const totalDuration = result.duration;
+    const hasWarning = totalDuration > 200;
+    
+    if (hasWarning) {
+      console.warn(`性能警告: 连锁解析耗时 ${totalDuration.toFixed(2)}ms，超过200ms阈值`);
+    } else {
+      console.log(`性能监控: 连锁解析耗时 ${totalDuration.toFixed(2)}ms`);
+    }
+    
     set({ isAnimating: true });
     
     setTimeout(() => {
       set(state => {
-        const newPlayers = [...state.players];
-        newPlayers[state.currentPlayerIndex] = result.playerState;
+        const newPlayers = state.players.map((p, i) => 
+          i === state.currentPlayerIndex ? result.playerState : p
+        );
         
         return {
           players: newPlayers,
           isAnimating: false,
-          lastResolvedEffects: result.resolvedEffects
+          lastResolvedEffects: result.resolvedEffects,
+          lastExecutionDuration: totalDuration,
+          performanceWarning: hasWarning
         };
       });
       
@@ -137,12 +182,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     setTimeout(() => {
       set(state => {
-        const newPlayers = [...state.players];
-        newPlayers[state.currentPlayerIndex] = rolledBack;
+        const newPlayers = state.players.map((p, i) => 
+          i === state.currentPlayerIndex ? rolledBack : p
+        );
         
         return {
           players: newPlayers,
-          isRollingBack: false
+          isRollingBack: false,
+          lastResolvedEffects: []
         };
       });
       
@@ -155,8 +202,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[state.currentPlayerIndex];
       const clearedPlayer = clearChainStack(currentPlayer);
       
-      const newPlayers = [...state.players];
-      newPlayers[state.currentPlayerIndex] = clearedPlayer;
+      const newPlayers = state.players.map((p, i) => 
+        i === state.currentPlayerIndex ? clearedPlayer : p
+      );
       
       return {
         players: newPlayers,
@@ -167,7 +215,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     setTimeout(() => {
       set(state => ({
         currentPlayerIndex: (state.currentPlayerIndex + 1) % state.playerCount,
-        turnTransition: false
+        turnTransition: false,
+        lastResolvedEffects: []
       }));
       
       get().saveToStorage();
@@ -180,14 +229,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       playerCount: count,
       currentPlayerIndex: 0,
-      players: createInitialPlayers(count)
+      players: createInitialPlayers(count),
+      lastResolvedEffects: []
     });
     
     get().saveToStorage();
-  },
-
-  setAnimating: (value: boolean) => {
-    set({ isAnimating: value });
   },
 
   clearChain: () => {
@@ -195,8 +241,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[state.currentPlayerIndex];
       const updatedPlayer = clearChainStack(currentPlayer);
       
-      const newPlayers = [...state.players];
-      newPlayers[state.currentPlayerIndex] = updatedPlayer;
+      const newPlayers = state.players.map((p, i) => 
+        i === state.currentPlayerIndex ? updatedPlayer : p
+      );
       
       return { players: newPlayers };
     });
@@ -204,16 +251,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().saveToStorage();
   },
 
-  getSortedChain: () => {
-    const currentPlayer = get().getCurrentPlayer();
-    return sortChainByPriority(currentPlayer.chainStack);
-  },
-
   resetGame: () => {
     set(state => ({
       currentPlayerIndex: 0,
       players: createInitialPlayers(state.playerCount),
-      lastResolvedEffects: []
+      lastResolvedEffects: [],
+      lastExecutionDuration: 0,
+      performanceWarning: false
     }));
     
     get().saveToStorage();

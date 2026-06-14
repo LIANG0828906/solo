@@ -1,4 +1,4 @@
-import { CardEffect } from './types';
+import { CardEffect } from './effects';
 
 export const cardTemplates: CardEffect[] = [
   {

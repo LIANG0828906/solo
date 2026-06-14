@@ -1,4 +1,37 @@
-import { CardEffect, EffectState, StateChange, ResolvedEffect } from './types';
+export type EffectType = 'draw' | 'buff' | 'copy' | 'transform' | 'clear';
+
+export interface CardEffect {
+  id: string;
+  name: string;
+  type: EffectType;
+  priority: number;
+  params: Record<string, number | string>;
+  description: string;
+}
+
+export interface EffectState {
+  hp: number;
+  attack: number;
+  defense: number;
+  handCount: number;
+  deckCount: number;
+  fieldCards: string[];
+  statusCounters: Record<string, number>;
+}
+
+export interface StateChange {
+  key: keyof EffectState | string;
+  before: number | string[] | Record<string, number>;
+  after: number | string[] | Record<string, number>;
+  delta?: number;
+}
+
+export interface ResolvedEffect {
+  effectId: string;
+  effectName: string;
+  changes: StateChange[];
+  timestamp: number;
+}
 
 const resolveDrawEffect = (
   effect: CardEffect,
@@ -178,10 +211,15 @@ export const applyChanges = (state: EffectState, changes: StateChange[]): Effect
 export const resolveChain = (
   effects: CardEffect[],
   initialState: EffectState
-): { finalState: EffectState; resolvedEffects: ResolvedEffect[] } => {
+): { finalState: EffectState; resolvedEffects: ResolvedEffect[]; duration: number } => {
+  const startTime = performance.now();
   const sortedEffects = [...effects].sort((a, b) => b.priority - a.priority);
   
-  let currentState = { ...initialState, statusCounters: { ...initialState.statusCounters }, fieldCards: [...initialState.fieldCards] };
+  let currentState = { 
+    ...initialState, 
+    statusCounters: { ...initialState.statusCounters }, 
+    fieldCards: [...initialState.fieldCards] 
+  };
   const resolvedEffects: ResolvedEffect[] = [];
   
   for (const effect of sortedEffects) {
@@ -197,5 +235,7 @@ export const resolveChain = (
     }
   }
   
-  return { finalState: currentState, resolvedEffects };
+  const duration = performance.now() - startTime;
+  
+  return { finalState: currentState, resolvedEffects, duration };
 };
