@@ -22,7 +22,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   maxSlots: MAX_SLOTS,
 
   addEquipmentToPack: (equipment: Equipment) => {
-    const { packSlots, totalWeight, maxWeight, maxSlots } = get();
+    const { packSlots, totalWeight, maxWeight } = get();
 
     const emptySlotIndex = packSlots.findIndex((slot) => slot === null);
     if (emptySlotIndex === -1) {

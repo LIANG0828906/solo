@@ -110,7 +110,7 @@ body {
   padding: 12px;
   cursor: grab;
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out,
-    border-color 0.2s ease-out;
+    border-color 0.2s ease-out, opacity 0.2s ease-out;
   user-select: none;
   position: relative;
 }
@@ -126,8 +126,9 @@ body {
 }
 
 .equipment-card.dragging {
-  opacity: 0.5;
-  transform: scale(0.95);
+  opacity: 0.4;
+  transform: scale(0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .equipment-icon {
@@ -136,30 +137,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 36px;
   border-radius: 12px;
   margin-bottom: 10px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.equipment-icon.type-tool {
-  color: #60a5fa;
-  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
-}
-
-.equipment-icon.type-medical {
-  color: #f87171;
-  box-shadow: 0 0 20px rgba(248, 113, 113, 0.3);
-}
-
-.equipment-icon.type-food {
-  color: #f59e0b;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-}
-
-.equipment-icon.type-communication {
-  color: #a78bfa;
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+  transition: all 0.2s ease-out;
 }
 
 .equipment-name {
@@ -205,27 +186,33 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out,
+    background-color 0.2s ease-out;
   position: relative;
 }
 
 .pack-area.drag-over {
   border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.05);
+  border-style: solid;
+  background: rgba(34, 197, 94, 0.06);
   box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
 }
 
 .pack-area.overweight {
-  animation: flashRed 0.2s ease-in-out 3;
+  animation: overweightFlash 0.2s ease-in-out 3;
+  animation-fill-mode: both;
 }
 
-@keyframes flashRed {
+@keyframes overweightFlash {
   0%, 100% {
     border-color: #475569;
+    border-style: dashed;
+    box-shadow: none;
   }
   50% {
     border-color: #dc2626;
-    box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+    border-style: solid;
+    box-shadow: 0 0 24px rgba(220, 38, 38, 0.55), 0 0 8px rgba(220, 38, 38, 0.8) inset;
   }
 }
 
@@ -247,10 +234,17 @@ body {
 .pack-weight .weight-value {
   color: #22c55e;
   font-weight: 600;
+  transition: color 0.2s ease-out;
 }
 
 .pack-weight .weight-value.overweight {
   color: #dc2626;
+  animation: pulse 0.3s ease-in-out 2;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .pack-slots {
@@ -270,7 +264,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s ease-out, background 0.2s ease-out;
+  transition: border-color 0.2s ease-out, background 0.2s ease-out,
+    transform 0.2s ease-out;
   position: relative;
   cursor: pointer;
 }
@@ -282,8 +277,9 @@ body {
 
 .pack-slot.drag-over {
   border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.15);
-  transform: scale(1.05);
+  border-style: dashed;
+  background: rgba(34, 197, 94, 0.18);
+  transform: scale(1.08);
 }
 
 .pack-slot.empty::after {
@@ -296,10 +292,12 @@ body {
 
 .pack-slot-icon {
   font-size: 24px;
+  line-height: 1;
 }
 
 .pack-slot:hover .pack-slot-remove {
   opacity: 1;
+  transform: scale(1);
 }
 
 .pack-slot-remove {
@@ -312,11 +310,13 @@ body {
   border-radius: 50%;
   color: white;
   font-size: 12px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s ease-out;
+  transform: scale(0.7);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
   cursor: pointer;
 }
 
@@ -338,12 +338,13 @@ body {
   gap: 8px;
 }
 
-.depart-btn:hover {
+.depart-btn:hover:not(:disabled) {
   background: #16a34a;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+  transform: translateY(-1px);
 }
 
-.depart-btn:active {
+.depart-btn:active:not(:disabled) {
   transform: scale(0.95);
   background: #16a34a;
 }
@@ -380,9 +381,9 @@ body {
 .mission-panel {
   width: 320px;
   height: 100%;
-  background: rgba(30, 41, 59, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(30, 41, 59, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-left: 1px solid #334155;
   display: flex;
   flex-direction: column;
@@ -420,12 +421,22 @@ body {
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
+  transition: background-color 0.2s ease-out, border-color 0.2s ease-out,
+    transform 0.1s ease-out;
 }
 
-.add-mission-btn:hover {
+.add-mission-btn:hover:not(:disabled) {
   background: #475569;
   border-color: #22c55e;
+}
+
+.add-mission-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.add-mission-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .mission-list {
@@ -456,28 +467,34 @@ body {
   border-radius: 10px;
   border: 1px solid #334155;
   padding: 14px;
-  animation: slideInFromBottom 0.4s ease-out;
-  transition: border-color 0.2s ease-out, transform 0.2s ease-out;
+  transition: border-color 0.2s ease-out, transform 0.2s ease-out,
+    background-color 0.2s ease-out;
 }
 
-.mission-card:hover {
-  border-color: #60a5fa;
+.mission-card.animate-in {
+  animation: missionSlideIn 0.4s ease-out both;
 }
 
-.mission-card.active {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.05);
-}
-
-@keyframes slideInFromBottom {
+@keyframes missionSlideIn {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(32px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.mission-card:hover {
+  border-color: #60a5fa;
+  transform: translateX(-2px);
+}
+
+.mission-card.active {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
 }
 
 .mission-name {
@@ -502,6 +519,7 @@ body {
 
 .star.filled {
   color: #facc15;
+  text-shadow: 0 0 4px rgba(250, 204, 21, 0.4);
 }
 
 .mission-difficulty-label {
@@ -565,16 +583,17 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  animation: fadeIn 0.2s ease-out;
+  animation: overlayFadeIn 0.2s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes overlayFadeIn {
   from {
     opacity: 0;
   }
@@ -589,17 +608,26 @@ body {
   border-radius: 16px;
   border: 1px solid #475569;
   padding: 28px;
-  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  transform-origin: center center;
+  animation: modalPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
-@keyframes popIn {
-  from {
+@keyframes modalPopIn {
+  0% {
     opacity: 0;
-    transform: scale(0.7);
+    transform: scale(0.6);
   }
-  to {
+  60% {
     opacity: 1;
+    transform: scale(1.04);
+  }
+  80% {
+    transform: scale(0.98);
+  }
+  100% {
     transform: scale(1);
   }
 }
@@ -612,6 +640,16 @@ body {
 .modal-icon {
   font-size: 48px;
   margin-bottom: 12px;
+  animation: iconBounce 0.5s ease-out 0.15s both;
+}
+
+@keyframes iconBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
 }
 
 .modal-title {
@@ -637,10 +675,11 @@ body {
 }
 
 .modal-stats {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 8px;
   padding: 14px;
   margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .stat-row {
@@ -691,9 +730,10 @@ body {
 .modal-list li {
   font-size: 13px;
   color: #94a3b8;
-  padding: 4px 0;
+  padding: 5px 0;
   padding-left: 16px;
   position: relative;
+  transition: color 0.2s ease-out;
 }
 
 .modal-list li::before {
@@ -725,11 +765,13 @@ body {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+  transition: background-color 0.2s ease-out, transform 0.1s ease-out,
+    box-shadow 0.2s ease-out;
 }
 
 .modal-close-btn:hover {
   background: #16a34a;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
 }
 
 .modal-close-btn:active {

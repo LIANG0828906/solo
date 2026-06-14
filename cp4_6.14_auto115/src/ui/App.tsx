@@ -9,6 +9,13 @@ const typeLabels: Record<EquipmentType, string> = {
   communication: '通讯',
 };
 
+const typeColors: Record<EquipmentType, string> = {
+  tool: '#60a5fa',
+  medical: '#f87171',
+  food: '#f59e0b',
+  communication: '#a78bfa',
+};
+
 const terrainIcons: Record<string, string> = {
   丛林: '🌴',
   雪山: '🏔️',
@@ -25,15 +32,28 @@ const terrainIcons: Record<string, string> = {
 const EquipmentCard: React.FC<{
   equipment: Equipment;
   onDragStart: (e: React.DragEvent, equipment: Equipment) => void;
-}> = ({ equipment, onDragStart }) => {
+  onDragEnd: (e: React.DragEvent) => void;
+  isDragging: boolean;
+}> = ({ equipment, onDragStart, onDragEnd, isDragging }) => {
+  const bgColor = typeColors[equipment.type];
   return (
     <div
-      className="equipment-card"
+      className={`equipment-card ${isDragging ? 'dragging' : ''}`}
       draggable
       onDragStart={(e) => onDragStart(e, equipment)}
+      onDragEnd={onDragEnd}
     >
-      <div className={`equipment-icon type-${equipment.type}`}>
-        {equipment.icon}
+      <div
+        className="equipment-icon"
+        style={{
+          backgroundColor: `${bgColor}22`,
+          border: `2px solid ${bgColor}44`,
+          boxShadow: `0 0 20px ${bgColor}33`,
+        }}
+      >
+        <span style={{ filter: `drop-shadow(0 0 6px ${bgColor})` }}>
+          {equipment.icon}
+        </span>
       </div>
       <div className="equipment-name">{equipment.name}</div>
       <div className="equipment-stats">
@@ -48,23 +68,33 @@ const PackSlot: React.FC<{
   equipment: Equipment | null;
   index: number;
   onRemove: (index: number) => void;
-  onDragOver: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, index: number) => void;
   isDragOver: boolean;
-}> = ({ equipment, index, onRemove, onDragOver, onDrop, isDragOver }) => {
+}> = ({ equipment, index, onRemove, onDragOver, onDragLeave, onDrop, isDragOver }) => {
+  const bgColor = equipment ? typeColors[equipment.type] : null;
   return (
     <div
       className={`pack-slot ${equipment ? 'filled' : 'empty'} ${
         isDragOver ? 'drag-over' : ''
       }`}
-      onDragOver={onDragOver}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, index)}
       onClick={() => equipment && onRemove(index)}
       title={equipment ? '点击移除' : ''}
     >
       {equipment && (
         <>
-          <span className="pack-slot-icon">{equipment.icon}</span>
+          <span
+            className="pack-slot-icon"
+            style={{
+              filter: bgColor ? `drop-shadow(0 0 4px ${bgColor})` : undefined,
+            }}
+          >
+            {equipment.icon}
+          </span>
           <span className="pack-slot-remove">×</span>
         </>
       )}
@@ -75,7 +105,8 @@ const PackSlot: React.FC<{
 const MissionCard: React.FC<{
   mission: ReturnType<typeof useGameStore.getState>['missions'][number];
   isActive: boolean;
-}> = ({ mission, isActive }) => {
+  animateIn: boolean;
+}> = ({ mission, isActive, animateIn }) => {
   const stars = [];
   for (let i = 0; i < 3; i++) {
     stars.push(
@@ -89,7 +120,11 @@ const MissionCard: React.FC<{
   }
 
   return (
-    <div className={`mission-card ${isActive ? 'active' : ''}`}>
+    <div
+      className={`mission-card ${isActive ? 'active' : ''} ${
+        animateIn ? 'animate-in' : ''
+      }`}
+    >
       <div className="mission-name">{mission.name}</div>
       <div className="mission-difficulty">
         {stars}
@@ -197,13 +232,17 @@ const App: React.FC = () => {
     generateNewMission,
     startExpedition,
     clearResult,
+    setOverweight,
   } = useGameStore();
 
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [packDragOver, setPackDragOver] = useState(false);
-  const [draggingEquipment, setDraggingEquipment] = useState<Equipment | null>(null);
+  const [draggingEquipmentId, setDraggingEquipmentId] = useState<string | null>(null);
+  const [prevMissionsLength, setPrevMissionsLength] = useState(missions.length);
+  const [animatingMissionIds, setAnimatingMissionIds] = useState<Set<string>>(new Set());
 
   const missionListRef = useRef<HTMLDivElement>(null);
+  const overweightTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (missionListRef.current) {
@@ -211,58 +250,125 @@ const App: React.FC = () => {
     }
   }, [missions.length]);
 
+  useEffect(() => {
+    if (missions.length > prevMissionsLength) {
+      const newMission = missions[missions.length - 1];
+      setAnimatingMissionIds((prev) => new Set(prev).add(newMission.id));
+      const timer = window.setTimeout(() => {
+        setAnimatingMissionIds((prev) => {
+          const next = new Set(prev);
+          next.delete(newMission.id);
+          return next;
+        });
+      }, 500);
+      return () => window.clearTimeout(timer);
+    }
+    setPrevMissionsLength(missions.length);
+  }, [missions, prevMissionsLength]);
+
+  useEffect(() => {
+    if (totalWeight > maxWeight) {
+      triggerOverweightFlash();
+    }
+  }, [totalWeight, maxWeight]);
+
+  const triggerOverweightFlash = useCallback(() => {
+    if (overweightTimerRef.current) {
+      window.clearTimeout(overweightTimerRef.current);
+      setOverweight(false);
+      setTimeout(() => setOverweight(true), 50);
+    } else {
+      setOverweight(true);
+    }
+    overweightTimerRef.current = window.setTimeout(() => {
+      setOverweight(false);
+      overweightTimerRef.current = null;
+    }, 700);
+  }, [setOverweight]);
+
   const handleDragStart = useCallback(
     (e: React.DragEvent, equipment: Equipment) => {
-      setDraggingEquipment(equipment);
+      setDraggingEquipmentId(equipment.id);
       e.dataTransfer.setData('text/plain', equipment.id);
       e.dataTransfer.effectAllowed = 'move';
+      try {
+        const cardEl = e.currentTarget as HTMLElement;
+        e.dataTransfer.setDragImage(cardEl, cardEl.offsetWidth / 2, cardEl.offsetHeight / 2);
+      } catch {
+        // ignore
+      }
     },
     []
   );
 
   const handleDragEnd = useCallback(() => {
-    setDraggingEquipment(null);
+    setDraggingEquipmentId(null);
     setDragOverSlot(null);
     setPackDragOver(false);
   }, []);
 
-  const handleSlotDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  const handleSlotDragOver = useCallback(
+    (e: React.DragEvent, index: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragOverSlot !== index) {
+        setDragOverSlot(index);
+      }
+    },
+    [dragOverSlot]
+  );
+
+  const handleSlotDragLeave = useCallback((_e: React.DragEvent) => {
+    // handled by pack area
   }, []);
 
   const handleSlotDrop = useCallback(
     (e: React.DragEvent, _index: number) => {
       e.preventDefault();
-      if (draggingEquipment) {
-        addEquipmentToPack(draggingEquipment);
+      e.stopPropagation();
+      const equipId = e.dataTransfer.getData('text/plain');
+      const equipment = equipmentList.find((eq) => eq.id === equipId);
+      if (equipment) {
+        addEquipmentToPack(equipment);
       }
       setDragOverSlot(null);
       setPackDragOver(false);
+      setDraggingEquipmentId(null);
     },
-    [draggingEquipment, addEquipmentToPack]
+    [equipmentList, addEquipmentToPack]
   );
 
   const handlePackDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setPackDragOver(true);
-  }, []);
+    e.dataTransfer.dropEffect = 'move';
+    if (!packDragOver) {
+      setPackDragOver(true);
+    }
+  }, [packDragOver]);
 
-  const handlePackDragLeave = useCallback(() => {
-    setPackDragOver(false);
-    setDragOverSlot(null);
+  const handlePackDragLeave = useCallback((e: React.DragEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setPackDragOver(false);
+      setDragOverSlot(null);
+    }
   }, []);
 
   const handlePackDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      if (draggingEquipment) {
-        addEquipmentToPack(draggingEquipment);
+      const equipId = e.dataTransfer.getData('text/plain');
+      const equipment = equipmentList.find((eq) => eq.id === equipId);
+      if (equipment) {
+        addEquipmentToPack(equipment);
       }
       setPackDragOver(false);
       setDragOverSlot(null);
+      setDraggingEquipmentId(null);
     },
-    [draggingEquipment, addEquipmentToPack]
+    [equipmentList, addEquipmentToPack]
   );
 
   const handleRemoveFromPack = useCallback(
@@ -299,6 +405,8 @@ const App: React.FC = () => {
               key={equipment.id}
               equipment={equipment}
               onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              isDragging={draggingEquipmentId === equipment.id}
             />
           ))}
         </div>
@@ -334,6 +442,7 @@ const App: React.FC = () => {
                 index={index}
                 onRemove={handleRemoveFromPack}
                 onDragOver={handleSlotDragOver}
+                onDragLeave={handleSlotDragLeave}
                 onDrop={handleSlotDrop}
                 isDragOver={dragOverSlot === index}
               />
@@ -380,6 +489,7 @@ const App: React.FC = () => {
               key={mission.id}
               mission={mission}
               isActive={index === missions.length - 1}
+              animateIn={animatingMissionIds.has(mission.id)}
             />
           ))}
         </div>

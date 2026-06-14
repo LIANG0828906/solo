@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Equipment, Mission, ExpeditionResult, EquipmentType, Difficulty } from './types';
+import type { Equipment, Mission, ExpeditionResult, EquipmentType } from './types';
 
 export const EQUIPMENT_DICTIONARY: Equipment[] = [
   { id: 'rope-1', name: '登山绳索', type: 'tool', weight: 3.5, durability: 100, icon: '🧵', description: '高强度尼龙绳索，用于攀爬和下降' },
@@ -145,7 +145,7 @@ export function simulateExpedition(
   pack: Equipment[],
   mission: Mission
 ): ExpeditionResult {
-  const { rate, breakdown } = calculateSurvivalRate(pack, mission);
+  const { rate } = calculateSurvivalRate(pack, mission);
 
   const events: string[] = [];
   const rewards: string[] = [];
