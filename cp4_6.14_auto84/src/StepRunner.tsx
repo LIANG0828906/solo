@@ -31,17 +31,35 @@ export type StepType =
   | 'declaration'
   | 'assignment'
   | 'condition'
+  | 'condition-enter'
+  | 'condition-skip'
   | 'loop'
+  | 'loop-condition'
+  | 'loop-enter'
+  | 'loop-exit'
   | 'function-call'
+  | 'function-declare'
   | 'return'
+  | 'block-enter'
+  | 'block-exit'
+  | 'expr'
   | 'other'
 
 export interface ExecStep {
+  id: string
   lineNumber: number
   lineContent: string
   type: StepType
   rawCode: string
-  meta?: Record<string, unknown>
+  sourceText: string
+  meta?: {
+    condition?: string
+    loopVar?: string
+    branchId?: string
+    frameId?: string
+    funcName?: string
+    funcArgs?: string
+  }
 }
 
 export interface RunnerState {
@@ -56,6 +74,7 @@ export interface RunnerState {
   isFinished: boolean
   isParsed: boolean
   error: string | null
+  currentLineHighlight: number | null
 }
 
 type Action =
@@ -104,51 +123,14 @@ export function highlightKeywords(code: string): string {
   return result
 }
 
-function classifyLine(line: string): StepType {
-  const t = line.trim()
-  if (!t) return 'other'
-  if (/^(let|const|var)\s/.test(t)) return 'declaration'
-  if (/^function\s/.test(t) || /^const\s+\w+\s*=\s*(async\s*)?\(/.test(t) || /^let\s+\w+\s*=\s*(async\s*)?function/.test(t)) return 'declaration'
-  if (/^if\s*\(|^else\s*if\s*\(|^else\b/.test(t)) return 'condition'
-  if (/^for\s*\(|^while\s*\(|^do\b/.test(t)) return 'loop'
-  if (/^return\b/.test(t)) return 'return'
-  if (/^\w[\w$]*\s*\(/.test(t) || /^\w[\w$]*\.[\w$]+\s*\(/.test(t)) return 'function-call'
-  if (/^\w[\w$]*(\.\w+)*\s*[+\-*/%&|^]?=/.test(t) && !/^const\s|^let\s|^var\s/.test(t)) return 'assignment'
-  return 'other'
-}
-
-function parseCode(code: string): ExecStep[] {
-  const rawLines = code.split('\n')
-  const steps: ExecStep[] = []
-  const braceStack: number[] = []
-
-  for (let i = 0; i < rawLines.length; i++) {
-    const raw = rawLines[i]
-    const trimmed = raw.trim()
-    if (!trimmed || /^\/\//.test(trimmed)) continue
-
-    const openBraces = (raw.match(/\{/g) || []).length
-    const closeBraces = (raw.match(/\}/g) || []).length
-    for (let o = 0; o < openBraces; o++) braceStack.push(i)
-    for (let c = 0; c < closeBraces; c++) braceStack.pop()
-
-    const type = classifyLine(trimmed)
-    steps.push({
-      lineNumber: i + 1,
-      lineContent: trimmed,
-      type,
-      rawCode: raw,
-    })
-  }
-
-  return steps
-}
-
 function deepValueToString(v: VarValue): string {
   if (v === null) return 'null'
   if (v === undefined) return 'undefined'
-  if (typeof v === 'string') return `"${v}"`
+  if (typeof v === 'string') {
+    try { return JSON.stringify(v) } catch { return `"${v}"` }
+  }
   if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  if (typeof v === 'function') return '[Function]'
   if (Array.isArray(v)) {
     try { return JSON.stringify(v) } catch { return '[Array]' }
   }
@@ -158,49 +140,11 @@ function deepValueToString(v: VarValue): string {
   return String(v)
 }
 
-function buildScopeExpression(scope: Map<string, VarValue>): string {
-  const parts: string[] = []
-  scope.forEach((v, k) => {
-    if (/^[a-zA-Z_$][\w$]*$/.test(k)) {
-      const serialized = deepValueToString(v)
-      parts.push(`let ${k} = ${serialized};`)
-    }
-  })
-  return parts.join('\n')
-}
-
-function extractAssignmentTarget(line: string): string | null {
-  const m = line.match(/^(?:let|const|var)\s+([a-zA-Z_$][\w$]*)/)
-  if (m) return m[1]
-  const m2 = line.match(/^([a-zA-Z_$][\w$]*(?:\.[\w$]+)*)\s*[+\-*/%&|^]?=/)
-  if (m2) return m2[1].split('.')[0]
-  return null
-}
-
-function extractFunctionName(line: string): string {
-  const m1 = line.match(/^function\s+([a-zA-Z_$][\w$]*)/)
-  if (m1) return m1[1]
-  const m2 = line.match(/^const\s+([a-zA-Z_$][\w$]*)\s*=/)
-  if (m2) return m2[1]
-  const m3 = line.match(/^let\s+([a-zA-Z_$][\w$]*)\s*=/)
-  if (m3) return m3[1]
-  return 'anonymous'
-}
-
-function extractCallInfo(line: string): { name: string; args: string } {
-  const m = line.match(/([a-zA-Z_$][\w$]*(?:\.[\w$]+)*)\s*\((.*)\)\s*;?\s*$/)
-  if (m) {
-    const argsPart = m[2].trim()
-    const argsSummary = argsPart.length > 20 ? argsPart.slice(0, 17) + '...' : argsPart
-    return { name: m[1], args: argsSummary }
-  }
-  return { name: 'call', args: '' }
-}
-
 function collectVariables(scope: Map<string, VarValue>, prev: Map<string, string>): VariableEntry[] {
   const entries: VariableEntry[] = []
   const now = Date.now()
   scope.forEach((value, name) => {
+    if (name.startsWith('__')) return
     const strValue = deepValueToString(value)
     const prevStr = prev.get(name)
     const isChanged = prevStr === undefined || prevStr !== strValue
@@ -209,10 +153,10 @@ function collectVariables(scope: Map<string, VarValue>, prev: Map<string, string
     if (type === 'object' || type === 'array') {
       try {
         const obj = value as Record<string, VarValue> | VarValue[]
-        const entriesInner: VariableEntry[] = []
+        const inner: VariableEntry[] = []
         if (Array.isArray(obj)) {
           obj.forEach((item, idx) => {
-            entriesInner.push({
+            inner.push({
               name: String(idx),
               type: Array.isArray(item) ? 'array' : item === null ? 'null' : typeof item,
               value: item,
@@ -223,7 +167,7 @@ function collectVariables(scope: Map<string, VarValue>, prev: Map<string, string
         } else if (obj && typeof obj === 'object') {
           Object.keys(obj).forEach(k => {
             const item = (obj as Record<string, VarValue>)[k]
-            entriesInner.push({
+            inner.push({
               name: k,
               type: Array.isArray(item) ? 'array' : item === null ? 'null' : typeof item,
               value: item,
@@ -232,7 +176,7 @@ function collectVariables(scope: Map<string, VarValue>, prev: Map<string, string
             })
           })
         }
-        if (entriesInner.length > 0) children = entriesInner
+        if (inner.length > 0) children = inner
       } catch { /* noop */ }
     }
     entries.push({
@@ -245,6 +189,554 @@ function collectVariables(scope: Map<string, VarValue>, prev: Map<string, string
     })
   })
   return entries.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// ================= 真正的语句级解析器 =================
+
+export interface Token {
+  type: 'keyword' | 'identifier' | 'punct' | 'string' | 'number' | 'op' | 'eof'
+  value: string
+  line: number
+}
+
+function tokenize(source: string): Token[] {
+  const tokens: Token[] = []
+  const lines = source.split('\n')
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx]
+    let i = 0
+    while (i < line.length) {
+      const c = line[i]
+      if (c === ' ' || c === '\t' || c === '\r') { i++; continue }
+      if (c === '/' && line[i + 1] === '/') break
+      if (c === '"' || c === "'" || c === '`') {
+        const quote = c
+        let j = i + 1
+        let val = quote
+        while (j < line.length && line[j] !== quote) {
+          if (line[j] === '\\') { val += line[j]; j++ }
+          if (j < line.length) { val += line[j]; j++ }
+        }
+        if (j < line.length) val += line[j]
+        tokens.push({ type: 'string', value: val, line: lineIdx + 1 })
+        i = j + 1
+        continue
+      }
+      if (/[0-9]/.test(c)) {
+        let j = i
+        while (j < line.length && /[0-9.]/.test(line[j])) j++
+        tokens.push({ type: 'number', value: line.slice(i, j), line: lineIdx + 1 })
+        i = j
+        continue
+      }
+      if (/[a-zA-Z_$]/.test(c)) {
+        let j = i
+        while (j < line.length && /[a-zA-Z0-9_$]/.test(line[j])) j++
+        const word = line.slice(i, j)
+        const keywords = ['function','let','const','var','if','else','for','while','do','return','break','continue','switch','case','default','throw','try','catch','finally','new','typeof','instanceof','in','of','true','false','null','undefined','this','void','async','await','class','extends','super']
+        tokens.push({ type: keywords.includes(word) ? 'keyword' : 'identifier', value: word, line: lineIdx + 1 })
+        i = j
+        continue
+      }
+      if ('{}()[];,.:'.includes(c)) {
+        tokens.push({ type: 'punct', value: c, line: lineIdx + 1 })
+        i++
+        continue
+      }
+      if ('+-*/%=<>!&|^~?'.includes(c)) {
+        let j = i
+        while (j < line.length && '+-*/%=<>!&|^~?'.includes(line[j])) j++
+        tokens.push({ type: 'op', value: line.slice(i, j), line: lineIdx + 1 })
+        i = j
+        continue
+      }
+      i++
+    }
+  }
+  tokens.push({ type: 'eof', value: '', line: lines.length })
+  return tokens
+}
+
+class Parser {
+  tokens: Token[]
+  pos = 0
+  stepCounter = 0
+  steps: ExecStep[] = []
+
+  constructor(tokens: Token[]) { this.tokens = tokens }
+
+  peek(offset = 0): Token { return this.tokens[this.pos + offset] || { type: 'eof', value: '', line: 0 } }
+  consume(): Token { return this.tokens[this.pos++] }
+  expect(value: string): Token {
+    const t = this.consume()
+    if (t.value !== value) throw new Error(`期望 ${value}，实际 ${t.value} 在第 ${t.line} 行`)
+    return t
+  }
+  check(value: string, offset = 0): boolean { return this.peek(offset).value === value }
+  checkType(type: Token['type'], offset = 0): boolean { return this.peek(offset).type === type }
+
+  addStep(partial: Omit<ExecStep, 'id' | 'lineNumber' | 'lineContent' | 'rawCode' | 'sourceText' | 'type'> & { type: StepType; lineNumber: number; rawCode?: string; sourceText: string }): ExecStep {
+    this.stepCounter++
+    const step: ExecStep = {
+      id: `s-${this.stepCounter}-${Math.random().toString(36).slice(2, 6)}`,
+      lineNumber: partial.lineNumber,
+      lineContent: partial.sourceText.trim().slice(0, 100),
+      type: partial.type,
+      rawCode: partial.rawCode ?? partial.sourceText,
+      sourceText: partial.sourceText,
+      meta: partial.meta,
+    }
+    this.steps.push(step)
+    return step
+  }
+
+  parseProgram(): ExecStep[] {
+    while (!this.checkType('eof')) {
+      this.parseStatement()
+    }
+    return this.steps
+  }
+
+  parseStatement() {
+    const t = this.peek()
+    if (t.type === 'eof') return
+
+    if (t.value === 'function') { this.parseFunctionDeclaration(); return }
+    if (t.value === 'if') { this.parseIfStatement(); return }
+    if (t.value === 'while') { this.parseWhileStatement(); return }
+    if (t.value === 'do') { this.parseDoWhileStatement(); return }
+    if (t.value === 'for') { this.parseForStatement(); return }
+    if (t.value === 'return') { this.parseReturnStatement(); return }
+    if (t.value === 'break' || t.value === 'continue') { this.consume(); this.skipSemicolon(); return }
+    if (t.value === '{') { this.parseBlock(); return }
+    if (t.value === 'let' || t.value === 'const' || t.value === 'var') { this.parseDeclaration(); return }
+    this.parseExpressionStatement()
+  }
+
+  skipSemicolon() {
+    if (this.check(';')) this.consume()
+  }
+
+  collectUntilSemicolonOrBlock(): { tokens: Token[]; raw: string } {
+    const start = this.pos
+    const collected: Token[] = []
+    let braceDepth = 0
+    let parenDepth = 0
+    while (this.pos < this.tokens.length) {
+      const cur = this.peek()
+      if (cur.type === 'eof') break
+      if (cur.value === '(') parenDepth++
+      if (cur.value === ')') parenDepth--
+      if (cur.value === '{') braceDepth++
+      if (cur.value === '}') braceDepth--
+      if (cur.value === ';' && braceDepth === 0 && parenDepth === 0) break
+      if ((cur.value === '{' || cur.value === '}') && braceDepth < 0) break
+      collected.push(this.consume())
+    }
+    const raw = collected.map(x => x.value).join(' ')
+    this.pos = start
+    return { tokens: collected, raw }
+  }
+
+  readText(line: number, endLine?: number): string {
+    // fallback: not strictly line-accurate, use token values
+    return ''
+  }
+
+  parseDeclaration() {
+    const startToken = this.consume() // let/const/var
+    const startLine = startToken.line
+    const nameToken = this.consume()
+    let name = nameToken.value
+    let initRaw = ''
+    if (this.check('=')) {
+      this.consume()
+      const { raw } = this.collectUntilSemicolonOrBlock()
+      initRaw = raw
+    }
+    this.skipSemicolon()
+    const kw = startToken.value
+    const source = `${kw} ${name}${initRaw ? ` = ${initRaw}` : ''};`
+    this.addStep({
+      type: 'declaration',
+      lineNumber: startLine,
+      sourceText: source,
+      rawCode: source,
+    })
+  }
+
+  parseExpressionStatement() {
+    const startPos = this.pos
+    const startLine = this.peek().line
+    const { tokens: collected, raw } = this.collectUntilSemicolonOrBlock()
+    this.skipSemicolon()
+    if (collected.length === 0) return
+
+    // function call?
+    let isCall = false
+    let callName = ''
+    let callArgs = ''
+    for (let i = 0; i < collected.length; i++) {
+      const ct = collected[i]
+      if (ct.type === 'identifier' && collected[i + 1]?.value === '(') {
+        isCall = true
+        callName = ct.value
+        let depth = 0
+        let argStr = ''
+        for (let j = i + 2; j < collected.length; j++) {
+          if (collected[j].value === '(') depth++
+          if (collected[j].value === ')') { if (depth === 0) break; depth-- }
+          argStr += (argStr ? ' ' : '') + collected[j].value
+        }
+        callArgs = argStr.length > 24 ? argStr.slice(0, 21) + '...' : argStr
+        break
+      }
+    }
+
+    // assignment?
+    let isAssignment = false
+    for (const ct of collected) {
+      if (ct.type === 'op' && /=$/.test(ct.value) && ct.value !== '===') { isAssignment = true; break }
+    }
+
+    if (isCall) {
+      this.addStep({
+        type: 'function-call',
+        lineNumber: startLine,
+        sourceText: raw,
+        rawCode: raw + ';',
+        meta: { funcName: callName, funcArgs: callArgs },
+      })
+    } else if (isAssignment) {
+      this.addStep({
+        type: 'assignment',
+        lineNumber: startLine,
+        sourceText: raw,
+        rawCode: raw + ';',
+      })
+    } else {
+      this.addStep({
+        type: 'expr',
+        lineNumber: startLine,
+        sourceText: raw,
+        rawCode: raw + ';',
+      })
+    }
+    this.pos = startPos + collected.length
+    if (this.check(';')) this.consume()
+  }
+
+  parseFunctionDeclaration() {
+    const kwToken = this.consume() // function
+    const nameToken = this.checkType('identifier') ? this.consume() : { value: 'anonymous', line: kwToken.line }
+    const startLine = kwToken.line
+    const funcName = nameToken.value
+    this.expect('(')
+    const args: string[] = []
+    while (!this.check(')') && !this.checkType('eof')) {
+      if (this.checkType('identifier')) args.push(this.consume().value)
+      if (this.check(',')) this.consume()
+    }
+    this.expect(')')
+    // record function declare step
+    this.addStep({
+      type: 'function-declare',
+      lineNumber: startLine,
+      sourceText: `function ${funcName}(${args.join(', ')}) {...}`,
+      rawCode: `function ${funcName}(${args.join(', ')}) {}`,
+      meta: { funcName, funcArgs: args.join(', ') },
+    })
+    // skip body
+    this.parseBlock(true)
+  }
+
+  parseBlock(silent = false): number {
+    if (!this.check('{')) return 0
+    const openToken = this.consume()
+    const startLine = openToken.line
+    const branchId = `b-${Math.random().toString(36).slice(2, 8)}`
+    if (!silent) {
+      this.addStep({
+        type: 'block-enter',
+        lineNumber: startLine,
+        sourceText: '{',
+        rawCode: '{',
+        meta: { branchId },
+      })
+    }
+    let count = 0
+    while (!this.check('}') && !this.checkType('eof')) {
+      this.parseStatement()
+      count++
+    }
+    if (this.check('}')) {
+      const closeToken = this.consume()
+      if (!silent) {
+        this.addStep({
+          type: 'block-exit',
+          lineNumber: closeToken.line,
+          sourceText: '}',
+          rawCode: '}',
+          meta: { branchId },
+        })
+      }
+    }
+    return count
+  }
+
+  parseIfStatement() {
+    const kwToken = this.consume() // if
+    const startLine = kwToken.line
+    this.expect('(')
+    const condTokens: Token[] = []
+    while (!this.check(')') && !this.checkType('eof')) condTokens.push(this.consume())
+    this.expect(')')
+    const condRaw = condTokens.map(t => t.value).join(' ')
+
+    // Add condition evaluation step
+    this.addStep({
+      type: 'condition',
+      lineNumber: startLine,
+      sourceText: `if (${condRaw})`,
+      rawCode: `if (${condRaw}) {}`,
+      meta: { condition: condRaw },
+    })
+
+    // Parse then branch (keep its steps)
+    const beforeThen = this.steps.length
+    if (this.check('{')) this.parseBlock()
+    else this.parseStatement()
+    const thenSteps = this.steps.slice(beforeThen)
+
+    // Optional else branch
+    let elseSteps: ExecStep[] = []
+    if (this.check('else')) {
+      this.consume()
+      const beforeElse = this.steps.length
+      if (this.check('{')) this.parseBlock()
+      else this.parseStatement()
+      elseSteps = this.steps.slice(beforeElse)
+    }
+
+    // Mark then branch with branchId for runtime skippability
+    const thenBranchId = `if-then-${thenSteps[0]?.id || 'x'}`
+    thenSteps.forEach(s => { s.meta = { ...(s.meta || {}), branchId: thenBranchId, condition: condRaw } })
+    if (elseSteps.length) {
+      const elseBranchId = `if-else-${elseSteps[0]?.id || 'x'}`
+      elseSteps.forEach(s => { s.meta = { ...(s.meta || {}), branchId: elseBranchId, condition: `!(${condRaw})` } })
+    }
+  }
+
+  parseWhileStatement() {
+    const kwToken = this.consume() // while
+    const startLine = kwToken.line
+    this.expect('(')
+    const condTokens: Token[] = []
+    while (!this.check(')') && !this.checkType('eof')) condTokens.push(this.consume())
+    this.expect(')')
+    const condRaw = condTokens.map(t => t.value).join(' ')
+
+    const loopId = `loop-${Math.random().toString(36).slice(2, 8)}`
+
+    // condition step
+    this.addStep({
+      type: 'loop-condition',
+      lineNumber: startLine,
+      sourceText: `while (${condRaw})`,
+      rawCode: `while (${condRaw}) {}`,
+      meta: { condition: condRaw, branchId: loopId },
+    })
+
+    // body
+    const beforeBody = this.steps.length
+    if (this.check('{')) this.parseBlock()
+    else this.parseStatement()
+    const bodySteps = this.steps.slice(beforeBody)
+    bodySteps.forEach(s => { s.meta = { ...(s.meta || {}), branchId: loopId, condition: condRaw } })
+  }
+
+  parseDoWhileStatement() {
+    const kwToken = this.consume() // do
+    const startLine = kwToken.line
+    const loopId = `loop-${Math.random().toString(36).slice(2, 8)}`
+
+    // enter loop body marker (just parse block)
+    const beforeBody = this.steps.length
+    if (this.check('{')) this.parseBlock()
+    else this.parseStatement()
+    const bodySteps = this.steps.slice(beforeBody)
+
+    if (this.check('while')) {
+      const wTok = this.consume()
+      this.expect('(')
+      const condTokens: Token[] = []
+      while (!this.check(')') && !this.checkType('eof')) condTokens.push(this.consume())
+      this.expect(')')
+      this.skipSemicolon()
+      const condRaw = condTokens.map(t => t.value).join(' ')
+      this.addStep({
+        type: 'loop-condition',
+        lineNumber: wTok.line,
+        sourceText: `while (${condRaw})`,
+        rawCode: `while (${condRaw}) {}`,
+        meta: { condition: condRaw, branchId: loopId },
+      })
+      bodySteps.forEach(s => { s.meta = { ...(s.meta || {}), branchId: loopId } })
+    } else {
+      void startLine
+    }
+  }
+
+  parseForStatement() {
+    const kwToken = this.consume() // for
+    const startLine = kwToken.line
+    this.expect('(')
+    // init
+    const initTokens: Token[] = []
+    while (!this.check(';') && !this.checkType('eof')) initTokens.push(this.consume())
+    if (this.check(';')) this.consume()
+    const initRaw = initTokens.map(t => t.value).join(' ')
+
+    // condition
+    const condTokens: Token[] = []
+    while (!this.check(';') && !this.checkType('eof')) condTokens.push(this.consume())
+    if (this.check(';')) this.consume()
+    const condRaw = condTokens.map(t => t.value).join(' ')
+
+    // update
+    const updateTokens: Token[] = []
+    while (!this.check(')') && !this.checkType('eof')) updateTokens.push(this.consume())
+    this.expect(')')
+    const updateRaw = updateTokens.map(t => t.value).join(' ')
+
+    const loopId = `for-${Math.random().toString(36).slice(2, 8)}`
+
+    // init step
+    if (initRaw) {
+      this.addStep({
+        type: initTokens[0]?.value === 'let' || initTokens[0]?.value === 'var' || initTokens[0]?.value === 'const' ? 'declaration' : 'assignment',
+        lineNumber: startLine,
+        sourceText: initRaw,
+        rawCode: initRaw + ';',
+        meta: { branchId: loopId },
+      })
+    }
+
+    // condition step
+    this.addStep({
+      type: 'loop-condition',
+      lineNumber: startLine,
+      sourceText: condRaw || 'true',
+      rawCode: `for(;;) {}`,
+      meta: { condition: condRaw || 'true', branchId: loopId, loopVar: initRaw },
+    })
+
+    // body
+    const beforeBody = this.steps.length
+    if (this.check('{')) this.parseBlock()
+    else this.parseStatement()
+    const bodySteps = this.steps.slice(beforeBody)
+    bodySteps.forEach(s => { s.meta = { ...(s.meta || {}), branchId: loopId } })
+
+    // update step (implicitly marked as loop part)
+    if (updateRaw) {
+      this.addStep({
+        type: 'assignment',
+        lineNumber: startLine,
+        sourceText: updateRaw,
+        rawCode: updateRaw + ';',
+        meta: { branchId: loopId },
+      })
+    }
+  }
+
+  parseReturnStatement() {
+    const kwToken = this.consume() // return
+    const startLine = kwToken.line
+    const exprTokens: Token[] = []
+    while (!this.check(';') && !this.checkType('eof') && !this.check('}')) exprTokens.push(this.consume())
+    this.skipSemicolon()
+    const raw = exprTokens.map(t => t.value).join(' ')
+    this.addStep({
+      type: 'return',
+      lineNumber: startLine,
+      sourceText: `return ${raw}`.trim(),
+      rawCode: `return ${raw};`,
+    })
+  }
+}
+
+function parseCodeToSteps(code: string): ExecStep[] {
+  try {
+    const tokens = tokenize(code)
+    const parser = new Parser(tokens)
+    return parser.parseProgram()
+  } catch (e) {
+    console.error('Parse error:', e)
+    return []
+  }
+}
+
+// ================= 执行引擎核心 =================
+
+interface RuntimeState {
+  scope: Map<string, VarValue>
+  logs: LogEntry[]
+  callStack: StackFrame[]
+  callStackJumpTo: number | null // when looping, jump back to loop-condition step
+}
+
+const FORBIDDEN = ['window', 'document', 'eval', 'globalThis', 'fetch', 'XMLHttpRequest', 'process', 'require', 'module', 'exports']
+
+function sandboxedEval(
+  code: string,
+  scope: Map<string, VarValue>,
+): { scope: Map<string, VarValue>; result: VarValue; error: string | null } {
+  const newScope = new Map(scope)
+  try {
+    const paramNames = Array.from(newScope.keys()).filter(k => /^[a-zA-Z_$][\w$]*$/.test(k))
+    const paramValues = paramNames.map(k => newScope.get(k))
+    const forbiddenBlock = FORBIDDEN.map(k => `const ${k} = undefined;`).join('\n')
+    const captureAll = `
+      const __captured = {};
+      ${paramNames.map(k => `try { if (typeof ${k} !== 'undefined') __captured["${k}"] = ${k}; } catch(e) { __captured["${k}"] = undefined; }`).join('\n')}
+      // also try to detect new vars declared with var (hoisted) in sloppy mode, but we are strict so no.
+      return __captured;
+    `
+    const body = `"use strict";\n${forbiddenBlock}\n${code}\n${captureAll}`
+    const fn = new Function(...paramNames, body)
+    const captured = fn(...paramValues) as Record<string, VarValue>
+    for (const k of paramNames) {
+      if (k in captured) newScope.set(k, captured[k])
+    }
+    return { scope: newScope, result: undefined, error: null }
+  } catch (e) {
+    return { scope: newScope, result: undefined, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+function evalCondition(expr: string, scope: Map<string, VarValue>): { value: boolean; error: string | null; scope: Map<string, VarValue> } {
+  if (!expr.trim()) return { value: true, error: null, scope }
+  const newScope = new Map(scope)
+  try {
+    const paramNames = Array.from(newScope.keys()).filter(k => /^[a-zA-Z_$][\w$]*$/.test(k))
+    const paramValues = paramNames.map(k => newScope.get(k))
+    const forbiddenBlock = FORBIDDEN.map(k => `const ${k} = undefined;`).join('\n')
+    const body = `"use strict";\n${forbiddenBlock}\nreturn Boolean(${expr});`
+    const fn = new Function(...paramNames, body)
+    const v = Boolean(fn(...paramValues))
+    return { value: v, error: null, scope: newScope }
+  } catch (e) {
+    return { value: false, error: e instanceof Error ? e.message : String(e), scope: newScope }
+  }
+}
+
+function extractAssignmentVarName(raw: string): string | null {
+  const m1 = raw.match(/^(?:let|const|var)\s+([a-zA-Z_$][\w$]*)/)
+  if (m1) return m1[1]
+  const m2 = raw.match(/^([a-zA-Z_$][\w$]*)\s*[+\-*/%&|^]?=/)
+  if (m2) return m2[1]
+  return null
 }
 
 function createInitialState(): RunnerState {
@@ -260,7 +752,22 @@ function createInitialState(): RunnerState {
     isFinished: false,
     isParsed: false,
     error: null,
+    currentLineHighlight: null,
   }
+}
+
+function findNextStepOutsideBranch(steps: ExecStep[], fromIdx: number, branchId: string): number {
+  for (let i = fromIdx; i < steps.length; i++) {
+    if (steps[i].meta?.branchId !== branchId) return i
+  }
+  return steps.length
+}
+
+function findLoopConditionStep(steps: ExecStep[], branchId: string, beforeIdx: number): number {
+  for (let i = beforeIdx - 1; i >= 0; i--) {
+    if (steps[i].type === 'loop-condition' && steps[i].meta?.branchId === branchId) return i
+  }
+  return -1
 }
 
 function reducer(state: RunnerState, action: Action): RunnerState {
@@ -274,222 +781,203 @@ function reducer(state: RunnerState, action: Action): RunnerState {
     }
     case 'PARSE': {
       if (state.isParsed) return state
-      const steps = parseCode(state.code)
+      const steps = parseCodeToSteps(state.code)
       let logs = state.logs
       if (steps.length === 0) {
         logs = appendLog(logs, makeLog('warn', '无可执行的代码语句'))
       } else {
         logs = appendLog(logs, makeLog('info', `解析完成，共 ${steps.length} 个可执行步骤`))
       }
-      return {
-        ...state,
-        steps,
-        isParsed: true,
-        logs,
-      }
+      return { ...state, steps, isParsed: true, logs }
     }
     case 'STEP': {
       let s: RunnerState = { ...state }
       if (!s.isParsed) {
-        const steps = parseCode(s.code)
+        const steps = parseCodeToSteps(s.code)
         s = { ...s, steps, isParsed: true }
         s.logs = appendLog(s.logs, makeLog('info', `解析完成，共 ${steps.length} 个可执行步骤`))
       }
-      if (s.isFinished || s.currentStepIndex >= s.steps.length) {
+
+      while (s.currentStepIndex < s.steps.length) {
+        const step = s.steps[s.currentStepIndex]
+        // Skip block enter/exit silently as individual execution steps - they only delimit scope
+        if (step.type === 'block-enter' || step.type === 'block-exit') {
+          s.currentStepIndex++
+          continue
+        }
+        break
+      }
+
+      if (s.currentStepIndex >= s.steps.length) {
         if (!s.isFinished) {
           s.logs = appendLog(s.logs, makeLog('info', '执行完毕'))
           s.isFinished = true
           s.isAutoRunning = false
+          s.currentLineHighlight = null
         }
         return s
       }
 
       const step = s.steps[s.currentStepIndex]
-      const scope = new Map(s.globalScope)
       const newLogs: LogEntry[] = []
+      let scope = new Map(s.globalScope)
+      let callStack = [...s.callStack]
 
-      newLogs.push(makeLog('info', `[行${step.lineNumber}] ${step.type.toUpperCase()}: ${step.lineContent.slice(0, 80)}`))
+      s.currentLineHighlight = step.lineNumber
+      newLogs.push(makeLog('info', `[行${step.lineNumber}] ${step.type.toUpperCase()}: ${step.lineContent}`))
 
-      const setupBlock = buildScopeExpression(scope)
-      let executeCode = ''
+      let jumpToIndex: number | null = null
 
-      if (step.type === 'declaration') {
-        executeCode = step.rawCode
-      } else if (step.type === 'assignment') {
-        executeCode = step.rawCode
-      } else if (step.type === 'condition') {
-        const m = step.rawCode.match(/if\s*\(([^)]+)\)/)
-        if (m) {
-          executeCode = `const __cond__ = (${m[1]});`
-        }
-      } else if (step.type === 'loop') {
-        const m1 = step.rawCode.match(/while\s*\(([^)]+)\)/)
-        const m2 = step.rawCode.match(/for\s*\([^)]*\)/)
-        if (m1) executeCode = `const __cond__ = (${m1[1]});`
-        else if (m2) executeCode = step.rawCode.replace(/^for\s*\(/, 'for (let __i__=0;__i__<1;__i__++){ (function(){') + ';})(); break; }'
-      } else if (step.type === 'return') {
-        executeCode = step.rawCode
-      } else if (step.type === 'function-call') {
-        executeCode = `const __ret__ = (${step.rawCode.trim().replace(/;$/, '')});`
-      } else {
-        executeCode = step.rawCode
-      }
-
-      try {
-        const forbidden = ['window', 'document', 'eval', 'globalThis', 'fetch', 'XMLHttpRequest']
-        const forbiddenBlock = forbidden.map(k => `const ${k} = undefined;`).join('\n')
-        const body = `
-          "use strict";
-          ${forbiddenBlock}
-          ${setupBlock}
-          ${executeCode}
-          const __result__ = {};
-          for (const __k__ of Object.keys(this || {})) {
-            if (!${JSON.stringify(forbidden)}.includes(__k__)) __result__[__k__] = this[__k__];
-          }
-          (function(){
-            const names = Object.keys(__result__);
-            let idx = 0;
-            try {
-              // eval in scope
-            } catch(e){}
-          })();
-          return __result__;
-        `
-        // Simpler approach: collect all existing vars as locals, then run
-        const locals = Array.from(scope.keys()).filter(k => /^[a-zA-Z_$][\w$]*$/.test(k))
-        const paramNames = [...locals]
-        const paramValues = paramNames.map(k => scope.get(k))
-        const functionBody = `
-          "use strict";
-          ${forbiddenBlock}
-          ${executeCode}
-          const __out = {};
-          ${locals.map(k => `try { __out["${k}"] = (typeof ${k} !== "undefined") ? ${k} : undefined; } catch(e) { __out["${k}"] = undefined; }`).join('\n')}
-          try { __out["__cond__"] = typeof __cond__ !== "undefined" ? __cond__ : undefined; } catch(e){}
-          try { __out["__ret__"] = typeof __ret__ !== "undefined" ? __ret__ : undefined; } catch(e){}
-          return __out;
-        `
-        const fn = new Function(...paramNames, functionBody)
-        const result = fn(...paramValues) as Record<string, VarValue>
-
-        for (const k of locals) {
-          if (k in result) {
-            scope.set(k, result[k])
-          }
-        }
-
-        // Handle new variables from declaration
-        if (step.type === 'declaration') {
-          const targetMatch = step.lineContent.match(/^(?:let|const|var)\s+([a-zA-Z_$][\w$]*)\s*(?:=|;|$)/)
-          if (targetMatch && !(targetMatch[1] in scope)) {
-            // Extract initializer and execute again with output
-            const varName = targetMatch[1]
-            const initFn = new Function(...paramNames, ...forbidden.map(() => ''),
-              `${forbiddenBlock}; ${setupBlock}; ${step.rawCode}; return (typeof ${varName} !== 'undefined') ? ${varName} : undefined;`
-            )
-            try {
-              const val = initFn(...paramValues, ...forbidden.map(() => undefined))
-              scope.set(varName, val)
-            } catch (e) {
-              // fallback: default undefined
-              if (!scope.has(varName)) scope.set(varName, undefined)
-            }
-          }
-
-          // Function declaration
-          const fnNameMatch = step.lineContent.match(/^function\s+([a-zA-Z_$][\w$]*)\s*\(/)
-          if (fnNameMatch) {
-            const fnName = fnNameMatch[1]
-            if (!scope.has(fnName)) {
-              // stub the function: can't fully execute arbitrary nested in step model
-              scope.set(fnName, `[Function: ${fnName}]`)
-            }
-          }
-        }
-
-        // Function call - push frame
-        if (step.type === 'function-call') {
-          const info = extractCallInfo(step.lineContent)
-          const frame: StackFrame = {
-            id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            functionName: info.name,
-            argsSummary: info.args,
-            lineNumber: step.lineNumber,
-            isCurrent: true,
-            timestamp: Date.now(),
-          }
-          s.callStack = [...s.callStack.map(f => ({ ...f, isCurrent: false })), frame]
-          const ret = result['__ret__']
-          if (ret !== undefined) {
-            newLogs.push(makeLog('info', `${info.name}() 返回值 = ${deepValueToString(ret)}`))
-          }
-          // auto-pop frame after short time (in step model, simplify)
-          setTimeout(() => { /* visual pop handled by next steps */ }, 0)
-        }
-
-        // Function declaration record
-        if (step.type === 'declaration' && (step.lineContent.startsWith('function ') || /=\s*(async\s*)?(function|\()/.test(step.lineContent))) {
-          const fnName = extractFunctionName(step.lineContent)
-          const frame: StackFrame = {
-            id: `f-decl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            functionName: `声明 ${fnName}`,
-            argsSummary: '',
-            lineNumber: step.lineNumber,
-            isCurrent: false,
-            timestamp: Date.now(),
-          }
-          s.callStack = [...s.callStack, frame]
-        }
-
-        // Return statement
-        if (step.type === 'return') {
-          if (s.callStack.length > 0) {
-            const newStack = s.callStack.slice(0, -1)
-            if (newStack.length > 0) newStack[newStack.length - 1].isCurrent = true
-            s.callStack = newStack
-            newLogs.push(makeLog('info', '函数返回，弹出栈帧'))
-          }
-        }
-
-        // Condition result log
-        if (step.type === 'condition' && '__cond__' in result) {
-          const cond = result['__cond__']
-          newLogs.push(makeLog('info', `条件判断结果: ${String(cond)}`))
-        }
-
-        // Assignment/declaration log of changed value
-        if (step.type === 'assignment' || step.type === 'declaration') {
-          const target = extractAssignmentTarget(step.lineContent)
-          if (target && scope.has(target)) {
-            const val = scope.get(target)
-            newLogs.push(makeLog('info', `${target} = ${deepValueToString(val)}`))
-          }
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        newLogs.push(makeLog('error', `执行错误: ${msg}`))
+      const handleError = (msg: string) => {
+        newLogs.push(makeLog('error', msg))
         s.error = msg
         s.isAutoRunning = false
       }
 
-      // Build previous snapshot before updating
+      switch (step.type) {
+        case 'declaration':
+        case 'assignment':
+        case 'expr': {
+          const { scope: afterScope, error } = sandboxedEval(step.rawCode, scope)
+          if (error) {
+            handleError(`执行错误: ${error}`)
+          } else {
+            scope = afterScope
+            const varName = extractAssignmentVarName(step.sourceText)
+            if (varName && scope.has(varName)) {
+              newLogs.push(makeLog('info', `${varName} = ${deepValueToString(scope.get(varName))}`))
+            }
+          }
+          break
+        }
+        case 'condition': {
+          const cond = step.meta?.condition ?? ''
+          const { value: condVal, error } = evalCondition(cond, scope)
+          if (error) {
+            handleError(`条件判断错误: ${error}`)
+          } else {
+            newLogs.push(makeLog('info', `条件判断 (${cond}) => ${condVal}`))
+            if (!condVal) {
+              // Skip current branch (if any) - find matching else
+              const currentBranch = step.meta?.branchId
+              if (currentBranch) {
+                const nextIdx = findNextStepOutsideBranch(s.steps, s.currentStepIndex + 1, currentBranch)
+                // if there's an 'else' branch right after (same outer), jump into it
+                // Simplest: jump to nextIdx
+                jumpToIndex = nextIdx
+              }
+            }
+          }
+          break
+        }
+        case 'loop-condition': {
+          const cond = step.meta?.condition ?? 'true'
+          const { value: condVal, error } = evalCondition(cond, scope)
+          if (error) {
+            handleError(`循环条件错误: ${error}`)
+          } else {
+            newLogs.push(makeLog('info', `循环条件 (${cond}) => ${condVal}`))
+            const branchId = step.meta?.branchId
+            if (!condVal && branchId) {
+              // exit loop: find step outside branch
+              jumpToIndex = findNextStepOutsideBranch(s.steps, s.currentStepIndex + 1, branchId)
+            }
+          }
+          break
+        }
+        case 'function-declare': {
+          const fnName = step.meta?.funcName || 'anonymous'
+          const args = step.meta?.funcArgs || ''
+          scope.set(fnName, `[Function: ${fnName}]`)
+          const frame: StackFrame = {
+            id: `f-decl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            functionName: `声明 ${fnName}`,
+            argsSummary: args,
+            lineNumber: step.lineNumber,
+            isCurrent: false,
+            timestamp: Date.now(),
+          }
+          callStack = [...callStack.map(f => ({ ...f, isCurrent: false })), frame]
+          newLogs.push(makeLog('info', `声明函数 ${fnName}(${args})`))
+          break
+        }
+        case 'function-call': {
+          const name = step.meta?.funcName || 'call'
+          const args = step.meta?.funcArgs || ''
+          // push frame
+          const frame: StackFrame = {
+            id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            functionName: name,
+            argsSummary: args,
+            lineNumber: step.lineNumber,
+            isCurrent: true,
+            timestamp: Date.now(),
+          }
+          callStack = [...callStack.map(f => ({ ...f, isCurrent: false })), frame]
+
+          // try to actually execute if it's a built-in-like (console.log etc.)
+          const { scope: afterScope, error } = sandboxedEval(step.rawCode, scope)
+          if (error) {
+            // not fatal for visualization
+            newLogs.push(makeLog('warn', `调用 ${name}(${args})`))
+          } else {
+            scope = afterScope
+            newLogs.push(makeLog('info', `调用 ${name}(${args})`))
+          }
+          // pop frame immediately (step-by-step for external calls is not traced into)
+          callStack = callStack.slice(0, -1)
+          if (callStack.length > 0) callStack[callStack.length - 1].isCurrent = true
+          break
+        }
+        case 'return': {
+          newLogs.push(makeLog('info', step.sourceText || 'return'))
+          if (callStack.length > 0) {
+            callStack = callStack.slice(0, -1)
+            if (callStack.length > 0) callStack[callStack.length - 1].isCurrent = true
+            newLogs.push(makeLog('info', '函数返回，弹出栈帧'))
+          }
+          break
+        }
+        default:
+          newLogs.push(makeLog('info', step.sourceText || step.type))
+      }
+
+      // Handle loop back-edge: if we're at last step of a loop body, jump back to loop-condition
+      const nextStep = s.steps[s.currentStepIndex + 1]
+      if (jumpToIndex === null && step.meta?.branchId) {
+        const curBranch = step.meta.branchId
+        // If next step is outside this branch (i.e., end of body), and this branch is a loop
+        // check if there's a loop-condition step with same branchId earlier
+        const nextOutside = !nextStep || nextStep.meta?.branchId !== curBranch
+        if (nextOutside) {
+          const condIdx = findLoopConditionStep(s.steps, curBranch, s.currentStepIndex)
+          if (condIdx >= 0 && step.type !== 'loop-condition') {
+            jumpToIndex = condIdx
+          }
+        }
+      }
+
+      // Build previous snapshot
       const prevSnapshot = new Map<string, string>()
       s.globalScope.forEach((v, k) => { prevSnapshot.set(k, deepValueToString(v)) })
 
-      // Merge new log entries
       let logs = s.logs
       for (const l of newLogs) logs = appendLog(logs, l)
+
+      let nextIdx = (jumpToIndex !== null) ? jumpToIndex : s.currentStepIndex + 1
+      // skip block enter/exit markers at target as well
+      while (nextIdx < s.steps.length && (s.steps[nextIdx].type === 'block-enter' || s.steps[nextIdx].type === 'block-exit')) {
+        nextIdx++
+      }
 
       return {
         ...s,
         globalScope: scope,
-        currentStepIndex: s.currentStepIndex + 1,
-        isFinished: s.currentStepIndex + 1 >= s.steps.length ? false : s.isFinished,
+        currentStepIndex: nextIdx,
         prevVariables: prevSnapshot,
         logs,
-        error: s.error,
-        callStack: s.callStack.length === 0 ? [] : s.callStack,
+        callStack,
+        isFinished: nextIdx >= s.steps.length ? s.isFinished : false,
       }
     }
     case 'AUTO_TOGGLE': {
@@ -500,11 +988,7 @@ function reducer(state: RunnerState, action: Action): RunnerState {
       } else {
         logs = appendLog(logs, makeLog('info', '已停止自动执行'))
       }
-      return {
-        ...state,
-        isAutoRunning: willRun,
-        logs,
-      }
+      return { ...state, isAutoRunning: willRun, logs }
     }
     case 'AUTO_STOP': {
       if (!state.isAutoRunning) return state
@@ -515,10 +999,7 @@ function reducer(state: RunnerState, action: Action): RunnerState {
       }
     }
     case 'RESET': {
-      return {
-        ...createInitialState(),
-        code: state.code,
-      }
+      return { ...createInitialState(), code: state.code }
     }
     default:
       return state
@@ -540,7 +1021,7 @@ export function useStepRunner(): UseStepRunnerReturn {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState)
   const targetTickRef = useRef<number>(0)
   const timerRef = useRef<number | null>(null)
-  const dispatchedRef = useRef(false)
+  const autoStartedRef = useRef(false)
 
   const setCode = useCallback((code: string) => dispatch({ type: 'SET_CODE', code }), [])
   const parse = useCallback(() => dispatch({ type: 'PARSE' }), [])
@@ -549,18 +1030,19 @@ export function useStepRunner(): UseStepRunnerReturn {
   const stopAuto = useCallback(() => dispatch({ type: 'AUTO_STOP' }), [])
   const reset = useCallback(() => dispatch({ type: 'RESET' }), [])
 
+  // 用setTimeout递归调度 + performance.now校准，避免间隔漂移
   useEffect(() => {
     if (!state.isAutoRunning) {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current)
         timerRef.current = null
       }
-      dispatchedRef.current = false
+      autoStartedRef.current = false
       return
     }
 
-    if (!dispatchedRef.current) {
-      dispatchedRef.current = true
+    if (!autoStartedRef.current) {
+      autoStartedRef.current = true
       targetTickRef.current = performance.now() + AUTO_INTERVAL
     }
 
@@ -568,7 +1050,8 @@ export function useStepRunner(): UseStepRunnerReturn {
       dispatch({ type: 'STEP' })
       const now = performance.now()
       targetTickRef.current += AUTO_INTERVAL
-      const nextDelay = Math.max(0, targetTickRef.current - now)
+      const drift = now - targetTickRef.current
+      const nextDelay = Math.max(0, AUTO_INTERVAL - drift)
       timerRef.current = window.setTimeout(tick, nextDelay)
     }
 
