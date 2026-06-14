@@ -95,7 +95,7 @@ export default function InspectionPage() {
       const isSelected = ann.id === selectedAnnotationId;
 
       ctx.save();
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+      ctx.fillStyle = '#ef444433';
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = isSelected ? 3 : 2;
       if (isSelected) ctx.setLineDash([6, 4]);
@@ -149,7 +149,7 @@ export default function InspectionPage() {
   const drawCurrentShape = (ctx: CanvasRenderingContext2D) => {
     ctx.save();
     ctx.strokeStyle = '#ef4444';
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+    ctx.fillStyle = '#ef444433';
     ctx.lineWidth = 2;
 
     if (currentTool === 'rectangle') {

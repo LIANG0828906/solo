@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,8 +29,67 @@ ChartJS.register(
   Filler
 );
 
+const barHoverPlugin = {
+  id: 'barHoverEffect',
+  beforeDatasetDraw: (chart: any, args: any) => {
+    const { meta } = args;
+    if (meta.type !== 'bar') return;
+
+    const hoveredIndex = chart.$hoveredBarIndex ?? null;
+
+    meta.data.forEach((element: any, index: number) => {
+      if (hoveredIndex === index) {
+        element.y -= 5;
+        element.height += 5;
+      }
+    });
+  },
+  afterDatasetDraw: (chart: any, args: any) => {
+    const { ctx, meta } = args;
+    if (meta.type !== 'bar') return;
+
+    const hoveredIndex = chart.$hoveredBarIndex ?? null;
+
+    meta.data.forEach((element: any, index: number) => {
+      if (hoveredIndex === index) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 4;
+
+        const { x, y, width, height } = element;
+        const radius = element.options.borderRadius || 0;
+
+        ctx.fillStyle = CATEGORY_COLORS[DEFECT_CATEGORIES[index]];
+        ctx.beginPath();
+        const r = radius;
+        const left = x - width / 2;
+        const right = x + width / 2;
+        const top = y;
+        const bottom = y + height;
+
+        ctx.moveTo(left + r, top);
+        ctx.lineTo(right - r, top);
+        ctx.quadraticCurveTo(right, top, right, top + r);
+        ctx.lineTo(right, bottom - r);
+        ctx.quadraticCurveTo(right, bottom, right - r, bottom);
+        ctx.lineTo(left + r, bottom);
+        ctx.quadraticCurveTo(left, bottom, left, bottom - r);
+        ctx.lineTo(left, top + r);
+        ctx.quadraticCurveTo(left, top, left + r, top);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+  },
+};
+
+ChartJS.register(barHoverPlugin);
+
 export default function TrendPage() {
   const { trendData, reports, loading, fetchTrend, fetchReports } = useDefectStore();
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTrend();
@@ -46,9 +105,9 @@ export default function TrendPage() {
         borderColor: '#3b82f6',
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 250);
-          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-          gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+          const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+          gradient.addColorStop(0, '#3b82f633');
+          gradient.addColorStop(1, '#3b82f600');
           return gradient;
         },
         fill: true,
@@ -170,6 +229,7 @@ export default function TrendPage() {
         titleFont: { size: 13, weight: 'bold' as const },
         bodyFont: { size: 12 },
       },
+      barHoverEffect: {},
     },
     scales: {
       y: {
@@ -187,22 +247,19 @@ export default function TrendPage() {
           display: false,
         },
         ticks: {
-          font: { size: 12 },
+          font: { size: 12, weight: 500 as const },
           color: '#334155',
-          fontStyle: { weight: 500 },
         },
       },
     },
     onHover: (event: any, elements: any[], chart: any) => {
-      const bars = chart.getDatasetMeta(0).data;
-      bars.forEach((bar: any, idx: number) => {
-        const isHovered = elements.some((e: any) => e.index === idx);
-        if (isHovered) {
-          bar._model.y -= 5;
-          bar._model.shadowBlur = 10;
-          bar._model.shadowColor = 'rgba(0,0,0,0.2)';
-        }
-      });
+      if (elements.length > 0) {
+        chart.$hoveredBarIndex = elements[0].index;
+        setHoveredBarIndex(elements[0].index);
+      } else {
+        chart.$hoveredBarIndex = null;
+        setHoveredBarIndex(null);
+      }
     },
   };
 
@@ -296,7 +353,7 @@ ${report.categoryBreakdown.map((b) => `  ${b.category}: ${b.count}个 (${b.perce
           <h2 className="text-lg font-semibold text-gray-800 mb-4">缺陷类别分布</h2>
           <div style={{ height: '240px' }}>
             {categoryData.some((d) => d.count > 0) ? (
-              <Bar data={barChartData} options={barChartOptions} />
+              <Bar key={hoveredBarIndex} data={barChartData} options={barChartOptions as any} />
             ) : (
               <EmptyState />
             )}
@@ -311,7 +368,7 @@ ${report.categoryBreakdown.map((b) => `  ${b.category}: ${b.count}个 (${b.perce
             sortedReports.map((report) => (
               <div
                 key={report.id}
-                className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
                 style={{
                   backgroundColor: '#f8fafc',
                   borderLeft: `4px solid ${getBorderColor(report.defectRate)}`,
@@ -371,21 +428,21 @@ ${report.categoryBreakdown.map((b) => `  ${b.category}: ${b.count}个 (${b.perce
 
 function SkeletonLine() {
   return (
-    <div className="h-5 bg-gray-200 rounded animate-pulse mb-3 last:mb-0" style={{ width: '60%' }}></div>
+    <div className="h-5 rounded animate-pulse mb-3 last:mb-0" style={{ width: '60%', backgroundColor: '#e2e8f0' }}></div>
   );
 }
 
 function EmptyState({ text = '暂无数据' }: { text?: string }) {
   return (
     <div className="h-full flex flex-col items-center justify-center">
-      <div className="text-gray-300 mb-2">
+      <div className="mb-2" style={{ color: '#e2e8f0' }}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M3 9h18" />
           <path d="M9 21V9" />
         </svg>
       </div>
-      <p className="text-sm" style={{ color: '#94a3b8' }}>{text}</p>
+      <p className="text-sm" style={{ color: '#94a3b8', fontSize: '14px' }}>{text}</p>
     </div>
   );
 }
