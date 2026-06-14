@@ -40,18 +40,20 @@ function RecipeCard({ recipe, isFlyIn }: { recipe: Recipe; isFlyIn: boolean }) {
   );
 }
 
-function MealSlot({ day, meal, justDropped }: { day: DayOfWeek; meal: MealType; justDropped: boolean }) {
-  const { mealPlan, assignRecipeToSlot, clearSlot, getRecipeById } = useMenuStore();
-  const key = `${day}-${meal}` as const;
-  const recipeId = mealPlan[key];
+function MealSlot({ day, meal, justDropped, onDropped }: { day: DayOfWeek; meal: MealType; justDropped: boolean; onDropped: (key: string) => void }) {
+  const { assignRecipeToSlot, clearSlot, getRecipeById } = useMenuStore();
+  const recipeId = useMenuStore((s) => s.weekMealPlans[s.currentWeek]?.[`${day}-${meal}`] ?? null);
   const recipe = recipeId ? getRecipeById(recipeId) : null;
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
     e.preventDefault();
     const id = e.dataTransfer.getData('recipeId');
-    if (id) assignRecipeToSlot(day, meal, id);
-  }, [day, meal, assignRecipeToSlot]);
+    if (id) {
+      assignRecipeToSlot(day, meal, id);
+      onDropped(`${day}-${meal}`);
+    }
+  }, [day, meal, assignRecipeToSlot, onDropped]);
 
   return (
     <div
@@ -116,7 +118,12 @@ export default function MenuPlanner() {
   const submitForm = () => {
     const next = new Set<string>();
     if (!formName.trim()) next.add('name');
-    if (!formIngs.some((i) => i.name.trim())) next.add('ingredients');
+    if (!formIngs.some((i) => i.name.trim())) {
+      next.add('ingredients');
+    } else {
+      const hasInvalidQty = formIngs.some((i) => i.name.trim() && (isNaN(Number(i.quantity)) || Number(i.quantity) <= 0));
+      if (hasInvalidQty) next.add('ingredients-qty');
+    }
     setErrors(next);
     if (next.size) return;
 
@@ -126,7 +133,7 @@ export default function MenuPlanner() {
       name: formName.trim(),
       category: formCat,
       cookTime: formTime,
-      ingredients: formIngs.filter((i) => i.name.trim()).map((i) => ({ ...i, quantity: Number(i.quantity) || 0 })),
+      ingredients: formIngs.filter((i) => i.name.trim()).map((i) => ({ ...i, quantity: Number(i.quantity) })),
       steps: formSteps.split('\n').filter(Boolean),
       isCustom: true,
     });
@@ -190,7 +197,7 @@ export default function MenuPlanner() {
                   const key = `${day}-${meal}`;
                   return (
                     <td key={key} className="p-0.5">
-                      <MealSlot day={day} meal={meal} justDropped={droppedKey === key} />
+                      <MealSlot day={day} meal={meal} justDropped={droppedKey === key} onDropped={handleDropped} />
                     </td>
                   );
                 })}
@@ -231,21 +238,36 @@ export default function MenuPlanner() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium">食材 *</label>
-                <div className={`space-y-1.5 mt-1 p-2 rounded ${errors.has('ingredients') ? 'border border-red-500' : ''}`}>
-                  {formIngs.map((ing, idx) => (
-                    <div key={idx} className="flex gap-1 items-center text-xs">
-                      <input value={ing.name} onChange={(e) => updateIng(idx, 'name', e.target.value)} placeholder="食材名" className="flex-1 border border-gray-300 rounded px-1.5 py-1 min-w-0" />
-                      <input type="number" value={ing.quantity} onChange={(e) => updateIng(idx, 'quantity', Number(e.target.value))} className="w-14 border border-gray-300 rounded px-1.5 py-1" />
-                      <input value={ing.unit} onChange={(e) => updateIng(idx, 'unit', e.target.value)} className="w-12 border border-gray-300 rounded px-1.5 py-1" placeholder="单位" />
-                      <select value={ing.zone} onChange={(e) => updateIng(idx, 'zone', e.target.value)} className="border border-gray-300 rounded px-1 py-1 text-[10px]">
-                        {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}
-                      </select>
-                      <button onClick={() => setFormIngs((p) => p.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 shrink-0">
-                        <X size={13} />
-                      </button>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">食材 *</label>
+                  {(errors.has('ingredients') || errors.has('ingredients-qty')) && (
+                    <span className="text-red-500 text-[10px] font-medium">
+                      {errors.has('ingredients') ? '请至少添加一个食材' : '食材数量必须为有效正数'}
+                    </span>
+                  )}
+                </div>
+                <div className={`space-y-1.5 mt-1 p-2 rounded border ${errors.has('ingredients') || errors.has('ingredients-qty') ? 'border-red-500 bg-red-50/30' : 'border-transparent'}`}>
+                  {formIngs.map((ing, idx) => {
+                    const hasInvalidQty = ing.name.trim() && (isNaN(Number(ing.quantity)) || Number(ing.quantity) <= 0);
+                    return (
+                      <div key={idx} className="flex gap-1 items-center text-xs">
+                        <input value={ing.name} onChange={(e) => updateIng(idx, 'name', e.target.value)} placeholder="食材名" className="flex-1 border border-gray-300 rounded px-1.5 py-1 min-w-0" />
+                        <input
+                          type="number"
+                          value={ing.quantity}
+                          onChange={(e) => updateIng(idx, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
+                          className={`w-14 border rounded px-1.5 py-1 ${hasInvalidQty ? 'border-red-400' : 'border-gray-300'}`}
+                        />
+                        <input value={ing.unit} onChange={(e) => updateIng(idx, 'unit', e.target.value)} className="w-12 border border-gray-300 rounded px-1.5 py-1" placeholder="单位" />
+                        <select value={ing.zone} onChange={(e) => updateIng(idx, 'zone', e.target.value)} className="border border-gray-300 rounded px-1 py-1 text-[10px]">
+                          {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}
+                        </select>
+                        <button onClick={() => setFormIngs((p) => p.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 shrink-0">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
                   <button onClick={() => setFormIngs((p) => [...p, emptyIng()])} className="flex items-center gap-1 text-warm-orange text-xs font-medium">
                     <Plus size={13} /> 添加食材
                   </button>

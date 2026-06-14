@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMenuStore } from '@/hooks/useMenu';
 import { ZONES, ZONE_ICONS } from '@/types';
 import type { Zone, ShoppingItem } from '@/types';
@@ -10,43 +11,45 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 function ProgressRing({ checked, total }: { checked: number; total: number }) {
   const pct = total > 0 ? (checked / total) * 100 : 0;
-  const isComplete = pct === 100;
+  const isComplete = pct === 100 && total > 0;
   const offset = CIRCUMFERENCE * (1 - pct / 100);
   const strokeColor = isComplete ? '#6B8E23' : '#F28C28';
 
   return (
-    <div className={`flex items-center gap-4 ${isComplete ? 'flash-complete' : ''}`}>
-      <svg width={RADIUS * 2 + STROKE} height={RADIUS * 2 + STROKE}>
-        <circle
-          cx={RADIUS + STROKE / 2}
-          cy={RADIUS + STROKE / 2}
-          r={RADIUS}
-          fill="none"
-          stroke="#e8dfc8"
-          strokeWidth={STROKE}
-        />
-        <circle
-          className="progress-ring-circle"
-          cx={RADIUS + STROKE / 2}
-          cy={RADIUS + STROKE / 2}
-          r={RADIUS}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={STROKE}
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dominantBaseline="central"
-          className="fill-warm-dark text-sm font-bold"
-        >
-          {Math.round(pct)}%
-        </text>
-      </svg>
+    <div className="flex items-center gap-4">
+      <div className={`relative rounded-full ${isComplete ? 'flash-complete' : ''}`}>
+        <svg width={RADIUS * 2 + STROKE} height={RADIUS * 2 + STROKE}>
+          <circle
+            cx={RADIUS + STROKE / 2}
+            cy={RADIUS + STROKE / 2}
+            r={RADIUS}
+            fill="none"
+            stroke="#e8dfc8"
+            strokeWidth={STROKE}
+          />
+          <circle
+            className="progress-ring-circle"
+            cx={RADIUS + STROKE / 2}
+            cy={RADIUS + STROKE / 2}
+            r={RADIUS}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={STROKE}
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+          />
+          <text
+            x="50%"
+            y="50%"
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-warm-dark text-sm font-bold"
+          >
+            {Math.round(pct)}%
+          </text>
+        </svg>
+      </div>
       <div>
         <p className="text-warm-dark text-sm font-semibold">
           已采购 {checked} / {total} 项
@@ -134,17 +137,25 @@ function ZoneSection({ zone, items }: { zone: Zone; items: ShoppingItem[] }) {
   );
 }
 
-function ShoppingRadar({ items }: { items: ShoppingItem[] }) {
-  const data = ZONES.map((zone) => ({
+function ShoppingRadar({ items, weekKey }: { items: ShoppingItem[]; weekKey: number }) {
+  const data = useMemo(() => ZONES.map((zone) => ({
     zone,
     count: items.filter((i) => i.zone === zone).length,
-  }));
+  })), [items]);
 
   if (data.every((d) => d.count === 0)) return null;
 
   return (
     <div className="flex justify-center mt-4">
-      <RadarChart width={300} height={300} data={data} cx="50%" cy="50%" outerRadius="70%">
+      <RadarChart
+        key={weekKey}
+        width={300}
+        height={300}
+        data={data}
+        cx="50%"
+        cy="50%"
+        outerRadius="70%"
+      >
         <PolarGrid stroke="#e8dfc8" />
         <PolarAngleAxis
           dataKey="zone"
@@ -155,6 +166,7 @@ function ShoppingRadar({ items }: { items: ShoppingItem[] }) {
           stroke="#F28C28"
           fill="#F28C28"
           fillOpacity={0.3}
+          isAnimationActive={true}
           animationDuration={800}
           animationEasing="ease-out"
         />
@@ -164,14 +176,30 @@ function ShoppingRadar({ items }: { items: ShoppingItem[] }) {
 }
 
 export default function ShoppingList() {
-  const shoppingItems = useMenuStore((s) => s.shoppingItems);
+  const currentWeek = useMenuStore((s) => s.currentWeek);
+  const weekShoppingItems = useMenuStore((s) => s.weekShoppingItems[s.currentWeek] || []);
+  const weekCheckedItems = useMenuStore((s) => s.weekCheckedItems[s.currentWeek] || {});
+
+  const shoppingItems = useMemo(
+    () =>
+      weekShoppingItems.map((item) => ({
+        ...item,
+        checked: weekCheckedItems[item.name] ?? false,
+      })),
+    [weekShoppingItems, weekCheckedItems]
+  );
+
   const checkedCount = shoppingItems.filter((i) => i.checked).length;
   const totalCount = shoppingItems.length;
 
-  const grouped = ZONES.reduce<Record<Zone, ShoppingItem[]>>((acc, zone) => {
-    acc[zone] = shoppingItems.filter((i) => i.zone === zone);
-    return acc;
-  }, {} as Record<Zone, ShoppingItem[]>);
+  const grouped = useMemo(() => {
+    const g = {} as Record<Zone, ShoppingItem[]>;
+    for (const zone of ZONES) g[zone] = [];
+    for (const item of shoppingItems) {
+      g[item.zone].push(item);
+    }
+    return g;
+  }, [shoppingItems]);
 
   if (shoppingItems.length === 0) {
     return (
@@ -198,7 +226,7 @@ export default function ShoppingList() {
               <ZoneSection key={zone} zone={zone} items={grouped[zone]} />
             )
         )}
-        <ShoppingRadar items={shoppingItems} />
+        <ShoppingRadar items={shoppingItems} weekKey={currentWeek} />
       </div>
     </div>
   );

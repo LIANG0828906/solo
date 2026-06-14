@@ -29,6 +29,7 @@ html, body, #root {
 ::-webkit-scrollbar-thumb {
   background: #d4c9a8;
   border-radius: 3px;
+  transition: background 200ms ease-out;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -38,7 +39,7 @@ html, body, #root {
 @layer components {
   .drag-card {
     cursor: grab;
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.2s ease-out;
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out, opacity 200ms ease-out;
   }
 
   .drag-card:active {
@@ -47,22 +48,22 @@ html, body, #root {
 
   .drag-card.dragging {
     opacity: 0.5;
-    transform: scale(0.95);
-    box-shadow: 0 8px 24px rgba(242, 140, 40, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 12px 32px rgba(242, 140, 40, 0.4);
   }
 
   .meal-slot {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease-out;
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 200ms ease-out, border-color 200ms ease-out;
   }
 
   .meal-slot.drag-over {
     background-color: #FFF0D4;
-    transform: scale(1.03);
+    transform: scale(1.05);
     border-color: #F28C28;
   }
 
   .meal-slot.just-dropped {
-    animation: bounce-in 0.3s ease-out forwards;
+    animation: bounce-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 
   .circular-checkbox {
@@ -74,7 +75,7 @@ html, body, #root {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease-out;
+    transition: background-color 200ms ease-out, border-color 200ms ease-out, transform 200ms ease-out;
     flex-shrink: 0;
   }
 
@@ -91,19 +92,23 @@ html, body, #root {
   .circular-checkbox .check-icon {
     color: white;
     font-size: 14px;
-    animation: check-spin 0.4s ease-out forwards;
+    animation: check-spin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 
   .progress-ring-circle {
-    transition: stroke-dashoffset 0.5s ease-out;
+    transition: stroke-dashoffset 500ms cubic-bezier(0.4, 0, 0.2, 1), stroke 300ms ease-out;
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
+  }
+
+  .flash-complete {
+    animation: flash-green 1s ease-out;
   }
 
   .zone-header {
     cursor: pointer;
     user-select: none;
-    transition: background-color 0.2s ease-out;
+    transition: background-color 200ms ease-out;
   }
 
   .zone-header:hover {
@@ -126,19 +131,19 @@ html, body, #root {
   }
 
   .recipe-form-overlay {
-    animation: fade-in 0.2s ease-out;
+    animation: fade-in 200ms ease-out;
   }
 
   .recipe-form-panel {
-    animation: slide-up 0.3s ease-out;
+    animation: slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 
-  .flash-complete {
-    animation: flash-green 0.8s ease-out;
+  .animate-fly-in {
+    animation: fly-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 
   .category-tab {
-    transition: all 0.2s ease-out;
+    transition: all 200ms ease-out;
     cursor: pointer;
     border-radius: 20px;
     padding: 4px 12px;
@@ -155,6 +160,10 @@ html, body, #root {
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     transform: scale(1.05);
   }
+
+  button {
+    transition: all 200ms ease-out;
+  }
 }
 
 @keyframes fade-in {
@@ -165,4 +174,29 @@ html, body, #root {
 @keyframes slide-up {
   from { transform: translateY(40px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fly-in {
+  0% { transform: translateY(80px) scale(0.8); opacity: 0; }
+  60% { transform: translateY(-10px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.7); opacity: 0; }
+  50% { transform: scale(1.08); }
+  70% { transform: scale(0.96); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes check-spin {
+  0% { transform: rotate(0deg) scale(0.3); opacity: 0; }
+  40% { transform: rotate(180deg) scale(1.2); opacity: 1; }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+@keyframes flash-green {
+  0% { box-shadow: 0 0 0 0 rgba(107, 142, 35, 0.7); }
+  40% { box-shadow: 0 0 30px 15px rgba(107, 142, 35, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(107, 142, 35, 0); }
 }
