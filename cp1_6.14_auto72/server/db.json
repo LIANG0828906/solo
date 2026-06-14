@@ -1,0 +1,153 @@
+{
+  "cats": [
+    {
+      "id": "22338991-5eaa-4ae5-bf3d-b61d8072c10f",
+      "name": "饭团",
+      "breed": "暹罗猫",
+      "color": "丁香色",
+      "healthStatus": "mild",
+      "story": "在高速公路旁被好心人救下，当时已经奄奄一息，经过救治终于恢复了活力。",
+      "metrics": {
+        "appetite": 56,
+        "energy": 50,
+        "friendliness": 72,
+        "cleanliness": 60,
+        "health": 67
+      },
+      "behaviorRecords": [
+        "听到罐头的声音会立刻跑过来",
+        "喜欢在阳光下发呆，一晒就是一下午"
+      ],
+      "avatar": "🙀",
+      "arrivalDate": "2026-06-14T05:28:20.537Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "4cdfbe1a-8138-48cc-a07f-9148ae6c88b2",
+      "name": "豆豆",
+      "breed": "三花猫",
+      "color": "纯黑",
+      "healthStatus": "mild",
+      "story": "原主人因过敏不得不放弃它。从小家养，非常亲人，会主动蹭人的腿。",
+      "metrics": {
+        "appetite": 65,
+        "energy": 53,
+        "friendliness": 59,
+        "cleanliness": 65,
+        "health": 60
+      },
+      "behaviorRecords": [
+        "喜欢被撸肚子，会开心地呼噜呼噜",
+        "听到罐头的声音会立刻跑过来",
+        "食量正常，不挑食",
+        "会使用猫砂盆，卫生习惯良好"
+      ],
+      "avatar": "🐈‍⬛",
+      "arrivalDate": "2026-06-14T05:28:20.537Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "23189f52-5909-4bbf-8caf-bf8c595b51e1",
+      "name": "咖啡",
+      "breed": "美国短毛",
+      "color": "橘白相间",
+      "healthStatus": "healthy",
+      "story": "被遗弃在宠物店门口的纸箱里，和兄弟姐妹一起被送来。性格活泼好动。",
+      "metrics": {
+        "appetite": 74,
+        "energy": 86,
+        "friendliness": 83,
+        "cleanliness": 79,
+        "health": 80
+      },
+      "behaviorRecords": [
+        "喜欢在阳光下发呆，一晒就是一下午",
+        "听到罐头的声音会立刻跑过来",
+        "食量正常，不挑食"
+      ],
+      "avatar": "🐈‍⬛",
+      "arrivalDate": "2026-06-14T05:28:20.537Z",
+      "area": "shelter",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "e5407c77-b350-47e8-a861-94cb142331ab",
+      "name": "小白",
+      "breed": "英短蓝猫",
+      "color": "烟灰色",
+      "healthStatus": "mild",
+      "story": "在建筑工地的废墟中被发现，身上有些伤口，但精神状态还不错。",
+      "metrics": {
+        "appetite": 69,
+        "energy": 68,
+        "friendliness": 64,
+        "cleanliness": 62,
+        "health": 61
+      },
+      "behaviorRecords": [
+        "会使用猫砂盆，卫生习惯良好",
+        "偶尔会调皮，但大多数时间很安静",
+        "睡觉喜欢窝在柔软的毛毯上"
+      ],
+      "avatar": "🙀",
+      "arrivalDate": "2026-06-14T05:28:20.537Z",
+      "area": "shelter",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "aae88602-113e-4877-98d9-3e0b6d61d2dc",
+      "name": "咪咪",
+      "breed": "奶牛猫",
+      "color": "奶油色",
+      "healthStatus": "severe",
+      "story": "在高速公路旁被好心人救下，当时已经奄奄一息，经过救治终于恢复了活力。",
+      "metrics": {
+        "appetite": 50,
+        "energy": 33,
+        "friendliness": 41,
+        "cleanliness": 43,
+        "health": 51
+      },
+      "behaviorRecords": [
+        "喜欢被撸肚子，会开心地呼噜呼噜",
+        "喜欢在阳光下发呆，一晒就是一下午"
+      ],
+      "avatar": "😸",
+      "arrivalDate": "2026-06-14T05:30:20.475Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "af2b3858-898a-49ca-836a-9b2630266262",
+      "name": "年糕",
+      "breed": "波斯猫",
+      "color": "橘白相间",
+      "healthStatus": "mild",
+      "story": "下雨天躲在小区楼道里瑟瑟发抖，被好心的居民送来救助站。性格温顺，喜欢被摸下巴。",
+      "metrics": {
+        "appetite": 61,
+        "energy": 62,
+        "friendliness": 60,
+        "cleanliness": 63,
+        "health": 65
+      },
+      "behaviorRecords": [
+        "喜欢追逐逗猫棒，能玩很久不觉得累",
+        "会使用猫砂盆，卫生习惯良好"
+      ],
+      "avatar": "😻",
+      "arrivalDate": "2026-06-14T05:31:11.701Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    }
+  ],
+  "users": []
+}
