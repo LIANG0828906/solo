@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import EmojiGrid from './components/EmojiGrid';
 import CollectionSidebar from './components/CollectionSidebar';
 import { EMOJIS, CATEGORIES, type EmojiItem } from './data/emojis';
@@ -17,6 +17,13 @@ function App() {
   const [collected, setCollected] = useState<CollectedItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isFullWarning, setIsFullWarning] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  }, []);
 
   useEffect(() => {
     try {
@@ -97,6 +104,13 @@ function App() {
     setSearchQuery(e.target.value);
   }, []);
 
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
@@ -124,7 +138,8 @@ function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [collected]);
+    showToast(`已导出 ${sorted.length} 个表情到 ${filename}`);
+  }, [collected, showToast]);
 
   return (
     <div className="app-container">
