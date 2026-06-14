@@ -406,7 +406,7 @@ export class MoleculeScene {
       roughness: 0.5
     })
 
-    const mesh = new THREE.Mesh(geometry, material) as BondMesh
+    const mesh = new THREE.Mesh(geometry, material) as unknown as BondMesh
     mesh.position.copy(start)
     mesh.lookAt(end)
     mesh.receiveShadow = true
@@ -465,7 +465,6 @@ export class MoleculeScene {
   }
 
   setAutoRotate(enabled: boolean): void {
-    this.autoRotate = enabled
     this.controls.autoRotate = enabled
     this.controls.autoRotateSpeed = AUTO_ROTATE_SPEED
   }
@@ -576,7 +575,7 @@ export class MoleculeScene {
       depthWrite: false
     })
 
-    const mesh = new THREE.Mesh(geometry, material) as HighlightMesh
+    const mesh = new THREE.Mesh(geometry, material) as unknown as HighlightMesh
     mesh.position.set(atom.x, atom.y, atom.z)
     mesh.userData = {
       type: 'highlight',

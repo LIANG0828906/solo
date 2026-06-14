@@ -44,12 +44,16 @@
       left: 0;
       width: 260px;
       height: 100%;
-      background: rgba(26, 26, 46, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-right: 1px solid rgba(0, 212, 255, 0.3);
-      box-shadow: 2px 0 20px rgba(0, 212, 255, 0.1);
-      padding: 20px;
+      background: linear-gradient(180deg, 
+                  rgba(20, 20, 40, 0.95) 0%, 
+                  rgba(26, 26, 46, 0.92) 50%,
+                  rgba(15, 15, 35, 0.95) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid rgba(0, 212, 255, 0.4);
+      box-shadow: 4px 0 30px rgba(0, 212, 255, 0.15),
+                  inset -2px 0 0 rgba(0, 212, 255, 0.1);
+      padding: 24px 20px;
       overflow-y: auto;
       z-index: 10;
       transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
@@ -100,13 +104,24 @@
 
     .panel-title {
       font-size: 18px;
-      font-weight: 600;
-      color: #00d4ff;
-      margin-bottom: 20px;
-      letter-spacing: 1px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #00d4ff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
       text-transform: uppercase;
       white-space: nowrap;
       overflow: hidden;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+      animation: shimmer 3s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
     }
 
     .section-label {
@@ -120,20 +135,24 @@
 
     .search-box {
       width: 100%;
-      padding: 10px 14px;
-      background: rgba(0, 212, 255, 0.08);
-      border: 1px solid rgba(0, 212, 255, 0.3);
+      padding: 11px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(0, 212, 255, 0.25);
       border-radius: 8px;
       color: #e0e0e0;
       font-size: 13px;
       outline: none;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
     }
 
     .search-box:focus {
       border-color: #00d4ff;
-      box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
-      background: rgba(0, 212, 255, 0.12);
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15),
+                  0 0 20px rgba(0, 212, 255, 0.3),
+                  inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      background: rgba(0, 20, 40, 0.5);
+      transform: translateY(-1px);
     }
 
     .search-box::placeholder {
@@ -154,18 +173,26 @@
 
     .switch {
       position: relative;
-      width: 44px;
-      height: 22px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 11px;
+      width: 48px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
       cursor: pointer;
-      transition: background 0.3s ease,
-                  box-shadow 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .switch:hover {
+      border-color: rgba(0, 212, 255, 0.3);
     }
 
     .switch.active {
-      background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
-      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      background: linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #0066ff 100%);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.6),
+                  0 0 30px rgba(0, 102, 255, 0.3),
+                  inset 0 1px 2px rgba(255, 255, 255, 0.3);
+      border-color: rgba(0, 212, 255, 0.5);
     }
 
     .switch-knob {
@@ -174,9 +201,17 @@
       left: 2px;
       width: 18px;
       height: 18px;
-      background: #fff;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
       border-radius: 50%;
       transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    }
+
+    .switch.active .switch-knob {
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5),
+                  0 0 12px rgba(0, 212, 255, 0.3),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.9);
     }
 
     .switch.active .switch-knob {
@@ -192,35 +227,76 @@
     .btn {
       flex: 1;
       padding: 9px 12px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(0, 212, 255, 0.3);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(0, 212, 255, 0.25);
       border-radius: 8px;
-      color: #e0e0e0;
+      color: rgba(224, 224, 224, 0.7);
       font-size: 12px;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+      transition: left 0.5s ease;
     }
 
     .btn:hover {
       border-color: #00d4ff;
-      box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+      color: #e0e0e0;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4),
+                  inset 0 0 10px rgba(0, 212, 255, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .btn:hover::before {
+      left: 100%;
     }
 
     .btn.active {
-      background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 102, 255, 0.2) 100%);
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 102, 255, 0.2) 50%, rgba(0, 212, 255, 0.15) 100%);
       border-color: #00d4ff;
       color: #00d4ff;
-      box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+      font-weight: 600;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.5),
+                  0 0 40px rgba(0, 212, 255, 0.2),
+                  inset 0 0 15px rgba(0, 212, 255, 0.15);
     }
 
     .atom-detail {
       margin-top: 20px;
-      padding: 16px;
-      background: rgba(0, 212, 255, 0.06);
-      border: 1px solid rgba(0, 212, 255, 0.2);
-      border-radius: 10px;
-      min-height: 100px;
+      padding: 18px 16px;
+      background: linear-gradient(145deg, 
+                  rgba(0, 30, 60, 0.4) 0%, 
+                  rgba(0, 20, 40, 0.5) 100%);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 12px;
+      min-height: 120px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
+                  inset 0 1px 0 rgba(0, 212, 255, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .atom-detail::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent);
     }
 
     .atom-detail-empty {
