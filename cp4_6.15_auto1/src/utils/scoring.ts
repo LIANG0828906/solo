@@ -1,43 +1,12 @@
 import type { Question, ScoringResult } from '@/types';
+import { getSynonyms, SCORING_ALGORITHM_VERSION } from './synonyms';
+import { isStopword } from './stopwords';
 
 const KEYWORD_WEIGHT = 0.5;
 const LENGTH_WEIGHT = 0.2;
 const SEMANTIC_WEIGHT = 0.3;
 const EDIT_DISTANCE_MAX_LEN = 2000;
-const NGRAM_SAMPLE_MAX_LEN = 5000;
-
-const SYNONYMS: Record<string, string[]> = {
-  '提高': ['提升', '增加', '增强', '改善', '优化'],
-  '提升': ['提高', '增加', '增强', '改善', '优化'],
-  '增加': ['提高', '提升', '增长', '扩大', '增多'],
-  '减少': ['降低', '下降', '削减', '减小', '缩小'],
-  '降低': ['减少', '下降', '削减', '减小', '缩小'],
-  '重要': ['关键', '核心', '主要', '首要', '重点'],
-  '关键': ['重要', '核心', '主要', '首要', '重点'],
-  '有效': ['高效', '成功', '可行', '有效率', '有效果'],
-  '方法': ['方式', '手段', '途径', '办法', '策略'],
-  '方式': ['方法', '手段', '途径', '办法', '形式'],
-  '问题': ['难题', '困难', '挑战', '议题', '矛盾'],
-  '解决': ['处理', '化解', '应对', '攻克', '破解'],
-  '分析': ['研究', '探究', '剖析', '解析', '探讨'],
-  '学习': ['掌握', '理解', '把握', '学会', '习得'],
-  '理解': ['明白', '懂得', '领会', '领悟', '掌握'],
-  '发展': ['进步', '前进', '成长', '推进', '壮大'],
-  '影响': ['作用', '效果', '效应', '后果', '意义'],
-  '原因': ['因素', '缘由', '缘故', '起因', '来源'],
-  '结果': ['效果', '结论', '成果', '结局', '产物'],
-  '过程': ['流程', '进程', '步骤', '阶段', '环节'],
-  '系统': ['体系', '制度', '体制', '机制', '架构'],
-  '技术': ['技能', '技巧', '工艺', '科技', '工程'],
-  '能力': ['实力', '水平', '本领', '才能', '潜力'],
-  '效率': ['效益', '效果', '效能', '产出率', '工作效率'],
-  '质量': ['品质', '水准', '成色', '品位', '等级'],
-  '创新': ['创造', '革新', '突破', '新颖', '首创'],
-};
-
-function getSynonyms(word: string): string[] {
-  return SYNONYMS[word] || [];
-}
+export { SCORING_ALGORITHM_VERSION };
 
 function tokenizeFast(text: string): string[] {
   const result: string[] = [];
@@ -47,10 +16,16 @@ function tokenizeFast(text: string): string[] {
     const c = text.charCodeAt(i);
     if (c >= 0x4e00 && c <= 0x9fff) {
       if (i + 1 < len && text.charCodeAt(i + 1) >= 0x4e00 && text.charCodeAt(i + 1) <= 0x9fff) {
-        result.push(text.slice(i, i + 2).toLowerCase());
+        const gram = text.slice(i, i + 2).toLowerCase();
+        if (!isStopword(gram)) {
+          result.push(gram);
+        }
         i += 2;
       } else {
-        result.push(text[i].toLowerCase());
+        const ch = text[i].toLowerCase();
+        if (!isStopword(ch)) {
+          result.push(ch);
+        }
         i += 1;
       }
     } else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {
@@ -63,7 +38,10 @@ function tokenizeFast(text: string): string[] {
           break;
         }
       }
-      result.push(text.slice(i, j).toLowerCase());
+      const word = text.slice(i, j).toLowerCase();
+      if (!isStopword(word)) {
+        result.push(word);
+      }
       i = j;
     } else {
       i += 1;
@@ -299,7 +277,7 @@ function generateFeedback(keywordRatio: number, lengthRatio: number, semanticRat
   return parts.join('；');
 }
 
-export function scoreAnswer(question: Question, studentAnswer: string): ScoringResult {
+export function scoreAnswer(question: Question, studentAnswer: string): ScoringResult & { algorithmVersion: number } {
   const keywordRatio = computeKeywordScore(question, studentAnswer);
   const lengthRatio = computeLengthScore(question.referenceAnswer, studentAnswer);
   const semanticRatio = computeSemanticScore(question.referenceAnswer, studentAnswer);
@@ -313,9 +291,10 @@ export function scoreAnswer(question: Question, studentAnswer: string): ScoringR
 
   return {
     totalScore: Math.max(0, totalScore),
-    keywordScore: Math.round(keywordRatio * 100) / 100,
-    lengthScore: Math.round(lengthRatio * 100) / 100,
-    semanticScore: Math.round(semanticRatio * 100) / 100,
+    keywordScore: Math.max(0, Math.min(1, Math.round(keywordRatio * 100) / 100)),
+    lengthScore: Math.max(0, Math.min(1.5, Math.round(lengthRatio * 100) / 100)),
+    semanticScore: Math.max(0, Math.min(1, Math.round(semanticRatio * 100) / 100)),
     feedback: generateFeedback(keywordRatio, lengthRatio, semanticRatio, question.maxScore, totalScore),
+    algorithmVersion: SCORING_ALGORITHM_VERSION,
   };
 }

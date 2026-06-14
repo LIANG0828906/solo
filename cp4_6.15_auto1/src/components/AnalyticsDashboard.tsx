@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import TagCloud from 'react-tagcloud';
 import type { ScoreRecord, Question } from '@/types';
+import { isStopword } from '@/utils/stopwords';
 
 type Dimension = 'class' | 'question' | 'student';
 
@@ -31,7 +32,9 @@ function extractMissedKeywords(records: ScoreRecord[], questions: Question[]) {
     if (scoreRatio >= 0.7) continue;
     const lower = r.studentAnswer.toLowerCase();
     for (const kw of q.keywords) {
-      if (!lower.includes(kw.word.toLowerCase())) {
+      const kwLower = kw.word.toLowerCase();
+      if (isStopword(kwLower)) continue;
+      if (!lower.includes(kwLower)) {
         freq.set(kw.word, (freq.get(kw.word) || 0) + 1);
       }
     }

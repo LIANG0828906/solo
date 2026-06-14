@@ -24,6 +24,7 @@ export interface ScoreRecord {
   semanticScore: number;
   feedback: string;
   scoredAt: string;
+  algorithmVersion?: number;
 }
 
 export interface GlobalStats {
