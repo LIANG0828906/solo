@@ -1,42 +1,74 @@
-import { useMemo, useEffect, useState, memo } from 'react';
+import { useMemo, useEffect, useState, memo, useRef } from 'react';
 import {
   calculateOptimalRoute,
-  buildRoutePath,
   START_POINT,
   COMMUNITY_LOCATIONS,
+  distance,
 } from './utils/routing';
+import type { CommunityLocation } from './types';
 import './styles/DeliveryMap.css';
 
 interface DeliveryMapProps {
   communities: string[];
 }
 
+interface SegmentInfo {
+  from: CommunityLocation;
+  to: CommunityLocation;
+  length: number;
+  path: string;
+}
+
 function DeliveryMap({ communities }: DeliveryMapProps) {
-  const [animationProgress, setAnimationProgress] = useState(0);
+  const [visibleSegments, setVisibleSegments] = useState(0);
+  const animRef = useRef<number>(0);
 
   const route = useMemo(() => calculateOptimalRoute(communities), [communities]);
-  const pathD = useMemo(() => buildRoutePath(route.order), [route]);
 
   const activeCommunitySet = useMemo(() => new Set(communities), [communities]);
 
+  const segments: SegmentInfo[] = useMemo(() => {
+    const result: SegmentInfo[] = [];
+    for (let i = 1; i < route.order.length; i++) {
+      const from = route.order[i - 1];
+      const to = route.order[i];
+      const len = distance(from, to);
+      result.push({
+        from,
+        to,
+        length: len,
+        path: `M ${from.x} ${from.y} L ${to.x} ${to.y}`,
+      });
+    }
+    return result;
+  }, [route]);
+
+  const totalSegments = segments.length;
+
   useEffect(() => {
-    setAnimationProgress(0);
-    let frame: number;
-    const duration = 1500;
-    const startTime = performance.now();
+    setVisibleSegments(0);
+    if (totalSegments === 0) return;
+
+    const SEGMENT_DURATION = 600;
+    let startTime: number | null = null;
 
     const animate = (now: number) => {
+      if (startTime === null) startTime = now;
       const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      setAnimationProgress(progress);
-      if (progress < 1) {
-        frame = requestAnimationFrame(animate);
+      const completed = Math.min(
+        Math.floor(elapsed / SEGMENT_DURATION) + 1,
+        totalSegments
+      );
+      setVisibleSegments(completed);
+
+      if (completed < totalSegments) {
+        animRef.current = requestAnimationFrame(animate);
       }
     };
 
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [pathD]);
+    animRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [totalSegments]);
 
   const routeInfo = route.order
     .filter((_, i) => i > 0)
@@ -65,19 +97,35 @@ function DeliveryMap({ communities }: DeliveryMapProps) {
 
           <rect width="650" height="380" fill="url(#grid)" />
 
-          <path
-            d={pathD}
-            fill="none"
-            stroke="url(#routeGradient)"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray="1000"
-            strokeDashoffset={1000 * (1 - animationProgress)}
-            className="route-path"
-          />
+          {segments.map((seg, i) => {
+            const segmentIndex = i + 1;
+            const isSegmentStarted = visibleSegments >= segmentIndex;
+            const isPreviousDone = visibleSegments > segmentIndex;
 
-          <g className="start-point">
+            if (!isSegmentStarted) return null;
+
+            return (
+              <path
+                key={`seg-${i}`}
+                d={seg.path}
+                fill="none"
+                stroke="url(#routeGradient)"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={seg.length}
+                strokeDashoffset={isPreviousDone ? 0 : seg.length}
+                className="route-segment"
+                style={{
+                  transition: isPreviousDone
+                    ? 'none'
+                    : `stroke-dashoffset ${600}ms ease`,
+                }}
+              />
+            );
+          })}
+
+          <g className={`start-point ${visibleSegments > 0 ? 'visible' : ''}`}>
             <circle cx={START_POINT.x} cy={START_POINT.y} r="12" fill="#e67e22" />
             <circle cx={START_POINT.x} cy={START_POINT.y} r="6" fill="#fff" />
             <text
@@ -94,12 +142,12 @@ function DeliveryMap({ communities }: DeliveryMapProps) {
             const isActive = activeCommunitySet.has(loc.community);
             const routeIndex = route.order.findIndex((r) => r.community === loc.community);
             const isInRoute = routeIndex > 0;
-            const shouldShow = animationProgress >= (routeIndex - 1) / Math.max(route.order.length - 1, 1);
+            const isReached = routeIndex > 0 && routeIndex <= visibleSegments;
 
             return (
               <g
                 key={loc.community}
-                className={`community-point ${isActive ? 'active' : 'inactive'} ${isInRoute && shouldShow ? 'visible' : ''}`}
+                className={`community-point ${isActive ? 'active' : 'inactive'} ${isReached ? 'reached' : ''}`}
               >
                 <circle
                   cx={loc.x}
@@ -115,7 +163,7 @@ function DeliveryMap({ communities }: DeliveryMapProps) {
                   className={`location-label ${isActive ? 'active-label' : 'inactive-label'}`}
                 >
                   {loc.community}
-                  {isActive && routeIndex > 0 && (
+                  {isInRoute && (
                     <tspan className="route-index"> #{routeIndex}</tspan>
                   )}
                 </text>

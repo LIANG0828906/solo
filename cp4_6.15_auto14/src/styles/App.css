@@ -127,17 +127,17 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 999;
-  animation: fadeIn 0.3s ease;
   padding: 16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.modal-overlay.modal-opening {
+  opacity: 1;
+}
+
+.modal-overlay.modal-closing {
+  opacity: 0;
 }
 
 .modal-content {
@@ -149,19 +149,20 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  animation: modalIn 0.3s ease;
   overflow: hidden;
+  transform: scale(0.95) translateY(10px);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-@keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.modal-overlay.modal-opening .modal-content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.modal-overlay.modal-closing .modal-content {
+  transform: scale(0.95) translateY(10px);
+  opacity: 0;
 }
 
 .modal-header {
@@ -191,13 +192,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   line-height: 1;
 }
 
 .modal-close:hover {
   background-color: var(--primary-bg);
   color: var(--primary-dark);
+  transform: translateY(-2px);
 }
 
 .modal-body {

@@ -85,7 +85,7 @@ function App() {
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [showSuccess, setShowSuccess] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [modalState, setModalState] = useState<'hidden' | 'visible' | 'closing'>('hidden');
 
   const communityGroups = useMemo(() => groupOrdersByCommunity(orders), [orders]);
 
@@ -125,11 +125,14 @@ function App() {
     }
 
     setNotifications((prev) => [...newNotifications, ...prev]);
-    setShowNotificationModal(true);
+    setModalState('visible');
   }, [orders]);
 
   const closeNotificationModal = useCallback(() => {
-    setShowNotificationModal(false);
+    setModalState('closing');
+    setTimeout(() => {
+      setModalState('hidden');
+    }, 300);
   }, []);
 
   return (
@@ -160,8 +163,11 @@ function App() {
         </div>
       </div>
 
-      {showNotificationModal && (
-        <div className="modal-overlay" onClick={closeNotificationModal}>
+      {modalState !== 'hidden' && (
+        <div
+          className={`modal-overlay ${modalState === 'closing' ? 'modal-closing' : 'modal-opening'}`}
+          onClick={closeNotificationModal}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>到货通知已发送</h2>
