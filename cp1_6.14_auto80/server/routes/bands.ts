@@ -4,6 +4,7 @@ import { getDb, type DbBand, type DbUser, type BandMember } from '../db.js'
 import { authMiddleware } from '../middleware/auth.js'
 
 const router = Router()
+router.use(authMiddleware)
 
 const GRADIENTS = [
   'linear-gradient(135deg, #00D2FF, #8B5CF6)',
@@ -15,8 +16,6 @@ const GRADIENTS = [
   'linear-gradient(135deg, #14B8A6, #00D2FF)',
   'linear-gradient(135deg, #F97316, #F59E0B)',
 ]
-
-router.use(authMiddleware)
 
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -82,6 +81,24 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ success: true, data: band })
   } catch (error) {
     res.status(500).json({ success: false, error: '创建乐队失败' })
+  }
+})
+
+router.get('/search/users', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const username = req.query.username as string
+    if (!username) {
+      res.json({ success: true, data: [] })
+      return
+    }
+    const db = await getDb()
+    const users = db.data.users
+      .filter((u: DbUser) => u.username.toLowerCase().includes(username.toLowerCase()))
+      .slice(0, 10)
+      .map((u: DbUser) => ({ id: u.id, username: u.username, avatar: u.avatar }))
+    res.json({ success: true, data: users })
+  } catch (error) {
+    res.status(500).json({ success: false, error: '搜索用户失败' })
   }
 })
 
@@ -176,24 +193,6 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response): Promi
     res.json({ success: true, data: band })
   } catch (error) {
     res.status(500).json({ success: false, error: '移除成员失败' })
-  }
-})
-
-router.get('/search/users', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const username = req.query.username as string
-    if (!username) {
-      res.json({ success: true, data: [] })
-      return
-    }
-    const db = await getDb()
-    const users = db.data.users
-      .filter((u: DbUser) => u.username.toLowerCase().includes(username.toLowerCase()))
-      .slice(0, 10)
-      .map((u: DbUser) => ({ id: u.id, username: u.username, avatar: u.avatar }))
-    res.json({ success: true, data: users })
-  } catch (error) {
-    res.status(500).json({ success: false, error: '搜索用户失败' })
   }
 })
 
