@@ -73,6 +73,7 @@ function init(): void {
   earth.addPlateBoundaries(plateBoundaries);
   
   raycaster = new THREE.Raycaster();
+  raycaster.params.Line = { threshold: 0.05 };
   mouse = new THREE.Vector2();
   
   timeline = new Timeline('timeline-container', seismicData, handleDateChange);
@@ -80,7 +81,7 @@ function init(): void {
   state.currentDate = timeline.getCurrentDate();
   updateVisibleEarthquakes();
   
-  setupEventListeners(app, container);
+  setupEventListeners(app);
   handleResize();
   animate();
 }
@@ -167,11 +168,23 @@ function createUI(app: HTMLElement): void {
   app.appendChild(title);
 }
 
-function setupEventListeners(app: HTMLElement, container: HTMLElement): void {
+function setupEventListeners(app: HTMLElement): void {
   const canvas = earth.getRenderer().domElement;
   canvas.addEventListener('mousemove', handleMouseMove);
   canvas.addEventListener('click', handleClick);
   window.addEventListener('resize', handleResize);
+  
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (infoWindow && !infoWindow.contains(target) && target.id !== 'close-info') {
+      const canvasEl = earth.getRenderer().domElement;
+      if (!canvasEl.contains(target) && !statsPanel.contains(target)) {
+        const timelineEl = document.getElementById('timeline-container');
+        if (!timelineEl?.contains(target)) {
+        }
+      }
+    }
+  });
 }
 
 function handleMouseMove(event: MouseEvent): void {
@@ -182,26 +195,47 @@ function handleMouseMove(event: MouseEvent): void {
   
   raycaster.setFromCamera(mouse, earth.getCamera());
   
-  const plateBoundaries = earth.getPlateBoundaries();
-  const plateLines = plateBoundaries.map(pb => pb.getLine());
+  const plateBoundaryList = earth.getPlateBoundaries();
+  const hitZones = plateBoundaryList.map(pb => pb.getHitZone());
   
-  const plateIntersects = raycaster.intersectObjects(plateLines, false);
+  const plateIntersects = raycaster.intersectObjects(hitZones, false);
   
-  plateBoundaries.forEach(pb => {
-    if (pb.isHovered()) {
-      pb.onHoverEnd();
-    }
+  plateBoundaryList.forEach(pb => {
+    pb.onHoverEnd();
   });
   
+  let hoveredPlate: PlateBoundary | null = null;
+  
   if (plateIntersects.length > 0) {
-    const intersectedLine = plateIntersects[0].object;
-    const plateBoundary = plateBoundaries.find(pb => pb.getLine() === intersectedLine);
+    const intersected = plateIntersects[0].object;
+    const plateBoundary = plateBoundaryList.find(pb => 
+      pb.getHitZone() === intersected || 
+      pb.getLine() === intersected ||
+      (intersected as any).userData?.plateBoundary === pb
+    );
     if (plateBoundary) {
       plateBoundary.onHover(event.clientX, event.clientY);
+      hoveredPlate = plateBoundary;
     }
   }
   
-  canvas.style.cursor = plateIntersects.length > 0 ? 'pointer' : 'grab';
+  const seismicPoints = earth.getSeismicPoints();
+  const markers: THREE.Object3D[] = [];
+  seismicPoints.forEach((sp) => {
+    if (sp.isVisible()) {
+      markers.push(sp.getMarker());
+    }
+  });
+  
+  const seismicIntersects = raycaster.intersectObjects(markers, false);
+  
+  if (seismicIntersects.length > 0) {
+    canvas.style.cursor = 'pointer';
+  } else if (hoveredPlate) {
+    canvas.style.cursor = 'pointer';
+  } else {
+    canvas.style.cursor = 'grab';
+  }
 }
 
 function handleClick(event: MouseEvent): void {
@@ -213,21 +247,44 @@ function handleClick(event: MouseEvent): void {
   raycaster.setFromCamera(mouse, earth.getCamera());
   
   const seismicPoints = earth.getSeismicPoints();
-  const markers = Array.from(seismicPoints.values())
-    .filter(sp => sp.isVisible())
-    .map(sp => sp.getMarker());
+  const allObjects: THREE.Object3D[] = [];
+  const visiblePoints: SeismicPoint[] = [];
+  seismicPoints.forEach((sp) => {
+    if (sp.isVisible()) {
+      visiblePoints.push(sp);
+      allObjects.push(sp.getMarker());
+    }
+  });
   
-  const intersects = raycaster.intersectObjects(markers, true);
+  const intersects = raycaster.intersectObjects(allObjects, true);
   
   if (intersects.length > 0) {
-    const intersectedMarker = intersects[0].object;
-    const seismicPoint = Array.from(seismicPoints.values()).find(
-      sp => sp.getMarker() === intersectedMarker || sp.getMarker().children.includes(intersectedMarker as THREE.Mesh)
-    );
+    let intersectedObject = intersects[0].object;
+    let seismicPoint: SeismicPoint | null = null;
+    
+    let current: THREE.Object3D | null = intersectedObject;
+    while (current) {
+      if ((current as any).userData?.seismicPoint) {
+        seismicPoint = (current as any).userData.seismicPoint;
+        break;
+      }
+      current = current.parent;
+    }
+    
+    if (!seismicPoint) {
+      seismicPoint = Array.from(seismicPoints.values()).find(
+        sp => sp.getMarker() === intersectedObject
+      ) || null;
+    }
     
     if (seismicPoint) {
       handleEarthquakeClick(seismicPoint, event.clientX, event.clientY);
+      return;
     }
+  }
+  
+  if (state.selectedPoint) {
+    closeInfoWindow();
   }
 }
 
@@ -247,6 +304,7 @@ function handleEarthquakeClick(point: SeismicPoint, clientX: number, clientY: nu
 function showInfoWindow(record: SeismicRecord, clientX: number, clientY: number): void {
   if (infoWindow) {
     infoWindow.remove();
+    infoWindow = null;
   }
   
   infoWindow = document.createElement('div');
@@ -290,7 +348,7 @@ function showInfoWindow(record: SeismicRecord, clientX: number, clientY: number)
           ${record.location}
         </div>
       </div>
-      <button id="close-info" style="width: 28px; height: 28px; border: none; background: rgba(0,0,0,0.1); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #666; transition: all 0.2s;">
+      <button id="close-info" style="width: 28px; height: 28px; border: none; background: rgba(0,0,0,0.1); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #666; transition: all 0.2s; line-height: 1;">
         ×
       </button>
     </div>
@@ -329,11 +387,11 @@ function showInfoWindow(record: SeismicRecord, clientX: number, clientY: number)
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
   let posX = clientX;
-  let posY = clientY - 100;
+  let posY = clientY - 120;
   
   if (posX < 160) posX = 160;
   if (posX > windowWidth - 160) posX = windowWidth - 160;
-  if (posY < 100) posY = 100;
+  if (posY < 120) posY = 120;
   if (posY > windowHeight - 100) posY = windowHeight - 100;
   
   infoWindow.style.left = `${posX}px`;
@@ -349,7 +407,10 @@ function showInfoWindow(record: SeismicRecord, clientX: number, clientY: number)
   });
   
   const closeBtn = infoWindow.querySelector('#close-info');
-  closeBtn?.addEventListener('click', closeInfoWindow);
+  closeBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeInfoWindow();
+  });
 }
 
 function closeInfoWindow(): void {
@@ -357,9 +418,12 @@ function closeInfoWindow(): void {
     infoWindow.style.transform = 'translate(-50%, -50%) scale(0.8)';
     infoWindow.style.opacity = '0';
     
+    const win = infoWindow;
     setTimeout(() => {
-      if (infoWindow) {
-        infoWindow.remove();
+      if (win && win.parentNode) {
+        win.parentNode.removeChild(win);
+      }
+      if (infoWindow === win) {
         infoWindow = null;
       }
     }, 300);

@@ -18,6 +18,7 @@ export class SeismicPoint {
     this.record = record;
     this.earthRadius = earthRadius;
     this.group = new THREE.Group();
+    this.group.userData.seismicPoint = this;
     this.marker = this.createMarker();
     this.group.add(this.marker);
     this.positionOnSphere();
@@ -28,9 +29,10 @@ export class SeismicPoint {
     const material = new THREE.MeshBasicMaterial({
       color: this.getDepthColor(),
       transparent: true,
-      opacity: 0.9
+      opacity: 0.95
     });
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.userData.seismicPoint = this;
     this.updateScale(mesh);
     return mesh;
   }
@@ -48,7 +50,7 @@ export class SeismicPoint {
 
   private updateScale(mesh: THREE.Mesh): void {
     const magnitude = this.record.magnitude;
-    const baseSize = 0.02;
+    const baseSize = 0.06;
     const scaleFactor = Math.pow(1.5, magnitude - 4);
     this.baseScale = baseSize * Math.max(scaleFactor, 0.8);
     mesh.scale.setScalar(this.baseScale * this.earthRadius);
@@ -58,9 +60,10 @@ export class SeismicPoint {
     const lat = this.record.latitude * Math.PI / 180;
     const lng = this.record.longitude * Math.PI / 180;
     
-    const x = this.earthRadius * Math.cos(lat) * Math.cos(lng);
-    const y = this.earthRadius * Math.sin(lat);
-    const z = this.earthRadius * Math.cos(lat) * Math.sin(-lng);
+    const height = this.earthRadius * 1.05;
+    const x = height * Math.cos(lat) * Math.cos(lng);
+    const y = height * Math.sin(lat);
+    const z = height * Math.cos(lat) * Math.sin(-lng);
     
     this.group.position.set(x, y, z);
     this.group.lookAt(0, 0, 0);
@@ -71,19 +74,21 @@ export class SeismicPoint {
     this.rippleAnimating = true;
     this.rippleStartTime = performance.now();
     
-    const rippleCount = 3;
+    const rippleCount = 4;
     for (let i = 0; i < rippleCount; i++) {
-      const geometry = new THREE.RingGeometry(1, 1.02, 64);
+      const geometry = new THREE.RingGeometry(0.9, 1.1, 96);
       const material = new THREE.MeshBasicMaterial({
         color: 0x00d4ff,
         transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide
+        opacity: 0.7,
+        side: THREE.DoubleSide,
+        depthWrite: false
       });
       const ripple = new THREE.Mesh(geometry, material);
       ripple.rotation.x = -Math.PI / 2;
       ripple.scale.setScalar(1);
-      ripple.userData.delay = i * 0.2;
+      ripple.userData.delay = i * 0.25;
+      ripple.userData.seismicPoint = this;
       this.rippleMeshes.push(ripple);
       this.group.add(ripple);
     }
@@ -114,32 +119,33 @@ export class SeismicPoint {
     if (this.rippleAnimating) {
       const elapsed = (currentTime - this.rippleStartTime) / 1000;
       
-      this.rippleMeshes.forEach((ripple, index) => {
+      this.rippleMeshes.forEach((ripple) => {
         const adjustedElapsed = elapsed - ripple.userData.delay;
         if (adjustedElapsed > 0) {
-          const maxScale = 0.3;
-          const duration = 2;
+          const maxScale = 0.5;
+          const duration = 2.5;
           const progress = Math.min(adjustedElapsed / duration, 1);
-          const scale = 1 + progress * maxScale * this.earthRadius;
+          const easeProgress = 1 - Math.pow(1 - progress, 3);
+          const scale = 1 + easeProgress * maxScale * this.earthRadius;
           ripple.scale.setScalar(scale);
-          (ripple.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - progress);
+          (ripple.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - progress);
         }
       });
     }
 
     if (this.burstAnimating) {
       const elapsed = (currentTime - this.burstStartTime) / 1000;
-      const duration = 0.5;
+      const duration = 0.6;
       
       if (elapsed < duration) {
         const progress = elapsed / duration;
-        const pulseScale = 1 + Math.sin(progress * Math.PI) * 1.5;
+        const pulseScale = 1 + Math.sin(progress * Math.PI) * 2;
         this.marker.scale.setScalar(this.baseScale * this.earthRadius * pulseScale);
-        (this.marker.material as THREE.MeshBasicMaterial).opacity = 0.9 + Math.sin(progress * Math.PI) * 0.1;
+        (this.marker.material as THREE.MeshBasicMaterial).opacity = 0.95 + Math.sin(progress * Math.PI) * 0.05;
       } else {
         this.burstAnimating = false;
         this.marker.scale.setScalar(this.baseScale * this.earthRadius);
-        (this.marker.material as THREE.MeshBasicMaterial).opacity = 0.9;
+        (this.marker.material as THREE.MeshBasicMaterial).opacity = 0.95;
       }
     }
   }
