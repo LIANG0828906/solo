@@ -29,15 +29,16 @@ async function request<T>(
       ...options,
     });
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
+    const body = await response.json().catch(() => ({} as { success: boolean; data?: T; error?: string }));
+
+    if (!response.ok || !body.success) {
       throw new ApiError(
         body.error || `请求失败: ${response.status}`,
         response.status
       );
     }
 
-    return response.json() as Promise<T>;
+    return body.data as T;
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
