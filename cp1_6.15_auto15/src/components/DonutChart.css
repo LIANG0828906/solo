@@ -1,0 +1,17 @@
+.donut-chart {
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 2px 8px rgba(76, 175, 80, 0.1));
+}
+
+.donut-slice {
+  stroke-linecap: round;
+}
+
+.donut-slice:hover {
+  filter: brightness(1.1);
+}
+
+.donut-slice.selected {
+  stroke-linecap: round;
+  filter: brightness(1.1) drop-shadow(0 0 8px currentColor);
+}
