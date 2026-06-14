@@ -1,8 +1,25 @@
 import type { DialogueTree, DialogueNode } from '../types';
 import { NODE_WIDTH } from '../types';
 
+export function safeStringify(obj: unknown, space = 2): string {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(
+    obj,
+    (_key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular Reference]';
+        }
+        seen.add(value);
+      }
+      return value;
+    },
+    space
+  );
+}
+
 export function exportToJson(tree: DialogueTree): string {
-  return JSON.stringify(tree, null, 2);
+  return safeStringify(tree, 2);
 }
 
 export function downloadJsonFile(content: string, filename = 'dialogue-tree.json'): void {
@@ -116,7 +133,7 @@ export function autoLayoutNodes(
     const lvl = levels.get(n.id) || 0;
     const arr = levelNodes.get(lvl) || [];
     const idx = arr.findIndex((x) => x.id === n.id);
-    const lvlWidth = levelWidths[lvl];
+    const lvlWidth = levelWidths[lvl] || 0;
     const lvlOffsetX = offsetX + (totalWidth - lvlWidth) / 2;
     const x = lvlOffsetX + idx * (NODE_WIDTH + nodeGap);
     const y = offsetY + lvl * (nodeHeight + nodeGap);

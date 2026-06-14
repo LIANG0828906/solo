@@ -1,8 +1,25 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, type DragEndEvent, type DragStartEvent, type DragMoveEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DragMoveEvent,
+} from '@dnd-kit/core';
 import { Plus, LayoutGrid, UserPlus, X, Edit2, Check } from 'lucide-react';
 import type { DialogueNode, Character, Connection, Emotion } from '../types';
-import { EMOTION_COLORS, EMOTION_LABELS, NODE_WIDTH, NODE_HEIGHT, PORT_RADIUS, AVATAR_SIZE, generateId } from '../types';
+import {
+  EMOTION_COLORS,
+  EMOTION_LABELS,
+  NODE_WIDTH,
+  NODE_HEIGHT,
+  PORT_RADIUS,
+  AVATAR_SIZE,
+  generateId,
+} from '../types';
 import { autoLayoutNodes } from '../utils/exportImport';
 import NodeCard from './NodeCard';
 
@@ -45,6 +62,7 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
   const [editingCharId, setEditingCharId] = useState<string | null>(null);
   const [editingCharName, setEditingCharName] = useState('');
   const [editingCharEmotion, setEditingCharEmotion] = useState<Emotion>('neutral');
+  const [draggingDelta, setDraggingDelta] = useState<{ x: number; y: number } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -55,28 +73,35 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
   );
 
   const getPortPosition = useCallback(
-    (nodeId: string, portIndex: number, nodeList: DialogueNode[]) => {
+    (nodeId: string, portIndex: number, nodeList: DialogueNode[], delta?: { x: number; y: number } | null) => {
       const node = nodeList.find((n) => n.id === nodeId);
       if (!node) return { x: 0, y: 0 };
       const headerHeight = 64;
       const bodyHeight = 100;
       const branchTop = headerHeight + bodyHeight + 12;
       const branchSpacing = 34;
-      const x = node.x + NODE_WIDTH - PORT_RADIUS - 2;
-      const y = node.y + branchTop + portIndex * branchSpacing + 12;
+      const dx = delta && activeId === nodeId ? delta.x : 0;
+      const dy = delta && activeId === nodeId ? delta.y : 0;
+      const x = node.x + NODE_WIDTH - PORT_RADIUS - 2 + dx;
+      const y = node.y + branchTop + portIndex * branchSpacing + 12 + dy;
       return { x, y };
     },
-    []
+    [activeId]
   );
 
-  const getTargetPortPosition = useCallback((nodeId: string, nodeList: DialogueNode[]) => {
-    const node = nodeList.find((n) => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
-    return {
-      x: node.x - PORT_RADIUS,
-      y: node.y + 26,
-    };
-  }, []);
+  const getTargetPortPosition = useCallback(
+    (nodeId: string, nodeList: DialogueNode[], delta?: { x: number; y: number } | null) => {
+      const node = nodeList.find((n) => n.id === nodeId);
+      if (!node) return { x: 0, y: 0 };
+      const dx = delta && activeId === nodeId ? delta.x : 0;
+      const dy = delta && activeId === nodeId ? delta.y : 0;
+      return {
+        x: node.x - PORT_RADIUS + dx,
+        y: node.y + 26 + dy,
+      };
+    },
+    [activeId]
+  );
 
   const createBezierPath = useCallback((x1: number, y1: number, x2: number, y2: number) => {
     const dx = Math.abs(x2 - x1);
@@ -86,12 +111,14 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    setDraggingDelta({ x: 0, y: 0 });
   }, []);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
       const { active, delta } = event;
       const id = active.id as string;
+      setDraggingDelta({ x: delta.x, y: delta.y });
 
       onNodesChange(
         nodes.map((n) =>
@@ -104,17 +131,19 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
             : n
         )
       );
+      setDraggingDelta({ x: 0, y: 0 });
     },
     [nodes, onNodesChange]
   );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback(() => {
     setActiveId(null);
+    setDraggingDelta(null);
   }, []);
 
   const handlePortMouseDown = useCallback(
     (nodeId: string, portIndex: number, e: React.MouseEvent) => {
-      const pos = getPortPosition(nodeId, portIndex, nodes);
+      const pos = getPortPosition(nodeId, portIndex, nodes, draggingDelta);
       const rect = canvasInnerRef.current?.getBoundingClientRect();
       const scrollLeft = canvasWrapRef.current?.scrollLeft || 0;
       const scrollTop = canvasWrapRef.current?.scrollTop || 0;
@@ -128,7 +157,7 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
         currentY: e.clientY - (rect?.top || 0) + scrollTop,
       });
     },
-    [nodes, getPortPosition]
+    [nodes, getPortPosition, draggingDelta]
   );
 
   const handleCanvasMouseMove = useCallback(
@@ -296,25 +325,30 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
       const targetNode = nodes.find((n) => n.id === conn.targetId);
       if (!sourceNode || !targetNode) return null;
 
-      const start = getPortPosition(conn.sourceId, conn.sourcePort, nodes);
-      const end = getTargetPortPosition(conn.targetId, nodes);
+      const start = getPortPosition(conn.sourceId, conn.sourcePort, nodes, draggingDelta);
+      const end = getTargetPortPosition(conn.targetId, nodes, draggingDelta);
       const path = createBezierPath(start.x, start.y, end.x, end.y);
       const color = EMOTION_COLORS[sourceNode.emotion];
 
-      const midX = (start.x + end.x) / 2;
-      const midY = (start.y + end.y) / 2;
-      const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const arrowDist = len > 15 ? 15 : len * 0.5;
+      const arrowX = end.x - (dx / len) * arrowDist;
+      const arrowY = end.y - (dy / len) * arrowDist;
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
       return {
         id: conn.id,
         path,
         color,
-        midX,
-        midY,
+        sourceEmotion: sourceNode.emotion,
+        arrowX,
+        arrowY,
         angle,
       };
     });
-  }, [connections, nodes, getPortPosition, getTargetPortPosition, createBezierPath]);
+  }, [connections, nodes, getPortPosition, getTargetPortPosition, createBezierPath, draggingDelta]);
 
   const activeNode = activeId ? nodes.find((n) => n.id === activeId) : null;
 
@@ -327,6 +361,17 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
         onDragEnd={handleDragEnd}
       >
         <div className="canvas-wrap" ref={canvasWrapRef}>
+          <div className="canvas-toolbar">
+            <button className="btn auto-layout-btn" onClick={handleAddNode}>
+              <Plus size={14} />
+              新建节点
+            </button>
+            <button className="btn auto-layout-btn" onClick={handleAutoLayout}>
+              <LayoutGrid size={14} />
+              自动布局
+            </button>
+          </div>
+
           <div
             className="canvas-inner"
             ref={canvasInnerRef}
@@ -376,12 +421,15 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
                       className="connection-path animate-flow"
                       d={c.path}
                       stroke={c.color}
-                      markerEnd={`url(#arrowhead-${
-                        nodes.find((n) => n.id === connections.find((cc) => cc.id === c.id)?.sourceId)
-                          ?.emotion || 'neutral'
-                      })`}
+                      markerEnd={`url(#arrowhead-${c.sourceEmotion})`}
                     />
-                    <circle cx={c.midX} cy={c.midY} r="0" />
+                    <polygon
+                      className="connection-arrow"
+                      points="0 0, 10 3, 0 6"
+                      fill={c.color}
+                      transform={`translate(${c.arrowX - 5}, ${c.arrowY - 3}) rotate(${c.angle}, 5, 3)`}
+                      style={{ fill: c.color }}
+                    />
                   </g>
                 ) : null
               )}
@@ -418,7 +466,10 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
 
         <DragOverlay>
           {activeNode ? (
-            <div className="node-card dragging" style={{ width: NODE_WIDTH, height: NODE_HEIGHT, pointerEvents: 'none' }}>
+            <div
+              className="node-card dragging"
+              style={{ width: NODE_WIDTH, height: NODE_HEIGHT, pointerEvents: 'none', opacity: 0.9 }}
+            >
               <div className="node-header">
                 <div
                   className={`avatar-wrap emotion-${activeNode.emotion}`}
@@ -501,3 +552,36 @@ const DialogueEditor: React.FC<DialogueEditorProps> = ({
                     </button>
                   )}
                   {characters.length > 1 && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => handleRemoveCharacter(char.id)}
+                      title="删除"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button className="btn" style={{ width: '100%' }} onClick={handleAddCharacter}>
+              <UserPlus size={14} />
+              添加角色
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="sidebar-title">提示</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, gap: 8, display: 'flex', flexDirection: 'column' }}>
+            <div>• 拖拽节点右上角圆点到目标节点的左侧来创建连线</div>
+            <div>• 每个节点最多支持3个分支选项</div>
+            <div>• 点击"自动布局"可一键整理节点位置</div>
+            <div>• 使用右侧预览面板实时查看对话效果</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DialogueEditor;
