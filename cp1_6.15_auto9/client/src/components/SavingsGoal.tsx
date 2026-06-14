@@ -47,22 +47,65 @@ function AnimatedProgress({ progress, color = '#3EB489' }: AnimatedProgressProps
   return (
     <div className="relative w-full h-3 bg-gray-200 dark:bg-navy-400/30 rounded-full overflow-hidden">
       <div
-        className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+        className="absolute inset-y-0 left-0 rounded-full"
         style={{
           width: `${displayProgress}%`,
           background: `linear-gradient(90deg, ${color}, ${color}cc)`,
           boxShadow: `0 0 10px ${color}66`,
+          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       />
       <div
-        className="absolute inset-y-0 w-20 rounded-full opacity-50"
+        className="absolute inset-y-0 w-1/3 opacity-50"
         style={{
-          left: `calc(${displayProgress}% - 80px)`,
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-          animation: displayProgress > 5 ? 'shimmer 2s infinite' : 'none',
+          left: `calc(${displayProgress}% - 33%)`,
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+          backgroundSize: '200% 100%',
+          animation: displayProgress > 5 ? 'shimmer 1.5s infinite ease-in-out' : 'none',
         }}
       />
     </div>
+  );
+}
+
+interface AnimatedNumberProps {
+  value: number;
+  decimals?: number;
+  suffix?: string;
+  className?: string;
+}
+
+function AnimatedNumber({ value, decimals = 1, suffix = '', className }: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const prevValue = useRef(0);
+
+  useEffect(() => {
+    const start = prevValue.current;
+    const end = value;
+    const duration = 1000;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const easeOutCubic = 1 - Math.pow(1 - t, 3);
+      const current = start + (end - start) * easeOutCubic;
+      setDisplayValue(current);
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        prevValue.current = end;
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return (
+    <span className={className}>
+      {displayValue.toFixed(decimals)}{suffix}
+    </span>
   );
 }
 
@@ -349,16 +392,17 @@ export default function SavingsGoal() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-500 dark:text-gray-300">进度</span>
-                      <span
+                      <AnimatedNumber
+                        value={progress}
+                        decimals={1}
+                        suffix="%"
                         className={cn(
                           'text-sm font-bold',
                           isCompleted
                             ? 'text-mint-600 dark:text-mint-300'
                             : 'text-navy-500 dark:text-white'
                         )}
-                      >
-                        {progress.toFixed(1)}%
-                      </span>
+                      />
                     </div>
                     <AnimatedProgress progress={progress} color={isCompleted ? '#3EB489' : '#1E3A5F'} />
                   </div>
@@ -418,10 +462,19 @@ export default function SavingsGoal() {
         )}
       </div>
 
-      <style>{`
+      <style jsx global>{`
         @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+          0% {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          50% {
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateX(200%);
+            opacity: 0;
+          }
         }
       `}</style>
     </div>

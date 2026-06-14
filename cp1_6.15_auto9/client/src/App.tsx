@@ -27,7 +27,7 @@ function AnimatedRoutes() {
   return (
     <div
       className={cn(
-        'flex-1 h-screen transition-all duration-300 ease-out',
+        'flex-1 h-screen transition-all duration-300 ease-out md:pl-64 pb-20',
         transitionStage === 'fadeIn' ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
       )}
       onAnimationEnd={handleAnimationEnd}
@@ -35,7 +35,7 @@ function AnimatedRoutes() {
     >
       <Routes location={displayLocation}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/statistics" element={<StatisticsPanel />} />
+        <Route path="/stats" element={<StatisticsPanel />} />
         <Route path="/savings" element={<SavingsGoal />} />
       </Routes>
     </div>

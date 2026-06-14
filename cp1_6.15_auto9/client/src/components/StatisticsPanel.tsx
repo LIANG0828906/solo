@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   PieChart,
@@ -87,10 +87,82 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+interface PieLabelProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+  name: string;
+  active: boolean;
+}
+
+const RADIAN = Math.PI / 180;
+
+const PieLabel = (props: PieLabelProps) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, name, active } = props;
+  const [displayPercent, setDisplayPercent] = useState(0);
+  const [opacity, setOpacity] = useState(0);
+  const animationRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    startRef.current = null;
+    const animate = (timestamp: number) => {
+      if (startRef.current === null) {
+        startRef.current = timestamp;
+      }
+      const elapsed = timestamp - startRef.current;
+      const duration = 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+
+      setDisplayPercent(Number((percent * 100 * easeOutQuart).toFixed(1)));
+      setOpacity(progress);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [percent]);
+
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#1E3A5F"
+      textAnchor="middle"
+      dominantBaseline="central"
+      style={{
+        opacity,
+        transition: 'opacity 0.3s ease, font-size 0.3s ease, font-weight 0.3s ease',
+        fontSize: active ? 14 : 12,
+        fontWeight: active ? 700 : 500,
+        pointerEvents: 'none',
+      }}
+    >
+      {`${name} ${displayPercent}%`}
+    </text>
+  );
+};
+
 export default function StatisticsPanel() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [data, setData] = useState<CategoryData[]>([]);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -236,28 +308,29 @@ export default function StatisticsPanel() {
                         cy="50%"
                         innerRadius={60}
                         outerRadius={100}
+                        activeIndex={hoverIndex ?? undefined}
+                        activeShape={{ outerRadius: 120 }}
                         paddingAngle={2}
                         dataKey="value"
+                        isAnimationActive={true}
                         animationBegin={0}
-                        animationDuration={1200}
+                        animationDuration={600}
                         animationEasing="ease-out"
-                        label={({ name, percent }: any) => `${name} ${percent}%`}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, index }: any) => (
+                          <PieLabel
+                            cx={cx}
+                            cy={cy}
+                            midAngle={midAngle}
+                            innerRadius={innerRadius}
+                            outerRadius={hoverIndex === index ? 120 : outerRadius}
+                            percent={percent}
+                            name={name}
+                            active={hoverIndex === index}
+                          />
+                        )}
                         labelLine={{ stroke: '#9CA3AF', strokeWidth: 1 }}
-                        onMouseEnter={(_, index) => {
-                          const pies = document.querySelectorAll<HTMLElement>('.recharts-pie-sector');
-                          pies.forEach((p, i) => {
-                            if (i === index) {
-                              p.setAttribute('transform-origin', 'center');
-                              p.style.transform = 'scale(1.1)';
-                              p.style.transition = 'transform 0.3s ease';
-                            }
-                          });
-                        }}
-                        onMouseLeave={() => {
-                          document.querySelectorAll<HTMLElement>('.recharts-pie-sector').forEach((p) => {
-                            p.style.transform = 'scale(1)';
-                          });
-                        }}
+                        onMouseEnter={(_, index) => setHoverIndex(index)}
+                        onMouseLeave={() => setHoverIndex(null)}
                       >
                         {pieData.map((entry, index) => (
                           <Cell
@@ -265,8 +338,11 @@ export default function StatisticsPanel() {
                             fill={entry.color}
                             stroke="none"
                             style={{
-                              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                              filter: hoverIndex === index
+                                ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))'
+                                : 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
                               cursor: 'pointer',
+                              transition: 'filter 0.3s ease',
                             }}
                           />
                         ))}
