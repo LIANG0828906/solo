@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useStore } from './store';
 import { StorageUnit } from './types';
 import { calculateUtilization, getUtilizationColor } from './utils';
@@ -7,14 +8,19 @@ import { Info, Package } from 'lucide-react';
 
 const ThreeViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const meshesRef = useRef<Map<string, THREE.Mesh>>(new Map());
+  const animationIdRef = useRef<number>(0);
+  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
+  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
+
   const { units, highlightedUnitId, searchQuery } = useStore();
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [rotation, setRotation] = useState({ x: 30, y: 45 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [hoveredUnit, setHoveredUnit] = useState<StorageUnit | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -30,185 +36,358 @@ const ThreeViewer: React.FC = () => {
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  const project = (x: number, y: number, z: number) => {
-    const radX = (rotation.x * Math.PI) / 180;
-    const radY = (rotation.y * Math.PI) / 180;
-    const cosX = Math.cos(radX);
-    const sinX = Math.sin(radX);
-    const cosY = Math.cos(radY);
-    const sinY = Math.sin(radY);
-    const x1 = x * cosY - z * sinY;
-    const z1 = x * sinY + z * cosY;
-    const y1 = y * cosX - z1 * sinX;
-    return { x: x1, y: y1 };
-  };
-
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => {
       if (a.id === highlightedUnitId) return 1;
       if (b.id === highlightedUnitId) return -1;
-      const za = a.y + a.depth + a.height;
-      const zb = b.y + b.depth + b.height;
-      return za - zb;
+      return 0;
     });
   }, [units, highlightedUnitId]);
 
   useEffect(() => {
-    if (!svgRef.current || units.length === 0) return;
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
+    if (!containerRef.current) return;
 
-    const defs = svg.append('defs');
+    const scene = new THREE.Scene();
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (context) {
+      const gradient = context.createLinearGradient(0, 0, 0, dimensions.height);
+      gradient.addColorStop(0, '#2c2c2c');
+      gradient.addColorStop(1, '#1a1a1a');
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, dimensions.width, dimensions.height);
+      const texture = new THREE.CanvasTexture(canvas);
+      scene.background = texture;
+    }
+    sceneRef.current = scene;
 
-    const gradient = defs.append('linearGradient').attr('id', 'bgGradient').attr('x1', '0%').attr('y1', '0%').attr('x2', '0%').attr('y2', '100%');
-    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#2c2c2c');
-    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#1a1a1a');
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      dimensions.width / dimensions.height,
+      0.1,
+      5000
+    );
+    const distance = 400;
+    camera.position.set(
+      distance * Math.cos(Math.PI / 4) * Math.sin(Math.PI / 4),
+      distance * Math.cos(Math.PI / 4),
+      distance * Math.sin(Math.PI / 4) * Math.sin(Math.PI / 4)
+    );
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
 
-    const glowFilter = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    glowFilter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
-    const glowMerge = glowFilter.append('feMerge');
-    glowMerge.append('feMergeNode').attr('in', 'coloredBlur');
-    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(dimensions.width, dimensions.height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
-    const edgeFilter = defs.append('filter').attr('id', 'edgeLight').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    edgeFilter.append('feGaussianBlur').attr('stdDeviation', '1').attr('result', 'blur');
-    edgeFilter.append('feSpecularLighting').attr('in', 'blur').attr('surfaceScale', '2').attr('specularConstant', '0.5').attr('specularExponent', '20').attr('lighting-color', '#ffffff').attr('result', 'specular').append('feDistantLight').attr('azimuth', '45').attr('elevation', '60');
-    const edgeComposite = edgeFilter.append('feComposite').attr('in', 'specular').attr('in2', 'SourceGraphic').attr('operator', 'in').attr('result', 'specularComp');
-    const edgeMerge = edgeFilter.append('feMerge');
-    edgeMerge.append('feMergeNode').attr('in', 'SourceGraphic');
-    edgeMerge.append('feMergeNode').attr('in', 'specularComp');
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 100;
+    controls.maxDistance = 1000;
+    controls.maxPolarAngle = Math.PI / 2.1;
+    controlsRef.current = controls;
 
-    svg.append('rect').attr('width', dimensions.width).attr('height', dimensions.height).attr('fill', 'url(#bgGradient)');
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
 
-    const scale = Math.min(dimensions.width, dimensions.height) / 600;
-    const centerX = dimensions.width / 2;
-    const centerY = dimensions.height / 2;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(100, 150, 100);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
+
+    const rimLight = new THREE.DirectionalLight(0x6699ff, 0.3);
+    rimLight.position.set(-100, 50, -100);
+    scene.add(rimLight);
+
+    const gridHelper = new THREE.GridHelper(400, 40, 0x444444, 0x333333);
+    gridHelper.position.y = -5;
+    scene.add(gridHelper);
+
+    const animate = () => {
+      animationIdRef.current = requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animationIdRef.current);
+      controls.dispose();
+      renderer.dispose();
+      if (containerRef.current && renderer.domElement) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, [dimensions.width, dimensions.height]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    meshesRef.current.forEach((mesh) => {
+      scene.remove(mesh);
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach((m) => m.dispose());
+      } else {
+        mesh.material.dispose();
+      }
+      mesh.geometry.dispose();
+    });
+    meshesRef.current.clear();
+
+    const matchesSearch = (unit: StorageUnit): boolean => {
+      if (!searchQuery.trim()) return false;
+      const q = searchQuery.toLowerCase();
+      return (
+        unit.name.toLowerCase().includes(q) ||
+        unit.items.some((item) => item.name.toLowerCase().includes(q))
+      );
+    };
 
     sortedUnits.forEach((unit) => {
       const utilization = calculateUtilization(unit);
       const baseColor = getUtilizationColor(utilization);
       const isHighlighted = unit.id === highlightedUnitId;
-      const isSearched = searchQuery && (unit.name.toLowerCase().includes(searchQuery.toLowerCase()) || unit.items.some((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase())));
+      const isSearched = matchesSearch(unit);
       const shouldGlow = isHighlighted || isSearched;
 
+      const scale = 0.5;
       const w = unit.width * scale;
       const h = unit.height * scale;
       const d = unit.depth * scale;
-      const ox = (unit.x - 150) * scale;
-      const oy = (unit.y - 100) * scale;
-      const oz = 0;
+      const x = (unit.x - 150) * scale;
+      const z = (unit.y - 100) * scale;
+      const y = h / 2;
 
-      const corners = [
-        project(ox, oy, oz),
-        project(ox + w, oy, oz),
-        project(ox + w, oy, oz + d),
-        project(ox, oy, oz + d),
-        project(ox, oy - h, oz),
-        project(ox + w, oy - h, oz),
-        project(ox + w, oy - h, oz + d),
-        project(ox, oy - h, oz + d),
-      ].map((p) => ({ x: p.x + centerX, y: p.y + centerY }));
+      const geometry = new THREE.BoxGeometry(w, h, d);
+      const color = new THREE.Color(baseColor);
 
-      const g = svg.append('g').attr('class', 'cube-group').style('cursor', 'pointer');
+      const materials = [
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(0.8),
+          transparent: true,
+          opacity: shouldGlow ? 0.85 : 0.7,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(0.8),
+          transparent: true,
+          opacity: shouldGlow ? 0.85 : 0.7,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(1.1),
+          transparent: true,
+          opacity: shouldGlow ? 0.9 : 0.75,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.4,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(0.6),
+          transparent: true,
+          opacity: shouldGlow ? 0.85 : 0.7,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(0.9),
+          transparent: true,
+          opacity: shouldGlow ? 0.85 : 0.7,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+        new THREE.MeshPhysicalMaterial({
+          color: color.clone().multiplyScalar(0.7),
+          transparent: true,
+          opacity: shouldGlow ? 0.85 : 0.7,
+          roughness: 0.3,
+          metalness: 0.1,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.2,
+          side: THREE.DoubleSide,
+        }),
+      ];
 
-      const darken = (color: string, amount: number): string => {
-        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (match) {
-          const r = Math.max(0, parseInt(match[1]) * amount);
-          const g = Math.max(0, parseInt(match[2]) * amount);
-          const b = Math.max(0, parseInt(match[3]) * amount);
-          return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-        }
-        return color;
-      };
+      const mesh = new THREE.Mesh(geometry, materials);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { unitId: unit.id };
 
-      const lighten = (color: string, amount: number): string => {
-        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (match) {
-          const r = Math.min(255, 255 - (255 - parseInt(match[1])) * amount);
-          const g = Math.min(255, 255 - (255 - parseInt(match[2])) * amount);
-          const b = Math.min(255, 255 - (255 - parseInt(match[3])) * amount);
-          return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-        }
-        return color;
-      };
-
-      const topColor = lighten(baseColor, 0.2);
-      const frontColor = baseColor;
-      const sideColor = darken(baseColor, 0.7);
-
-      g.append('polygon').attr('points', `${corners[0].x},${corners[0].y} ${corners[1].x},${corners[1].y} ${corners[5].x},${corners[5].y} ${corners[4].x},${corners[4].y}`).attr('fill', frontColor).attr('fill-opacity', 0.7).attr('stroke', 'rgba(255,255,255,0.2)').attr('stroke-width', '0.5').attr('filter', 'url(#edgeLight)');
-
-      g.append('polygon').attr('points', `${corners[1].x},${corners[1].y} ${corners[2].x},${corners[2].y} ${corners[6].x},${corners[6].y} ${corners[5].x},${corners[5].y}`).attr('fill', sideColor).attr('fill-opacity', 0.7).attr('stroke', 'rgba(255,255,255,0.2)').attr('stroke-width', '0.5').attr('filter', 'url(#edgeLight)');
-
-      g.append('polygon').attr('points', `${corners[4].x},${corners[4].y} ${corners[5].x},${corners[5].y} ${corners[6].x},${corners[6].y} ${corners[7].x},${corners[7].y}`).attr('fill', topColor).attr('fill-opacity', 0.7).attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', '0.5').attr('filter', 'url(#edgeLight)');
+      const edgesGeometry = new THREE.EdgesGeometry(geometry);
+      const edgesMaterial = new THREE.LineBasicMaterial({
+        color: shouldGlow ? 0xffffff : 0xaaaaaa,
+        transparent: true,
+        opacity: shouldGlow ? 0.9 : 0.4,
+      });
+      const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+      mesh.add(edges);
 
       if (shouldGlow) {
-        g.attr('filter', 'url(#glow)');
+        const glowGeometry = new THREE.BoxGeometry(w * 1.08, h * 1.08, d * 1.08);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffff88,
+          transparent: true,
+          opacity: 0.25,
+          side: THREE.BackSide,
+        });
+        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        mesh.add(glowMesh);
       }
 
-      g.on('mouseenter', (event: MouseEvent) => {
-        setHoveredUnit(unit);
-        setTooltipPos({ x: event.clientX, y: event.clientY });
-      }).on('mousemove', (event: MouseEvent) => {
-        setTooltipPos({ x: event.clientX, y: event.clientY });
-      }).on('mouseleave', () => {
-        setHoveredUnit(null);
-      });
+      scene.add(mesh);
+      meshesRef.current.set(unit.id, mesh);
     });
-  }, [units, dimensions, rotation, sortedUnits, highlightedUnitId, searchQuery]);
+  }, [sortedUnits, highlightedUnitId, searchQuery]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setLastPos({ x: e.clientX, y: e.clientY });
-  };
+  useEffect(() => {
+    if (!dimensions.width || !dimensions.height || !rendererRef.current) return;
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - lastPos.x;
-    const dy = e.clientY - lastPos.y;
-    setRotation((prev) => ({
-      x: Math.max(-90, Math.min(90, prev.x - dy * 0.5)),
-      y: prev.y + dx * 0.5,
-    }));
-    setLastPos({ x: e.clientX, y: e.clientY });
-  };
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!containerRef.current || !cameraRef.current || !sceneRef.current) return;
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+      const rect = containerRef.current.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const meshes = Array.from(meshesRef.current.values());
+      const intersects = raycasterRef.current.intersectObjects(meshes, false);
+
+      if (intersects.length > 0) {
+        const mesh = intersects[0].object as THREE.Mesh;
+        const unitId = mesh.userData.unitId;
+        const unit = units.find((u) => u.id === unitId);
+        if (unit) {
+          setHoveredUnit(unit);
+          setTooltipPos({ x: event.clientX, y: event.clientY });
+        }
+      } else {
+        setHoveredUnit(null);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      setHoveredUnit(null);
+    };
+
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [units, dimensions.width, dimensions.height]);
+
+  useEffect(() => {
+    if (!rendererRef.current || !cameraRef.current) return;
+
+    const handleResize = () => {
+      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      cameraRef.current.aspect = width / height;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(width, height);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[400px]" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-      <svg ref={svgRef} width={dimensions.width} height={dimensions.height} className="rounded-lg" />
+    <div className="w-full h-full relative">
+      <div ref={containerRef} className="w-full h-full rounded-lg overflow-hidden" />
+
+      <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg pointer-events-none">
+        拖拽旋转视角 · 滚轮缩放
+      </div>
+
       {hoveredUnit && (
-        <div className="fixed pointer-events-none z-50" style={{ left: tooltipPos.x + 15, top: tooltipPos.y + 15, background: 'rgba(255,255,255,0.95)', borderRadius: '8px', padding: '12px 16px', minWidth: '220px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-          <div className="flex items-center gap-2 mb-2">
+        <div
+          className="fixed pointer-events-none z-50"
+          style={{
+            left: tooltipPos.x + 15,
+            top: tooltipPos.y + 15,
+            background: 'rgba(255,255,255,0.96)',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            minWidth: '240px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: getUtilizationColor(calculateUtilization(hoveredUnit)) }}
+            />
             <Info size={16} className="text-gray-600" />
             <span className="font-semibold text-gray-800">{hoveredUnit.name}</span>
           </div>
-          <div className="mb-2">
-            <div className="text-sm text-gray-500 mb-1">利用率</div>
+
+          <div className="mb-3">
+            <div className="text-xs text-gray-500 mb-1.5">空间利用率</div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${calculateUtilization(hoveredUnit)}%`, background: getUtilizationColor(calculateUtilization(hoveredUnit)) }} />
+              <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${calculateUtilization(hoveredUnit)}%`,
+                    background: getUtilizationColor(calculateUtilization(hoveredUnit)),
+                  }}
+                />
               </div>
-              <span className="text-sm font-medium text-gray-700">{calculateUtilization(hoveredUnit).toFixed(1)}%</span>
+              <span className="text-sm font-bold text-gray-700 w-12 text-right">
+                {calculateUtilization(hoveredUnit).toFixed(1)}%
+              </span>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Package size={14} />
+
+          <div className="text-xs text-gray-500 mb-2">
+            尺寸: {hoveredUnit.width} × {hoveredUnit.depth} × {hoveredUnit.height} cm
+          </div>
+
+          <div className="border-t border-gray-100 pt-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
+              <Package size={13} />
               <span>物品清单 ({hoveredUnit.items.length})</span>
             </div>
             <div className="max-h-32 overflow-y-auto space-y-1">
               {hoveredUnit.items.length === 0 ? (
-                <div className="text-xs text-gray-400 italic">暂无物品</div>
+                <div className="text-xs text-gray-400 italic py-1">暂无物品</div>
               ) : (
                 hoveredUnit.items.map((item) => (
-                  <div key={item.id} className="text-xs text-gray-600 flex justify-between">
-                    <span>{item.name}</span>
-                    <span className="text-gray-400">x{item.quantity}</span>
+                  <div key={item.id} className="text-xs text-gray-600 flex justify-between py-0.5">
+                    <span className="truncate flex-1">{item.name}</span>
+                    <span className="text-gray-400 ml-2">×{item.quantity}</span>
                   </div>
                 ))
               )}
