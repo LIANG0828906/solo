@@ -21,6 +21,8 @@ interface SimLink {
   id: string;
 }
 
+type RenderLink = { id: string; source: SimNode; target: SimNode };
+
 export default function DependencyGraph() {
   const tasks = useStore((s) => s.tasks);
   const dependencies = useStore((s) => s.dependencies);
@@ -30,6 +32,8 @@ export default function DependencyGraph() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [fromTask, setFromTask] = useState('');
   const [toTask, setToTask] = useState('');
+  const [simNodes, setSimNodes] = useState<SimNode[]>([]);
+  const [simLinks, setSimLinks] = useState<RenderLink[]>([]);
   const nodesRef = useRef<SimNode[]>([]);
   const linksRef = useRef<SimLink[]>([]);
   const simRef = useRef<ReturnType<typeof forceSimulation<SimNode>> | null>(null);
@@ -91,6 +95,7 @@ export default function DependencyGraph() {
 
     nodesRef.current = nodes;
     linksRef.current = links;
+    setSimNodes(nodes);
 
     const sim = forceSimulation<SimNode>(nodes)
       .force('link', forceLink<SimNode, SimLink>(links).id((d) => d.id).distance(120))
@@ -99,44 +104,16 @@ export default function DependencyGraph() {
       .force('collide', forceCollide(40))
       .alpha(0.3)
       .on('tick', () => {
-        const svg = svgRef.current;
-        if (!svg) return;
-        const linkEls = svg.querySelectorAll<SVGLineElement>('.dep-link');
-        const arrowEls = svg.querySelectorAll<SVGPolygonElement>('.dep-arrow');
-        const nodeEls = svg.querySelectorAll<SVGGElement>('.dep-node');
-
-        links.forEach((link, i) => {
-          const src = typeof link.source === 'object' ? link.source : nodes.find((n) => n.id === link.source);
-          const tgt = typeof link.target === 'object' ? link.target : nodes.find((n) => n.id === link.target);
-          if (src && tgt && linkEls[i]) {
-            linkEls[i].setAttribute('x1', String(src.x));
-            linkEls[i].setAttribute('y1', String(src.y));
-            linkEls[i].setAttribute('x2', String(tgt.x));
-            linkEls[i].setAttribute('y2', String(tgt.y));
-          }
-          if (src && tgt && arrowEls[i]) {
-            const angle = Math.atan2(tgt.y - src.y, tgt.x - src.x);
-            const dist = 28;
-            const ax = tgt.x - Math.cos(angle) * dist;
-            const ay = tgt.y - Math.sin(angle) * dist;
-            const size = 6;
-            const p1 = `${ax},${ay}`;
-            const p2 = `${ax - size * Math.cos(angle - 0.4)},${ay - size * Math.sin(angle - 0.4)}`;
-            const p3 = `${ax - size * Math.cos(angle + 0.4)},${ay - size * Math.sin(angle + 0.4)}`;
-            arrowEls[i].setAttribute('points', `${p1} ${p2} ${p3}`);
-          }
-        });
-
-        nodes.forEach((node, i) => {
-          if (nodeEls[i]) {
-            nodeEls[i].setAttribute('transform', `translate(${node.x},${node.y})`);
-          }
-        });
+        setSimNodes([...nodes]);
+        const rendered: RenderLink[] = links.map((link) => ({
+          id: link.id,
+          source: typeof link.source === 'object' ? link.source : nodes.find((n) => n.id === link.source)!,
+          target: typeof link.target === 'object' ? link.target : nodes.find((n) => n.id === link.target)!,
+        })).filter((l) => l.source && l.target);
+        setSimLinks(rendered);
       });
 
     simRef.current = sim;
-    nodesRef.current = nodes;
-    linksRef.current = links;
 
     return () => { sim.stop(); };
   }, [tasks, dependencies, dimensions]);
@@ -245,28 +222,36 @@ export default function DependencyGraph() {
             </filter>
           </defs>
 
-          {linksRef.current.map((link, i) => {
-            const src = typeof link.source === 'object' ? link.source : null;
-            const tgt = typeof link.target === 'object' ? link.target : null;
-            const isHighlighted = hoveredNode && connectedIds?.has((src as SimNode)?.id || '') && connectedIds?.has((tgt as SimNode)?.id || '');
+          {simLinks.map((link, i) => {
+            const isHighlighted = hoveredNode && connectedIds?.has(link.source.id) && connectedIds?.has(link.target.id);
+            const angle = Math.atan2(link.target.y - link.source.y, link.target.x - link.source.x);
+            const dist = 28;
+            const ax = link.target.x - Math.cos(angle) * dist;
+            const ay = link.target.y - Math.sin(angle) * dist;
+            const size = 6;
+            const arrow = `${ax},${ay} ${ax - size * Math.cos(angle - 0.4)},${ay - size * Math.sin(angle - 0.4)} ${ax - size * Math.cos(angle + 0.4)},${ay - size * Math.sin(angle + 0.4)}`;
+
             return (
               <g key={link.id}>
                 <line
-                  className="dep-link"
-                  stroke={isHighlighted ? '#FFD1DC' : 'rgba(255,255,255,0.15)'}
-                  strokeWidth={isHighlighted ? 2 : 1}
+                  x1={link.source.x}
+                  y1={link.source.y}
+                  x2={link.target.x}
+                  y2={link.target.y}
+                  stroke={isHighlighted ? '#FFD1DC' : 'rgba(255,255,255,0.18)'}
+                  strokeWidth={isHighlighted ? 2.5 : 1.2}
                   strokeDasharray="6 4"
-                  style={{ animation: isHighlighted ? 'dashFlow 0.8s linear infinite' : 'dashFlow 2s linear infinite' }}
+                  style={{ animation: isHighlighted ? 'dashFlow 0.6s linear infinite' : 'dashFlow 2s linear infinite' }}
                 />
                 <polygon
-                  className="dep-arrow"
-                  fill={isHighlighted ? '#FFD1DC' : 'rgba(255,255,255,0.25)'}
+                  points={arrow}
+                  fill={isHighlighted ? '#FFD1DC' : 'rgba(255,255,255,0.3)'}
                 />
               </g>
             );
           })}
 
-          {nodesRef.current.map((node) => {
+          {simNodes.map((node) => {
             const task = tasks.find((t) => t.id === node.id);
             const isHovered = hoveredNode === node.id;
             const isConnected = connectedIds?.has(node.id);
@@ -276,7 +261,7 @@ export default function DependencyGraph() {
             return (
               <g
                 key={node.id}
-                className="dep-node"
+                transform={`translate(${node.x},${node.y})`}
                 style={{ cursor: 'grab', opacity: isDimmed ? 0.25 : 1, transition: 'opacity 0.3s' }}
                 onMouseDown={(e) => handleMouseDown(node.id, e)}
                 onMouseEnter={() => setHoveredNode(node.id)}

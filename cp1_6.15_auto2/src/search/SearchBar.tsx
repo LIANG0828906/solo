@@ -45,7 +45,13 @@ export default function SearchBar() {
     setHighlightedTaskId(task.id);
     setOpen(false);
     setQuery('');
-    setTimeout(() => setHighlightedTaskId(null), 3000);
+    setTimeout(() => {
+      const element = document.querySelector(`[data-task-id="${task.id}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }
+      setTimeout(() => setHighlightedTaskId(null), 3000);
+    }, 100);
   }, [setActiveTab, setHighlightedTaskId]);
 
   const getAssignee = (taskId: string) => teamMembers.find((m) => m.id === taskId);

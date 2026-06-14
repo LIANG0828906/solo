@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, SmilePlus, Frown, Meh, Smile } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useStore } from '@/shared/store';
-import type { Task, EmojiVote } from '@/shared/types';
+import type { Task, EmojiVote, Vote } from '@/shared/types';
 
 function EmojiButton({ emoji, active, onClick }: { emoji: EmojiVote; active: boolean; onClick: () => void }) {
   const config = {
@@ -21,12 +21,13 @@ function EmojiButton({ emoji, active, onClick }: { emoji: EmojiVote; active: boo
   );
 }
 
-function VoteChart({ taskId, votes }: { taskId: string; votes: EmojiVote[] }) {
+function VoteChart({ taskId, votes }: { taskId: string; votes: Vote[] }) {
   const taskVotes = votes.filter((v) => v.taskId === taskId);
+  const emojis = taskVotes.map((v) => v.emoji);
   const data = [
-    { name: '😊', count: taskVotes.filter((v) => v === 'happy').length || 0, color: '#4ade80' },
-    { name: '😐', count: taskVotes.filter((v) => v === 'neutral').length || 0, color: '#facc15' },
-    { name: '😢', count: taskVotes.filter((v) => v === 'sad').length || 0, color: '#f87171' },
+    { name: '😊', count: emojis.filter((v) => v === 'happy').length || 0, color: '#4ade80' },
+    { name: '😐', count: emojis.filter((v) => v === 'neutral').length || 0, color: '#facc15' },
+    { name: '😢', count: emojis.filter((v) => v === 'sad').length || 0, color: '#f87171' },
   ];
 
   if (taskVotes.length === 0) return null;
@@ -103,8 +104,6 @@ export default function RetroPanel() {
     } catch {}
   }, [teamMembers, currentMemberId, setVotes]);
 
-  const voteEmojis = votes.map((v) => v.emoji);
-
   return (
     <div className="h-full overflow-y-auto px-2">
       <div className="max-w-2xl mx-auto py-4">
@@ -146,7 +145,7 @@ export default function RetroPanel() {
                         </span>
                       )}
                     </div>
-                    <VoteChart taskId={task.id} votes={voteEmojis} />
+                    <VoteChart taskId={task.id} votes={votes} />
                   </div>
 
                   <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100/60">

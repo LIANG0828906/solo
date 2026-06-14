@@ -7,7 +7,7 @@ import Board from '@/board/Board';
 import DependencyGraph from '@/graph/DependencyGraph';
 import SearchBar from '@/search/SearchBar';
 import RetroPanel from '@/retro/RetroPanel';
-import TeamSidebar from '@/sidebar/TeamSidebar';
+import TeamSidebar from '@/team/TeamSidebar';
 
 const TABS: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
   { key: 'board', label: '看板', icon: <LayoutGrid size={15} /> },

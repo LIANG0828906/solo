@@ -17,6 +17,7 @@ function TaskCard({ task, isHighlighted }: { task: Task; isHighlighted: boolean 
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
+          data-task-id={task.id}
           className={`
             group relative bg-white rounded-card p-3 mb-2 shadow-card
             transition-all duration-200 ease-out cursor-grab active:cursor-grabbing
@@ -130,14 +131,66 @@ export default function Board() {
   const tasks = useStore((s) => s.tasks);
   const highlightedTaskId = useStore((s) => s.highlightedTaskId);
   const members = useStore((s) => s.teamMembers);
+  const moveTask = useStore((s) => s.moveTask);
+  const updateTask = useStore((s) => s.updateTask);
+
+  const reorder = useCallback((list: Task[], startIndex: number, endIndex: number): Task[] => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result.map((item, idx) => ({ ...item, order: idx }));
+  }, []);
 
   const onDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
-    const { draggableId, destination } = result;
-    const lane = destination.droppableId as Lane;
-    const order = destination.index;
-    emitTaskMove({ id: draggableId, lane, order });
-  }, []);
+    const { draggableId, source, destination } = result;
+
+    const startLane = source.droppableId as Lane;
+    const endLane = destination.droppableId as Lane;
+    const startIndex = source.index;
+    const endIndex = destination.index;
+
+    if (startLane === endLane) {
+      const laneTasks = tasks
+        .filter((t) => t.lane === startLane)
+        .sort((a, b) => a.order - b.order);
+      const reordered = reorder(laneTasks, startIndex, endIndex);
+      reordered.forEach((t) => updateTask(t));
+      emitTaskMove({ id: draggableId, lane: endLane, order: endIndex });
+    } else {
+      const startLaneTasks = tasks
+        .filter((t) => t.lane === startLane)
+        .sort((a, b) => a.order - b.order);
+      const endLaneTasks = tasks
+        .filter((t) => t.lane === endLane)
+        .sort((a, b) => a.order - b.order);
+
+      const movingTask = startLaneTasks[startIndex];
+      const newStartTasks = [...startLaneTasks];
+      newStartTasks.splice(startIndex, 1);
+      const reorderedStart = newStartTasks.map((t, i) => ({ ...t, order: i }));
+
+      const newEndTasks = [...endLaneTasks];
+      const newTask = {
+        ...movingTask,
+        lane: endLane,
+        order: endIndex,
+        remainingHours: endLane === 'done' ? 0 : movingTask.remainingHours,
+      };
+      newEndTasks.splice(endIndex, 0, newTask);
+      const reorderedEnd = newEndTasks.map((t, i) => ({ ...t, order: i }));
+
+      reorderedStart.forEach((t) => updateTask(t));
+      reorderedEnd.forEach((t) => {
+        if (t.id === movingTask.id) {
+          moveTask({ ...t, lane: endLane, order: endIndex });
+        } else {
+          updateTask(t);
+        }
+      });
+      emitTaskMove({ id: draggableId, lane: endLane, order: endIndex });
+    }
+  }, [tasks, reorder, updateTask, moveTask]);
 
   const handleAddTask = useCallback((lane: Lane) => (title: string, desc: string) => {
     emitTaskCreate({
