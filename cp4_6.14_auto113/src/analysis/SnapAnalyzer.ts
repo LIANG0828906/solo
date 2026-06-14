@@ -14,6 +14,19 @@ export class SnapAnalyzer {
     globalEvents.on('fragment:transformed', () => this.forceCheck());
   }
 
+  private boxDistance(a: THREE.Box3, b: THREE.Box3): number {
+    const d1 = a.min.x - b.max.x;
+    const d2 = b.min.x - a.max.x;
+    const d3 = a.min.y - b.max.y;
+    const d4 = b.min.y - a.max.y;
+    const d5 = a.min.z - b.max.z;
+    const d6 = b.min.z - a.max.z;
+    const dx = Math.max(d1, d2, 0);
+    const dy = Math.max(d3, d4, 0);
+    const dz = Math.max(d5, d6, 0);
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
   public update(now: number): void {
     if (now - this.lastCheck >= this.checkInterval) {
       this.lastCheck = now;
@@ -36,7 +49,7 @@ export class SnapAnalyzer {
         const a = frags[i];
         const b = frags[j];
 
-        if (a.boundingBox.distanceToBox(b.boundingBox) > 2.0) continue;
+        if (this.boxDistance(a.boundingBox, b.boundingBox) > 2.0) continue;
 
         const { distance, normalAngle } = this.computeSnapMetrics(a, b);
 
