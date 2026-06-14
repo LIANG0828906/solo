@@ -2,13 +2,161 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.5;
-  font-weight: 400;
+@layer base {
+  :root {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    background: #0a0a0f;
+    color: #f8f8f8;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--mood-from, #6366F1), var(--mood-to, #A855F7));
+  }
+
+  .mood-happy {
+    --mood-from: #F97316;
+    --mood-to: #EC4899;
+  }
+
+  .mood-sad {
+    --mood-from: #6366F1;
+    --mood-to: #A855F7;
+  }
+
+  .mood-romantic {
+    --mood-from: #EC4899;
+    --mood-to: #F472B6;
+  }
+
+  .mood-passionate {
+    --mood-from: #EF4444;
+    --mood-to: #F97316;
+  }
+
+  .rhyme-highlight {
+    position: relative;
+    display: inline-block;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .rhyme-highlight::before {
+    content: '';
+    position: absolute;
+    inset: -4px -8px;
+    border-radius: 8px;
+    z-index: -1;
+    opacity: 0.3;
+    background: linear-gradient(135deg, var(--mood-from), var(--mood-to));
+    filter: blur(8px);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .btn-mood {
+    @apply relative overflow-hidden rounded-full px-6 py-3 font-medium text-white transition-all duration-300;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  }
+
+  .btn-mood:hover {
+    transform: scale(1.08) translateY(-2px);
+  }
+
+  .btn-mood:active {
+    transform: scale(0.95);
+  }
+
+  .card-masonry {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .input-glass {
+    @apply w-full rounded-2xl px-6 py-4 text-white placeholder-white/40;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .input-glass:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 0 40px rgba(99, 102, 241, 0.1);
+  }
+
+  .editable-word {
+    @apply cursor-pointer rounded transition-all duration-200;
+    padding: 2px 6px;
+    margin: 0 -2px;
+  }
+
+  .editable-word:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink-cursor 0.8s step-end infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
