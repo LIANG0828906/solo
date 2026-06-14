@@ -24,7 +24,7 @@ function App() {
   const selectedLogs = selectedPlotId ? getLogsByPlotId(selectedPlotId) : []
 
   return (
-    <div className="app-container" style={{ display: 'flex', minHeight: '100vh', background: '#F5F0E1' }}>
+    <div className="app-container">
       <FarmMap
         plots={plots}
         selectedPlotId={selectedPlotId}

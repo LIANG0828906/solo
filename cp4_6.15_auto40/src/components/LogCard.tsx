@@ -21,7 +21,7 @@ export const LogCard: React.FC<LogCardProps> = ({ log, index }) => {
     <div
       className="log-card"
       style={{
-        animation: `slideInRight 0.5s ease-out ${index * 0.1}s both`,
+        animation: `logSlideIn 0.5s ease-out ${index * 0.1}s both`,
         background: 'linear-gradient(135deg, #FAF3E0 0%, #E8F5E9 100%)',
         borderRadius: '12px',
         padding: '16px',
@@ -49,12 +49,13 @@ export const LogCard: React.FC<LogCardProps> = ({ log, index }) => {
           />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '8px' }}>
             <span
               style={{
                 fontWeight: 600,
                 color: '#5D4037',
-                fontSize: '14px'
+                fontSize: '14px',
+                fontFamily: 'Quicksand, sans-serif'
               }}
             >
               {config.label}
@@ -63,7 +64,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, index }) => {
               style={{
                 fontSize: '12px',
                 color: '#8D6E63',
-                flexShrink: 0
+                flexShrink: 0,
+                fontFamily: 'Quicksand, sans-serif'
               }}
             >
               {timeStr}
@@ -75,13 +77,27 @@ export const LogCard: React.FC<LogCardProps> = ({ log, index }) => {
               color: '#6D4C41',
               fontSize: '13px',
               lineHeight: 1.5,
-              wordBreak: 'break-word'
+              wordBreak: 'break-word',
+              fontFamily: 'Quicksand, sans-serif'
             }}
           >
             {log.note}
           </p>
         </div>
       </div>
+
+      <style>{`
+        @keyframes logSlideIn {
+          0% {
+            transform: translateX(30px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
 }

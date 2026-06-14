@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useTransition, useEffect } from 'react'
 import { PlotCell, PlotStatus, LogEntry, ClaimInfo, OperationType, AnimationState } from '@/types'
 import { initialPlots, initialClaims, initialLogs, statusColorMap, gridConfig } from '@/data/mockData'
 
@@ -8,6 +8,7 @@ export function useFarmLogic() {
   const [logs, setLogs] = useState<LogEntry[]>(initialLogs)
   const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null)
   const [animationState, setAnimationState] = useState<AnimationState>({ plotId: '', type: null, show: false })
+  const [isPending, startTransition] = useTransition()
 
   const getPlotById = useCallback((plotId: string) => {
     return plots.find(p => p.id === plotId)
@@ -32,36 +33,42 @@ export function useFarmLogic() {
   const claimPlot = useCallback((plotId: string, nickname: string, plantGoal: string) => {
     const claimDate = new Date().toISOString()
     
-    setPlots(prev => prev.map(plot => {
-      if (plot.id === plotId) {
-        return {
-          ...plot,
-          status: PlotStatus.CLAIMED,
-          color: statusColorMap[PlotStatus.CLAIMED],
-          hasPlantMarker: true,
-          isAnimating: true,
-          animationType: 'claim' as const
-        }
-      }
-      return plot
-    }))
-
-    setClaims(prev => [...prev, {
-      plotId,
-      nickname,
-      plantGoal,
-      claimDate
-    }])
-
-    setTimeout(() => {
+    startTransition(() => {
       setPlots(prev => prev.map(plot => {
         if (plot.id === plotId) {
-          return { ...plot, isAnimating: false, animationType: null }
+          return {
+            ...plot,
+            status: PlotStatus.CLAIMED,
+            color: statusColorMap[PlotStatus.CLAIMED],
+            hasPlantMarker: true,
+            isAnimating: true,
+            animationType: 'claim' as const
+          }
         }
         return plot
       }))
-    }, 1000)
-  }, [])
+
+      setClaims(prev => [...prev, {
+        plotId,
+        nickname,
+        plantGoal,
+        claimDate
+      }])
+    })
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        startTransition(() => {
+          setPlots(prev => prev.map(plot => {
+            if (plot.id === plotId) {
+              return { ...plot, isAnimating: false, animationType: null }
+            }
+            return plot
+          }))
+        })
+      }, 1000)
+    })
+  }, [startTransition])
 
   const addLog = useCallback((plotId: string, operationType: OperationType, note: string) => {
     const newLog: LogEntry = {
@@ -72,34 +79,45 @@ export function useFarmLogic() {
       timestamp: new Date().toISOString()
     }
 
-    setLogs(prev => [newLog, ...prev])
+    startTransition(() => {
+      setLogs(prev => [newLog, ...prev])
+    })
 
-    setAnimationState({ plotId, type: operationType, show: true })
-    setTimeout(() => {
-      setAnimationState({ plotId: '', type: null, show: false })
-    }, 1500)
+    requestAnimationFrame(() => {
+      setAnimationState({ plotId, type: operationType, show: true })
+      
+      setTimeout(() => {
+        startTransition(() => {
+          setAnimationState({ plotId: '', type: null, show: false })
+        })
+      }, 1500)
+    })
 
     const claim = claims.find(c => c.plotId === plotId)
     if (claim) {
       const days = getDaysSinceClaim(claim.claimDate)
       if (days >= 20) {
-        setPlots(prev => prev.map(plot => {
-          if (plot.id === plotId && plot.status !== PlotStatus.HARVESTING) {
-            return {
-              ...plot,
-              status: PlotStatus.HARVESTING,
-              color: statusColorMap[PlotStatus.HARVESTING]
+        startTransition(() => {
+          setPlots(prev => prev.map(plot => {
+            if (plot.id === plotId && plot.status !== PlotStatus.HARVESTING) {
+              return {
+                ...plot,
+                status: PlotStatus.HARVESTING,
+                color: statusColorMap[PlotStatus.HARVESTING]
+              }
             }
-          }
-          return plot
-        }))
+            return plot
+          }))
+        })
       }
     }
-  }, [claims, getDaysSinceClaim])
+  }, [claims, getDaysSinceClaim, startTransition])
 
   const selectPlot = useCallback((plotId: string | null) => {
-    setSelectedPlotId(plotId)
-  }, [])
+    startTransition(() => {
+      setSelectedPlotId(plotId)
+    })
+  }, [startTransition])
 
   return {
     plots,
@@ -108,6 +126,7 @@ export function useFarmLogic() {
     selectedPlotId,
     animationState,
     gridConfig,
+    isPending,
     getPlotById,
     getClaimByPlotId,
     getLogsByPlotId,

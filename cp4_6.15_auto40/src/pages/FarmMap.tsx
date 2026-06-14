@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { PlotCell } from '@/components/PlotCell'
 import { PlotCell as PlotCellType, PlotStatus, AnimationState } from '@/types'
 
@@ -25,8 +25,12 @@ export const FarmMap: React.FC<FarmMapProps> = ({
   const [plantGoal, setPlantGoal] = useState('')
 
   const { rows, cols, cellSize, gap } = gridConfig
-  const svgWidth = cols * (cellSize + gap)
-  const svgHeight = rows * (cellSize + gap)
+
+  const svgDimensions = useMemo(() => {
+    const width = cols * (cellSize + gap)
+    const height = rows * (cellSize + gap)
+    return { width, height }
+  }, [rows, cols, cellSize, gap])
 
   const handlePlotClick = (plot: PlotCellType) => {
     if (plot.status === PlotStatus.AVAILABLE) {
@@ -45,7 +49,9 @@ export const FarmMap: React.FC<FarmMapProps> = ({
       setClaimingPlotId(null)
       setNickname('')
       setPlantGoal('')
-      onPlotClick(claimingPlotId)
+      setTimeout(() => {
+        onPlotClick(claimingPlotId)
+      }, 100)
     }
   }
 
@@ -56,40 +62,34 @@ export const FarmMap: React.FC<FarmMapProps> = ({
     setPlantGoal('')
   }
 
+  const legendItems = [
+    { color: '#C8E6C9', border: '#A5D6A7', label: '空闲' },
+    { color: '#FFCCBC', border: '#FFAB91', label: '已认领' },
+    { color: '#2E7D32', border: '#1B5E20', label: '收获中' }
+  ]
+
   return (
-    <div className="farm-map-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
-      <h2 style={{ color: '#5D4037', marginBottom: '16px', fontFamily: 'Quicksand, sans-serif', fontWeight: 600 }}>
+    <div className="farm-map-container">
+      <h2 className="farm-title">
         🌿 社区共享菜园平面图
       </h2>
       
-      <div className="legend" style={{ display: 'flex', gap: '24px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: '#C8E6C9', border: '1px solid #A5D6A7' }}></div>
-          <span style={{ color: '#5D4037', fontSize: '14px', fontFamily: 'Quicksand, sans-serif' }}>空闲</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: '#FFCCBC', border: '1px solid #FFAB91' }}></div>
-          <span style={{ color: '#5D4037', fontSize: '14px', fontFamily: 'Quicksand, sans-serif' }}>已认领</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: '#2E7D32', border: '1px solid #1B5E20' }}></div>
-          <span style={{ color: '#5D4037', fontSize: '14px', fontFamily: 'Quicksand, sans-serif' }}>收获中</span>
-        </div>
+      <div className="legend">
+        {legendItems.map((item, index) => (
+          <div key={index} className="legend-item">
+            <div 
+              className="legend-color" 
+              style={{ background: item.color, borderColor: item.border }}
+            ></div>
+            <span className="legend-label">{item.label}</span>
+          </div>
+        ))}
       </div>
 
-      <div style={{ 
-        background: '#FAF3E0', 
-        padding: '20px', 
-        borderRadius: '16px',
-        boxShadow: '0 4px 20px rgba(139, 69, 19, 0.15)',
-        overflow: 'auto',
-        maxWidth: '100%'
-      }}>
+      <div className="svg-wrapper">
         <svg
-          width={svgWidth}
-          height={svgHeight}
-          style={{ display: 'block' }}
-          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          className="farm-svg"
+          viewBox={`0 0 ${svgDimensions.width} ${svgDimensions.height}`}
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
@@ -98,9 +98,18 @@ export const FarmMap: React.FC<FarmMapProps> = ({
               <circle cx="2" cy="2" r="0.5" fill="#BCAAA4" />
               <circle cx="6" cy="5" r="0.5" fill="#BCAAA4" />
             </pattern>
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
+            </filter>
           </defs>
           
-          <rect width={svgWidth} height={svgHeight} fill="url(#soilPattern)" rx="12" />
+          <rect 
+            width={svgDimensions.width} 
+            height={svgDimensions.height} 
+            fill="url(#soilPattern)" 
+            rx="12" 
+            filter="url(#softShadow)"
+          />
           
           {plots.map(plot => (
             <PlotCell
@@ -117,163 +126,51 @@ export const FarmMap: React.FC<FarmMapProps> = ({
         </svg>
       </div>
 
-      <p style={{ color: '#8D6E63', fontSize: '13px', marginTop: '16px', textAlign: 'center', fontFamily: 'Quicksand, sans-serif' }}>
+      <p className="hint-text">
         点击空闲地块即可认领，点击已认领地块查看详情
       </p>
 
       {showClaimModal && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            animation: 'fadeIn 0.3s ease'
-          }}
-          onClick={handleCloseModal}
-        >
-          <div
-            className="modal-content"
-            style={{
-              background: '#FFFEF7',
-              padding: '32px',
-              borderRadius: '20px',
-              maxWidth: '400px',
-              width: '90%',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-              animation: 'scaleIn 0.3s ease'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 style={{ color: '#5D4037', marginBottom: '24px', textAlign: 'center', fontFamily: 'Quicksand, sans-serif', fontWeight: 600 }}>
-              🌱 认领地块
-            </h3>
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">🌱 认领地块</h3>
             
             <form onSubmit={handleClaimSubmit}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#6D4C41', marginBottom: '8px', fontSize: '14px', fontFamily: 'Quicksand, sans-serif' }}>
-                  您的昵称
-                </label>
+              <div className="form-group">
+                <label className="form-label">您的昵称</label>
                 <input
                   type="text"
                   value={nickname}
                   onChange={e => setNickname(e.target.value)}
                   placeholder="请输入昵称"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '2px solid #D7CCC8',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontFamily: 'Quicksand, sans-serif',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={e => {
-                    e.target.style.borderColor = '#8BC34A'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(139, 195, 74, 0.2)'
-                  }}
-                  onBlur={e => {
-                    e.target.style.borderColor = '#D7CCC8'
-                    e.target.style.boxShadow = 'none'
-                  }}
+                  className="form-input"
                   autoFocus
                 />
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', color: '#6D4C41', marginBottom: '8px', fontSize: '14px', fontFamily: 'Quicksand, sans-serif' }}>
-                  种植目标
-                </label>
+              <div className="form-group">
+                <label className="form-label">种植目标</label>
                 <input
                   type="text"
                   value={plantGoal}
                   onChange={e => setPlantGoal(e.target.value)}
                   placeholder="例如：种西红柿、种黄瓜..."
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '2px solid #D7CCC8',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontFamily: 'Quicksand, sans-serif',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={e => {
-                    e.target.style.borderColor = '#8BC34A'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(139, 195, 74, 0.2)'
-                  }}
-                  onBlur={e => {
-                    e.target.style.borderColor = '#D7CCC8'
-                    e.target.style.boxShadow = 'none'
-                  }}
+                  className="form-input"
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-actions">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  style={{
-                    flex: 1,
-                    padding: '12px 20px',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontFamily: 'Quicksand, sans-serif',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: '#EFEBE9',
-                    color: '#5D4037',
-                    transition: 'background 0.2s ease, transform 0.1s ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#D7CCC8'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#EFEBE9'}
-                  onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  className="btn btn-secondary"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={!nickname.trim() || !plantGoal.trim()}
-                  style={{
-                    flex: 1,
-                    padding: '12px 20px',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontFamily: 'Quicksand, sans-serif',
-                    fontWeight: 600,
-                    cursor: nickname.trim() && plantGoal.trim() ? 'pointer' : 'not-allowed',
-                    background: nickname.trim() && plantGoal.trim() ? '#8BC34A' : '#C5E1A5',
-                    color: 'white',
-                    transition: 'background 0.2s ease, transform 0.1s ease'
-                  }}
-                  onMouseEnter={e => {
-                    if (nickname.trim() && plantGoal.trim()) {
-                      e.currentTarget.style.background = '#7CB342'
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = nickname.trim() && plantGoal.trim() ? '#8BC34A' : '#C5E1A5'
-                  }}
-                  onMouseDown={e => {
-                    if (nickname.trim() && plantGoal.trim()) {
-                      e.currentTarget.style.transform = 'scale(0.98)'
-                    }
-                  }}
-                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  className="btn btn-primary"
                 >
                   确认认领
                 </button>
@@ -282,6 +179,250 @@ export const FarmMap: React.FC<FarmMapProps> = ({
           </div>
         </div>
       )}
+
+      <style>{`
+        .farm-map-container {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 20px;
+          width: 100%;
+          box-sizing: border-box;
+          min-width: 0;
+        }
+
+        .farm-title {
+          color: #5D4037;
+          margin-bottom: 16px;
+          font-family: 'Quicksand', sans-serif;
+          font-weight: 600;
+          font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+          text-align: center;
+        }
+
+        .legend {
+          display: flex;
+          gap: 24px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .legend-color {
+          width: 20px;
+          height: 20px;
+          border-radius: 4px;
+          border: 1px solid;
+        }
+
+        .legend-label {
+          color: #5D4037;
+          font-size: 14px;
+          font-family: 'Quicksand', sans-serif;
+        }
+
+        .svg-wrapper {
+          background: #FAF3E0;
+          padding: clamp(12px, 3vw, 20px);
+          border-radius: 16px;
+          box-shadow: 0 4px 20px rgba(139, 69, 19, 0.15);
+          width: 100%;
+          max-width: min(100%, 600px);
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .farm-svg {
+          width: 100%;
+          height: auto;
+          display: block;
+          max-height: 65vh;
+        }
+
+        .hint-text {
+          color: #8D6E63;
+          font-size: 13px;
+          margin-top: 16px;
+          text-align: center;
+          font-family: 'Quicksand', sans-serif;
+        }
+
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.3s ease;
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        .modal-content {
+          background: #FFFEF7;
+          padding: clamp(20px, 5vw, 32px);
+          border-radius: 20px;
+          max-width: 400px;
+          width: 100%;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          animation: scaleIn 0.3s ease;
+          box-sizing: border-box;
+        }
+
+        .modal-title {
+          color: #5D4037;
+          margin-bottom: 24px;
+          text-align: center;
+          font-family: 'Quicksand', sans-serif;
+          font-weight: 600;
+          font-size: clamp(1.1rem, 2vw, 1.25rem);
+        }
+
+        .form-group {
+          margin-bottom: 20px;
+        }
+
+        .form-label {
+          display: block;
+          color: #6D4C41;
+          margin-bottom: 8px;
+          font-size: 14px;
+          font-family: 'Quicksand', sans-serif;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 12px 16px;
+          border: 2px solid #D7CCC8;
+          border-radius: 12px;
+          font-size: 14px;
+          font-family: 'Quicksand', sans-serif;
+          outline: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          box-sizing: border-box;
+          background: white;
+        }
+
+        .form-input:focus {
+          border-color: #8BC34A;
+          box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.2);
+        }
+
+        .form-actions {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .btn {
+          flex: 1;
+          min-width: 120px;
+          padding: 12px 20px;
+          border: none;
+          border-radius: 12px;
+          font-size: 14px;
+          font-family: 'Quicksand', sans-serif;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        .btn:active {
+          transform: scale(0.98);
+        }
+
+        .btn-secondary {
+          background: #EFEBE9;
+          color: #5D4037;
+        }
+
+        .btn-secondary:hover {
+          background: #D7CCC8;
+        }
+
+        .btn-primary {
+          background: #8BC34A;
+          color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          background: #7CB342;
+        }
+
+        .btn-primary:disabled {
+          background: #C5E1A5;
+          cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from {
+            transform: scale(0.9);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .farm-map-container {
+            padding: 12px;
+          }
+
+          .legend {
+            gap: 12px;
+          }
+
+          .svg-wrapper {
+            padding: 12px;
+          }
+
+          .farm-svg {
+            max-height: 50vh;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .legend {
+            gap: 8px;
+          }
+
+          .legend-label {
+            font-size: 12px;
+          }
+
+          .legend-color {
+            width: 16px;
+            height: 16px;
+          }
+
+          .form-actions {
+            flex-direction: column;
+          }
+
+          .btn {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   )
 }
