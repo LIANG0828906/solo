@@ -25,7 +25,9 @@ export default function ControlPanel() {
   } = useGameStore();
 
   const selectedUnit = units.find(u => u.id === selectedUnitId);
-  const canDeploy = deploymentCount < maxDeployments && units.length < maxUnits;
+  const remainingDeployments = maxDeployments - deploymentCount;
+  const remainingSlots = maxUnits - units.length;
+  const canDeploy = remainingDeployments > 0 && remainingSlots > 0;
   const allUnitsActed = units.length > 0 && units.every(u => u.hasActed);
 
   const getDeployedCountByType = (type: UnitType) => {
@@ -44,24 +46,30 @@ export default function ControlPanel() {
 
       <div className="section">
         <h2 className="section-title">单位部署</h2>
-        <div className="deploy-info">
-          <span>已部署: {units.length}/{maxUnits}</span>
-          <span>总部署次数: {deploymentCount}/{maxDeployments}</span>
+        <div className="deploy-stats">
+          <div className="stat-item">
+            <span className="stat-label">已部署单位</span>
+            <span className="stat-value">{units.length} / {maxUnits}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">剩余部署次数</span>
+            <span className="stat-value highlight">{remainingDeployments} / {maxDeployments}</span>
+          </div>
         </div>
         
         <div className="unit-list">
           {unitTypes.map(({ type, color, desc }) => {
             const isSelected = selectedUnitType === type;
-            const isDisabled = !canDeploy || deployedThisTurn.has(type);
+            const alreadyDeployedThisTurn = deployedThisTurn.has(type);
             const count = getDeployedCountByType(type);
-            const alreadyDeployed = deployedThisTurn.has(type);
+            const canDeployThisType = canDeploy && !alreadyDeployedThisTurn;
 
             return (
               <button
                 key={type}
-                className={`unit-btn ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
-                onClick={() => !isDisabled && selectUnitType(isSelected ? null : type)}
-                disabled={isDisabled}
+                className={`unit-btn ${isSelected ? 'selected' : ''} ${!canDeployThisType ? 'disabled' : ''}`}
+                onClick={() => canDeployThisType && selectUnitType(isSelected ? null : type)}
+                disabled={!canDeployThisType}
                 style={{ '--unit-color': color } as React.CSSProperties}
               >
                 <div className="unit-icon" style={{ backgroundColor: color }}>
@@ -72,8 +80,10 @@ export default function ControlPanel() {
                   <div className="unit-desc">{desc}</div>
                 </div>
                 <div className="unit-count">
-                  {count}/{maxUnits}
-                  {alreadyDeployed && <span className="badge">本回合已部署</span>}
+                  <span className="count-main">{count}/{maxUnits}</span>
+                  {alreadyDeployedThisTurn && (
+                    <span className="badge">本回合已部署</span>
+                  )}
                 </div>
               </button>
             );
@@ -83,6 +93,12 @@ export default function ControlPanel() {
         {selectedUnitType && (
           <div className="hint">
             点击地图空白网格部署 {getUnitTypeName(selectedUnitType)}
+          </div>
+        )}
+
+        {!canDeploy && units.length < maxUnits && (
+          <div className="warning">
+            部署次数已用完，无法继续部署新单位
           </div>
         )}
       </div>
@@ -105,6 +121,9 @@ export default function ControlPanel() {
                 ) : (
                   <span className="status-active">待命</span>
                 )}
+              </div>
+              <div className="selected-unit-ap">
+                行动力: <span className="ap-value">{selectedUnit.actionPoints}</span>
               </div>
               <div className="selected-unit-pos">
                 位置: ({selectedUnit.q}, {selectedUnit.r})

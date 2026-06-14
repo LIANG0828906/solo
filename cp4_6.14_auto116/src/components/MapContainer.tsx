@@ -3,17 +3,18 @@ import { useGameStore } from '../store/gameStore';
 import {
   drawGrid,
   pixelToHex,
-  getHexesInRange,
+  getReachableHexes,
   findPath,
   animateUnitMove,
-  MOVE_RANGE
+  resetRenderer
 } from '../core/hexGrid';
 
 export default function MapContainer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cancelAnimationRef = useRef<(() => void) | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
+  const renderFrameRef = useRef<number | null>(null);
+  const needsRenderRef = useRef(false);
 
   const {
     gridSize,
@@ -27,7 +28,6 @@ export default function MapContainer() {
     animationPath,
     animationProgress,
     selectUnit,
-    selectUnitType,
     deployUnit,
     setHighlightedHexes,
     startAnimation,
@@ -42,8 +42,8 @@ export default function MapContainer() {
     const gridPixelHeight = hexRadius * Math.sqrt(3) * (gridSize - 1) + hexRadius * Math.sqrt(3);
     
     offsetRef.current = {
-      x: (canvas.width - gridPixelWidth) / 2 + hexRadius,
-      y: (canvas.height - gridPixelHeight) / 2 + hexRadius * Math.sqrt(3) / 2
+      x: (canvas.width / (window.devicePixelRatio || 1) - gridPixelWidth) / 2 + hexRadius,
+      y: (canvas.height / (window.devicePixelRatio || 1) - gridPixelHeight) / 2 + hexRadius * Math.sqrt(3) / 2
     };
   }, [gridSize, hexRadius]);
 
@@ -96,11 +96,13 @@ export default function MapContainer() {
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       
+      resetRenderer();
       calculateOffsets(canvas);
-      render();
+      needsRenderRef.current = true;
+      requestRender();
     };
 
     resizeCanvas();
@@ -109,22 +111,33 @@ export default function MapContainer() {
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [calculateOffsets, render]);
+  }, [calculateOffsets]);
+
+  const requestRender = useCallback(() => {
+    if (renderFrameRef.current !== null) return;
+    
+    renderFrameRef.current = requestAnimationFrame(() => {
+      renderFrameRef.current = null;
+      if (needsRenderRef.current) {
+        needsRenderRef.current = false;
+        render();
+      }
+    });
+  }, [render]);
 
   useEffect(() => {
     if (isAnimating) return;
     
-    animationFrameRef.current = requestAnimationFrame(function loop() {
-      render();
-      animationFrameRef.current = requestAnimationFrame(loop);
-    });
-
+    needsRenderRef.current = true;
+    requestRender();
+    
     return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (renderFrameRef.current !== null) {
+        cancelAnimationFrame(renderFrameRef.current);
+        renderFrameRef.current = null;
       }
     };
-  }, [render, isAnimating]);
+  }, [render, isAnimating, requestRender]);
 
   useEffect(() => {
     if (!selectedUnitId || isAnimating) {
@@ -133,20 +146,17 @@ export default function MapContainer() {
     }
 
     const selectedUnit = units.find(u => u.id === selectedUnitId);
-    if (!selectedUnit || selectedUnit.hasActed) {
+    if (!selectedUnit || selectedUnit.hasActed || selectedUnit.actionPoints <= 0) {
       setHighlightedHexes([]);
       return;
     }
 
-    const reachable = getHexesInRange(
+    const reachable = getReachableHexes(
       { q: selectedUnit.q, r: selectedUnit.r },
-      MOVE_RANGE,
+      selectedUnit.actionPoints,
+      units,
       gridSize
-    ).filter(hex => {
-      if (hex.q === selectedUnit.q && hex.r === selectedUnit.r) return false;
-      const occupied = units.some(u => u.q === hex.q && u.r === hex.r && u.id !== selectedUnitId);
-      return !occupied;
-    });
+    );
 
     setHighlightedHexes(reachable);
   }, [selectedUnitId, units, gridSize, isAnimating, setHighlightedHexes]);
@@ -178,7 +188,7 @@ export default function MapContainer() {
 
     if (selectedUnitId) {
       const selectedUnit = units.find(u => u.id === selectedUnitId);
-      if (!selectedUnit || selectedUnit.hasActed) {
+      if (!selectedUnit || selectedUnit.hasActed || selectedUnit.actionPoints <= 0) {
         selectUnit(null);
         return;
       }
@@ -195,7 +205,7 @@ export default function MapContainer() {
           hex,
           units,
           gridSize,
-          MOVE_RANGE
+          selectedUnit.actionPoints
         );
 
         if (path.length > 1) {
@@ -245,12 +255,23 @@ export default function MapContainer() {
     selectedUnitId,
     highlightedHexes,
     selectUnit,
-    selectUnitType,
     deployUnit,
     startAnimation,
     updateAnimationProgress,
     finishAnimation
   ]);
+
+  useEffect(() => {
+    return () => {
+      resetRenderer();
+      if (cancelAnimationRef.current) {
+        cancelAnimationRef.current();
+      }
+      if (renderFrameRef.current) {
+        cancelAnimationFrame(renderFrameRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="map-container" ref={containerRef}>
@@ -261,7 +282,7 @@ export default function MapContainer() {
       />
       <div className="map-overlay">
         <div className="coords-hint">
-          六边形网格 8×8 | 移动范围 2 格
+          六边形网格 8×8 | 每单位 1 点行动力
         </div>
       </div>
     </div>

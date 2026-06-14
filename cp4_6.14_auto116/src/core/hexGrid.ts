@@ -19,7 +19,6 @@ export const COLORS = {
 };
 
 export const ANIMATION_DURATION_PER_HEX = 200;
-export const MOVE_RANGE = 2;
 
 export function hexToPixel(q: number, r: number, radius: number, offsetX: number, offsetY: number): { x: number; y: number } {
   const x = radius * (3 / 2 * q);
@@ -93,6 +92,44 @@ export function getHexesInRange(center: HexCoord, range: number, gridSize: numbe
   return results;
 }
 
+export function getReachableHexes(
+  start: HexCoord,
+  moveRange: number,
+  units: Unit[],
+  gridSize: number
+): HexCoord[] {
+  if (moveRange <= 0) return [];
+  
+  const occupied = new Set(units.map(u => `${u.q},${u.r}`));
+  occupied.delete(`${start.q},${start.r}`);
+  
+  const reachable: HexCoord[] = [];
+  const visited = new Set<string>();
+  const queue: { hex: HexCoord; distance: number }[] = [{ hex: start, distance: 0 }];
+  visited.add(`${start.q},${start.r}`);
+  
+  while (queue.length > 0) {
+    const { hex, distance } = queue.shift()!;
+    
+    if (distance > 0 && !occupied.has(`${hex.q},${hex.r}`)) {
+      reachable.push(hex);
+    }
+    
+    if (distance >= moveRange) continue;
+    
+    for (const neighbor of getNeighbors(hex)) {
+      const key = `${neighbor.q},${neighbor.r}`;
+      if (visited.has(key)) continue;
+      if (neighbor.q < 0 || neighbor.q >= gridSize || neighbor.r < 0 || neighbor.r >= gridSize) continue;
+      
+      visited.add(key);
+      queue.push({ hex: neighbor, distance: distance + 1 });
+    }
+  }
+  
+  return reachable;
+}
+
 export function findPath(
   start: HexCoord,
   end: HexCoord,
@@ -100,6 +137,7 @@ export function findPath(
   gridSize: number,
   maxRange: number
 ): HexCoord[] {
+  if (maxRange <= 0) return [];
   if (hexDistance(start, end) > maxRange) return [];
   if (start.q === end.q && start.r === end.r) return [];
   
@@ -173,6 +211,171 @@ export function drawHex(
   ctx.stroke();
 }
 
+interface RenderState {
+  gridSize: number;
+  hexRadius: number;
+  offsetX: number;
+  offsetY: number;
+  highlightedHexes: HexCoord[];
+  units: Unit[];
+  selectedUnitId: string | null;
+  isAnimating: boolean;
+  animationUnitId: string | null;
+  animationPath: HexCoord[];
+  animationProgress: number;
+}
+
+let currentState: RenderState | null = null;
+let dirtyHexes = new Set<string>();
+let animationFrameId: number | null = null;
+
+function hexKey(q: number, r: number): string {
+  return `${q},${r}`;
+}
+
+function getHexBounds(q: number, r: number, radius: number, offsetX: number, offsetY: number) {
+  const { x, y } = hexToPixel(q, r, radius, offsetX, offsetY);
+  return {
+    minX: x - radius,
+    maxX: x + radius,
+    minY: y - radius,
+    maxY: y + radius
+  };
+}
+
+function markAllDirty(gridSize: number) {
+  dirtyHexes.clear();
+  for (let q = 0; q < gridSize; q++) {
+    for (let r = 0; r < gridSize; r++) {
+      dirtyHexes.add(hexKey(q, r));
+    }
+  }
+}
+
+
+
+function getDirtyBounds(state: RenderState) {
+  if (dirtyHexes.size === 0) return null;
+  
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  
+  for (const key of dirtyHexes) {
+    const [q, r] = key.split(',').map(Number);
+    const bounds = getHexBounds(q, r, state.hexRadius, state.offsetX, state.offsetY);
+    minX = Math.min(minX, bounds.minX);
+    maxX = Math.max(maxX, bounds.maxX);
+    minY = Math.min(minY, bounds.minY);
+    maxY = Math.max(maxY, bounds.maxY);
+  }
+  
+  return {
+    x: Math.floor(minX) - 2,
+    y: Math.floor(minY) - 2,
+    w: Math.ceil(maxX - minX) + 4,
+    h: Math.ceil(maxY - minY) + 4
+  };
+}
+
+function renderHex(
+  ctx: CanvasRenderingContext2D,
+  q: number,
+  r: number,
+  state: RenderState
+) {
+  const { x, y } = hexToPixel(q, r, state.hexRadius, state.offsetX, state.offsetY);
+  const isHighlighted = state.highlightedHexes.some(h => h.q === q && h.r === r);
+  
+  if (isHighlighted) {
+    ctx.save();
+    drawHex(ctx, x, y, state.hexRadius - 1, COLORS.gridFill, COLORS.gridStroke, 1);
+    ctx.globalAlpha = COLORS.highlightAlpha;
+    drawHex(ctx, x, y, state.hexRadius - 1, COLORS.highlight, COLORS.highlight, 2);
+    ctx.restore();
+  } else {
+    drawHex(ctx, x, y, state.hexRadius - 1, COLORS.gridFill, COLORS.gridStroke, 1);
+  }
+}
+
+function renderUnitsInDirtyArea(ctx: CanvasRenderingContext2D, state: RenderState) {
+  const unitPositions = new Map<string, { unit: Unit; isSelected: boolean; isAnimating: boolean; animX: number; animY: number }>();
+  
+  if (state.isAnimating && state.animationUnitId && state.animationPath.length > 1) {
+    const animUnit = state.units.find(u => u.id === state.animationUnitId);
+    if (animUnit) {
+      const totalSteps = state.animationPath.length - 1;
+      const currentStep = Math.floor(state.animationProgress * totalSteps);
+      const stepProgress = (state.animationProgress * totalSteps) - currentStep;
+      
+      const fromHex = state.animationPath[Math.min(currentStep, state.animationPath.length - 1)];
+      const toHex = state.animationPath[Math.min(currentStep + 1, state.animationPath.length - 1)];
+      
+      const fromPos = hexToPixel(fromHex.q, fromHex.r, state.hexRadius, state.offsetX, state.offsetY);
+      const toPos = hexToPixel(toHex.q, toHex.r, state.hexRadius, state.offsetX, state.offsetY);
+      
+      const animX = fromPos.x + (toPos.x - fromPos.x) * stepProgress;
+      const animY = fromPos.y + (toPos.y - fromPos.y) * stepProgress;
+      
+      unitPositions.set(state.animationUnitId, {
+        unit: animUnit,
+        isSelected: false,
+        isAnimating: true,
+        animX,
+        animY
+      });
+    }
+  }
+  
+  for (const unit of state.units) {
+    if (unitPositions.has(unit.id)) continue;
+    
+    const isSelected = unit.id === state.selectedUnitId;
+    const { x, y } = hexToPixel(unit.q, unit.r, state.hexRadius, state.offsetX, state.offsetY);
+    
+    unitPositions.set(unit.id, {
+      unit,
+      isSelected,
+      isAnimating: false,
+      animX: x,
+      animY: y
+    });
+  }
+  
+  for (const [, data] of unitPositions) {
+    const { unit, isSelected, isAnimating, animX, animY } = data;
+    const hexKeyStr = isAnimating ? '' : hexKey(unit.q, unit.r);
+    
+    if (!isAnimating && !dirtyHexes.has(hexKeyStr)) continue;
+    
+    drawUnit(ctx, animX, animY, unit, isSelected);
+  }
+}
+
+function drawGridFrame(ctx: CanvasRenderingContext2D, state: RenderState) {
+  const bounds = getDirtyBounds(state);
+  
+  if (!bounds) return;
+  
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(bounds.x, bounds.y, bounds.w, bounds.h);
+  ctx.clip();
+  
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+  
+  for (const key of dirtyHexes) {
+    const [q, r] = key.split(',').map(Number);
+    renderHex(ctx, q, r, state);
+  }
+  
+  renderUnitsInDirtyArea(ctx, state);
+  
+  ctx.restore();
+  
+  dirtyHexes.clear();
+}
+
 export function drawGrid(
   ctx: CanvasRenderingContext2D,
   gridSize: number,
@@ -187,61 +390,107 @@ export function drawGrid(
   animationPath: HexCoord[],
   animationProgress: number
 ): void {
-  ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  const newState: RenderState = {
+    gridSize,
+    hexRadius,
+    offsetX,
+    offsetY,
+    highlightedHexes,
+    units,
+    selectedUnitId,
+    isAnimating,
+    animationUnitId,
+    animationPath,
+    animationProgress
+  };
   
-  const highlightSet = new Set(highlightedHexes.map(h => `${h.q},${h.r}`));
+  if (!currentState) {
+    currentState = newState;
+    markAllDirty(gridSize);
+    const bounds = getDirtyBounds(newState);
+    if (bounds) {
+      ctx.fillStyle = COLORS.background;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      drawGridFrame(ctx, newState);
+    }
+    return;
+  }
   
-  for (let q = 0; q < gridSize; q++) {
-    for (let r = 0; r < gridSize; r++) {
-      const { x, y } = hexToPixel(q, r, hexRadius, offsetX, offsetY);
-      const key = `${q},${r}`;
-      
-      let fill = COLORS.gridFill;
-      let stroke = COLORS.gridStroke;
-      let lineWidth = 1;
-      
-      if (highlightSet.has(key)) {
-        ctx.save();
-        drawHex(ctx, x, y, hexRadius - 1, COLORS.gridFill, COLORS.gridStroke, 1);
-        ctx.globalAlpha = COLORS.highlightAlpha;
-        drawHex(ctx, x, y, hexRadius - 1, COLORS.highlight, COLORS.highlight, 2);
-        ctx.restore();
-      } else {
-        drawHex(ctx, x, y, hexRadius - 1, fill, stroke, lineWidth);
-      }
+  const oldState = currentState;
+  
+  if (oldState.gridSize !== gridSize ||
+      oldState.hexRadius !== hexRadius ||
+      oldState.offsetX !== offsetX ||
+      oldState.offsetY !== offsetY) {
+    currentState = newState;
+    markAllDirty(gridSize);
+    const bounds = getDirtyBounds(newState);
+    if (bounds) {
+      ctx.fillStyle = COLORS.background;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      drawGridFrame(ctx, newState);
+    }
+    return;
+  }
+  
+  const oldHighlightKeys = new Set(oldState.highlightedHexes.map(h => hexKey(h.q, h.r)));
+  const newHighlightKeys = new Set(highlightedHexes.map(h => hexKey(h.q, h.r)));
+  
+  for (const h of oldState.highlightedHexes) {
+    if (!newHighlightKeys.has(hexKey(h.q, h.r))) {
+      dirtyHexes.add(hexKey(h.q, h.r));
+    }
+  }
+  for (const h of highlightedHexes) {
+    if (!oldHighlightKeys.has(hexKey(h.q, h.r))) {
+      dirtyHexes.add(hexKey(h.q, h.r));
     }
   }
   
-  const drawnUnits = new Set<string>();
+  const oldUnitMap = new Map(oldState.units.map(u => [u.id, u]));
+  const newUnitMap = new Map(units.map(u => [u.id, u]));
   
-  if (isAnimating && animationUnitId && animationPath.length > 1) {
-    const animUnit = units.find(u => u.id === animationUnitId);
-    if (animUnit) {
-      const totalSteps = animationPath.length - 1;
-      const currentStep = Math.floor(animationProgress * totalSteps);
-      const stepProgress = (animationProgress * totalSteps) - currentStep;
-      
-      const fromHex = animationPath[Math.min(currentStep, animationPath.length - 1)];
-      const toHex = animationPath[Math.min(currentStep + 1, animationPath.length - 1)];
-      
-      const fromPos = hexToPixel(fromHex.q, fromHex.r, hexRadius, offsetX, offsetY);
-      const toPos = hexToPixel(toHex.q, toHex.r, hexRadius, offsetX, offsetY);
-      
-      const animX = fromPos.x + (toPos.x - fromPos.x) * stepProgress;
-      const animY = fromPos.y + (toPos.y - fromPos.y) * stepProgress;
-      
-      drawUnit(ctx, animX, animY, animUnit, false);
-      drawnUnits.add(animationUnitId);
+  for (const u of oldState.units) {
+    if (!newUnitMap.has(u.id)) {
+      dirtyHexes.add(hexKey(u.q, u.r));
     }
   }
   
-  for (const unit of units) {
-    if (drawnUnits.has(unit.id)) continue;
-    
-    const { x, y } = hexToPixel(unit.q, unit.r, hexRadius, offsetX, offsetY);
-    const isSelected = unit.id === selectedUnitId;
-    drawUnit(ctx, x, y, unit, isSelected);
+  for (const u of units) {
+    const oldUnit = oldUnitMap.get(u.id);
+    if (!oldUnit) {
+      dirtyHexes.add(hexKey(u.q, u.r));
+    } else if (oldUnit.q !== u.q || oldUnit.r !== u.r || oldUnit.hasActed !== u.hasActed || oldUnit.type !== u.type) {
+      dirtyHexes.add(hexKey(oldUnit.q, oldUnit.r));
+      dirtyHexes.add(hexKey(u.q, u.r));
+    }
+    if (selectedUnitId === u.id || oldState.selectedUnitId === u.id) {
+      dirtyHexes.add(hexKey(u.q, u.r));
+    }
+  }
+  
+  if (oldState.selectedUnitId !== selectedUnitId) {
+    if (oldState.selectedUnitId) {
+      const u = oldUnitMap.get(oldState.selectedUnitId);
+      if (u) dirtyHexes.add(hexKey(u.q, u.r));
+    }
+    if (selectedUnitId) {
+      const u = newUnitMap.get(selectedUnitId);
+      if (u) dirtyHexes.add(hexKey(u.q, u.r));
+    }
+  }
+  
+  if (isAnimating && animationUnitId && animationPath.length > 0) {
+    for (const h of animationPath) {
+      dirtyHexes.add(hexKey(h.q, h.r));
+    }
+  }
+  
+  currentState = newState;
+  
+  const bounds = getDirtyBounds(newState);
+  if (bounds) {
+    drawGridFrame(ctx, newState);
   }
 }
 
@@ -300,7 +549,7 @@ export function animateUnitMove(
   
   const totalDuration = (path.length - 1) * ANIMATION_DURATION_PER_HEX;
   let startTime: number | null = null;
-  let animationId: number | null = null;
+  let animId: number | null = null;
   let cancelled = false;
   
   const animate = (timestamp: number) => {
@@ -328,18 +577,28 @@ export function animateUnitMove(
     );
     
     if (progress < 1) {
-      animationId = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(animate);
     } else {
       onComplete();
     }
   };
   
-  animationId = requestAnimationFrame(animate);
+  animId = requestAnimationFrame(animate);
   
   return () => {
     cancelled = true;
-    if (animationId !== null) {
-      cancelAnimationFrame(animationId);
+    if (animId !== null) {
+      cancelAnimationFrame(animId);
     }
   };
+}
+
+export function resetRenderer() {
+  currentState = null;
+  dirtyHexes.clear();
+  pendingFrame = false;
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
 }
