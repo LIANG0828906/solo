@@ -10,16 +10,13 @@ import {
 } from 'recharts'
 import {
   DepartmentDetail as DepartmentDetailType,
-  EmployeeRisk,
-  EmployeeDetail
+  EmployeeRisk
 } from '../api/riskApi'
 
 interface DepartmentDetailProps {
   department: DepartmentDetailType
   onBack: () => void
   onEmployeeClick: (employeeId: string) => void
-  selectedEmployee: EmployeeDetail | null
-  onCloseEmployee: () => void
 }
 
 type SortOrder = 'asc' | 'desc'
@@ -56,18 +53,33 @@ const getScoreColor = (score: number) => {
   return 'low'
 }
 
-const getRowBgColor = (score: number) => {
-  if (score >= 70) return 'rgba(231, 76, 60, 0.08)'
-  if (score >= 40) return 'rgba(243, 156, 18, 0.08)'
-  return 'rgba(39, 174, 96, 0.05)'
+const interpolateColor = (score: number) => {
+  const clampedScore = Math.max(0, Math.min(100, score))
+  let r: number, g: number, b: number
+
+  if (clampedScore <= 40) {
+    const t = clampedScore / 40
+    r = Math.round(39 + (243 - 39) * t * 0.5)
+    g = Math.round(174 + (156 - 174) * t * 0.5)
+    b = Math.round(96 + (18 - 96) * t * 0.5)
+  } else if (clampedScore <= 70) {
+    const t = (clampedScore - 40) / 30
+    r = Math.round(243 + (231 - 243) * t)
+    g = Math.round(156 + (76 - 156) * t)
+    b = Math.round(18 + (60 - 18) * t)
+  } else {
+    r = 231
+    g = 76
+    b = 60
+  }
+
+  return `rgba(${r}, ${g}, ${b}, 0.08)`
 }
 
 function DepartmentDetail({
   department,
   onBack,
-  onEmployeeClick,
-  selectedEmployee,
-  onCloseEmployee
+  onEmployeeClick
 }: DepartmentDetailProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
@@ -81,13 +93,25 @@ function DepartmentDetail({
     return sorted
   }, [department.employees, sortOrder])
 
-  const top3Ids = useMemo(() => {
-    const top3 = [...department.employees]
-      .sort((a, b) => b.riskScore - a.riskScore)
-      .slice(0, 3)
-      .map((e) => e.id)
-    return new Set(top3Ids)
+  const top3Employees = useMemo(() => {
+    const sorted = [...department.employees].sort(
+      (a, b) => b.riskScore - a.riskScore
+    )
+    if (sorted.length === 0) return { ids: new Set<string>(), minScore: 0 }
+    const top3 = sorted.slice(0, 3)
+    const minScore = top3[top3.length - 1].riskScore
+    return {
+      ids: new Set(top3.map((e) => e.id)),
+      minScore
+    }
   }, [department.employees])
+
+  const isTop3 = (employee: EmployeeRisk) => {
+    return (
+      top3Employees.ids.has(employee.id) ||
+      employee.riskScore >= top3Employees.minScore
+    )
+  }
 
   const toggleSort = () => {
     setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))
@@ -139,7 +163,7 @@ function DepartmentDetail({
                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                   }}
                   labelStyle={{ fontWeight: 600, color: '#2C3E50' }}
-                  formatter={(value: number) => [`${value}分`, '风险指数']}
+                  formatter={(value: number) => [`风险指数: ${value}分`]}
                 />
                 <Line
                   type="monotone"
@@ -177,8 +201,11 @@ function DepartmentDetail({
               {sortedEmployees.map((employee, index) => (
                 <Fragment key={employee.id}>
                   <tr
-                    className={top3Ids.has(employee.id) ? 'risk-highlight' : ''}
-                    style={{ backgroundColor: getRowBgColor(employee.riskScore) }}
+                    className={isTop3(employee) ? 'risk-highlight' : ''}
+                    style={{
+                      backgroundColor: interpolateColor(employee.riskScore),
+                      fontWeight: isTop3(employee) ? 600 : 400
+                    }}
                     onClick={() => handleRowClick(employee)}
                   >
                     <td>
@@ -207,7 +234,7 @@ function DepartmentDetail({
                     <td>
                       <div className="signal-tags">
                         {employee.signals.slice(0, 3).map((signal, idx) => (
-                          <span key={idx} className={`signal-tag ${signal.type}`}>
+                          <span key={`${employee.id}-signal-${idx}`} className={`signal-tag ${signal.type}`}>
                             {getSignalLabel(signal.type)}
                           </span>
                         ))}
@@ -222,30 +249,31 @@ function DepartmentDetail({
                       </button>
                     </td>
                   </tr>
-                  {expandedRows.has(employee.id) && (
-                    <tr className="signal-detail-row">
-                      <td colSpan={9}>
-                        <div className="signal-detail-content">
-                          {employee.signals.map((signal, idx) => (
-                            <div key={idx} className="signal-detail-item">
-                              <div className={`signal-icon ${signal.type}`}>
-                                {getSignalIcon(signal.type)}
-                              </div>
-                              <div className="signal-detail-text">
-                                <div className="title">{signal.title}</div>
-                                <div className="desc">
-                                  {signal.description}（{signal.date}）
-                                </div>
-                              </div>
-                              <div style={{ fontWeight: 600, color: '#2C3E50' }}>
-                                {signal.value}
+                  <tr
+                    key={`${employee.id}-detail`}
+                    className={`signal-detail-row ${expandedRows.has(employee.id) ? 'expanded' : ''}`}
+                  >
+                    <td colSpan={9}>
+                      <div className="signal-detail-content">
+                        {employee.signals.map((signal, idx) => (
+                          <div key={`${employee.id}-detail-${idx}`} className="signal-detail-item">
+                            <div className={`signal-icon ${signal.type}`}>
+                              {getSignalIcon(signal.type)}
+                            </div>
+                            <div className="signal-detail-text">
+                              <div className="title">{signal.title}</div>
+                              <div className="desc">
+                                {signal.description}（{signal.date}）
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                            <div style={{ fontWeight: 600, color: '#2C3E50' }}>
+                              {signal.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
                 </Fragment>
               ))}
             </tbody>
@@ -253,91 +281,7 @@ function DepartmentDetail({
         </div>
       </div>
 
-      {selectedEmployee && (
-        <>
-          <div className="sidebar-overlay" onClick={onCloseEmployee}></div>
-          <div className="employee-sidebar">
-            <div className="sidebar-header">
-              <h3>员工风险详情</h3>
-              <button className="close-btn" onClick={onCloseEmployee}>
-                ×
-              </button>
-            </div>
 
-            <div className="sidebar-content">
-              <div className="employee-info">
-                <div className="name">{selectedEmployee.name}</div>
-                <div className="position">{selectedEmployee.position}</div>
-              </div>
-
-              <div className="score-section">
-                <div className="score-chart-container">
-                  <svg width="160" height="160" viewBox="0 0 160 160">
-                    <circle
-                      cx="80"
-                      cy="80"
-                      r="65"
-                      fill="none"
-                      stroke="#E1E8ED"
-                      strokeWidth="10"
-                    />
-                    <circle
-                      cx="80"
-                      cy="80"
-                      r="65"
-                      fill="none"
-                      stroke={
-                        selectedEmployee.riskScore >= 70
-                          ? '#E74C3C'
-                          : selectedEmployee.riskScore >= 40
-                          ? '#F39C12'
-                          : '#27AE60'
-                      }
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(selectedEmployee.riskScore / 100) * 408} 408`}
-                      transform="rotate(-90 80 80)"
-                    />
-                  </svg>
-                  <div className="score-center">
-                    <div className="score-value">{selectedEmployee.riskScore}</div>
-                    <div className="score-label">风险评分</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="timeline-section">
-                <div className="timeline-title">近期信号时间线</div>
-                <div className="timeline">
-                  {selectedEmployee.timeline.map((signal, idx) => (
-                    <div
-                      key={idx}
-                      className="timeline-item"
-                      style={{ animationDelay: `${idx * 80}ms` }}
-                    >
-                      <div className={`timeline-dot ${signal.type}`}>
-                        {getSignalIcon(signal.type)}
-                      </div>
-                      <div className="timeline-date">{signal.date}</div>
-                      <div className="timeline-content">
-                        <strong>{signal.title}</strong>：{signal.description}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="suggestion-section">
-                <div className="suggestion-title">
-                  <span>💡</span>
-                  预警建议
-                </div>
-                <div className="suggestion-text">{selectedEmployee.suggestion}</div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

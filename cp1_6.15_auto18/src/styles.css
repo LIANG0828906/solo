@@ -88,7 +88,9 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   transition: all 200ms ease;
-  animation: fadeInUp 500ms ease both;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 200ms ease forwards;
   border: 1px solid transparent;
 }
 
@@ -99,22 +101,13 @@ body {
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.department-card:nth-child(1) { animation-delay: 50ms; }
-.department-card:nth-child(2) { animation-delay: 100ms; }
-.department-card:nth-child(3) { animation-delay: 150ms; }
-.department-card:nth-child(4) { animation-delay: 200ms; }
-.department-card:nth-child(5) { animation-delay: 250ms; }
-.department-card:nth-child(6) { animation-delay: 300ms; }
+
 
 .card-header {
   display: flex;
@@ -322,18 +315,15 @@ body {
 
 .signal-detail-row {
   background: #FAFBFC;
-  animation: slideDown 200ms ease;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 200ms ease, opacity 200ms ease;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 500px;
-  }
+.signal-detail-row.expanded {
+  max-height: 500px;
+  opacity: 1;
 }
 
 .signal-detail-content {
@@ -403,11 +393,11 @@ body {
   background: rgba(0, 0, 0, 0.4);
   z-index: 100;
   opacity: 0;
-  animation: fadeIn 200ms ease forwards;
+  transition: opacity 200ms ease;
 }
 
-@keyframes fadeIn {
-  to { opacity: 1; }
+.sidebar-overlay.visible {
+  opacity: 1;
 }
 
 .employee-sidebar {
@@ -421,16 +411,12 @@ body {
   z-index: 101;
   display: flex;
   flex-direction: column;
-  animation: slideInRight 300ms ease;
+  transform: translateX(100%);
+  transition: transform 200ms ease;
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+.employee-sidebar.visible {
+  transform: translateX(0);
 }
 
 .sidebar-header {
@@ -544,14 +530,12 @@ body {
 .timeline-item {
   position: relative;
   padding-bottom: 20px;
-  animation: fadeInTimeline 400ms ease both;
+  opacity: 0;
+  transform: translateX(10px);
+  animation: fadeInTimeline 200ms ease forwards;
 }
 
 @keyframes fadeInTimeline {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
   to {
     opacity: 1;
     transform: translateX(0);

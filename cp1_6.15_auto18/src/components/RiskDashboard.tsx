@@ -48,11 +48,12 @@ function RiskDashboard({ departments, onDepartmentClick }: RiskDashboardProps) {
         各部门风险概况
       </h2>
 
-      <div className="dashboard-grid">
-        {departments.map((dept) => (
+      <div className="dashboard-grid" key={departments.length}>
+        {departments.map((dept, index) => (
           <div
             key={dept.id}
             className="department-card"
+            style={{ animationDelay: `${index * 50}ms` }}
             onClick={() => onDepartmentClick(dept.id)}
           >
             <div className="card-header">
