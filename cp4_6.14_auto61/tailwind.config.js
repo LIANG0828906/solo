@@ -28,7 +28,7 @@ export default {
         mono: ['"JetBrains Mono"', '"Fira Code"', '"SF Mono"', "Consolas", '"Courier New"', "monospace"],
       },
       animation: {
-        breathing: "breathing 4s ease-in-out infinite",
+        breathing: "breathing 2s ease-in-out infinite",
         "border-flash": "borderFlash 0.5s ease-in-out 3",
         "border-flash-infinite": "borderFlash 1s ease-in-out infinite",
         "pulse-warning": "pulseWarning 1s ease-in-out infinite",

@@ -42,7 +42,7 @@
   }
 
   .breathing-bg {
-    animation: breathing 4s ease-in-out infinite;
+    animation: breathing 2s ease-in-out infinite;
   }
 
   .border-flash {
@@ -122,10 +122,10 @@
 
 @keyframes breathing {
   0%, 100% {
-    background-color: var(--color-bg-primary);
+    background-color: #fff7ed;
   }
   50% {
-    background-color: var(--color-bg-warm);
+    background-color: #ffedd5;
   }
 }
 

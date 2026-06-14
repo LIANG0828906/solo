@@ -7,6 +7,7 @@ import express, {
   type Response,
   type NextFunction,
 } from 'express'
+
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { store } from './store.js'
@@ -412,4 +413,23 @@ app.post('/api/debates/:id/timeup', (req: Request, res: Response): void => {
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next:
+app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(error);
+  res.status(500).json({
+    success: false,
+    error: 'Server internal error',
+  });
+  next();
+});
+
+/**
+ * 404 handler
+ */
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'API not found',
+  });
+});
+
+export default app;
