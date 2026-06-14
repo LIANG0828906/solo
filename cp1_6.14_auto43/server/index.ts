@@ -1,4 +1,9 @@
-import { Router, type Request, type Response } from 'express'
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from 'express'
+import cors from 'cors'
 import { JSONFile, Low } from 'lowdb'
 import { v4 as uuidv4 } from 'uuid'
 import path from 'path'
@@ -32,9 +37,13 @@ async function ensureDb() {
   }
 }
 
-const router = Router()
+const app: express.Application = express()
 
-router.get('/', async (_req: Request, res: Response): Promise<void> => {
+app.use(cors())
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+app.get('/api/tags', async (_req: Request, res: Response): Promise<void> => {
   try {
     await ensureDb()
     const sorted = [...db.data.tags].sort((a, b) => b.order - a.order)
@@ -44,7 +53,7 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
   }
 })
 
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+app.post('/api/tags', async (req: Request, res: Response): Promise<void> => {
   try {
     await ensureDb()
     const { title, url, group } = req.body
@@ -69,7 +78,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 })
 
-router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+app.put('/api/tags/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     await ensureDb()
     const { id } = req.params
@@ -90,7 +99,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 })
 
-router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+app.delete('/api/tags/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     await ensureDb()
     const { id } = req.params
@@ -107,24 +116,53 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 })
 
-router.get('/search', async (req: Request, res: Response): Promise<void> => {
+app.get('/api/tags/search', async (req: Request, res: Response): Promise<void> => {
   try {
     await ensureDb()
-    const q = (req.query.q as string || '').toLowerCase().trim()
+    const qRaw = typeof req.query.q === 'string' ? req.query.q : ''
+    const q = qRaw.trim().toLowerCase()
+
     if (!q) {
       res.json([])
       return
     }
-    const results = db.data.tags.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.url.toLowerCase().includes(q)
-    )
-    const sorted = results.sort((a, b) => b.order - a.order)
-    res.json(sorted)
+
+    const results: Tag[] = []
+    for (const t of db.data.tags) {
+      const titleLower = (t.title || '').toLowerCase()
+      const urlLower = (t.url || '').toLowerCase()
+      if (titleLower.includes(q) || urlLower.includes(q)) {
+        results.push(t)
+      }
+    }
+
+    results.sort((a, b) => b.order - a.order)
+    res.json(results)
   } catch {
     res.status(500).json({ error: 'Search failed' })
   }
 })
 
-export default router
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.status(200).json({ success: true, message: 'ok' })
+})
+
+app.use((_error: Error, _req: Request, res: Response, _next: NextFunction) => {
+  res.status(500).json({
+    success: false,
+    error: 'Server internal error',
+  })
+})
+
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'API not found',
+  })
+})
+
+const PORT = process.env.PORT || 3001
+
+app.listen(PORT, () => {
+  console.log(`Server ready on port ${PORT}`)
+})
