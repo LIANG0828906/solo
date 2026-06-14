@@ -81,7 +81,7 @@ app.use((req: Request, res: Response) => {
 })
 
 // 端口配置
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 4000
 
 /**
  * 启动服务器

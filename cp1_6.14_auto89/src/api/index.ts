@@ -38,8 +38,9 @@ api.interceptors.request.use(
 
 /**
  * 响应拦截器
- * 统一处理错误响应，401 时清除 token 并跳转登录页
- * 数据流向：后端返回响应 -> 拦截器处理 -> 前端组件
+ * 统一处理错误响应
+ * 演示模式：遇到 401 时不强制跳转（后端会自动使用 demo 用户）
+ * 数据流向：后端返回响应 → 拦截器处理 → 前端组件
  */
 api.interceptors.response.use(
   (response) => {
@@ -47,9 +48,10 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
+      // 演示模式下不跳转登录页，清除无效 token 即可
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      console.warn('认证失败（演示模式自动使用 demo 用户）');
     }
     return Promise.reject(error);
   }
