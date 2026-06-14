@@ -6,7 +6,7 @@ export interface Skill {
   id: string;
   name: string;
   type: SkillType;
-  damage: number;
+  damage?: number;
   cooldown: number;
   currentCooldown: number;
   manaCost: number;
@@ -73,6 +73,6 @@ export interface SkillResult {
   heal: number;
   shield: number;
   buff: number;
-  logs: string[];
+  logs: { message: string; type: LogType }[];
   targetAffected: boolean;
 }
