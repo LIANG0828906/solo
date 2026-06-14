@@ -47,6 +47,109 @@
   cursor: pointer;
 }
 
+.booking-header-icon {
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.date-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-input-wrapper input {
+  flex: 1;
+}
+
+.date-input-wrapper .input-error {
+  border-color: var(--color-status-maintenance);
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+}
+
+.checking-indicator {
+  position: absolute;
+  right: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  animation: fadeInOut 1s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.conflict-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #FFF3E0;
+  border-left: 4px solid var(--color-status-borrowed);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #E65100;
+  font-weight: 500;
+}
+
+.error-icon {
+  margin-right: 6px;
+}
+
+.history-count-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  background: var(--color-green-pale);
+  color: var(--color-green-dark);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.virtual-hint {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.confirm-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: var(--transition-fast);
+}
+
+.confirm-yes {
+  background: var(--color-status-maintenance);
+  color: white;
+}
+
+.confirm-yes:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.confirm-no {
+  background: var(--color-wood-light);
+  color: var(--color-text-secondary);
+}
+
+.confirm-no:hover {
+  background: var(--color-wood-medium);
+  transform: scale(1.05);
+}
+
 .empty-bookings {
   display: flex;
   flex-direction: column;

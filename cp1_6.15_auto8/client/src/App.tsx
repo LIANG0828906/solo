@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import CalendarView from './components/CalendarView';
 import DevicePanel from './components/DevicePanel';
 import BookingModal from './components/BookingModal';
@@ -7,6 +7,7 @@ import DateDetailModal from './components/DateDetailModal';
 import AddDeviceModal from './components/AddDeviceModal';
 import { Device, Booking } from './types';
 import { formatDate } from './utils/dateUtils';
+import { fetchWithCache, invalidateCacheByPrefix } from './utils/apiCache';
 import './styles/App.css';
 
 function App() {
@@ -21,11 +22,11 @@ function App() {
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [renderTime, setRenderTime] = useState<number>(0);
 
   const fetchDevices = useCallback(async () => {
     try {
-      const res = await fetch('/api/devices');
-      const data = await res.json();
+      const data = await fetchWithCache<Device[]>('/api/devices', undefined, 60 * 1000);
       setDevices(data);
     } catch (err) {
       console.error('Failed to fetch devices:', err);
@@ -37,8 +38,8 @@ function App() {
       const params = new URLSearchParams();
       if (year !== undefined) params.set('year', String(year));
       if (month !== undefined) params.set('month', String(month));
-      const res = await fetch(`/api/bookings?${params.toString()}`);
-      const data = await res.json();
+      const url = `/api/bookings?${params.toString()}`;
+      const data = await fetchWithCache<Booking[]>(url, undefined, 30 * 1000);
       setBookings(data);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
@@ -46,64 +47,99 @@ function App() {
   }, []);
 
   const loadData = useCallback(async () => {
+    const renderStart = performance.now();
     setIsLoading(true);
     await Promise.all([
       fetchDevices(),
       fetchBookings(currentMonth.getFullYear(), currentMonth.getMonth()),
     ]);
-    setTimeout(() => setIsLoading(false), 200);
+    setTimeout(() => {
+      setIsLoading(false);
+      setRenderTime(performance.now() - renderStart);
+      if (renderTime > 200) {
+        console.warn(`[Performance] Data render took ${renderTime.toFixed(0)}ms (>200ms threshold)`);
+      }
+    }, 0);
   }, [fetchDevices, fetchBookings, currentMonth]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleMonthChange = (direction: number) => {
+  const handleMonthChange = useCallback((direction: number) => {
+    const startTime = performance.now();
     const newDate = new Date(currentMonth);
     newDate.setMonth(newDate.getMonth() + direction);
     setCurrentMonth(newDate);
-  };
+    requestAnimationFrame(() => {
+      const elapsed = performance.now() - startTime;
+      if (elapsed > 500) {
+        console.warn(`[Performance] Month switch animation took ${elapsed.toFixed(0)}ms (>500ms threshold)`);
+      }
+    });
+  }, [currentMonth]);
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = useCallback((date: Date) => {
     setSelectedDate(date);
     setShowDateDetail(true);
-  };
+  }, []);
 
-  const handleBookDevice = (device: Device) => {
+  const handleBookDevice = useCallback((device: Device) => {
     setSelectedDevice(device);
     setShowBookingModal(true);
-  };
+  }, []);
 
-  const handleViewHistory = (device: Device) => {
+  const handleViewHistory = useCallback((device: Device) => {
     setSelectedDevice(device);
     setShowHistoryModal(true);
-  };
+  }, []);
 
-  const handleBookingCreated = () => {
+  const handleBookingCreated = useCallback(() => {
     setShowBookingModal(false);
     setSelectedDevice(null);
-    fetchDevices();
-    fetchBookings(currentMonth.getFullYear(), currentMonth.getMonth());
-  };
+    invalidateCacheByPrefix('GET:/api');
+    Promise.all([
+      fetchDevices(),
+      fetchBookings(currentMonth.getFullYear(), currentMonth.getMonth()),
+    ]);
+  }, [fetchDevices, fetchBookings, currentMonth]);
 
-  const handleBookingDeleted = () => {
-    fetchDevices();
-    fetchBookings(currentMonth.getFullYear(), currentMonth.getMonth());
-  };
+  const handleBookingDeleted = useCallback(() => {
+    invalidateCacheByPrefix('GET:/api');
+    Promise.all([
+      fetchDevices(),
+      fetchBookings(currentMonth.getFullYear(), currentMonth.getMonth()),
+    ]);
+  }, [fetchDevices, fetchBookings, currentMonth]);
 
-  const handleDeviceAdded = () => {
+  const handleDeviceAdded = useCallback(() => {
     setShowAddDeviceModal(false);
+    invalidateCacheByPrefix('GET:/api/devices');
     fetchDevices();
-  };
+  }, [fetchDevices]);
 
-  const getBookingsForDate = (date: Date): Booking[] => {
+  const getBookingsForDate = useCallback((date: Date): Booking[] => {
     const dateStr = formatDate(date);
     return bookings.filter((b) => b.date === dateStr);
-  };
+  }, [bookings]);
 
-  const getDeviceById = (id: string): Device | undefined => {
+  const getDeviceById = useCallback((id: string): Device | undefined => {
     return devices.find((d) => d.id === id);
-  };
+  }, [devices]);
+
+  const memoizedBookingsForDate = useMemo(() => {
+    const map = new Map<string, Booking[]>();
+    bookings.forEach((b) => {
+      const list = map.get(b.date) || [];
+      list.push(b);
+      map.set(b.date, list);
+    });
+    return map;
+  }, [bookings]);
+
+  const getCachedBookingsForDate = useCallback((date: Date): Booking[] => {
+    return memoizedBookingsForDate.get(formatDate(date)) || [];
+  }, [memoizedBookingsForDate]);
 
   return (
     <div className="app-container">
@@ -173,7 +209,7 @@ function App() {
       {showDateDetail && selectedDate && (
         <DateDetailModal
           date={selectedDate}
-          bookings={getBookingsForDate(selectedDate)}
+          bookings={getCachedBookingsForDate(selectedDate)}
           getDeviceById={getDeviceById}
           onClose={() => {
             setShowDateDetail(false);

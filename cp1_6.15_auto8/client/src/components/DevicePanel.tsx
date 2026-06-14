@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Device, Booking } from '../types';
+import useDebounce from '../hooks/useDebounce';
 import '../styles/DevicePanel.css';
 
 interface DevicePanelProps {
@@ -23,11 +24,17 @@ function DevicePanel({
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredDevices = devices.filter((device) => {
-    const matchesFilter = filter === 'all' || device.status === filter;
-    const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const debouncedSearchTerm = useDebounce(searchTerm, 200);
+
+  const filteredDevices = useMemo(() => {
+    return devices.filter((device) => {
+      const matchesFilter = filter === 'all' || device.status === filter;
+      const matchesSearch = debouncedSearchTerm === ''
+        ? true
+        : device.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+  }, [devices, filter, debouncedSearchTerm]);
 
   const getStatusText = (status: string): string => {
     switch (status) {
@@ -90,22 +97,28 @@ function DevicePanel({
           <div
             key={device.id}
             className="device-card"
-            style={{ animationDelay: `${index * 0.05}s` }}
+            style={{ animationDelay: `${Math.min(index * 0.05, 0.5)}s` }}
           >
             <div className="device-card-header">
               <span className="device-icon">{device.icon}</span>
-              <span className={`status-dot ${device.status}`} title={getStatusText(device.status)} />
+              <div className="status-indicator" title={getStatusText(device.status)}>
+                <span className={`status-dot ${device.status}`} />
+                <span className="status-pulse" />
+              </div>
             </div>
 
             <div className="device-card-body">
               <h3 className="device-name">{device.name}</h3>
-              <p className={`device-status-text ${device.status}`}>
-                {getStatusText(device.status)}
-              </p>
+              <div className="device-status-row">
+                <span className={`status-dot ${device.status}`} />
+                <p className={`device-status-text ${device.status}`}>
+                  {getStatusText(device.status)}
+                </p>
+              </div>
               <p className="device-next-available">
                 {device.status === 'available' && device.nextAvailableDate === null
-                  ? '立即可用'
-                  : formatNextAvailable(device.nextAvailableDate)}
+                  ? '✅ 立即可用'
+                  : `📅 ${formatNextAvailable(device.nextAvailableDate)}`}
               </p>
             </div>
 
@@ -114,14 +127,16 @@ function DevicePanel({
                 className="card-btn book-btn"
                 onClick={() => onBookDevice(device)}
                 disabled={device.status === 'maintenance'}
+                title={device.status === 'maintenance' ? '维修中，暂时无法预约' : '预约此设备'}
               >
-                预约
+                📝 预约
               </button>
               <button
                 className="card-btn history-btn"
                 onClick={() => onViewHistory(device)}
+                title="查看借用历史"
               >
-                历史
+                📜 历史
               </button>
             </div>
           </div>
@@ -132,6 +147,9 @@ function DevicePanel({
         <div className="empty-state">
           <span className="empty-icon">📦</span>
           <p>没有找到设备</p>
+          <button className="btn btn-secondary empty-add-btn" onClick={onAddDevice}>
+            立即添加
+          </button>
         </div>
       )}
     </div>

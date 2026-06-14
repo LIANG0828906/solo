@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Device } from '../types';
 import { formatDate, addDays } from '../utils/dateUtils';
+import useDebounce from '../hooks/useDebounce';
 import '../styles/Modal.css';
 
 interface BookingModalProps {
@@ -18,6 +19,10 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [minDate, setMinDate] = useState('');
   const [maxDate, setMaxDate] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
+  const [conflictWarning, setConflictWarning] = useState('');
+
+  const debouncedDate = useDebounce(date, 150);
 
   useEffect(() => {
     const today = new Date();
@@ -28,6 +33,39 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
     setDate(formatDate(today));
   }, []);
 
+  const checkConflict = useCallback(async (checkDate: string) => {
+    if (!checkDate || !device.id) return;
+    const startTime = performance.now();
+    setIsChecking(true);
+    setConflictWarning('');
+
+    try {
+      const res = await fetch(
+        `/api/bookings/check?deviceId=${device.id}&date=${checkDate}`
+      );
+      const data = await res.json();
+
+      const elapsed = performance.now() - startTime;
+      if (elapsed > 100) {
+        console.warn(`[Performance] Conflict check took ${elapsed.toFixed(0)}ms (>100ms threshold)`);
+      }
+
+      if (data.conflict) {
+        setConflictWarning(`⚠️ ${checkDate} 已被 ${data.booking.userName} 预约`);
+      }
+    } catch (err) {
+      console.error('Conflict check failed:', err);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [device.id]);
+
+  useEffect(() => {
+    if (debouncedDate) {
+      checkConflict(debouncedDate);
+    }
+  }, [debouncedDate, checkConflict]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!date || !userName.trim()) {
@@ -37,21 +75,15 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
       return;
     }
 
+    if (conflictWarning) {
+      setErrorMessage(conflictWarning.replace('⚠️ ', ''));
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const checkRes = await fetch(
-        `/api/bookings/check?deviceId=${device.id}&date=${date}`
-      );
-      const checkData = await checkRes.json();
-
-      if (checkData.conflict) {
-        setErrorMessage(`该设备在 ${date} 已被 ${checkData.booking.userName} 预约`);
-        setIsShaking(true);
-        setTimeout(() => setIsShaking(false), 500);
-        setIsSubmitting(false);
-        return;
-      }
-
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
@@ -67,6 +99,11 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
 
       if (res.ok) {
         onSuccess();
+      } else if (res.status === 409) {
+        const data = await res.json();
+        setErrorMessage(data.error || '该时段已被预约');
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 500);
       } else {
         const data = await res.json();
         setErrorMessage(data.error || '预约失败，请重试');
@@ -89,7 +126,10 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>预约 {device.icon} {device.name}</h2>
+          <h2>
+            <span className="booking-header-icon">{device.icon}</span>
+            预约 {device.name}
+          </h2>
           <button className="modal-close" onClick={onClose}>
             ✕
           </button>
@@ -98,15 +138,25 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
             <label>预约日期</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              min={minDate}
-              max={maxDate}
-              required
-            />
-            <span className="form-hint">只能选择未来7天内的日期</span>
+            <div className="date-input-wrapper">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setErrorMessage('');
+                }}
+                min={minDate}
+                max={maxDate}
+                required
+                className={conflictWarning ? 'input-error' : ''}
+              />
+              {isChecking && <span className="checking-indicator">检测中...</span>}
+            </div>
+            <span className="form-hint">📅 只能选择未来7天内的日期</span>
+            {conflictWarning && (
+              <div className="conflict-warning">{conflictWarning}</div>
+            )}
           </div>
 
           <div className="form-group">
@@ -114,8 +164,11 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
             <input
               type="text"
               value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="请输入您的称呼"
+              onChange={(e) => {
+                setUserName(e.target.value);
+                setErrorMessage('');
+              }}
+              placeholder="请输入您的称呼（如：爸爸）"
               required
               maxLength={20}
             />
@@ -126,14 +179,18 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="借用用途或其他说明"
+              placeholder="借用用途或其他说明..."
               rows={3}
               maxLength={100}
             />
+            <span className="form-hint">{note.length}/100</span>
           </div>
 
           {errorMessage && (
-            <div className="error-message">{errorMessage}</div>
+            <div className="error-message">
+              <span className="error-icon">❌</span>
+              {errorMessage}
+            </div>
           )}
 
           <div className="modal-actions">
@@ -148,9 +205,9 @@ function BookingModal({ device, onClose, onSuccess }: BookingModalProps) {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isChecking || !!conflictWarning}
             >
-              {isSubmitting ? '提交中...' : '确认预约'}
+              {isSubmitting ? '⏳ 提交中...' : '✅ 确认预约'}
             </button>
           </div>
         </form>

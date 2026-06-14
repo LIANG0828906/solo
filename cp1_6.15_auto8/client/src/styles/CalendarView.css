@@ -299,7 +299,11 @@
   }
 
   .booking-icons {
-    display: none;
+    max-height: 16px;
+  }
+
+  .booking-icon {
+    font-size: 10px;
   }
 
   .booking-bar {

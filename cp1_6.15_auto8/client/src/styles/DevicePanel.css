@@ -164,6 +164,54 @@
   line-height: 1;
 }
 
+.status-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.status-indicator .status-pulse {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: pulse-animation 2s ease-in-out infinite;
+}
+
+@keyframes pulse-animation {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.status-indicator.available .status-pulse {
+  background: var(--color-status-available);
+}
+
+.status-indicator.borrowed .status-pulse {
+  background: var(--color-status-borrowed);
+}
+
+.status-indicator.maintenance .status-pulse {
+  background: var(--color-status-maintenance);
+}
+
+.device-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .device-card-body {
   flex: 1;
 }
@@ -251,6 +299,11 @@
   justify-content: center;
   gap: 12px;
   color: var(--color-text-muted);
+  padding: 20px;
+}
+
+.empty-add-btn {
+  margin-top: 8px;
 }
 
 .empty-icon {
