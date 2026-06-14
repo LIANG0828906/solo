@@ -23,6 +23,7 @@ export const useGameStore = defineStore('game', () => {
   const isPaused = computed(() => state.value.isPaused)
   const errorCount = computed(() => state.value.errorCount)
   const maxCombo = computed(() => state.value.maxCombo)
+  const currentSectionIndex = computed(() => state.value.currentSectionIndex)
 
   function initEngine() {
     engine.value.on((_event: string, data?: unknown) => {
@@ -90,6 +91,7 @@ export const useGameStore = defineStore('game', () => {
     isPlaying,
     isPaused,
     errorCount,
+    currentSectionIndex,
     initEngine,
     startGame,
     stopGame,
