@@ -55,52 +55,52 @@ export class BeatGenerator {
     const beats: Beat[] = [];
     const beatInterval = 60000 / this.config.bpm;
     const beatsPerMeasure = this.config.timeSignature[0];
-    
+    const maxAttempts = 100;
+
     let currentTime = 2000;
-    let patternKey = '';
+    let beatCounter = 0;
 
     while (currentTime < this.config.duration) {
-      const measureBeats: Beat[] = [];
-      
-      for (let i = 0; i < beatsPerMeasure; i++) {
-        let track: number;
-        
-        switch (this.config.pattern) {
-          case 'single':
-            track = 0;
-            break;
-          case 'alternate':
-            track = i % this.config.tracks;
-            break;
-          case 'random':
-            track = Math.floor(Math.random() * this.config.tracks);
-            break;
-        }
-        
-        const beat: Beat = {
-          id: `beat-${beats.length}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          track,
-          time: currentTime,
-          hit: false,
-        };
-        
-        measureBeats.push(beat);
-        patternKey += track;
-        currentTime += beatInterval;
-      }
-      
-      if (this.config.pattern === 'random' && this.usedPatterns.has(patternKey)) {
-        currentTime -= measureBeats.length * beatInterval;
-        beats.splice(beats.length - measureBeats.length, measureBeats.length);
+      let attempt = 0;
+      let measureBeats: Beat[] = [];
+      let patternKey = '';
+
+      do {
+        attempt++;
+        measureBeats = [];
         patternKey = '';
-        continue;
-      }
-      
+
+        for (let i = 0; i < beatsPerMeasure; i++) {
+          let track: number;
+
+          switch (this.config.pattern) {
+            case 'single':
+              track = 0;
+              break;
+            case 'alternate':
+              track = i % this.config.tracks;
+              break;
+            case 'random':
+              track = Math.floor(Math.random() * this.config.tracks);
+              break;
+          }
+
+          measureBeats.push({
+            id: `beat-${beatCounter + i}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            track,
+            time: currentTime + i * beatInterval,
+            hit: false,
+          });
+          patternKey += track;
+        }
+      } while (this.config.pattern === 'random' && this.usedPatterns.has(patternKey) && attempt < maxAttempts);
+
       this.usedPatterns.add(patternKey);
       beats.push(...measureBeats);
-      patternKey = '';
+      beatCounter += measureBeats.length;
+      currentTime += beatsPerMeasure * beatInterval;
     }
-    
+
     return beats;
   }
 

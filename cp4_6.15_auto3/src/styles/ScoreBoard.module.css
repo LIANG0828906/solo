@@ -114,6 +114,12 @@
   box-shadow: 0 0 15px #00bfff;
 }
 
+.badge.practice {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: #1a1a2e;
+  box-shadow: 0 0 15px #43e97b;
+}
+
 .resultStats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

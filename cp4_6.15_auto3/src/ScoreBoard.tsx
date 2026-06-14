@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import type { Score } from './types';
+import type { Score, GameMode } from './types';
 import styles from './styles/ScoreBoard.module.css';
 
 interface ScoreBoardProps {
   score: Score;
   isLive?: boolean;
+  mode?: GameMode;
 }
 
-function calculateAccuracy(score: Score): number {
+function calculateAccuracy(score: Score, mode: GameMode): number {
+  if (mode === 'practice') {
+    const avgDeviation = score.hitCount > 0 ? Math.abs(score.totalDeviation / score.hitCount) : 0;
+    return Math.max(0, Math.round(100 - avgDeviation * 0.5));
+  }
   const total = score.perfect + score.good + score.miss;
   if (total === 0) return 100;
   return Math.round(((score.perfect * 100 + score.good * 50) / (total * 100)) * 100);
 }
 
-function getBadge(accuracy: number): { type: 'bronze' | 'silver' | 'gold' | 'platinum'; label: string } {
+function getBadge(accuracy: number, mode: GameMode): { type: 'bronze' | 'silver' | 'gold' | 'platinum' | 'practice'; label: string } {
+  if (mode === 'practice') return { type: 'practice', label: '自由练习' };
   if (accuracy >= 95) return { type: 'platinum', label: '节奏大师' };
   if (accuracy >= 85) return { type: 'gold', label: '专业乐手' };
   if (accuracy >= 70) return { type: 'silver', label: '进阶学员' };
@@ -29,11 +35,11 @@ function getGrade(accuracy: number): string {
   return 'D';
 }
 
-const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
+const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true, mode = 'standard' }) => {
   const [scorePop, setScorePop] = useState(false);
   const [comboPulse, setComboPulse] = useState(false);
-  const accuracy = calculateAccuracy(score);
-  const badge = getBadge(accuracy);
+  const accuracy = calculateAccuracy(score, mode);
+  const badge = getBadge(accuracy, mode);
 
   useEffect(() => {
     if (score.total > 0) {
@@ -59,7 +65,9 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
       <div>
         <div className={styles.gradeDisplay}>
           <div className={styles.grade}>{getGrade(accuracy)}</div>
-          <div className={styles.gradeLabel}>综合评级</div>
+          <div className={styles.gradeLabel}>
+            {mode === 'practice' ? '练习评级' : '综合评级'}
+          </div>
         </div>
 
         <div className={styles.resultStats}>
@@ -79,10 +87,17 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
             <div className={styles.resultCardLabel}>Good</div>
             <div className={`${styles.resultCardValue} ${styles.good}`}>{score.good}</div>
           </div>
-          <div className={styles.resultCard}>
-            <div className={styles.resultCardLabel}>Miss</div>
-            <div className={`${styles.resultCardValue} ${styles.miss}`}>{score.miss}</div>
-          </div>
+          {mode !== 'practice' ? (
+            <div className={styles.resultCard}>
+              <div className={styles.resultCardLabel}>Miss</div>
+              <div className={`${styles.resultCardValue} ${styles.miss}`}>{score.miss}</div>
+            </div>
+          ) : (
+            <div className={styles.resultCard}>
+              <div className={styles.resultCardLabel}>最大偏差</div>
+              <div className={styles.resultCardValue}>{avgDeviation}ms</div>
+            </div>
+          )}
           <div className={styles.resultCard}>
             <div className={styles.resultCardLabel}>平均偏差</div>
             <div className={styles.resultCardValue}>{avgDeviation}ms</div>
@@ -93,7 +108,9 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
           <div className={styles.progressBarLabel}>
             <span style={{ color: 'var(--perfect-color)' }}>Perfect {score.perfect}</span>
             <span style={{ color: 'var(--good-color)' }}>Good {score.good}</span>
-            <span style={{ color: 'var(--miss-color)' }}>Miss {score.miss}</span>
+            {mode !== 'practice' && (
+              <span style={{ color: 'var(--miss-color)' }}>Miss {score.miss}</span>
+            )}
           </div>
           <div className={styles.progressBarTrack}>
             {totalHits > 0 && (
@@ -106,10 +123,12 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
                   className={`${styles.progressSegment} ${styles.good}`}
                   style={{ width: `${(score.good / totalHits) * 100}%` }}
                 />
-                <div
-                  className={`${styles.progressSegment} ${styles.miss}`}
-                  style={{ width: `${(score.miss / totalHits) * 100}%` }}
-                />
+                {mode !== 'practice' && (
+                  <div
+                    className={`${styles.progressSegment} ${styles.miss}`}
+                    style={{ width: `${(score.miss / totalHits) * 100}%` }}
+                  />
+                )}
               </>
             )}
           </div>
@@ -167,10 +186,19 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLive = true }) => {
           <span className={styles.statLabel} style={{ color: 'var(--good-color)' }}>Good</span>
           <span className={styles.statValue}>{score.good}</span>
         </div>
-        <div className={styles.statRow}>
-          <span className={styles.statLabel} style={{ color: 'var(--miss-color)' }}>Miss</span>
-          <span className={styles.statValue}>{score.miss}</span>
-        </div>
+        {mode !== 'practice' ? (
+          <div className={styles.statRow}>
+            <span className={styles.statLabel} style={{ color: 'var(--miss-color)' }}>Miss</span>
+            <span className={styles.statValue}>{score.miss}</span>
+          </div>
+        ) : (
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>平均偏差</span>
+            <span className={styles.statValue}>
+              {score.hitCount > 0 ? Math.abs(score.totalDeviation / score.hitCount).toFixed(1) : '0'}ms
+            </span>
+          </div>
+        )}
       </div>
     </>
   );

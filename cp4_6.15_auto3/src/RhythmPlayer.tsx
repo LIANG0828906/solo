@@ -15,74 +15,100 @@ interface RhythmPlayerProps {
 }
 
 const KEY_MAP: Record<string, number> = { 'a': 0, 's': 1, 'd': 2, 'f': 3 };
-const TRACK_KEYS = ['A', 'S', 'D', 'D'];
+const TRACK_KEYS = ['A', 'S', 'D', 'F'];
 const FALL_DURATION = 2000;
 const MAX_PARTICLES = 80;
 const JUDGMENT_WINDOW = 150;
 
-const createAudioContext = (typeof window !== 'undefined' && window.AudioContext) 
-  ? new window.AudioContext() 
-  : null;
+const PARTICLE_COLORS: Record<ThemeType, { perfect: string; good: string; miss: string }> = {
+  neon: { perfect: '#ffd700', good: '#4da6ff', miss: '#ff4757' },
+  retro: { perfect: '#ffff00', good: '#00ffff', miss: '#ff0044' },
+  minimal: { perfect: '#ffffff', good: '#cccccc', miss: '#666666' },
+};
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new AudioContext();
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume();
+  }
+  return sharedAudioCtx;
+}
 
 function generateTone(frequency: number, duration: number, type: OscillatorType = 'sine'): void {
-  if (!createAudioContext) return;
-  const oscillator = createAudioContext.createOscillator();
-  const gainNode = createAudioContext.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(createAudioContext.destination);
-  
-  oscillator.frequency.value = frequency;
-  oscillator.type = type;
-  
-  gainNode.gain.setValueAtTime(0.3, createAudioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, createAudioContext.currentTime + duration);
-  
-  oscillator.start(createAudioContext.currentTime);
-  oscillator.stop(createAudioContext.currentTime + duration);
+  try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + duration);
+  } catch (_) { /* ignore audio errors */ }
 }
 
-function playBeatSound(): void {
-  generateTone(440, 0.1, 'square');
+function playBeatSound(): void { generateTone(440, 0.1, 'square'); }
+function playPerfectSound(): void { generateTone(880, 0.15, 'sine'); }
+function playGoodSound(): void { generateTone(660, 0.1, 'sine'); }
+function playMissSound(): void { generateTone(220, 0.2, 'sawtooth'); }
+
+interface CanvasParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  life: number;
+  maxLife: number;
+  size: number;
+  shape: 'pixel' | 'glow' | 'dot';
+  active: boolean;
 }
 
-function playPerfectSound(): void {
-  generateTone(880, 0.15, 'sine');
-}
-
-function playGoodSound(): void {
-  generateTone(660, 0.1, 'sine');
-}
-
-function playMissSound(): void {
-  generateTone(220, 0.2, 'sawtooth');
+function createParticlePool(): CanvasParticle[] {
+  const pool: CanvasParticle[] = [];
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    pool.push({ x: 0, y: 0, vx: 0, vy: 0, color: '#fff', life: 0, maxLife: 1, size: 4, shape: 'dot', active: false });
+  }
+  return pool;
 }
 
 const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
-  beats, difficulty, mode, theme, onScoreUpdate, onGameEnd, isPlaying, onStart }) => {
+  beats, difficulty, mode, theme, onScoreUpdate, onGameEnd, isPlaying, onStart
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const currentTimeRef = useRef(0);
-  const startTimeRef = useRef(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlePoolRef = useRef<CanvasParticle[]>(createParticlePool());
+  const audioStartTimeRef = useRef(0);
+  const gameStartedRef = useRef(false);
   const animationFrameRef = useRef<number>();
+  const lastFrameTimeRef = useRef(0);
   const [renderTime, setRenderTime] = useState(0);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [pressedKeys, setPressedKeys] = useState<Set<number>>(new Set());
   const [judgments, setJudgments] = useState<Array<{ id: string; type: JudgmentType; track: number; deviation?: number }>>([]);
-  const [particles, setParticles] = useState<Particle[]>([]);
   const [localBeats, setLocalBeats] = useState<Beat[]>(beats);
   const [flashMiss, setFlashMiss] = useState(false);
   const localBeatsRef = useRef<Beat[]>(beats);
   const scoreRef = useRef<Score>({
-    total: 0, perfect: 0, good: 0, miss: 0, combo: 0, maxCombo: 0, totalDeviation: 0, hitCount: 0 });
+    total: 0, perfect: 0, good: 0, miss: 0, combo: 0, maxCombo: 0, totalDeviation: 0, hitCount: 0
+  });
   const lastBeatIndexRef = useRef(0);
-  const particleIdRef = useRef(0);
   const judgmentIdRef = useRef(0);
   const gameEndedRef = useRef(false);
+  const canvasSizeRef = useRef({ w: 0, h: 0 });
 
   const config = DIFFICULTY_CONFIGS[difficulty];
   const duration = config.duration;
 
-  const getParticleType = useCallback(() => {
+  const getParticleShape = useCallback((): 'pixel' | 'glow' | 'dot' => {
     switch (theme) {
       case 'retro': return 'pixel';
       case 'neon': return 'glow';
@@ -90,37 +116,77 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
     }
   }, [theme]);
 
-  const createParticles = useCallback((x: number, y: number, type: JudgmentType) => {
-    const particleType = getParticleType();
-    const count = type === 'perfect' ? 30 : type === 'good' ? 15 : 0;
-    if (count === 0) return;
+  const spawnParticles = useCallback((x: number, y: number, type: JudgmentType) => {
+    const pool = particlePoolRef.current;
+    const colors = PARTICLE_COLORS[theme];
+    const color = type === 'perfect' ? colors.perfect : type === 'good' ? colors.good : colors.miss;
+    const count = type === 'perfect' ? 30 : type === 'good' ? 15 : 8;
+    const shape = getParticleShape();
+    let spawned = 0;
 
-    const color = type === 'perfect' 
-      ? getComputedStyle(document.documentElement).getPropertyValue('--perfect-color').trim() || '#ffd700'
-      : getComputedStyle(document.documentElement).getPropertyValue('--good-color').trim() || '#4da6ff';
-
-    setParticles(prev => {
-      if (prev.length >= MAX_PARTICLES) return prev;
-      
-      const newParticles: Particle[] = [];
-      for (let i = 0; i < Math.min(count, MAX_PARTICLES - prev.length); i++) {
-        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-        const speed = 2 + Math.random() * 4;
-        newParticles.push({
-          id: `p-${particleIdRef.current++}`,
+    for (let i = 0; i < pool.length && spawned < count; i++) {
+      if (!pool[i].active) {
+        const angle = (Math.PI * 2 * spawned) / count + (Math.random() - 0.5) * 0.8;
+        const speed = 1.5 + Math.random() * 4;
+        pool[i] = {
           x, y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
+          vy: Math.sin(angle) * speed - 2,
           color,
           life: 600,
           maxLife: 600,
-          size: type === 'perfect' ? 8 : 6,
-          type: particleType,
-        });
+          size: type === 'perfect' ? 8 : type === 'good' ? 6 : 5,
+          shape,
+          active: true,
+        };
+        spawned++;
       }
-      return [...prev, ...newParticles];
-    });
-  }, [getParticleType]);
+    }
+  }, [theme, getParticleShape]);
+
+  const drawParticles = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of particlePoolRef.current) {
+      if (!p.active) continue;
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+
+      if (p.shape === 'glow') {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = p.size * 2;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
+      if (p.shape === 'pixel') {
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }, []);
+
+  const updateParticles = useCallback((deltaMs: number) => {
+    for (const p of particlePoolRef.current) {
+      if (!p.active) continue;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.12;
+      p.life -= deltaMs;
+      if (p.life <= 0) p.active = false;
+    }
+  }, []);
 
   const showJudgment = useCallback((type: JudgmentType, track: number, deviation?: number) => {
     const id = `j-${judgmentIdRef.current++}`;
@@ -130,20 +196,29 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
     }, 600);
   }, []);
 
-  const handleKeyPress = useCallback((track: number) => {
-    if (!isPlaying || !containerRef.current) return;
+  const getGameTimeMs = useCallback((): number => {
+    try {
+      const ctx = getAudioContext();
+      return (ctx.currentTime - audioStartTimeRef.current) * 1000;
+    } catch {
+      return 0;
+    }
+  }, []);
 
-    const now = performance.now() - startTimeRef.current;
+  const handleKeyPress = useCallback((track: number) => {
+    if (!isPlaying || !gameStartedRef.current || !containerRef.current) return;
+
+    const now = getGameTimeMs();
 
     const beatIndex = lastBeatIndexRef.current;
     let closestBeat: Beat | null = null;
     let closestDiff = Infinity;
 
-    for (let i = Math.max(0, beatIndex - 5); i < Math.min(localBeatsRef.current.length, beatIndex + 5); i++) {
+    for (let i = Math.max(0, beatIndex - 5); i < Math.min(localBeatsRef.current.length, beatIndex + 10); i++) {
       const beat = localBeatsRef.current[i];
       if (beat.hit) continue;
       if (beat.track !== track) continue;
-      
+
       const diff = Math.abs(now - beat.time);
       if (diff < closestDiff && diff < JUDGMENT_WINDOW) {
         closestDiff = diff;
@@ -153,7 +228,7 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
 
     if (closestBeat) {
       const result = judgeHit(now, closestBeat.time);
-      
+
       if (mode === 'practice' && result.type === 'miss') {
         result.type = 'good';
       }
@@ -174,21 +249,22 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
         scoreRef.current.combo++;
         playPerfectSound();
         showJudgment('perfect', track, result.deviation);
-        createParticles(trackCenter, judgmentY, 'perfect');
+        spawnParticles(trackCenter, judgmentY, 'perfect');
       } else if (result.type === 'good') {
         scoreRef.current.good++;
         scoreRef.current.combo++;
         playGoodSound();
         showJudgment('good', track, result.deviation);
-        createParticles(trackCenter, judgmentY, 'good');
+        spawnParticles(trackCenter, judgmentY, 'good');
       } else {
-          scoreRef.current.miss++;
-          scoreRef.current.combo = 0;
-          playMissSound();
-          showJudgment('miss', track, result.deviation);
-          setFlashMiss(true);
-          setTimeout(() => setFlashMiss(false), 300);
-        }
+        scoreRef.current.miss++;
+        scoreRef.current.combo = 0;
+        playMissSound();
+        showJudgment('miss', track, result.deviation);
+        spawnParticles(trackCenter, judgmentY, 'miss');
+        setFlashMiss(true);
+        setTimeout(() => setFlashMiss(false), 300);
+      }
 
       scoreRef.current.total += calculateScore(result.type, scoreRef.current.combo);
       scoreRef.current.maxCombo = Math.max(scoreRef.current.maxCombo, scoreRef.current.combo);
@@ -202,7 +278,7 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
 
       onScoreUpdate({ ...scoreRef.current });
     }
-  }, [isPlaying, mode, onScoreUpdate, showJudgment, createParticles]);
+  }, [isPlaying, mode, onScoreUpdate, showJudgment, spawnParticles, getGameTimeMs]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -232,7 +308,6 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
@@ -242,24 +317,16 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
   useEffect(() => {
     if (!isPlaying) return;
 
-    const gameLoop = (timestamp: number) => {
-      if (startTimeRef.current) {
-        currentTimeRef.current = timestamp - startTimeRef.current;
-        setRenderTime(currentTimeRef.current);
+    const gameLoop = () => {
+      if (gameStartedRef.current) {
+        const now = getGameTimeMs();
+        const deltaMs = lastFrameTimeRef.current ? now - lastFrameTimeRef.current : 16.67;
+        lastFrameTimeRef.current = now;
 
-        setParticles(prev => 
-          prev
-            .map(p => ({
-              ...p,
-              x: p.x + p.vx,
-              y: p.y + p.vy,
-              vy: p.vy + 0.1,
-              life: p.life - 16.67,
-            }))
-            .filter(p => p.life > 0)
-        );
+        setRenderTime(now);
+        updateParticles(deltaMs);
+        drawParticles();
 
-        const now = currentTimeRef.current;
         for (let i = lastBeatIndexRef.current; i < localBeatsRef.current.length; i++) {
           const beat = localBeatsRef.current[i];
           if (!beat.hit && now > beat.time + 150) {
@@ -271,6 +338,14 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
               scoreRef.current.hitCount++;
               playMissSound();
               showJudgment('miss', beat.track);
+
+              const rect = containerRef.current?.getBoundingClientRect();
+              if (rect) {
+                const trackWidth = rect.width / 4;
+                const trackCenter = beat.track * trackWidth + trackWidth / 2;
+                spawnParticles(trackCenter, rect.height - 100, 'miss');
+              }
+
               setFlashMiss(true);
               setTimeout(() => setFlashMiss(false), 300);
               onScoreUpdate({ ...scoreRef.current });
@@ -297,30 +372,25 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isPlaying, mode, duration, onScoreUpdate, onGameEnd, showJudgment]);
+  }, [isPlaying, mode, duration, onScoreUpdate, onGameEnd, showJudgment, spawnParticles, updateParticles, drawParticles, getGameTimeMs]);
 
   useEffect(() => {
     if (isPlaying) {
       gameEndedRef.current = false;
+      gameStartedRef.current = false;
+      lastFrameTimeRef.current = 0;
       scoreRef.current = {
-        total: 0,
-        perfect: 0,
-        good: 0,
-        miss: 0,
-        combo: 0,
-        maxCombo: 0,
-        totalDeviation: 0,
-        hitCount: 0,
+        total: 0, perfect: 0, good: 0, miss: 0, combo: 0, maxCombo: 0, totalDeviation: 0, hitCount: 0,
       };
       lastBeatIndexRef.current = 0;
       localBeatsRef.current = beats.map(b => ({ ...b, hit: false }));
       setLocalBeats([...localBeatsRef.current]);
-      setParticles([]);
+      particlePoolRef.current = createParticlePool();
       setJudgments([]);
 
       let count = 3;
       setCountdown(count);
-      
+
       const countdownInterval = setInterval(() => {
         count--;
         if (count > 0) {
@@ -329,7 +399,13 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
         } else {
           clearInterval(countdownInterval);
           setCountdown(null);
-          startTimeRef.current = performance.now();
+          try {
+            const ctx = getAudioContext();
+            audioStartTimeRef.current = ctx.currentTime;
+          } catch {
+            audioStartTimeRef.current = 0;
+          }
+          gameStartedRef.current = true;
           playBeatSound();
         }
       }, 1000);
@@ -338,6 +414,25 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
     }
   }, [isPlaying, beats]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+
+    const resizeCanvas = () => {
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvasSizeRef.current = { w: rect.width, h: rect.height };
+    };
+
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
+
   const getBeatPosition = (beat: Beat) => {
     const progress = (renderTime - beat.time + FALL_DURATION) / FALL_DURATION;
     return `${progress * 100}%`;
@@ -345,9 +440,11 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
 
   const progress = Math.min(100, (renderTime / duration) * 100);
 
+  const activeTracks = Math.max(config.tracks, 1);
+
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className={`${styles.container} ${flashMiss ? 'flash-miss' : ''}`}
       onTouchStart={(e) => {
         const touch = e.touches[0];
@@ -374,11 +471,11 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
       {[0, 1, 2, 3].map(track => (
         <div
           key={track}
-          className={`${styles.track} ${pressedKeys.has(track) ? styles.active : ''}`}
+          className={`${styles.track} ${pressedKeys.has(track) ? styles.active : ''} ${track >= activeTracks ? styles.inactive : ''}`}
         >
           {localBeats
-            .filter(beat => 
-              beat.track === track && 
+            .filter(beat =>
+              beat.track === track &&
               !beat.hit &&
               renderTime >= beat.time - FALL_DURATION &&
               renderTime <= beat.time + 200
@@ -398,11 +495,17 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
                 <div className={`${styles.judgmentText} ${styles[j.type]}`}>
                   {j.type.toUpperCase()}
                 </div>
-                {j.deviation !== undefined && mode === 'practice' && (
-                  <div className={styles.deviationText}>
+                {mode === 'practice' && j.deviation !== undefined ? (
+                  <div
+                    className={styles.deviationText}
+                    style={{
+                      color: j.type === 'perfect' ? 'var(--perfect-color)' : 'var(--good-color)',
+                      textShadow: j.type === 'perfect' ? 'var(--perfect-glow)' : 'var(--good-glow)',
+                    }}
+                  >
                     {j.deviation > 0 ? '+' : ''}{j.deviation.toFixed(0)}ms
                   </div>
-                )}
+                ) : null}
               </React.Fragment>
             ))}
 
@@ -414,23 +517,10 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
 
       <div className={styles.judgmentLine} />
 
-      <div className={styles.particlesContainer}>
-        {particles.map(p => (
-          <div
-            key={p.id}
-            className={`${styles.particle} ${styles[p.type]}`}
-            style={{
-              left: p.x,
-              top: p.y,
-              width: p.size,
-              height: p.size,
-              background: p.color,
-              opacity: p.life / p.maxLife,
-              boxShadow: `0 0 ${p.size}px ${p.color}`,
-            }}
-          />
-        ))}
-      </div>
+      <canvas
+        ref={canvasRef}
+        className={styles.particleCanvas}
+      />
 
       {countdown !== null && (
         <div className={styles.countdown} key={countdown}>
@@ -449,6 +539,11 @@ const RhythmPlayer: React.FC<RhythmPlayerProps> = ({
             <span className={styles.highlightKey}>D</span>
             <span className={styles.highlightKey}>F</span> 击打对应轨道
           </div>
+          {mode === 'practice' && (
+            <div className={styles.practiceHint}>
+              自由练习模式：无Miss判定，显示偏差毫秒数
+            </div>
+          )}
         </div>
       )}
     </div>

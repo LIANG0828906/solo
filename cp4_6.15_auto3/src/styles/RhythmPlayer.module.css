@@ -7,14 +7,14 @@
   border-radius: 12px;
   overflow: hidden;
   border: 2px solid var(--track-border);
-  transition: var(--transition-all);
+  transition: all 0.5s ease;
 }
 
 .track {
   flex: 1;
   position: relative;
   border-left: 1px solid var(--track-border);
-  transition: var(--transition-all);
+  transition: all 0.5s ease;
 }
 
 .track:first-child {
@@ -23,6 +23,10 @@
 
 .track.active {
   background: rgba(233, 69, 96, 0.1);
+}
+
+.track.inactive {
+  opacity: 0.3;
 }
 
 .judgmentLine {
@@ -35,7 +39,7 @@
   box-shadow: var(--judgment-line-glow);
   animation: pulse-glow 1.5s ease-in-out infinite;
   z-index: 10;
-  transition: var(--transition-all);
+  transition: all 0.5s ease;
 }
 
 .beat {
@@ -112,9 +116,11 @@
   left: 50%;
   bottom: 160px;
   transform: translateX(-50%);
-  font-size: 14px;
-  color: var(--text-secondary);
-  animation: judgment-float 0.6s ease-out forwards;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 900;
+  pointer-events: none;
+  animation: judgment-float 0.8s ease-out forwards;
   z-index: 20;
 }
 
@@ -135,7 +141,7 @@
   font-size: 24px;
   font-weight: bold;
   color: var(--text-secondary);
-  transition: var(--transition-all);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .keyHint.pressed {
@@ -146,33 +152,22 @@
   box-shadow: 0 0 20px var(--accent);
 }
 
-.particlesContainer {
+.particleCanvas {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  overflow: hidden;
   z-index: 30;
 }
 
-.particle {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.particle.pixel {
-  border-radius: 2px;
-}
-
-.particle.glow {
-  filter: blur(2px);
-}
-
-.particle.dot {
-  border-radius: 50%;
+.practiceHint {
+  font-size: 14px;
+  color: var(--good-color);
+  text-align: center;
+  margin-top: 10px;
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .countdown {
@@ -244,36 +239,49 @@
 }
 
 @media (max-width: 768px) {
+  .container {
+    height: 70%;
+  }
+
   .judgmentLine {
     bottom: 70px;
   }
-  
+
   .judgmentText {
     font-size: 20px;
     bottom: 90px;
   }
-  
+
   .deviationText {
-    font-size: 12px;
+    font-size: 16px;
     bottom: 115px;
   }
-  
+
   .keyHint {
-    width: 50px;
-    height: 50px;
-    bottom: 10px;
-    font-size: 18px;
+    width: 44px;
+    height: 44px;
+    bottom: 12px;
+    font-size: 16px;
+    border-radius: 8px;
   }
-  
+
   .countdown {
     font-size: 80px;
   }
-  
+
   .startText {
     font-size: 18px;
   }
-  
-  .container {
-    height: calc(100% - 30%);
+
+  .hintText {
+    font-size: 13px;
+  }
+
+  .beat {
+    width: 50%;
+  }
+
+  .practiceHint {
+    font-size: 12px;
   }
 }
