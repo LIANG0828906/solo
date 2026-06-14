@@ -22,6 +22,7 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
   const [errors, setErrors] = useState<{ mode?: string; distance?: string; date?: string }>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,7 +37,8 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
   const filteredOptions = TRANSPORT_OPTIONS.filter(
     (opt) =>
       opt.label.includes(searchQuery) ||
-      opt.mode.includes(searchQuery.toLowerCase())
+      opt.mode.includes(searchQuery.toLowerCase()) ||
+      searchQuery === ''
   );
 
   const validate = (): boolean => {
@@ -80,9 +82,31 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
   };
 
   const handleSelectMode = (mode: TransportMode) => {
+    const opt = TRANSPORT_OPTIONS.find((o) => o.mode === mode);
     setSelectedMode(mode);
-    setSearchQuery('');
+    setSearchQuery(opt ? opt.label : '');
     setDropdownOpen(false);
+  };
+
+  const handleInputClick = () => {
+    setDropdownOpen(true);
+    if (!selectedMode) {
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setDropdownOpen(true);
+    const matched = TRANSPORT_OPTIONS.find(
+      (opt) => opt.label === value || opt.mode === value.toLowerCase()
+    );
+    if (matched) {
+      setSelectedMode(matched.mode);
+    } else {
+      setSelectedMode('');
+    }
   };
 
   const handleDeleteTrip = (id: string) => {
@@ -95,7 +119,7 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>记录出行</h2>
+      <h2 style={styles.title}>✏️ 记录出行</h2>
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <div ref={dropdownRef} style={styles.formGroup}>
@@ -106,28 +130,18 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
                 ...styles.input,
                 ...styles.selectInput,
                 borderColor: errors.mode ? '#e74c3c' : 'var(--border-light)',
-                cursor: 'pointer',
               }}
-              onClick={() => setDropdownOpen(!dropdownOpen)}
+              onClick={handleInputClick}
             >
-              {selectedOption ? (
-                <span style={styles.selectedOption}>
-                  <span style={{ marginRight: 8 }}>{selectedOption.icon}</span>
-                  {selectedOption.label}
-                </span>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="搜索或选择出行方式..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    if (!dropdownOpen) setDropdownOpen(true);
-                  }}
-                  onFocus={() => setDropdownOpen(true)}
-                  style={styles.searchInput}
-                />
-              )}
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="搜索出行方式（如：步行、公交）..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={() => setDropdownOpen(true)}
+                style={styles.searchInput}
+              />
               <span
                 style={{
                   ...styles.dropdownArrow,
@@ -153,11 +167,17 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
                     key={opt.mode}
                     style={{
                       ...styles.dropdownItem,
-                      animationDelay: `${index * 30}ms`,
-                      animation: dropdownOpen ? 'slideDown 0.3s ease forwards' : 'none',
+                      animation: dropdownOpen ? `slideDown 0.3s ease ${index * 0.03}s both` : 'none',
                       backgroundColor: selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.1)' : 'transparent',
                     }}
                     onClick={() => handleSelectMode(opt.mode)}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(46, 125, 50, 0.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor =
+                        selectedMode === opt.mode ? 'rgba(46, 125, 50, 0.1)' : 'transparent';
+                    }}
                   >
                     <span style={{ fontSize: 20, marginRight: 12 }}>{opt.icon}</span>
                     <span style={{ flex: 1 }}>{opt.label}</span>
@@ -171,6 +191,8 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
           </div>
           {errors.mode && <span style={styles.error}>{errors.mode}</span>}
         </div>
+
+        <div style={styles.divider} />
 
         <div style={styles.formGroup}>
           <label style={styles.label}>距离（公里）</label>
@@ -188,6 +210,8 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
           />
           {errors.distance && <span style={styles.error}>{errors.distance}</span>}
         </div>
+
+        <div style={styles.divider} />
 
         <div style={styles.formGroup}>
           <label style={styles.label}>日期</label>
@@ -221,7 +245,7 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
         )}
 
         <button type="submit" style={styles.submitButton}>
-          提交记录
+          提交记录 🌱
         </button>
 
         {showSuccess && <div style={styles.successMessage}>记录成功！🌱</div>}
@@ -259,6 +283,7 @@ export const TripTracker: React.FC<TripTrackerProps> = ({ trips, onTripsChange }
                   <button
                     onClick={() => handleDeleteTrip(trip.id)}
                     style={styles.deleteButton}
+                    title="删除记录"
                   >
                     ×
                   </button>
@@ -279,6 +304,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 24,
     boxShadow: 'var(--shadow-sm)',
     transition: 'var(--transition)',
+    position: 'relative',
   },
   title: {
     fontSize: 20,
@@ -297,6 +323,11 @@ const styles: Record<string, React.CSSProperties> = {
   formGroup: {
     position: 'relative',
   },
+  divider: {
+    height: 1,
+    background: 'linear-gradient(90deg, transparent 0%, rgba(46, 125, 50, 0.1) 50%, transparent 100%)',
+    margin: '4px 0',
+  },
   label: {
     display: 'block',
     fontSize: 14,
@@ -314,12 +345,15 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#fff',
     transition: 'var(--transition)',
     fontFamily: 'inherit',
+    boxSizing: 'border-box',
   },
   selectInput: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 46,
+    minHeight: 48,
+    padding: '0 16px',
+    cursor: 'text',
   },
   searchInput: {
     border: 'none',
@@ -328,11 +362,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 15,
     backgroundColor: 'transparent',
     fontFamily: 'inherit',
+    padding: '12px 0',
+    width: '100%',
   },
   dropdownArrow: {
     color: 'var(--text-gray)',
     fontSize: 12,
     transition: 'transform 0.3s ease',
+    flexShrink: 0,
   },
   dropdownContainer: {
     position: 'relative',
@@ -349,16 +386,17 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     boxShadow: 'var(--shadow-md)',
     zIndex: 100,
-    transition: 'max-height 0.3s ease, opacity 0.3s ease',
+    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease',
   },
   dropdownItem: {
     display: 'flex',
     alignItems: 'center',
     padding: '12px 16px',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
+    transition: 'background-color 0.15s ease',
     borderBottom: '1px solid var(--border-light)',
     fontSize: 15,
+    opacity: 0,
   },
   noResults: {
     padding: 16,
@@ -372,11 +410,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'var(--bg-gray)',
     padding: '4px 8px',
     borderRadius: 6,
-  },
-  selectedOption: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: 15,
+    whiteSpace: 'nowrap',
   },
   error: {
     display: 'block',
@@ -411,7 +445,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 600,
     color: '#fff',
-    background: 'linear-gradient(135deg, #81C784 0%, var(--primary-green) 100%)',
+    background: 'linear-gradient(135deg, #81C784 0%, #2E7D32 100%)',
     border: 'none',
     borderRadius: 12,
     cursor: 'pointer',
@@ -432,6 +466,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     animation: 'fadeIn 0.3s ease',
     boxShadow: 'var(--shadow-md)',
+    whiteSpace: 'nowrap',
   },
   tripList: {
     marginTop: 32,
@@ -484,6 +519,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tripStats: {
     textAlign: 'right',
+    marginRight: 8,
   },
   tripStat: {
     fontSize: 13,
@@ -501,6 +537,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     padding: '4px 8px',
     transition: 'color 0.2s ease',
+    lineHeight: 1,
   },
 };
 
