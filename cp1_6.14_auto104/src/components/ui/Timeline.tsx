@@ -236,20 +236,58 @@ export const Timeline: React.FC = () => {
   )
 
   const [dragging, setDragging] = useState(false)
+  const rafIdRef = useRef<number | null>(null)
+  const pendingIdxRef = useRef<number | null>(null)
+
+  const commitGoto = useCallback(() => {
+    rafIdRef.current = null
+    const idx = pendingIdxRef.current
+    if (idx === null) return
+    pendingIdxRef.current = null
+    const t0 = performance.now()
+    gotoReplayIndex(idx)
+    const delta = performance.now() - t0
+    if (delta > 200) {
+      // eslint-disable-next-line no-console
+      console.warn(`[Timeline] 响应延迟 ${delta.toFixed(0)}ms 超过 200ms 阈值`)
+    }
+  }, [gotoReplayIndex])
+
+  const scheduleGoto = useCallback(
+    (idx: number) => {
+      pendingIdxRef.current = idx
+      if (rafIdRef.current !== null) return
+      rafIdRef.current = requestAnimationFrame(commitGoto)
+    },
+    [commitGoto]
+  )
+
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: MouseEvent) => {
       const idx = computeIndex(e.clientX)
-      gotoReplayIndex(idx)
+      scheduleGoto(idx)
     }
-    const onUp = () => setDragging(false)
-    window.addEventListener('mousemove', onMove)
+    const onUp = () => {
+      setDragging(false)
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+      const idx = pendingIdxRef.current
+      if (idx !== null) {
+        pendingIdxRef.current = null
+        gotoReplayIndex(idx)
+      }
+    }
+    window.addEventListener('mousemove', onMove, { passive: true })
     window.addEventListener('mouseup', onUp)
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current)
     }
-  }, [dragging, computeIndex, gotoReplayIndex])
+  }, [dragging, computeIndex, scheduleGoto, gotoReplayIndex])
 
   if (phase !== 'ended' && phase !== 'replay') return null
 

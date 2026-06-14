@@ -39,7 +39,10 @@ const Card = styled(motion.button)<{ $accent: string; $selected: boolean }>(
       background: `linear-gradient(105deg, transparent 20%, ${$accent}08 40%, ${$accent}18 50%, ${$accent}08 60%, transparent 80%)`,
       transform: 'translateX(-120%)',
       zIndex: 2,
-      pointerEvents: 'none'
+      pointerEvents: 'none',
+      animation: $selected
+        ? 'scanSweep 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite'
+        : 'none'
     },
     '&::after': {
       content: '""',
@@ -55,7 +58,9 @@ const Card = styled(motion.button)<{ $accent: string; $selected: boolean }>(
       transform: 'translateY(-4px)',
       boxShadow: `0 12px 36px ${$accent}22, 0 0 20px ${$accent}33, inset 0 0 24px ${$accent}10`,
       '&::before': {
-        animation: 'scanSweep 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+        animation: $selected
+          ? 'scanSweep 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite'
+          : 'scanSweep 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards'
       }
     }
   })
@@ -294,11 +299,22 @@ export const RobotCard: React.FC<RobotCardProps> = ({ meta, selected, onSelect, 
           x={55}
           y={70}
           color={color}
-          count={selected ? 22 : 0}
-          spread={selected ? 90 : 0}
+          count={selected ? 36 : 0}
+          spread={selected ? 130 : 0}
           trigger={burstTrigger}
-          sizeRange={[2, 6]}
+          sizeRange={[2, 8]}
         />
+        {selected && (
+          <ParticleBurst
+            x={55}
+            y={110}
+            color="#FFFFFF"
+            count={14}
+            spread={60}
+            trigger={burstTrigger}
+            sizeRange={[1, 3]}
+          />
+        )}
       </Illustration>
 
       <Desc>{description}</Desc>

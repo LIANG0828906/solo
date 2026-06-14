@@ -72,7 +72,7 @@ const Subtitle = styled.p`
   margin-top: -20px;
 `
 
-const ButtonRow = styled.div`
+const ButtonRow = styled(motion.div)`
   display: flex;
   gap: 16px;
 `

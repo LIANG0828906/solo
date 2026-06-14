@@ -7,12 +7,13 @@ import { sfx } from '@/utils/soundEffects'
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
 type Size = 'sm' | 'md' | 'lg' | 'block'
 
-interface CyberButtonProps extends HTMLMotionProps<'button'> {
+interface CyberButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
   variant?: Variant
   size?: Size
   accentColor?: string
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  children?: React.ReactNode
 }
 
 const variantStyles = {
