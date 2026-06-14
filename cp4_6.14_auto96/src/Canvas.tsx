@@ -16,6 +16,7 @@ const Canvas: React.FC = () => {
   const lastPosRef = useRef<{ x: number; y: number } | null>(null)
   const isPanningRef = useRef(false)
   const panStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null)
+  const lastMoveTimeRef = useRef<number>(0)
 
   const {
     tool,
@@ -198,17 +199,17 @@ const Canvas: React.FC = () => {
 
         if (selectionRect) {
           const point = stroke.points[i]
-          const nearLeft = point.x - selectionRect.x < EDGE_BLEND_WIDTH
-          const nearRight = (selectionRect.x + selectionRect.width) - point.x < EDGE_BLEND_WIDTH
-          const nearTop = point.y - selectionRect.y < EDGE_BLEND_WIDTH
-          const nearBottom = (selectionRect.y + selectionRect.height) - point.y < EDGE_BLEND_WIDTH
+          const nearLeft = point.x - selectionRect.x < EDGE_BLEND_WIDTH && point.x >= selectionRect.x
+          const nearRight = (selectionRect.x + selectionRect.width) - point.x < EDGE_BLEND_WIDTH && point.x <= selectionRect.x + selectionRect.width
+          const nearTop = point.y - selectionRect.y < EDGE_BLEND_WIDTH && point.y >= selectionRect.y
+          const nearBottom = (selectionRect.y + selectionRect.height) - point.y < EDGE_BLEND_WIDTH && point.y <= selectionRect.y + selectionRect.height
 
           if (nearLeft || nearRight || nearTop || nearBottom) {
             let minDist = EDGE_BLEND_WIDTH
-            if (nearLeft) minDist = Math.min(minDist, point.x - selectionRect.x)
-            if (nearRight) minDist = Math.min(minDist, (selectionRect.x + selectionRect.width) - point.x)
-            if (nearTop) minDist = Math.min(minDist, point.y - selectionRect.y)
-            if (nearBottom) minDist = Math.min(minDist, (selectionRect.y + selectionRect.height) - point.y)
+            if (nearLeft && point.x >= selectionRect.x) minDist = Math.min(minDist, point.x - selectionRect.x)
+            if (nearRight && point.x <= selectionRect.x + selectionRect.width) minDist = Math.min(minDist, (selectionRect.x + selectionRect.width) - point.x)
+            if (nearTop && point.y >= selectionRect.y) minDist = Math.min(minDist, point.y - selectionRect.y)
+            if (nearBottom && point.y <= selectionRect.y + selectionRect.height) minDist = Math.min(minDist, (selectionRect.y + selectionRect.height) - point.y)
             blendAlpha = Math.max(0, minDist / EDGE_BLEND_WIDTH)
           }
         }
@@ -329,25 +330,29 @@ const Canvas: React.FC = () => {
     if (!aiCompleting.active) return
 
     const interval = setInterval(() => {
-      const { aiCompleting: ac, updateAICompletion, finishAICompletion } = useCanvasStore.getState()
-      if (!ac.active) return
+      const state = useCanvasStore.getState()
+      if (!state.aiCompleting.active) return
 
-      const elapsed = Date.now() - ac.startTime
+      const elapsed = Date.now() - state.aiCompleting.startTime
       if (elapsed >= 2000) {
-        if (ac.currentIndex < ac.strokes.length - 1) {
-          updateAICompletion(ac.currentIndex + 1)
+        if (state.aiCompleting.currentIndex < state.aiCompleting.strokes.length - 1) {
+          const nextIndex = state.aiCompleting.currentIndex + 1
           useCanvasStore.setState({
-            aiCompleting: { ...ac, currentIndex: ac.currentIndex + 1, startTime: Date.now() }
+            aiCompleting: {
+              ...state.aiCompleting,
+              currentIndex: nextIndex,
+              startTime: Date.now()
+            }
           })
         } else {
-          finishAICompletion()
-          clearSelection()
+          state.finishAICompletion()
+          state.clearSelection()
         }
       }
     }, 50)
 
     return () => clearInterval(interval)
-  }, [aiCompleting.active, updateAICompletion, finishAICompletion, clearSelection])
+  }, [aiCompleting.active])
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -371,6 +376,7 @@ const Canvas: React.FC = () => {
     }
 
     lastPosRef.current = { x: world.x, y: world.y }
+    lastMoveTimeRef.current = Date.now()
 
     if (tool === 'select') {
       startSelection(world.x, world.y)
@@ -397,9 +403,7 @@ const Canvas: React.FC = () => {
       return
     }
 
-    if (!e.buttons) return
-
-    if (tool === 'select') {
+    if (tool === 'select' && e.buttons) {
       updateSelection(world.x, world.y)
     } else if (isDrawing) {
       continueDrawing(world.x, world.y)
@@ -410,4 +414,113 @@ const Canvas: React.FC = () => {
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
-    if (canvas && canvas.hasPointerCapture(e
+    if (canvas && canvas.hasPointerCapture(e.pointerId)) {
+      canvas.releasePointerCapture(e.pointerId)
+    }
+
+    if (isPanningRef.current) {
+      isPanningRef.current = false
+      panStartRef.current = null
+      return
+    }
+
+    if (tool === 'select') {
+    } else if (isDrawing) {
+      endDrawing()
+    }
+
+    lastPosRef.current = null
+  }, [tool, isDrawing, endDrawing])
+
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    const worldX = (mouseX - viewOffset.x) / zoom
+    const worldY = (mouseY - viewOffset.y) / zoom
+
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    const newZoom = Math.max(0.1, Math.min(5, zoom * delta))
+
+    const newOffsetX = mouseX - worldX * newZoom
+    const newOffsetY = mouseY - worldY * newZoom
+
+    setZoom(newZoom)
+    setViewOffset(newOffsetX, newOffsetY)
+  }, [zoom, viewOffset, setZoom, setViewOffset])
+
+  const handleAIComplete = useCallback(() => {
+    if (!selection.active || aiCompleting.active) return
+
+    const selX = Math.min(selection.startX, selection.endX)
+    const selY = Math.min(selection.startY, selection.endY)
+    const selW = Math.abs(selection.endX - selection.startX)
+    const selH = Math.abs(selection.endY - selection.startY)
+
+    const selRect = { x: selX, y: selY, width: selW, height: selH }
+
+    const visibleStrokes: Stroke[] = []
+    layers.forEach(layer => {
+      if (layer.visible) {
+        layer.strokeIds.forEach(id => {
+          const s = strokes[id]
+          if (s) visibleStrokes.push(s)
+        })
+      }
+    })
+
+    const newStrokes = aiCompleter.generateCompletionStrokes(
+      visibleStrokes,
+      selRect,
+      activeLayerId
+    )
+
+    if (newStrokes.length > 0) {
+      startAICompletion(newStrokes)
+    }
+  }, [selection, aiCompleting.active, layers, strokes, activeLayerId, startAICompletion])
+
+  useEffect(() => {
+    ;(window as any).handleAIComplete = handleAIComplete
+    return () => {
+      delete (window as any).handleAIComplete
+    }
+  }, [handleAIComplete])
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden',
+        touchAction: 'none'
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onWheel={handleWheel}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          cursor: tool === 'select' ? 'crosshair' : 'default'
+        }}
+      />
+    </div>
+  )
+}
+
+export default Canvas
