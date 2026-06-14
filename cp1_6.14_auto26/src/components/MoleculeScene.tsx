@@ -1,6 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
+import { useSpring, animated, config } from '@react-spring/three';
 import * as THREE from 'three';
 import type { ParsedMolecule, DisplayMode } from '@/types';
 import { ELEMENT_INFO, DEFAULT_ELEMENT, HIGHLIGHT_COLOR, BACKGROUND_COLOR } from '@/constants/elements';
@@ -65,7 +66,7 @@ interface AtomMeshProps {
   displayMode: DisplayMode;
   highlighted: boolean;
   onClick: (id: string) => void;
-  transitionProgress: number;
+  targetRadius: number;
 }
 
 function AtomMesh({
@@ -75,66 +76,95 @@ function AtomMesh({
   displayMode,
   highlighted,
   onClick,
-  transitionProgress,
+  targetRadius,
 }: AtomMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
   const info = ELEMENT_INFO[element] || DEFAULT_ELEMENT;
+  const baseRadius = info.radius;
 
-  const targetRadius = displayMode === 'ball-stick' ? info.radius : info.vanDerWaalsRadius * 0.5;
-  const displayRadius = useRef(info.radius);
-
-  useFrame(() => {
-    const current = displayRadius.current;
-    const diff = targetRadius - current;
-    displayRadius.current = current + diff * 0.12 * transitionProgress;
-
-    if (meshRef.current) {
-      meshRef.current.scale.setScalar(displayRadius.current / info.radius);
-    }
-    if (glowRef.current) {
-      const glowScale = (displayRadius.current / info.radius) * 1.25;
-      glowRef.current.scale.setScalar(glowScale);
-    }
+  const { scale } = useSpring({
+    scale: targetRadius / baseRadius,
+    config: config.wobbly,
   });
 
   const baseColor = new THREE.Color(info.color);
   const highlightColor = new THREE.Color(HIGHLIGHT_COLOR);
-  const finalColor = highlighted ? highlightColor : baseColor;
 
-  const emissiveIntensity = highlighted ? 0.8 : 0;
+  const { color, emissiveIntensity, glowOpacity } = useSpring({
+    color: highlighted ? highlightColor.getHexString() : baseColor.getHexString(),
+    emissiveIntensity: highlighted ? 1.0 : 0,
+    glowOpacity: highlighted ? 0.5 : 0,
+    config: config.gentle,
+  });
+
+  const labelOffset = baseRadius * 1.8;
 
   return (
     <group position={basePosition}>
-      <mesh
-        ref={meshRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick(id);
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'default';
-        }}
-      >
-        <sphereGeometry args={[info.radius, 32, 32]} />
-        <meshStandardMaterial
-          color={finalColor}
-          emissive={finalColor}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.3}
-          metalness={0.1}
-        />
-      </mesh>
-      {highlighted && (
-        <mesh ref={glowRef} scale={1.25}>
-          <sphereGeometry args={[info.radius, 32, 32]} />
-          <meshBasicMaterial color={HIGHLIGHT_COLOR} transparent opacity={0.25} side={THREE.BackSide} />
+      <animated.group scale={scale}>
+        <mesh
+          ref={meshRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick(id);
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            document.body.style.cursor = 'default';
+          }}
+        >
+          <sphereGeometry args={[baseRadius, 32, 32]} />
+          <animated.meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={emissiveIntensity}
+            roughness={0.25}
+            metalness={0.15}
+          />
         </mesh>
-      )}
+
+        {highlighted && (
+          <animated.mesh scale={1.35}>
+            <sphereGeometry args={[baseRadius, 32, 32]} />
+            <animated.meshBasicMaterial
+              color={HIGHLIGHT_COLOR}
+              transparent
+              opacity={glowOpacity}
+              side={THREE.BackSide}
+              depthWrite={false}
+            />
+          </animated.mesh>
+        )}
+
+        {highlighted && (
+          <animated.mesh scale={1.55}>
+            <sphereGeometry args={[baseRadius, 32, 32]} />
+            <animated.meshBasicMaterial
+              color={HIGHLIGHT_COLOR}
+              transparent
+              opacity={glowOpacity.to((v) => v * 0.4)}
+              side={THREE.BackSide}
+              depthWrite={false}
+            />
+          </animated.mesh>
+        )}
+      </animated.group>
+
+      <Text
+        position={[0, labelOffset, 0]}
+        fontSize={0.35}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.04}
+        outlineColor="#000000"
+        userData={{ ignoreRaycast: true }}
+      >
+        {element}
+      </Text>
     </group>
   );
 }
@@ -142,94 +172,81 @@ function AtomMesh({
 interface BondMeshProps {
   transform: BondTransform;
   displayMode: DisplayMode;
-  transitionProgress: number;
 }
 
-function BondMesh({ transform, displayMode, transitionProgress }: BondMeshProps) {
+function BondMesh({ transform, displayMode }: BondMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const info1 = ELEMENT_INFO[transform.atom1Element] || DEFAULT_ELEMENT;
   const info2 = ELEMENT_INFO[transform.atom2Element] || DEFAULT_ELEMENT;
 
-  const targetVisible = displayMode === 'ball-stick';
-  const opacityRef = useRef(1);
+  const isBallStick = displayMode === 'ball-stick';
+
+  const { opacity, bondScale } = useSpring({
+    opacity: isBallStick ? 1 : 0,
+    bondScale: isBallStick ? 1 : 0.3,
+    config: config.gentle,
+  });
 
   const bondRadius = 0.12;
   const halfLength = transform.length / 2;
 
-  useFrame(() => {
-    const targetOpacity = targetVisible ? 1 : 0;
-    opacityRef.current = opacityRef.current + (targetOpacity - opacityRef.current) * 0.15 * transitionProgress;
-
-    if (groupRef.current) {
-      groupRef.current.visible = opacityRef.current > 0.01;
-      groupRef.current.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          const mat = mesh.material as THREE.MeshStandardMaterial;
-          if (mat.opacity !== undefined) {
-            mat.opacity = opacityRef.current;
-          }
-        }
-      });
-    }
-  });
-
   const renderBondCylinders = () => {
     const cylinders: JSX.Element[] = [];
     const order = transform.order;
-    const offsets = order === 1 ? [0] : order === 2 ? [-0.12, 0.12] : [-0.18, 0, 0.18];
+    const offsets = order === 1 ? [0] : order === 2 ? [-0.14, 0.14] : [-0.2, 0, 0.2];
 
     offsets.forEach((offset, idx) => {
-      const leftOffset = new THREE.Vector3(offset, 0, 0);
-      const rightOffset = new THREE.Vector3(offset, 0, 0);
-
       cylinders.push(
-        <mesh
+        <animated.mesh
           key={`left-${idx}`}
-          position={[0, -halfLength / 2, 0]}
+          position={[offset, -halfLength / 2, 0]}
+          scale-x={bondScale}
+          scale-z={bondScale}
         >
           <cylinderGeometry args={[bondRadius, bondRadius, halfLength, 16]} />
-          <meshStandardMaterial
+          <animated.meshStandardMaterial
             color={info1.color}
-            roughness={0.4}
+            roughness={0.35}
             metalness={0.05}
             transparent
-            opacity={1}
+            opacity={opacity}
+            depthWrite={opacity.to((v) => v > 0.5)}
           />
-        </mesh>
+        </animated.mesh>
       );
 
       cylinders.push(
-        <mesh
+        <animated.mesh
           key={`right-${idx}`}
-          position={[0, halfLength / 2, 0]}
+          position={[offset, halfLength / 2, 0]}
+          scale-x={bondScale}
+          scale-z={bondScale}
         >
           <cylinderGeometry args={[bondRadius, bondRadius, halfLength, 16]} />
-          <meshStandardMaterial
+          <animated.meshStandardMaterial
             color={info2.color}
-            roughness={0.4}
+            roughness={0.35}
             metalness={0.05}
             transparent
-            opacity={1}
+            opacity={opacity}
+            depthWrite={opacity.to((v) => v > 0.5)}
           />
-        </mesh>
+        </animated.mesh>
       );
-
-      void leftOffset;
-      void rightOffset;
     });
 
     return cylinders;
   };
 
   return (
-    <group
+    <animated.group
       ref={groupRef}
       position={transform.position}
       rotation={transform.rotation}
+      visible={opacity.to((v) => v > 0.01)}
     >
       {renderBondCylinders()}
-    </group>
+    </animated.group>
   );
 }
 
@@ -265,8 +282,8 @@ function CameraController({ target, radius, resetTrigger }: CameraControllerProp
   useEffect(() => {
     if (resetTrigger !== prevReset.current) {
       prevReset.current = resetTrigger;
-      const distance = Math.max(radius * 2.5, 8);
-      camera.position.set(target[0], target[1] + distance * 0.6, target[2] + distance);
+      const distance = Math.max(radius * 2.8, 10);
+      camera.position.set(target[0], target[1] + distance * 0.5, target[2] + distance);
       camera.lookAt(target[0], target[1], target[2]);
       if (controlsRef.current) {
         controlsRef.current.target.set(target[0], target[1], target[2]);
@@ -279,10 +296,14 @@ function CameraController({ target, radius, resetTrigger }: CameraControllerProp
     <OrbitControls
       ref={controlsRef}
       enableDamping
-      dampingFactor={0.08}
-      minDistance={2}
-      maxDistance={200}
+      dampingFactor={0.06}
+      minDistance={3}
+      maxDistance={150}
       makeDefault
+      enablePan={true}
+      panSpeed={0.8}
+      rotateSpeed={0.8}
+      zoomSpeed={0.9}
     />
   );
 }
@@ -296,28 +317,6 @@ function SceneContent({
   rotationSpeed,
   resetTrigger,
 }: MoleculeSceneProps & { resetTrigger: number }) {
-  const [transitionProgress, setTransitionProgress] = useState(1);
-  const prevDisplayMode = useRef(displayMode);
-
-  useEffect(() => {
-    if (prevDisplayMode.current !== displayMode) {
-      prevDisplayMode.current = displayMode;
-      setTransitionProgress(0);
-      const startTime = performance.now();
-      const duration = 400;
-      const animate = () => {
-        const elapsed = performance.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setTransitionProgress(eased);
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        }
-      };
-      requestAnimationFrame(animate);
-    }
-  }, [displayMode]);
-
   const atomPositions = useMemo(() => {
     const map = new Map<string, [number, number, number]>();
     molecule.atoms.forEach((atom) => {
@@ -378,16 +377,28 @@ function SceneContent({
     }));
   }, [bondTransforms, bounds.center]);
 
+  const getAtomTargetRadius = (element: string, mode: DisplayMode): number => {
+    const info = ELEMENT_INFO[element] || DEFAULT_ELEMENT;
+    return mode === 'ball-stick' ? info.radius : info.vanDerWaalsRadius * 0.5;
+  };
+
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, bounds.radius * 1.2, bounds.radius * 2.2]} fov={45} />
+      <PerspectiveCamera
+        makeDefault
+        position={[0, bounds.radius * 1.2, bounds.radius * 2.8]}
+        fov={45}
+        near={0.1}
+        far={500}
+      />
       <CameraController target={[0, 0, 0]} radius={bounds.radius} resetTrigger={resetTrigger} />
 
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1.0} castShadow />
-      <directionalLight position={[-10, -5, -10]} intensity={0.4} />
-      <pointLight position={[0, 10, 0]} intensity={0.5} />
-      <pointLight position={[0, -10, -10]} intensity={0.3} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[12, 15, 8]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight position={[-10, -8, -12]} intensity={0.45} />
+      <pointLight position={[0, 12, 0]} intensity={0.6} color="#ffffff" />
+      <pointLight position={[-8, 0, 10]} intensity={0.35} color="#e0e0ff" />
+      <pointLight position={[8, 0, -10]} intensity={0.25} color="#ffe0e0" />
 
       <AutoRotateGroup autoRotate={autoRotate} speed={rotationSpeed}>
         {centeredAtoms.map((atom) => (
@@ -399,7 +410,7 @@ function SceneContent({
             displayMode={displayMode}
             highlighted={highlightedAtomIds.has(atom.id)}
             onClick={onAtomClick}
-            transitionProgress={transitionProgress}
+            targetRadius={getAtomTargetRadius(atom.element, displayMode)}
           />
         ))}
         {centeredBondTransforms.map((transform, idx) => (
@@ -407,7 +418,6 @@ function SceneContent({
             key={`bond-${idx}`}
             transform={transform}
             displayMode={displayMode}
-            transitionProgress={transitionProgress}
           />
         ))}
       </AutoRotateGroup>
@@ -424,18 +434,16 @@ export default function MoleculeScene(props: MoleculeSceneProps) {
     return () => window.removeEventListener('reset-camera', handleReset);
   }, []);
 
-  void props.autoRotate;
-  void props.rotationSpeed;
-
   return (
     <Canvas
       shadows
-      gl={{ antialias: true, alpha: false }}
+      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: BACKGROUND_COLOR }}
       dpr={[1, 2]}
+      frameloop="always"
     >
       <color attach="background" args={[BACKGROUND_COLOR]} />
-      <fog attach="fog" args={[BACKGROUND_COLOR, 50, 150]} />
+      <fog attach="fog" args={[BACKGROUND_COLOR, 40, 120]} />
       <SceneContent {...props} resetTrigger={resetTrigger} />
     </Canvas>
   );
