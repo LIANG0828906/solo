@@ -6,31 +6,9 @@ import { usePlant } from '../context/PlantContext';
 const createPulseIcon = () => L.divIcon({
   className: 'custom-marker',
   html: `
-    <div class="pulse-marker" style="position: relative; width: 30px; height: 30px;">
-      <div class="marker-pulse" style="
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 16px;
-        height: 16px;
-        background: #6b9e7c;
-        border-radius: 50%;
-        animation: pulse 2s ease-out infinite;
-      "></div>
-      <div class="marker-dot" style="
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 16px;
-        height: 16px;
-        background: #6b9e7c;
-        border: 3px solid #ffffff;
-        border-radius: 50%;
-        z-index: 2;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      "></div>
+    <div class="pulse-marker">
+      <div class="marker-pulse"></div>
+      <div class="marker-dot"></div>
     </div>
   `,
   iconSize: [30, 30],

@@ -41,26 +41,37 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (plant.images.length <= 1) return;
+    const touch = e.touches[0];
     setIsDragging(true);
-    setDragStartX(e.touches[0].clientX);
+    setDragStartX(touch.clientX);
     setDragOffset(0);
+    console.log('👆 轮播触摸开始', touch.clientX);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return;
-    const currentX = e.touches[0].clientX;
-    setDragOffset(currentX - dragStartX);
+    const touch = e.touches[0];
+    const currentX = touch.clientX;
+    const deltaX = currentX - dragStartX;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOffset(deltaX);
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
     
-    const threshold = 80;
+    const threshold = 50;
+    console.log('👆 轮播触摸结束，偏移量:', dragOffset, '阈值:', threshold);
+    
     if (dragOffset > threshold) {
       prevImage();
+      console.log('⬅️ 切换到上一张');
     } else if (dragOffset < -threshold) {
       nextImage();
+      console.log('➡️ 切换到下一张');
     }
     setDragOffset(0);
   };

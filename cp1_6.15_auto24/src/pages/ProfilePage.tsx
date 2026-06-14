@@ -130,12 +130,20 @@ const SwipeableItem: React.FC<SwipeableItemProps> = ({
   const handleAccept = () => {
     setTranslateX(0);
     openedRef.current = false;
+    console.log('✅ 点击接受，开始翻转动画');
+    if (itemRef.current) {
+      itemRef.current.style.perspective = '1000px';
+    }
     setTimeout(() => onAccept?.(), 100);
   };
 
   const handleReject = () => {
     setTranslateX(0);
     openedRef.current = false;
+    console.log('❌ 点击拒绝，开始翻转动画');
+    if (itemRef.current) {
+      itemRef.current.style.perspective = '1000px';
+    }
     setTimeout(() => onReject?.(), 100);
   };
 

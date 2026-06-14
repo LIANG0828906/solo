@@ -66,7 +66,7 @@ const SkeletonCard: React.FC<{ delay?: number }> = ({ delay = 0 }) => (
 const HomePage: React.FC = () => {
   const { plants, getUserById, currentUser } = usePlant();
   const [displayedPlants, setDisplayedPlants] = useState<Plant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
@@ -75,11 +75,20 @@ const HomePage: React.FC = () => {
   const lastTimeRef = useRef(performance.now());
   const frameCountRef = useRef(0);
   const fpsRef = useRef<number[]>([]);
+  const loadingRef = useRef(loading);
+  const hasMoreRef = useRef(hasMore);
+  const initialLoadingRef = useRef(initialLoading);
+  const availablePlantsRef = useRef<Plant[]>([]);
 
   const availablePlants = useMemo(() => 
     plants.filter(p => p.isAvailable && p.ownerId !== currentUser.id),
     [plants, currentUser.id]
   );
+
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+  useEffect(() => { initialLoadingRef.current = initialLoading; }, [initialLoading]);
+  useEffect(() => { availablePlantsRef.current = availablePlants; }, [availablePlants]);
 
   useEffect(() => {
     console.log('🎮 FPS监控已启动');
@@ -120,14 +129,15 @@ const HomePage: React.FC = () => {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (loading || !hasMore) return;
+    if (loadingRef.current || !hasMoreRef.current) return;
     setLoading(true);
+    console.log('📦 开始加载下一批植物...');
 
     setTimeout(() => {
       const nextPage = pageRef.current + 1;
       const start = (nextPage - 1) * PAGE_SIZE;
       const end = nextPage * PAGE_SIZE;
-      const newPlants = availablePlants.slice(start, end);
+      const newPlants = availablePlantsRef.current.slice(start, end);
 
       if (newPlants.length === 0) {
         setHasMore(false);
@@ -135,17 +145,19 @@ const HomePage: React.FC = () => {
         setDisplayedPlants((prev) => {
           const existingIds = new Set(prev.map(p => p.id));
           const uniqueNew = newPlants.filter(p => !existingIds.has(p.id));
+          console.log(`📦 追加 ${uniqueNew.length} 株植物，从第${start + 1}到第${end}株`);
           return [...prev, ...uniqueNew];
         });
         pageRef.current = nextPage;
-        if (end >= availablePlants.length) {
+        if (end >= availablePlantsRef.current.length) {
           setHasMore(false);
         }
       }
       setLoading(false);
       setInitialLoading(false);
-    }, 600);
-  }, [loading, hasMore, availablePlants]);
+      console.log('✅ setTimeout结束：loading=false, initialLoading=false');
+    }, 500);
+  }, []);
 
   useEffect(() => {
     setDisplayedPlants([]);
@@ -153,32 +165,48 @@ const HomePage: React.FC = () => {
     setHasMore(availablePlants.length > 0);
     setInitialLoading(true);
     setLoading(false);
-  }, [availablePlants.length]);
+    console.log(`🌱 初始化无限滚动：共${availablePlants.length}株可交换`);
+  }, [availablePlants.length, availablePlants]);
 
   useEffect(() => {
-    if (displayedPlants.length === 0 && !loading && hasMore && initialLoading) {
+    if (displayedPlants.length === 0 && !loadingRef.current && hasMoreRef.current && initialLoadingRef.current) {
+      console.log('🌱 首次加载第一批植物');
       loadMore();
     }
-  }, [displayedPlants.length, loading, hasMore, initialLoading, loadMore]);
+  }, [displayedPlants.length, loadMore]);
 
   useEffect(() => {
+    console.log('🔍 创建IntersectionObserver，rootMargin: 600px提前加载');
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !loading && hasMore && !initialLoading) {
+          if (entry.isIntersecting && !loadingRef.current && hasMoreRef.current && !initialLoadingRef.current) {
+            console.log('📥 触发预加载，距离底部600px');
             loadMore();
           }
         });
       },
-      { rootMargin: '250px', threshold: 0.1 }
+      { rootMargin: '0px 0px 600px 0px', threshold: 0 }
     );
 
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
+    const sentinel = observerRef.current;
+    if (sentinel) {
+      observer.observe(sentinel);
+      console.log('✅ 已监听底部哨兵元素');
+    } else {
+      console.warn('⚠️ 哨兵元素不存在，observer未绑定');
     }
 
     return () => observer.disconnect();
-  }, [loading, hasMore, initialLoading, loadMore]);
+  }, [loadMore]);
+
+  console.log('🔄 [RENDER] HomePage:', {
+    initialLoading,
+    loading,
+    displayedPlantsLen: displayedPlants.length,
+    hasMore,
+    page: pageRef.current
+  });
 
   return (
     <div>
