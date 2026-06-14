@@ -34,14 +34,131 @@ function padZero(n: number): string {
   return n.toString().padStart(2, '0')
 }
 
+interface FlipDigitProps {
+  digit: string
+  isFlipping: boolean
+}
+
+const FlipDigit: React.FC<FlipDigitProps> = ({ digit, isFlipping }) => {
+  return (
+    <div
+      style={{
+        width: 48,
+        height: 64,
+        borderRadius: 10,
+        position: 'relative',
+        perspective: 400,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 10,
+          background: `linear-gradient(180deg, ${COLORS.pinkLight} 0%, ${COLORS.pinkLight} 49%, rgba(0,0,0,0.06) 49%, rgba(0,0,0,0.06) 51%, ${COLORS.gold} 51%, ${COLORS.gold} 100%)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 14px rgba(232, 168, 184, 0.25), inset 0 1px 0 rgba(255,255,255,0.5)',
+          overflow: 'hidden',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 32,
+            fontWeight: 800,
+            color: COLORS.grayText,
+            fontVariantNumeric: 'tabular-nums',
+            textShadow: '0 1px 0 rgba(255,255,255,0.6)',
+          }}
+        >
+          {digit}
+        </span>
+      </div>
+
+      {isFlipping && (
+        <>
+          <div
+            className="flip-top"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '50%',
+              borderRadius: '10px 10px 0 0',
+              background: `linear-gradient(180deg, ${COLORS.pinkLight} 0%, ${COLORS.pinkLight} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              transformOrigin: 'bottom center',
+              backfaceVisibility: 'hidden',
+              boxShadow: '0 2px 6px rgba(232, 168, 184, 0.2)',
+              zIndex: 3,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 32,
+                fontWeight: 800,
+                color: COLORS.grayText,
+                fontVariantNumeric: 'tabular-nums',
+                textShadow: '0 1px 0 rgba(255,255,255,0.6)',
+                transform: 'translateY(50%)',
+              }}
+            >
+              {digit}
+            </span>
+          </div>
+          <div
+            className="flip-bottom"
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '50%',
+              borderRadius: '0 0 10px 10px',
+              background: `linear-gradient(180deg, ${COLORS.gold} 0%, ${COLORS.gold} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              transformOrigin: 'top center',
+              transform: 'rotateX(90deg)',
+              backfaceVisibility: 'hidden',
+              boxShadow: '0 4px 8px rgba(232, 168, 184, 0.15)',
+              zIndex: 2,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 32,
+                fontWeight: 800,
+                color: COLORS.grayText,
+                fontVariantNumeric: 'tabular-nums',
+                textShadow: '0 1px 0 rgba(255,255,255,0.6)',
+                transform: 'translateY(-50%)',
+              }}
+            >
+              {digit}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 interface CountdownProps {
   weddingDate: string
 }
 
 const Countdown: React.FC<CountdownProps> = ({ weddingDate }) => {
   const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft(weddingDate))
-  const [flipping, setFlipping] = useState<Record<string, boolean>>({})
-  const prevRef = useRef(timeLeft)
+  const [flippingDigits, setFlippingDigits] = useState<Record<string, boolean>>({})
+  const prevDigitsRef = useRef<Record<string, string>>({})
 
   function calculateTimeLeft(dateStr: string) {
     const target = new Date(dateStr).getTime()
@@ -59,21 +176,50 @@ const Countdown: React.FC<CountdownProps> = ({ weddingDate }) => {
   useEffect(() => {
     const timer = setInterval(() => {
       const next = calculateTimeLeft(weddingDate)
-      const prev = prevRef.current
-      const changes: Record<string, boolean> = {}
+      setTimeLeft(next)
 
-      if (next.days !== prev.days) changes.days = true
-      if (next.hours !== prev.hours) changes.hours = true
-      if (next.minutes !== prev.minutes) changes.minutes = true
-      if (next.seconds !== prev.seconds) changes.seconds = true
+      const nextDigits: Record<string, string> = {}
+      const units = [
+        { key: 'days', value: next.days, digits: 3 },
+        { key: 'hours', value: next.hours, digits: 2 },
+        { key: 'minutes', value: next.minutes, digits: 2 },
+        { key: 'seconds', value: next.seconds, digits: 2 },
+      ]
+      units.forEach(u => {
+        padZero(u.value).padStart(u.digits, '0').split('').forEach((d, i) => {
+          nextDigits[`${u.key}-${i}`] = d
+        })
+      })
 
-      if (Object.keys(changes).length > 0) {
-        setFlipping(changes)
-        setTimeLeft(next)
-        prevRef.current = next
-        setTimeout(() => setFlipping({}), 500)
+      const changed: Record<string, boolean> = {}
+      Object.entries(nextDigits).forEach(([key, val]) => {
+        if (prevDigitsRef.current[key] !== undefined && prevDigitsRef.current[key] !== val) {
+          changed[key] = true
+        }
+      })
+
+      if (Object.keys(changed).length > 0) {
+        setFlippingDigits(changed)
+        setTimeout(() => setFlippingDigits({}), 600)
       }
+
+      prevDigitsRef.current = nextDigits
     }, 1000)
+
+    const next = calculateTimeLeft(weddingDate)
+    const initDigits: Record<string, string> = {}
+    const units = [
+      { key: 'days', value: next.days, digits: 3 },
+      { key: 'hours', value: next.hours, digits: 2 },
+      { key: 'minutes', value: next.minutes, digits: 2 },
+      { key: 'seconds', value: next.seconds, digits: 2 },
+    ]
+    units.forEach(u => {
+      padZero(u.value).padStart(u.digits, '0').split('').forEach((d, i) => {
+        initDigits[`${u.key}-${i}`] = d
+      })
+    })
+    prevDigitsRef.current = initDigits
 
     return () => clearInterval(timer)
   }, [weddingDate])
@@ -94,44 +240,11 @@ const Countdown: React.FC<CountdownProps> = ({ weddingDate }) => {
             <div key={unit.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <div style={{ display: 'flex', gap: 4 }}>
                 {digits.map((d, idx) => (
-                  <div
-                    key={idx}
-                    className={flipping[unit.key] ? 'flip' : ''}
-                    style={{
-                      width: 48,
-                      height: 64,
-                      borderRadius: 10,
-                      background: `linear-gradient(180deg, ${COLORS.pinkLight} 0%, ${COLORS.gold} 100%)`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 4px 14px rgba(232, 168, 184, 0.25), inset 0 1px 0 rgba(255,255,255,0.5)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: 0,
-                        right: 0,
-                        height: 1,
-                        background: 'rgba(107, 91, 85, 0.12)',
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 32,
-                        fontWeight: 800,
-                        color: COLORS.grayText,
-                        fontVariantNumeric: 'tabular-nums',
-                        textShadow: '0 1px 0 rgba(255,255,255,0.6)',
-                      }}
-                    >
-                      {d}
-                    </span>
-                  </div>
+                  <FlipDigit
+                    key={`${unit.key}-${idx}`}
+                    digit={d}
+                    isFlipping={!!flippingDigits[`${unit.key}-${idx}`]}
+                  />
                 ))}
               </div>
               <span style={{ fontSize: 12, color: COLORS.grayMuted, fontWeight: 500, letterSpacing: 2 }}>
@@ -177,8 +290,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({ checked, onChange }) =>
         viewBox="0 0 14 14"
         fill="none"
         style={{
-          transform: checked ? 'scale(1)' : 'scale(0)',
-          transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          overflow: 'visible',
         }}
       >
         <path
@@ -187,6 +299,14 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({ checked, onChange }) =>
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          fill="none"
+          className={checked ? 'checkmark-animate' : ''}
+          style={{
+            strokeDasharray: 20,
+            strokeDashoffset: checked ? 0 : 20,
+            transition: checked ? 'stroke-dashoffset 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s' : 'stroke-dashoffset 0.2s ease',
+            transformOrigin: '7px 7px',
+          }}
         />
       </svg>
     </button>
@@ -739,15 +859,32 @@ export default function Home() {
       </div>
 
       <style>{`
-        @keyframes flip {
+        @keyframes flipTop {
           0% { transform: rotateX(0); }
-          50% { transform: rotateX(90deg); opacity: 0.5; }
-          100% { transform: rotateX(0); opacity: 1; }
+          100% { transform: rotateX(-90deg); }
         }
-        .flip {
-          animation: flip 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-style: preserve-3d;
-          perspective: 400px;
+        @keyframes flipBottom {
+          0% { transform: rotateX(90deg); }
+          50% { transform: rotateX(0); }
+          70% { transform: rotateX(-8deg); }
+          85% { transform: rotateX(4deg); }
+          100% { transform: rotateX(0); }
+        }
+        .flip-top {
+          animation: flipTop 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .flip-bottom {
+          animation: flipBottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s forwards;
+        }
+        @keyframes checkmarkElastic {
+          0% { stroke-dashoffset: 20; transform: scale(0.8); }
+          50% { stroke-dashoffset: 0; transform: scale(1.2); }
+          70% { transform: scale(0.95); }
+          85% { transform: scale(1.05); }
+          100% { stroke-dashoffset: 0; transform: scale(1); }
+        }
+        .checkmark-animate {
+          animation: checkmarkElastic 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         @keyframes floatUp {
           from { opacity: 0; transform: translateY(16px); }

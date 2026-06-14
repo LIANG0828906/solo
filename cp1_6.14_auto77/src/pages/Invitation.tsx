@@ -607,14 +607,558 @@ export default function Invitation() {
   const [weddingDate, setWeddingDate] = useState('')
   const [venue, setVenue] = useState('')
   const [message, setMessage] = useState('')
-  const [textAreaExpanded, setTextAreaExpanded] = useState(false)
   const [showDownloadOverlay, setShowDownloadOverlay] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [toasts, setToasts] = useState<ToastState[]>([])
-  const [messageStyle, setMessageStyle] = useState({ bold: false, italic: false, underline: false })
+  const [boldActive, setBoldActive] = useState(false)
+  const [italicActive, setItalicActive] = useState(false)
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const editorHeightRef = useRef(80)
   const toastIdRef = useRef(0)
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    if (invitation
+    if (initializedRef.current) return
+    if (invitation) {
+      setTheme(invitation.theme)
+      setGroomName(invitation.groomName)
+      setBrideName(invitation.brideName)
+      setWeddingDate(invitation.weddingDate)
+      setVenue(invitation.venue)
+      setMessage(invitation.message)
+      if (editorRef.current && invitation.message) {
+        editorRef.current.innerHTML = invitation.message
+      }
+      initializedRef.current = true
+    } else if (wedding) {
+      setGroomName(wedding.groomName)
+      setBrideName(wedding.brideName)
+      setWeddingDate(wedding.weddingDate)
+      setVenue(wedding.venue)
+      setTheme(wedding.invitationTheme)
+      setMessage(wedding.invitationMessage)
+      if (editorRef.current && wedding.invitationMessage) {
+        editorRef.current.innerHTML = wedding.invitationMessage
+      }
+      initializedRef.current = true
+    }
+  }, [wedding, invitation])
+
+  const addToast = (message: string, type: ToastState['type'] = 'success') => {
+    const id = ++toastIdRef.current
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 2500)
+  }
+
+  const handleEditorInput = () => {
+    if (!editorRef.current) return
+    const html = editorRef.current.innerHTML
+    setMessage(html)
+    const scrollH = editorRef.current.scrollHeight
+    if (scrollH > editorHeightRef.current) {
+      editorHeightRef.current = scrollH
+    }
+    updateFormatState()
+  }
+
+  const updateFormatState = () => {
+    setBoldActive(document.queryCommandState('bold'))
+    setItalicActive(document.queryCommandState('italic'))
+  }
+
+  const execCommand = (command: string, value?: string) => {
+    editorRef.current?.focus()
+    document.execCommand(command, false, value)
+    updateFormatState()
+    handleEditorInput()
+  }
+
+  const insertLineBreak = () => {
+    if (!editorRef.current) return
+    editorRef.current.focus()
+    const selection = window.getSelection()
+    if (!selection || !selection.rangeCount) return
+    const range = selection.getRangeAt(0)
+    range.deleteContents()
+    const br = document.createElement('br')
+    range.insertNode(br)
+    range.setStartAfter(br)
+    range.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    handleEditorInput()
+  }
+
+  const handleSave = async () => {
+    try {
+      await updateInvitation({
+        theme,
+        groomName,
+        brideName,
+        weddingDate,
+        venue,
+        message,
+      })
+      await updateWedding({
+        groomName,
+        brideName,
+        weddingDate,
+        venue,
+        invitationTheme: theme,
+        invitationMessage: message,
+      })
+      addToast('请柬已保存')
+    } catch {
+      addToast('保存失败', 'error')
+    }
+  }
+
+  const handleCopyLink = async () => {
+    const shareUrl = invitation?.shareUrl || `${window.location.origin}/invitation/${wedding?.id || 'demo'}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      addToast('链接已复制到剪贴板')
+    } catch {
+      addToast('复制失败', 'error')
+    }
+  }
+
+  const handleDownloadImage = () => {
+    setShowDownloadOverlay(true)
+    setDownloadProgress(0)
+    const duration = 2000
+    const interval = 30
+    const steps = duration / interval
+    let current = 0
+    const timer = setInterval(() => {
+      current += 100 / steps
+      if (current >= 100) {
+        current = 100
+        clearInterval(timer)
+        setTimeout(() => {
+          setShowDownloadOverlay(false)
+          setDownloadProgress(0)
+          addToast('图片已生成并下载')
+        }, 300)
+      }
+      setDownloadProgress(Math.min(current, 100))
+    }, interval)
+  }
+
+  const themeKeys: InvitationTheme[] = ['garden', 'classic', 'modern']
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 14px',
+    border: '1.5px solid #D4C9C0',
+    borderRadius: 10,
+    fontSize: 14,
+    outline: 'none',
+    color: '#6B5B55',
+    background: '#FFFFFF',
+    transition: 'all 0.3s ease',
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#6B5B55',
+    marginBottom: 6,
+  }
+
+  const sectionCardStyle: React.CSSProperties = {
+    borderRadius: 12,
+    padding: 24,
+    background: '#FFFFFF',
+    boxShadow: '0 4px 16px rgba(232, 168, 184, 0.15)',
+    border: '1px solid rgba(232, 168, 184, 0.1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  }
+
+  const toolbarBtnStyle = (active: boolean): React.CSSProperties => ({
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    border: `1.5px solid ${active ? '#E8A8B8' : '#D4C9C0'}`,
+    background: active ? 'rgba(250, 218, 221, 0.4)' : '#FFFFFF',
+    color: active ? '#E8A8B8' : '#9B8B85',
+    fontSize: 14,
+    fontWeight: active ? 700 : 400,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.25s ease',
+    padding: 0,
+  })
+
+  return (
+    <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes floatUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes progressShimmer {
+          0% { background-position: -200px 0; }
+          100% { background-position: calc(200px + 100%) 0; }
+        }
+        .invitation-editor:focus {
+          border-color: #E8A8B8 !important;
+          box-shadow: 0 0 0 3px rgba(232, 168, 184, 0.2) !important;
+        }
+        .invitation-input:focus {
+          border-color: #E8A8B8;
+          box-shadow: 0 0 0 3px rgba(232, 168, 184, 0.2);
+        }
+        .invitation-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(232, 168, 184, 0.25);
+        }
+      `}</style>
+
+      <div style={{ animation: 'floatUp 0.5s ease both', marginBottom: 24 }}>
+        <h2 style={{ fontSize: 26, fontWeight: 700, color: '#6B5B55', marginBottom: 4 }}>
+          💌 电子请柬
+        </h2>
+        <p style={{ fontSize: 14, color: '#9B8B85' }}>
+          设计专属于你们的婚礼邀请函，选择主题、编辑内容、实时预览
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+          <div className="invitation-card" style={sectionCardStyle}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#6B5B55', marginBottom: 16 }}>
+              🎨 主题选择
+            </h3>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {themeKeys.map((t) => (
+                <ThemeThumbnail
+                  key={t}
+                  theme={t}
+                  selected={theme === t}
+                  onClick={() => setTheme(t)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="invitation-card" style={sectionCardStyle}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#6B5B55', marginBottom: 16 }}>
+              💍 新人信息
+            </h3>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label style={labelStyle}>新郎姓名</label>
+                <input
+                  type="text"
+                  value={groomName}
+                  onChange={(e) => setGroomName(e.target.value)}
+                  placeholder="请输入新郎姓名"
+                  className="invitation-input"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={labelStyle}>新娘姓名</label>
+                <input
+                  type="text"
+                  value={brideName}
+                  onChange={(e) => setBrideName(e.target.value)}
+                  placeholder="请输入新娘姓名"
+                  className="invitation-input"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="invitation-card" style={sectionCardStyle}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#6B5B55', marginBottom: 16 }}>
+              📅 婚礼详情
+            </h3>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>婚礼日期与时间</label>
+              <input
+                type="datetime-local"
+                value={weddingDate}
+                onChange={(e) => setWeddingDate(e.target.value)}
+                className="invitation-input"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>婚礼地点</label>
+              <input
+                type="text"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                placeholder="请输入婚礼举办地点"
+                className="invitation-input"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div className="invitation-card" style={sectionCardStyle}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#6B5B55', marginBottom: 12 }}>
+              📝 邀请语编辑
+            </h3>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <button
+                onClick={() => execCommand('bold')}
+                style={toolbarBtnStyle(boldActive)}
+                title="加粗"
+              >
+                B
+              </button>
+              <button
+                onClick={() => execCommand('italic')}
+                style={toolbarBtnStyle(italicActive)}
+                title="斜体"
+              >
+                I
+              </button>
+              <button
+                onClick={insertLineBreak}
+                style={toolbarBtnStyle(false)}
+                title="插入换行"
+              >
+                ↵
+              </button>
+            </div>
+            <div
+              ref={editorRef}
+              contentEditable
+              className="invitation-editor"
+              onInput={handleEditorInput}
+              onMouseUp={updateFormatState}
+              onKeyUp={updateFormatState}
+              style={{
+                minHeight: 80,
+                height: editorHeightRef.current,
+                maxHeight: 300,
+                padding: '12px 14px',
+                border: '1.5px solid #D4C9C0',
+                borderRadius: 10,
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: '#6B5B55',
+                outline: 'none',
+                overflowY: 'auto',
+                transition: 'height 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
+                background: '#FFFFFF',
+                wordBreak: 'break-word',
+              }}
+              data-placeholder="写下您想对宾客说的话..."
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              onClick={handleSave}
+              style={{
+                flex: 1,
+                padding: '12px 0',
+                border: 'none',
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #FADADD, #E8A8B8)',
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 14px rgba(232, 168, 184, 0.35)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)'
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(232, 168, 184, 0.45)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(232, 168, 184, 0.35)'
+              }}
+            >
+              💾 保存请柬
+            </button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, position: 'sticky', top: 24 }}>
+          <div
+            style={{
+              borderRadius: 12,
+              padding: 24,
+              background: '#FFFFFF',
+              boxShadow: '0 8px 32px rgba(232, 168, 184, 0.2)',
+              border: '1px solid rgba(232, 168, 184, 0.12)',
+            }}
+          >
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: '#9B8B85', marginBottom: 16, textAlign: 'center', letterSpacing: 2 }}>
+              实时预览
+            </h3>
+            <InvitationPreview
+              theme={theme}
+              groomName={groomName}
+              brideName={brideName}
+              weddingDate={weddingDate}
+              venue={venue}
+              message={message}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 400 }}>
+            <button
+              onClick={handleCopyLink}
+              style={{
+                flex: 1,
+                padding: '11px 0',
+                border: '1.5px solid #E8A8B8',
+                borderRadius: 12,
+                background: '#FFFFFF',
+                color: '#E8A8B8',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#FADADD'
+                e.currentTarget.style.color = '#fff'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#FFFFFF'
+                e.currentTarget.style.color = '#E8A8B8'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
+            >
+              🔗 复制链接
+            </button>
+            <button
+              onClick={handleDownloadImage}
+              style={{
+                flex: 1,
+                padding: '11px 0',
+                border: '1.5px solid #F7E7CE',
+                borderRadius: 12,
+                background: '#FFFFFF',
+                color: '#D4AF37',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #F7E7CE, #FADADD)'
+                e.currentTarget.style.color = '#fff'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#FFFFFF'
+                e.currentTarget.style.color = '#D4AF37'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
+            >
+              📥 下载图片
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showDownloadOverlay && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(107, 91, 85, 0.6)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: '36px 48px',
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ fontSize: 40, marginBottom: 16 }}>📸</div>
+            <p style={{ fontSize: 16, fontWeight: 600, color: '#6B5B55', marginBottom: 20 }}>
+              正在生成请柬图片...
+            </p>
+            <div
+              style={{
+                width: 240,
+                height: 8,
+                borderRadius: 4,
+                background: '#FADADD',
+                overflow: 'hidden',
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${downloadProgress}%`,
+                  borderRadius: 4,
+                  background: 'linear-gradient(90deg, #E8A8B8, #D4AF37)',
+                  transition: 'width 0.08s linear',
+                }}
+              />
+            </div>
+            <p style={{ fontSize: 13, color: '#9B8B85' }}>
+              {Math.round(downloadProgress)}%
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'fixed',
+          top: 100,
+          right: 24,
+          zIndex: 200,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            style={{
+              padding: '12px 20px',
+              borderRadius: 10,
+              background: toast.type === 'error' ? '#FEE2E2' : toast.type === 'info' ? '#FEF3C7' : '#F0FDF4',
+              color: toast.type === 'error' ? '#DC2626' : toast.type === 'info' ? '#92400E' : '#166534',
+              fontSize: 14,
+              fontWeight: 500,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              animation: 'slideInRight 0.35s ease',
+              border: `1px solid ${toast.type === 'error' ? '#FECACA' : toast.type === 'info' ? '#FDE68A' : '#BBF7D0'}`,
+            }}
+          >
+            {toast.type === 'success' && '✅ '}{toast.type === 'error' && '❌ '}{toast.type === 'info' && 'ℹ️ '}{toast.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

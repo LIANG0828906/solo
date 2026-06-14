@@ -21,6 +21,9 @@ const emptyForm: Omit<Guest, 'id' | 'createdAt' | 'addedBy' | 'addedByName'> = {
 export default function GuestList() {
   const { guests, addGuest, updateGuest, deleteGuest, currentUser } = useApp()
   const [activeFilter, setActiveFilter] = useState<RsvpFilter>('all')
+  const [filterIndicator, setFilterIndicator] = useState({ left: 0, width: 0 })
+  const filterBarRef = React.useRef<HTMLDivElement>(null)
+  const filterBtnRefs = React.useRef<Record<string, HTMLButtonElement | null>>({})
   const [searchText, setSearchText] = useState('')
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
