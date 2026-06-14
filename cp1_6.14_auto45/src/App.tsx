@@ -1,12 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import RoomList from '@/pages/RoomList';
+import RoomDetail from '@/pages/RoomDetail';
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
+        <Route path="/" element={<RoomList />} />
+        <Route path="/room/:id" element={<RoomDetail />} />
       </Routes>
     </Router>
   );
