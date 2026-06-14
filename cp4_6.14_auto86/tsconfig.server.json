@@ -9,9 +9,9 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "outDir": "./dist-server",
-    "rootDir": "./",
-    "types": ["node", "express"]
+    "rootDir": "./server",
+    "types": ["node"]
   },
-  "include": ["server/**/*.ts", "src/types.ts"],
-  "exclude": ["node_modules", "src/**/*.tsx", "src/**/*.ts"]
+  "include": ["server/**/*.ts"],
+  "exclude": ["node_modules", "src"]
 }

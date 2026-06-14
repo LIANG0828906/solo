@@ -2,7 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
-import type { Property, CalendarDay, Message, BookingStatus } from '../src/types';
+import type { Property, CalendarDay, Message, BookingStatus } from './types';
 
 const app = express();
 const PORT = 3000;
