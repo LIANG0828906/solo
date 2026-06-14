@@ -1,7 +1,8 @@
-import { JSONFilePreset } from 'lowdb/node';
+import { Low, JSONFile } from 'lowdb';
 import path from 'path';
+import fs from 'fs';
 
-interface FosterFamily {
+export interface FosterFamily {
   id: string;
   name: string;
   avatar: string;
@@ -16,7 +17,7 @@ interface FosterFamily {
   verified: boolean;
 }
 
-interface ScheduleTask {
+export interface ScheduleTask {
   id: string;
   fosterFamilyId: string;
   petName: string;
@@ -26,7 +27,7 @@ interface ScheduleTask {
   description: string;
 }
 
-interface Message {
+export interface Message {
   id: string;
   fosterId: string;
   senderRole: 'owner' | 'foster';
@@ -36,7 +37,7 @@ interface Message {
   read: boolean;
 }
 
-interface FosterApplication {
+export interface FosterApplication {
   id: string;
   familyId: string;
   ownerName: string;
@@ -48,7 +49,7 @@ interface FosterApplication {
   createdAt: string;
 }
 
-interface DbSchema {
+export interface DbSchema {
   fosterFamilies: FosterFamily[];
   scheduleTasks: ScheduleTask[];
   messages: Message[];
@@ -60,13 +61,14 @@ const defaultData: DbSchema = {
     {
       id: 'f1',
       name: '王晓琳',
-      avatar: 'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces',
       description: '资深猫咪爱好者，家中养有3只猫咪，拥有8年猫咪寄养经验。熟悉各品种猫咪习性，能提供最贴心的照顾。',
       petTypes: ['猫'],
       dailyRate: 120,
       photos: [
-        'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg',
-        'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg'
+        'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=800&h=500&fit=crop'
       ],
       rating: 4.9,
       fosterCount: 56,
@@ -77,12 +79,13 @@ const defaultData: DbSchema = {
     {
       id: 'f2',
       name: '李明远',
-      avatar: 'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces',
       description: '专业狗狗寄养师，拥有独立院落，每天保证2小时户外遛狗时间。擅长中大型犬护理，性格温和有耐心。',
       petTypes: ['狗'],
       dailyRate: 150,
       photos: [
-        'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg'
+        'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&h=500&fit=crop'
       ],
       rating: 4.8,
       fosterCount: 43,
@@ -93,12 +96,13 @@ const defaultData: DbSchema = {
     {
       id: 'f3',
       name: '张雨晴',
-      avatar: 'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg',
+      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=faces',
       description: '小型宠物之家，专门接待5kg以下的小型犬和猫咪。家中环境温馨安静，适合胆小敏感的宠物。',
       petTypes: ['猫', '狗'],
       dailyRate: 80,
       photos: [
-        'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg'
+        'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&h=500&fit=crop'
       ],
       rating: 4.7,
       fosterCount: 31,
@@ -109,12 +113,13 @@ const defaultData: DbSchema = {
     {
       id: 'f4',
       name: '陈思远',
-      avatar: 'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces',
       description: '异宠寄养专家，擅长仓鼠、兔子、龙猫等小型异宠照料。恒温恒湿环境，专业饲养设备齐全。',
       petTypes: ['仓鼠', '兔子', '龙猫', '鹦鹉'],
       dailyRate: 100,
       photos: [
-        'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg'
+        'https://images.unsplash.com/photo-1535241749838-299277b6305f?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=800&h=500&fit=crop'
       ],
       rating: 4.6,
       fosterCount: 22,
@@ -125,13 +130,14 @@ const defaultData: DbSchema = {
     {
       id: 'f5',
       name: '刘美华',
-      avatar: 'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces',
       description: '温馨宠物旅馆主人，10年宠物护理经验。提供独立宠物房间，每日视频连线让您随时看到毛孩子。',
       petTypes: ['猫', '狗'],
       dailyRate: 200,
       photos: [
-        'https://img.zcool.cn/community/01cf9a5b5765b4a801214168a4ed72.jpg',
-        'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg'
+        'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&h=500&fit=crop'
       ],
       rating: 5.0,
       fosterCount: 89,
@@ -142,12 +148,13 @@ const defaultData: DbSchema = {
     {
       id: 'f6',
       name: '赵建国',
-      avatar: 'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces',
       description: '大型犬专属寄养，拥有200平室外活动区域。金毛、拉布拉多、哈士奇等大型犬的理想选择，保证充足运动量。',
       petTypes: ['狗'],
       dailyRate: 180,
       photos: [
-        'https://img.zcool.cn/community/0178655798bd5e0000018c1bf4a0c6.jpg'
+        'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&h=500&fit=crop',
+        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&h=500&fit=crop'
       ],
       rating: 4.5,
       fosterCount: 67,
@@ -211,43 +218,53 @@ const defaultData: DbSchema = {
 let db: any = null;
 
 async function initDb() {
-  const dbPath = path.join(process.cwd(), 'server', 'db.json');
-  db = await JSONFilePreset<DbSchema>(dbPath, defaultData);
+  const dbDir = path.join(process.cwd(), 'server');
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+  const dbPath = path.join(dbDir, 'db.json');
+  const adapter = new JSONFile<DbSchema>(dbPath);
+  db = new Low<DbSchema>(adapter, JSON.parse(JSON.stringify(defaultData)) as DbSchema);
+  await db.read();
+  if (!db.data || Object.keys(db.data).length === 0) {
+    db.data = JSON.parse(JSON.stringify(defaultData));
+    await db.write();
+  }
   return db;
 }
 
-function getDb() {
+function getDb(): any {
   if (!db) {
     throw new Error('Database not initialized. Call initDb() first.');
   }
   return db;
 }
 
-function getCollection(name: keyof DbSchema) {
+function getCollection<K extends keyof DbSchema>(name: K): DbSchema[K] {
   const database = getDb();
   return database.data[name];
 }
 
-async function addItem(name: keyof DbSchema, item: any) {
+async function addItem<K extends keyof DbSchema>(name: K, item: DbSchema[K][number]) {
   const database = getDb();
-  database.data[name].push(item);
+  (database.data[name] as any[]).push(item);
   await database.write();
   return item;
 }
 
-async function updateItem(name: keyof DbSchema, id: string, updates: any) {
+async function updateItem<K extends keyof DbSchema>(name: K, id: string, updates: Partial<DbSchema[K][number]>) {
   const database = getDb();
-  const collection = database.data[name];
+  const collection = database.data[name] as any[];
   const index = collection.findIndex((item: any) => item.id === id);
   if (index === -1) return null;
-  Object.assign(collection[index], updates);
+  collection[index] = { ...collection[index], ...updates };
   await database.write();
   return collection[index];
 }
 
-async function deleteItem(name: keyof DbSchema, id: string) {
+async function deleteItem<K extends keyof DbSchema>(name: K, id: string) {
   const database = getDb();
-  const collection = database.data[name];
+  const collection = database.data[name] as any[];
   const index = collection.findIndex((item: any) => item.id === id);
   if (index === -1) return false;
   collection.splice(index, 1);
@@ -255,10 +272,9 @@ async function deleteItem(name: keyof DbSchema, id: string) {
   return true;
 }
 
-function findItems(name: keyof DbSchema, predicate: (item: any) => boolean) {
+function findItems<K extends keyof DbSchema>(name: K, predicate: (item: DbSchema[K][number]) => boolean) {
   const database = getDb();
-  return database.data[name].filter(predicate);
+  return (database.data[name] as any[]).filter(predicate);
 }
 
 export { initDb, getDb, getCollection, addItem, updateItem, deleteItem, findItems };
-export type { DbSchema, FosterFamily, ScheduleTask, Message, FosterApplication };
