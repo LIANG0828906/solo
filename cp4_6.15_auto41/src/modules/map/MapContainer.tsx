@@ -8,54 +8,36 @@ import LazyImage from '@/components/LazyImage';
 function createCustomIcon(color: string, icon: string, isOpen: boolean, isSelected: boolean) {
   const size = isSelected ? 56 : 46;
   const baseColor = isOpen ? color : '#B0B0B0';
+  const shadowColor = isOpen ? color + '50' : 'rgba(0,0,0,0.2)';
   const selectedScale = isSelected ? 'scale(1.2)' : 'scale(1)';
   const fontSize = isSelected ? '26px' : '20px';
+  const statusDot = isOpen
+    ? '<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#7CB342;border:2px solid white;transform:rotate(45deg);"></div>'
+    : '';
+
+  const htmlContent = [
+    '<div style="',
+    'width:' + size + 'px;',
+    'height:' + size + 'px;',
+    'background:linear-gradient(135deg,' + baseColor + ',' + baseColor + 'dd);',
+    'border-radius:50% 50% 50% 0;',
+    'transform:rotate(-45deg) ' + selectedScale + ';',
+    'display:flex;align-items:center;justify-content:center;',
+    'box-shadow:0 4px 14px ' + shadowColor + ';',
+    'border:3px solid white;',
+    'transition:all 0.3s cubic-bezier(0.4,0,0.2,1);',
+    'position:relative;',
+    '" class="stall-marker ' + (isOpen ? '' : 'closed') + '">',
+    '<span style="transform:rotate(45deg);font-size:' + fontSize + ';filter:' + (isOpen ? 'none' : 'grayscale(40%)') + ';transition:filter 0.3s ease;">',
+    icon,
+    '</span>',
+    statusDot,
+    '</div>'
+  ].join('');
 
   return L.divIcon({
     className: 'custom-stall-marker',
-    html: `
-      <div
-        style="
-          width: ${size}px;
-          height: ${size}px;
-          background: linear-gradient(135deg, ${baseColor}, ${baseColor}dd);
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg) ${selectedScale};
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 14px ${isOpen ? `${color}50` : 'rgba(0,0,0,0.2)';
-          border: 3px solid white;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-        "
-        class="stall-marker ${isOpen ? '' : 'closed'}"
-      >
-        <span
-          style="
-            transform: rotate(45deg);
-            font-size: ${fontSize};
-            filter: ${isOpen ? 'none' : 'grayscale(40%)'};
-            transition: filter 0.3s ease;
-          "
-        >
-          ${icon}
-        </span>
-        ${isOpen ? `
-          <div style="
-            position: absolute;
-            bottom: -2px;
-            right: -2px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #7CB342;
-            border: 2px solid white;
-            transform: rotate(45deg);
-          "></div>
-        ` : ''}
-      </div>
-    `,
+    html: htmlContent,
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
     popupAnchor: [0, -size - 6]
@@ -95,30 +77,23 @@ function MapController({ selectedStall, selectedStallId }: MapControllerProps) {
 
 function PopupContent({ stall }: { stall: Stall }) {
   const hotProduct = stall.products.find(p => p.isHot) || stall.products[0];
+  const bgGradient = 'linear-gradient(135deg,' + stall.markerColor + ',' + stall.markerColor + 'dd)';
+  const shadowColor = stall.markerColor + '40';
 
   return (
-    <div style={{
-      width: '200px',
-      cursor: 'pointer',
-      fontFamily: 'inherit'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        marginBottom: '10px'
-      }}>
+    <div style={{ width: 200, cursor: 'pointer', fontFamily: 'inherit' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <div style={{
-          width: '40px',
-          height: '40px',
+          width: 40,
+          height: 40,
           borderRadius: '50%',
-          background: `linear-gradient(135deg, ${stall.markerColor}, ${stall.markerColor}dd)`,
+          background: bgGradient,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '20px',
+          fontSize: 20,
           flexShrink: 0,
-          boxShadow: `0 2px 6px ${stall.markerColor}40`,
+          boxShadow: '0 2px 6px ' + shadowColor,
           border: '2px solid white'
         }}>
           {stall.ownerAvatar}
@@ -126,7 +101,7 @@ function PopupContent({ stall }: { stall: Stall }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontWeight: 700,
-            fontSize: '15px',
+            fontSize: 15,
             color: '#333',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -134,11 +109,7 @@ function PopupContent({ stall }: { stall: Stall }) {
           }}>
             {stall.name}
           </div>
-          <div style={{
-            fontSize: '12px',
-            color: '#999',
-            marginTop: '2px'
-          }}>
+          <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
             {CATEGORY_LABELS[stall.category]} · {stall.owner}
           </div>
         </div>
@@ -147,16 +118,15 @@ function PopupContent({ stall }: { stall: Stall }) {
       {hotProduct && (
         <div style={{
           width: '100%',
-          height: '90px',
-          borderRadius: '10px',
+          height: 90,
+          borderRadius: 10,
           overflow: 'hidden',
-          marginBottom: '10px',
+          marginBottom: 10,
           background: '#f5f5f5'
         }}>
           <LazyImage
             src={hotProduct.image}
             alt={hotProduct.name}
-            style={{ borderRadius: '10px' }}
           />
         </div>
       )}
@@ -165,8 +135,8 @@ function PopupContent({ stall }: { stall: Stall }) {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        fontSize: '12px',
-        paddingTop: '8px',
+        fontSize: 12,
+        paddingTop: 8,
         borderTop: '1px solid #f0f0f0'
       }}>
         <span style={{
@@ -174,21 +144,18 @@ function PopupContent({ stall }: { stall: Stall }) {
           fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
-          gap: '4px'
+          gap: 4
         }}>
           <span style={{
-            width: '8px',
-            height: '8px',
+            display: 'inline-block',
+            width: 8,
+            height: 8,
             borderRadius: '50%',
-            background: stall.isOpen ? '#7CB342' : '#ccc',
-            display: 'inline-block'
+            background: stall.isOpen ? '#7CB342' : '#ccc'
           }} />
           {stall.isOpen ? '营业中' : '已收摊'}
         </span>
-        <span style={{
-          color: '#8B7355',
-          fontWeight: 600
-        }}>
+        <span style={{ color: '#8B7355', fontWeight: 600 }}>
           📍 {stall.distance}m
         </span>
       </div>
@@ -208,15 +175,44 @@ export default function MapContainer() {
         stall.isOpen,
         selectedStallId === stall.id
       );
-      return {
-        stall,
-        icon,
-        zIndex: stall.isOpen
-          ? (selectedStallId === stall.id ? 1000 : 500)
-          : (selectedStallId === stall.id ? 200 : 100)
-      };
+      const zIndex = stall.isOpen
+        ? (selectedStallId === stall.id ? 1000 : 500)
+        : (selectedStallId === stall.id ? 200 : 100);
+      return { stall, icon, zIndex };
     });
   }, [filteredStalls, selectedStallId]);
+
+  const cssStyles = `
+    .custom-stall-marker {
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .stall-marker.closed {
+      filter: grayscale(50%);
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px !important;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.12) !important;
+      padding: 2px !important;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px !important;
+    }
+
+    .leaflet-popup-tip {
+      box-shadow: 0 6px 24px rgba(0,0,0,0.12) !important;
+    }
+
+    @media (max-width: 768px) {
+      .map-container {
+        height: 50vh !important;
+        min-height: 280px;
+      }
+    }
+  `;
 
   return (
     <div
@@ -224,9 +220,9 @@ export default function MapContainer() {
       style={{
         width: '100%',
         height: '65vh',
-        minHeight: '320px',
+        minHeight: 320,
         position: 'relative',
-        borderBottom: '3px solid rgba(139, 115, 85, 0.2)',
+        borderBottom: '3px solid rgba(139,115,85,0.2)',
         background: '#e8e4dc'
       }}
     >
@@ -274,37 +270,7 @@ export default function MapContainer() {
         ))}
       </LeafletMapContainer>
 
-      <style>{`
-        .custom-stall-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-
-        .stall-marker.closed {
-          filter: grayscale(50%);
-        }
-
-        .leaflet-popup-content-wrapper {
-          border-radius: 14px !important;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.12) !important;
-          padding: 2px !important;
-        }
-
-        .leaflet-popup-content {
-          margin: 12px 14px !important;
-        }
-
-        .leaflet-popup-tip {
-          box-shadow: 0 6px 24px rgba(0,0,0,0.12) !important;
-        }
-
-        @media (max-width: 768px) {
-          .map-container {
-            height: 50vh !important;
-            min-height: 280px;
-          }
-        }
-      `}</style>
+      <style>{cssStyles}</style>
     </div>
   );
 }

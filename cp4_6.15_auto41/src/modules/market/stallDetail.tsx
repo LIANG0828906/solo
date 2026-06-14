@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useStallService } from '@/modules/map/stallService';
 import { useFavorites } from '@/context/FavoritesContext';
 import LazyImage from '@/components/LazyImage';
-import { CATEGORY_LABELS, Product } from '@/types';
+import { CATEGORY_LABELS } from '@/types';
+
+const CAROUSEL_DURATION = 180; // ms - 目标<200ms
 
 function renderStars(rating: number) {
   const fullStars = Math.floor(rating);
@@ -15,860 +17,777 @@ function renderStars(rating: number) {
     } else if (i === fullStars && hasHalf) {
       stars.push(<span key={i} style={{ color: '#FFD700' }}>☆</span>);
     } else {
-      stars.push(<span key={i} style={{ color: '#DDD' }}>★</span>);
+      stars.push(<span key={i} style={{ color: '#E0E0E0' }}>★</span>);
     }
   }
   return stars;
 }
 
-function CarouselItem({ product }: { product: Product }) {
-  return (
-    <div
-      style={{
-        minWidth: '100%',
-        scrollSnapAlign: 'start',
-        padding: '0 4px',
-        height: '100%'
-      }}
-    >
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          background: '#f5f5f5'
-        }}
-      >
-        <LazyImage
-          src={product.image}
-          alt={product.name}
-          style={{ borderRadius: '16px' }}
-        />
-        {product.isHot && (
-          <div style={{
-            position: 'absolute',
-            top: '16px',
-            left: '16px',
-            padding: '6px 14px',
-            background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            boxShadow: '0 2px 8px rgba(255,107,107,0.4)',
-            zIndex: 2
-          }}>
-            🔥 热销爆款
-          </div>
-        )}
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '20px 16px',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-          color: 'white',
-          zIndex: 2
-        }}>
-          <div style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            marginBottom: '6px'
-          }}>
-            {product.name}
-          </div>
-          <div style={{
-            fontSize: '22px',
-            fontWeight: 700,
-            color: '#FFD700'
-          }}>
-            ¥{product.price.toFixed(2)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+interface SwitchStats {
+  lastDuration: number | null;
+  frameCount: number;
 }
 
 export default function StallDetail() {
   const { selectedStall, setSelectedStallId, toggleStallStatus } = useStallService();
-  const { isFavorite, toggleFavorite } = useFavorites();
-
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [switchStats, setSwitchStats] = useState<SwitchStats>({ lastDuration: null, frameCount: 0 });
+  const [isAnimating, setIsAnimating] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
-  const touchCurrentX = useRef(0);
-  const isDragging = useRef(false);
+  const touchEndX = useRef(0);
+  const frameCountRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
 
-  const isVisible = selectedStall !== null;
-  const stall = selectedStall;
+  const isFav = selectedStall ? isFavorite(selectedStall.id) : false;
+  const favCount = favorites.length;
 
   useEffect(() => {
-    if (stall) {
-      setCurrentSlide(0);
-      setShowChat(false);
-      setChatMessage('');
-    }
-  }, [stall?.id]);
+    setCurrentSlide(0);
+  }, [selectedStall?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   const scrollToSlide = useCallback((index: number) => {
-    if (!carouselRef.current || !stall) return;
-    if (index < 0 || index >= stall.products.length) return;
+    if (!carouselRef.current || !selectedStall) return;
+    if (index < 0 || index >= selectedStall.products.length) return;
+    if (isAnimating) return;
+
+    setIsAnimating(true);
+    frameCountRef.current = 0;
 
     const startTime = performance.now();
     const startLeft = carouselRef.current.scrollLeft;
     const targetLeft = carouselRef.current.clientWidth * index;
     const distance = targetLeft - startLeft;
-    const duration = 180;
+    const duration = CAROUSEL_DURATION;
 
     const animate = (currentTime: number) => {
+      frameCountRef.current += 1;
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeProgress = 1 - Math.pow(1 - progress, 3);
-
-      if (carouselRef.current) {
-        carouselRef.current.scrollLeft = startLeft + distance * easeProgress;
-      }
+      carouselRef.current.scrollLeft = startLeft + distance * easeProgress;
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        const actualDuration = performance.now() - startTime;
+        setSwitchStats({
+          lastDuration: actualDuration,
+          frameCount: frameCountRef.current
+        });
+        setCurrentSlide(index);
+        setIsAnimating(false);
       }
     };
 
-    requestAnimationFrame(animate);
-    setCurrentSlide(index);
-  }, [stall]);
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, [selectedStall, isAnimating]);
+
+  const goToPrev = useCallback(() => {
+    if (!selectedStall) return;
+    const newIndex = (currentSlide - 1 + selectedStall.products.length) % selectedStall.products.length;
+    scrollToSlide(newIndex);
+  }, [currentSlide, selectedStall, scrollToSlide]);
+
+  const goToNext = useCallback(() => {
+    if (!selectedStall) return;
+    const newIndex = (currentSlide + 1) % selectedStall.products.length;
+    scrollToSlide(newIndex);
+  }, [currentSlide, selectedStall, scrollToSlide]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
-    touchCurrentX.current = touchStartX.current;
-    isDragging.current = true;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    touchCurrentX.current = e.touches[0].clientX;
+    touchEndX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = () => {
-    if (!stall || !isDragging.current) return;
-    isDragging.current = false;
-
-    const diff = touchStartX.current - touchCurrentX.current;
-    const threshold = 40;
-
-    if (Math.abs(diff) > threshold) {
-      if (diff > 0 && currentSlide < stall.products.length - 1) {
-        scrollToSlide(currentSlide + 1);
-      } else if (diff < 0 && currentSlide > 0) {
-        scrollToSlide(currentSlide - 1);
-      }
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goToNext();
+      else goToPrev();
     }
   };
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
-    setChatMessage('');
-  };
+  const handleToggleFavorite = useCallback(() => {
+    if (selectedStall) {
+      const t0 = performance.now();
+      toggleFavorite(selectedStall.id);
+      console.log(`[收藏性能] 切换收藏耗时: ${(performance.now() - t0).toFixed(2)}ms`);
+    }
+  }, [selectedStall, toggleFavorite]);
 
-  if (!stall) return null;
+  const handleToggleStatus = useCallback(() => {
+    if (selectedStall) {
+      const t0 = performance.now();
+      toggleStallStatus(selectedStall.id);
+      const elapsed = performance.now() - t0;
+      console.log(`[状态切换性能] ${selectedStall.name} 状态切换耗时: ${elapsed.toFixed(2)}ms`);
+    }
+  }, [selectedStall, toggleStallStatus]);
+
+  const detailProducts = selectedStall?.products || [];
+
+  if (!selectedStall) {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#aaa',
+        padding: 40,
+        textAlign: 'center',
+        background: 'linear-gradient(180deg, #fdfbf7, #f5f0e8)'
+      }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>👆</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: '#8B7355', marginBottom: 6 }}>
+          点击左侧摊位卡片
+        </div>
+        <div style={{ fontSize: 14, color: '#bbb' }}>
+          查看摊位详情和商品信息
+        </div>
+        <div style={{
+          marginTop: 24,
+          padding: '12px 20px',
+          background: 'white',
+          borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          fontSize: 13,
+          color: '#999'
+        }}>
+          当前已收藏 <span style={{ color: '#E91E63', fontWeight: 700 }}>{favCount}</span> 个摊位
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div
-        onClick={() => setSelectedStallId(null)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.45)',
-          zIndex: 999,
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 0.3s ease',
-          pointerEvents: isVisible ? 'auto' : 'none'
-        }}
-      />
-
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: '100%',
-          maxWidth: '460px',
-          height: '100vh',
-          background: '#FFF8E7',
-          zIndex: 1000,
-          transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.18)',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
+    <div style={{
+      width: '100%',
+      height: '100%',
+      background: 'white',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+      transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
+      filter: selectedStall.isOpen ? 'none' : 'grayscale(15%)',
+      opacity: selectedStall.isOpen ? 1 : 0.92
+    }}>
+      {!selectedStall.isOpen && (
         <div style={{
-          position: 'sticky',
-          top: 0,
-          background: 'rgba(255, 248, 231, 0.97)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          zIndex: 10,
-          padding: '16px 20px',
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          zIndex: 100,
+          padding: '12px 20px',
+          background: 'linear-gradient(135deg, rgba(158,158,158,0.95), rgba(176,176,176,0.95))',
+          color: 'white',
+          textAlign: 'center',
+          fontWeight: 600,
+          fontSize: 14,
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(139,115,85,0.12)'
+          justifyContent: 'center',
+          gap: 8
         }}>
-          <h2 style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: '#8B7355',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span>🛍️</span>
-            摊位详情
-          </h2>
+          <span style={{ fontSize: 18 }}>⚪</span>
+          该摊位已收摊，商品暂不营业
+        </div>
+      )}
+
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid #f0ebe3',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+        background: selectedStall.isOpen
+          ? 'linear-gradient(135deg, #fdfaf5, #f9f5ed)'
+          : 'linear-gradient(135deg, #f5f5f5, #f0f0f0)',
+        transition: 'background 0.3s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => setSelectedStallId(null)}
-            aria-label="关闭"
             style={{
-              width: '38px',
-              height: '38px',
+              width: 36,
+              height: 36,
               borderRadius: '50%',
-              background: 'rgba(139,115,85,0.08)',
+              border: 'none',
+              background: 'white',
+              cursor: 'pointer',
+              fontSize: 18,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '18px',
-              color: '#8B7355',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              transition: 'all 0.2s ease'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(139,115,85,0.18)';
-              e.currentTarget.style.transform = 'scale(1.08)';
+              e.currentTarget.style.background = '#f5f0e8';
+              e.currentTarget.style.transform = 'scale(1.1)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(139,115,85,0.08)';
+              e.currentTarget.style.background = 'white';
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             ✕
           </button>
+          <div>
+            <div style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#333',
+              marginBottom: 2
+            }}>
+              {selectedStall.name}
+            </div>
+            <div style={{
+              fontSize: 12,
+              color: '#999',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              {CATEGORY_LABELS[selectedStall.category]}
+              <span>·</span>
+              {selectedStall.products.length}件商品
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={handleToggleFavorite}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 22,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: isFav
+              ? 'linear-gradient(135deg, #E91E63, #F06292)'
+              : 'white',
+            boxShadow: isFav
+              ? '0 4px 14px rgba(233,30,99,0.35)'
+              : '0 2px 8px rgba(0,0,0,0.08)',
+            transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+            transform: isFav ? 'scale(1.08)' : 'scale(1)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = isFav ? 'scale(1.15)' : 'scale(1.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = isFav ? 'scale(1.08)' : 'scale(1)';
+          }}
+          title={isFav ? '取消收藏' : '加入收藏'}
+        >
+          {isFav ? '❤️' : '🤍'}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingTop: selectedStall.isOpen ? 0 : 48 }}>
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          background: '#f5f5f5'
+        }}>
+          <div
+            ref={carouselRef}
+            style={{
+              display: 'flex',
+              overflowX: 'scroll',
+              scrollSnapType: 'x mandatory',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch',
+              scrollBehavior: 'auto'
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {detailProducts.map((product) => (
+              <div
+                key={product.id}
+                style={{
+                  flex: '0 0 100%',
+                  height: 280,
+                  scrollSnapAlign: 'start',
+                  position: 'relative'
+                }}
+              >
+                <LazyImage src={product.image} alt={product.name} />
+                {product.isHot && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 16,
+                    left: 16,
+                    padding: '6px 14px',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    color: 'white',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)',
+                    boxShadow: '0 4px 12px rgba(255,107,107,0.4)'
+                  }}>
+                    🔥 热销商品
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {detailProducts.length > 1 && (
+            <>
+              <button
+                onClick={goToPrev}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: 12,
+                  transform: 'translateY(-50%)',
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: '#666',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+                  transition: 'all 0.2s ease',
+                  backdropFilter: 'blur(6px)',
+                  zIndex: 10
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.92)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                ‹
+              </button>
+              <button
+                onClick={goToNext}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: 12,
+                  transform: 'translateY(-50%)',
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: '#666',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+                  transition: 'all 0.2s ease',
+                  backdropFilter: 'blur(6px)',
+                  zIndex: 10
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.92)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                ›
+              </button>
+
+              <div style={{
+                position: 'absolute',
+                bottom: 14,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: 8,
+                zIndex: 10
+              }}>
+                {detailProducts.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => scrollToSlide(i)}
+                    style={{
+                      width: currentSlide === i ? 24 : 8,
+                      height: 8,
+                      borderRadius: 4,
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                      background: currentSlide === i
+                        ? 'white'
+                        : 'rgba(255,255,255,0.5)',
+                      boxShadow: currentSlide === i
+                        ? '0 2px 6px rgba(0,0,0,0.2)'
+                        : 'none'
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {switchStats.lastDuration !== null && (
+            <div style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              padding: '4px 10px',
+              borderRadius: 10,
+              fontSize: 11,
+              fontWeight: 600,
+              color: switchStats.lastDuration < 200 ? '#7CB342' : '#FF9800',
+              background: switchStats.lastDuration < 200
+                ? 'rgba(124,179,66,0.92)'
+                : 'rgba(255,152,0,0.92)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 10,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}>
+              ⚡ {switchStats.lastDuration.toFixed(0)}ms / {switchStats.frameCount}帧
+            </div>
+          )}
         </div>
 
-        <div style={{
-          padding: '20px',
-          flex: 1
-        }}>
+        <div style={{ padding: 20 }}>
           <div style={{
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'flex-start',
-            gap: '16px',
-            marginBottom: '20px',
-            padding: '18px',
-            background: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
+            marginBottom: 16
+          }}>
+            <div style={{ flex: 1 }}>
+              <h2 style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: '#333',
+                margin: '0 0 8px 0',
+                lineHeight: 1.3
+              }}>
+                {detailProducts[currentSlide]?.name}
+              </h2>
+              <div style={{
+                fontSize: 13,
+                color: '#999',
+                lineHeight: 1.6
+              }}>
+                {detailProducts[currentSlide]?.description}
+              </div>
+            </div>
+            <div style={{
+              textAlign: 'right',
+              marginLeft: 16,
+              flexShrink: 0
+            }}>
+              <div style={{
+                fontSize: 28,
+                fontWeight: 800,
+                color: '#E65100',
+                marginBottom: 2
+              }}>
+                ¥{detailProducts[currentSlide]?.price}
+              </div>
+              <div style={{
+                fontSize: 12,
+                color: '#bbb'
+              }}>
+                已售 {detailProducts[currentSlide]?.sales} 件
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '14px 16px',
+            background: '#fdfaf5',
+            borderRadius: 14,
+            marginBottom: 20
           }}>
             <div style={{
-              width: '68px',
-              height: '68px',
+              width: 52,
+              height: 52,
               borderRadius: '50%',
-              background: `linear-gradient(135deg, ${stall.markerColor}, ${stall.markerColor}dd)`,
+              background: `linear-gradient(135deg, ${selectedStall.markerColor}, ${selectedStall.markerColor}dd)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '34px',
+              fontSize: 26,
               flexShrink: 0,
-              boxShadow: `0 4px 16px ${stall.markerColor}40`,
-              border: '3px solid white'
+              boxShadow: `0 4px 12px ${selectedStall.markerColor}40`,
+              border: '3px solid white',
+              transition: 'filter 0.3s ease',
+              filter: selectedStall.isOpen ? 'none' : 'grayscale(40%)'
             }}>
-              {stall.ownerAvatar}
+              {selectedStall.ownerAvatar}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                marginBottom: '8px',
-                flexWrap: 'wrap'
+                fontSize: 15,
+                fontWeight: 600,
+                color: '#333',
+                marginBottom: 4
               }}>
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: 700,
-                  color: '#333',
-                  margin: 0
-                }}>
-                  {stall.name}
-                </h3>
+                {selectedStall.owner}
                 <span style={{
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'white',
-                  background: stall.markerColor,
-                  letterSpacing: '0.5px'
-                }}>
-                  {CATEGORY_LABELS[stall.category]}
-                </span>
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: '#888',
-                marginBottom: '10px'
-              }}>
-                👤 摊主：{stall.owner}
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                fontSize: '14px',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {renderStars(stall.rating)}
-                  <span style={{ color: '#666', fontWeight: 600, marginLeft: '2px' }}>
-                    {stall.rating.toFixed(1)}
-                  </span>
-                </div>
-                <span style={{
-                  color: '#8B7355',
+                  fontSize: 11,
+                  color: '#999',
                   fontWeight: 500,
-                  padding: '2px 8px',
-                  background: 'rgba(139,115,85,0.08)',
-                  borderRadius: '8px'
+                  marginLeft: 6
                 }}>
-                  📍 {stall.distance}m
-                </span>
-                <span style={{
-                  color: '#7CB342',
-                  fontWeight: 500
-                }}>
-                  🛍️ {stall.products.length}件
+                  · 摊主
                 </span>
               </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 13
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {renderStars(selectedStall.rating)}
+                  <span style={{ color: '#8B7355', fontWeight: 600, marginLeft: 4 }}>
+                    {selectedStall.rating.toFixed(1)}
+                  </span>
+                </span>
+                <span style={{ color: '#ddd' }}>|</span>
+                <span style={{ color: '#888' }}>📍 {selectedStall.distance}m</span>
+              </div>
             </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '20px'
-          }}>
             <button
-              onClick={() => setShowChat(!showChat)}
+              onClick={handleToggleStatus}
               style={{
-                flex: 1,
-                padding: '13px 16px',
-                borderRadius: '14px',
-                fontSize: '15px',
+                padding: '8px 14px',
+                borderRadius: 18,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
                 fontWeight: 600,
-                background: showChat ? '#8B7355' : 'linear-gradient(135deg, #7CB342, #8BC34A)',
+                transition: 'all 0.3s ease',
+                background: selectedStall.isOpen
+                  ? 'linear-gradient(135deg, #7CB342, #9CCC65)'
+                  : 'linear-gradient(135deg, #9E9E9E, #BDBDBD)',
                 color: 'white',
-                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: showChat
-                  ? '0 4px 12px rgba(139,115,85,0.35)'
-                  : '0 4px 12px rgba(124,179,66,0.35)',
+                boxShadow: selectedStall.isOpen
+                  ? '0 4px 10px rgba(124,179,66,0.35)'
+                  : '0 2px 6px rgba(0,0,0,0.15)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
+                gap: 5
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.02)';
+                e.currentTarget.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              💬 在线沟通
-            </button>
-            <button
-              onClick={() => toggleStallStatus(stall.id)}
-              style={{
-                flex: 1,
-                padding: '13px 16px',
-                borderRadius: '14px',
-                fontSize: '15px',
-                fontWeight: 600,
-                background: stall.isOpen ? 'white' : '#f5f5f5',
-                color: stall.isOpen ? '#7CB342' : '#aaa',
-                border: `2px solid ${stall.isOpen ? '#7CB342' : '#e0e0e0'}`,
-                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              {stall.isOpen ? '🟢 营业中' : '⚪ 已收摊'}
+              {selectedStall.isOpen ? '🟢 营业中' : '⚪ 已收摊'}
             </button>
           </div>
 
-          {showChat && (
-            <div style={{
-              marginBottom: '20px',
-              padding: '18px',
-              background: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-              animation: 'fadeInUp 0.35s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}>
-              <div style={{
-                fontSize: '13px',
-                color: '#888',
-                marginBottom: '12px',
-                fontWeight: 500
-              }}>
-                💬 实时消息
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: '#555',
-                marginBottom: '14px',
-                padding: '12px 14px',
-                background: '#f8f5f0',
-                borderRadius: '0 12px 12px 12px',
-                lineHeight: 1.5,
-                maxWidth: '85%'
-              }}>
-                👋 您好呀！欢迎光临<span style={{ color: '#8B7355', fontWeight: 600 }}>{stall.name}</span>～
-                有什么想了解的随时问我哦！
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-                <input
-                  type="text"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="输入消息，和摊主聊聊..."
-                  style={{
-                    flex: 1,
-                    padding: '11px 16px',
-                    borderRadius: '22px',
-                    border: '2px solid #eee',
-                    fontSize: '14px',
-                    outline: 'none',
-                    transition: 'all 0.2s ease',
-                    background: '#fafafa'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#7CB342';
-                    e.target.style.background = 'white';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#eee';
-                    e.target.style.background = '#fafafa';
-                  }}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  style={{
-                    padding: '11px 20px',
-                    borderRadius: '22px',
-                    background: chatMessage.trim()
-                      ? 'linear-gradient(135deg, #7CB342, #8BC34A)'
-                      : '#ccc',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    transition: 'all 0.2s ease',
-                    cursor: chatMessage.trim() ? 'pointer' : 'not-allowed'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (chatMessage.trim()) e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  发送
-                </button>
-              </div>
-            </div>
-          )}
-
           <div style={{
-            padding: '18px',
-            background: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            marginBottom: '20px'
+            padding: '16px',
+            background: '#faf8f4',
+            borderRadius: 14,
+            marginBottom: 20
           }}>
-            <h4 style={{
-              fontSize: '15px',
+            <div style={{
+              fontSize: 14,
               fontWeight: 600,
               color: '#8B7355',
-              marginBottom: '10px',
+              marginBottom: 12,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: 6
             }}>
               <span>📝</span>
-              摊主简介
-            </h4>
+              摊位介绍
+            </div>
             <p style={{
-              fontSize: '14px',
+              fontSize: 13,
               color: '#666',
-              lineHeight: 1.7,
+              lineHeight: 1.8,
               margin: 0
             }}>
-              {stall.description}
+              {selectedStall.description}
             </p>
           </div>
 
-          <div>
+          <div style={{
+            padding: '16px',
+            background: '#f5f9ff',
+            borderRadius: 14,
+            marginBottom: 20
+          }}>
             <div style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#1976D2',
+              marginBottom: 12,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px'
+              gap: 6
             }}>
-              <h4 style={{
-                fontSize: '17px',
-                fontWeight: 700,
-                color: '#333',
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span>🎁</span>
-                精选商品
-                <span style={{
-                  fontSize: '13px',
-                  color: '#999',
-                  fontWeight: 500
-                }}>
-                  ({stall.products.length}件)
-                </span>
-              </h4>
-              <span style={{
-                fontSize: '12px',
-                color: '#bbb',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <span>👆</span>
-                左右滑动
-              </span>
+              <span>🎯</span>
+              性能监控
             </div>
-
-            <div style={{
-              position: 'relative',
-              borderRadius: '16px',
-              marginBottom: '16px'
-            }}>
-              <div
-                ref={carouselRef}
-                style={{
-                  display: 'flex',
-                  width: '100%',
-                  height: '280px',
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  scrollSnapType: 'x mandatory',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  WebkitOverflowScrolling: 'touch',
-                  borderRadius: '16px'
-                }}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                {stall.products.map((product) => (
-                  <CarouselItem key={product.id} product={product} />
-                ))}
-              </div>
-
-              <style>{`
-                div::-webkit-scrollbar {
-                  display: none;
-                }
-              `}</style>
-
-              {stall.products.length > 1 && (
-                <>
-                  <button
-                    onClick={() => currentSlide > 0 && scrollToSlide(currentSlide - 1)}
-                    aria-label="上一张"
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: currentSlide > 0
-                        ? 'rgba(255,255,255,0.95)'
-                        : 'rgba(255,255,255,0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      color: '#8B7355',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-                      cursor: currentSlide > 0 ? 'pointer' : 'default',
-                      transition: 'all 0.2s ease',
-                      border: 'none',
-                      pointerEvents: currentSlide > 0 ? 'auto' : 'none',
-                      zIndex: 3
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentSlide > 0) {
-                        e.currentTarget.style.transform = 'translateY(-50%) scale(1.12)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                    }}
-                  >
-                    ‹
-                  </button>
-                  <button
-                    onClick={() => currentSlide < stall.products.length - 1 && scrollToSlide(currentSlide + 1)}
-                    aria-label="下一张"
-                    style={{
-                      position: 'absolute',
-                      right: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: currentSlide < stall.products.length - 1
-                        ? 'rgba(255,255,255,0.95)'
-                        : 'rgba(255,255,255,0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      color: '#8B7355',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-                      cursor: currentSlide < stall.products.length - 1 ? 'pointer' : 'default',
-                      transition: 'all 0.2s ease',
-                      border: 'none',
-                      pointerEvents: currentSlide < stall.products.length - 1 ? 'auto' : 'none',
-                      zIndex: 3
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentSlide < stall.products.length - 1) {
-                        e.currentTarget.style.transform = 'translateY(-50%) scale(1.12)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                    }}
-                  >
-                    ›
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '8px',
-              marginBottom: '22px'
-            }}>
-              {stall.products.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => scrollToSlide(idx)}
-                  aria-label={`第${idx + 1}张图片`}
-                  style={{
-                    width: currentSlide === idx ? '28px' : '8px',
-                    height: '8px',
-                    borderRadius: '4px',
-                    background: currentSlide === idx ? '#8B7355' : '#d4c4b0',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    padding: 0
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '0.8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                  }}
-                />
-              ))}
-            </div>
-
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '14px'
+              gridTemplateColumns: '1fr 1fr',
+              gap: 10
             }}>
-              {stall.products.map((product, idx) => {
-                const isFav = isFavorite(product.id);
-                const isActive = currentSlide === idx;
-                return (
-                  <div
-                    key={product.id}
-                    onClick={() => scrollToSlide(idx)}
-                    style={{
-                      position: 'relative',
-                      background: 'white',
-                      borderRadius: '14px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      boxShadow: isActive
-                        ? '0 4px 18px rgba(139,115,85,0.25)'
-                        : '0 2px 10px rgba(0,0,0,0.06)',
-                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                      border: isActive ? '2px solid #8B7355' : '2px solid transparent',
-                      transform: isActive ? 'scale(1.02)' : 'scale(1)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.03)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = isActive ? 'scale(1.02)' : 'scale(1)';
-                    }}
-                  >
-                    <div style={{
-                      width: '100%',
-                      height: '100px',
-                      background: '#f5f5f5',
-                      overflow: 'hidden'
-                    }}>
-                      <LazyImage
-                        src={product.image}
-                        alt={product.name}
-                      />
-                    </div>
-                    <div style={{ padding: '12px' }}>
-                      <div style={{
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: '#333',
-                        marginBottom: '6px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {product.name}
-                        {product.isHot && (
-                          <span style={{
-                            marginLeft: '6px',
-                            fontSize: '10px',
-                            color: '#FF6B6B',
-                            fontWeight: 700
-                          }}>
-                            HOT
-                          </span>
-                        )}
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span style={{
-                          fontSize: '16px',
-                          fontWeight: 700,
-                          color: '#E74C3C'
-                        }}>
-                          ¥{product.price.toFixed(2)}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFavorite(product.id);
-                          }}
-                          aria-label={isFav ? '取消收藏' : '收藏'}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '18px',
-                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                            background: isFav
-                              ? 'rgba(255,107,107,0.12)'
-                              : 'rgba(0,0,0,0.04)',
-                            border: 'none',
-                            padding: 0
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'scale(1.2)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'scale(1)';
-                          }}
-                        >
-                          {isFav ? '❤️' : '🤍'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              <div style={{
+                background: 'white',
+                padding: '10px 12px',
+                borderRadius: 10,
+                fontSize: 12
+              }}>
+                <div style={{ color: '#999', marginBottom: 4 }}>轮播切换</div>
+                <div style={{
+                  color: switchStats.lastDuration !== null && switchStats.lastDuration < 200
+                    ? '#7CB342'
+                    : '#FF9800',
+                  fontWeight: 700,
+                  fontSize: 16
+                }}>
+                  {switchStats.lastDuration !== null ? `${switchStats.lastDuration.toFixed(0)}ms` : '--'}
+                </div>
+              </div>
+              <div style={{
+                background: 'white',
+                padding: '10px 12px',
+                borderRadius: 10,
+                fontSize: 12
+              }}>
+                <div style={{ color: '#999', marginBottom: 4 }}>收藏商品数</div>
+                <div style={{
+                  color: '#E91E63',
+                  fontWeight: 700,
+                  fontSize: 16
+                }}>
+                  {favCount} 件
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div style={{
-          position: 'sticky',
-          bottom: 0,
-          padding: '14px 20px',
-          background: 'rgba(255, 248, 231, 0.97)',
-          backdropFilter: 'blur(12px)',
-          borderTop: '1px solid rgba(139,115,85,0.1)',
-          zIndex: 10
-        }}>
-          <button
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #8B7355, #A1887F)',
-              color: 'white',
-              fontSize: '16px',
-              fontWeight: 700,
-              transition: 'all 0.25s ease',
-              boxShadow: '0 4px 16px rgba(139,115,85,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.015)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            🧭 导航到摊位
-          </button>
-        </div>
       </div>
-    </>
+
+      <div style={{
+        padding: '14px 20px',
+        borderTop: '1px solid #f0ebe3',
+        display: 'flex',
+        gap: 10,
+        background: 'white',
+        flexShrink: 0
+      }}>
+        <button
+          onClick={handleToggleFavorite}
+          style={{
+            flex: 1,
+            padding: '14px 20px',
+            borderRadius: 14,
+            border: isFav ? '2px solid #E91E63' : '2px solid #E0E0E0',
+            background: isFav ? '#fff0f5' : 'white',
+            cursor: 'pointer',
+            fontSize: 15,
+            fontWeight: 600,
+            color: isFav ? '#E91E63' : '#666',
+            transition: 'all 0.25s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          {isFav ? '❤️ 已收藏' : '🤍 收藏摊位'}
+        </button>
+        <button
+          style={{
+            flex: 2,
+            padding: '14px 20px',
+            borderRadius: 14,
+            border: 'none',
+            background: selectedStall.isOpen
+              ? 'linear-gradient(135deg, #8B7355, #A1887F)'
+              : 'linear-gradient(135deg, #BDBDBD, #E0E0E0)',
+            color: 'white',
+            cursor: selectedStall.isOpen ? 'pointer' : 'not-allowed',
+            fontSize: 15,
+            fontWeight: 600,
+            transition: 'all 0.25s ease',
+            boxShadow: selectedStall.isOpen
+              ? '0 4px 14px rgba(139,115,85,0.35)'
+              : 'none'
+          }}
+          onMouseEnter={(e) => {
+            if (selectedStall.isOpen) {
+              e.currentTarget.style.transform = 'scale(1.02)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          disabled={!selectedStall.isOpen}
+        >
+          {selectedStall.isOpen ? '💬 在线沟通' : '🔒 已收摊'}
+        </button>
+      </div>
+
+      <style>{`
+        div[style*="overflowX: scroll"]::-webkit-scrollbar {
+          display: none;
+        }
+        div[style*="overflowY: auto"]::-webkit-scrollbar {
+          width: 4px;
+        }
+        div[style*="overflowY: auto"]::-webkit-scrollbar-thumb {
+          background: #ddd;
+          border-radius: 2px;
+        }
+
+        @media (max-width: 768px) {
+          /* 移动端详情面板优化 */
+        }
+      `}</style>
+    </div>
   );
 }
