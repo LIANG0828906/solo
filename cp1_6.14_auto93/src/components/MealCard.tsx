@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { MealEntry } from '../../shared/types';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
@@ -12,13 +12,22 @@ interface MealCardProps {
 export default function MealCard({ meal, index, onDelete }: MealCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   const totalMacros = meal.protein + meal.carbs + meal.fat || 1;
   const proteinWidth = (meal.protein / totalMacros) * 100;
   const carbsWidth = (meal.carbs / totalMacros) * 100;
   const fatWidth = (meal.fat / totalMacros) * 100;
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHasAnimated(true);
+    }, 300 + index * 80);
+    return () => clearTimeout(timer);
+  }, [index]);
+
   const handleDelete = () => {
+    if (isDeleting) return;
     setIsDeleting(true);
     setTimeout(() => {
       onDelete(meal.id);
@@ -30,12 +39,14 @@ export default function MealCard({ meal, index, onDelete }: MealCardProps) {
       className="relative overflow-hidden"
       style={{
         borderRadius: '12px',
+        minWidth: '280px',
+        maxWidth: '100%',
       }}
     >
       <div
-        className="absolute inset-y-0 right-0 w-[60px] bg-red-500 flex items-center justify-center cursor-pointer transition-opacity duration-200"
+        className="absolute inset-y-0 right-0 w-[60px] flex items-center justify-center cursor-pointer z-10"
         style={{
-          opacity: isHovered && !isDeleting ? 1 : 0,
+          backgroundColor: '#FF5252',
           borderRadius: '12px',
         }}
         onClick={handleDelete}
@@ -45,33 +56,35 @@ export default function MealCard({ meal, index, onDelete }: MealCardProps) {
 
       <div
         className={cn(
-          'bg-white shadow-sm p-4 relative cursor-default transition-transform duration-300 ease-out',
+          'bg-white shadow-sm p-4 relative cursor-default',
+          'transition-transform duration-300 ease-out',
+          'hover:shadow-md transition-shadow duration-300 ease-out',
         )}
         style={{
           borderRadius: '12px',
           transform: isHovered && !isDeleting
             ? 'translateX(-60px)'
             : isDeleting
-              ? 'scale(0) translateX(-60px)'
+              ? 'scale(0.8) translateX(-60px)'
               : 'translateX(0)',
           opacity: isDeleting ? 0 : 1,
           transition: isDeleting
             ? 'transform 300ms ease-out, opacity 300ms ease-out'
-            : 'transform 300ms ease-out',
-          animation: !isDeleting ? `fadeInUp 300ms ease-out ${index * 80}ms both` : undefined,
+            : 'transform 300ms ease-out, box-shadow 300ms ease-out',
+          animation: !hasAnimated ? `fadeInUp 300ms ease-out ${index * 80}ms both` : undefined,
         }}
         onMouseEnter={() => !isDeleting && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1 pr-3">
-            <h4 className="font-semibold text-gray-800 text-sm mb-1 truncate">{meal.foodName}</h4>
+            <h4 className="font-bold text-gray-800 text-sm mb-1 truncate">{meal.foodName}</h4>
             <p className="text-xs text-gray-400">
-              {meal.quantity}{meal.mealType === 'snack' ? 'g' : 'g / 份'}
+              {meal.quantity}克
             </p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-lg font-bold" style={{ color: '#689F38' }}>
+            <p className="text-lg font-bold" style={{ color: '#7CB342' }}>
               {meal.calories}
               <span className="text-xs font-normal ml-0.5 text-gray-400">kcal</span>
             </p>
@@ -122,7 +135,7 @@ export default function MealCard({ meal, index, onDelete }: MealCardProps) {
         @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(16px);
+            transform: translateY(20px);
           }
           to {
             opacity: 1;

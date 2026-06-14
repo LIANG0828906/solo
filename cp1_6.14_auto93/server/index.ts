@@ -133,6 +133,62 @@ for (const food of db.data.foods) {
   }
 }
 
+console.log(`[SearchIndex] Built index with ${foodSearchIndex.size} entries for ${db.data.foods.length} foods`);
+
+function searchFoods(query: string, limit: number): { data: Food[]; count: number; durationMs: number } {
+  const startTime = performance.now();
+  const q = query.trim().toLowerCase();
+
+  if (!q) {
+    const data = db.data.foods.slice(0, limit);
+    return {
+      data,
+      count: db.data.foods.length,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
+  const exactMatches: Food[] = [];
+  const prefixMatches: Food[] = [];
+  const substringMatches: Food[] = [];
+  const seen = new Set<string>();
+
+  for (const food of db.data.foods) {
+    const nameLower = food.name.toLowerCase();
+    const catLower = food.category.toLowerCase();
+    if (nameLower === q || catLower === q) {
+      if (!seen.has(food.id)) {
+        seen.add(food.id);
+        exactMatches.push(food);
+      }
+    } else if (nameLower.startsWith(q) || catLower.startsWith(q)) {
+      if (!seen.has(food.id)) {
+        seen.add(food.id);
+        prefixMatches.push(food);
+      }
+    }
+  }
+
+  const indexed = foodSearchIndex.get(q) ?? [];
+  for (const food of indexed) {
+    if (!seen.has(food.id)) {
+      seen.add(food.id);
+      substringMatches.push(food);
+    }
+  }
+
+  const result = [...exactMatches, ...prefixMatches, ...substringMatches].slice(0, limit);
+  const durationMs = performance.now() - startTime;
+
+  console.log(`[Search] query="${q}", exact=${exactMatches.length}, prefix=${prefixMatches.length}, substring=${substringMatches.length}, total=${result.length}, duration=${durationMs.toFixed(2)}ms`);
+
+  return {
+    data: result,
+    count: result.length,
+    durationMs,
+  };
+}
+
 function calculateBMR(profile: Partial<UserProfile>): number {
   const { gender = 'male', age = 25, height = 170, currentWeight = 70 } = profile;
   if (gender === 'male') {
@@ -340,57 +396,28 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.status(200).json({ success: true, message: 'ok' });
+  res.status(200).json({ success: true, data: { status: 'ok' } });
 });
 
 app.get('/api/foods', (req: Request, res: Response) => {
-  const query = (req.query.q as string)?.trim().toLowerCase() ?? '';
+  const query = (req.query.q as string) ?? '';
   const limit = parseInt((req.query.limit as string) ?? '50', 10);
-
-  if (!query) {
-    res.status(200).json({
-      success: true,
-      data: db.data.foods.slice(0, limit),
-      count: db.data.foods.length,
-    });
-    return;
-  }
-
-  const exactMatches: Food[] = [];
-  const prefixMatches: Food[] = [];
-  const substringMatches: Food[] = [];
-  const seen = new Set<string>();
-
-  for (const food of db.data.foods) {
-    const nameLower = food.name.toLowerCase();
-    const catLower = food.category.toLowerCase();
-    if (nameLower === query || catLower === query) {
-      if (!seen.has(food.id)) {
-        seen.add(food.id);
-        exactMatches.push(food);
-      }
-    } else if (nameLower.startsWith(query) || catLower.startsWith(query)) {
-      if (!seen.has(food.id)) {
-        seen.add(food.id);
-        prefixMatches.push(food);
-      }
-    }
-  }
-
-  const indexed = foodSearchIndex.get(query) ?? [];
-  for (const food of indexed) {
-    if (!seen.has(food.id)) {
-      seen.add(food.id);
-      substringMatches.push(food);
-    }
-  }
-
-  const result = [...exactMatches, ...prefixMatches, ...substringMatches].slice(0, limit);
-
+  const result = searchFoods(query, limit);
   res.status(200).json({
     success: true,
-    data: result,
-    count: result.length,
+    data: result.data,
+    count: result.count,
+  });
+});
+
+app.get('/api/foods/search', (req: Request, res: Response) => {
+  const query = (req.query.q as string) ?? '';
+  const limit = parseInt((req.query.limit as string) ?? '50', 10);
+  const result = searchFoods(query, limit);
+  res.status(200).json({
+    success: true,
+    data: result.data,
+    count: result.count,
   });
 });
 
