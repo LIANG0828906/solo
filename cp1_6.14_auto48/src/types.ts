@@ -15,6 +15,8 @@ export interface StickyNote {
   id: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
   text: string;
   color: string;
 }
@@ -69,8 +71,15 @@ export interface OnlineUser {
   color: string;
 }
 
+export interface AnimPosition {
+  x: number;
+  y: number;
+}
+
 export const GRID_SIZE = 50;
 export const SNAP_DISTANCE = 10;
+export const ANIM_DURATION_SNAP = 150;
+export const ANIM_DURATION_DELETE = 200;
 export const COLORS = [
   '#000000', '#FFFFFF', '#EF4444', '#F97316', '#EAB308', '#22C55E',
   '#14B8A6', '#3B82F6', '#6366F1', '#A855F7', '#EC4899', '#78716C',
