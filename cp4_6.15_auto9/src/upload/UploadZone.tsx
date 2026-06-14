@@ -1,7 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Upload, Leaf, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/shared/store';
-import { DiagnosisStatus } from '@/shared/types';
+import type { DiagnosisStatus, ImageFeatures } from '@/shared/types';
+
+const THUMBNAIL_MAX_SIZE = 256;
 
 const statusBorders: Record<DiagnosisStatus | 'loading' | 'idle', string> = {
   healthy: '4px solid #4CAF50',
@@ -21,24 +23,124 @@ const statusGlow: Record<DiagnosisStatus | 'loading' | 'idle', string> = {
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+async function createThumbnail(file: File): Promise<{ image: string; thumbnail: string; features: ImageFeatures }> {
+  let bitmap: ImageBitmap | HTMLImageElement;
+
+  try {
+    if (typeof createImageBitmap === 'function') {
+      bitmap = await createImageBitmap(file, {
+        resizeWidth: THUMBNAIL_MAX_SIZE,
+        resizeHeight: THUMBNAIL_MAX_SIZE,
+        resizeQuality: 'high',
+      });
+    } else {
+      bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+  } catch (e) {
+    throw new Error('图片加载失败');
+  }
+
+  const srcWidth = bitmap.width;
+  const srcHeight = bitmap.height;
+  const ratio = Math.min(1, THUMBNAIL_MAX_SIZE / Math.max(srcWidth, srcHeight));
+  const thumbWidth = Math.round(srcWidth * ratio);
+  const thumbHeight = Math.round(srcHeight * ratio);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = thumbWidth;
+  canvas.height = thumbHeight;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Canvas not available');
+  ctx.drawImage(bitmap, 0, 0, thumbWidth, thumbHeight);
+
+  const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const thumbnail = canvas.toDataURL(mimeType, mimeType === 'image/png' ? undefined : 0.85);
+
+  const fullCanvas = document.createElement('canvas');
+  const fullRatio = Math.min(1, 1600 / Math.max(srcWidth, srcHeight));
+  fullCanvas.width = Math.round(srcWidth * fullRatio);
+  fullCanvas.height = Math.round(srcHeight * fullRatio);
+  const fullCtx = fullCanvas.getContext('2d', { alpha: false });
+  if (!fullCtx) throw new Error('Canvas not available');
+  fullCtx.drawImage(bitmap, 0, 0, fullCanvas.width, fullCanvas.height);
+  const image = fullCanvas.toDataURL(mimeType, mimeType === 'image/png' ? undefined : 0.9);
+
+  if ('close' in bitmap) (bitmap as ImageBitmap).close();
+
+  const size = 48;
+  const featureCanvas = document.createElement('canvas');
+  featureCanvas.width = size;
+  featureCanvas.height = size;
+  const fctx = featureCanvas.getContext('2d', { alpha: false });
+  if (!fctx) throw new Error('Canvas not available');
+  fctx.drawImage(bitmap, 0, 0, size, size);
+  const data = fctx.getImageData(0, 0, size, size).data;
+
+  let rSum = 0, gSum = 0, bSum = 0;
+  let brightnessSum = 0;
+  let yellowPixel = 0;
+  let brownSpot = 0;
+  let greenPixel = 0;
+  const luminanceArr: number[] = [];
+  const totalPixels = size * size;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    rSum += r; gSum += g; bSum += b;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    brightnessSum += lum;
+    luminanceArr.push(lum);
+    if (r > 80 && r * 0.9 < g && g > r * 0.6 && g > b * 1.2) greenPixel++;
+    if (r > 150 && g > 130 && b < 110 && Math.abs(r - g) < 50) yellowPixel++;
+    if (r > 70 && r < 160 && g > 30 && g < 100 && b < 80 && r > g * 1.3) brownSpot++;
+  }
+
+  const avgLum = brightnessSum / totalPixels;
+  let variance = 0;
+  for (const l of luminanceArr) variance += (l - avgLum) ** 2;
+  const contrast = Math.min(1, Math.sqrt(variance / totalPixels) / 80);
+
+  const features: ImageFeatures = {
+    avgRed: rSum / totalPixels / 255,
+    avgGreen: gSum / totalPixels / 255,
+    avgBlue: bSum / totalPixels / 255,
+    brightness: avgLum / 255,
+    contrast,
+    greenRatio: greenPixel / totalPixels,
+    yellowTendency: yellowPixel / totalPixels,
+    brownSpotRatio: brownSpot / totalPixels,
+  };
+
+  return { image, thumbnail, features };
+}
+
 export default function UploadZone() {
   const { state, dispatch, runDiagnosis } = useAppStore();
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       if (!ACCEPTED_TYPES.includes(file.type)) {
         alert('请上传 jpg、png 或 webp 格式的图片');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        dispatch({ type: 'SET_CURRENT_IMAGE', payload: imageUrl });
-        runDiagnosis(imageUrl);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const result = await createThumbnail(file);
+        dispatch({
+          type: 'SET_CURRENT_IMAGE',
+          payload: { image: result.image, thumbnail: result.thumbnail },
+        });
+        runDiagnosis(result.image, result.thumbnail, result.features);
+      } catch (e) {
+        console.error(e);
+        alert('图片处理失败，请重试');
+      }
     },
     [dispatch, runDiagnosis],
   );
@@ -76,9 +178,11 @@ export default function UploadZone() {
     ? 'loading'
     : state.currentRecord?.status ?? 'idle';
 
+  const displayImage = state.currentThumbnail || state.currentImage;
+
   return (
     <div className="upload-wrapper">
-      {!state.currentImage ? (
+      {!displayImage ? (
         <div
           className={`upload-zone ${isDragging ? 'dragging' : ''}`}
           onDrop={handleDrop}
@@ -118,7 +222,7 @@ export default function UploadZone() {
           <button className="clear-btn" onClick={handleClear} title="清除图片">
             <X size={18} />
           </button>
-          <img src={state.currentImage} alt="预览" className="preview-image" />
+          <img src={displayImage} alt="预览" className="preview-image" />
           {state.isDiagnosing && (
             <div className="diagnosing-overlay">
               <Loader2 size={48} className="spinner" />

@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Search, Filter, Trash2, ChevronRight, Leaf } from 'lucide-react';
 import { useAppStore } from '@/shared/store';
 import { DiagnosisRecord, DiagnosisStatus } from '@/shared/types';
@@ -15,59 +16,115 @@ const statusColors: Record<DiagnosisStatus, string> = {
   nutrient_deficiency: '#FBC02D',
 };
 
+const spring = {
+  type: 'spring' as const,
+  stiffness: 350,
+  damping: 30,
+};
+
+function useDebounced<T>(value: T, delay = 200): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
 interface HistoryItemProps {
   record: DiagnosisRecord;
+  isDeleting: boolean;
   onView: (record: DiagnosisRecord) => void;
   onDelete: (id: string) => void;
 }
 
-function HistoryItem({ record, onView, onDelete }: HistoryItemProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
+function HistoryItem({ record, isDeleting, onView, onDelete }: HistoryItemProps) {
   const [dragX, setDragX] = useState(0);
   const startXRef = useRef(0);
-  const itemRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX;
+    draggingRef.current = true;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (!draggingRef.current) return;
     const diff = e.touches[0].clientX - startXRef.current;
-    if (diff < 0) {
-      setDragX(Math.max(diff, -100));
-    }
+    if (diff < 0) setDragX(Math.max(diff, -110));
   };
 
   const handleTouchEnd = () => {
+    draggingRef.current = false;
     if (dragX < -60) {
-      setIsDeleting(true);
-      setTimeout(() => onDelete(record.id), 300);
+      onDelete(record.id);
     } else {
       setDragX(0);
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    startXRef.current = e.clientX;
+    draggingRef.current = true;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingRef.current) return;
+    const diff = e.clientX - startXRef.current;
+    if (diff < 0) setDragX(Math.max(diff, -110));
+  };
+
+  const handleMouseUp = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    if (dragX < -60) {
+      onDelete(record.id);
+    } else {
+      setDragX(0);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (draggingRef.current) {
+      draggingRef.current = false;
+      if (dragX < -60) {
+        onDelete(record.id);
+      } else {
+        setDragX(0);
+      }
+    }
+  };
+
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsDeleting(true);
-    setTimeout(() => onDelete(record.id), 300);
+    onDelete(record.id);
   };
 
   const date = new Date(record.createdAt);
   const dateStr = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
   return (
-    <div
-      ref={itemRef}
-      className={`history-item ${isDeleting ? 'deleting' : ''}`}
-      style={{
-        transform: `translateX(${dragX}px)`,
-        transition: dragX === 0 ? 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none',
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20, height: 0 }}
+      animate={{
+        opacity: isDeleting ? 0 : 1,
+        y: 0,
+        height: 'auto',
+        x: isDeleting ? -400 : dragX,
+        transition: isDeleting ? { duration: 0.32 } : spring,
       }}
-      onClick={() => onView(record)}
+      exit={{ opacity: 0, x: -400, height: 0, transition: { duration: 0.32 } }}
+      className="history-item"
+      onClick={() => !isDeleting && onView(record)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      style={{ cursor: 'pointer' }}
     >
       <div className="item-delete-bg" onClick={handleDeleteClick}>
         <Trash2 size={20} />
@@ -75,7 +132,7 @@ function HistoryItem({ record, onView, onDelete }: HistoryItemProps) {
       </div>
       <div className="item-content">
         <div className="item-thumb">
-          <img src={record.imageUrl} alt={record.plantName} />
+          <img src={record.thumbnailUrl || record.imageUrl} alt={record.plantName} />
         </div>
         <div className="item-info">
           <div className="item-header">
@@ -95,7 +152,7 @@ function HistoryItem({ record, onView, onDelete }: HistoryItemProps) {
         </div>
         <ChevronRight size={20} className="item-arrow" />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -104,38 +161,46 @@ interface HistoryListProps {
 }
 
 export default function HistoryList({ onViewRecord }: HistoryListProps) {
-  const { state, dispatch } = useAppStore();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { state, deleteRecordWithAnimation } = useAppStore();
+  const [searchInput, setSearchInput] = useState('');
   const [filterStatus, setFilterStatus] = useState<DiagnosisStatus | 'all'>('all');
+  const debouncedSearch = useDebounced(searchInput, 180);
 
   const filteredRecords = useMemo(() => {
-    let result = [...state.records].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((r) => r.plantName.toLowerCase().includes(q));
+    const q = debouncedSearch.trim().toLowerCase();
+    const result: DiagnosisRecord[] = [];
+    for (let i = 0; i < state.records.length; i++) {
+      const r = state.records[i];
+      if (q && !r.plantName.toLowerCase().includes(q)) continue;
+      if (filterStatus !== 'all' && r.status !== filterStatus) continue;
+      result.push(r);
     }
-    if (filterStatus !== 'all') {
-      result = result.filter((r) => r.status === filterStatus);
-    }
+    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return result;
-  }, [state.records, searchQuery, filterStatus]);
+  }, [state.records, debouncedSearch, filterStatus]);
 
-  const handleDelete = (id: string) => {
-    dispatch({ type: 'DELETE_RECORD', payload: id });
-  };
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteRecordWithAnimation(id);
+    },
+    [deleteRecordWithAnimation],
+  );
 
   return (
     <div className="history-wrapper">
-      <div className="history-toolbar">
+      <motion.div
+        className="history-toolbar"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={spring}
+      >
         <div className="search-box">
           <Search size={18} />
           <input
             type="text"
             placeholder="搜索植物名称..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <div className="filter-box">
@@ -150,29 +215,44 @@ export default function HistoryList({ onViewRecord }: HistoryListProps) {
             <option value="nutrient_deficiency">营养不足</option>
           </select>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="history-stats">
+      <motion.div
+        className="history-stats"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ ...spring, delay: 0.05 }}
+      >
         共 {filteredRecords.length} 条记录
-      </div>
+      </motion.div>
 
       {filteredRecords.length === 0 ? (
-        <div className="empty-state">
+        <motion.div
+          className="empty-state"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={spring}
+        >
           <Leaf size={48} className="empty-icon" />
           <p className="empty-title">暂无诊断记录</p>
           <p className="empty-desc">上传植物叶片照片开始诊断</p>
-        </div>
+        </motion.div>
       ) : (
-        <div className="history-list">
-          {filteredRecords.map((record) => (
-            <HistoryItem
-              key={record.id}
-              record={record}
-              onView={onViewRecord}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+        <LayoutGroup>
+          <AnimatePresence mode="popLayout">
+            <div className="history-list">
+              {filteredRecords.map((record, idx) => (
+                <HistoryItem
+                  key={record.id}
+                  record={record}
+                  isDeleting={state.deletingIds.has(record.id)}
+                  onView={onViewRecord}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </AnimatePresence>
+        </LayoutGroup>
       )}
     </div>
   );
