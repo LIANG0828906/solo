@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Role, Question, StudentAnswer, HistoryItem } from './shared/types';
 import { eventBus, EVENTS } from './shared/EventBus';
 import QuestionPanel from './teacher/QuestionPanel';
@@ -23,10 +23,18 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [scores, setScores] = useState<Record<string, { name: string; score: number }>>({});
 
+  const endTimeRef = useRef<number>(0);
+  const countdownRafRef = useRef<number>(0);
+  const statsIntervalRef = useRef<number>(0);
+
   useEffect(() => {
     const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
     if (savedHistory) {
-      setHistory(JSON.parse(savedHistory));
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error('Failed to parse history');
+      }
     }
     const savedName = localStorage.getItem(STORAGE_KEYS.STUDENT_NAME);
     if (savedName) {
@@ -34,7 +42,11 @@ function App() {
     }
     const savedScores = localStorage.getItem(STORAGE_KEYS.SCORES);
     if (savedScores) {
-      setScores(JSON.parse(savedScores));
+      try {
+        setScores(JSON.parse(savedScores));
+      } catch (e) {
+        console.error('Failed to parse scores');
+      }
     }
   }, []);
 
@@ -52,73 +64,29 @@ function App() {
     }
   }, [studentName]);
 
-  useEffect(() => {
-    if (!isQuestionActive || !currentQuestion) return;
-
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        const newTime = prev - 1;
-        eventBus.emit(EVENTS.TICK, newTime);
-        
-        if (newTime <= 0) {
-          clearInterval(interval);
-          endQuestion();
-          return 0;
-        }
-        return newTime;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isQuestionActive, currentQuestion]);
-
-  useEffect(() => {
-    if (!isQuestionActive) return;
-
-    const statsInterval = setInterval(() => {
-      if (currentQuestion) {
-        const optionCounts = currentQuestion.options.map((_, idx) =>
-          answers.filter((a) => a.selectedIndex === idx).length
-        );
-        eventBus.emit(EVENTS.STATS_UPDATED, {
-          questionId: currentQuestion.id,
-          optionCounts,
-          totalAnswers: answers.length,
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(statsInterval);
-  }, [isQuestionActive, currentQuestion, answers]);
-
-  const handlePublishQuestion = useCallback((question: Question) => {
-    setCurrentQuestion(question);
-    setTimeRemaining(question.duration);
-    setIsQuestionActive(true);
-    setAnswers([]);
-    eventBus.emit(EVENTS.QUESTION_PUBLISHED, question);
-  }, []);
-
   const endQuestion = useCallback(() => {
     if (!currentQuestion) return;
+
+    cancelAnimationFrame(countdownRafRef.current);
+    clearInterval(statsIntervalRef.current);
 
     const optionCounts = currentQuestion.options.map((_, idx) =>
       answers.filter((a) => a.selectedIndex === idx).length
     );
 
     const sortedAnswers = [...answers].sort((a, b) => a.submittedAt - b.submittedAt);
-    const topStudents = sortedAnswers
-      .filter((a) => a.selectedIndex === currentQuestion.correctIndex)
-      .slice(0, 5)
-      .map((a, idx) => ({
-        studentId: a.studentId,
-        studentName: a.studentName,
-        score: 10,
-        rank: idx + 1,
-      }));
+    const allCorrectAnswers = sortedAnswers.filter(
+      (a) => a.selectedIndex === currentQuestion.correctIndex
+    );
+    const topStudents = allCorrectAnswers.slice(0, 5).map((a, idx) => ({
+      studentId: a.studentId,
+      studentName: a.studentName,
+      score: 10,
+      rank: idx + 1,
+    }));
 
     const newScores = { ...scores };
-    topStudents.forEach((entry) => {
+    allCorrectAnswers.forEach((entry) => {
       if (!newScores[entry.studentId]) {
         newScores[entry.studentId] = { name: entry.studentName, score: 0 };
       }
@@ -140,8 +108,58 @@ function App() {
 
     setHistory((prev) => [historyItem, ...prev]);
     setIsQuestionActive(false);
+    setTimeRemaining(0);
     eventBus.emit(EVENTS.QUESTION_ENDED, historyItem);
   }, [currentQuestion, answers, scores]);
+
+  useEffect(() => {
+    if (!isQuestionActive || !currentQuestion) return;
+
+    const tick = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
+      const msRemaining = Math.max(0, endTimeRef.current - now);
+
+      setTimeRemaining(remaining);
+      eventBus.emit(EVENTS.TICK, msRemaining);
+
+      if (msRemaining <= 0) {
+        endQuestion();
+        return;
+      }
+
+      countdownRafRef.current = requestAnimationFrame(tick);
+    };
+
+    countdownRafRef.current = requestAnimationFrame(tick);
+
+    statsIntervalRef.current = window.setInterval(() => {
+      if (currentQuestion) {
+        const optionCounts = currentQuestion.options.map((_, idx) =>
+          answers.filter((a) => a.selectedIndex === idx).length
+        );
+        eventBus.emit(EVENTS.STATS_UPDATED, {
+          questionId: currentQuestion.id,
+          optionCounts,
+          totalAnswers: answers.length,
+        });
+      }
+    }, 1000);
+
+    return () => {
+      cancelAnimationFrame(countdownRafRef.current);
+      clearInterval(statsIntervalRef.current);
+    };
+  }, [isQuestionActive, currentQuestion, answers, endQuestion]);
+
+  const handlePublishQuestion = useCallback((question: Question) => {
+    setCurrentQuestion(question);
+    setAnswers([]);
+    endTimeRef.current = Date.now() + question.duration * 1000;
+    setTimeRemaining(question.duration);
+    setIsQuestionActive(true);
+    eventBus.emit(EVENTS.QUESTION_PUBLISHED, question);
+  }, []);
 
   const handleSubmitAnswer = useCallback((answer: StudentAnswer) => {
     setAnswers((prev) => {
@@ -244,7 +262,12 @@ function App() {
           </div>
         ) : (
           <div className="teacher-container">
-            <QuestionPanel onPublish={handlePublishQuestion} isActive={isQuestionActive} />
+            <QuestionPanel
+              onPublish={handlePublishQuestion}
+              isActive={isQuestionActive}
+              timeRemaining={timeRemaining}
+              duration={currentQuestion?.duration || 0}
+            />
             <LiveBoard
               currentQuestion={currentQuestion}
               timeRemaining={timeRemaining}
@@ -266,7 +289,6 @@ function App() {
       timeRemaining={timeRemaining}
       isQuestionActive={isQuestionActive}
       onSubmitAnswer={handleSubmitAnswer}
-      history={history}
       onBack={handleBack}
     />
   );

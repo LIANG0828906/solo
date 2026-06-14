@@ -5,13 +5,15 @@ import './QuestionPanel.css';
 interface QuestionPanelProps {
   onPublish: (question: Question) => void;
   isActive: boolean;
+  timeRemaining: number;
+  duration: number;
 }
 
-function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
+function QuestionPanel({ onPublish, isActive, timeRemaining, duration }: QuestionPanelProps) {
   const [title, setTitle] = useState('');
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctIndex, setCorrectIndex] = useState(0);
-  const [duration, setDuration] = useState(20);
+  const [durationSetting, setDurationSetting] = useState(20);
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...options];
@@ -24,13 +26,14 @@ function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
     
     if (!title.trim()) return;
     if (options.some((opt) => !opt.trim())) return;
+    if (isActive) return;
 
     const question: Question = {
       id: Date.now().toString(),
       title: title.trim(),
       options: options.map((opt) => opt.trim()),
       correctIndex,
-      duration,
+      duration: durationSetting,
       createdAt: Date.now(),
     };
 
@@ -39,13 +42,31 @@ function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
     setTitle('');
     setOptions(['', '', '', '']);
     setCorrectIndex(0);
-    setDuration(20);
+    setDurationSetting(20);
   };
+
+  const progress = duration > 0 ? ((duration - timeRemaining) / duration) * 100 : 0;
+  const isUrgent = timeRemaining <= 5 && isActive;
 
   return (
     <div className="question-panel">
       <h2 className="panel-title">创建题目</h2>
       
+      {isActive && (
+        <div className={`active-quiz-info ${isUrgent ? 'urgent' : ''}`}>
+          <div className="active-quiz-header">
+            <span className="active-badge">🔴 答题进行中</span>
+            <span className="active-time">{timeRemaining}秒</span>
+          </div>
+          <div className="active-progress-bar">
+            <div
+              className="active-progress-fill"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="question-form">
         <div className="form-group">
           <label className="form-label">题目内容</label>
@@ -95,8 +116,8 @@ function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
               <button
                 key={sec}
                 type="button"
-                className={`duration-btn ${duration === sec ? 'active' : ''}`}
-                onClick={() => !isActive && setDuration(sec)}
+                className={`duration-btn ${durationSetting === sec ? 'active' : ''}`}
+                onClick={() => !isActive && setDurationSetting(sec)}
                 disabled={isActive}
               >
                 {sec}秒
@@ -110,7 +131,7 @@ function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
           className="publish-btn"
           disabled={isActive || !title.trim() || options.some((opt) => !opt.trim())}
         >
-          {isActive ? '答题进行中...' : '发布题目'}
+          {isActive ? `答题进行中（${timeRemaining}s）...` : '发布题目'}
         </button>
       </form>
 
@@ -120,6 +141,7 @@ function QuestionPanel({ onPublish, isActive }: QuestionPanelProps) {
           <li>点击选项左侧的字母可设置正确答案</li>
           <li>发布题目后将自动开始倒计时</li>
           <li>学生在倒计时结束前可提交答案</li>
+          <li>所有答对的学生均可获得10分</li>
         </ul>
       </div>
     </div>
