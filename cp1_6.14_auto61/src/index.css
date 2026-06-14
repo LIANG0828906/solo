@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: #050e24;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+@layer components {
+  .score-num {
+    @apply text-7xl font-black tabular-nums tracking-tight;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .btn-action {
+    @apply w-12 h-12 rounded-xl font-bold text-xl flex items-center justify-center
+           transition-all duration-150 cursor-pointer select-none
+           active:scale-90;
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .btn-plus {
+    @apply btn-action bg-bright-yellow text-deep-blue;
+  }
+  .btn-plus:hover {
+    @apply bg-bright-yellow-dark;
+  }
+
+  .btn-minus {
+    @apply btn-action bg-bright-yellow text-deep-blue;
+  }
+  .btn-minus:hover {
+    @apply bg-bright-yellow-dark;
+  }
+
+  .card-panel {
+    @apply rounded-2xl shadow-2xl;
+    background: linear-gradient(145deg, #0d1f4a, #0a1a3d);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+  }
+
+  .set-chip {
+    @apply px-3 py-1 rounded-lg text-sm font-semibold;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .set-chip-active {
+    @apply set-chip;
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.4);
+  }
+
+  .winner-badge {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD700, #FFA500, #FFD700);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .winner-badge::before {
+    content: '';
+    position: absolute;
+    inset: -15px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg, #FFD700 10deg, transparent 20deg,
+      transparent 45deg, #FFD700 55deg, transparent 65deg,
+      transparent 90deg, #FFD700 100deg, transparent 110deg,
+      transparent 135deg, #FFD700 145deg, transparent 155deg,
+      transparent 180deg, #FFD700 190deg, transparent 200deg,
+      transparent 225deg, #FFD700 235deg, transparent 245deg,
+      transparent 270deg, #FFD700 280deg, transparent 290deg,
+      transparent 315deg, #FFD700 325deg, transparent 335deg
+    );
+    border-radius: 50%;
+    animation: rotate-rays 4s linear infinite;
+    mask: radial-gradient(circle, transparent 38%, black 40%);
+    -webkit-mask: radial-gradient(circle, transparent 38%, black 40%);
+  }
+
+  .poster-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+  }
+
+  .poster-card {
+    @apply rounded-3xl p-8 max-w-md w-full mx-4;
+    background: linear-gradient(160deg, #0d1f4a, #0a1a3d, #061230);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.2), 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: center-zoom 0.5s ease-out forwards;
+  }
+}
