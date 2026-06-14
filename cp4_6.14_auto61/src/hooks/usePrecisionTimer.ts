@@ -23,41 +23,49 @@ export function usePrecisionTimer({
 }: UsePrecisionTimerOptions): UsePrecisionTimerReturn {
   const remainingTimeRef = useRef(duration);
   const isRunningRef = useRef(false);
-  const lastTimestampRef = useRef<number>(0);
+  const startPerfTimeRef = useRef<number>(0);
+  const remainingAtStartRef = useRef<number>(duration);
   const animationFrameRef = useRef<number>(0);
   const hasCompletedRef = useRef(false);
+  const onTickRef = useRef(onTick);
+  const onCompleteRef = useRef(onComplete);
 
-  const tick = useCallback((timestamp: number) => {
+  useEffect(() => {
+    onTickRef.current = onTick;
+  }, [onTick]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const tick = useCallback(() => {
     if (!isRunningRef.current) return;
 
-    if (lastTimestampRef.current === 0) {
-      lastTimestampRef.current = timestamp;
-    }
+    const now = performance.now();
+    const elapsed = now - startPerfTimeRef.current;
+    const remaining = Math.max(0, remainingAtStartRef.current - elapsed);
 
-    const delta = timestamp - lastTimestampRef.current;
-    lastTimestampRef.current = timestamp;
+    remainingTimeRef.current = remaining;
+    onTickRef.current(remaining);
 
-    remainingTimeRef.current = Math.max(0, remainingTimeRef.current - delta);
-    
-    onTick(remainingTimeRef.current);
-
-    if (remainingTimeRef.current <= 0) {
+    if (remaining <= 0) {
       isRunningRef.current = false;
       if (!hasCompletedRef.current) {
         hasCompletedRef.current = true;
-        onComplete();
+        onCompleteRef.current();
       }
       return;
     }
 
     animationFrameRef.current = requestAnimationFrame(tick);
-  }, [onTick, onComplete]);
+  }, []);
 
   const start = useCallback(() => {
     if (isRunningRef.current || remainingTimeRef.current <= 0) return;
-    
+
     isRunningRef.current = true;
-    lastTimestampRef.current = 0;
+    startPerfTimeRef.current = performance.now();
+    remainingAtStartRef.current = remainingTimeRef.current;
     hasCompletedRef.current = false;
     animationFrameRef.current = requestAnimationFrame(tick);
   }, [tick]);
@@ -67,21 +75,23 @@ export function usePrecisionTimer({
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-    lastTimestampRef.current = 0;
   }, []);
 
   const reset = useCallback((newDuration?: number) => {
     pause();
-    remainingTimeRef.current = newDuration ?? duration;
+    const newRemaining = newDuration ?? duration;
+    remainingTimeRef.current = newRemaining;
+    remainingAtStartRef.current = newRemaining;
+    startPerfTimeRef.current = 0;
     hasCompletedRef.current = false;
-    onTick(remainingTimeRef.current);
-  }, [pause, duration, onTick]);
+    onTickRef.current(newRemaining);
+  }, [pause, duration]);
 
   useEffect(() => {
     if (autoStart) {
       start();
     }
-    
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);

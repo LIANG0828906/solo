@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Menu, X, Send, ChevronDown, ChevronUp } from 'lucide-react';
 import { useDebateStore } from './store/debateStore';
 import { usePrecisionTimer } from './hooks/usePrecisionTimer';
-import { playBeep } from './utils/audio';
+import { playBeep, stopBeep } from './utils/audio';
 import { formatTime, formatTimeRemaining, formatTimestamp } from './utils/time';
 import type { Speaker, SubmitArgumentRequest } from './types';
 
@@ -78,7 +78,10 @@ export default function DebateRoom() {
       playBeep(440, 0.5);
       setShowBorderFlash(true);
       markTimeUp(id);
-      setTimeout(() => setShowBorderFlash(false), 1000);
+      setTimeout(() => {
+        setShowBorderFlash(false);
+        stopBeep();
+      }, 1000);
     }
   }, [id, markTimeUp]);
 
