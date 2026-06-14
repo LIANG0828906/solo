@@ -1,0 +1,214 @@
+.board {
+  width: 100%;
+}
+
+.inputSection {
+  background: white;
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--spacing-xl);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xl);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.inputWrapper {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.urlInput {
+  flex: 1;
+  min-width: 250px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-base);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.urlInput:focus {
+  border-color: var(--color-tomato);
+}
+
+.urlInput:disabled {
+  opacity: 0.6;
+}
+
+.scrapeBtn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-tomato);
+  color: var(--color-text-light);
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.scrapeBtn:hover:not(:disabled) {
+  background: var(--color-tomato-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(230, 126, 34, 0.4);
+}
+
+.scrapeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.manualBtn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-cream);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.manualBtn:hover {
+  background: var(--color-cream-dark);
+  color: var(--color-text-primary);
+}
+
+.manualForm {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  flex-wrap: wrap;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.manualInput {
+  flex: 1;
+  min-width: 200px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-base);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.manualInput:focus {
+  border-color: var(--color-tomato);
+}
+
+.manualSelect {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-base);
+  outline: none;
+  background: white;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.manualSelect:focus {
+  border-color: var(--color-tomato);
+}
+
+.addBtn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-avocado);
+  color: var(--color-text-light);
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.addBtn:hover:not(:disabled) {
+  background: var(--color-avocado-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+}
+
+.addBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.draggableWrapper {
+  transition: transform var(--transition-bounce);
+  will-change: transform;
+}
+
+.dragging {
+  z-index: 1000;
+  animation: bounce 0.3s ease-out;
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  background: white;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  margin-top: var(--spacing-xl);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.emptyText {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.emptyHint {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+}
+
+@media (max-width: 1024px) {
+  .cardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .inputSection {
+    padding: var(--spacing-lg);
+  }
+
+  .inputWrapper {
+    flex-direction: column;
+  }
+
+  .urlInput,
+  .scrapeBtn,
+  .manualBtn {
+    width: 100%;
+  }
+
+  .manualForm {
+    flex-direction: column;
+  }
+
+  .manualInput,
+  .manualSelect,
+  .addBtn {
+    width: 100%;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
