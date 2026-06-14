@@ -4,7 +4,6 @@ import type {
   SymptomRecord,
   DiagnosisResult,
   PlantLocation,
-  MatchedCause,
 } from '@/utils/db';
 import {
   getPlants,
@@ -15,8 +14,9 @@ import {
   saveSymptomRecord as dbSaveSymptomRecord,
   getDiagnosisResults,
   saveDiagnosisResult as dbSaveDiagnosisResult,
+  updateDiagnosisResult as dbUpdateDiagnosisResult,
+  seedSampleData,
 } from '@/utils/db';
-import { v4 as uuidv4 } from 'uuid';
 
 const PAGE_SIZE = 10;
 
@@ -57,6 +57,7 @@ export const usePlantStore = create<PlantStore>((set, get) => ({
   listHasMore: true,
 
   loadAllData: () => {
+    seedSampleData();
     const plants = getPlants();
     const symptomRecords = getSymptomRecords();
     const diagnosisResults = getDiagnosisResults();
@@ -118,21 +119,21 @@ export const usePlantStore = create<PlantStore>((set, get) => ({
   },
 
   confirmDiagnosis: (id) => {
-    set((state) => ({
-      diagnosisResults: state.diagnosisResults.map((d) =>
+    const state = get();
+    const result = state.diagnosisResults.find((d) => d.id === id);
+    if (!result) return;
+    dbUpdateDiagnosisResult(id, { confirmed: true });
+    dbUpdatePlant(result.plantId, { lastDiagnosisDate: new Date().toISOString() });
+    set((s) => ({
+      diagnosisResults: s.diagnosisResults.map((d) =>
         d.id === id ? { ...d, confirmed: true } : d,
       ),
+      plants: s.plants.map((p) =>
+        p.id === result.plantId
+          ? { ...p, lastDiagnosisDate: new Date().toISOString() }
+          : p,
+      ),
     }));
-    const result = get().diagnosisResults.find((d) => d.id === id);
-    if (result) {
-      dbUpdatePlant(result.plantId, { lastDiagnosisDate: new Date().toISOString() });
-    }
-    const updatedResults = get().diagnosisResults;
-    const storageResults = getDiagnosisResults();
-    const updatedStorage = storageResults.map((d) =>
-      d.id === id ? { ...d, confirmed: true } : d,
-    );
-    localStorage.setItem('plant_doctor_diagnoses', JSON.stringify(updatedStorage));
   },
 
   loadMorePlants: () => {

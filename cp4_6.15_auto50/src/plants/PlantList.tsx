@@ -13,7 +13,6 @@ export default function PlantList() {
   const [modalOpen, setModalOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const plants = usePlantStore((s) => s.plants);
   const searchQuery = usePlantStore((s) => s.searchQuery);
   const locationFilter = usePlantStore((s) => s.locationFilter);
   const listHasMore = usePlantStore((s) => s.listHasMore);

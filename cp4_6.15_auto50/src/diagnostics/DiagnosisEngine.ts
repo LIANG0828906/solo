@@ -15,9 +15,9 @@ const symptomEmojiMap: Record<SymptomType, string> = {
   '叶片发黄': '🍂',
   '枯萎': '🥀',
   '虫害': '🐛',
-  '霉斑': '🍄',
-  '生长缓慢': '🪴',
-  '烂根': '💧',
+  '霉斑': '🦠',
+  '生长缓慢': '🐌',
+  '烂根': '�',
 };
 
 export function getSymptomEmoji(symptom: SymptomType): string {
