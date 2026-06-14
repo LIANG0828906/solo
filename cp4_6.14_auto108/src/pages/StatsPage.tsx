@@ -64,9 +64,7 @@ const StatsPage = () => {
               return (
                 <div key={cat} className="bar-item">
                   <div className="bar-fill" style={{ height: `${height}px` }}>
-                    {count > 0 && (
-                      <span className="bar-number">{count}</span>
-                    )}
+                    <span className="bar-number">{count}</span>
                   </div>
                   <span className="bar-label">{cat}</span>
                 </div>

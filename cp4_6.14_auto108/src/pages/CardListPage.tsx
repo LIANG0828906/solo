@@ -8,7 +8,7 @@ import type { Card } from '../types';
 const PAGE_SIZE = 20;
 
 const CardListPage = () => {
-  const { cards, loading, fetchCards } = useCardStore();
+  const { cards, loading, fetchCards, deleteCard } = useCardStore();
   const [showNewModal, setShowNewModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -24,10 +24,20 @@ const CardListPage = () => {
     setShowDeleteModal(true);
   };
 
-  const handleDeleteConfirmed = () => {
-    if (deleteTarget) {
-      setFadingCardIds((prev) => new Set(prev).add(deleteTarget.id));
-    }
+  const handleDeleteConfirmed = async (card: Card) => {
+    setFadingCardIds((prev) => new Set(prev).add(card.id));
+    setTimeout(async () => {
+      try {
+        await deleteCard(card.id);
+      } catch (error) {
+        console.error('Failed to delete card:', error);
+      }
+      setFadingCardIds((prev) => {
+        const next = new Set(prev);
+        next.delete(card.id);
+        return next;
+      });
+    }, 300);
   };
 
   const handleLoadMore = () => {
@@ -87,7 +97,7 @@ const CardListPage = () => {
           setShowDeleteModal(false);
           setDeleteTarget(null);
         }}
-        onDeleted={handleDeleteConfirmed}
+        onConfirm={handleDeleteConfirmed}
       />
     </div>
   );

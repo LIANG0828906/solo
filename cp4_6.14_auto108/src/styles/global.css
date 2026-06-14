@@ -51,7 +51,7 @@ textarea, select, input {
   }
   to {
     opacity: 0;
-    transform: translateY(40px);
+    transform: translateY(100%);
   }
 }
 
@@ -204,11 +204,15 @@ textarea, select, input {
 }
 
 .flash-card-back {
-  transform: rotateY(180deg);
   transform: rotateY(180deg) scale(0.9);
+  transition: transform 0.3s ease;
 }
 
 .flash-card.flipped .flash-card-back {
+  transform: rotateY(180deg) scale(0.9);
+}
+
+.flash-card.flipped.scale-restored .flash-card-back {
   transform: rotateY(180deg) scale(1);
 }
 
@@ -669,8 +673,8 @@ textarea, select, input {
   align-items: flex-end;
   justify-content: center;
   gap: 12px;
-  height: 240px;
-  padding-bottom: 8px;
+  height: 260px;
+  padding: 30px 12px 8px;
   border-bottom: 2px solid #e2e8f0;
 }
 
@@ -694,7 +698,7 @@ textarea, select, input {
 
 .bar-number {
   position: absolute;
-  top: -20px;
+  top: -22px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 12px;

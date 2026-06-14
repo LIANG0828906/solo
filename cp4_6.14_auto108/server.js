@@ -1,12 +1,76 @@
 import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import net from 'net';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PORT_FILE = path.join(__dirname, '.server-port');
 
 const app = express();
-const PORT = 3002;
 
-app.use(cors());
-app.use(express.json());
+const checkPortAvailable = (port) => {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port);
+  });
+};
+
+const killProcessOnPort = async (port) => {
+  try {
+    const { execSync } = await import('child_process');
+    if (process.platform === 'win32') {
+      const result = execSync(`netstat -ano | findstr :${port}`).toString();
+      const lines = result.trim().split('\n');
+      for (const line of lines) {
+        const match = line.match(/LISTENING\s+(\d+)/);
+        if (match) {
+          const pid = match[1];
+          if (pid !== '4') {
+            try {
+              execSync(`taskkill /F /PID ${pid}`);
+              console.log(`Killed process ${pid} on port ${port}`);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
+    } else {
+      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
+    }
+  } catch (e) {
+    // ignore errors
+  }
+};
+
+const findAvailablePort = async (startPort) => {
+  let port = startPort;
+  while (port < startPort + 100) {
+    let available = await checkPortAvailable(port);
+    if (!available) {
+      await killProcessOnPort(port);
+      available = await checkPortAvailable(port);
+    }
+    if (available) return port;
+    port++;
+  }
+  return startPort;
+};
+
+const startServer = async () => {
+  const PORT = await findAvailablePort(3001);
+  fs.writeFileSync(PORT_FILE, String(PORT));
+
+  app.use(cors());
+  app.use(express.json());
 
 const categories = ['语文', '数学', '英语', '科学', '历史', '其他'];
 
@@ -244,6 +308,9 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();

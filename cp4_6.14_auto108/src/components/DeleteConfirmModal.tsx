@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import type { Card } from '../types';
-import { useCardStore } from '../store/useCardStore';
 
 interface DeleteConfirmModalProps {
   card: Card | null;
   isOpen: boolean;
   onClose: () => void;
-  onDeleted?: () => void;
+  onConfirm?: (card: Card) => void;
 }
 
-const DeleteConfirmModal = ({ card, isOpen, onClose, onDeleted }: DeleteConfirmModalProps) => {
+const DeleteConfirmModal = ({ card, isOpen, onClose, onConfirm }: DeleteConfirmModalProps) => {
   const [closing, setClosing] = useState(false);
-  const deleteCard = useCardStore((s) => s.deleteCard);
 
   const handleClose = () => {
     setClosing(true);
@@ -21,15 +19,12 @@ const DeleteConfirmModal = ({ card, isOpen, onClose, onDeleted }: DeleteConfirmM
     }, 300);
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (!card) return;
-    try {
-      await deleteCard(card.id);
-      handleClose();
-      onDeleted?.();
-    } catch (error) {
-      console.error('Failed to delete card:', error);
-    }
+    handleClose();
+    setTimeout(() => {
+      onConfirm?.(card);
+    }, 300);
   };
 
   if (!isOpen && !closing) return null;

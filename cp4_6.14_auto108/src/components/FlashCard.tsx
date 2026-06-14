@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Card } from '../types';
 
 interface FlashCardProps {
@@ -9,6 +9,18 @@ interface FlashCardProps {
 
 const FlashCard = ({ card, fading, onDelete }: FlashCardProps) => {
   const [flipped, setFlipped] = useState(false);
+  const [scaleRestored, setScaleRestored] = useState(false);
+
+  useEffect(() => {
+    if (flipped) {
+      const timer = setTimeout(() => {
+        setScaleRestored(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setScaleRestored(false);
+    }
+  }, [flipped]);
 
   const handleFlip = () => {
     setFlipped(!flipped);
@@ -22,7 +34,7 @@ const FlashCard = ({ card, fading, onDelete }: FlashCardProps) => {
   return (
     <div className={`flash-card-wrapper ${fading ? 'fading' : ''}`}>
       <div
-        className={`flash-card ${flipped ? 'flipped' : ''}`}
+        className={`flash-card ${flipped ? 'flipped' : ''} ${scaleRestored ? 'scale-restored' : ''}`}
         onClick={handleFlip}
       >
         <div className="flash-card-face flash-card-front">
