@@ -97,27 +97,30 @@ app.post('/api/recommend', (req, res) => {
   );
 
   const results = members.map(member => {
-    let requiredPart = 0;
+    let requiredSum = 0;
     if (totalRequired > 0) {
       for (const reqSkill of requiredSkills) {
         const skill = member.skills.find(s => s.name === reqSkill);
         if (skill) {
-          requiredPart += (skill.proficiency / 5) * (1 / totalRequired);
+          requiredSum += skill.proficiency / 5;
         }
       }
     }
+    const normalizedRequired = totalRequired > 0 ? requiredSum / totalRequired : 0;
 
-    let bonusPart = 0;
+    let bonusSum = 0;
     if (totalBonus > 0) {
       for (const bonusSkill of bonusSkills) {
         const skill = member.skills.find(s => s.name === bonusSkill);
         if (skill) {
-          bonusPart += (skill.proficiency / 5) * (1 / totalBonus) * 0.3;
+          bonusSum += skill.proficiency / 5;
         }
       }
     }
+    const normalizedBonus = (bonusSum / Math.max(1, totalBonus)) * 0.3;
 
-    const skillOverlapScore = (requiredPart + bonusPart) * 100;
+    const internalMax = 1.0 + (totalBonus > 0 ? 0.3 : 0);
+    const skillOverlapScore = ((normalizedRequired + normalizedBonus) / internalMax) * 100;
 
     const memberCollabCount = collaborations
       .filter(c => c.memberIdA === member.id || c.memberIdB === member.id)

@@ -67,29 +67,30 @@ export function calculateRecommendations(
     const matchedSkills: string[] = [];
 
     if (hasRequired) {
-      let requiredPart = 0;
+      let requiredSum = 0;
       for (let j = 0; j < requiredSkills.length; j++) {
         const prof = sm.get(requiredSkills[j]);
         if (prof !== undefined) {
-          requiredPart += prof / 5;
+          requiredSum += prof / 5;
           matchedSkills.push(requiredSkills[j]);
         }
       }
-      requiredPart /= requiredSkills.length;
+      const normalizedRequired = requiredSum / requiredSkills.length;
 
-      let bonusPart = 0;
+      let bonusSum = 0;
       if (hasBonus) {
         for (let j = 0; j < bonusSkills.length; j++) {
           const prof = sm.get(bonusSkills[j]);
           if (prof !== undefined) {
-            bonusPart += prof / 5;
+            bonusSum += prof / 5;
             matchedSkills.push(bonusSkills[j]);
           }
         }
-        bonusPart = (bonusPart / bonusSkills.length) * 0.3;
       }
+      const normalizedBonus = (bonusSum / Math.max(1, bonusSkills.length)) * 0.3;
 
-      skillOverlapScore = (requiredPart + bonusPart) * 100;
+      const internalMax = 1.0 + (hasBonus ? 0.3 : 0);
+      skillOverlapScore = ((normalizedRequired + normalizedBonus) / internalMax) * 100;
     }
 
     const collabSum = collabSumMap.get(member.id) ?? 0;
