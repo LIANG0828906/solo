@@ -23,6 +23,7 @@ export interface Course {
   timeSlot: '09:00' | '14:00' | '19:00';
   capacity: number;
   bookings: Booking[];
+  remainingCapacity?: number;
 }
 
 export interface CoachCourse {
@@ -39,107 +40,23 @@ export interface CoachSchedule {
   courses: CoachCourse[];
 }
 
-const MEMBERS_KEY = 'fitclub_members';
-const COURSES_KEY = 'fitclub_courses';
-const DISMISSED_KEY = 'fitclub_dismissed';
-
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function computeStatus(expiryDate: string): Member['status'] {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
-  expiry.setHours(0, 0, 0, 0);
-  const diffMs = expiry.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return '已过期';
-  if (diffDays <= 7) return '即将到期';
-  return '有效';
-}
-
-function getMembershipDays(type: Member['membershipType']): number {
-  switch (type) {
-    case '月卡': return 30;
-    case '季卡': return 90;
-    case '年卡': return 365;
-  }
-}
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-function createMockMembers(): Member[] {
-  const today = new Date();
-  const raw: Omit<Member, 'status'>[] = [
-    { id: 'm1', name: '张伟', membershipType: '年卡', expiryDate: formatDate(addDays(today, 180)) },
-    { id: 'm2', name: '李娜', membershipType: '季卡', expiryDate: formatDate(addDays(today, 5)) },
-    { id: 'm3', name: '王强', membershipType: '月卡', expiryDate: formatDate(addDays(today, -10)) },
-    { id: 'm4', name: '刘洋', membershipType: '年卡', expiryDate: formatDate(addDays(today, 300)) },
-    { id: 'm5', name: '陈思', membershipType: '季卡', expiryDate: formatDate(addDays(today, 2)) },
-    { id: 'm6', name: '赵敏', membershipType: '月卡', expiryDate: formatDate(addDays(today, 25)) },
-    { id: 'm7', name: '孙磊', membershipType: '月卡', expiryDate: formatDate(addDays(today, -3)) },
-    { id: 'm8', name: '周芳', membershipType: '年卡', expiryDate: formatDate(addDays(today, 1)) },
-  ];
-  return raw.map(m => ({ ...m, status: computeStatus(m.expiryDate) }));
-}
-
-function createMockCourses(): Course[] {
-  const courseNames = ['瑜伽', '动感单车', '搏击操', '普拉提', '有氧舞蹈', '力量训练', '拉伸放松'];
-  const coaches = ['李教练', '王教练', '张教练', '陈教练', '刘教练'];
-  const timeSlots: Course['timeSlot'][] = ['09:00', '14:00', '19:00'];
-  const today = new Date();
-  const courses: Course[] = [];
-
-  for (let day = 0; day < 7; day++) {
-    const date = formatDate(addDays(today, day));
-    for (let si = 0; si < timeSlots.length; si++) {
-      const idx = day * 3 + si;
-      courses.push({
-        id: `c${day}-${si}`,
-        name: courseNames[idx % courseNames.length],
-        coach: coaches[(day + si) % coaches.length],
-        date,
-        timeSlot: timeSlots[si],
-        capacity: 10,
-        bookings: [],
-      });
-    }
-  }
-
-  return courses;
-}
-
-function loadMembers(): Member[] {
-  const stored = localStorage.getItem(MEMBERS_KEY);
-  if (stored) {
-    const members = JSON.parse(stored) as Member[];
-    return members.map(m => ({ ...m, status: computeStatus(m.expiryDate) }));
-  }
-  const members = createMockMembers();
-  localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
-  return members;
-}
-
-function loadCourses(): Course[] {
-  const stored = localStorage.getItem(COURSES_KEY);
-  if (stored) return JSON.parse(stored) as Course[];
-  const courses = createMockCourses();
-  localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
-  return courses;
-}
+const DISMISSED_KEY = 'fitclub_dismissed_renewals';
 
 function loadDismissedIds(): string[] {
-  const stored = localStorage.getItem(DISMISSED_KEY);
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = localStorage.getItem(DISMISSED_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedIds(ids: string[]): void {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
 }
 
 interface StoreState {
@@ -147,100 +64,143 @@ interface StoreState {
   courses: Course[];
   coachSchedule: CoachSchedule | null;
   dismissedRenewalIds: string[];
-  fetchMembers: () => void;
-  addMember: (name: string, membershipType: Member['membershipType']) => void;
-  renewMember: (id: string, membershipType: Member['membershipType']) => void;
-  fetchCourses: () => void;
-  createBooking: (courseId: string, memberName: string, memberId: string) => void;
-  cancelBooking: (courseId: string, bookingId: string) => void;
-  fetchCoachSchedule: () => void;
+  loading: boolean;
+  error: string | null;
+  fetchMembers: () => Promise<void>;
+  addMember: (name: string, membershipType: Member['membershipType']) => Promise<boolean>;
+  renewMember: (id: string, membershipType: Member['membershipType']) => Promise<boolean>;
+  fetchCourses: () => Promise<void>;
+  createBooking: (courseId: string, memberName: string, memberId: string) => Promise<{ success: boolean; error?: string }>;
+  cancelBooking: (bookingId: string) => Promise<boolean>;
+  fetchCoachSchedule: () => Promise<void>;
   dismissRenewal: (id: string) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
-  members: loadMembers(),
-  courses: loadCourses(),
+  members: [],
+  courses: [],
   coachSchedule: null,
   dismissedRenewalIds: loadDismissedIds(),
+  loading: false,
+  error: null,
 
-  fetchMembers: () => {
-    set({ members: loadMembers() });
-  },
-
-  addMember: (name, membershipType) => {
-    const today = new Date();
-    const expiryDate = formatDate(addDays(today, getMembershipDays(membershipType)));
-    const newMember: Member = {
-      id: generateId(),
-      name,
-      membershipType,
-      expiryDate,
-      status: '有效',
-    };
-    const members = [...get().members, newMember];
-    localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
-    set({ members });
-  },
-
-  renewMember: (id, membershipType) => {
-    const today = new Date();
-    const expiryDate = formatDate(addDays(today, getMembershipDays(membershipType)));
-    const members = get().members.map(m =>
-      m.id === id
-        ? { ...m, membershipType, expiryDate, status: computeStatus(expiryDate) }
-        : m
-    );
-    localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
-    set({ members });
-  },
-
-  fetchCourses: () => {
-    set({ courses: loadCourses() });
-  },
-
-  createBooking: (courseId, memberName, memberId) => {
-    const courses = get().courses.map(c => {
-      if (c.id === courseId && c.bookings.length < c.capacity) {
-        return {
-          ...c,
-          bookings: [...c.bookings, { id: generateId(), courseId, memberName, memberId }],
-        };
+  fetchMembers: async () => {
+    try {
+      const res = await fetch('/api/members');
+      const data = await res.json();
+      if (data.success) {
+        set({ members: data.data });
       }
-      return c;
-    });
-    localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
-    set({ courses });
+    } catch (err) {
+      console.error('Failed to fetch members:', err);
+    }
   },
 
-  cancelBooking: (courseId, bookingId) => {
-    const courses = get().courses.map(c => {
-      if (c.id === courseId) {
-        return { ...c, bookings: c.bookings.filter(b => b.id !== bookingId) };
+  addMember: async (name, membershipType) => {
+    try {
+      const res = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, membershipType }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await get().fetchMembers();
+        return true;
       }
-      return c;
-    });
-    localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
-    set({ courses });
+      return false;
+    } catch {
+      return false;
+    }
   },
 
-  fetchCoachSchedule: () => {
-    const today = formatDate(new Date());
-    const todayCourses = get().courses.filter(c => c.date === today);
-    const coachCourses: CoachCourse[] = todayCourses.map(c => ({
-      id: c.id,
-      name: c.name,
-      timeSlot: c.timeSlot,
-      coach: c.coach,
-      bookedStudents: c.bookings.map(b => b.memberName),
-      totalBooked: c.bookings.length,
-    }));
-    coachCourses.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
-    set({ coachSchedule: { date: today, courses: coachCourses } });
+  renewMember: async (id, membershipType) => {
+    try {
+      const res = await fetch(`/api/members/${id}/renew`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membershipType }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await get().fetchMembers();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  fetchCourses: async () => {
+    try {
+      const res = await fetch('/api/bookings');
+      const data = await res.json();
+      if (data.success) {
+        set({ courses: data.data });
+      }
+    } catch (err) {
+      console.error('Failed to fetch courses:', err);
+    }
+  },
+
+  createBooking: async (courseId, memberName, memberId) => {
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, memberName, memberId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await get().fetchCourses();
+        await get().fetchCoachSchedule();
+        return { success: true };
+      }
+      return { success: false, error: data.error };
+    } catch {
+      return { success: false, error: '网络错误，请稍后重试' };
+    }
+  },
+
+  cancelBooking: async (bookingId) => {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        await get().fetchCourses();
+        await get().fetchCoachSchedule();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  fetchCoachSchedule: async () => {
+    try {
+      const res = await fetch('/api/coach/schedule');
+      const data = await res.json();
+      if (data.success) {
+        const today = new Date().toISOString().split('T')[0];
+        set({
+          coachSchedule: {
+            date: today,
+            courses: data.data,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch coach schedule:', err);
+    }
   },
 
   dismissRenewal: (id) => {
     const dismissed = [...get().dismissedRenewalIds, id];
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed));
+    saveDismissedIds(dismissed);
     set({ dismissedRenewalIds: dismissed });
   },
 }));

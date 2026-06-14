@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import { useStore, type Course } from '@/store/useStore';
 import BookingModal from './BookingModal';
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const COLOR_AVAILABLE = '#10b981';
+const COLOR_FULL = '#ef4444';
 
 function formatDateLabel(dateStr: string) {
   const d = new Date(dateStr);
@@ -14,7 +16,7 @@ function formatDateLabel(dateStr: string) {
 }
 
 function SlotCard({ course, onClick }: { course: Course; onClick: () => void }) {
-  const remaining = course.capacity - course.bookings.length;
+  const remaining = course.remainingCapacity ?? (course.capacity - course.bookings.length);
 
   return (
     <button
@@ -24,7 +26,10 @@ function SlotCard({ course, onClick }: { course: Course; onClick: () => void }) 
       <div className="font-medium text-gray-800 text-sm mb-1">{course.name}</div>
       <div className="text-xs text-gray-500 mb-2">{course.coach}</div>
       <div className="flex items-center justify-between">
-        <span className={`text-xs font-bold ${remaining > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+        <span
+          className="text-xs font-bold"
+          style={{ color: remaining > 0 ? COLOR_AVAILABLE : COLOR_FULL }}
+        >
           剩余 {remaining}
         </span>
         <span className="text-xs text-gray-400">{course.capacity}人满</span>
@@ -35,7 +40,12 @@ function SlotCard({ course, onClick }: { course: Course; onClick: () => void }) 
 
 export default function BookingPanel() {
   const courses = useStore(s => s.courses);
+  const fetchCourses = useStore(s => s.fetchCourses);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const { dates, timeSlots } = useMemo(() => {
     const uniqueDates = [...new Set(courses.map(c => c.date))].sort();

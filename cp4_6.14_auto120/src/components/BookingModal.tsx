@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useStore, type Course } from '@/store/useStore';
 
+const COLOR_AVAILABLE = '#10b981';
+const COLOR_FULL = '#ef4444';
+
 export default function BookingModal({
   course,
   onClose,
@@ -9,45 +12,53 @@ export default function BookingModal({
   course: Course;
   onClose: () => void;
 }) {
-  const members = useStore(s => s.members);
   const createBooking = useStore(s => s.createBooking);
+  const fetchMembers = useStore(s => s.fetchMembers);
+  const members = useStore(s => s.members);
   const [memberName, setMemberName] = useState('');
   const [memberId, setMemberId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const remaining = course.capacity - course.bookings.length;
+  const remaining = course.remainingCapacity ?? (course.capacity - course.bookings.length);
   const isFull = remaining <= 0;
 
-  const selectedMember = members.find(m => m.id === memberId);
-  const isExpired = selectedMember?.status === '已过期';
+  const matchedMember = members.find(m => m.id === memberId);
+  const isExpired = matchedMember?.status === '已过期';
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!memberName.trim()) {
       setError('请输入姓名');
       return;
     }
     if (!memberId.trim()) {
-      setError('请输入会员ID');
+      setError('请输入会员号');
       return;
     }
     if (isFull) {
       setError('课程已满，无法预约');
       return;
     }
-    if (isExpired) {
-      setError('该会员已过期，无法预约');
-      return;
+
+    const result = await createBooking(course.id, memberName.trim(), memberId.trim());
+    if (result.success) {
+      setSuccess(true);
+      fetchMembers();
+      setTimeout(() => onClose(), 800);
+    } else {
+      setError(result.error || '预约失败，请稍后重试');
     }
-    createBooking(course.id, memberName.trim(), memberId.trim());
-    setSuccess(true);
-    setTimeout(() => onClose(), 800);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-lg w-[400px] p-6"
+        className="bg-white p-6"
+        style={{
+          width: '400px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -76,14 +87,17 @@ export default function BookingModal({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">剩余名额</span>
-            <span className={`font-bold ${remaining > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            <span
+              className="font-bold"
+              style={{ color: remaining > 0 ? COLOR_AVAILABLE : COLOR_FULL }}
+            >
               {remaining} / {course.capacity}
             </span>
           </div>
         </div>
 
         {success ? (
-          <div className="text-center py-4 text-green-600 font-medium">预约成功！</div>
+          <div className="text-center py-4 font-medium" style={{ color: COLOR_AVAILABLE }}>预约成功！</div>
         ) : (
           <>
             <div className="space-y-3">
@@ -98,28 +112,31 @@ export default function BookingModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">会员ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">会员号</label>
                 <input
                   type="text"
                   value={memberId}
                   onChange={e => { setMemberId(e.target.value); setError(''); }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入会员ID"
+                  placeholder="请输入会员号"
                 />
-                {selectedMember && (
-                  <p className={`text-xs mt-1 ${isExpired ? 'text-red-500' : 'text-green-600'}`}>
-                    {selectedMember.name} - {selectedMember.status}
+                {matchedMember && (
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: isExpired ? COLOR_FULL : COLOR_AVAILABLE }}
+                  >
+                    {matchedMember.name} - {matchedMember.status}
                   </p>
                 )}
               </div>
             </div>
-            {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+            {error && <p className="text-xs mt-2" style={{ color: COLOR_FULL }}>{error}</p>}
             <button
               onClick={handleBook}
-              disabled={isFull}
-              className={`btn-primary w-full mt-4 text-sm ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isFull || isExpired}
+              className={`btn-primary w-full mt-4 text-sm ${isFull || isExpired ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isFull ? '课程已满' : '立即预约'}
+              {isFull ? '课程已满' : isExpired ? '会员已过期' : '立即预约'}
             </button>
           </>
         )}

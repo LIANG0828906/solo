@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, RefreshCw, AlertTriangle, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, RefreshCw, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
 import { useStore, type Member } from '@/store/useStore';
 
 const MEMBERSHIP_TYPES: Member['membershipType'][] = ['月卡', '季卡', '年卡'];
@@ -8,21 +8,22 @@ function StatusBadge({ status }: { status: Member['status'] }) {
   switch (status) {
     case '有效':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          <CheckCircle className="w-3.5 h-3.5" />
           有效
         </span>
       );
     case '即将到期':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-          <AlertTriangle className="w-3 h-3" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+          <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
           即将到期
         </span>
       );
     case '已过期':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-          <XCircle className="w-3 h-3" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <XCircle className="w-3.5 h-3.5" />
           已过期
         </span>
       );
@@ -45,8 +46,16 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (name:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-lg w-[400px] p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4">添加会员</h3>
+      <div
+        className="bg-white p-6"
+        style={{
+          width: '400px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">添加会员</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
@@ -95,8 +104,16 @@ function RenewModal({ member, onClose, onRenew }: { member: Member; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-lg w-[400px] p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4">续费 - {member.name}</h3>
+      <div
+        className="bg-white p-6"
+        style={{
+          width: '400px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">续费 - {member.name}</h3>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">选择新会籍类型</label>
           <select
@@ -125,15 +142,23 @@ function RenewModal({ member, onClose, onRenew }: { member: Member; onClose: () 
 
 export default function MemberPanel() {
   const members = useStore(s => s.members);
+  const fetchMembers = useStore(s => s.fetchMembers);
   const addMember = useStore(s => s.addMember);
   const renewMember = useStore(s => s.renewMember);
   const [showAdd, setShowAdd] = useState(false);
   const [renewTarget, setRenewTarget] = useState<Member | null>(null);
 
-  const sortedMembers = [...members].sort((a, b) => {
-    const priority = { '即将到期': 0, '已过期': 1, '有效': 2 };
-    return priority[a.status] - priority[b.status];
-  });
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
+
+  const handleAdd = async (name: string, type: Member['membershipType']) => {
+    await addMember(name, type);
+  };
+
+  const handleRenew = async (id: string, type: Member['membershipType']) => {
+    await renewMember(id, type);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm">
@@ -141,7 +166,7 @@ export default function MemberPanel() {
         <h2 className="text-base font-semibold text-gray-800">会员列表</h2>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => useStore.getState().fetchMembers()}
+            onClick={() => fetchMembers()}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
@@ -164,10 +189,11 @@ export default function MemberPanel() {
             </tr>
           </thead>
           <tbody>
-            {sortedMembers.map((member, idx) => (
+            {members.map((member, idx) => (
               <tr
                 key={member.id}
-                className={`h-12 border-b border-gray-50 transition-colors hover:bg-slate-200 ${
+                style={{ height: '48px' }}
+                className={`border-b border-gray-50 transition-colors hover:bg-slate-200 ${
                   idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'
                 }`}
               >
@@ -192,10 +218,10 @@ export default function MemberPanel() {
         <div className="text-center py-12 text-gray-400 text-sm">暂无会员数据</div>
       )}
       {showAdd && (
-        <AddMemberModal onClose={() => setShowAdd(false)} onAdd={addMember} />
+        <AddMemberModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />
       )}
       {renewTarget && (
-        <RenewModal member={renewTarget} onClose={() => setRenewTarget(null)} onRenew={renewMember} />
+        <RenewModal member={renewTarget} onClose={() => setRenewTarget(null)} onRenew={handleRenew} />
       )}
     </div>
   );

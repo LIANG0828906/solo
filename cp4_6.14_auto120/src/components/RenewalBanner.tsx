@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
@@ -6,8 +6,13 @@ export default function RenewalBanner() {
   const members = useStore(s => s.members);
   const dismissedRenewalIds = useStore(s => s.dismissedRenewalIds);
   const dismissRenewal = useStore(s => s.dismissRenewal);
+  const fetchMembers = useStore(s => s.fetchMembers);
 
   const [expiringMembers, setExpiringMembers] = useState<typeof members>([]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   useEffect(() => {
     const now = new Date();
@@ -24,21 +29,35 @@ export default function RenewalBanner() {
     setExpiringMembers(expiring);
   }, [members]);
 
-  const visible = expiringMembers.filter(m => !dismissedRenewalIds.includes(m.id));
+  const visibleMembers = expiringMembers.filter(m => !dismissedRenewalIds.includes(m.id));
 
-  if (visible.length === 0) return null;
+  if (visibleMembers.length === 0) return null;
 
-  const names = visible.map(m => m.name).join('、');
+  const names = visibleMembers.map(m => m.name).join('、');
+
+  const handleClose = () => {
+    visibleMembers.forEach(m => dismissRenewal(m.id));
+  };
 
   return (
-    <div className="relative h-[60px] bg-amber-100 text-amber-800 rounded-lg p-4 flex items-center gap-2 mb-4">
-      <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
+    <div
+      className="relative flex items-center gap-2 mb-4"
+      style={{
+        height: '60px',
+        backgroundColor: '#fef3c7',
+        color: '#92400e',
+        borderRadius: '8px',
+        padding: '16px',
+      }}
+    >
+      <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: '#d97706' }} />
       <span className="text-sm font-medium truncate">
         以下会员即将到期：{names}，请及时提醒续费！
       </span>
       <button
-        onClick={() => visible.forEach(m => dismissRenewal(m.id))}
-        className="absolute bottom-2 right-3 p-1 hover:bg-amber-200 rounded transition-colors"
+        onClick={handleClose}
+        className="absolute p-1 rounded transition-colors hover:bg-amber-200"
+        style={{ bottom: '8px', right: '12px' }}
       >
         <X className="w-4 h-4" />
       </button>
