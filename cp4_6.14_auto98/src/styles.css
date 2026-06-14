@@ -283,9 +283,10 @@ body {
 }
 
 .student-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15),
+    0 10px 15px -6px rgba(0, 0, 0, 0.12) !important;
+  border-bottom-color: #cbd5e1;
 }
 
 .card-header {
@@ -328,12 +329,22 @@ body {
 .info-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   font-size: 13px;
   color: #475569;
 }
 
 .info-label {
   color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.info-row > span:last-child {
+  color: #0f172a;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
 }
 
 .hours-badge {
@@ -683,17 +694,20 @@ body {
   border-bottom: 1px solid #f1f5f9;
 }
 
+.data-table tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
 .data-table tbody tr:nth-child(odd) {
-  background-color: #ffffff;
+  background-color: #ffffff !important;
 }
 
 .data-table tbody tr:nth-child(even) {
-  background-color: #f8fafc;
+  background-color: #f8fafc !important;
 }
 
 .data-table tbody tr:hover {
-  background-color: #e2e8f0;
-  transition: background-color 0.15s ease-in-out;
+  background-color: #e2e8f0 !important;
 }
 
 .data-table tbody tr:last-child td {
