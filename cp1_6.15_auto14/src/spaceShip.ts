@@ -12,13 +12,17 @@ class SpaceShip {
   private shieldMesh!: THREE.Mesh;
   private trailParticles: THREE.Points;
   private trailPositions: Float32Array;
+  private trailColors: Float32Array;
+  private trailSizes: Float32Array;
+  private trailAges: Float32Array;
   private trailCount: number = 0;
-  private maxTrailParticles: number = 500;
+  private maxTrailParticles: number = 600;
   private coinParticles: THREE.Points;
   private coinPositions: Float32Array;
   private coinVelocities: Float32Array;
+  private coinSizes: Float32Array;
   private coinCount: number = 0;
-  private maxCoinParticles: number = 200;
+  private maxCoinParticles: number = 300;
   
   private animationState: ShipAnimationState = 'idle';
   private targetPosition: THREE.Vector3 | null = null;
@@ -40,10 +44,14 @@ class SpaceShip {
     this.shipGroup = new THREE.Group();
     
     this.trailPositions = new Float32Array(this.maxTrailParticles * 3);
+    this.trailColors = new Float32Array(this.maxTrailParticles * 3);
+    this.trailSizes = new Float32Array(this.maxTrailParticles);
+    this.trailAges = new Float32Array(this.maxTrailParticles);
     this.trailParticles = this.createTrailParticles();
     
     this.coinPositions = new Float32Array(this.maxCoinParticles * 3);
     this.coinVelocities = new Float32Array(this.maxCoinParticles * 3);
+    this.coinSizes = new Float32Array(this.maxCoinParticles);
     this.coinParticles = this.createCoinParticles();
     
     this.createShipModel();
@@ -145,32 +153,20 @@ class SpaceShip {
   private createTrailParticles(): THREE.Points {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(this.trailPositions, 3));
-    
-    const colors = new Float32Array(this.maxTrailParticles * 3);
-    for (let i = 0; i < this.maxTrailParticles; i++) {
-      const alpha = 1 - i / this.maxTrailParticles;
-      colors[i * 3] = 0.3 + alpha * 0.7;
-      colors[i * 3 + 1] = 0.5 + alpha * 0.5;
-      colors[i * 3 + 2] = 1;
-    }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const sizes = new Float32Array(this.maxTrailParticles);
-    for (let i = 0; i < this.maxTrailParticles; i++) {
-      sizes[i] = (1 - i / this.maxTrailParticles) * 0.5;
-    }
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('color', new THREE.BufferAttribute(this.trailColors, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(this.trailSizes, 1));
 
     const material = new THREE.PointsMaterial({
-      size: 0.3,
+      size: 0.5,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
+      opacity: 1,
       sizeAttenuation: true,
       blending: THREE.AdditiveBlending
     });
 
     const particles = new THREE.Points(geometry, material);
+    particles.name = 'trailParticles';
     particles.frustumCulled = false;
     this.scene.add(particles);
     
@@ -180,6 +176,7 @@ class SpaceShip {
   private createCoinParticles(): THREE.Points {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(this.coinPositions, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(this.coinSizes, 1));
     
     const colors = new Float32Array(this.maxCoinParticles * 3);
     for (let i = 0; i < this.maxCoinParticles; i++) {
@@ -190,7 +187,7 @@ class SpaceShip {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.4,
+      size: 0.6,
       vertexColors: true,
       transparent: true,
       opacity: 1,
@@ -199,6 +196,7 @@ class SpaceShip {
     });
 
     const particles = new THREE.Points(geometry, material);
+    particles.name = 'coinParticles';
     particles.frustumCulled = false;
     this.scene.add(particles);
     
@@ -225,27 +223,34 @@ class SpaceShip {
     this.updateEngineIntensity();
   }
 
+  private handleCoinFountainBound!: (event: Event) => void;
+  private handleShipUpgradedBound!: () => void;
+
   private setupEventListeners(): void {
-    window.addEventListener('coin-fountain', this.handleCoinFountain.bind(this));
-    window.addEventListener('ship-upgraded', this.handleShipUpgraded.bind(this));
-  }
-
-  private handleCoinFountain(event: Event): void {
-    const customEvent = event as CustomEvent;
-    const position = customEvent.detail.position;
-    this.spawnCoinFountain(new THREE.Vector3(position.x, position.y, position.z));
-  }
-
-  private handleShipUpgraded(): void {
-    this.updateCargoSize();
-    this.updateEngineIntensity();
-    this.updateShieldLevel();
+    this.handleCoinFountainBound = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const position = customEvent.detail.position;
+      this.spawnCoinFountain(new THREE.Vector3(position.x, position.y, position.z));
+    };
+    this.handleShipUpgradedBound = () => {
+      this.updateCargoSize();
+      this.updateEngineIntensity();
+      this.updateShieldLevel();
+    };
+    window.addEventListener('coin-fountain', this.handleCoinFountainBound);
+    window.addEventListener('ship-upgraded', this.handleShipUpgradedBound);
   }
 
   private updateCargoSize(): void {
     const ship = gameState.getShip();
     const cargoRatio = ship.cargoCapacity / ship.baseCargoCapacity;
-    this.cargoMesh.scale.set(1, 1 + (cargoRatio - 1) * 0.5, cargoRatio);
+    this.cargoMesh.scale.setScalar(cargoRatio);
+    
+    const cargoMaterial = this.cargoMesh.material as THREE.MeshPhongMaterial;
+    const darkGreen = new THREE.Color(0x2d4a1a);
+    const brightGreen = new THREE.Color(0x6bff6b);
+    const t = Math.min(1, (cargoRatio - 1) / 2);
+    cargoMaterial.color.copy(darkGreen).lerp(brightGreen, t);
     this.updateCargoLevel();
   }
 
@@ -265,7 +270,10 @@ class SpaceShip {
     
     const glowMaterial = this.engineGlow.material as THREE.MeshBasicMaterial;
     glowMaterial.opacity = 0.4 + this.engineIntensity * 0.4;
-    glowMaterial.color.setHSL(0.5 + (this.engineIntensity - 1) * 0.1, 1, 0.5);
+    const hslStart = 0.5;
+    const hslEnd = 0.58;
+    const t = Math.min(1, (this.engineIntensity - 1));
+    glowMaterial.color.setHSL(hslStart + (hslEnd - hslStart) * t, 1, 0.5);
     
     this.engineGlow.scale.setScalar(this.engineIntensity);
   }
@@ -273,11 +281,14 @@ class SpaceShip {
   private updateShieldLevel(): void {
     const ship = gameState.getShip();
     const shieldRatio = ship.shieldLevel / ship.baseShieldLevel;
-    this.shieldOpacity = Math.min(0.3, (shieldRatio - 1) * 0.3);
+    this.shieldOpacity = Math.min(0.35, (shieldRatio - 1) * 0.35);
     
     const shieldMaterial = this.shieldMesh.material as THREE.MeshBasicMaterial;
     shieldMaterial.opacity = this.shieldOpacity;
     shieldMaterial.color.setHSL(0.5, 1, 0.5);
+    
+    const baseShieldScale = 2.5;
+    this.shieldMesh.scale.setScalar(baseShieldScale + (shieldRatio - 1) * 0.5);
   }
 
   public flyTo(planetId: string, onComplete?: () => void): boolean {
@@ -349,7 +360,7 @@ class SpaceShip {
   }
 
   private spawnCoinFountain(position: THREE.Vector3): void {
-    const count = Math.min(50, this.maxCoinParticles - this.coinCount);
+    const count = Math.min(80, this.maxCoinParticles - this.coinCount);
     
     for (let i = 0; i < count; i++) {
       const index = this.coinCount * 3;
@@ -358,16 +369,21 @@ class SpaceShip {
       this.coinPositions[index + 2] = position.z + (Math.random() - 0.5) * 2;
       
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 3;
-      this.coinVelocities[index] = Math.cos(angle) * speed;
-      this.coinVelocities[index + 1] = 3 + Math.random() * 2;
-      this.coinVelocities[index + 2] = Math.sin(angle) * speed;
+      const horizontalSpeed = 2 + Math.random() * 3;
+      this.coinVelocities[index] = Math.cos(angle) * horizontalSpeed;
+      this.coinVelocities[index + 1] = 3 + Math.random() * 4;
+      this.coinVelocities[index + 2] = Math.sin(angle) * horizontalSpeed;
+      
+      this.coinSizes[this.coinCount] = 0.6;
       
       this.coinCount++;
     }
     
     const positionAttribute = this.coinParticles.geometry.getAttribute('position') as THREE.BufferAttribute;
     positionAttribute.needsUpdate = true;
+    const sizeAttribute = this.coinParticles.geometry.getAttribute('size') as THREE.BufferAttribute;
+    sizeAttribute.needsUpdate = true;
+    this.coinParticles.geometry.setDrawRange(0, this.coinCount);
   }
 
   private addTrailParticle(): void {
@@ -376,6 +392,11 @@ class SpaceShip {
         this.trailPositions[i * 3] = this.trailPositions[(i + 1) * 3];
         this.trailPositions[i * 3 + 1] = this.trailPositions[(i + 1) * 3 + 1];
         this.trailPositions[i * 3 + 2] = this.trailPositions[(i + 1) * 3 + 2];
+        this.trailColors[i * 3] = this.trailColors[(i + 1) * 3];
+        this.trailColors[i * 3 + 1] = this.trailColors[(i + 1) * 3 + 1];
+        this.trailColors[i * 3 + 2] = this.trailColors[(i + 1) * 3 + 2];
+        this.trailSizes[i] = this.trailSizes[i + 1];
+        this.trailAges[i] = this.trailAges[i + 1];
       }
       this.trailCount = this.maxTrailParticles - 1;
     }
@@ -384,14 +405,39 @@ class SpaceShip {
     const glowPos = new THREE.Vector3();
     this.engineGlow.getWorldPosition(glowPos);
     
-    this.trailPositions[index] = glowPos.x + (Math.random() - 0.5) * 0.3;
-    this.trailPositions[index + 1] = glowPos.y + (Math.random() - 0.5) * 0.3;
-    this.trailPositions[index + 2] = glowPos.z + (Math.random() - 0.5) * 0.3;
+    const shipDirection = new THREE.Vector3();
+    this.shipGroup.getWorldDirection(shipDirection);
+    
+    const offsetPos = glowPos.clone().add(shipDirection.multiplyScalar(-0.5));
+    const angle1 = Math.random() * Math.PI * 2;
+    const radius = Math.random() * 0.3;
+    offsetPos.x += Math.cos(angle1) * radius;
+    offsetPos.y += Math.sin(angle1) * radius;
+    offsetPos.z += (Math.random() - 0.5) * radius;
+    
+    this.trailPositions[index] = offsetPos.x;
+    this.trailPositions[index + 1] = offsetPos.y;
+    this.trailPositions[index + 2] = offsetPos.z;
+    
+    const cyan = new THREE.Color(0x00ffff);
+    const darkBlue = new THREE.Color(0x001a66);
+    const startColor = cyan.clone();
+    this.trailColors[index] = startColor.r;
+    this.trailColors[index + 1] = startColor.g;
+    this.trailColors[index + 2] = startColor.b;
+    void darkBlue;
+    
+    this.trailSizes[this.trailCount] = 0.5;
+    this.trailAges[this.trailCount] = 0;
     
     this.trailCount++;
 
     const positionAttribute = this.trailParticles.geometry.getAttribute('position') as THREE.BufferAttribute;
     positionAttribute.needsUpdate = true;
+    const colorAttribute = this.trailParticles.geometry.getAttribute('color') as THREE.BufferAttribute;
+    colorAttribute.needsUpdate = true;
+    const sizeAttribute = this.trailParticles.geometry.getAttribute('size') as THREE.BufferAttribute;
+    sizeAttribute.needsUpdate = true;
     this.trailParticles.geometry.setDrawRange(0, this.trailCount);
   }
 
@@ -435,12 +481,22 @@ class SpaceShip {
       newPosition.z
     );
     
-    if (this.flightProgress < 0.9 && Math.random() < 0.5) {
+    const trailMultiplier = this.flightProgress < 0.95 ? 1 : Math.max(0, 1 - (this.flightProgress - 0.95) / 0.05);
+    const baseParticles = 3;
+    const particlesToSpawn = Math.ceil(baseParticles * trailMultiplier);
+    for (let i = 0; i < particlesToSpawn; i++) {
       this.addTrailParticle();
     }
     
+    const glowPulse = 0.6 + (Math.sin(Date.now() * 0.01) * 0.5 + 0.5) * 0.4;
     const glowMaterial = this.engineGlow.material as THREE.MeshBasicMaterial;
-    glowMaterial.opacity = 0.8 + Math.sin(Date.now() * 0.01) * 0.2;
+    glowMaterial.opacity = glowPulse;
+    
+    const bodyMaterial = this.bodyMesh.material as THREE.MeshPhongMaterial;
+    const emissiveIntensity = (Math.sin(Date.now() * 0.008) * 0.5 + 0.5) * 0.2;
+    const glowColor = glowMaterial.color.clone();
+    bodyMaterial.emissive = glowColor;
+    bodyMaterial.emissiveIntensity = emissiveIntensity;
     
     if (this.flightProgress >= 1) {
       this.completeFlight();
@@ -474,6 +530,10 @@ class SpaceShip {
     const glowMaterial = this.engineGlow.material as THREE.MeshBasicMaterial;
     glowMaterial.opacity = 0.6;
     
+    const bodyMaterial = this.bodyMesh.material as THREE.MeshPhongMaterial;
+    bodyMaterial.emissive = new THREE.Color(0x000000);
+    bodyMaterial.emissiveIntensity = 0;
+    
     if (this.onFlightComplete) {
       this.onFlightComplete();
       this.onFlightComplete = null;
@@ -503,28 +563,29 @@ class SpaceShip {
   }
 
   private updateCoinParticles(deltaTime: number): void {
-    const gravity = -9.8;
-    const damping = 0.98;
+    const gravity = -15;
+    const damping = 0.995;
     
     for (let i = 0; i < this.coinCount; i++) {
       const index = i * 3;
       
       this.coinVelocities[index + 1] += gravity * deltaTime;
       
-      this.coinPositions[index] += this.coinVelocities[index] * deltaTime;
-      this.coinPositions[index + 1] += this.coinVelocities[index + 1] * deltaTime;
-      this.coinPositions[index + 2] += this.coinVelocities[index + 2] * deltaTime;
+      this.coinPositions[index] += this.coinVelocities[index] * deltaTime + (Math.random() - 0.5) * 0.05;
+      this.coinPositions[index + 1] += this.coinVelocities[index + 1] * deltaTime + (Math.random() - 0.5) * 0.03;
+      this.coinPositions[index + 2] += this.coinVelocities[index + 2] * deltaTime + (Math.random() - 0.5) * 0.05;
       
       this.coinVelocities[index] *= damping;
       this.coinVelocities[index + 1] *= damping;
       this.coinVelocities[index + 2] *= damping;
       
-      if (this.coinPositions[index + 1] < -5) {
+      if (this.coinPositions[index + 1] < 1) {
         for (let j = i; j < this.coinCount - 1; j++) {
           for (let k = 0; k < 3; k++) {
             this.coinPositions[j * 3 + k] = this.coinPositions[(j + 1) * 3 + k];
             this.coinVelocities[j * 3 + k] = this.coinVelocities[(j + 1) * 3 + k];
           }
+          this.coinSizes[j] = this.coinSizes[j + 1];
         }
         this.coinCount--;
         i--;
@@ -533,7 +594,48 @@ class SpaceShip {
     
     const positionAttribute = this.coinParticles.geometry.getAttribute('position') as THREE.BufferAttribute;
     positionAttribute.needsUpdate = true;
+    const sizeAttribute = this.coinParticles.geometry.getAttribute('size') as THREE.BufferAttribute;
+    sizeAttribute.needsUpdate = true;
     this.coinParticles.geometry.setDrawRange(0, this.coinCount);
+  }
+
+  private updateTrailParticles(deltaTime: number): void {
+    const cyan = new THREE.Color(0x00ffff);
+    const darkBlue = new THREE.Color(0x001a66);
+    const lifeSpan = 1.5;
+    
+    for (let i = 0; i < this.trailCount; i++) {
+      this.trailAges[i] += deltaTime;
+      const t = Math.min(1, this.trailAges[i] / lifeSpan);
+      
+      const currentColor = cyan.clone().lerp(darkBlue, t);
+      this.trailColors[i * 3] = currentColor.r;
+      this.trailColors[i * 3 + 1] = currentColor.g;
+      this.trailColors[i * 3 + 2] = currentColor.b;
+      
+      this.trailSizes[i] = 0.5 * (1 - t) + 0.05 * t;
+      
+      if (this.trailAges[i] >= lifeSpan) {
+        for (let j = i; j < this.trailCount - 1; j++) {
+          for (let k = 0; k < 3; k++) {
+            this.trailPositions[j * 3 + k] = this.trailPositions[(j + 1) * 3 + k];
+            this.trailColors[j * 3 + k] = this.trailColors[(j + 1) * 3 + k];
+          }
+          this.trailSizes[j] = this.trailSizes[j + 1];
+          this.trailAges[j] = this.trailAges[j + 1];
+        }
+        this.trailCount--;
+        i--;
+      }
+    }
+    
+    const positionAttribute = this.trailParticles.geometry.getAttribute('position') as THREE.BufferAttribute;
+    positionAttribute.needsUpdate = true;
+    const colorAttribute = this.trailParticles.geometry.getAttribute('color') as THREE.BufferAttribute;
+    colorAttribute.needsUpdate = true;
+    const sizeAttribute = this.trailParticles.geometry.getAttribute('size') as THREE.BufferAttribute;
+    sizeAttribute.needsUpdate = true;
+    this.trailParticles.geometry.setDrawRange(0, this.trailCount);
   }
 
   private easeInOutCubic(t: number): number {
@@ -555,10 +657,11 @@ class SpaceShip {
     }
     
     this.updateCoinParticles(deltaTime);
+    this.updateTrailParticles(deltaTime);
     
     if (this.shieldOpacity > 0) {
       const shieldMaterial = this.shieldMesh.material as THREE.MeshBasicMaterial;
-      shieldMaterial.opacity = this.shieldOpacity * (0.5 + Math.sin(Date.now() * 0.002) * 0.5);
+      shieldMaterial.opacity = this.shieldOpacity * (0.6 + Math.sin(Date.now() * 0.003) * 0.4);
     }
 
     this.updateCargoLevel();
@@ -577,6 +680,12 @@ class SpaceShip {
     }
     
     this.shipGroup.rotation.z = Math.sin(Date.now() * 0.001) * 0.05;
+    
+    const bodyMaterial = this.bodyMesh.material as THREE.MeshPhongMaterial;
+    if (bodyMaterial.emissiveIntensity > 0) {
+      bodyMaterial.emissive = new THREE.Color(0x000000);
+      bodyMaterial.emissiveIntensity = 0;
+    }
   }
 
   public getPosition(): THREE.Vector3 {
@@ -605,8 +714,8 @@ class SpaceShip {
     this.coinParticles.geometry.dispose();
     (this.coinParticles.material as THREE.Material).dispose();
     
-    window.removeEventListener('coin-fountain', this.handleCoinFountain.bind(this));
-    window.removeEventListener('ship-upgraded', this.handleShipUpgraded.bind(this));
+    window.removeEventListener('coin-fountain', this.handleCoinFountainBound);
+    window.removeEventListener('ship-upgraded', this.handleShipUpgradedBound);
   }
 }
 

@@ -18,6 +18,7 @@ class UILayer {
   private hamburgerMenu: HTMLElement;
   private quantityInputs: Map<string, HTMLInputElement> = new Map();
   private activePanel: PanelType = 'trade';
+  private isMobile: boolean = false;
 
   constructor() {
     this.container = document.createElement('div');
@@ -63,6 +64,7 @@ class UILayer {
 
     this.setupEventListeners();
     this.switchPanel('trade');
+    this.checkMobileViewport();
   }
 
   private createStyles(): void {
@@ -109,8 +111,8 @@ class UILayer {
       }
       
       @keyframes ripple {
-        0% { transform: scale(0); opacity: 1; }
-        100% { transform: scale(4); opacity: 0; }
+        0% { transform: scale(0); opacity: 0.8; }
+        100% { transform: scale(5); opacity: 0; }
       }
       
       .ui-enter-down {
@@ -142,6 +144,22 @@ class UILayer {
         overflow: hidden;
       }
       
+      .trade-btn.buy-btn {
+        background: linear-gradient(135deg, #ef4444, #8b5cf6);
+      }
+      
+      .trade-btn.buy-btn:hover {
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+      }
+      
+      .trade-btn.sell-btn {
+        background: linear-gradient(135deg, #10b981, #3b82f6);
+      }
+      
+      .trade-btn.sell-btn:hover {
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+      }
+      
       .trade-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
@@ -161,7 +179,7 @@ class UILayer {
         position: absolute;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.6);
-        animation: ripple 0.6s linear;
+        animation: ripple 0.6s linear forwards;
         pointer-events: none;
       }
       
@@ -275,6 +293,31 @@ class UILayer {
       .price-down { color: #ef4444; }
       .price-stable { color: #94a3b8; }
       
+      .price-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: white;
+      }
+      
+      .buy-price-tag {
+        background: #ef4444;
+      }
+      
+      .sell-price-tag {
+        background: #10b981;
+      }
+      
+      .price-tags-container {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      
       .hamburger {
         display: none;
         flex-direction: column;
@@ -290,6 +333,20 @@ class UILayer {
         background: #e2e8f0;
         border-radius: 2px;
         transition: all 0.3s ease;
+        transform-origin: center;
+      }
+      
+      .hamburger.active span:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+      }
+      
+      .hamburger.active span:nth-child(2) {
+        opacity: 0;
+        transform: scaleX(0);
+      }
+      
+      .hamburger.active span:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
       }
       
       @media (max-width: 768px) {
@@ -298,12 +355,12 @@ class UILayer {
         }
         
         .bottom-panel {
-          transform: translateY(calc(100% - 60px));
+          transform: translateX(-50%) translateY(calc(100% - 60px));
           transition: transform 0.3s ease;
         }
         
         .bottom-panel.expanded {
-          transform: translateY(0);
+          transform: translateX(-50%) translateY(0);
         }
         
         .right-panel {
@@ -317,6 +374,14 @@ class UILayer {
 
   private applyStyles(element: HTMLElement, styles: Record<string, string>): void {
     Object.assign(element.style, styles);
+  }
+
+  private checkMobileViewport(): void {
+    this.isMobile = window.innerWidth <= 768;
+    if (!this.isMobile) {
+      this.bottomPanel.classList.remove('expanded');
+      this.hamburgerMenu.classList.remove('active');
+    }
   }
 
   private createTopBar(): HTMLElement {
@@ -503,874 +568,826 @@ class UILayer {
     this.applyStyles(tabs, {
       display: 'flex',
       gap: '4px',
-      marginBottom: '16px'
+      marginBottom: '16px',
+      borderBottom: '1px solid rgba(255,255,255,0.1)'
     });
 
-    const tabsConfig: { id: PanelType; label: string; icon: string }[] = [
-      { id: 'trade', label: '交易', icon: '💱' },
-      { id: 'missions', label: '任务', icon: '📋' },
-      { id: 'upgrades', label: '升级', icon: '⬆️' },
-      { id: 'cargo', label: '货仓', icon: '📦' }
-    ];
+    const tradeTab = this.createTabBtn('交易', 'trade', true);
+    const missionTab = this.createTabBtn('任务', 'missions');
+    const upgradeTab = this.createTabBtn('升级', 'upgrades');
+    const cargoTab = this.createTabBtn('货仓', 'cargo');
 
-    tabsConfig.forEach((tab, index) => {
-      const btn = document.createElement('button');
-      btn.className = `tab-btn ${index === 0 ? 'active' : ''}`;
-      btn.dataset.panel = tab.id;
-      btn.innerHTML = `<span>${tab.icon}</span> ${tab.label}`;
-      btn.addEventListener('click', () => this.switchPanel(tab.id));
-      tabs.appendChild(btn);
+    tabs.appendChild(tradeTab);
+    tabs.appendChild(missionTab);
+    tabs.appendChild(upgradeTab);
+    tabs.appendChild(cargoTab);
+
+    const infoBox = document.createElement('div');
+    infoBox.id = 'planet-info';
+    this.applyStyles(infoBox, {
+      background: 'rgba(51, 65, 85, 0.5)',
+      borderRadius: '8px',
+      padding: '12px',
+      marginBottom: '16px',
+      fontSize: '13px',
+      color: '#94a3b8'
     });
+    infoBox.innerHTML = currentPlanet 
+      ? `<div>类型: ${currentPlanet.isStation ? '🛰️ 空间站' : '🪐 星球'}</div>
+         <div>直径: ${(currentPlanet.size * 2).toFixed(1)} 单位</div>`
+      : '<div>飞船正在航行中...</div>';
 
     panel.appendChild(title);
     panel.appendChild(tabs);
+    panel.appendChild(infoBox);
 
     return panel;
   }
 
+  private createTabBtn(label: string, panel: PanelType, active: boolean = false): HTMLElement {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (active ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', (e) => {
+      this.addRippleEffect(btn, e as MouseEvent);
+      this.switchPanel(panel);
+    });
+    return btn;
+  }
+
   private createRightPanel(): HTMLElement {
     const panel = document.createElement('div');
+    panel.className = 'ui-enter-right glass-panel';
     this.applyStyles(panel, {
       position: 'absolute',
       right: '20px',
-      top: '180px',
-      width: '350px',
-      maxHeight: 'calc(100vh - 280px)',
+      top: '100px',
+      width: '380px',
+      pointerEvents: 'auto',
+      animationDelay: '0.4s',
+      opacity: '0',
+      maxHeight: 'calc(100vh - 200px)',
       overflowY: 'auto',
-      pointerEvents: 'auto'
+      display: 'flex',
+      flexDirection: 'column'
     });
-
     return panel;
   }
 
   private createTradePanel(): HTMLElement {
     const panel = document.createElement('div');
     panel.id = 'trade-panel';
-    panel.className = 'glass-panel ui-enter-right';
     this.applyStyles(panel, {
       padding: '20px',
-      opacity: '0',
-      animationDelay: '0.4s'
+      display: 'none',
+      flex: '1'
     });
 
-    const header = document.createElement('div');
-    this.applyStyles(header, {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px'
+    const title = document.createElement('div');
+    this.applyStyles(title, {
+      color: '#fbbf24',
+      fontSize: '16px',
+      fontWeight: '600',
+      marginBottom: '16px'
     });
-    header.innerHTML = `
-      <h3 style="margin: 0; color: #e2e8f0; font-size: 16px;">商品列表</h3>
-      <span id="trade-planet-name" style="color: #94a3b8; font-size: 14px;"></span>
-    `;
+    title.textContent = '📦 商品交易';
 
-    const commodityList = document.createElement('div');
-    commodityList.id = 'commodity-list';
+    const container = document.createElement('div');
+    container.id = 'commodities-container';
+    this.applyStyles(container, {
+      flex: '1',
+      overflowY: 'auto'
+    });
 
-    panel.appendChild(header);
-    panel.appendChild(commodityList);
-
+    panel.appendChild(title);
+    panel.appendChild(container);
     return panel;
   }
 
   private createMissionPanel(): HTMLElement {
     const panel = document.createElement('div');
     panel.id = 'mission-panel';
-    panel.className = 'glass-panel';
     this.applyStyles(panel, {
       padding: '20px',
-      display: 'none'
+      display: 'none',
+      flex: '1'
     });
 
-    const header = document.createElement('h3');
-    this.applyStyles(header, {
-      margin: '0 0 20px 0',
-      color: '#e2e8f0',
-      fontSize: '16px'
+    const title = document.createElement('div');
+    this.applyStyles(title, {
+      color: '#fbbf24',
+      fontSize: '16px',
+      fontWeight: '600',
+      marginBottom: '16px'
     });
-    header.textContent = '运输任务';
+    title.textContent = '📋 运输任务';
 
-    const missionList = document.createElement('div');
-    missionList.id = 'mission-list';
+    const container = document.createElement('div');
+    container.id = 'missions-container';
+    this.applyStyles(container, {
+      flex: '1',
+      overflowY: 'auto'
+    });
 
-    panel.appendChild(header);
-    panel.appendChild(missionList);
-
+    panel.appendChild(title);
+    panel.appendChild(container);
     return panel;
   }
 
   private createUpgradePanel(): HTMLElement {
     const panel = document.createElement('div');
     panel.id = 'upgrade-panel';
-    panel.className = 'glass-panel';
     this.applyStyles(panel, {
       padding: '20px',
-      display: 'none'
+      display: 'none',
+      flex: '1'
     });
 
-    const header = document.createElement('h3');
-    this.applyStyles(header, {
-      margin: '0 0 20px 0',
-      color: '#e2e8f0',
-      fontSize: '16px'
+    const title = document.createElement('div');
+    this.applyStyles(title, {
+      color: '#fbbf24',
+      fontSize: '16px',
+      fontWeight: '600',
+      marginBottom: '16px'
     });
-    header.textContent = '飞船升级';
+    title.textContent = '🔧 飞船升级';
 
-    const warning = document.createElement('div');
-    warning.id = 'upgrade-warning';
-    this.applyStyles(warning, {
-      color: '#f59e0b',
-      fontSize: '12px',
-      marginBottom: '16px',
-      padding: '8px',
-      background: 'rgba(245, 158, 11, 0.1)',
+    const hint = document.createElement('div');
+    hint.id = 'upgrade-hint';
+    this.applyStyles(hint, {
+      color: '#94a3b8',
+      fontSize: '13px',
+      padding: '12px',
+      background: 'rgba(239, 68, 68, 0.1)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
       borderRadius: '8px',
-      display: 'none'
+      marginBottom: '16px'
     });
-    warning.textContent = '⚠️ 请在空间站停靠以购买升级';
+    hint.textContent = '⚠️ 只有在空间站才能购买升级';
 
-    const upgradeList = document.createElement('div');
-    upgradeList.id = 'upgrade-list';
+    const container = document.createElement('div');
+    container.id = 'upgrades-container';
+    this.applyStyles(container, {
+      flex: '1',
+      overflowY: 'auto'
+    });
 
-    panel.appendChild(header);
-    panel.appendChild(warning);
-    panel.appendChild(upgradeList);
-
+    panel.appendChild(title);
+    panel.appendChild(hint);
+    panel.appendChild(container);
     return panel;
   }
 
   private createCargoPanel(): HTMLElement {
     const panel = document.createElement('div');
     panel.id = 'cargo-panel';
-    panel.className = 'glass-panel';
     this.applyStyles(panel, {
       padding: '20px',
-      display: 'none'
+      display: 'none',
+      flex: '1'
     });
 
-    const header = document.createElement('h3');
-    this.applyStyles(header, {
-      margin: '0 0 20px 0',
-      color: '#e2e8f0',
-      fontSize: '16px'
+    const title = document.createElement('div');
+    this.applyStyles(title, {
+      color: '#fbbf24',
+      fontSize: '16px',
+      fontWeight: '600',
+      marginBottom: '16px'
     });
-    header.textContent = '货仓内容';
+    title.textContent = '🚚 货仓清单';
 
-    const cargoList = document.createElement('div');
-    cargoList.id = 'cargo-list';
+    const container = document.createElement('div');
+    container.id = 'cargo-container';
+    this.applyStyles(container, {
+      flex: '1',
+      overflowY: 'auto'
+    });
 
-    panel.appendChild(header);
-    panel.appendChild(cargoList);
-
+    panel.appendChild(title);
+    panel.appendChild(container);
     return panel;
   }
 
   private createNewsContainer(): HTMLElement {
     const container = document.createElement('div');
+    container.id = 'news-container';
     this.applyStyles(container, {
       position: 'absolute',
       top: '80px',
       right: '20px',
-      width: '300px',
-      pointerEvents: 'auto'
+      width: '320px',
+      pointerEvents: 'auto',
+      zIndex: '1001'
     });
     return container;
   }
 
   private createHamburgerMenu(): HTMLElement {
-    const hamburger = document.createElement('div');
-    hamburger.className = 'hamburger';
-    this.applyStyles(hamburger, {
+    const menu = document.createElement('div');
+    menu.className = 'hamburger';
+    this.applyStyles(menu, {
       position: 'absolute',
-      bottom: '20px',
-      right: '20px',
-      zIndex: '1001'
+      bottom: '10px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '1002'
     });
+    menu.innerHTML = '<span></span><span></span><span></span>';
     
-    hamburger.innerHTML = '<span></span><span></span><span></span>';
-    
-    hamburger.addEventListener('click', () => {
+    menu.addEventListener('click', () => {
+      menu.classList.toggle('active');
       this.bottomPanel.classList.toggle('expanded');
     });
+    
+    return menu;
+  }
 
-    return hamburger;
+  private setupEventListeners(): void {
+    window.addEventListener('news-alert', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      this.showNews(customEvent.detail.event);
+    });
+
+    window.addEventListener('resize', () => {
+      this.checkMobileViewport();
+    });
+
+    gameState.subscribe(() => this.refresh());
   }
 
   private switchPanel(panel: PanelType): void {
     this.activePanel = panel;
-    
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.toggle('active', (btn as HTMLElement).dataset.panel === panel);
+      btn.classList.remove('active');
+      if ((btn as HTMLElement).textContent === this.getPanelLabel(panel)) {
+        btn.classList.add('active');
+      }
     });
 
-    this.tradePanel.style.display = panel === 'trade' ? 'block' : 'none';
-    this.missionPanel.style.display = panel === 'missions' ? 'block' : 'none';
-    this.upgradePanel.style.display = panel === 'upgrades' ? 'block' : 'none';
-    this.cargoPanel.style.display = panel === 'cargo' ? 'block' : 'none';
+    this.tradePanel.style.display = panel === 'trade' ? 'flex' : 'none';
+    this.missionPanel.style.display = panel === 'missions' ? 'flex' : 'none';
+    this.upgradePanel.style.display = panel === 'upgrades' ? 'flex' : 'none';
+    this.cargoPanel.style.display = panel === 'cargo' ? 'flex' : 'none';
 
-    this.updateAllPanels();
+    this.refresh();
   }
 
-  private createRipple(button: HTMLElement, event: MouseEvent): void {
+  private getPanelLabel(panel: PanelType): string {
+    const labels: Record<PanelType, string> = {
+      trade: '交易',
+      missions: '任务',
+      upgrades: '升级',
+      cargo: '货仓'
+    };
+    return labels[panel];
+  }
+
+  private addRippleEffect(btn: HTMLElement, e: MouseEvent): void {
+    const rect = btn.getBoundingClientRect();
     const ripple = document.createElement('span');
     ripple.className = 'ripple-effect';
     
-    const rect = button.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height);
-    const x = event.clientX - rect.left - size / 2;
-    const y = event.clientY - rect.top - size / 2;
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
     
-    ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = x + 'px';
-    ripple.style.top = y + 'px';
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
     
-    button.appendChild(ripple);
-    
+    btn.appendChild(ripple);
     setTimeout(() => ripple.remove(), 600);
   }
 
-  private updateCredits(): void {
-    const creditsEl = document.getElementById('credits-value');
-    if (creditsEl) {
-      const oldValue = parseInt(creditsEl.textContent || '0');
-      const newValue = gameState.getCredits();
-      
-      if (newValue > oldValue) {
-        creditsEl.style.color = '#10b981';
-        setTimeout(() => creditsEl.style.color = '#fbbf24', 500);
-      } else if (newValue < oldValue) {
-        creditsEl.style.color = '#ef4444';
-        setTimeout(() => creditsEl.style.color = '#fbbf24', 500);
+  public showToast(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    const toast = document.createElement('div');
+    const colors: Record<string, string> = {
+      success: 'linear-gradient(135deg, #10b981, #059669)',
+      error: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      info: 'linear-gradient(135deg, #3b82f6, #6366f1)'
+    };
+    
+    this.applyStyles(toast, {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      padding: '16px 32px',
+      background: colors[type],
+      color: 'white',
+      borderRadius: '12px',
+      fontWeight: '600',
+      zIndex: '10000',
+      animation: 'fadeIn 0.3s ease-out',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+      pointerEvents: 'none'
+    });
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
+  private showNews(event: NewsEvent): void {
+    const alert = document.createElement('div');
+    alert.className = 'news-alert';
+    
+    this.applyStyles(alert, {
+      pointerEvents: 'auto',
+      cursor: 'pointer'
+    });
+    
+    alert.innerHTML = `
+      <div style="font-weight:600; margin-bottom:4px;">📰 ${event.title}</div>
+      <div style="font-size:13px; opacity:0.9;">${event.description}</div>
+    `;
+    
+    this.newsContainer.appendChild(alert);
+    
+    alert.addEventListener('click', () => {
+      alert.style.opacity = '0';
+      alert.style.transition = 'opacity 0.3s';
+      setTimeout(() => alert.remove(), 300);
+    });
+    
+    setTimeout(() => {
+      if (alert.parentNode) {
+        alert.style.opacity = '0';
+        alert.style.transition = 'opacity 0.5s';
+        setTimeout(() => alert.remove(), 500);
       }
-      
-      this.animateNumber(creditsEl, oldValue, newValue, 500);
+    }, 8000);
+  }
+
+  private refresh(): void {
+    this.updateStatusDisplay();
+    this.updateCreditsDisplay();
+    this.updateFuelDisplay();
+    this.updateCargoDisplay();
+    this.updateCurrentPlanetInfo();
+
+    switch (this.activePanel) {
+      case 'trade':
+        this.renderTradePanel();
+        break;
+      case 'missions':
+        this.renderMissionPanel();
+        break;
+      case 'upgrades':
+        this.renderUpgradePanel();
+        break;
+      case 'cargo':
+        this.renderCargoPanel();
+        break;
+    }
+    this.renderMissionBar();
+  }
+
+  private updateStatusDisplay(): void {
+    const statusEl = document.getElementById('status-display');
+    if (statusEl) {
+      const ship = gameState.getShip();
+      if (ship.isFlying) {
+        statusEl.textContent = '🚀 飞行中';
+        statusEl.style.color = '#f59e0b';
+      } else {
+        statusEl.textContent = '🛬 停泊中';
+        statusEl.style.color = '#10b981';
+      }
     }
   }
 
-  private animateNumber(element: HTMLElement, start: number, end: number, duration: number): void {
-    const startTime = Date.now();
-    
-    const update = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(1, elapsed / duration);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(start + (end - start) * easeProgress);
-      element.textContent = current.toString();
-      
-      if (progress < 1) {
-        requestAnimationFrame(update);
-      }
-    };
-    
-    requestAnimationFrame(update);
+  private updateCreditsDisplay(): void {
+    const creditsValue = document.getElementById('credits-value');
+    if (creditsValue) {
+      creditsValue.textContent = `${gameState.getCredits()}`;
+    }
   }
 
-  private updateFuel(): void {
+  private updateFuelDisplay(): void {
+    const fuelValue = document.getElementById('fuel-value');
+    const fuelFill = document.getElementById('fuel-fill') as HTMLElement;
     const ship = gameState.getShip();
-    const fuelEl = document.getElementById('fuel-value');
-    const fuelFill = document.getElementById('fuel-fill');
-    
-    if (fuelEl) {
-      fuelEl.textContent = `${Math.round(ship.fuel)}/${ship.maxFuel}`;
+    if (fuelValue) {
+      fuelValue.textContent = `${Math.floor(ship.fuel)}/${ship.maxFuel}`;
     }
     if (fuelFill) {
       fuelFill.style.width = `${(ship.fuel / ship.maxFuel) * 100}%`;
     }
   }
 
-  private updateCargo(): void {
-    const cargoUsed = gameState.getCurrentCargoWeight();
-    const cargoMax = gameState.getShip().cargoCapacity;
-    
-    const cargoEl = document.getElementById('cargo-value');
-    const cargoFill = document.getElementById('cargo-fill');
-    
-    if (cargoEl) {
-      cargoEl.textContent = `${cargoUsed}/${cargoMax}`;
+  private updateCargoDisplay(): void {
+    const cargoValue = document.getElementById('cargo-value');
+    const cargoFill = document.getElementById('cargo-fill') as HTMLElement;
+    const used = gameState.getCurrentCargoWeight();
+    const max = gameState.getShip().cargoCapacity;
+    if (cargoValue) {
+      cargoValue.textContent = `${used}/${max}`;
     }
     if (cargoFill) {
-      cargoFill.style.width = `${(cargoUsed / cargoMax) * 100}%`;
+      cargoFill.style.width = `${(used / max) * 100}%`;
     }
   }
 
-  private updateStatus(): void {
-    const statusEl = document.getElementById('status-display');
-    if (!statusEl) return;
-    
-    const ship = gameState.getShip();
-    
-    if (ship.isFlying) {
-      statusEl.textContent = '飞行中...';
-      statusEl.style.color = '#3b82f6';
-    } else if (ship.currentPlanetId) {
-      const planet = gameState.getPlanet(ship.currentPlanetId);
-      statusEl.textContent = `停泊在 ${planet?.name || ''}`;
-      statusEl.style.color = '#10b981';
-    }
-  }
-
-  private updateCurrentPlanet(): void {
-    const planetNameEl = document.getElementById('current-planet-name');
-    const tradePlanetNameEl = document.getElementById('trade-planet-name');
-    
+  private updateCurrentPlanetInfo(): void {
+    const nameEl = document.getElementById('current-planet-name');
+    const infoEl = document.getElementById('planet-info');
     const currentPlanetId = gameState.getShip().currentPlanetId;
-    const selectedPlanetId = gameState.getSelectedPlanetId();
-    const displayPlanetId = selectedPlanetId || currentPlanetId;
+    const planet = currentPlanetId ? gameState.getPlanet(currentPlanetId) : null;
     
-    if (displayPlanetId) {
-      const planet = gameState.getPlanet(displayPlanetId);
-      if (planetNameEl) planetNameEl.textContent = planet?.name || '未知';
-      if (tradePlanetNameEl) tradePlanetNameEl.textContent = planet?.name || '';
-    } else if (planetNameEl) {
-      planetNameEl.textContent = '飞行中';
+    if (nameEl) {
+      nameEl.textContent = planet?.name || '飞行中';
+    }
+    if (infoEl) {
+      if (planet) {
+        infoEl.innerHTML = `
+          <div>类型: ${planet.isStation ? '🛰️ 空间站' : '🪐 星球'}</div>
+          <div>直径: ${(planet.size * 2).toFixed(1)} 单位</div>
+        `;
+      } else {
+        infoEl.innerHTML = '<div>飞船正在航行中...</div>';
+      }
     }
   }
 
-  private updateTradePanel(): void {
-    const list = document.getElementById('commodity-list');
-    if (!list) return;
-
-    list.innerHTML = '';
+  private renderTradePanel(): void {
+    const container = document.getElementById('commodities-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
     this.quantityInputs.clear();
 
     const currentPlanetId = gameState.getShip().currentPlanetId;
-    const selectedPlanetId = gameState.getSelectedPlanetId();
-    const displayPlanetId = selectedPlanetId || currentPlanetId;
-
-    if (!displayPlanetId) {
-      list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px;">飞行中无法交易</div>';
+    if (!currentPlanetId || gameState.getShip().isFlying) {
+      container.innerHTML = '<div style="color:#94a3b8; padding:20px; text-align:center;">请先降落到星球才能交易</div>';
       return;
     }
 
-    const planet = gameState.getPlanet(displayPlanetId);
+    const planet = gameState.getPlanet(currentPlanetId);
     if (!planet) return;
 
-    const isAtPlanet = currentPlanetId === displayPlanetId && !gameState.getShip().isFlying;
-
-    const commodities = tradeManager.getPlanetCommodities(displayPlanetId);
+    const commodities = Array.from(planet.commodities.values());
     
-    if (commodities.length === 0) {
-      list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px;">该星球暂无商品</div>';
-      return;
-    }
-
     commodities.forEach(commodity => {
-      const card = this.createCommodityCard(commodity, isAtPlanet);
-      list.appendChild(card);
-    });
-  }
-
-  private createCommodityCard(commodity: Commodity, canTrade: boolean): HTMLElement {
-    const card = document.createElement('div');
-    card.className = 'commodity-card';
-
-    const trend = tradeManager.getPriceTrend(
-      gameState.getShip().currentPlanetId || '',
-      commodity.id
-    );
-    const trendIcon = trend === 'up' ? '📈' : trend === 'down' ? '📉' : '➡️';
-    const trendClass = `price-${trend}`;
-
-    const cargoQuantity = gameState.getCargoQuantity(commodity.id);
-
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 24px;">${commodity.icon}</span>
-          <div>
-            <div style="color: #e2e8f0; font-weight: 600;">${commodity.name}</div>
-            <div style="color: #94a3b8; font-size: 12px;">库存: ${commodity.supply}</div>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          <div style="color: #fbbf24; font-weight: 600; font-size: 18px;">
-            <span class="coin-icon"></span>${commodity.currentPrice.toFixed(0)}
-          </div>
-          <div class="${trendClass}" style="font-size: 12px;">${trendIcon}</div>
-        </div>
-      </div>
-      ${cargoQuantity > 0 ? `<div style="color: #64748b; font-size: 12px; margin-bottom: 12px;">持有: ${cargoQuantity} 单位</div>` : ''}
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="number" 
-               id="qty-${commodity.id}" 
-               min="1" 
-               max="${Math.min(commodity.supply, 999)}" 
-               value="1"
-               style="flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; width: 80px;">
-        <button class="trade-btn" data-action="buy" data-commodity="${commodity.id}" ${!canTrade ? 'disabled' : ''}>
-          买入
-        </button>
-        <button class="trade-btn" data-action="sell" data-commodity="${commodity.id}" ${!canTrade || cargoQuantity === 0 ? 'disabled' : ''}>
-          卖出
-        </button>
-      </div>
-    `;
-
-    const qtyInput = card.querySelector(`#qty-${commodity.id}`) as HTMLInputElement;
-    if (qtyInput) {
-      this.quantityInputs.set(commodity.id, qtyInput);
-    }
-
-    card.querySelectorAll('.trade-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        this.createRipple(btn as HTMLElement, e as MouseEvent);
-        const action = (btn as HTMLElement).dataset.action;
-        const commodityId = (btn as HTMLElement).dataset.commodity;
-        const quantity = parseInt(qtyInput?.value || '1');
-        
-        if (action && commodityId && this.displayPlanetId) {
-          this.handleTrade(action as 'buy' | 'sell', commodityId, quantity);
-        }
-      });
-    });
-
-    return card;
-  }
-
-  private get displayPlanetId(): string | undefined {
-    const currentPlanetId = gameState.getShip().currentPlanetId;
-    const selectedPlanetId = gameState.getSelectedPlanetId();
-    return selectedPlanetId || currentPlanetId || undefined;
-  }
-
-  private handleTrade(action: 'buy' | 'sell', commodityId: string, quantity: number): void {
-    const planetId = gameState.getShip().currentPlanetId;
-    if (!planetId) return;
-
-    const startTime = performance.now();
-
-    if (action === 'buy') {
-      const result = tradeManager.buyCommodity(planetId, commodityId, quantity);
-      this.showToast(result.message, result.success ? 'success' : 'error');
-    } else {
-      const result = tradeManager.sellCommodity(planetId, commodityId, quantity);
-      this.showToast(result.message, result.success ? 'success' : 'error');
-    }
-
-    const endTime = performance.now();
-    console.log(`交易处理时间: ${(endTime - startTime).toFixed(2)}ms`);
-  }
-
-  private updateMissionPanel(): void {
-    const list = document.getElementById('mission-list');
-    if (!list) return;
-
-    list.innerHTML = '';
-
-    const currentPlanetId = gameState.getShip().currentPlanetId;
-    const availableMissions = gameState.getMissions().filter(m => !m.accepted && m.originPlanetId === currentPlanetId);
-    const activeMissions = gameState.getMissions().filter(m => m.accepted && !m.completed);
-    const completedMissions = gameState.getMissions().filter(m => m.completed);
-
-    if (availableMissions.length === 0 && activeMissions.length === 0 && completedMissions.length === 0) {
-      list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px;">暂无任务</div>';
-      return;
-    }
-
-    if (availableMissions.length > 0) {
-      const section = document.createElement('div');
-      section.innerHTML = '<div style="color: #fbbf24; font-weight: 600; margin-bottom: 12px;">📋 可接任务</div>';
-      availableMissions.forEach(mission => {
-        section.appendChild(this.createMissionCard(mission, false));
-      });
-      list.appendChild(section);
-    }
-
-    if (activeMissions.length > 0) {
-      const section = document.createElement('div');
-      section.innerHTML = '<div style="color: #3b82f6; font-weight: 600; margin: 20px 0 12px 0;">🚀 进行中</div>';
-      activeMissions.forEach(mission => {
-        section.appendChild(this.createMissionCard(mission, false));
-      });
-      list.appendChild(section);
-    }
-
-    if (completedMissions.length > 0) {
-      const section = document.createElement('div');
-      section.innerHTML = '<div style="color: #10b981; font-weight: 600; margin: 20px 0 12px 0;">✅ 已完成</div>';
-      completedMissions.forEach(mission => {
-        section.appendChild(this.createMissionCard(mission, true));
-      });
-      list.appendChild(section);
-    }
-  }
-
-  private createMissionCard(mission: TransportMission, completed: boolean): HTMLElement {
-    const card = document.createElement('div');
-    card.className = `mission-card ${completed ? 'completed' : ''}`;
-
-    const canAccept = !mission.accepted && 
-      gameState.getShip().currentPlanetId === mission.originPlanetId &&
-      !gameState.getShip().isFlying;
-
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-        <div>
-          <div style="color: #e2e8f0; font-weight: 600; margin-bottom: 4px;">
-            ${completed ? '<svg class="checkmark-svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> ' : ''}
-            运输 ${mission.quantity} 单位 ${mission.commodityName}
-          </div>
-          <div style="color: #94a3b8; font-size: 13px;">
-            从 <span style="color: #60a5fa;">${mission.originPlanetName}</span> → 到 <span style="color: #f472b6;">${mission.targetPlanetName}</span>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          <div style="color: #fbbf24; font-weight: 600; font-size: 16px;">
-            <span class="coin-icon"></span>${mission.reward}
-          </div>
-        </div>
-      </div>
-      ${!mission.accepted && !completed ? `
-        <button class="trade-btn" data-mission="${mission.id}" ${!canAccept ? 'disabled' : ''} style="width: 100%;">
-          ${canAccept ? '接受任务' : '请先前往出发星球'}
-        </button>
-      ` : ''}
-      ${mission.accepted && !completed ? `
-        <div style="color: #64748b; font-size: 12px;">任务进行中...</div>
-      ` : ''}
-    `;
-
-    const acceptBtn = card.querySelector(`[data-mission="${mission.id}"]`);
-    if (acceptBtn) {
-      acceptBtn.addEventListener('click', (e) => {
-        this.createRipple(acceptBtn as HTMLElement, e as MouseEvent);
-        const result = tradeManager.acceptMission(mission.id);
-        this.showToast(result.message, result.success ? 'success' : 'error');
-        
-        if (result.success) {
-          const event = new CustomEvent('mission-accepted', {
-            detail: { mission }
-          });
-          window.dispatchEvent(event);
-        }
-      });
-    }
-
-    return card;
-  }
-
-  private updateUpgradePanel(): void {
-    const list = document.getElementById('upgrade-list');
-    const warning = document.getElementById('upgrade-warning');
-    if (!list) return;
-
-    list.innerHTML = '';
-
-    const planetId = gameState.getShip().currentPlanetId;
-    const currentPlanet = planetId 
-      ? gameState.getPlanet(planetId)
-      : null;
-    const isAtStation = !!(currentPlanet?.isStation && !gameState.getShip().isFlying);
-
-    if (warning) {
-      warning.style.display = isAtStation ? 'none' : 'block';
-    }
-
-    const availableUpgrades = tradeManager.getAvailableUpgrades();
-    const purchasedUpgrades = tradeManager.getPurchasedUpgrades();
-
-    if (availableUpgrades.length === 0 && purchasedUpgrades.length === 0) {
-      list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px;">暂无升级选项</div>';
-      return;
-    }
-
-    if (availableUpgrades.length > 0) {
-      const section = document.createElement('div');
-      section.innerHTML = '<div style="color: #fbbf24; font-weight: 600; margin-bottom: 12px;">⬆️ 可购买升级</div>';
-      availableUpgrades.forEach(upgrade => {
-        section.appendChild(this.createUpgradeCard(upgrade, isAtStation));
-      });
-      list.appendChild(section);
-    }
-
-    if (purchasedUpgrades.length > 0) {
-      const section = document.createElement('div');
-      section.innerHTML = '<div style="color: #10b981; font-weight: 600; margin: 20px 0 12px 0;">✅ 已购买</div>';
-      purchasedUpgrades.forEach(upgrade => {
-        section.appendChild(this.createUpgradeCard(upgrade, false, true));
-      });
-      list.appendChild(section);
-    }
-  }
-
-  private createUpgradeCard(upgrade: ShipUpgrade, canPurchase: boolean, purchased = false): HTMLElement {
-    const card = document.createElement('div');
-    card.className = 'commodity-card';
-    if (purchased) card.style.opacity = '0.6';
-
-    const typeColors: Record<string, string> = {
-      cargo: '#10b981',
-      engine: '#f59e0b',
-      shield: '#3b82f6'
-    };
-
-    const typeNames: Record<string, string> = {
-      cargo: '货仓',
-      engine: '引擎',
-      shield: '护盾'
-    };
-
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 32px;">${upgrade.icon}</span>
-          <div>
-            <div style="color: #e2e8f0; font-weight: 600;">${upgrade.name}</div>
-            <div style="color: #94a3b8; font-size: 13px;">${upgrade.description}</div>
-            <div style="color: ${typeColors[upgrade.type]}; font-size: 12px; margin-top: 4px;">
-              ${typeNames[upgrade.type]} +${Math.round((upgrade.multiplier - 1) * 100)}%
-            </div>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          ${!purchased ? `
-            <div style="color: #fbbf24; font-weight: 600; font-size: 18px;">
-              <span class="coin-icon"></span>${upgrade.cost}
-            </div>
-          ` : `
-            <div style="color: #10b981; font-weight: 600;">已拥有</div>
-          `}
-        </div>
-      </div>
-      ${!purchased ? `
-        <button class="trade-btn" data-upgrade="${upgrade.id}" ${!canPurchase || gameState.getCredits() < upgrade.cost ? 'disabled' : ''} style="width: 100%;">
-          ${!canPurchase ? '请在空间站停靠' : gameState.getCredits() < upgrade.cost ? '资金不足' : '购买升级'}
-        </button>
-      ` : ''}
-    `;
-
-    const purchaseBtn = card.querySelector(`[data-upgrade="${upgrade.id}"]`);
-    if (purchaseBtn) {
-      purchaseBtn.addEventListener('click', (e) => {
-        this.createRipple(purchaseBtn as HTMLElement, e as MouseEvent);
-        const result = tradeManager.purchaseUpgrade(upgrade.id);
-        this.showToast(result.message, result.success ? 'success' : 'error');
-      });
-    }
-
-    return card;
-  }
-
-  private updateCargoPanel(): void {
-    const list = document.getElementById('cargo-list');
-    if (!list) return;
-
-    list.innerHTML = '';
-
-    const cargo = gameState.getShip().cargo;
-    const cargoUsed = gameState.getCurrentCargoWeight();
-    const cargoMax = gameState.getShip().cargoCapacity;
-
-    if (cargo.length === 0) {
-      list.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 40px;">货仓为空</div>';
-      return;
-    }
-
-    const summary = document.createElement('div');
-    summary.style.cssText = `
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-    `;
-    summary.innerHTML = `
-      <span style="color: #94a3b8;">货仓使用率</span>
-      <span style="color: ${cargoUsed / cargoMax > 0.8 ? '#ef4444' : '#10b981'}; font-weight: 600;">
-        ${Math.round((cargoUsed / cargoMax) * 100)}%
-      </span>
-    `;
-    list.appendChild(summary);
-
-    cargo.forEach(item => {
       const card = document.createElement('div');
       card.className = 'commodity-card';
       
-      const commodityInfo = this.getCommodityInfo(item.commodityId);
-      const shipPlanetId = gameState.getShip().currentPlanetId;
-      const currentPrice = shipPlanetId
-        ? tradeManager.getCommodityPrice(shipPlanetId, item.commodityId)
-        : null;
-      const profit = currentPrice ? (currentPrice - item.purchasePrice) * item.quantity : 0;
+      const trend = tradeManager.getPriceTrend(currentPlanetId, commodity.id);
+      const trendIcon = trend === 'up' ? '📈' : trend === 'down' ? '📉' : '➡️';
+      const trendClass = `price-${trend}`;
+      const cargoQty = gameState.getCargoQuantity(commodity.id);
+      const buyPrice = Math.round(commodity.currentPrice * 1.1);
+      const sellPrice = commodity.currentPrice;
 
       card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 28px;">${commodityInfo?.icon || '📦'}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:24px;">${commodity.icon}</span>
             <div>
-              <div style="color: #e2e8f0; font-weight: 600;">${commodityInfo?.name || item.commodityId}</div>
-              <div style="color: #94a3b8; font-size: 13px;">
-                ${item.quantity} 单位 · 成本: ${item.purchasePrice.toFixed(0)}/单位
-              </div>
+              <div style="color:#e2e8f0; font-weight:600;">${commodity.name}</div>
+              <div style="font-size:12px; color:#64748b;">库存: ${commodity.supply}</div>
             </div>
           </div>
-          <div style="text-align: right;">
-            ${currentPrice ? `
-              <div style="color: ${profit >= 0 ? '#10b981' : '#ef4444'}; font-weight: 600;">
-                ${profit >= 0 ? '+' : ''}${profit.toFixed(0)}
-              </div>
-              <div style="color: #64748b; font-size: 12px;">当前价: ${currentPrice.toFixed(0)}</div>
-            ` : `
-              <div style="color: #64748b; font-size: 12px;">飞行中</div>
-            `}
+          <div style="text-align:right;">
+            <span class="price-up" style="font-size:20px; margin-right:4px;">${trendIcon}</span>
+            <div class="price-tags-container">
+              <span class="price-tag buy-price-tag">买入 ${buyPrice}</span>
+            </div>
+            <div style="margin-top:4px;">
+              <span class="price-tag sell-price-tag">卖出 ${sellPrice}</span>
+            </div>
+            <div style="font-size:11px; color:#94a3b8; margin-top:4px;">持有: ${cargoQty}</div>
           </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" min="1" value="1" 
+            style="flex:1; padding:8px 12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:#e2e8f0; font-size:14px; outline:none;"
+            id="qty-${commodity.id}" />
+          <button class="trade-btn buy-btn" data-action="buy" data-id="${commodity.id}">买入</button>
+          <button class="trade-btn sell-btn" data-action="sell" data-id="${commodity.id}">卖出</button>
         </div>
       `;
 
-      list.appendChild(card);
+      container.appendChild(card);
+
+      const input = card.querySelector(`#qty-${commodity.id}`) as HTMLInputElement;
+      this.quantityInputs.set(commodity.id, input);
+
+      card.querySelectorAll('.trade-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          this.addRippleEffect(btn as HTMLElement, e as MouseEvent);
+          const action = (btn as HTMLElement).dataset.action as 'buy' | 'sell';
+          const id = (btn as HTMLElement).dataset.id!;
+          const qty = parseInt(this.quantityInputs.get(id)?.value || '1', 10);
+          
+          if (qty <= 0 || isNaN(qty)) return;
+
+          const t0 = performance.now();
+          let result;
+          if (action === 'buy') {
+            result = tradeManager.buyCommodity(currentPlanetId, id, qty);
+          } else {
+            result = tradeManager.sellCommodity(currentPlanetId, id, qty);
+          }
+          const t1 = performance.now();
+          console.log(`[性能] 交易计算耗时: ${(t1 - t0).toFixed(2)}ms`);
+
+          this.showToast(result.message, result.success ? 'success' : 'error');
+        });
+      });
     });
   }
 
-  private getCommodityInfo(commodityId: string): { name: string; icon: string } | null {
-    const commodities = [
-      { id: 'ore', name: '矿石', icon: '⛏️' },
-      { id: 'fuel', name: '燃料', icon: '⛽' },
-      { id: 'food', name: '食物', icon: '🍎' },
-      { id: 'tech', name: '科技组件', icon: '🔧' },
-      { id: 'medicine', name: '医疗品', icon: '💊' }
-    ];
-    return commodities.find(c => c.id === commodityId) || null;
-  }
-
-  private updateAllPanels(): void {
-    this.updateCredits();
-    this.updateFuel();
-    this.updateCargo();
-    this.updateStatus();
-    this.updateCurrentPlanet();
-
-    if (this.activePanel === 'trade') this.updateTradePanel();
-    if (this.activePanel === 'missions') this.updateMissionPanel();
-    if (this.activePanel === 'upgrades') this.updateUpgradePanel();
-    if (this.activePanel === 'cargo') this.updateCargoPanel();
-  }
-
-  private showToast(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
-    const toast = document.createElement('div');
+  private renderMissionPanel(): void {
+    const container = document.getElementById('missions-container');
+    if (!container) return;
     
-    const colors = {
-      success: 'linear-gradient(135deg, #10b981, #059669)',
-      error: 'linear-gradient(135deg, #ef4444, #dc2626)',
-      info: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+    container.innerHTML = '';
+
+    const missions = gameState.getMissions();
+    const activeMissions = missions.filter(m => !m.completed);
+    const completedMissions = missions.filter(m => m.completed);
+
+    if (activeMissions.length === 0 && completedMissions.length === 0) {
+      container.innerHTML = '<div style="color:#94a3b8; padding:20px; text-align:center;">暂无任务，降落到星球查看可接任务</div>';
+      return;
+    }
+
+    const renderMission = (mission: TransportMission) => {
+      const card = document.createElement('div');
+      card.className = 'mission-card' + (mission.completed ? ' completed' : '');
+      
+      const accepted = mission.accepted;
+      const timeLeft = mission.accepted && !mission.completed
+        ? Math.max(0, Math.floor(mission.timeLimit - (gameState.getState().gameTime - mission.startTime)))
+        : null;
+
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:20px;">📦</span>
+            <div style="color:#e2e8f0; font-weight:600;">
+              ${mission.quantity} 单位 ${mission.commodityName}
+            </div>
+          </div>
+          <div style="color:#fbbf24; font-weight:700;">
+            <span class="coin-icon"></span>${mission.reward}
+          </div>
+        </div>
+        <div style="color:#94a3b8; font-size:13px; margin-bottom:8px;">
+          <div>🚀 从: ${mission.originPlanetName}</div>
+          <div>🎯 到: ${mission.targetPlanetName}</div>
+          ${timeLeft !== null ? `<div style="color:${timeLeft < 30 ? '#ef4444' : '#f59e0b'};">⏱️ 剩余: ${timeLeft}秒</div>` : ''}
+        </div>
+        ${mission.completed ? `
+          <div style="color:#10b981; display:flex; align-items:center; gap:8px;">
+            <svg class="checkmark-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            任务已完成
+          </div>
+        ` : accepted ? `
+          <div style="color:#6366f1; font-weight:500;">✅ 已接受</div>
+        ` : `
+          <button class="trade-btn" data-mission="${mission.id}">接受任务</button>
+        `}
+      `;
+
+      const acceptBtn = card.querySelector(`[data-mission="${mission.id}"]`);
+      if (acceptBtn) {
+        acceptBtn.addEventListener('click', (e) => {
+          this.addRippleEffect(acceptBtn as HTMLElement, e as MouseEvent);
+          const result = tradeManager.acceptMission(mission.id);
+          this.showToast(result.message, result.success ? 'success' : 'error');
+          if (result.success) {
+            const event = new CustomEvent('mission-accepted');
+            window.dispatchEvent(event);
+          }
+        });
+      }
+
+      container.appendChild(card);
     };
 
-    this.applyStyles(toast, {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%) scale(0.5)',
-      background: colors[type],
-      color: 'white',
-      padding: '16px 32px',
-      borderRadius: '12px',
-      fontWeight: '600',
-      fontSize: '16px',
-      zIndex: '2000',
-      pointerEvents: 'none',
-      opacity: '0',
-      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
-    });
-
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    requestAnimationFrame(() => {
-      toast.style.opacity = '1';
-      toast.style.transform = 'translate(-50%, -50%) scale(1)';
-    });
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translate(-50%, -50%) scale(0.8)';
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
+    activeMissions.forEach(renderMission);
+    if (completedMissions.length > 0) {
+      const separator = document.createElement('div');
+      separator.style.cssText = 'border-top:1px solid rgba(255,255,255,0.1); margin:16px 0;';
+      container.appendChild(separator);
+      const label = document.createElement('div');
+      label.style.cssText = 'color:#64748b; font-size:13px; margin-bottom:12px;';
+      label.textContent = '已完成任务';
+      container.appendChild(label);
+      completedMissions.slice(-3).forEach(renderMission);
+    }
   }
 
-  private showNewsAlert(event: NewsEvent): void {
-    const alert = document.createElement('div');
-    alert.className = 'news-alert';
+  private renderUpgradePanel(): void {
+    const container = document.getElementById('upgrades-container');
+    const hint = document.getElementById('upgrade-hint');
+    if (!container) return;
+
+    const currentPlanetId = gameState.getShip().currentPlanetId;
+    const currentPlanet = currentPlanetId ? gameState.getPlanet(currentPlanetId) : null;
+    const isAtStation = currentPlanet?.isStation === true && !gameState.getShip().isFlying;
+
+    if (hint) {
+      hint.style.display = isAtStation ? 'none' : 'block';
+    }
+
+    container.innerHTML = '';
+
+    const upgrades = gameState.getUpgrades();
     
-    alert.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 4px;">📰 ${event.title}</div>
-      <div style="font-size: 13px; opacity: 0.9;">${event.description}</div>
-    `;
+    upgrades.forEach(upgrade => {
+      const card = document.createElement('div');
+      card.className = 'commodity-card';
+      
+      const canPurchase = isAtStation && !upgrade.purchased && gameState.getCredits() >= upgrade.cost;
 
-    this.newsContainer.appendChild(alert);
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:28px;">${upgrade.icon}</span>
+            <div>
+              <div style="color:#e2e8f0; font-weight:600;">${upgrade.name}</div>
+              <div style="color:#94a3b8; font-size:12px;">${upgrade.description}</div>
+            </div>
+          </div>
+          <div style="color:${upgrade.purchased ? '#10b981' : '#fbbf24'}; font-weight:700;">
+            ${upgrade.purchased ? '✅ 已购买' : `<span class="coin-icon"></span>${upgrade.cost}`}
+          </div>
+        </div>
+        ${upgrade.purchased ? '' : `
+          <button class="trade-btn" data-upgrade="${upgrade.id}" ${canPurchase ? '' : 'disabled'} style="width:100%;">
+            购买升级
+          </button>
+        `}
+      `;
 
-    setTimeout(() => {
-      alert.style.opacity = '0';
-      alert.style.transform = 'translateX(100%)';
-      alert.style.transition = 'all 0.3s ease-out';
-      setTimeout(() => alert.remove(), 300);
-    }, 5000);
+      container.appendChild(card);
+
+      const purchaseBtn = card.querySelector(`[data-upgrade="${upgrade.id}"]`);
+      if (purchaseBtn) {
+        purchaseBtn.addEventListener('click', (e) => {
+          this.addRippleEffect(purchaseBtn as HTMLElement, e as MouseEvent);
+          const result = tradeManager.purchaseUpgrade(upgrade.id);
+          this.showToast(result.message, result.success ? 'success' : 'error');
+        });
+      }
+    });
   }
 
-  private updateMissionBar(): void {
+  private renderCargoPanel(): void {
+    const container = document.getElementById('cargo-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const cargo = gameState.getShip().cargo;
+    const totalWeight = gameState.getCurrentCargoWeight();
+    const maxWeight = gameState.getShip().cargoCapacity;
+
+    const stats = document.createElement('div');
+    stats.className = 'commodity-card';
+    stats.innerHTML = `
+      <div style="display:flex; justify-content:space-between; color:#e2e8f0; margin-bottom:8px;">
+        <span>📦 货仓容量</span>
+        <span style="color:#fbbf24; font-weight:600;">${totalWeight} / ${maxWeight}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${(totalWeight / maxWeight) * 100}%;"></div>
+      </div>
+    `;
+    container.appendChild(stats);
+
+    if (cargo.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'color:#94a3b8; padding:20px; text-align:center;';
+      empty.textContent = '货仓空空如也';
+      container.appendChild(empty);
+      return;
+    }
+
+    let totalValue = 0;
+
+    cargo.forEach(item => {
+      const commodity = COMMODITY_LOOKUP.get(item.commodityId);
+      const currentPlanetId = gameState.getShip().currentPlanetId;
+      const currentPrice = currentPlanetId 
+        ? tradeManager.getCommodityPrice(currentPlanetId, item.commodityId) 
+        : null;
+      
+      const itemValue = item.quantity * (currentPrice || item.purchasePrice);
+      totalValue += itemValue;
+      const profit = currentPrice 
+        ? Math.round((currentPrice - item.purchasePrice) * item.quantity)
+        : null;
+
+      const card = document.createElement('div');
+      card.className = 'commodity-card';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:24px;">${commodity?.icon || '📦'}</span>
+            <div>
+              <div style="color:#e2e8f0; font-weight:600;">${commodity?.name || item.commodityId}</div>
+              <div style="color:#64748b; font-size:12px;">
+                成本: ${Math.round(item.purchasePrice)} × ${item.quantity}
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:#fbbf24; font-weight:600;">${itemValue}</div>
+            ${profit !== null ? `
+              <div style="font-size:12px; color:${profit >= 0 ? '#10b981' : '#ef4444'};">
+                ${profit >= 0 ? '+' : ''}${profit}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    const totalCard = document.createElement('div');
+    totalCard.style.cssText = 'margin-top:16px; padding:12px; background:rgba(51,65,85,0.5); border-radius:8px; text-align:right;';
+    totalCard.innerHTML = `<div style="color:#94a3b8; font-size:13px;">总估值</div>
+      <div style="color:#fbbf24; font-size:20px; font-weight:700;">
+        <span class="coin-icon"></span>${Math.round(totalValue)}
+      </div>`;
+    container.appendChild(totalCard);
+  }
+
+  private renderMissionBar(): void {
     const bar = document.getElementById('mission-bar');
     if (!bar) return;
 
-    const activeMissions = gameState.getMissions().filter(m => m.accepted && !m.completed);
-
+    const activeMissions = tradeManager.getActiveMissions();
+    
     if (activeMissions.length === 0) {
-      bar.innerHTML = '<div style="color: #94a3b8; font-size: 14px; padding: 8px 16px;">暂无运输任务</div>';
+      bar.innerHTML = '<div style="color:#94a3b8; font-size:14px; padding:8px 16px;">暂无运输任务</div>';
       return;
     }
 
     bar.innerHTML = '';
     activeMissions.forEach(mission => {
       const card = document.createElement('div');
+      const targetPlanet = gameState.getPlanet(mission.targetPlanetId);
+      const timeLeft = Math.max(0, Math.floor(mission.timeLimit - (gameState.getState().gameTime - mission.startTime)));
+      const urgent = timeLeft < 30;
+
       card.className = 'mission-card';
       this.applyStyles(card, {
-        minWidth: '250px',
-        padding: '12px 16px',
+        minWidth: '200px',
+        padding: '8px 12px',
         marginBottom: '0',
-        animation: 'pulse 2s infinite'
+        fontSize: '12px',
+        borderColor: urgent ? '#ef4444' : '#fbbf24'
       });
-
+      
       card.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 24px;">🚀</span>
-          <div>
-            <div style="color: #e2e8f0; font-weight: 600; font-size: 14px;">
-              ${mission.originPlanetName} → ${mission.targetPlanetName}
-            </div>
-            <div style="color: #fbbf24; font-size: 12px;">
-              ${mission.quantity} ${mission.commodityName} · <span class="coin-icon"></span>${mission.reward}
-            </div>
-          </div>
+        <div style="color:#fbbf24; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          📦 ${mission.quantity} × ${mission.commodityName}
+        </div>
+        <div style="color:#94a3b8; font-size:11px; margin-top:4px;">
+          → ${targetPlanet?.name || '未知'}
+        </div>
+        <div style="color:${urgent ? '#ef4444' : '#f59e0b'}; font-size:11px; margin-top:4px;">
+          ⏱️ ${timeLeft}s | 💰 ${mission.reward}
         </div>
       `;
-
       bar.appendChild(card);
     });
   }
 
-  private setupEventListeners(): void {
-    gameState.subscribe(() => {
-      this.updateAllPanels();
-      this.updateMissionBar();
-    });
-
-    window.addEventListener('news-alert', (e) => {
-      const customEvent = e as CustomEvent;
-      this.showNewsAlert(customEvent.detail.event);
-    });
-
-    window.addEventListener('planet-arrived', () => {
-      this.updateAllPanels();
-      this.showToast('已抵达目标星球！', 'success');
-    });
-  }
-
   public update(): void {
+    this.updateFuelDisplay();
+    this.updateStatusDisplay();
+    const ship = gameState.getShip();
+    if (ship.isFlying) {
+      this.renderMissionBar();
+    }
   }
 
   public dispose(): void {
-    document.body.removeChild(this.container);
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
   }
 }
+
+const COMMODITY_LOOKUP = new Map<string, { id: string; name: string; icon: string }>([
+  ['ore', { id: 'ore', name: '矿石', icon: '⛏️' }],
+  ['fuel', { id: 'fuel', name: '燃料', icon: '⛽' }],
+  ['food', { id: 'food', name: '食物', icon: '🍎' }],
+  ['tech', { id: 'tech', name: '科技组件', icon: '🔧' }],
+  ['medicine', { id: 'medicine', name: '医疗品', icon: '💊' }]
+]);
 
 export { UILayer };

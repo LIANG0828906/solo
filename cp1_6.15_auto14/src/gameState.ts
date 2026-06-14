@@ -80,52 +80,113 @@ class GameState {
   private generatePlanets(): Map<string, Planet> {
     const planets = new Map<string, Planet>();
     const planetCount = 8 + Math.floor(Math.random() * 3);
-    const minDistance = 10;
-    const boundingRadius = 35;
-    const iterations = 50;
+    const MIN_DISTANCE = 8;
+    const RING_RX = 20;
+    const RING_RZ = 15;
+    const FORCE_ITERATIONS = 300;
+    const CENTRAL_STRENGTH = 0.02;
+    const REPULSION_STRENGTH = 0.8;
+    const BOUNDING_RADIUS = 35;
 
     const positions: { x: number; y: number; z: number }[] = [];
+    const sizes: number[] = [];
+    const isStationArr: boolean[] = [];
 
     for (let i = 0; i < planetCount; i++) {
       const angle = (i / planetCount) * Math.PI * 2;
-      const rx = 20;
-      const rz = 15;
       positions.push({
-        x: Math.cos(angle) * rx + (Math.random() - 0.5) * 3,
+        x: Math.cos(angle) * RING_RX + (Math.random() - 0.5) * 3,
         y: (Math.random() - 0.5) * 8,
-        z: Math.sin(angle) * rz + (Math.random() - 0.5) * 3
+        z: Math.sin(angle) * RING_RZ + (Math.random() - 0.5) * 3
       });
+
+      const isStation = i === 0 || Math.random() < 0.2;
+      isStationArr.push(isStation);
+      sizes.push(isStation ? 1.5 + Math.random() * 0.5 : 1.5 + Math.random() * 2.5);
     }
 
-    for (let iter = 0; iter < iterations; iter++) {
+    const forces: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < planetCount; i++) {
+      forces.push({ x: 0, y: 0, z: 0 });
+    }
+
+    let actualIterations = 0;
+
+    for (let iter = 0; iter < FORCE_ITERATIONS; iter++) {
+      actualIterations = iter + 1;
+
+      for (let i = 0; i < planetCount; i++) {
+        forces[i].x = 0;
+        forces[i].y = 0;
+        forces[i].z = 0;
+      }
+
       for (let i = 0; i < planetCount; i++) {
         for (let j = i + 1; j < planetCount; j++) {
           const dx = positions[j].x - positions[i].x;
           const dy = positions[j].y - positions[i].y;
           const dz = positions[j].z - positions[i].z;
-          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const distSq = dx * dx + dy * dy + dz * dz;
+          const dist = Math.sqrt(distSq);
 
-          if (dist < minDistance && dist > 0.001) {
-            const overlap = (minDistance - dist) / 2;
+          if (dist > 0.001) {
             const nx = dx / dist;
             const ny = dy / dist;
             const nz = dz / dist;
 
-            positions[i].x -= nx * overlap;
-            positions[i].y -= ny * overlap;
-            positions[i].z -= nz * overlap;
-            positions[j].x += nx * overlap;
-            positions[j].y += ny * overlap;
-            positions[j].z += nz * overlap;
+            const minRequired = sizes[i] + sizes[j] + 2;
+
+            if (dist < MIN_DISTANCE) {
+              let repulsion: number;
+              if (dist < minRequired) {
+                const overlap = minRequired - dist;
+                repulsion = REPULSION_STRENGTH * (overlap * overlap + 0.5);
+              } else {
+                const diff = MIN_DISTANCE - dist;
+                repulsion = REPULSION_STRENGTH * diff * 0.3;
+              }
+
+              const fx = nx * repulsion;
+              const fy = ny * repulsion;
+              const fz = nz * repulsion;
+
+              forces[i].x -= fx;
+              forces[i].y -= fy;
+              forces[i].z -= fz;
+              forces[j].x += fx;
+              forces[j].y += fy;
+              forces[j].z += fz;
+            }
           }
         }
       }
 
       for (let i = 0; i < planetCount; i++) {
+        const angle = (i / planetCount) * Math.PI * 2;
+        const targetX = Math.cos(angle) * RING_RX;
+        const targetY = 0;
+        const targetZ = Math.sin(angle) * RING_RZ;
+
+        const cdx = targetX - positions[i].x;
+        const cdy = targetY - positions[i].y;
+        const cdz = targetZ - positions[i].z;
+
+        forces[i].x += cdx * CENTRAL_STRENGTH;
+        forces[i].y += cdy * CENTRAL_STRENGTH * 0.5;
+        forces[i].z += cdz * CENTRAL_STRENGTH;
+      }
+
+      for (let i = 0; i < planetCount; i++) {
+        positions[i].x += forces[i].x;
+        positions[i].y += forces[i].y;
+        positions[i].z += forces[i].z;
+      }
+
+      for (let i = 0; i < planetCount; i++) {
         const p = positions[i];
         const dist = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-        if (dist > boundingRadius) {
-          const scale = boundingRadius / dist;
+        if (dist > BOUNDING_RADIUS) {
+          const scale = BOUNDING_RADIUS / dist;
           p.x *= scale;
           p.y *= scale;
           p.z *= scale;
@@ -133,9 +194,35 @@ class GameState {
       }
     }
 
+    let minSpacing = Infinity;
+    let totalSpacing = 0;
+    let pairCount = 0;
+    let hasCollision = false;
+
+    for (let i = 0; i < planetCount; i++) {
+      for (let j = i + 1; j < planetCount; j++) {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const dz = positions[j].z - positions[i].z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        totalSpacing += dist;
+        pairCount++;
+        if (dist < minSpacing) {
+          minSpacing = dist;
+        }
+        const required = sizes[i] + sizes[j] + 2;
+        if (dist <= required) {
+          hasCollision = true;
+        }
+      }
+    }
+    const avgSpacing = totalSpacing / Math.max(1, pairCount);
+
+    console.log(`[星球布局] 最小间距: ${minSpacing.toFixed(4)}, 平均间距: ${avgSpacing.toFixed(4)}, 迭代次数: ${actualIterations}, 碰撞: ${hasCollision ? '存在' : '无'}`);
+
     for (let i = 0; i < planetCount; i++) {
       const id = `planet_${i}`;
-      const isStation = i === 0 || Math.random() < 0.2;
+      const isStation = isStationArr[i];
 
       const commodities = new Map<string, Commodity>();
       const numCommodities = 3 + Math.floor(Math.random() * 3);
@@ -163,7 +250,7 @@ class GameState {
         name: PLANET_NAMES[i % PLANET_NAMES.length],
         position: { ...positions[i] },
         color: this.generatePlanetColor(i),
-        size: isStation ? 1.5 + Math.random() * 0.5 : 2 + Math.random() * 2,
+        size: sizes[i],
         isStation,
         commodities,
         connectedPlanets: [],
@@ -172,21 +259,27 @@ class GameState {
     }
 
     const planetIds = Array.from(planets.keys());
-    planetIds.forEach((id, i) => {
-      const connections = new Set<string>();
-      connections.add(planetIds[(i + 1) % planetIds.length]);
-      connections.add(planetIds[(i - 1 + planetIds.length) % planetIds.length]);
+    const planetArr = planetIds.map(id => planets.get(id)!);
 
-      const numExtraConnections = Math.floor(Math.random() * 2);
-      for (let j = 0; j < numExtraConnections; j++) {
-        const randomIndex = Math.floor(Math.random() * planetIds.length);
-        if (planetIds[randomIndex] !== id) {
-          connections.add(planetIds[randomIndex]);
-        }
+    for (let i = 0; i < planetCount; i++) {
+      const distances: { index: number; dist: number }[] = [];
+      for (let j = 0; j < planetCount; j++) {
+        if (i === j) continue;
+        const dx = planetArr[j].position.x - planetArr[i].position.x;
+        const dy = planetArr[j].position.y - planetArr[i].position.y;
+        const dz = planetArr[j].position.z - planetArr[i].position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        distances.push({ index: j, dist });
+      }
+      distances.sort((a, b) => a.dist - b.dist);
+
+      const connections = new Set<string>();
+      for (let k = 0; k < Math.min(3, distances.length); k++) {
+        connections.add(planetIds[distances[k].index]);
       }
 
-      planets.get(id)!.connectedPlanets = Array.from(connections);
-    });
+      planets.get(planetIds[i])!.connectedPlanets = Array.from(connections);
+    }
 
     return planets;
   }

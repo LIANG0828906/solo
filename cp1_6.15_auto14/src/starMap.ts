@@ -43,7 +43,7 @@ class StarMap {
 
   private createStarField(): void {
     const starGeometry = new THREE.BufferGeometry();
-    const starCount = 2000;
+    const starCount = 1800;
     const positions = new Float32Array(starCount * 3);
     const colors = new Float32Array(starCount * 3);
     const sizes = new Float32Array(starCount);
@@ -79,6 +79,7 @@ class StarMap {
     });
 
     this.starField = new THREE.Points(starGeometry, starMaterial);
+    this.starField.name = 'starField';
     this.scene.add(this.starField);
   }
 

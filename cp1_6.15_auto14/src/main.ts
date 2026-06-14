@@ -20,6 +20,11 @@ class Game {
   private frameCount: number = 0;
   private fps: number = 60;
   private hoveredPlanetId: string | null = null;
+  private perfPanel!: HTMLElement;
+  private fpsElement!: HTMLElement;
+  private particlesElement!: HTMLElement;
+  private renderTimeElement!: HTMLElement;
+  private renderTime: number = 0;
 
   constructor() {
     this.container = document.getElementById('canvas-container') || document.body;
@@ -49,8 +54,9 @@ class Game {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 100;
+    this.controls.minDistance = 8;
+    this.controls.maxDistance = 80;
+    this.controls.maxPolarAngle = Math.PI * 0.45;
     this.controls.enablePan = true;
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
@@ -61,6 +67,7 @@ class Game {
     this.setupLighting();
     this.createGameObjects();
     this.setupEventListeners();
+    this.createPerfPanel();
     
     this.lastTime = performance.now();
     this.animate();
@@ -191,24 +198,105 @@ class Game {
     this.camera.position.lerp(cameraTarget, deltaTime * 0.5);
     this.controls.target.lerp(shipPosition, deltaTime * 0.5);
 
-    const totalParticles = this.getTotalParticles();
-    if (totalParticles > 3000) {
-      console.warn(`粒子数量超过限制: ${totalParticles}/3000`);
+    this.camera.position.clampLength(8, 80);
+
+    if (this.frameCount % 10 === 0) {
+      const particleInfo = this.getTotalParticles();
+      if (particleInfo.total > 2800) {
+        console.warn(`粒子数量接近上限: ${particleInfo.total}/3000`);
+      }
+    }
+
+    if (this.frameCount % 180 === 0) {
+      const particleInfo = this.getTotalParticles();
+      const drawCalls = this.estimateDrawCalls();
+      console.log(`📊 性能统计 [${new Date().toLocaleTimeString()}]`);
+      console.log(`   FPS: ${this.fps}`);
+      console.log(`   粒子总数: ${particleInfo.total}`);
+      console.log(`   Draw Call 估算: ${drawCalls}`);
+      console.log(`   渲染时间: ${this.renderTime.toFixed(2)}ms`);
+    }
+
+    if (this.frameCount % 30 === 0) {
+      this.updatePerfPanel();
     }
   }
 
-  private getTotalParticles(): number {
-    let count = 0;
+  private getTotalParticles(): { total: number; details: Map<string, number> } {
+    const details = new Map<string, number>();
+    let total = 0;
     this.scene.traverse((object) => {
       if (object instanceof THREE.Points) {
-        count += object.geometry.attributes.position.count;
+        const count = object.geometry.attributes.position.count;
+        total += count;
+        const name = object.name || 'unnamed';
+        details.set(name, (details.get(name) || 0) + count);
+      }
+    });
+    if (this.frameCount % 180 === 0) {
+      console.log('💫 粒子数量统计:');
+      details.forEach((count, name) => {
+        console.log(`   ${name}: ${count}`);
+      });
+    }
+    return { total, details };
+  }
+
+  private estimateDrawCalls(): number {
+    let count = 0;
+    this.scene.traverse((object) => {
+      if ((object as THREE.Object3D).visible) {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Line || object instanceof THREE.Sprite) {
+          count++;
+        }
       }
     });
     return count;
   }
 
+  private createPerfPanel(): void {
+    this.perfPanel = document.createElement('div');
+    this.perfPanel.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #00ffff;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      border-radius: 6px;
+      min-width: 180px;
+      height: 60px;
+      z-index: 9999;
+      pointer-events: none;
+      user-select: none;
+      border: 1px solid rgba(0, 255, 255, 0.2);
+    `;
+    this.perfPanel.innerHTML = `
+      <div style="font-weight:bold; color:#ffffff; margin-bottom:3px;">🚀 Performance</div>
+      <div id="perf-fps">FPS: --</div>
+      <div id="perf-particles">Particles: --</div>
+      <div id="perf-render">Render: --</div>
+    `;
+    document.body.appendChild(this.perfPanel);
+    this.fpsElement = this.perfPanel.querySelector('#perf-fps')!;
+    this.particlesElement = this.perfPanel.querySelector('#perf-particles')!;
+    this.renderTimeElement = this.perfPanel.querySelector('#perf-render')!;
+  }
+
+  private updatePerfPanel(): void {
+    const particleInfo = this.getTotalParticles();
+    this.fpsElement.textContent = `FPS: ${this.fps}`;
+    this.particlesElement.textContent = `Particles: ${particleInfo.total}/3000`;
+    this.renderTimeElement.textContent = `Render: ${this.renderTime.toFixed(1)}ms`;
+  }
+
   private render(): void {
+    const renderStart = performance.now();
     this.renderer.render(this.scene, this.camera);
+    this.renderTime = performance.now() - renderStart;
   }
 
   public dispose(): void {
@@ -222,6 +310,10 @@ class Game {
     
     window.removeEventListener('resize', this.onResize.bind(this));
     this.container.removeChild(this.renderer.domElement);
+    
+    if (this.perfPanel && this.perfPanel.parentNode) {
+      this.perfPanel.parentNode.removeChild(this.perfPanel);
+    }
   }
 
   public getFPS(): number {
