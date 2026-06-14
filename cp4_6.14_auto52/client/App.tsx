@@ -1,4 +1,5 @@
-import React, { useState, useEffect, createRoot } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import axios from 'axios';
 import Exhibition from './Exhibition';

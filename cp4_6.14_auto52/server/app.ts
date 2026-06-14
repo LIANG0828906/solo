@@ -21,6 +21,19 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
 
+interface UploadedFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer?: Buffer;
+  stream?: NodeJS.ReadableStream;
+}
+
 interface Artwork {
   id: string;
   name: string;
@@ -52,11 +65,61 @@ interface Visitor {
   artworkStayTimes: Record<string, number>;
 }
 
+const ALLOWED_IMAGE_MAGIC: Record<string, number[]> = {
+  jpg: [0xFF, 0xD8, 0xFF],
+  png: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+};
+const ALLOWED_AUDIO_MAGIC: Record<string, number[]> = {
+  mp3_id3v2: [0x49, 0x44, 0x33],
+  mp3_frame: [0xFF, 0xFB],
+};
+
+function validateMagicNumber(buffer: Buffer, signatures: number[][]): boolean {
+  return signatures.some(sig =>
+    sig.length <= buffer.length &&
+    sig.every((byte, idx) => buffer[idx] === byte)
+  );
+}
+
+async function validateFileType(file: UploadedFile, type: 'image' | 'audio'): Promise<boolean> {
+  const maxBytes = type === 'image' ? 8 : 3;
+  const buffer = Buffer.alloc(maxBytes);
+  
+  return new Promise((resolve) => {
+    fs.open(file.path, 'r', (err, fd) => {
+      if (err) return resolve(false);
+      fs.read(fd, buffer, 0, maxBytes, 0, (readErr, bytesRead) => {
+        fs.close(fd, () => {});
+        if (readErr || bytesRead < (type === 'image' ? 3 : 2)) return resolve(false);
+        
+        if (type === 'image') {
+          resolve(validateMagicNumber(buffer, [ALLOWED_IMAGE_MAGIC.jpg, ALLOWED_IMAGE_MAGIC.png]));
+        } else {
+          resolve(validateMagicNumber(buffer, [ALLOWED_AUDIO_MAGIC.mp3_id3v2, ALLOWED_AUDIO_MAGIC.mp3_frame]));
+        }
+      });
+    });
+  });
+}
+
+function deleteTempFiles(files: Record<string, UploadedFile[]> | undefined) {
+  if (!files) return;
+  Object.values(files).flat().forEach(file => {
+    if (file && file.path) {
+      fs.unlink(file.path, () => {});
+    }
+  });
+}
+
+type DestinationCb = (error: Error | null, destination: string) => void;
+type FilenameCb = (error: Error | null, filename: string) => void;
+type FilterCb = (error: Error | null, acceptFile?: boolean) => void;
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: any, file: any, cb: DestinationCb) => {
     cb(null, UPLOAD_DIR);
   },
-  filename: (req, file, cb) => {
+  filename: (req: any, file: any, cb: FilenameCb) => {
     const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
@@ -67,7 +130,7 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: any, file: any, cb: FilterCb) => {
     const fieldName = file.fieldname;
     if (fieldName === 'image') {
       const allowedTypes = /jpeg|jpg|png/;
@@ -185,36 +248,84 @@ for (let i = 0; i < 15; i++) {
   visitorList.unshift(visitorId);
 }
 
-app.post('/api/upload', upload.fields([
-  { name: 'image', maxCount: 1 },
-  { name: 'audio1', maxCount: 1 },
-  { name: 'audio2', maxCount: 1 },
-  { name: 'audio3', maxCount: 1 },
-]), (req, res) => {
+app.post('/api/upload', (req, res, next) => {
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'audio1', maxCount: 1 },
+    { name: 'audio2', maxCount: 1 },
+    { name: 'audio3', maxCount: 1 },
+  ])(req, res, (err: any) => {
+    if (err) {
+      deleteTempFiles(req.files as unknown as Record<string, UploadedFile[]>);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ 
+          success: false, 
+          error: '文件大小超出限制，图片不能超过5MB' 
+        });
+      }
+      return res.status(400).json({ 
+        success: false, 
+        error: err.message || '上传失败' 
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    const files = req.files as Record<string, Express.Multer.File[]>;
+    const files = req.files as unknown as Record<string, UploadedFile[]>;
     const result: { image?: string; audioTracks: string[] } = { audioTracks: [] };
     
     if (files.image && files.image[0]) {
-      if (files.image[0].size > 5 * 1024 * 1024) {
-        return res.status(400).json({ error: '图片大小不能超过5MB' });
+      const imgFile = files.image[0];
+      if (imgFile.size > 5 * 1024 * 1024) {
+        deleteTempFiles(files);
+        return res.status(400).json({ 
+          success: false, 
+          error: '图片大小不能超过5MB' 
+        });
       }
-      result.image = `/uploads/${files.image[0].filename}`;
+      const isValid = await validateFileType(imgFile, 'image');
+      if (!isValid) {
+        deleteTempFiles(files);
+        return res.status(415).json({ 
+          success: false, 
+          error: '图片格式无效，只允许 JPG/PNG 格式' 
+        });
+      }
+      result.image = `/uploads/${imgFile.filename}`;
     }
     
     for (let i = 1; i <= 3; i++) {
       const audioKey = `audio${i}` as keyof typeof files;
       if (files[audioKey] && files[audioKey][0]) {
-        if (files[audioKey][0].size > 2 * 60 * 1024 * 1024) {
-          return res.status(400).json({ error: `音频${i}大小不能超过约2分钟` });
+        const audioFile = files[audioKey][0];
+        const maxAudioSize = 2 * 60 * 1024 * 1024;
+        if (audioFile.size > maxAudioSize) {
+          deleteTempFiles(files);
+          return res.status(400).json({ 
+            success: false, 
+            error: `音频${i}大小不能超过约2分钟` 
+          });
         }
-        result.audioTracks.push(`/uploads/${files[audioKey][0].filename}`);
+        const isValid = await validateFileType(audioFile, 'audio');
+        if (!isValid) {
+          deleteTempFiles(files);
+          return res.status(415).json({ 
+            success: false, 
+            error: `音频${i}格式无效，只允许 MP3 格式` 
+          });
+        }
+        result.audioTracks.push(`/uploads/${audioFile.filename}`);
       }
     }
     
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || '上传失败' });
+    deleteTempFiles(req.files as Record<string, Express.Multer.File[]>);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message || '服务器内部错误，上传失败' 
+    });
   }
 });
 

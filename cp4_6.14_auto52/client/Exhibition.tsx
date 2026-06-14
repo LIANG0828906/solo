@@ -108,19 +108,19 @@ function Exhibition({ exhibition, onUpdate }: ExhibitionProps) {
   }, [artworks]);
 
   const hangPoints = useMemo(() => {
-    const points: { x: number; y: number; wall: string }[] = [];
+    const points: { x: number; y: number; wall: string; offsetX: number; offsetY: number }[] = [];
+    const WALL_THICKNESS = 0.2;
 
-    const numX = Math.floor(ROOM_WIDTH / HANG_SPACING) - 1;
-    const numY = Math.floor(ROOM_HEIGHT / HANG_SPACING) - 1;
-
-    for (let i = 1; i <= numX; i++) {
-      points.push({ x: i * HANG_SPACING, y: 0, wall: 'north' });
-      points.push({ x: i * HANG_SPACING, y: ROOM_HEIGHT, wall: 'south' });
+    for (let i = 0; i < 10; i++) {
+      const x = 1 + i * HANG_SPACING;
+      points.push({ x, y: 0, wall: 'north', offsetX: 0, offsetY: WALL_THICKNESS });
+      points.push({ x, y: ROOM_HEIGHT, wall: 'south', offsetX: 0, offsetY: -WALL_THICKNESS });
     }
 
-    for (let i = 1; i <= numY; i++) {
-      points.push({ x: 0, y: i * HANG_SPACING, wall: 'west' });
-      points.push({ x: ROOM_WIDTH, y: i * HANG_SPACING, wall: 'east' });
+    for (let i = 0; i < 7; i++) {
+      const y = 1 + i * HANG_SPACING;
+      points.push({ x: 0, y, wall: 'west', offsetX: WALL_THICKNESS, offsetY: 0 });
+      points.push({ x: ROOM_WIDTH, y, wall: 'east', offsetX: -WALL_THICKNESS, offsetY: 0 });
     }
 
     return points;
@@ -228,12 +228,16 @@ function Exhibition({ exhibition, onUpdate }: ExhibitionProps) {
         },
       });
 
+      if (!uploadRes.data.success) {
+        throw new Error(uploadRes.data.error || '上传失败');
+      }
+
       const artworkData = {
         name: formName,
         artist: formArtist,
         description: formDescription,
-        image: uploadRes.data.image || imagePreview,
-        audioTracks: uploadRes.data.audioTracks || [],
+        image: uploadRes.data.data.image || imagePreview,
+        audioTracks: uploadRes.data.data.audioTracks || [],
       };
 
       const artworkRes = await axios.post(`/api/exhibitions/${exhibition.id}/artworks`, artworkData);
@@ -380,37 +384,52 @@ function Exhibition({ exhibition, onUpdate }: ExhibitionProps) {
   };
 
   const generateBezierPath = () => {
+    const getOffsetForWall = (wall: string) => {
+      const WALL_THICKNESS = 0.2;
+      switch (wall) {
+        case 'north': return { ox: 0, oy: WALL_THICKNESS };
+        case 'south': return { ox: 0, oy: -WALL_THICKNESS };
+        case 'west': return { ox: WALL_THICKNESS, oy: 0 };
+        case 'east': return { ox: -WALL_THICKNESS, oy: 0 };
+        default: return { ox: 0, oy: 0 };
+      }
+    };
+
     const placedArtworks = pathOrder
       .map(id => artworks.find(a => a.id === id))
-      .filter(a => a && a.position) as (Artwork & { position: { x: number; y: number } })[];
+      .filter(a => a && a.position) as (Artwork & { position: { x: number; y: number; wall: string } })[];
 
     if (placedArtworks.length < 2) return '';
 
+    const getPx = (p: { x: number; y: number; wall: string }) => {
+      const off = getOffsetForWall(p.wall);
+      return {
+        px: (p.x + off.ox) * PIXELS_PER_METER,
+        py: (p.y + off.oy) * PIXELS_PER_METER,
+      };
+    };
+
     let path = '';
-    const startX = placedArtworks[0].position.x * PIXELS_PER_METER;
-    const startY = placedArtworks[0].position.y * PIXELS_PER_METER;
-    path += `M ${startX} ${startY}`;
+    const start = getPx(placedArtworks[0].position);
+    path += `M ${start.px} ${start.py}`;
 
     for (let i = 1; i < placedArtworks.length; i++) {
-      const prev = placedArtworks[i - 1].position;
-      const curr = placedArtworks[i].position;
+      const prevPos = placedArtworks[i - 1].position;
+      const currPos = placedArtworks[i].position;
+      const prev = getPx(prevPos);
+      const curr = getPx(currPos);
 
-      const dx = (curr.x - prev.x) * PIXELS_PER_METER;
-      const dy = (curr.y - prev.y) * PIXELS_PER_METER;
+      const dx = curr.px - prev.px;
+      const dy = curr.py - prev.py;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const offset = Math.min(dist * 0.3, 80);
 
-      const prevPx = prev.x * PIXELS_PER_METER;
-      const prevPy = prev.y * PIXELS_PER_METER;
-      const currPx = curr.x * PIXELS_PER_METER;
-      const currPy = curr.y * PIXELS_PER_METER;
+      const cp1x = prev.px + (dx === 0 ? offset : dx * 0.5);
+      const cp1y = prev.py + (dy === 0 ? 0 : dy * 0.2);
+      const cp2x = curr.px - (dx === 0 ? offset : dx * 0.5);
+      const cp2y = curr.py - (dy === 0 ? 0 : dy * 0.2);
 
-      const cp1x = prevPx + (dx === 0 ? offset : dx * 0.5);
-      const cp1y = prevPy + (dy === 0 ? 0 : dy * 0.2);
-      const cp2x = currPx - (dx === 0 ? offset : dx * 0.5);
-      const cp2y = currPy - (dy === 0 ? 0 : dy * 0.2);
-
-      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${currPx} ${currPy}`;
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.px} ${curr.py}`;
     }
 
     return path;
@@ -730,17 +749,19 @@ function Exhibition({ exhibition, onUpdate }: ExhibitionProps) {
 
           {hangPoints.map((point, index) => {
             const artwork = artworks.find(
-              a => a.position?.x === point.x && a.position?.y === point.y
+              a => a.position?.x === point.x && a.position?.y === point.y && a.position?.wall === point.wall
             );
             const isDragOver = dragOverPointIndex === index;
+            const left = (point.x + point.offsetX) * PIXELS_PER_METER;
+            const top = (point.y + point.offsetY) * PIXELS_PER_METER;
 
             return (
               <div
                 key={index}
                 className={`hang-point ${artwork ? 'occupied' : ''} ${isDragOver ? 'drag-over' : ''}`}
                 style={{
-                  left: point.x * PIXELS_PER_METER,
-                  top: point.y * PIXELS_PER_METER,
+                  left,
+                  top,
                 }}
                 onDragOver={(e) => handleDragOverPoint(e, index)}
                 onDragLeave={handleDragLeavePoint}

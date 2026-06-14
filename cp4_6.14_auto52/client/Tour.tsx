@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -93,6 +93,10 @@ function AudioWaveform({ isPlaying, themeColor }: { isPlaying: boolean; themeCol
   );
 }
 
+const PLAYER_RADIUS = 0.4;
+const ARTWORK_WIDTH = 2;
+const ARTWORK_HEIGHT = 1.5;
+
 function FirstPersonControls({
   position,
   setPosition,
@@ -102,7 +106,7 @@ function FirstPersonControls({
   position: THREE.Vector3;
   setPosition: (pos: THREE.Vector3) => void;
   rotation: { x: number; y: number };
-  setRotation: (rot: { x: number; y: number }) => void;
+  setRotation: Dispatch<SetStateAction<{ x: number; y: number }>>;
 }) {
   const { camera, gl } = useThree();
   const keys = useRef<Record<string, boolean>>({});
@@ -160,11 +164,23 @@ function FirstPersonControls({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      gl.domElement.removeEventListener('mousedown', handleMouseUp);
+      gl.domElement.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, [gl.domElement, setRotation]);
+
+  const collideWithWalls = (pos: THREE.Vector3): THREE.Vector3 => {
+    const minX = PLAYER_RADIUS + 0.01;
+    const maxX = ROOM_WIDTH - PLAYER_RADIUS - 0.01;
+    const minZ = PLAYER_RADIUS + 0.01;
+    const maxZ = ROOM_HEIGHT - PLAYER_RADIUS - 0.01;
+    
+    const result = pos.clone();
+    result.x = Math.max(minX, Math.min(maxX, result.x));
+    result.z = Math.max(minZ, Math.min(maxZ, result.z));
+    return result;
+  };
 
   useFrame(() => {
     const dir = new THREE.Vector3();
@@ -178,14 +194,18 @@ function FirstPersonControls({
       dir.normalize();
       dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationRef.current.y);
 
-      const newPos = positionRef.current.clone();
-      newPos.add(dir.multiplyScalar(PLAYER_SPEED));
+      const moveDelta = dir.multiplyScalar(PLAYER_SPEED);
+      
+      const currentPos = positionRef.current.clone();
+      const newPosX = currentPos.clone();
+      newPosX.x += moveDelta.x;
+      const collidedX = collideWithWalls(newPosX);
+      
+      const newPosZ = collidedX.clone();
+      newPosZ.z += moveDelta.z;
+      const finalPos = collideWithWalls(newPosZ);
 
-      const margin = 1;
-      newPos.x = Math.max(margin, Math.min(ROOM_WIDTH - margin, newPos.x));
-      newPos.z = Math.max(margin, Math.min(ROOM_HEIGHT - margin, newPos.z));
-
-      setPosition(newPos);
+      setPosition(finalPos);
     }
 
     camera.position.set(positionRef.current.x, 1.6, positionRef.current.z);
@@ -400,21 +420,79 @@ function Room({
   );
 }
 
-function getArtworkWorldPosition(artwork: Artwork): THREE.Vector3 {
-  if (!artwork.position) return new THREE.Vector3(0, 1.5, 0);
+interface ArtworkBounds {
+  center: THREE.Vector3;
+  halfWidth: number;
+  halfHeight: number;
+  normal: THREE.Vector3;
+  wall: string;
+}
+
+function getArtworkBounds(artwork: Artwork): ArtworkBounds | null {
+  if (!artwork.position) return null;
   const { x, y, wall } = artwork.position;
+  const WALL_OFFSET = 0.1;
+  const halfW = ARTWORK_WIDTH / 2;
+  const halfH = ARTWORK_HEIGHT / 2;
+
   switch (wall) {
     case 'north':
-      return new THREE.Vector3(x, 1.5, 0.1);
+      return {
+        center: new THREE.Vector3(x, 1.5, WALL_OFFSET),
+        halfWidth: halfW,
+        halfHeight: halfH,
+        normal: new THREE.Vector3(0, 0, -1),
+        wall
+      };
     case 'south':
-      return new THREE.Vector3(x, 1.5, ROOM_HEIGHT - 0.1);
+      return {
+        center: new THREE.Vector3(x, 1.5, ROOM_HEIGHT - WALL_OFFSET),
+        halfWidth: halfW,
+        halfHeight: halfH,
+        normal: new THREE.Vector3(0, 0, 1),
+        wall
+      };
     case 'west':
-      return new THREE.Vector3(0.1, 1.5, y);
+      return {
+        center: new THREE.Vector3(WALL_OFFSET, 1.5, y),
+        halfWidth: halfW,
+        halfHeight: halfH,
+        normal: new THREE.Vector3(-1, 0, 0),
+        wall
+      };
     case 'east':
-      return new THREE.Vector3(ROOM_WIDTH - 0.1, 1.5, y);
+      return {
+        center: new THREE.Vector3(ROOM_WIDTH - WALL_OFFSET, 1.5, y),
+        halfWidth: halfW,
+        halfHeight: halfH,
+        normal: new THREE.Vector3(1, 0, 0),
+        wall
+      };
     default:
-      return new THREE.Vector3(x, 1.5, y);
+      return null;
   }
+}
+
+function distancePlayerToArtwork(playerPos: THREE.Vector3, bounds: ArtworkBounds): number {
+  const playerXZ = new THREE.Vector2(playerPos.x, playerPos.z);
+  const centerXZ = new THREE.Vector2(bounds.center.x, bounds.center.z);
+  
+  const wall = bounds.wall;
+  let closestX: number, closestZ: number;
+  
+  if (wall === 'north' || wall === 'south') {
+    closestX = Math.max(bounds.center.x - bounds.halfWidth, Math.min(playerXZ.x, bounds.center.x + bounds.halfWidth));
+    closestZ = centerXZ.y;
+  } else {
+    closestX = centerXZ.x;
+    closestZ = Math.max(bounds.center.z - bounds.halfWidth, Math.min(playerXZ.y, bounds.center.z + bounds.halfWidth));
+  }
+  
+  const dx = playerXZ.x - closestX;
+  const dz = playerXZ.y - closestZ;
+  const planarDist = Math.sqrt(dx * dx + dz * dz);
+  
+  return Math.max(0, planarDist - PLAYER_RADIUS);
 }
 
 function Tour({ exhibition }: TourProps) {
@@ -538,9 +616,10 @@ function Tour({ exhibition }: TourProps) {
 
     for (let i = 0; i < list.length; i++) {
       const artwork = list[i];
-      if (!artwork.position) continue;
-      const artworkPos = getArtworkWorldPosition(artwork);
-      const dist = currentPos.distanceTo(artworkPos);
+      const bounds = getArtworkBounds(artwork);
+      if (!bounds) continue;
+      
+      const dist = distancePlayerToArtwork(currentPos, bounds);
       if (dist < DETECTION_RANGE && dist < closestDist) {
         closestDist = dist;
         closest = artwork;

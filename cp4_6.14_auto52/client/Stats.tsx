@@ -411,19 +411,11 @@ function Stats({ exhibition }: StatsProps) {
               return (
                 <div 
                   key={artworkId}
+                  className="top-artwork-item"
                   style={{
                     padding: '10px 12px',
                     background: 'var(--bg-tertiary)',
                     borderRadius: 'var(--border-radius-sm)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateX(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
@@ -498,6 +490,7 @@ function Stats({ exhibition }: StatsProps) {
             {statsData?.recentVisitors.map((visitor, index) => (
               <div 
                 key={visitor.id}
+                className="visitor-item"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -506,15 +499,6 @@ function Stats({ exhibition }: StatsProps) {
                   background: 'var(--bg-tertiary)',
                   borderRadius: 'var(--border-radius-sm)',
                   fontSize: '12px',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateX(-2px)';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateX(0)';
-                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
