@@ -80,24 +80,72 @@ class GameState {
   private generatePlanets(): Map<string, Planet> {
     const planets = new Map<string, Planet>();
     const planetCount = 8 + Math.floor(Math.random() * 3);
+    const minDistance = 10;
+    const boundingRadius = 35;
+    const iterations = 50;
+
+    const positions: { x: number; y: number; z: number }[] = [];
+
+    for (let i = 0; i < planetCount; i++) {
+      const angle = (i / planetCount) * Math.PI * 2;
+      const rx = 20;
+      const rz = 15;
+      positions.push({
+        x: Math.cos(angle) * rx + (Math.random() - 0.5) * 3,
+        y: (Math.random() - 0.5) * 8,
+        z: Math.sin(angle) * rz + (Math.random() - 0.5) * 3
+      });
+    }
+
+    for (let iter = 0; iter < iterations; iter++) {
+      for (let i = 0; i < planetCount; i++) {
+        for (let j = i + 1; j < planetCount; j++) {
+          const dx = positions[j].x - positions[i].x;
+          const dy = positions[j].y - positions[i].y;
+          const dz = positions[j].z - positions[i].z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          if (dist < minDistance && dist > 0.001) {
+            const overlap = (minDistance - dist) / 2;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const nz = dz / dist;
+
+            positions[i].x -= nx * overlap;
+            positions[i].y -= ny * overlap;
+            positions[i].z -= nz * overlap;
+            positions[j].x += nx * overlap;
+            positions[j].y += ny * overlap;
+            positions[j].z += nz * overlap;
+          }
+        }
+      }
+
+      for (let i = 0; i < planetCount; i++) {
+        const p = positions[i];
+        const dist = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+        if (dist > boundingRadius) {
+          const scale = boundingRadius / dist;
+          p.x *= scale;
+          p.y *= scale;
+          p.z *= scale;
+        }
+      }
+    }
 
     for (let i = 0; i < planetCount; i++) {
       const id = `planet_${i}`;
-      const angle = (i / planetCount) * Math.PI * 2;
-      const radius = 15 + Math.random() * 10;
-      const height = (Math.random() - 0.5) * 10;
-
       const isStation = i === 0 || Math.random() < 0.2;
 
       const commodities = new Map<string, Commodity>();
       const numCommodities = 3 + Math.floor(Math.random() * 3);
       const shuffledCommodities = [...COMMODITIES_DATA].sort(() => Math.random() - 0.5);
-      
+
       for (let j = 0; j < numCommodities; j++) {
         const commData = shuffledCommodities[j];
         const priceVariation = 0.7 + Math.random() * 0.6;
         const basePrice = Math.round(commData.basePrice * priceVariation);
-        
+
         commodities.set(commData.id, {
           id: commData.id,
           name: commData.name,
@@ -113,11 +161,7 @@ class GameState {
       planets.set(id, {
         id,
         name: PLANET_NAMES[i % PLANET_NAMES.length],
-        position: {
-          x: Math.cos(angle) * radius + (Math.random() - 0.5) * 5,
-          y: height,
-          z: Math.sin(angle) * radius + (Math.random() - 0.5) * 5
-        },
+        position: { ...positions[i] },
         color: this.generatePlanetColor(i),
         size: isStation ? 1.5 + Math.random() * 0.5 : 2 + Math.random() * 2,
         isStation,
@@ -132,7 +176,7 @@ class GameState {
       const connections = new Set<string>();
       connections.add(planetIds[(i + 1) % planetIds.length]);
       connections.add(planetIds[(i - 1 + planetIds.length) % planetIds.length]);
-      
+
       const numExtraConnections = Math.floor(Math.random() * 2);
       for (let j = 0; j < numExtraConnections; j++) {
         const randomIndex = Math.floor(Math.random() * planetIds.length);
@@ -140,7 +184,7 @@ class GameState {
           connections.add(planetIds[randomIndex]);
         }
       }
-      
+
       planets.get(id)!.connectedPlanets = Array.from(connections);
     });
 
