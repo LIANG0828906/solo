@@ -314,17 +314,27 @@ const PlantDetail = () => {
     requestAnimationFrame(animate)
   }
 
-  const getScoreColor = (score: number) => {
+  const getScoreGradient = (score: number) => {
     if (score >= 80) return '#2E7D32'
     if (score >= 60) return '#F57C00'
     return '#D32F2F'
   }
 
-  const getScoreGradient = (score: number) => {
-    const r = Math.min(255, Math.round(255 * (1 - score / 100) * 2))
-    const g = Math.min(255, Math.round(255 * (score / 50)))
-    return `rgb(${r}, ${g}, 46)`
+  const formatMonth = (monthStr: string) => {
+    const [year, month] = monthStr.split('-')
+    return `${year}年${parseInt(month)}月`
   }
+
+  const getRecordIcon = (type: string) => {
+    return RECORD_TYPES.find(t => t.id === type)?.icon || '📝'
+  }
+
+  const getRecordLabel = (type: string) => {
+    return RECORD_TYPES.find(t => t.id === type)?.label || type
+  }
+
+  const dateRecords = calendarDays.find(d => d.date === selectedDate)?.records || []
+  const waterFertilizeRecords = careRecords.filter(r => r.type === 'water' || r.type === 'fertilize')
 
   if (loading) {
     return (
@@ -348,7 +358,8 @@ const PlantDetail = () => {
     )
   }
 
-  const dateRecords = calendarDays.find(d => d.date === selectedDate)?.records || []
+  const circumference = 2 * Math.PI * 70
+  const strokeDashoffset = circumference - (animatedScore / 100) * circumference
 
   return (
     <div className="page-white">
@@ -400,3 +411,392 @@ const PlantDetail = () => {
           <div>
             <div className="calendar-container">
               <div className="calendar-header">
+                <button 
+                  className="calendar-nav-btn"
+                  onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1))}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <div className="calendar-title">
+                  {calendarDate.getFullYear()}年{calendarDate.getMonth() + 1}月
+                </div>
+                <button 
+                  className="calendar-nav-btn"
+                  onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1))}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="calendar-grid">
+                {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                  <div key={day} className="calendar-weekday">{day}</div>
+                ))}
+                {calendarDays.map((day, idx) => (
+                  <div
+                    key={idx}
+                    className={`calendar-day ${day.empty ? 'empty' : ''} ${day.isToday ? 'today' : ''}`}
+                    onClick={() => !day.empty && handleDateClick(day.date)}
+                  >
+                    {!day.empty && (
+                      <>
+                        <span className="calendar-day-number">{day.day}</span>
+                        {day.hasRecord && <span className="calendar-day-dot" />}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'records' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 600 }}>浇水施肥记录</h3>
+              <button 
+                className="primary-btn" 
+                onClick={() => {
+                  setSelectedDate(new Date().toISOString().split('T')[0])
+                  setShowAddRecord(true)
+                }}
+              >
+                + 添加记录
+              </button>
+            </div>
+
+            {waterFertilizeRecords.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">💧</div>
+                <div className="empty-state-text">还没有浇水施肥记录</div>
+              </div>
+            ) : (
+              <div className="records-list">
+                {waterFertilizeRecords.map(record => (
+                  <div key={record.id} className="record-item-full">
+                    <div className="record-date">{record.date}</div>
+                    <div className={`record-icon ${record.type}`}>
+                      {getRecordIcon(record.type)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{getRecordLabel(record.type)}</div>
+                      {record.note && <div style={{ fontSize: '13px', color: '#757575', marginTop: '4px' }}>{record.note}</div>}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#757575' }}>{record.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'album' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 600 }}>成长相册</h3>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoUpload}
+                />
+                <button className="secondary-btn" onClick={() => photoInputRef.current?.click()}>
+                  + 上传照片
+                </button>
+              </div>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="batch-actions">
+                {!selectMode ? (
+                  <button className="select-mode-btn" onClick={() => setSelectMode(true)}>
+                    批量选择
+                  </button>
+                ) : (
+                  <>
+                    <button className="select-mode-btn" onClick={() => {
+                      setSelectMode(false)
+                      setSelectedPhotos([])
+                    }}>
+                      取消选择
+                    </button>
+                    {selectedPhotos.length > 0 && (
+                      <>
+                        <span className="selected-count">已选择 {selectedPhotos.length} 张</span>
+                        <button className="download-btn" onClick={handleDownloadSelected}>
+                          下载压缩包
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {timelinePhotos.length > 0 && (
+              <div style={{ marginTop: '32px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '24px' }}>成长时间线</h4>
+                <div className="timeline-container">
+                  {timelinePhotos.map(({ month, photo }) => (
+                    <div key={month} className="timeline-item">
+                      <div className="timeline-date">{formatMonth(month)}</div>
+                      <img 
+                        src={photo.url} 
+                        alt={formatMonth(month)}
+                        className="timeline-thumb"
+                        onClick={() => setLightboxPhoto(photo.url)}
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {photos.length > 0 && (
+              <div style={{ marginTop: '48px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>全部照片</h4>
+                <div className="gallery-grid">
+                  {photos.map(photo => (
+                    <div
+                      key={photo.id}
+                      className={`gallery-item ${selectedPhotos.includes(photo.id) ? 'selected' : ''}`}
+                      onClick={() => {
+                        if (selectMode) {
+                          togglePhotoSelect(photo.id)
+                        } else {
+                          setLightboxPhoto(photo.url)
+                        }
+                      }}
+                    >
+                      <img src={photo.url} alt={photo.date} loading="lazy" />
+                      {selectMode && selectedPhotos.includes(photo.id) && (
+                        <div className="gallery-select-icon">✓</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {photos.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-state-icon">📷</div>
+                <div className="empty-state-text">还没有上传照片，记录植物的成长吧</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'health' && (
+          <div>
+            {healthState === 'start' && (
+              <div className="health-card">
+                <div className="health-start">
+                  <div className="health-start-icon">💚</div>
+                  <div className="health-start-text">通过简单的问卷评估植物健康状况</div>
+                  <button className="primary-btn" onClick={startHealthCheck}>
+                    开始检测
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {healthState === 'progress' && (
+              <div className="health-card">
+                <div className="health-start">
+                  <div className="health-start-icon">🔍</div>
+                  <div className="health-start-text">正在分析植物健康状态...</div>
+                  <button className="primary-btn progress-btn" disabled>
+                    <div className="progress-bar" />
+                    检测中...
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {healthState === 'question' && (
+              <div className="question-card">
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', color: '#757575', marginBottom: '8px' }}>
+                    问题 {currentQuestion + 1} / {HEALTH_QUESTIONS.length}
+                  </div>
+                  <div style={{ height: '4px', background: '#E0E0E0', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ 
+                        height: '100%', 
+                        background: '#2E7D32', 
+                        width: `${((currentQuestion + 1) / HEALTH_QUESTIONS.length) * 100}%`,
+                        transition: 'width 0.3s ease'
+                      }} 
+                    />
+                  </div>
+                </div>
+
+                <div className="question-title">{HEALTH_QUESTIONS[currentQuestion].question}</div>
+                <div className="question-subtitle">{HEALTH_QUESTIONS[currentQuestion].subtitle}</div>
+
+                <div className="question-options">
+                  {HEALTH_QUESTIONS[currentQuestion].options.map((option, idx) => (
+                    <button
+                      key={idx}
+                      className={`question-option ${answers.includes(idx) ? 'selected' : ''}`}
+                      onClick={() => handleAnswer(idx)}
+                    >
+                      {option.text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {healthState === 'result' && healthReport && (
+              <div className="health-card">
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>健康检测报告</h3>
+                  <div style={{ fontSize: '14px', color: '#757575' }}>
+                    检测时间：{healthReport.date}
+                  </div>
+                </div>
+
+                <div className="result-score-container">
+                  <div className="score-ring">
+                    <svg width="180" height="180">
+                      <circle cx="90" cy="90" r="70" className="score-ring-bg" />
+                      <circle
+                        cx="90"
+                        cy="90"
+                        r="70"
+                        className="score-ring-fill"
+                        stroke={getScoreGradient(healthReport.score)}
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                      />
+                    </svg>
+                    <div className="score-text">
+                      <span className="score-number" style={{ color: getScoreGradient(healthReport.score) }}>
+                        {animatedScore}
+                      </span>
+                      <span className="score-label">健康评分</span>
+                    </div>
+                  </div>
+                </div>
+
+                <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>养护建议</h4>
+                <ul className="suggestions-list">
+                  {healthReport.suggestions.map((suggestion, idx) => (
+                    <li key={idx} className="suggestion-item">
+                      <span className="suggestion-icon">💡</span>
+                      <span className="suggestion-text">{suggestion}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div style={{ marginTop: '32px', textAlign: 'center' }}>
+                  <button 
+                    className="primary-btn" 
+                    onClick={() => {
+                      setHealthState('start')
+                      setHealthReport(null)
+                      setAnimatedScore(0)
+                    }}
+                  >
+                    重新检测
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showDateSheet && (
+        <>
+          <div className="sheet-overlay" onClick={() => setShowDateSheet(false)} />
+          <div className="sheet-content">
+            <div className="sheet-handle" />
+            <div className="sheet-title">
+              {selectedDate} 养护记录
+            </div>
+
+            {showAddRecord ? (
+              <div>
+                <div className="form-group">
+                  <label className="form-label">操作类型</label>
+                  <div className="location-tags">
+                    {RECORD_TYPES.map(rt => (
+                      <button
+                        key={rt.id}
+                        className={`location-tag ${newRecord.type === rt.id ? 'active' : ''}`}
+                        onClick={() => setNewRecord(prev => ({ ...prev, type: rt.id }))}
+                      >
+                        {rt.icon} {rt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">备注</label>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="记录一下今天的养护情况..."
+                    value={newRecord.note}
+                    onChange={e => setNewRecord(prev => ({ ...prev, note: e.target.value }))}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button className="secondary-btn" onClick={() => setShowAddRecord(false)}>取消</button>
+                  <button className="primary-btn" onClick={handleAddRecord}>保存</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ color: '#757575' }}>共 {dateRecords.length} 条记录</span>
+                  <button className="primary-btn" onClick={() => setShowAddRecord(true)}>
+                    + 添加记录
+                  </button>
+                </div>
+                {dateRecords.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px', color: '#757575' }}>
+                    今天还没有养护记录
+                  </div>
+                ) : (
+                  dateRecords.map(record => (
+                    <div key={record.id} className="record-item">
+                      <div className={`record-icon ${record.type}`}>
+                        {getRecordIcon(record.type)}
+                      </div>
+                      <div className="record-content">
+                        <div className="record-type">{getRecordLabel(record.type)}</div>
+                        {record.note && <div className="record-note">{record.note}</div>}
+                      </div>
+                      <div className="record-time">{record.time}</div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {lightboxPhoto && (
+        <div className="lightbox-overlay" onClick={() => setLightboxPhoto(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxPhoto(null)}>×</button>
+          <img src={lightboxPhoto} alt="预览" className="lightbox-image" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default PlantDetail
