@@ -129,7 +129,7 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
   const handleStarClick = (star: number) => {
     setRating(star);
     setBouncingStar(star);
-    setTimeout(() => setBouncingStar(null), 200);
+    setTimeout(() => setBouncingStar(null), 400);
   };
 
   const handleSubmit = async () => {
@@ -178,15 +178,15 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
                 onClick={() => handleStarClick(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
+                className={bouncingStar === star ? 'star-bounce' : ''}
                 style={{
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
                   fontSize: 32,
                   padding: 4,
-                  transform: bouncingStar === star ? 'scale(1.3)' : 'scale(1)',
-                  transition: 'transform 200ms ease-out',
                   color: (hoverRating || rating) >= star ? '#f59e0b' : '#e2e8f0',
+                  transition: 'color 150ms ease-out',
                 }}
               >
                 ★
@@ -258,6 +258,17 @@ function FeedbackModal({ courseId, onClose, onSubmit }: {
           </button>
         </div>
       </div>
+      <style>{`
+        @keyframes starBounce {
+          0% { transform: scale(1); }
+          30% { transform: scale(1.4); }
+          60% { transform: scale(0.95); }
+          100% { transform: scale(1); }
+        }
+        .star-bounce {
+          animation: starBounce 400ms ease-out;
+        }
+      `}</style>
     </div>
   );
 }
@@ -354,7 +365,13 @@ function CourseDetailPage() {
     }
   };
 
-  const isMobile = window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div>
@@ -436,13 +453,11 @@ export default function App() {
   const [currentNav, setCurrentNav] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [latestFeedback, setLatestFeedback] = useState<Feedback[]>([]);
   const [participation, setParticipation] = useState<ParticipationData[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCourses().then(setCourses).catch(() => {});
-    fetchFeedback(undefined, 1, 10).then(res => setLatestFeedback(res.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -479,7 +494,6 @@ export default function App() {
             <Route path="/" element={
               <Dashboard
                 courses={courses}
-                latestFeedback={latestFeedback}
                 participationData={participation}
                 selectedCourseId={selectedCourseId}
                 onSelectCourse={(id) => {

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Course, Feedback, ParticipationData } from '../api';
+import { Course, Feedback, ParticipationData, fetchFeedback } from '../api';
 import RatingChart from '../components/RatingChart';
 import FeedbackCard from '../components/FeedbackCard';
 
@@ -64,6 +64,8 @@ function CourseCard({ course, onClick }: { course: Course; onClick: () => void }
         display: '-webkit-box',
         WebkitLineClamp: 2,
         WebkitBoxOrient: 'vertical' as const,
+        lineHeight: 1.5,
+        marginTop: 8,
       }}>
         {course.description}
       </div>
@@ -71,14 +73,53 @@ function CourseCard({ course, onClick }: { course: Course; onClick: () => void }
   );
 }
 
-export default function Dashboard({ courses, latestFeedback, participationData, selectedCourseId, onSelectCourse }: {
+export default function Dashboard({ courses, participationData, selectedCourseId, onSelectCourse }: {
   courses: Course[];
-  latestFeedback: Feedback[];
   participationData: ParticipationData[];
   selectedCourseId: string | null;
   onSelectCourse: (id: string) => void;
 }) {
   const navigate = useNavigate();
+  const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const loadFeedback = useCallback(async (pageNum: number) => {
+    setLoading(true);
+    try {
+      const res = await fetchFeedback(undefined, pageNum, 20);
+      if (pageNum === 1) {
+        setFeedbackList(res.data);
+      } else {
+        setFeedbackList(prev => [...prev, ...res.data]);
+      }
+      setTotal(res.total);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFeedback(1);
+  }, [loadFeedback]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 100 && !loading && feedbackList.length < total) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadFeedback(nextPage);
+    }
+  }, [loading, feedbackList.length, total, page, loadFeedback]);
 
   const avgRating = courses.length > 0
     ? courses.reduce((sum, c) => sum + c.averageRating, 0) / courses.length
@@ -100,7 +141,7 @@ export default function Dashboard({ courses, latestFeedback, participationData, 
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 16,
         marginBottom: 32,
-      }}>
+      }} className="stats-grid">
         <div style={{
           backgroundColor: '#ffffff',
           borderRadius: 12,
@@ -150,24 +191,26 @@ export default function Dashboard({ courses, latestFeedback, participationData, 
             borderRadius: 12,
             padding: 24,
           }}>
-            <RatingChart participationData={participationData} height={300} />
+            <RatingChart participationData={participationData} height={isMobile ? 150 : 300} />
           </div>
         </div>
       )}
 
       <h2 style={{ fontSize: 20, fontWeight: 600, color: '#0f172a', margin: '0 0 16px' }}>最新评论</h2>
-      <div>
-        {latestFeedback.map(fb => (
+      <div
+        onScroll={handleScroll}
+        style={{ maxHeight: 500, overflowY: 'auto', paddingRight: 8 }}
+      >
+        {feedbackList.map(fb => (
           <FeedbackCard key={fb.id} feedback={fb} />
         ))}
-        {latestFeedback.length === 0 && (
-          <p style={{ color: '#94a3b8', textAlign: 'center', padding: 24 }}>暂无评论</p>
-        )}
+        {loading && <p style={{ textAlign: 'center', color: '#94a3b8', padding: 16 }}>加载中...</p>}
+        {!loading && feedbackList.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>暂无评论</p>}
       </div>
 
       <style>{`
         @media (max-width: 768px) {
-          div[style*="grid-template-columns: repeat(3"] {
+          .stats-grid {
             grid-template-columns: 1fr !important;
           }
         }
