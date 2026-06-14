@@ -40,17 +40,20 @@ export class Particle {
   life: number;
   maxLife: number;
   size: number;
+  gravity: number;
 
-  constructor(x: number, y: number, vx: number, vy: number, color: string, life: number, size: number = 4) {
+  constructor(x: number, y: number, vx: number, vy: number, color: string, life: number, size: number = 4, gravity: number = 0) {
     this.position = { x, y };
     this.velocity = { x: vx, y: vy };
     this.color = color;
     this.life = life;
     this.maxLife = life;
     this.size = size;
+    this.gravity = gravity;
   }
 
   update(deltaTime: number): boolean {
+    this.velocity.y += this.gravity * deltaTime;
     this.position.x += this.velocity.x * deltaTime;
     this.position.y += this.velocity.y * deltaTime;
     this.life -= deltaTime;
@@ -59,6 +62,73 @@ export class Particle {
 
   getAlpha(): number {
     return Math.max(0, this.life / this.maxLife);
+  }
+}
+
+export class PourEffect {
+  from: Position;
+  to: Position;
+  color: string;
+  progress: number;
+  duration: number;
+  liquidTrail: { x: number; y: number; r: number }[];
+  splashParticles: Particle[];
+  splashTriggered: boolean;
+
+  constructor(fromX: number, fromY: number, toX: number, toY: number, color: string) {
+    this.from = { x: fromX, y: fromY };
+    this.to = { x: toX, y: toY };
+    this.color = color;
+    this.progress = 0;
+    this.duration = 0.4;
+    this.liquidTrail = [];
+    this.splashParticles = [];
+    this.splashTriggered = false;
+  }
+
+  update(deltaTime: number): boolean {
+    this.progress += deltaTime / this.duration;
+
+    const t = Math.min(1, this.progress);
+    const currentX = this.from.x + (this.to.x - this.from.x) * t;
+    const currentY = this.from.y + (this.to.y - this.from.y) * t + (1 - Math.pow(1 - t, 2)) * -50;
+
+    this.liquidTrail.push({ x: currentX, y: currentY, r: Math.max(2, 6 * (1 - t * 0.5)) });
+    if (this.liquidTrail.length > 20) {
+      this.liquidTrail.shift();
+    }
+
+    if (!this.splashTriggered && this.progress >= 0.9) {
+      this.triggerSplash();
+      this.splashTriggered = true;
+    }
+
+    this.splashParticles = this.splashParticles.filter(p => p.update(deltaTime));
+
+    return this.progress < 1 || this.splashParticles.length > 0;
+  }
+
+  private triggerSplash(): void {
+    const splashLife = 0.3;
+    const splashX = this.to.x;
+    const splashY = this.to.y;
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * i) / 7 + Math.PI;
+      const speed = 40 + Math.random() * 40;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed - 20;
+      this.splashParticles.push(new Particle(
+        splashX + (Math.random() - 0.5) * 10,
+        splashY,
+        vx,
+        vy,
+        this.color,
+        splashLife,
+        3 + Math.random() * 3,
+        120
+      ));
+    }
   }
 }
 
@@ -185,8 +255,7 @@ export class Cauldron {
   isSmoking: boolean;
   smokeTimer: number;
   smokeParticles: Particle[];
-  splashParticles: Particle[];
-  pourEffect: { from: Position; to: Position; color: string; progress: number } | null;
+  pourEffects: PourEffect[];
 
   constructor(x: number, y: number, width: number, height: number) {
     this.position = { x, y };
@@ -195,8 +264,7 @@ export class Cauldron {
     this.isSmoking = false;
     this.smokeTimer = 0;
     this.smokeParticles = [];
-    this.splashParticles = [];
-    this.pourEffect = null;
+    this.pourEffects = [];
   }
 
   update(deltaTime: number): void {
@@ -208,42 +276,15 @@ export class Cauldron {
     }
 
     this.smokeParticles = this.smokeParticles.filter(p => p.update(deltaTime));
-    this.splashParticles = this.splashParticles.filter(p => p.update(deltaTime));
-
-    if (this.pourEffect) {
-      this.pourEffect.progress += deltaTime * 3;
-      if (this.pourEffect.progress >= 1) {
-        this.pourEffect = null;
-      }
-    }
-  }
-
-  startPour(from: Position, color: string): void {
-    this.pourEffect = {
-      from: { x: from.x, y: from.y },
-      to: { x: this.position.x, y: this.position.y - this.size.height / 4 },
-      color,
-      progress: 0
-    };
+    this.pourEffects = this.pourEffects.filter(p => p.update(deltaTime));
   }
 
   addIngredient(type: MaterialType, fromX: number, fromY: number): void {
     this.ingredients.push(type);
-    this.startPour({ x: fromX, y: fromY }, MATERIAL_COLORS[type]);
     
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
-      const speed = 30 + Math.random() * 40;
-      this.splashParticles.push(new Particle(
-        this.position.x + (Math.random() - 0.5) * 30,
-        this.position.y - this.size.height / 4,
-        Math.cos(angle) * speed,
-        -Math.abs(Math.sin(angle) * speed) - 20,
-        MATERIAL_COLORS[type],
-        0.3,
-        3 + Math.random() * 3
-      ));
-    }
+    const toX = this.position.x;
+    const toY = this.position.y - this.size.height / 4;
+    this.pourEffects.push(new PourEffect(fromX, fromY, toX, toY, MATERIAL_COLORS[type]));
   }
 
   wrongIngredient(): void {
@@ -251,15 +292,21 @@ export class Cauldron {
     this.smokeTimer = 0.5;
     this.ingredients = [];
 
+    const smokeLife = 0.5;
     for (let i = 0; i < 12; i++) {
+      const startX = this.position.x + (Math.random() - 0.5) * 50;
+      const startY = this.position.y - this.size.height / 4;
+      const vx = (Math.random() - 0.5) * 30;
+      const vy = -40 - Math.random() * 50;
       this.smokeParticles.push(new Particle(
-        this.position.x + (Math.random() - 0.5) * 40,
-        this.position.y - this.size.height / 3,
-        (Math.random() - 0.5) * 20,
-        -30 - Math.random() * 40,
+        startX,
+        startY,
+        vx,
+        vy,
         '#1e293b',
-        0.5,
-        6 + Math.random() * 6
+        smokeLife,
+        7 + Math.random() * 8,
+        -15
       ));
     }
   }
@@ -370,19 +417,22 @@ export class GoldFlyEffect {
   getPosition(): Position {
     const t = Math.min(1, this.progress);
     const elastic = this.easeOutElastic(t);
+    const arcHeight = 80 * Math.sin(t * Math.PI);
     return {
       x: this.from.x + (this.to.x - this.from.x) * elastic,
-      y: this.from.y + (this.to.y - this.from.y) * elastic
+      y: this.from.y + (this.to.y - this.from.y) * elastic - arcHeight
     };
   }
 
   private easeOutElastic(t: number): number {
-    const c4 = (2 * Math.PI) / 3;
-    return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    if (t === 0) return 0;
+    if (t === 1) return 1;
+    const c4 = (2 * Math.PI) / 2.5;
+    return Math.pow(2, -8 * t) * Math.sin((t * 8 - 0.8) * c4) + 1;
   }
 
   getScale(): number {
     const t = this.progress;
-    return 1 + Math.sin(t * Math.PI) * 0.3;
+    return 1 + Math.sin(t * Math.PI) * 0.5;
   }
 }

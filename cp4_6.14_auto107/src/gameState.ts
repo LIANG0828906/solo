@@ -39,6 +39,7 @@ export class GameState {
   private goldForNextLevel: number;
   private customerSpawnTimer: number;
   private maxCustomers: number;
+  private _modalAnimationTime: number;
 
   constructor() {
     this.gold = 0;
@@ -55,6 +56,7 @@ export class GameState {
     this.goldForNextLevel = 100;
     this.customerSpawnTimer = 0;
     this.maxCustomers = 3;
+    this._modalAnimationTime = 0;
     this.headerHeight = 60;
     this.canvasWidth = 1200;
     this.canvasHeight = 800;
@@ -153,12 +155,16 @@ export class GameState {
       this.goldScale = Math.max(1, this.goldScale - deltaTime * 5);
     }
 
+    const modalAnimationDuration = 0.3;
     if (this.showUpgradeModal) {
-      const targetScale = 1;
-      this.modalScale += (targetScale - this.modalScale) * deltaTime * 8;
+      if (this.modalScale < 1) {
+        this._modalAnimationTime = (this._modalAnimationTime || 0) + deltaTime;
+        const t = Math.min(1, this._modalAnimationTime / modalAnimationDuration);
+        this.modalScale = this.easeOutElastic(t);
+      }
     } else if (this.modalScale > 0) {
-      this.modalScale -= deltaTime * 8;
-      if (this.modalScale < 0) this.modalScale = 0;
+      this._modalAnimationTime = 0;
+      this.modalScale = Math.max(0, this.modalScale - deltaTime * 5);
     }
 
     this.goldFlyEffects = this.goldFlyEffects.filter(effect => effect.update(deltaTime));
@@ -278,8 +284,7 @@ export class GameState {
       this.emit('goldChanged', this.gold);
       
       if (this.gold >= this.goldForNextLevel && !this.showUpgradeModal) {
-        this.showUpgradeModal = true;
-        this.emit('upgradeAvailable', this.level + 1);
+        this.triggerUpgrade();
       }
     }, 400);
 
@@ -310,5 +315,19 @@ export class GameState {
       x: this.canvasWidth / 2 + 100,
       y: this.headerHeight / 2
     };
+  }
+
+  private easeOutElastic(t: number): number {
+    if (t === 0) return 0;
+    if (t === 1) return 1;
+    const c4 = (2 * Math.PI) / 3;
+    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+  }
+
+  triggerUpgrade(): void {
+    this.showUpgradeModal = true;
+    this.modalScale = 0;
+    this._modalAnimationTime = 0;
+    this.emit('upgradeAvailable', this.level + 1);
   }
 }
