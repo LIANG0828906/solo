@@ -15,24 +15,34 @@ export interface DisplacementVector {
   faultType: 'normal' | 'reverse' | 'strike-slip';
 }
 
+const LOD_SEGMENTS = [40, 20, 10, 5];
+const LOD_DISTANCE_THRESHOLDS = [20, 40, 60];
+
 export class StrataLayer {
   public mesh: THREE.Mesh;
   public edges: THREE.LineSegments;
   public config: StrataLayerConfig;
+
+  private lodGeometries: THREE.BoxGeometry[] = [];
+  private originalPositionsByLOD: Float32Array[] = [];
+  private currentLOD: number = 0;
   private baseGeometry: THREE.BoxGeometry;
   private originalPositions: Float32Array;
+
   private width: number;
   private depth: number;
-  private segments: number;
 
-  constructor(config: StrataLayerConfig, width: number, depth: number, segments: number = 40) {
+  private lastDisplacement: DisplacementVector | null = null;
+  private lastProgress: number = 0;
+  private hasDisplacement: boolean = false;
+
+  constructor(config: StrataLayerConfig, width: number, depth: number) {
     this.config = { ...config };
     this.width = width;
     this.depth = depth;
-    this.segments = segments;
 
-    this.baseGeometry = new THREE.BoxGeometry(width, config.thickness, depth, segments, 1, segments);
-    this.originalPositions = new Float32Array(this.baseGeometry.attributes.position.array as Float32Array);
+    this.buildLODGeometries();
+    this.switchLOD(0);
 
     const material = new THREE.MeshPhongMaterial({
       color: config.color,
@@ -59,15 +69,80 @@ export class StrataLayer {
     this.edges.position.y = config.yPosition;
   }
 
+  private buildLODGeometries(): void {
+    this.lodGeometries.forEach(g => g.dispose());
+    this.lodGeometries = [];
+    this.originalPositionsByLOD = [];
+
+    for (let i = 0; i < LOD_SEGMENTS.length; i++) {
+      const segs = LOD_SEGMENTS[i];
+      const geo = new THREE.BoxGeometry(
+        this.width,
+        this.config.thickness,
+        this.depth,
+        segs, 1, segs
+      );
+      this.lodGeometries.push(geo);
+      this.originalPositionsByLOD.push(
+        new Float32Array(geo.attributes.position.array as Float32Array)
+      );
+    }
+  }
+
+  public updateLOD(cameraDistance: number): void {
+    let newLOD = 0;
+    for (let i = 0; i < LOD_DISTANCE_THRESHOLDS.length; i++) {
+      if (cameraDistance >= LOD_DISTANCE_THRESHOLDS[i]) {
+        newLOD = i + 1;
+      }
+    }
+    newLOD = Math.min(newLOD, LOD_SEGMENTS.length - 1);
+
+    if (newLOD !== this.currentLOD) {
+      const wasDisplaced = this.hasDisplacement;
+      const savedDisp = this.lastDisplacement;
+      const savedProg = this.lastProgress;
+
+      this.switchLOD(newLOD);
+
+      if (wasDisplaced && savedDisp) {
+        this.lastDisplacement = savedDisp;
+        this.lastProgress = savedProg;
+        this.hasDisplacement = true;
+        this.applyDisplacementToGeometry(savedDisp, savedProg);
+      }
+
+      this.updateEdges();
+    }
+  }
+
+  private switchLOD(lodIndex: number): void {
+    this.currentLOD = lodIndex;
+    this.baseGeometry = this.lodGeometries[lodIndex];
+    this.originalPositions = this.originalPositionsByLOD[lodIndex];
+
+    if (this.mesh) {
+      this.mesh.geometry = this.baseGeometry;
+    }
+  }
+
+  private updateEdges(): void {
+    if (!this.edges) return;
+    const oldGeo = this.edges.geometry;
+    const edgeGeometry = new THREE.EdgesGeometry(this.baseGeometry);
+    this.edges.geometry = edgeGeometry;
+    oldGeo.dispose();
+  }
+
   private applyTexture(material: THREE.MeshPhongMaterial, intensity: number): void {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
-    
+
     const imageData = ctx.createImageData(256, 256);
     const data = imageData.data;
-    
+
     for (let i = 0; i < data.length; i += 4) {
       const noise = Math.random() * intensity * 60;
       const base = 128 + noise;
@@ -76,24 +151,29 @@ export class StrataLayer {
       data[i + 2] = Math.min(255, base - 20);
       data[i + 3] = 255;
     }
-    
+
     ctx.putImageData(imageData, 0, 0);
-    
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(4, 4);
-    
+
     material.bumpMap = texture;
     material.bumpScale = intensity * 0.3;
   }
 
   public updateThickness(thickness: number): void {
     this.config.thickness = thickness;
-    
-    const scale = thickness / (this.baseGeometry.parameters.height || 1);
-    this.mesh.scale.y = scale;
-    this.edges.scale.y = scale;
+    this.buildLODGeometries();
+    this.switchLOD(this.currentLOD);
+    this.mesh.scale.set(1, 1, 1);
+    this.edges.scale.set(1, 1, 1);
+
+    if (this.hasDisplacement && this.lastDisplacement) {
+      this.applyDisplacementToGeometry(this.lastDisplacement, this.lastProgress);
+    }
+    this.updateEdges();
   }
 
   public updateTextureIntensity(intensity: number): void {
@@ -116,18 +196,27 @@ export class StrataLayer {
   }
 
   public applyDisplacement(displacement: DisplacementVector, progress: number): void {
-    const positions = this.baseGeometry.attributes.position.array as Float32Array;
-    
+    this.lastDisplacement = displacement;
+    this.lastProgress = progress;
+    this.hasDisplacement = true;
+    this.applyDisplacementToGeometry(displacement, progress);
+    this.updateEdges();
+  }
+
+  private applyDisplacementToGeometry(displacement: DisplacementVector, progress: number): void {
+    const positionAttr = this.baseGeometry.getAttribute('position') as THREE.BufferAttribute;
+    const positions = positionAttr.array as Float32Array;
+
     for (let i = 0; i < positions.length; i += 3) {
       const originalX = this.originalPositions[i];
       const originalY = this.originalPositions[i + 1];
       const originalZ = this.originalPositions[i + 2];
-      
+
       const halfWidth = this.width / 2;
       const normalizedX = (originalX + halfWidth) / this.width;
-      
+
       let displacementFactor = 0;
-      
+
       if (displacement.faultType === 'normal' || displacement.faultType === 'reverse') {
         const faultX = displacement.faultPlaneX;
         if (originalX > faultX) {
@@ -138,41 +227,41 @@ export class StrataLayer {
       } else if (displacement.faultType === 'strike-slip') {
         const faultX = displacement.faultPlaneX;
         const distance = Math.abs(originalX - faultX);
-        displacementFactor = Math.sin(Math.PI * normalizedX) * 0.8;
         if (originalX > faultX) {
           displacementFactor = Math.min(1, distance / 5) * 1;
         } else {
           displacementFactor = -Math.min(1, distance / 5) * 1;
         }
       }
-      
+
       const easedProgress = this.easeInOutCubic(progress);
       const totalDisplacement = displacementFactor * easedProgress;
-      
+
       positions[i] = this.originalPositions[i] + displacement.direction.x * displacement.magnitude * totalDisplacement;
       positions[i + 1] = this.originalPositions[i + 1] + displacement.direction.y * displacement.magnitude * totalDisplacement;
       positions[i + 2] = this.originalPositions[i + 2] + displacement.direction.z * displacement.magnitude * totalDisplacement;
     }
-    
-    this.baseGeometry.attributes.position.needsUpdate = true;
+
+    positionAttr.needsUpdate = true;
     this.baseGeometry.computeVertexNormals();
-    
-    const edgeGeometry = new THREE.EdgesGeometry(this.baseGeometry);
-    this.edges.geometry.dispose();
-    this.edges.geometry = edgeGeometry;
   }
 
   public resetDisplacement(): void {
-    const positions = this.baseGeometry.attributes.position.array as Float32Array;
+    const positionAttr = this.baseGeometry.getAttribute('position') as THREE.BufferAttribute;
+    const positions = positionAttr.array as Float32Array;
+
     for (let i = 0; i < positions.length; i++) {
       positions[i] = this.originalPositions[i];
     }
-    this.baseGeometry.attributes.position.needsUpdate = true;
+
+    positionAttr.needsUpdate = true;
     this.baseGeometry.computeVertexNormals();
-    
-    const edgeGeometry = new THREE.EdgesGeometry(this.baseGeometry);
-    this.edges.geometry.dispose();
-    this.edges.geometry = edgeGeometry;
+
+    this.lastDisplacement = null;
+    this.lastProgress = 0;
+    this.hasDisplacement = false;
+
+    this.updateEdges();
   }
 
   private easeInOutCubic(t: number): number {
@@ -180,7 +269,7 @@ export class StrataLayer {
   }
 
   public dispose(): void {
-    this.baseGeometry.dispose();
+    this.lodGeometries.forEach(g => g.dispose());
     (this.mesh.material as THREE.Material).dispose();
     this.edges.geometry.dispose();
     (this.edges.material as THREE.Material).dispose();
@@ -217,7 +306,7 @@ export class StrataManager {
 
   public updateLayerParam(index: number, param: 'thickness' | 'texture', value: number): void {
     if (index < 0 || index >= this.layers.length) return;
-    
+
     const layer = this.layers[index];
     if (param === 'thickness') {
       layer.updateThickness(value);
@@ -230,13 +319,17 @@ export class StrataManager {
   private recalculatePositions(): void {
     let currentY = this.layers[0].config.thickness / 2;
     this.layers[0].updateYPosition(currentY);
-    
+
     for (let i = 1; i < this.layers.length; i++) {
       const prevLayer = this.layers[i - 1];
       const currentLayer = this.layers[i];
       currentY -= prevLayer.config.thickness / 2 + currentLayer.config.thickness / 2;
       currentLayer.updateYPosition(currentY);
     }
+  }
+
+  public updateLOD(cameraDistance: number): void {
+    this.layers.forEach(layer => layer.updateLOD(cameraDistance));
   }
 
   public setGlowIntensity(intensity: number): void {
