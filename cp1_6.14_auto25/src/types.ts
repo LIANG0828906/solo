@@ -61,6 +61,7 @@ export interface ProfileFormData {
   bio: string;
   interests: string[];
   preference: Preference;
+  avatarColor?: string;
 }
 
 export const AVATAR_COLORS = [

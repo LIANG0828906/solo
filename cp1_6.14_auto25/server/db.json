@@ -1,0 +1,420 @@
+{
+  "users": [
+    {
+      "id": "30d2f548-c89e-4775-9ddd-e59d60d511e5",
+      "nickname": "小雨",
+      "birthYear": 2000,
+      "gender": "female",
+      "city": "北京",
+      "bio": "热爱生活，喜欢探索城市的每个角落",
+      "interests": [
+        "摄影",
+        "旅行",
+        "美食",
+        "读书",
+        "电影"
+      ],
+      "avatarColor": "#FF6B6B",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "摄影",
+          "旅行",
+          "美食"
+        ]
+      },
+      "lastActive": "2026-06-08T09:56:47.589Z",
+      "createdAt": "2026-06-03T08:51:23.355Z"
+    },
+    {
+      "id": "f5a60296-eb53-45b2-bedd-ff0cf8fa6a4d",
+      "nickname": "阿杰",
+      "birthYear": 1998,
+      "gender": "male",
+      "city": "上海",
+      "bio": "科技爱好者，周末喜欢户外运动",
+      "interests": [
+        "游戏",
+        "运动",
+        "旅行",
+        "摄影"
+      ],
+      "avatarColor": "#4D96FF",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "游戏",
+          "运动",
+          "旅行"
+        ]
+      },
+      "lastActive": "2026-06-07T14:00:18.835Z",
+      "createdAt": "2026-06-02T11:59:08.056Z"
+    },
+    {
+      "id": "313dfeb1-94bb-44d7-92af-26d84fb5796d",
+      "nickname": "诗涵",
+      "birthYear": 2002,
+      "gender": "female",
+      "city": "杭州",
+      "bio": "文艺青年，喜欢安静的午后",
+      "interests": [
+        "读书",
+        "写作",
+        "绘画",
+        "音乐",
+        "瑜伽"
+      ],
+      "avatarColor": "#9B59B6",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "读书",
+          "写作",
+          "绘画"
+        ]
+      },
+      "lastActive": "2026-06-09T00:53:00.739Z",
+      "createdAt": "2026-05-24T14:13:29.231Z"
+    },
+    {
+      "id": "aa48265a-8c6a-4468-9b9c-e8d03923941f",
+      "nickname": "大伟",
+      "birthYear": 1996,
+      "gender": "male",
+      "city": "深圳",
+      "bio": "互联网从业，爱猫人士",
+      "interests": [
+        "宠物",
+        "游戏",
+        "动漫",
+        "烹饪"
+      ],
+      "avatarColor": "#6BCB77",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "宠物",
+          "游戏",
+          "动漫"
+        ]
+      },
+      "lastActive": "2026-06-13T18:49:10.707Z",
+      "createdAt": "2026-05-18T16:05:16.428Z"
+    },
+    {
+      "id": "762f9e3d-1dae-4279-a7c3-faab0c0e6d58",
+      "nickname": "晓琳",
+      "birthYear": 1999,
+      "gender": "female",
+      "city": "成都",
+      "bio": "火锅和辣妹子的完美结合",
+      "interests": [
+        "美食",
+        "旅行",
+        "摄影",
+        "舞蹈",
+        "音乐"
+      ],
+      "avatarColor": "#E74C3C",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "美食",
+          "旅行",
+          "摄影"
+        ]
+      },
+      "lastActive": "2026-06-12T00:24:46.793Z",
+      "createdAt": "2026-05-17T00:30:56.370Z"
+    },
+    {
+      "id": "112a98fd-6dac-4e3a-a74f-e8160e166737",
+      "nickname": "志远",
+      "birthYear": 1997,
+      "gender": "male",
+      "city": "北京",
+      "bio": "建筑设计师，喜欢城市和自然",
+      "interests": [
+        "绘画",
+        "旅行",
+        "登山",
+        "摄影"
+      ],
+      "avatarColor": "#F39C12",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "绘画",
+          "旅行",
+          "登山"
+        ]
+      },
+      "lastActive": "2026-06-11T07:29:55.884Z",
+      "createdAt": "2026-06-10T13:35:10.762Z"
+    },
+    {
+      "id": "bbb6c356-554c-4b06-8189-d748e962b5dc",
+      "nickname": "佳慧",
+      "birthYear": 2001,
+      "gender": "female",
+      "city": "广州",
+      "bio": "美食博主，分享快乐的每一天",
+      "interests": [
+        "美食",
+        "烹饪",
+        "摄影",
+        "写作"
+      ],
+      "avatarColor": "#1ABC9C",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "美食",
+          "烹饪",
+          "摄影"
+        ]
+      },
+      "lastActive": "2026-06-07T01:49:44.536Z",
+      "createdAt": "2026-06-05T14:04:30.851Z"
+    },
+    {
+      "id": "3b778cde-3edb-4419-bb8c-ce5153a0d884",
+      "nickname": "浩然",
+      "birthYear": 1995,
+      "gender": "male",
+      "city": "南京",
+      "bio": "健身达人，相信汗水不会骗人",
+      "interests": [
+        "健身",
+        "运动",
+        "登山",
+        "骑行"
+      ],
+      "avatarColor": "#3498DB",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "健身",
+          "运动",
+          "登山"
+        ]
+      },
+      "lastActive": "2026-06-10T22:55:45.316Z",
+      "createdAt": "2026-06-05T08:59:40.535Z"
+    },
+    {
+      "id": "e9848838-b199-43e5-9d4e-8441239f84b1",
+      "nickname": "美琪",
+      "birthYear": 2003,
+      "gender": "female",
+      "city": "上海",
+      "bio": "音乐学院在读，爱弹钢琴",
+      "interests": [
+        "音乐",
+        "乐器",
+        "电影",
+        "读书",
+        "瑜伽"
+      ],
+      "avatarColor": "#E91E63",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "音乐",
+          "乐器",
+          "电影"
+        ]
+      },
+      "lastActive": "2026-06-08T03:58:25.633Z",
+      "createdAt": "2026-05-19T18:17:13.913Z"
+    },
+    {
+      "id": "8f54c88b-a623-465d-834d-18cba469e2e1",
+      "nickname": "子轩",
+      "birthYear": 2000,
+      "gender": "male",
+      "city": "武汉",
+      "bio": "程序员，但生活不只有代码",
+      "interests": [
+        "游戏",
+        "旅行",
+        "美食",
+        "电影",
+        "动漫"
+      ],
+      "avatarColor": "#FFB26B",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "游戏",
+          "旅行",
+          "美食"
+        ]
+      },
+      "lastActive": "2026-06-08T10:10:11.181Z",
+      "createdAt": "2026-05-21T23:29:34.150Z"
+    },
+    {
+      "id": "7ec42808-5171-45bf-9b83-d005735bb00d",
+      "nickname": "思琪",
+      "birthYear": 1998,
+      "gender": "female",
+      "city": "杭州",
+      "bio": "自由插画师，用画笔记录生活",
+      "interests": [
+        "绘画",
+        "摄影",
+        "读书",
+        "宠物",
+        "手工"
+      ],
+      "avatarColor": "#FF8E8E",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "绘画",
+          "摄影",
+          "读书"
+        ]
+      },
+      "lastActive": "2026-06-10T18:49:33.222Z",
+      "createdAt": "2026-05-23T23:39:38.948Z"
+    },
+    {
+      "id": "89d236fe-cb0d-4e20-b362-5b5458c8103e",
+      "nickname": "明辉",
+      "birthYear": 1994,
+      "gender": "male",
+      "city": "成都",
+      "bio": "旅行摄影师，用镜头看世界",
+      "interests": [
+        "摄影",
+        "旅行",
+        "登山",
+        "潜水",
+        "电影"
+      ],
+      "avatarColor": "#FFD93D",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "摄影",
+          "旅行",
+          "登山"
+        ]
+      },
+      "lastActive": "2026-06-11T05:39:45.031Z",
+      "createdAt": "2026-05-22T02:53:37.830Z"
+    },
+    {
+      "id": "c59a0c74-9f67-4fc7-922d-cd35b258c188",
+      "nickname": "婉婷",
+      "birthYear": 2001,
+      "gender": "female",
+      "city": "深圳",
+      "bio": "产品经理，追求有趣的事物",
+      "interests": [
+        "读书",
+        "游戏",
+        "旅行",
+        "美食"
+      ],
+      "avatarColor": "#9B59B6",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "读书",
+          "游戏",
+          "旅行"
+        ]
+      },
+      "lastActive": "2026-06-07T04:36:21.048Z",
+      "createdAt": "2026-06-03T01:53:31.138Z"
+    },
+    {
+      "id": "4d5c7cd8-2156-4d38-8012-ab1b1526511c",
+      "nickname": "天宇",
+      "birthYear": 1999,
+      "gender": "male",
+      "city": "广州",
+      "bio": "咖啡爱好者，每天一杯不缺席",
+      "interests": [
+        "烹饪",
+        "美食",
+        "读书",
+        "音乐",
+        "园艺"
+      ],
+      "avatarColor": "#6BCB77",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "烹饪",
+          "美食",
+          "读书"
+        ]
+      },
+      "lastActive": "2026-06-09T14:28:41.879Z",
+      "createdAt": "2026-06-09T02:27:23.665Z"
+    },
+    {
+      "id": "35968a68-0f4e-4a3b-a2e0-627e51fb0306",
+      "nickname": "若萱",
+      "birthYear": 2002,
+      "gender": "female",
+      "city": "南京",
+      "bio": "瑜伽教练，追求身心平衡",
+      "interests": [
+        "瑜伽",
+        "冥想",
+        "舞蹈",
+        "旅行"
+      ],
+      "avatarColor": "#1ABC9C",
+      "preference": {
+        "minAge": 22,
+        "maxAge": 35,
+        "targetCity": "",
+        "targetInterests": [
+          "瑜伽",
+          "冥想",
+          "舞蹈"
+        ]
+      },
+      "lastActive": "2026-06-08T22:04:28.595Z",
+      "createdAt": "2026-05-27T16:37:12.742Z"
+    }
+  ],
+  "hearts": [],
+  "matches": [],
+  "messages": []
+}
