@@ -58,3 +58,53 @@ export const createPet = (data: PetFormData): Promise<ApiResponse<Pet>> => {
       'Content-Type': 'multipart/form-data',
     },
   });
+};
+
+export const updatePet = (id: string, data: Partial<PetFormData>): Promise<ApiResponse<Pet>> => {
+  return request.put(`/pets/${id}`, data);
+};
+
+export const deletePet = (id: string): Promise<ApiResponse<null>> => {
+  return request.delete(`/pets/${id}`);
+};
+
+export const getRecords = (petId: string): Promise<ApiResponse<Record[]>> => {
+  return request.get(`/records?petId=${petId}`);
+};
+
+export const createRecord = (data: RecordFormData): Promise<ApiResponse<Record>> => {
+  return request.post('/records', data);
+};
+
+export const updateRecord = (id: string, data: Partial<RecordFormData>): Promise<ApiResponse<Record>> => {
+  return request.put(`/records/${id}`, data);
+};
+
+export const deleteRecord = (id: string): Promise<ApiResponse<null>> => {
+  return request.delete(`/records/${id}`);
+};
+
+export const getMeasurements = (petId: string): Promise<ApiResponse<Measurement[]>> => {
+  return request.get(`/records/measurements?petId=${petId}`);
+};
+
+export const createMeasurement = (data: MeasurementFormData): Promise<ApiResponse<Measurement>> => {
+  return request.post('/records/measurements', data);
+};
+
+export const getMedical = (petId: string, type?: string): Promise<ApiResponse<Medical[]>> => {
+  const url = type ? `/medical?petId=${petId}&type=${type}` : `/medical?petId=${petId}`;
+  return request.get(url);
+};
+
+export const createMedical = (data: MedicalFormData): Promise<ApiResponse<Medical>> => {
+  return request.post('/medical', data);
+};
+
+export const updateMedical = (id: string, data: Partial<MedicalFormData> & { completed?: boolean }): Promise<ApiResponse<Medical>> => {
+  return request.put(`/medical/${id}`, data);
+};
+
+export const deleteMedical = (id: string): Promise<ApiResponse<null>> => {
+  return request.delete(`/medical/${id}`);
+};

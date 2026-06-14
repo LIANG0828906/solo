@@ -79,3 +79,21 @@ export const processAvatar = async (file: Express.Multer.File): Promise<string> 
     .resize(200, 200, { fit: 'cover' })
     .composite([{ input: roundedCorners, blend: 'dest-in' }])
     .png()
+    .toFile(outputPath);
+
+  return `/uploads/${filename}`;
+};
+
+app.use('/api/pets', petsRouter);
+app.use('/api/records', recordsRouter);
+app.use('/api/medical', medicalRouter);
+
+app.use(express.static(path.join(__dirname, '..', 'dist')));
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
