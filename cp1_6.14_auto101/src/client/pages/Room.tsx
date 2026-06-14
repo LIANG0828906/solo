@@ -33,6 +33,10 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
   const joystickRef = useRef<{ active: boolean; dx: number; dy: number; startX: number; startY: number }>({
     active: false, dx: 0, dy: 0, startX: 0, startY: 0,
   });
+  const cameraTouchRef = useRef<{ lastX: number; lastY: number; active: boolean; pointerId: number }>({
+    lastX: 0, lastY: 0, active: false, pointerId: -1,
+  });
+  const tapRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
 
   const [players, setPlayers] = useState<PlayerData[]>([]);
   const [puzzleState, setPuzzleState] = useState<PuzzleState>({
@@ -45,9 +49,10 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
   const [gameWon, setGameWon] = useState(false);
   const [startTime] = useState(Date.now());
   const [showVictory, setShowVictory] = useState(false);
-  const [isMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const doorOpenRef = useRef(false);
+  const isMobileRef = useRef(window.innerWidth < 768);
 
   const handlePuzzleSolved = useCallback((puzzleId: string) => {
     setPuzzleState((prev) => {
@@ -55,13 +60,27 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
       const allSolved = Object.values(next).every(Boolean);
       if (allSolved) {
         doorOpenRef.current = true;
-        socket.emit('puzzle-solved', { roomCode: code, puzzleId });
+        socket.emit('puzzle-solved', {
+          roomCode: code,
+          puzzleId,
+          playerId: playerIdRef.current,
+        });
       }
       return next;
     });
   }, [socket, code]);
 
   const playerIdRef = useRef<string>('');
+
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      isMobileRef.current = mobile;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const playerName = 'Player' + Math.floor(Math.random() * 900 + 100);
@@ -351,52 +370,89 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
     renderer.domElement.addEventListener('click', onMouseClick);
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const halfW = container.clientWidth / 2;
+      e.preventDefault();
+      const halfW = container.clientWidth / 2;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
         if (touch.clientX < halfW) {
           joystickRef.current.active = true;
           joystickRef.current.startX = touch.clientX;
           joystickRef.current.startY = touch.clientY;
           joystickRef.current.dx = 0;
           joystickRef.current.dy = 0;
+          tapRef.current = { startX: touch.clientX, startY: touch.clientY, startTime: Date.now() };
+        } else {
+          cameraTouchRef.current.active = true;
+          cameraTouchRef.current.pointerId = touch.identifier;
+          cameraTouchRef.current.lastX = touch.clientX;
+          cameraTouchRef.current.lastY = touch.clientY;
         }
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
       e.preventDefault();
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        const halfW = container.clientWidth / 2;
-        if (touch.clientX >= halfW || joystickRef.current.active) {
-          if (joystickRef.current.active && touch.clientX < halfW) {
-            joystickRef.current.dx = touch.clientX - joystickRef.current.startX;
-            joystickRef.current.dy = touch.clientY - joystickRef.current.startY;
-          } else if (touch.clientX >= halfW) {
-            const dx = touch.clientX - (halfW + (container.clientWidth - halfW) / 2);
-            const dy = touch.clientY - container.clientHeight / 2;
-            yawRef.current -= dx * 0.0003;
-            pitchRef.current -= dy * 0.0003;
-            pitchRef.current = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitchRef.current));
-          }
+      const halfW = container.clientWidth / 2;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.clientX < halfW && joystickRef.current.active) {
+          joystickRef.current.dx = touch.clientX - joystickRef.current.startX;
+          joystickRef.current.dy = touch.clientY - joystickRef.current.startY;
+        } else if (
+          touch.clientX >= halfW &&
+          cameraTouchRef.current.active &&
+          touch.identifier === cameraTouchRef.current.pointerId
+        ) {
+          const dx = touch.clientX - cameraTouchRef.current.lastX;
+          const dy = touch.clientY - cameraTouchRef.current.lastY;
+          yawRef.current -= dx * 0.005;
+          pitchRef.current -= dy * 0.005;
+          pitchRef.current = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitchRef.current));
+          cameraTouchRef.current.lastX = touch.clientX;
+          cameraTouchRef.current.lastY = touch.clientY;
         }
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length === 0) {
-        joystickRef.current.active = false;
-        joystickRef.current.dx = 0;
-        joystickRef.current.dy = 0;
+      e.preventDefault();
+      const halfW = container.clientWidth / 2;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.clientX < halfW) {
+          const dx = Math.abs(touch.clientX - joystickRef.current.startX);
+          const dy = Math.abs(touch.clientY - joystickRef.current.startY);
+          const duration = Date.now() - (tapRef.current?.startTime || 0);
+          if (dx < 15 && dy < 15 && duration < 300 && tapRef.current) {
+            raycasterRef.current.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycasterRef.current.intersectObjects(interactablesRef.current);
+            if (intersects.length > 0) {
+              const obj = intersects[0].object;
+              if (obj.userData.interactable) {
+                setSelectedObject({
+                  id: obj.userData.id,
+                  type: obj.userData.type,
+                  name: obj.userData.name,
+                  position: [obj.position.x, obj.position.y, obj.position.z],
+                  puzzleId: obj.userData.puzzleId,
+                });
+              }
+            }
+          }
+          joystickRef.current.active = false;
+          joystickRef.current.dx = 0;
+          joystickRef.current.dy = 0;
+          tapRef.current = null;
+        } else if (touch.identifier === cameraTouchRef.current.pointerId) {
+          cameraTouchRef.current.active = false;
+          cameraTouchRef.current.pointerId = -1;
+        }
       }
     };
 
-    if (isMobile) {
-      container.addEventListener('touchstart', onTouchStart, { passive: false });
-      container.addEventListener('touchmove', onTouchMove, { passive: false });
-      container.addEventListener('touchend', onTouchEnd);
-    }
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd, { passive: false });
 
     const onResize = () => {
       if (!container) return;
@@ -420,7 +476,7 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
       if (keys['a'] || keys['arrowleft']) { moveX -= speed; isMoving = true; }
       if (keys['d'] || keys['arrowright']) { moveX += speed; isMoving = true; }
 
-      if (isMobile && joystickRef.current.active) {
+      if (isMobileRef.current && joystickRef.current.active) {
         const jx = joystickRef.current.dx / 50;
         const jy = joystickRef.current.dy / 50;
         moveX += Math.max(-1, Math.min(1, jx)) * speed;
@@ -499,17 +555,15 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('click', onMouseClick);
-      if (isMobile) {
-        container.removeEventListener('touchstart', onTouchStart);
-        container.removeEventListener('touchmove', onTouchMove);
-        container.removeEventListener('touchend', onTouchEnd);
-      }
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, [socket, code, isMobile]);
+  }, [socket, code]);
 
   useEffect(() => {
     if (!showVictory) return;
@@ -768,6 +822,7 @@ const Room: React.FC<RoomProps> = ({ socket }) => {
           object={selectedObject}
           puzzleState={puzzleState}
           socket={socket}
+          playerId={playerIdRef.current}
           onClose={() => setSelectedObject(null)}
           onSolved={handlePuzzleSolved}
         />

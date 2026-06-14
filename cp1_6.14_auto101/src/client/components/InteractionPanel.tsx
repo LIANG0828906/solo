@@ -7,6 +7,7 @@ interface InteractionPanelProps {
   object: InteractableObject;
   puzzleState: PuzzleState;
   socket: Socket;
+  playerId: string;
   onClose: () => void;
   onSolved: (puzzleId: string) => void;
 }
@@ -15,6 +16,7 @@ const InteractionPanel: React.FC<InteractionPanelProps> = ({
   object,
   puzzleState,
   socket,
+  playerId,
   onClose,
   onSolved,
 }) => {
@@ -34,7 +36,7 @@ const InteractionPanel: React.FC<InteractionPanelProps> = ({
   const handleCodeSubmit = () => {
     if (codeInput === '7249') {
       onSolved(object.puzzleId);
-      socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId });
+      socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId, playerId });
       setMessage('密码正确！箱子打开了！');
     } else {
       setMessage('密码错误，再试试！');
@@ -58,7 +60,7 @@ const InteractionPanel: React.FC<InteractionPanelProps> = ({
       const isComplete = newTiles.every((tile, i) => tile === i);
       if (isComplete) {
         onSolved(object.puzzleId);
-        socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId });
+        socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId, playerId });
         setMessage('画作还原！提示：7-2-4-9');
       }
     }
@@ -66,14 +68,14 @@ const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
   const handleBookRead = () => {
     onSolved(object.puzzleId);
-    socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId });
+    socket.emit('puzzle-solved', { roomCode: code, puzzleId: object.puzzleId, playerId });
   };
 
   const handleButtonPress = () => {
     socket.emit('cooperative-action', {
       roomCode: code,
       actionId: 'coop_buttons',
-      playerId: socket.id,
+      playerId,
       requiredPlayers: 2,
     });
     setMessage('已按下按钮，等待队友配合...');
