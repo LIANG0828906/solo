@@ -11,10 +11,10 @@ interface TableCardProps {
 
 const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
   const [flipping, setFlipping] = useState(false);
-  const isFull = table.status === 'full';
   const joinedCount = table.participants.length;
-  const remaining = table.maxPeople - joinedCount;
-  const percent = (joinedCount / table.maxPeople) * 100;
+  const remaining = Math.max(0, table.maxPeople - joinedCount);
+  const isFull = remaining <= 0 || table.status === 'full';
+  const percent = Math.min(100, (joinedCount / table.maxPeople) * 100);
   const circumference = 2 * Math.PI * 22;
   const dashOffset = circumference * (1 - percent / 100);
 
@@ -34,9 +34,10 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
     onJoin();
   };
 
-  const progressStroke = isFull ? 'var(--text-muted)' : 'var(--coral)';
-  const progressBgStroke = isFull ? '#E9ECEF' : 'var(--border)';
-  const progressNumColor = isFull ? 'var(--text-muted)' : 'var(--coral)';
+  const progressStroke = isFull ? '#868E96' : '#FF6B6B';
+  const progressBgStroke = isFull ? '#DEE2E6' : '#F1F3F5';
+  const progressNumColor = isFull ? '#868E96' : '#FF6B6B';
+  const progressLabelColor = isFull ? '#ADB5BD' : '#ADB5BD';
 
   return (
     <div
@@ -92,7 +93,9 @@ const TableCard: React.FC<TableCardProps> = ({ table, onClick, onJoin }) => {
               <span className="progress-num" style={{ color: progressNumColor }}>
                 {remaining > 0 ? remaining : '✓'}
               </span>
-              <span className="progress-label">{remaining > 0 ? '缺' : '满'}</span>
+              <span className="progress-label" style={{ color: progressLabelColor }}>
+                {remaining > 0 ? '缺' : '满'}
+              </span>
             </div>
           </div>
 

@@ -88,14 +88,22 @@ input, textarea, select {
   100% { transform: scale(1); }
 }
 
-@keyframes messageIn {
+@keyframes messageBounceIn {
   0% {
     opacity: 0;
-    transform: translateY(30px) scale(0.95);
+    transform: translateY(48px) scale(0.85);
   }
-  60% {
+  45% {
     opacity: 1;
-    transform: translateY(-3px) scale(1.01);
+    transform: translateY(-8px) scale(1.04);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(3px) scale(0.98);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.01);
   }
   100% {
     opacity: 1;
@@ -315,16 +323,27 @@ input, textarea, select {
 }
 
 .table-card.full {
-  opacity: 0.85;
+  opacity: 0.78;
   cursor: not-allowed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .table-card.full .table-card-image {
-  filter: grayscale(0.6);
+  filter: grayscale(1);
+  opacity: 0.6;
 }
 
 .table-card.full .table-card-body {
-  opacity: 0.65;
+  background: #FAFAFA;
+}
+
+.table-card.full .host-name,
+.table-card.full .host-community,
+.table-card.full .card-time,
+.table-card.full .cost-label,
+.table-card.full .cost-value,
+.table-card.full .cost-unit {
+  color: #868E96 !important;
 }
 
 .table-card-image {
