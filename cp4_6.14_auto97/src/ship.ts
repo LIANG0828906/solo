@@ -145,14 +145,14 @@ export class Ship implements PhysicsBody {
       const angleDiff = PhysicsEngine.getShortestAngle(this.angle, targetAngle);
       const absAngleDiff = Math.abs(angleDiff);
 
-      if (absAngleDiff > 0.05) {
+      if (absAngleDiff > 0.05 && this.fuel > 0) {
         this.isTurning = true;
         const turnDirection = Math.sign(angleDiff);
         const turnAmount = Math.min(this.maxTurnSpeed * dt, absAngleDiff);
         this.angle += turnDirection * turnAmount;
       }
 
-      if (distanceToTarget > 5) {
+      if (distanceToTarget > 5 && this.fuel > 0) {
         this.isAccelerating = true;
         const accelDirection = Vector2Utils.fromAngle(this.angle);
         acceleration = Vector2Utils.mul(accelDirection, this.maxAcceleration);
@@ -167,7 +167,7 @@ export class Ship implements PhysicsBody {
       }
     }
 
-    this.updateFuel(dt);
+    this.consumeFuel(dt);
     this.updateParticles(dt);
     this.updateRipples(dt);
     this.boundaryCheck(worldWidth, worldHeight);
@@ -175,15 +175,15 @@ export class Ship implements PhysicsBody {
     return { acceleration };
   }
 
-  private updateFuel(dt: number): void {
+  private consumeFuel(dt: number): void {
     if (this.isRefueling) {
       this.fuel = Math.min(this.maxFuel, this.fuel + this.refuelRate * dt);
       this.isRefueling = false;
     } else {
-      if (this.isAccelerating && this.fuel > 0) {
+      if (this.isAccelerating) {
         this.fuel = Math.max(0, this.fuel - this.accelerationConsumption * dt);
       }
-      if (this.isTurning && this.fuel > 0) {
+      if (this.isTurning) {
         this.fuel = Math.max(0, this.fuel - this.turnConsumption * dt);
       }
     }

@@ -66,13 +66,17 @@ export class SpatialHash {
   }
 
   query(body: PhysicsBody): PhysicsBody[] {
+    return this.queryRange(body.position, body.radius, body);
+  }
+
+  queryRange(center: Vector2, range: number, excludeBody?: PhysicsBody): PhysicsBody[] {
     const result: PhysicsBody[] = [];
     const seen = new Set<PhysicsBody>();
 
-    const minX = Math.floor((body.position.x - body.radius) / this.cellSize);
-    const maxX = Math.floor((body.position.x + body.radius) / this.cellSize);
-    const minY = Math.floor((body.position.y - body.radius) / this.cellSize);
-    const maxY = Math.floor((body.position.y + body.radius) / this.cellSize);
+    const minX = Math.floor((center.x - range) / this.cellSize);
+    const maxX = Math.floor((center.x + range) / this.cellSize);
+    const minY = Math.floor((center.y - range) / this.cellSize);
+    const maxY = Math.floor((center.y + range) / this.cellSize);
 
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
@@ -80,7 +84,7 @@ export class SpatialHash {
         const cell = this.cells.get(key);
         if (cell) {
           for (const other of cell) {
-            if (other !== body && !seen.has(other)) {
+            if (other !== excludeBody && !seen.has(other)) {
               seen.add(other);
               result.push(other);
             }
@@ -89,6 +93,22 @@ export class SpatialHash {
       }
     }
 
+    return result;
+  }
+
+  queryPoint(px: number, py: number): PhysicsBody[] {
+    const cellX = Math.floor(px / this.cellSize);
+    const cellY = Math.floor(py / this.cellSize);
+    const result: PhysicsBody[] = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${cellX + dx},${cellY + dy}`;
+        const cell = this.cells.get(key);
+        if (cell) {
+          result.push(...cell);
+        }
+      }
+    }
     return result;
   }
 }
@@ -248,7 +268,37 @@ export class PhysicsEngine {
   }
 
   getPotentialCollisions(body: PhysicsBody): PhysicsBody[] {
-    return this.spatialHash.query(body);
+    return this.spatialHash.queryRange(body.position, body.radius + 50, body);
+  }
+
+  detectCollisions(bodies: PhysicsBody[]): Array<{ a: PhysicsBody; b: PhysicsBody; result: CollisionResult }> {
+    this.rebuildSpatialHash(bodies);
+    const results: Array<{ a: PhysicsBody; b: PhysicsBody; result: CollisionResult }> = [];
+    const checked = new Set<string>();
+
+    for (const body of bodies) {
+      const nearby = this.spatialHash.queryRange(body.position, body.radius + 50, body);
+      for (const other of nearby) {
+        const key = body === bodies[0] ? `${bodies.indexOf(body)}-${nearby.indexOf(other)}` : `${nearby.indexOf(other)}-${bodies.indexOf(body)}`;
+        const pairKey = bodies.indexOf(body) < bodies.indexOf(other)
+          ? `${bodies.indexOf(body)}:${bodies.indexOf(other)}`
+          : `${bodies.indexOf(other)}:${bodies.indexOf(body)}`;
+
+        if (checked.has(pairKey)) continue;
+        checked.add(pairKey);
+
+        const result = this.checkCollision(body, other);
+        if (result.collided) {
+          results.push({ a: body, b: other, result });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  getSpatialHash(): SpatialHash {
+    return this.spatialHash;
   }
 
   static normalizeAngle(angle: number): number {
