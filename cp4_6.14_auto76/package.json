@@ -1,0 +1,8 @@
+{
+  "name": "archaeological-pointcloud-explorer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "
