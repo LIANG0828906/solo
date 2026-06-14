@@ -1,3 +1,37 @@
+export function formatTime(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+export function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function getPast7Days(): string[] {
+  const days: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(formatDate(d));
+  }
+  return days;
+}
+
+export function todayStr(): string {
+  return formatDate(new Date());
+}
+
+export function stripHtml(html: string): string {
+  if (typeof document === 'undefined') {
+    return html.replace(/<[^>]*>/g, '');
+  }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
 export function countWords(text: string): number {
   if (!text || !text.trim()) return 0;
   const cnMatches = text.match(/[\u4e00-\u9fa5]/g) || [];
@@ -57,33 +91,50 @@ export function fleschKincaid(text: string): number {
   return score;
 }
 
-export function formatTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-export function getPast7Days(): string[] {
-  const days: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(formatDate(d));
+export function recordDailyWords(projectId: string, words: number, snippet: string): void {
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const key = `${projectId}_${date}`;
+    const raw = localStorage.getItem('daily_word_log');
+    const log = raw ? JSON.parse(raw) : {};
+    log[key] = (log[key] || 0) + words;
+    localStorage.setItem('daily_word_log', JSON.stringify(log));
+    const snippetsKey = `snippets_${key}`;
+    const rawSnippets = localStorage.getItem(snippetsKey);
+    const snippets: string[] = rawSnippets ? JSON.parse(rawSnippets) : [];
+    if (snippet && snippet.trim()) {
+      snippets.push(snippet.trim().slice(0, 200));
+      if (snippets.length > 20) snippets.splice(0, snippets.length - 20);
+      localStorage.setItem(snippetsKey, JSON.stringify(snippets));
+    }
+  } catch {
+    /* ignore */
   }
-  return days;
 }
 
-export function todayStr(): string {
-  return formatDate(new Date());
+export function getSnippetsByDate(projectId: string, date: string): string[] {
+  try {
+    const key = `snippets_${projectId}_${date}`;
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-export function stripHtml(html: string): string {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+export function getProjectWordCount(projectId: string): number {
+  try {
+    const total = localStorage.getItem(`wc_total_${projectId}`);
+    return total ? parseInt(total, 10) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function setProjectWordCount(projectId: string, count: number): void {
+  try {
+    localStorage.setItem(`wc_total_${projectId}`, String(count));
+  } catch {
+    /* ignore */
+  }
 }
