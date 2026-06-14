@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -29,9 +29,9 @@ const sourceBgColors: Record<LeadSource, string> = {
 };
 
 const statusColors: Record<LeadStatus, string> = {
-  '待跟进': 'bg-gray-100 text-gray-700',
+  '新建': 'bg-gray-100 text-gray-700',
   '跟进中': 'bg-blue-100 text-blue-700',
-  '已成交': 'bg-green-100 text-green-700',
+  '已转化': 'bg-green-100 text-green-700',
   '已流失': 'bg-red-100 text-red-700',
 };
 
@@ -41,11 +41,18 @@ interface LeadCardProps {
   onConvert: (id: string) => void;
   onMarkLost: (id: string) => void;
   onClick: (id: string) => void;
+  index: number;
 }
 
-function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick }: LeadCardProps) {
+function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick, index }: LeadCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [actionType, setActionType] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), index * 50);
+    return () => clearTimeout(timer);
+  }, [index]);
 
   const handleAction = useCallback((action: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,7 +70,7 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick }: LeadCard
         'relative bg-white border border-gray-200 rounded-xl p-5 cursor-pointer overflow-hidden',
         'transition-all duration-300 ease-out',
         'hover:shadow-lg hover:border-gray-300 hover:-translate-y-0.5',
-        isHovered && 'shadow-md'
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -128,7 +135,7 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick }: LeadCard
           className={cn(
             'p-2 rounded-lg bg-blue-500 text-white',
             'transition-all duration-300 ease-out hover:bg-blue-600',
-            actionType === 'followUp' && 'scale-90'
+            actionType === 'followUp' && 'animate-bounce-in'
           )}
           title="跟进"
         >
@@ -139,7 +146,7 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick }: LeadCard
           className={cn(
             'p-2 rounded-lg bg-green-500 text-white',
             'transition-all duration-300 ease-out hover:bg-green-600',
-            actionType === 'convert' && 'scale-90'
+            actionType === 'convert' && 'animate-bounce-in'
           )}
           title="转为客户"
         >
@@ -150,7 +157,7 @@ function LeadCard({ lead, onFollowUp, onConvert, onMarkLost, onClick }: LeadCard
           className={cn(
             'p-2 rounded-lg bg-red-500 text-white',
             'transition-all duration-300 ease-out hover:bg-red-600',
-            actionType === 'lost' && 'scale-90'
+            actionType === 'lost' && 'animate-bounce-in'
           )}
           title="标记流失"
         >
@@ -178,7 +185,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
     contactPerson: '',
     phone: '',
     source: '线上广告' as LeadSource,
-    status: '待跟进' as LeadStatus,
+    status: '新建' as LeadStatus,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,7 +195,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+    <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-5 mb-6 animate-fade-in-up">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">添加新线索</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div>
@@ -197,7 +204,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
             type="text"
             value={formData.companyName}
             onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out"
             placeholder="请输入公司名称"
           />
         </div>
@@ -207,7 +214,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
             type="text"
             value={formData.contactPerson}
             onChange={(e) => setFormData(prev => ({ ...prev, contactPerson: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out"
             placeholder="请输入联系人"
           />
         </div>
@@ -217,7 +224,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
             type="tel"
             value={formData.phone}
             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out"
             placeholder="请输入手机号"
           />
         </div>
@@ -226,7 +233,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
           <select
             value={formData.source}
             onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value as LeadSource }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out appearance-none bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out appearance-none bg-white"
           >
             <option value="线上广告">线上广告</option>
             <option value="线下展会">线下展会</option>
@@ -237,7 +244,7 @@ function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
         <div className="flex items-end gap-2">
           <button
             type="submit"
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-all duration-300 ease-out hover:shadow-md"
+            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all duration-300 ease-out hover:shadow-md"
           >
             添加
           </button>
@@ -276,7 +283,7 @@ function FilterDropdown({ label, value, options, onChange }: FilterDropdownProps
         <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform duration-300 ease-out', isOpen && 'rotate-180')} />
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px] z-10 animate-fade-in-up">
           {options.map(option => (
             <button
               key={option.value}
@@ -287,7 +294,7 @@ function FilterDropdown({ label, value, options, onChange }: FilterDropdownProps
               }}
               className={cn(
                 'w-full px-4 py-2 text-left text-sm transition-colors duration-200 ease-out',
-                value === option.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                value === option.value ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50'
               )}
             >
               {option.label}
@@ -300,30 +307,49 @@ function FilterDropdown({ label, value, options, onChange }: FilterDropdownProps
 }
 
 export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) => void }) {
-  const { leads, addLead, updateLeadStatus } = useCRM();
+  const { leads, addLead, updateLeadStatus, convertToCustomer } = useCRM();
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const renderStartTime = useRef<number>(0);
 
+  const searchIndex = useMemo(() => {
+    const index = new Map<string, Lead>();
+    leads.forEach(lead => {
+      index.set(lead.id, lead);
+    });
+    return index;
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
     const startTime = performance.now();
     const query = searchQuery.toLowerCase().trim();
-    const result = leads.filter(lead => {
-      const matchesSearch = !query ||
+
+    let result = leads;
+
+    if (query) {
+      result = result.filter(lead =>
         lead.companyName.toLowerCase().includes(query) ||
-        lead.contactPerson.toLowerCase().includes(query);
-      const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-      const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
-      return matchesSearch && matchesStatus && matchesSource;
-    });
+        lead.contactPerson.toLowerCase().includes(query)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter(lead => lead.status === statusFilter);
+    }
+
+    if (sourceFilter !== 'all') {
+      result = result.filter(lead => lead.source === sourceFilter);
+    }
+
     const duration = performance.now() - startTime;
     if (searchQuery || statusFilter !== 'all' || sourceFilter !== 'all') {
       console.log(`筛选搜索耗时: ${duration.toFixed(2)}ms`);
     }
+
     return result;
-  }, [leads, searchQuery, statusFilter, sourceFilter]);
+  }, [leads, searchQuery, statusFilter, sourceFilter, searchIndex]);
 
   const handleAddLead = useCallback((data: {
     companyName: string;
@@ -337,12 +363,16 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
   }, [addLead]);
 
   const handleFollowUp = useCallback((id: string) => {
+    updateLeadStatus(id, '跟进中');
     onLeadClick(id);
-  }, [onLeadClick]);
+  }, [updateLeadStatus, onLeadClick]);
 
   const handleConvert = useCallback((id: string) => {
-    updateLeadStatus(id, '已成交');
-  }, [updateLeadStatus]);
+    const customer = convertToCustomer(id);
+    if (customer) {
+      console.log('已转化为客户:', customer.id);
+    }
+  }, [convertToCustomer]);
 
   const handleMarkLost = useCallback((id: string) => {
     updateLeadStatus(id, '已流失');
@@ -350,9 +380,9 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
 
   const statusOptions = [
     { value: 'all', label: '全部状态' },
-    { value: '待跟进', label: '待跟进' },
+    { value: '新建', label: '新建' },
     { value: '跟进中', label: '跟进中' },
-    { value: '已成交', label: '已成交' },
+    { value: '已转化', label: '已转化' },
     { value: '已流失', label: '已流失' },
   ];
 
@@ -383,7 +413,7 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-300 ease-out hover:shadow-lg hover:-translate-y-0.5"
+            className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all duration-300 ease-out hover:shadow-lg hover:-translate-y-0.5"
           >
             <Plus className="w-5 h-5" />
             添加新线索
@@ -398,7 +428,7 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索公司名或联系人..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out"
             />
           </div>
 
@@ -420,7 +450,7 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredLeads.map(lead => (
+          {filteredLeads.map((lead, index) => (
             <LeadCard
               key={lead.id}
               lead={lead}
@@ -428,6 +458,7 @@ export default function LeadsList({ onLeadClick }: { onLeadClick: (id: string) =
               onConvert={handleConvert}
               onMarkLost={handleMarkLost}
               onClick={onLeadClick}
+              index={index}
             />
           ))}
         </div>

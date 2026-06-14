@@ -1,57 +1,18 @@
-export type LeadSource =
-  | '线上广告'
-  | '线下展会'
-  | '朋友推荐'
-  | '主动搜索'
-  | 'website'
-  | 'referral'
-  | 'social_media'
-  | 'email_campaign'
-  | 'cold_call'
-  | 'trade_show'
-  | 'advertisement'
-  | 'direct_mail';
+export type LeadSource = '线上广告' | '线下展会' | '朋友推荐' | '主动搜索';
 
-export type LeadStatus =
-  | '待跟进'
-  | '跟进中'
-  | '已成交'
-  | '已流失'
-  | 'new'
-  | 'contacted'
-  | 'qualified'
-  | 'proposal'
-  | 'negotiation'
-  | 'converted'
-  | 'lost';
+export type LeadStatus = '新建' | '跟进中' | '已转化' | '已流失';
 
-export type FollowUpType =
-  | 'call'
-  | 'email'
-  | 'meeting'
-  | 'presentation'
-  | 'demo'
-  | 'quote'
-  | 'contract'
-  | 'note';
+export type FollowUpMethod = '电话' | '微信' | '邮件' | '面谈';
 
-export type OpportunityStatus =
-  | 'open'
-  | 'in_progress'
-  | 'proposal_sent'
-  | 'negotiation'
-  | 'won'
-  | 'lost';
+export type OpportunityStatus = '进行中' | '已赢单' | '已输单';
 
-export interface FollowUpRecordItem {
+export interface FollowUpRecord {
   id: string;
-  type: FollowUpType;
-  content: string;
+  leadId: string;
+  method: FollowUpMethod;
+  summary: string;
   date: string;
-  nextFollowUpDate?: string;
-  duration: number;
-  userId: string;
-  userName: string;
+  nextReminderDate?: string;
 }
 
 export interface Lead {
@@ -59,77 +20,49 @@ export interface Lead {
   companyName: string;
   contactPerson: string;
   phone: string;
-  email?: string;
-  company?: string;
   source: LeadSource;
   status: LeadStatus;
-  score?: number;
-  assignee?: string;
-  notes?: string;
   createdAt: string;
-  updatedAt?: string;
-  followUpRecords: FollowUpRecordItem[];
-}
-
-export interface FollowUpRecord {
-  id: string;
-  leadId: string;
-  type: FollowUpType;
-  content: string;
-  date: string;
-  nextFollowUpDate?: string;
-  duration: number;
-  userId: string;
-  userName: string;
+  followUpRecords: FollowUpRecord[];
 }
 
 export interface Customer {
   id: string;
   leadId: string;
-  name: string;
-  email: string;
+  companyName: string;
+  contactPerson: string;
   phone: string;
-  company: string;
-  industry: string;
-  companySize: string;
-  address: string;
-  convertedDate: string;
-  totalRevenue: number;
-  activeContracts: number;
+  convertedAt: string;
+  conversionRate: number;
 }
 
 export interface Opportunity {
   id: string;
-  leadId: string;
-  customerId?: string;
-  title: string;
-  description: string;
-  value: number;
-  probability: number;
-  status: OpportunityStatus;
-  stage: string;
+  customerId: string;
+  name: string;
+  expectedAmount: number;
   expectedCloseDate: string;
-  actualCloseDate?: string;
-  assignee: string;
-  createdAt: string;
-  updatedAt: string;
+  progress: number;
+  status: OpportunityStatus;
+}
+
+export interface DailyLeadData {
+  date: string;
+  leads: number;
+  isToday: boolean;
+  previousDayLeads?: number;
+}
+
+export interface SourceDistribution {
+  source: LeadSource;
+  count: number;
+  percentage: number;
 }
 
 export interface DashboardMetrics {
   totalLeads: number;
-  newLeadsThisMonth: number;
-  convertedLeads: number;
   conversionRate: number;
-  totalCustomers: number;
-  totalOpportunities: number;
-  openOpportunities: number;
-  wonOpportunities: number;
-  lostOpportunities: number;
-  totalPipelineValue: number;
-  wonRevenue: number;
-  averageDealSize: number;
-  leadSources: Array<{ source: LeadSource; count: number }>;
-  leadStatuses: Array<{ status: LeadStatus; count: number }>;
-  opportunitiesByStatus: Array<{ status: OpportunityStatus; value: number }>;
-  monthlyTrend: Array<{ month: string; leads: number; customers: number; revenue: number }>;
+  totalWonAmount: number;
+  dailyLeadsLast30Days: DailyLeadData[];
+  sourceDistribution: SourceDistribution[];
 }

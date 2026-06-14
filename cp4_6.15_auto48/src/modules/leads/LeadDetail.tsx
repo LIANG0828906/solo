@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   ArrowLeft,
   Building2,
@@ -15,27 +15,27 @@ import {
   Plus,
   Tag,
 } from 'lucide-react';
-import { useCRM, type FollowUpMethod, type FollowUpRecord } from '@/context/CRMContext';
+import { useCRM, type FollowUpMethod, type FollowUpRecord, type LeadSource, type LeadStatus } from '@/context/CRMContext';
 import { cn } from '@/lib/utils';
 
-const sourceColors: Record<string, string> = {
+const sourceColors: Record<LeadSource, string> = {
   '线上广告': 'bg-blue-500',
   '线下展会': 'bg-green-500',
   '朋友推荐': 'bg-orange-500',
   '主动搜索': 'bg-purple-500',
 };
 
-const sourceBgColors: Record<string, string> = {
+const sourceBgColors: Record<LeadSource, string> = {
   '线上广告': 'bg-blue-50 text-blue-700',
   '线下展会': 'bg-green-50 text-green-700',
   '朋友推荐': 'bg-orange-50 text-orange-700',
   '主动搜索': 'bg-purple-50 text-purple-700',
 };
 
-const statusColors: Record<string, string> = {
-  '待跟进': 'bg-gray-100 text-gray-700',
+const statusColors: Record<LeadStatus, string> = {
+  '新建': 'bg-gray-100 text-gray-700',
   '跟进中': 'bg-blue-100 text-blue-700',
-  '已成交': 'bg-green-100 text-green-700',
+  '已转化': 'bg-green-100 text-green-700',
   '已流失': 'bg-red-100 text-red-700',
 };
 
@@ -61,13 +61,21 @@ interface TimelineItemProps {
 
 function TimelineItem({ record, isNew, isTodayReminder }: TimelineItemProps) {
   const MethodIcon = methodIcons[record.method];
+  const [isHighlighted, setIsHighlighted] = useState(isNew);
+
+  useEffect(() => {
+    if (isNew) {
+      const timer = setTimeout(() => setIsHighlighted(false), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
 
   return (
     <div
       className={cn(
         'relative pl-8 pb-6 last:pb-0',
         'transition-all duration-300 ease-out',
-        isNew && 'animate-pulse bg-yellow-50 rounded-lg -ml-4 pl-12 pr-4 py-3'
+        isHighlighted && 'animate-highlight rounded-lg -ml-4 pl-12 pr-4 py-3'
       )}
     >
       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-200" />
@@ -80,30 +88,25 @@ function TimelineItem({ record, isNew, isTodayReminder }: TimelineItemProps) {
         )}
       >
         {isTodayReminder ? (
-          <Bell className="w-4 h-4 text-orange-500 animate-bounce" style={{ animationDuration: '1s' }} />
+          <Bell className="w-4 h-4 text-orange-500 animate-bell-swing" />
         ) : (
           <MethodIcon className="w-4 h-4 text-gray-500" />
         )}
       </div>
 
-      {isTodayReminder && (
-        <div className="absolute left-10 top-0">
-          <Bell className="w-4 h-4 text-orange-500 animate-pulse" />
-        </div>
-      )}
-
       <div className={cn(
         'bg-white border border-gray-200 rounded-lg p-4',
         'transition-all duration-300 ease-out',
-        'hover:shadow-md hover:border-gray-300'
+        'hover:shadow-md hover:border-gray-300',
+        isHighlighted && 'ring-2 ring-indigo-200'
       )}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <MethodIcon className="w-4 h-4 text-blue-500" />
+            <MethodIcon className="w-4 h-4 text-indigo-600" />
             <span className="font-medium text-gray-900">{methodLabels[record.method]}</span>
             {isTodayReminder && (
               <span className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full flex items-center gap-1">
-                <Bell className="w-3 h-3" />
+                <Bell className="w-3 h-3 animate-bell-swing" />
                 今日提醒
               </span>
             )}
@@ -169,13 +172,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out"
         onClick={onClose}
       />
-      <div
-        className={cn(
-          'relative w-full max-w-md bg-white h-full shadow-2xl',
-          'transform transition-transform duration-300 ease-out',
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        )}
-      >
+      <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-slide-in-right">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">添加跟进记录</h2>
           <button
@@ -200,7 +197,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
                     className={cn(
                       'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all duration-300 ease-out',
                       formData.method === method
-                        ? 'border-blue-500 bg-blue-50 text-blue-600'
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
                         : 'border-gray-200 hover:border-gray-300 text-gray-600'
                     )}
                   >
@@ -218,7 +215,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
               value={formData.summary}
               onChange={(e) => setFormData(prev => ({ ...prev, summary: e.target.value }))}
               rows={5}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out resize-none"
               placeholder="请输入本次跟进的内容摘要..."
             />
           </div>
@@ -229,7 +226,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
               type="date"
               value={formData.nextReminderDate}
               onChange={(e) => setFormData(prev => ({ ...prev, nextReminderDate: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-out"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ease-out"
             />
           </div>
 
@@ -243,7 +240,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-300 ease-out hover:shadow-md"
+              className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all duration-300 ease-out hover:shadow-md"
             >
               提交
             </button>
@@ -255,7 +252,7 @@ function FollowUpModal({ isOpen, onClose, onSubmit }: FollowUpModalProps) {
 }
 
 export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack: () => void }) {
-  const { getLeadById, addFollowUpRecord } = useCRM();
+  const { getLeadById, addFollowUpRecord, updateLeadStatus } = useCRM();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newRecordId, setNewRecordId] = useState<string | null>(null);
 
@@ -278,6 +275,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
     nextReminderDate?: string;
   }) => {
     addFollowUpRecord(leadId, data);
+    updateLeadStatus(leadId, '跟进中');
     setIsModalOpen(false);
     const updatedLead = getLeadById(leadId);
     if (updatedLead && updatedLead.followUpRecords.length > 0) {
@@ -285,7 +283,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
       setNewRecordId(newId);
       setTimeout(() => setNewRecordId(null), 3000);
     }
-  }, [addFollowUpRecord, leadId, getLeadById]);
+  }, [addFollowUpRecord, leadId, getLeadById, updateLeadStatus]);
 
   if (!lead) {
     return (
@@ -294,7 +292,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
           <p className="text-gray-500 text-lg mb-4">线索不存在</p>
           <button
             onClick={onBack}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-300 ease-out"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 ease-out"
           >
             返回列表
           </button>
@@ -317,7 +315,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-300 ease-out hover:shadow-md"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all duration-300 ease-out hover:shadow-md"
             >
               <Plus className="w-4 h-4" />
               添加跟进
@@ -327,7 +325,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
       </div>
 
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 animate-fade-in-up">
           <div className="flex items-start gap-6">
             <div className={cn(
               'w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0',
@@ -389,9 +387,9 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-500" />
+            <Clock className="w-5 h-5 text-indigo-600" />
             互动时间线
             {sortedRecords.length > 0 && (
               <span className="text-sm font-normal text-gray-500">
@@ -406,20 +404,21 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
               <p className="text-gray-500">暂无跟进记录</p>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="mt-4 text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors duration-200 ease-out"
+                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors duration-200 ease-out"
               >
                 添加第一条跟进记录
               </button>
             </div>
           ) : (
             <div className="relative">
-              {sortedRecords.map(record => (
-                <TimelineItem
-                  key={record.id}
-                  record={record}
-                  isNew={record.id === newRecordId}
-                  isTodayReminder={record.nextReminderDate === today}
-                />
+              {sortedRecords.map((record, index) => (
+                <div key={record.id} style={{ animationDelay: `${index * 50}ms` }} className="animate-fade-in-up">
+                  <TimelineItem
+                    record={record}
+                    isNew={record.id === newRecordId}
+                    isTodayReminder={record.nextReminderDate === today}
+                  />
+                </div>
               ))}
             </div>
           )}
