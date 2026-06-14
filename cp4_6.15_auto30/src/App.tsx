@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useParams } from 'react-router-dom';
 import { Sparkles, Plus } from 'lucide-react';
 import GroupList from './components/GroupList';
 import GroupDetail from './components/GroupDetail';
 import CreateGroupModal from './components/CreateGroupModal';
 import { useGroupStore } from './store/useGroupStore';
 import { splitFreight, buildFreightInput } from './utils/freightSplit';
+
+function GroupDetailPage() {
+  const { id = '' } = useParams();
+  return <GroupDetail groupId={id} />;
+}
 
 function NavBar() {
   const location = useLocation();
@@ -72,7 +77,7 @@ export default function App() {
       <main className="container mx-auto px-4 py-6 flex-1">
         <Routes>
           <Route path="/" element={<GroupList />} />
-          <Route path="/group/:id" element={<GroupDetail />} />
+          <Route path="/group/:id" element={<GroupDetailPage />} />
         </Routes>
       </main>
       <footer className="border-t border-cream-200 py-5 text-center text-xs text-cream-500 no-print">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Package, UserPlus, TrendingDown, Timer, AlertTriangle } from 'lucide-react';
 import { useGroupStore } from '../store/useGroupStore';
 import MemberForm from './MemberForm';
@@ -11,23 +11,22 @@ import {
   isGroupExpired,
 } from '../utils/freightSplit';
 
-const RAINBOW_GRADIENTS = [
-  'linear-gradient(135deg, #FFE4E1 0%, #FFC9C9 100%)',
-  'linear-gradient(135deg, #FFEFD5 0%, #FFD9A0 100%)',
-  'linear-gradient(135deg, #FFF8DC 0%, #FFEC99 100%)',
-  'linear-gradient(135deg, #E8F5E9 0%, #B9E6BA 100%)',
-  'linear-gradient(135deg, #E3F2FD 0%, #B4DCF6 100%)',
-  'linear-gradient(135deg, #EDE7F6 0%, #C9B7EB 100%)',
-  'linear-gradient(135deg, #FCE4EC 0%, #F4B5CC 100%)',
-  'linear-gradient(135deg, #E0F7FA 0%, #A5E1E7 100%)',
-];
+function getRainbowGradient(index: number, total: number): string {
+  const hue = (index / Math.max(total, 1)) * 300;
+  const startHue = hue;
+  const endHue = (hue + 30) % 360;
+  return `linear-gradient(135deg, hsl(${startHue}, 70%, 92%) 0%, hsl(${endHue}, 70%, 80%) 100%)`;
+}
 
-export default function GroupDetail() {
-  const { id = '' } = useParams();
+interface Props {
+  groupId: string;
+}
+
+export default function GroupDetail({ groupId }: Props) {
   const navigate = useNavigate();
   const getGroup = useGroupStore((s) => s.getGroup);
   const groups = useGroupStore((s) => s.groups);
-  const group = getGroup(id) || groups.find((g) => g.id === id);
+  const group = getGroup(groupId) || groups.find((g) => g.id === groupId);
 
   const [showForm, setShowForm] = useState(false);
   const [newMemberId, setNewMemberId] = useState<string | null>(null);
@@ -43,7 +42,7 @@ export default function GroupDetail() {
     tick();
     const id1 = window.setInterval(tick, cd.urgent ? 500 : 15_000);
     return () => window.clearInterval(id1);
-  }, [group, cd.urgent]);
+  }, [group, cd.urgent, groupId]);
 
   const freightResult = useMemo(() => {
     if (!group || !expired) return null;
@@ -220,7 +219,7 @@ export default function GroupDetail() {
                   newMemberId === m.id ? 'slide-in-top' : ''
                 }`}
                 style={{
-                  background: RAINBOW_GRADIENTS[idx % RAINBOW_GRADIENTS.length],
+                  background: getRainbowGradient(idx, group.members.length),
                 }}
               >
                 <div className="flex items-center gap-2.5 mb-2">

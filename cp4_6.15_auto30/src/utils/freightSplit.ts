@@ -20,6 +20,12 @@ export function calculateSubtotal(orderItems: Array<{ unitPrice: number; quantit
  * - 分两步精确分配：先按比例取整，再将余数按金额从高到低依次分配 0.01
  * - 避免对象/数组的频繁拷贝
  *
+ * 边界情况处理：
+ * - 空数组 → 返回空
+ * - 运费 ≤ 0 → 每人分摊 0
+ * - 总金额 ≤ 0 或存在负数金额 → 人均摊
+ * - 单成员 → 承担全部运费
+ *
  * @param items 每个成员的购买总额列表
  * @param totalFreight 总运费
  * @returns 分摊结果数组，含每人昵称、购买总额、分摊比例、应摊运费
@@ -36,13 +42,27 @@ export function splitFreight(items: FreightInputItem[], totalFreight: number): F
       freightShare: 0,
     }));
   }
-
-  let grandTotal = 0;
-  for (let i = 0; i < n; i++) {
-    grandTotal += items[i].totalPurchase;
+  if (n === 1) {
+    return [
+      {
+        memberId: items[0].memberId,
+        nickname: items[0].nickname,
+        totalPurchase: items[0].totalPurchase,
+        ratio: 1,
+        freightShare: +totalFreight.toFixed(2),
+      },
+    ];
   }
 
-  if (grandTotal <= 0) {
+  let grandTotal = 0;
+  let hasNegative = false;
+  for (let i = 0; i < n; i++) {
+    const val = items[i].totalPurchase;
+    if (val < 0) hasNegative = true;
+    grandTotal += val;
+  }
+
+  if (grandTotal <= 0 || hasNegative) {
     const share = +(totalFreight / n).toFixed(2);
     let remainder = +(totalFreight - share * n).toFixed(2);
     return items.map((it, idx) => ({
