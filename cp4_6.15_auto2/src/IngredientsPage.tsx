@@ -32,6 +32,13 @@ export default function IngredientsPage() {
     }, 100);
   }, []);
 
+  const handleBlur = useCallback(() => {
+    setTimeout(() => {
+      setFocused(false);
+      setShowSuggestions(false);
+    }, 180);
+  }, []);
+
   const handleSelectIngredient = useCallback(
     (ingredient: Ingredient) => {
       const exists = userIngredients.some(
@@ -52,9 +59,12 @@ export default function IngredientsPage() {
   }, []);
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [handleClickOutside]);
+    const handler = () => {
+      if (!focused) handleClickOutside();
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [handleClickOutside, focused]);
 
   const selectedIngredientIds = new Set(
     userIngredients.map((ui) => ui.ingredientId)
@@ -90,7 +100,7 @@ export default function IngredientsPage() {
               setShowSuggestions(results.length > 0);
             }
           }}
-          onBlur={() => setFocused(false)}
+          onBlur={handleBlur}
         />
         {query && (
           <button
@@ -110,6 +120,7 @@ export default function IngredientsPage() {
                 key={ingredient.id}
                 className="suggestion-item"
                 onClick={() => handleSelectIngredient(ingredient)}
+                onMouseDown={(e) => e.preventDefault()}
               >
                 <span className="suggestion-name">{ingredient.name}</span>
                 <span className="suggestion-category">
@@ -210,9 +221,7 @@ export default function IngredientsPage() {
               <button
                 key={ingredient.id}
                 className="quick-add-btn"
-                onClick={() =>
-                  handleSelectIngredient(ingredient)
-                }
+                onClick={() => handleSelectIngredient(ingredient)}
               >
                 <Plus size={12} />
                 {ingredient.name}

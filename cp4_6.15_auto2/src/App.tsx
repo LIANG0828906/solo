@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Refrigerator, ChefHat, ShoppingCart } from 'lucide-react';
 import IngredientsPage from './IngredientsPage';
 import RecommendationPage from './RecommendationPage';
@@ -14,21 +14,48 @@ const TABS: { id: TabId; label: string; icon: typeof Refrigerator }[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('ingredients');
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [isAnimating, setIsAnimating] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const tabIndex = (id: TabId) => TABS.findIndex((t) => t.id === id);
 
   const handleTabChange = useCallback(
     (tab: TabId) => {
-      if (tab === activeTab) return;
-      const dir = tabIndex(tab) > tabIndex(activeTab) ? 'right' : 'left';
-      setSlideDirection(dir);
+      if (tab === activeTab || isAnimating) return;
+
       setIsAnimating(true);
-      setActiveTab(tab);
-      setTimeout(() => setIsAnimating(false), 300);
+
+      const direction = tabIndex(tab) > tabIndex(activeTab) ? 1 : -1;
+
+      if (contentRef.current) {
+        contentRef.current.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease-out';
+        contentRef.current.style.transform = `translateX(${-direction * 20}px)`;
+        contentRef.current.style.opacity = '0';
+      }
+
+      setTimeout(() => {
+        setActiveTab(tab);
+        if (contentRef.current) {
+          contentRef.current.style.transform = `translateX(${direction * 20}px)`;
+          contentRef.current.style.opacity = '0';
+        }
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (contentRef.current) {
+              contentRef.current.style.transform = 'translateX(0)';
+              contentRef.current.style.opacity = '1';
+            }
+            setTimeout(() => {
+              if (contentRef.current) {
+                contentRef.current.style.transition = '';
+              }
+              setIsAnimating(false);
+            }, 300);
+          });
+        });
+      }, 10);
     },
-    [activeTab]
+    [activeTab, isAnimating]
   );
 
   const renderPage = () => {
@@ -45,8 +72,11 @@ export default function App() {
   return (
     <div className="app-container">
       <div
-        className={`page-content ${isAnimating ? (slideDirection === 'right' ? 'slide-in-right' : 'slide-in-left') : ''}`}
-        key={activeTab}
+        ref={contentRef}
+        className="page-content"
+        style={{
+          willChange: 'transform, opacity',
+        }}
       >
         {renderPage()}
       </div>
@@ -59,6 +89,7 @@ export default function App() {
               key={tab.id}
               className={`tab-item ${isActive ? 'tab-active' : ''}`}
               onClick={() => handleTabChange(tab.id)}
+              disabled={isAnimating}
             >
               <Icon size={20} />
               <span className="tab-label">{tab.label}</span>
