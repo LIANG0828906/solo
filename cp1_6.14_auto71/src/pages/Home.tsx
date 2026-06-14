@@ -77,9 +77,9 @@ const Home: React.FC = () => {
   if (loading) {
     return (
       <div className="container">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="glass-card p-6 h-72 animate-shimmer" />
+            <div key={i} className="glass-card p-6" style={{ height: '280px' }} />
           ))}
         </div>
       </div>
@@ -109,9 +109,10 @@ const Home: React.FC = () => {
         </div>
       ) : (
         <div
-          className="grid gap-6"
           style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '24px',
           }}
         >
           {pets.map((pet, index) => (
@@ -146,7 +147,7 @@ const Home: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label>宠物名称</label>
                   <input
@@ -169,16 +170,13 @@ const Home: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label>物种</label>
                   <select
                     value={formData.species}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        species: e.target.value as 'dog' | 'cat' | 'other',
-                      })
+                      setFormData({ ...formData, species: e.target.value as 'dog' | 'cat' | 'other' })
                     }
                   >
                     <option value="dog">🐕 狗狗</option>
@@ -191,10 +189,7 @@ const Home: React.FC = () => {
                   <select
                     value={formData.gender}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        gender: e.target.value as 'male' | 'female',
-                      })
+                      setFormData({ ...formData, gender: e.target.value as 'male' | 'female' })
                     }
                   >
                     <option value="male">♂ 公</option>
@@ -203,7 +198,7 @@ const Home: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label>出生日期</label>
                   <input
@@ -238,11 +233,11 @@ const Home: React.FC = () => {
                 />
               </div>
 
-              <div className="flex gap-4 mt-6">
-                <button type="button" className="btn btn-secondary flex-1" onClick={() => setShowModal(false)}>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>
                   取消
                 </button>
-                <button type="submit" className="btn btn-primary flex-1">
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   创建档案
                 </button>
               </div>
@@ -250,6 +245,12 @@ const Home: React.FC = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -12,24 +12,20 @@ const PetCard: React.FC<PetCardProps> = ({ pet, index }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const handleClick = () => {
-    navigate(`/pet/${pet.id}`);
-  };
-
   const genderText = pet.gender === 'male' ? '♂' : '♀';
   const genderColor = pet.gender === 'male' ? '#60a5fa' : '#f472b6';
 
   return (
     <div
-      onClick={handleClick}
+      onClick={() => navigate(`/pet/${pet.id}`)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="pet-card glass-card cursor-pointer overflow-hidden"
+      className="glass-card cursor-pointer overflow-hidden"
       style={{
         animationDelay: `${index * 0.1}s`,
         transform: isHovered ? 'translateY(-8px)' : 'translateY(0)',
         boxShadow: isHovered
-          ? '0 20px 40px rgba(0, 0, 0, 0.12)'
+          ? '0 16px 40px rgba(255, 154, 158, 0.2)'
           : '0 8px 32px rgba(0, 0, 0, 0.08)',
         transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
@@ -47,9 +43,9 @@ const PetCard: React.FC<PetCardProps> = ({ pet, index }) => {
             <img
               src={pet.avatar || '/uploads/default-avatar.png'}
               alt={pet.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
+              style={{ objectFit: 'cover', clipPath: 'circle(50% at 50% 50%)' }}
               onLoad={() => setImageLoaded(true)}
-              style={{ clipPath: 'circle(50% at 50% 50%)' }}
             />
           </div>
           {!imageLoaded && (
@@ -66,9 +62,10 @@ const PetCard: React.FC<PetCardProps> = ({ pet, index }) => {
         <h3 className="text-lg font-semibold text-gray-800 mb-2">{pet.name}</h3>
 
         <div
-          className="px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 animate-breath"
+          className="breed-tag px-4 py-1.5 rounded-full text-sm font-medium text-gray-700"
           style={{
-            background: 'linear-gradient(135deg, #fbcfe8 0%, #bbf7d0 100%)',
+            background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+            animation: 'breathScale 3s ease-in-out infinite',
           }}
         >
           {pet.breed}
@@ -83,11 +80,18 @@ const PetCard: React.FC<PetCardProps> = ({ pet, index }) => {
       <div
         className="h-1 w-full"
         style={{
-          background: 'linear-gradient(90deg, #f472b6, #a78bfa, #34d399)',
+          background: 'linear-gradient(90deg, #ff9a9e, #fecfef)',
           opacity: isHovered ? 1 : 0,
           transition: 'opacity 0.3s ease',
         }}
       />
+
+      <style>{`
+        @keyframes breathScale {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+      `}</style>
     </div>
   );
 };
