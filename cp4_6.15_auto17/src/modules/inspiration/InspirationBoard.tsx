@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Type, Image, Music, Video, MoreHorizontal, Search, Trash2, ArrowRight, Calendar, Tag } from 'lucide-react';
 import { useStore } from '@/shared/store';
@@ -134,23 +134,25 @@ export default function InspirationBoard() {
 
   const [categoryFilter, setCategoryFilter] = useState<InspirationCategory | 'all'>('all');
   const [tagSearch, setTagSearch] = useState('');
-  const [newInspirationIds, setNewInspirationIds] = useState<Set<string>>(new Set());
+
+  const mountedAt = useRef(Date.now());
+  const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
+  const lastCountRef = useRef(inspirations.length);
+  const lastFirstIdRef = useRef(inspirations[0]?.id || null);
 
   useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.addedNodes.length > 0) {
-          const first = inspirations[0];
-          if (first && !newInspirationIds.has(first.id)) {
-            setNewInspirationIds((prev) => new Set([...prev, first.id]));
-          }
-        }
-      });
-    });
-    const gridEl = document.querySelector('.inspiration-grid');
-    if (gridEl) observer.observe(gridEl, { childList: true });
-    return () => observer.disconnect();
-  }, [inspirations, newInspirationIds]);
+    if (
+      inspirations.length > 0 &&
+      (inspirations.length > lastCountRef.current || inspirations[0].id !== lastFirstIdRef.current)
+    ) {
+      const first = inspirations[0];
+      if (first && first.createdAt >= mountedAt.current - 1000) {
+        setAnimatingIds((prev) => new Set([...prev, first.id]));
+      }
+    }
+    lastCountRef.current = inspirations.length;
+    lastFirstIdRef.current = inspirations[0]?.id || null;
+  }, [inspirations]);
 
   const filteredInspirations = useMemo(() => {
     return inspirations.filter((item) => {
@@ -179,7 +181,7 @@ export default function InspirationBoard() {
   };
 
   const handleAnimationEnd = (id: string) => {
-    setNewInspirationIds((prev) => {
+    setAnimatingIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
       return next;
@@ -249,14 +251,14 @@ export default function InspirationBoard() {
           </div>
         ) : (
           <div className="inspiration-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredInspirations.map((inspiration, index) => (
+            {filteredInspirations.map((inspiration) => (
               <InspirationCard
                 key={inspiration.id}
                 inspiration={inspiration}
                 tagNames={getTagNames(inspiration.tagIds)}
                 onConvert={handleConvert}
                 onDelete={handleDelete}
-                isNew={index === 0 && newInspirationIds.has(inspiration.id)}
+                isNew={animatingIds.has(inspiration.id)}
                 onAnimationEnd={handleAnimationEnd}
               />
             ))}

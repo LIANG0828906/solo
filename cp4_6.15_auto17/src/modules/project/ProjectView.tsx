@@ -206,15 +206,20 @@ export default function ProjectView() {
           'h-screen bg-forge-card/80 backdrop-blur-xl border-r border-forge-border overflow-y-auto scrollbar-thin',
           'fixed lg:relative z-50 transition-all duration-300',
           mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-          sidebarOpen ? 'w-80' : 'w-0 lg:w-12 lg:overflow-hidden',
+          mobileDrawerOpen || sidebarOpen ? 'w-80' : 'w-0 lg:w-12 lg:overflow-hidden',
         )}
       >
-        {sidebarOpen && (
-          <div className={cn('p-4', !mobileDrawerOpen && 'hidden lg:block')}>
+        {(sidebarOpen || mobileDrawerOpen) && (
+          <div className="p-4">
             <div className="flex items-center gap-2 mb-6">
               <button
                 type="button"
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setMobileDrawerOpen(false);
+                  }
+                  navigate('/');
+                }}
                 className="btn-elastic p-2 rounded-lg hover:bg-white/10 text-forge-muted hover:text-white"
                 aria-label="返回"
               >

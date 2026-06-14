@@ -13,7 +13,7 @@ import type {
 const DB_NAME = 'creative-forge-db';
 const DB_VERSION = 1;
 
-interface StoreState {
+export interface StoreState {
   inspirations: Inspiration[];
   projects: Project[];
   tasks: Task[];

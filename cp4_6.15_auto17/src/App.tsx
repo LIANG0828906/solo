@@ -156,10 +156,14 @@ function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   const location = useLocation();
   const getTitle = () => {
     if (location.pathname === '/') return '灵感看板';
-    if (location.pathname.startsWith('/project/')) return '项目详情';
-    if (location.pathname.startsWith('/report/')) return '复盘报告';
+    if (location.pathname.startsWith('/project/')) return null;
+    if (location.pathname.startsWith('/report/')) return null;
     return 'CreativeForge';
   };
+  const title = getTitle();
+  if (title === null) {
+    return <div className="lg:hidden h-0 overflow-hidden" aria-hidden="true" />;
+  }
 
   return (
     <header className="lg:hidden h-14 bg-forge-card/80 backdrop-blur-xl border-b border-forge-border flex items-center px-4 gap-3">
@@ -170,7 +174,7 @@ function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
       >
         <Menu size={20} />
       </button>
-      <h1 className="font-display font-semibold text-white flex-1 text-center">{getTitle()}</h1>
+      <h1 className="font-display font-semibold text-white flex-1 text-center">{title}</h1>
       <div className="w-10" />
     </header>
   );
