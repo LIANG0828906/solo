@@ -9,74 +9,214 @@ interface GameBoardProps {
 }
 
 type AnswerState = 'idle' | 'correct' | 'wrong'
+type SoundType = 'correct' | 'wrong' | 'switch' | 'firework'
 
 export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoardProps) {
   const [currentPlayer, setCurrentPlayer] = useState<0 | 1>(0)
-  const [currentRound, setCurrentRound] = useState(1)
+  const [currentRound, setCurrentRound] = useState<number>(1)
   const [scores, setScores] = useState<[number, number]>([0, 0])
   const [timeLeft, setTimeLeft] = useState<number>(settings.roundDuration)
   const [question, setQuestion] = useState<Question>(() => getRandomQuestion())
   const [answerState, setAnswerState] = useState<AnswerState>('idle')
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
-  const [showFireworks, setShowFireworks] = useState(false)
   const timerRef = useRef<number | null>(null)
-  const fireworksCanvasRef = useRef<HTMLCanvasElement>(null)
+  const timeoutRefs = useRef<number[]>([])
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const isSwitchingRef = useRef<boolean>(false)
 
-  const playSound = useCallback((type: 'correct' | 'wrong' | 'switch') => {
+  const safeTimeout = useCallback((callback: () => void, delay: number): number => {
+    const id = window.setTimeout(callback, delay)
+    timeoutRefs.current.push(id)
+    return id
+  }, [])
+
+  const clearAllTimeouts = useCallback((): void => {
+    timeoutRefs.current.forEach((id) => clearTimeout(id))
+    timeoutRefs.current = []
+  }, [])
+
+  const playSound = useCallback((type: SoundType) => {
     if (!settings.soundEnabled) return
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContext.destination)
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {})
+        audioContextRef.current = null
+      }
+
+      const audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      audioContextRef.current = audioContext
 
       if (type === 'correct') {
-        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime)
-        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1)
-        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2)
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4)
-        oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.4)
+        const frequencies = [523.25, 659.25, 783.99, 1046.50]
+        const noteDuration = 0.12
+        const totalDuration = 0.5
+
+        frequencies.forEach((freq, index) => {
+          const osc = audioContext.createOscillator()
+          const gain = audioContext.createGain()
+          osc.connect(gain)
+          gain.connect(audioContext.destination)
+          osc.frequency.value = freq
+
+          const startTime = audioContext.currentTime + index * noteDuration
+          const peakTime = startTime + noteDuration * 0.5
+          const endTime = startTime + noteDuration
+
+          gain.gain.setValueAtTime(0, startTime)
+          gain.gain.linearRampToValueAtTime(0.35, peakTime)
+          gain.gain.exponentialRampToValueAtTime(0.01, endTime)
+
+          osc.start(startTime)
+          osc.stop(endTime)
+        })
+
+        safeTimeout(() => {
+          if (audioContextRef.current === audioContext) {
+            audioContext.close().catch(() => {})
+            audioContextRef.current = null
+          }
+        }, totalDuration * 1000 + 100)
       } else if (type === 'wrong') {
-        oscillator.frequency.setValueAtTime(200, audioContext.currentTime)
-        oscillator.frequency.setValueAtTime(150, audioContext.currentTime + 0.15)
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-        oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.3)
-      } else {
-        oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2)
-        oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.2)
+        const frequencies = [150, 100]
+        const noteDuration = 0.15
+        const totalDuration = 0.3
+
+        frequencies.forEach((freq, index) => {
+          const osc = audioContext.createOscillator()
+          const gain = audioContext.createGain()
+          const distortion = audioContext.createWaveShaper()
+          const curve = new Float32Array(256)
+          for (let i = 0; i < 256; i++) {
+            const x = (i / 256) * 2 - 1
+            curve[i] = Math.tanh(x * 3)
+          }
+          distortion.curve = curve
+
+          osc.type = 'square'
+          osc.frequency.value = freq
+
+          osc.connect(distortion)
+          distortion.connect(gain)
+          gain.connect(audioContext.destination)
+
+          const startTime = audioContext.currentTime + index * noteDuration
+          const endTime = startTime + noteDuration
+
+          gain.gain.setValueAtTime(0.25, startTime)
+          gain.gain.exponentialRampToValueAtTime(0.01, endTime)
+
+          osc.start(startTime)
+          osc.stop(endTime)
+        })
+
+        safeTimeout(() => {
+          if (audioContextRef.current === audioContext) {
+            audioContext.close().catch(() => {})
+            audioContextRef.current = null
+          }
+        }, totalDuration * 1000 + 100)
+      } else if (type === 'switch') {
+        const frequencies = [392.0, 523.25]
+        const noteDuration = 0.1
+        const totalDuration = 0.25
+
+        frequencies.forEach((freq, index) => {
+          const osc = audioContext.createOscillator()
+          const gain = audioContext.createGain()
+          osc.connect(gain)
+          gain.connect(audioContext.destination)
+          osc.frequency.value = freq
+          osc.type = 'sine'
+
+          const startTime = audioContext.currentTime + index * noteDuration
+          const endTime = startTime + noteDuration * 0.9
+
+          gain.gain.setValueAtTime(0.25, startTime)
+          gain.gain.exponentialRampToValueAtTime(0.01, endTime)
+
+          osc.start(startTime)
+          osc.stop(endTime)
+        })
+
+        safeTimeout(() => {
+          if (audioContextRef.current === audioContext) {
+            audioContext.close().catch(() => {})
+            audioContextRef.current = null
+          }
+        }, totalDuration * 1000 + 100)
+      } else if (type === 'firework') {
+        const bufferSize = audioContext.sampleRate * 0.3
+        const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate)
+        const data = buffer.getChannelData(0)
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2)
+        }
+
+        const noise = audioContext.createBufferSource()
+        noise.buffer = buffer
+
+        const filter = audioContext.createBiquadFilter()
+        filter.type = 'lowpass'
+        filter.frequency.setValueAtTime(2000, audioContext.currentTime)
+        filter.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3)
+
+        const gain = audioContext.createGain()
+        gain.gain.setValueAtTime(0.4, audioContext.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+
+        noise.connect(filter)
+        filter.connect(gain)
+        gain.connect(audioContext.destination)
+
+        noise.start(audioContext.currentTime)
+        noise.stop(audioContext.currentTime + 0.3)
+
+        safeTimeout(() => {
+          if (audioContextRef.current === audioContext) {
+            audioContext.close().catch(() => {})
+            audioContextRef.current = null
+          }
+        }, 400)
       }
     } catch {
       // ignore audio errors
     }
-  }, [settings.soundEnabled])
+  }, [settings.soundEnabled, safeTimeout])
 
   const switchTurn = useCallback(() => {
+    if (isSwitchingRef.current) return
+    isSwitchingRef.current = true
+
+    clearAllTimeouts()
     playSound('switch')
+
+    const finishSwitch = (): void => {
+      setCurrentPlayer((p) => (p === 0 ? 1 : 0) as 0 | 1)
+      setTimeLeft(settings.roundDuration)
+      resetUsedPoetry()
+      setQuestion(getRandomQuestion())
+      setAnswerState('idle')
+      setSelectedAnswer(null)
+      isSwitchingRef.current = false
+    }
+
     if (currentPlayer === 1) {
       if (currentRound >= settings.totalRounds) {
-        setShowFireworks(true)
-        setTimeout(() => {
+        playSound('firework')
+        safeTimeout(() => playSound('firework'), 200)
+        safeTimeout(() => playSound('firework'), 400)
+        safeTimeout(() => {
+          isSwitchingRef.current = false
           onGameEnd(scores)
-        }, 3500)
+        }, 480)
         return
       }
       setCurrentRound((r) => r + 1)
     }
-    setCurrentPlayer((p) => (p === 0 ? 1 : 0) as 0 | 1)
-    setTimeLeft(settings.roundDuration)
-    resetUsedPoetry()
-    setQuestion(getRandomQuestion())
-    setAnswerState('idle')
-    setSelectedAnswer(null)
-  }, [currentPlayer, currentRound, settings, onGameEnd, scores, playSound])
+
+    finishSwitch()
+  }, [currentPlayer, currentRound, settings, onGameEnd, scores, playSound, clearAllTimeouts, safeTimeout])
 
   useEffect(() => {
     timerRef.current = window.setInterval(() => {
@@ -91,9 +231,25 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
     return () => {
       if (timerRef.current !== null) {
         clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      clearAllTimeouts()
+    }
+  }, [currentPlayer, currentRound, clearAllTimeouts])
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      clearAllTimeouts()
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {})
+        audioContextRef.current = null
       }
     }
-  }, [currentPlayer, currentRound])
+  }, [clearAllTimeouts])
 
   useEffect(() => {
     if (timeLeft === 0 && answerState === 'idle') {
@@ -101,18 +257,21 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
     }
   }, [timeLeft, answerState, switchTurn])
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = (answer: string): void => {
     if (answerState !== 'idle') return
     setSelectedAnswer(answer)
+
+    clearAllTimeouts()
+
     if (answer === question.correctAnswer) {
       setAnswerState('correct')
       playSound('correct')
-      setScores((s) => {
-        const newScores: [number, number] = [...s] as [number, number]
+      setScores((s): [number, number] => {
+        const newScores: [number, number] = [s[0], s[1]]
         newScores[currentPlayer] += 10
         return newScores
       })
-      setTimeout(() => {
+      safeTimeout(() => {
         setQuestion(getRandomQuestion())
         setAnswerState('idle')
         setSelectedAnswer(null)
@@ -120,123 +279,28 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
     } else {
       setAnswerState('wrong')
       playSound('wrong')
-      setTimeout(() => {
+      safeTimeout(() => {
         switchTurn()
       }, 1500)
     }
   }
 
-  useEffect(() => {
-    if (!showFireworks || !fireworksCanvasRef.current) return
+  const handleBackClick = (): void => {
+    onBackToMenu()
+  }
 
-    const canvas = fireworksCanvasRef.current
-    const ctx = canvas.getContext('2d')!
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-
-    interface Particle {
-      x: number
-      y: number
-      vx: number
-      vy: number
-      alpha: number
-      color: string
-      size: number
-    }
-
-    const particles: Particle[] = []
-    const colors = ['#ff0000', '#ffd700', '#ff6b6b', '#ffa500', '#ff1493', '#8b0000']
-
-    const createFirework = (x: number, y: number) => {
-      const particleCount = 80 + Math.random() * 40
-      for (let i = 0; i < particleCount; i++) {
-        const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.2
-        const speed = 2 + Math.random() * 4
-        particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          alpha: 1,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          size: 2 + Math.random() * 3,
-        })
-      }
-    }
-
-    let frameCount = 0
-    const animate = () => {
-      ctx.fillStyle = 'rgba(245, 240, 230, 0.15)'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i]
-        p.x += p.vx
-        p.y += p.vy
-        p.vy += 0.05
-        p.alpha -= 0.008
-        p.size *= 0.98
-
-        if (p.alpha <= 0) {
-          particles.splice(i, 1)
-          continue
-        }
-
-        ctx.globalAlpha = p.alpha
-        ctx.fillStyle = p.color
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      ctx.globalAlpha = 1
-
-      if (frameCount % 30 === 0 && frameCount < 180) {
-        createFirework(
-          Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
-          Math.random() * canvas.height * 0.5 + canvas.height * 0.1
-        )
-      }
-
-      if (frameCount < 240 || particles.length > 0) {
-        frameCount++
-        requestAnimationFrame(animate)
-      }
-    }
-
-    for (let i = 0; i < 3; i++) {
-      setTimeout(() => {
-        createFirework(
-          Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
-          Math.random() * canvas.height * 0.5 + canvas.height * 0.1
-        )
-      }, i * 300)
-    }
-
-    animate()
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [showFireworks])
+  const handleOptionClick = (option: string): void => {
+    handleAnswer(option)
+  }
 
   const timerPercentage = (timeLeft / settings.roundDuration) * 100
 
   return (
     <div className="game-board">
-      {showFireworks && (
-        <canvas
-          ref={fireworksCanvasRef}
-          className="fireworks-canvas"
-        />
-      )}
-
       {answerState === 'wrong' && <div className="screen-crack" />}
 
       <div className="top-bar">
-        <button className="back-btn" onClick={onBackToMenu}>
+        <button className="back-btn" onClick={handleBackClick}>
           返回
         </button>
         <div className="round-info">
@@ -262,7 +326,7 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
       <div className="timer-container">
         <div className="timer-bar-bg">
           <div
-            className="timer-bar-fill"
+            className={`timer-bar-fill ${timerPercentage < 30 ? 'urgent' : ''}`}
             style={{
               width: `${timerPercentage}%`,
               background: timerPercentage < 30
@@ -285,16 +349,25 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
 
       <div className="question-card">
         <div className="poem-source">
-          ——《{question.poetry.title}》{question.poetry.dynasty}·{question.poetry.author}
+          ——《{question.pair.title}》{question.pair.dynasty}·{question.pair.author}
         </div>
         <div className="question-prompt">
-          {question.prompt}
-          <span className="prompt-ellipsis">，______</span>
+          {question.isReverse ? (
+            <>
+              <span className="prompt-ellipsis">______，</span>
+              {question.prompt}
+            </>
+          ) : (
+            <>
+              {question.prompt}
+              <span className="prompt-ellipsis">，______</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="options-container">
-        {question.options.map((option, index) => {
+        {question.options.map((option: string, index: number) => {
           let btnClass = 'option-btn'
           if (answerState !== 'idle') {
             if (option === question.correctAnswer) {
@@ -309,7 +382,7 @@ export default function GameBoard({ settings, onGameEnd, onBackToMenu }: GameBoa
             <button
               key={index}
               className={btnClass}
-              onClick={() => handleAnswer(option)}
+              onClick={() => handleOptionClick(option)}
               disabled={answerState !== 'idle'}
             >
               <span className="option-letter">{String.fromCharCode(65 + index)}</span>

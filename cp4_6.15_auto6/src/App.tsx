@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import GameBoard from './GameBoard'
 import { GameSettings, loadSettings, saveSettings, DEFAULT_SETTINGS } from './setup'
 import { resetUsedPoetry } from './PoetryBank'
+import Fireworks from './components/Fireworks'
 
 type Screen = 'menu' | 'game' | 'settings' | 'result'
 
@@ -198,16 +199,31 @@ function ResultScreen({
 }) {
   const [score1, score2] = scores
   const winner = score1 > score2 ? 0 : score2 > score1 ? 1 : -1
+  const [showFireworks, setShowFireworks] = useState(true)
 
   return (
     <div className="result-screen">
+      <Fireworks active={showFireworks} duration={4000} onComplete={() => setShowFireworks(false)} />
       <div className="result-decoration">
-        <div className="confetti-piece" style={{ left: '10%', animationDelay: '0s' }} />
-        <div className="confetti-piece" style={{ left: '25%', animationDelay: '0.5s' }} />
-        <div className="confetti-piece" style={{ left: '40%', animationDelay: '0.2s' }} />
-        <div className="confetti-piece" style={{ left: '55%', animationDelay: '0.7s' }} />
-        <div className="confetti-piece" style={{ left: '70%', animationDelay: '0.3s' }} />
-        <div className="confetti-piece" style={{ left: '85%', animationDelay: '0.6s' }} />
+        {Array.from({ length: 15 }).map((_, i) => (
+          <div
+            key={i}
+            className="confetti-piece"
+            style={{
+              ['--left' as string]: `${5 + (i * 6.2)}%`,
+              ['--delay' as string]: `${(i % 5) * 0.4}s`,
+              ['--speed' as string]: `${2.5 + (i % 3) * 0.8}s`,
+              ['--color' as string]: ['#8b0000', '#b8860b', '#2c1810', '#a52a2a', '#daa520'][i % 5],
+              ['--drift' as string]: `${(i % 2 === 0 ? 1 : -1) * (20 + (i % 4) * 15)}px`,
+              ['--size-w' as string]: `${8 + (i % 4) * 3}px`,
+              ['--size-h' as string]: `${10 + (i % 5) * 4}px`,
+              ['--rotate-x' as string]: `${(i % 4) * 90}deg`,
+              ['--rotate-y' as string]: `${(i % 6) * 60}deg`,
+              ['--rotate-z' as string]: `${(i % 8) * 45}deg`,
+              borderRadius: i % 3 === 0 ? '50%' : i % 4 === 0 ? '2px' : '0',
+            } as React.CSSProperties}
+          />
+        ))}
       </div>
 
       <h1 className="result-title">
