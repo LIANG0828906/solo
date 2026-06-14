@@ -31,7 +31,7 @@ export const StationCard = memo(function StationCard({
 
   return (
     <div
-      className={`station-card ${isFiltered ? 'filtering-out' : ''}`}
+      className={`station-card station-card-transition ${isFiltered ? 'filtering-out' : ''}`}
       style={{
         animationDelay: `${index * 0.08}s`,
       }}
@@ -80,7 +80,7 @@ export const StationCard = memo(function StationCard({
         <span>更新于 {formatTime(station.updateTime)}</span>
       </div>
 
-      <div className="refresh-progress" style={{ width: `${progress}%` }} />
+      <div className="refresh-progress" style={{ width: `${progress}%`, transition: 'width 0.1s linear' }} />
     </div>
   );
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TrendChart } from './TrendChart';
-import type { Station, HistoryData, TimeRange, PollutantType } from '../types';
+import type { Station, HistoryData, TimeRange, PollutantType, Theme } from '../types';
 import { AQI_LEVELS, POLLUTANT_UNITS, POLLUTANT_COLORS } from '../types';
 import { getHistoryData } from '../utils/api';
 
@@ -8,9 +8,10 @@ interface DetailPanelProps {
   station: Station | null;
   isOpen: boolean;
   onClose: () => void;
+  theme: Theme;
 }
 
-export function DetailPanel({ station, isOpen, onClose }: DetailPanelProps) {
+export function DetailPanel({ station, isOpen, onClose, theme }: DetailPanelProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [historyData, setHistoryData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,6 +60,18 @@ export function DetailPanel({ station, isOpen, onClose }: DetailPanelProps) {
       'SO2': 100,
     };
     return values[pollutant];
+  };
+
+  const getPollutantColorVar = (pollutant: PollutantType) => {
+    const colorVars: Record<PollutantType, string> = {
+      'PM2.5': 'var(--pollutant-pm25)',
+      'PM10': 'var(--pollutant-pm10)',
+      'O3': 'var(--pollutant-o3)',
+      'NO2': 'var(--pollutant-no2)',
+      'CO': 'var(--pollutant-co)',
+      'SO2': 'var(--pollutant-so2)',
+    };
+    return colorVars[pollutant];
   };
 
   if (!station) return null;
@@ -115,7 +128,7 @@ export function DetailPanel({ station, isOpen, onClose }: DetailPanelProps) {
                       className="pollutant-bar-fill"
                       style={{
                         width: `${percentage}%`,
-                        backgroundColor: POLLUTANT_COLORS[name],
+                        backgroundColor: getPollutantColorVar(name),
                       }}
                     />
                   </div>
@@ -138,6 +151,7 @@ export function DetailPanel({ station, isOpen, onClose }: DetailPanelProps) {
             <TrendChart
               data={historyData}
               timeRange={timeRange}
+              theme={theme}
               onTimeRangeChange={setTimeRange}
             />
           ) : null}

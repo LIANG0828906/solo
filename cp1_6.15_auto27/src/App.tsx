@@ -1,13 +1,29 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { useTheme } from './hooks/useTheme';
+import type { Station } from './types';
 
 const Dashboard = lazy(() =>
   import('./components/Dashboard').then((module) => ({ default: module.Dashboard }))
 );
 
+const DetailPanel = lazy(() =>
+  import('./components/DetailPanel').then((module) => ({ default: module.DetailPanel }))
+);
+
 function App() {
   const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const handleSelectStation = (station: Station) => {
+    setSelectedStation(station);
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+  };
 
   return (
     <div className="app">
@@ -72,7 +88,18 @@ function App() {
           </div>
         }
       >
-        <Dashboard searchQuery={searchQuery} />
+        <Dashboard
+          searchQuery={searchQuery}
+          selectedStation={selectedStation}
+          onSelectStation={handleSelectStation}
+          onUpdateSelectedStation={setSelectedStation}
+        />
+        <DetailPanel
+          station={selectedStation}
+          isOpen={isDetailOpen}
+          onClose={handleCloseDetail}
+          theme={theme}
+        />
       </Suspense>
     </div>
   );

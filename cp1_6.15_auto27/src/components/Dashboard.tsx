@@ -1,25 +1,28 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StationCard } from './StationCard';
-import { DetailPanel } from './DetailPanel';
 import type { Station } from '../types';
 import { getAllStations, refreshStationData } from '../utils/api';
 import { useRefreshTimer } from '../hooks/useRefreshTimer';
 
 interface DashboardProps {
   searchQuery: string;
+  selectedStation: Station | null;
+  onSelectStation: (station: Station) => void;
+  onUpdateSelectedStation: (station: Station | null) => void;
 }
 
-export function Dashboard({ searchQuery }: DashboardProps) {
+export function Dashboard({ searchQuery, selectedStation, onSelectStation, onUpdateSelectedStation }: DashboardProps) {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [filteredIds, setFilteredIds] = useState<Set<string>>(new Set());
+  const filterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLoading(true);
     getAllStations()
       .then((data) => {
         setStations(data);
+        setFilteredIds(new Set(data.map((s) => s.id)));
         setLoading(false);
       })
       .catch(() => {
@@ -35,32 +38,48 @@ export function Dashboard({ searchQuery }: DashboardProps) {
         if (selectedStation) {
           const updated = refreshed.find((s) => s.id === selectedStation.id);
           if (updated) {
-            setSelectedStation(updated);
+            onUpdateSelectedStation(updated);
           }
         }
       });
     }
-  }, [stations, selectedStation]);
+  }, [stations, selectedStation, onUpdateSelectedStation]);
 
   const { progress } = useRefreshTimer(handleRefresh, !loading && stations.length > 0);
 
-  const filteredStations = useMemo(() => {
-    if (!searchQuery.trim()) return stations;
-    const query = searchQuery.toLowerCase();
-    return stations.filter(
-      (s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.city.toLowerCase().includes(query)
-    );
-  }, [stations, searchQuery]);
+  useEffect(() => {
+    if (loading) return;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current);
+    }
+    
+    if (!query) {
+      setFilteredIds(new Set(stations.map((s) => s.id)));
+      return;
+    }
+    
+    const matchingIds = stations
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(query) ||
+          s.city.toLowerCase().includes(query)
+      )
+      .map((s) => s.id);
+    
+    setFilteredIds(new Set(matchingIds));
+    
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, stations, loading]);
 
   const handleCardClick = (station: Station) => {
-    setSelectedStation(station);
-    setIsDetailOpen(true);
-  };
-
-  const handleCloseDetail = () => {
-    setIsDetailOpen(false);
+    onSelectStation(station);
   };
 
   if (loading) {
@@ -75,19 +94,21 @@ export function Dashboard({ searchQuery }: DashboardProps) {
     );
   }
 
-  const hasResults = filteredStations.length > 0;
+  const visibleStations = stations.filter((s) => filteredIds.has(s.id));
+  const hasResults = visibleStations.length > 0;
+  const displayedStations = stations;
 
   return (
     <div className="dashboard">
       <div className="station-grid">
         {hasResults ? (
-          filteredStations.map((station, index) => (
+          displayedStations.map((station, index) => (
             <StationCard
               key={station.id}
               station={station}
               index={index}
               progress={progress}
-              isFiltered={false}
+              isFiltered={!filteredIds.has(station.id)}
               onClick={() => handleCardClick(station)}
             />
           ))
@@ -132,12 +153,6 @@ export function Dashboard({ searchQuery }: DashboardProps) {
           </div>
         )}
       </div>
-
-      <DetailPanel
-        station={selectedStation}
-        isOpen={isDetailOpen}
-        onClose={handleCloseDetail}
-      />
     </div>
   );
 }

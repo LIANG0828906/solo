@@ -4,7 +4,7 @@ const REFRESH_INTERVAL = 10000;
 const TICK_INTERVAL = 100;
 
 export function useRefreshTimer(onRefresh: () => void, autoRefresh: boolean = true) {
-  const [progress, setProgress] = useState(100);
+  const [progress, setProgress] = useState(0);
   const timerRef = useRef<number | null>(null);
   const lastRefreshRef = useRef(Date.now());
 
@@ -14,9 +14,9 @@ export function useRefreshTimer(onRefresh: () => void, autoRefresh: boolean = tr
     setProgress(newProgress);
 
     if (elapsed >= REFRESH_INTERVAL) {
+      onRefresh();
       lastRefreshRef.current = Date.now();
       setProgress(0);
-      onRefresh();
     }
   }, [onRefresh]);
 
@@ -26,9 +26,9 @@ export function useRefreshTimer(onRefresh: () => void, autoRefresh: boolean = tr
   }, []);
 
   const manualRefresh = useCallback(() => {
+    onRefresh();
     lastRefreshRef.current = Date.now();
     setProgress(0);
-    onRefresh();
   }, [onRefresh]);
 
   useEffect(() => {
