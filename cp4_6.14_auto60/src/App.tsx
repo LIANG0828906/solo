@@ -14,19 +14,81 @@ export default function App() {
   const [updateCount, setUpdateCount] = useState<number>(0);
   const [isDraggingSlider, setIsDraggingSlider] = useState<boolean>(false);
 
-  const autoAdvanceRef = useRef<number | null>(null);
-  const randomUpdateRef = useRef<number | null>(null);
-  const lastRandomTimeRef = useRef<number>(8.5);
+  const timerRef = useRef<number | null>(null);
+  const rafThrottleRef = useRef<number | null>(null);
+  const lastSliderTimeRef = useRef<number>(0);
 
-  const applyTimeSnapshot = useCallback((timeHour: number) => {
-    const newSnapshot = getSnapshot(timeHour);
-    setSnapshot(newSnapshot);
+  const applySnapshot = useCallback((timeHour: number) => {
+    setSnapshot(getSnapshot(timeHour));
   }, []);
 
+  const applyRandomSnapshot = useCallback((timeHour: number) => {
+    setSnapshot(getRandomSnapshot(timeHour, 12));
+    setUpdateCount(prev => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!isPlaying || isDraggingSlider) {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    const tick = () => {
+      setCurrentTime(prev => {
+        const next = prev + 0.25;
+        if (next >= 24) return 0;
+        return next;
+      });
+    };
+
+    tick();
+    applyRandomSnapshot(currentTime);
+    setUpdateCount(prev => prev + 1);
+
+    timerRef.current = window.setInterval(() => {
+      tick();
+    }, 2000);
+
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isPlaying, isDraggingSlider]);
+
+  useEffect(() => {
+    if (isPlaying && !isDraggingSlider) {
+      applyRandomSnapshot(currentTime);
+    }
+  }, [currentTime, isPlaying, isDraggingSlider, applyRandomSnapshot]);
+
   const handleTimeChange = useCallback((newTime: number) => {
-    setCurrentTime(newTime);
-    applyTimeSnapshot(newTime);
-  }, [applyTimeSnapshot]);
+    if (rafThrottleRef.current !== null) {
+      cancelAnimationFrame(rafThrottleRef.current);
+    }
+
+    const now = performance.now();
+    const elapsed = now - lastSliderTimeRef.current;
+
+    const apply = () => {
+      setCurrentTime(newTime);
+      applySnapshot(newTime);
+      lastSliderTimeRef.current = performance.now();
+    };
+
+    if (elapsed > 16) {
+      apply();
+    } else {
+      rafThrottleRef.current = requestAnimationFrame(() => {
+        apply();
+        rafThrottleRef.current = null;
+      });
+    }
+  }, [applySnapshot]);
 
   const handleDragStart = useCallback(() => {
     setIsDraggingSlider(true);
@@ -37,49 +99,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isPlaying || isDraggingSlider) return;
-
-    const advanceTime = () => {
-      setCurrentTime(prev => {
-        const next = prev + (15 / 60) / 4;
-        return next >= 24 ? 0 : next;
-      });
-    };
-
-    autoAdvanceRef.current = window.setInterval(advanceTime, 2000);
     return () => {
-      if (autoAdvanceRef.current !== null) {
-        clearInterval(autoAdvanceRef.current);
+      if (rafThrottleRef.current !== null) {
+        cancelAnimationFrame(rafThrottleRef.current);
       }
     };
-  }, [isPlaying, isDraggingSlider]);
-
-  useEffect(() => {
-    if (!isPlaying || isDraggingSlider) return;
-
-    lastRandomTimeRef.current = currentTime;
-    const updateRandomTraffic = () => {
-      const randomSnap = getRandomSnapshot(lastRandomTimeRef.current, 12);
-      setSnapshot(randomSnap);
-      setUpdateCount(prev => prev + 1);
-    };
-
-    randomUpdateRef.current = window.setInterval(updateRandomTraffic, 2000);
-    updateRandomTraffic();
-
-    return () => {
-      if (randomUpdateRef.current !== null) {
-        clearInterval(randomUpdateRef.current);
-      }
-    };
-  }, [isPlaying, isDraggingSlider, currentTime]);
-
-  useEffect(() => {
-    if (!isDraggingSlider) {
-      lastRandomTimeRef.current = currentTime;
-      applyTimeSnapshot(currentTime);
-    }
-  }, [currentTime, isDraggingSlider, applyTimeSnapshot]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -91,12 +116,12 @@ export default function App() {
         e.preventDefault();
         setCurrentTime(8.5);
         setUpdateCount(0);
-        applyTimeSnapshot(8.5);
+        applySnapshot(8.5);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [applyTimeSnapshot]);
+  }, [applySnapshot]);
 
   return (
     <div style={{
@@ -171,24 +196,7 @@ export default function App() {
             (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0) scale(1)';
           }}
         >
-          <span style={{
-            display: 'inline-block',
-            width: 0,
-            height: 0,
-            borderLeft: isPlaying ? '0' : '8px solid currentColor',
-            borderTop: isPlaying ? '0' : '5px solid transparent',
-            borderBottom: isPlaying ? '0' : '5px solid transparent',
-            ...(isPlaying ? {
-              width: '8px',
-              height: '10px',
-              borderLeft: '3px solid currentColor',
-              borderRight: '3px solid currentColor',
-              borderTop: 'none',
-              borderBottom: 'none',
-              borderRadius: '1px',
-            } : {}),
-          }} />
-          {isPlaying ? '暂停模拟' : '继续模拟'}
+          {isPlaying ? '⏸ 暂停模拟' : '▶ 继续模拟'}
         </button>
 
         <div style={{

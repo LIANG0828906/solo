@@ -12,7 +12,6 @@ const MIN_HOUR = 0;
 const MAX_HOUR = 24;
 const STEP_MINUTES = 15;
 const STEP_HOURS = STEP_MINUTES / 60;
-const TOTAL_STEPS = Math.round((MAX_HOUR - MIN_HOUR) / STEP_HOURS);
 
 function formatTime(hoursFloat: number): string {
   const totalMinutes = Math.round(hoursFloat * 60);
@@ -44,19 +43,25 @@ export function TimeSlider({
 }: TimeSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
 
-  const steps = useMemo(() => {
-    const arr: number[] = [];
-    for (let i = 0; i <= TOTAL_STEPS; i++) {
-      arr.push(MIN_HOUR + i * STEP_HOURS);
+  const hourLabels = useMemo(() => {
+    const labels: number[] = [];
+    for (let h = 0; h <= 24; h++) {
+      labels.push(h);
     }
-    return arr;
+    return labels;
   }, []);
 
-  const majorTicks = useMemo(() => {
-    return steps.filter((_, idx) => idx % 4 === 0);
-  }, [steps]);
+  const minorTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let i = 0; i <= 24 * 4; i++) {
+      const val = i * STEP_HOURS;
+      if (val % 1 !== 0) {
+        ticks.push(val);
+      }
+    }
+    return ticks;
+  }, []);
 
   const snapToStep = useCallback((rawValue: number): number => {
     const snapped = Math.round((rawValue - MIN_HOUR) / STEP_HOURS) * STEP_HOURS + MIN_HOUR;
@@ -125,8 +130,6 @@ export function TimeSlider({
   }, [handlePositionFromEvent, onDragStart, onDragEnd]);
 
   const currentPercent = valueToPercent(currentTime);
-  const hoverPercent = hoveredStep !== null ? valueToPercent(hoveredStep) : null;
-
   const flowColor = getFlowColor(averageFlow);
   const flowLabel = getFlowLabel(averageFlow);
 
@@ -151,106 +154,75 @@ export function TimeSlider({
       left: 0,
       right: 0,
       bottom: 0,
-      padding: '24px 48px 36px',
+      padding: '0 48px 28px',
       pointerEvents: 'auto',
       zIndex: 20,
     }}>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '52px',
+          left: `${currentPercent}%`,
+          transform: 'translateX(-50%)',
+          background: 'rgba(30,41,59,0.9)',
+          borderRadius: '8px',
+          padding: '10px 14px',
+          color: '#ffffff',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          border: '1px solid rgba(148,163,184,0.25)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          zIndex: 5,
+          marginLeft: '48px',
+        }}
+      >
+        <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px', letterSpacing: '0.02em' }}>
+          全城平均流量指数
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{
+            fontSize: '22px',
+            fontWeight: 700,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            color: flowColor,
+            textShadow: `0 0 12px ${flowColor}66`,
+          }}>
+            {averageFlow.toFixed(1)}
+          </span>
+          <span style={{
+            fontSize: '12px',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            background: `${flowColor}22`,
+            color: flowColor,
+            border: `1px solid ${flowColor}44`,
+            fontWeight: 600,
+          }}>
+            {flowLabel}
+          </span>
+        </div>
+      </div>
+
       <div
         ref={trackRef}
         style={{
           position: 'relative',
           width: '100%',
-          height: '80px',
+          height: '24px',
           cursor: isDragging ? 'grabbing' : 'pointer',
           userSelect: 'none',
           touchAction: 'none',
         }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        onMouseMove={(e) => {
-          if (!trackRef.current) return;
-          const rect = trackRef.current.getBoundingClientRect();
-          const percent = ((e.clientX - rect.left) / rect.width) * 100;
-          const value = percentToValue(Math.max(0, Math.min(100, percent)));
-          setHoveredStep(value);
-        }}
-        onMouseLeave={() => setHoveredStep(null)}
       >
-        {hoverPercent !== null && hoveredStep !== null && !isDragging && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '44px',
-              left: `${hoverPercent}%`,
-              transform: 'translateX(-50%)',
-              background: 'rgba(30,41,59,0.9)',
-              color: '#ffffff',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              whiteSpace: 'nowrap',
-              pointerEvents: 'none',
-              border: '1px solid rgba(148,163,184,0.2)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            {formatTime(hoveredStep)}
-          </div>
-        )}
-
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '44px',
-            left: `${currentPercent}%`,
-            transform: 'translateX(-50%)',
-            background: 'rgba(30,41,59,0.9)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            color: '#ffffff',
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-            border: '1px solid rgba(148,163,184,0.25)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            zIndex: 5,
-          }}
-        >
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px', letterSpacing: '0.02em' }}>
-            全城平均流量指数
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
-              fontSize: '22px',
-              fontWeight: 700,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              color: flowColor,
-              textShadow: `0 0 12px ${flowColor}66`,
-            }}>
-              {averageFlow.toFixed(1)}
-            </span>
-            <span style={{
-              fontSize: '12px',
-              padding: '3px 8px',
-              borderRadius: '4px',
-              background: `${flowColor}22`,
-              color: flowColor,
-              border: `1px solid ${flowColor}44`,
-              fontWeight: 600,
-            }}>
-              {flowLabel}
-            </span>
-          </div>
-        </div>
-
         <div
           style={{
             position: 'absolute',
             left: 0,
             right: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            top: '8px',
             height: '8px',
             borderRadius: '4px',
             background: 'rgba(30,41,59,0.85)',
@@ -270,40 +242,52 @@ export function TimeSlider({
           />
         </div>
 
-        {majorTicks.map((tick, idx) => {
+        {minorTicks.map((tick, idx) => {
           const pct = valueToPercent(tick);
-          const isHour = (tick % 1 === 0);
           return (
-            <div key={idx} style={{
+            <div key={`minor-${idx}`} style={{
               position: 'absolute',
               left: `${pct}%`,
-              top: '50%',
+              top: '6px',
+              width: '1px',
+              height: '12px',
+              background: 'rgba(148,163,184,0.25)',
+              transform: 'translateX(-0.5px)',
+              pointerEvents: 'none',
+            }} />
+          );
+        })}
+
+        {hourLabels.map((hour) => {
+          const pct = valueToPercent(hour);
+          return (
+            <div key={`hour-${hour}`} style={{
+              position: 'absolute',
+              left: `${pct}%`,
+              top: 0,
               transform: 'translateX(-50%)',
               pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
             }}>
               <div style={{
-                width: isHour ? '2px' : '1px',
-                height: isHour ? '18px' : '10px',
-                background: 'rgba(148,163,184,0.5)',
-                margin: '0 auto',
-                position: 'relative',
-                top: isHour ? '14px' : '10px',
+                width: '2px',
+                height: '16px',
+                background: 'rgba(203,213,225,0.5)',
+                marginTop: '4px',
               }} />
-              {isHour && (
-                <div style={{
-                  position: 'absolute',
-                  top: '34px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'rgba(203,213,225,0.85)',
-                  fontSize: '11px',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                }}>
-                  {formatTime(tick)}
-                </div>
-              )}
+              <div style={{
+                color: 'rgba(203,213,225,0.8)',
+                fontSize: '10px',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                marginTop: '2px',
+                lineHeight: 1,
+              }}>
+                {hour.toString().padStart(2, '0')}
+              </div>
             </div>
           );
         })}
@@ -311,17 +295,17 @@ export function TimeSlider({
         <div
           style={{
             position: 'absolute',
-            top: '50%',
+            top: '4px',
             left: `${currentPercent}%`,
-            transform: 'translate(-50%, -50%)',
-            width: '22px',
-            height: '22px',
+            transform: 'translate(-50%, 0)',
+            width: '18px',
+            height: '18px',
             borderRadius: '50%',
             background: '#ffffff',
             border: '3px solid #64748b',
             boxShadow: isDragging
-              ? '0 0 0 8px rgba(255,255,255,0.15), 0 4px 16px rgba(0,0,0,0.4)'
-              : '0 0 0 4px rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.3)',
+              ? '0 0 0 6px rgba(255,255,255,0.15), 0 4px 16px rgba(0,0,0,0.4)'
+              : '0 0 0 3px rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.3)',
             transition: isDragging ? 'none' : 'box-shadow 0.2s ease-out',
             pointerEvents: 'none',
             zIndex: 3,
@@ -333,7 +317,7 @@ export function TimeSlider({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: '8px',
+        marginTop: '6px',
         padding: '0 4px',
       }}>
         <div style={{

@@ -90,7 +90,7 @@ function RoadSegment({ road, targetFlow, targetWidth, targetColor, transitionMs 
     currentColorRef.current = newColor;
 
     if (meshRef.current) {
-      meshRef.current.scale.set(length / 1, newWidth, 0.8);
+      meshRef.current.scale.set(length, newWidth, 0.8);
       if (materialRef.current) {
         materialRef.current.color.copy(newColor);
         materialRef.current.emissive.copy(newColor);
@@ -122,21 +122,35 @@ interface IntersectionMarkerProps {
 
 function IntersectionMarker({ position }: IntersectionMarkerProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const startRef = useRef(performance.now());
+  const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const clockRef = useRef(0);
+  const baseScale = 4;
 
-  useFrame(() => {
+  useFrame((_, delta) => {
+    clockRef.current += delta;
+
     if (meshRef.current) {
-      const elapsed = (performance.now() - startRef.current) / 1000;
-      const pulse = 1 + 0.35 * Math.sin(elapsed * Math.PI);
-      const base = 4;
-      meshRef.current.scale.setScalar(base * pulse);
+      const t = clockRef.current;
+      const pulse = 1 + 0.3 * Math.sin(t * Math.PI);
+      meshRef.current.scale.setScalar(baseScale * pulse);
+    }
+
+    if (materialRef.current) {
+      const t = clockRef.current;
+      const opacityPulse = 0.55 + 0.4 * (0.5 + 0.5 * Math.sin(t * Math.PI));
+      materialRef.current.opacity = opacityPulse;
     }
   });
 
   return (
     <mesh ref={meshRef} position={[position[0], position[1] + 1.2, position[2]]}>
-      <sphereGeometry args={[1, 24, 24]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={0.95} />
+      <sphereGeometry args={[1, 20, 20]} />
+      <meshBasicMaterial
+        ref={materialRef as any}
+        color="#ffffff"
+        transparent
+        opacity={0.95}
+      />
     </mesh>
   );
 }
@@ -152,11 +166,13 @@ function GroundPlane() {
 
 function GridFloor() {
   const gridRef = useRef<THREE.GridHelper>(null);
-  useFrame(() => {
+  useEffect(() => {
     if (gridRef.current) {
-      (gridRef.current.material as THREE.Material).opacity = 0.15;
+      const mat = gridRef.current.material as THREE.Material;
+      mat.transparent = true;
+      mat.opacity = 0.15;
     }
-  });
+  }, []);
   return (
     <gridHelper
       ref={gridRef}
@@ -248,9 +264,9 @@ function CameraController({ controlsEnabled }: CameraControllerProps) {
       ref={controlsRef}
       enabled={controlsEnabled}
       enableDamping
-      dampingFactor={0.08}
-      rotateSpeed={0.005}
-      zoomSpeed={0.005}
+      dampingFactor={0.1}
+      rotateSpeed={0.5}
+      zoomSpeed={0.5}
       panSpeed={0.8}
       minDistance={10}
       maxDistance={500}
