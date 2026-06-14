@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { JSONFile, Low } from 'lowdb';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -19,8 +20,8 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-const file = path.join(__dirname, 'db.json');
-const adapter = new JSONFile<{ recipes: Recipe[]; experiments: Experiment[] }>(file);
+const dbPath = path.join(__dirname, 'db.json');
+const adapter = new JSONFile<{ recipes: Recipe[]; experiments: Experiment[] }>(dbPath);
 const db = new Low(adapter);
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');

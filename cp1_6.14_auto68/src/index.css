@@ -12,3 +12,32 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f5f3ef;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s ease-out;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.ReactCrop {
+  max-width: 100%;
+}
+
+.ReactCrop__image {
+  max-height: 55vh;
+  object-fit: contain;
+}
