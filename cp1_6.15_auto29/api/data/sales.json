@@ -1,0 +1,47 @@
+[
+  {
+    "id": "sale-001",
+    "items": [
+      { "productId": "prod-001", "productName": "可口可乐", "quantity": 3, "unitPrice": 3.5, "subtotal": 10.5 },
+      { "productId": "prod-004", "productName": "奥利奥饼干", "quantity": 1, "unitPrice": 9.9, "subtotal": 9.9 }
+    ],
+    "totalAmount": 20.4,
+    "createdAt": "2026-06-14T09:30:00.000Z"
+  },
+  {
+    "id": "sale-002",
+    "items": [
+      { "productId": "prod-002", "productName": "农夫山泉", "quantity": 2, "unitPrice": 2.0, "subtotal": 4.0 },
+      { "productId": "prod-003", "productName": "乐事薯片", "quantity": 2, "unitPrice": 7.9, "subtotal": 15.8 }
+    ],
+    "totalAmount": 19.8,
+    "createdAt": "2026-06-14T11:15:00.000Z"
+  },
+  {
+    "id": "sale-003",
+    "items": [
+      { "productId": "prod-005", "productName": "舒肤佳香皂", "quantity": 1, "unitPrice": 6.8, "subtotal": 6.8 },
+      { "productId": "prod-006", "productName": "维达纸巾", "quantity": 3, "unitPrice": 5.9, "subtotal": 17.7 }
+    ],
+    "totalAmount": 24.5,
+    "createdAt": "2026-06-14T14:20:00.000Z"
+  },
+  {
+    "id": "sale-004",
+    "items": [
+      { "productId": "prod-007", "productName": "红牛功能饮料", "quantity": 2, "unitPrice": 6.0, "subtotal": 12.0 }
+    ],
+    "totalAmount": 12.0,
+    "createdAt": "2026-06-15T08:45:00.000Z"
+  },
+  {
+    "id": "sale-005",
+    "items": [
+      { "productId": "prod-010", "productName": "旺旺雪饼", "quantity": 2, "unitPrice": 5.0, "subtotal": 10.0 },
+      { "productId": "prod-001", "productName": "可口可乐", "quantity": 1, "unitPrice": 3.5, "subtotal": 3.5 },
+      { "productId": "prod-008", "productName": "士力架巧克力", "quantity": 1, "unitPrice": 6.5, "subtotal": 6.5 }
+    ],
+    "totalAmount": 20.0,
+    "createdAt": "2026-06-15T10:30:00.000Z"
+  }
+]
