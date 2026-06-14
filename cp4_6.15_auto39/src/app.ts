@@ -150,11 +150,11 @@ class ArtStyleApp {
       .ast-upload {
         border: 2px dashed #4a4a4a;
         border-radius: 12px;
-        padding: 36px 24px;
+        padding: 28px 24px;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
         position: relative;
         overflow: hidden;
       }
@@ -172,19 +172,19 @@ class ArtStyleApp {
         50% { box-shadow: 0 0 0 12px rgba(74, 144, 217, 0); }
       }
       .ast-upload-icon {
-        width: 52px;
-        height: 52px;
-        margin: 0 auto 14px;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 10px;
         color: #a0a0a0;
       }
       .ast-upload-text {
-        font-size: 14px;
+        font-size: 13px;
         color: #a0a0a0;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         font-weight: 500;
       }
       .ast-upload-hint {
-        font-size: 12px;
+        font-size: 11px;
         color: #606060;
       }
       .ast-canvas-wrapper {
@@ -247,7 +247,8 @@ class ArtStyleApp {
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 3px;
+        width: 20px;
+        margin-left: -10px;
         background: transparent;
         cursor: ew-resize;
         z-index: 10;
@@ -265,18 +266,24 @@ class ArtStyleApp {
         width: 2px;
         background: repeating-linear-gradient(
           180deg,
-          #fff,
-          #fff 6px,
+          rgba(255,255,255,0.85),
+          rgba(255,255,255,0.85) 6px,
           transparent 6px,
           transparent 12px
         );
         pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .ast-splitter:hover .ast-splitter-guide,
+      .ast-splitter.active .ast-splitter-guide {
+        opacity: 1;
       }
       .ast-splitter-handle {
         position: absolute;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%) scale(1);
         width: 32px;
         height: 32px;
         background: #fff;
@@ -289,15 +296,14 @@ class ArtStyleApp {
         cursor: ew-resize;
       }
       .ast-splitter-handle:hover {
-        background: #3a7bc8;
-        transform: translate(-50%, -50%) scale(1.1);
-        box-shadow: 0 4px 16px rgba(58, 123, 200, 0.5);
+        background: #3a7bc8 !important;
+        transform: translate(-50%, -50%) scale(1.1) !important;
+        box-shadow: 0 4px 16px rgba(58, 123, 200, 0.5) !important;
       }
-      .ast-splitter-handle:active,
       .ast-splitter-handle.dragging {
-        background: #ff8c42;
-        transform: translate(-50%, -50%) scale(1.05);
-        box-shadow: 0 4px 20px rgba(255, 140, 66, 0.6);
+        background: #ff8c42 !important;
+        transform: translate(-50%, -50%) scale(1.1) !important;
+        box-shadow: 0 4px 20px rgba(255, 140, 66, 0.7) !important;
       }
       .ast-splitter-handle svg {
         width: 14px;
@@ -306,7 +312,6 @@ class ArtStyleApp {
         transition: color 0.2s ease;
       }
       .ast-splitter-handle:hover svg,
-      .ast-splitter-handle:active svg,
       .ast-splitter-handle.dragging svg {
         color: #fff;
       }
@@ -379,23 +384,25 @@ class ArtStyleApp {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
-        font-size: 13px;
-        color: #c0c0c0;
+        margin-bottom: 14px;
+        font-size: 14px;
+        color: #d0d0d0;
         font-weight: 500;
       }
       .ast-param-value {
-        background: rgba(74, 144, 217, 0.2);
-        color: #6ab7ff;
-        padding: 3px 12px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
+        background: rgba(74, 144, 217, 0.25);
+        color: #7abfff;
+        padding: 4px 14px;
+        border-radius: 14px;
+        font-size: 13px;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
+        min-width: 48px;
+        text-align: center;
       }
       .ast-slider {
         position: relative;
-        height: 32px;
+        height: 40px;
         display: flex;
         align-items: center;
         cursor: pointer;
@@ -403,56 +410,58 @@ class ArtStyleApp {
       .ast-slider-track {
         position: relative;
         width: 100%;
-        height: 6px;
+        height: 8px;
         background: #333;
-        border-radius: 3px;
+        border-radius: 4px;
+        overflow: visible;
       }
       .ast-slider-fill {
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        background: linear-gradient(90deg, #888 0%, #4a90d9 100%);
-        border-radius: 3px;
-        box-shadow: 0 0 8px rgba(74, 144, 217, 0.3);
+        background: linear-gradient(90deg, #666 0%, #4a90d9 100%);
+        border-radius: 4px;
+        box-shadow: 0 0 10px rgba(74, 144, 217, 0.25);
       }
       .ast-slider-thumb {
         position: absolute;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         background: #fff;
         border-radius: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(74, 144, 217, 0.3);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(74, 144, 217, 0.4);
         cursor: grab;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         z-index: 2;
       }
       .ast-slider-thumb:hover {
-        box-shadow: 0 3px 12px rgba(74, 144, 217, 0.5), 0 0 0 3px rgba(74, 144, 217, 0.2);
+        box-shadow: 0 4px 14px rgba(74, 144, 217, 0.5), 0 0 0 3px rgba(74, 144, 217, 0.3);
       }
       .ast-slider-thumb:active {
         cursor: grabbing;
-        transform: translate(-50%, -50%) scale(1.15);
+        transform: translate(-50%, -50%) scale(1.2);
       }
       .ast-slider-tooltip {
         position: absolute;
-        top: -8px;
+        top: -10px;
         left: 50%;
         transform: translate(-50%, -100%);
-        background: #4a90d9;
+        background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
         color: #fff;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
         white-space: nowrap;
         pointer-events: none;
         opacity: 0;
-        transition: opacity 0.15s ease;
+        transition: opacity 0.15s ease, transform 0.15s ease;
         font-variant-numeric: tabular-nums;
-        box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
+        box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
+        z-index: 5;
       }
       .ast-slider-tooltip::after {
         content: '';
@@ -460,11 +469,12 @@ class ArtStyleApp {
         top: 100%;
         left: 50%;
         transform: translateX(-50%);
-        border: 4px solid transparent;
-        border-top-color: #4a90d9;
+        border: 5px solid transparent;
+        border-top-color: #357abd;
       }
       .ast-slider:hover .ast-slider-tooltip {
         opacity: 1;
+        transform: translate(-50%, calc(-100% - 2px));
       }
       .ast-actions-row {
         display: flex;
@@ -597,74 +607,110 @@ class ArtStyleApp {
       }
       @media (max-width: 480px) {
         #app {
-          padding: 16px 12px;
+          padding: 12px 10px;
+          align-items: flex-start;
         }
         .ast-card {
-          padding: 20px 14px;
+          padding: 16px 12px;
           border-radius: 12px;
         }
         .ast-title {
-          font-size: 20px;
+          font-size: 18px;
         }
         .ast-subtitle {
-          font-size: 12px;
-          margin-bottom: 20px;
+          font-size: 11px;
+          margin-bottom: 16px;
         }
         .ast-upload {
-          padding: 24px 14px;
-          margin-bottom: 18px;
+          padding: 18px 12px;
+          margin-bottom: 14px;
         }
         .ast-upload-icon {
-          width: 42px;
-          height: 42px;
-          margin-bottom: 10px;
+          width: 36px;
+          height: 36px;
+          margin-bottom: 8px;
         }
         .ast-upload-text {
-          font-size: 13px;
+          font-size: 12px;
+        }
+        .ast-upload-hint {
+          font-size: 10px;
         }
         .ast-canvas-container {
           flex-direction: column;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
         }
         .ast-canvas-box {
           width: 100%;
-          max-width: 340px;
+          max-width: 320px;
         }
         .ast-canvas-box canvas {
           width: 100%;
           height: auto;
         }
         .ast-canvas-wrapper {
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
         .ast-style-switcher {
-          margin-bottom: 18px;
+          margin-bottom: 16px;
         }
         .ast-style-btn {
-          padding: 8px 18px;
+          padding: 8px 14px;
           font-size: 12px;
           flex: 1;
         }
         .ast-params {
-          padding: 16px;
-          margin-bottom: 18px;
+          padding: 14px;
+          margin-bottom: 16px;
         }
         .ast-param-row {
-          margin-bottom: 18px;
+          margin-bottom: 16px;
+        }
+        .ast-param-label {
+          font-size: 12px;
+          margin-bottom: 10px;
+        }
+        .ast-param-value {
+          font-size: 11px;
+          padding: 3px 10px;
+        }
+        .ast-slider {
+          height: 32px;
+        }
+        .ast-slider-track {
+          height: 6px;
+        }
+        .ast-slider-thumb {
+          width: 20px;
+          height: 20px;
         }
         .ast-actions-row {
           flex-direction: column;
           align-items: stretch;
-          gap: 10px;
+          gap: 8px;
         }
         .ast-btn {
           justify-content: center;
           width: 100%;
+          padding: 10px 16px;
+          font-size: 12px;
         }
         .ast-toggle-wrap {
           justify-content: center;
-          padding: 10px;
+          padding: 8px;
+          order: 3;
+        }
+        .ast-compare-hint {
+          font-size: 10px;
+          padding: 4px 10px;
+          bottom: 8px;
+        }
+        .ast-canvas-label {
+          font-size: 10px;
+          padding: 3px 8px;
+          top: 6px;
+          left: 6px;
         }
       }
     `;
@@ -1350,110 +1396,232 @@ class ArtStyleApp {
     const levels = Math.max(4, colorCount);
     const step = 256 / levels;
 
-    const quantized = new Uint8ClampedArray(srcData.length);
-    for (let i = 0; i < srcData.length; i += 4) {
-      quantized[i] = Math.min(255, Math.floor(srcData[i] / step) * step + step / 2);
-      quantized[i + 1] = Math.min(255, Math.floor(srcData[i + 1] / step) * step + step / 2);
-      quantized[i + 2] = Math.min(255, Math.floor(srcData[i + 2] / step) * step + step / 2);
-      quantized[i + 3] = srcData[i + 3];
-    }
-
     const gray = new Float32Array(w * h);
     for (let i = 0, j = 0; i < srcData.length; i += 4, j++) {
       gray[j] = 0.299 * srcData[i] + 0.587 * srcData[i + 1] + 0.114 * srcData[i + 2];
     }
 
-    const out = ctx.createImageData(w, h);
-    const outData = out.data;
-    const temp = new Uint8ClampedArray(srcData.length);
-    temp.set(srcData);
+    const smoothR = Math.max(1, Math.floor(brushSize * 0.6));
+    const gx = new Float32Array(w * h);
+    const gy = new Float32Array(w * h);
+    const edgeStrength = new Float32Array(w * h);
 
-    const bs = Math.max(2, brushSize);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = y * w + x;
+        const ix1 = gray[idx - 1], ix2 = gray[idx + 1];
+        const iy1 = gray[idx - w], iy2 = gray[idx + w];
+        const ixy1 = gray[idx - w - 1], ixy2 = gray[idx - w + 1];
+        const ixy3 = gray[idx + w - 1], ixy4 = gray[idx + w + 1];
+
+        const dx = -ixy1 + ixy2 - 2 * ix1 + 2 * ix2 - ixy3 + ixy4;
+        const dy = -ixy1 - 2 * iy1 - ixy2 + ixy3 + 2 * iy2 + ixy4;
+        gx[idx] = dx;
+        gy[idx] = dy;
+        edgeStrength[idx] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
+    const Jxx = new Float32Array(w * h);
+    const Jyy = new Float32Array(w * h);
+    const Jxy = new Float32Array(w * h);
+
+    for (let y = smoothR; y < h - smoothR; y++) {
+      for (let x = smoothR; x < w - smoothR; x++) {
+        let xx = 0, yy = 0, xy = 0, wt = 0;
+        for (let dy = -smoothR; dy <= smoothR; dy++) {
+          for (let dx = -smoothR; dx <= smoothR; dx++) {
+            const nx = x + dx, ny = y + dy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > smoothR) continue;
+            const wv = 1 - dist / smoothR;
+            const nidx = ny * w + nx;
+            xx += gx[nidx] * gx[nidx] * wv;
+            yy += gy[nidx] * gy[nidx] * wv;
+            xy += gx[nidx] * gy[nidx] * wv;
+            wt += wv;
+          }
+        }
+        const idx = y * w + x;
+        Jxx[idx] = xx / wt;
+        Jyy[idx] = yy / wt;
+        Jxy[idx] = xy / wt;
+      }
+    }
+
+    const angleField = new Float32Array(w * h);
+    const coherency = new Float32Array(w * h);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
-        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, weight = 0;
-        for (let dy = -bs; dy <= bs; dy++) {
-          for (let dx = -bs; dx <= bs; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-            const nidx = ny * w + nx;
-            const gradDiff = Math.abs(gray[idx] - gray[nidx]);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const gw = Math.max(0, 1 - dist / bs) * Math.max(0, 1 - gradDiff / 100);
-            if (gw <= 0) continue;
-            const pi = nidx * 4;
-            rSum += quantized[pi] * gw;
-            gSum += quantized[pi + 1] * gw;
-            bSum += quantized[pi + 2] * gw;
-            aSum += quantized[pi + 3] * gw;
-            weight += gw;
-          }
-        }
-        if (weight > 0) {
-          const oi = idx * 4;
-          temp[oi] = rSum / weight;
-          temp[oi + 1] = gSum / weight;
-          temp[oi + 2] = bSum / weight;
-          temp[oi + 3] = aSum / weight;
+        const jxx = Jxx[idx], jyy = Jyy[idx], jxy = Jxy[idx];
+        const trace = jxx + jyy;
+        const det = jxx * jyy - jxy * jxy;
+        const disc = Math.sqrt(Math.max(0, trace * trace / 4 - det));
+        const lambda1 = trace / 2 + disc;
+        const lambda2 = trace / 2 - disc;
+        coherency[idx] = trace > 0.1 ? (lambda1 - lambda2) / (lambda1 + lambda2 + 0.001) : 0;
+
+        if (Math.abs(jxy) < 0.001 && Math.abs(jxx - jyy) < 0.001) {
+          angleField[idx] = Math.random() * Math.PI;
+        } else {
+          const theta = 0.5 * Math.atan2(2 * jxy, jxx - jyy);
+          angleField[idx] = theta + Math.PI / 2;
         }
       }
     }
 
-    const strokeCount = Math.floor(w * h * strokeDensity * 0.002);
-    for (let s = 0; s < strokeCount; s++) {
-      const sx = Math.floor(Math.random() * w);
-      const sy = Math.floor(Math.random() * h);
-      const si = (sy * w + sx) * 4;
-      if (temp[si + 3] < 10) continue;
+    const base = new Float32Array(srcData.length);
+    const bs = Math.max(1, brushSize * 0.7);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, wt = 0;
+        const angle = angleField[idx];
+        const coh = coherency[idx];
+        const elong = 1.5 + coh * 2.5;
+        const br = bs;
+        const bl = bs * elong;
+        const cosA = Math.cos(angle), sinA = Math.sin(angle);
 
-      const gx = (sx > 0 ? gray[sy * w + sx - 1] : gray[sy * w + sx]) -
-        (sx < w - 1 ? gray[sy * w + sx + 1] : gray[sy * w + sx]);
-      const gy = (sy > 0 ? gray[(sy - 1) * w + sx] : gray[sy * w + sx]) -
-        (sy < h - 1 ? gray[(sy + 1) * w + sx] : gray[sy * w + sx]);
-      const angle = Math.atan2(gy, gx) + (Math.random() - 0.5) * 0.5;
-
-      const sr = bs * (0.5 + Math.random() * 0.8);
-      const sl = sr * (1.5 + Math.random() * 2.5);
-      const r = temp[si], g = temp[si + 1], b = temp[si + 2];
-      const alpha = 0.35 + Math.random() * 0.35;
-
-      const cosA = Math.cos(angle), sinA = Math.sin(angle);
-      for (let dy = -Math.ceil(sl); dy <= Math.ceil(sl); dy++) {
-        for (let dx = -Math.ceil(sr); dx <= Math.ceil(sr); dx++) {
-          const rx = dx * cosA + dy * sinA;
-          const ry = -dx * sinA + dy * cosA;
-          const dist = (rx * rx) / (sr * sr) + (ry * ry) / (sl * sl);
-          if (dist > 1) continue;
-          const nx = sx + dx, ny = sy + dy;
-          if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-          const falloff = 1 - dist;
-          const oi = (ny * w + nx) * 4;
-          const a = alpha * falloff * falloff;
-          outData[oi] = outData[oi] ? outData[oi] * (1 - a) + r * a : r;
-          outData[oi + 1] = outData[oi + 1] ? outData[oi + 1] * (1 - a) + g * a : g;
-          outData[oi + 2] = outData[oi + 2] ? outData[oi + 2] * (1 - a) + b * a : b;
-          outData[oi + 3] = 255;
+        for (let dy = -Math.ceil(bl); dy <= Math.ceil(bl); dy++) {
+          for (let dx = -Math.ceil(br); dx <= Math.ceil(br); dx++) {
+            const rx = dx * cosA + dy * sinA;
+            const ry = -dx * sinA + dy * cosA;
+            const dist = (rx * rx) / (br * br) + (ry * ry) / (bl * bl);
+            if (dist > 1) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            const falloff = (1 - dist) * (1 - dist);
+            const nidx = (ny * w + nx) * 4;
+            rSum += srcData[nidx] * falloff;
+            gSum += srcData[nidx + 1] * falloff;
+            bSum += srcData[nidx + 2] * falloff;
+            aSum += srcData[nidx + 3] * falloff;
+            wt += falloff;
+          }
         }
+        if (wt > 0) {
+          const oi = idx * 4;
+          base[oi] = rSum / wt;
+          base[oi + 1] = gSum / wt;
+          base[oi + 2] = bSum / wt;
+          base[oi + 3] = aSum / wt;
+        } else {
+          const oi = idx * 4;
+          base[oi] = srcData[oi];
+          base[oi + 1] = srcData[oi + 1];
+          base[oi + 2] = srcData[oi + 2];
+          base[oi + 3] = srcData[oi + 3];
+        }
+      }
+    }
+
+    const quantized = new Uint8ClampedArray(srcData.length);
+    for (let i = 0; i < base.length; i += 4) {
+      quantized[i] = Math.min(255, Math.floor(base[i] / step) * step + step / 2);
+      quantized[i + 1] = Math.min(255, Math.floor(base[i + 1] / step) * step + step / 2);
+      quantized[i + 2] = Math.min(255, Math.floor(base[i + 2] / step) * step + step / 2);
+      quantized[i + 3] = base[i + 3];
+    }
+
+    const out = ctx.createImageData(w, h);
+    const outData = out.data;
+    for (let i = 0; i < quantized.length; i++) {
+      outData[i] = quantized[i];
+    }
+
+    const strokeLayers = 3;
+    const totalStrokes = Math.floor(w * h * strokeDensity * 0.015);
+
+    for (let layer = 0; layer < strokeLayers; layer++) {
+      const layerAlpha = 0.55 - layer * 0.12;
+      const sizeMul = 0.7 + layer * 0.25;
+      const count = Math.floor(totalStrokes / strokeLayers * (1 + layer * 0.3));
+
+      for (let s = 0; s < count; s++) {
+        const sx = Math.floor(Math.random() * w);
+        const sy = Math.floor(Math.random() * h);
+        const idx = sy * w + sx;
+        const si = idx * 4;
+        if (quantized[si + 3] < 10) continue;
+
+        const baseAngle = angleField[idx];
+        const coh = coherency[idx];
+        const angleJitter = (1 - coh) * 0.8 + 0.15;
+        const angle = baseAngle + (Math.random() - 0.5) * angleJitter * Math.PI;
+
+        const br = brushSize * sizeMul * (0.6 + Math.random() * 0.8);
+        const bl = br * (2 + Math.random() * 2 + coh * 2);
+
+        const sr = Math.max(1, Math.floor(br));
+        const sl = Math.max(1, Math.floor(bl));
+
+        const baseR = quantized[si];
+        const baseG = quantized[si + 1];
+        const baseB = quantized[si + 2];
+
+        const highlight = 0.08 + Math.random() * 0.1;
+        const r = Math.min(255, baseR * (1 + highlight));
+        const g = Math.min(255, baseG * (1 + highlight * 0.8));
+        const b = Math.min(255, baseB * (1 + highlight * 0.5));
+
+        const alpha = layerAlpha * (0.4 + Math.random() * 0.5);
+
+        const cosA = Math.cos(angle), sinA = Math.sin(angle);
+        for (let dy = -sl; dy <= sl; dy++) {
+          for (let dx = -sr; dx <= sr; dx++) {
+            const rx = dx * cosA + dy * sinA;
+            const ry = -dx * sinA + dy * cosA;
+            const normX = rx / br;
+            const normY = ry / bl;
+            const dist = normX * normX + normY * normY;
+            if (dist > 1) continue;
+            const nx = sx + dx, ny = sy + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+            const falloff = 1 - dist;
+            const edgeFade = Math.pow(falloff, 1.5);
+
+            const oi = (ny * w + nx) * 4;
+            const a = alpha * edgeFade * edgeFade;
+            if (a <= 0) continue;
+
+            const inv = 1 - a;
+            outData[oi] = outData[oi] * inv + r * a;
+            outData[oi + 1] = outData[oi + 1] * inv + g * a;
+            outData[oi + 2] = outData[oi + 2] * inv + b * a;
+          }
+        }
+      }
+    }
+
+    const detail = new Float32Array(w * h);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = y * w + x;
+        let sum = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nidx = (y + dy) * w + (x + dx);
+            sum += gray[nidx];
+          }
+        }
+        detail[idx] = Math.abs(gray[idx] - sum / 9);
       }
     }
 
     for (let i = 0; i < outData.length; i += 4) {
-      if (outData[i + 3] === 0) {
-        outData[i] = temp[i];
-        outData[i + 1] = temp[i + 1];
-        outData[i + 2] = temp[i + 2];
-        outData[i + 3] = temp[i + 3];
-      } else {
-        const a = 0.75;
-        outData[i] = outData[i] * a + temp[i] * (1 - a);
-        outData[i + 1] = outData[i + 1] * a + temp[i + 1] * (1 - a);
-        outData[i + 2] = outData[i + 2] * a + temp[i + 2] * (1 - a);
-      }
-      const impasto = (Math.random() - 0.5) * 12;
+      const idx = i / 4;
+      const detAmt = detail[idx] / 40 * strokeDensity;
+
+      const noise1 = (Math.random() - 0.5) * 6;
+      const noise2 = (Math.sin(idx * 0.003 + idx * 0.002) * 0.5 + Math.random() * 0.5 - 0.25) * 4;
+      const impasto = (noise1 + noise2) * (1 + detAmt * 0.5);
+
       outData[i] = Math.max(0, Math.min(255, outData[i] + impasto));
-      outData[i + 1] = Math.max(0, Math.min(255, outData[i + 1] + impasto));
-      outData[i + 2] = Math.max(0, Math.min(255, outData[i + 2] + impasto));
+      outData[i + 1] = Math.max(0, Math.min(255, outData[i + 1] + impasto * 0.95));
+      outData[i + 2] = Math.max(0, Math.min(255, outData[i + 2] + impasto * 0.9));
     }
 
     return out;
