@@ -1,376 +1,436 @@
-import { randomUUID } from 'crypto'
+import type {
+  Member,
+  Book,
+  ReadingProgress,
+  CheckIn,
+  Topic,
+  Reply,
+  Event,
+  Vote,
+} from '../../src/types';
 
-export interface Book {
-  id: string
-  title: string
-  author: string
-  coverUrl: string
-  description: string
-  isbn: string
-  addedAt: string
-  totalChapters: number
+let idCounter = 1000;
+const genId = (prefix: string) => `${prefix}_${++idCounter}_${Date.now().toString(36)}`;
+
+const MEMBER_AVATARS = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=100&h=100&fit=crop&crop=face',
+];
+
+const MEMBER_NAMES = [
+  '林墨', '陈书', '苏雪', '王砚', '柳清',
+  '周言', '白薇', '沈砚', '许念', '郑然',
+];
+
+function generateMembers(): Member[] {
+  return MEMBER_NAMES.map((name, i) => ({
+    id: `m_${i + 1}`,
+    name,
+    avatar: MEMBER_AVATARS[i],
+    role: i === 0 ? 'admin' : 'member',
+  }));
 }
 
-export interface Member {
-  id: string
-  name: string
-  avatar: string
+const BOOK_TEMPLATES = [
+  { title: '百年孤独', author: '加西亚·马尔克斯', chapters: 20, isbn: '9787544253994', category: '魔幻现实' },
+  { title: '红楼梦', author: '曹雪芹', chapters: 120, isbn: '9787020002207', category: '古典文学' },
+  { title: '三体', author: '刘慈欣', chapters: 36, isbn: '9787536692930', category: '科幻' },
+  { title: '活着', author: '余华', chapters: 12, isbn: '9787506365437', category: '现代文学' },
+  { title: '追风筝的人', author: '卡勒德·胡赛尼', chapters: 25, isbn: '9787208061644', category: '外国文学' },
+  { title: '小王子', author: '圣埃克苏佩里', chapters: 27, isbn: '9787020042494', category: '童话' },
+  { title: '1984', author: '乔治·奥威尔', chapters: 24, isbn: '9787540415457', category: '反乌托邦' },
+  { title: '围城', author: '钱钟书', chapters: 9, isbn: '9787020024759', category: '现代文学' },
+  { title: '平凡的世界', author: '路遥', chapters: 54, isbn: '9787530209561', category: '现代文学' },
+  { title: '了不起的盖茨比', author: '菲茨杰拉德', chapters: 9, isbn: '9787020071005', category: '外国文学' },
+  { title: '挪威的森林', author: '村上春树', chapters: 11, isbn: '9787544281157', category: '外国文学' },
+  { title: '白夜行', author: '东野圭吾', chapters: 13, isbn: '9787544258609', category: '推理' },
+  { title: '人类简史', author: '尤瓦尔·赫拉利', chapters: 20, isbn: '9787508647357', category: '历史' },
+  { title: '局外人', author: '加缪', chapters: 5, isbn: '9787540468309', category: '存在主义' },
+  { title: '月亮与六便士', author: '毛姆', chapters: 58, isbn: '9787540483791', category: '外国文学' },
+];
+
+const BOOK_COVERS = [
+  'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=300&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1589998059171-988d887df646?w=300&h=400&fit=crop',
+];
+
+function pickRandom<T>(arr: T[], seed: number): T {
+  return arr[seed % arr.length];
 }
 
-export interface ReadingProgress {
-  id: string
-  memberId: string
-  bookId: string
-  currentChapter: number
-  totalChapters: number
-  status: 'not_started' | 'reading' | 'completed'
-  updatedAt: string
+function generateBooks(members: Member[]): Book[] {
+  const books: Book[] = [];
+  for (let i = 0; i < 100; i++) {
+    const tpl = BOOK_TEMPLATES[i % BOOK_TEMPLATES.length];
+    const numReaders = 2 + (i % 8);
+    const readerIds = members
+      .sort(() => (i * 7) % 3 - 1)
+      .slice(0, numReaders)
+      .map(m => m.id);
+    books.push({
+      id: `b_${i + 1}`,
+      title: `${tpl.title}${i > BOOK_TEMPLATES.length - 1 ? `（第${Math.floor(i / BOOK_TEMPLATES.length) + 1}季）` : ''}`,
+      author: tpl.author,
+      coverUrl: BOOK_COVERS[i % BOOK_COVERS.length],
+      description: `${tpl.category}经典作品。故事围绕深刻的主题展开，以细腻的笔触刻画了人物内心世界与时代命运的交织，是一部值得反复品读的佳作。`,
+      isbn: tpl.isbn,
+      addedAt: new Date(Date.now() - i * 86400000 * 3).toISOString(),
+      totalChapters: tpl.chapters,
+      readerIds,
+    });
+  }
+  return books;
 }
 
-export interface CheckIn {
-  id: string
-  memberId: string
-  bookId: string
-  chapter: number
-  thought: string
-  createdAt: string
+function generateProgress(books: Book[], members: Member[]): ReadingProgress[] {
+  const progress: ReadingProgress[] = [];
+  books.forEach((book, bi) => {
+    book.readerIds.forEach((mid, mi) => {
+      const seed = bi * 7 + mi * 3;
+      const ratio = (seed % 100) / 100;
+      const currentChapter = ratio < 0.1 ? 0 : Math.max(1, Math.floor(book.totalChapters * ratio));
+      const status = currentChapter === 0
+        ? 'not_started'
+        : currentChapter >= book.totalChapters
+          ? 'completed'
+          : 'reading';
+      progress.push({
+        memberId: mid,
+        bookId: book.id,
+        currentChapter,
+        totalChapters: book.totalChapters,
+        status,
+        lastUpdateAt: new Date(Date.now() - (seed % 7) * 86400000).toISOString(),
+      });
+    });
+  });
+  return progress;
 }
 
-export interface Topic {
-  id: string
-  bookId: string
-  title: string
-  creatorId: string
-  createdAt: string
+function generateCheckIns(books: Book[], members: Member[]): CheckIn[] {
+  const checkIns: CheckIn[] = [];
+  let cid = 1;
+  books.slice(0, 20).forEach((book, bi) => {
+    book.readerIds.forEach((mid, mi) => {
+      if ((bi + mi) % 3 === 0) {
+        const seed = bi * 11 + mi * 5;
+        const chapter = 1 + (seed % Math.max(1, book.totalChapters - 1));
+        checkIns.push({
+          id: `c_${cid++}`,
+          memberId: mid,
+          bookId: book.id,
+          chapter,
+          thought: seed % 2 === 0
+            ? '这一章的描写很细腻，人物内心的挣扎写得非常动人。'
+            : '情节推进出乎意料，读完久久不能平静。',
+          createdAt: new Date(Date.now() - (seed % 14) * 86400000).toISOString(),
+        });
+      }
+    });
+  });
+  return checkIns;
 }
 
-export interface Reply {
-  id: string
-  topicId: string
-  memberId: string
-  content: string
-  mentionIds: string[]
-  createdAt: string
-}
+const TOPIC_TITLES = [
+  '第一章：开篇的艺术手法分析',
+  '关于主角性格发展的讨论',
+  '书中象征意象解读',
+  '时代背景与人物命运',
+  '结局的开放性思考',
+  '人物关系深度剖析',
+  '语言风格与叙事技巧',
+  '最打动你的一个片段',
+];
 
-export interface BookEvent {
-  id: string
-  bookId: string
-  chapterRange: string
-  suggestedTime: string
-  adjustedTime: string
-  status: 'suggested' | 'scheduled' | 'completed'
-  createdAt: string
-}
-
-export interface Vote {
-  id: string
-  eventId: string
-  memberId: string
-  timeOption: string
-  createdAt: string
-}
-
-const bookTitles = [
-  '百年孤独', '活着', '红楼梦', '三体', '围城',
-  '平凡的世界', '白夜行', '小王子', '追风筝的人', '挪威的森林',
-  '人类简史', '时间简史', '1984', '动物农场', '了不起的盖茨比',
-  '杀死一只知更鸟', '霍乱时期的爱情', '飘', '傲慢与偏见', '简爱',
-  '呼啸山庄', '巴黎圣母院', '悲惨世界', '老人与海', '麦田里的守望者',
-  '瓦尔登湖', '苏菲的世界', '月亮与六便士', '局外人', '变形记',
-  '战争与和平', '安娜·卡列尼娜', '罪与罚', '卡拉马佐夫兄弟', '堂吉诃德',
-  '神曲', '哈姆雷特', '浮士德', '沉思录', '理想国',
-  '乡土中国', '万历十五年', '明朝那些事儿', '丝绸之路', '枪炮、病菌与钢铁',
-  '乌合之众', '自私的基因', '思考，快与慢', '黑天鹅', '反脆弱',
-  '原则', '穷查理宝典', '富爸爸穷爸爸', '从零到一', '创新者的窘境',
-  '经济学原理', '国富论', '资本论', '博弈论与经济行为', '非暴力沟通',
-  '影响力', '刻意练习', '心流', '少有人走的路', '被讨厌的勇气',
-  '当下的力量', '禅与摩托车维修艺术', '崩溃', '基业长青', '高效能人士的七个习惯',
-  '深度工作', '原子习惯', '终身成长', '刻意练习', '动机与人格',
-  '社会心理学', '亲密关系', '爱的艺术', '存在与时间', '西西弗神话',
-  '查拉图斯特拉如是说', '存在与虚无', '纯粹理性批判', '现象学导论', '逻辑哲学论',
-  '道德经', '论语', '庄子', '孟子', '史记',
-  '唐诗三百首', '宋词三百首', '古文观止', '聊斋志异', '儒林外史',
-]
-
-const bookAuthors = [
-  '加西亚·马尔克斯', '余华', '曹雪芹', '刘慈欣', '钱锺书',
-  '路遥', '东野圭吾', '圣埃克苏佩里', '卡勒德·胡赛尼', '村上春树',
-  '尤瓦尔·赫拉利', '斯蒂芬·霍金', '乔治·奥威尔', '乔治·奥威尔', 'F·S·菲茨杰拉德',
-  '哈珀·李', '加西亚·马尔克斯', '玛格丽特·米切尔', '简·奥斯汀', '夏洛蒂·勃朗特',
-  '艾米莉·勃朗特', '维克多·雨果', '维克多·雨果', '欧内斯特·海明威', 'J·D·塞林格',
-  '亨利·梭罗', '乔斯坦·贾德', '毛姆', '阿尔贝·加缪', '弗兰兹·卡夫卡',
-  '列夫·托尔斯泰', '列夫·托尔斯泰', '陀思妥耶夫斯基', '陀思妥耶夫斯基', '塞万提斯',
-  '但丁', '莎士比亚', '歌德', '马可·奥勒留', '柏拉图',
-  '费孝通', '黄仁宇', '当年明月', '彼得·弗兰科潘', '贾雷德·戴蒙德',
-  '古斯塔夫·勒庞', '理查德·道金斯', '丹尼尔·卡尼曼', '纳西姆·塔勒布', '纳西姆·塔勒布',
-  '瑞·达利欧', '彼得·考夫曼', '罗伯特·清崎', '彼得·蒂尔', '克莱顿·克里斯坦森',
-  '曼昆', '亚当·斯密', '卡尔·马克思', '冯·诺依曼', '马歇尔·卢森堡',
-  '罗伯特·西奥迪尼', '安德斯·艾利克森', '米哈里', 'M·斯科特·派克', '岸见一郎',
-  '埃克哈特·托利', '罗伯特·波西格', '贾雷德·戴蒙德', '吉姆·柯林斯', '史蒂芬·柯维',
-  '卡尔·纽波特', '詹姆斯·克利尔', '卡罗尔·德韦克', '安德斯·艾利克森', '马斯洛',
-  '戴维·迈尔斯', '罗兰·米勒', '弗洛姆', '海德格尔', '加缪',
-  '尼采', '萨特', '康德', '胡塞尔', '维特根斯坦',
-  '老子', '孔子', '庄子', '孟子', '司马迁',
-  '蘅塘退士', '朱孝臧', '吴楚材', '蒲松龄', '吴敬梓',
-]
-
-const descriptions = [
-  '一部震撼人心的经典之作，探讨了人类存在的根本问题。',
-  '这本书以独特的视角审视了社会与个人的关系，引人深思。',
-  '作者用细腻的笔触描绘了一个令人难忘的故事，值得一读。',
-  '跨越时空的经典，每一次重读都会有新的感悟。',
-  '这本书改变了无数人看待世界的方式，具有深远的影响力。',
-  '一部充满智慧与洞察的著作，是每个读者的必读书目。',
-  '作者以深刻的人文关怀，书写了动人心弦的篇章。',
-  '这本书以其独特的叙事风格和深刻的主题而广受赞誉。',
-  '一段关于成长与自我发现的旅程，触动了无数读者的心。',
-  '这本书是文学史上的一座丰碑，影响了后世无数作家。',
-]
-
-const memberNames = [
-  '张三', '李四', '王五', '赵六', '孙七',
-  '周八', '吴九', '郑十', '钱一一', '陈二二',
-]
-
-const checkInThoughts = [
-  '这一章写得真好，引人入胜。',
-  '有些地方不太好理解，需要再读一遍。',
-  '作者的视角很独特，给我很大启发。',
-  '故事情节跌宕起伏，让人欲罢不能。',
-  '这段描写太精彩了，忍不住反复品味。',
-  '终于理解了前面的伏笔，豁然开朗。',
-  '人物塑造非常立体，仿佛就活在眼前。',
-  '节奏把握得恰到好处，读起来很舒服。',
-  '这里有个细节很有意思，值得深思。',
-  '读到这里感觉整个人都被打动了。',
-]
-
-function randomDate(start: Date, end: Date): string {
-  const ts = start.getTime() + Math.random() * (end.getTime() - start.getTime())
-  return new Date(ts).toISOString()
-}
-
-function generateISBN(): string {
-  const parts = ['978']
-  for (let g = 0; g < 3; g++) {
-    let seg = ''
-    for (let d = 0; d < 4; d++) {
-      seg += Math.floor(Math.random() * 10)
+function generateTopics(books: Book[], members: Member[]): Topic[] {
+  const topics: Topic[] = [];
+  let tid = 1;
+  let rid = 1;
+  books.slice(0, 15).forEach((book, bi) => {
+    const numTopics = 1 + (bi % 4);
+    for (let t = 0; t < numTopics; t++) {
+      const topicId = `t_${tid++}`;
+      const replies: Reply[] = [];
+      const numReplies = (bi + t) % 5;
+      for (let r = 0; r < numReplies; r++) {
+        const member = pickRandom(members, bi * 3 + t * 5 + r);
+        replies.push({
+          id: `r_${rid++}`,
+          topicId,
+          memberId: member.id,
+          content: r % 2 === 0
+            ? '非常认同这个观点，我在阅读时也有类似的感受。'
+            : '补充一点个人见解，我觉得这个情节还有另一层含义。',
+          mentionIds: r === 1 && numReplies > 2 ? [pickRandom(members, r).id] : [],
+          createdAt: new Date(Date.now() - (numReplies - r) * 3600000).toISOString(),
+        });
+      }
+      const lastReplyAt = replies.length > 0
+        ? replies[replies.length - 1].createdAt
+        : new Date(Date.now() - bi * 86400000).toISOString();
+      topics.push({
+        id: topicId,
+        bookId: book.id,
+        title: TOPIC_TITLES[(bi + t) % TOPIC_TITLES.length],
+        creatorId: pickRandom(members, bi * 3 + t).id,
+        repliesCount: replies.length,
+        lastReplyAt,
+        createdAt: new Date(Date.now() - (bi + t) * 86400000).toISOString(),
+        replies,
+      });
     }
-    parts.push(seg)
-  }
-  return parts.join('-')
+  });
+  return topics;
 }
 
-const books: Book[] = Array.from({ length: 100 }, (_, i) => ({
-  id: randomUUID(),
-  title: bookTitles[i],
-  author: bookAuthors[i],
-  coverUrl: `https://picsum.photos/seed/book${i}/200/280`,
-  description: descriptions[i % descriptions.length],
-  isbn: generateISBN(),
-  addedAt: randomDate(new Date('2024-01-01'), new Date('2025-06-01')),
-  totalChapters: 10 + Math.floor(Math.random() * 30),
-}))
-
-const members: Member[] = Array.from({ length: 10 }, (_, i) => ({
-  id: randomUUID(),
-  name: memberNames[i],
-  avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
-}))
-
-const readingProgress: ReadingProgress[] = []
-for (const member of members) {
-  const bookIndices = new Set<number>()
-  while (bookIndices.size < 8 + Math.floor(Math.random() * 10)) {
-    bookIndices.add(Math.floor(Math.random() * books.length))
-  }
-  for (const bi of bookIndices) {
-    const book = books[bi]
-    const currentChapter = Math.floor(Math.random() * (book.totalChapters + 1))
-    let status: ReadingProgress['status'] = 'not_started'
-    if (currentChapter > 0 && currentChapter < book.totalChapters) status = 'reading'
-    else if (currentChapter >= book.totalChapters) status = 'completed'
-    readingProgress.push({
-      id: randomUUID(),
-      memberId: member.id,
-      bookId: book.id,
-      currentChapter,
-      totalChapters: book.totalChapters,
-      status,
-      updatedAt: randomDate(new Date('2025-01-01'), new Date('2025-06-01')),
-    })
-  }
-}
-
-const checkIns: CheckIn[] = []
-for (let i = 0; i < 60; i++) {
-  const member = members[Math.floor(Math.random() * members.length)]
-  const book = books[Math.floor(Math.random() * books.length)]
-  checkIns.push({
-    id: randomUUID(),
-    memberId: member.id,
-    bookId: book.id,
-    chapter: 1 + Math.floor(Math.random() * book.totalChapters),
-    thought: checkInThoughts[Math.floor(Math.random() * checkInThoughts.length)],
-    createdAt: randomDate(new Date('2025-01-01'), new Date('2025-06-01')),
-  })
-}
-checkIns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-const topics: Topic[] = []
-for (let i = 0; i < 25; i++) {
-  const book = books[Math.floor(Math.random() * books.length)]
-  const creator = members[Math.floor(Math.random() * members.length)]
-  topics.push({
-    id: randomUUID(),
-    bookId: book.id,
-    title: `关于《${book.title}》的讨论：${['人物分析', '主题探讨', '情节讨论', '读后感悟', '精彩摘录'][i % 5]}`,
-    creatorId: creator.id,
-    createdAt: randomDate(new Date('2025-01-01'), new Date('2025-06-01')),
-  })
-}
-
-const replies: Reply[] = []
-for (const topic of topics) {
-  const replyCount = 1 + Math.floor(Math.random() * 5)
-  for (let r = 0; r < replyCount; r++) {
-    const replier = members[Math.floor(Math.random() * members.length)]
-    const mentionCount = Math.random() > 0.5 ? 1 : 0
-    const mentionIds: string[] = []
-    for (let m = 0; m < mentionCount; m++) {
-      const mentioned = members[Math.floor(Math.random() * members.length)]
-      if (mentioned.id !== replier.id) mentionIds.push(mentioned.id)
-    }
-    replies.push({
-      id: randomUUID(),
-      topicId: topic.id,
-      memberId: replier.id,
-      content: ['说得太好了，深有同感！', '我有不同的看法，觉得还可以这样理解。', '这个角度很新颖，学到了。', '补充一点，书中还有类似的情节。', '完全同意，这段确实很精彩。'][r % 5],
-      mentionIds,
-      createdAt: randomDate(new Date(topic.createdAt), new Date('2025-06-15')),
-    })
-  }
-}
-
-const events: BookEvent[] = []
-for (let i = 0; i < 12; i++) {
-  const book = books[Math.floor(Math.random() * books.length)]
-  const startCh = 1 + Math.floor(Math.random() * (book.totalChapters - 3))
-  const endCh = startCh + 2 + Math.floor(Math.random() * 3)
-  const statusOpts: BookEvent['status'][] = ['suggested', 'scheduled', 'completed']
+function generateEvents(books: Book[]): Event[] {
+  const events: Event[] = [];
+  const book = books[0];
+  const timeOptions = [
+    '本周六 14:00-16:00',
+    '本周日 10:00-12:00',
+    '下周六 14:00-16:00',
+  ];
   events.push({
-    id: randomUUID(),
+    id: 'e_1',
     bookId: book.id,
-    chapterRange: `第${startCh}-${Math.min(endCh, book.totalChapters)}章`,
-    suggestedTime: randomDate(new Date('2025-06-10'), new Date('2025-06-20')),
-    adjustedTime: randomDate(new Date('2025-06-15'), new Date('2025-06-30')),
-    status: statusOpts[i % 3],
-    createdAt: randomDate(new Date('2025-05-01'), new Date('2025-06-01')),
-  })
+    chapterRange: `第 1-${Math.floor(book.totalChapters / 2)} 章`,
+    suggestedTime: timeOptions[0],
+    status: 'scheduled',
+    timeOptions,
+    votes: timeOptions.slice(0, 2).map((t, i) => ({
+      memberId: `m_${i + 1}`,
+      timeOption: t,
+      votedAt: new Date().toISOString(),
+    })),
+    createdAt: new Date().toISOString(),
+  });
+  return events;
 }
 
-const votes: Vote[] = []
-for (const ev of events) {
-  const voterCount = 2 + Math.floor(Math.random() * 6)
-  const timeOptions = ['周六上午', '周六下午', '周日上午', '周日下午', '工作日晚上']
-  for (let v = 0; v < voterCount; v++) {
-    const voter = members[Math.floor(Math.random() * members.length)]
-    votes.push({
-      id: randomUUID(),
-      eventId: ev.id,
-      memberId: voter.id,
-      timeOption: timeOptions[Math.floor(Math.random() * timeOptions.length)],
-      createdAt: randomDate(new Date(ev.createdAt), new Date('2025-06-15')),
-    })
+class DataStore {
+  members: Map<string, Member>;
+  books: Map<string, Book>;
+  progress: Map<string, ReadingProgress>;
+  checkIns: Map<string, CheckIn>;
+  topics: Map<string, Topic>;
+  events: Map<string, Event>;
+
+  constructor() {
+    const members = generateMembers();
+    const books = generateBooks(members);
+    const progress = generateProgress(books, members);
+    const checkIns = generateCheckIns(books, members);
+    const topics = generateTopics(books, members);
+    const events = generateEvents(books);
+
+    this.members = new Map(members.map(m => [m.id, m]));
+    this.books = new Map(books.map(b => [b.id, b]));
+    this.progress = new Map(progress.map(p => [`${p.bookId}_${p.memberId}`, p]));
+    this.checkIns = new Map(checkIns.map(c => [c.id, c]));
+    this.topics = new Map(topics.map(t => [t.id, t]));
+    this.events = new Map(events.map(e => [e.id, e]));
+  }
+
+  // Members
+  getMembers(): Member[] {
+    return Array.from(this.members.values());
+  }
+
+  getMember(id: string): Member | undefined {
+    return this.members.get(id);
+  }
+
+  getCurrentMember(): Member {
+    return this.members.get('m_1')!;
+  }
+
+  // Books
+  getBooks(): Book[] {
+    return Array.from(this.books.values());
+  }
+
+  getBook(id: string): Book | undefined {
+    return this.books.get(id);
+  }
+
+  addBook(data: Omit<Book, 'id' | 'addedAt' | 'readerIds'>): Book {
+    const book: Book = {
+      ...data,
+      id: genId('b'),
+      addedAt: new Date().toISOString(),
+      readerIds: [this.getCurrentMember().id],
+    };
+    this.books.set(book.id, book);
+    return book;
+  }
+
+  getBookReaders(bookId: string): Member[] {
+    const book = this.books.get(bookId);
+    if (!book) return [];
+    return book.readerIds.map(id => this.members.get(id)).filter(Boolean) as Member[];
+  }
+
+  // Progress
+  getBookProgress(bookId: string): ReadingProgress[] {
+    return Array.from(this.progress.values()).filter(p => p.bookId === bookId);
+  }
+
+  getProgress(bookId: string, memberId: string): ReadingProgress | undefined {
+    return this.progress.get(`${bookId}_${memberId}`);
+  }
+
+  updateOrCreateProgress(data: Omit<ReadingProgress, 'lastUpdateAt'>): ReadingProgress {
+    const key = `${data.bookId}_${data.memberId}`;
+    const existing = this.progress.get(key);
+    const updated: ReadingProgress = {
+      ...(existing || data),
+      ...data,
+      lastUpdateAt: new Date().toISOString(),
+    };
+    this.progress.set(key, updated);
+    const book = this.books.get(data.bookId);
+    if (book && !book.readerIds.includes(data.memberId)) {
+      book.readerIds.push(data.memberId);
+    }
+    return updated;
+  }
+
+  // CheckIns
+  getBookCheckIns(bookId: string): CheckIn[] {
+    return Array.from(this.checkIns.values())
+      .filter(c => c.bookId === bookId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  addCheckIn(data: Omit<CheckIn, 'id' | 'createdAt'>): CheckIn {
+    const checkIn: CheckIn = {
+      ...data,
+      id: genId('c'),
+      createdAt: new Date().toISOString(),
+    };
+    this.checkIns.set(checkIn.id, checkIn);
+    const book = this.books.get(data.bookId);
+    if (book) {
+      const total = book.totalChapters;
+      const status: ReadingProgress['status'] =
+        data.chapter === 0 ? 'not_started' : data.chapter >= total ? 'completed' : 'reading';
+      this.updateOrCreateProgress({
+        memberId: data.memberId,
+        bookId: data.bookId,
+        currentChapter: data.chapter,
+        totalChapters: total,
+        status,
+      });
+    }
+    return checkIn;
+  }
+
+  // Topics
+  getBookTopics(bookId: string): Topic[] {
+    return Array.from(this.topics.values())
+      .filter(t => t.bookId === bookId)
+      .sort((a, b) => new Date(b.lastReplyAt).getTime() - new Date(a.lastReplyAt).getTime());
+  }
+
+  getTopic(id: string): Topic | undefined {
+    return this.topics.get(id);
+  }
+
+  addTopic(data: Omit<Topic, 'id' | 'repliesCount' | 'lastReplyAt' | 'createdAt' | 'replies'>): Topic {
+    const now = new Date().toISOString();
+    const topic: Topic = {
+      ...data,
+      id: genId('t'),
+      repliesCount: 0,
+      lastReplyAt: now,
+      createdAt: now,
+      replies: [],
+    };
+    this.topics.set(topic.id, topic);
+    return topic;
+  }
+
+  addReply(data: Omit<Reply, 'id' | 'createdAt'>): Reply {
+    const reply: Reply = {
+      ...data,
+      id: genId('r'),
+      createdAt: new Date().toISOString(),
+    };
+    const topic = this.topics.get(data.topicId);
+    if (topic) {
+      topic.replies.push(reply);
+      topic.repliesCount = topic.replies.length;
+      topic.lastReplyAt = reply.createdAt;
+    }
+    return reply;
+  }
+
+  // Events
+  getEvents(): Event[] {
+    return Array.from(this.events.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  getEvent(id: string): Event | undefined {
+    return this.events.get(id);
+  }
+
+  addEvent(data: Omit<Event, 'id' | 'votes' | 'createdAt'>): Event {
+    const event: Event = {
+      ...data,
+      id: genId('e'),
+      votes: [],
+      createdAt: new Date().toISOString(),
+    };
+    this.events.set(event.id, event);
+    return event;
+  }
+
+  updateEvent(id: string, data: Partial<Event>): Event | undefined {
+    const existing = this.events.get(id);
+    if (!existing) return undefined;
+    const updated: Event = { ...existing, ...data };
+    this.events.set(id, updated);
+    return updated;
+  }
+
+  addVote(eventId: string, memberId: string, timeOption: string): Vote | undefined {
+    const event = this.events.get(eventId);
+    if (!event) return undefined;
+    const existingVote = event.votes.find(v => v.memberId === memberId);
+    if (existingVote) {
+      existingVote.timeOption = timeOption;
+      existingVote.votedAt = new Date().toISOString();
+      return existingVote;
+    }
+    const vote: Vote = { memberId, timeOption, votedAt: new Date().toISOString() };
+    event.votes.push(vote);
+    return vote;
+  }
+
+  getEventVotes(eventId: string): { timeOption: string; count: number }[] | undefined {
+    const event = this.events.get(eventId);
+    if (!event) return undefined;
+    const counts: Record<string, number> = {};
+    event.timeOptions.forEach(t => { counts[t] = 0; });
+    event.votes.forEach(v => { counts[v.timeOption] = (counts[v.timeOption] || 0) + 1; });
+    return Object.entries(counts).map(([timeOption, count]) => ({ timeOption, count }));
   }
 }
 
-export const dataStore = {
-  books: {
-    getAll: (): Book[] => [...books],
-    getById: (id: string): Book | undefined => books.find(b => b.id === id),
-    create: (data: Omit<Book, 'id' | 'addedAt'>): Book => {
-      const book: Book = { ...data, id: randomUUID(), addedAt: new Date().toISOString() }
-      books.push(book)
-      return book
-    },
-    update: (id: string, data: Partial<Book>): Book | undefined => {
-      const idx = books.findIndex(b => b.id === id)
-      if (idx === -1) return undefined
-      books[idx] = { ...books[idx], ...data }
-      return books[idx]
-    },
-  },
-  members: {
-    getAll: (): Member[] => [...members],
-    getById: (id: string): Member | undefined => members.find(m => m.id === id),
-  },
-  readingProgress: {
-    getByBookId: (bookId: string): ReadingProgress[] => readingProgress.filter(p => p.bookId === bookId),
-    getByMemberId: (memberId: string): ReadingProgress[] => readingProgress.filter(p => p.memberId === memberId),
-    upsert: (memberId: string, bookId: string, currentChapter: number, totalChapters: number): ReadingProgress => {
-      const idx = readingProgress.findIndex(p => p.memberId === memberId && p.bookId === bookId)
-      let status: ReadingProgress['status'] = 'reading'
-      if (currentChapter <= 0) status = 'not_started'
-      else if (currentChapter >= totalChapters) status = 'completed'
-      if (idx !== -1) {
-        readingProgress[idx] = { ...readingProgress[idx], currentChapter, totalChapters, status, updatedAt: new Date().toISOString() }
-        return readingProgress[idx]
-      }
-      const progress: ReadingProgress = {
-        id: randomUUID(), memberId, bookId, currentChapter, totalChapters, status, updatedAt: new Date().toISOString(),
-      }
-      readingProgress.push(progress)
-      return progress
-    },
-  },
-  checkIns: {
-    getByBookId: (bookId: string): CheckIn[] => checkIns.filter(c => c.bookId === bookId),
-    create: (data: Omit<CheckIn, 'id' | 'createdAt'>): CheckIn => {
-      const ci: CheckIn = { ...data, id: randomUUID(), createdAt: new Date().toISOString() }
-      checkIns.unshift(ci)
-      return ci
-    },
-  },
-  topics: {
-    getAll: (bookId?: string): Topic[] => {
-      const result = bookId ? topics.filter(t => t.bookId === bookId) : [...topics]
-      return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    },
-    getById: (id: string): Topic | undefined => topics.find(t => t.id === id),
-    create: (data: Omit<Topic, 'id' | 'createdAt'>): Topic => {
-      const topic: Topic = { ...data, id: randomUUID(), createdAt: new Date().toISOString() }
-      topics.unshift(topic)
-      return topic
-    },
-  },
-  replies: {
-    getByTopicId: (topicId: string): Reply[] => replies.filter(r => r.topicId === topicId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    create: (data: Omit<Reply, 'id' | 'createdAt'>): Reply => {
-      const reply: Reply = { ...data, id: randomUUID(), createdAt: new Date().toISOString() }
-      replies.push(reply)
-      return reply
-    },
-  },
-  events: {
-    getAll: (): BookEvent[] => [...events].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    getById: (id: string): BookEvent | undefined => events.find(e => e.id === id),
-    create: (data: Omit<BookEvent, 'id' | 'createdAt'>): BookEvent => {
-      const ev: BookEvent = { ...data, id: randomUUID(), createdAt: new Date().toISOString() }
-      events.unshift(ev)
-      return ev
-    },
-  },
-  votes: {
-    getByEventId: (eventId: string): Vote[] => votes.filter(v => v.eventId === eventId),
-    create: (data: Omit<Vote, 'id' | 'createdAt'>): Vote => {
-      const existing = votes.findIndex(v => v.eventId === data.eventId && v.memberId === data.memberId && v.timeOption === data.timeOption)
-      if (existing !== -1) return votes[existing]
-      const vote: Vote = { ...data, id: randomUUID(), createdAt: new Date().toISOString() }
-      votes.push(vote)
-      return vote
-    },
-  },
-}
+export const dataStore = new DataStore();

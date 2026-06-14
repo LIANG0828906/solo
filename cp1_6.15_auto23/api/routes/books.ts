@@ -1,101 +1,132 @@
-import { Router, type Request, type Response } from 'express'
-import { dataStore } from '../models/dataStore.js'
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { dataStore } from '../models/dataStore.js';
 
-const router = Router()
+const router = Router();
 
-router.get('/', (req: Request, res: Response): void => {
-  const sort = req.query.sort as string | undefined
-  let books = dataStore.books.getAll()
-  if (sort === 'title') {
-    books.sort((a, b) => a.title.localeCompare(b.title, 'zh'))
-  } else if (sort === 'author') {
-    books.sort((a, b) => a.author.localeCompare(b.author, 'zh'))
-  } else {
-    books.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-  }
-  res.json({ success: true, data: books })
-})
+router.get('/', (_req: Request, res: Response) => {
+  const books = dataStore.getBooks();
+  const enriched = books.map(b => ({
+    ...b,
+    readersCount: b.readerIds.length,
+  }));
+  res.json({ success: true, data: enriched });
+});
 
-router.post('/', (req: Request, res: Response): void => {
-  const { title, author, coverUrl, description, isbn, totalChapters } = req.body
+router.post('/', (req: Request, res: Response) => {
+  const { title, author, coverUrl, description, isbn, totalChapters } = req.body;
   if (!title || !author) {
-    res.status(400).json({ success: false, error: 'title and author are required' })
-    return
+    res.status(400).json({ success: false, error: '书名和作者为必填项' });
+    return;
   }
-  const book = dataStore.books.create({
+  const book = dataStore.addBook({
     title,
     author,
     coverUrl: coverUrl || '',
     description: description || '',
     isbn: isbn || '',
-    totalChapters: totalChapters || 0,
-  })
-  res.status(201).json({ success: true, data: book })
-})
+    totalChapters: totalChapters || 20,
+  });
+  res.status(201).json({ success: true, data: { ...book, readersCount: 1 } });
+});
 
-router.get('/:id', (req: Request, res: Response): void => {
-  const book = dataStore.books.getById(req.params.id)
+router.get('/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const book = dataStore.getBook(id);
   if (!book) {
-    res.status(404).json({ success: false, error: 'Book not found' })
-    return
+    res.status(404).json({ success: false, error: '书籍不存在' });
+    return;
   }
-  res.json({ success: true, data: book })
-})
+  const readers = dataStore.getBookReaders(id);
+  const progress = dataStore.getBookProgress(id);
+  const checkIns = dataStore.getBookCheckIns(id);
+  const topics = dataStore.getBookTopics(id).map(t => {
+    const { replies, ...rest } = t;
+    return rest;
+  });
+  res.json({
+    success: true,
+    data: {
+      ...book,
+      readers,
+      progress,
+      checkIns,
+      topics,
+      readersCount: readers.length,
+    },
+  });
+});
 
-router.put('/:id', (req: Request, res: Response): void => {
-  const book = dataStore.books.update(req.params.id, req.body)
+router.get('/:id/progress', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const book = dataStore.getBook(id);
   if (!book) {
-    res.status(404).json({ success: false, error: 'Book not found' })
-    return
+    res.status(404).json({ success: false, error: '书籍不存在' });
+    return;
   }
-  res.json({ success: true, data: book })
-})
+  const progress = dataStore.getBookProgress(id).map(p => {
+    const member = dataStore.getMember(p.memberId);
+    return { ...p, member };
+  });
+  res.json({ success: true, data: progress });
+});
 
-router.get('/:id/progress', (req: Request, res: Response): void => {
-  const book = dataStore.books.getById(req.params.id)
+router.post('/:id/progress', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { memberId, currentChapter, status } = req.body;
+  const book = dataStore.getBook(id);
   if (!book) {
-    res.status(404).json({ success: false, error: 'Book not found' })
-    return
+    res.status(404).json({ success: false, error: '书籍不存在' });
+    return;
   }
-  const progress = dataStore.readingProgress.getByBookId(req.params.id)
-  const enriched = progress.map(p => {
-    const member = dataStore.members.getById(p.memberId)
-    return { ...p, memberName: member?.name, memberAvatar: member?.avatar }
-  })
-  res.json({ success: true, data: enriched })
-})
+  if (!memberId || currentChapter == null) {
+    res.status(400).json({ success: false, error: '缺少必要参数' });
+    return;
+  }
+  const progress = dataStore.updateOrCreateProgress({
+    memberId,
+    bookId: id,
+    currentChapter,
+    totalChapters: book.totalChapters,
+    status: status || (currentChapter === 0 ? 'not_started' : currentChapter >= book.totalChapters ? 'completed' : 'reading'),
+  });
+  res.json({ success: true, data: progress });
+});
 
-router.post('/:id/progress', (req: Request, res: Response): void => {
-  const { memberId, currentChapter, thought } = req.body
-  if (!memberId) {
-    res.status(400).json({ success: false, error: 'memberId is required' })
-    return
-  }
-  const book = dataStore.books.getById(req.params.id)
+router.get('/:id/checkins', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const book = dataStore.getBook(id);
   if (!book) {
-    res.status(404).json({ success: false, error: 'Book not found' })
-    return
+    res.status(404).json({ success: false, error: '书籍不存在' });
+    return;
   }
-  const chapter = currentChapter ?? 0
-  const progress = dataStore.readingProgress.upsert(memberId, req.params.id, chapter, book.totalChapters)
-  if (thought) {
-    dataStore.checkIns.create({ memberId, bookId: req.params.id, chapter, thought })
-  }
-  res.status(201).json({ success: true, data: progress })
-})
+  const checkIns = dataStore.getBookCheckIns(id).map(c => ({
+    ...c,
+    member: dataStore.getMember(c.memberId),
+  }));
+  res.json({ success: true, data: checkIns });
+});
 
-router.get('/:id/checkins', (req: Request, res: Response): void => {
-  const book = dataStore.books.getById(req.params.id)
+router.post('/:id/checkins', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { memberId, chapter, thought } = req.body;
+  const book = dataStore.getBook(id);
   if (!book) {
-    res.status(404).json({ success: false, error: 'Book not found' })
-    return
+    res.status(404).json({ success: false, error: '书籍不存在' });
+    return;
   }
-  const checkins = dataStore.checkIns.getByBookId(req.params.id)
-  const enriched = checkins.map(c => {
-    const member = dataStore.members.getById(c.memberId)
-    return { ...c, memberName: member?.name, memberAvatar: member?.avatar }
-  })
-  res.json({ success: true, data: enriched })
-})
+  if (!memberId || chapter == null) {
+    res.status(400).json({ success: false, error: '缺少必要参数' });
+    return;
+  }
+  const checkIn = dataStore.addCheckIn({
+    memberId,
+    bookId: id,
+    chapter,
+    thought: thought || '',
+  });
+  const member = dataStore.getMember(memberId);
+  res.status(201).json({ success: true, data: { ...checkIn, member } });
+});
 
-export default router
+export default router;

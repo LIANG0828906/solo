@@ -1,85 +1,71 @@
-import { Router, type Request, type Response } from 'express'
-import { dataStore } from '../models/dataStore.js'
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { dataStore } from '../models/dataStore.js';
 
-const router = Router()
+const router = Router();
 
-router.get('/', (req: Request, res: Response): void => {
-  const bookId = req.query.bookId as string | undefined
-  const result = dataStore.topics.getAll(bookId)
-  const enriched = result.map(t => {
-    const creator = dataStore.members.getById(t.creatorId)
-    const book = dataStore.books.getById(t.bookId)
-    return { ...t, creatorName: creator?.name, bookTitle: book?.title }
-  })
-  res.json({ success: true, data: enriched })
-})
+router.get('/book/:bookId', (req: Request, res: Response) => {
+  const { bookId } = req.params;
+  const topics = dataStore.getBookTopics(bookId).map(t => {
+    const creator = dataStore.getMember(t.creatorId);
+    return { ...t, creator };
+  });
+  res.json({ success: true, data: topics });
+});
 
-router.post('/', (req: Request, res: Response): void => {
-  const { bookId, title, creatorId } = req.body
-  if (!bookId || !title || !creatorId) {
-    res.status(400).json({ success: false, error: 'bookId, title and creatorId are required' })
-    return
+router.post('/book/:bookId', (req: Request, res: Response) => {
+  const { bookId } = req.params;
+  const { title, creatorId } = req.body;
+  if (!title || !creatorId) {
+    res.status(400).json({ success: false, error: '缺少必要参数' });
+    return;
   }
-  const topic = dataStore.topics.create({ bookId, title, creatorId })
-  const creator = dataStore.members.getById(creatorId)
-  res.status(201).json({ success: true, data: { ...topic, creatorName: creator?.name } })
-})
+  const topic = dataStore.addTopic({
+    bookId,
+    title,
+    creatorId,
+  });
+  const creator = dataStore.getMember(creatorId);
+  res.status(201).json({ success: true, data: { ...topic, creator } });
+});
 
-router.get('/:topicId', (req: Request, res: Response): void => {
-  const topic = dataStore.topics.getById(req.params.topicId)
+router.get('/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const topic = dataStore.getTopic(id);
   if (!topic) {
-    res.status(404).json({ success: false, error: 'Topic not found' })
-    return
+    res.status(404).json({ success: false, error: '话题不存在' });
+    return;
   }
-  const creator = dataStore.members.getById(topic.creatorId)
-  const book = dataStore.books.getById(topic.bookId)
-  const replies = dataStore.replies.getByTopicId(topic.id).map(r => {
-    const member = dataStore.members.getById(r.memberId)
-    return { ...r, memberName: member?.name, memberAvatar: member?.avatar }
-  })
-  res.json({
-    success: true,
-    data: {
-      ...topic,
-      creatorName: creator?.name,
-      bookTitle: book?.title,
-      replies,
-    },
-  })
-})
+  const creator = dataStore.getMember(topic.creatorId);
+  const replyDetails = topic.replies.map(r => {
+    const member = dataStore.getMember(r.memberId);
+    const mentions = r.mentionIds.map(mid => dataStore.getMember(mid)).filter(Boolean);
+    return { ...r, member, mentions };
+  });
+  res.json({ success: true, data: { ...topic, creator, replyDetails } });
+});
 
-router.post('/:topicId/replies', (req: Request, res: Response): void => {
-  const { memberId, content, mentionIds } = req.body
+router.post('/:id/replies', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { memberId, content, mentionIds } = req.body;
   if (!memberId || !content) {
-    res.status(400).json({ success: false, error: 'memberId and content are required' })
-    return
+    res.status(400).json({ success: false, error: '缺少必要参数' });
+    return;
   }
-  const topic = dataStore.topics.getById(req.params.topicId)
+  const topic = dataStore.getTopic(id);
   if (!topic) {
-    res.status(404).json({ success: false, error: 'Topic not found' })
-    return
+    res.status(404).json({ success: false, error: '话题不存在' });
+    return;
   }
-  const reply = dataStore.replies.create({
-    topicId: req.params.topicId,
+  const reply = dataStore.addReply({
+    topicId: id,
     memberId,
     content,
     mentionIds: mentionIds || [],
-  })
-  const member = dataStore.members.getById(memberId)
-  res.status(201).json({ success: true, data: { ...reply, memberName: member?.name, memberAvatar: member?.avatar } })
-})
+  });
+  const member = dataStore.getMember(memberId);
+  const mentions = (mentionIds || []).map((mid: string) => dataStore.getMember(mid)).filter(Boolean);
+  res.status(201).json({ success: true, data: { ...reply, member, mentions } });
+});
 
-router.get('/:topicId/replies', (req: Request, res: Response): void => {
-  const topic = dataStore.topics.getById(req.params.topicId)
-  if (!topic) {
-    res.status(404).json({ success: false, error: 'Topic not found' })
-    return
-  }
-  const replies = dataStore.replies.getByTopicId(req.params.topicId).map(r => {
-    const member = dataStore.members.getById(r.memberId)
-    return { ...r, memberName: member?.name, memberAvatar: member?.avatar }
-  })
-  res.json({ success: true, data: replies })
-})
-
-export default router
+export default router;
