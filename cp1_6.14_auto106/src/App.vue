@@ -10,16 +10,16 @@
         <router-link
           to="/"
           class="nav-link"
-          :class="{ active: route.name === 'main' }"
+          :class="{ active: isMainRoute }"
         >
           <span class="nav-icon">🌱</span>
           植物总览
         </router-link>
         <router-link
-          v-if="selectedPlantId"
-          :to="`/plant/${selectedPlantId}"
+          v-if="currentPlantId"
+          :to="`/plant/${currentPlantId}`"
           class="nav-link"
-          :class="{ active: route.name === 'plant-detail' }"
+          :class="{ active: isDetailRoute }"
         >
           <span class="nav-icon">📊</span>
           详情
@@ -28,7 +28,7 @@
 
       <div class="nav-right">
         <span class="plant-count-badge">
-          {{ plantCount }} 棵植物
+          {{ totalPlants }} 棵植物
         </span>
       </div>
     </nav>
@@ -36,7 +36,7 @@
     <main class="main-content">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
-        <component :is="Component" />
+          <component :is="Component" />
         </transition>
       </router-view>
     </main>
@@ -46,14 +46,30 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePlantStore } from '@/stores/plant'
-import { storeToRefs } from 'pinia'
 
-const route = useRoute()
-const plantStore = usePlantStore()
-const { plantCount, selectedPlantId } = storeToRefs(plantStore)
+export default defineComponent({
+  name: 'App',
+  setup() {
+    const route = useRoute()
+    const plantStore = usePlantStore()
+
+    const isMainRoute = computed(() => route.name === 'main')
+    const isDetailRoute = computed(() => route.name === 'plant-detail')
+    const totalPlants = computed(() => plantStore.plantCount)
+    const currentPlantId = computed(() => plantStore.selectedPlantId)
+
+    return {
+      isMainRoute,
+      isDetailRoute,
+      totalPlants,
+      currentPlantId
+    }
+  }
+})
 </script>
 
 <style>
@@ -140,7 +156,6 @@ html, body {
 
 .nav-center {
   display: flex;
-  gap: 8px;
   gap: 4px;
 }
 

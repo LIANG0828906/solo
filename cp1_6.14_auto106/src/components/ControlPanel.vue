@@ -23,7 +23,7 @@
             max="100"
             step="1"
             :value="params.light"
-            @input="onLightInput"
+            @input="e => throttledLight(Number((e.target as HTMLInputElement).value))"
             class="custom-slider light-slider"
           />
         </div>
@@ -54,7 +54,7 @@
             max="100"
             step="1"
             :value="params.water"
-            @input="onWaterInput"
+            @input="e => throttledWater(Number((e.target as HTMLInputElement).value))"
             class="custom-slider water-slider"
           />
         </div>
@@ -85,7 +85,7 @@
             max="100"
             step="1"
             :value="params.temperature"
-            @input="onTempInput"
+            @input="e => throttledTemp(Number((e.target as HTMLInputElement).value))"
             class="custom-slider temp-slider"
           />
         </div>
@@ -116,7 +116,7 @@
             max="100"
             step="1"
             :value="params.nutrients"
-            @input="onNutrientInput"
+            @input="e => throttledNutrients(Number((e.target as HTMLInputElement).value))"
             class="custom-slider nutrient-slider"
           />
         </div>
@@ -140,9 +140,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import type { EnvironmentParams } from '@/types'
-import { throttle } from '@/utils/helpers'
+import { throttle, getHealthColor, getHealthStatus } from '@/utils/helpers'
 
 interface Props {
   params: EnvironmentParams
@@ -155,47 +154,10 @@ const emit = defineEmits<{
   (e: 'change', params: Partial<EnvironmentParams>): void
 }>()
 
-const localParams = ref<EnvironmentParams>({ ...props.params })
-
-watch(
-  () => props.params,
-  (newParams) => {
-    localParams.value = { ...newParams }
-  },
-  { deep: true }
-)
-
-const throttledChange = throttle((params: Partial<EnvironmentParams>) => {
-  emit('change', params)
-}, 100)
-
-function onLightInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = Number(target.value)
-  localParams.value.light = value
-  throttledChange({ light: value })
-}
-
-function onWaterInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = Number(target.value)
-  localParams.value.water = value
-  throttledChange({ water: value })
-}
-
-function onTempInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = Number(target.value)
-  localParams.value.temperature = value
-  throttledChange({ temperature: value })
-}
-
-function onNutrientInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = Number(target.value)
-  localParams.value.nutrients = value
-  throttledChange({ nutrients: value })
-}
+const throttledLight = throttle((v: number) => emit('change', {light: v}), 100)
+const throttledWater = throttle((v: number) => emit('change', {water: v}), 100)
+const throttledTemp = throttle((v: number) => emit('change', {temperature: v}), 100)
+const throttledNutrients = throttle((v: number) => emit('change', {nutrients: v}), 100)
 
 function getValueColor(value: number, optimal: [number, number]): string {
   const [min, max] = optimal
@@ -237,7 +199,6 @@ function applyPreset(preset: string) {
       break
   }
 
-  localParams.value = { ...localParams.value, ...newParams }
   emit('change', newParams)
 }
 </script>

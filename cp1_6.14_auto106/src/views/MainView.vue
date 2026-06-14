@@ -82,11 +82,12 @@ function onEnvParamsChange(params: Partial<EnvironmentParams>) {
   }
 
   if (params.light !== undefined) {
+    const lightValue = params.light
     const config = PLANT_CONFIGS[selectedPlantType.value]
-    if (params.light < config.optimalLight[0] * 0.7) {
+    if (lightValue < config.optimalLight[0] * 0.7) {
       plantStore.plants.forEach(plant => {
         if (plant.type === selectedPlantType.value) {
-          plantStore.addLogEntry(plant.id, `光照降至 ${Math.round(params.light)}%，植物生长减缓`, 'warning')
+          plantStore.addLogEntry(plant.id, `光照降至 ${Math.round(lightValue)}%，植物生长减缓`, 'warning')
         }
       })
     }

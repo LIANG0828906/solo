@@ -37,7 +37,7 @@
 
       <div class="info-section">
         <div class="info-card">
-          <HealthRadar :data="healthData" :animate="true" />
+          <HealthRadar :metrics="healthData" :animate="true" />
         </div>
 
         <div class="info-card progress-card">
@@ -62,8 +62,12 @@
           </div>
         </div>
 
-        <div class="info-card log-card">
-          <GrowthLog :logs="growthLogs" />
+        <div class="info-card">
+          <h3 class="card-title">
+            <span class="card-icon">🕒</span>
+            生长日志
+          </h3>
+          <GrowthLog :logs="plantLogs" />
         </div>
       </div>
     </div>
@@ -79,25 +83,25 @@ import GrowthLog from '@/components/GrowthLog.vue'
 import { usePlantStore } from '@/stores/plant'
 import { storeToRefs } from 'pinia'
 import { PLANT_CONFIGS, GROWTH_STAGES, GROWTH_STAGE_NAMES } from '@/types'
-import type { HealthMetrics, GrowthLogEntry } from '@/types'
+import type { HealthMetrics } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const plantStore = usePlantStore()
 
-const { selectedPlant, plants } = storeToRefs(plantStore)
+const { plants } = storeToRefs(plantStore)
 
 const sceneContainerRef = ref<HTMLElement | null>(null)
 let threeScene: ThreeScene | null = null
 
-const plantId = computed(() => route.params.id as string)
+const plantId = route.params.id as string
 
 const hasPlant = computed(() => {
-  return plantStore.plants.some(p => p.id === plantId.value)
+  return plantStore.plants.some(p => p.id === plantId)
 })
 
 const plantData = computed(() => {
-  return plantStore.plants.find(p => p.id === plantId.value) || null
+  return plantStore.plants.find(p => p.id === plantId) || null
 })
 
 const healthData = reactive<HealthMetrics>({
@@ -143,17 +147,14 @@ const healthColor = computed(() => {
   return '#ef4444'
 })
 
-const growthLogs = computed<GrowthLogEntry[]>(() => {
-  if (!plantId.value) return []
-  return plantStore.getPlantLogs(plantId.value)
-})
+const plantLogs = computed(() => plantStore.getPlantLogs(plantId))
 
 function goBack() {
   router.push('/')
 }
 
 function onPlantUpdate(id: string, data: { health: HealthMetrics; stage: string; progress: number }) {
-  if (id === plantId.value) {
+  if (id === plantId) {
     Object.assign(healthData, data.health)
   }
 }
@@ -168,7 +169,34 @@ watch(
   { immediate: true, deep: true }
 )
 
+const lastStageRef = ref<string | null>(null)
+
+watch(
+  () => {
+    const p = plantStore.plants.find(p => p.id === plantId)
+    return p?.stage
+  },
+  (newStage, oldStage) => {
+    if (newStage && oldStage && newStage !== oldStage) {
+      const stageNames: Record<string, string> = {
+        sprout: '发芽',
+        growing: '进入生长期',
+        mature: '达到成熟',
+        flowering: '开花结果'
+      }
+      if (stageNames[newStage]) {
+        plantStore.addLogEntry(plantId, `植物${stageNames[newStage]}了`, 'success')
+      }
+    }
+    lastStageRef.value = newStage || null
+  }
+)
+
 onMounted(() => {
+  if (plantData.value) {
+    plantStore.addLogEntry(plantId, '进入植物详情页，开始特写观察', 'info')
+  }
+
   if (sceneContainerRef.value && hasPlant.value) {
     threeScene = new ThreeScene({
       container: sceneContainerRef.value,
@@ -378,10 +406,17 @@ onBeforeUnmount(() => {
 }
 
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: #e2e8f0;
   margin: 0 0 12px 0;
+}
+
+.card-icon {
+  font-size: 16px;
 }
 
 .progress-card {
@@ -464,21 +499,6 @@ onBeforeUnmount(() => {
 .stage-dot.current .stage-label {
   color: #4ade80;
   font-weight: 600;
-}
-
-.log-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.log-card :deep(.growth-log) {
-  height: 100%;
-}
-
-.log-card :deep(.log-container) {
-  max-height: 250px;
 }
 
 @media (max-width: 1024px) {

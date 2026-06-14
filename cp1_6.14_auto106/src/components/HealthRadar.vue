@@ -109,7 +109,7 @@
           dominant-baseline="middle"
           class="radar-value"
         >
-          {{ Math.round(displayValues[index]) }}%
+          {{ Math.round(displayMetrics[axis.key]) }}%
         </text>
       </g>
     </svg>
@@ -123,7 +123,7 @@
         <span class="legend-dot" :style="{ backgroundColor: axis.color }"></span>
         <span class="legend-label">{{ axis.label }}</span>
         <span class="legend-value" :style="{ color: axis.color }">
-          {{ Math.round(displayValues[index]) }}%
+          {{ Math.round(displayMetrics[axis.key]) }}%
         </span>
       </div>
     </div>
@@ -131,7 +131,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import * as TWEEN from '@tweenjs/tween.js'
 import { scaleLinear } from 'd3-scale'
 
 interface HealthMetrics {
@@ -143,7 +144,7 @@ interface HealthMetrics {
 }
 
 interface Props {
-  data: HealthMetrics
+  metrics: HealthMetrics
   size?: number
   animate?: boolean
 }
@@ -154,15 +155,22 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const svgRef = ref<SVGSVGElement | null>(null)
-const displayValues = ref<number[]>([0, 0, 0, 0, 0])
-const isAnimating = ref(false)
+const displayMetrics = reactive<HealthMetrics>({
+  light: 0,
+  water: 0,
+  temperature: 0,
+  nutrients: 0,
+  pests: 0
+})
+let currentTween: TWEEN.Tween | null = null
+let rafId: number | null = null
 
 const axes = [
-  { label: '光照', key: 'light', color: '#fbbf24' },
-  { label: '水分', key: 'water', color: '#3b82f6' },
-  { label: '温度', key: 'temperature', color: '#ef4444' },
-  { label: '养分', key: 'nutrients', color: '#22c55e' },
-  { label: '抗病', key: 'pests', color: '#a855f7' }
+  { label: '光照', key: 'light' as const, color: '#fbbf24' },
+  { label: '水分', key: 'water' as const, color: '#3b82f6' },
+  { label: '温度', key: 'temperature' as const, color: '#ef4444' },
+  { label: '养分', key: 'nutrients' as const, color: '#22c55e' },
+  { label: '抗病', key: 'pests' as const, color: '#a855f7' }
 ]
 
 const radius = 90
@@ -198,7 +206,8 @@ function getAxisEnd(index: number): { x: number; y: number } {
 
 function getDataPoint(index: number): { x: number; y: number } {
   const angle = angleScale(index) as number
-  const value = displayValues.value[index]
+  const key = axes[index].key
+  const value = displayMetrics[key]
   const r = valueScale(value) as number
   return {
     x: centerX + r * Math.cos(angle),
@@ -233,71 +242,67 @@ function getValuePosition(index: number): { x: number; y: number } {
   }
 }
 
-function animateValues(targetValues: number[]) {
-  if (!props.animate) {
-    displayValues.value = [...targetValues]
-    return
-  }
-
-  const startValues = [...displayValues.value]
-  const duration = 300
-  const startTime = performance.now()
-
-  function animate(currentTime: number) {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
-
-    const easeOutCubic = 1 - Math.pow(1 - progress, 3)
-
-    for (let i = 0; i < 5; i++) {
-      displayValues.value[i] = startValues[i] + (targetValues[i] - startValues[i]) * easeOutCubic
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(animate)
-    }
-  }
-
-  requestAnimationFrame(animate)
+function requestUpdate() {
 }
 
 watch(
-  () => props.data,
-  (newData) => {
-    const values = [
-      newData.light,
-      newData.water,
-      newData.temperature,
-      newData.nutrients,
-      newData.pests
-    ]
-    animateValues(values)
+  () => props.metrics,
+  (newVal) => {
+    if (currentTween) {
+      currentTween.stop()
+      currentTween = null
+    }
+
+    if (!props.animate) {
+      Object.assign(displayMetrics, newVal)
+      return
+    }
+
+    currentTween = new TWEEN.Tween(displayMetrics)
+      .to({ ...newVal }, 300)
+      .easing(TWEEN.Easing.Cubic.Out)
+      .onUpdate(() => requestUpdate())
+      .onComplete(() => {
+        currentTween = null
+      })
+      .start()
   },
   { deep: true }
 )
 
+function animateLoop() {
+  TWEEN.update()
+  rafId = requestAnimationFrame(animateLoop)
+}
+
 onMounted(() => {
+  animateLoop()
+
   if (props.animate) {
-    isAnimating.value = true
-    setTimeout(() => {
-      const values = [
-        props.data.light,
-        props.data.water,
-        props.data.temperature,
-        props.data.nutrients,
-        props.data.pests
-      ]
-      animateValues(values)
-    }, 100)
+    currentTween = new TWEEN.Tween(displayMetrics)
+      .to({ ...props.metrics }, 300)
+      .easing(TWEEN.Easing.Cubic.Out)
+      .onUpdate(() => requestUpdate())
+      .onComplete(() => {
+        currentTween = null
+      })
+      .delay(100)
+      .start()
   } else {
-    displayValues.value = [
-      props.data.light,
-      props.data.water,
-      props.data.temperature,
-      props.data.nutrients,
-      props.data.pests
-    ]
+    Object.assign(displayMetrics, props.metrics)
   }
+})
+
+onBeforeUnmount(() => {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  if (currentTween) {
+    currentTween.stop()
+    currentTween = null
+  }
+  TWEEN.removeAll()
 })
 </script>
 

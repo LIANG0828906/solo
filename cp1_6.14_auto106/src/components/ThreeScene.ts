@@ -5,6 +5,8 @@ import type { PlantType, EnvironmentParams, HealthMetrics } from '@/types'
 import {
   createPlantMesh,
   updatePlantGrowth,
+  shouldDropLeaves,
+  getLeavesForDrop,
   type PlantInstance
 } from '@/modules/plant'
 import {
@@ -25,9 +27,12 @@ export interface ThreeSceneOptions {
   onPlantAdd?: (plantId: string, plantData: { type: PlantType; health: HealthMetrics; stage: string; progress: number }) => void
   onPlantUpdate?: (plantId: string, data: { health: HealthMetrics; stage: string; progress: number }) => void
   onGroundClick?: (position: { x: number; z: number }) => void
+  onPlantLimitReached?: (msg: string) => void
 }
 
 export class ThreeScene {
+  private static readonly MAX_PLANTS = 20
+
   private container: HTMLElement
   private scene!: THREE.Scene
   private camera!: THREE.PerspectiveCamera
@@ -61,10 +66,11 @@ export class ThreeScene {
   private onPlantAdd?: (plantId: string, plantData: { type: PlantType; health: HealthMetrics; stage: string; progress: number }) => void
   private onPlantUpdate?: (plantId: string, data: { health: HealthMetrics; stage: string; progress: number }) => void
   private onGroundClick?: (position: { x: number; z: number }) => void
+  private onPlantLimitReached?: (msg: string) => void
 
   private handleResizeBound: () => void
   private handleMouseMoveBound: (event: MouseEvent) => void
-  private handleClickBound: (event: MouseEvent) => void
+  private handleCanvasClickBound: (event: MouseEvent) => void
 
   constructor(options: ThreeSceneOptions) {
     this.container = options.container
@@ -72,10 +78,14 @@ export class ThreeScene {
     this.onPlantAdd = options.onPlantAdd
     this.onPlantUpdate = options.onPlantUpdate
     this.onGroundClick = options.onGroundClick
+    this.onPlantLimitReached = options.onPlantLimitReached
+
+    this.raycaster = new THREE.Raycaster()
+    this.mouse = new THREE.Vector2()
 
     this.handleResizeBound = this.handleResize.bind(this)
     this.handleMouseMoveBound = throttle(this.handleMouseMove.bind(this), 50)
-    this.handleClickBound = this.handleClick.bind(this)
+    this.handleCanvasClickBound = throttle(this.handleCanvasClick.bind(this), 100)
 
     this.init()
   }
@@ -205,7 +215,7 @@ export class ThreeScene {
   private setupEventListeners() {
     window.addEventListener('resize', this.handleResizeBound)
     this.renderer.domElement.addEventListener('mousemove', this.handleMouseMoveBound)
-    this.renderer.domElement.addEventListener('click', this.handleClickBound)
+    this.renderer.domElement.addEventListener('click', this.handleCanvasClickBound)
   }
 
   private handleResize() {
@@ -238,65 +248,65 @@ export class ThreeScene {
       }
 
       if (plantId && plantId !== this.hoveredPlantId) {
+        if (this.hoveredPlantId && this.hoveredPlantId !== this.selectedPlantId) {
+          this.setPlantHover(this.hoveredPlantId, false)
+        }
         this.setPlantHover(plantId, true)
-        this.setPlantHover(this.hoveredPlantId, false)
         this.hoveredPlantId = plantId
         this.renderer.domElement.style.cursor = 'pointer'
       }
     } else {
-      if (this.hoveredPlantId) {
+      if (this.hoveredPlantId && this.hoveredPlantId !== this.selectedPlantId) {
         this.setPlantHover(this.hoveredPlantId, false)
+      }
+      if (this.hoveredPlantId !== this.selectedPlantId) {
         this.hoveredPlantId = null
       }
       this.renderer.domElement.style.cursor = this.isPlantingMode ? 'crosshair' : 'default'
     }
   }
 
-  private handleClick(event: MouseEvent) {
+  private handleCanvasClick(event: MouseEvent) {
     const rect = this.renderer.domElement.getBoundingClientRect()
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+    const normalizedMouse = new THREE.Vector2()
+    normalizedMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    normalizedMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
-    this.raycaster.setFromCamera(this.mouse, this.camera)
+    this.raycaster.setFromCamera(normalizedMouse, this.camera)
 
-    const plantMeshes: THREE.Object3D[] = []
-    this.plants.forEach((plant) => {
-      plantMeshes.push(plant.group)
-    })
+    const groundIntersects = this.raycaster.intersectObject(this.ground)
 
-    const plantIntersects = this.raycaster.intersectObjects(plantMeshes, true)
-
-    if (plantIntersects.length > 0) {
-      let clickedPlantId: string | null = null
-      for (const [id, plant] of this.plants) {
-        let obj: THREE.Object3D | null = plantIntersects[0].object
-        while (obj) {
-          if (obj === plant.group) {
-            clickedPlantId = id
-            break
-          }
-          obj = obj.parent
+    if (this.isPlantingMode) {
+      if (groundIntersects.length > 0) {
+        const hitPoint = groundIntersects[0].point
+        this.addPlant(this.selectedPlantType, { x: hitPoint.x, z: hitPoint.z })
+        if (this.onGroundClick) {
+          this.onGroundClick({ x: hitPoint.x, z: hitPoint.z })
         }
-        if (clickedPlantId) break
+      }
+    } else {
+      let hitPlantId: string | null = null
+      for (const [id, plant] of this.plants) {
+        const plantIntersects = this.raycaster.intersectObject(plant.group, true)
+        if (plantIntersects.length > 0) {
+          hitPlantId = id
+          break
+        }
       }
 
-      if (clickedPlantId) {
-        this.selectPlant(clickedPlantId)
+      if (hitPlantId) {
+        this.selectPlant(hitPlantId)
         if (this.onPlantClick) {
-          this.onPlantClick(clickedPlantId)
+          this.onPlantClick(hitPlantId)
         }
         return
       }
-    }
 
-    const groundIntersects = this.raycaster.intersectObject(this.ground)
-    if (groundIntersects.length > 0) {
-      const point = groundIntersects[0].point
-      if (this.isPlantingMode) {
-        this.addPlant(this.selectedPlantType, { x: point.x, z: point.z })
-      }
-      if (this.onGroundClick) {
-        this.onGroundClick({ x: point.x, z: point.z })
+      if (groundIntersects.length > 0) {
+        const point = groundIntersects[0].point
+        if (this.onGroundClick) {
+          this.onGroundClick({ x: point.x, z: point.z })
+        }
       }
     }
   }
@@ -306,26 +316,50 @@ export class ThreeScene {
     const plant = this.plants.get(plantId)
     if (!plant) return
 
+    const isSelected = this.selectedPlantId === plantId
+    if (isSelected && !isHovered) return
+
     const ring = this.plantRings.get(plantId)
     if (ring) {
+      const targetOpacity = isSelected ? 0.6 : (isHovered ? 0.8 : 0.3)
       new TWEEN.Tween(ring.material)
-        .to({ opacity: isHovered ? 0.8 : 0.3 }, 200)
+        .to({ opacity: targetOpacity }, 200)
         .easing(TWEEN.Easing.Quadratic.Out)
         .start()
     }
 
-    plant.parts.leaves.forEach((leaf) => {
-      const mat = leaf.material as THREE.MeshStandardMaterial
-      if (mat.emissive) {
-        const targetIntensity = isHovered ? 0.3 : 0
-        new TWEEN.Tween(mat.emissive)
-          .to({ r: 0.2, g: 0.8, b: 0.4 }, 200)
-          .easing(TWEEN.Easing.Quadratic.Out)
-          .start()
-        new TWEEN.Tween(mat)
-          .to({ emissiveIntensity: targetIntensity }, 200)
-          .easing(TWEEN.Easing.Quadratic.Out)
-          .start()
+    plant.group.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const mat = child.material as THREE.MeshStandardMaterial
+        if (mat.emissive !== undefined) {
+          const targetIntensity = isHovered ? 0.3 : (isSelected ? 0.15 : 0)
+          const targetColor = isSelected
+            ? new THREE.Color(0x22ff88)
+            : new THREE.Color(0.2, 0.8, 0.4)
+
+          if (isHovered || isSelected) {
+            new TWEEN.Tween({ r: mat.emissive.r, g: mat.emissive.g, b: mat.emissive.b })
+              .to({ r: targetColor.r, g: targetColor.g, b: targetColor.b }, 200)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .onUpdate((obj) => {
+                mat.emissive.setRGB(obj.r, obj.g, obj.b)
+              })
+              .start()
+          } else {
+            new TWEEN.Tween({ r: mat.emissive.r, g: mat.emissive.g, b: mat.emissive.b })
+              .to({ r: 0, g: 0, b: 0 }, 200)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .onUpdate((obj) => {
+                mat.emissive.setRGB(obj.r, obj.g, obj.b)
+              })
+              .start()
+          }
+
+          new TWEEN.Tween(mat)
+            .to({ emissiveIntensity: targetIntensity }, 200)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .start()
+        }
       }
     })
   }
@@ -339,7 +373,10 @@ export class ThreeScene {
   }
 
   public addPlant(type: PlantType, position: { x: number; z: number }): string | null {
-    if (this.plants.size >= this.maxPlants) {
+    if (this.plants.size >= ThreeScene.MAX_PLANTS) {
+      if (this.onPlantLimitReached) {
+        this.onPlantLimitReached(`植物数量已达上限 ${ThreeScene.MAX_PLANTS} 株`)
+      }
       return null
     }
 
@@ -349,26 +386,41 @@ export class ThreeScene {
     plantInstance.group.position.set(position.x, 0, position.z)
     plantInstance.position.set(position.x, 0, position.z)
 
-    plantInstance.group.scale.setScalar(0)
-    plantInstance.currentScale = 0
+    plantInstance.group.scale.setScalar(0.1)
+    plantInstance.currentScale = 0.1
 
     this.scene.add(plantInstance.group)
     this.plants.set(id, plantInstance)
 
+    if (plantInstance.parts.seed) {
+      const seed = plantInstance.parts.seed
+      seed.position.y = 0.8
+
+      new TWEEN.Tween(seed.position)
+        .to({ y: 0.1 }, 250)
+        .easing(TWEEN.Easing.Bounce.Out)
+        .onComplete(() => {
+          new TWEEN.Tween(seed.position)
+            .to({ y: 0.25 }, 180)
+            .easing(TWEEN.Easing.Bounce.Out)
+            .onComplete(() => {
+              new TWEEN.Tween(seed.position)
+                .to({ y: 0.15 }, 140)
+                .easing(TWEEN.Easing.Bounce.Out)
+                .onComplete(() => {
+                  new TWEEN.Tween(seed.position)
+                    .to({ y: 0.1 }, 100)
+                    .easing(TWEEN.Easing.Bounce.Out)
+                    .start()
+                })
+                .start()
+            })
+            .start()
+        })
+        .start()
+    }
+
     this.createPlantRing(id, position)
-
-    new TWEEN.Tween(plantInstance.group.scale)
-      .to({ x: 0.1, y: 0.1, z: 0.1 }, 500)
-      .easing(TWEEN.Easing.Bounce.Out)
-      .start()
-
-    plantInstance.group.position.y = -1
-    new TWEEN.Tween(plantInstance.group.position)
-      .to({ y: 0 }, 600)
-      .easing(TWEEN.Easing.Bounce.Out)
-      .delay(100)
-      .start()
-
     this.createPlantingEffect(position)
 
     if (this.onPlantAdd) {
@@ -401,7 +453,7 @@ export class ThreeScene {
   private createPlantingEffect(position: { x: number; z: number }) {
     const glowGeo = new THREE.RingGeometry(0.1, 2, 32)
     const glowMat = new THREE.MeshBasicMaterial({
-      color: 0x44ff88,
+      color: 0x4ade80,
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide
@@ -409,17 +461,17 @@ export class ThreeScene {
     const glow = new THREE.Mesh(glowGeo, glowMat)
     glow.rotation.x = -Math.PI / 2
     glow.position.set(position.x, 0.05, position.z)
-    glow.scale.setScalar(0)
+    glow.scale.setScalar(0.01)
     this.scene.add(glow)
 
     new TWEEN.Tween(glow.scale)
-      .to({ x: 1, y: 1, z: 1 }, 800)
-      .easing(TWEEN.Easing.Quadratic.Out)
+      .to({ x: 1.5, y: 1.5, z: 1.5 }, 1000)
+      .easing(TWEEN.Easing.Quartic.Out)
       .start()
 
     new TWEEN.Tween(glow.material)
-      .to({ opacity: 0 }, 800)
-      .easing(TWEEN.Easing.Quadratic.Out)
+      .to({ opacity: 0 }, 1000)
+      .easing(TWEEN.Easing.Quartic.Out)
       .onComplete(() => {
         this.scene.remove(glow)
         glow.geometry.dispose()
@@ -431,7 +483,13 @@ export class ThreeScene {
   public selectPlant(plantId: string) {
     if (this.selectedPlantId === plantId) return
 
+    const previousSelectedId = this.selectedPlantId
     this.selectedPlantId = plantId
+
+    if (previousSelectedId) {
+      this.setPlantSelectedEmissive(previousSelectedId, false)
+    }
+    this.setPlantSelectedEmissive(plantId, true)
 
     this.plants.forEach((plant, id) => {
       const ring = this.plantRings.get(id)
@@ -460,7 +518,54 @@ export class ThreeScene {
     })
   }
 
+  private setPlantSelectedEmissive(plantId: string, isSelected: boolean) {
+    const plant = this.plants.get(plantId)
+    if (!plant) return
+
+    plant.group.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const mat = child.material as THREE.MeshStandardMaterial
+        if (mat.emissive !== undefined) {
+          if (isSelected) {
+            new TWEEN.Tween({ r: mat.emissive.r, g: mat.emissive.g, b: mat.emissive.b })
+              .to({ r: 0.133, g: 1, b: 0.533 }, 300)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .onUpdate((obj) => {
+                mat.emissive.setRGB(obj.r, obj.g, obj.b)
+              })
+              .start()
+            new TWEEN.Tween(mat)
+              .to({ emissiveIntensity: 0.15 }, 300)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .start()
+          } else {
+            const isHovered = this.hoveredPlantId === plantId
+            const targetIntensity = isHovered ? 0.3 : 0
+            new TWEEN.Tween({ r: mat.emissive.r, g: mat.emissive.g, b: mat.emissive.b })
+              .to({
+                r: isHovered ? 0.2 : 0,
+                g: isHovered ? 0.8 : 0,
+                b: isHovered ? 0.4 : 0
+              }, 300)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .onUpdate((obj) => {
+                mat.emissive.setRGB(obj.r, obj.g, obj.b)
+              })
+              .start()
+            new TWEEN.Tween(mat)
+              .to({ emissiveIntensity: targetIntensity }, 300)
+              .easing(TWEEN.Easing.Quadratic.Out)
+              .start()
+          }
+        }
+      }
+    })
+  }
+
   public deselectPlant() {
+    if (this.selectedPlantId) {
+      this.setPlantSelectedEmissive(this.selectedPlantId, false)
+    }
     this.selectedPlantId = null
     this.plants.forEach((_, id) => {
       const ring = this.plantRings.get(id)
@@ -615,6 +720,23 @@ export class ThreeScene {
       this.plants.forEach((plant, id) => {
         const result = updatePlantGrowth(plant, this.environmentParams, deltaTime)
 
+        const dropCount = shouldDropLeaves(this.environmentParams, plant)
+        if (dropCount > 0) {
+          const droppedLeaves = getLeavesForDrop(plant, dropCount)
+          if (droppedLeaves && droppedLeaves.length > 0) {
+            droppedLeaves.forEach((leaf) => {
+              const leafMat = leaf.material as THREE.MeshStandardMaterial
+              const leafColor = leafMat.color ? leafMat.color.clone() : new THREE.Color(0x88cc66)
+              spawnLeafParticles(
+                this.leafParticles,
+                leaf.getWorldPosition(new THREE.Vector3()),
+                1,
+                leafColor
+              )
+            })
+          }
+        }
+
         if (result.healthChanged || result.stageChanged) {
           if (this.onPlantUpdate) {
             this.onPlantUpdate(id, {
@@ -651,7 +773,7 @@ export class ThreeScene {
 
     window.removeEventListener('resize', this.handleResizeBound)
     this.renderer.domElement.removeEventListener('mousemove', this.handleMouseMoveBound)
-    this.renderer.domElement.removeEventListener('click', this.handleClickBound)
+    this.renderer.domElement.removeEventListener('click', this.handleCanvasClickBound)
 
     this.plants.forEach((plant) => {
       this.scene.remove(plant.group)
