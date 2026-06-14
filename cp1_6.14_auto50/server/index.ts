@@ -77,17 +77,21 @@ app.get('/api/activities/:id', async (req, res) => {
 })
 
 app.post('/api/activities', async (req, res) => {
-  const { birthdayPerson, birthdayDate, deadline, isPublic, creatorToken } = req.body
+  const { birthdayPerson, birthdayDate, deadline, isPublic } = req.body
 
-  if (!birthdayPerson || !birthdayDate || !deadline || !creatorToken) {
+  if (!birthdayPerson || !birthdayDate || !deadline) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
 
   const deadlineDate = new Date(deadline)
-  const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
-  if (deadlineDate < oneHourFromNow) {
+  const now = new Date()
+  const diffMs = deadlineDate.getTime() - now.getTime()
+  if (isNaN(diffMs) || diffMs < 60 * 60 * 1000) {
     return res.status(400).json({ error: 'Deadline must be at least 1 hour from now' })
   }
+
+  const crypto = await import('crypto')
+  const creatorToken = crypto.randomUUID()
 
   const activity = await createActivity({
     birthdayPerson,
@@ -160,14 +164,19 @@ app.get('/api/activities/:id/blessings', async (req, res) => {
   const start = (page - 1) * limit
   const end = start + limit
 
-  const paginatedBlessings = activity.blessings.slice(start, end)
+  const sorted = [...activity.blessings].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+  const paginatedBlessings = sorted.slice(start, end)
+  const totalPages = Math.ceil(sorted.length / limit)
 
   res.json({
     blessings: paginatedBlessings,
-    total: activity.blessings.length,
+    total: sorted.length,
     page,
     limit,
-    hasMore: end < activity.blessings.length,
+    totalPages,
+    hasMore: end < sorted.length,
   })
 })
 
@@ -177,12 +186,31 @@ app.post('/api/activities/:activityId/blessings/:blessingId/like', async (req, r
     return res.status(400).json({ error: 'sessionId is required' })
   }
 
-  const result = await likeBlessing(req.params.activityId, req.params.blessingId, sessionId)
-  if (!result) {
-    return res.status(400).json({ error: 'Cannot like this blessing (max likes reached or not found)' })
+  const activity = await getActivityById(req.params.activityId)
+  if (!activity) {
+    return res.status(404).json({ error: 'Activity not found' })
   }
 
-  res.json(result)
+  const blessing = activity.blessings.find((b) => b.id === req.params.blessingId)
+  if (!blessing) {
+    return res.status(404).json({ error: 'Blessing not found' })
+  }
+
+  const alreadyLiked = blessing.likedBy.includes(sessionId)
+  if (alreadyLiked) {
+    return res.json({ blessing, alreadyLiked: true, maxReached: blessing.likes >= 10 })
+  }
+
+  if (blessing.likes >= 10) {
+    return res.status(400).json({ error: 'Maximum likes reached (10)', blessing, alreadyLiked: false, maxReached: true })
+  }
+
+  const result = await likeBlessing(req.params.activityId, req.params.blessingId, sessionId)
+  if (!result) {
+    return res.status(500).json({ error: 'Failed to like blessing' })
+  }
+
+  res.json({ blessing: result, alreadyLiked: false, maxReached: result.likes >= 10 })
 })
 
 app.get('/api/celebrations/:id', async (req, res) => {
