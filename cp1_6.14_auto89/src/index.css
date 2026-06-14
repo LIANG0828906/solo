@@ -2,8 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+ * 全局样式
+ * 数据流向：index.css → 全局样式作用于所有页面
+ * 调用关系：由 main.tsx 引入，应用于整个应用
+ * ============================================================ */
+
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -11,4 +18,142 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 页面背景色：米白色 */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #faf6f0;
+  font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  color: #33281b;
+}
+
+/* ============================================================
+ * 自定义动画类
+ * 与 tailwind.config.js 中的 animation 配置对应
+ * ============================================================ */
+
+/* 淡入动画 */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 从底部滑入动画 */
+.animate-slide-in-from-bottom {
+  animation: slideInFromBottom 0.5s ease-out forwards;
+}
+
+@keyframes slideInFromBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 旋转淡入动画 */
+.animate-spin-fade-in {
+  animation: spinFadeIn 0.8s ease-out forwards;
+}
+
+@keyframes spinFadeIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-15deg) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+/* 向上浮动动画（循环） */
+.animate-float-up {
+  animation: floatUp 3s ease-in-out infinite;
+}
+
+@keyframes floatUp {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* 弹跳进入动画 */
+.animate-bounce-in {
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+ * 滚动条美化样式
+ * 适用于 WebKit 内核浏览器（Chrome、Safari、Edge 等）
+ * ============================================================ */
+
+/* 滚动条整体宽度 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  background: #f5efdf;
+  border-radius: 4px;
+}
+
+/* 滚动条滑块 */
+::-webkit-scrollbar-thumb {
+  background: #c4a87d;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+/* 滚动条滑块悬停状态 */
+::-webkit-scrollbar-thumb:hover {
+  background: #8b6f47;
+}
+
+/* 滚动条滑块激活状态 */
+::-webkit-scrollbar-thumb:active {
+  background: #6e5738;
+}
+
+/* Firefox 滚动条样式 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c4a87d #f5efdf;
 }
