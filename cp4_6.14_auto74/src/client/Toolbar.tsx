@@ -29,13 +29,13 @@ export const Toolbar = memo(function Toolbar({
         left: 0,
         top: 48,
         bottom: 0,
-        width: 60,
+        width: 76,
         background: '#1e293b',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        paddingTop: 8,
-        gap: 4,
+        paddingTop: 10,
+        gap: 6,
         zIndex: 100,
         borderRight: '1px solid #334155',
       }}
@@ -47,22 +47,24 @@ export const Toolbar = memo(function Toolbar({
             key={tool.mode}
             onClick={() => setToolMode(tool.mode)}
             style={{
-              width: 48,
-              height: 48,
+              width: 56,
+              height: 56,
               border: 'none',
-              borderRadius: 8,
+              borderRadius: 10,
               background: isActive ? '#3b82f6' : '#f8fafc',
-              color: isActive ? '#ffffff' : '#334155',
+              color: isActive ? '#ffffff' : '#475569',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 14,
-              gap: 0,
+              gap: 2,
               transition: 'all 150ms ease',
               transform: isActive ? 'scale(1.05)' : 'scale(1)',
               filter: isActive ? 'brightness(1.1)' : 'none',
+              boxShadow: isActive
+                ? '0 2px 12px rgba(59,130,246,0.4)'
+                : '0 1px 2px rgba(0,0,0,0.1)',
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget as HTMLButtonElement;
@@ -80,31 +82,44 @@ export const Toolbar = memo(function Toolbar({
             }}
             title={`${tool.label} 工具`}
           >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{tool.icon}</span>
-            <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>{tool.label}</span>
+            <span style={{ fontSize: 20, lineHeight: 1, display: 'block' }}>
+              {tool.icon}
+            </span>
+            <span
+              style={{
+                fontSize: 12,
+                lineHeight: 1,
+                display: 'block',
+                color: isActive ? '#ffffff' : '#64748b',
+                fontWeight: isActive ? 600 : 500,
+              }}
+            >
+              {tool.label}
+            </span>
           </button>
         );
       })}
 
-      <div style={{ width: 36, height: 1, background: '#334155', margin: '6px 0' }} />
+      <div style={{ width: 48, height: 1, background: '#334155', margin: '8px 0' }} />
 
       <button
         onClick={onSaveSnapshot}
         style={{
-          width: 48,
-          height: 48,
+          width: 56,
+          height: 56,
           border: 'none',
-          borderRadius: 8,
+          borderRadius: 10,
           background: '#f8fafc',
-          color: '#334155',
+          color: '#475569',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 0,
+          gap: 2,
           transition: 'all 150ms ease',
           position: 'relative',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLButtonElement).style.background = '#e2e8f0';
@@ -114,29 +129,40 @@ export const Toolbar = memo(function Toolbar({
           (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc';
           (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
         }}
-        title="保存快照"
+        title="保存当前快照"
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>📷</span>
-        <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>快照</span>
+        <span style={{ fontSize: 20, lineHeight: 1, display: 'block' }}>📷</span>
+        <span
+          style={{
+            fontSize: 12,
+            lineHeight: 1,
+            display: 'block',
+            color: '#64748b',
+            fontWeight: 500,
+          }}
+        >
+          快照
+        </span>
       </button>
 
       <button
         onClick={onToggleSnapshots}
         style={{
-          width: 48,
-          height: 48,
+          width: 56,
+          height: 56,
           border: 'none',
-          borderRadius: 8,
+          borderRadius: 10,
           background: '#f8fafc',
-          color: '#334155',
+          color: '#475569',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 0,
+          gap: 2,
           transition: 'all 150ms ease',
           position: 'relative',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLButtonElement).style.background = '#e2e8f0';
@@ -146,23 +172,36 @@ export const Toolbar = memo(function Toolbar({
           (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc';
           (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
         }}
-        title="查看历史快照"
+        title="查看历史快照列表"
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>�</span>
-        <span style={{ fontSize: 9, lineHeight: 1, marginTop: 2 }}>历史</span>
+        <span style={{ fontSize: 20, lineHeight: 1, display: 'block' }}>📜</span>
+        <span
+          style={{
+            fontSize: 12,
+            lineHeight: 1,
+            display: 'block',
+            color: '#64748b',
+            fontWeight: 500,
+          }}
+        >
+          历史
+        </span>
         {snapshotCount > 0 && (
           <span
             style={{
               position: 'absolute',
-              top: -2,
-              right: -2,
+              top: -4,
+              right: -4,
               background: '#ef4444',
               color: '#ffffff',
-              fontSize: 9,
-              borderRadius: 8,
-              padding: '1px 4px',
-              minWidth: 16,
+              fontSize: 11,
+              borderRadius: 10,
+              padding: '2px 6px',
+              minWidth: 18,
               textAlign: 'center',
+              fontWeight: 600,
+              lineHeight: 1,
+              boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
             }}
           >
             {snapshotCount}

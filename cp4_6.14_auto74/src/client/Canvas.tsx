@@ -13,6 +13,7 @@ import { Toolbar } from './Toolbar';
 const GRID_SIZE = 20;
 const CARD_W = 160;
 const CARD_H = 120;
+const CONNECT_POINT_RADIUS = 14;
 
 function computeBezierPath(
   x1: number,
@@ -23,8 +24,20 @@ function computeBezierPath(
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const curveOffset = Math.min(Math.max(dist * 0.4, 20), 100);
+  const curveOffset = Math.min(Math.max(dist * 0.45, 30), 120);
   return `M ${x1} ${y1} C ${x1} ${y1 + curveOffset}, ${x2} ${y2 - curveOffset}, ${x2} ${y2}`;
+}
+
+function isPointNear(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  radius: number
+): boolean {
+  const dx = px - cx;
+  const dy = py - cy;
+  return dx * dx + dy * dy <= radius * radius;
 }
 
 const ConnectionLine = memo(function ConnectionLine({
@@ -63,7 +76,8 @@ const ConnectionLine = memo(function ConnectionLine({
     <g
       onMouseEnter={() => onHover(conn.id)}
       onMouseLeave={() => onHover(null)}
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         if (isDeleteMode) onDelete(conn.id);
       }}
       style={{ cursor: isDeleteMode ? 'pointer' : 'default' }}
@@ -72,43 +86,63 @@ const ConnectionLine = memo(function ConnectionLine({
         d={pathD}
         fill="none"
         stroke={conn.color}
-        strokeWidth={hovered ? 4 : 2}
-        strokeDasharray={hovered ? '8,4' : undefined}
-        style={{ transition: 'stroke-width 150ms ease, stroke-dasharray 150ms ease' }}
+        strokeWidth={hovered ? 5 : 2}
+        strokeDasharray={hovered ? '10,5' : undefined}
+        strokeLinecap="round"
+        style={{
+          transition: 'stroke-width 120ms ease, stroke-dasharray 120ms ease',
+          filter: hovered ? 'drop-shadow(0 0 4px rgba(255,255,255,0.3))' : 'none',
+        }}
       />
       <path
         d={pathD}
         fill="none"
         stroke="transparent"
-        strokeWidth={18}
+        strokeWidth={22}
       />
       {hovered && (
-        <g>
-          {conn.label ? (
+        <>
+          <circle
+            cx={x1}
+            cy={y1}
+            r={4}
+            fill={conn.color}
+            stroke="#ffffff"
+            strokeWidth={2}
+            style={{ pointerEvents: 'none' }}
+          />
+          <circle
+            cx={x2}
+            cy={y2}
+            r={4}
+            fill={conn.color}
+            stroke="#ffffff"
+            strokeWidth={2}
+            style={{ pointerEvents: 'none' }}
+          />
+          <g style={{ pointerEvents: 'none' }}>
+            <rect
+              x={midX - 50}
+              y={midY - 22}
+              width={100}
+              height={20}
+              rx={6}
+              fill="rgba(15,23,42,0.9)"
+              stroke="#3b82f6"
+              strokeWidth={1}
+            />
             <text
               x={midX}
-              y={midY - 10}
+              y={midY - 8}
               textAnchor="middle"
-              fill="#e2e8f0"
+              fill="#f1f5f9"
               fontSize={11}
-              style={{ pointerEvents: 'none' }}
+              fontWeight={500}
             >
-              {conn.label}
+              {conn.label || '连接关系'}
             </text>
-          ) : (
-            <text
-              x={midX}
-              y={midY - 10}
-              textAnchor="middle"
-              fill="#64748b"
-              fontSize={10}
-              fontStyle="italic"
-              style={{ pointerEvents: 'none' }}
-            >
-              点击删除
-            </text>
-          )}
-        </g>
+          </g>
+        </>
       )}
     </g>
   );
@@ -118,10 +152,12 @@ const SnapshotPanel = memo(function SnapshotPanel({
   snapshots,
   onClose,
   onRestore,
+  onSave,
 }: {
   snapshots: SnapshotData[];
   onClose: () => void;
   onRestore: (id: string) => void;
+  onSave: () => void;
 }) {
   return (
     <div
@@ -130,9 +166,9 @@ const SnapshotPanel = memo(function SnapshotPanel({
         top: 48,
         right: 0,
         bottom: 0,
-        width: 280,
-        background: 'rgba(30,41,59,0.95)',
-        backdropFilter: 'blur(8px)',
+        width: 320,
+        background: 'rgba(30,41,59,0.97)',
+        backdropFilter: 'blur(12px)',
         borderLeft: '1px solid #334155',
         zIndex: 250,
         display: 'flex',
@@ -141,47 +177,73 @@ const SnapshotPanel = memo(function SnapshotPanel({
     >
       <div
         style={{
-          padding: '12px 16px',
+          padding: '14px 18px',
           borderBottom: '1px solid #334155',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexShrink: 0,
         }}
       >
-        <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 14 }}>
-          📜 历史快照
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            fontSize: 18,
-            padding: 4,
-          }}
-        >
-          ✕
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 18 }}>📜</span>
+          <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 15 }}>
+            历史快照
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={onSave}
+            style={{
+              background: '#3b82f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '5px 10px',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            📷 保存
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              fontSize: 18,
+              padding: 2,
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
         {snapshots.length === 0 ? (
           <div
             style={{
               color: '#64748b',
               textAlign: 'center',
-              padding: 40,
+              padding: '50px 20px',
               fontSize: 13,
+              lineHeight: 1.8,
             }}
           >
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📷</div>
             暂无快照记录
             <br />
-            点击 📷 按钮保存快照
+            <span style={{ fontSize: 12, color: '#475569' }}>
+              点击上方「保存」按钮创建快照
+            </span>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {snapshots
               .slice()
               .sort((a, b) => b.timestamp - a.timestamp)
@@ -191,22 +253,27 @@ const SnapshotPanel = memo(function SnapshotPanel({
                   .getMinutes()
                   .toString()
                   .padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+                const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
                 return (
                   <div
                     key={snapshot.id}
                     style={{
-                      background: '#0f172a',
+                      background: 'rgba(15,23,42,0.6)',
                       border: '1px solid #334155',
-                      borderRadius: 8,
-                      padding: 12,
+                      borderRadius: 10,
+                      padding: 14,
                       cursor: 'default',
                       transition: 'all 150ms ease',
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = '#3b82f6';
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.borderColor = '#3b82f6';
+                      el.style.background = 'rgba(15,23,42,0.9)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = '#334155';
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.borderColor = '#334155';
+                      el.style.background = 'rgba(15,23,42,0.6)';
                     }}
                   >
                     <div
@@ -214,45 +281,65 @@ const SnapshotPanel = memo(function SnapshotPanel({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: 8,
+                        marginBottom: 10,
                       }}
                     >
-                      <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13 }}>
-                        快照 #{snapshots.length - idx}
-                      </span>
-                      <span style={{ color: '#94a3b8', fontSize: 11 }}>{timeStr}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div
+                          style={{
+                            background:
+                              idx === 0 ? '#22c55e' : idx === 1 ? '#3b82f6' : '#64748b',
+                            color: '#ffffff',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            padding: '2px 7px',
+                            borderRadius: 4,
+                          }}
+                        >
+                          {idx === 0 ? '最新' : `#${snapshots.length - idx}`}
+                        </div>
+                        <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13 }}>
+                          {dateStr} {timeStr}
+                        </span>
+                      </div>
                     </div>
                     <div
                       style={{
                         display: 'flex',
-                        gap: 12,
-                        marginBottom: 10,
-                        fontSize: 11,
+                        gap: 14,
+                        marginBottom: 12,
+                        fontSize: 12,
                         color: '#94a3b8',
                       }}
                     >
-                      <span>💡 {snapshot.cards.length} 卡片</span>
-                      <span>🔗 {snapshot.connections.length} 连线</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        💡 <span style={{ color: '#e2e8f0' }}>{snapshot.cards.length}</span> 卡片
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        🔗 <span style={{ color: '#e2e8f0' }}>{snapshot.connections.length}</span> 连线
+                      </span>
                     </div>
                     <button
                       onClick={() => onRestore(snapshot.id)}
                       style={{
                         width: '100%',
-                        background: '#3b82f6',
-                        color: '#ffffff',
-                        border: 'none',
+                        background: 'rgba(59,130,246,0.15)',
+                        color: '#60a5fa',
+                        border: '1px solid rgba(59,130,246,0.3)',
                         borderRadius: 6,
-                        padding: '6px 0',
+                        padding: '7px 0',
                         fontSize: 12,
                         cursor: 'pointer',
                         fontWeight: 500,
-                        transition: 'background 150ms ease',
+                        transition: 'all 150ms ease',
                       }}
                       onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = '#2563eb';
+                        (e.currentTarget as HTMLButtonElement).style.background = '#3b82f6';
+                        (e.currentTarget as HTMLButtonElement).style.color = '#ffffff';
                       }}
                       onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = '#3b82f6';
+                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(59,130,246,0.15)';
+                        (e.currentTarget as HTMLButtonElement).style.color = '#60a5fa';
                       }}
                     >
                       恢复到此版本
@@ -302,21 +389,16 @@ export const Canvas: React.FC = function Canvas() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>('');
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [canvasSize, setCanvasSize] = useState({ w: 1000, h: 800 });
   const [hoveredConnectPoint, setHoveredConnectPoint] = useState<{
     cardId: string;
     point: 'top' | 'bottom';
   } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    cardId: string;
-    startX: number;
-    startY: number;
-    cardStartX: number;
-    cardStartY: number;
-    lastSentX: number;
-    lastSentY: number;
-    rafId: number | null;
+  const connectingState = useRef<{
+    fromCardId: string;
+    validTargetId: string | null;
   } | null>(null);
   const contentDebounceRef = useRef<{ id: string; timer: NodeJS.Timeout } | null>(null);
 
@@ -325,6 +407,42 @@ export const Canvas: React.FC = function Canvas() {
     for (const c of cards) map.set(c.id, c);
     return map;
   }, [cards]);
+
+  const viewportCards = useMemo(() => {
+    const margin = 200;
+    const left = canvasOffset.x - margin;
+    const top = canvasOffset.y - margin;
+    const right = canvasOffset.x + canvasSize.w + margin;
+    const bottom = canvasOffset.y + canvasSize.h + margin;
+
+    return cards.filter((c) => {
+      return (
+        c.x + CARD_W >= left &&
+        c.x <= right &&
+        c.y + CARD_H >= top &&
+        c.y <= bottom
+      );
+    });
+  }, [cards, canvasOffset, canvasSize]);
+
+  const viewportConnections = useMemo(() => {
+    const margin = 300;
+    const left = canvasOffset.x - margin;
+    const top = canvasOffset.y - margin;
+    const right = canvasOffset.x + canvasSize.w + margin;
+    const bottom = canvasOffset.y + canvasSize.h + margin;
+
+    return connections.filter((conn) => {
+      const fc = cardsById.get(conn.fromCardId);
+      const tc = cardsById.get(conn.toCardId);
+      if (!fc || !tc) return false;
+      const minX = Math.min(fc.x, tc.x);
+      const maxX = Math.max(fc.x, tc.x) + CARD_W;
+      const minY = Math.min(fc.y, tc.y);
+      const maxY = Math.max(fc.y, tc.y) + CARD_H;
+      return minX <= right && maxX >= left && minY <= bottom && maxY >= top;
+    });
+  }, [connections, cardsById, canvasOffset, canvasSize]);
 
   useEffect(() => {
     loadBoard();
@@ -362,12 +480,21 @@ export const Canvas: React.FC = function Canvas() {
   }, [setOnlineCount]);
 
   useEffect(() => {
+    const onResize = () => {
+      if (canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        setCanvasSize({ w: rect.width, h: rect.height });
+      }
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [snapshotPanelOpen]);
+
+  useEffect(() => {
     return () => {
       if (contentDebounceRef.current) {
         clearTimeout(contentDebounceRef.current.timer);
-      }
-      if (dragRef.current?.rafId) {
-        cancelAnimationFrame(dragRef.current.rafId);
       }
     };
   }, []);
@@ -376,18 +503,14 @@ export const Canvas: React.FC = function Canvas() {
     if (toolMode === 'connect') return 'crosshair';
     if (toolMode === 'delete') return 'not-allowed';
     if (toolMode === 'add-card') return 'copy';
-    return 'grab';
+    return 'default';
   }, [toolMode]);
 
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target !== canvasRef.current &&
-        !target.classList.contains('canvas-grid-bg')
-      ) {
-        if (target.closest('[data-card-id]') || target.closest('svg')) return;
-      }
+      if (target.closest('[data-card-id]') || target.closest('svg')) return;
+      if (target !== canvasRef.current && !target.classList.contains('canvas-grid-bg')) return;
 
       if (toolMode === 'add-card') {
         const rect = canvasRef.current!.getBoundingClientRect();
@@ -408,8 +531,8 @@ export const Canvas: React.FC = function Canvas() {
 
         const handleMove = (ev: MouseEvent) => {
           setCanvasOffset({
-            x: startOffset.x - (ev.clientX - startX),
-            y: startOffset.y - (ev.clientY - startY),
+            x: Math.max(0, startOffset.x - (ev.clientX - startX)),
+            y: Math.max(0, startOffset.y - (ev.clientY - startY)),
           });
         };
 
@@ -436,55 +559,42 @@ export const Canvas: React.FC = function Canvas() {
 
       const rafIdRef = { value: 0 };
       const pending = { dx: 0, dy: 0 };
-
-      dragRef.current = {
-        cardId,
-        startX: e.clientX,
-        startY: e.clientY,
-        cardStartX: card.x,
-        cardStartY: card.y,
-        lastSentX: card.x,
-        lastSentY: card.y,
-        rafId: null,
-      };
-
-      const scheduleRaf = () => {
-        if (rafIdRef.value) return;
-        rafIdRef.value = requestAnimationFrame(() => {
-          rafIdRef.value = 0;
-          if (!dragRef.current) return;
-          const nx = dragRef.current.cardStartX + pending.dx;
-          const ny = dragRef.current.cardStartY + pending.dy;
-          updateCardLocal(cardId, { x: nx, y: ny });
-
-          const ddx = Math.abs(nx - dragRef.current.lastSentX);
-          const ddy = Math.abs(ny - dragRef.current.lastSentY);
-          if (ddx + ddy > 4) {
-            dragRef.current.lastSentX = nx;
-            dragRef.current.lastSentY = ny;
-            updateCard(cardId, { x: nx, y: ny });
-          }
-        });
-      };
+      let pendingX = card.x;
+      let pendingY = card.y;
+      let lastSentX = card.x;
+      let lastSentY = card.y;
 
       const handleMove = (ev: MouseEvent) => {
-        if (!dragRef.current) return;
-        pending.dx = ev.clientX - dragRef.current.startX;
-        pending.dy = ev.clientY - dragRef.current.startY;
-        scheduleRaf();
+        pending.dx = ev.clientX - e.clientX;
+        pending.dy = ev.clientY - e.clientY;
+
+        if (!rafIdRef.value) {
+          rafIdRef.value = requestAnimationFrame(() => {
+            rafIdRef.value = 0;
+            pendingX = card.x + pending.dx;
+            pendingY = card.y + pending.dy;
+            updateCardLocal(cardId, { x: pendingX, y: pendingY });
+
+            const ddx = Math.abs(pendingX - lastSentX);
+            const ddy = Math.abs(pendingY - lastSentY);
+            if (ddx + ddy > 3) {
+              lastSentX = pendingX;
+              lastSentY = pendingY;
+              updateCard(cardId, { x: pendingX, y: pendingY });
+            }
+          });
+        }
       };
 
       const handleUp = () => {
         if (rafIdRef.value) {
           cancelAnimationFrame(rafIdRef.value);
+          rafIdRef.value = 0;
         }
-        if (dragRef.current) {
-          const nx = dragRef.current.cardStartX + pending.dx;
-          const ny = dragRef.current.cardStartY + pending.dy;
-          updateCard(cardId, { x: nx, y: ny });
-          flushPendingCardUpdates();
-          dragRef.current = null;
-        }
+        const finalX = card.x + pending.dx;
+        const finalY = card.y + pending.dy;
+        updateCard(cardId, { x: finalX, y: finalY });
+        flushPendingCardUpdates();
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
       };
@@ -496,62 +606,82 @@ export const Canvas: React.FC = function Canvas() {
   );
 
   const handleConnectStart = useCallback(
-    (cardId: string, point: 'bottom' | 'top', e: React.MouseEvent) => {
+    (cardId: string, _point: 'bottom' | 'top', e: React.MouseEvent) => {
       if (toolMode !== 'connect') return;
       e.stopPropagation();
-      setConnectingFrom(cardId);
-      const rect = canvasRef.current!.getBoundingClientRect();
+      e.preventDefault();
+
       const card = cardsById.get(cardId);
       if (!card) return;
 
-      const startX = card.x + CARD_W / 2;
-      const startY = point === 'bottom' ? card.y + CARD_H : card.y;
-      setConnectingTo({
-        x: startX + (e.clientX - rect.left - (startX - canvasOffset.x)),
-        y: startY + (e.clientY - rect.top - (startY - canvasOffset.y)),
-      });
+      setConnectingFrom(cardId);
+      connectingState.current = { fromCardId: cardId, validTargetId: null };
 
-      let releaseTarget: string | null = null;
+      const startX = card.x + CARD_W / 2;
+      const startY = card.y + CARD_H;
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const initMouseX = e.clientX - rect.left + canvasOffset.x;
+      const initMouseY = e.clientY - rect.top + canvasOffset.y;
+      setConnectingTo({ x: initMouseX, y: initMouseY });
+
+      let rafPending = false;
+      let latestX = initMouseX;
+      let latestY = initMouseY;
+
+      const updateConnecting = () => {
+        rafPending = false;
+        setConnectingTo({ x: latestX, y: latestY });
+      };
+
+      const scheduleUpdate = () => {
+        if (!rafPending) {
+          rafPending = true;
+          requestAnimationFrame(updateConnecting);
+        }
+      };
 
       const handleMove = (ev: MouseEvent) => {
-        setConnectingTo({
-          x: ev.clientX - rect.left + canvasOffset.x,
-          y: ev.clientY - rect.top + canvasOffset.y,
-        });
-        const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
-        if (el) {
-          const cp = el.closest('[data-connect-point]') as HTMLElement | null;
-          if (cp && cp.getAttribute('data-connect-point') === 'top') {
-            const cardEl = cp.closest('[data-card-id]') as HTMLElement | null;
-            const tid = cardEl?.getAttribute('data-card-id') || null;
-            releaseTarget = tid && tid !== cardId ? tid : null;
+        latestX = ev.clientX - rect.left + canvasOffset.x;
+        latestY = ev.clientY - rect.top + canvasOffset.y;
+        scheduleUpdate();
+
+        let foundTarget: string | null = null;
+        const mouseWorldX = latestX;
+        const mouseWorldY = latestY;
+
+        for (const otherCard of cards) {
+          if (otherCard.id === cardId) continue;
+          const tx = otherCard.x + CARD_W / 2;
+          const ty = otherCard.y;
+          if (isPointNear(mouseWorldX, mouseWorldY, tx, ty, CONNECT_POINT_RADIUS + 8)) {
+            foundTarget = otherCard.id;
+            break;
+          }
+        }
+
+        if (foundTarget !== connectingState.current!.validTargetId) {
+          connectingState.current!.validTargetId = foundTarget;
+          if (foundTarget) {
+            setHoveredConnectPoint({ cardId: foundTarget, point: 'top' });
           } else {
-            releaseTarget = null;
+            setHoveredConnectPoint(null);
           }
         }
       };
 
-      const handleUp = (ev: MouseEvent) => {
-        let toCardId = releaseTarget;
-        if (!toCardId) {
-          const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
-          if (el) {
-            const cp = el.closest('[data-connect-point]') as HTMLElement | null;
-            if (cp && cp.getAttribute('data-connect-point') === 'top') {
-              const cardEl = cp.closest('[data-card-id]') as HTMLElement | null;
-              const tid = cardEl?.getAttribute('data-card-id') || null;
-              if (tid && tid !== cardId) toCardId = tid;
-            }
-          }
-        }
-        if (toCardId) {
-          addConnection(cardId, toCardId);
+      const handleUp = (_ev: MouseEvent) => {
+        const target = connectingState.current!.validTargetId;
+        if (target && target !== cardId) {
+          addConnection(cardId, target);
         }
         setConnectingFrom(null);
         setConnectingTo(null);
         setHoveredConnectPoint(null);
+        connectingState.current = null;
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
+        void startX;
+        void startY;
       };
 
       window.addEventListener('mousemove', handleMove);
@@ -560,9 +690,10 @@ export const Canvas: React.FC = function Canvas() {
     [
       toolMode,
       cardsById,
+      cards,
+      canvasOffset,
       setConnectingFrom,
       setConnectingTo,
-      canvasOffset,
       addConnection,
     ]
   );
@@ -622,7 +753,7 @@ export const Canvas: React.FC = function Canvas() {
   );
 
   const renderGrid = () => {
-    const patternId = 'grid-pattern-main';
+    const patternId = 'grid-pattern-main-v2';
     return (
       <div
         className="canvas-grid-bg"
@@ -633,15 +764,16 @@ export const Canvas: React.FC = function Canvas() {
           right: 0,
           bottom: 0,
           pointerEvents: 'none',
+          overflow: 'hidden',
         }}
       >
         <svg
           style={{
             position: 'absolute',
-            left: -((canvasOffset.x % GRID_SIZE) + GRID_SIZE * 2),
-            top: -((canvasOffset.y % GRID_SIZE) + GRID_SIZE * 2),
-            width: 'calc(100% + 40px)',
-            height: 'calc(100% + 40px)',
+            left: -((canvasOffset.x % GRID_SIZE) + GRID_SIZE * 3),
+            top: -((canvasOffset.y % GRID_SIZE) + GRID_SIZE * 3),
+            width: 'calc(100% + 120px)',
+            height: 'calc(100% + 120px)',
             pointerEvents: 'none',
           }}
         >
@@ -656,13 +788,13 @@ export const Canvas: React.FC = function Canvas() {
                 d={`M ${GRID_SIZE} 0 L 0 0 0 ${GRID_SIZE}`}
                 fill="none"
                 stroke="#1e293b"
-                strokeWidth={0.5}
+                strokeWidth={0.4}
               />
               <circle
                 cx={GRID_SIZE / 2}
                 cy={GRID_SIZE / 2}
-                r={0.6}
-                fill="rgba(51,65,85,0.6)"
+                r={0.7}
+                fill="rgba(71,85,105,0.7)"
               />
             </pattern>
           </defs>
@@ -689,7 +821,7 @@ export const Canvas: React.FC = function Canvas() {
           transform={`translate(${-canvasOffset.x}, ${-canvasOffset.y})`}
           style={{ pointerEvents: 'auto' }}
         >
-          {connections.map((conn) => (
+          {viewportConnections.map((conn) => (
             <ConnectionLine
               key={conn.id}
               conn={conn}
@@ -705,7 +837,7 @@ export const Canvas: React.FC = function Canvas() {
               fromCardId={connectingFrom}
               toPos={connectingTo}
               cardsById={cardsById}
-              targetCardId={hoveredConnectPoint?.cardId === connectingFrom ? null : hoveredConnectPoint?.cardId || null}
+              targetCardId={hoveredConnectPoint?.cardId || null}
             />
           )}
         </g>
@@ -714,8 +846,9 @@ export const Canvas: React.FC = function Canvas() {
   };
 
   const renderCards = () => {
-    return cards.map((card) => {
+    return viewportCards.map((card) => {
       const isEditing = editingCardId === card.id;
+      const isDragging = selectedCardId === card.id && toolMode === 'select';
       return (
         <div
           key={card.id}
@@ -726,11 +859,13 @@ export const Canvas: React.FC = function Canvas() {
             top: card.y - canvasOffset.y,
             width: CARD_W,
             height: CARD_H,
+            willChange: isDragging ? 'left, top' : 'auto',
             transition:
-              dragRef.current?.cardId === card.id || isEditing
+              isDragging || isEditing
                 ? 'none'
                 : 'left 0.25s cubic-bezier(.34,1.56,.64,1), top 0.25s cubic-bezier(.34,1.56,.64,1)',
-            zIndex: selectedCardId === card.id ? 10 : 1,
+            zIndex:
+              selectedCardId === card.id ? 10 : connectingFrom === card.id ? 5 : 1,
           }}
         >
           <Card
@@ -740,15 +875,34 @@ export const Canvas: React.FC = function Canvas() {
             isConnecting={toolMode === 'connect'}
             isDeleteMode={toolMode === 'delete'}
             editingContent={isEditing ? editingContent : undefined}
+            hoveredPointType={
+              hoveredConnectPoint?.cardId === card.id
+                ? hoveredConnectPoint.point
+                : null
+            }
             onDoubleClick={handleDoubleClick}
             onDragStart={handleCardDragStart}
             onConnectStart={handleConnectStart}
             onDelete={deleteCard}
             onContentChange={handleContentChange}
             onEditEnd={handleEditEnd}
-            onConnectPointHover={(cid, pt) => {
-              if (pt === null) setHoveredConnectPoint(null);
-              else setHoveredConnectPoint({ cardId: cid, point: pt });
+            onConnectPointEnter={(cid, pt) => {
+              if (connectingState.current && cid !== connectingState.current.fromCardId) {
+                connectingState.current.validTargetId = cid;
+              }
+              setHoveredConnectPoint({ cardId: cid, point: pt });
+            }}
+            onConnectPointLeave={(cid) => {
+              if (
+                hoveredConnectPoint &&
+                hoveredConnectPoint.cardId === cid &&
+                connectingState.current?.validTargetId === cid
+              ) {
+                connectingState.current.validTargetId = null;
+              }
+              setHoveredConnectPoint((prev) =>
+                prev?.cardId === cid ? null : prev
+              );
             }}
           />
         </div>
@@ -772,12 +926,12 @@ export const Canvas: React.FC = function Canvas() {
           left: 0,
           right: 0,
           height: 48,
-          background: 'rgba(30,41,59,0.8)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(30,41,59,0.85)',
+          backdropFilter: 'blur(10px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 20px',
+          padding: '0 20px 0 96px',
           zIndex: 200,
           borderBottom: '1px solid #334155',
         }}
@@ -788,22 +942,75 @@ export const Canvas: React.FC = function Canvas() {
             团队创意头脑风暴看板
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={handleToggleSnapshots}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: snapshotPanelOpen ? '#3b82f6' : 'rgba(71,85,105,0.5)',
+              color: '#ffffff',
+              border: snapshotPanelOpen ? '1px solid #60a5fa' : '1px solid #475569',
+              borderRadius: 8,
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 150ms ease',
+            }}
+          >
+            <span>📜</span>
+            <span>历史快照</span>
+            {snapshots.length > 0 && (
+              <span
+                style={{
+                  background: snapshotPanelOpen ? '#ffffff' : '#ef4444',
+                  color: snapshotPanelOpen ? '#3b82f6' : '#ffffff',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 8,
+                }}
+              >
+                {snapshots.length}
+              </span>
+            )}
+          </button>
           <div
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#22c55e',
-              boxShadow: '0 0 6px rgba(34,197,94,0.5)',
-              animation: 'pulse 2s infinite',
+              width: 1,
+              height: 20,
+              background: '#334155',
             }}
           />
-          <span style={{ color: '#94a3b8', fontSize: 13 }}>{onlineCount} 在线</span>
-          <span style={{ color: '#475569', margin: '0 6px', fontSize: 12 }}>|</span>
-          <span style={{ color: '#64748b', fontSize: 12 }}>
-            💡 {cards.length} 卡片 · 🔗 {connections.length} 连线
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#22c55e',
+                boxShadow: '0 0 8px rgba(34,197,94,0.6)',
+                animation: 'pulse 2s infinite',
+              }}
+            />
+            <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>
+              {onlineCount} 在线
+            </span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 12,
+              color: '#64748b',
+            }}
+          >
+            <span>💡 {cards.length}</span>
+            <span>🔗 {connections.length}</span>
+          </div>
         </div>
       </div>
 
@@ -818,6 +1025,7 @@ export const Canvas: React.FC = function Canvas() {
           snapshots={snapshots}
           onClose={() => setSnapshotPanelOpen(false)}
           onRestore={handleRestoreSnapshot}
+          onSave={handleSaveSnapshot}
         />
       )}
 
@@ -827,13 +1035,13 @@ export const Canvas: React.FC = function Canvas() {
         onMouseDown={handleCanvasMouseDown}
         style={{
           position: 'fixed',
-          left: 60,
+          left: 76,
           top: 48,
-          right: snapshotPanelOpen ? 280 : 0,
+          right: snapshotPanelOpen ? 320 : 0,
           bottom: 0,
           overflow: 'hidden',
           cursor: getCanvasCursor(),
-          transition: 'right 200ms ease',
+          transition: 'right 220ms ease',
         }}
       >
         {renderGrid()}
@@ -844,16 +1052,18 @@ export const Canvas: React.FC = function Canvas() {
           <div
             style={{
               position: 'fixed',
-              bottom: 20,
-              right: snapshotPanelOpen ? 300 : 20,
+              bottom: 22,
+              right: snapshotPanelOpen ? 340 : 22,
               background: 'rgba(239,68,68,0.95)',
               color: 'white',
-              padding: '8px 16px',
+              padding: '9px 16px',
               borderRadius: 8,
               fontSize: 13,
+              fontWeight: 500,
               zIndex: 300,
               pointerEvents: 'none',
-              transition: 'right 200ms ease',
+              transition: 'right 220ms ease',
+              boxShadow: '0 4px 12px rgba(239,68,68,0.3)',
             }}
           >
             🗑️ 点击卡片或连线进行删除
@@ -864,19 +1074,21 @@ export const Canvas: React.FC = function Canvas() {
           <div
             style={{
               position: 'fixed',
-              bottom: 20,
-              right: snapshotPanelOpen ? 300 : 20,
+              bottom: 22,
+              right: snapshotPanelOpen ? 340 : 22,
               background: 'rgba(59,130,246,0.95)',
               color: 'white',
-              padding: '8px 16px',
+              padding: '9px 16px',
               borderRadius: 8,
               fontSize: 13,
+              fontWeight: 500,
               zIndex: 300,
               pointerEvents: 'none',
-              transition: 'right 200ms ease',
+              transition: 'right 220ms ease',
+              boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
             }}
           >
-            🔗 从卡片底部连接点拖拽到另一张卡片顶部连接点
+            🔗 按下卡片底部连接点 → 拖到目标卡片顶部连接点释放
           </div>
         )}
 
@@ -884,27 +1096,50 @@ export const Canvas: React.FC = function Canvas() {
           <div
             style={{
               position: 'fixed',
-              bottom: 20,
-              right: snapshotPanelOpen ? 300 : 20,
+              bottom: 22,
+              right: snapshotPanelOpen ? 340 : 22,
               background: 'rgba(34,197,94,0.95)',
               color: 'white',
-              padding: '8px 16px',
+              padding: '9px 16px',
               borderRadius: 8,
               fontSize: 13,
+              fontWeight: 500,
               zIndex: 300,
               pointerEvents: 'none',
-              transition: 'right 200ms ease',
+              transition: 'right 220ms ease',
+              boxShadow: '0 4px 12px rgba(34,197,94,0.3)',
             }}
           >
-            ➕ 点击画布任意位置添加卡片
+            ➕ 点击画布任意位置添加新卡片
           </div>
         )}
       </div>
 
       <style>{`
         @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.9); }
+        }
+        textarea::-webkit-scrollbar {
+          width: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 2px;
+        }
+        *::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+          background: #475569;
+          border-radius: 4px;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
         }
       `}</style>
     </div>
@@ -927,12 +1162,14 @@ const ConnectingPreviewLine = memo(function ConnectingPreviewLine({
 
   const x1 = fromCard.x + CARD_W / 2;
   const y1 = fromCard.y + CARD_H;
-  const x2 = targetCardId && cardsById.has(targetCardId)
-    ? cardsById.get(targetCardId)!.x + CARD_W / 2
-    : toPos.x;
-  const y2 = targetCardId && cardsById.has(targetCardId)
-    ? cardsById.get(targetCardId)!.y
-    : toPos.y;
+  const x2 =
+    targetCardId && cardsById.has(targetCardId)
+      ? cardsById.get(targetCardId)!.x + CARD_W / 2
+      : toPos.x;
+  const y2 =
+    targetCardId && cardsById.has(targetCardId)
+      ? cardsById.get(targetCardId)!.y
+      : toPos.y;
 
   const pathD = useMemo(
     () => computeBezierPath(x1, y1, x2, y2),
@@ -947,18 +1184,35 @@ const ConnectingPreviewLine = memo(function ConnectingPreviewLine({
         d={pathD}
         fill="none"
         stroke={isValid ? '#22c55e' : fromCard.color}
-        strokeWidth={isValid ? 3 : 2}
-        strokeDasharray="6,4"
-        opacity={0.9}
+        strokeWidth={isValid ? 4 : 2.5}
+        strokeDasharray="8,5"
+        opacity={isValid ? 1 : 0.85}
+        strokeLinecap="round"
+      />
+      <circle
+        cx={x1}
+        cy={y1}
+        r={5}
+        fill={fromCard.color}
+        stroke="#ffffff"
+        strokeWidth={2}
       />
       <circle
         cx={x2}
         cy={y2}
-        r={isValid ? 8 : 5}
+        r={isValid ? 9 : 6}
         fill={isValid ? '#22c55e' : fromCard.color}
         stroke="#ffffff"
-        strokeWidth={2}
+        strokeWidth={3}
       />
+      {isValid && (
+        <g>
+          <circle cx={x2} cy={y2} r={14} fill="none" stroke="#22c55e" strokeWidth={2} opacity={0.5}>
+            <animate attributeName="r" from="10" to="18" dur="0.8s" repeatCount="indefinite" />
+            <animate attributeName="opacity" from="0.8" to="0" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+        </g>
+      )}
     </g>
   );
 });
