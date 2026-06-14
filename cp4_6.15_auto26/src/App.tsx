@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { EmotionRecord, ViewMode, AnalysisMode } from '@/shared/types';
-import { getAllRecords, saveRecord, getRecordByDate } from '@/shared/storage';
+import { getAllRecords, saveRecord, getRecordByDate, isSeeded, markSeeded, seedDemoData, saveRecordsBulk } from '@/shared/storage';
 import { computeStats } from '@/analysis/statsEngine';
 import { ColorWheel } from '@/color/ColorWheel';
 import { ColorRecord } from '@/color/ColorRecord';
@@ -60,6 +60,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'calendar' | 'trend'>('calendar');
 
   useEffect(() => {
+    if (!isSeeded() && getAllRecords().length === 0) {
+      const demo = seedDemoData();
+      saveRecordsBulk(demo);
+      markSeeded();
+    }
     setRecords(getAllRecords());
   }, []);
 
@@ -142,7 +147,7 @@ const App: React.FC = () => {
 
       <main className="app-main">
         <section className="panel-left">
-          <div className="wheel-section">
+          <div className="wheel-section glass">
             <ColorWheel onColorSelect={handleColorSelect} selectedDate={selectedDate} />
           </div>
 

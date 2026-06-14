@@ -42,9 +42,11 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(244, 114, 182, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(52, 211, 153, 0.04) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 20%, rgba(139, 92, 246, 0.14) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 15%, rgba(244, 114, 182, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+  background-attachment: fixed;
 }
 
 .glass {
@@ -179,27 +181,65 @@ body {
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(
-    hsl(0, 80%, 55%),
-    hsl(30, 80%, 55%),
-    hsl(60, 80%, 55%),
-    hsl(90, 80%, 55%),
-    hsl(120, 80%, 55%),
-    hsl(150, 80%, 55%),
-    hsl(180, 80%, 55%),
-    hsl(210, 80%, 55%),
-    hsl(240, 80%, 55%),
-    hsl(270, 80%, 55%),
-    hsl(300, 80%, 55%),
-    hsl(330, 80%, 55%),
-    hsl(360, 80%, 55%)
+    hsl(0, 85%, 56%),
+    hsl(15, 85%, 56%),
+    hsl(30, 85%, 56%),
+    hsl(45, 85%, 56%),
+    hsl(60, 85%, 56%),
+    hsl(75, 80%, 54%),
+    hsl(90, 75%, 52%),
+    hsl(105, 70%, 50%),
+    hsl(120, 65%, 50%),
+    hsl(135, 60%, 50%),
+    hsl(150, 58%, 52%),
+    hsl(165, 58%, 54%),
+    hsl(180, 60%, 55%),
+    hsl(195, 62%, 55%),
+    hsl(210, 65%, 55%),
+    hsl(225, 68%, 55%),
+    hsl(240, 70%, 56%),
+    hsl(255, 72%, 57%),
+    hsl(270, 75%, 58%),
+    hsl(285, 78%, 58%),
+    hsl(300, 80%, 58%),
+    hsl(315, 82%, 58%),
+    hsl(330, 84%, 57%),
+    hsl(345, 85%, 56%),
+    hsl(360, 85%, 56%)
   );
-  mask: radial-gradient(transparent 50%, black 52%);
-  -webkit-mask: radial-gradient(transparent 50%, black 52%);
+  mask: radial-gradient(transparent 50%, black 51%, black 100%);
+  -webkit-mask: radial-gradient(transparent 50%, black 51%, black 100%);
   box-shadow:
-    0 0 20px rgba(139, 92, 246, 0.2),
-    0 0 40px rgba(139, 92, 246, 0.1),
-    inset 0 0 20px rgba(255, 255, 255, 0.05);
+    0 0 30px rgba(139, 92, 246, 0.25),
+    0 0 60px rgba(139, 92, 246, 0.12),
+    0 0 90px rgba(167, 139, 250, 0.06),
+    inset 0 0 30px rgba(255, 255, 255, 0.08);
   animation: ringGlow 4s ease-in-out infinite alternate;
+}
+
+.color-wheel-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(239, 68, 68, 0.5),
+    rgba(251, 146, 60, 0.5),
+    rgba(250, 204, 21, 0.5),
+    rgba(132, 204, 22, 0.4),
+    rgba(16, 185, 129, 0.5),
+    rgba(6, 182, 212, 0.5),
+    rgba(99, 102, 241, 0.5),
+    rgba(168, 85, 247, 0.5),
+    rgba(236, 72, 153, 0.5),
+    rgba(239, 68, 68, 0.5)
+  );
+  mask: radial-gradient(transparent 49%, black 50%, black 53%, transparent 54%);
+  -webkit-mask: radial-gradient(transparent 49%, black 50%, black 53%, transparent 54%);
+  filter: blur(2px);
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 @keyframes ringGlow {
@@ -855,12 +895,19 @@ body {
 .blink-cursor {
   color: var(--accent-purple-light);
   font-weight: 300;
-  animation: blink 1s step-end infinite;
+  display: inline-block;
+  width: 2px;
+  animation: blinkFadeInOut 1.06s ease-in-out infinite;
+  margin-left: 2px;
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+@keyframes blinkFadeInOut {
+  0% { opacity: 0; transform: scaleX(1); }
+  15% { opacity: 0; transform: scaleX(1); }
+  30% { opacity: 1; transform: scaleX(1); }
+  65% { opacity: 1; transform: scaleX(1); }
+  85% { opacity: 0; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
 }
 
 .summary-stats {
@@ -957,4 +1004,43 @@ body {
     aspect-ratio: auto;
     min-height: 36px;
   }
+}
+
+button,
+.nav-btn,
+.tab-btn,
+.toggle-btn,
+.btn-cancel,
+.btn-submit,
+.calendar-cell,
+.color-wheel,
+.selected-color-preview,
+.color-info,
+.color-hex,
+.color-emotion,
+.cell-color-block,
+.stat-item,
+.summary-card,
+.trend-chart-container,
+.glass,
+.color-record-card {
+  transition: all var(--transition);
+}
+
+.calendar-grid-wrapper.left,
+.calendar-grid-wrapper.right {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.calendar-grid-wrapper {
+  will-change: transform, opacity;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
 }
