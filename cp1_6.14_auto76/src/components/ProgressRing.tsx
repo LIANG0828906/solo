@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 interface Props {
   progress: number
   size?: number
   strokeWidth?: number
-  color?: string
   label?: string
 }
 
@@ -12,16 +11,16 @@ export default function ProgressRing({
   progress,
   size = 80,
   strokeWidth = 8,
-  color = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   label
 }: Props) {
   const [animatedProgress, setAnimatedProgress] = useState(0)
+  const animRef = useRef<number>(0)
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference * (1 - animatedProgress / 100)
 
   useEffect(() => {
-    const duration = 1000
+    const duration = 1200
     const startTime = performance.now()
     const startValue = animatedProgress
 
@@ -33,30 +32,53 @@ export default function ProgressRing({
       setAnimatedProgress(currentValue)
 
       if (progressRatio < 1) {
-        requestAnimationFrame(animate)
+        animRef.current = requestAnimationFrame(animate)
       }
     }
 
-    requestAnimationFrame(animate)
+    animRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animRef.current)
   }, [progress])
 
   return (
-    <div className="progress-ring-container">
+    <div className="progress-ring-container" style={{ width: size, height: size }}>
       <svg width={size} height={size}>
         <defs>
-          <linearGradient id={`ringGradient-${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#667eea" />
-            <stop offset="100%" stopColor="#764ba2" />
+          <linearGradient id={`ringGrad-${size}-${strokeWidth}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#667eea" stopOpacity="0.9" />
+            <stop offset="50%" stopColor="#764ba2" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#f093fb" stopOpacity="0.7" />
           </linearGradient>
+          <filter id={`ringShadow-${size}`}>
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#667eea" floodOpacity="0.3" />
+          </filter>
         </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(0,0,0,0.08)"
+          stroke="rgba(0,0,0,0.06)"
           strokeWidth={strokeWidth}
         />
         <circle
           cx={size / 2}
-          cy
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={`url(#ringGrad-${size}-${strokeWidth})`}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          filter={`url(#ringShadow-${size})`}
+          style={{ transition: 'stroke-dashoffset 0.05s linear' }}
+        />
+      </svg>
+      <span className="progress-ring-text">
+        {label ?? `${Math.round(animatedProgress)}%`}
+      </span>
+    </div>
+  )
+}

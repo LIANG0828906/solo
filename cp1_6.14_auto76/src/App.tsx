@@ -1,20 +1,14 @@
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from './utils/api'
 import CourseList from './pages/admin/CourseList'
 import TeamHeatmap from './pages/admin/TeamHeatmap'
 import MyCourses from './pages/employee/MyCourses'
 import Quiz from './pages/employee/Quiz'
 import SkillRadar from './pages/employee/SkillRadar'
+import type { Employee } from './utils/types'
 
 export const DEFAULT_EMPLOYEE_ID = 'default'
-export const DEFAULT_EMPLOYEE = {
-  id: DEFAULT_EMPLOYEE_ID,
-  name: '演示用户',
-  email: 'demo@company.com',
-  team: '技术研发部',
-  avatar: '🧑‍💼',
-  enrollments: [] as any[]
-}
 
 function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -61,7 +55,28 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [employee] = useState(DEFAULT_EMPLOYEE)
+  const [employee, setEmployee] = useState<Employee>({
+    id: DEFAULT_EMPLOYEE_ID,
+    name: '演示用户',
+    email: 'demo@company.com',
+    team: '技术研发部',
+    avatar: '🧑‍💼',
+    enrollments: []
+  })
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const data = await api.get('/employees') as any
+        if (Array.isArray(data) && data.length > 0) {
+          setEmployee(data[0])
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    fetchEmployees()
+  }, [])
 
   return (
     <Layout>
