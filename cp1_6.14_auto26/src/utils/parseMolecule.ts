@@ -80,8 +80,12 @@ export function validateSDFContent(content: string): { valid: boolean; error?: s
     };
   }
 
+  let actualAtomCount = 0;
   for (let i = 4; i < 4 + expectedAtomLines; i++) {
     const atomLine = lines[i];
+    if (!atomLine || atomLine.trim().length === 0) {
+      continue;
+    }
     const atomMatch = atomLine.trim().match(/^(-?\d+\.?\d*)\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)\s+([A-Za-z]{1,2})/);
     if (!atomMatch) {
       return {
@@ -102,10 +106,37 @@ export function validateSDFContent(content: string): { valid: boolean; error?: s
         bondCount,
       };
     }
+
+    const x = parseFloat(atomMatch[1]);
+    const y = parseFloat(atomMatch[2]);
+    const z = parseFloat(atomMatch[3]);
+    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+      return {
+        valid: false,
+        error: `SDF文件格式不正确：第${i + 1}行原子坐标数值无效`,
+        atomCount,
+        bondCount,
+      };
+    }
+
+    actualAtomCount++;
   }
 
+  if (actualAtomCount !== atomCount) {
+    return {
+      valid: false,
+      error: `SDF文件计数行声明${atomCount}个原子，但实际解析出${actualAtomCount}个有效原子，数量不匹配`,
+      atomCount,
+      bondCount,
+    };
+  }
+
+  let actualBondCount = 0;
   for (let i = 4 + expectedAtomLines; i < expectedDataEnd; i++) {
     const bondLine = lines[i];
+    if (!bondLine || bondLine.trim().length === 0) {
+      continue;
+    }
     const bondMatch = bondLine.trim().match(/^(\d+)\s+(\d+)\s+(\d+)/);
     if (!bondMatch) {
       return {
@@ -115,6 +146,39 @@ export function validateSDFContent(content: string): { valid: boolean; error?: s
         bondCount,
       };
     }
+
+    const atom1Idx = parseInt(bondMatch[1], 10);
+    const atom2Idx = parseInt(bondMatch[2], 10);
+    const order = parseInt(bondMatch[3], 10);
+
+    if (atom1Idx < 1 || atom1Idx > atomCount || atom2Idx < 1 || atom2Idx > atomCount) {
+      return {
+        valid: false,
+        error: `SDF文件格式不正确：第${i + 1}行化学键引用的原子索引(${atom1Idx}-${atom2Idx})超出原子总数(${atomCount})范围`,
+        atomCount,
+        bondCount,
+      };
+    }
+
+    if (order < 1 || order > 3) {
+      return {
+        valid: false,
+        error: `SDF文件格式不正确：第${i + 1}行键级${order}不合法，应为1(单键)、2(双键)或3(三键)`,
+        atomCount,
+        bondCount,
+      };
+    }
+
+    actualBondCount++;
+  }
+
+  if (actualBondCount !== bondCount) {
+    return {
+      valid: false,
+      error: `SDF文件计数行声明${bondCount}个化学键，但实际解析出${actualBondCount}个有效键，数量不匹配`,
+      atomCount,
+      bondCount,
+    };
   }
 
   return { valid: true, atomCount, bondCount };

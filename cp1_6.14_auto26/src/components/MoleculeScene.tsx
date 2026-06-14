@@ -1,6 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useSpring, animated, config } from '@react-spring/three';
 import * as THREE from 'three';
 import type { ParsedMolecule, DisplayMode } from '@/types';
@@ -98,6 +99,7 @@ function AtomMesh({
   });
 
   const labelOffset = baseRadius * 1.8;
+  const labelColor = info.color;
 
   return (
     <group position={basePosition}>
@@ -155,11 +157,11 @@ function AtomMesh({
 
       <Text
         position={[0, labelOffset, 0]}
-        fontSize={0.35}
-        color="#ffffff"
+        fontSize={0.38}
+        color={labelColor}
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.04}
+        outlineWidth={0.05}
         outlineColor="#000000"
         userData={{ ignoreRaycast: true }}
       >
@@ -243,7 +245,6 @@ function BondMesh({ transform, displayMode }: BondMeshProps) {
       ref={groupRef}
       position={transform.position}
       rotation={transform.rotation}
-      visible={opacity.to((v) => v > 0.01)}
     >
       {renderBondCylinders()}
     </animated.group>
