@@ -12,8 +12,16 @@ const BookCard: React.FC<BookCardProps> = memo(({ book, index }) => {
   const navigate = useNavigate();
   const progress = getReadingProgress(book.currentPage, book.totalPages);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     navigate(`/books/${book.id}/edit`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigate(`/books/${book.id}/edit`);
+    }
   };
 
   const handleTrackClick = (e: React.MouseEvent) => {
@@ -27,7 +35,11 @@ const BookCard: React.FC<BookCardProps> = memo(({ book, index }) => {
     <div 
       className="book-card" 
       onClick={handleClick}
-      style={{ animationDelay: `${index * 50}ms` }}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`编辑图书: ${book.title}`}
+      style={{ animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
     >
       <div className="book-cover">
         {book.coverUrl ? (

@@ -4,16 +4,6 @@ import { useApp } from './context';
 import { BookStorage } from './BookStorage';
 import BookCard from './BookCard';
 import { useDebounce } from './utils';
-import type { Book } from './types';
-
-interface ImportConfirmState {
-  show: boolean;
-  jsonData: string;
-  totalBooks: number;
-  duplicates: string[];
-  duplicateBooks: Book[];
-  errors: string[];
-}
 
 const BookList: React.FC = () => {
   const navigate = useNavigate();
@@ -22,15 +12,7 @@ const BookList: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCollapsed, setFilterCollapsed] = useState(false);
-  const [importConfirm, setImportConfirm] = useState<ImportConfirmState>({
-    show: false,
-    jsonData: '',
-    totalBooks: 0,
-    duplicates: [],
-    duplicateBooks: [],
-    errors: []
-  });
-  const [confirmClosing, setConfirmClosing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const debouncedKeyword = useDebounce(searchKeyword, 200);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,76 +45,35 @@ const BookList: React.FC = () => {
 
   const handleImportFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isImporting) return;
 
+    setIsImporting(true);
     try {
       const text = await file.text();
-      const preview = BookStorage.previewImportData(text);
+      const result = await BookStorage.importDataWithConfirmation(text);
+      refreshBooks();
 
-      if (preview.errors.length > 0 && preview.totalBooks === 0) {
-        showToast(`导入失败: ${preview.errors[0]}`, 'error');
+      if (result.cancelled) {
         return;
       }
 
-      if (preview.duplicates.length > 0) {
-        setImportConfirm({
-          show: true,
-          jsonData: text,
-          totalBooks: preview.totalBooks,
-          duplicates: preview.duplicates,
-          duplicateBooks: preview.duplicateBooks,
-          errors: preview.errors
-        });
-      } else {
-        executeImport(text, true);
+      if (result.imported > 0) {
+        showToast(`成功导入 ${result.imported} 本图书！`, 'success');
+      }
+      if (result.duplicates.length > 0) {
+        showToast(`${result.duplicates.length} 本重复ISBN的图书已处理`, 'info');
+      }
+      if (result.errors.length > 0 && result.imported === 0) {
+        showToast(`导入失败: ${result.errors[0]}`, 'error');
+      } else if (result.errors.length > 0) {
+        showToast(`${result.errors.length} 条数据存在问题已跳过`, 'info');
       }
     } catch (err) {
       showToast('导入失败，请检查文件格式', 'error');
     } finally {
       e.target.value = '';
+      setIsImporting(false);
     }
-  };
-
-  const executeImport = (jsonData: string, skipDuplicates: boolean) => {
-    const result = BookStorage.importData(jsonData, skipDuplicates);
-    refreshBooks();
-
-    if (result.imported > 0) {
-      showToast(`成功导入 ${result.imported} 本图书！`, 'success');
-    }
-    if (result.duplicates.length > 0 && skipDuplicates) {
-      showToast(`跳过 ${result.duplicates.length} 本重复ISBN的图书`, 'info');
-    }
-    if (result.errors.length > 0 && result.imported === 0) {
-      showToast(`导入失败: ${result.errors[0]}`, 'error');
-    } else if (result.errors.length > 0) {
-      showToast(`${result.errors.length} 条数据存在问题已跳过`, 'info');
-    }
-
-    closeImportConfirm();
-  };
-
-  const handleConfirmSkipDuplicates = () => {
-    executeImport(importConfirm.jsonData, true);
-  };
-
-  const handleConfirmImportAll = () => {
-    executeImport(importConfirm.jsonData, false);
-  };
-
-  const closeImportConfirm = () => {
-    setConfirmClosing(true);
-    setTimeout(() => {
-      setImportConfirm({
-        show: false,
-        jsonData: '',
-        totalBooks: 0,
-        duplicates: [],
-        duplicateBooks: [],
-        errors: []
-      });
-      setConfirmClosing(false);
-    }, 280);
   };
 
   return (
@@ -218,83 +159,6 @@ const BookList: React.FC = () => {
               添加第一本图书
             </button>
           )}
-        </div>
-      )}
-
-      {importConfirm.show && (
-        <div className="modal-overlay" onClick={closeImportConfirm}>
-          <div
-            className={`modal ${confirmClosing ? 'closing' : ''}`}
-            style={{ maxWidth: 500 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 className="modal-title">⚠️ 检测到重复 ISBN</h3>
-              <button className="modal-close" onClick={closeImportConfirm}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 16 }}>
-                文件中共包含 <strong>{importConfirm.totalBooks}</strong> 本图书，其中
-                <strong style={{ color: 'var(--color-error)' }}> {importConfirm.duplicates.length} </strong>
-                本的 ISBN 已存在于您的书库中：
-              </p>
-              <div style={{
-                background: 'var(--color-bg-alt)',
-                borderRadius: 8,
-                padding: 12,
-                maxHeight: 200,
-                overflowY: 'auto',
-                marginBottom: 16
-              }}>
-                {importConfirm.duplicateBooks.slice(0, 5).map((book, idx) => (
-                  <div key={idx} style={{
-                    padding: '8px 0',
-                    borderBottom: idx < Math.min(importConfirm.duplicateBooks.length, 5) - 1 ? '1px solid var(--color-border)' : 'none',
-                    fontSize: 14
-                  }}>
-                    <div style={{ fontWeight: 600 }}>{book.title}</div>
-                    <div style={{ color: 'var(--color-text-light)', fontSize: 12 }}>
-                      {book.author} · ISBN: {book.isbn}
-                    </div>
-                  </div>
-                ))}
-                {importConfirm.duplicateBooks.length > 5 && (
-                  <div style={{ color: 'var(--color-text-light)', fontSize: 12, marginTop: 8 }}>
-                    ...还有 {importConfirm.duplicateBooks.length - 5} 本重复图书
-                  </div>
-                )}
-              </div>
-              {importConfirm.errors.length > 0 && (
-                <div style={{
-                  background: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 16,
-                  fontSize: 13,
-                  color: '#991B1B'
-                }}>
-                  ⚠️ 另外有 {importConfirm.errors.length} 条数据验证失败将被跳过
-                </div>
-              )}
-              <p style={{ fontSize: 14, color: 'var(--color-text-light)' }}>
-                请选择如何处理这些重复数据：
-              </p>
-            </div>
-            <div className="modal-footer" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              <button className="btn btn-primary" onClick={handleConfirmSkipDuplicates}>
-                📥 跳过重复，导入其余 {importConfirm.totalBooks - importConfirm.duplicates.length} 本
-              </button>
-              <button className="btn btn-secondary" onClick={handleConfirmImportAll}>
-                ⚡ 强制全部导入（保留重复）
-              </button>
-              <button className="btn btn-secondary" onClick={closeImportConfirm}>
-                取消导入
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
