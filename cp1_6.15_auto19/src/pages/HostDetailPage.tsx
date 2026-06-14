@@ -182,6 +182,14 @@ export default function HostDetailPage() {
     )
   }
 
+  const safeHost = {
+    ...host,
+    petTypes: host.petTypes || [],
+    images: host.images || [],
+    bookedDates: host.bookedDates || [],
+    reviews: host.reviews || []
+  }
+
   return (
     <div className="container" style={{ paddingTop: '40px' }}>
       {notifications.map(notif => (

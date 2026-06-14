@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 interface StarRatingProps {
   rating: number
@@ -16,8 +16,9 @@ export default function StarRating({
   showValue = false
 }: StarRatingProps) {
   const [hoverRating, setHoverRating] = useState(0)
-  const [bounceStar, setBounceStar] = useState<number | null>(null)
-  const [allBounce, setAllBounce] = useState(false)
+  const [bounceKey, setBounceKey] = useState(0)
+  const [lastClickedStar, setLastClickedStar] = useState<number | null>(null)
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const sizeMap = {
     small: '14px',
@@ -29,42 +30,42 @@ export default function StarRating({
   const fullStars = Math.floor(displayRating)
   const hasHalfStar = displayRating % 1 >= 0.5
 
-  const handleClick = (star: number) => {
+  const handleClick = useCallback((star: number) => {
     if (!interactive) return
+
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current)
+    }
+
     onChange?.(star)
-    setBounceStar(star)
-    setAllBounce(true)
-    setTimeout(() => setBounceStar(null), 600)
-    setTimeout(() => setAllBounce(false), 600)
-  }
+    setLastClickedStar(star)
+    setBounceKey(prev => prev + 1)
+
+    clickTimeoutRef.current = setTimeout(() => {
+      setLastClickedStar(null)
+    }, 700)
+  }, [interactive, onChange])
 
   return (
     <span className="rating">
       <span className="stars" style={{ display: 'inline-flex', gap: '4px' }}>
         {[1, 2, 3, 4, 5].map((star, idx) => {
-          let starClass = 'star'
           const isFilled = star <= fullStars || (star === fullStars + 1 && hasHalfStar && !interactive)
-          
-          if (!isFilled) {
-            starClass += ' empty'
-          }
-
-          if (allBounce || bounceStar === star) {
-            starClass += ' bounce'
-          }
+          const isBouncing = lastClickedStar !== null && star <= lastClickedStar
 
           return (
             <span
-              key={star}
-              className={starClass}
+              key={`${star}-${bounceKey}-${rating}`}
+              className={`star ${isFilled ? '' : 'empty'} ${isBouncing ? 'bounce' : ''}`}
               style={{
                 fontSize: sizeMap[size],
                 cursor: interactive ? 'pointer' : 'default',
                 transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 display: 'inline-block',
-                animationDelay: allBounce ? `${idx * 60}ms` : '0ms',
+                animationDelay: isBouncing ? `${idx * 60}ms` : '0ms',
                 transform: interactive && hoverRating >= star ? 'scale(1.3) translateY(-2px)' : undefined,
-                filter: isFilled ? 'drop-shadow(0 2px 4px rgba(255, 215, 0, 0.3))' : undefined
+                filter: isFilled ? 'drop-shadow(0 2px 4px rgba(255, 215, 0, 0.3))' : undefined,
+                userSelect: 'none'
               }}
               onClick={() => handleClick(star)}
               onMouseEnter={() => interactive && setHoverRating(star)}

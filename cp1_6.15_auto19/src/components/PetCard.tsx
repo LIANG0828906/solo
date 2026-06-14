@@ -13,11 +13,15 @@ const petTypeLabels: Record<string, string> = {
   other: '🐹 其他'
 }
 
+const DEFAULT_PET_AVATAR =
+  'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23FAF3E9%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2260%22%20font-size%3D%2250%22%20text-anchor%3D%22middle%22%3E🐾%3C%2Ftext%3E%3C%2Fsvg%3E'
+
 export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [avatarLoaded, setAvatarLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
     if (pet) {
@@ -26,9 +30,24 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
     }
   }, [pet])
 
+  useEffect(() => {
+    setAvatarLoaded(false)
+    setImageError(false)
+  }, [pet?.avatar])
+
   const toggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation()
     setIsExpanded(prev => !prev)
+  }
+
+  const handleImageError = () => {
+    setImageError(true)
+    setAvatarLoaded(true)
+  }
+
+  const handleImageLoad = () => {
+    setAvatarLoaded(true)
+    setImageError(false)
   }
 
   if (isLoading || !pet) {
@@ -44,15 +63,17 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
             border: '4px solid var(--color-cream)'
           }}
         />
-        <div className="skeleton skeleton-line short" style={{ height: '22px', marginBottom: '8px' }} />
+        <div className="skeleton skeleton-line short" style={{ height: '22px', marginBottom: '8px', margin: '0 auto 8px' }} />
         <div className="skeleton skeleton-line" style={{ height: '16px', marginBottom: '12px' }} />
-        <div className="skeleton" style={{ width: '80px', height: '24px', borderRadius: '20px', marginBottom: '12px' }} />
+        <div className="skeleton" style={{ width: '80px', height: '24px', borderRadius: '20px', margin: '0 auto 12px' }} />
         <div className="skeleton skeleton-line" style={{ height: '14px', marginBottom: '8px' }} />
         <div className="skeleton skeleton-line medium" style={{ height: '14px', marginBottom: '16px' }} />
-        <div className="skeleton" style={{ width: '100px', height: '36px', borderRadius: '10px', marginTop: 'auto' }} />
+        <div className="skeleton" style={{ width: '100px', height: '36px', borderRadius: '10px', margin: 'auto' }} />
       </div>
     )
   }
+
+  const avatarSrc = imageError ? DEFAULT_PET_AVATAR : pet.avatar
 
   return (
     <div
@@ -80,21 +101,24 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
               top: 0,
               left: '50%',
               transform: 'translateX(-50%)',
-              border: '4px solid var(--color-cream)'
+              border: '4px solid var(--color-cream)',
+              zIndex: 1
             }}
           />
         )}
         <img
-          src={pet.avatar}
+          src={avatarSrc}
           alt={pet.name}
           className="pet-avatar"
           style={{
             transform: isHovered ? 'scale(1.1)' : undefined,
-            transition: 'transform 0.3s ease',
-            opacity: avatarLoaded ? 1 : 0
+            transition: 'transform 0.3s ease, opacity 0.4s ease',
+            opacity: avatarLoaded ? 1 : 0,
+            objectFit: imageError ? 'contain' : 'cover',
+            background: imageError ? 'var(--color-cream)' : undefined
           }}
-          onLoad={() => setAvatarLoaded(true)}
-          onError={() => setAvatarLoaded(true)}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
         />
         {selected && (
           <div style={{
@@ -120,16 +144,16 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
       </div>
 
       <div className="pet-name" style={{
-        animation: isLoading ? 'none' : 'fadeInUp 0.4s ease 0.1s both'
+        animation: 'fadeInUp 0.4s ease 0.1s both'
       }}>
         {pet.name}
       </div>
       <div className="pet-info" style={{
-        animation: isLoading ? 'none' : 'fadeInUp 0.4s ease 0.2s both'
+        animation: 'fadeInUp 0.4s ease 0.2s both'
       }}>
         <strong style={{ color: 'var(--color-dark-brown)' }}>{pet.breed}</strong> · {pet.age}岁
       </div>
-      <div className="pet-tags" style={{ justifyContent: 'center', animation: isLoading ? 'none' : 'fadeInUp 0.4s ease 0.3s both' }}>
+      <div className="pet-tags" style={{ justifyContent: 'center', animation: 'fadeInUp 0.4s ease 0.3s both' }}>
         <span className={`pet-tag ${pet.type}`}>
           {petTypeLabels[pet.type]}
         </span>
@@ -141,7 +165,7 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
         transition: 'max-height 0.35s ease, opacity 0.3s ease',
         maxHeight: isExpanded ? '150px' : '40px',
         opacity: isExpanded ? 1 : 0.9,
-        animation: isLoading ? 'none' : 'fadeInUp 0.4s ease 0.4s both'
+        animation: 'fadeInUp 0.4s ease 0.4s both'
       }}>
         <p style={{
           color: 'var(--color-text-light)',
@@ -177,7 +201,7 @@ export default function PetCard({ pet, onSelect, selected }: PetCardProps) {
       </div>
 
       <div className="pet-card-actions" style={{
-        animation: isLoading ? 'none' : 'fadeInUp 0.4s ease 0.5s both'
+        animation: 'fadeInUp 0.4s ease 0.5s both'
       }}>
         <button
           className="btn btn-secondary"
