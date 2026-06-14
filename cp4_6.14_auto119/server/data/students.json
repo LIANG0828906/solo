@@ -1,22 +1,157 @@
 [
-  {"id": "s1", "name": "student001", "courseIds": ["1", "2"]},
-  {"id": "s2", "name": "alice2025", "courseIds": ["1"]},
-  {"id": "s3", "name": "bob_dev", "courseIds": ["3"]},
-  {"id": "s4", "name": "charlie", "courseIds": ["1"]},
-  {"id": "s5", "name": "david123", "courseIds": ["1"]},
-  {"id": "s6", "name": "eve2025", "courseIds": ["1"]},
-  {"id": "s7", "name": "frank", "courseIds": ["1"]},
-  {"id": "s8", "name": "grace01", "courseIds": ["1"]},
-  {"id": "s9", "name": "henry", "courseIds": ["1"]},
-  {"id": "s10", "name": "ivy999", "courseIds": ["1"]},
-  {"id": "s11", "name": "jack88", "courseIds": ["1"]},
-  {"id": "s12", "name": "kate007", "courseIds": ["1"]},
-  {"id": "s13", "name": "leo2025", "courseIds": ["1"]},
-  {"id": "s14", "name": "mia123", "courseIds": ["1"]},
-  {"id": "s15", "name": "noah", "courseIds": ["1"]},
-  {"id": "s16", "name": "olivia", "courseIds": ["2"]},
-  {"id": "s17", "name": "peter001", "courseIds": ["2"]},
-  {"id": "s18", "name": "queen", "courseIds": ["4"]},
-  {"id": "s19", "name": "ryan", "courseIds": ["4"]},
-  {"id": "s20", "name": "sophia22", "courseIds": ["4"]}
+  {
+    "id": "s1",
+    "name": "student001",
+    "courseIds": [
+      "1",
+      "2"
+    ]
+  },
+  {
+    "id": "s2",
+    "name": "alice2025",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s3",
+    "name": "bob_dev",
+    "courseIds": [
+      "3"
+    ]
+  },
+  {
+    "id": "s4",
+    "name": "charlie",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s5",
+    "name": "david123",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s6",
+    "name": "eve2025",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s7",
+    "name": "frank",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s8",
+    "name": "grace01",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s9",
+    "name": "henry",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s10",
+    "name": "ivy999",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s11",
+    "name": "jack88",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s12",
+    "name": "kate007",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s13",
+    "name": "leo2025",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s14",
+    "name": "mia123",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s15",
+    "name": "noah",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "s16",
+    "name": "olivia",
+    "courseIds": [
+      "2"
+    ]
+  },
+  {
+    "id": "s17",
+    "name": "peter001",
+    "courseIds": [
+      "2"
+    ]
+  },
+  {
+    "id": "s18",
+    "name": "queen",
+    "courseIds": [
+      "4"
+    ]
+  },
+  {
+    "id": "s19",
+    "name": "ryan",
+    "courseIds": [
+      "4"
+    ]
+  },
+  {
+    "id": "s20",
+    "name": "sophia22",
+    "courseIds": [
+      "4"
+    ]
+  },
+  {
+    "id": "5860fa2e-fe5c-4a96-b671-8cae2d8e3304",
+    "name": "testuser123",
+    "courseIds": [
+      "1"
+    ]
+  },
+  {
+    "id": "6255f389-5a52-49c8-8f43-db81d648a2ab",
+    "name": "newuser456",
+    "courseIds": [
+      "1"
+    ]
+  }
 ]

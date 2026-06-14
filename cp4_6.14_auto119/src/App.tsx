@@ -121,13 +121,6 @@ function AdminCoursesPage() {
     if (!formData.endTime) {
       newErrors.endTime = '请选择结束时间'
     }
-    if (
-      formData.startTime &&
-      formData.endTime &&
-      formData.startTime >= formData.endTime
-    ) {
-      newErrors.endTime = '结束时间必须晚于开始时间'
-    }
     const maxNum = parseInt(formData.maxStudents)
     if (!formData.maxStudents || isNaN(maxNum) || maxNum < 1 || maxNum > 30) {
       newErrors.maxStudents = '最大学员数必须为1-30的整数'
