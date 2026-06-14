@@ -1,4 +1,4 @@
-import { GameState, Debris, PowerUp, Ship } from './types';
+import { GameState, Debris, PowerUp } from './types';
 
 export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   const { width, height } = state;
@@ -320,7 +320,7 @@ function drawSinglePowerUp(ctx: CanvasRenderingContext2D, p: PowerUp, time: numb
     else ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
   }
   ctx.closePath();
-  ctx.strokeStyle = color.replace('1)', '0.2)');
+  ctx.strokeStyle = colorWithAlpha(color, 0.2);
   ctx.lineWidth = 1;
   ctx.stroke();
 
@@ -394,9 +394,25 @@ function drawParticles(ctx: CanvasRenderingContext2D, state: GameState): void {
     const alpha = p.life / p.maxLife;
     ctx.beginPath();
     ctx.arc(p.pos.x, p.pos.y, p.size * alpha, 0, Math.PI * 2);
-    ctx.fillStyle = p.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+    ctx.fillStyle = colorWithAlpha(p.color, alpha);
     ctx.fill();
   }
+}
+
+function colorWithAlpha(color: string, alpha: number): string {
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (color.startsWith('rgba')) {
+    return color.replace(/[\d.]+\)$/, `${alpha})`);
+  }
+  if (color.startsWith('rgb')) {
+    return color.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+  }
+  return color;
 }
 
 function drawScreenFlash(ctx: CanvasRenderingContext2D, state: GameState): void {

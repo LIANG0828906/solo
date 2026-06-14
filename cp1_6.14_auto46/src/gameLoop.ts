@@ -66,11 +66,8 @@ export function startGameLoop(
 
     if (state.phase === 'playing') {
       updatePhysics(state, dt);
-    } else if (state.phase === 'menu') {
+    } else {
       state.gameTime += dt;
-      for (const star of state.stars) {
-        star.twinklePhase += dt * star.twinkleSpeed * 0.5;
-      }
     }
 
     render(ctx, state);

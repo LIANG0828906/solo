@@ -362,6 +362,10 @@ function updateTimers(state: GameState, dt: number): void {
     state.ship.shield = Math.min(state.ship.maxShield, state.ship.shield + shieldRegenRate * dt);
   }
 
+  if (!state.beamActive && state.ship.energy < state.ship.maxEnergy) {
+    state.ship.energy = Math.min(state.ship.maxEnergy, state.ship.energy + 5 * dt);
+  }
+
   state.gameTime += dt;
 }
 
