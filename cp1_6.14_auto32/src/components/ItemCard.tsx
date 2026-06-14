@@ -36,7 +36,7 @@ function getRelativeTime(dateStr: string): string {
 }
 
 const statusConfig = {
-  available: { label: '可用', bg: 'bg-status-available' },
+  available: { label: '待交换', bg: 'bg-status-available' },
   exchanged: { label: '已交换', bg: 'bg-status-exchanged' },
   offline: { label: '已下架', bg: 'bg-status-offline' },
 } as const;

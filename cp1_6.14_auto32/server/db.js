@@ -13,7 +13,7 @@ const defaultData = {
     {
       id: 'item-1',
       title: '二手自行车',
-      category: 'sports',
+      category: 'furniture',
       condition: 'good',
       description: '九成新山地自行车，骑行不到500公里，前后碟刹，变速正常。',
       images: [],
@@ -52,7 +52,7 @@ const defaultData = {
     {
       id: 'item-4',
       title: '瑜伽垫',
-      category: 'sports',
+      category: 'clothing',
       condition: 'fair',
       description: '加厚瑜伽垫，使用一年，有少量磨损，不影响使用。',
       images: [],
@@ -65,7 +65,7 @@ const defaultData = {
     {
       id: 'item-5',
       title: '儿童积木套装',
-      category: 'toys',
+      category: 'other',
       condition: 'like-new',
       description: '大颗粒积木200块，适合3岁以上儿童，原装盒装完整。',
       images: [],

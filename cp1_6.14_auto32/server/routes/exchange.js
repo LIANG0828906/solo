@@ -54,6 +54,20 @@ router.post('/', async (req, res) => {
   res.status(201).json(newExchange)
 })
 
+router.get('/ratings/:userId', (req, res) => {
+  const db = getDB()
+  const userId = req.params.userId
+  const ratings = db.data.ratings.filter(r => r.toUserId === userId)
+
+  const totalCount = ratings.length
+  const averageScore = totalCount > 0
+    ? Math.round((ratings.reduce((sum, r) => sum + r.score, 0) / totalCount) * 10) / 10
+    : 0
+
+  ratings.sort((a, b) => b.createdAt - a.createdAt)
+  res.json({ averageScore, totalCount, ratings })
+})
+
 router.get('/:userId', async (req, res) => {
   const db = getDB()
   const userId = req.params.userId
@@ -143,20 +157,6 @@ router.post('/:id/rate', async (req, res) => {
   db.data.ratings.push(newRating)
   await db.write()
   res.status(201).json(newRating)
-})
-
-router.get('/ratings/:userId', (req, res) => {
-  const db = getDB()
-  const userId = req.params.userId
-  const ratings = db.data.ratings.filter(r => r.toUserId === userId)
-
-  const totalCount = ratings.length
-  const averageScore = totalCount > 0
-    ? Math.round((ratings.reduce((sum, r) => sum + r.score, 0) / totalCount) * 10) / 10
-    : 0
-
-  ratings.sort((a, b) => b.createdAt - a.createdAt)
-  res.json({ averageScore, totalCount, ratings })
 })
 
 export default router
