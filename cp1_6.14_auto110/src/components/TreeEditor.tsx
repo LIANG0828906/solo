@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useDrop } from 'react-dnd'
-import { TreeNode } from './TreeNode'
-import { ConnectionLine } from './ConnectionLine'
-import { PropertyModal } from './PropertyModal'
+import TreeNode from './TreeNode'
+import ConnectionLine from './ConnectionLine'
+import PropertyModal from './PropertyModal'
 import { useBehaviorTreeStore } from '@/stores/behaviorTreeStore'
 import { Connection } from '@/types/behaviorTree'
 import { snapToGrid } from '@/utils/geometry'
@@ -246,7 +246,6 @@ const TreeEditor: React.FC = () => {
       style={{ cursor: isPanning ? 'grabbing' : isDraggingConnection ? 'crosshair' : 'grab' }}
     >
       <svg
-        ref={svgRef}
         className="absolute inset-0 pointer-events-none"
         style={{
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
@@ -297,6 +296,7 @@ const TreeEditor: React.FC = () => {
             onEndConnection={handleEndConnection}
             onDoubleClick={handleNodeDoubleClick}
             onRemove={handleNodeRemove}
+            isDraggingConnection={isDraggingConnection}
           />
         ))}
       </div>

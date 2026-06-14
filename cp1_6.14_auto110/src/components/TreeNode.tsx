@@ -11,6 +11,7 @@ interface TreeNodeProps {
   onEndConnection: (nodeId: string, port: 'input') => void
   onDoubleClick: (id: string) => void
   onRemove: (id: string) => void
+  isDraggingConnection?: boolean
 }
 
 const nodeColors: Record<NodeType, string> = {
@@ -36,11 +37,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   onStartConnection,
   onEndConnection,
   onDoubleClick,
-  onRemove
+  onRemove,
+  isDraggingConnection = false
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [showRemove, setShowRemove] = useState(false)
   const [isNew, setIsNew] = useState(true)
+  const [isInputHovered, setIsInputHovered] = useState(false)
   const dragRef = useRef<HTMLDivElement>(null)
   const nodeRef = useRef<HTMLDivElement>(null)
 
@@ -215,13 +218,22 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 cursor-crosshair"
           style={{
             backgroundColor: '#1a1a2e',
-            borderColor: isOver ? '#00ff88' : '#ffffff',
-            boxShadow: isOver
+            borderColor: isDraggingConnection && isInputHovered ? '#00ff88' : isOver ? '#00ff88' : '#ffffff',
+            boxShadow: isDraggingConnection && isInputHovered
+              ? '0 0 12px rgba(0, 255, 136, 0.9), 0 0 24px rgba(0, 255, 136, 0.5)'
+              : isOver
               ? '0 0 10px rgba(0, 255, 136, 0.8)'
               : '0 0 8px rgba(255, 255, 255, 0.5)',
-            animation: 'port-pulse 2s ease-in-out infinite'
+            animation: isDraggingConnection && isInputHovered ? 'port-pulse-green 1s ease-in-out infinite' : 'port-pulse 2s ease-in-out infinite',
+            transform: isDraggingConnection && isInputHovered ? 'translateX(-50%) scale(1.2)' : 'translateX(-50%) scale(1)',
+            transition: 'border-color 0.2s, box-shadow 0.2s, transform 0.2s'
           }}
-          onMouseUp={() => onEndConnection(node.id, 'input')}
+          onMouseEnter={() => setIsInputHovered(true)}
+          onMouseLeave={() => setIsInputHovered(false)}
+          onMouseUp={(e) => {
+            e.stopPropagation()
+            onEndConnection(node.id, 'input')
+          }}
         />
 
         <div
@@ -243,6 +255,15 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           }
           50% {
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 25px rgba(255, 255, 255, 0.4);
+          }
+        }
+        
+        @keyframes port-pulse-green {
+          0%, 100% {
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.9), 0 0 24px rgba(0, 255, 136, 0.5);
+          }
+          50% {
+            box-shadow: 0 0 20px rgba(0, 255, 136, 1), 0 0 40px rgba(0, 255, 136, 0.7);
           }
         }
         

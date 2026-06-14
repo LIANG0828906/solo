@@ -11,9 +11,10 @@ interface CharacterProps {
   rotation: number
   action: CharacterState['action']
   isCrouching: boolean
+  hasCover: boolean
 }
 
-function Character({ position, rotation, action, isCrouching }: CharacterProps) {
+function Character({ position, rotation, action, isCrouching, hasCover }: CharacterProps) {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Mesh>(null)
   const leftArmRef = useRef<THREE.Mesh>(null)
@@ -31,7 +32,7 @@ function Character({ position, rotation, action, isCrouching }: CharacterProps) 
       setTimeout(() => {
         useBehaviorTreeStore.getState().setShowFlash(false)
         flashRef.current = false
-      }, 150)
+      }, 200)
     }
   }, [action])
 
@@ -39,7 +40,15 @@ function Character({ position, rotation, action, isCrouching }: CharacterProps) 
     time.current += delta
 
     if (groupRef.current) {
-      const targetPos = { x: position.x, y: isCrouching ? 0.45 : 0.9, z: position.z }
+      let targetX = position.x
+      let targetZ = position.z
+
+      if (action === 'hide' && hasCover) {
+        targetX = 1.5
+        targetZ = 0
+      }
+
+      const targetPos = { x: targetX, y: isCrouching ? 0.45 : 0.9, z: targetZ }
       currentPosition.current = lerp3d(currentPosition.current, targetPos, easeOutCubic(Math.min(delta * 5, 1)))
       groupRef.current.position.set(currentPosition.current.x, currentPosition.current.y, currentPosition.current.z)
       groupRef.current.rotation.y = rotation
@@ -193,6 +202,7 @@ function Scene() {
         rotation={character.rotation}
         action={character.action}
         isCrouching={character.isCrouching}
+        hasCover={environment.hasCover}
       />
       <Player playerDistance={environment.playerDistance} />
       <Cover hasCover={environment.hasCover} />
@@ -233,7 +243,7 @@ function Scene() {
             bottom: 0,
             backgroundColor: 'rgba(239, 68, 68, 0.4)',
             pointerEvents: 'none',
-            animation: 'flash 0.15s ease-out',
+            animation: 'flash 0.2s ease-out',
           }}
         />
       )}

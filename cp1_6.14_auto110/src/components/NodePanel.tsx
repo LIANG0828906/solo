@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
 import { NodeType } from '@/types/behaviorTree';
-import { GitBranch, ListOrdered, Filter, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GitBranch, ListOrdered, Filter, Zap, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface NodePanelProps {
   collapsed: boolean;
@@ -131,6 +131,14 @@ const NodePanel: React.FC<NodePanelProps> = ({ collapsed, onToggle }) => {
   return (
     <>
       <style>{`
+        @media (min-width: 768px) {
+          .panel-overlay {
+            display: none !important;
+          }
+          .mobile-toggle-btn {
+            display: none !important;
+          }
+        }
         @media (max-width: 767px) {
           .node-panel {
             position: fixed !important;
@@ -139,10 +147,12 @@ const NodePanel: React.FC<NodePanelProps> = ({ collapsed, onToggle }) => {
             right: 0 !important;
             width: 100% !important;
             height: auto !important;
-            max-height: 60vh;
-            z-index: 50;
-            transition: transform 0.3s ease-in-out !important;
+            max-height: 60vh !important;
+            z-index: 51 !important;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             border-radius: 0 0 16px 16px !important;
+            border-right: none !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
           }
           .node-panel.collapsed {
             transform: translateY(-100%) !important;
@@ -150,15 +160,65 @@ const NodePanel: React.FC<NodePanelProps> = ({ collapsed, onToggle }) => {
           .node-panel:not(.collapsed) {
             transform: translateY(0) !important;
           }
-          .toggle-button {
+          .node-panel .panel-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          .desktop-toggle-btn {
+            display: none !important;
+          }
+          .mobile-toggle-btn {
+            display: flex !important;
             position: fixed !important;
-            top: 8px !important;
-            right: 8px !important;
-            left: auto !important;
-            transform: none !important;
+            top: 12px !important;
+            right: 12px !important;
+            z-index: 52 !important;
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 8px !important;
+            background-color: #16213e !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            transition: transform 0.3s ease, background-color 0.2s ease !important;
+          }
+          .mobile-toggle-btn:hover {
+            background-color: #1a2744 !important;
+          }
+          .mobile-toggle-btn.expanded {
+            transform: rotate(180deg) !important;
+          }
+          .panel-overlay {
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            z-index: 50 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: opacity 0.3s ease !important;
+          }
+          .panel-overlay.visible {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+          }
+          .node-panel .panel-content {
+            overflow-y: auto !important;
           }
         }
       `}</style>
+      <div
+        className={`panel-overlay ${!collapsed ? 'visible' : ''}`}
+        onClick={onToggle}
+      />
+      <button
+        className={`mobile-toggle-btn items-center justify-center text-[#e0e0e0] ${!collapsed ? 'expanded' : ''}`}
+        onClick={onToggle}
+        style={{ display: 'none' }}
+      >
+        <ChevronDown size={20} />
+      </button>
       <div
         className={`node-panel ${collapsed ? 'collapsed' : ''} fixed left-0 top-0 h-full flex flex-col transition-all duration-300 ease-in-out z-40`}
         style={{
@@ -169,12 +229,12 @@ const NodePanel: React.FC<NodePanelProps> = ({ collapsed, onToggle }) => {
           boxShadow: '4px 0 16px rgba(0, 0, 0, 0.3)'
         }}
       >
-        <div className="flex items-center justify-between p-3 border-b border-white/10">
+        <div className="panel-header flex items-center justify-between p-3 border-b border-white/10">
           {!collapsed && (
             <h2 className="text-sm font-semibold">节点面板</h2>
           )}
           <button
-            className={`toggle-button flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:bg-white/10 ${collapsed ? 'mx-auto' : ''}`}
+            className={`desktop-toggle-btn toggle-button flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:bg-white/10 ${collapsed ? 'mx-auto' : ''}`}
             onClick={onToggle}
             style={{
               position: collapsed ? 'absolute' : 'relative',
@@ -184,12 +244,12 @@ const NodePanel: React.FC<NodePanelProps> = ({ collapsed, onToggle }) => {
               border: collapsed ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
             }}
           >
-            <span style={{ transition: 'transform 0.3s ease-in-out' }}>
+            <span style={{ transition: 'transform 0.3s ease-in-out', display: 'inline-block' }}>
               {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </span>
           </button>
         </div>
-        <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto">
+        <div className="panel-content flex-1 flex flex-col gap-3 p-3 overflow-y-auto">
           {nodeDefinitions.map((node) => (
             <NodeCard key={node.type} node={node} collapsed={collapsed} />
           ))}

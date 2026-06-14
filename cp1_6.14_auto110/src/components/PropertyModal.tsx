@@ -1,19 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { TreeNodeData, NodeType, ConditionOperator, ActionType } from '@/types/behaviorTree';
 
+type ConditionType = 'playerDistance' | 'health' | 'hasCover';
+
+interface ConditionProperties {
+  conditionType: ConditionType;
+  operator: ConditionOperator;
+  threshold: number;
+}
+
+interface ActionProperties {
+  actionType: ActionType;
+  speed?: number;
+}
+
+type NodeProperties = ConditionProperties | ActionProperties;
+
+interface SaveProperties {
+  label: string;
+  [key: string]: unknown;
+}
+
+function isConditionType(value: unknown): value is ConditionType {
+  return value === 'playerDistance' || value === 'health' || value === 'hasCover';
+}
+
+function isConditionOperator(value: unknown): value is ConditionOperator {
+  return value === 'lt' || value === 'lte' || value === 'gt' || value === 'gte' || value === 'eq';
+}
+
+function isActionType(value: unknown): value is ActionType {
+  return value === 'move' || value === 'attack' || value === 'hide' || value === 'idle';
+}
+
 interface PropertyModalProps {
   node: TreeNodeData | null;
   onClose: () => void;
-  onSave: (id: string, properties: Record<string, unknown>) => void;
+  onSave: (id: string, properties: SaveProperties) => void;
 }
 
-const conditionTypeOptions = [
+interface SelectOption<T> {
+  value: T;
+  label: string;
+}
+
+const conditionTypeOptions: SelectOption<ConditionType>[] = [
   { value: 'playerDistance', label: '玩家距离' },
   { value: 'health', label: '生命值' },
   { value: 'hasCover', label: '是否有掩体' },
 ];
 
-const operatorOptions = [
+const operatorOptions: SelectOption<ConditionOperator>[] = [
   { value: 'lt', label: '小于' },
   { value: 'lte', label: '小于等于' },
   { value: 'gt', label: '大于' },
@@ -21,7 +58,7 @@ const operatorOptions = [
   { value: 'eq', label: '等于' },
 ];
 
-const actionTypeOptions = [
+const actionTypeOptions: SelectOption<ActionType>[] = [
   { value: 'move', label: '移动' },
   { value: 'attack', label: '攻击' },
   { value: 'hide', label: '躲藏' },
@@ -36,8 +73,8 @@ const nodeTypeLabels: Record<NodeType, string> = {
 };
 
 export default function PropertyModal({ node, onClose, onSave }: PropertyModalProps) {
-  const [label, setLabel] = useState('');
-  const [conditionType, setConditionType] = useState<'playerDistance' | 'health' | 'hasCover'>('playerDistance');
+  const [label, setLabel] = useState<string>('');
+  const [conditionType, setConditionType] = useState<ConditionType>('playerDistance');
   const [operator, setOperator] = useState<ConditionOperator>('lt');
   const [threshold, setThreshold] = useState<number>(0);
   const [actionType, setActionType] = useState<ActionType>('idle');
@@ -48,12 +85,19 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
     if (node) {
       setLabel(node.label || '');
       if (node.type === 'condition') {
-        setConditionType((node.properties.conditionType as 'playerDistance' | 'health' | 'hasCover') || 'playerDistance');
-        setOperator((node.properties.operator as ConditionOperator) || 'lt');
-        setThreshold((node.properties.threshold as number) || 0);
+        const propConditionType = node.properties.conditionType;
+        const propOperator = node.properties.operator;
+        const propThreshold = node.properties.threshold;
+        
+        setConditionType(isConditionType(propConditionType) ? propConditionType : 'playerDistance');
+        setOperator(isConditionOperator(propOperator) ? propOperator : 'lt');
+        setThreshold(typeof propThreshold === 'number' ? propThreshold : 0);
       } else if (node.type === 'action') {
-        setActionType((node.properties.actionType as ActionType) || 'idle');
-        setSpeed(node.properties.speed as number | undefined);
+        const propActionType = node.properties.actionType;
+        const propSpeed = node.properties.speed;
+        
+        setActionType(isActionType(propActionType) ? propActionType : 'idle');
+        setSpeed(typeof propSpeed === 'number' ? propSpeed : undefined);
       }
     }
   }, [node]);
@@ -100,7 +144,7 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
   const handleSave = () => {
     if (!node || !validate()) return;
 
-    const properties: Record<string, unknown> = {};
+    const properties: SaveProperties = { label };
     
     if (node.type === 'condition') {
       properties.conditionType = conditionType;
@@ -113,7 +157,7 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
       }
     }
     
-    onSave(node.id, { ...properties, label });
+    onSave(node.id, properties);
     onClose();
   };
 
@@ -160,7 +204,12 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
                 </label>
                 <select
                   value={conditionType}
-                  onChange={(e) => setConditionType(e.target.value as 'playerDistance' | 'health' | 'hasCover')}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isConditionType(value)) {
+                      setConditionType(value);
+                    }
+                  }}
                   className={`w-full px-3 py-2 bg-bg-primary border ${errors.conditionType ? 'border-red-500' : 'border-gray-600'} rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 >
                   {conditionTypeOptions.map((opt) => (
@@ -178,7 +227,12 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
                 </label>
                 <select
                   value={operator}
-                  onChange={(e) => setOperator(e.target.value as ConditionOperator)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isConditionOperator(value)) {
+                      setOperator(value);
+                    }
+                  }}
                   className={`w-full px-3 py-2 bg-bg-primary border ${errors.operator ? 'border-red-500' : 'border-gray-600'} rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 >
                   {operatorOptions.map((opt) => (
@@ -214,7 +268,12 @@ export default function PropertyModal({ node, onClose, onSave }: PropertyModalPr
                 </label>
                 <select
                   value={actionType}
-                  onChange={(e) => setActionType(e.target.value as ActionType)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isActionType(value)) {
+                      setActionType(value);
+                    }
+                  }}
                   className={`w-full px-3 py-2 bg-bg-primary border ${errors.actionType ? 'border-red-500' : 'border-gray-600'} rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 >
                   {actionTypeOptions.map((opt) => (
