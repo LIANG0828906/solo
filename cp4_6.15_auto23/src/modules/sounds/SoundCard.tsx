@@ -61,7 +61,7 @@ function StarRating({
 function AudioVisualizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const { frequencyData, waveformData, isPlaying, currentTime, duration } = useAudioContext();
+  const { frequencyData, waveformData, isPlaying } = useAudioContext();
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -139,8 +139,11 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
 
   const handlePlayPause = () => {
     if (audio.currentSoundId === clip.id) {
-      if (audio.isPlaying) audio.pause();
-      else audio.play();
+      if (audio.isPlaying) {
+        audio.pause();
+      } else {
+        audio.play();
+      }
     } else {
       if (clip.audioUrl) {
         audio.loadAndPlay(clip.audioUrl, clip.id);
@@ -158,7 +161,7 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
   const handleRate = (rating: number) => {
     setNewRating(rating);
     setUserRating(clip.id, rating);
-    const allRatings = getUserRating(clip.id) ? [rating] : [rating];
+    const allRatings = [rating];
     const avgRating = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
     onUpdateClip({ ...clip, rating: Math.round(avgRating * 10) / 10 });
   };
@@ -181,6 +184,8 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
 
   const progress = audio.duration > 0 ? (audio.currentTime / audio.duration) * 100 : 0;
   const isCurrentPlaying = audio.currentSoundId === clip.id && audio.isPlaying;
+  const displayCurrentTime = audio.currentSoundId === clip.id ? audio.currentTime : 0;
+  const displayDuration = audio.currentSoundId === clip.id ? audio.duration : 0;
 
   return (
     <div className="sound-card">
@@ -218,8 +223,7 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
           <span className="time-display">
-            {formatTime(audio.currentSoundId === clip.id ? audio.currentTime : 0)} /{' '}
-            {formatTime(audio.currentSoundId === clip.id ? audio.duration : 0)}
+            {formatTime(displayCurrentTime)} / {formatTime(displayDuration)}
           </span>
         </div>
         {!clip.audioUrl && (
@@ -233,8 +237,8 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
         </button>
         {showComments && (
           <div className="comments-list">
-            {comments.map((c) => (
-              <div key={c.id} className="comment-item">
+            {comments.map((c, idx) => (
+              <div key={c.id} className="comment-item" style={{ animationDelay: `${idx * 60}ms` }}>
                 <div className="comment-header">
                   <span className="comment-user">{c.userName}</span>
                   <span className="comment-time">
@@ -253,7 +257,9 @@ export default function SoundCard({ clip, onUpdateClip }: SoundCardProps) {
                 onChange={(e) => setNewComment(e.target.value)}
               />
               <div className="comment-form-footer">
-                <span className="char-count">{newComment.length}/200</span>
+                <span className={`char-count ${newComment.length >= 180 ? 'char-warn' : ''}`}>
+                  {newComment.length}/200
+                </span>
                 <button className="comment-submit" onClick={handleAddComment}>
                   发送
                 </button>
