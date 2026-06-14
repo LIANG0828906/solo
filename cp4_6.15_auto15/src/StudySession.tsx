@@ -81,18 +81,19 @@ export default function StudySession({ deck, onBack }: StudySessionProps) {
       reviewCount: deck.reviewCount + 1,
     });
 
+    const nextIndex = smartIndex + 1;
+
     if (rating === 'hard') {
-      const insertAt = smartIndex + 3;
       setSmartQueueLocal((q) => {
         const next = [...q];
-        next.splice(Math.min(insertAt, next.length), 0, updated);
+        next.splice(nextIndex, 0, updated);
         return next;
       });
     }
 
     setFlipped(false);
     setTimeout(() => {
-      setSmartIndex((i) => i + 1);
+      setSmartIndex(nextIndex);
     }, 150);
   };
 
