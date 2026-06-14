@@ -1,0 +1,381 @@
+.profile-page {
+  min-height: calc(100vh - 64px);
+  padding: 32px 0 48px;
+}
+
+.profile-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 700;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.profile-stats {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-sm);
+  width: fit-content;
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.profile-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  min-height: 400px;
+}
+
+.profile-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state p {
+  margin-bottom: 20px;
+}
+
+.profile-items-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.profile-item-card {
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.profile-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.item-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-badge.status-available {
+  background: rgba(82, 196, 26, 0.9);
+  color: white;
+}
+
+.status-badge.status-exchanging {
+  background: var(--secondary-color);
+  color: #333;
+}
+
+.status-badge.status-exchanged {
+  background: #999;
+  color: white;
+}
+
+.item-info {
+  padding: 12px;
+}
+
+.item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.exchange-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exchange-item {
+  padding: 20px;
+}
+
+.exchange-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.exchange-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.exchange-item-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.exchange-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.exchange-role {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.exchange-status {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.exchange-status.status-pending {
+  background: #fff7e6;
+  color: #d48806;
+}
+
+.exchange-status.status-accepted {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.exchange-status.status-rejected {
+  background: #fff1f0;
+  color: #cf1322;
+}
+
+.exchange-status.status-completed {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.exchange-parties {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.party-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.party-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.party-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.party-credit {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.exchange-arrow {
+  color: var(--text-light);
+  font-size: 18px;
+}
+
+.exchange-ratings {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 24px;
+}
+
+.rating-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.rating-label {
+  color: var(--text-secondary);
+}
+
+.stars {
+  color: var(--secondary-color);
+  letter-spacing: 2px;
+}
+
+.no-rating {
+  color: var(--text-light);
+  font-size: 12px;
+}
+
+.exchange-time {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 12px;
+}
+
+@media (max-width: 1024px) {
+  .profile-items-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 28px 20px;
+    gap: 20px;
+  }
+
+  .profile-stats {
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .profile-items-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .exchange-ratings {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
