@@ -20,6 +20,7 @@
   --platform-airbnb: #ff5a5f;
   --platform-xiaozhu: #00b894;
   --transition-fast: 0.2s ease;
+  --transition-fast-color: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 * {
@@ -45,7 +46,7 @@ button {
 
 button:active {
   transform: scale(0.95);
-  transition: transform 0.05s;
+  transition: transform 0.05s ease;
 }
 
 input, select, textarea {
@@ -132,11 +133,41 @@ input, select, textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 700;
+  color: var(--text-primary);
+}
+
+.header-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.unread-badge {
+  background: var(--accent-primary);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.property-count {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
   color: var(--text-primary);
 }
 
@@ -171,6 +202,8 @@ input, select, textarea {
 
 .calendar-container {
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calendar-grid {
@@ -196,6 +229,10 @@ input, select, textarea {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 .calendar-header-cell:first-child {
@@ -205,6 +242,25 @@ input, select, textarea {
   min-width: 180px;
   text-align: left;
   padding-left: 16px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.header-weekday {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.header-day {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.header-day.today {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-primary);
 }
 
 .calendar-row {
@@ -220,6 +276,11 @@ input, select, textarea {
   left: 0;
   z-index: 5;
   min-width: 180px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .calendar-day-cell {
@@ -227,13 +288,27 @@ input, select, textarea {
   min-width: 48px;
   height: 48px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), transform 0.15s ease, box-shadow 0.15s ease;
   position: relative;
+  gap: 1px;
+}
+
+.cell-day {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.cell-guest {
+  font-size: 9px;
+  opacity: 0.9;
+  line-height: 1;
 }
 
 .calendar-day-cell:hover {
@@ -246,25 +321,25 @@ input, select, textarea {
 .calendar-day-cell.status-booked {
   background: var(--status-booked);
   color: white;
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.2s ease;
 }
 
 .calendar-day-cell.status-pending {
   background: var(--status-pending);
   color: white;
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.2s ease;
 }
 
 .calendar-day-cell.status-available {
   background: var(--status-available);
   color: white;
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.2s ease;
 }
 
 .calendar-day-cell.status-maintenance {
   background: var(--status-maintenance);
   color: white;
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.2s ease;
 }
 
 .calendar-day-cell.today {
@@ -272,7 +347,7 @@ input, select, textarea {
 }
 
 .calendar-day-cell.weekend {
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .status-menu {
@@ -283,6 +358,18 @@ input, select, textarea {
   padding: 8px;
   z-index: 1000;
   min-width: 140px;
+  animation: menuFadeIn 0.15s ease;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .status-menu-item {
@@ -308,6 +395,7 @@ input, select, textarea {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .status-dot.booked { background: var(--status-booked); }
@@ -394,12 +482,27 @@ input, select, textarea {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 10px;
+  font-weight: 500;
+}
+
+.message-count.replied {
+  background: var(--text-secondary);
 }
 
 .message-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.empty-section {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-light);
 }
 
 .message-card {
@@ -411,7 +514,7 @@ input, select, textarea {
   gap: 16px;
   height: 80px;
   border-left: 4px solid var(--border-light);
-  transition: all var(--transition-fast);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -424,9 +527,11 @@ input, select, textarea {
   border-left-color: var(--platform-xiaozhu);
 }
 
-.message-card.replied {
+.message-card.replied-card {
   opacity: 0.6;
-  background: #f1f5f9;
+  background: #eef2f7;
+  filter: grayscale(0.3);
+  transition: all 0.3s ease;
 }
 
 .message-card.expanded {
@@ -464,6 +569,19 @@ input, select, textarea {
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message-platform-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 400;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
 }
 
 .message-property {
@@ -484,6 +602,7 @@ input, select, textarea {
 .message-card.expanded .message-content {
   white-space: normal;
   overflow: visible;
+  width: 100%;
 }
 
 .message-time {
@@ -532,6 +651,20 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+    transform: translateY(0);
+  }
 }
 
 .reply-input {
@@ -576,13 +709,13 @@ input, select, textarea {
 .reply-text {
   font-size: 14px;
   color: var(--text-primary);
+  line-height: 1.5;
 }
 
 .property-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
-  margin-bottom: 32px;
 }
 
 .form-group {
@@ -612,8 +745,11 @@ input, select, textarea {
   border-color: var(--accent-primary);
 }
 
+.form-submit-group {
+  justify-content: flex-end;
+}
+
 .form-submit {
-  align-self: flex-end;
   padding: 10px 24px;
   background: var(--accent-primary);
   color: white;
@@ -621,10 +757,15 @@ input, select, textarea {
   font-weight: 500;
   font-size: 14px;
   transition: background var(--transition-fast);
+  margin-top: 0;
 }
 
 .form-submit:hover {
   background: var(--accent-hover);
+}
+
+.properties-section {
+  margin-top: 32px;
 }
 
 .property-grid {
@@ -646,6 +787,7 @@ input, select, textarea {
 .property-card:hover {
   border-color: var(--accent-primary);
   box-shadow: var(--shadow-medium);
+  transform: translateY(-2px);
 }
 
 .property-photo {
@@ -718,13 +860,14 @@ input, select, textarea {
   border-radius: 50%;
   background: rgba(239, 68, 68, 0.9);
   color: white;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: all var(--transition-fast);
+  line-height: 1;
 }
 
 .property-card:hover .delete-btn {
@@ -733,6 +876,7 @@ input, select, textarea {
 
 .delete-btn:hover {
   background: #dc2626;
+  transform: scale(1.1);
 }
 
 .modal-overlay {
@@ -743,6 +887,12 @@ input, select, textarea {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-dialog {
@@ -752,6 +902,18 @@ input, select, textarea {
   max-width: 400px;
   width: 90%;
   box-shadow: var(--shadow-hover);
+  animation: modalSlideIn 0.2s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-title {
@@ -763,6 +925,11 @@ input, select, textarea {
 .modal-message {
   color: var(--text-secondary);
   margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.modal-message strong {
+  color: var(--text-primary);
 }
 
 .modal-actions {
@@ -816,11 +983,13 @@ input, select, textarea {
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  color: var(--text-primary);
 }
 
 .month-nav button:hover {
   background: var(--bg-primary);
   border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .month-nav .current-month {
@@ -838,10 +1007,10 @@ input, select, textarea {
 }
 
 .page-transition {
-  animation: fadeIn 0.2s ease;
+  animation: pageFadeIn 0.2s ease;
 }
 
-@keyframes fadeIn {
+@keyframes pageFadeIn {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -896,25 +1065,67 @@ input, select, textarea {
     font-size: 20px;
   }
 
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .calendar-day-cell {
-    min-width: 36px;
-    height: 36px;
+    min-width: 32px;
+    height: 32px;
+    font-size: 9px;
+  }
+
+  .cell-day {
     font-size: 10px;
   }
 
+  .cell-guest {
+    font-size: 7px;
+  }
+
   .calendar-header-cell {
-    font-size: 11px;
+    font-size: 10px;
     padding: 8px 4px;
   }
 
-  .calendar-property-name {
+  .header-weekday {
+    font-size: 9px;
+  }
+
+  .header-day {
     font-size: 12px;
+  }
+
+  .header-day.today {
+    font-size: 13px;
+  }
+
+  .calendar-property-name {
+    font-size: 11px;
     padding: 8px 12px;
-    min-width: 120px;
+    min-width: 100px;
   }
 
   .calendar-header-cell:first-child {
-    min-width: 120px;
+    min-width: 100px;
+    padding-left: 12px;
+  }
+
+  .month-nav .current-month {
+    font-size: 15px;
+    min-width: auto;
+  }
+
+  .month-nav button {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .view-toggle button {
+    padding: 6px 14px;
+    font-size: 12px;
   }
 
   .message-toolbar {
@@ -925,16 +1136,41 @@ input, select, textarea {
     width: 100%;
   }
 
+  .filter-tabs {
+    width: 100%;
+  }
+
+  .filter-tab {
+    flex: 1;
+    text-align: center;
+  }
+
   .message-card {
     height: auto;
     flex-wrap: wrap;
     padding: 12px 16px;
+    gap: 10px;
   }
 
   .message-content {
     width: 100%;
     white-space: normal;
     overflow: visible;
+    order: 3;
+  }
+
+  .message-header {
+    order: 1;
+  }
+
+  .message-time {
+    order: 2;
+  }
+
+  .message-actions {
+    order: 4;
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .property-grid {
@@ -959,5 +1195,33 @@ input, select, textarea {
 
   .status-legend-item {
     font-size: 11px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-day-cell {
+    min-width: 28px;
+    height: 28px;
+  }
+
+  .cell-day {
+    font-size: 9px;
+  }
+
+  .calendar-property-name {
+    font-size: 10px;
+    min-width: 80px;
+  }
+
+  .calendar-header-cell:first-child {
+    min-width: 80px;
+  }
+
+  .header-weekday {
+    display: none;
   }
 }
