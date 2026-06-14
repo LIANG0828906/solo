@@ -40,6 +40,9 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [newNoteColor, setNewNoteColor] = useState<Note['color']>('yellow');
+  const [viewModeAnimating, setViewModeAnimating] = useState(false);
+  const [prevPositions, setPrevPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [justSwitchedView, setJustSwitchedView] = useState(false);
   const groupZoneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const {
@@ -57,12 +60,22 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
     setOffset(offset);
   }, []);
 
+  useEffect(() => {
+    setViewModeAnimating(true);
+    setJustSwitchedView(true);
+    const timer = setTimeout(() => {
+      setViewModeAnimating(false);
+      setJustSwitchedView(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [viewMode]);
+
   const groupZonePositions = useMemo(() => {
     const zones = [];
-    const startY = 150;
-    const zoneWidth = 350;
-    const zoneHeight = 400;
-    const spacing = 80;
+    const startY = 180;
+    const zoneWidth = 360;
+    const zoneHeight = 420;
+    const spacing = 60;
     const totalWidth = GROUP_ZONES.length * zoneWidth + (GROUP_ZONES.length - 1) * spacing;
     const startX = -totalWidth / 2 + zoneWidth / 2;
 
@@ -94,7 +107,7 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
   const mindmapPositions = useMemo(() => {
     const positions: Map<string, { x: number; y: number }> = new Map();
-    
+
     const groups: Record<string, Note[]> = {
       problem: [],
       solution: [],
@@ -113,13 +126,13 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
     const centerX = 0;
     const centerY = 0;
-    const level1Radius = 300;
-    const level2Radius = 450;
+    const level1Radius = 320;
+    const level2Radius = 520;
 
     const groupConfigs = [
       { key: 'problem', angle: -Math.PI / 2 },
-      { key: 'solution', angle: Math.PI / 6 },
-      { key: 'action', angle: 5 * Math.PI / 6 },
+      { key: 'solution', angle: Math.PI / 5 },
+      { key: 'action', angle: 4 * Math.PI / 5 },
     ];
 
     groupConfigs.forEach(({ key, angle }) => {
@@ -128,22 +141,35 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
       const gy = centerY + level1Radius * Math.sin(angle);
 
       groupNotes.forEach((note, idx) => {
-        const offsetAngle = angle + ((idx - (groupNotes.length - 1) / 2) * 0.3);
-        const nx = centerX + level2Radius * Math.cos(offsetAngle);
-        const ny = centerY + level2Radius * Math.sin(offsetAngle);
+        const step = 0.35;
+        const offsetAngle = angle + ((idx - (groupNotes.length - 1) / 2) * step);
+        const nx = gx + level2Radius * 0.6 * Math.cos(offsetAngle);
+        const ny = gy + level2Radius * 0.6 * Math.sin(offsetAngle);
         positions.set(note.id, { x: nx, y: ny });
       });
     });
 
     groups.ungrouped.forEach((note, idx) => {
-      const angle = -Math.PI / 2 + (idx + 1) * (Math.PI / (groups.ungrouped.length + 1));
-      const nx = centerX + level2Radius * Math.cos(angle);
-      const ny = centerY + level2Radius * Math.sin(angle);
+      const totalUngrouped = groups.ungrouped.length;
+      const angleStep = Math.PI * 0.8 / Math.max(totalUngrouped + 1, 1);
+      const startAngle = -Math.PI * 0.9;
+      const angle = startAngle + (idx + 1) * angleStep;
+      const radius = level2Radius * 0.5;
+      const nx = centerX + radius * Math.cos(angle);
+      const ny = centerY + level2Radius * 0.55 + radius * Math.sin(angle) * 0.5;
       positions.set(note.id, { x: nx, y: ny });
     });
 
     return positions;
   }, [notes]);
+
+  useEffect(() => {
+    const newPositions = new Map<string, { x: number; y: number }>();
+    notes.forEach(note => {
+      newPositions.set(note.id, { x: note.x, y: note.y });
+    });
+    setPrevPositions(newPositions);
+  }, [notes.length]);
 
   const handleAddNote = useCallback((content: string = '') => {
     const centerX = -offset.x / scale;
@@ -151,7 +177,7 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
     const newNote: Note = {
       id: uuidv4(),
-      content: content || '新便签',
+      content: content || '',
       color: newNoteColor,
       x: centerX + (Math.random() - 0.5) * 200,
       y: centerY + (Math.random() - 0.5) * 200,
@@ -172,14 +198,15 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
   const handleNoteDrag = useCallback((noteId: string, x: number, y: number) => {
     moveNoteInStore(noteId, x, y);
-    
+
     const group = getGroupAtPosition(x, y);
-    setHoverGroup(group);
+    setHoverGroup(group ?? null);
   }, [moveNoteInStore, getGroupAtPosition, setHoverGroup]);
 
   const handleNoteDragEnd = useCallback((noteId: string, x: number, y: number, group?: string) => {
-    moveNoteInStore(noteId, x, y, group);
-    moveNote(roomId, noteId, x, y, group);
+    const typedGroup = group as Note['group'];
+    moveNoteInStore(noteId, x, y, typedGroup);
+    moveNote(roomId, noteId, x, y, typedGroup);
     setDragNoteId(null);
     setHoverGroup(null);
   }, [roomId, moveNoteInStore, setDragNoteId, setHoverGroup]);
@@ -205,7 +232,7 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
         const x = (e.clientX - rect.left - offset.x) / scale;
         const y = (e.clientY - rect.top - offset.y) / scale;
         const group = getGroupAtPosition(x, y);
-        
+
         if (group) {
           const newNote: Note = {
             id: uuidv4(),
@@ -227,28 +254,54 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
     }
   }, [currentUser, roomId, offset, scale, getGroupAtPosition, addNoteToStore]);
 
-  const filteredNotes = useMemo(() => {
-    return notes.map(note => ({
-      note,
-      isFiltered: colorFilter !== 'all' && note.color !== colorFilter,
-    }));
-  }, [notes, colorFilter]);
+  const processedNotes = useMemo(() => {
+    return notes.map(note => {
+      const basePosition = { x: note.x, y: note.y };
+      const mindmapPos = mindmapPositions.get(note.id);
+
+      const targetPosition = viewMode === 'mindmap' && mindmapPos
+        ? mindmapPos
+        : basePosition;
+
+      const isFiltered = colorFilter !== 'all' && note.color !== colorFilter;
+
+      const flyStyle = justSwitchedView && prevPositions.has(note.id)
+        ? {
+            '--from-x': `${prevPositions.get(note.id)!.x}px`,
+            '--from-y': `${prevPositions.get(note.id)!.y}px`,
+            '--to-x': `${targetPosition.x}px`,
+            '--to-y': `${targetPosition.y}px`,
+          } as React.CSSProperties
+        : {};
+
+      return {
+        note: {
+          ...note,
+          x: targetPosition.x,
+          y: targetPosition.y,
+        },
+        isFiltered,
+        flyStyle,
+        useFlyAnimation: justSwitchedView,
+      };
+    });
+  }, [notes, mindmapPositions, viewMode, colorFilter, prevPositions, justSwitchedView]);
 
   const renderMindmapConnections = () => {
     if (viewMode !== 'mindmap') return null;
 
-    const lines = [];
+    const lines: React.ReactNode[] = [];
     const centerX = 0;
     const centerY = 0;
-    const level1Radius = 300;
+    const level1Radius = 320;
 
     const groupCenters = [
-      { key: 'problem', angle: -Math.PI / 2, color: '#E8A0A0' },
-      { key: 'solution', angle: Math.PI / 6, color: '#A0D8C0' },
-      { key: 'action', angle: 5 * Math.PI / 6, color: '#A0C8E8' },
+      { key: 'problem', angle: -Math.PI / 2, color: '#E8A0A0', label: '❓ 问题' },
+      { key: 'solution', angle: Math.PI / 5, color: '#A0D8C0', label: '💡 方案' },
+      { key: 'action', angle: 4 * Math.PI / 5, color: '#A0C8E8', label: '✅ 行动' },
     ];
 
-    groupCenters.forEach(({ key, angle, color }) => {
+    groupCenters.forEach(({ key, angle, color, label }) => {
       const gx = centerX + level1Radius * Math.cos(angle);
       const gy = centerY + level1Radius * Math.sin(angle);
 
@@ -260,10 +313,38 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
           x2={gx}
           y2={gy}
           stroke={color}
-          strokeWidth={3}
-          strokeDasharray="8,4"
-          opacity={0.6}
+          strokeWidth={4}
+          strokeLinecap="round"
+          className="mindmap-line connection-line"
+          opacity={0.75}
         />
+      );
+
+      lines.push(
+        <g key={`group-center-${key}`} className="mindmap-line">
+          <rect
+            x={gx - 50}
+            y={gy - 22}
+            width={100}
+            height={44}
+            rx={22}
+            fill={color}
+            fillOpacity={0.3}
+            stroke={color}
+            strokeWidth={2.5}
+          />
+          <text
+            x={gx}
+            y={gy + 6}
+            textAnchor="middle"
+            fill="#444"
+            fontSize="15"
+            fontWeight="600"
+            fontFamily="'Noto Sans SC', sans-serif"
+          >
+            {label}
+          </text>
+        </g>
       );
 
       const groupNotes = notes.filter(n => n.group === key);
@@ -278,9 +359,10 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
               x2={pos.x}
               y2={pos.y}
               stroke={color}
-              strokeWidth={2}
-              strokeDasharray="4,2"
-              opacity={0.4}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              className="mindmap-line connection-line"
+              opacity={0.55}
             />
           );
         }
@@ -289,32 +371,67 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
     return (
       <svg
-        className="absolute inset-0 pointer-events-none"
+        className="absolute pointer-events-none"
         style={{
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: 'top left',
-          width: '100%',
-          height: '100%',
+          width: '3000px',
+          height: '3000px',
+          left: '-1000px',
+          top: '-1000px',
+          overflow: 'visible',
         }}
       >
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
         {lines}
-        <circle cx={centerX} cy={centerY} r={60} fill="#F0E6D8" stroke="#D4C4A8" strokeWidth={2} />
-        <text x={centerX} y={centerY + 6} textAnchor="middle" className="fill-gray-700 font-serif-sc font-semibold">
-          💡 头脑风暴
+        <g filter="url(#glow)">
+          <circle cx={centerX} cy={centerY} r={75} fill="#F0E6D8" stroke="#C8B090" strokeWidth={3} />
+        </g>
+        <text
+          x={centerX}
+          y={centerY - 8}
+          textAnchor="middle"
+          fill="#666"
+          fontSize="14"
+          fontWeight="500"
+          fontFamily="'Noto Serif SC', serif"
+        >
+          🎯
+        </text>
+        <text
+          x={centerX}
+          y={centerY + 16}
+          textAnchor="middle"
+          fill="#444"
+          fontSize="18"
+          fontWeight="700"
+          fontFamily="'Noto Serif SC', serif"
+        >
+          头脑风暴
         </text>
       </svg>
     );
   };
 
+  const setRefs = useCallback((el: HTMLDivElement | null) => {
+    if (el) {
+      (boardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    }
+  }, []);
+
   return (
     <div className="w-full h-full pt-16 relative overflow-hidden">
       <div
-        ref={(el) => {
-          if (el) {
-            boardRef.current = el;
-            containerRef.current = el;
-          }
-        }}
+        ref={setRefs}
         className="board-bg w-full h-full gradient-mesh-bg relative cursor-grab active:cursor-grabbing"
         onWheel={handleWheel}
         onMouseDown={handlePanStart}
@@ -324,12 +441,14 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
         <div className="texture-overlay absolute inset-0 pointer-events-none" />
 
         <div
-          className="zoom-container absolute top-0 left-0"
+          className={`zoom-container absolute top-0 left-0 ${viewModeAnimating ? 'transition-all duration-700 ease-out' : ''}`}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             transformOrigin: 'top left',
-            minWidth: '2000px',
-            minHeight: '2000px',
+            minWidth: '3000px',
+            minHeight: '3000px',
+            left: '-1000px',
+            top: '-1000px',
           }}
         >
           {viewMode === 'free' && groupZonePositions.map((zone) => (
@@ -351,80 +470,124 @@ export const BrainstormBoard: React.FC<BrainstormBoardProps> = ({ currentUser, r
 
           {renderMindmapConnections()}
 
-          {filteredNotes.map(({ note, isFiltered }) => (
-            <NoteCard
-              key={note.id}
-              note={viewMode === 'mindmap' && mindmapPositions.has(note.id)
-                ? { ...note, x: mindmapPositions.get(note.id)!.x, y: mindmapPositions.get(note.id)!.y }
-                : note
-              }
-              scale={scale}
-              currentUserId={currentUser.id}
-              isFiltered={isFiltered}
-              onDragStart={handleNoteDragStart}
-              onDrag={handleNoteDrag}
-              onDragEnd={handleNoteDragEnd}
-              onUpdate={handleNoteUpdate}
-              onDelete={handleNoteDelete}
-              onVote={handleNoteVote}
-              getGroupAtPosition={viewMode === 'free' ? getGroupAtPosition : undefined}
-              isMindmapMode={viewMode === 'mindmap'}
-            />
+          {processedNotes.map(({ note, isFiltered, flyStyle, useFlyAnimation }) => (
+            <div
+              key={`wrapper-${note.id}`}
+              className={useFlyAnimation ? 'note-fly' : ''}
+              style={{
+                position: 'absolute',
+                ...flyStyle,
+              }}
+            >
+              <NoteCard
+                key={note.id}
+                note={note}
+                scale={scale}
+                currentUserId={currentUser.id}
+                isFiltered={isFiltered}
+                onDragStart={handleNoteDragStart}
+                onDrag={handleNoteDrag}
+                onDragEnd={handleNoteDragEnd}
+                onUpdate={handleNoteUpdate}
+                onDelete={handleNoteDelete}
+                onVote={handleNoteVote}
+                getGroupAtPosition={viewMode === 'free' ? getGroupAtPosition : undefined}
+                isMindmapMode={viewMode === 'mindmap'}
+              />
+            </div>
           ))}
         </div>
       </div>
 
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2 hide-on-mobile">
-        <div className="flex flex-col gap-1 p-2 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-gray-200/50">
-          <span className="text-xs text-gray-500 text-center mb-1">新建便签颜色</span>
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 hide-on-mobile z-40">
+        <div className="flex flex-col gap-2 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/60">
+          <span className="text-xs text-gray-500 text-center font-medium mb-1">🎨 便签颜色</span>
           {(['red', 'green', 'blue', 'yellow'] as const).map((color) => {
             const colorMap = { red: '#FFE0E0', green: '#E0F2E9', blue: '#E0ECF8', yellow: '#FFF4D6' };
             const borderMap = { red: '#E8A0A0', green: '#A0D8C0', blue: '#A0C8E8', yellow: '#E8D090' };
+            const labels = { red: '问题', green: '方案', blue: '行动', yellow: '其他' };
             return (
               <button
                 key={color}
                 onClick={() => setNewNoteColor(color)}
-                className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                  newNoteColor === color ? 'scale-110 shadow-md' : 'opacity-60 hover:opacity-100'
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 ${
+                  newNoteColor === color ? 'scale-105 shadow-md' : 'opacity-70 hover:opacity-100 hover:scale-[1.02]'
                 }`}
                 style={{
                   backgroundColor: colorMap[color],
                   borderColor: newNoteColor === color ? borderMap[color] : 'transparent',
                 }}
-              />
+                title={`${labels[color]}便签`}
+              >
+                <span
+                  className="w-4 h-4 rounded-full shadow-inner"
+                  style={{ backgroundColor: borderMap[color] }}
+                />
+                <span className="text-xs font-medium text-gray-700">{labels[color]}</span>
+              </button>
             );
           })}
         </div>
         <button
           onClick={resetView}
-          className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-gray-200/50 text-sm text-gray-600 hover:bg-white transition-colors"
+          className="px-4 py-2.5 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200/60 text-sm font-medium text-gray-600 hover:bg-white hover:shadow-xl transition-all flex items-center justify-center gap-2"
         >
+          <span>🔄</span>
           重置视图
         </button>
       </div>
 
-      <div className="fixed bottom-6 left-6 show-on-mobile-only">
+      <div className="fixed bottom-6 left-6 show-on-mobile-only z-40">
         <button
           onClick={() => handleAddNote()}
-          className="w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg flex items-center justify-center text-2xl"
+          className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl shadow-2xl flex items-center justify-center text-3xl active:scale-95 transition-transform"
         >
           +
         </button>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-gray-200/50 show-on-mobile-only">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 px-4 py-2.5 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-gray-200/60 show-on-mobile-only z-40">
         {(['all', 'red', 'green', 'blue'] as const).map((color) => {
-          const colorMap: Record<string, string> = { all: '#CCCCCC', red: '#FFE0E0', green: '#E0F2E9', blue: '#E0ECF8' };
+          const colorMap: Record<string, string> = {
+            all: '#888888',
+            red: '#E8A0A0',
+            green: '#A0D8C0',
+            blue: '#A0C8E8',
+          };
+          const bgMap: Record<string, string> = {
+            all: '#F0F0F0',
+            red: '#FFE0E0',
+            green: '#E0F2E9',
+            blue: '#E0ECF8',
+          };
           return (
             <button
               key={color}
               onClick={() => useBoardStore.getState().setColorFilter(color)}
-              className={`w-8 h-8 rounded-full ${colorFilter === color ? 'ring-2 ring-blue-500' : ''}`}
-              style={{ backgroundColor: colorMap[color] }}
+              className={`w-10 h-10 rounded-full transition-all duration-200 ${
+                colorFilter === color
+                  ? 'ring-4 ring-blue-300 scale-110 shadow-lg'
+                  : 'opacity-70 hover:opacity-100'
+              }`}
+              style={{
+                backgroundColor: bgMap[color],
+                border: `3px solid ${colorMap[color]}`,
+              }}
             />
           );
         })}
       </div>
+
+      {viewModeAnimating && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="px-5 py-2.5 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-gray-200/60">
+            <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              {viewMode === 'mindmap' ? '✨ 正在切换到思维导图模式...' : '📋 正在切换到自由布局模式...'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
