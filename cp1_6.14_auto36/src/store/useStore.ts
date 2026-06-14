@@ -5,7 +5,7 @@ export interface Creature {
   name: string;
   scientificName: string;
   habitat: string;
-  depthRange: [number, number];
+  depthRange: string;
   conservationStatus: string;
   description: string;
   color: string;
@@ -18,7 +18,7 @@ export interface Coral {
   name: string;
   scientificName: string;
   habitat: string;
-  depthRange: [number, number];
+  depthRange: string;
   conservationStatus: string;
   description: string;
   color: string;
@@ -49,10 +49,10 @@ interface StoreActions {
 }
 
 export const useStore = create<StoreState & { actions: StoreActions }>()((set) => ({
-  chamberPosition: [0, -10, 0],
+  chamberPosition: [0, -20, 0],
   chamberVelocity: [0, 0, 0],
   chamberRotation: [0, 0],
-  depth: 10,
+  depth: 20,
   selectedCreatureId: null,
   creatures: [],
   corals: [],
