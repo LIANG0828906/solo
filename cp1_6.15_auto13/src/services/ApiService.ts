@@ -1,14 +1,20 @@
 interface Room {
   id: string;
   name: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  totalBudget: number;
+  spent: number;
+  thumbnail: string;
   order: number;
+  updatedAt: string;
 }
 
 interface BudgetCategory {
   id: string;
   roomId: string;
   name: string;
-  budget: number;
+  allocated: number;
+  spent: number;
   items: BudgetItem[];
 }
 
@@ -19,17 +25,6 @@ interface BudgetItem {
   date: string;
   note: string;
   receipt: string;
-}
-
-interface Material {
-  id: string;
-  roomId: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  unitPrice: number;
-  supplier: string;
-  status: string;
 }
 
 interface Task {
@@ -43,6 +38,17 @@ interface Task {
   actualStart: string | null;
   actualEnd: string | null;
   completed: boolean;
+}
+
+interface Material {
+  id: string;
+  roomId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  link: string;
+  purchased: boolean;
+  category: string;
 }
 
 const BASE_URL = '/api';
@@ -100,7 +106,7 @@ class ApiService {
         if (!res.ok) {
           throw new Error(`API Error: ${res.status} ${res.statusText}`);
         }
-        if (res.status === 204) return undefined;
+        if (res.status === 204) return undefined as T;
         return res.json();
       })
       .then((data) => {
@@ -134,7 +140,7 @@ class ApiService {
 
   async reorderRooms(order: { id: string; order: number }[]): Promise<void> {
     await this.request<void>('/rooms/reorder', {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify({ order }),
     });
     this.invalidateCache('/rooms');
@@ -153,6 +159,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
     this.invalidateCache(`/rooms/${roomId}/budget`);
+    this.invalidateCache('/rooms');
     return result;
   }
 
@@ -162,6 +169,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
     this.invalidateCache(`/rooms/${roomId}/budget`);
+    this.invalidateCache('/rooms');
     return result;
   }
 
@@ -170,6 +178,7 @@ class ApiService {
       method: 'DELETE',
     });
     this.invalidateCache(`/rooms/${roomId}/budget`);
+    this.invalidateCache('/rooms');
   }
 
   async getTasks(roomId: string): Promise<Task[]> {
@@ -213,6 +222,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
     this.invalidateCache(`/rooms/${roomId}/materials`);
+    this.invalidateCache('/rooms');
     return result;
   }
 }
