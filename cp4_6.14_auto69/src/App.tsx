@@ -4,7 +4,8 @@ import CharacterPortrait from './character/CharacterPortrait';
 import { dialogueRuntime } from './dialogue/DialogueRuntime';
 import { gameStateManager } from './game/GameStateManager';
 import { spriteManager } from './character/SpriteManager';
-import type { DialogueTree, LoadingProgress, DialogueState, ExpressionType } from './types';
+import type { DialogueTree, LoadingProgress, DialogueRuntimeState, ExpressionType } from './types';
+import type { DialogueState } from './dialogue/DialogueRuntime';
 import { Play, RotateCcw, ChevronDown, ChevronUp, Settings, Heart, Clock, BookOpen } from 'lucide-react';
 
 function createDefaultTree(): DialogueTree {

@@ -283,7 +283,7 @@ const DialogueTreeEditor: React.FC<DialogueTreeEditorProps> = ({
   const addBranch = (fromNodeId: string, toNodeId: string) => {
     const condition: DialogueCondition = {
       type: newBranchCondition,
-      operator: 'gt',
+      operator: 'gt' as const,
       value: newBranchCondition === 'story' ? 'quest_started' : 50,
     };
 

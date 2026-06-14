@@ -10,6 +10,8 @@ interface CharacterPortraitProps {
   className?: string;
 }
 
+const ANIMATION_DURATION = 400;
+
 const CharacterPortrait: React.FC<CharacterPortraitProps> = ({
   characterId,
   expression,
@@ -20,38 +22,38 @@ const CharacterPortrait: React.FC<CharacterPortraitProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
   const currentExpressionRef = useRef<ExpressionType>(expression);
-  const targetExpressionRef = useRef<ExpressionType>(expression);
+  const dprRef = useRef<number>(window.devicePixelRatio || 1);
 
-  const ANIMATION_DURATION = 400;
-
-  const drawPortrait = useCallback(
-    (ctx: CanvasRenderingContext2D, expr: ExpressionType, alpha: number = 1) => {
-      const canvas = ctx.canvas;
+  const drawPortraitFrame = useCallback(
+    (ctx: CanvasRenderingContext2D, expr: ExpressionType, alpha: number) => {
       const sprite = spriteManager.getSprite(characterId);
+      const canvas = ctx.canvas;
+      const cssW = canvas.width / dprRef.current;
+      const cssH = canvas.height / dprRef.current;
 
       if (!sprite || !sprite.image || !sprite.loaded) {
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, cssW, cssH);
         ctx.fillStyle = '#64748b';
-        ctx.font = '14px monospace';
+        ctx.font = `${14 * dprRef.current}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Loading...', cssW / 2, cssH / 2);
         return;
       }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.globalAlpha = alpha;
 
       const frame = sprite.frames[expr]?.[0];
       if (!frame) return;
 
-      const scale = Math.min(canvas.width / sprite.frameWidth, canvas.height / sprite.frameHeight);
-      const drawWidth = sprite.frameWidth * scale;
-      const drawHeight = sprite.frameHeight * scale;
-      const drawX = (canvas.width - drawWidth) / 2;
-      const drawY = (canvas.height - drawHeight) / 2;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const scale = Math.min(cssW / sprite.frameWidth, cssH / sprite.frameHeight);
+      const drawW = sprite.frameWidth * scale;
+      const drawH = sprite.frameHeight * scale;
+      const drawX = (cssW - drawW) / 2;
+      const drawY = (cssH - drawH) / 2;
 
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(
@@ -62,110 +64,164 @@ const CharacterPortrait: React.FC<CharacterPortraitProps> = ({
         frame.height,
         drawX,
         drawY,
-        drawWidth,
-        drawHeight
+        drawW,
+        drawH
       );
 
-      ctx.globalAlpha = 1;
+      ctx.restore();
     },
     [characterId]
   );
 
-  const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
+  const drawBackgroundFrame = useCallback((ctx: CanvasRenderingContext2D) => {
     const canvas = ctx.canvas;
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    const cssW = canvas.width / dprRef.current;
+    const cssH = canvas.height / dprRef.current;
+    const gradient = ctx.createLinearGradient(0, 0, 0, cssH);
     gradient.addColorStop(0, '#0f172a');
     gradient.addColorStop(1, '#1e293b');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, cssW, cssH);
   }, []);
 
-  const startCrossFade = useCallback(
-    (fromExpr: ExpressionType, toExpr: ExpressionType) => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-
-      setIsAnimating(true);
-
+  const renderStatic = useCallback(
+    (expr: ExpressionType) => {
       const canvas = canvasRef.current;
-      const prevCanvas = prevCanvasRef.current;
-      if (!canvas || !prevCanvas) return;
-
+      if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const prevCtx = prevCanvas.getContext('2d');
-      if (!ctx || !prevCtx) return;
+      if (!ctx) return;
+
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(dprRef.current, dprRef.current);
+
+      drawBackgroundFrame(ctx);
+      drawPortraitFrame(ctx, expr, 1);
+
+      ctx.restore();
+    },
+    [drawBackgroundFrame, drawPortraitFrame]
+  );
+
+  const capturePreviousFrame = useCallback(
+    (prevExpr: ExpressionType) => {
+      const prevCanvas = prevCanvasRef.current;
+      if (!prevCanvas) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
       prevCanvas.width = canvas.width;
       prevCanvas.height = canvas.height;
+      const prevCtx = prevCanvas.getContext('2d');
+      if (!prevCtx) return;
 
-      drawBackground(prevCtx);
-      drawPortrait(prevCtx, fromExpr, 1);
+      prevCtx.save();
+      prevCtx.setTransform(1, 0, 0, 1, 0, 0);
+      prevCtx.clearRect(0, 0, prevCanvas.width, prevCanvas.height);
+      prevCtx.scale(dprRef.current, dprRef.current);
+
+      drawBackgroundFrame(prevCtx);
+      drawPortraitFrame(prevCtx, prevExpr, 1);
+      prevCtx.restore();
+    },
+    [drawBackgroundFrame, drawPortraitFrame]
+  );
+
+  const startCrossFade = useCallback(
+    (fromExpr: ExpressionType, toExpr: ExpressionType) => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+
+      capturePreviousFrame(fromExpr);
+
+      const canvas = canvasRef.current;
+      const prevCanvas = prevCanvasRef.current;
+      if (!canvas || !prevCanvas) {
+        currentExpressionRef.current = toExpr;
+        renderStatic(toExpr);
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        currentExpressionRef.current = toExpr;
+        renderStatic(toExpr);
+        return;
+      }
 
       const startTime = performance.now();
+      let lastFrame = startTime;
 
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime;
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
         const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+        lastFrame = now;
 
-        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        const eased = progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-        drawBackground(ctx);
-        drawPortrait(ctx, toExpr, easeProgress);
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const combinedCtx = canvas.getContext('2d')!;
-        combinedCtx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBackground(combinedCtx);
+        ctx.globalAlpha = 1 - eased;
+        ctx.drawImage(prevCanvas, 0, 0);
 
-        combinedCtx.globalAlpha = 1 - easeProgress;
-        combinedCtx.drawImage(prevCanvas, 0, 0);
-        combinedCtx.globalAlpha = easeProgress;
-        drawPortrait(combinedCtx, toExpr, 1);
-        combinedCtx.globalAlpha = 1;
+        ctx.globalAlpha = eased;
+        ctx.scale(dprRef.current, dprRef.current);
+        drawBackgroundFrame(ctx);
+        drawPortraitFrame(ctx, toExpr, 1);
+        ctx.restore();
 
         if (progress < 1) {
           animationRef.current = requestAnimationFrame(animate);
         } else {
-          setIsAnimating(false);
-          currentExpressionRef.current = toExpr;
           animationRef.current = null;
+          currentExpressionRef.current = toExpr;
+          renderStatic(toExpr);
         }
       };
 
       animationRef.current = requestAnimationFrame(animate);
     },
-    [drawBackground, drawPortrait]
+    [capturePreviousFrame, drawBackgroundFrame, drawPortraitFrame, renderStatic]
   );
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    dprRef.current = dpr;
 
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(dpr, dpr);
-      drawBackground(ctx);
-      drawPortrait(ctx, expression, 1);
+    const canvas = canvasRef.current;
+    const prevCanvas = prevCanvasRef.current;
+    if (canvas) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
     }
-  }, [width, height, drawBackground, drawPortrait, expression]);
+    if (prevCanvas) {
+      prevCanvas.width = width * dpr;
+      prevCanvas.height = height * dpr;
+    }
+
+    renderStatic(currentExpressionRef.current);
+  }, [width, height, renderStatic]);
 
   useEffect(() => {
     if (expression !== currentExpressionRef.current) {
-      targetExpressionRef.current = expression;
       startCrossFade(currentExpressionRef.current, expression);
     }
   }, [expression, startCrossFade]);
 
   useEffect(() => {
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, []);
@@ -189,8 +245,9 @@ const CharacterPortrait: React.FC<CharacterPortraitProps> = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          display: 'block',
+          width: `${width}px`,
+          height: `${height}px`,
         }}
       />
       <canvas
@@ -199,11 +256,11 @@ const CharacterPortrait: React.FC<CharacterPortraitProps> = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          display: 'block',
+          width: `${width}px`,
+          height: `${height}px`,
           pointerEvents: 'none',
-          opacity: 0,
-          display: 'none',
+          visibility: 'hidden',
         }}
       />
     </div>
