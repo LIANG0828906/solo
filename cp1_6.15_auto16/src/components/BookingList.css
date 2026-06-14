@@ -170,31 +170,50 @@
 .booking-details {
   overflow: hidden;
   max-height: 0;
-  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.05s,
+              padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .booking-details.expanded {
-  max-height: 500px;
+  max-height: 600px;
+  padding-top: 8px;
+  padding-bottom: 16px;
+  transition: max-height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.05s;
 }
 
 .booking-details.collapsed {
   max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              padding-top 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              padding-bottom 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .booking-details-inner {
-  padding: 0 20px 16px;
+  padding: 0 20px;
   padding-left: 72px;
   opacity: 0;
-  transition: opacity 0.25s ease 0.05s;
+  transform: translateY(-8px);
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.08s,
+              transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s;
 }
 
 .booking-details.expanded .booking-details-inner {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .booking-details.collapsed .booking-details-inner {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transform: translateY(-4px);
+  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .detail-row {

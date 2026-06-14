@@ -53,7 +53,9 @@ export default function Toast({ toast, onRemove }: ToastProps) {
       className={`toast ${toast.type} ${isLeaving ? 'leaving' : ''}`}
     >
       <div className="toast-icon">{ICONS[toast.type]}</div>
-      <div className="toast-message">{toast.message}</div>
+      <div className="toast-content">
+        <p className="toast-message">{toast.message}</p>
+      </div>
     </div>
   );
 }

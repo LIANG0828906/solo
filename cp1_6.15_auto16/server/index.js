@@ -4,25 +4,55 @@ import net from 'net';
 
 const app = express();
 const START_PORT = 3001;
+const MAX_PORT = 65535;
+const MAX_RETRIES = 100;
 
-function findAvailablePort(startPort) {
+async function findAvailablePort(startPort, maxPort = MAX_PORT, retries = 0) {
+  if (startPort > maxPort || retries >= MAX_RETRIES) {
+    const error = new Error(
+      `无法找到可用端口，已尝试从 ${START_PORT} 到 ${Math.min(startPort - 1, maxPort)} 的端口，均被占用。` +
+      `\n请检查是否有其他程序占用了该范围的端口，或手动设置环境变量 PORT 指定端口。`
+    );
+    error.code = 'NO_AVAILABLE_PORT';
+    throw error;
+  }
+
   return new Promise((resolve, reject) => {
     const server = net.createServer();
-    
+    let hasError = false;
+
+    const cleanup = () => {
+      try {
+        server.close();
+      } catch (e) {
+        // ignore
+      }
+    };
+
     server.once('error', (err) => {
+      hasError = true;
       if (err.code === 'EADDRINUSE') {
-        resolve(findAvailablePort(startPort + 1));
+        cleanup();
+        findAvailablePort(startPort + 1, maxPort, retries + 1)
+          .then(resolve)
+          .catch(reject);
       } else {
+        cleanup();
         reject(err);
       }
     });
-    
+
     server.once('listening', () => {
-      server.close();
-      resolve(startPort);
+      if (hasError) return;
+      cleanup();
+      setTimeout(() => resolve(startPort), 20);
     });
-    
-    server.listen(startPort);
+
+    try {
+      server.listen(startPort);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -245,12 +275,40 @@ app.put('/api/bookings/:id/cancel', (req, res) => {
 });
 
 findAvailablePort(START_PORT).then((port) => {
-  app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-    console.log(`使用端口: ${port}${port !== START_PORT ? ` (${START_PORT} 端口被占用，已自动递增)` : ''}`);
-    console.log(`预置 ${artists.length} 位艺术家，约 ${slots.length} 个时段`);
+  const server = app.listen(port, () => {
+    console.log('='.repeat(60));
+    console.log('🎨 艺术工作室预约平台后端服务已启动');
+    console.log('='.repeat(60));
+    console.log(`📡 服务地址: http://localhost:${port}`);
+    console.log(`🔌 端口号: ${port}`);
+    if (port !== START_PORT) {
+      console.log(`⚠️  说明: 默认端口 ${START_PORT} 被占用，已自动切换到 ${port}`);
+    }
+    console.log(`👨‍🎨 艺术家数量: ${artists.length} 位`);
+    console.log(`📅 预置时段: 约 ${slots.length} 个`);
+    console.log('='.repeat(60));
+  });
+
+  server.on('error', (err) => {
+    console.error('\n❌ 服务器启动失败:');
+    console.error(`   错误类型: ${err.name}`);
+    console.error(`   错误信息: ${err.message}`);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`   端口 ${port} 被其他程序占用，请关闭该程序或使用其他端口。`);
+    }
+    process.exit(1);
   });
 }).catch((err) => {
-  console.error('无法找到可用端口:', err);
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ 端口检测失败');
+  console.error('='.repeat(60));
+  console.error(`错误代码: ${err.code || 'UNKNOWN_ERROR'}`);
+  console.error(`错误信息: ${err.message}`);
+  console.error('='.repeat(60));
+  console.error('\n💡 解决方案:');
+  console.error('   1. 检查是否有其他程序占用了 3001 端口');
+  console.error('   2. 设置环境变量 PORT 指定端口，例如: $env:PORT=3005');
+  console.error('   3. 使用 netstat -ano | findstr :3001 查看占用进程');
+  console.error('='.repeat(60) + '\n');
   process.exit(1);
 });

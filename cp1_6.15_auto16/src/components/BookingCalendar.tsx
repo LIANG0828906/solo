@@ -1,7 +1,16 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { Artist, Slot } from '../types';
 import { getSlots, createBooking } from '../utils/api';
 import './BookingCalendar.css';
+
+type ConflictType = 'time_overlap' | 'resource_unavailable';
+
+interface ConflictInfo {
+  type: ConflictType;
+  message: string;
+  suggestion?: string;
+  slotKey: string;
+}
 
 interface BookingCalendarProps {
   artist: Artist;
@@ -21,11 +30,15 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
   const [userName, setUserName] = useState('');
   const [userPhone, setUserPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [conflictError, setConflictError] = useState<{ message: string; suggestion?: string } | null>(null);
-  const [conflictSlotKey, setConflictSlotKey] = useState<string | null>(null);
+  const [conflictError, setConflictError] = useState<ConflictInfo | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+
   const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
   const weekViewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,44 +56,36 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
-  const getWeekStartDate = (date: Date) => {
-    const d = new Date(date);
+  const getWeekStartDate = useCallback((baseDate: Date, offset = 0) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + offset * 7);
     const day = d.getDay();
     d.setDate(d.getDate() - day);
     return d;
-  };
+  }, []);
 
   const weekDaysList = useMemo(() => {
-    if (!selectedDate) {
-      const today = new Date();
-      const weekStart = getWeekStartDate(today);
-      return Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(weekStart);
-        d.setDate(d.getDate() + i);
-        return d;
-      });
-    }
-    const selected = new Date(selectedDate);
-    const weekStart = getWeekStartDate(selected);
+    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
+    const weekStart = getWeekStartDate(baseDate, weekOffset);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
       return d;
     });
-  }, [selectedDate, currentDate]);
+  }, [selectedDate, weekOffset, getWeekStartDate]);
 
-  const formatDateKey = (date: Date) => {
+  const formatDateKey = useCallback((date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
-  };
+  }, []);
 
   const monthDateRange = useMemo(() => {
     const start = formatDateKey(new Date(year, month, 1));
     const end = formatDateKey(new Date(year, month + 1, 0));
     return { start, end };
-  }, [year, month]);
+  }, [year, month, formatDateKey]);
 
   const daysInMonth = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -121,7 +126,7 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     return () => {
       cancelled = true;
     };
-  }, [artist.id, monthDateRange.start, monthDateRange.end]);
+  }, [artist.id, monthDateRange.start, monthDateRange.end, onToast]);
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -130,21 +135,21 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     setSlots(daySlots);
   }, [selectedDate, monthSlots]);
 
-  const hasAvailableSlots = (date: Date) => {
+  const hasAvailableSlots = useCallback((date: Date) => {
     const key = formatDateKey(date);
     return monthSlots.some((s) => s.date === key && !s.booked);
-  };
+  }, [monthSlots, formatDateKey]);
 
-  const hasBookedSlots = (date: Date) => {
+  const hasBookedSlots = useCallback((date: Date) => {
     const key = formatDateKey(date);
     return monthSlots.some((s) => s.date === key && s.booked);
-  };
+  }, [monthSlots, formatDateKey]);
 
-  const isPastDate = (date: Date) => {
+  const isPastDate = useCallback((date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today;
-  };
+  }, []);
 
   const goToPrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -158,39 +163,71 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     setSlots([]);
   };
 
-  const goToPrevWeek = () => {
-    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
-    const newDate = new Date(baseDate);
-    newDate.setDate(newDate.getDate() - 7);
-    setSelectedDate(null);
-    setSlots([]);
-    if (newDate.getMonth() !== month) {
-      setCurrentDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
-    }
-  };
+  const goToPrevWeek = useCallback(() => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setSlideDirection('right');
+    
+    setTimeout(() => {
+      setWeekOffset(prev => prev - 1);
+      setSelectedDate(null);
+      setSlots([]);
+      
+      const firstDay = weekDaysList[0];
+      const newFirstDay = new Date(firstDay);
+      newFirstDay.setDate(newFirstDay.getDate() - 7);
+      
+      if (newFirstDay.getMonth() !== month) {
+        setCurrentDate(new Date(newFirstDay.getFullYear(), newFirstDay.getMonth(), 1));
+      }
+      
+      setSlideDirection(null);
+      setTimeout(() => setIsAnimating(false), 50);
+    }, 280);
+  }, [isAnimating, weekDaysList, month]);
 
-  const goToNextWeek = () => {
-    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
-    const newDate = new Date(baseDate);
-    newDate.setDate(newDate.getDate() + 7);
-    setSelectedDate(null);
-    setSlots([]);
-    if (newDate.getMonth() !== month) {
-      setCurrentDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
-    }
-  };
+  const goToNextWeek = useCallback(() => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setSlideDirection('left');
+    
+    setTimeout(() => {
+      setWeekOffset(prev => prev + 1);
+      setSelectedDate(null);
+      setSlots([]);
+      
+      const lastDay = weekDaysList[6];
+      const newLastDay = new Date(lastDay);
+      newLastDay.setDate(newLastDay.getDate() + 7);
+      
+      if (newLastDay.getMonth() !== month) {
+        setCurrentDate(new Date(newLastDay.getFullYear(), newLastDay.getMonth(), 1));
+      }
+      
+      setSlideDirection(null);
+      setTimeout(() => setIsAnimating(false), 50);
+    }, 280);
+  }, [isAnimating, weekDaysList, month]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentX.current = e.touches[0].clientX;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      e.preventDefault();
+    }
+    touchCurrentX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    const threshold = 50;
+    const diff = touchStartX.current - touchCurrentX.current;
+    const threshold = 60;
     
     if (Math.abs(diff) > threshold) {
       if (diff > 0) {
@@ -213,6 +250,35 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     setShowModal(true);
     setConflictError(null);
   };
+
+  const analyzeConflict = useCallback((slot: Slot, error: Error & { suggestion?: string; status?: number }): ConflictInfo => {
+    const slotKey = `${slot.date}-${slot.startHour}`;
+    
+    if (error.message.includes('已被预约') || error.status === 409) {
+      return {
+        type: 'time_overlap',
+        message: '该时段已被预约，建议选择相邻时段',
+        suggestion: error.suggestion,
+        slotKey,
+      };
+    }
+    
+    if (error.message.includes('不存在') || error.status === 404) {
+      return {
+        type: 'resource_unavailable',
+        message: '该时段已取消或不可用，请选择其他时段',
+        suggestion: '请刷新页面查看最新可用时段',
+        slotKey,
+      };
+    }
+    
+    return {
+      type: 'resource_unavailable',
+      message: '预约失败，该时段暂时无法预约',
+      suggestion: error.suggestion || '请稍后重试或选择其他时段',
+      slotKey,
+    };
+  }, []);
 
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !userName.trim()) return;
@@ -247,45 +313,42 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
       onToast('success', '预约成功！期待与您见面');
       onBookSuccess();
     } catch (err) {
-      const error = err as Error & { suggestion?: string };
-      if (error.message.includes('已被预约') || selectedSlot) {
-        setConflictSlotKey(`${selectedSlot?.date}-${selectedSlot?.startHour}`);
-        setConflictError({
-          message: '该时段已被预约，建议选择相邻时段',
-          suggestion: error.suggestion,
-        });
-        setMonthSlots((prev) =>
-          prev.map((s) =>
-            s.date === selectedSlot?.date && s.startHour === selectedSlot?.startHour
-              ? { ...s, booked: true }
-              : s
-          )
-        );
-        setSlots((prev) =>
-          prev.map((s) =>
-            s.date === selectedSlot?.date && s.startHour === selectedSlot?.startHour
-              ? { ...s, booked: true }
-              : s
-          )
-        );
-        setTimeout(() => setConflictSlotKey(null), 3000);
-        onToast('error', '预约冲突：该时段已被预约');
-      } else {
-        onToast('error', error.message || '预约失败');
-      }
+      const error = err as Error & { suggestion?: string; status?: number };
+      const conflict = analyzeConflict(selectedSlot, error);
+      
+      setConflictError(conflict);
+      
+      setMonthSlots((prev) =>
+        prev.map((s) =>
+          s.date === selectedSlot.date && s.startHour === selectedSlot.startHour
+            ? { ...s, booked: true }
+            : s
+        )
+      );
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.date === selectedSlot.date && s.startHour === selectedSlot.startHour
+            ? { ...s, booked: true }
+            : s
+        )
+      );
+      
+      onToast('error', conflict.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const getWeekTitle = () => {
+  const getWeekTitle = useCallback(() => {
     const weekStart = weekDaysList[0];
     const weekEnd = weekDaysList[6];
     if (weekStart.getMonth() === weekEnd.getMonth()) {
       return `${weekStart.getFullYear()}年${monthNames[weekStart.getMonth()]} 第${Math.ceil(weekEnd.getDate() / 7)}周`;
     }
     return `${weekStart.getFullYear()}年${monthNames[weekStart.getMonth()]} - ${monthNames[weekEnd.getMonth()]}`;
-  };
+  }, [weekDaysList, monthNames]);
+
+  const getConflictSlotKey = () => conflictError?.slotKey || null;
 
   return (
     <div className="calendar-container">
@@ -312,16 +375,29 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
       </div>
 
       {conflictError && (
-        <div className="conflict-error">
+        <div className={`conflict-error conflict-${conflictError.type}`}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
+            {conflictError.type === 'time_overlap' ? (
+              <>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </>
+            ) : (
+              <>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </>
+            )}
           </svg>
-          <div>
-            <strong>{conflictError.message}</strong>
+          <div className="conflict-content">
+            <strong className="conflict-title">{conflictError.message}</strong>
             {conflictError.suggestion && (
-              <p>{conflictError.suggestion}</p>
+              <p className="conflict-suggestion">
+                <span className="conflict-label">建议：</span>
+                {conflictError.suggestion}
+              </p>
             )}
           </div>
         </div>
@@ -329,68 +405,77 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
 
       {isMobile ? (
         <div
-          className="calendar-wrapper week-view"
+          className={`calendar-wrapper week-view ${slideDirection ? `slide-${slideDirection}` : ''}`}
           ref={weekViewRef}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <div className="calendar-nav">
-            <button className="nav-btn" onClick={goToPrevWeek}>
+            <button className="nav-btn" onClick={goToPrevWeek} disabled={isAnimating}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
             <h3>{getWeekTitle()}</h3>
-            <button className="nav-btn" onClick={goToNextWeek}>
+            <button className="nav-btn" onClick={goToNextWeek} disabled={isAnimating}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
           </div>
 
-          <div className="weekday-row">
+          <div className="weekday-row week-compact">
             {weekDays.map((d) => (
-              <div key={d} className="weekday-cell">{d}</div>
+              <div key={d} className="weekday-cell compact">{d}</div>
             ))}
           </div>
 
           <div className="week-calendar-grid">
-            {weekDaysList.map((date) => {
-              const dateKey = formatDateKey(date);
-              const past = isPastDate(date);
-              const hasAvailable = hasAvailableSlots(date);
-              const hasBooked = hasBookedSlots(date);
-              const isSelected = selectedDate === dateKey;
-              const allBooked = hasBooked && !hasAvailable;
-              const isToday = formatDateKey(new Date()) === dateKey;
+            <div className="week-dates-track">
+              {weekDaysList.map((date) => {
+                const dateKey = formatDateKey(date);
+                const past = isPastDate(date);
+                const hasAvailable = hasAvailableSlots(date);
+                const hasBooked = hasBookedSlots(date);
+                const isSelected = selectedDate === dateKey;
+                const allBooked = hasBooked && !hasAvailable;
+                const isToday = formatDateKey(new Date()) === dateKey;
 
-              return (
-                <button
-                  key={dateKey}
-                  className={`day-cell week-day ${past ? 'past' : ''} ${isSelected ? 'selected' : ''} ${allBooked ? 'all-booked' : ''} ${isToday ? 'today' : ''}`}
-                  onClick={() => handleDateClick(date)}
-                  disabled={past}
-                >
-                  <span className="day-number">{date.getDate()}</span>
-                  <div className="day-dots">
-                    {hasAvailable && <span className="dot available" />}
-                    {hasBooked && <span className="dot booked" />}
-                  </div>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={dateKey}
+                    className={`week-day-cell ${past ? 'past' : ''} ${isSelected ? 'selected' : ''} ${allBooked ? 'all-booked' : ''} ${isToday ? 'today' : ''}`}
+                    onClick={() => handleDateClick(date)}
+                    disabled={past}
+                  >
+                    <span className="week-day-label">{weekDays[date.getDay()]}</span>
+                    <span className="week-day-number">{date.getDate()}</span>
+                    <div className="week-day-dots">
+                      {hasAvailable && <span className="dot available" />}
+                      {hasBooked && <span className="dot booked" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="calendar-legend">
+          <div className="calendar-legend week-legend">
             <div className="legend-item">
-              <span className="dot available" /> 可预约
+              <span className="dot available" /> 可约
             </div>
             <div className="legend-item">
-              <span className="dot booked" /> 已预约
+              <span className="dot booked" /> 已约
             </div>
             <div className="legend-item swipe-hint">
-              ← 左右滑动切换周 →
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              滑动切换
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </div>
           </div>
         </div>
@@ -469,7 +554,7 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
             <div className="slots-grid">
               {slots.map((slot) => {
                 const slotKey = `${slot.date}-${slot.startHour}`;
-                const isConflict = conflictSlotKey === slotKey;
+                const isConflict = getConflictSlotKey() === slotKey;
                 return (
                   <button
                     key={slot.id}
