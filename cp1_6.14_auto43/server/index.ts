@@ -120,28 +120,25 @@ app.get('/api/tags/search', async (req: Request, res: Response): Promise<void> =
   try {
     await ensureDb()
     const qRaw = typeof req.query.q === 'string' ? req.query.q : ''
-    const q = qRaw.trim().toLowerCase()
+    const q = qRaw.trim()
 
     if (!q) {
       res.json([])
       return
     }
 
-    const results: Tag[] = []
-    for (const t of db.data.tags) {
-      const titleLower = (t.title || '').toLowerCase()
-      const urlLower = (t.url || '').toLowerCase()
-      if (titleLower.includes(q) || urlLower.includes(q)) {
-        results.push(t)
-      }
-    }
-
+    const regex = new RegExp(escapeRegExp(q), 'i')
+    const results = db.data.tags.filter((t) => regex.test(t.title) || regex.test(t.url))
     results.sort((a, b) => b.order - a.order)
     res.json(results)
   } catch {
     res.status(500).json({ error: 'Search failed' })
   }
 })
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({ success: true, message: 'ok' })
