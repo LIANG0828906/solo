@@ -24,24 +24,36 @@ const GuessingPanel: React.FC<Props> = ({
   const [guess, setGuess] = useState('');
   const [hintCooldown, setHintCooldown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hintCooldownRef = useRef(0);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isDrawer) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      focusTimerRef.current = setTimeout(() => inputRef.current?.focus(), 100);
     }
+    return () => {
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current);
+        focusTimerRef.current = null;
+      }
+    };
   }, [isDrawer]);
 
   useEffect(() => {
     const unsub = gameEngine.on((type, data) => {
       if (type === 'hint_cooldown') {
         setHintCooldown(data.cooldown);
+        hintCooldownRef.current = data.cooldown;
       }
       if (type === 'round_start') {
         setHintCooldown(0);
+        hintCooldownRef.current = 0;
         setGuess('');
       }
     });
-    return unsub;
+    return () => {
+      unsub();
+    };
   }, []);
 
   const submitGuess = () => {
@@ -55,7 +67,9 @@ const GuessingPanel: React.FC<Props> = ({
   };
 
   const handleHint = () => {
-    if (hintCooldown > 0 || isDrawer) return;
+    if (hintCooldownRef.current > 0 || isDrawer) return;
+    setHintCooldown(10);
+    hintCooldownRef.current = 10;
     roomManager.requestHint();
     gameEngine.resetHintCooldown();
   };

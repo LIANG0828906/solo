@@ -32,8 +32,11 @@ const ScoreBoard: React.FC<Props> = ({
 }) => {
   const [bounceTeams, setBounceTeams] = useState<Set<number>>(new Set());
   const [scoreAnimKey, setScoreAnimKey] = useState(0);
+  const [rankingAnimKey, setRankingAnimKey] = useState(0);
   const timePct = totalRounds > 0 ? (timeRemaining / 90) * 100 : 0;
   const prevScores = useRef<Map<number, number>>(new Map());
+  const prevRankings = useRef<Map<number, number>>(new Map());
+  const visibleRankings = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (!recentScore) return;
@@ -44,11 +47,37 @@ const ScoreBoard: React.FC<Props> = ({
     return () => clearTimeout(t);
   }, [recentScore]);
 
+  useEffect(() => {
+    if (!showFinalRankings) {
+      prevRankings.current.clear();
+      visibleRankings.current.clear();
+      return;
+    }
+
+    const currentIds = new Set(showFinalRankings.map((r) => r.teamId));
+    const newIds = showFinalRankings.filter(
+      (r) => !prevRankings.current.has(r.teamId)
+    );
+
+    if (newIds.length > 0) {
+      setRankingAnimKey((k) => k + 1);
+    }
+
+    prevRankings.current = new Map(
+      showFinalRankings.map((r) => [r.teamId, r.totalScore])
+    );
+    visibleRankings.current = currentIds;
+  }, [showFinalRankings]);
+
   const maxScore = Math.max(1, ...teams.map((t) => t.score));
   const sortedForLeader = [...teams].sort((a, b) => b.score - a.score);
   const leaderId = sortedForLeader[0]?.id ?? -1;
 
   if (showFinalRankings && showFinalRankings.length > 0) {
+    const newTeamIds = new Set(
+      showFinalRankings.filter((r) => !prevRankings.current.has(r.teamId)).map((r) => r.teamId)
+    );
+
     return (
       <div className="card fade-in" style={{ height: '100%' }}>
         <h3
@@ -65,80 +94,98 @@ const ScoreBoard: React.FC<Props> = ({
           🏅 最终排名
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {showFinalRankings.map((r, idx) => (
-            <div
-              key={r.teamId}
-              className="ranking-fade-in"
-              style={{
-                animationDelay: `${idx * 0.2}s`,
-                opacity: 0,
-                padding: 16,
-                borderRadius: 14,
-                background:
-                  r.rank === 1
-                    ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.05))'
-                    : 'rgba(255,255,255,0.03)',
-                border:
-                  r.rank === 1
-                    ? '2px solid rgba(251, 191, 36, 0.5)'
-                    : '1px solid var(--border-color)',
-                animationFillMode: 'forwards'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                <div style={{ fontSize: 36 }}>{TROPHY_EMOJI[r.rank - 1] || r.rank}</div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    className={r.rank === 1 ? 'gold-shine' : ''}
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 700,
-                      color: r.rank === 1 ? undefined : '#fff'
-                    }}
-                  >
-                    {r.teamName}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 2 }}>
-                    {r.players.map((p) => `${p.avatar} ${p.nickname}`).join(' & ')}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div
-                    key={`score-${scoreAnimKey}`}
-                    className="score-bounce"
-                    style={{
-                      fontSize: 28,
-                      fontWeight: 800,
-                      color: r.rank === 1 ? '#fbbf24' : r.rank === 2 ? '#c0c0c0' : '#cd7f32'
-                    }}
-                  >
-                    {r.totalScore}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#a0aec0' }}>总分</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {r.roundScores.map((s, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      flex: 1,
-                      padding: '6px 8px',
-                      borderRadius: 8,
-                      background: 'rgba(0,0,0,0.3)',
-                      textAlign: 'center',
-                      fontSize: 12
-                    }}
-                  >
-                    <div style={{ color: '#a0aec0', fontSize: 10 }}>R{i + 1}</div>
-                    <div style={{ fontWeight: 700, color: s > 0 ? '#10b981' : '#e94560' }}>
-                      +{s}
+          {showFinalRankings.map((r, idx) => {
+            const isNew = newTeamIds.has(r.teamId);
+            const isBouncing = bounceTeams.has(r.teamId);
+
+            return (
+              <div
+                key={`ranking-${r.teamId}-${rankingAnimKey}-${r.totalScore}`}
+                className="ranking-fade-in"
+                style={{
+                  animationDelay: isNew ? `${idx * 0.2}s` : '0s',
+                  opacity: isNew ? 0 : 1,
+                  padding: 16,
+                  borderRadius: 14,
+                  background:
+                    r.rank === 1
+                      ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.05))'
+                      : 'rgba(255,255,255,0.03)',
+                  border:
+                    r.rank === 1
+                      ? '2px solid rgba(251, 191, 36, 0.5)'
+                      : '1px solid var(--border-color)',
+                  animationFillMode: 'forwards'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 36 }}>{TROPHY_EMOJI[r.rank - 1] || r.rank}</div>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      className={r.rank === 1 ? 'gold-shine' : ''}
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: r.rank === 1 ? undefined : '#fff'
+                      }}
+                    >
+                      {r.teamName}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 2 }}>
+                      {r.players.map((p) => `${p.avatar} ${p.nickname}`).join(' & ')}
                     </div>
                   </div>
-                ))}
+                  <div style={{ textAlign: 'right' }}>
+                    <div
+                      key={`score-${r.teamId}-${scoreAnimKey}`}
+                      className={isBouncing ? 'score-bounce' : ''}
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 800,
+                        color: r.rank === 1 ? '#fbbf24' : r.rank === 2 ? '#c0c0c0' : '#cd7f32'
+                      }}
+                    >
+                      {r.totalScore}
+                      {isBouncing && recentScore && recentScore.teamId === r.teamId && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 14,
+                            color: '#10b981',
+                            display: 'inline-block',
+                            animation: 'bounceScale 0.6s ease'
+                          }}
+                        >
+                          +{recentScore.score}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#a0aec0' }}>总分</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {r.roundScores.map((s, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        background: 'rgba(0,0,0,0.3)',
+                        textAlign: 'center',
+                        fontSize: 12
+                      }}
+                    >
+                      <div style={{ color: '#a0aec0', fontSize: 10 }}>R{i + 1}</div>
+                      <div style={{ fontWeight: 700, color: s > 0 ? '#10b981' : '#e94560' }}>
+                        +{s}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

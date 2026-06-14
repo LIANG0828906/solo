@@ -13,6 +13,12 @@ interface Props {
   wordCategory?: string;
   flashState?: 'none' | 'correct' | 'wrong';
   onDraw?: () => void;
+  colors?: string[];
+  showColorPicker?: boolean;
+  sizeControlType?: 'buttons' | 'slider' | 'both';
+  minSize?: number;
+  maxSize?: number;
+  defaultSize?: number;
 }
 
 interface Point {
@@ -20,16 +26,28 @@ interface Point {
   y: number;
 }
 
-const COLORS = ['#000000', '#e94560', '#3b82f6', '#10b981', '#f59e0b'];
+const DEFAULT_COLORS = ['#000000', '#e94560', '#3b82f6', '#10b981', '#f59e0b'];
 const SIZES = [2, 5, 8];
 const SIZE_LABELS = ['细', '中', '粗'];
 
-const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wordCategory, flashState, onDraw }, ref) => {
+const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({
+  isDrawer,
+  word,
+  wordCategory,
+  flashState,
+  onDraw,
+  colors = DEFAULT_COLORS,
+  showColorPicker = false,
+  sizeControlType = 'buttons',
+  minSize = 1,
+  maxSize = 20,
+  defaultSize = 5
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawing, setDrawing] = useState(false);
-  const [color, setColor] = useState(COLORS[0]);
-  const [size, setSize] = useState(SIZES[1]);
+  const [color, setColor] = useState(colors[0] || DEFAULT_COLORS[0]);
+  const [size, setSize] = useState(defaultSize);
   const [isEraser, setIsEraser] = useState(false);
   const lastPoint = useRef<Point | null>(null);
   const pathsRef = useRef<{ color: string; size: number; isEraser: boolean; points: Point[] }[]>([]);
@@ -317,7 +335,7 @@ const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wor
         >
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#a0aec0', marginRight: 4 }}>颜色:</span>
-            {COLORS.map((c) => (
+            {colors.map((c) => (
               <button
                 key={c}
                 onClick={() => {
@@ -338,47 +356,107 @@ const PaintingBoard = forwardRef<PaintingBoardRef, Props>(({ isDrawer, word, wor
                   transform: color === c && !isEraser ? 'scale(1.15)' : 'scale(1)',
                   boxShadow: color === c && !isEraser ? '0 0 10px rgba(233, 69, 96, 0.5)' : 'none'
                 }}
-                title={c === '#000000' ? '黑色' : c === '#e94560' ? '红色' : c === '#3b82f6' ? '蓝色' : c === '#10b981' ? '绿色' : '橙色'}
+                title={c}
               />
             ))}
+            {showColorPicker && (
+              <label
+                style={{
+                  position: 'relative',
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: `conic-gradient(red, yellow, lime, aqua, blue, magenta, red)`,
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  transition: 'all 0.2s'
+                }}
+                title="自定义颜色"
+              >
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => {
+                    setColor(e.target.value);
+                    setIsEraser(false);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    width: 0,
+                    height: 0,
+                    opacity: 0,
+                    pointerEvents: 'none'
+                  }}
+                />
+                <span style={{ fontSize: 12, color: '#fff', textShadow: '0 0 2px rgba(0,0,0,0.5)' }}>🎨</span>
+              </label>
+            )}
           </div>
 
           <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', margin: '0 6px' }} />
 
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#a0aec0', marginRight: 4 }}>粗细:</span>
-            {SIZES.map((s, idx) => (
-              <button
-                key={s}
-                onClick={() => setSize(s)}
-                style={{
-                  width: 44,
-                  height: 32,
-                  borderRadius: 8,
-                  background: size === s ? 'rgba(233, 69, 96, 0.3)' : 'rgba(255,255,255,0.08)',
-                  border:
-                    size === s ? '2px solid #e94560' : '1px solid rgba(255,255,255,0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: size === s ? '#fff' : '#a0aec0',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  gap: 6
-                }}
-              >
-                <div
+            {(sizeControlType === 'buttons' || sizeControlType === 'both') &&
+              SIZES.map((s, idx) => (
+                <button
+                  key={s}
+                  onClick={() => setSize(s)}
                   style={{
-                    width: s + 2,
-                    height: s + 2,
-                    borderRadius: '50%',
-                    background: isEraser ? '#fff' : color
+                    width: 44,
+                    height: 32,
+                    borderRadius: 8,
+                    background: size === s ? 'rgba(233, 69, 96, 0.3)' : 'rgba(255,255,255,0.08)',
+                    border:
+                      size === s ? '2px solid #e94560' : '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: size === s ? '#fff' : '#a0aec0',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    gap: 6
+                  }}
+                >
+                  <div
+                    style={{
+                      width: s + 2,
+                      height: s + 2,
+                      borderRadius: '50%',
+                      background: isEraser ? '#fff' : color
+                    }}
+                  />
+                  <span>{SIZE_LABELS[idx]}</span>
+                </button>
+              ))}
+            {(sizeControlType === 'slider' || sizeControlType === 'both') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#a0aec0', minWidth: 16 }}>{size}</span>
+                <input
+                  type="range"
+                  min={minSize}
+                  max={maxSize}
+                  step={1}
+                  value={size}
+                  onChange={(e) => setSize(Number(e.target.value))}
+                  style={{
+                    width: sizeControlType === 'both' ? 80 : 120,
+                    height: 4,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.2)',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none'
                   }}
                 />
-                <span>{SIZE_LABELS[idx]}</span>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
 
           <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
