@@ -21,6 +21,11 @@
   transform: translateZ(0);
 }
 
+.photo-card-placeholder {
+  flex-shrink: 0;
+  height: 1px;
+}
+
 @media (max-width: 768px) {
   .photo-card-wrapper {
     width: 200px;

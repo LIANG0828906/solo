@@ -6,9 +6,11 @@
   margin-top: 4px;
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(76, 175, 80, 0.15);
-  animation-fill-mode: forwards, forwards;
+  animation-fill-mode: forwards, forwards, both;
   opacity: 0;
   transform-origin: left center;
+  --bubble-scale-1: 0.95;
+  --bubble-scale-2: 1.02;
 }
 
 .note-arrow {
@@ -30,14 +32,31 @@
   word-break: break-word;
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0) rotate(0); }
-  20% { transform: translateX(-2px) rotate(-3deg); }
-  40% { transform: translateX(2px) rotate(3deg); }
-  60% { transform: translateX(-2px) rotate(-3deg); }
-  80% { transform: translateX(2px) rotate(3deg); }
+@keyframes bounceScale {
+  0% {
+    transform: scale(var(--bubble-scale-1));
+  }
+  60% {
+    transform: scale(var(--bubble-scale-2));
+  }
+  100% {
+    transform: scale(1.0);
+  }
 }
 
-.animate-shake {
-  animation: shake 0.6s ease;
+@keyframes floatSoft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-bounce-scale {
+  animation: bounceScale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-float-soft {
+  animation: floatSoft 2.5s ease-in-out infinite;
 }
