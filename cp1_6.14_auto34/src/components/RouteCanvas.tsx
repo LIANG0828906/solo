@@ -10,9 +10,8 @@ import {
   worldToScreen,
   findNearestNode,
   NODE_WIDTH,
-  NODE_HEIGHT,
 } from '@/utils/canvasHelpers';
-import { LocationNode, Connection, NodeDragState, ConnectionDragState } from '@/types';
+import { NodeDragState, ConnectionDragState } from '@/types';
 import { UseRouteStateReturn } from '@/hooks/useRouteState';
 
 interface RouteCanvasProps {
@@ -437,6 +436,52 @@ export const RouteCanvas: React.FC<RouteCanvasProps> = ({
         缩放: {Math.round(scale * 100)}%
       </div>
 
+      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-[#8B7355] border border-[#E8DCC4] max-w-xs">
+        <p className="font-medium text-[#4A3728] mb-1">操作提示</p>
+        <p>• 双击画布添加地点</p>
+        <p>• 拖拽节点移动位置</p>
+        <p>• 选中节点后拖拽右侧圆点连线</p>
+        <p>• 滚轮缩放，空白处拖拽平移</p>
+        <p>• 选中节点拖拽到右侧时间轴</p>
+      </div>
+
       {showAddDialog && (
         <div
           className="absolute bg-white rounded-xl shadow-2xl p-4 w-64 border border-[#E8DCC4]"
+          style={{ left: addDialogPos.x, top: addDialogPos.y }}
+        >
+          <h3 className="text-[#4A3728] font-semibold mb-3">添加地点</h3>
+          <input
+            type="text"
+            placeholder="地点名称"
+            value={newNodeName}
+            onChange={(e) => setNewNodeName(e.target.value)}
+            className="w-full px-3 py-2 border border-[#E8DCC4] rounded-lg mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6B7F5E] focus:border-transparent"
+            autoFocus
+          />
+          <textarea
+            placeholder="简短描述"
+            value={newNodeDesc}
+            onChange={(e) => setNewNodeDesc(e.target.value)}
+            className="w-full px-3 py-2 border border-[#E8DCC4] rounded-lg mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6B7F5E] focus:border-transparent resize-none"
+            rows={2}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleAddNode}
+              className="flex-1 bg-[#6B7F5E] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#5a6b4e] transition-colors"
+            >
+              添加
+            </button>
+            <button
+              onClick={() => setShowAddDialog(false)}
+              className="flex-1 bg-[#E8DCC4] text-[#4A3728] py-2 rounded-lg text-sm font-medium hover:bg-[#d4c7ac] transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
