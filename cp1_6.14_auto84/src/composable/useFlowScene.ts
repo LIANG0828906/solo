@@ -18,6 +18,7 @@ const COLOR_THEMES: Record<string, { primary: THREE.Color; secondary: THREE.Colo
 interface NodeObj {
   mesh: THREE.Mesh
   glowMesh: THREE.Mesh
+  ringMesh: THREE.Mesh
   position: THREE.Vector3
   colorFactor: number
   rotationAxis: THREE.Vector3
@@ -97,9 +98,13 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
   let frames = 0
   let lastFpsTime = 0
   const fps = ref(0)
+  const labelVisible = ref(false)
+  const labelText = ref('')
+  const liveBg = new THREE.Color(BG_COLOR)
 
   const nodeGeometry = new THREE.SphereGeometry(NODE_RADIUS, 24, 24)
   const glowGeometry = new THREE.SphereGeometry(NODE_RADIUS * GLOW_SCALE, 16, 16)
+  const ringGeometry = new THREE.TorusGeometry(NODE_RADIUS * 1.6, 0.04, 8, 48)
 
   function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
     const pts: THREE.Vector3[] = []
@@ -168,17 +173,32 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
       glowMesh.position.copy(positions[i])
 
       const axis = new THREE.Vector3(
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-        Math.random() - 0.5
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
       ).normalize()
+
+      const ringMat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.55,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+      const ringMesh = new THREE.Mesh(ringGeometry, ringMat)
+      ringMesh.position.copy(positions[i])
+      const up = new THREE.Vector3(0, 1, 0)
+      const q = new THREE.Quaternion().setFromUnitVectors(up, axis)
+      ringMesh.quaternion.copy(q)
 
       nodeGroup.add(mesh)
       nodeGroup.add(glowMesh)
+      nodeGroup.add(ringMesh)
 
       nodeObjs.push({
         mesh,
         glowMesh,
+        ringMesh,
         position: positions[i],
         colorFactor: factor,
         rotationAxis: axis,
@@ -323,8 +343,8 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
       particleColorArr[i * 3 + 1] = fromColor.g + (toColor.g - fromColor.g) * t
       particleColorArr[i * 3 + 2] = fromColor.b + (toColor.b - fromColor.b) * t
 
-      particleOpacities[i] = 1.0 - t * 0.75
-      particleSizeArr[i] = 0.3
+      particleOpacities[i] = Math.max(0.0, 1.0 - t)
+      particleSizeArr[i] = 0.3 * (1.0 - t * 0.5)
     }
 
     if (activeParticles > 0) {
@@ -342,9 +362,14 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
     }
   }
 
+  const targetBg = new THREE.Color(BG_COLOR)
+
   function updateThemeColors() {
-    livePrimary.lerp(targetPrimary, 0.04)
-    liveSecondary.lerp(targetSecondary, 0.04)
+    const lerpFactor = 0.06
+    livePrimary.lerp(targetPrimary, lerpFactor)
+    liveSecondary.lerp(targetSecondary, lerpFactor)
+    liveBg.lerp(targetBg, lerpFactor)
+    ;(scene.background as THREE.Color).copy(liveBg)
 
     for (const n of nodeObjs) {
       const c = getNodeColor(n.colorFactor)
@@ -376,11 +401,13 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
         node.mesh.scale.setScalar(1.5)
         node.glowMesh.scale.setScalar(1.5)
         ;(node.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.5
+        labelText.value = 'Node ' + String(node.index + 1).padStart(2, '0')
+        labelVisible.value = true
       }
       updateLabelPosition(nodeObjs[hoveredIdx])
     } else {
       resetHover()
-      if (labelEl) labelEl.style.display = 'none'
+      labelVisible.value = false
     }
   }
 
@@ -400,11 +427,9 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
     vector.project(camera)
     const x = (vector.x * 0.5 + 0.5) * renderer.domElement.clientWidth
     const y = (-vector.y * 0.5 + 0.5) * renderer.domElement.clientHeight
-    labelEl.style.display = 'block'
     labelEl.style.left = x + 'px'
     labelEl.style.top = y + 'px'
     labelEl.style.transform = 'translate(-50%, -100%)'
-    labelEl.textContent = 'Node ' + String(node.index + 1).padStart(2, '0')
   }
 
   function onPointerMove(e: MouseEvent) {
@@ -522,6 +547,8 @@ export function useFlowScene(container: Ref<HTMLElement | null>) {
     init,
     dispose,
     fps,
+    labelVisible,
+    labelText,
     setNodeCount,
     setFlowSpeed,
     setColorTheme,
