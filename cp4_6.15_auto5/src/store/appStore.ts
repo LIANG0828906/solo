@@ -14,6 +14,7 @@ import { monitorEngine } from '../engine/monitorEngine';
 const STORAGE_KEYS = {
   ENDPOINTS: 'sentinel:endpoints',
   FAILURES: 'sentinel:failures',
+  ACTIVE_FAILURES: 'sentinel:activeFailures',
   START_TIME: 'sentinel:startTime',
 };
 
@@ -27,6 +28,7 @@ function generateId(): string {
 function createInitialState(): AppState {
   let persistedEndpoints: MonitoredEndpoint[] = [];
   let persistedFailures: FailureEvent[] = [];
+  let persistedActiveFailures: FailureEvent[] = [];
   let persistedStartTime: number = Date.now();
 
   try {
@@ -34,10 +36,21 @@ function createInitialState(): AppState {
     if (rawE) persistedEndpoints = JSON.parse(rawE);
     const rawF = localStorage.getItem(STORAGE_KEYS.FAILURES);
     if (rawF) persistedFailures = JSON.parse(rawF);
+    const rawAF = localStorage.getItem(STORAGE_KEYS.ACTIVE_FAILURES);
+    if (rawAF) persistedActiveFailures = JSON.parse(rawAF);
     const rawS = localStorage.getItem(STORAGE_KEYS.START_TIME);
     if (rawS) persistedStartTime = parseInt(rawS, 10);
   } catch {
     // ignore parse errors
+  }
+
+  const activeFailuresRecord: Record<string, FailureEvent> = {};
+  const consecutiveFailuresRecord: Record<string, number> = {};
+  for (const f of persistedActiveFailures) {
+    if (f && !f.isResolved && f.endpointId) {
+      activeFailuresRecord[f.endpointId] = f;
+      consecutiveFailuresRecord[f.endpointId] = f.checkResults.length;
+    }
   }
 
   let permission: NotificationPermissionState = 'default';
@@ -49,8 +62,8 @@ function createInitialState(): AppState {
     endpoints: persistedEndpoints,
     latestResults: {},
     resultHistory: {},
-    consecutiveFailures: {},
-    activeFailures: {},
+    consecutiveFailures: consecutiveFailuresRecord,
+    activeFailures: activeFailuresRecord,
     failureHistory: persistedFailures,
     notificationPermission: permission,
     monitoringStartTime: persistedStartTime,
@@ -84,6 +97,15 @@ class AppStore {
     try {
       const capped = this.state.failureHistory.slice(-MAX_FAILURE_HISTORY);
       localStorage.setItem(STORAGE_KEYS.FAILURES, JSON.stringify(capped));
+    } catch {
+      // ignore
+    }
+  }
+
+  private persistActiveFailures(): void {
+    try {
+      const list = Object.values(this.state.activeFailures);
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_FAILURES, JSON.stringify(list));
     } catch {
       // ignore
     }
@@ -141,8 +163,12 @@ class AppStore {
     this.subscribers.add(callback);
     queueMicrotask(() => callback(this.snapshot()));
     return () => {
-      this.subscribers.delete(callback);
+      this.unsubscribe(callback);
     };
+  }
+
+  unsubscribe(callback: StateSubscriber): void {
+    this.subscribers.delete(callback);
   }
 
   startAll(): void {
@@ -184,6 +210,7 @@ class AppStore {
         this.state.failureHistory.push(activeFailure);
         delete this.state.activeFailures[endpointId];
         this.persistFailures();
+        this.persistActiveFailures();
       }
     } else {
       const newCount = prevCount + 1;
@@ -191,6 +218,7 @@ class AppStore {
 
       if (activeFailure) {
         activeFailure.checkResults.push(result);
+        this.persistActiveFailures();
       } else if (newCount >= endpoint.failureThreshold) {
         const failure: FailureEvent = {
           id: generateId(),
@@ -202,6 +230,7 @@ class AppStore {
           isResolved: false,
         };
         this.state.activeFailures[endpointId] = failure;
+        this.persistActiveFailures();
         this.sendFailureNotification(endpoint, failure, result);
       }
     }
