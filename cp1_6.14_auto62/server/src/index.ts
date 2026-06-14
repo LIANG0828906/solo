@@ -17,9 +17,13 @@ import {
   getTodayRecord,
   getUserLatestRecord,
   getUserChallenges,
+  getLast30DaysRecords,
+  getLeaderboardWithRank,
   User,
   Challenge,
   DailyRecord,
+  validateEmail,
+  validatePassword,
 } from './models.js';
 
 const app = express();
@@ -33,7 +37,7 @@ export interface AuthRequest extends Request {
   user?: User;
 }
 
-function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: '未授权' });
@@ -63,10 +67,28 @@ function excludePassword(user: User) {
 app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
     const { email, password, nickname, avatar } = req.body;
+    
     if (!email || !password || !nickname) {
       res.status(400).json({ error: '邮箱、密码和昵称不能为空' });
       return;
     }
+    
+    if (!validateEmail(email)) {
+      res.status(400).json({ error: '邮箱格式不正确' });
+      return;
+    }
+    
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      res.status(400).json({ error: passwordCheck.message });
+      return;
+    }
+    
+    if (nickname.trim().length < 2) {
+      res.status(400).json({ error: '昵称长度至少2位' });
+      return;
+    }
+    
     const user = await createUser(email, password, nickname, avatar);
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ user: excludePassword(user), token });
@@ -126,22 +148,25 @@ app.get('/api/challenges', authMiddleware, async (req: AuthRequest, res: Respons
 app.post('/api/challenges', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { name, duration, dailyGoal, unit, startDate, inviteCode } = req.body;
+    
     if (!name || !duration || !dailyGoal || !unit || !startDate) {
       res.status(400).json({ error: '缺少必要参数' });
       return;
     }
+    
     if (!req.user) {
       res.status(401).json({ error: '未授权' });
       return;
     }
+    
     const challenge = await createChallenge(
-      name,
+      name.trim(),
       duration,
-      dailyGoal,
-      unit,
+      Number(dailyGoal),
+      unit.trim(),
       startDate,
       req.user.id,
-      inviteCode
+      inviteCode?.trim() || undefined
     );
     res.json({ challenge });
   } catch (err: any) {
@@ -163,7 +188,7 @@ app.get('/api/challenges/:id', authMiddleware, async (req: AuthRequest, res: Res
         return u ? excludePassword(u) : null;
       })
     );
-    const validParticipants = participants.filter(Boolean);
+    const validParticipants = participants.filter(Boolean) as Array<Omit<User, 'password'>>;
     
     const records = await getDailyRecordsByChallenge(id);
     const leaderboard = validParticipants.map(p => {
@@ -184,7 +209,7 @@ app.get('/api/challenges/:id', authMiddleware, async (req: AuthRequest, res: Res
     res.json({
       challenge,
       participants: validParticipants,
-      leaderboard,
+      leaderboard: leaderboard.slice(0, 20),
       myRecords,
       myToday,
       isJoined,
@@ -194,6 +219,170 @@ app.get('/api/challenges/:id', authMiddleware, async (req: AuthRequest, res: Res
   }
 });
 
+app.get('/api/challenges/:id/leaderboard', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const startTime = Date.now();
+    
+    const leaderboardData = await getLeaderboardWithRank(id);
+    
+    const leaderboard = leaderboardData
+      .filter(item => item.user !== null)
+      .map(item => ({
+        user: item.user ? excludePassword(item.user) : null,
+        total: item.total,
+        currentRank: item.currentRank,
+        previousRank: item.previousRank,
+      }))
+      .slice(0, 20);
+    
+    const elapsed = Date.now() - startTime;
+    if (elapsed > 300) {
+      console.warn(`Leaderboard query took ${elapsed}ms, exceeds 300ms target`);
+    }
+    
+    res.json({ 
+      leaderboard,
+      timestamp: new Date().toISOString(),
+      responseTime: elapsed,
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.post('/api/challenges/:id/join', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
+    const { inviteCode } = req.body;
+    
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    
+    const challenge = await joinChallenge(id, req.user.id, inviteCode);
+    res.json({ challenge });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/challenges/:id/records', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { count, date } = req.body;
+    
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    
+    if (count === undefined || count === null) {
+      res.status(400).json({ error: '完成数量不能为空' });
+      return;
+    }
+    
+    const recordDate = date || new Date().toISOString().split('T')[0];
+    const record = await createDailyRecord(req.user.id, id, recordDate, Number(count));
+    res.json({ record });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/challenges/:id/records', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    const records = await getDailyRecordsByUserAndChallenge(req.user.id, id);
+    res.json({ records });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/user/challenges', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    const challenges = await getUserChallenges(req.user.id);
+    
+    const challengesWithRecords = await Promise.all(
+      challenges.map(async (c) => {
+        const records = await getDailyRecordsByUserAndChallenge(req.user!.id, c.id);
+        const total = records.reduce((sum, r) => sum + r.count, 0);
+        return { ...c, total, recordsCount: records.length };
+      })
+    );
+    
+    res.json({ challenges: challengesWithRecords });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/user/records/last30days', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    const records = await getLast30DaysRecords(req.user.id);
+    
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    
+    const dailyData: Array<{ date: string; total: number; challenges: Record<string, number> }> = [];
+    
+    for (let d = new Date(thirtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayRecords = records.filter(r => r.date === dateStr);
+      const challenges: Record<string, number> = {};
+      
+      dayRecords.forEach(r => {
+        if (!challenges[r.challengeId]) {
+          challenges[r.challengeId] = 0;
+        }
+        challenges[r.challengeId] += r.count;
+      });
+      
+      const total = Object.values(challenges).reduce((sum, v) => sum + v, 0);
+      
+      dailyData.push({
+        date: dateStr,
+        total,
+        challenges,
+      });
+    }
+    
+    res.json({ records: dailyData });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/user/records', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: '未授权' });
+      return;
+    }
+    const records = await getDailyRecordsByUser(req.user.id);
+    res.json({ records });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+export { app };

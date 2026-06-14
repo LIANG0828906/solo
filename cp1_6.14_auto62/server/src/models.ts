@@ -59,6 +59,52 @@ const colors = [
   '#ff8c00', '#ee5253', '#222f3e', '#576574',
 ];
 
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+export function validatePassword(password: string): { valid: boolean; message: string } {
+  if (password.length < 6) {
+    return { valid: false, message: '密码长度至少6位' };
+  }
+  if (!/[A-Za-z]/.test(password)) {
+    return { valid: false, message: '密码必须包含至少一个字母' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: '密码必须包含至少一个数字' };
+  }
+  return { valid: true, message: '' };
+}
+
+export function validateStartDate(startDate: string): { valid: boolean; message: string } {
+  const date = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (isNaN(date.getTime())) {
+    return { valid: false, message: '日期格式无效' };
+  }
+  if (date < today) {
+    return { valid: false, message: '开始日期不能早于今天' };
+  }
+  return { valid: true, message: '' };
+}
+
+export function validateDailyGoal(goal: number): { valid: boolean; message: string } {
+  if (typeof goal !== 'number' || goal <= 0) {
+    return { valid: false, message: '每日目标必须是正数' };
+  }
+  if (!Number.isInteger(goal)) {
+    return { valid: false, message: '每日目标必须是整数' };
+  }
+  return { valid: true, message: '' };
+}
+
+export function validateDuration(duration: number): duration is 7 | 14 | 30 {
+  return duration === 7 || duration === 14 || duration === 30;
+}
+
 function getAvatarColor(nickname: string): string {
   let hash = 0;
   for (let i = 0; i < nickname.length; i++) {
@@ -75,18 +121,32 @@ function generateInitialAvatar(nickname: string): string {
 }
 
 export async function createUser(email: string, password: string, nickname: string, avatar?: string): Promise<User> {
+  if (!validateEmail(email)) {
+    throw new Error('邮箱格式不正确');
+  }
+  
+  const passwordCheck = validatePassword(password);
+  if (!passwordCheck.valid) {
+    throw new Error(passwordCheck.message);
+  }
+  
+  if (nickname.trim().length < 2) {
+    throw new Error('昵称长度至少2位');
+  }
+
   await db.read();
   const exists = db.data.users.find(u => u.email === email);
   if (exists) {
     throw new Error('邮箱已存在');
   }
+  
   const hashedPassword = await bcrypt.hash(password, 10);
   const avatarColor = getAvatarColor(nickname);
   const user: User = {
     id: uuidv4(),
     email,
     password: hashedPassword,
-    nickname,
+    nickname: nickname.trim(),
     avatar: avatar || generateInitialAvatar(nickname),
     avatarColor,
     createdAt: new Date().toISOString(),
@@ -119,15 +179,37 @@ export async function createChallenge(
   creatorId: string,
   inviteCode?: string
 ): Promise<Challenge> {
+  if (!name.trim()) {
+    throw new Error('挑战名称不能为空');
+  }
+  
+  if (!validateDuration(duration)) {
+    throw new Error('时长必须是7天、14天或30天');
+  }
+  
+  const goalCheck = validateDailyGoal(dailyGoal);
+  if (!goalCheck.valid) {
+    throw new Error(goalCheck.message);
+  }
+  
+  if (!unit.trim()) {
+    throw new Error('单位不能为空');
+  }
+  
+  const dateCheck = validateStartDate(startDate);
+  if (!dateCheck.valid) {
+    throw new Error(dateCheck.message);
+  }
+
   await db.read();
   const challenge: Challenge = {
     id: uuidv4(),
-    name,
+    name: name.trim(),
     duration,
     dailyGoal,
-    unit,
+    unit: unit.trim(),
     startDate,
-    inviteCode,
+    inviteCode: inviteCode?.trim() || undefined,
     creatorId,
     participantIds: [creatorId],
     createdAt: new Date().toISOString(),
@@ -153,7 +235,7 @@ export async function joinChallenge(challengeId: string, userId: string, inviteC
   if (!challenge) {
     throw new Error('挑战不存在');
   }
-  if (challenge.inviteCode && challenge.inviteCode !== inviteCode) {
+  if (challenge.inviteCode && challenge.inviteCode !== inviteCode?.trim()) {
     throw new Error('邀请码错误');
   }
   if (!challenge.participantIds.includes(userId)) {
@@ -164,19 +246,45 @@ export async function joinChallenge(challengeId: string, userId: string, inviteC
 }
 
 export async function createDailyRecord(userId: string, challengeId: string, date: string, count: number): Promise<DailyRecord> {
+  if (typeof count !== 'number' || count < 0) {
+    throw new Error('完成数量必须是非负整数');
+  }
+  
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) {
+    throw new Error('日期格式无效');
+  }
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const recordDate = new Date(date);
+  recordDate.setHours(0, 0, 0, 0);
+  if (recordDate > today) {
+    throw new Error('不能提交未来日期的记录');
+  }
+
   await db.read();
   const existing = db.data.dailyRecords.find(
     r => r.userId === userId && r.challengeId === challengeId && r.date === date
   );
   if (existing) {
-    throw new Error('今日已提交记录');
+    throw new Error('今日已提交记录，不可修改');
   }
+  
+  const challenge = db.data.challenges.find(c => c.id === challengeId);
+  if (!challenge) {
+    throw new Error('挑战不存在');
+  }
+  if (!challenge.participantIds.includes(userId)) {
+    throw new Error('您尚未加入此挑战');
+  }
+
   const record: DailyRecord = {
     id: uuidv4(),
     userId,
     challengeId,
     date,
-    count,
+    count: Math.floor(count),
     createdAt: new Date().toISOString(),
   };
   db.data.dailyRecords.push(record);
@@ -220,6 +328,51 @@ export async function getUserLatestRecord(userId: string, challengeId: string): 
 export async function getUserChallenges(userId: string): Promise<Challenge[]> {
   await db.read();
   return db.data.challenges.filter(c => c.participantIds.includes(userId));
+}
+
+export async function getLast30DaysRecords(userId: string): Promise<DailyRecord[]> {
+  await db.read();
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  
+  return db.data.dailyRecords
+    .filter(r => {
+      const recordDate = new Date(r.date);
+      return r.userId === userId && recordDate >= thirtyDaysAgo && recordDate <= today;
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+export async function getLeaderboardWithRank(challengeId: string): Promise<Array<{ user: User | null; total: number; previousRank: number; currentRank: number }>> {
+  await db.read();
+  const challenge = db.data.challenges.find(c => c.id === challengeId);
+  if (!challenge) {
+    return [];
+  }
+
+  const records = db.data.dailyRecords.filter(r => r.challengeId === challengeId);
+  const participants = await Promise.all(
+    challenge.participantIds.map(async (uid) => {
+      const user = await findUserById(uid);
+      return { userId: uid, user };
+    })
+  );
+
+  const leaderboard = participants
+    .map(({ userId, user }) => {
+      const userRecords = records.filter(r => r.userId === userId);
+      const total = userRecords.reduce((sum, r) => sum + r.count, 0);
+      return { user, total, previousRank: 0, currentRank: 0 };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  leaderboard.forEach((item, index) => {
+    item.currentRank = index + 1;
+    item.previousRank = index + 1;
+  });
+
+  return leaderboard;
 }
 
 export { db };
