@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { HealthAnalysis, PlantStatus } from '@/types'
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, LabelList,
@@ -33,6 +33,16 @@ interface HealthDashboardProps {
 export default function HealthDashboard({ data }: HealthDashboardProps) {
   const scoreColor = data.score >= 75 ? '#22c55e' : data.score >= 50 ? '#f97316' : '#ef4444'
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null)
+  const [tooltipExpanded, setTooltipExpanded] = useState(false)
+  const [activeTooltipDate, setActiveTooltipDate] = useState<string | null>(null)
+  const lastTooltipDateRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (activeTooltipDate !== lastTooltipDateRef.current) {
+      lastTooltipDateRef.current = activeTooltipDate
+      setTooltipExpanded(false)
+    }
+  }, [activeTooltipDate])
 
   const pieData = data.statusDistribution.map((d) => ({
     name: statusLabels[d.status as PlantStatus] || d.status,
@@ -63,7 +73,7 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
           </h3>
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
+              <PieChart onMouseLeave={() => setActivePieIndex(null)}>
                 <Pie
                   data={pieData}
                   cx="50%"
@@ -72,19 +82,18 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                   outerRadius={90}
                   dataKey="value"
                   paddingAngle={2}
-                  activeIndex={activePieIndex ?? undefined}
+                  activeIndex={activePieIndex ?? -1}
                   activeShape={(props: any) => {
                     const RADIAN = Math.PI / 180
                     const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
                     const x = cx + (outerRadius + 16) * Math.cos(-midAngle * RADIAN)
                     const y = cy + (outerRadius + 16) * Math.sin(-midAngle * RADIAN)
                     return (
-                      <g>
+                      <g style={{ pointerEvents: 'none' }}>
                         <path
                           d={describeArc(cx, cy, outerRadius + 8, startAngle, endAngle, innerRadius + 8)}
                           fill={fill}
-                          style={{ transition: 'all 0.3s ease' }}
+                          style={{ transition: 'all 0.25s ease' }}
                         />
                         <text
                           x={x}
@@ -153,7 +162,18 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
             过去30天事件频率
           </h3>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={lineData}>
+            <LineChart
+              data={lineData}
+              onMouseMove={(e) => {
+                if (e && e.activePayload && e.activePayload[0]) {
+                  const d = e.activePayload[0].payload
+                  if (d.fullDate !== activeTooltipDate) {
+                    setActiveTooltipDate(d.fullDate)
+                  }
+                }
+              }}
+              onMouseLeave={() => setActiveTooltipDate(null)}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="date"
@@ -170,6 +190,10 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                 content={({ active, payload }) => {
                   if (!active || !payload?.length || !payload[0]) return null
                   const d = payload[0].payload
+
+                  const displayCount = tooltipExpanded ? d.events.length : Math.min(5, d.events.length)
+                  const showExpand = d.events.length > 5
+
                   return (
                     <div
                       style={{
@@ -179,7 +203,8 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                         padding: '10px 14px',
                         fontSize: 12,
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        maxWidth: 280,
+                        maxWidth: 300,
+                        minWidth: 200,
                       }}
                     >
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>
@@ -191,16 +216,61 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
                       {d.events && d.events.length > 0 && (
                         <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 6 }}>
                           <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>事件详情:</div>
-                          {d.events.slice(0, 5).map((e: { type: string; notes: string }, i: number) => (
-                            <div key={i} style={{ padding: '2px 0', color: '#64748b' }}>
-                              • {eventTypeLabels[e.type] || e.type}
-                              {e.notes ? ` - ${e.notes.length > 12 ? e.notes.slice(0, 12) + '...' : e.notes}` : ''}
-                            </div>
-                          ))}
-                          {d.events.length > 5 && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', paddingTop: 2 }}>
-                              还有 {d.events.length - 5} 条...
-                            </div>
+                          <div
+                            style={{
+                              maxHeight: tooltipExpanded ? 200 : 'none',
+                              overflowY: tooltipExpanded ? 'auto' : 'visible',
+                            }}
+                          >
+                            {d.events.slice(0, displayCount).map((e: { type: string; notes: string; id?: string }, i: number) => (
+                              <div
+                                key={e.id || i}
+                                style={{
+                                  padding: '2px 0',
+                                  color: '#64748b',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 4,
+                                }}
+                              >
+                                <span style={{ flexShrink: 0 }}>•</span>
+                                <span style={{ flex: 1, minWidth: 0 }}>
+                                  <span style={{ fontWeight: 500, color: '#475569' }}>
+                                    {eventTypeLabels[e.type] || e.type}
+                                  </span>
+                                  {e.notes ? (
+                                    <span style={{ marginLeft: 4 }}>
+                                      {e.notes.length > 18 ? e.notes.slice(0, 18) + '...' : e.notes}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {showExpand && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setTooltipExpanded(!tooltipExpanded)
+                              }}
+                              style={{
+                                marginTop: 6,
+                                fontSize: 11,
+                                color: '#166534',
+                                background: '#f0fdf4',
+                                border: 'none',
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                width: '100%',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = '#dcfce7')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = '#f0fdf4')}
+                            >
+                              {tooltipExpanded ? `收起 ↑` : `展开全部 (${d.events.length}条) ↓`}
+                            </button>
                           )}
                         </div>
                       )}
@@ -221,7 +291,7 @@ export default function HealthDashboard({ data }: HealthDashboardProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 md:w-3/12 w-full">
+      <div className="flex flex-col gap-6 md:w-5/12 w-full">
         <div
           className="p-6 text-center animate-fade-in-up opacity-0 stagger-3"
           style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0' }}

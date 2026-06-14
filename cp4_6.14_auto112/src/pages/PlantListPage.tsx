@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@/store'
 import PlantCard from '@/components/PlantCard'
 import type { PlantStatus } from '@/types'
-import { Plus, X, Heart, Droplets, Sun, Bug } from 'lucide-react'
+import { Plus, X, Heart, Droplets, Sun, Bug, RefreshCw, AlertCircle, Loader2, Leaf } from 'lucide-react'
 
 const VARIETIES = ['多肉', '观叶', '开花', '草本']
 
@@ -14,7 +14,7 @@ const statusOptions: { value: PlantStatus; label: string; icon: typeof Heart; co
 ]
 
 export default function PlantListPage() {
-  const { plants, loading, fetchPlants, createPlant } = useStore()
+  const { plants, loading, error, fetchPlants, createPlant, clearError } = useStore()
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -76,13 +76,113 @@ export default function PlantListPage() {
         </button>
       </div>
 
-      {loading && plants.length === 0 ? (
-        <div className="text-center py-16" style={{ color: '#94a3b8' }}>
-          加载中...
+      {error ? (
+        <div
+          className="animate-fade-in-up flex flex-col items-center justify-center py-20 text-center"
+          style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', marginTop: 8 }}
+        >
+          <div
+            className="flex items-center justify-center mb-4"
+            style={{ width: 56, height: 56, borderRadius: '50%', background: '#fef2f2' }}
+          >
+            <AlertCircle size={28} color="#ef4444" />
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1e293b', margin: '0 0 6px' }}>
+            加载失败
+          </h3>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 16px', maxWidth: 320 }}>
+            {error || '无法连接到服务器，请检查网络或稍后重试'}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                clearError()
+                fetchPlants()
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white font-medium transition-colors"
+              style={{ background: '#166534', border: 'none', cursor: 'pointer', fontSize: 14 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#15803d')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#166534')}
+            >
+              <RefreshCw size={14} />
+              重新加载
+            </button>
+          </div>
+        </div>
+      ) : loading && plants.length === 0 ? (
+        <div className="flex flex-wrap gap-5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="animate-fade-in-up opacity-0"
+              style={{
+                width: 260,
+                height: 200,
+                background: '#ffffff',
+                borderRadius: 16,
+                border: '1px solid #e2e8f0',
+                padding: 20,
+                boxSizing: 'border-box',
+                animationDelay: `${i * 0.05}s`,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <div
+                className="absolute top-3 right-3"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: '#f1f5f9',
+                  position: 'relative',
+                  marginLeft: 'auto',
+                }}
+              />
+              <div
+                className="animate-pulse mb-3"
+                style={{ height: 22, width: '60%', background: '#f1f5f9', borderRadius: 4 }}
+              />
+              <div
+                className="animate-pulse mb-3"
+                style={{ height: 20, width: '40%', background: '#f1f5f9', borderRadius: 4 }}
+              />
+              <div className="flex items-center justify-between">
+                <div
+                  className="animate-pulse"
+                  style={{ height: 14, width: '35%', background: '#f1f5f9', borderRadius: 4 }}
+                />
+                <div
+                  className="animate-pulse"
+                  style={{ height: 16, width: '25%', background: '#f1f5f9', borderRadius: 4 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : loading ? (
+        <div className="flex items-center justify-center py-4 mb-4" style={{ color: '#166534', fontSize: 13 }}>
+          <Loader2 size={16} className="animate-spin mr-2" />
+          数据更新中...
         </div>
       ) : plants.length === 0 ? (
-        <div className="text-center py-16" style={{ color: '#94a3b8', fontSize: 16 }}>
-          还没有植物档案，点击上方按钮添加你的第一棵植物吧！
+        <div
+          className="text-center py-20"
+          style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', marginTop: 8 }}
+        >
+          <div
+            className="flex items-center justify-center mx-auto mb-4"
+            style={{ width: 64, height: 64, borderRadius: '50%', background: '#dcfce7' }}
+          >
+            <Leaf size={32} color="#166534" />
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1e293b', margin: '0 0 8px' }}>
+            还没有植物档案
+          </h3>
+          <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
+            点击上方"添加植物"按钮，开始记录你的第一棵植物吧！
+          </p>
         </div>
       ) : (
         <div className="flex flex-wrap gap-5">

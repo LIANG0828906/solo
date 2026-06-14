@@ -95,12 +95,13 @@ export default function EventList({ events, onDelete }: EventListProps) {
                     key={event.id}
                     data-event-id={event.id}
                     data-index={globalIndex}
-                    className="flex gap-3 animate-fade-in-up opacity-0"
+                    className="flex gap-3 animate-fade-in-up opacity-0 overflow-hidden"
                     style={{
                       height: ITEM_HEIGHT - 8,
                       marginBottom: 8,
                       padding: '0 4px',
                       animationDelay: `${Math.min(localIndex * 0.01, 0.3)}s`,
+                      boxSizing: 'border-box',
                     }}
                   >
                     <div
@@ -112,12 +113,14 @@ export default function EventList({ events, onDelete }: EventListProps) {
                       }}
                     />
                     <div
-                      className="flex-1 flex items-center justify-between px-4"
+                      className="flex-1 flex items-center justify-between px-4 overflow-hidden"
                       style={{
                         background: '#ffffff',
                         borderRadius: 8,
                         border: '1px solid #e2e8f0',
                         transition: 'box-shadow 0.2s ease',
+                        height: '100%',
+                        boxSizing: 'border-box',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'
@@ -126,8 +129,8 @@ export default function EventList({ events, onDelete }: EventListProps) {
                         e.currentTarget.style.boxShadow = 'none'
                       }}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
                             style={{
                               fontSize: 16,
@@ -138,7 +141,15 @@ export default function EventList({ events, onDelete }: EventListProps) {
                           >
                             {config.label}
                           </span>
-                          <span style={{ fontSize: 14, fontWeight: 400, color: '#94a3b8' }}>
+                          <span
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 400,
+                              color: '#94a3b8',
+                              flexShrink: 0,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
                             {event.date}
                           </span>
                         </div>
@@ -152,6 +163,8 @@ export default function EventList({ events, onDelete }: EventListProps) {
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
+                              display: 'block',
+                              maxWidth: '100%',
                             }}
                             title={event.notes}
                           >
