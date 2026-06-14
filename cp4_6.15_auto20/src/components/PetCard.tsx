@@ -63,12 +63,12 @@ const PetCard: React.FC<PetCardProps> = ({ pet, onClick }) => {
             {genderLabel[pet.gender]}
           </span>
           <span
-            className={`text-xs px-2.5 py-1 rounded-full font-medium border shadow-sm ${
+            className={`text-xs px-2.5 py-1 rounded-full font-medium shadow-sm ${
               pet.status === 'available'
-                ? 'bg-green-500 text-white border-green-500'
+                ? 'bg-amber-400 text-white'
                 : pet.status === 'pending'
-                ? 'bg-yellow-500 text-white border-yellow-500'
-                : 'bg-gray-500 text-white border-gray-500'
+                ? 'bg-gray-400 text-white'
+                : 'bg-green-500 text-white'
             }`}
           >
             {pet.status === 'available'

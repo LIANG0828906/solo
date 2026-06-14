@@ -231,15 +231,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <>
           <div
             onClick={handleClose}
-            className={`fixed inset-0 z-40 lg:hidden ${
+            className={`fixed inset-0 z-40 lg:hidden cursor-pointer ${
               isClosing ? 'fade-out' : 'fade-in'
             }`}
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}
           />
           <aside
-            className={`fixed left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white z-50
+            className={`fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white z-50
               shadow-2xl flex flex-col lg:hidden ${
-                isClosing ? 'slide-out-to-left' : 'slide-in-from-left'
+                isClosing ? 'slide-out-to-right' : 'slide-in-from-right'
               }`}
           >
             {panelContent}
