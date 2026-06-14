@@ -137,22 +137,38 @@ export class Renderer {
 
   drawOrderBubble(customer: Customer): void {
     const x = customer.position.x;
-    const y = customer.position.y - 70;
-    const paddingX = 10;
+    const y = customer.position.y - 75;
+    const paddingX = 12;
     const borderRadius = 12;
-    const iconSize = 18;
-    const stepBadgeSize = 14;
-    const stepSpacing = 6;
+
+    const MATERIAL_NAMES: Record<string, string> = {
+      fire: '红药水',
+      nature: '绿药水',
+      water: '蓝药水',
+      earth: '黄药水'
+    };
+
+    const ingredientCounts: Map<string, number> = new Map();
+    customer.order.ingredients.forEach(ing => {
+      ingredientCounts.set(ing, (ingredientCounts.get(ing) || 0) + 1);
+    });
 
     this.ctx.font = 'bold 12px system-ui, sans-serif';
     const titleMetrics = this.ctx.measureText(customer.order.name);
     const titleWidth = titleMetrics.width;
 
-    const ingredientCount = customer.order.ingredients.length;
-    const ingredientsRowWidth = ingredientCount * (iconSize + stepBadgeSize + stepSpacing + 6);
+    this.ctx.font = '11px system-ui, sans-serif';
+    let materialsRowWidth = 0;
+    const materialEntries = Array.from(ingredientCounts.entries());
+    materialEntries.forEach(([mat, count], idx) => {
+      const label = `${MATERIAL_NAMES[mat]}×${count}`;
+      const metrics = this.ctx.measureText(label);
+      materialsRowWidth += metrics.width + 20;
+      if (idx < materialEntries.length - 1) materialsRowWidth += 4;
+    });
 
-    const totalWidth = Math.max(titleWidth + paddingX * 2 + 10, ingredientsRowWidth + paddingX * 2);
-    const bubbleHeight = 50;
+    const totalWidth = Math.max(titleWidth + paddingX * 2, materialsRowWidth + paddingX * 2);
+    const bubbleHeight = 58;
 
     const bubbleX = x - totalWidth / 2;
     const bubbleY = y - bubbleHeight / 2;
@@ -161,66 +177,61 @@ export class Renderer {
     this.roundRect(bubbleX, bubbleY, totalWidth, bubbleHeight, borderRadius);
     this.ctx.fill();
 
-    this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+    this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
     this.ctx.lineWidth = 1;
     this.roundRect(bubbleX, bubbleY, totalWidth, bubbleHeight, borderRadius);
     this.ctx.stroke();
 
-    this.ctx.font = 'bold 12px system-ui, sans-serif';
+    this.ctx.font = 'bold 13px system-ui, sans-serif';
     this.ctx.fillStyle = '#fbbf24';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(customer.order.name, x, bubbleY + 14);
+    this.ctx.shadowColor = 'rgba(251, 191, 36, 0.3)';
+    this.ctx.shadowBlur = 4;
+    this.ctx.fillText(customer.order.name, x, bubbleY + 16);
+    this.ctx.shadowBlur = 0;
 
-    const rowY = bubbleY + bubbleHeight - 18;
-    const totalIngredientsWidth = ingredientCount * (iconSize + stepBadgeSize + stepSpacing + 6) - 6;
-    let iconX = x - totalIngredientsWidth / 2;
+    const rowY = bubbleY + bubbleHeight - 20;
+    let matX = x - materialsRowWidth / 2;
 
-    customer.order.ingredients.forEach((ing, index) => {
-      this.ctx.fillStyle = '#0f172a';
-      this.ctx.beginPath();
-      this.ctx.arc(iconX + stepBadgeSize / 2, rowY, stepBadgeSize / 2, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.strokeStyle = '#475569';
-      this.ctx.lineWidth = 1;
-      this.ctx.stroke();
-
-      this.ctx.font = 'bold 9px system-ui, sans-serif';
-      this.ctx.fillStyle = '#f8fafc';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(String(index + 1), iconX + stepBadgeSize / 2, rowY);
-
-      const materialX = iconX + stepBadgeSize + 4;
+    this.ctx.font = '11px system-ui, sans-serif';
+    this.ctx.textAlign = 'left';
+    materialEntries.forEach(([mat, count]) => {
+      const color = MATERIAL_COLORS[mat as keyof typeof MATERIAL_COLORS];
+      const label = `${MATERIAL_NAMES[mat]}×${count}`;
 
       this.ctx.save();
-      this.ctx.shadowColor = MATERIAL_COLORS[ing];
-      this.ctx.shadowBlur = 4;
-      this.ctx.fillStyle = MATERIAL_COLORS[ing];
+      this.ctx.shadowColor = color;
+      this.ctx.shadowBlur = 5;
+      this.ctx.fillStyle = color;
       this.ctx.beginPath();
-      this.ctx.arc(materialX + iconSize / 2, rowY, iconSize / 2 - 2, 0, Math.PI * 2);
+      this.ctx.arc(matX + 7, rowY, 6, 0, Math.PI * 2);
       this.ctx.fill();
       this.ctx.restore();
 
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      this.ctx.lineWidth = 1;
-      this.ctx.stroke();
-
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       this.ctx.beginPath();
-      this.ctx.arc(materialX + iconSize / 2 - 2, rowY - 2, 2, 0, Math.PI * 2);
+      this.ctx.arc(matX + 5, rowY - 2, 2, 0, Math.PI * 2);
       this.ctx.fill();
 
-      iconX += stepBadgeSize + iconSize + stepSpacing + 6;
+      this.ctx.fillStyle = '#f8fafc';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(label, matX + 18, rowY);
+
+      const metrics = this.ctx.measureText(label);
+      matX += metrics.width + 20 + 4;
     });
 
     this.ctx.beginPath();
-    this.ctx.moveTo(x - 6, y + bubbleHeight / 2);
-    this.ctx.lineTo(x + 6, y + bubbleHeight / 2);
+    this.ctx.moveTo(x - 7, y + bubbleHeight / 2);
+    this.ctx.lineTo(x + 7, y + bubbleHeight / 2);
     this.ctx.lineTo(x, y + bubbleHeight / 2 + 10);
     this.ctx.closePath();
     this.ctx.fillStyle = '#1e293b';
     this.ctx.fill();
+    this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
   }
 
   drawWaitProgress(customer: Customer): void {
@@ -356,17 +367,23 @@ export class Renderer {
 
     this.ctx.save();
 
+    const outerRx = Math.max(2, w / 2);
+    const outerRy = Math.max(2, h / 2);
+    const rimY = y + 5;
+    const rimRy = Math.max(2, 10);
+
     this.ctx.fillStyle = '#334155';
     this.ctx.beginPath();
-    this.ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI, true);
-    this.ctx.lineTo(x + w / 2, y + 5);
-    this.ctx.ellipse(x, y + 5, w / 2, 10, 0, 0, Math.PI, false);
+    this.ctx.ellipse(x, y, outerRx, outerRy, 0, 0, Math.PI, true);
+    this.ctx.lineTo(x + outerRx, rimY);
+    this.ctx.ellipse(x, rimY, outerRx, rimRy, 0, 0, Math.PI, false);
     this.ctx.closePath();
     this.ctx.fill();
 
-    const innerRx = Math.max(1, w / 2 - 8);
-    const innerRy = Math.max(1, h / 2 - 5);
-    const innerGradient = this.ctx.createRadialGradient(x, y - h / 4, 0, x, y - h / 4, Math.max(1, w / 3));
+    const innerRx = Math.max(2, w / 2 - 8);
+    const innerRy = Math.max(2, h / 2 - 5);
+    const innerGradR = Math.max(2, w / 3);
+    const innerGradient = this.ctx.createRadialGradient(x, y - h / 4, 0, x, y - h / 4, innerGradR);
     innerGradient.addColorStop(0, '#1e293b');
     innerGradient.addColorStop(1, '#0f172a');
     this.ctx.fillStyle = innerGradient;
@@ -378,14 +395,18 @@ export class Renderer {
     if (cauldron.ingredients.length > 0) {
       const liquidColor = this.mixLiquidColors(cauldron.ingredients);
       const liquidRx = Math.max(2, w / 2 - 12);
-      const liquidRy = Math.max(2, h / 3 - cauldron.ingredients.length * 5);
-      const liquidGradient = this.ctx.createRadialGradient(x, y - h / 6, 0, x, y - h / 6, Math.max(1, w / 3));
+      const baseLiquidRy = Math.max(3, h / 4);
+      const fillProgress = Math.min(cauldron.ingredients.length / 3, 1);
+      const liquidRy = Math.max(2, baseLiquidRy + fillProgress * (h / 8));
+      const liquidGradR = Math.max(2, w / 3);
+      const liquidY = y - h / 6;
+      const liquidGradient = this.ctx.createRadialGradient(x, liquidY, 0, x, liquidY, liquidGradR);
       liquidGradient.addColorStop(0, this.lightenColor(liquidColor, 20));
       liquidGradient.addColorStop(1, liquidColor);
       this.ctx.fillStyle = liquidGradient;
       this.ctx.globalAlpha = 0.8;
       this.ctx.beginPath();
-      this.ctx.ellipse(x, y - h / 6, liquidRx, liquidRy, 0, 0, Math.PI * 2);
+      this.ctx.ellipse(x, liquidY, liquidRx, liquidRy, 0, 0, Math.PI * 2);
       this.ctx.fill();
       this.ctx.globalAlpha = 1;
     }
@@ -393,7 +414,7 @@ export class Renderer {
     this.ctx.strokeStyle = '#475569';
     this.ctx.lineWidth = 3;
     this.ctx.beginPath();
-    this.ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI, true);
+    this.ctx.ellipse(x, y, outerRx, outerRy, 0, 0, Math.PI, true);
     this.ctx.stroke();
 
     this.ctx.restore();
@@ -511,12 +532,13 @@ export class Renderer {
   }
 
   drawParticles(particles: Particle[]): void {
+    if (!particles) return;
     particles.forEach(particle => {
       this.ctx.save();
       this.ctx.globalAlpha = particle.getAlpha();
       this.ctx.fillStyle = particle.color;
       this.ctx.beginPath();
-      this.ctx.arc(particle.position.x, particle.position.y, particle.size, 0, Math.PI * 2);
+      this.ctx.arc(particle.position.x, particle.position.y, Math.max(0.1, Math.abs(particle.size)), 0, Math.PI * 2);
       this.ctx.fill();
       this.ctx.restore();
     });

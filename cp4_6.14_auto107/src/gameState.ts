@@ -157,7 +157,7 @@ export class GameState {
 
     const modalAnimationDuration = 0.3;
     if (this.showUpgradeModal) {
-      if (this.modalScale < 1) {
+      if (this.modalScale < 1 || this._modalAnimationTime < modalAnimationDuration) {
         this._modalAnimationTime = (this._modalAnimationTime || 0) + deltaTime;
         const t = Math.min(1, this._modalAnimationTime / modalAnimationDuration);
         this.modalScale = this.easeOutElastic(t);
@@ -320,8 +320,8 @@ export class GameState {
   private easeOutElastic(t: number): number {
     if (t === 0) return 0;
     if (t === 1) return 1;
-    const c4 = (2 * Math.PI) / 3;
-    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    const c4 = (2 * Math.PI) / 1.2;
+    return Math.pow(2, -4 * t) * Math.sin((t * 5 - 0.5) * c4) + 1;
   }
 
   triggerUpgrade(): void {

@@ -308,6 +308,7 @@ class Game {
 }
 
 const game = new Game();
+(window as any)._game = game;
 window.addEventListener('DOMContentLoaded', () => {
   game.init();
 });

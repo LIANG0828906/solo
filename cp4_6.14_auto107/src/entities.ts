@@ -57,11 +57,12 @@ export class Particle {
     this.position.x += this.velocity.x * deltaTime;
     this.position.y += this.velocity.y * deltaTime;
     this.life -= deltaTime;
+    this.size = Math.max(0.5, this.size);
     return this.life > 0;
   }
 
   getAlpha(): number {
-    return Math.max(0, this.life / this.maxLife);
+    return Math.max(0, Math.min(1, this.life / this.maxLife));
   }
 }
 
@@ -112,21 +113,24 @@ export class PourEffect {
     const splashLife = 0.3;
     const splashX = this.to.x;
     const splashY = this.to.y;
+    const PARTICLE_COUNT = 8;
 
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * i) / 7 + Math.PI;
-      const speed = 40 + Math.random() * 40;
+    this.splashParticles = [];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const angle = (Math.PI * i) / (PARTICLE_COUNT - 1) + Math.PI * 0.9 + Math.random() * 0.2;
+      const speed = 50 + Math.random() * 40;
       const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed - 20;
+      const vy = Math.sin(angle) * speed - 30;
       this.splashParticles.push(new Particle(
-        splashX + (Math.random() - 0.5) * 10,
+        splashX + (Math.random() - 0.5) * 8,
         splashY,
         vx,
         vy,
         this.color,
         splashLife,
-        3 + Math.random() * 3,
-        120
+        3 + Math.random() * 2.5,
+        150
       ));
     }
   }
@@ -292,21 +296,27 @@ export class Cauldron {
     this.smokeTimer = 0.5;
     this.ingredients = [];
 
+    const SMOKE_COUNT = 12;
     const smokeLife = 0.5;
-    for (let i = 0; i < 12; i++) {
-      const startX = this.position.x + (Math.random() - 0.5) * 50;
-      const startY = this.position.y - this.size.height / 4;
-      const vx = (Math.random() - 0.5) * 30;
-      const vy = -40 - Math.random() * 50;
+    const smokeColor = '#1e293b';
+
+    this.smokeParticles = [];
+
+    for (let i = 0; i < SMOKE_COUNT; i++) {
+      const t = i / SMOKE_COUNT;
+      const startX = this.position.x + (Math.random() - 0.5) * 55;
+      const startY = this.position.y - this.size.height / 4 - t * 10;
+      const vx = (Math.random() - 0.5) * 25;
+      const vy = -35 - Math.random() * 55;
       this.smokeParticles.push(new Particle(
         startX,
         startY,
         vx,
         vy,
-        '#1e293b',
+        smokeColor,
         smokeLife,
-        7 + Math.random() * 8,
-        -15
+        6 + Math.random() * 7,
+        -25
       ));
     }
   }
@@ -417,9 +427,10 @@ export class GoldFlyEffect {
   getPosition(): Position {
     const t = Math.min(1, this.progress);
     const elastic = this.easeOutElastic(t);
-    const arcHeight = 80 * Math.sin(t * Math.PI);
+    const arcHeight = 120 * Math.sin(t * Math.PI);
+    const overshootX = Math.sin(t * Math.PI * 3) * 20 * (1 - t);
     return {
-      x: this.from.x + (this.to.x - this.from.x) * elastic,
+      x: this.from.x + (this.to.x - this.from.x) * elastic + overshootX,
       y: this.from.y + (this.to.y - this.from.y) * elastic - arcHeight
     };
   }
@@ -427,12 +438,14 @@ export class GoldFlyEffect {
   private easeOutElastic(t: number): number {
     if (t === 0) return 0;
     if (t === 1) return 1;
-    const c4 = (2 * Math.PI) / 2.5;
-    return Math.pow(2, -8 * t) * Math.sin((t * 8 - 0.8) * c4) + 1;
+    const c4 = (2 * Math.PI) / 1.5;
+    return Math.pow(2, -5 * t) * Math.sin((t * 6 - 0.6) * c4) + 1;
   }
 
   getScale(): number {
     const t = this.progress;
-    return 1 + Math.sin(t * Math.PI) * 0.5;
+    const pulse = 1 + Math.sin(t * Math.PI) * 0.6;
+    const wobble = 1 + Math.sin(t * Math.PI * 4) * 0.15 * (1 - t);
+    return pulse * wobble;
   }
 }
