@@ -1,45 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import Canvas from './components/Canvas'
 import NodeEditor from './components/NodeEditor'
 import Toolbar from './components/Toolbar'
-import ContextMenu from './components/ContextMenu'
 import StoryPreview from './components/StoryPreview'
 import { useStoryStore } from './stores/storyStore'
 
 function App() {
-  const { addNode, selectedNodeId, scale } = useStoryStore()
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(
-    null
-  )
+  const { selectedNodeId, scale } = useStoryStore()
   const [showPreview, setShowPreview] = useState(false)
-
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      const canvasEl = (e.target as HTMLElement).closest('svg')
-      if (!canvasEl) return
-
-      const rect = canvasEl.getBoundingClientRect()
-      const { panOffset } = useStoryStore.getState()
-      const currentScale = useStoryStore.getState().scale
-
-      const x = (e.clientX - rect.left - panOffset.x) / currentScale
-      const y = (e.clientY - rect.top - panOffset.y) / currentScale
-
-      setContextMenu({ x: e.clientX, y: e.clientY, canvasX: x, canvasY: y } as any)
-    },
-    []
-  )
-
-  const handleAddNode = useCallback(() => {
-    if (!contextMenu) return
-    const cm = contextMenu as any
-    addNode(cm.canvasX - 110, cm.canvasY - 80)
-  }, [contextMenu, addNode])
-
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu(null)
-  }, [])
 
   return (
     <div
@@ -64,23 +32,12 @@ function App() {
           transition: 'right 0.2s ease',
         }}
       >
-        <Canvas onContextMenu={handleContextMenu} />
+        <Canvas />
       </div>
 
       {selectedNodeId && <NodeEditor />}
 
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onAddNode={handleAddNode}
-          onClose={handleCloseContextMenu}
-        />
-      )}
-
-      {showPreview && (
-        <StoryPreview onClose={() => setShowPreview(false)} />
-      )}
+      {showPreview && <StoryPreview onClose={() => setShowPreview(false)} />}
 
       <div
         style={{
