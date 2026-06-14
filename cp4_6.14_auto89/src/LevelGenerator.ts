@@ -69,6 +69,14 @@ export class LevelGenerator {
     }
 
     this.updateDifficultyHistory();
+
+    for (let i = 0; i < 5; i++) {
+      this.difficultyHistory.push({
+        avgGap: 40 + Math.random() * 20,
+        avgHeightDiff: 30 + Math.random() * 20,
+      });
+    }
+
     return this.platforms;
   }
 

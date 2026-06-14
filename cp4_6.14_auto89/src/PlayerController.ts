@@ -69,7 +69,6 @@ export class PlayerController {
   private audioManager: AudioManager;
   private canJump: boolean = true;
   private wasInAir: boolean = false;
-  private prevVx: number = 0;
 
   constructor(audioManager: AudioManager) {
     this.audioManager = audioManager;
@@ -137,9 +136,8 @@ export class PlayerController {
 
     this.player.vx = Math.max(-MAX_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, this.player.vx));
 
-    const acceleration = this.player.vx - this.prevVx;
-    const targetTilt = Math.max(-2, Math.min(2, acceleration * 1.5));
-    this.player.tiltAngle += (targetTilt - this.player.tiltAngle) * 0.25;
+    const targetTilt = (this.player.vx / MAX_MOVE_SPEED) * 2;
+    this.player.tiltAngle += (targetTilt - this.player.tiltAngle) * 0.15;
 
     this.player.vy += GRAVITY * dt;
     if (this.player.vy > MAX_FALL_SPEED) this.player.vy = MAX_FALL_SPEED;

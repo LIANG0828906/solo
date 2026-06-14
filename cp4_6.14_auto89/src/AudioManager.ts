@@ -62,15 +62,13 @@ export class AudioManager {
     gainNode.connect(this.audioContext.destination);
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(523, this.audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(659, this.audioContext.currentTime + 0.05);
-    oscillator.frequency.setValueAtTime(784, this.audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
 
-    gainNode.gain.setValueAtTime(0.25, this.audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+    gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
 
     oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.2);
+    oscillator.stop(this.audioContext.currentTime + 0.1);
   }
 
   playHitSound(): void {
