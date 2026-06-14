@@ -107,10 +107,29 @@ export const useParamsStore = create<ParamsStoreState>((set) => ({
     }),
 
   removeSnapshot: (id) =>
-    set((state) => ({
-      snapshots: state.snapshots.filter((s) => s.id !== id),
-      activeSnapshotId: state.activeSnapshotId === id ? null : state.activeSnapshotId,
-    })),
+    set((state) => {
+      const index = state.snapshots.findIndex((s) => s.id === id);
+      const newSnapshots = state.snapshots.filter((s) => s.id !== id);
+
+      if (state.activeSnapshotId !== id) {
+        return { snapshots: newSnapshots };
+      }
+
+      if (newSnapshots.length === 0) {
+        return {
+          snapshots: newSnapshots,
+          activeSnapshotId: null,
+        };
+      }
+
+      const nextIndex = Math.min(index, newSnapshots.length - 1);
+      const nextSnapshot = newSnapshots[nextIndex];
+      return {
+        snapshots: newSnapshots,
+        activeSnapshotId: nextSnapshot.id,
+        params: nextSnapshot.params.map((p) => ({ ...p, id: uuidv4() })),
+      };
+    }),
 
   switchSnapshot: (id) =>
     set((state) => {

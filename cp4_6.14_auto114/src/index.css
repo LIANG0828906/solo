@@ -22,6 +22,7 @@ body {
   overflow: hidden;
 }
 
+/* ============ Layout ============ */
 .app-layout {
   width: 100vw;
   height: 100vh;
@@ -50,10 +51,45 @@ body {
   position: relative;
 }
 
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  flex-shrink: 0;
+  min-height: 60px;
+  position: relative;
+}
+
+.tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  flex: 1;
+  padding-bottom: 2px;
+  min-width: 0;
+}
+
+.preview-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  overflow: auto;
+  padding: 24px;
+  position: relative;
+}
+
+/* ============ Param Cards ============ */
 .param-card {
   width: 100%;
   height: 48px;
   min-height: 48px;
+  max-height: 48px;
   background: #f8fafc;
   border-radius: 8px;
   display: flex;
@@ -61,15 +97,44 @@ body {
   padding: 0 8px;
   gap: 6px;
   cursor: default;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink: 0;
   box-sizing: border-box;
+  border: 1px solid transparent;
+  user-select: none;
+  position: relative;
 }
 
 .param-card:hover {
   background: #e2e8f0;
 }
 
+.param-card-dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+  background: #dbeafe !important;
+  border: 1px dashed #3b82f6 !important;
+}
+
+.param-card-drag-over {
+  border: 1px dashed #3b82f6 !important;
+  background: #eff6ff !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.param-card-drag-over::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #3b82f6;
+  border-radius: 2px;
+}
+
+/* ============ Snapshot Tabs ============ */
 .snapshot-tab {
   width: 120px;
   height: 36px;
@@ -85,7 +150,7 @@ body {
   color: #475569;
   position: relative;
   flex-shrink: 0;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
   padding: 0 28px 0 12px;
   box-sizing: border-box;
   overflow: hidden;
@@ -95,47 +160,73 @@ body {
   content: '';
   position: absolute;
   bottom: -1px;
-  left: 0;
-  right: 0;
+  left: 12px;
+  right: 12px;
   height: 2px;
   background: transparent;
   transition: background 0.15s ease;
+  border-radius: 1px;
+}
+
+.snapshot-tab:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
 }
 
 .snapshot-tab-active {
   color: #3b82f6;
   border-color: #dbeafe;
+  background: #eff6ff;
 }
 
 .snapshot-tab-active::after {
   background: #3b82f6;
 }
 
-.snapshot-tab:hover {
-  border-color: #3b82f6;
+.snapshot-tab-delete {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  transition: color 0.15s ease;
 }
 
-.phone-shell {
-  width: 375px;
-  height: 812px;
-  background: #f1f5f9;
-  border-radius: 40px;
-  border: 4px solid #cbd5e1;
+.snapshot-tab-delete:hover {
+  color: #ef4444 !important;
+}
+
+.snapshot-tab-add {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
   flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
+.snapshot-tab-add:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* ============ IO Buttons ============ */
 .io-buttons {
-  position: absolute;
-  top: 12px;
-  right: 20px;
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
   z-index: 10;
 }
 
@@ -151,6 +242,7 @@ body {
   align-items: center;
   gap: 4px;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .io-btn:hover {
@@ -164,6 +256,40 @@ body {
   border-color: #1d4ed8;
 }
 
+/* ============ Phone Shell ============ */
+.phone-shell {
+  width: 375px;
+  height: 812px;
+  background: #f1f5f9;
+  border-radius: 40px;
+  border: 4px solid #cbd5e1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: 60px;
+}
+
+.phone-content {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.phone-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* ============ Responsive ============ */
 @media (max-width: 900px) {
   .app-layout {
     flex-direction: column !important;
@@ -181,6 +307,29 @@ body {
   }
 }
 
+@media (max-width: 420px) {
+  .phone-shell {
+    width: 320px;
+    height: 680px;
+    border-radius: 32px;
+    border-width: 3px;
+  }
+  .preview-header {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .snapshot-tab {
+    width: 90px;
+    font-size: 12px;
+    padding: 0 24px 0 8px;
+  }
+  .io-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* ============ Scrollbar ============ */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -194,4 +343,8 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.tabs-container::-webkit-scrollbar {
+  height: 2px;
 }

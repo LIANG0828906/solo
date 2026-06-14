@@ -7,13 +7,31 @@ const TYPE_OPTIONS: ParamItem['type'][] = ['string', 'number', 'boolean', 'enum'
 
 const ParamCard: React.FC<{
   param: ParamItem;
+  index: number;
+  isDragging: boolean;
+  isDragOver: boolean;
   onRemove: () => void;
   onUpdate: (updates: Partial<ParamItem>) => void;
   onValueChange: (value: string) => void;
-  onDragStart: (e: React.DragEvent) => void;
+  onDragStart: (index: number, e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onDragEnter: (index: number) => void;
   onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
-}> = ({ param, onRemove, onUpdate, onValueChange, onDragStart, onDragOver, onDrop }) => {
+  onDrop: (index: number, e: React.DragEvent) => void;
+}> = ({
+  param,
+  index,
+  isDragging,
+  isDragOver,
+  onRemove,
+  onUpdate,
+  onValueChange,
+  onDragStart,
+  onDragEnd,
+  onDragEnter,
+  onDragOver,
+  onDrop,
+}) => {
   const [editing, setEditing] = useState(false);
 
   const handleTypeChange = (newType: ParamItem['type']) => {
@@ -39,13 +57,20 @@ const ParamCard: React.FC<{
     background: '#ffffff',
   };
 
+  const cardClassName =
+    'param-card ' +
+    (isDragging ? 'param-card-dragging ' : '') +
+    (isDragOver ? 'param-card-drag-over' : '');
+
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable={!editing}
+      onDragStart={(e) => onDragStart(index, e)}
+      onDragEnd={onDragEnd}
+      onDragEnter={() => onDragEnter(index)}
       onDragOver={onDragOver}
-      onDrop={onDrop}
-      className="param-card"
+      onDrop={(e) => onDrop(index, e)}
+      className={cardClassName}
     >
       <div
         style={{
@@ -65,7 +90,9 @@ const ParamCard: React.FC<{
             value={param.name}
             onChange={(e) => onUpdate({ name: e.target.value })}
             onBlur={() => setEditing(false)}
-            onKeyDown={(e) => { if (e.key === 'Enter') setEditing(false); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') setEditing(false);
+            }}
             autoFocus
             style={{ ...inputStyle, width: '60px', cursor: 'text' }}
           />
@@ -75,7 +102,9 @@ const ParamCard: React.FC<{
             style={{ ...inputStyle, padding: '0 4px', cursor: 'pointer' }}
           >
             {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </>
@@ -99,30 +128,34 @@ const ParamCard: React.FC<{
           >
             {param.name}
           </span>
-          <span style={{
-            fontSize: '10px',
-            color: '#94a3b8',
-            background: '#e2e8f0',
-            padding: '2px 6px',
-            borderRadius: '3px',
-            flexShrink: 0,
-            lineHeight: 1,
-          }}>
+          <span
+            style={{
+              fontSize: '10px',
+              color: '#94a3b8',
+              background: '#e2e8f0',
+              padding: '2px 6px',
+              borderRadius: '3px',
+              flexShrink: 0,
+              lineHeight: 1,
+            }}
+          >
             {param.type}
           </span>
         </>
       )}
 
       {param.type === 'boolean' ? (
-        <label style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          fontSize: '12px',
-          color: '#475569',
-          flexShrink: 0,
-          height: '28px',
-        }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            color: '#475569',
+            flexShrink: 0,
+            height: '28px',
+          }}
+        >
           <input
             type="checkbox"
             checked={param.currentValue === 'true'}
@@ -134,10 +167,18 @@ const ParamCard: React.FC<{
         <select
           value={param.currentValue}
           onChange={(e) => onValueChange(e.target.value)}
-          style={{ ...inputStyle, flex: 1, minWidth: 0, padding: '0 4px', cursor: 'pointer' }}
+          style={{
+            ...inputStyle,
+            flex: 1,
+            minWidth: 0,
+            padding: '0 4px',
+            cursor: 'pointer',
+          }}
         >
           {(param.enumOptions ?? []).map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
           ))}
         </select>
       ) : (
@@ -163,8 +204,12 @@ const ParamCard: React.FC<{
           transition: 'color 0.15s ease',
           borderRadius: '4px',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#ef4444';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#94a3b8';
+        }}
       >
         <Trash2 size={14} />
       </button>
@@ -181,6 +226,7 @@ const ParamsPanel: React.FC = () => {
   const reorderParams = useParamsStore((s) => s.reorderParams);
 
   const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleAddParam = useCallback(() => {
     const count = params.length + 1;
@@ -192,64 +238,94 @@ const ParamsPanel: React.FC = () => {
     });
   }, [params.length, addParam]);
 
-  const handleDragStart = useCallback((index: number) => {
+  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDragEnter = useCallback((index: number) => {
+    setDragOverIndex(index);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   }, []);
 
-  const handleDrop = useCallback((dropIndex: number) => {
-    const startIndex = dragIndexRef.current;
-    if (startIndex === null || startIndex === dropIndex) return;
-    reorderParams(startIndex, dropIndex);
-    dragIndexRef.current = null;
-  }, [reorderParams]);
+  const handleDrop = useCallback(
+    (dropIndex: number, e: React.DragEvent) => {
+      e.preventDefault();
+      const startIndex = dragIndexRef.current;
+      if (startIndex === null || startIndex === dropIndex) return;
+      reorderParams(startIndex, dropIndex);
+      dragIndexRef.current = null;
+      setDragOverIndex(null);
+    },
+    [reorderParams],
+  );
 
   return (
     <div className="params-panel">
-      <div style={{
-        padding: '16px 16px 12px',
-        borderBottom: '1px solid #e2e8f0',
-        flexShrink: 0,
-      }}>
-        <h2 style={{
-          fontSize: '16px',
-          fontWeight: 600,
-          color: '#1e293b',
-          margin: 0,
-          lineHeight: 1.4,
-        }}>
+      <div
+        style={{
+          padding: '16px 16px 12px',
+          borderBottom: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '16px',
+            fontWeight: 600,
+            color: '#1e293b',
+            margin: 0,
+            lineHeight: 1.4,
+          }}
+        >
           参数配置
         </h2>
-        <p style={{
-          fontSize: '12px',
-          color: '#94a3b8',
-          margin: '4px 0 0',
-        }}>
+        <p
+          style={{
+            fontSize: '12px',
+            color: '#94a3b8',
+            margin: '4px 0 0',
+          }}
+        >
           拖拽排序 · 双击编辑名称
         </p>
       </div>
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-      }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}
+      >
         {params.map((param, index) => (
           <ParamCard
             key={param.id}
             param={param}
+            index={index}
+            isDragging={dragIndexRef.current === index}
+            isDragOver={dragOverIndex === index && dragIndexRef.current !== index}
             onRemove={() => removeParam(param.id)}
             onUpdate={(updates) => updateParam(param.id, updates)}
             onValueChange={(value) => updateParamValue(param.id, value)}
-            onDragStart={() => handleDragStart(index)}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
-            onDrop={() => handleDrop(index)}
+            onDrop={handleDrop}
           />
         ))}
 
