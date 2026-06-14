@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3a5c;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5a5a8c;
+}
+
+.task-bar {
+  transition: transform 0.3s ease, box-shadow 0.2s ease;
+}
+
+.task-bar:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 10;
+}
+
+.task-bar-dragging {
+  opacity: 0.85;
+  z-index: 100 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.guide-line {
+  pointer-events: none;
+  z-index: 99;
+}
+
+.modal-overlay {
+  animation: overlayFadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: modalScaleIn 0.25s ease-out;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.timeline-grid {
+  transition: width 0.3s ease;
+}
+
+.priority-high {
+  background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+}
+
+.priority-medium {
+  background: linear-gradient(135deg, #ffa502 0%, #ffc048 100%);
+}
+
+.priority-low {
+  background: linear-gradient(135deg, #2ed573 0%, #7bed9f 100%);
+}
+
+.progress-fill {
+  background: rgba(255,255,255,0.25);
+  transition: width 0.3s ease;
+}
+
+.btn-hover {
+  transition: all 0.2s ease;
+}
+
+.btn-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.bar-enter {
+  animation: barEnter 0.4s ease-out;
+}
+
+@keyframes barEnter {
+  from { opacity: 0; transform: scaleX(0); transform-origin: left; }
+  to { opacity: 1; transform: scaleX(1); transform-origin: left; }
+}
+
+@media (max-width: 768px) {
+  .gantt-text {
+    font-size: 0.7rem !important;
+  }
+  .task-bar-text {
+    font-size: 0.65rem !important;
+  }
+}
+
+.resize-handle {
+  cursor: ew-resize;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+}
+
+.resize-handle-left {
+  left: -3px;
+  cursor: ew-resize;
+}
+
+.resize-handle-right {
+  right: -3px;
+  cursor: ew-resize;
+}
+
+.resize-handle:hover {
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
