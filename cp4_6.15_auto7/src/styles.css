@@ -197,6 +197,9 @@ body {
   flex: 1;
   position: relative;
   background: var(--bg-primary);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .react-flow__background {
@@ -704,17 +707,28 @@ body {
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column-reverse;
+    height: 100vh;
+    width: 100vw;
   }
 
   .sidebar {
     width: 100%;
     height: 60px;
+    max-height: 60px;
     flex-direction: row;
     padding: 10px;
     gap: 10px;
     border-right: none;
     border-top: 1px solid var(--border-color);
     overflow-x: auto;
+    flex-shrink: 0;
+  }
+
+  .canvas-container {
+    flex: 1 1 auto;
+    height: calc(100vh - 60px);
+    width: 100%;
+    overflow: hidden;
   }
 
   .sidebar-header {

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -14,6 +14,9 @@ import ReactFlow, {
   Connection,
   useEdgesState,
   useNodesState,
+  EdgeLabelRenderer,
+  getStraightPath,
+  getSmoothStepPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Trash2, Edit3 } from 'lucide-react';
@@ -37,29 +40,234 @@ const CustomNode: React.FC<CustomNodeProps> = ({ data }) => {
   return (
     <>
       <Handle type="target" position={Position.Top} />
-    <div
-      className={`custom-node ${data.isSelected ? 'selected' : ''} ${
-        data.isDragging ? 'dragging' : ''
-      } ${data.isFaded ? 'faded' : ''}`}
-      style={{
-        background: `linear-gradient(135deg, ${data.color}dd, ${data.color}99)`,
-        border: `2px solid ${data.color}`,
-      }}
-    >
-      <div className="node-title">{data.title}</div>
-      {data.tags && data.tags.length > 0 && (
-        <div className="node-tags">
-          {data.tags.slice(0, 3).map((tag: string) => (
-            <span key={tag} className="node-tag">
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-    <Handle type="source" position={Position.Bottom} />
+      <div
+        className={`custom-node ${data.isSelected ? 'selected' : ''} ${
+          data.isDragging ? 'dragging' : ''
+        } ${data.isFaded ? 'faded' : ''}`}
+        style={{
+          background: `linear-gradient(135deg, ${data.color}dd, ${data.color}99)`,
+          border: `2px solid ${data.color}`,
+        }}
+      >
+        <div className="node-title">{data.title}</div>
+        {data.tags && data.tags.length > 0 && (
+          <div className="node-tags">
+            {data.tags.slice(0, 3).map((tag: string) => (
+              <span key={tag} className="node-tag">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} />
     </>
   );
+};
+
+interface CustomEdgeLabelProps {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  label: string;
+  labelStyle?: React.CSSProperties;
+  labelShowBg?: boolean;
+  labelBgStyle?: React.CSSProperties;
+  labelBgPadding?: [number, number];
+  labelBgBorderRadius?: number;
+  onClick?: (event: React.MouseEvent, id: string) => void;
+}
+
+const CustomEdgeLabel: React.FC<CustomEdgeLabelProps> = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  label,
+  labelStyle,
+  labelShowBg = true,
+  labelBgStyle,
+  labelBgPadding = [8, 4],
+  labelBgBorderRadius = 4,
+  onClick,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
+
+  const [xPadding = 0, yPadding = 0] = labelBgPadding;
+
+  return (
+    <EdgeLabelRenderer>
+      <div
+        style={{
+          position: 'absolute',
+          transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+          pointerEvents: 'all',
+        }}
+        className="edge-label-wrapper nodrag nopan"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+          {labelShowBg && (
+          <div
+            style={{
+              ...labelBgStyle,
+              padding: `${yPadding}px ${xPadding}px`,
+              borderRadius: labelBgBorderRadius,
+              position: 'absolute',
+              transform: 'translate(-50%, -50%)',
+              left: '50%',
+              top: '50%',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              transition: 'all 0.2s ease',
+              whiteSpace: isHovered ? 'normal' : 'nowrap',
+              maxWidth: isHovered ? 'none' : '100px',
+            }}
+          />
+        )}
+        <div
+          onClick={(event) => onClick?.(event, id)}
+          style={{
+            ...labelStyle,
+            position: 'relative',
+            fontWeight: isHovered ? 700 : 400,
+            transition: 'font-weight 0.2s ease',
+            fontSize: 12,
+            color: '#e8e8e8',
+            whiteSpace: isHovered ? 'normal' : 'nowrap',
+            overflow: isHovered ? 'visible' : 'hidden',
+            textOverflow: isHovered ? 'initial' : 'ellipsis',
+            maxWidth: isHovered ? 'none' : '100px',
+            cursor: 'pointer',
+            padding: `${yPadding}px ${xPadding}px`,
+            zIndex: isHovered ? 100 : 1,
+          }}
+        >
+          {label}
+        </div>
+        {isHovered && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              marginTop: '4px',
+              padding: '4px 8px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              zIndex: 200,
+              pointerEvents: 'none',
+            }}
+          >
+            {label}
+          </div>
+        )}
+      </div>
+    </EdgeLabelRenderer>
+  );
+};
+
+interface CustomEdgeProps {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  sourcePosition: Position;
+  targetPosition: Position;
+  label?: string;
+  labelStyle?: React.CSSProperties;
+  labelShowBg?: boolean;
+  labelBgStyle?: React.CSSProperties;
+  labelBgPadding?: [number, number];
+  labelBgBorderRadius?: number;
+  onClick?: (event: React.MouseEvent, id: string) => void;
+  onContextMenu?: (event: React.MouseEvent, id: string) => void;
+  animated?: boolean;
+  style?: React.CSSProperties;
+}
+
+const CustomEdge: React.FC<CustomEdgeProps> = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  label,
+  labelStyle,
+  labelShowBg,
+  labelBgStyle,
+  labelBgPadding,
+  labelBgBorderRadius,
+  onClick,
+  onContextMenu,
+  animated,
+  style,
+}) => {
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <path
+        id={id}
+        style={style}
+        d={edgePath}
+        fill="none"
+        className={`react-flow__edge-path ${animated ? 'animated' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          onContextMenu?.(e, id);
+        }}
+      />
+      {label && (
+        <CustomEdgeLabel
+          id={id}
+          sourceX={sourceX}
+          sourceY={sourceY}
+          targetX={targetX}
+          targetY={targetY}
+          label={label}
+          labelStyle={labelStyle}
+          labelShowBg={labelShowBg}
+          labelBgStyle={labelBgStyle}
+          labelBgPadding={labelBgPadding}
+          labelBgBorderRadius={labelBgBorderRadius}
+          onClick={onClick}
+        />
+      )}
+    </>
+  );
+};
+
+const edgeTypes = {
+  smoothstep: CustomEdge,
 };
 
 const nodeTypes: NodeTypes = {
@@ -70,7 +278,6 @@ interface ContextMenuProps {
   x: number;
   y: number;
   type: 'node' | 'edge' | 'canvas';
-  itemId: string | null;
   onEdit?: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -192,7 +399,7 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowNodes, setReactFlowNodes, onNodesChangeRF] = useNodesState([]);
   const [reactFlowEdges, setReactFlowEdges, onEdgesChangeRF] = useEdgesState([]);
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, project } = useReactFlow();
   const [contextMenu, setContextMenu] = useState<{
     show: boolean;
     x: number;
@@ -237,15 +444,6 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
         stroke: 'rgba(100, 200, 255, 0.6)',
         strokeWidth: 2,
       },
-      labelStyle: {
-        fill: '#e8e8e8',
-        fontSize: 12,
-      },
-      labelBgStyle: {
-        fill: '#16213e',
-      },
-      labelBgPadding: [8, 4],
-      labelBgBorderRadius: 4,
     }));
     setReactFlowEdges(flowEdges);
   }, [edges, setReactFlowEdges]);
@@ -256,25 +454,36 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
     }
   }, [nodes.length, fitView]);
 
-  const handlePaneClick = useCallback(() => {
-    setContextMenu(null);
-  }, []);
+  useEffect(() => {
+    const container = reactFlowWrapper.current;
+    if (!container) return;
 
-  const handleDoubleClick = useCallback(
-    (event: React.MouseEvent) => {
+    const handleDblClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.react-flow__node') && 
-          !target.closest('.react-flow__edge') &&
-          !target.closest('.react-flow__handle')) {
+      const isNode = target.closest('.react-flow__node') !== null;
+      const isEdge = target.closest('.react-flow__edge') !== null;
+      const isHandle = target.closest('.react-flow__handle') !== null;
+      const isEdgeLabel = target.closest('.edge-label-wrapper') !== null;
+
+      if (!isNode && !isEdge && !isHandle && !isEdgeLabel) {
         const position = screenToFlowPosition({
           x: event.clientX,
           y: event.clientY,
         });
         onAddNode(position);
       }
-    },
-    [screenToFlowPosition, onAddNode]
-  );
+    };
+
+    container.addEventListener('dblclick', handleDblClick);
+
+    return () => {
+      container.removeEventListener('dblclick', handleDblClick);
+    };
+  }, [screenToFlowPosition, onAddNode]);
+
+  const handlePaneClick = useCallback(() => {
+    setContextMenu(null);
+  }, []);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -327,21 +536,23 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
   );
 
   const handleEdgeClick = useCallback(
-    (event: React.MouseEvent, edge: Edge) => {
+    (event: React.MouseEvent, edgeId: string) => {
       const rect = reactFlowWrapper.current?.getBoundingClientRect();
       if (!rect) return;
 
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
+      const edge = edges.find((e) => e.id === edgeId);
+
       setEditingEdgeLabel({
-        edgeId: edge.id,
-        label: edge.label as string || '相关',
+        edgeId,
+        label: edge?.label || '相关',
         x,
         y,
       });
     },
-    []
+    [edges]
   );
 
   const handleConnect = useCallback(
@@ -383,6 +594,24 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
     [onEdgeLabelEdit]
   );
 
+  const customEdgeTypesMemo = useMemo(
+    () => ({
+      smoothstep: (props: any) => (
+        <CustomEdge
+          {...props}
+          onClick={(e: React.MouseEvent, id: string) => handleEdgeClick(e, id)}
+          onContextMenu={(e: React.MouseEvent, id: string) => {
+            const edge = edges.find((ed) => ed.id === id);
+            if (edge) {
+              handleEdgeContextMenu(e as any, { id } as Edge);
+            }
+          }}
+        />
+      ),
+    }),
+    [edges, handleEdgeClick, handleEdgeContextMenu]
+  );
+
   return (
     <div ref={reactFlowWrapper} className="canvas-container">
       <ReactFlow
@@ -392,14 +621,12 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
         onEdgesChange={onEdgesChangeRF}
         onConnect={handleConnect}
         onPaneClick={handlePaneClick}
-        onDoubleClick={handleDoubleClick}
         onNodeClick={handleNodeClick}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         onNodeContextMenu={handleNodeContextMenu}
-        onEdgeContextMenu={handleEdgeContextMenu}
-        onEdgeClick={handleEdgeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={customEdgeTypesMemo}
         fitView
         minZoom={0.5}
         maxZoom={3}
@@ -422,14 +649,14 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
         <MiniMap
           position="bottom-left"
           style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-        }}
-        nodeColor={(node) => node.data.color}
-        nodeStrokeWidth={3}
-        zoomable
-        pannable
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+          }}
+          nodeColor={(node) => node.data.color}
+          nodeStrokeWidth={3}
+          zoomable
+          pannable
         />
       </ReactFlow>
 
@@ -438,7 +665,6 @@ const GraphCanvasInner: React.FC<GraphCanvasProps> = ({
           x={contextMenu.x}
           y={contextMenu.y}
           type={contextMenu.type}
-          itemId={contextMenu.itemId}
           onEdit={contextMenu.type === 'node' ? handleContextMenuEdit : undefined}
           onDelete={handleContextMenuDelete}
           onClose={handleContextMenuClose}

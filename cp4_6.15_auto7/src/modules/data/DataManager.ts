@@ -308,7 +308,7 @@ class DataManager {
     return JSON.stringify(this.data, null, 2);
   }
 
-  importFromJSON(json: string): boolean {
+  importFromJSON(json: string, autoLayout: boolean = true): boolean {
     try {
       const data = JSON.parse(json);
       if (!data.nodes || !data.edges) {
@@ -316,8 +316,11 @@ class DataManager {
       }
 
       data.nodes.forEach((node: GraphNode) => {
-        if (!node.id || !node.title || !node.position) {
+        if (!node.id || !node.title) {
           throw new Error('Invalid node data');
+        }
+        if (!node.position) {
+          node.position = { x: 0, y: 0 };
         }
       });
 
@@ -325,11 +328,24 @@ class DataManager {
         if (!edge.id || !edge.source || !edge.target) {
           throw new Error('Invalid edge data');
         }
+        if (edge.animated === undefined) {
+          edge.animated = true;
+        }
       });
 
       this.data = data;
-      this.saveToStorage();
-      this.notifyListeners();
+
+      if (autoLayout && this.data.nodes.length > 0) {
+        if (this.data.edges.length > 0) {
+          this.applyHierarchicalLayout();
+        } else {
+          this.applyForceLayout();
+        }
+      } else {
+        this.saveToStorage();
+        this.notifyListeners();
+      }
+
       return true;
     } catch (e) {
       console.error('Failed to import graph data:', e);

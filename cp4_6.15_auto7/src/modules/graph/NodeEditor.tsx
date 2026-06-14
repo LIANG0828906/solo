@@ -15,9 +15,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
   const [color, setColor] = useState(NODE_COLORS[0]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (nodeId) {
@@ -28,11 +28,16 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
         setContent(nodeData.content);
         setColor(nodeData.color);
         setTags(nodeData.tags || []);
-        setIsExpanded(true);
+        requestAnimationFrame(() => {
+          setIsOpen(true);
+        });
       }
     } else {
-      setNode(null);
-      setIsExpanded(false);
+      setIsOpen(false);
+      const timer = setTimeout(() => {
+        setNode(null);
+      }, 350);
+      return () => clearTimeout(timer);
     }
   }, [nodeId]);
 
@@ -81,6 +86,18 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
       onClose();
     }
   }, [onClose]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        handleSave();
+      }
+    },
+    [onClose, handleSave]
+  );
 
   const renderMarkdown = (text: string) => {
     if (!text) return <p style={{ color: 'var(--text-secondary)' }}>暂无内容</p>;
@@ -145,8 +162,24 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
   if (!nodeId || !node) return null;
 
   return (
-    <div className="node-editor-overlay" onClick={handleOverlayClick}>
-      <div className="node-editor-panel" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="node-editor-overlay"
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      style={{
+        opacity: isOpen ? 1 : 0,
+        transition: 'opacity 0.3s ease',
+      }}
+    >
+      <div
+        className="node-editor-panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.98)',
+          opacity: isOpen ? 1 : 0,
+          transition: 'transform 0.3s ease, opacity 0.3s ease',
+        }}
+      >
         <div className="node-editor-header">
           <div className="node-editor-title">编辑节点</div>
           <button className="close-btn" onClick={onClose}>
@@ -155,79 +188,88 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
         </div>
 
         <div
-          className="node-editor-content"
-          ref={contentRef}
+          ref={contentWrapperRef}
           style={{
-            maxHeight: isExpanded ? 'calc(80vh - 140px)' : '0',
-            overflow: isExpanded ? 'auto' : 'hidden',
-            transition: 'max-height 0.3s ease, padding 0.3s ease',
-            padding: isExpanded ? '24px' : '0 24px',
+            display: 'grid',
+            gridTemplateRows: isOpen ? '1fr' : '0fr',
+            transition: 'grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          <div className="editor-section">
-            <label className="editor-label">标题</label>
-            <input
-              type="text"
-              className="editor-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="输入节点标题..."
-              autoFocus
-            />
-          </div>
-
-          <div className="editor-section">
-            <label className="editor-label">内容 (支持 Markdown)</label>
-            <textarea
-              className="editor-textarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="在这里输入详细内容，支持 Markdown 格式..."
-            />
-            {content && (
-              <div className="content-preview">
-                <label className="editor-label">预览</label>
-                {renderMarkdown(content)}
-              </div>
-            )}
-          </div>
-
-          <div className="editor-section">
-            <label className="editor-label">颜色</label>
-            <div className="color-picker-group">
-              {NODE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`color-option ${color === c ? 'selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
+          <div style={{ overflow: 'hidden', minHeight: 0 }}>
+            <div
+              className="node-editor-content"
+              style={{
+                padding: '24px',
+                overflowY: 'auto',
+                maxHeight: 'calc(80vh - 140px)',
+              }}
+            >
+              <div className="editor-section">
+                <label className="editor-label">标题</label>
+                <input
+                  type="text"
+                  className="editor-input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="输入节点标题..."
+                  autoFocus
                 />
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <div className="editor-section">
-            <label className="editor-label">
-              <Tag size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-              标签
-            </label>
-            <div className="tags-input-container">
-              {tags.map((tag) => (
-                <span key={tag} className="tag-item">
-                  {tag}
-                  <span className="tag-remove" onClick={() => handleRemoveTag(tag)}>
-                    <X size={12} />
-                  </span>
-                </span>
-              ))}
-              <input
-                type="text"
-                className="tag-input"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                placeholder="输入标签后按回车..."
-              />
+              <div className="editor-section">
+                <label className="editor-label">内容 (支持 Markdown)</label>
+                <textarea
+                  className="editor-textarea"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="在这里输入详细内容，支持 Markdown 格式..."
+                />
+                {content && (
+                  <div className="content-preview">
+                    <label className="editor-label">预览</label>
+                    {renderMarkdown(content)}
+                  </div>
+                )}
+              </div>
+
+              <div className="editor-section">
+                <label className="editor-label">颜色</label>
+                <div className="color-picker-group">
+                  {NODE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      className={`color-option ${color === c ? 'selected' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => setColor(c)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="editor-section">
+                <label className="editor-label">
+                  <Tag size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                  标签
+                </label>
+                <div className="tags-input-container">
+                  {tags.map((tag) => (
+                    <span key={tag} className="tag-item">
+                      {tag}
+                      <span className="tag-remove" onClick={() => handleRemoveTag(tag)}>
+                        <X size={12} />
+                      </span>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    className="tag-input"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleAddTag}
+                    placeholder="输入标签后按回车..."
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -235,9 +277,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ nodeId, onClose, onDelet
         <div
           className="node-editor-footer"
           style={{
-            opacity: isExpanded ? 1 : 0,
-            pointerEvents: isExpanded ? 'auto' : 'none',
-            transition: 'opacity 0.2s ease',
+            opacity: isOpen ? 1 : 0,
+            pointerEvents: isOpen ? 'auto' : 'none',
+            transition: 'opacity 0.2s ease 0.15s',
           }}
         >
           <button className="btn btn-danger" onClick={handleDelete}>
