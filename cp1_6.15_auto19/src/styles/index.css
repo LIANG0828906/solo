@@ -429,13 +429,39 @@ body {
 }
 
 .star.bounce {
-  animation: starBounce 0.5s ease;
+  animation: starBounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
 }
 
 @keyframes starBounce {
-  0%, 100% { transform: scale(1); }
-  30% { transform: scale(1.4) rotate(-10deg); }
-  60% { transform: scale(1.1) rotate(5deg); }
+  0% { 
+    transform: scale(1) rotate(0deg) translateY(0);
+    color: #FFD700;
+    text-shadow: none;
+  }
+  20% { 
+    transform: scale(1.6) rotate(-15deg) translateY(-8px);
+    color: #FFEB3B;
+    text-shadow: 0 0 20px rgba(255, 235, 59, 0.8);
+  }
+  40% { 
+    transform: scale(1.2) rotate(10deg) translateY(-4px);
+    color: #FFC107;
+    text-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+  }
+  60% { 
+    transform: scale(1.4) rotate(-8deg) translateY(-6px);
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+  80% { 
+    transform: scale(1.1) rotate(3deg) translateY(-2px);
+  }
+  100% { 
+    transform: scale(1) rotate(0deg) translateY(0);
+    color: #FFD700;
+    text-shadow: none;
+  }
 }
 
 .rating-value {
@@ -1315,15 +1341,50 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--color-bg-warm) 25%, var(--color-cream) 50%, var(--color-bg-warm) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-warm) 0%,
+    var(--color-bg-warm) 20%,
+    var(--color-cream) 40%,
+    var(--color-cream) 50%,
+    var(--color-cream) 60%,
+    var(--color-bg-warm) 80%,
+    var(--color-bg-warm) 100%
+  );
   background-size: 200% 100%;
-  animation: skeletonLoading 1.5s infinite;
+  animation: skeletonLoading 1.4s ease-in-out infinite;
   border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  background-size: 50% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes skeletonLoading {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: -150% 0; opacity: 0; }
+  30% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { background-position: 150% 0; opacity: 0; }
 }
 
 .skeleton-card {

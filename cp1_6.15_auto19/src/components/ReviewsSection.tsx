@@ -123,19 +123,18 @@ export default function ReviewsSection({ hostId }: ReviewsSectionProps) {
         <form className="review-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">您的评分：</label>
-            <div className="rating-input">
-              {[1, 2, 3, 4, 5].map(star => (
-                <span
-                  key={star}
-                  className={`star ${star <= newRating ? '' : 'empty'}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setNewRating(star)}
-                >
-                  ★
-                </span>
-              ))}
-              <span style={{ marginLeft: '12px', fontSize: '18px', color: 'var(--color-dark-brown)', fontWeight: 700 }}>
-                {newRating}分
+            <div className="rating-input" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <StarRating
+                rating={newRating}
+                interactive={true}
+                onChange={setNewRating}
+                size="large"
+              />
+              <span style={{ fontSize: '24px', color: 'var(--color-dark-brown)', fontWeight: 800 }}>
+                {newRating}<span style={{ fontSize: '16px', color: 'var(--color-text-light)', fontWeight: 500 }}> 分</span>
+              </span>
+              <span style={{ fontSize: '14px', color: 'var(--color-text-light)' }}>
+                {newRating === 5 ? '非常满意 🌟' : newRating === 4 ? '很满意 😊' : newRating === 3 ? '一般 🙂' : newRating === 2 ? '不太满意 😕' : '很不满意 😞'}
               </span>
             </div>
           </div>
