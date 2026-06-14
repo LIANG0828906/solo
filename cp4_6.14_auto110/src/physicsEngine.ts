@@ -16,6 +16,7 @@ export class PhysicsEngine {
   private readonly COLOR_LOW = new THREE.Color('#2563eb');
   private readonly COLOR_HIGH = new THREE.Color('#ef4444');
   private readonly GALAXY_RADIUS: number = 10;
+  private readonly MIN_DIST: number = 0.1;
 
   private currentFlatness: number = 0.5;
 
@@ -57,7 +58,6 @@ export class PhysicsEngine {
     const count = this.particleSystem.particleCount;
     const positions = this.particleSystem.positions;
     const velocities = this.particleSystem.velocities;
-    const colors = this.particleSystem.colors;
     const initialPositions = this.particleSystem.initialPositions;
 
     const rotSpeed = this.rotationSpeed;
@@ -72,18 +72,21 @@ export class PhysicsEngine {
       const initX = initialPositions[i3];
       const initY = initialPositions[i3 + 1];
       const initZ = initialPositions[i3 + 2];
-      const rFlat = Math.sqrt(initX * initX + initZ * initZ) + 0.3;
+
+      const rFlatSq = initX * initX + initZ * initZ;
+      const rFlat = Math.sqrt(Math.max(this.MIN_DIST * this.MIN_DIST, rFlatSq)) + 0.3;
       const baseAngularVel = rotSpeed * 0.4 / Math.sqrt(rFlat);
 
       this.particleSystem.thetas[i] += baseAngularVel * dt;
       const theta = this.particleSystem.thetas[i];
 
-      const rTarget = this.particleSystem.radii[i] * (1.0 + (gravStr - 2.0) * 0.02);
+      const gravityMod = 1.0 + (gravStr - 2.0) * 0.02;
+      const effRFlat = rFlat * Math.max(0.2, gravityMod);
       const cosT = Math.cos(theta);
       const sinT = Math.sin(theta);
 
-      const targetX = sinT * rFlat;
-      const targetZ = cosT * rFlat;
+      const targetX = sinT * effRFlat;
+      const targetZ = cosT * effRFlat;
       const targetY = initY * this.currentFlatness;
 
       let px = positions[i3];
@@ -102,13 +105,15 @@ export class PhysicsEngine {
       positions[i3 + 1] = py;
       positions[i3 + 2] = pz;
 
-      const speed = baseAngularVel * rFlat + Math.abs(jitter) * 10;
+      const speed = baseAngularVel * effRFlat + Math.abs(jitter) * 10;
       const normalizedSpeed = Math.max(0.1, Math.min(1.0, speed * 0.7));
       const t = (normalizedSpeed - 0.1) / 0.9;
 
-      colors[i3] = this.COLOR_LOW.r + (this.COLOR_HIGH.r - this.COLOR_LOW.r) * t;
-      colors[i3 + 1] = this.COLOR_LOW.g + (this.COLOR_HIGH.g - this.COLOR_LOW.g) * t;
-      colors[i3 + 2] = this.COLOR_LOW.b + (this.COLOR_HIGH.b - this.COLOR_LOW.b) * t;
+      const r = this.COLOR_LOW.r + (this.COLOR_HIGH.r - this.COLOR_LOW.r) * t;
+      const g = this.COLOR_LOW.g + (this.COLOR_HIGH.g - this.COLOR_LOW.g) * t;
+      const b = this.COLOR_LOW.b + (this.COLOR_HIGH.b - this.COLOR_LOW.b) * t;
+
+      this.particleSystem.setTargetColor(i, r, g, b);
 
       velocities[i3] = (targetX - px) * 10;
       velocities[i3 + 1] = (targetY - py) * 10;
@@ -116,7 +121,7 @@ export class PhysicsEngine {
     }
 
     this.particleSystem.updatePositions();
-    this.particleSystem.updateColors();
+    this.particleSystem.interpolateColors(dt);
 
     return count;
   }

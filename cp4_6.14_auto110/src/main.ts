@@ -9,6 +9,7 @@ const MIN_ZOOM = 5;
 const MAX_ZOOM = 30;
 const DAMPING = 0.95;
 const FLYBACK_DURATION = 1.5;
+const FPS_WINDOW_SIZE = 60;
 
 class GalaxyApp {
   private scene: THREE.Scene;
@@ -38,9 +39,9 @@ class GalaxyApp {
   private flybackStartPhi: number = 0;
   private flybackStartDistance: number = 0;
 
-  private clock: THREE.Clock;
-  private frameCount: number = 0;
+  private deltaTimes: number[] = [];
   private updateCount: number = 0;
+  private updateWindowStart: number = 0;
   private lastPerformanceUpdate: number = 0;
 
   constructor() {
@@ -68,8 +69,6 @@ class GalaxyApp {
     this.particleSystem = new ParticleSystem(this.scene);
     this.physicsEngine = new PhysicsEngine(this.particleSystem);
     this.uiController = new UIController(this.physicsEngine);
-
-    this.clock = new THREE.Clock();
 
     this.bindEvents();
     this.animate = this.animate.bind(this);
@@ -157,11 +156,18 @@ class GalaxyApp {
   private animate(): void {
     requestAnimationFrame(this.animate);
 
-    const deltaTime = this.clock.getDelta();
-    const elapsedTime = this.clock.getElapsedTime();
+    const now = performance.now();
+
+    let deltaTime = this.deltaTimes.length > 0
+      ? (now - (this.deltaTimes[this.deltaTimes.length - 1] || now)) / 1000
+      : 1 / 60;
+
+    this.deltaTimes.push(now);
+    if (this.deltaTimes.length > FPS_WINDOW_SIZE) {
+      this.deltaTimes.shift();
+    }
 
     if (this.isFlyingBack) {
-      const now = performance.now();
       const t = Math.min(1, (now - this.flybackStartTime) / (FLYBACK_DURATION * 1000));
       const eased = this.easeInOut(t);
 
@@ -197,15 +203,24 @@ class GalaxyApp {
     this.updateCount++;
 
     this.renderer.render(this.scene, this.camera);
-    this.frameCount++;
 
-    if (elapsedTime - this.lastPerformanceUpdate >= 0.5) {
-      const fps = this.frameCount / (elapsedTime - this.lastPerformanceUpdate);
-      const ups = this.updateCount / (elapsedTime - this.lastPerformanceUpdate);
+    if (this.deltaTimes.length >= 2 && now - this.lastPerformanceUpdate >= 500) {
+      const totalWindowTime = (this.deltaTimes[this.deltaTimes.length - 1] - this.deltaTimes[0]) / 1000;
+      const numFrames = this.deltaTimes.length - 1;
+      const fps = totalWindowTime > 0 ? numFrames / totalWindowTime : 60;
+
+      const updateWindowDuration = (now - this.updateWindowStart) / 1000;
+      const ups = updateWindowDuration > 0 ? this.updateCount / updateWindowDuration : 60;
+
       this.uiController.updatePerformance(fps, particlesUpdated, ups);
-      this.frameCount = 0;
+
       this.updateCount = 0;
-      this.lastPerformanceUpdate = elapsedTime;
+      this.updateWindowStart = now;
+      this.lastPerformanceUpdate = now;
+    }
+
+    if (this.updateWindowStart === 0) {
+      this.updateWindowStart = now;
     }
   }
 }

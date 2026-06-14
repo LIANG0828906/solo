@@ -5,6 +5,7 @@ export class ParticleSystem {
   public positions: Float32Array;
   public velocities: Float32Array;
   public colors: Float32Array;
+  public targetColors: Float32Array;
   public initialPositions: Float32Array;
   public initialVelocities: Float32Array;
   public radii: Float32Array;
@@ -13,23 +14,33 @@ export class ParticleSystem {
   public geometry: THREE.BufferGeometry;
 
   private readonly PARTICLE_SIZE = 0.05;
+  private readonly TEXTURE_SCALE = 12;
   private readonly GALAXY_RADIUS = 10;
   private readonly INITIAL_COLOR = new THREE.Color('#2563eb');
+  private readonly COLOR_TRANSITION_DURATION = 0.3;
 
   private createParticleTexture(): THREE.Texture {
     const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
+    const size = 64;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d')!;
-    const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    const gradient = ctx.createRadialGradient(
+      size / 2, size / 2, 0,
+      size / 2, size / 2, size / 2
+    );
     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.9)');
-    gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.5)');
-    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
+    gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.95)');
+    gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.45)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.18)');
+    gradient.addColorStop(0.85, 'rgba(255, 255, 255, 0.05)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillRect(0, 0, size, size);
     const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
     return texture;
   }
@@ -38,6 +49,7 @@ export class ParticleSystem {
     this.positions = new Float32Array(this.particleCount * 3);
     this.velocities = new Float32Array(this.particleCount * 3);
     this.colors = new Float32Array(this.particleCount * 3);
+    this.targetColors = new Float32Array(this.particleCount * 3);
     this.initialPositions = new Float32Array(this.particleCount * 3);
     this.initialVelocities = new Float32Array(this.particleCount * 3);
     this.radii = new Float32Array(this.particleCount);
@@ -50,7 +62,7 @@ export class ParticleSystem {
     this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
 
     const material = new THREE.PointsMaterial({
-      size: this.PARTICLE_SIZE * 18,
+      size: this.PARTICLE_SIZE * this.TEXTURE_SCALE,
       vertexColors: true,
       sizeAttenuation: true,
       transparent: true,
@@ -58,7 +70,7 @@ export class ParticleSystem {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: this.createParticleTexture(),
-      alphaTest: 0.01
+      alphaTest: 0.005
     });
 
     this.points = new THREE.Points(this.geometry, material);
@@ -88,10 +100,10 @@ export class ParticleSystem {
       this.radii[i] = Math.sqrt(x * x + y * y + z * z);
       this.thetas[i] = Math.atan2(x, z);
 
-      const rFlat = Math.sqrt(x * x + z * z) + 0.5;
-      const orbitalSpeed = 1.5 / Math.sqrt(rFlat);
-      const vx = -z * orbitalSpeed / rFlat;
-      const vz = x * orbitalSpeed / rFlat;
+      const rFlat = Math.max(0.1, Math.sqrt(x * x + z * z));
+      const orbitalSpeed = 1.5 / Math.sqrt(rFlat + 0.5);
+      const vx = -z * orbitalSpeed / (rFlat + 0.5);
+      const vz = x * orbitalSpeed / (rFlat + 0.5);
 
       this.velocities[i3] = vx;
       this.velocities[i3 + 1] = (Math.random() - 0.5) * 0.05;
@@ -104,6 +116,10 @@ export class ParticleSystem {
       this.colors[i3] = this.INITIAL_COLOR.r;
       this.colors[i3 + 1] = this.INITIAL_COLOR.g;
       this.colors[i3 + 2] = this.INITIAL_COLOR.b;
+
+      this.targetColors[i3] = this.INITIAL_COLOR.r;
+      this.targetColors[i3 + 1] = this.INITIAL_COLOR.g;
+      this.targetColors[i3 + 2] = this.INITIAL_COLOR.b;
     }
   }
 
@@ -113,10 +129,29 @@ export class ParticleSystem {
     posAttr.needsUpdate = true;
   }
 
-  public updateColors(): void {
+  public interpolateColors(deltaTime: number): void {
+    const lerpFactor = Math.min(1, deltaTime / this.COLOR_TRANSITION_DURATION);
+    const count = this.particleCount;
+    const colors = this.colors;
+    const targets = this.targetColors;
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      colors[i3] += (targets[i3] - colors[i3]) * lerpFactor;
+      colors[i3 + 1] += (targets[i3 + 1] - colors[i3 + 1]) * lerpFactor;
+      colors[i3 + 2] += (targets[i3 + 2] - colors[i3 + 2]) * lerpFactor;
+    }
+
     const colorAttr = this.geometry.getAttribute('color') as THREE.BufferAttribute;
     colorAttr.array = this.colors;
     colorAttr.needsUpdate = true;
+  }
+
+  public setTargetColor(i: number, r: number, g: number, b: number): void {
+    const i3 = i * 3;
+    this.targetColors[i3] = r;
+    this.targetColors[i3 + 1] = g;
+    this.targetColors[i3 + 2] = b;
   }
 
   public reset(): void {
@@ -132,12 +167,19 @@ export class ParticleSystem {
         this.initialPositions[i3 + 2] ** 2
       );
       this.thetas[i] = Math.atan2(this.initialPositions[i3], this.initialPositions[i3 + 2]);
+
       this.colors[i3] = this.INITIAL_COLOR.r;
       this.colors[i3 + 1] = this.INITIAL_COLOR.g;
       this.colors[i3 + 2] = this.INITIAL_COLOR.b;
+
+      this.targetColors[i3] = this.INITIAL_COLOR.r;
+      this.targetColors[i3 + 1] = this.INITIAL_COLOR.g;
+      this.targetColors[i3 + 2] = this.INITIAL_COLOR.b;
     }
     this.updatePositions();
-    this.updateColors();
+    const colorAttr = this.geometry.getAttribute('color') as THREE.BufferAttribute;
+    colorAttr.array = this.colors;
+    colorAttr.needsUpdate = true;
   }
 
   public getParticleSpeed(i: number): number {

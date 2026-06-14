@@ -103,8 +103,10 @@ export class UIController {
       border-radius: 8px;
       cursor: pointer;
       margin-top: 20px;
-      transition: background 0.2s, transform 0.1s;
+      transition: background 0.2s ease, transform 0.1s ease;
       font-family: inherit;
+      outline: none;
+      user-select: none;
     `;
 
     resetBtn.addEventListener('mouseenter', () => {
@@ -113,13 +115,12 @@ export class UIController {
     resetBtn.addEventListener('mouseleave', () => {
       resetBtn.style.background = '#3b82f6';
     });
-    resetBtn.addEventListener('mousedown', () => {
-      resetBtn.style.transform = 'scale(0.95)';
-    });
-    resetBtn.addEventListener('mouseup', () => {
-      resetBtn.style.transform = 'scale(1)';
-    });
     resetBtn.addEventListener('click', () => {
+      resetBtn.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        resetBtn.style.transform = 'scale(1)';
+      }, 100);
+
       this.physicsEngine.reset();
       sliders.forEach((config) => {
         const input = document.getElementById(`slider-${config.key}`) as HTMLInputElement;
