@@ -52,9 +52,9 @@ const PetCard: React.FC<PetCardProps> = ({ pet, onClick }) => {
             <Heart size={48} />
           </div>
         )}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
           <span
-            className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
+            className={`text-xs px-2.5 py-1 rounded-full font-medium border shadow-sm ${
               pet.gender === Gender.MALE
                 ? 'bg-blue-50 text-blue-600 border-blue-100'
                 : 'bg-pink-50 text-pink-600 border-pink-100'
@@ -62,11 +62,26 @@ const PetCard: React.FC<PetCardProps> = ({ pet, onClick }) => {
           >
             {genderLabel[pet.gender]}
           </span>
+          <span
+            className={`text-xs px-2.5 py-1 rounded-full font-medium border shadow-sm ${
+              pet.status === 'available'
+                ? 'bg-green-500 text-white border-green-500'
+                : pet.status === 'pending'
+                ? 'bg-yellow-500 text-white border-yellow-500'
+                : 'bg-gray-500 text-white border-gray-500'
+            }`}
+          >
+            {pet.status === 'available'
+              ? '待领养'
+              : pet.status === 'pending'
+              ? '已申请'
+              : '已领养'}
+          </span>
         </div>
-        {pet.status !== 'available' && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">
-              {pet.status === 'adopted' ? '已领养' : '审核中'}
+        {pet.status === 'adopted' && (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center backdrop-blur-[2px]">
+            <span className="bg-gray-800/80 text-white font-bold px-4 py-2 rounded-lg text-sm">
+              已找到新家
             </span>
           </div>
         )}

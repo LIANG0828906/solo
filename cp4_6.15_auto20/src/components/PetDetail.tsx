@@ -20,12 +20,9 @@ import {
   ChevronRight,
   X,
   ArrowLeft,
-  Syringe,
-  Scissors,
   CalendarDays,
   CheckCircle,
   Clock,
-  Info,
 } from 'lucide-react';
 
 interface PetDetailProps {
@@ -538,16 +535,26 @@ const Timeline: React.FC<{
 
                 {isHovered && (
                   <div
-                    className="absolute -top-16 left-1/2 -translate-x-1/2 w-44
-                      bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-20"
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full w-44
+                      bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl z-20 fade-in"
+                    style={{ transformOrigin: 'bottom center' }}
                   >
-                    <p className="font-semibold mb-1">{STAGE_NAMES[index as Stage]}</p>
-                    <p className="text-gray-300">预计: {formatDate(stageInfo.expectedDate)}</p>
-                    <p className="text-gray-300">实际: {formatDate(stageInfo.actualDate)}</p>
+                    <p className="font-semibold mb-1.5">{STAGE_NAMES[index as Stage]}</p>
+                    <p className="text-gray-300 mb-0.5 flex items-center gap-1.5">
+                      <Clock size={11} className="text-gray-400" />
+                      预计: {formatDate(stageInfo.expectedDate)}
+                    </p>
+                    <p className="text-gray-300 mb-1 flex items-center gap-1.5">
+                      <CheckCircle size={11} className="text-gray-400" />
+                      实际: {formatDate(stageInfo.actualDate)}
+                    </p>
                     {stageInfo.notes && (
-                      <p className="text-gray-400 mt-1 border-t border-gray-700 pt-1">
-                        {stageInfo.notes}
-                      </p>
+                      <>
+                        <div className="border-t border-gray-700 my-1.5" />
+                        <p className="text-gray-400 leading-relaxed">
+                          {stageInfo.notes}
+                        </p>
+                      </>
                     )}
                     <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45" />
                   </div>

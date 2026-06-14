@@ -30,8 +30,24 @@
     animation: animate-in 0.25s ease-out;
   }
 
+  .fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
   .slide-in-from-left {
     animation: slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .slide-out-to-left {
+    animation: slide-out-to-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .fade-out {
+    animation: fade-out 0.25s ease-out forwards;
+  }
+
+  .tag-pop {
+    animation: tag-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .scrollbar-thin {
@@ -73,5 +89,46 @@
   }
   to {
     transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-to-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tag-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
