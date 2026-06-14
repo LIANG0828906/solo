@@ -168,10 +168,33 @@
 }
 
 .booking-details {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.booking-details.expanded {
+  max-height: 500px;
+}
+
+.booking-details.collapsed {
+  max-height: 0;
+}
+
+.booking-details-inner {
   padding: 0 20px 16px;
   padding-left: 72px;
-  animation: expandDown 0.3s ease;
-  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.25s ease 0.05s;
+}
+
+.booking-details.expanded .booking-details-inner {
+  opacity: 1;
+}
+
+.booking-details.collapsed .booking-details-inner {
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .detail-row {

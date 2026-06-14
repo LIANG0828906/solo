@@ -1,8 +1,30 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import net from 'net';
 
 const app = express();
-const PORT = 3002;
+const START_PORT = 3001;
+
+function findAvailablePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+    
+    server.once('listening', () => {
+      server.close();
+      resolve(startPort);
+    });
+    
+    server.listen(startPort);
+  });
+}
 
 app.use(express.json());
 
@@ -222,7 +244,13 @@ app.put('/api/bookings/:id/cancel', (req, res) => {
   }, 80);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`预置 ${artists.length} 位艺术家，约 ${slots.length} 个时段`);
+findAvailablePort(START_PORT).then((port) => {
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+    console.log(`使用端口: ${port}${port !== START_PORT ? ` (${START_PORT} 端口被占用，已自动递增)` : ''}`);
+    console.log(`预置 ${artists.length} 位艺术家，约 ${slots.length} 个时段`);
+  });
+}).catch((err) => {
+  console.error('无法找到可用端口:', err);
+  process.exit(1);
 });

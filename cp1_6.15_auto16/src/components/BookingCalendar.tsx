@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Artist, Slot } from '../types';
 import { getSlots, createBooking } from '../utils/api';
 import './BookingCalendar.css';
@@ -23,9 +23,64 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
   const [submitting, setSubmitting] = useState(false);
   const [conflictError, setConflictError] = useState<{ message: string; suggestion?: string } | null>(null);
   const [conflictSlotKey, setConflictSlotKey] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const weekViewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+  const getWeekStartDate = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day);
+    return d;
+  };
+
+  const weekDaysList = useMemo(() => {
+    if (!selectedDate) {
+      const today = new Date();
+      const weekStart = getWeekStartDate(today);
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        return d;
+      });
+    }
+    const selected = new Date(selectedDate);
+    const weekStart = getWeekStartDate(selected);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [selectedDate, currentDate]);
+
+  const formatDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const monthDateRange = useMemo(() => {
+    const start = formatDateKey(new Date(year, month, 1));
+    const end = formatDateKey(new Date(year, month + 1, 0));
+    return { start, end };
+  }, [year, month]);
 
   const daysInMonth = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -41,19 +96,6 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     }
     
     return days;
-  }, [year, month]);
-
-  const formatDateKey = (date: Date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
-  const monthDateRange = useMemo(() => {
-    const start = formatDateKey(new Date(year, month, 1));
-    const end = formatDateKey(new Date(year, month + 1, 0));
-    return { start, end };
   }, [year, month]);
 
   useEffect(() => {
@@ -116,6 +158,49 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     setSlots([]);
   };
 
+  const goToPrevWeek = () => {
+    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
+    const newDate = new Date(baseDate);
+    newDate.setDate(newDate.getDate() - 7);
+    setSelectedDate(null);
+    setSlots([]);
+    if (newDate.getMonth() !== month) {
+      setCurrentDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+    }
+  };
+
+  const goToNextWeek = () => {
+    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
+    const newDate = new Date(baseDate);
+    newDate.setDate(newDate.getDate() + 7);
+    setSelectedDate(null);
+    setSlots([]);
+    if (newDate.getMonth() !== month) {
+      setCurrentDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    const threshold = 50;
+    
+    if (Math.abs(diff) > threshold) {
+      if (diff > 0) {
+        goToNextWeek();
+      } else {
+        goToPrevWeek();
+      }
+    }
+  };
+
   const handleDateClick = (date: Date) => {
     if (isPastDate(date)) return;
     setSelectedDate(formatDateKey(date));
@@ -166,7 +251,7 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
       if (error.message.includes('已被预约') || selectedSlot) {
         setConflictSlotKey(`${selectedSlot?.date}-${selectedSlot?.startHour}`);
         setConflictError({
-          message: error.message,
+          message: '该时段已被预约，建议选择相邻时段',
           suggestion: error.suggestion,
         });
         setMonthSlots((prev) =>
@@ -184,7 +269,7 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
           )
         );
         setTimeout(() => setConflictSlotKey(null), 3000);
-        onToast('error', error.message);
+        onToast('error', '预约冲突：该时段已被预约');
       } else {
         onToast('error', error.message || '预约失败');
       }
@@ -193,8 +278,14 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
     }
   };
 
-  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+  const getWeekTitle = () => {
+    const weekStart = weekDaysList[0];
+    const weekEnd = weekDaysList[6];
+    if (weekStart.getMonth() === weekEnd.getMonth()) {
+      return `${weekStart.getFullYear()}年${monthNames[weekStart.getMonth()]} 第${Math.ceil(weekEnd.getDate() / 7)}周`;
+    }
+    return `${weekStart.getFullYear()}年${monthNames[weekStart.getMonth()]} - ${monthNames[weekEnd.getMonth()]}`;
+  };
 
   return (
     <div className="calendar-container">
@@ -236,67 +327,136 @@ export default function BookingCalendar({ artist, onBack, onBookSuccess, onToast
         </div>
       )}
 
-      <div className="calendar-wrapper">
-        <div className="calendar-nav">
-          <button className="nav-btn" onClick={goToPrevMonth}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <h3>{year}年 {monthNames[month]}</h3>
-          <button className="nav-btn" onClick={goToNextMonth}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="weekday-row">
-          {weekDays.map((d) => (
-            <div key={d} className="weekday-cell">{d}</div>
-          ))}
-        </div>
-
-        <div className="calendar-grid">
-          {daysInMonth.map((date, idx) => {
-            if (!date) return <div key={`empty-${idx}`} className="day-cell empty" />;
-
-            const dateKey = formatDateKey(date);
-            const past = isPastDate(date);
-            const hasAvailable = hasAvailableSlots(date);
-            const hasBooked = hasBookedSlots(date);
-            const isSelected = selectedDate === dateKey;
-            const allBooked = hasBooked && !hasAvailable;
-
-            return (
-              <button
-                key={dateKey}
-                className={`day-cell ${past ? 'past' : ''} ${isSelected ? 'selected' : ''} ${allBooked ? 'all-booked' : ''}`}
-                onClick={() => handleDateClick(date)}
-                disabled={past}
-              >
-                <span className="day-number">{date.getDate()}</span>
-                <div className="day-dots">
-                  {hasAvailable && <span className="dot available" />}
-                  {hasBooked && <span className="dot booked" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="calendar-legend">
-          <div className="legend-item">
-            <span className="dot available" /> 有可预约
+      {isMobile ? (
+        <div
+          className="calendar-wrapper week-view"
+          ref={weekViewRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="calendar-nav">
+            <button className="nav-btn" onClick={goToPrevWeek}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <h3>{getWeekTitle()}</h3>
+            <button className="nav-btn" onClick={goToNextWeek}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
-          <div className="legend-item">
-            <span className="dot booked" /> 已预约
+
+          <div className="weekday-row">
+            {weekDays.map((d) => (
+              <div key={d} className="weekday-cell">{d}</div>
+            ))}
           </div>
-          <div className="legend-item all-booked-indicator">
-            已约满
+
+          <div className="week-calendar-grid">
+            {weekDaysList.map((date) => {
+              const dateKey = formatDateKey(date);
+              const past = isPastDate(date);
+              const hasAvailable = hasAvailableSlots(date);
+              const hasBooked = hasBookedSlots(date);
+              const isSelected = selectedDate === dateKey;
+              const allBooked = hasBooked && !hasAvailable;
+              const isToday = formatDateKey(new Date()) === dateKey;
+
+              return (
+                <button
+                  key={dateKey}
+                  className={`day-cell week-day ${past ? 'past' : ''} ${isSelected ? 'selected' : ''} ${allBooked ? 'all-booked' : ''} ${isToday ? 'today' : ''}`}
+                  onClick={() => handleDateClick(date)}
+                  disabled={past}
+                >
+                  <span className="day-number">{date.getDate()}</span>
+                  <div className="day-dots">
+                    {hasAvailable && <span className="dot available" />}
+                    {hasBooked && <span className="dot booked" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="calendar-legend">
+            <div className="legend-item">
+              <span className="dot available" /> 可预约
+            </div>
+            <div className="legend-item">
+              <span className="dot booked" /> 已预约
+            </div>
+            <div className="legend-item swipe-hint">
+              ← 左右滑动切换周 →
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="calendar-wrapper">
+          <div className="calendar-nav">
+            <button className="nav-btn" onClick={goToPrevMonth}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <h3>{year}年 {monthNames[month]}</h3>
+            <button className="nav-btn" onClick={goToNextMonth}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="weekday-row">
+            {weekDays.map((d) => (
+              <div key={d} className="weekday-cell">{d}</div>
+            ))}
+          </div>
+
+          <div className="calendar-grid">
+            {daysInMonth.map((date, idx) => {
+              if (!date) return <div key={`empty-${idx}`} className="day-cell empty" />;
+
+              const dateKey = formatDateKey(date);
+              const past = isPastDate(date);
+              const hasAvailable = hasAvailableSlots(date);
+              const hasBooked = hasBookedSlots(date);
+              const isSelected = selectedDate === dateKey;
+              const allBooked = hasBooked && !hasAvailable;
+
+              return (
+                <button
+                  key={dateKey}
+                  className={`day-cell ${past ? 'past' : ''} ${isSelected ? 'selected' : ''} ${allBooked ? 'all-booked' : ''}`}
+                  onClick={() => handleDateClick(date)}
+                  disabled={past}
+                >
+                  <span className="day-number">{date.getDate()}</span>
+                  <div className="day-dots">
+                    {hasAvailable && <span className="dot available" />}
+                    {hasBooked && <span className="dot booked" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="calendar-legend">
+            <div className="legend-item">
+              <span className="dot available" /> 有可预约
+            </div>
+            <div className="legend-item">
+              <span className="dot booked" /> 已预约
+            </div>
+            <div className="legend-item all-booked-indicator">
+              已约满
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedDate && (
         <div className="slots-section">

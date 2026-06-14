@@ -115,8 +115,8 @@ export default function BookingList({ bookings, artists, onCancelSuccess, onToas
                     </svg>
                   </button>
 
-                  {isExpanded && (
-                    <div className="booking-details">
+                  <div className={`booking-details ${isExpanded ? 'expanded' : 'collapsed'}`}>
+                    <div className="booking-details-inner">
                       <div className="detail-row">
                         <span className="detail-label">艺术领域</span>
                         <span className="detail-value">{artist?.specialty || '-'}</span>
@@ -156,7 +156,7 @@ export default function BookingList({ bookings, artists, onCancelSuccess, onToas
                         </button>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             );
