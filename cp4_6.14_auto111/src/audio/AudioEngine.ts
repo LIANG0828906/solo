@@ -5,11 +5,11 @@ export type BeatSignal = {
 
 type BeatCallback = (beat: BeatSignal) => void;
 
-const FFT_SIZE = 1024;
+const FFT_SIZE = 2048;
 const BEAT_THRESHOLD = 1.3;
 const BEAT_COOLDOWN_MS = 200;
 const WAVEFORM_REFRESH_MS = 20;
-const ANALYSIS_INTERVAL_MS = 16;
+const ANALYSIS_INTERVAL_MS = 10;
 
 export class AudioEngine {
   private audioContext: AudioContext | null = null;

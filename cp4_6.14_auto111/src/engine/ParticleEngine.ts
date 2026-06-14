@@ -62,6 +62,7 @@ export class ParticleEngine {
   private beatIntensity = 0;
   private waveformNormalized: number[] = [];
   private lastTime = 0;
+  private starburstTimeoutId: number | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -82,7 +83,19 @@ export class ParticleEngine {
   }
 
   setEffectLevel(level: number) {
+    const prevLevel = this.effectLevel;
     this.effectLevel = level;
+    if (prevLevel >= 4 && level < 4) {
+      this.cancelStarburst();
+    }
+  }
+
+  cancelStarburst() {
+    if (this.starburstTimeoutId !== null) {
+      clearTimeout(this.starburstTimeoutId);
+      this.starburstTimeoutId = null;
+    }
+    this.starParticles = [];
   }
 
   onBeat(beat: BeatSignal) {
@@ -110,14 +123,6 @@ export class ParticleEngine {
     const cx = this.centerX;
     const cy = this.centerY;
 
-    const currentTotal = this.particles.length + this.starParticles.length;
-    if (currentTotal >= MAX_PARTICLES) {
-      if (type === 'miss') {
-        this.missFlashTimer = MISS_FLASH_DURATION;
-      }
-      return;
-    }
-
     if (type === 'perfect') {
       this.spawnBurstParticles(cx, cy, this.getParticleCount(30), true);
     } else if (type === 'good') {
@@ -128,6 +133,9 @@ export class ParticleEngine {
   }
 
   triggerStarburst() {
+    if (this.starburstTimeoutId !== null) {
+      clearTimeout(this.starburstTimeoutId);
+    }
     this.starParticles = [];
     for (let i = 0; i < STAR_COUNT; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -145,6 +153,10 @@ export class ParticleEngine {
         b: Math.random() * 255
       });
     }
+    this.starburstTimeoutId = window.setTimeout(() => {
+      this.starParticles = [];
+      this.starburstTimeoutId = null;
+    }, STAR_DURATION * 1000);
   }
 
   private getParticleCount(base: number): number {
@@ -157,6 +169,8 @@ export class ParticleEngine {
   }
 
   private spawnBurstParticles(cx: number, cy: number, count: number, isPerfect: boolean) {
+    if (this.particles.length + this.starParticles.length >= MAX_PARTICLES) return;
+
     const sizeRange = this.getParticleSize();
     const hasTrail = this.effectLevel >= 2;
 

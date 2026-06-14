@@ -26,6 +26,7 @@ type GameActions = {
   resetGame: () => void;
   recordBeat: (time: number) => void;
   judgeInput: (inputTime: number) => JudgmentType;
+  setMiss: () => void;
   updateCurrentTime: (time: number) => void;
   getEffectLevel: (combo: number) => number;
 };
@@ -88,18 +89,19 @@ export const useGameState = create<GameState & GameActions>((set, get) => ({
     return { beatTimestamps: timestamps };
   }),
 
+  setMiss: () => set(state => ({
+    missCount: state.missCount + 1,
+    combo: 0,
+    effectLevel: 0,
+    lastJudgment: 'miss',
+    lastJudgmentTime: performance.now()
+  })),
+
   judgeInput: (inputTime) => {
     const state = get();
     const timestamps = state.beatTimestamps;
     if (timestamps.length === 0) {
-      const newCombo = 0;
-      set({
-        missCount: state.missCount + 1,
-        combo: newCombo,
-        effectLevel: 0,
-        lastJudgment: 'miss',
-        lastJudgmentTime: performance.now()
-      });
+      get().setMiss();
       return 'miss';
     }
 
@@ -138,13 +140,7 @@ export const useGameState = create<GameState & GameActions>((set, get) => ({
       });
       return 'good';
     } else {
-      set({
-        missCount: state.missCount + 1,
-        combo: 0,
-        effectLevel: 0,
-        lastJudgment: 'miss',
-        lastJudgmentTime: performance.now()
-      });
+      get().setMiss();
       return 'miss';
     }
   },
