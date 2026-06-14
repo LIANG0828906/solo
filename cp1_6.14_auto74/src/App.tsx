@@ -103,7 +103,7 @@ function AppLayout({ user, refreshUser }: { user: any; refreshUser: () => void }
               path="/login"
               element={
                 <LoginRoute>
-                  <Login refreshUser={refreshUser} />
+                  <Login onLogin={refreshUser} />
                 </LoginRoute>
               }
             />
