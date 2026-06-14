@@ -47,9 +47,7 @@ export const rateRecipe = (
 ): Promise<RateResponse> => {
   return fetch(`${BASE_URL}/recipes/${id}/rate`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rating, userId }),
   }).then(handleResponse<RateResponse>);
 };
@@ -64,9 +62,7 @@ export const addComment = (
 ): Promise<Comment> => {
   return fetch(`${BASE_URL}/recipes/${recipeId}/comments`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(comment),
   }).then(handleResponse<Comment>);
 };

@@ -7,7 +7,7 @@ export interface RecipeAuthor {
 export interface Ingredient {
   name: string;
   amount: string;
-  prepared: boolean;
+  prepared: string;
 }
 
 export interface Step {
@@ -20,6 +20,7 @@ export interface Recipe {
   title: string;
   description: string;
   image: string;
+  category: string;
   author: RecipeAuthor;
   ingredients: Ingredient[];
   steps: Step[];
@@ -41,8 +42,10 @@ export interface Comment {
 }
 
 export interface RecipeListResponse {
-  recipes: Recipe[];
   total: number;
+  page: number;
+  limit: number;
+  data: Recipe[];
 }
 
 export interface RateResponse {
