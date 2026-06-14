@@ -34,6 +34,11 @@ export interface ResourceNode extends PhysicsBody {
   collectRadius: number;
 }
 
+export interface StarfieldUpdateResult {
+  newlyCollecting: ResourceNode[];
+  justCompleted: ResourceNode[];
+}
+
 export class Starfield {
   private width: number;
   private height: number;
@@ -169,7 +174,7 @@ export class Starfield {
     };
   }
 
-  update(dt: number, shipPosition: Vector2): ResourceNode[] {
+  update(dt: number, shipPosition: Vector2): StarfieldUpdateResult {
     for (const planet of this.planets) {
       planet.angle += planet.angularSpeed * dt;
       this.updatePlanetPosition(planet);
@@ -180,20 +185,23 @@ export class Starfield {
 
       if (node.shrinking) {
         node.shrinkProgress += dt / 0.3;
-        node.radius = 10 * (1 - node.shrinkProgress);
+        node.radius = 10 * Math.max(0, 1 - node.shrinkProgress);
         if (node.shrinkProgress >= 1) {
           node.collected = true;
         }
       }
     }
 
+    const result = this.checkCollection(shipPosition, dt);
+
     this.resourceNodes = this.resourceNodes.filter(n => !n.collected);
 
-    return this.checkCollection(shipPosition);
+    return result;
   }
 
-  private checkCollection(shipPosition: Vector2): ResourceNode[] {
+  private checkCollection(shipPosition: Vector2, dt: number): StarfieldUpdateResult {
     const newlyCollecting: ResourceNode[] = [];
+    const justCompleted: ResourceNode[] = [];
 
     for (const node of this.resourceNodes) {
       if (node.shrinking) continue;
@@ -204,11 +212,13 @@ export class Starfield {
           node.isCollecting = true;
           newlyCollecting.push(node);
         }
-        node.collectProgress += (100 / 2) * (1 / 60);
+        node.collectProgress += (100 / 2) * dt;
 
         if (node.collectProgress >= 100) {
+          node.isCollecting = false;
           node.shrinking = true;
           node.shrinkProgress = 0;
+          justCompleted.push(node);
         }
       } else {
         if (node.isCollecting) {
@@ -218,7 +228,7 @@ export class Starfield {
       }
     }
 
-    return newlyCollecting;
+    return { newlyCollecting, justCompleted };
   }
 
   getStars(): Star[] {

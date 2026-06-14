@@ -21,7 +21,8 @@ export class UI {
   private height: number;
   private state: UIState;
   private dashOffset: number = 0;
-  private dashPatterns: number[] = [];
+  private dashLength: number = 10;
+  private dashGap: number = 10;
 
   constructor(ctx: CanvasRenderingContext2D, width: number, height: number) {
     this.ctx = ctx;
@@ -40,9 +41,12 @@ export class UI {
       fuelBlinkState: true
     };
 
-    for (let i = 0; i < 50; i++) {
-      this.dashPatterns.push(8 + Math.random() * 4);
-    }
+    this.regenDashPattern();
+  }
+
+  private regenDashPattern(): void {
+    this.dashLength = 8 + Math.random() * 4;
+    this.dashGap = 8 + Math.random() * 4;
   }
 
   getState(): UIState {

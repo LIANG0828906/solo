@@ -8,6 +8,7 @@ export interface PhysicsBody {
   velocity: Vector2;
   mass: number;
   radius: number;
+  readonly _physicsId?: number;
 }
 
 export interface GravitySource {
@@ -186,9 +187,17 @@ export const Vector2Utils = {
 export class PhysicsEngine {
   private spatialHash: SpatialHash;
   private gravitySources: GravitySource[] = [];
+  private bodyIdCounter: number = 0;
 
   constructor() {
     this.spatialHash = new SpatialHash(CELL_SIZE);
+  }
+
+  private ensureBodyId(body: PhysicsBody): number {
+    if (body._physicsId === undefined) {
+      (body as PhysicsBody & { _physicsId: number })._physicsId = ++this.bodyIdCounter;
+    }
+    return body._physicsId;
   }
 
   setGravitySources(sources: GravitySource[]): void {
@@ -263,12 +272,14 @@ export class PhysicsEngine {
   rebuildSpatialHash(bodies: PhysicsBody[]): void {
     this.spatialHash.clear();
     for (const body of bodies) {
+      this.ensureBodyId(body);
       this.spatialHash.insert(body);
     }
   }
 
   getPotentialCollisions(body: PhysicsBody): PhysicsBody[] {
-    return this.spatialHash.queryRange(body.position, body.radius + 50, body);
+    this.ensureBodyId(body);
+    return this.spatialHash.queryRange(body.position, body.radius + CELL_SIZE, body);
   }
 
   detectCollisions(bodies: PhysicsBody[]): Array<{ a: PhysicsBody; b: PhysicsBody; result: CollisionResult }> {
@@ -277,13 +288,16 @@ export class PhysicsEngine {
     const checked = new Set<string>();
 
     for (const body of bodies) {
-      const nearby = this.spatialHash.queryRange(body.position, body.radius + 50, body);
-      for (const other of nearby) {
-        const key = body === bodies[0] ? `${bodies.indexOf(body)}-${nearby.indexOf(other)}` : `${nearby.indexOf(other)}-${bodies.indexOf(body)}`;
-        const pairKey = bodies.indexOf(body) < bodies.indexOf(other)
-          ? `${bodies.indexOf(body)}:${bodies.indexOf(other)}`
-          : `${bodies.indexOf(other)}:${bodies.indexOf(body)}`;
+      this.ensureBodyId(body);
+      const nearby = this.spatialHash.queryRange(body.position, body.radius + CELL_SIZE, body);
 
+      for (const other of nearby) {
+        this.ensureBodyId(other);
+        const idA = body._physicsId!;
+        const idB = other._physicsId!;
+        if (idA === idB) continue;
+
+        const pairKey = idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
         if (checked.has(pairKey)) continue;
         checked.add(pairKey);
 
@@ -299,6 +313,14 @@ export class PhysicsEngine {
 
   getSpatialHash(): SpatialHash {
     return this.spatialHash;
+  }
+
+  debugGetGridStats(): { cellSize: number; totalCells: number; totalBodies: number } {
+    return {
+      cellSize: CELL_SIZE,
+      totalCells: (this.spatialHash as SpatialHash & { cells: Map<string, PhysicsBody[]> }).cells.size,
+      totalBodies: this.bodyIdCounter
+    };
   }
 
   static normalizeAngle(angle: number): number {

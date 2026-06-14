@@ -134,8 +134,11 @@ export class Ship implements PhysicsBody {
     const target = this.getCurrentTarget();
     let acceleration = Vector2Utils.create();
 
-    this.isTurning = false;
-    this.isAccelerating = false;
+    let wantsTurn = false;
+    let wantsAccelerate = false;
+    let turnDirection = 0;
+    let turnAmount = 0;
+    let accelDirection: Vector2 | null = null;
 
     if (target) {
       const toTarget = Vector2Utils.sub(target, this.position);
@@ -145,17 +148,15 @@ export class Ship implements PhysicsBody {
       const angleDiff = PhysicsEngine.getShortestAngle(this.angle, targetAngle);
       const absAngleDiff = Math.abs(angleDiff);
 
-      if (absAngleDiff > 0.05 && this.fuel > 0) {
-        this.isTurning = true;
-        const turnDirection = Math.sign(angleDiff);
-        const turnAmount = Math.min(this.maxTurnSpeed * dt, absAngleDiff);
-        this.angle += turnDirection * turnAmount;
+      if (absAngleDiff > 0.05) {
+        wantsTurn = true;
+        turnDirection = Math.sign(angleDiff);
+        turnAmount = Math.min(this.maxTurnSpeed * dt, absAngleDiff);
       }
 
-      if (distanceToTarget > 5 && this.fuel > 0) {
-        this.isAccelerating = true;
-        const accelDirection = Vector2Utils.fromAngle(this.angle);
-        acceleration = Vector2Utils.mul(accelDirection, this.maxAcceleration);
+      if (distanceToTarget > 5) {
+        wantsAccelerate = true;
+        accelDirection = Vector2Utils.fromAngle(this.angle);
       } else {
         if (this.waypoints.length > 0 && this.currentWaypointIndex < this.waypoints.length - 1) {
           this.currentWaypointIndex++;
@@ -167,30 +168,49 @@ export class Ship implements PhysicsBody {
       }
     }
 
-    this.consumeFuel(dt);
+    this.isTurning = wantsTurn && this.fuel > 0;
+    this.isAccelerating = wantsAccelerate && this.fuel > 0;
+
+    if (this.isTurning) {
+      this.angle += turnDirection * turnAmount;
+    }
+
+    if (this.isAccelerating && accelDirection) {
+      acceleration = Vector2Utils.mul(accelDirection, this.maxAcceleration);
+    }
+
+    this.deductFuel(dt);
     this.updateParticles(dt);
     this.updateRipples(dt);
     this.boundaryCheck(worldWidth, worldHeight);
 
-    return { acceleration };
-  }
-
-  private consumeFuel(dt: number): void {
-    if (this.isRefueling) {
-      this.fuel = Math.min(this.maxFuel, this.fuel + this.refuelRate * dt);
-      this.isRefueling = false;
-    } else {
-      if (this.isAccelerating) {
-        this.fuel = Math.max(0, this.fuel - this.accelerationConsumption * dt);
-      }
-      if (this.isTurning) {
-        this.fuel = Math.max(0, this.fuel - this.turnConsumption * dt);
-      }
-    }
-
     if (this.fuel <= 0) {
       this.isAccelerating = false;
       this.isTurning = false;
+    }
+
+    return { acceleration };
+  }
+
+  private deductFuel(dt: number): void {
+    if (this.isRefueling) {
+      this.fuel = Math.min(this.maxFuel, this.fuel + this.refuelRate * dt);
+      this.isRefueling = false;
+      return;
+    }
+
+    if (this.fuel <= 0) return;
+
+    let consumption = 0;
+    if (this.isAccelerating) {
+      consumption += this.accelerationConsumption * dt;
+    }
+    if (this.isTurning) {
+      consumption += this.turnConsumption * dt;
+    }
+
+    if (consumption > 0) {
+      this.fuel = Math.max(0, this.fuel - consumption);
     }
   }
 
