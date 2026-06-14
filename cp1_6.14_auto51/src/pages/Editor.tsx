@@ -24,6 +24,24 @@ import moment from 'moment';
 
 const platforms: Platform[] = ['weibo', 'wechat', 'douyin', 'bilibili'];
 
+interface ToolbarButtonProps {
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}
+
+function ToolbarButton({ onClick, title, children }: ToolbarButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -104,7 +122,8 @@ export default function Editor() {
   };
 
   const generateSummary = async () => {
-    if (!content || content.trim().length === 0) {
+    const plainContent = content.replace(/<[^>]*>/g, '').trim();
+    if (!plainContent || plainContent.length === 0) {
       setToast({ message: '请先输入内容', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
@@ -112,7 +131,7 @@ export default function Editor() {
 
     try {
       setIsGenerating(true);
-      const result = await aiApi.generateSummary(content.replace(/<[^>]*>/g, ''));
+      const result = await aiApi.generateSummary(plainContent);
       setSummary(result.summary);
     } catch (error) {
       console.error('Failed to generate summary:', error);
@@ -301,3 +320,75 @@ export default function Editor() {
                       onChange={(e) => setScheduledDate(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    发布时间
+                  </label>
+                  <div className="relative">
+                    <Clock
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">内容摘要</h3>
+                <button
+                  onClick={generateSummary}
+                  disabled={isGenerating}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                    isGenerating
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-md hover:-translate-y-0.5'
+                  }`}
+                >
+                  <Sparkles size={14} className={isGenerating ? 'animate-spin' : ''} />
+                  {isGenerating ? '生成中...' : 'AI生成'}
+                </button>
+              </div>
+
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="输入内容摘要，或点击上方按钮由AI自动生成..."
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-1">
+                {isSummaryOverLimit && (
+                  <>
+                    <AlertCircle size={14} className="text-red-500" />
+                    <span className="text-xs text-red-500">超过100字限制</span>
+                  </>
+                )}
+                </div>
+                <span
+                  className={`text-xs font-medium ${
+                    isSummaryOverLimit ? 'text-red-500' : 'text-gray-400'
+                  }`}
+                >
+                  {summaryLength}/100
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
