@@ -60,19 +60,28 @@ const colors = [
 ];
 
 export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
   return emailRegex.test(email);
 }
 
 export function validatePassword(password: string): { valid: boolean; message: string } {
-  if (password.length < 6) {
-    return { valid: false, message: '密码长度至少6位' };
+  if (!password || password.length < 8) {
+    return { valid: false, message: '密码长度至少8位' };
   }
-  if (!/[A-Za-z]/.test(password)) {
-    return { valid: false, message: '密码必须包含至少一个字母' };
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: '密码必须包含至少一个小写字母' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: '密码必须包含至少一个大写字母' };
   }
   if (!/[0-9]/.test(password)) {
     return { valid: false, message: '密码必须包含至少一个数字' };
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return { valid: false, message: '密码必须包含至少一个特殊字符' };
+  }
+  if (password.length > 64) {
+    return { valid: false, message: '密码长度不能超过64位' };
   }
   return { valid: true, message: '' };
 }
