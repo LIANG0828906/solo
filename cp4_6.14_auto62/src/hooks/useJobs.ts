@@ -1,22 +1,51 @@
-import { useEffect } from 'react'
-import { useAppStore } from '@/store'
+import { useState, useEffect, useCallback } from 'react'
+import api from '@/api'
+import type { Job } from '@shared/types'
 
-export function useJobs() {
-  const jobs = useAppStore((s) => s.jobs)
-  const loading = useAppStore((s) => s.loading)
-  const fetchJobs = useAppStore((s) => s.fetchJobs)
-  const createJob = useAppStore((s) => s.createJob)
+interface UseJobsOptions {
+  fetchFn?: () => Promise<Job[]>
+  autoFetch?: boolean
+}
 
-  useEffect(() => {
-    if (jobs.length === 0) {
-      fetchJobs()
+export function useJobs(options: UseJobsOptions = {}) {
+  const { fetchFn, autoFetch = true } = options
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchJobs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = fetchFn ? await fetchFn() : await api.getJobs()
+      setJobs(data)
+    } finally {
+      setLoading(false)
+    }
+  }, [fetchFn])
+
+  const createJob = useCallback(async (job: Omit<Job, 'id' | 'createdAt'>) => {
+    setLoading(true)
+    try {
+      const newJob = await api.createJob(job)
+      setJobs((prev) => [...prev, newJob])
+      return newJob
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (autoFetch) {
+      fetchJobs()
+    }
+  }, [autoFetch, fetchJobs])
 
   return {
     jobs,
     loading,
     fetchJobs,
     createJob,
+    setJobs,
   }
 }
+
+export default useJobs

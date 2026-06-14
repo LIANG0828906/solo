@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar, Clock, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Clock, User, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import RippleButton from './RippleButton'
 
