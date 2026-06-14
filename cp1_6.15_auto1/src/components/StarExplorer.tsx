@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PLANETS,
@@ -7,6 +7,8 @@ import {
   getRarityColor,
   getRarityLabel,
   formatTime,
+  loadCooldownsFromStorage,
+  saveCooldownsToStorage,
   type Planet,
   type Seed
 } from '../utils/gameData';
@@ -27,6 +29,18 @@ export default function StarExplorer({ onSeedsCollected }: StarExplorerProps) {
   const [exploreResult, setExploreResult] = useState<ExploreResult | null>(null);
   const [now, setNow] = useState(Date.now());
   const [exploringPlanet, setExploringPlanet] = useState<string | null>(null);
+  const cooldownsRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const savedCooldowns = loadCooldownsFromStorage();
+    setCooldowns(savedCooldowns);
+    cooldownsRef.current = savedCooldowns;
+  }, []);
+
+  useEffect(() => {
+    cooldownsRef.current = cooldowns;
+    saveCooldownsToStorage(cooldowns);
+  }, [cooldowns]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,8 +50,10 @@ export default function StarExplorer({ onSeedsCollected }: StarExplorerProps) {
   }, []);
 
   const handleExplore = useCallback((planet: Planet) => {
-    const cooldownEnd = cooldowns[planet.id] || 0;
-    if (now < cooldownEnd) return;
+    const currentCooldowns = cooldownsRef.current;
+    const cooldownEnd = currentCooldowns[planet.id] || 0;
+    const currentTime = Date.now();
+    if (currentTime < cooldownEnd) return;
 
     setExploringPlanet(planet.id);
 
@@ -49,13 +65,19 @@ export default function StarExplorer({ onSeedsCollected }: StarExplorerProps) {
         seeds,
         timestamp: Date.now()
       });
-      setCooldowns(prev => ({
-        ...prev,
-        [planet.id]: Date.now() + planet.exploreCooldown
-      }));
+      const newCooldownEnd = Date.now() + planet.exploreCooldown;
+      setCooldowns(prev => {
+        const updated = {
+          ...prev,
+          [planet.id]: newCooldownEnd
+        };
+        cooldownsRef.current = updated;
+        saveCooldownsToStorage(updated);
+        return updated;
+      });
       setExploringPlanet(null);
     }, 1500);
-  }, [cooldowns, now, onSeedsCollected]);
+  }, [onSeedsCollected]);
 
   const getCooldownPercent = (planet: Planet): number => {
     const cooldownEnd = cooldowns[planet.id] || 0;

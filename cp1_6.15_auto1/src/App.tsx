@@ -109,6 +109,22 @@ export default function App() {
     return rewards;
   }, [plantedPlants]);
 
+  const handleRemovePlant = useCallback((plantId: string) => {
+    setPlantedPlants(prev => prev.filter(p => p.id !== plantId));
+  }, []);
+
+  const handleTransplant = useCallback((plantId: string, newGridIndex: number) => {
+    setPlantedPlants(prev => {
+      const isOccupied = prev.some(p => p.gridIndex === newGridIndex);
+      if (isOccupied) return prev;
+      return prev.map(p =>
+        p.id === plantId
+          ? { ...p, gridIndex: newGridIndex }
+          : p
+      );
+    });
+  }, []);
+
   const expProgress = (exp / getExpForLevel(level)) * 100;
 
   return (
@@ -264,6 +280,8 @@ export default function App() {
                   currentPlanetType={currentPlanetType}
                   onPlantSeed={handlePlantSeed}
                   onHarvest={handleHarvest}
+                  onRemovePlant={handleRemovePlant}
+                  onTransplant={handleTransplant}
                 />
               </motion.div>
             )}
