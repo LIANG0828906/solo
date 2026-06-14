@@ -1,19 +1,6 @@
 import { create } from 'zustand';
-import type {
-  Client,
-  Exercise,
-  TrainingPlan,
-  Session,
-  BaselineScores,
-  SelfAssessment,
-  AdjustRequest,
-} from '@/shared/types';
-import {
-  clientApi,
-  exerciseApi,
-  trainingPlanApi,
-  sessionApi,
-} from '@client/shared/api/client';
+import api from '../api/client';
+import type { Client, Exercise, TrainingPlan, Session } from '../../../shared/types';
 
 interface AppState {
   clients: Client[];
@@ -21,27 +8,11 @@ interface AppState {
   currentPlan: TrainingPlan | null;
   currentSession: Session | null;
   sidebarOpen: boolean;
-
   setSidebarOpen: (open: boolean) => void;
-  toggleSidebar: () => void;
-
   fetchClients: () => Promise<void>;
+  fetchExercises: (params?: { muscleGroup?: string; search?: string }) => Promise<void>;
   createClient: (data: Omit<Client, 'id' | 'createdAt'>) => Promise<Client>;
-  updateBaseline: (id: string, baseline: BaselineScores) => Promise<void>;
-
-  fetchExercises: () => Promise<void>;
   createExercise: (data: Omit<Exercise, 'id'>) => Promise<Exercise>;
-  updateExercise: (id: string, data: Partial<Omit<Exercise, 'id'>>) => Promise<void>;
-
-  fetchClientPlan: (clientId: string) => Promise<void>;
-  createPlan: (data: Omit<TrainingPlan, 'id' | 'createdAt'>) => Promise<TrainingPlan>;
-  updatePlan: (id: string, data: Partial<Omit<TrainingPlan, 'id' | 'createdAt'>>) => Promise<void>;
-  adjustPlan: (id: string, data: AdjustRequest) => Promise<void>;
-
-  fetchTodaySession: (clientId: string) => Promise<void>;
-  fetchSession: (id: string) => Promise<void>;
-  recordSession: (data: Omit<Session, 'id'>) => Promise<Session>;
-  submitSelfAssessment: (sessionId: string, data: SelfAssessment) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -50,85 +21,34 @@ export const useAppStore = create<AppState>((set) => ({
   currentPlan: null,
   currentSession: null,
   sidebarOpen: false,
-
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
   fetchClients: async () => {
-    const clients = await clientApi.getClients();
-    set({ clients });
+    try {
+      const res = await api.get<Client[]>('/clients');
+      set({ clients: res.data });
+    } catch { /* ignore */ }
+  },
+
+  fetchExercises: async (params) => {
+    try {
+      const query = new URLSearchParams();
+      if (params?.muscleGroup) query.set('muscleGroup', params.muscleGroup);
+      if (params?.search) query.set('search', params.search);
+      const res = await api.get<Exercise[]>(`/exercises${query.toString() ? `?${query.toString()}` : ''}`);
+      set({ exercises: res.data });
+    } catch { /* ignore */ }
   },
 
   createClient: async (data) => {
-    const client = await clientApi.createClient(data);
-    set((s) => ({ clients: [...s.clients, client] }));
-    return client;
-  },
-
-  updateBaseline: async (id, baseline) => {
-    const updated = await clientApi.updateBaseline(id, baseline);
-    set((s) => ({
-      clients: s.clients.map((c) => (c.id === id ? updated : c)),
-    }));
-  },
-
-  fetchExercises: async () => {
-    const exercises = await exerciseApi.getExercises();
-    set({ exercises });
+    const res = await api.post<Client>('/clients', data);
+    set((state) => ({ clients: [...state.clients, res.data] }));
+    return res.data;
   },
 
   createExercise: async (data) => {
-    const exercise = await exerciseApi.createExercise(data);
-    set((s) => ({ exercises: [...s.exercises, exercise] }));
-    return exercise;
-  },
-
-  updateExercise: async (id, data) => {
-    const updated = await exerciseApi.updateExercise(id, data);
-    set((s) => ({
-      exercises: s.exercises.map((e) => (e.id === id ? updated : e)),
-    }));
-  },
-
-  fetchClientPlan: async (clientId) => {
-    const currentPlan = await trainingPlanApi.getClientPlan(clientId);
-    set({ currentPlan });
-  },
-
-  createPlan: async (data) => {
-    const plan = await trainingPlanApi.createPlan(data);
-    set({ currentPlan: plan });
-    return plan;
-  },
-
-  updatePlan: async (id, data) => {
-    const updated = await trainingPlanApi.updatePlan(id, data);
-    set({ currentPlan: updated });
-  },
-
-  adjustPlan: async (id, data) => {
-    const updated = await trainingPlanApi.adjustPlan(id, data);
-    set({ currentPlan: updated });
-  },
-
-  fetchTodaySession: async (clientId) => {
-    const currentSession = await sessionApi.getTodaySession(clientId);
-    set({ currentSession });
-  },
-
-  fetchSession: async (id) => {
-    const currentSession = await sessionApi.getSession(id);
-    set({ currentSession });
-  },
-
-  recordSession: async (data) => {
-    const session = await sessionApi.recordSession(data);
-    set({ currentSession: session });
-    return session;
-  },
-
-  submitSelfAssessment: async (sessionId, data) => {
-    const updated = await sessionApi.submitSelfAssessment(sessionId, data);
-    set({ currentSession: updated });
+    const res = await api.post<Exercise>('/exercises', data);
+    set((state) => ({ exercises: [...state.exercises, res.data] }));
+    return res.data;
   },
 }));

@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, MapPin, Target } from 'lucide-react';
-import api from '@/client/api';
-import { cn } from '@/lib/utils';
+import api from '@/client/shared/api/client';
+import { cn } from '@/client/shared/utils/cn';
+import type { AxiosResponse } from 'axios';
 import type { Client, GoalType, LocationType } from '@/shared/types';
 
 const GOAL_LABELS: Record<GoalType, string> = {
@@ -25,7 +26,7 @@ export default function ClientList() {
 
   useEffect(() => {
     api.get<Client[]>('/clients')
-      .then(res => setClients(res.data))
+      .then((res: AxiosResponse<Client[]>) => setClients(res.data))
       .catch(() => setClients([]));
   }, []);
 

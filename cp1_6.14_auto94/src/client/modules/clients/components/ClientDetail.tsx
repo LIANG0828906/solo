@@ -4,7 +4,8 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer,
 } from 'recharts';
 import { ArrowLeft, Save } from 'lucide-react';
-import api from '@/client/api';
+import api from '@/client/shared/api/client';
+import type { AxiosResponse } from 'axios';
 import type { Client, BaselineScores, GoalType, LocationType } from '@/shared/types';
 import { BASELINE_QUESTIONS } from '@/shared/types';
 
@@ -32,7 +33,7 @@ export default function ClientDetail() {
   useEffect(() => {
     if (!id) return;
     api.get<Client>(`/clients/${id}`)
-      .then(res => {
+      .then((res: AxiosResponse<Client>) => {
         setClient(res.data);
         setScores(res.data.baselineScores);
       })

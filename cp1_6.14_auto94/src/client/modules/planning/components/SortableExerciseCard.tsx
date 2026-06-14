@@ -42,7 +42,7 @@ export default function SortableExerciseCard({
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'transform 0.3s ease-out, opacity 0.25s ease-out',
     opacity: isSortableDragging ? 0.3 : 1,
   };
 
@@ -50,34 +50,35 @@ export default function SortableExerciseCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`card rounded-xl p-4 mb-3 flex items-center gap-3 transition-shadow ${
+      className={`card rounded-xl p-4 mb-3 flex items-center gap-3 m-0 ${
         isSortableDragging
-          ? 'border-2 border-dashed border-gray-300 bg-gray-50'
-          : 'bg-white shadow hover:shadow-md'
+          ? 'dragging-placeholder pointer-events-none'
+          : ''
       }`}
     >
       <button
-        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none p-1 rounded-lg hover:bg-gray-50 transition-colors"
         {...attributes}
         {...listeners}
+        aria-label="拖拽排序"
       >
         <GripVertical size={20} />
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-gray-900 truncate">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="font-semibold text-gray-900 truncate">
             {exercise.name}
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+          <span className="badge badge-blue">
             {exercise.muscleGroup}
           </span>
           {exercise.adjustment && (
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-help ${
+              className={`badge cursor-help ${
                 exercise.adjustment.type === 'reduced'
-                  ? 'bg-red-50 text-red-700'
-                  : 'bg-green-50 text-green-700'
+                  ? 'badge-red'
+                  : 'badge-green'
               }`}
               title={exercise.adjustment.reason}
             >
@@ -86,7 +87,7 @@ export default function SortableExerciseCard({
           )}
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>
+          <span className="font-medium">
             {exercise.sets}组 × {exercise.reps}次
           </span>
           <span>休息 {exercise.restSeconds}秒</span>
@@ -94,16 +95,18 @@ export default function SortableExerciseCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 shrink-0">
         <button
-          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
           onClick={() => onEdit(exercise.exerciseId)}
+          aria-label="编辑动作"
         >
           <Pencil size={16} />
         </button>
         <button
-          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+          className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
           onClick={() => onDelete(exercise.exerciseId)}
+          aria-label="删除动作"
         >
           <Trash2 size={16} />
         </button>
@@ -118,27 +121,21 @@ export function DragOverlayCard({
   exercise: PlanExerciseWithDetails;
 }) {
   return (
-    <div
-      className="rounded-xl p-4 mb-3 flex items-center gap-3 bg-white shadow-lg"
-      style={{
-        opacity: 0.7,
-        transform: 'scale(1.02)',
-      }}
-    >
-      <div className="cursor-grab text-gray-400">
+    <div className="drag-overlay card rounded-xl p-4 mb-3 flex items-center gap-3 m-0 pointer-events-none">
+      <div className="cursor-grab text-gray-400 p-1">
         <GripVertical size={20} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-gray-900 truncate">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="font-semibold text-gray-900 truncate">
             {exercise.name}
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+          <span className="badge badge-blue">
             {exercise.muscleGroup}
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>
+          <span className="font-medium">
             {exercise.sets}组 × {exercise.reps}次
           </span>
           <span>休息 {exercise.restSeconds}秒</span>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, CalendarCheck, TrendingUp, ClipboardList, Plus, FileText, BarChart3 } from 'lucide-react';
-import api from '@/client/api';
-import { cn } from '@/lib/utils';
+import api from '@/client/shared/api/client';
+import { cn } from '@/client/shared/utils/cn';
+import type { AxiosResponse } from 'axios';
 
 interface DashboardData {
   totalClients: number;
@@ -26,7 +27,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get<DashboardData>('/dashboard')
-      .then(res => setData(res.data))
+      .then((res: AxiosResponse<DashboardData>) => setData(res.data))
       .catch(() => {
         setData({
           totalClients: 12,

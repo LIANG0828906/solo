@@ -31,14 +31,21 @@ function determineDifficulty(squat: number, pushup: number, plank: number, flexi
 router.post('/', async (req, res) => {
   try {
     const db = await getDb();
-    const { clientId, days, duration, focusAreas } = req.body as {
+    const body = req.body as {
       clientId: string;
-      days: number[];
+      days?: number[];
+      trainingDays?: number[];
       duration: number;
       focusAreas: string[];
+      weekStart?: string;
     };
+    const clientId = body.clientId;
+    const days = body.days || body.trainingDays || [];
+    const duration = body.duration;
+    const focusAreas = body.focusAreas || [];
+    const weekStart = body.weekStart;
 
-    if (!clientId || !days || !Array.isArray(days) || days.length === 0) {
+    if (!clientId || !Array.isArray(days) || days.length === 0) {
       res.status(400).json({ error: '缺少必填字段：clientId 和 days' });
       return;
     }
@@ -122,7 +129,7 @@ router.post('/', async (req, res) => {
     const plan: TrainingPlan = {
       id: uuidv4(),
       clientId,
-      weekStart: new Date().toISOString().split('T')[0],
+      weekStart: weekStart || new Date().toISOString().split('T')[0],
       days: planDays,
       createdAt: new Date().toISOString(),
     };

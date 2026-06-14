@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Search, ChevronDown, Star, Plus, Video } from 'lucide-react';
-import api from '@/client/api';
-import { cn } from '@/lib/utils';
+import api from '@/client/shared/api/client';
+import { cn } from '@/client/shared/utils/cn';
+import type { AxiosResponse } from 'axios';
 import type { Exercise, DifficultyLevel } from '@/shared/types';
 import { MUSCLE_GROUPS } from '@/shared/types';
 
@@ -43,7 +44,7 @@ export default function ExerciseLibrary() {
 
   useEffect(() => {
     api.get<Exercise[]>('/exercises')
-      .then(res => setExercises(res.data))
+      .then((res: AxiosResponse<Exercise[]>) => setExercises(res.data))
       .catch(() => setExercises([]));
   }, []);
 
