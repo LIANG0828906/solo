@@ -37,10 +37,14 @@ function getSevenDaysLaterStr() {
 }
 
 function computeStatus(expiryDate) {
-  const today = getTodayStr();
-  const sevenDaysLater = getSevenDaysLaterStr();
-  if (expiryDate < today) return '已过期';
-  if (expiryDate <= sevenDaysLater) return '即将到期';
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+  const diffMs = expiry.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return '已过期';
+  if (diffDays <= 7) return '即将到期';
   return '有效';
 }
 
@@ -91,19 +95,29 @@ function createSeedCourses() {
 let members = createSeedMembers();
 let courses = createSeedCourses();
 
-const STATUS_ORDER = {
-  '已过期': 0,
-  '即将到期': 1,
-  '有效': 2,
+function getDaysDiff(expiryDate) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+  const diffMs = expiry.getTime() - now.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+const SORT_PRIORITY = {
+  '即将到期': 0,
+  '有效': 1,
+  '已过期': 2,
 };
 
 app.get('/api/members', (req, res) => {
   const result = members
     .map(m => ({ ...m, status: computeStatus(m.expiryDate) }))
     .sort((a, b) => {
-      const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-      if (statusDiff !== 0) return statusDiff;
-      return new Date(a.expiryDate) - new Date(b.expiryDate);
+      const pa = SORT_PRIORITY[a.status];
+      const pb = SORT_PRIORITY[b.status];
+      if (pa !== pb) return pa - pb;
+      return getDaysDiff(a.expiryDate) - getDaysDiff(b.expiryDate);
     });
   res.json({ success: true, data: result });
 });
