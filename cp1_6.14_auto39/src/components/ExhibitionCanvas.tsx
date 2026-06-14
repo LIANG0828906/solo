@@ -11,8 +11,9 @@ interface ExhibitionCanvasProps {
   onPlaceArtwork: (artworkId: string, wall: WallType, posX: number, posY: number) => void
   onUpdateArtwork: (id: string, updates: Partial<PlacedArtwork>) => void
   onDeleteArtwork: (id: string) => void
+  isDragging: boolean
   dragArtwork: Artwork | null
-  onDragEnd: () => void
+  dragScreenPos: { x: number; y: number } | null
   cameraView: string
   lowQuality?: boolean
 }
@@ -324,7 +325,11 @@ function SnapIndicator({
         <planeGeometry args={[baseWidth, baseHeight]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
       </mesh>
-      <mesh position={[0, baseHeight / 2 + 0.02, 0.006]}>
+      <mesh position={[0, baseHeight / 2 + 0.15, 0.006]}>
+        <planeGeometry args={[baseWidth + 0.5, 0.03]} />
+        <meshBasicMaterial color="#d4a574" transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[0, -baseHeight / 2 - 0.15, 0.006]}>
         <planeGeometry args={[baseWidth + 0.5, 0.03]} />
         <meshBasicMaterial color="#d4a574" transparent opacity={0.8} />
       </mesh>
@@ -332,89 +337,14 @@ function SnapIndicator({
   )
 }
 
-function OrbitControlsSimulator({
-  targetPosRef,
-  targetLookAtRef,
-  isFreeMode
-}: {
-  targetPosRef: React.MutableRefObject<THREE.Vector3>
-  targetLookAtRef: React.MutableRefObject<THREE.Vector3>
-  isFreeMode: boolean
-}) {
-  const { gl } = useThree()
-  const isDragging = useRef(false)
-  const previousMouse = useRef({ x: 0, y: 0 })
-  const spherical = useRef({
-    radius: 12,
-    theta: 0,
-    phi: Math.PI / 3
-  })
-  const lookAt = useRef(new THREE.Vector3(0, 2, 0))
-
-  useEffect(() => {
-    const canvas = gl.domElement
-
-    const onPointerDown = (e: PointerEvent) => {
-      isDragging.current = true
-      previousMouse.current = { x: e.clientX, y: e.clientY }
-      canvas.setPointerCapture(e.pointerId)
-    }
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!isDragging.current || !isFreeMode) return
-      const deltaX = e.clientX - previousMouse.current.x
-      const deltaY = e.clientY - previousMouse.current.y
-      previousMouse.current = { x: e.clientX, y: e.clientY }
-
-      spherical.current.theta -= deltaX * 0.01
-      spherical.current.phi = Math.max(0.2, Math.min(Math.PI / 2 + 0.3, spherical.current.phi - deltaY * 0.01))
-      updateFromSpherical()
-    }
-
-    const onPointerUp = (e: PointerEvent) => {
-      isDragging.current = false
-      canvas.releasePointerCapture(e.pointerId)
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      spherical.current.radius = Math.max(4, Math.min(20, spherical.current.radius + e.deltaY * 0.01))
-      updateFromSpherical()
-    }
-
-    const updateFromSpherical = () => {
-      const x = spherical.current.radius * Math.sin(spherical.current.phi) * Math.sin(spherical.current.theta)
-      const y = spherical.current.radius * Math.cos(spherical.current.phi)
-      const z = spherical.current.radius * Math.sin(spherical.current.phi) * Math.cos(spherical.current.theta)
-
-      targetPosRef.current.set(x, y + 2, z)
-      targetLookAtRef.current.copy(lookAt.current)
-    }
-
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
-    canvas.addEventListener('wheel', onWheel, { passive: false })
-
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointercancel', onPointerUp)
-      canvas.removeEventListener('wheel', onWheel)
-    }
-  }, [gl.domElement, isFreeMode, targetPosRef, targetLookAtRef])
-
-  return null
-}
-
 function Scene({
   placedArtworks,
   artworks,
   selectedId,
   onSelect,
+  isDragging,
   dragArtwork,
+  dragScreenPos,
   cameraView,
   onPlaceArtwork,
   onUpdateArtwork,
@@ -425,24 +355,33 @@ function Scene({
   artworks: Artwork[]
   selectedId: string | null
   onSelect: (id: string | null) => void
+  isDragging: boolean
   dragArtwork: Artwork | null
+  dragScreenPos: { x: number; y: number } | null
   cameraView: string
   onPlaceArtwork: (artworkId: string, wall: WallType, posX: number, posY: number) => void
   onUpdateArtwork: (id: string, updates: Partial<PlacedArtwork>) => void
   onDeleteArtwork: (id: string) => void
   lowQuality: boolean
 }) {
-  const { camera, gl, raycaster } = useThree()
+  const { camera, gl, raycaster, size } = useThree()
   const targetPosRef = useRef(new THREE.Vector3(0, 2, 12))
   const targetLookAtRef = useRef(new THREE.Vector3(0, 2, 0))
   const [snapWall, setSnapWall] = useState<WallType | null>(null)
   const [snapPos, setSnapPos] = useState({ x: 0, y: 0 })
-  const [isDraggingOnCanvas, setIsDraggingOnCanvas] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const keysPressed = useRef<Set<string>>(new Set())
   const selectedIdRef = useRef(selectedId)
   const placedArtworksRef = useRef(placedArtworks)
   const lastUpdateTime = useRef(0)
+  const isDraggingRef = useRef(false)
+  const previousMouse = useRef({ x: 0, y: 0 })
+  const spherical = useRef({
+    radius: 12,
+    theta: 0,
+    phi: Math.PI / 3
+  })
+  const lookAt = useRef(new THREE.Vector3(0, 2, 0))
 
   useEffect(() => {
     selectedIdRef.current = selectedId
@@ -460,186 +399,195 @@ function Scene({
       case 'front':
         targetPosRef.current.set(0, 2.5, 12)
         targetLookAtRef.current.set(0, 2, 0)
+        spherical.current = { radius: 12, theta: 0, phi: Math.PI / 3 }
         break
       case 'left':
         targetPosRef.current.set(10, 2.5, 1)
         targetLookAtRef.current.set(0, 2, 0)
+        spherical.current = { radius: 10, theta: -Math.PI / 2, phi: Math.PI / 3 }
         break
       case 'right':
         targetPosRef.current.set(-10, 2.5, 1)
         targetLookAtRef.current.set(0, 2, 0)
+        spherical.current = { radius: 10, theta: Math.PI / 2, phi: Math.PI / 3 }
         break
       default:
         break
     }
   }, [cameraView])
 
-  useFrame(() => {
-    camera.position.lerp(targetPosRef.current, 0.08)
+  const updateFromSpherical = useCallback(() => {
+    const x = spherical.current.radius * Math.sin(spherical.current.phi) * Math.sin(spherical.current.theta)
+    const y = spherical.current.radius * Math.cos(spherical.current.phi)
+    const z = spherical.current.radius * Math.sin(spherical.current.phi) * Math.cos(spherical.current.theta)
+    targetPosRef.current.set(x, y + 2, z)
+    targetLookAtRef.current.copy(lookAt.current)
+  }, [])
 
-    const lookDir = new THREE.Vector3()
-    camera.getWorldDirection(lookDir)
-    const currentTarget = camera.position.clone().add(lookDir.multiplyScalar(10))
-    const lerpedTarget = currentTarget.lerp(targetLookAtRef.current, 0.08)
-    camera.lookAt(lerpedTarget)
+  useEffect(() => {
+    const canvas = gl.domElement
 
-    if (isEditing && selectedIdRef.current && keysPressed.current.size > 0) {
-      const now = performance.now()
-      if (now - lastUpdateTime.current > 16) {
-        lastUpdateTime.current = now
-        const step = 0.008
-        let dx = 0
-        let dy = 0
-
-        if (keysPressed.current.has('ArrowLeft')) dx -= step
-        if (keysPressed.current.has('ArrowRight')) dx += step
-        if (keysPressed.current.has('ArrowUp')) dy += step
-        if (keysPressed.current.has('ArrowDown')) dy -= step
-
-        if (dx !== 0 || dy !== 0) {
-          const current = placedArtworksRef.current.find(a => a.id === selectedIdRef.current)
-          if (current) {
-            onUpdateArtwork(selectedIdRef.current, {
-              positionX: current.positionX + dx,
-              positionY: current.positionY + dy
-            })
-          }
-        }
-      }
+    const onPointerDown = (e: PointerEvent) => {
+      if (isDragging || dragArtwork) return
+      isDraggingRef.current = true
+      previousMouse.current = { x: e.clientX, y: e.clientY }
+      canvas.setPointerCapture(e.pointerId)
     }
-  })
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      if (!dragArtwork) return
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current || cameraView !== 'free') return
+      const deltaX = e.clientX - previousMouse.current.x
+      const deltaY = e.clientY - previousMouse.current.y
+      previousMouse.current = { x: e.clientX, y: e.clientY }
 
-      const rect = gl.domElement.getBoundingClientRect()
-      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1
-      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      spherical.current.theta -= deltaX * 0.01
+      spherical.current.phi = Math.max(0.2, Math.min(Math.PI / 2 + 0.3, spherical.current.phi - deltaY * 0.01))
+      updateFromSpherical()
+    }
 
-      const mouseVec = new THREE.Vector2(ndcX, ndcY)
-      raycaster.setFromCamera(mouseVec, camera)
+    const onPointerUp = (e: PointerEvent) => {
+      isDraggingRef.current = false
+      canvas.releasePointerCapture(e.pointerId)
+    }
 
-      const wallsData = [
-        {
-          name: 'front' as WallType,
-          plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), -ROOM_SIZE / 2),
-          normal: new THREE.Vector3(0, 0, 1)
-        },
-        {
-          name: 'back' as WallType,
-          plane: new THREE.Plane(new THREE.Vector3(0, 0, -1), ROOM_SIZE / 2),
-          normal: new THREE.Vector3(0, 0, -1)
-        },
-        {
-          name: 'left' as WallType,
-          plane: new THREE.Plane(new THREE.Vector3(1, 0, 0), -ROOM_SIZE / 2),
-          normal: new THREE.Vector3(1, 0, 0)
-        },
-        {
-          name: 'right' as WallType,
-          plane: new THREE.Plane(new THREE.Vector3(-1, 0, 0), ROOM_SIZE / 2),
-          normal: new THREE.Vector3(-1, 0, 0)
-        }
-      ]
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      spherical.current.radius = Math.max(4, Math.min(20, spherical.current.radius + e.deltaY * 0.01))
+      updateFromSpherical()
+    }
 
-      let closestWall: WallType | null = null
-      let closestDist = Infinity
-      let closestPoint = new THREE.Vector3()
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerUp)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
 
-      wallsData.forEach((wall) => {
-        const intersectPoint = new THREE.Vector3()
-        const hit = raycaster.ray.intersectPlane(wall.plane, intersectPoint)
-        if (hit) {
-          const dist = camera.position.distanceTo(intersectPoint)
-          if (dist > 0 && dist < closestDist) {
-            const dot = wall.normal.dot(raycaster.ray.direction)
-            if (dot < 0) {
-              let localX = 0
-              let localY = 0
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerUp)
+      canvas.removeEventListener('wheel', onWheel)
+    }
+  }, [gl.domElement, cameraView, isDragging, dragArtwork, updateFromSpherical])
 
-              switch (wall.name) {
-                case 'front':
-                case 'back':
-                  localX = intersectPoint.x
-                  localY = intersectPoint.y - WALL_HEIGHT / 2
-                  break
-                case 'left':
-                case 'right':
-                  localX = wall.name === 'left' ? -intersectPoint.z : intersectPoint.z
-                  localY = intersectPoint.y - WALL_HEIGHT / 2
-                  break
-              }
+  useEffect(() => {
+    if (!isDragging || !dragArtwork || !dragScreenPos) {
+      setSnapWall(null)
+      return
+    }
 
-              const halfW = ROOM_SIZE * 0.4
-              const halfH = WALL_HEIGHT * 0.35
+    const ndcX = (dragScreenPos.x / size.width) * 2 - 1
+    const ndcY = -(dragScreenPos.y / size.height) * 2 + 1
 
-              if (Math.abs(localX) < halfW && Math.abs(localY) < halfH) {
-                closestDist = dist
-                closestWall = wall.name
-                closestPoint = intersectPoint.clone()
-              }
+    const mouseVec = new THREE.Vector2(ndcX, ndcY)
+    raycaster.setFromCamera(mouseVec, camera)
+
+    const wallsData = [
+      {
+        name: 'front' as WallType,
+        plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), -ROOM_SIZE / 2),
+        normal: new THREE.Vector3(0, 0, 1)
+      },
+      {
+        name: 'back' as WallType,
+        plane: new THREE.Plane(new THREE.Vector3(0, 0, -1), ROOM_SIZE / 2),
+        normal: new THREE.Vector3(0, 0, -1)
+      },
+      {
+        name: 'left' as WallType,
+        plane: new THREE.Plane(new THREE.Vector3(1, 0, 0), -ROOM_SIZE / 2),
+        normal: new THREE.Vector3(1, 0, 0)
+      },
+      {
+        name: 'right' as WallType,
+        plane: new THREE.Plane(new THREE.Vector3(-1, 0, 0), ROOM_SIZE / 2),
+        normal: new THREE.Vector3(-1, 0, 0)
+      }
+    ]
+
+    let closestWall: WallType | null = null
+    let closestDist = Infinity
+    let closestPoint = new THREE.Vector3()
+
+    wallsData.forEach((wall) => {
+      const intersectPoint = new THREE.Vector3()
+      const hit = raycaster.ray.intersectPlane(wall.plane, intersectPoint)
+      if (hit) {
+        const dist = camera.position.distanceTo(intersectPoint)
+        if (dist > 0 && dist < closestDist) {
+          const dot = wall.normal.dot(raycaster.ray.direction)
+          if (dot < 0) {
+            let localX = 0
+            let localY = 0
+
+            switch (wall.name) {
+              case 'front':
+              case 'back':
+                localX = intersectPoint.x
+                localY = intersectPoint.y - WALL_HEIGHT / 2
+                break
+              case 'left':
+              case 'right':
+                localX = wall.name === 'left' ? -intersectPoint.z : intersectPoint.z
+                localY = intersectPoint.y - WALL_HEIGHT / 2
+                break
+            }
+
+            const halfW = ROOM_SIZE * 0.4
+            const halfH = WALL_HEIGHT * 0.35
+
+            if (Math.abs(localX) < halfW && Math.abs(localY) < halfH) {
+              closestDist = dist
+              closestWall = wall.name
+              closestPoint = intersectPoint.clone()
             }
           }
         }
-      })
-
-      if (closestWall) {
-        setSnapWall(closestWall)
-        let posX = 0
-        let posY = 0
-
-        switch (closestWall) {
-          case 'front':
-            posX = closestPoint.x / (ROOM_SIZE * 0.4)
-            posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
-            break
-          case 'back':
-            posX = -closestPoint.x / (ROOM_SIZE * 0.4)
-            posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
-            break
-          case 'left':
-            posX = -closestPoint.z / (ROOM_SIZE * 0.4)
-            posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
-            break
-          case 'right':
-            posX = closestPoint.z / (ROOM_SIZE * 0.4)
-            posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
-            break
-        }
-
-        setSnapPos({ x: posX, y: posY })
-        setIsDraggingOnCanvas(true)
-      } else {
-        setSnapWall(null)
-        setIsDraggingOnCanvas(false)
       }
-    },
-    [dragArtwork, raycaster, camera, gl.domElement]
-  )
+    })
+
+    if (closestWall) {
+      setSnapWall(closestWall)
+      let posX = 0
+      let posY = 0
+
+      switch (closestWall) {
+        case 'front':
+          posX = closestPoint.x / (ROOM_SIZE * 0.4)
+          posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
+          break
+        case 'back':
+          posX = -closestPoint.x / (ROOM_SIZE * 0.4)
+          posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
+          break
+        case 'left':
+          posX = -closestPoint.z / (ROOM_SIZE * 0.4)
+          posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
+          break
+        case 'right':
+          posX = closestPoint.z / (ROOM_SIZE * 0.4)
+          posY = (closestPoint.y - WALL_HEIGHT / 2) / (WALL_HEIGHT * 0.35)
+          break
+      }
+
+      setSnapPos({ x: posX, y: posY })
+    } else {
+      setSnapWall(null)
+    }
+  }, [isDragging, dragArtwork, dragScreenPos, raycaster, camera, size])
 
   const handleDrop = useCallback(() => {
     if (dragArtwork && snapWall) {
       onPlaceArtwork(dragArtwork.id, snapWall, snapPos.x, snapPos.y)
     }
-    setSnapWall(null)
-    setIsDraggingOnCanvas(false)
   }, [dragArtwork, snapWall, snapPos, onPlaceArtwork])
 
   useEffect(() => {
-    const canvas = gl.domElement
-
-    const onPointerMoveHandler = (e: PointerEvent) => handlePointerMove(e)
-    const onPointerUpHandler = () => handleDrop()
-
-    canvas.addEventListener('pointermove', onPointerMoveHandler)
-    canvas.addEventListener('pointerup', onPointerUpHandler)
-
-    return () => {
-      canvas.removeEventListener('pointermove', onPointerMoveHandler)
-      canvas.removeEventListener('pointerup', onPointerUpHandler)
+    if (!isDragging) {
+      handleDrop()
     }
-  }, [handlePointerMove, handleDrop, gl.domElement])
+  }, [isDragging, handleDrop])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -677,6 +625,41 @@ function Scene({
       window.removeEventListener('keyup', handleKeyUp)
     }
   }, [isEditing, onUpdateArtwork, onDeleteArtwork, onSelect])
+
+  useFrame(() => {
+    camera.position.lerp(targetPosRef.current, 0.08)
+
+    const lookDir = new THREE.Vector3()
+    camera.getWorldDirection(lookDir)
+    const currentTarget = camera.position.clone().add(lookDir.multiplyScalar(10))
+    const lerpedTarget = currentTarget.lerp(targetLookAtRef.current, 0.08)
+    camera.lookAt(lerpedTarget)
+
+    if (isEditing && selectedIdRef.current && keysPressed.current.size > 0) {
+      const now = performance.now()
+      if (now - lastUpdateTime.current > 30) {
+        lastUpdateTime.current = now
+        const step = 0.005
+        let dx = 0
+        let dy = 0
+
+        if (keysPressed.current.has('ArrowLeft')) dx -= step
+        if (keysPressed.current.has('ArrowRight')) dx += step
+        if (keysPressed.current.has('ArrowUp')) dy += step
+        if (keysPressed.current.has('ArrowDown')) dy -= step
+
+        if (dx !== 0 || dy !== 0) {
+          const current = placedArtworksRef.current.find(a => a.id === selectedIdRef.current)
+          if (current) {
+            onUpdateArtwork(selectedIdRef.current, {
+              positionX: current.positionX + dx,
+              positionY: current.positionY + dy
+            })
+          }
+        }
+      }
+    }
+  })
 
   const shadowMapSize = lowQuality ? 256 : 1024
 
@@ -725,17 +708,11 @@ function Scene({
       })}
 
       <SnapIndicator
-        visible={isDraggingOnCanvas && !!dragArtwork}
+        visible={isDragging && !!dragArtwork && !!snapWall}
         wall={snapWall}
         posX={snapPos.x}
         posY={snapPos.y}
         artwork={dragArtwork}
-      />
-
-      <OrbitControlsSimulator
-        targetPosRef={targetPosRef}
-        targetLookAtRef={targetLookAtRef}
-        isFreeMode={cameraView === 'free'}
       />
     </>
   )
@@ -764,7 +741,9 @@ function ExhibitionCanvas(props: ExhibitionCanvasProps) {
         artworks={props.artworks}
         selectedId={props.selectedId}
         onSelect={props.onSelect}
+        isDragging={props.isDragging}
         dragArtwork={props.dragArtwork}
+        dragScreenPos={props.dragScreenPos}
         cameraView={props.cameraView}
         onPlaceArtwork={props.onPlaceArtwork}
         onUpdateArtwork={props.onUpdateArtwork}

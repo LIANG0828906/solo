@@ -20,12 +20,15 @@ function GalleryPage({ user, onLogout, isShareMode = false }: GalleryPageProps) 
   const [placedArtworks, setPlacedArtworks] = useState<PlacedArtwork[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dragArtwork, setDragArtwork] = useState<Artwork | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragScreenPos, setDragScreenPos] = useState<{ x: number; y: number } | null>(null)
   const [cameraView, setCameraView] = useState('front')
   const [exhibitionName, setExhibitionName] = useState('我的展览')
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [fps, setFps] = useState(60)
   const [lowQuality, setLowQuality] = useState(false)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
   const fpsRef = useRef({ frames: 0, lastTime: performance.now() })
 
   useEffect(() => {
@@ -78,11 +81,46 @@ function GalleryPage({ user, onLogout, isShareMode = false }: GalleryPageProps) 
 
   const handleDragStart = (artwork: Artwork) => {
     setDragArtwork(artwork)
+    setIsDragging(true)
   }
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false)
     setDragArtwork(null)
-  }
+    setDragScreenPos(null)
+  }, [])
+
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      if (!isDragging || !dragArtwork) return
+      e.preventDefault()
+      if (canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect()
+        setDragScreenPos({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        })
+      }
+    }
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault()
+      handleDragEnd()
+    }
+
+    const container = canvasContainerRef.current
+    if (container) {
+      container.addEventListener('dragover', handleDragOver)
+      container.addEventListener('drop', handleDrop)
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('dragover', handleDragOver)
+        container.removeEventListener('drop', handleDrop)
+      }
+    }
+  }, [isDragging, dragArtwork, handleDragEnd])
 
   const handlePlaceArtwork = useCallback(
     (artworkId: string, wall: WallType, posX: number, posY: number) => {
@@ -100,7 +138,6 @@ function GalleryPage({ user, onLogout, isShareMode = false }: GalleryPageProps) 
       }
       setPlacedArtworks((prev) => [...prev, newArtwork])
       setSelectedId(newArtwork.id)
-      setDragArtwork(null)
     },
     [artworks]
   )
@@ -243,6 +280,7 @@ function GalleryPage({ user, onLogout, isShareMode = false }: GalleryPageProps) 
         )}
 
         <div
+          ref={canvasContainerRef}
           style={styles.canvasContainer}
           onDragOver={(e) => {
             e.preventDefault()
@@ -256,7 +294,9 @@ function GalleryPage({ user, onLogout, isShareMode = false }: GalleryPageProps) 
             onPlaceArtwork={handlePlaceArtwork}
             onUpdateArtwork={handleUpdateArtwork}
             onDeleteArtwork={handleDeleteArtwork}
+            isDragging={isDragging}
             dragArtwork={dragArtwork}
+            dragScreenPos={dragScreenPos}
             onDragEnd={handleDragEnd}
             cameraView={cameraView}
             lowQuality={lowQuality}
