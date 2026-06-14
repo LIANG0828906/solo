@@ -3,17 +3,37 @@
   align-items: center;
   padding: 8px 12px;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: visible;
 }
 
 .subtask-item.completed {
-  animation: greenGlow 0.6s ease forwards;
+  animation: greenGlowPulse 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.1s;
 }
 
-@keyframes greenGlow {
-  0% { box-shadow: 0 0 0 rgba(82, 196, 26, 0); }
-  50% { box-shadow: 0 0 12px rgba(82, 196, 26, 0.4); }
-  100% { box-shadow: 0 0 6px rgba(82, 196, 26, 0.15); }
+@keyframes greenGlowPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(82, 196, 26, 0);
+    background-color: transparent;
+  }
+  20% {
+    box-shadow: 0 0 8px rgba(82, 196, 26, 0.3), 0 0 16px rgba(82, 196, 26, 0.2);
+    background-color: rgba(82, 196, 26, 0.05);
+  }
+  40% {
+    box-shadow: 0 0 16px rgba(82, 196, 26, 0.5), 0 0 32px rgba(82, 196, 26, 0.3);
+    background-color: rgba(82, 196, 26, 0.1);
+  }
+  60% {
+    box-shadow: 0 0 12px rgba(82, 196, 26, 0.4), 0 0 24px rgba(82, 196, 26, 0.2);
+    background-color: rgba(82, 196, 26, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 6px rgba(82, 196, 26, 0.2), inset 0 0 0 1px rgba(82, 196, 26, 0.15);
+    background-color: rgba(82, 196, 26, 0.04);
+  }
 }
 
 .subtask-checkbox {
@@ -26,12 +46,17 @@
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.subtask-checkbox:hover {
+  border-color: #4A90D9;
 }
 
 .subtask-checkbox:checked {
   background-color: #4A90D9;
   border-color: #4A90D9;
+  transition-delay: 0.05s;
 }
 
 .subtask-checkbox:checked::after {
@@ -39,16 +64,32 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0);
   color: #fff;
   font-size: 11px;
   line-height: 1;
+  animation: checkmarkPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  animation-delay: 0.1s;
+}
+
+@keyframes checkmarkPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .subtask-title {
   font-size: 14px;
   flex-grow: 1;
   margin-left: 8px;
+  transition: color 0.3s ease, text-decoration 0.3s ease;
+  transition-delay: 0.15s;
 }
 
 .subtask-title.completed-text {
@@ -61,13 +102,19 @@
   color: #888;
   margin-left: 8px;
   white-space: nowrap;
+  transition: color 0.3s ease;
+  transition-delay: 0.1s;
+}
+
+.subtask-item.completed .subtask-time {
+  color: #52c41a;
 }
 
 .subtask-actions {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s ease;
   margin-left: 8px;
 }
 
@@ -83,16 +130,21 @@
   font-size: 14px;
   padding: 2px 4px;
   border-radius: 4px;
-  transition: color 0.2s;
+  transition: color 0.2s ease, transform 0.15s ease;
   line-height: 1;
 }
 
 .subtask-btn:hover {
   color: #4A90D9;
+  transform: scale(1.1);
 }
 
 .subtask-btn.delete:hover {
   color: #e74c3c;
+}
+
+.subtask-btn:active {
+  transform: scale(0.97);
 }
 
 .subtask-edit-row {
@@ -109,11 +161,12 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .subtask-edit-input:focus {
   border-color: #4A90D9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.1);
 }
 
 .subtask-edit-input.title-input {

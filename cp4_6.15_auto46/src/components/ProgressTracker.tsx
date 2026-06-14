@@ -109,23 +109,32 @@ function ProgressTracker({ roadmap, onUpdateSkillScore }: ProgressTrackerProps) 
                     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                     fontSize: 13,
                   }}
+                  labelStyle={{ fontWeight: 600, color: '#333', marginBottom: 4 }}
+                  itemStyle={{ padding: '2px 0' }}
+                  formatter={(value: number) => [`${value} 分钟`, '']}
                 />
-                <Legend />
+                <Legend
+                  wrapperStyle={{ paddingTop: 10 }}
+                  iconType="line"
+                />
                 <Line
                   type="monotone"
                   dataKey="目标时长"
+                  name="目标时长"
                   stroke="#4A90D9"
                   strokeDasharray="8 4"
-                  dot={{ r: 4, fill: '#4A90D9' }}
                   strokeWidth={2}
+                  dot={{ r: 4, fill: '#4A90D9', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="实际时长"
+                  name="实际时长"
                   stroke="#FF8C42"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: '#FF8C42' }}
-                  activeDot={{ r: 6 }}
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#FF8C42', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -137,16 +146,39 @@ function ProgressTracker({ roadmap, onUpdateSkillScore }: ProgressTrackerProps) 
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                <defs>
+                  <linearGradient id="radarGradient" x1="50%" y1="50%" x2="50%" y2="0%">
+                    <stop offset="0%" stopColor="#4A90D9" stopOpacity={0.05} />
+                    <stop offset="50%" stopColor="#4A90D9" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#4A90D9" stopOpacity={0.5} />
+                  </linearGradient>
+                  <linearGradient id="radarStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#4A90D9" />
+                    <stop offset="100%" stopColor="#7B68AE" />
+                  </linearGradient>
+                </defs>
                 <PolarGrid stroke="#e0e0e0" />
                 <PolarAngleAxis dataKey="skill" tick={{ fontSize: 12, fill: '#666' }} />
                 <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fontSize: 10, fill: '#999' }} />
                 <Radar
                   name="掌握程度"
                   dataKey="score"
-                  stroke="#4A90D9"
-                  fill="#4A90D9"
-                  fillOpacity={0.25}
-                  strokeWidth={2}
+                  stroke="url(#radarStroke)"
+                  fill="url(#radarGradient)"
+                  fillOpacity={1}
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#4A90D9', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: '#fff',
+                    border: '1px solid #e8e8e8',
+                    borderRadius: 8,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    fontSize: 13,
+                  }}
+                  formatter={(value: number) => [`${value} / 10 分`, '掌握程度']}
                 />
               </RadarChart>
             </ResponsiveContainer>

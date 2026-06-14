@@ -3,11 +3,12 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, opacity 0.2s ease;
   cursor: grab;
   min-width: 260px;
   max-width: 320px;
   flex-shrink: 0;
+  will-change: transform, opacity;
 }
 
 .stage-card:hover {
@@ -15,14 +16,20 @@
 }
 
 .stage-card.dragging {
-  opacity: 0.6;
-  transform: rotate(2deg);
+  opacity: 0.4 !important;
+  transform: rotate(2deg) scale(1.02);
   z-index: 10;
+  cursor: grabbing;
+  box-shadow: 0 8px 32px rgba(74, 144, 217, 0.3);
+}
+
+.stage-card.sibling-dragging {
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .stage-card.drag-over {
   transform: translateX(12px);
-  box-shadow: 0 0 0 2px #4A90D9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.3);
 }
 
 .stage-card.status-not-started {

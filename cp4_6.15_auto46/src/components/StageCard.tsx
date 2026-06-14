@@ -33,8 +33,11 @@ function StageCard({
   onDragStart,
   onDragOver,
   onDrop,
+  onDragEnd,
+  onDragLeave,
   isDragging,
   dragOverStageId,
+  isGlobalDragging,
 }: StageCardProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskMinutes, setNewTaskMinutes] = useState(30);
@@ -63,11 +66,13 @@ function StageCard({
 
   return (
     <div
-      className={`stage-card ${statusClass} ${isDragging ? 'dragging' : ''} ${dragOverStageId === stage.id ? 'drag-over' : ''}`}
+      className={`stage-card ${statusClass} ${isDragging ? 'dragging' : ''} ${dragOverStageId === stage.id ? 'drag-over' : ''} ${isGlobalDragging && !isDragging ? 'sibling-dragging' : ''}`}
       draggable
       onDragStart={(e) => onDragStart(e, stage.id)}
       onDragOver={(e) => onDragOver(e, stage.id)}
       onDrop={(e) => onDrop(e, stage.id)}
+      onDragEnd={onDragEnd}
+      onDragLeave={onDragLeave}
     >
       <div className="stage-header" onClick={() => onToggleExpand(stage.id)}>
         <div className="stage-color-bar" style={{ backgroundColor: stage.color }} />

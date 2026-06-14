@@ -214,10 +214,33 @@
   min-height: 200px;
 }
 
+.timeline-dragging .timeline-track {
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .timeline-stage-wrapper {
   display: flex;
   align-items: flex-start;
   flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.timeline-stage-wrapper.wrapper-dragging {
+  z-index: 100;
+  pointer-events: none;
+}
+
+.timeline-stage-wrapper.wrapper-dragging .stage-card {
+  transform: rotate(3deg) scale(1.02);
+  box-shadow: 0 8px 32px rgba(74, 144, 217, 0.3);
+}
+
+.timeline-stage-wrapper.wrapper-drag-over {
+  transform: translateX(40px);
+}
+
+.timeline-stage-wrapper.wrapper-drag-over ~ .timeline-stage-wrapper {
+  transform: translateX(40px);
 }
 
 .timeline-connector {
