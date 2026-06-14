@@ -57,8 +57,9 @@ const CardEditor: React.FC<CardEditorProps> = ({ cardLibrary, onAddCard }) => {
   };
 
   const btnDisabledStyle: React.CSSProperties = {
-    backgroundColor: '#475569',
-    color: '#94a3b8',
+    backgroundColor: '#64748b',
+    color: '#cbd5e1',
+    opacity: 0.5,
     cursor: 'not-allowed',
     borderRadius: '8px',
     padding: '6px 12px',

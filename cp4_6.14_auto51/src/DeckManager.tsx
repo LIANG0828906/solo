@@ -137,6 +137,8 @@ const DeckManager: React.FC<DeckManagerProps> = ({ cardLibrary, deck, onDeckChan
         onPointerUp={handlePointerUp}
         onPointerMove={handlePointerMove}
         onPointerCancel={handlePointerUp}
+        onMouseDown={() => handlePointerDown(card.id)}
+        onMouseUp={handlePointerUp}
         onMouseLeave={handlePointerUp}
         className={isRemoving ? 'shrink-out' : ''}
         style={{

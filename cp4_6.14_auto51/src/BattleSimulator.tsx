@@ -72,6 +72,8 @@ const countEmptyCells = (board: (BattleCard | null)[][], owner: 'A' | 'B'): Grid
 const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsChange }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const isPausedRef = useRef(false);
   const [stats, setStats] = useState<BattleStats | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [closingStats, setClosingStats] = useState(false);
@@ -83,6 +85,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
 
   const logRef = useRef<HTMLDivElement>(null);
   const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runTurnRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -137,6 +140,8 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
     setStats(null);
     setShowStats(false);
     setIsSimulating(true);
+    setIsPaused(false);
+    isPausedRef.current = false;
     setFlyInCards(new Set());
     setAttackingCardId(null);
     setAttackTargetCell(null);
@@ -155,7 +160,36 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
       simIntervalRef.current = null;
     }
     setIsSimulating(false);
+    setIsPaused(false);
+    isPausedRef.current = false;
   }, []);
+
+  const pauseBattle = useCallback(() => {
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setIsPaused(true);
+    isPausedRef.current = true;
+  }, []);
+
+  const resumeBattle = useCallback(() => {
+    simIntervalRef.current = setInterval(() => {
+      if (!isPausedRef.current && runTurnRef.current) {
+        runTurnRef.current();
+      }
+    }, TURN_INTERVAL);
+    setIsPaused(false);
+    isPausedRef.current = false;
+  }, []);
+
+  const togglePause = useCallback(() => {
+    if (isPausedRef.current) {
+      resumeBattle();
+    } else {
+      pauseBattle();
+    }
+  }, [pauseBattle, resumeBattle]);
 
   const triggerFlyIn = useCallback((cardId: string) => {
     setFlyInCards(prev => {
@@ -250,6 +284,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
     if (!isSimulating || !gameState) return;
 
     const runTurn = () => {
+      if (isPausedRef.current) return;
       setGameState(prev => {
         if (!prev) return prev;
 
@@ -435,6 +470,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
       });
     };
 
+    runTurnRef.current = runTurn;
     simIntervalRef.current = setInterval(runTurn, TURN_INTERVAL);
 
     return () => {
@@ -663,6 +699,35 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
         >
           {isSimulating ? '⏹ 停止战斗' : '▶ 开始战斗'}
         </button>
+        {isSimulating && gameState && (
+          <button
+            onClick={togglePause}
+            style={{
+              padding: '8px 18px',
+              backgroundColor: isPaused ? '#22c55e' : '#0ea5e9',
+              color: '#fff',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = isPaused ? '#16a34a' : '#0284c7';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = isPaused ? '#22c55e' : '#0ea5e9';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.backgroundColor = isPaused ? '#15803d' : '#0369a1';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.backgroundColor = isPaused ? '#16a34a' : '#0284c7';
+            }}
+          >
+            {isPaused ? '▶ 继续' : '⏸ 暂停'}
+          </button>
+        )}
       </div>
 
       <div style={{
@@ -684,6 +749,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
             display: 'flex',
             flexDirection: 'column',
             gap: '4px',
+            maxWidth: `${GRID_COLS * (cellSize + 4) + 20}px`,
           }}>
             <div style={{
               textAlign: 'center',
@@ -825,200 +891,208 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
         </div>
       </div>
 
-      {showStats && stats && (
+      <div
+        onClick={closeStats}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)',
+          opacity: showStats && !closingStats ? 1 : 0,
+          transition: closingStats ? 'opacity 0.3s ease' : 'opacity 0.4s ease',
+          visibility: showStats || closingStats ? 'visible' : 'hidden',
+        }}
+      >
         <div
-          onClick={closeStats}
-          className={closingStats ? 'fade-out' : 'fade-in'}
+          onClick={(e) => e.stopPropagation()}
           style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(4px)',
+            backgroundColor: '#0f172a',
+            borderRadius: '16px',
+            padding: '32px',
+            minWidth: '360px',
+            maxWidth: '90vw',
+            border: '1px solid #334155',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            position: 'relative',
+            transform: showStats && !closingStats ? 'translateY(0)' : 'translateY(-20px)',
+            opacity: showStats && !closingStats ? 1 : 0,
+            transition: closingStats
+              ? 'transform 0.3s ease, opacity 0.3s ease'
+              : 'transform 0.4s ease-out, opacity 0.4s ease-out',
           }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              animation: closingStats ? 'none' : 'statsFadeIn 0.4s ease-out',
-              backgroundColor: '#0f172a',
-              borderRadius: '16px',
-              padding: '32px',
-              minWidth: '360px',
-              maxWidth: '90vw',
-              border: '1px solid #334155',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              position: 'relative',
-            }}
-          >
-            <button
-              onClick={closeStats}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: '#334155',
-                color: '#94a3b8',
-                fontSize: '18px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#ef4444';
-                e.currentTarget.style.color = '#fff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#334155';
-                e.currentTarget.style.color = '#94a3b8';
-              }}
-            >
-              ×
-            </button>
+          {stats && (
+            <>
+              <button
+                onClick={closeStats}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#334155',
+                  color: '#94a3b8',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ef4444';
+                  e.currentTarget.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#334155';
+                  e.currentTarget.style.color = '#94a3b8';
+                }}
+              >
+                ×
+              </button>
 
-            <div style={{
-              textAlign: 'center',
-              marginBottom: '24px',
-            }}>
               <div style={{
-                fontSize: '48px',
-                marginBottom: '8px',
-              }}>
-                {stats.winner === 'draw' ? '🤝' : '🏆'}
-              </div>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: 700,
-                color: stats.winner === 'draw' ? '#eab308' : stats.winner === 'A' ? '#38bdf8' : '#fb923c',
-                marginBottom: '4px',
-              }}>
-                {stats.winner === 'draw' ? '平 局' : `玩家 ${stats.winner} 获胜`}
-              </h2>
-              <p style={{
-                fontSize: '13px',
-                color: '#64748b',
-              }}>
-                战斗统计结果
-              </p>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '24px',
-            }}>
-              <div style={{
-                padding: '16px',
-                backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                borderRadius: '12px',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
                 textAlign: 'center',
+                marginBottom: '24px',
               }}>
                 <div style={{
-                  fontSize: '12px',
-                  color: '#38bdf8',
-                  fontWeight: 600,
+                  fontSize: '48px',
                   marginBottom: '8px',
                 }}>
-                  🔵 玩家 A
+                  {stats.winner === 'draw' ? '🤝' : '🏆'}
                 </div>
-                <div style={{
-                  fontSize: '28px',
+                <h2 style={{
+                  fontSize: '24px',
                   fontWeight: 700,
-                  color: '#f8fafc',
+                  color: stats.winner === 'draw' ? '#eab308' : stats.winner === 'A' ? '#38bdf8' : '#fb923c',
                   marginBottom: '4px',
                 }}>
-                  {stats.aSurvivors}
-                  <span style={{
-                    fontSize: '13px',
-                    color: '#94a3b8',
-                    fontWeight: 400,
-                  }}>
-                     张存活
-                  </span>
-                </div>
-                <div style={{
-                  fontSize: '14px',
-                  color: '#4ade80',
-                  fontWeight: 600,
+                  {stats.winner === 'draw' ? '平 局' : `玩家 ${stats.winner} 获胜`}
+                </h2>
+                <p style={{
+                  fontSize: '13px',
+                  color: '#64748b',
                 }}>
-                  ❤ 剩余 {stats.aTotalHealth} 血
-                </div>
+                  战斗统计结果
+                </p>
               </div>
 
               <div style={{
-                padding: '16px',
-                backgroundColor: 'rgba(251, 146, 60, 0.1)',
-                borderRadius: '12px',
-                border: '1px solid rgba(251, 146, 60, 0.2)',
-                textAlign: 'center',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '16px',
+                marginBottom: '24px',
               }}>
                 <div style={{
-                  fontSize: '12px',
-                  color: '#fb923c',
-                  fontWeight: 600,
-                  marginBottom: '8px',
+                  padding: '16px',
+                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  textAlign: 'center',
                 }}>
-                  🟠 玩家 B
-                </div>
-                <div style={{
-                  fontSize: '28px',
-                  fontWeight: 700,
-                  color: '#f8fafc',
-                  marginBottom: '4px',
-                }}>
-                  {stats.bSurvivors}
-                  <span style={{
-                    fontSize: '13px',
-                    color: '#94a3b8',
-                    fontWeight: 400,
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    marginBottom: '8px',
                   }}>
-                     张存活
-                  </span>
+                    🔵 玩家 A
+                  </div>
+                  <div style={{
+                    fontSize: '28px',
+                    fontWeight: 700,
+                    color: '#f8fafc',
+                    marginBottom: '4px',
+                  }}>
+                    {stats.aSurvivors}
+                    <span style={{
+                      fontSize: '13px',
+                      color: '#94a3b8',
+                      fontWeight: 400,
+                    }}>
+                       张存活
+                    </span>
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#4ade80',
+                    fontWeight: 600,
+                  }}>
+                    ❤ 剩余 {stats.aTotalHealth} 血
+                  </div>
                 </div>
+
                 <div style={{
-                  fontSize: '14px',
-                  color: '#4ade80',
-                  fontWeight: 600,
+                  padding: '16px',
+                  backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(251, 146, 60, 0.2)',
+                  textAlign: 'center',
                 }}>
-                  ❤ 剩余 {stats.bTotalHealth} 血
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#fb923c',
+                    fontWeight: 600,
+                    marginBottom: '8px',
+                  }}>
+                    🟠 玩家 B
+                  </div>
+                  <div style={{
+                    fontSize: '28px',
+                    fontWeight: 700,
+                    color: '#f8fafc',
+                    marginBottom: '4px',
+                  }}>
+                    {stats.bSurvivors}
+                    <span style={{
+                      fontSize: '13px',
+                      color: '#94a3b8',
+                      fontWeight: 400,
+                    }}>
+                       张存活
+                    </span>
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#4ade80',
+                    fontWeight: 600,
+                  }}>
+                    ❤ 剩余 {stats.bTotalHealth} 血
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <button
-              onClick={closeStats}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#0ea5e9',
-                color: '#fff',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: 700,
-                transition: 'background-color 0.2s',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0284c7')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0ea5e9')}
-              onMouseDown={(e) => (e.currentTarget.style.backgroundColor = '#0369a1')}
-              onMouseUp={(e) => (e.currentTarget.style.backgroundColor = '#0284c7')}
-            >
-              确 定
-            </button>
-          </div>
+              <button
+                onClick={closeStats}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#0ea5e9',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  transition: 'background-color 0.2s',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0284c7')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0ea5e9')}
+                onMouseDown={(e) => (e.currentTarget.style.backgroundColor = '#0369a1')}
+                onMouseUp={(e) => (e.currentTarget.style.backgroundColor = '#0284c7')}
+              >
+                确 定
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
