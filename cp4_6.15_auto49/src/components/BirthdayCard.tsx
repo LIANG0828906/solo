@@ -1,3 +1,31 @@
+/**
+ * BirthdayCard 组件
+ *
+ * 职责：
+ *   渲染单个生日信息卡片，支持两种展示模式：
+ *   - compact 模式：紧凑横幅卡片，用于 UpcomingBanner 横向滚动横幅中
+ *   - 完整模式：详细信息卡片，用于 BirthdayList 网格列表中展示
+ *   卡片展示头像、姓名、生日日期、兴趣标签、倒计时天数，并提供
+ *   找礼物、编辑、删除等操作按钮。
+ *
+ * 调用关系：
+ *   - 被 UpcomingBanner.tsx 调用（compact=true，横幅模式）
+ *   - 被 BirthdayList.tsx 调用（compact=false，网格列表模式）
+ *   - 接收 props: person(Person对象)、isNew(是否新添加)、compact(是否紧凑模式)
+ *   - 内部使用 useBirthdayStore 获取操作方法
+ *
+ * 数据流向：
+ *   1. 从 props.person 获取展示数据（name, birthday, interests, avatarColor）
+ *   2. 通过 useCountdown hook 计算距离下次生日的天数
+ *   3. 通过 getCountdownColorClass() 根据天数获取倒计时颜色类名
+ *   4. 通过 getInitial() 提取姓名首字母作为头像文字
+ *   5. 用户操作（编辑/删除/找礼物）通过 useBirthdayStore 的方法触发状态更新
+ *   6. isNew 标记控制新卡片的滑入动画，动画结束后调用 clearNewestPersonId 清理
+ *
+ * 性能优化：
+ *   - 使用 React.memo 包裹组件，避免 props 未变化时的不必要重渲染
+ *   - 按钮点击事件使用 stopPropagation 防止冒泡触发卡片点击
+ */
 import { memo, useEffect, useState } from 'react';
 import { Gift, Edit2, Trash2 } from 'lucide-react';
 import type { Person } from '@/types';
@@ -39,6 +67,12 @@ export const BirthdayCard = memo(function BirthdayCard({
   const countdownColor = getCountdownColorClass(daysUntil);
   const initial = getInitial(person.name);
 
+  const getCountdownText = () => {
+    if (daysUntil === 0) return '🎂 今天!';
+    if (daysUntil === 1) return '明天就是生日!';
+    return `还有 ${daysUntil} 天`;
+  };
+
   const handleGiftClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     openGiftModal(person);
@@ -62,7 +96,9 @@ export const BirthdayCard = memo(function BirthdayCard({
 
   if (compact) {
     return (
-      <div className="upcoming-card glass-card p-4 cursor-pointer birthday-card">
+      <div className="upcoming-card glass-card p-4 cursor-pointer birthday-card relative">
+        {showPulseDot && <div className="pulse-dot" />}
+
         <div className="flex items-center gap-3">
           <div
             className="avatar-circle"
@@ -78,11 +114,7 @@ export const BirthdayCard = memo(function BirthdayCard({
           </div>
         </div>
         <div className={`mt-3 text-center font-bold ${countdownColor}`}>
-          {daysUntil === 0 ? (
-            <span className="text-orange-400">🎂 今天!</span>
-          ) : (
-            <span>还有 {daysUntil} 天</span>
-          )}
+          <span>{getCountdownText()}</span>
         </div>
       </div>
     );
@@ -141,13 +173,7 @@ export const BirthdayCard = memo(function BirthdayCard({
       <div className="mt-4 pt-4 border-t border-white/10">
         <div className="flex items-center justify-between">
           <div className={`text-lg font-bold ${countdownColor}`}>
-            {daysUntil === 0 ? (
-              <span className="text-orange-400">🎂 今天是生日!</span>
-            ) : daysUntil === 1 ? (
-              <span className={countdownColor}>明天就是生日!</span>
-            ) : (
-              <span className={countdownColor}>还有 {daysUntil} 天</span>
-            )}
+            <span>{getCountdownText()}</span>
           </div>
 
           <div className="flex items-center gap-2">

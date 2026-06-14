@@ -47,9 +47,9 @@ export function formatBirthdayDisplay(birthdayStr: string): string {
 }
 
 export function getCountdownColorClass(days: number): string {
-  if (days <= 7) return 'text-orange-400';
-  if (days <= 30) return 'text-blue-400';
-  return 'text-gray-400';
+  if (days <= 7) return 'countdown-orange';
+  if (days <= 30) return 'countdown-blue';
+  return 'countdown-gray';
 }
 
 export function getUpcomingBirthdays(people: Person[], days: number = 30): Person[] {

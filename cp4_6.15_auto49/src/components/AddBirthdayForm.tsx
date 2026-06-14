@@ -1,5 +1,31 @@
+/**
+ * AddBirthdayForm - 添加生日记录弹窗表单组件
+ *
+ * 职责：
+ *   - 提供新增生日记录的表单界面（姓名、生日日期、兴趣标签）
+ *   - 执行表单实时校验与提交前全量校验
+ *   - 校验通过后调用 store 的 addPerson 方法持久化数据
+ *   - 控制弹窗的打开与关闭（点击遮罩或关闭按钮）
+ *
+ * 调用关系：
+ *   - 被调用方：通常由 BirthdayList 或顶部操作栏触发 store.openAddModal() 后展示
+ *   - 依赖：useBirthdayStore（zustand）获取 closeAddModal / addPerson
+ *   - 依赖：validationUtils 中的 validateForm / validateName / validateBirthday / validateInterests / hasErrors
+ *   - 依赖：INTEREST_TAGS 常量提供兴趣标签选项
+ *   - 依赖：lucide-react 图标库（X, UserPlus, AlertCircle）
+ *
+ * 数据流：
+ *   输入（用户交互）
+ *     ↓ onChange / onBlur / 点击标签
+ *   本地状态（name, birthday, interests, touched, errors）
+ *     ↓ useEffect 监听 touched 字段变化 → validateField() 实时校验
+ *     ↓ onSubmit → validateForm() 全量校验 → hasErrors() 判断
+ *   校验通过 → useBirthdayStore.addPerson({ name, birthday, interests })
+ *     ↓ store 内部：生成 id/avatarColor → 更新 people 数组 → saveToStorage()
+ *   完成 → closeAddModal() 关闭弹窗
+ */
 import { memo, useState, useCallback, useEffect } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { X, UserPlus, AlertCircle } from 'lucide-react';
 import { INTEREST_TAGS } from '@/types';
 import { validateForm, hasErrors, validateName, validateBirthday, validateInterests } from '@/utils/validationUtils';
 import type { FormErrors } from '@/types';
@@ -102,11 +128,14 @@ export const AddBirthdayForm = memo(function AddBirthdayForm() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
-              className="input-field"
+              className={`input-field ${touched.name && errors.name ? 'input-field-error' : ''}`}
               placeholder="请输入亲友姓名"
             />
             {touched.name && errors.name && (
-              <p className="error-text">{errors.name}</p>
+              <p className="error-text">
+                <AlertCircle size={16} />
+                {errors.name}
+              </p>
             )}
           </div>
 
@@ -117,10 +146,13 @@ export const AddBirthdayForm = memo(function AddBirthdayForm() {
               value={birthday}
               onChange={(e) => setBirthday(e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, birthday: true }))}
-              className="input-field"
+              className={`input-field ${touched.birthday && errors.birthday ? 'input-field-error' : ''}`}
             />
             {touched.birthday && errors.birthday && (
-              <p className="error-text">{errors.birthday}</p>
+              <p className="error-text">
+                <AlertCircle size={16} />
+                {errors.birthday}
+              </p>
             )}
           </div>
 
@@ -128,7 +160,7 @@ export const AddBirthdayForm = memo(function AddBirthdayForm() {
             <label className="block text-sm font-medium mb-2">
               兴趣标签（至少选择一个）
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className={`flex flex-wrap gap-2 ${touched.interests && errors.interests ? 'interest-tag-group-error' : ''}`}>
               {INTEREST_TAGS.map((tag) => (
                 <button
                   key={tag}
@@ -143,7 +175,10 @@ export const AddBirthdayForm = memo(function AddBirthdayForm() {
               ))}
             </div>
             {touched.interests && errors.interests && (
-              <p className="error-text">{errors.interests}</p>
+              <p className="error-text">
+                <AlertCircle size={16} />
+                {errors.interests}
+              </p>
             )}
           </div>
 
