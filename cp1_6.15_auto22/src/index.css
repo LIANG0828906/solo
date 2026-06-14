@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #F8F5F0;
+  color: #333333;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif-sc {
+  font-family: 'Noto Serif SC', serif;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounce-number {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0.3; transform: scale(0.95); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0.3; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(160, 200, 232, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(160, 200, 232, 0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.note-appear {
+  animation: bounce-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.vote-bounce {
+  animation: bounce-number 0.3s ease-out;
+}
+
+.note-filter-out {
+  animation: fade-out 0.3s ease-out forwards;
+}
+
+.note-filter-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.group-highlight {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+.note-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+  will-change: transform;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.note-card.dragging {
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+
+.group-zone {
+  transition: all 0.3s ease;
+}
+
+.group-zone.hover {
+  border-style: solid;
+  border-width: 3px;
+}
+
+.zoom-container {
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+}
+
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+input, textarea {
+  font-family: inherit;
+}
+
+.avatar-tooltip {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.avatar-container:hover .avatar-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.gradient-mesh-bg {
+  background: 
+    radial-gradient(ellipse at 20% 30%, rgba(255, 224, 224, 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(224, 242, 233, 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(224, 236, 248, 0.2) 0%, transparent 70%),
+    #F8F5F0;
+}
+
+.texture-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .show-on-mobile-only {
+    display: none !important;
+  }
+}
