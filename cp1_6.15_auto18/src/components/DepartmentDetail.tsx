@@ -53,28 +53,43 @@ const getScoreColor = (score: number) => {
   return 'low'
 }
 
-const interpolateColor = (score: number) => {
-  const clampedScore = Math.max(0, Math.min(100, score))
-  let r: number, g: number, b: number
+interface RGB {
+  r: number
+  g: number
+  b: number
+}
 
-  if (clampedScore <= 40) {
-    const t = clampedScore / 40
-    r = Math.round(39 + (243 - 39) * t * 0.5)
-    g = Math.round(174 + (156 - 174) * t * 0.5)
-    b = Math.round(96 + (18 - 96) * t * 0.5)
-  } else if (clampedScore <= 70) {
-    const t = (clampedScore - 40) / 30
-    r = Math.round(243 + (231 - 243) * t)
-    g = Math.round(156 + (76 - 156) * t)
-    b = Math.round(18 + (60 - 18) * t)
-  } else {
-    r = 231
-    g = 76
-    b = 60
+const interpolateColor = (score: number): string => {
+  const clampedScore = Math.max(0, Math.min(100, score))
+
+  const anchors: Array<{ score: number; color: RGB }> = [
+    { score: 0, color: { r: 39, g: 174, b: 96 } },
+    { score: 50, color: { r: 243, g: 156, b: 18 } },
+    { score: 100, color: { r: 231, g: 76, b: 60 } }
+  ]
+
+  let lower = anchors[0]
+  let upper = anchors[anchors.length - 1]
+
+  for (let i = 0; i < anchors.length - 1; i++) {
+    if (clampedScore >= anchors[i].score && clampedScore <= anchors[i + 1].score) {
+      lower = anchors[i]
+      upper = anchors[i + 1]
+      break
+    }
   }
+
+  const range = upper.score - lower.score
+  const t = range === 0 ? 0 : (clampedScore - lower.score) / range
+
+  const r = Math.round(lower.color.r + (upper.color.r - lower.color.r) * t)
+  const g = Math.round(lower.color.g + (upper.color.g - lower.color.g) * t)
+  const b = Math.round(lower.color.b + (upper.color.b - lower.color.b) * t)
 
   return `rgba(${r}, ${g}, ${b}, 0.08)`
 }
+
+export const _interpolateColorForTest = interpolateColor
 
 function DepartmentDetail({
   department,
@@ -134,6 +149,8 @@ function DepartmentDetail({
     onEmployeeClick(employee.id)
   }
 
+  const isExpanded = (employeeId: string) => expandedRows.has(employeeId)
+
   return (
     <div>
       <button className="back-button" onClick={onBack}>
@@ -151,27 +168,53 @@ function DepartmentDetail({
           <div className="chart-title">近6周风险指数变化趋势</div>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={department.riskTrend} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <LineChart
+                data={department.riskTrend}
+                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E1E8ED" />
-                <XAxis dataKey="week" tick={{ fill: '#7F8C8D', fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#7F8C8D', fontSize: 12 }} />
+                <XAxis
+                  dataKey="week"
+                  tick={{ fill: '#7F8C8D', fontSize: 12 }}
+                  axisLine={{ stroke: '#E1E8ED' }}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fill: '#7F8C8D', fontSize: 12 }}
+                  axisLine={{ stroke: '#E1E8ED' }}
+                />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'white',
+                    backgroundColor: '#FFFFFF',
                     border: '1px solid #E1E8ED',
                     borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    boxShadow: '0 4px 16px rgba(74, 144, 226, 0.12)',
+                    padding: '12px 16px',
+                    textAlign: 'left'
                   }}
-                  labelStyle={{ fontWeight: 600, color: '#2C3E50' }}
-                  formatter={(value: number) => [`风险指数: ${value}分`]}
+                  labelStyle={{
+                    fontWeight: 600,
+                    color: '#2C3E50',
+                    marginBottom: '6px',
+                    fontSize: '13px'
+                  }}
+                  itemStyle={{
+                    color: '#4A90E2',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    margin: 0,
+                    padding: 0
+                  }}
+                  formatter={(value: number) => [`${value}分`, '风险指数']}
+                  cursor={{ stroke: '#4A90E2', strokeDasharray: '4 4', strokeWidth: 1 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="score"
                   stroke="#4A90E2"
                   strokeWidth={3}
-                  dot={{ fill: '#4A90E2', strokeWidth: 2, r: 5 }}
-                  activeDot={{ r: 7, fill: '#E74C3C' }}
+                  dot={{ fill: '#4A90E2', strokeWidth: 2, r: 5, stroke: '#FFFFFF' }}
+                  activeDot={{ r: 7, fill: '#E74C3C', stroke: '#FFFFFF', strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -215,7 +258,7 @@ function DepartmentDetail({
                       <strong>{employee.name}</strong>
                     </td>
                     <td>{employee.position}</td>
-                    <td onClick={toggleSort} style={{ cursor: 'pointer' }}>
+                    <td onClick={(e) => { e.stopPropagation(); toggleSort() }} style={{ cursor: 'pointer' }}>
                       <span className={`risk-score ${getScoreColor(employee.riskScore)}`}>
                         {employee.riskScore}
                       </span>
@@ -234,7 +277,10 @@ function DepartmentDetail({
                     <td>
                       <div className="signal-tags">
                         {employee.signals.slice(0, 3).map((signal, idx) => (
-                          <span key={`${employee.id}-signal-${idx}`} className={`signal-tag ${signal.type}`}>
+                          <span
+                            key={`${employee.id}-signal-${idx}`}
+                            className={`signal-tag ${signal.type}`}
+                          >
                             {getSignalLabel(signal.type)}
                           </span>
                         ))}
@@ -251,26 +297,34 @@ function DepartmentDetail({
                   </tr>
                   <tr
                     key={`${employee.id}-detail`}
-                    className={`signal-detail-row ${expandedRows.has(employee.id) ? 'expanded' : ''}`}
+                    className={`signal-detail-row ${isExpanded(employee.id) ? 'expanded' : ''}`}
+                    aria-hidden={!isExpanded(employee.id)}
                   >
                     <td colSpan={9}>
-                      <div className="signal-detail-content">
-                        {employee.signals.map((signal, idx) => (
-                          <div key={`${employee.id}-detail-${idx}`} className="signal-detail-item">
-                            <div className={`signal-icon ${signal.type}`}>
-                              {getSignalIcon(signal.type)}
-                            </div>
-                            <div className="signal-detail-text">
-                              <div className="title">{signal.title}</div>
-                              <div className="desc">
-                                {signal.description}（{signal.date}）
+                      <div className="signal-detail-grid">
+                        <div className="signal-detail-inner">
+                          <div className="signal-detail-content">
+                            {employee.signals.map((signal, idx) => (
+                              <div
+                                key={`${employee.id}-detail-${idx}`}
+                                className="signal-detail-item"
+                              >
+                                <div className={`signal-icon ${signal.type}`}>
+                                  {getSignalIcon(signal.type)}
+                                </div>
+                                <div className="signal-detail-text">
+                                  <div className="title">{signal.title}</div>
+                                  <div className="desc">
+                                    {signal.description}（{signal.date}）
+                                  </div>
+                                </div>
+                                <div style={{ fontWeight: 600, color: '#2C3E50' }}>
+                                  {signal.value}
+                                </div>
                               </div>
-                            </div>
-                            <div style={{ fontWeight: 600, color: '#2C3E50' }}>
-                              {signal.value}
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -280,8 +334,6 @@ function DepartmentDetail({
           </table>
         </div>
       </div>
-
-
     </div>
   )
 }

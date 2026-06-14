@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import { DepartmentSummary } from '../api/riskApi'
 
 interface RiskDashboardProps {
@@ -41,6 +42,23 @@ const getRiskLevelText = (level: string) => {
 }
 
 function RiskDashboard({ departments, onDepartmentClick }: RiskDashboardProps) {
+  const prevDataRef = useRef<string>('')
+  const [animationKey, setAnimationKey] = useState<number>(0)
+
+  useEffect(() => {
+    const currentSig = JSON.stringify(departments.map((d) => ({
+      id: d.id,
+      riskLevel: d.riskLevel,
+      riskCount: d.riskCount,
+      trend: d.trend
+    })))
+
+    if (prevDataRef.current !== currentSig) {
+      prevDataRef.current = currentSig
+      setAnimationKey((prev) => prev + 1)
+    }
+  }, [departments])
+
   return (
     <div>
       <h2 className="section-title">
@@ -48,7 +66,7 @@ function RiskDashboard({ departments, onDepartmentClick }: RiskDashboardProps) {
         各部门风险概况
       </h2>
 
-      <div className="dashboard-grid" key={departments.length}>
+      <div className="dashboard-grid" key={animationKey}>
         {departments.map((dept, index) => (
           <div
             key={dept.id}

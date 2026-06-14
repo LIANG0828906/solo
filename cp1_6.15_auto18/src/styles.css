@@ -315,15 +315,27 @@ body {
 
 .signal-detail-row {
   background: #FAFBFC;
-  max-height: 0;
   opacity: 0;
-  overflow: hidden;
-  transition: max-height 200ms ease, opacity 200ms ease;
+  transition: opacity 200ms ease;
 }
 
 .signal-detail-row.expanded {
-  max-height: 500px;
   opacity: 1;
+}
+
+.signal-detail-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms ease;
+}
+
+.signal-detail-row.expanded .signal-detail-grid {
+  grid-template-rows: 1fr;
+}
+
+.signal-detail-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .signal-detail-content {
