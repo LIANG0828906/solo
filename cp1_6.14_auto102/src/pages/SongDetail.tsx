@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Download, Disc, Users, Calendar, Tag, FileText } from 'lucide-react'
 import { fetchSongDetail } from '@/api'
@@ -8,6 +8,16 @@ import AudioPlayer from '@/components/AudioPlayer'
 import PurchaseModal from '@/components/PurchaseModal'
 import CollabModal from '@/components/CollabModal'
 
+interface LyricChar {
+  char: string
+  visible: boolean
+}
+
+interface LyricLine {
+  chars: LyricChar[]
+  visible: boolean
+}
+
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
   const [song, setSong] = useState<Song | null>(null)
@@ -15,9 +25,10 @@ export default function SongDetail() {
   const [activeTab, setActiveTab] = useState<'details' | 'lyrics' | 'score'>('details')
   const [showPurchase, setShowPurchase] = useState<'digital' | 'cd' | null>(null)
   const [showCollab, setShowCollab] = useState(false)
-  const [lyricLine, setLyricLine] = useState(0)
+  const [lyricLines, setLyricLines] = useState<LyricLine[]>([])
+  const [currentLineIndex, setCurrentLineIndex] = useState(0)
   const { setCurrentSong, favorites, toggleFavorite } = useMusicStore()
-  const lyricTimerRef = useRef<number>(0)
+  const typewriterRef = useRef<number>(0)
 
   useEffect(() => {
     if (!id) return
@@ -29,24 +40,71 @@ export default function SongDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const resetLyrics = useMemo(() => {
+    return (lyricsText: string) => {
+      const lines = lyricsText.split('\n').filter(l => l.trim())
+      const parsed: LyricLine[] = lines.map(line => ({
+        chars: line.split('').map(char => ({ char, visible: false })),
+        visible: false
+      }))
+      setLyricLines(parsed)
+      setCurrentLineIndex(0)
+    }
+  }, [])
+
   useEffect(() => {
     if (activeTab !== 'lyrics' || !song?.lyrics) return
 
-    const lines = song.lyrics.split('\n').filter(l => l.trim())
-    setLyricLine(0)
-    let current = 0
+    resetLyrics(song.lyrics)
 
-    lyricTimerRef.current = window.setInterval(() => {
-      current++
-      if (current >= lines.length) {
-        clearInterval(lyricTimerRef.current)
+    return () => {
+      clearInterval(typewriterRef.current)
+    }
+  }, [activeTab, song, resetLyrics])
+
+  useEffect(() => {
+    if (activeTab !== 'lyrics' || lyricLines.length === 0) return
+
+    let lineIdx = 0
+    let charIdx = 0
+
+    const typeNext = () => {
+      if (lineIdx >= lyricLines.length) {
+        clearInterval(typewriterRef.current)
         return
       }
-      setLyricLine(current)
-    }, 2000)
 
-    return () => clearInterval(lyricTimerRef.current)
-  }, [activeTab, song])
+      setLyricLines(prev => {
+        const newLines = [...prev]
+        const currentLine = { ...newLines[lineIdx] }
+        
+        if (!currentLine.visible) {
+          currentLine.visible = true
+          setCurrentLineIndex(lineIdx)
+        }
+
+        const newChars = [...currentLine.chars]
+        if (charIdx < newChars.length) {
+          newChars[charIdx] = { ...newChars[charIdx], visible: true }
+          currentLine.chars = newChars
+          newLines[lineIdx] = currentLine
+          charIdx++
+        } else {
+          lineIdx++
+          charIdx = 0
+          if (lineIdx < newLines.length) {
+            setCurrentLineIndex(lineIdx)
+          }
+        }
+
+        return newLines
+      })
+    }
+
+    typewriterRef.current = window.setInterval(typeNext, 60)
+
+    return () => clearInterval(typewriterRef.current)
+  }, [activeTab, lyricLines.length])
 
   if (loading) {
     return (
@@ -67,7 +125,6 @@ export default function SongDetail() {
     )
   }
 
-  const lyrics = song.lyrics.split('\n').filter(l => l.trim())
   const isFav = favorites.includes(song.id)
 
   return (
@@ -153,18 +210,30 @@ export default function SongDetail() {
           )}
 
           {activeTab === 'lyrics' && (
-            <div className="space-y-3 min-h-[200px]">
-              {lyrics.map((line, i) => (
+            <div className="space-y-4 min-h-[200px]">
+              {lyricLines.map((line, lineIdx) => (
                 <p
-                  key={i}
-                  className={`text-lg leading-relaxed transition-all duration-500 ${
-                    i <= lyricLine ? 'opacity-100' : 'opacity-0'
-                  } ${i === lyricLine ? 'text-gold font-medium' : 'text-gray-300'}`}
-                  style={{
-                    animationDelay: `${i * 2000}ms`,
-                  }}
+                  key={lineIdx}
+                  className={`text-lg leading-relaxed transition-all duration-300 ${
+                    lineIdx === currentLineIndex
+                      ? 'text-gold font-medium'
+                      : lineIdx < currentLineIndex
+                      ? 'text-gray-300'
+                      : 'text-gray-600'
+                  }`}
                 >
-                  {line}
+                  {line.chars.map((lc, charIdx) => (
+                    <span
+                      key={charIdx}
+                      className={`inline-block transition-all duration-200 ${
+                        lc.visible
+                          ? 'opacity-100 translate-y-0'
+                          : 'opacity-0 translate-y-2'
+                      }`}
+                    >
+                      {lc.char}
+                    </span>
+                  ))}
                 </p>
               ))}
             </div>

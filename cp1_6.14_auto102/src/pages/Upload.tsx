@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload as UploadIcon, Music, FileText, Type, Check, AlertCircle } from 'lucide-react'
 import { uploadSong } from '@/api'
@@ -19,12 +19,15 @@ export default function UploadPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [targetProgress, setTargetProgress] = useState(0)
   const [uploadComplete, setUploadComplete] = useState(false)
   const [error, setError] = useState('')
   const [flashProgress, setFlashProgress] = useState(false)
   const audioInputRef = useRef<HTMLInputElement>(null)
   const scoreInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const rafRef = useRef<number>(0)
+  const lastUpdateRef = useRef<number>(0)
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -33,6 +36,33 @@ export default function UploadPage() {
       setSelectedTags(prev => [...prev, tag])
     }
   }
+
+  useEffect(() => {
+    if (!uploading) {
+      cancelAnimationFrame(rafRef.current)
+      return
+    }
+
+    const FPS = 30
+    const FRAME_INTERVAL = 1000 / FPS
+
+    const animate = (timestamp: number) => {
+      if (timestamp - lastUpdateRef.current >= FRAME_INTERVAL) {
+        setProgress(prev => {
+          const next = prev < targetProgress
+            ? Math.min(prev + (targetProgress - prev) * 0.15 + 0.5, targetProgress)
+            : prev
+          return next
+        })
+        lastUpdateRef.current = timestamp
+      }
+      rafRef.current = requestAnimationFrame(animate)
+    }
+
+    rafRef.current = requestAnimationFrame(animate)
+
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [uploading, targetProgress])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +76,7 @@ export default function UploadPage() {
 
     const formData = new FormData()
     formData.append('title', title)
+    formData.append('artist', '音乐人')
     formData.append('tags', JSON.stringify(selectedTags))
     formData.append('priceDigital', priceDigital)
     formData.append('priceCD', priceCD)
@@ -57,26 +88,38 @@ export default function UploadPage() {
 
     setUploading(true)
     setProgress(0)
+    setTargetProgress(0)
 
     try {
-      const interval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 1, 95))
-      }, 33)
-
       await uploadSong(formData, (p) => {
-        clearInterval(interval)
-        setProgress(p)
+        setTargetProgress(p)
+        if (p >= 95) {
+          setProgress(95)
+        }
       })
 
-      setFlashProgress(true)
-      setTimeout(() => {
-        setFlashProgress(false)
-        setUploadComplete(true)
-        setProgress(100)
-      }, 500)
+      setTargetProgress(95)
+
+      const finalProgress = () => {
+        setProgress(prev => {
+          if (prev < 95) {
+            rafRef.current = requestAnimationFrame(finalProgress)
+            return Math.min(prev + 2, 95)
+          }
+          setFlashProgress(true)
+          setTimeout(() => {
+            setFlashProgress(false)
+            setUploadComplete(true)
+            setProgress(100)
+            setTargetProgress(100)
+          }, 500)
+          return prev
+        })
+      }
+      rafRef.current = requestAnimationFrame(finalProgress)
+
     } catch {
       setError('上传失败，请重试')
-    } finally {
       setUploading(false)
     }
   }

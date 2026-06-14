@@ -12,7 +12,7 @@ import uploadRoutes from './routes/upload.js'
 import purchaseRoutes from './routes/purchase.js'
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+void __filename
 
 dotenv.config()
 
