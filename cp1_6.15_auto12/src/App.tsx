@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import HomePage from './pages/HomePage'
 import RecipePage from './pages/RecipePage'
 import RankPage from './pages/RankPage'
@@ -29,51 +29,50 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  const navigate = useCallback((path: string) => {
+  const navigate = (path: string) => {
     window.location.hash = path
     setMobileMenuOpen(false)
-  }, [])
+  }
+
+  const isActive = (itemPath: string) => {
+    if (itemPath === '/') return route.page === 'home'
+    return route.page === itemPath.slice(1)
+  }
 
   return (
-    <div style={styles.root}>
-      <style>{globalCSS}</style>
-      <nav style={styles.navbar}>
-        <div style={styles.navInner}>
-          <div style={styles.logo} onClick={() => navigate('/')}>
-            <span style={styles.logoIcon}>🍳</span>
-            <span style={styles.logoText}>家庭菜谱</span>
+    <div className="app-root">
+      <style>{appCSS}</style>
+      <nav className="app-navbar">
+        <div className="app-nav-inner">
+          <div className="app-logo" onClick={() => navigate('/')}>
+            <span className="app-logo-icon">🍳</span>
+            <span className="app-logo-text">家庭菜谱</span>
           </div>
-          <div style={styles.desktopNav}>
+          <div className="app-desktop-nav">
             {NAV_ITEMS.map(item => (
               <button
                 key={item.path}
-                style={{
-                  ...styles.navBtn,
-                  ...(route.page === (item.path === '/' ? 'home' : item.path.slice(1)) ? styles.navBtnActive : {}),
-                }}
+                className={`app-nav-btn ${isActive(item.path) ? 'app-nav-btn-active' : ''}`}
                 onClick={() => navigate(item.path)}
               >
-                <span style={styles.navIcon}>{item.icon}</span>
+                <span className="app-nav-icon">{item.icon}</span>
                 {item.label}
               </button>
             ))}
           </div>
           <button
-            style={styles.hamburger}
+            className="app-hamburger"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            ☰
+            {mobileMenuOpen ? '✕' : '☰'}
           </button>
         </div>
         {mobileMenuOpen && (
-          <div style={styles.mobileMenu}>
+          <div className="app-mobile-menu">
             {NAV_ITEMS.map(item => (
               <button
                 key={item.path}
-                style={{
-                  ...styles.mobileMenuBtn,
-                  ...(route.page === (item.path === '/' ? 'home' : item.path.slice(1)) ? styles.navBtnActive : {}),
-                }}
+                className={`app-mobile-menu-btn ${isActive(item.path) ? 'app-nav-btn-active' : ''}`}
                 onClick={() => navigate(item.path)}
               >
                 <span>{item.icon}</span> {item.label}
@@ -82,7 +81,7 @@ export default function App() {
           </div>
         )}
       </nav>
-      <main style={styles.main}>
+      <main className="app-main">
         {route.page === 'home' && <HomePage navigate={navigate} />}
         {route.page === 'recipe' && <RecipePage recipeId={route.id} navigate={navigate} />}
         {route.page === 'rank' && <RankPage navigate={navigate} />}
@@ -91,7 +90,7 @@ export default function App() {
   )
 }
 
-const globalCSS = `
+const appCSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #FFF8F0;
@@ -103,6 +102,7 @@ const globalCSS = `
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #D4A574; border-radius: 3px; }
+
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -127,111 +127,103 @@ const globalCSS = `
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
-`
-
-const styles: Record<string, React.CSSProperties> = {
-  root: {
-    minHeight: '100vh',
-  },
-  navbar: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    background: 'rgba(255, 248, 240, 0.85)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    borderBottom: '1px solid rgba(212, 165, 116, 0.2)',
-  },
-  navInner: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '0 24px',
-    height: 64,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  logo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    cursor: 'pointer',
-    userSelect: 'none',
-  },
-  logoIcon: {
-    fontSize: 28,
-  },
-  logoText: {
-    fontFamily: "'Noto Serif SC', serif",
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#4A3728',
-  },
-  desktopNav: {
-    display: 'flex',
-    gap: 8,
-  },
-  navBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 20px',
-    border: 'none',
-    borderRadius: 24,
-    background: 'transparent',
-    color: '#8B7355',
-    fontSize: 15,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    fontFamily: "'Noto Sans SC', sans-serif",
-  },
-  navBtnActive: {
-    background: 'rgba(212, 165, 116, 0.25)',
-    color: '#4A3728',
-    fontWeight: 500,
-  },
-  navIcon: {
-    fontSize: 16,
-  },
-  hamburger: {
-    display: 'none',
-    border: 'none',
-    background: 'none',
-    fontSize: 24,
-    cursor: 'pointer',
-    color: '#4A3728',
-  },
-  mobileMenu: {
-    padding: '8px 16px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  mobileMenuBtn: {
-    padding: '12px 16px',
-    border: 'none',
-    borderRadius: 12,
-    background: 'transparent',
-    color: '#8B7355',
-    fontSize: 16,
-    textAlign: 'left',
-    cursor: 'pointer',
-    fontFamily: "'Noto Sans SC', sans-serif",
-  },
-  main: {
-    paddingTop: 64,
-    minHeight: 'calc(100vh - 64px)',
-  },
-}
-
-const mobileMediaQuery = `
-  @media (max-width: 768px) {
-    .desktop-nav-class { display: none !important; }
-    .hamburger-class { display: block !important; }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
-  @media (min-width: 769px) {
-    .mobile-menu-class { display: none !important; }
+
+  .app-root { min-height: 100vh; }
+
+  .app-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 248, 240, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(212, 165, 116, 0.2);
+  }
+  .app-nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .app-logo-icon { font-size: 28px; }
+  .app-logo-text {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #4A3728;
+  }
+  .app-desktop-nav {
+    display: flex;
+    gap: 8px;
+  }
+  .app-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 24px;
+    background: transparent;
+    color: #8B7355;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+  .app-nav-btn-active {
+    background: rgba(212, 165, 116, 0.25);
+    color: #4A3728;
+    font-weight: 500;
+  }
+  .app-nav-icon { font-size: 16px; }
+  .app-hamburger {
+    display: none;
+    border: none;
+    background: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #4A3728;
+    padding: 4px 8px;
+  }
+  .app-mobile-menu {
+    padding: 4px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .app-mobile-menu-btn {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: #8B7355;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+  .app-main {
+    padding-top: 64px;
+    min-height: calc(100vh - 64px);
+  }
+
+  @media (max-width: 768px) {
+    .app-desktop-nav { display: none !important; }
+    .app-hamburger { display: block !important; }
   }
 `

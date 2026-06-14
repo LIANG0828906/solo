@@ -9,7 +9,7 @@ interface RankPageProps {
 export default function RankPage({ navigate }: RankPageProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [sortKey, setSortKey] = useState<'rating' | 'comments'>('rating')
-  const [prevOrder, setPrevOrder] = useState<string[]>([])
+  const [animKey, setAnimKey] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Array<{ x: number; y: number; vx: number; vy: number; r: number; alpha: number }>>([])
   const animFrameRef = useRef<number>(0)
@@ -17,17 +17,16 @@ export default function RankPage({ navigate }: RankPageProps) {
   const loadRank = useCallback(async () => {
     try {
       const data = await fetchRankRecipes(10)
-      const newOrder = data.map(r => r.id)
-      setPrevOrder(recipes.map(r => r.id).length > 0 ? recipes.map(r => r.id) : newOrder)
       setRecipes(data)
+      setAnimKey(k => k + 1)
     } catch (e) {
       console.error(e)
     }
-  }, [sortKey])
+  }, [])
 
   useEffect(() => {
     loadRank()
-  }, [sortKey])
+  }, [sortKey, loadRank])
 
   const sortedRecipes = [...recipes].sort((a, b) => {
     if (sortKey === 'comments') return b.commentCount - a.commentCount
@@ -97,45 +96,26 @@ export default function RankPage({ navigate }: RankPageProps) {
   const top3 = sortedRecipes.slice(0, 3)
   const rest = sortedRecipes.slice(3)
 
-  const getRankPosition = (rank: number) => {
-    if (rank === 0) return { order: 2, gridColumn: '2', gridRow: '1' }
-    if (rank === 1) return { order: 1, gridColumn: '1', gridRow: '2' }
-    return { order: 3, gridColumn: '3', gridRow: '2' }
-  }
-
-  const getPodiumStyle = (recipe: Recipe, rank: number): React.CSSProperties => {
-    const pos = getRankPosition(rank)
-    const isNew = !prevOrder.includes(recipe.id)
-    return {
-      ...styles.podiumCard,
-      order: pos.order,
-      gridColumn: pos.gridColumn,
-      gridRow: pos.gridRow,
-      animation: isNew ? 'fadeInUp 0.6s ease' : 'none',
-      transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-    }
-  }
-
   const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']
   const medalLabels = ['🥇', '🥈', '🥉']
 
   return (
-    <div style={styles.container}>
+    <div className="rank-page">
       <style>{rankCSS}</style>
-      <canvas ref={canvasRef} style={styles.canvas} />
-      <div style={styles.content}>
-        <h1 style={styles.title}>家庭厨神排行榜</h1>
-        <p style={styles.subtitle}>看看谁是家里的厨艺担当</p>
+      <canvas ref={canvasRef} className="rank-canvas" />
+      <div className="rank-content">
+        <h1 className="rank-title">家庭厨神排行榜</h1>
+        <p className="rank-subtitle">看看谁是家里的厨艺担当</p>
 
-        <div style={styles.sortBar}>
+        <div className="rank-sort-bar">
           <button
-            style={{ ...styles.sortBtn, ...(sortKey === 'rating' ? styles.sortBtnActive : {}) }}
+            className={`rank-sort-btn ${sortKey === 'rating' ? 'rank-sort-btn-active' : ''}`}
             onClick={() => setSortKey('rating')}
           >
             按评分排序
           </button>
           <button
-            style={{ ...styles.sortBtn, ...(sortKey === 'comments' ? styles.sortBtnActive : {}) }}
+            className={`rank-sort-btn ${sortKey === 'comments' ? 'rank-sort-btn-active' : ''}`}
             onClick={() => setSortKey('comments')}
           >
             按热度排序
@@ -143,52 +123,51 @@ export default function RankPage({ navigate }: RankPageProps) {
         </div>
 
         {top3.length >= 3 && (
-          <div style={styles.podium}>
+          <div className="rank-podium" key={animKey}>
             {top3.map((recipe, i) => (
               <div
                 key={recipe.id}
-                style={getPodiumStyle(recipe, i)}
+                className={`rank-podium-card rank-podium-${i + 1}`}
                 onClick={() => navigate(`/recipe/${recipe.id}`)}
-                className="podium-card"
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
-                <div style={styles.medal}>{medalLabels[i]}</div>
-                <img src={recipe.image} alt={recipe.title} style={styles.podiumImage} />
-                <h3 style={styles.podiumTitle}>{recipe.title}</h3>
-                <div style={styles.podiumAuthor}>
-                  <img src={recipe.author.avatar} alt={recipe.author.name} style={styles.podiumAvatar} />
+                <div className="rank-medal">{medalLabels[i]}</div>
+                <img src={recipe.image} alt={recipe.title} className="rank-podium-image" />
+                <h3 className="rank-podium-title">{recipe.title}</h3>
+                <div className="rank-podium-author">
+                  <img src={recipe.author.avatar} alt={recipe.author.name} className="rank-podium-avatar" />
                   <span>{recipe.author.name}</span>
                 </div>
-                <div style={styles.podiumStats}>
-                  <span style={styles.podiumRating}>★ {recipe.rating}</span>
-                  <span style={styles.podiumComments}>💬 {recipe.commentCount}</span>
+                <div className="rank-podium-stats">
+                  <span className="rank-podium-rating">★ {recipe.rating}</span>
+                  <span className="rank-podium-comments">💬 {recipe.commentCount}</span>
                 </div>
-                <div style={{
-                  ...styles.podiumBase,
-                  background: medalColors[i],
-                  height: i === 0 ? 80 : 50,
-                }} />
+                <div
+                  className="rank-podium-base"
+                  style={{ background: medalColors[i], height: i === 0 ? 80 : 50 }}
+                />
               </div>
             ))}
           </div>
         )}
 
         {rest.length > 0 && (
-          <div style={styles.restSection}>
-            <h2 style={styles.restTitle}>更多排名</h2>
-            <div className="rank-rest-grid" style={styles.restGrid}>
+          <div className="rank-rest-section">
+            <h2 className="rank-rest-title">更多排名</h2>
+            <div className="rank-rest-grid">
               {rest.map((recipe, i) => (
                 <div
                   key={recipe.id}
-                  style={styles.restCard}
+                  className="rank-rest-card"
                   onClick={() => navigate(`/recipe/${recipe.id}`)}
-                  className="rest-card"
+                  style={{ animationDelay: `${(i + 3) * 0.05}s` }}
                 >
-                  <span style={styles.restRank}>#{i + 4}</span>
-                  <img src={recipe.image} alt={recipe.title} style={styles.restImage} />
-                  <div style={styles.restInfo}>
-                    <h4 style={styles.restName}>{recipe.title}</h4>
-                    <span style={styles.restAuthor}>{recipe.author.name}</span>
-                    <div style={styles.restStats}>
+                  <span className="rank-rest-rank">#{i + 4}</span>
+                  <img src={recipe.image} alt={recipe.title} className="rank-rest-image" />
+                  <div className="rank-rest-info">
+                    <h4 className="rank-rest-name">{recipe.title}</h4>
+                    <span className="rank-rest-author">{recipe.author.name}</span>
+                    <div className="rank-rest-stats">
                       <span>★ {recipe.rating}</span>
                       <span>💬 {recipe.commentCount}</span>
                     </div>
@@ -204,19 +183,192 @@ export default function RankPage({ navigate }: RankPageProps) {
 }
 
 const rankCSS = `
-  .podium-card {
+  .rank-page {
+    position: relative;
+    min-height: calc(100vh - 64px);
+    overflow: hidden;
+  }
+  .rank-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .rank-content {
+    position: relative;
+    z-index: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+  }
+  .rank-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #4A3728;
+    text-align: center;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .rank-subtitle {
+    text-align: center;
+    color: #8B7355;
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 768px) {
+    .rank-title { font-size: 28px; }
+    .rank-content { padding: 24px 16px 32px; }
+  }
+
+  .rank-sort-bar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .rank-sort-btn {
+    padding: 8px 24px;
+    border-radius: 24px;
+    border: 1.5px solid #D4A574;
+    background: transparent;
+    color: #8B7355;
+    font-size: 14px;
     cursor: pointer;
+    transition: all 0.25s ease;
+    font-family: 'Noto Sans SC', sans-serif;
   }
-  .podium-card:hover {
-    transform: translateY(-4px) !important;
+  .rank-sort-btn-active {
+    background: #D4A574;
+    color: #FFFFFF;
+    border-color: #D4A574;
   }
-  .rest-card {
+
+  .rank-podium {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 40px;
+  }
+  .rank-podium-1 {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .rank-podium-2 {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .rank-podium-3 {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  @media (max-width: 768px) {
+    .rank-podium {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      gap: 12px;
+    }
+    .rank-podium-1,
+    .rank-podium-2,
+    .rank-podium-3 {
+      grid-column: 1;
+      grid-row: auto;
+    }
+  }
+
+  .rank-podium-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 20px 16px 0;
+    box-shadow: 0 4px 20px rgba(74, 55, 40, 0.08);
+    overflow: hidden;
     cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: fadeInUp 0.6s ease both;
   }
-  .rest-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(74, 55, 40, 0.12);
+  .rank-podium-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(74, 55, 40, 0.15);
+  }
+  .rank-podium-1 .rank-podium-image {
+    width: 140px;
+    height: 140px;
+  }
+  @media (max-width: 768px) {
+    .rank-podium-1 .rank-podium-image {
+      width: 120px;
+      height: 120px;
+    }
+  }
+
+  .rank-medal {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  .rank-podium-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    object-fit: cover;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 768px) {
+    .rank-podium-image {
+      width: 100px;
+      height: 100px;
+    }
+  }
+  .rank-podium-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4A3728;
+    text-align: center;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .rank-podium-author {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #8B7355;
+    margin-bottom: 8px;
+  }
+  .rank-podium-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+  }
+  .rank-podium-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+    color: #4A3728;
+    margin-bottom: 12px;
+  }
+  .rank-podium-rating { color: #E74C3C; }
+  .rank-podium-comments { color: #6B8E23; }
+  .rank-podium-base {
+    width: 100%;
+    opacity: 0.2;
+    margin-top: auto;
+  }
+
+  .rank-rest-section { margin-top: 8px; }
+  .rank-rest-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #4A3728;
+    margin-bottom: 20px;
+    font-family: 'Noto Serif SC', serif;
   }
   .rank-rest-grid {
     display: grid;
@@ -228,191 +380,55 @@ const rankCSS = `
       grid-template-columns: 1fr;
     }
   }
-`
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    position: 'relative',
-    minHeight: 'calc(100vh - 64px)',
-    overflow: 'hidden',
-  },
-  canvas: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-  content: {
-    position: 'relative',
-    zIndex: 1,
-    maxWidth: 1000,
-    margin: '0 auto',
-    padding: '32px 24px 48px',
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 700,
-    color: '#4A3728',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontFamily: "'Noto Serif SC', serif",
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#8B7355',
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  sortBar: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 36,
-  },
-  sortBtn: {
-    padding: '8px 24px',
-    borderRadius: 24,
-    border: '1.5px solid #D4A574',
-    background: 'transparent',
-    color: '#8B7355',
-    fontSize: 14,
-    cursor: 'pointer',
-    transition: 'all 0.25s ease',
-    fontFamily: "'Noto Sans SC', sans-serif",
-  },
-  sortBtnActive: {
-    background: '#D4A574',
-    color: '#FFFFFF',
-    borderColor: '#D4A574',
-  },
-  podium: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gridTemplateRows: 'auto auto',
-    gap: 16,
-    alignItems: 'end',
-    marginBottom: 40,
-  },
-  podiumCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    background: '#FFFFFF',
-    borderRadius: 16,
-    padding: '20px 16px 0',
-    boxShadow: '0 4px 20px rgba(74, 55, 40, 0.08)',
-    overflow: 'hidden',
-    transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-  },
-  medal: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  podiumImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
-    objectFit: 'cover',
-    marginBottom: 12,
-  },
-  podiumTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: '#4A3728',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontFamily: "'Noto Serif SC', serif",
-  },
-  podiumAuthor: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 14,
-    color: '#8B7355',
-    marginBottom: 8,
-  },
-  podiumAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: '50%',
-  },
-  podiumStats: {
-    display: 'flex',
-    gap: 16,
-    fontSize: 14,
-    color: '#4A3728',
-    marginBottom: 12,
-  },
-  podiumRating: {
-    color: '#E74C3C',
-  },
-  podiumComments: {
-    color: '#6B8E23',
-  },
-  podiumBase: {
-    width: '100%',
-    borderRadius: '0',
-    opacity: 0.2,
-    marginTop: 'auto',
-  },
-  restSection: {
-    marginTop: 8,
-  },
-  restTitle: {
-    fontSize: 22,
-    fontWeight: 600,
-    color: '#4A3728',
-    marginBottom: 20,
-    fontFamily: "'Noto Serif SC', serif",
-  },
-  restGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 16,
-  },
-  restCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    background: '#FFFFFF',
-    borderRadius: 12,
-    boxShadow: '0 2px 12px rgba(74, 55, 40, 0.06)',
-  },
-  restRank: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#D4A574',
-    minWidth: 36,
-  },
-  restImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    objectFit: 'cover',
-    flexShrink: 0,
-  },
-  restInfo: {
-    flex: 1,
-  },
-  restName: {
-    fontSize: 15,
-    fontWeight: 500,
-    color: '#4A3728',
-    marginBottom: 2,
-  },
-  restAuthor: {
-    fontSize: 12,
-    color: '#8B7355',
-  },
-  restStats: {
-    display: 'flex',
-    gap: 12,
-    fontSize: 13,
-    color: '#8B7355',
-    marginTop: 4,
-  },
-}
+  .rank-rest-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(74, 55, 40, 0.06);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: fadeInUp 0.5s ease both;
+  }
+  .rank-rest-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(74, 55, 40, 0.12);
+  }
+  .rank-rest-rank {
+    font-size: 18px;
+    font-weight: 700;
+    color: #D4A574;
+    min-width: 36px;
+  }
+  .rank-rest-image {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .rank-rest-info { flex: 1; min-width: 0; }
+  .rank-rest-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #4A3728;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rank-rest-author {
+    font-size: 12px;
+    color: #8B7355;
+  }
+  .rank-rest-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: #8B7355;
+    margin-top: 4px;
+  }
+`

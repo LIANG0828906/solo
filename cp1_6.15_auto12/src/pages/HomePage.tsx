@@ -58,27 +58,24 @@ export default function HomePage({ navigate }: HomePageProps) {
   }, [page, loading, hasMore, category, loadRecipes])
 
   return (
-    <div style={styles.container}>
+    <div className="home-page">
       <style>{homeCSS}</style>
-      <div style={styles.hero}>
-        <h1 style={styles.heroTitle}>家的味道，从这里开始</h1>
-        <p style={styles.heroSub}>和家人们一起记录每一道拿手好菜</p>
+      <div className="home-hero">
+        <h1 className="home-hero-title">家的味道，从这里开始</h1>
+        <p className="home-hero-sub">和家人们一起记录每一道拿手好菜</p>
       </div>
-      <div style={styles.filterBar}>
+      <div className="home-filter-bar">
         {CATEGORIES.map(cat => (
           <button
             key={cat}
-            style={{
-              ...styles.filterBtn,
-              ...(category === cat ? styles.filterBtnActive : {}),
-            }}
+            className={`home-filter-btn ${category === cat ? 'home-filter-btn-active' : ''}`}
             onClick={() => setCategory(cat)}
           >
             {cat}
           </button>
         ))}
       </div>
-      <div className="recipe-grid" style={styles.grid}>
+      <div className="home-grid">
         {recipes.map((recipe, idx) => (
           <RecipeCard
             key={recipe.id}
@@ -89,104 +86,121 @@ export default function HomePage({ navigate }: HomePageProps) {
         ))}
       </div>
       {loading && (
-        <div style={styles.loading}>
-          <div style={styles.spinner} />
-          <span style={styles.loadingText}>加载中...</span>
+        <div className="home-loading">
+          <div className="home-spinner" />
+          <span className="home-loading-text">加载中...</span>
         </div>
       )}
       <div ref={loaderRef} style={{ height: 1 }} />
       {!hasMore && recipes.length > 0 && (
-        <p style={styles.noMore}>— 已经到底了 —</p>
+        <p className="home-no-more">— 已经到底了 —</p>
       )}
     </div>
   )
 }
 
 const homeCSS = `
-  .recipe-grid {
+  .home-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px 48px;
+  }
+  @media (max-width: 768px) {
+    .home-page {
+      padding: 0 16px 32px;
+    }
+  }
+
+  .home-hero {
+    text-align: center;
+    padding: 48px 0 36px;
+  }
+  @media (max-width: 768px) {
+    .home-hero {
+      padding: 32px 0 24px;
+    }
+  }
+  .home-hero-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #4A3728;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  @media (max-width: 768px) {
+    .home-hero-title { font-size: 28px; }
+  }
+  .home-hero-sub {
+    font-size: 16px;
+    color: #8B7355;
+  }
+
+  .home-filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .home-filter-btn {
+    padding: 8px 24px;
+    border-radius: 24px;
+    border: 1.5px solid #D4A574;
+    background: transparent;
+    color: #8B7355;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+  .home-filter-btn:hover {
+    background: rgba(212, 165, 116, 0.1);
+  }
+  .home-filter-btn-active {
+    background: #D4A574;
+    color: #FFFFFF;
+    border-color: #D4A574;
+  }
+
+  .home-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
   }
   @media (max-width: 1024px) {
-    .recipe-grid { grid-template-columns: repeat(2, 1fr); }
+    .home-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
   @media (max-width: 768px) {
-    .recipe-grid { grid-template-columns: 1fr; gap: 16px; }
+    .home-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+
+  .home-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 0;
+  }
+  .home-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #F5E6D3;
+    border-top-color: #D4A574;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .home-loading-text {
+    color: #8B7355;
+    font-size: 14px;
+  }
+  .home-no-more {
+    text-align: center;
+    color: #BFA882;
+    font-size: 14px;
+    padding: 24px 0;
   }
 `
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '0 24px 48px',
-  },
-  hero: {
-    textAlign: 'center',
-    padding: '48px 0 36px',
-  },
-  heroTitle: {
-    fontSize: 36,
-    fontWeight: 700,
-    color: '#4A3728',
-    marginBottom: 8,
-    fontFamily: "'Noto Serif SC', serif",
-  },
-  heroSub: {
-    fontSize: 16,
-    color: '#8B7355',
-  },
-  filterBar: {
-    display: 'flex',
-    gap: 8,
-    marginBottom: 28,
-    flexWrap: 'wrap',
-  },
-  filterBtn: {
-    padding: '8px 24px',
-    borderRadius: 24,
-    border: '1.5px solid #D4A574',
-    background: 'transparent',
-    color: '#8B7355',
-    fontSize: 14,
-    cursor: 'pointer',
-    transition: 'all 0.25s ease',
-    fontFamily: "'Noto Sans SC', sans-serif",
-  },
-  filterBtnActive: {
-    background: '#D4A574',
-    color: '#FFFFFF',
-    borderColor: '#D4A574',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 24,
-  },
-  loading: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    padding: '32px 0',
-  },
-  spinner: {
-    width: 24,
-    height: 24,
-    border: '3px solid #F5E6D3',
-    borderTopColor: '#D4A574',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-  loadingText: {
-    color: '#8B7355',
-    fontSize: 14,
-  },
-  noMore: {
-    textAlign: 'center',
-    color: '#BFA882',
-    fontSize: 14,
-    padding: '24px 0',
-  },
-}
