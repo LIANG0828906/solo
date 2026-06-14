@@ -175,10 +175,6 @@ export class Game {
     const halfH = player.height / 2;
     player.x = Math.max(this.roadBounds.left + halfW, Math.min(this.roadBounds.right - halfW, player.x));
     player.y = Math.max(halfH, Math.min(this.canvas.height - halfH, player.y));
-
-    if (this.state.isBoosting) {
-      this.spawnBoostParticles();
-    }
   }
 
   private updateRoad(dt: number): void {
@@ -261,23 +257,24 @@ export class Game {
     if (!this.state.isBoosting && this.state.boostCooldown <= 0) {
       this.state.isBoosting = true;
       this.state.boostTime = BOOST_DURATION;
+      this.spawnBoostParticlesBurst();
     }
   }
 
-  private spawnBoostParticles(): void {
+  private spawnBoostParticlesBurst(): void {
     const player = this.state.player;
-    const particleCount = 1;
+    const particleCount = 15;
     for (let i = 0; i < particleCount; i++) {
       const isOrange = Math.random() > 0.4;
       this.state.particles.push({
-        x: player.x + (Math.random() - 0.5) * player.width * 0.5,
-        y: player.y + player.height / 2 - 5,
-        vx: (Math.random() - 0.5) * 40,
-        vy: 100 + Math.random() * 80,
+        x: player.x + (Math.random() - 0.5) * player.width * 0.6,
+        y: player.y + player.height / 2,
+        vx: (Math.random() - 0.5) * 80,
+        vy: 60 + Math.random() * 120,
         life: 0.3,
         maxLife: 0.3,
         color: isOrange ? '#f97316' : '#fbbf24',
-        size: 5 + Math.random() * 5
+        size: 4 + Math.random() * 6
       });
     }
   }
