@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import BookList from './components/BookList';
 import BorrowModal from './components/BorrowModal';
 
 const App = () => {
   const [activeView, setActiveView] = useState<'books' | 'add'>('books');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isbn, setIsbn] = useState('');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -15,6 +16,18 @@ const App = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const categories = ['小说', '非虚构', '科技', '艺术', '儿童'];
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const showToast = (message: string) => {
     setToast({ message, visible: true });
@@ -51,15 +64,19 @@ const App = () => {
     { key: 'add', label: '添加图书', icon: '➕' },
   ];
 
+  const sidebarVisible = !isMobile || mobileMenuOpen;
+
   return (
     <div style={styles.app}>
-      {mobileMenuOpen && (
+      {isMobile && mobileMenuOpen && (
         <div style={styles.mobileOverlay} onClick={() => setMobileMenuOpen(false)} />
       )}
 
       <aside style={{
         ...styles.sidebar,
-        ...(mobileMenuOpen ? styles.sidebarMobileOpen : {}),
+        ...(isMobile ? styles.sidebarMobile : {}),
+        ...(isMobile && mobileMenuOpen ? styles.sidebarMobileOpen : {}),
+        ...(isMobile && !mobileMenuOpen ? styles.sidebarMobileClosed : {}),
       }}>
         <div style={styles.logo}>📖 图书管理</div>
         <nav style={styles.nav}>
@@ -82,14 +99,19 @@ const App = () => {
         </nav>
       </aside>
 
-      <main style={styles.main}>
+      <main style={{
+        ...styles.main,
+        ...(isMobile ? styles.mainMobile : {}),
+      }}>
         <header style={styles.header}>
-          <button
-            style={styles.hamburger}
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            ☰
-          </button>
+          {isMobile && (
+            <button
+              style={styles.hamburger}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              ☰
+            </button>
+          )}
           <h1 style={styles.headerTitle}>
             {activeView === 'books' ? '图书列表' : '添加新图书'}
           </h1>
@@ -188,7 +210,7 @@ const App = () => {
       )}
 
       {toast.visible && (
-        <div style={styles.toast}>
+        <div className="toast-notification" style={styles.toast}>
           {toast.message}
         </div>
       )}
@@ -214,15 +236,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     zIndex: 100,
     transition: 'transform 0.3s ease-out',
   },
+  sidebarMobile: {
+    transform: 'translateX(-100%)',
+  },
   sidebarMobileOpen: {
     transform: 'translateX(0)',
+  },
+  sidebarMobileClosed: {
+    transform: 'translateX(-100%)',
   },
   mobileOverlay: {
     position: 'fixed',
     inset: 0,
     background: 'rgba(0,0,0,0.5)',
     zIndex: 99,
-    display: 'block',
   },
   logo: {
     fontSize: 20,
@@ -262,6 +289,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: '#f1f5f9',
     minHeight: '100vh',
   },
+  mainMobile: {
+    marginLeft: 0,
+  },
   header: {
     display: 'flex',
     alignItems: 'center',
@@ -271,12 +301,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   hamburger: {
-    display: 'none',
     fontSize: 24,
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     padding: 4,
+    color: '#0f172a',
   },
   headerTitle: {
     margin: 0,
