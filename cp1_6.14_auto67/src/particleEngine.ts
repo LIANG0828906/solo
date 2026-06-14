@@ -1,4 +1,5 @@
-import { Point2D, ShapeType, generateShapePoints, shapeColors } from './shapePoints';
+import type { ShapeType } from './shapePoints';
+import { generateShapePoints, shapeColors } from './shapePoints';
 
 export interface HSLColor {
   h: number;
@@ -162,7 +163,7 @@ export class ParticleEngine {
 
   init(count: number, shape: ShapeType = 'circle'): void {
     this.currentShape = shape;
-    const points = generateShapePoints(shape, count);
+    const points = generateShapePoints({ shape, count });
     const color = shapeColors[shape];
 
     this.particles = points.map((point, index) => ({
@@ -197,7 +198,8 @@ export class ParticleEngine {
     if (shape === this.currentShape) return;
 
     this.currentShape = shape;
-    const points = generateShapePoints(shape, this.particles.filter(p => !p.isRemoving).length);
+    const activeCount = this.particles.filter(p => !p.isRemoving).length;
+    const points = generateShapePoints({ shape, count: activeCount });
     const targetColor = shapeColors[shape];
 
     const activeParticles = this.particles.filter(p => !p.isRemoving);
@@ -222,7 +224,7 @@ export class ParticleEngine {
     if (targetCount === currentActive) return;
 
     if (targetCount > currentActive) {
-      const points = generateShapePoints(this.currentShape, targetCount);
+      const points = generateShapePoints({ shape: this.currentShape, count: targetCount });
       const color = shapeColors[this.currentShape];
       const toAdd = targetCount - currentActive;
 

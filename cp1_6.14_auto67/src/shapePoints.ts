@@ -5,33 +5,73 @@ export interface Point2D {
 
 export type ShapeType = 'circle' | 'heart' | 'star';
 
-export function generateCirclePoints(count: number, radius: number): Point2D[] {
+export interface CircleOptions {
+  count: number;
+  radius: number;
+  centerX?: number;
+  centerY?: number;
+  density?: number;
+}
+
+export interface HeartOptions {
+  count: number;
+  scale: number;
+  centerX?: number;
+  centerY?: number;
+  density?: number;
+}
+
+export interface StarOptions {
+  count: number;
+  outerRadius: number;
+  innerRadius: number;
+  points?: number;
+  centerX?: number;
+  centerY?: number;
+  density?: number;
+}
+
+export function generateCirclePoints(options: CircleOptions): Point2D[] {
+  const { count, radius, centerX = 0, centerY = 0, density = 1 } = options;
+  const actualCount = Math.max(1, Math.floor(count * density));
   const points: Point2D[] = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
+  for (let i = 0; i < actualCount; i++) {
+    const angle = (i / actualCount) * Math.PI * 2;
     points.push({
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
     });
   }
   return points;
 }
 
-export function generateHeartPoints(count: number, scale: number): Point2D[] {
+export function generateHeartPoints(options: HeartOptions): Point2D[] {
+  const { count, scale, centerX = 0, centerY = 0, density = 1 } = options;
+  const actualCount = Math.max(1, Math.floor(count * density));
   const points: Point2D[] = [];
-  for (let i = 0; i < count; i++) {
-    const t = (i / count) * Math.PI * 2;
+  for (let i = 0; i < actualCount; i++) {
+    const t = (i / actualCount) * Math.PI * 2;
     const x = 16 * Math.pow(Math.sin(t), 3);
     const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
     points.push({
-      x: x * scale,
-      y: y * scale,
+      x: centerX + x * scale,
+      y: centerY + y * scale,
     });
   }
   return points;
 }
 
-export function generateStarPoints(count: number, outerRadius: number, innerRadius: number, points: number = 5): Point2D[] {
+export function generateStarPoints(options: StarOptions): Point2D[] {
+  const {
+    count,
+    outerRadius,
+    innerRadius,
+    points = 5,
+    centerX = 0,
+    centerY = 0,
+    density = 1,
+  } = options;
+  const actualCount = Math.max(1, Math.floor(count * density));
   const result: Point2D[] = [];
   const totalVertices = points * 2;
   const angleStep = Math.PI / points;
@@ -41,8 +81,8 @@ export function generateStarPoints(count: number, outerRadius: number, innerRadi
     const angle = i * angleStep - Math.PI / 2;
     const radius = i % 2 === 0 ? outerRadius : innerRadius;
     vertices.push({
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
     });
   }
 
@@ -58,11 +98,11 @@ export function generateStarPoints(count: number, outerRadius: number, innerRadi
     totalLength += length;
   }
 
-  const stepLength = totalLength / count;
+  const stepLength = totalLength / actualCount;
   let currentEdgeIndex = 0;
   let currentEdgeProgress = 0;
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < actualCount; i++) {
     let remainingDistance = i * stepLength;
 
     while (currentEdgeIndex < edges.length - 1 && remainingDistance > edges[currentEdgeIndex].length) {
@@ -82,17 +122,34 @@ export function generateStarPoints(count: number, outerRadius: number, innerRadi
   return result;
 }
 
-export function generateShapePoints(shape: ShapeType, count: number): Point2D[] {
-  const baseSize = 180;
+export interface GenerateShapeOptions {
+  shape: ShapeType;
+  count: number;
+  centerX?: number;
+  centerY?: number;
+  density?: number;
+  baseSize?: number;
+}
+
+export function generateShapePoints(options: GenerateShapeOptions): Point2D[] {
+  const { shape, count, centerX = 0, centerY = 0, density = 1, baseSize = 180 } = options;
   switch (shape) {
     case 'circle':
-      return generateCirclePoints(count, baseSize);
+      return generateCirclePoints({ count, radius: baseSize, centerX, centerY, density });
     case 'heart':
-      return generateHeartPoints(count, baseSize / 17);
+      return generateHeartPoints({ count, scale: baseSize / 17, centerX, centerY, density });
     case 'star':
-      return generateStarPoints(count, baseSize, baseSize * 0.45, 5);
+      return generateStarPoints({
+        count,
+        outerRadius: baseSize,
+        innerRadius: baseSize * 0.45,
+        points: 5,
+        centerX,
+        centerY,
+        density,
+      });
     default:
-      return generateCirclePoints(count, baseSize);
+      return generateCirclePoints({ count, radius: baseSize, centerX, centerY, density });
   }
 }
 

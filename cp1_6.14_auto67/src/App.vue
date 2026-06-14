@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { ParticleEngine, Particle, HSLColor } from './particleEngine';
-import { ShapeType } from './shapePoints';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ParticleEngine } from './particleEngine';
+import type { Particle, HSLColor } from './particleEngine';
+import type { ShapeType } from './shapePoints';
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
