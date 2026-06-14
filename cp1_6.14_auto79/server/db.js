@@ -1,14 +1,17 @@
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
+import { LowSync, JSONFileSync } from 'lowdb';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const file = join(__dirname, 'db.json');
-const adapter = new JSONFile(file);
+const dbDir = __dirname;
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
+const file = join(dbDir, 'db.json');
+const adapter = new JSONFileSync(file);
 
 const defaultData = {
   users: [
@@ -72,10 +75,21 @@ const defaultData = {
   ],
 };
 
-const db = new Low(adapter, defaultData);
-await db.read();
+const db = new LowSync(adapter);
+
+if (!fs.existsSync(file)) {
+  db.data = JSON.parse(JSON.stringify(defaultData));
+  db.write();
+} else {
+  db.read();
+  if (!db.data || !db.data.users || db.data.users.length === 0) {
+    db.data = JSON.parse(JSON.stringify(defaultData));
+    db.write();
+  }
+}
 
 function generateDuties() {
+  if (!db.data) return;
   if (db.data.duties.length > 0) return;
   const house = db.data.houses[0];
   if (!house) return;
@@ -102,36 +116,43 @@ function generateDuties() {
 
 generateDuties();
 
-export async function getCollection(name) {
-  await db.read();
-  return db.data[name];
+export function getCollection(name) {
+  db.read();
+  return db.data ? db.data[name] || [] : [];
 }
 
-export async function createItem(collection, item) {
+export function createItem(collection, item) {
+  db.read();
+  if (!db.data) db.data = { [collection]: [] };
+  if (!db.data[collection]) db.data[collection] = [];
   const newItem = { id: uuidv4(), ...item };
   db.data[collection].push(newItem);
-  await db.write();
+  db.write();
   return newItem;
 }
 
-export async function updateItem(collection, id, updates) {
+export function updateItem(collection, id, updates) {
+  db.read();
+  if (!db.data || !db.data[collection]) return null;
   const idx = db.data[collection].findIndex((i) => i.id === id);
   if (idx === -1) return null;
   db.data[collection][idx] = { ...db.data[collection][idx], ...updates };
-  await db.write();
+  db.write();
   return db.data[collection][idx];
 }
 
-export async function deleteItem(collection, id) {
+export function deleteItem(collection, id) {
+  db.read();
+  if (!db.data || !db.data[collection]) return false;
   const before = db.data[collection].length;
   db.data[collection] = db.data[collection].filter((i) => i.id !== id);
-  await db.write();
+  db.write();
   return db.data[collection].length < before;
 }
 
-export async function findUserById(id) {
-  await db.read();
-  return db.data.users.find((u) => u.id === id);
+export function findUserById(id) {
+  db.read();
+  return db.data?.users?.find((u) => u.id === id) || null;
 }
 
 export { db };
