@@ -104,6 +104,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
   }, [logs]);
 
   const addLog = useCallback((turn: number, message: string) => {
+    if (isPausedRef.current) return;
     const entry: BattleLogEntry = {
       id: uuidv4(),
       turn,
@@ -749,7 +750,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
             display: 'flex',
             flexDirection: 'column',
             gap: '4px',
-            maxWidth: `${GRID_COLS * (cellSize + 4) + 20}px`,
+            maxWidth: `${GRID_COLS * cellSize + (GRID_COLS - 1) * 4 + 20}px`,
           }}>
             <div style={{
               textAlign: 'center',
@@ -905,6 +906,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
           opacity: showStats && !closingStats ? 1 : 0,
           transition: closingStats ? 'opacity 0.3s ease' : 'opacity 0.4s ease',
           visibility: showStats || closingStats ? 'visible' : 'hidden',
+          pointerEvents: showStats && !closingStats ? 'auto' : 'none',
         }}
       >
         <div
@@ -923,6 +925,7 @@ const BattleSimulator: React.FC<BattleSimulatorProps> = ({ deck, logs, onLogsCha
             transition: closingStats
               ? 'transform 0.3s ease, opacity 0.3s ease'
               : 'transform 0.4s ease-out, opacity 0.4s ease-out',
+            pointerEvents: showStats && !closingStats ? 'auto' : 'none',
           }}
         >
           {stats && (

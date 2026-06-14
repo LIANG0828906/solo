@@ -57,14 +57,15 @@ const CardEditor: React.FC<CardEditorProps> = ({ cardLibrary, onAddCard }) => {
   };
 
   const btnDisabledStyle: React.CSSProperties = {
-    backgroundColor: '#64748b',
-    color: '#cbd5e1',
+    backgroundColor: '#475569',
+    color: '#94a3b8',
     opacity: 0.5,
     cursor: 'not-allowed',
     borderRadius: '8px',
     padding: '6px 12px',
     fontSize: '14px',
     fontWeight: 600,
+    pointerEvents: 'none',
   };
 
   const Counter: React.FC<{
