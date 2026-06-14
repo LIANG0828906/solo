@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf, Home, ClockFile, ArrowLeft } from 'lucide-react';
+import { Leaf, Home, History as HistoryIcon, ArrowLeft } from 'lucide-react';
 import { AppProvider, useAppStore } from '@/shared/store';
 import UploadZone from '@/upload/UploadZone';
 import DiagnosisPanel from '@/diagnosis/DiagnosisPanel';
@@ -53,7 +53,7 @@ function Navbar({ currentPage, onNavigate }: { currentPage: Page; onNavigate: (p
             whileTap={{ scale: 0.96 }}
             transition={spring}
           >
-            <ClockFile size={18} />
+            <HistoryIcon size={18} />
             <span>历史记录</span>
           </motion.button>
         </div>

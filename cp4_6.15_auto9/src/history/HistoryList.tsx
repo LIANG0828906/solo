@@ -166,18 +166,29 @@ export default function HistoryList({ onViewRecord }: HistoryListProps) {
   const [filterStatus, setFilterStatus] = useState<DiagnosisStatus | 'all'>('all');
   const debouncedSearch = useDebounced(searchInput, 180);
 
+  const sortedRecords = useMemo(() => {
+    return [...state.records].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [state.records]);
+
+  const normalizedQuery = useMemo(() => {
+    return debouncedSearch.trim().toLowerCase();
+  }, [debouncedSearch]);
+
   const filteredRecords = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
+    if (!normalizedQuery && filterStatus === 'all') {
+      return sortedRecords;
+    }
     const result: DiagnosisRecord[] = [];
-    for (let i = 0; i < state.records.length; i++) {
-      const r = state.records[i];
-      if (q && !r.plantName.toLowerCase().includes(q)) continue;
+    for (let i = 0; i < sortedRecords.length; i++) {
+      const r = sortedRecords[i];
+      if (normalizedQuery && !r.plantName.toLowerCase().includes(normalizedQuery)) continue;
       if (filterStatus !== 'all' && r.status !== filterStatus) continue;
       result.push(r);
     }
-    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return result;
-  }, [state.records, debouncedSearch, filterStatus]);
+  }, [sortedRecords, normalizedQuery, filterStatus]);
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -241,7 +252,7 @@ export default function HistoryList({ onViewRecord }: HistoryListProps) {
         <LayoutGroup>
           <AnimatePresence mode="popLayout">
             <div className="history-list">
-              {filteredRecords.map((record, idx) => (
+              {filteredRecords.map((record) => (
                 <HistoryItem
                   key={record.id}
                   record={record}

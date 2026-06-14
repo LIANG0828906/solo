@@ -4,6 +4,9 @@ import { useAppStore } from '@/shared/store';
 import type { DiagnosisStatus, ImageFeatures } from '@/shared/types';
 
 const THUMBNAIL_MAX_SIZE = 256;
+const DISPLAY_MAX_SIZE = 1280;
+const QUALITY_THUMBNAIL = 0.78;
+const QUALITY_DISPLAY = 0.88;
 
 const statusBorders: Record<DiagnosisStatus | 'loading' | 'idle', string> = {
   healthy: '4px solid #4CAF50',
@@ -23,63 +26,33 @@ const statusGlow: Record<DiagnosisStatus | 'loading' | 'idle', string> = {
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-async function createThumbnail(file: File): Promise<{ image: string; thumbnail: string; features: ImageFeatures }> {
-  let bitmap: ImageBitmap | HTMLImageElement;
-
-  try {
-    if (typeof createImageBitmap === 'function') {
-      bitmap = await createImageBitmap(file, {
-        resizeWidth: THUMBNAIL_MAX_SIZE,
-        resizeHeight: THUMBNAIL_MAX_SIZE,
-        resizeQuality: 'high',
-      });
-    } else {
-      bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-      });
-    }
-  } catch (e) {
-    throw new Error('图片加载失败');
-  }
-
-  const srcWidth = bitmap.width;
-  const srcHeight = bitmap.height;
-  const ratio = Math.min(1, THUMBNAIL_MAX_SIZE / Math.max(srcWidth, srcHeight));
-  const thumbWidth = Math.round(srcWidth * ratio);
-  const thumbHeight = Math.round(srcHeight * ratio);
-
+function drawToCanvas(
+  source: CanvasImageSource,
+  targetW: number,
+  targetH: number,
+  quality: number,
+  mimeType: string,
+): string {
   const canvas = document.createElement('canvas');
-  canvas.width = thumbWidth;
-  canvas.height = thumbHeight;
+  canvas.width = targetW;
+  canvas.height = targetH;
   const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) throw new Error('Canvas not available');
-  ctx.drawImage(bitmap, 0, 0, thumbWidth, thumbHeight);
+  if (!ctx) throw new Error('Canvas context unavailable');
+  ctx.drawImage(source, 0, 0, targetW, targetH);
+  return canvas.toDataURL(mimeType === 'image/png' ? 'image/png' : 'image/jpeg', mimeType === 'image/png' ? undefined : quality);
+}
 
-  const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-  const thumbnail = canvas.toDataURL(mimeType, mimeType === 'image/png' ? undefined : 0.85);
-
-  const fullCanvas = document.createElement('canvas');
-  const fullRatio = Math.min(1, 1600 / Math.max(srcWidth, srcHeight));
-  fullCanvas.width = Math.round(srcWidth * fullRatio);
-  fullCanvas.height = Math.round(srcHeight * fullRatio);
-  const fullCtx = fullCanvas.getContext('2d', { alpha: false });
-  if (!fullCtx) throw new Error('Canvas not available');
-  fullCtx.drawImage(bitmap, 0, 0, fullCanvas.width, fullCanvas.height);
-  const image = fullCanvas.toDataURL(mimeType, mimeType === 'image/png' ? undefined : 0.9);
-
-  if ('close' in bitmap) (bitmap as ImageBitmap).close();
-
-  const size = 48;
-  const featureCanvas = document.createElement('canvas');
-  featureCanvas.width = size;
-  featureCanvas.height = size;
-  const fctx = featureCanvas.getContext('2d', { alpha: false });
-  if (!fctx) throw new Error('Canvas not available');
-  fctx.drawImage(bitmap, 0, 0, size, size);
-  const data = fctx.getImageData(0, 0, size, size).data;
+function extractFeaturesFromSource(
+  source: CanvasImageSource,
+): ImageFeatures {
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Canvas context unavailable');
+  ctx.drawImage(source, 0, 0, size, size);
+  const data = ctx.getImageData(0, 0, size, size).data;
 
   let rSum = 0, gSum = 0, bSum = 0;
   let brightnessSum = 0;
@@ -105,7 +78,7 @@ async function createThumbnail(file: File): Promise<{ image: string; thumbnail: 
   for (const l of luminanceArr) variance += (l - avgLum) ** 2;
   const contrast = Math.min(1, Math.sqrt(variance / totalPixels) / 80);
 
-  const features: ImageFeatures = {
+  return {
     avgRed: rSum / totalPixels / 255,
     avgGreen: gSum / totalPixels / 255,
     avgBlue: bSum / totalPixels / 255,
@@ -115,6 +88,51 @@ async function createThumbnail(file: File): Promise<{ image: string; thumbnail: 
     yellowTendency: yellowPixel / totalPixels,
     brownSpotRatio: brownSpot / totalPixels,
   };
+}
+
+async function createThumbnail(file: File): Promise<{ image: string; thumbnail: string; features: ImageFeatures }> {
+  const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  let bitmap: ImageBitmap | HTMLImageElement;
+  let srcW: number, srcH: number;
+  let closeFn: (() => void) | null = null;
+
+  try {
+    if (typeof createImageBitmap === 'function') {
+      bitmap = await createImageBitmap(file, {
+        resizeWidth: Math.min(1024, THUMBNAIL_MAX_SIZE * 2),
+        resizeHeight: Math.min(1024, THUMBNAIL_MAX_SIZE * 2),
+        resizeQuality: 'low',
+      });
+      srcW = bitmap.width;
+      srcH = bitmap.height;
+      closeFn = () => (bitmap as ImageBitmap).close();
+    } else {
+      bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+      srcW = bitmap.naturalWidth;
+      srcH = bitmap.naturalHeight;
+    }
+  } catch (e) {
+    throw new Error('图片加载失败');
+  }
+
+  const thumbRatio = Math.min(1, THUMBNAIL_MAX_SIZE / Math.max(srcW, srcH));
+  const thumbW = Math.max(1, Math.round(srcW * thumbRatio));
+  const thumbH = Math.max(1, Math.round(srcH * thumbRatio));
+  const thumbnail = drawToCanvas(bitmap, thumbW, thumbH, QUALITY_THUMBNAIL, mimeType);
+
+  const dispRatio = Math.min(1, DISPLAY_MAX_SIZE / Math.max(srcW, srcH));
+  const dispW = Math.max(1, Math.round(srcW * dispRatio));
+  const dispH = Math.max(1, Math.round(srcH * dispRatio));
+  const image = drawToCanvas(bitmap, dispW, dispH, QUALITY_DISPLAY, mimeType);
+
+  const features = extractFeaturesFromSource(bitmap);
+
+  if (closeFn) closeFn();
 
   return { image, thumbnail, features };
 }

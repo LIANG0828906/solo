@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Droplets, Leaf, Thermometer, Wind, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/shared/store';
@@ -41,14 +40,20 @@ const spring = {
   mass: 0.8,
 };
 
+const fadeUpVariant = (delay = 0) => ({
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { ...spring, delay } },
+});
+
 function SuggestionCard({ suggestion, index }: { suggestion: CareSuggestion; index: number }) {
   const Icon = iconMap[suggestion.icon];
   return (
     <motion.div
       className="suggestion-card"
-      initial={{ opacity: 0, y: 30, scale: 0.92 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ ...spring, delay: index * 0.08 }}
+      variants={fadeUpVariant(index * 0.08)}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
       whileHover={{ scale: 1.04, y: -4, transition: { ...spring, delay: 0 } }}
     >
       <motion.div
@@ -59,8 +64,22 @@ function SuggestionCard({ suggestion, index }: { suggestion: CareSuggestion; ind
       >
         <Icon size={28} />
       </motion.div>
-      <h4 className="suggestion-title">{suggestion.title}</h4>
-      <p className="suggestion-desc">{suggestion.description}</p>
+      <motion.h4
+        className="suggestion-title"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ ...spring, delay: index * 0.08 + 0.14 }}
+      >
+        {suggestion.title}
+      </motion.h4>
+      <motion.p
+        className="suggestion-desc"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ ...spring, delay: index * 0.08 + 0.2 }}
+      >
+        {suggestion.description}
+      </motion.p>
     </motion.div>
   );
 }
@@ -75,7 +94,8 @@ export default function DiagnosisPanel() {
         <motion.div
           key="loading"
           className="diagnosis-panel diagnosis-loading"
-          initial={{ opacity: 0, y: 20 }}
+          layout
+          initial={{ opacity: 0, y: 20, height: 'auto' }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={spring}
@@ -114,6 +134,7 @@ export default function DiagnosisPanel() {
         <motion.div
           key="result"
           className="diagnosis-panel"
+          layout
           initial={{ opacity: 0, y: 40, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -30 }}
@@ -122,11 +143,19 @@ export default function DiagnosisPanel() {
           <motion.div
             className="severity-bar"
             style={{ background: statusConfig[record.status].gradient }}
-            initial={{ x: -40, opacity: 0 }}
+            initial={{ x: -60, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
+            exit={{ opacity: 0, x: -30 }}
             transition={{ ...spring, delay: 0.05 }}
           >
-            <span className="severity-label">严重等级</span>
+            <motion.span
+              className="severity-label"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.9 }}
+              transition={{ ...spring, delay: 0.1 }}
+            >
+              严重等级
+            </motion.span>
             <div className="severity-track">
               <motion.div
                 className="severity-fill"
@@ -136,19 +165,41 @@ export default function DiagnosisPanel() {
                 style={{ background: 'rgba(255,255,255,0.35)' }}
               />
             </div>
-            <span className="severity-value">{statusConfig[record.status].label}</span>
+            <motion.span
+              className="severity-value"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ ...spring, delay: 0.32 }}
+            >
+              {statusConfig[record.status].label}
+            </motion.span>
           </motion.div>
 
           <div className="diagnosis-content">
             <motion.div
               className="diagnosis-header"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring, delay: 0.1 }}
+              variants={fadeUpVariant(0.1)}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
             >
               <div>
-                <span className="plant-name">{record.plantName}</span>
-                <h2 className="disease-name">{record.diseaseName}</h2>
+                <motion.span
+                  className="plant-name"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...spring, delay: 0.14 }}
+                >
+                  {record.plantName}
+                </motion.span>
+                <motion.h2
+                  className="disease-name"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...spring, delay: 0.2 }}
+                >
+                  {record.diseaseName}
+                </motion.h2>
               </div>
               <div className="confidence-ring">
                 <svg viewBox="0 0 100 100">
@@ -171,7 +222,7 @@ export default function DiagnosisPanel() {
                   className="confidence-value"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ ...spring, delay: 0.4 }}
+                  transition={{ ...spring, delay: 0.42 }}
                 >
                   {record.confidence}%
                 </motion.span>
@@ -180,21 +231,44 @@ export default function DiagnosisPanel() {
 
             <motion.div
               className="symptoms-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring, delay: 0.18 }}
+              variants={fadeUpVariant(0.22)}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
             >
-              <h3 className="section-title">症状描述</h3>
-              <p className="symptoms-text">{record.symptoms}</p>
+              <motion.h3
+                className="section-title"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...spring, delay: 0.26 }}
+              >
+                症状描述
+              </motion.h3>
+              <motion.p
+                className="symptoms-text"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ ...spring, delay: 0.32 }}
+              >
+                {record.symptoms}
+              </motion.p>
             </motion.div>
 
             <motion.div
               className="suggestions-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring, delay: 0.26 }}
+              variants={fadeUpVariant(0.3)}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
             >
-              <h3 className="section-title">护理建议</h3>
+              <motion.h3
+                className="section-title"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...spring, delay: 0.34 }}
+              >
+                护理建议
+              </motion.h3>
               <div className="suggestions-scroll">
                 <div className="suggestions-track">
                   <AnimatePresence>
@@ -204,7 +278,14 @@ export default function DiagnosisPanel() {
                   </AnimatePresence>
                 </div>
               </div>
-              <p className="scroll-hint">← 左右滑动查看更多建议 →</p>
+              <motion.p
+                className="scroll-hint"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ ...spring, delay: 0.7 }}
+              >
+                ← 左右滑动查看更多建议 →
+              </motion.p>
             </motion.div>
           </div>
         </motion.div>
