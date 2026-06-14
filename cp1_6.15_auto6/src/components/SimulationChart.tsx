@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -12,6 +12,85 @@ import {
   Area,
 } from 'recharts';
 import { DiscountRule, Product } from '../data/mockData';
+
+function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+  let timer: any = null;
+  return ((...args: any[]) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  }) as T;
+}
+
+const MemoizedAreaChart = memo(
+  ({
+    data,
+    chartDataKey,
+    customTooltip,
+  }: {
+    data: PredictionPoint[];
+    chartDataKey: any;
+    customTooltip: any;
+  }) => (
+    <ResponsiveContainer width="100%" height={320}>
+      <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+        <defs>
+          <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#1A73E8" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#1A73E8" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#eef4fb" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 11, fill: '#95a5a6' }}
+          axisLine={{ stroke: '#eef4fb' }}
+          tickLine={false}
+          interval={Math.max(0, Math.floor(data.length / 8) - 1)}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: '#95a5a6' }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(v) => chartDataKey.format(v)}
+        />
+        <Tooltip content={customTooltip} allowDuplicateView={false} isAnimationActive={false} />
+        <Legend
+          iconType="circle"
+          wrapperStyle={{ fontSize: 12, paddingTop: 10 }}
+          formatter={(value: string) => (
+            <span style={{ color: '#5a6c7d' }}>
+              {value === chartDataKey.pred ? '📈 活动预测' : '📊 日常基准'}
+            </span>
+          )}
+        />
+        <Area
+          type="monotone"
+          dataKey={chartDataKey.base}
+          name="baseline"
+          stroke="#bdc3c7"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          fill="transparent"
+          dot={false}
+          isAnimationActive={false}
+        />
+        <Area
+          type="monotone"
+          dataKey={chartDataKey.pred}
+          name="prediction"
+          stroke="#1A73E8"
+          strokeWidth={2.5}
+          fill="url(#colorPred)"
+          dot={false}
+          activeDot={{ r: 5, stroke: '#1A73E8', strokeWidth: 2, fill: 'white', animationDuration: 0 }}
+          isAnimationActive={false}
+          animationDuration={0}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+);
+MemoizedAreaChart.displayName = 'MemoizedAreaChart';
 
 const styles = `
   .sim-container {}
@@ -235,6 +314,7 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<'revenue' | 'orders' | 'profit'>('revenue');
+  const debounceRef = useRef<any>(null);
 
   useEffect(() => {
     const timer = setTimeout(fetchPrediction, 80);
@@ -279,46 +359,61 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
     }
   };
 
+  const debouncedOnParamsUpdate = useMemo(
+    () =>
+      debounce((p: any) => {
+        if (onParamsUpdate) onParamsUpdate(p);
+      }, 80),
+    [onParamsUpdate]
+  );
+
   useEffect(() => {
-    if (onParamsUpdate) {
-      onParamsUpdate({
-        ...params,
-        trafficGrowth: trafficGrowth / 100,
-        conversionRate: conversionRate / 100,
-        avgOrderValue,
-      });
-    }
+    debouncedOnParamsUpdate({
+      ...params,
+      trafficGrowth: trafficGrowth / 100,
+      conversionRate: conversionRate / 100,
+      avgOrderValue,
+    });
   }, [trafficGrowth, conversionRate, avgOrderValue]);
 
-  const chartDataKey = {
-    revenue: { pred: 'revenue', base: 'baseline_revenue', label: '营收 (元)', format: (v: number) => `¥${(v / 1000).toFixed(0)}k` },
-    orders: { pred: 'orders', base: 'baseline_orders', label: '订单数', format: (v: number) => String(v) },
-    profit: { pred: 'profit', base: 'baseline_profit', label: '利润 (元)', format: (v: number) => `¥${(v / 1000).toFixed(0)}k` },
-  }[chartType];
+  const chartDataKey = useMemo(
+    () =>
+      ({
+        revenue: { pred: 'revenue', base: 'baseline_revenue', label: '营收 (元)', format: (v: number) => `¥${(v / 1000).toFixed(0)}k` },
+        orders: { pred: 'orders', base: 'baseline_orders', label: '订单数', format: (v: number) => String(v) },
+        profit: { pred: 'profit', base: 'baseline_profit', label: '利润 (元)', format: (v: number) => `¥${(v / 1000).toFixed(0)}k` },
+      }[chartType]),
+    [chartType]
+  );
 
-  const customTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div style={{
-        background: 'white',
-        border: '1px solid #e8eff8',
-        borderRadius: 10,
-        padding: '12px 14px',
-        boxShadow: '0 8px 24px rgba(26, 115, 232, 0.12)',
-        fontSize: 12,
-      }}>
-        <div style={{ fontWeight: 600, color: '#1a1a2e', marginBottom: 8 }}>{label}</div>
-        {payload.map((p: any, i: number) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 20, padding: '3px 0', color: p.dataKey.startsWith('baseline') ? '#95a5a6' : '#2c3e50' }}>
-            <span style={{ color: p.dataKey.startsWith('baseline') ? '#95a5a6' : p.color }}>● {p.dataKey.startsWith('baseline') ? '基准' : '预测'}</span>
-            <span style={{ fontWeight: 600 }}>
-              {chartType === 'orders' ? p.value.toLocaleString() : `¥${p.value.toLocaleString()}`}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const memoizedData = useMemo(() => data, [data]);
+
+  const customTooltip = useMemo(
+    () => ({ active, payload, label }: any) => {
+      if (!active || !payload?.length) return null;
+      return (
+        <div style={{
+          background: 'white',
+          border: '1px solid #e8eff8',
+          borderRadius: 10,
+          padding: '12px 14px',
+          boxShadow: '0 8px 24px rgba(26, 115, 232, 0.12)',
+          fontSize: 12,
+        }}>
+          <div style={{ fontWeight: 600, color: '#1a1a2e', marginBottom: 8 }}>{label}</div>
+          {payload.map((p: any, i: number) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 20, padding: '3px 0', color: p.dataKey.startsWith('baseline') ? '#95a5a6' : '#2c3e50' }}>
+              <span style={{ color: p.dataKey.startsWith('baseline') ? '#95a5a6' : p.color }}>● {p.dataKey.startsWith('baseline') ? '基准' : '预测'}</span>
+              <span style={{ fontWeight: 600 }}>
+                {chartType === 'orders' ? p.value.toLocaleString() : `¥${p.value.toLocaleString()}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    },
+    [chartType]
+  );
 
   return (
     <>
@@ -441,63 +536,7 @@ const SimulationChart = ({ params, onParamsUpdate }: Props) => {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={320}>
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1A73E8" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#1A73E8" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef4fb" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11, fill: '#95a5a6' }}
-                    axisLine={{ stroke: '#eef4fb' }}
-                    tickLine={false}
-                    interval={Math.max(0, Math.floor(data.length / 8) - 1)}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#95a5a6' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => chartDataKey.format(v)}
-                  />
-                  <Tooltip content={customTooltip} allowDuplicateView={false} />
-                  <Legend
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 12, paddingTop: 10 }}
-                    formatter={(value: string) => (
-                      <span style={{ color: '#5a6c7d' }}>
-                        {value === chartDataKey.pred ? '📈 活动预测' : '📊 日常基准'}
-                      </span>
-                    )}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={chartDataKey.base}
-                    name="baseline"
-                    stroke="#bdc3c7"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    fill="transparent"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={chartDataKey.pred}
-                    name="prediction"
-                    stroke="#1A73E8"
-                    strokeWidth={2.5}
-                    fill="url(#colorPred)"
-                    dot={false}
-                    activeDot={{ r: 5, stroke: '#1A73E8', strokeWidth: 2, fill: 'white', animationDuration: 0 }}
-                    isAnimationActive={false}
-                    animationDuration={0}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <MemoizedAreaChart data={memoizedData} chartDataKey={chartDataKey} customTooltip={customTooltip} />
               <div className="chart-hint">
                 💡 提示：拖动左侧滑块调整参数，图表将实时更新预测结果。虚线为日常基准数据。
               </div>

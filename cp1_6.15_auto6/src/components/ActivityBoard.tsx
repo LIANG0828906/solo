@@ -708,6 +708,14 @@ const ActivityBoard = ({ onEdit, onViewReview, onRefresh, onCreateNew }: Props) 
                 <div className="stat-val success">¥{formatNumber(a.stats.profit)}</div>
                 <div className="stat-lbl">利润</div>
               </div>
+              <div className="stat-item">
+                <div className="stat-val warn">¥{formatNumber(a.stats.totalDiscount)}</div>
+                <div className="stat-lbl">优惠总额</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-val success" style={{ color: '#27ae60' }}>{a.stats.roi}x</div>
+                <div className="stat-lbl">ROI</div>
+              </div>
             </div>
           </div>
         </div>

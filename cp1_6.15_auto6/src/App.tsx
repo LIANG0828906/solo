@@ -349,7 +349,12 @@ const App = () => {
   );
 };
 
-const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  console.error('Root element #root not found in DOM. Application cannot mount.');
+} else {
+  const root = createRoot(rootElement);
+  root.render(<App />);
+}
 
 export default App;
