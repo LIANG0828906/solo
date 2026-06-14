@@ -42,7 +42,7 @@ api.interceptors.response.use(
 export const getHeritageList = async (
   params: HeritageListParams = {},
 ): Promise<HeritageListResponse> => {
-  const response = await api.get<ApiResponse<HeritageListResponse>>('/heritages', { params });
+  const response = await api.get<ApiResponse<HeritageListResponse>>('/heritage', { params });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || '获取非遗列表失败');
   }
@@ -50,7 +50,7 @@ export const getHeritageList = async (
 };
 
 export const getHeritageDetail = async (id: string): Promise<HeritageItem> => {
-  const response = await api.get<ApiResponse<HeritageItem>>(`/heritages/${id}`);
+  const response = await api.get<ApiResponse<HeritageItem>>(`/heritage/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || '获取非遗详情失败');
   }
@@ -58,7 +58,7 @@ export const getHeritageDetail = async (id: string): Promise<HeritageItem> => {
 };
 
 export const createHeritage = async (formData: FormData): Promise<HeritageItem> => {
-  const response = await api.post<ApiResponse<HeritageItem>>('/heritages', formData, {
+  const response = await api.post<ApiResponse<HeritageItem>>('/heritage', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -75,7 +75,7 @@ export const rateHeritage = async (
   score: number,
 ): Promise<{ success: boolean; averageRating: number; ratingsCount: number }> => {
   const response = await api.post<ApiResponse<{ averageRating: number; ratingsCount: number }>>(
-    `/heritages/${id}/rate`,
+    `/heritage/${id}/rate`,
     { userId, score },
   );
   if (!response.data.success || !response.data.data) {
