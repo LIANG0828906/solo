@@ -49,60 +49,110 @@ function rgbToHex(r: number, g: number, b: number): string {
   }).join('')
 }
 
-async function extractColors(imagePath: string, colorCount: number = 5): Promise<ColorItem[]> {
+async function extractColorsViaSharp(imagePath: string, colorCount: number = 5): Promise<ColorItem[]> {
   try {
     const image = sharp(imagePath)
     const metadata = await image.metadata()
-    const resizeWidth = Math.min(metadata.width || 400, 200)
 
-    const { data, info } = await image
-      .resize(resizeWidth)
-      .raw()
-      .toBuffer({ resolveWithObject: true })
+    const regions = 6
+    const cols = 3
+    const rows = 2
+    const regionWidth = Math.floor((metadata.width || 300) / cols)
+    const regionHeight = Math.floor((metadata.height || 300) / rows)
 
-    const pixelCount = info.width * info.height
-    const colorMap = new Map<string, { r: number; g: number; b: number; count: number }>()
-    const step = Math.max(1, Math.floor(pixelCount / 10000))
+    const regionStats: { r: number; g: number; b: number; count: number }[] = []
 
-    for (let i = 0; i < pixelCount; i += step) {
-      const idx = i * info.channels
-      const r = data[idx]
-      const g = data[idx + 1]
-      const b = data[idx + 2]
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        try {
+          const stats = await image
+            .extract({
+              left: col * regionWidth,
+              top: row * regionHeight,
+              width: regionWidth,
+              height: regionHeight,
+            })
+            .stats()
 
-      const bucketR = Math.floor(r / 10) * 10
-      const bucketG = Math.floor(g / 10) * 10
-      const bucketB = Math.floor(b / 10) * 10
-      const key = `${bucketR},${bucketG},${bucketB}`
-
-      const existing = colorMap.get(key)
-      if (existing) {
-        existing.r += r
-        existing.g += g
-        existing.b += b
-        existing.count += 1
-      } else {
-        colorMap.set(key, { r, g, b, count: 1 })
+          const r = Math.round(stats.channels[0].mean)
+          const g = Math.round(stats.channels[1].mean)
+          const b = Math.round(stats.channels[2].mean)
+          regionStats.push({ r, g, b, count: 1 })
+        } catch {
+          continue
+        }
       }
     }
 
-    const colors = Array.from(colorMap.values())
-      .map(c => ({
-        rgb: [Math.round(c.r / c.count), Math.round(c.g / c.count), Math.round(c.b / c.count)] as [number, number, number],
-        count: c.count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, colorCount)
-      .map(c => ({
-        hex: rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]),
-        rgb: c.rgb,
-      }))
+    const globalStats = await image.stats()
+    const globalMean = {
+      r: Math.round(globalStats.channels[0].mean),
+      g: Math.round(globalStats.channels[1].mean),
+      b: Math.round(globalStats.channels[2].mean),
+    }
+    regionStats.push({ ...globalMean, count: 2 })
 
-    return colors.length > 0 ? colors : [
-      { hex: '#64748b', rgb: [100, 116, 139] },
-    ]
+    const merged: Map<string, { r: number; g: number; b: number; count: number }> = new Map()
+    for (const s of regionStats) {
+      const bucketR = Math.floor(s.r / 24) * 24
+      const bucketG = Math.floor(s.g / 24) * 24
+      const bucketB = Math.floor(s.b / 24) * 24
+      const key = `${bucketR},${bucketG},${bucketB}`
+      const existing = merged.get(key)
+      if (existing) {
+        existing.r = (existing.r * existing.count + s.r * s.count) / (existing.count + s.count)
+        existing.g = (existing.g * existing.count + s.g * s.count) / (existing.count + s.count)
+        existing.b = (existing.b * existing.count + s.b * s.count) / (existing.count + s.count)
+        existing.count += s.count
+      } else {
+        merged.set(key, { r: s.r, g: s.g, b: s.b, count: s.count })
+      }
+    }
+
+    const sorted = Array.from(merged.values())
+      .sort((a, b) => b.count - a.count)
+
+    const selected: ColorItem[] = []
+    for (const c of sorted) {
+      const rgb: [number, number, number] = [Math.round(c.r), Math.round(c.g), Math.round(c.b)]
+      const hex = rgbToHex(rgb[0], rgb[1], rgb[2])
+
+      const tooClose = selected.some(s => {
+        const dr = s.rgb[0] - rgb[0]
+        const dg = s.rgb[1] - rgb[1]
+        const db = s.rgb[2] - rgb[2]
+        return Math.sqrt(dr * dr + dg * dg + db * db) < 50
+      })
+
+      if (!tooClose) {
+        selected.push({ hex, rgb })
+      }
+
+      if (selected.length >= colorCount) break
+    }
+
+    while (selected.length < colorCount) {
+      const idx = selected.length
+      const r = Math.round(globalMean.r + (idx * 40) % 200 - 100)
+      const g = Math.round(globalMean.g + (idx * 70) % 200 - 100)
+      const b = Math.round(globalMean.b + (idx * 30) % 200 - 100)
+      selected.push({
+        hex: rgbToHex(
+          Math.max(0, Math.min(255, r)),
+          Math.max(0, Math.min(255, g)),
+          Math.max(0, Math.min(255, b))
+        ),
+        rgb: [
+          Math.max(0, Math.min(255, r)),
+          Math.max(0, Math.min(255, g)),
+          Math.max(0, Math.min(255, b)),
+        ],
+      })
+    }
+
+    return selected
   } catch (error) {
-    console.error('Error extracting colors:', error)
+    console.error('Error extracting colors via sharp stats:', error)
     return [
       { hex: '#64748b', rgb: [100, 116, 139] },
     ]
@@ -149,7 +199,7 @@ router.post('/extract/:boardId', upload.single('image'), async (req, res) => {
     const width = metadata.width || 0
     const height = metadata.height || 0
 
-    const colors = await extractColors(imagePath, 5)
+    const colors = await extractColorsViaSharp(imagePath, 5)
     const composition = analyzeComposition(width, height)
 
     const imageItem: ImageItem = {

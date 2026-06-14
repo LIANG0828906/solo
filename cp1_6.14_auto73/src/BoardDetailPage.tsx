@@ -5,6 +5,7 @@ import type { Board, ImageItem, ColorItem } from './types'
 import ColorPalette from './ColorPalette'
 import EditImageModal from './components/EditImageModal'
 import ConfirmModal from './components/ConfirmModal'
+import ImageCropModal from './components/ImageCropModal'
 
 function BoardDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -20,6 +21,8 @@ function BoardDetailPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [deleteImageId, setDeleteImageId] = useState<string | null>(null)
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [showCropModal, setShowCropModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -78,13 +81,38 @@ function BoardDetailPage() {
     }
   }
 
+  const handleFileSelected = (file: File) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      alert('只支持 JPG、PNG、WebP 格式的图片')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片大小不能超过 5MB')
+      return
+    }
+    setCropFile(file)
+    setShowCropModal(true)
+  }
+
+  const handleCropConfirm = (croppedFile: File) => {
+    setShowCropModal(false)
+    setCropFile(null)
+    handleFileUpload(croppedFile)
+  }
+
+  const handleCropCancel = () => {
+    setShowCropModal(false)
+    setCropFile(null)
+  }
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
 
     const files = e.dataTransfer.files
     if (files.length > 0) {
-      handleFileUpload(files[0])
+      handleFileSelected(files[0])
     }
   }
 
@@ -101,7 +129,7 @@ function BoardDetailPage() {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files.length > 0) {
-      handleFileUpload(files[0])
+      handleFileSelected(files[0])
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -207,12 +235,6 @@ function BoardDetailPage() {
         setDeletingImageId(null)
       }
     }, 300)
-  }
-
-  const copyColor = (hex: string) => {
-    navigator.clipboard.writeText(hex).then(() => {
-      // can add toast later
-    })
   }
 
   if (loading) {
@@ -357,17 +379,8 @@ function BoardDetailPage() {
                         </div>
                       ))}
                     </div>
+                    <div className="image-composition">{image.composition}</div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {board.images.length > 0 && (
-            <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-              {board.images.slice(0, 4).map(image => (
-                <div key={image.id} className="image-composition" style={{ display: 'none' }}>
-                  {image.composition}
                 </div>
               ))}
             </div>
@@ -380,6 +393,13 @@ function BoardDetailPage() {
           onRemove={handlePaletteRemove}
         />
       </div>
+
+      <ImageCropModal
+        open={showCropModal}
+        imageFile={cropFile}
+        onConfirm={handleCropConfirm}
+        onCancel={handleCropCancel}
+      />
 
       <EditImageModal
         open={showEditModal}

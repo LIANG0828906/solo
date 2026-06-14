@@ -1,5 +1,71 @@
 import { useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { ColorItem } from './types'
+
+interface SortablePaletteItemProps {
+  color: ColorItem
+  id: string
+  onRemove: (hex: string) => void
+}
+
+function SortablePaletteItem({ color, id, onRemove }: SortablePaletteItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`palette-item ${isDragging ? 'dragging' : ''}`}
+    >
+      <div
+        className="palette-color"
+        style={{ backgroundColor: color.hex }}
+        {...attributes}
+        {...listeners}
+      />
+      <div className="palette-item-info">
+        <div className="palette-item-hex">{color.hex.toUpperCase()}</div>
+      </div>
+      <button
+        className="palette-item-remove"
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove(color.hex)
+        }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
 
 interface ColorPaletteProps {
   colors: ColorItem[]
@@ -8,27 +74,27 @@ interface ColorPaletteProps {
 }
 
 function ColorPalette({ colors, onReorder, onRemove }: ColorPaletteProps) {
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [showExport, setShowExport] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index)
-  }
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  )
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    if (draggedIndex === null || draggedIndex === index) return
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
 
-    const newColors = [...colors]
-    const [draggedItem] = newColors.splice(draggedIndex, 1)
-    newColors.splice(index, 0, draggedItem)
-    onReorder(newColors)
-    setDraggedIndex(index)
-  }
+    const oldIndex = colors.findIndex((_, i) => `color-${i}` === active.id)
+    const newIndex = colors.findIndex((_, i) => `color-${i}` === over.id)
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null)
+    if (oldIndex !== -1 && newIndex !== -1) {
+      onReorder(arrayMove(colors, oldIndex, newIndex))
+    }
   }
 
   const generateCSSVars = () => {
@@ -70,35 +136,27 @@ function ColorPalette({ colors, onReorder, onRemove }: ColorPaletteProps) {
         </div>
       ) : (
         <>
-          <div className="palette-grid">
-            {colors.map((color, index) => (
-              <div
-                key={color.hex + index}
-                className={`palette-item ${draggedIndex === index ? 'dragging' : ''}`}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={e => handleDragOver(e, index)}
-                onDragEnd={handleDragEnd}
-              >
-                <div
-                  className="palette-color"
-                  style={{ backgroundColor: color.hex }}
-                />
-                <div className="palette-item-info">
-                  <div className="palette-item-hex">{color.hex.toUpperCase()}</div>
-                </div>
-                <button
-                  className="palette-item-remove"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onRemove(color.hex)
-                  }}
-                >
-                  ×
-                </button>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={colors.map((_, i) => `color-${i}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="palette-grid">
+                {colors.map((color, index) => (
+                  <SortablePaletteItem
+                    key={color.hex + index}
+                    id={`color-${index}`}
+                    color={color}
+                    onRemove={onRemove}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
 
           <button
             className="export-btn"

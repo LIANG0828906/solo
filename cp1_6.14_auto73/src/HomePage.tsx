@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { boardApi } from './api'
 import type { BoardCard } from './types'
@@ -10,21 +10,20 @@ function HomePage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const loadingRef = useRef(false)
 
-  useEffect(() => {
-    loadBoards(1)
-  }, [])
-
-  const loadBoards = async (pageNum: number, reset: boolean = true) => {
-    if (loading) return
+  const loadBoards = useCallback(async (pageNum: number, append: boolean = false) => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
     try {
       const res = await boardApi.getBoards(pageNum, 6)
-      if (reset) {
-        setBoards(res.boards)
-      } else {
+      if (append) {
         setBoards(prev => [...prev, ...res.boards])
+      } else {
+        setBoards(res.boards)
       }
       setHasMore(res.hasMore)
       setPage(pageNum)
@@ -32,19 +31,26 @@ function HomePage() {
       console.error('Failed to load boards:', error)
     } finally {
       setLoading(false)
+      setInitialLoading(false)
+      loadingRef.current = false
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadBoards(1, false)
+  }, [loadBoards])
 
   const handleLoadMore = () => {
-    loadBoards(page + 1, false)
+    loadBoards(page + 1, true)
   }
 
   const handleBoardClick = (id: string) => {
     navigate(`/board/${id}`)
   }
 
-  const handleCreateBoard = (title: string, description: string) => {
-    boardApi.createBoard(title, description).then(board => {
+  const handleCreateBoard = async (title: string, description: string) => {
+    try {
+      const board = await boardApi.createBoard(title, description)
       setBoards(prev => [{
         id: board.id,
         title: board.title,
@@ -55,7 +61,9 @@ function HomePage() {
       }, ...prev])
       setShowCreateModal(false)
       navigate(`/board/${board.id}`)
-    })
+    } catch (error) {
+      console.error('Failed to create board:', error)
+    }
   }
 
   return (
@@ -67,7 +75,12 @@ function HomePage() {
         </button>
       </div>
 
-      {boards.length === 0 && !loading ? (
+      {initialLoading ? (
+        <div className="empty-state">
+          <div className="spinner" style={{ margin: '0 auto 16px' }} />
+          <p className="empty-state-text">加载中...</p>
+        </div>
+      ) : boards.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <p className="empty-state-text">还没有灵感板，点击上方按钮创建第一个</p>
@@ -100,6 +113,12 @@ function HomePage() {
             >
               {loading ? '加载中...' : '加载更多'}
             </button>
+          )}
+
+          {!hasMore && boards.length > 6 && (
+            <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              已显示全部灵感板
+            </p>
           )}
         </>
       )}

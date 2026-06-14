@@ -46,7 +46,7 @@ function ConfirmModal({
             {cancelText}
           </button>
           <button
-            className={`${danger ? 'btn-danger' : 'btn-primary'} ${shake ? 'shake' : ''}`}
+            className={`btn-confirm-action ${danger ? 'btn-danger' : 'btn-primary'} ${shake ? 'shake' : ''}`}
             onClick={handleConfirm}
           >
             {confirmText}
