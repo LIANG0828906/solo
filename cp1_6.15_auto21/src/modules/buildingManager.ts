@@ -12,13 +12,17 @@ import {
   MAX_BUILDINGS_BEFORE_MERGE,
   BUILDING_BASE_WIDTH,
   BUILDING_BASE_DEPTH,
-  PUSH_RADIUS,
+  COLLISION_RADIUS,
   PUSH_FORCE,
   STYLE_CONFIGS,
   generateBuildingId,
   getRandomStyle,
   getRandomFloors,
   gridToWorld,
+  IWindowLightState,
+  AnimationState,
+  IPhysicsBody,
+  COLLISION_FORCE_MULTIPLIER,
 } from '../models/buildingConfig';
 
 export class BuildingManager {
@@ -27,9 +31,14 @@ export class BuildingManager {
   private occupiedCells: Set<string> = new Set();
   private lodMergedMesh: THREE.Mesh | null = null;
   private isMerged: boolean = false;
+  private effectManager: any = null;
 
   constructor(sceneManager: SceneManager) {
     this.sceneManager = sceneManager;
+  }
+
+  setEffectManager(effectManager: any): void {
+    this.effectManager = effectManager;
   }
 
   placeBuilding(gridX: number, gridZ: number): IBuilding | null {
@@ -47,6 +56,13 @@ export class BuildingManager {
     buildingGroup.position.set(worldPos.x, 0, worldPos.z);
     buildingGroup.scale.y = 0.01;
 
+    const physicsBody: IPhysicsBody = {
+      position: { x: worldPos.x, z: worldPos.z },
+      velocity: { x: 0, z: 0 },
+      collisionRadius: COLLISION_RADIUS,
+      mass: 100
+    };
+
     const building: IBuilding = {
       id: generateBuildingId(),
       position: { x: worldPos.x, z: worldPos.z },
@@ -58,6 +74,9 @@ export class BuildingManager {
       mesh: buildingGroup,
       floors: [],
       windowLights: [],
+      windowStates: new Map<string, IWindowLightState>(),
+      animationState: 'spawning' as AnimationState,
+      physicsBody,
       growthProgress: 0,
       lastGrowthTime: 0,
       targetFloor: targetFloors,
@@ -296,11 +315,16 @@ export class BuildingManager {
     if (building.currentFloor >= building.targetFloor) {
       building.isComplete = true;
       building.isGrowing = false;
+      building.animationState = AnimationState.COMPLETE;
       this.activateBeaconLight(building);
       return;
     }
 
+    building.animationState = AnimationState.GROWING_FLOOR;
+
     const floorMesh = building.floors[building.currentFloor];
+    const floorHeight = (building.currentFloor + 1) * FLOOR_HEIGHT;
+    
     if (floorMesh) {
       floorMesh.visible = true;
       floorMesh.scale.set(0.8, 0.8, 0.8);
@@ -334,6 +358,11 @@ export class BuildingManager {
           requestAnimationFrame(animate);
         } else {
           mat.emissiveIntensity = 0;
+          
+          if (this.effectManager && typeof this.effectManager.triggerFloorGrowthSparks === 'function') {
+            const pos = new THREE.Vector3(building.position.x, 0, building.position.z);
+            this.effectManager.triggerFloorGrowthSparks(pos, floorHeight);
+          }
         }
       };
       animate();
@@ -375,8 +404,8 @@ export class BuildingManager {
       const dz = building.position.z - centerZ;
       const distance = Math.sqrt(dx * dx + dz * dz);
       
-      if (distance < PUSH_RADIUS && distance > 0) {
-        const force = (1 - distance / PUSH_RADIUS) * PUSH_FORCE;
+      if (distance < COLLISION_RADIUS && distance > 0) {
+        const force = (1 - distance / COLLISION_RADIUS) * PUSH_FORCE;
         const normalizedDx = dx / distance;
         const normalizedDz = dz / distance;
         

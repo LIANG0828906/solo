@@ -7,15 +7,22 @@ import {
   BREATHING_SPEED,
   BREATHING_INTENSITY,
   STYLE_CONFIGS,
-  BuildingStyle
+  IWindowLightState
 } from '../models/buildingConfig';
+
+type ParticleType = 'construction' | 'spark' | 'floor_spark' | 'weld_spark';
 
 interface Particle {
   mesh: THREE.Mesh;
   velocity: THREE.Vector3;
   life: number;
   maxLife: number;
-  type: 'construction' | 'spark';
+  type: ParticleType;
+  startColor: THREE.Color;
+  midColor: THREE.Color;
+  endColor: THREE.Color;
+  flickerSpeed: number;
+  flickerOffset: number;
 }
 
 export class EffectManager {
@@ -27,7 +34,9 @@ export class EffectManager {
   private windowUpdateTimer: number = 0;
   private beaconPhase: number = 0;
   private breathingTime: number = 0;
-  private maxParticles: number = 200;
+  private maxParticles: number = 500;
+  private windowUpdateIndex: number = 0;
+  private weldSparkTimer: Map<string, number> = new Map();
 
   constructor(
     sceneManager: SceneManager,
@@ -49,7 +58,108 @@ export class EffectManager {
     this.updateBeaconLights(this.beaconPhase);
     this.updateParticles(deltaTime);
     this.updateConstructionLights();
-    this.updateWindowLights(deltaTime);
+    this.updateWindowLights(deltaTime, breathingIntensity);
+    this.updateWeldSparks(deltaTime);
+  }
+
+  triggerFloorGrowthSparks(position: THREE.Vector3, floorHeight: number): void {
+    const sparkCount = Math.floor(Math.random() * 6) + 15;
+    
+    for (let i = 0; i < sparkCount; i++) {
+      if (this.particles.length >= this.maxParticles) {
+        const oldParticle = this.particles.shift();
+        if (oldParticle) {
+          this.sceneManager.getScene().remove(oldParticle.mesh);
+          oldParticle.mesh.geometry.dispose();
+          (oldParticle.mesh.material as THREE.Material).dispose();
+        }
+      }
+
+      const spark = this.createFloorSpark(position, floorHeight);
+      this.particles.push(spark);
+      this.sceneManager.getScene().add(spark.mesh);
+    }
+  }
+
+  private createFloorSpark(position: THREE.Vector3, floorHeight: number): Particle {
+    const geometry = new THREE.SphereGeometry(0.04 + Math.random() * 0.04, 4, 4);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 1
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * 0.8;
+    const offsetX = Math.cos(angle) * radius;
+    const offsetZ = Math.sin(angle) * radius;
+    
+    mesh.position.set(
+      position.x + offsetX,
+      floorHeight,
+      position.z + offsetZ
+    );
+
+    const horizontalSpeed = 0.02 + Math.random() * 0.04;
+    const verticalSpeed = 0.08 + Math.random() * 0.12;
+    
+    const velocity = new THREE.Vector3(
+      Math.cos(angle) * horizontalSpeed,
+      verticalSpeed,
+      Math.sin(angle) * horizontalSpeed
+    );
+
+    return {
+      mesh,
+      velocity,
+      life: 1,
+      maxLife: 0.8 + Math.random() * 0.6,
+      type: 'floor_spark',
+      startColor: new THREE.Color(0xffffff),
+      midColor: new THREE.Color(0xffff00),
+      endColor: new THREE.Color(0xff6600),
+      flickerSpeed: 0.3 + Math.random() * 0.4,
+      flickerOffset: Math.random() * Math.PI * 2
+    };
+  }
+
+  private createWeldSpark(position: THREE.Vector3): Particle {
+    const geometry = new THREE.TetrahedronGeometry(0.02 + Math.random() * 0.02);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 1
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    
+    const offsetX = (Math.random() - 0.5) * 1.2;
+    const offsetZ = (Math.random() - 0.5) * 1.2;
+    
+    mesh.position.set(
+      position.x + offsetX,
+      position.y + 0.5,
+      position.z + offsetZ
+    );
+
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.06,
+      0.05 + Math.random() * 0.08,
+      (Math.random() - 0.5) * 0.06
+    );
+
+    return {
+      mesh,
+      velocity,
+      life: 1,
+      maxLife: 0.3 + Math.random() * 0.3,
+      type: 'weld_spark',
+      startColor: new THREE.Color(0xffffff),
+      midColor: new THREE.Color(0xffffaa),
+      endColor: new THREE.Color(0xff8800),
+      flickerSpeed: 0.5 + Math.random() * 0.5,
+      flickerOffset: Math.random() * Math.PI * 2
+    };
   }
 
   spawnConstructionParticles(position: THREE.Vector3, buildingId: string): void {
@@ -72,12 +182,9 @@ export class EffectManager {
   }
 
   private createConstructionParticle(position: THREE.Vector3, buildingId: string): Particle {
-    const colors = [0xffaa00, 0xffff00, 0xff6600];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    
     const geometry = new THREE.SphereGeometry(0.08 + Math.random() * 0.08, 6, 6);
     const material = new THREE.MeshBasicMaterial({
-      color,
+      color: 0xffaa00,
       transparent: true,
       opacity: 1
     });
@@ -103,7 +210,12 @@ export class EffectManager {
       velocity,
       life: 1,
       maxLife: 1.5 + Math.random(),
-      type: 'construction'
+      type: 'construction',
+      startColor: new THREE.Color(0xffaa00),
+      midColor: new THREE.Color(0xffff00),
+      endColor: new THREE.Color(0xff6600),
+      flickerSpeed: 0.1,
+      flickerOffset: Math.random() * Math.PI * 2
     };
   }
 
@@ -114,15 +226,29 @@ export class EffectManager {
       particle.life -= deltaTime / particle.maxLife;
       
       particle.mesh.position.add(particle.velocity.clone().multiplyScalar(deltaTime * 60));
-      particle.velocity.y -= 0.001 * deltaTime * 60;
+      particle.velocity.y -= 0.002 * deltaTime * 60;
       
       const material = particle.mesh.material as THREE.MeshBasicMaterial;
       material.opacity = Math.max(0, particle.life);
-      particle.mesh.scale.setScalar(0.5 + particle.life * 0.5);
       
-      if (Math.random() < 0.1) {
-        material.color.setHex(Math.random() < 0.5 ? 0xffff00 : 0xff6600);
+      const lifeProgress = 1 - particle.life;
+      let currentColor: THREE.Color;
+      
+      if (lifeProgress < 0.5) {
+        const t = lifeProgress * 2;
+        currentColor = particle.startColor.clone().lerp(particle.midColor, t);
+      } else {
+        const t = (lifeProgress - 0.5) * 2;
+        currentColor = particle.midColor.clone().lerp(particle.endColor, t);
       }
+      
+      const flicker = Math.sin(Date.now() * particle.flickerSpeed + particle.flickerOffset);
+      const flickerIntensity = 0.7 + flicker * 0.3;
+      currentColor.multiplyScalar(flickerIntensity);
+      
+      material.color.copy(currentColor);
+      
+      particle.mesh.scale.setScalar(0.5 + particle.life * 0.5);
       
       if (particle.life <= 0) {
         this.sceneManager.getScene().remove(particle.mesh);
@@ -174,6 +300,43 @@ export class EffectManager {
     }
   }
 
+  private updateWeldSparks(deltaTime: number): void {
+    const growingBuildings = this.buildingManager.getBuildings().filter(b => b.isGrowing);
+    
+    for (const building of growingBuildings) {
+      let timer = this.weldSparkTimer.get(building.id) || 0;
+      timer -= deltaTime;
+      
+      if (timer <= 0) {
+        const pos = new THREE.Vector3(
+          building.position.x,
+          building.currentHeight,
+          building.position.z
+        );
+        
+        const sparkCount = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < sparkCount; i++) {
+          if (this.particles.length < this.maxParticles) {
+            const spark = this.createWeldSpark(pos);
+            this.particles.push(spark);
+            this.sceneManager.getScene().add(spark.mesh);
+          }
+        }
+        
+        timer = 0.1 + Math.random() * 0.3;
+      }
+      
+      this.weldSparkTimer.set(building.id, timer);
+    }
+    
+    for (const [buildingId] of this.weldSparkTimer) {
+      const building = growingBuildings.find(b => b.id === buildingId);
+      if (!building) {
+        this.weldSparkTimer.delete(buildingId);
+      }
+    }
+  }
+
   updateBeaconLights(time: number): void {
     const buildings = this.buildingManager.getBuildings();
     
@@ -220,27 +383,50 @@ export class EffectManager {
     this.sceneManager.setNightMode(enabled);
     
     const buildings = this.buildingManager.getBuildings();
+    const now = Date.now();
     
     for (const building of buildings) {
       if (building.isComplete) {
-        for (const windowLight of building.windowLights) {
+        if (!building.windowStates) {
+          building.windowStates = new Map();
+        }
+        
+        building.windowLights.forEach((windowLight, index) => {
+          const windowId = `${building.id}_window_${index}`;
           const mat = windowLight.material as THREE.MeshBasicMaterial;
           
-          if (enabled) {
+          if (!building.windowStates!.has(windowId)) {
             const shouldLight = Math.random() > 0.4;
-            const targetOpacity = shouldLight ? 0.8 + Math.random() * 0.2 : 0;
+            const targetBrightness = shouldLight ? 0.8 + Math.random() * 0.2 : 0;
+            const warmColors = [0xffcc33, 0xffaa33, 0xffee99];
             
-            this.animateWindowOpacity(mat, targetOpacity, 1000);
+            const windowState: IWindowLightState = {
+              targetBrightness,
+              currentBrightness: 0,
+              toggleInterval: (Math.random() * 4 + 1) * 1000,
+              nextToggleTime: now + (Math.random() * 4 + 1) * 1000,
+              color: new THREE.Color(warmColors[Math.floor(Math.random() * warmColors.length)])
+            };
             
-            if (shouldLight) {
-              mat.color.setHex(0xffcc33);
+            building.windowStates!.set(windowId, windowState);
+          }
+          
+          const state = building.windowStates!.get(windowId)!;
+          
+          if (enabled) {
+            state.targetBrightness = state.targetBrightness > 0 ? state.targetBrightness : (Math.random() > 0.4 ? 0.8 + Math.random() * 0.2 : 0);
+            if (state.targetBrightness > 0 && state.color) {
+              mat.color.copy(state.color);
+            } else {
+              mat.color.setHex(STYLE_CONFIGS[building.style].windowColor);
             }
           } else {
-            this.animateWindowOpacity(mat, 0, 1000);
-            const styleConfig = STYLE_CONFIGS[building.style];
-            mat.color.setHex(styleConfig.windowColor);
+            state.targetBrightness = 0;
+            mat.color.setHex(STYLE_CONFIGS[building.style].windowColor);
           }
-        }
+          
+          this.animateWindowOpacity(mat, state.targetBrightness, 1000);
+        });
       }
     }
   }
@@ -263,33 +449,84 @@ export class EffectManager {
     update();
   }
 
-  updateWindowLights(deltaTime: number): void {
+  updateWindowLights(deltaTime: number, breathingIntensity: number): void {
     if (!this.isNightMode) return;
     
-    this.windowUpdateTimer += deltaTime;
+    const buildings = this.buildingManager.getBuildings();
+    const now = Date.now();
     
-    if (this.windowUpdateTimer > 2) {
-      this.windowUpdateTimer = 0;
-      
-      const buildings = this.buildingManager.getBuildings();
-      
-      for (const building of buildings) {
-        if (!building.isComplete) continue;
-        
-        for (const windowLight of building.windowLights) {
-          if (Math.random() < 0.02) {
-            const mat = windowLight.material as THREE.MeshBasicMaterial;
-            const newOpacity = mat.opacity > 0.5 ? 0 : 0.9;
-            this.animateWindowOpacity(mat, newOpacity, 500);
-            
-            if (newOpacity > 0.5 && Math.random() < 0.3) {
-              const warmColors = [0xffcc33, 0xffaa33, 0xffee99];
-              mat.color.setHex(warmColors[Math.floor(Math.random() * warmColors.length)]);
-            }
-          }
-        }
+    let totalWindows = 0;
+    for (const building of buildings) {
+      if (building.isComplete) {
+        totalWindows += building.windowLights.length;
       }
     }
+    
+    if (totalWindows === 0) return;
+    
+    const windowsPerFrame = Math.max(1, Math.ceil(totalWindows / 60));
+    let processedCount = 0;
+    
+    for (const building of buildings) {
+      if (!building.isComplete) continue;
+      
+      if (!building.windowStates) {
+        building.windowStates = new Map();
+      }
+      
+      for (let i = 0; i < building.windowLights.length; i++) {
+        const windowIndex = (this.windowUpdateIndex + i) % building.windowLights.length;
+        const windowLight = building.windowLights[windowIndex];
+        const windowId = `${building.id}_window_${windowIndex}`;
+        
+        if (!building.windowStates!.has(windowId)) {
+          const warmColors = [0xffcc33, 0xffaa33, 0xffee99];
+          const shouldLight = Math.random() > 0.4;
+          
+          const windowState: IWindowLightState = {
+            targetBrightness: shouldLight ? 0.8 + Math.random() * 0.2 : 0,
+            currentBrightness: 0,
+            toggleInterval: (Math.random() * 4 + 1) * 1000,
+            nextToggleTime: now + (Math.random() * 4 + 1) * 1000,
+            color: new THREE.Color(warmColors[Math.floor(Math.random() * warmColors.length)])
+          };
+          
+          building.windowStates!.set(windowId, windowState);
+        }
+        
+        const state = building.windowStates!.get(windowId)!;
+        const mat = windowLight.material as THREE.MeshBasicMaterial;
+        
+        if (now >= state.nextToggleTime) {
+          const shouldLight = Math.random() > 0.4;
+          state.targetBrightness = shouldLight ? 0.8 + Math.random() * 0.2 : 0;
+          state.nextToggleTime = now + state.toggleInterval;
+          
+          if (state.targetBrightness > 0 && state.color) {
+            const warmColors = [0xffcc33, 0xffaa33, 0xffee99];
+            state.color.setHex(warmColors[Math.floor(Math.random() * warmColors.length)]);
+            mat.color.copy(state.color);
+          }
+        }
+        
+        const smoothFactor = 0.05;
+        state.currentBrightness += (state.targetBrightness - state.currentBrightness) * smoothFactor;
+        
+        const breathFactor = 1 + breathingIntensity * 0.5;
+        mat.opacity = Math.min(1, state.currentBrightness * breathFactor);
+        
+        processedCount++;
+        if (processedCount >= windowsPerFrame) {
+          break;
+        }
+      }
+      
+      if (processedCount >= windowsPerFrame) {
+        break;
+      }
+    }
+    
+    this.windowUpdateIndex = (this.windowUpdateIndex + windowsPerFrame) % totalWindows;
   }
 
   spawnGrowthEffect(building: IBuilding): void {
@@ -327,7 +564,12 @@ export class EffectManager {
         velocity,
         life: 0.8,
         maxLife: 0.8,
-        type: 'spark'
+        type: 'spark',
+        startColor: new THREE.Color(0xffffff),
+        midColor: new THREE.Color(0xffff00),
+        endColor: new THREE.Color(0xff6600),
+        flickerSpeed: 0.2,
+        flickerOffset: Math.random() * Math.PI * 2
       };
       
       this.particles.push(particle);
@@ -352,5 +594,7 @@ export class EffectManager {
       light.dispose();
     }
     this.constructionLights = [];
+    
+    this.weldSparkTimer.clear();
   }
 }

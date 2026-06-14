@@ -29,6 +29,8 @@ class App {
     this.buildingManager = new BuildingManager(this.sceneManager);
     this.effectManager = new EffectManager(this.sceneManager, this.buildingManager);
     
+    this.buildingManager.setEffectManager(this.effectManager);
+    
     this.container = document.getElementById('canvas-container') as HTMLElement;
     this.clock = new THREE.Clock();
     
