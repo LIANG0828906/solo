@@ -2,38 +2,29 @@ import { useMemo, useState } from 'react';
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { BlankQuestion, FontSize } from '../types/question';
 import { parseRichText } from '../utils/questionParser';
-import { cn } from '@/lib/utils';
 
 interface BlankPreviewProps {
   value: BlankQuestion;
   fontSize: FontSize;
 }
 
-const fontSizeMap = {
-  small: {
-    container: 'text-sm',
-    input: 'text-sm',
-    inputHeight: 'h-8',
-    inputWidth: 'w-24',
-  },
-  medium: {
-    container: 'text-base',
-    input: 'text-base',
-    inputHeight: 'h-10',
-    inputWidth: 'w-32',
-  },
-  large: {
-    container: 'text-lg',
-    input: 'text-lg',
-    inputHeight: 'h-12',
-    inputWidth: 'w-40',
-  },
-};
-
 type BlankStatus = 'idle' | 'correct' | 'wrong';
 
+const fontSizeValueMap: Record<FontSize, number> = {
+  small: 14,
+  medium: 16,
+  large: 18,
+};
+
+const inputSizeMap: Record<FontSize, { height: number; width: number; padding: string }> = {
+  small: { height: 32, width: 96, padding: '0 12px' },
+  medium: { height: 40, width: 128, padding: '0 12px' },
+  large: { height: 48, width: 160, padding: '0 12px' },
+};
+
 export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
-  const fontSizes = fontSizeMap[fontSize];
+  const fontSizeValue = fontSizeValueMap[fontSize];
+  const inputSize = inputSizeMap[fontSize];
   const [inputValues, setInputValues] = useState<string[]>(
     value.blanks.map(() => '')
   );
@@ -46,7 +37,7 @@ export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
     const blankPattern = /\{\{blank\}\}/g;
     let lastIndex = 0;
     let blankIndex = 0;
-    let match;
+    let match: RegExpExecArray | null;
 
     while ((match = blankPattern.exec(value.stem)) !== null) {
       if (match.index > lastIndex) {
@@ -74,12 +65,12 @@ export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
     return parts;
   }, [value.stem]);
 
-  const handleInputChange = (index: number, value: string) => {
+  const handleInputChange = (index: number, val: string) => {
     const newValues = [...inputValues];
-    newValues[index] = value;
+    newValues[index] = val;
     setInputValues(newValues);
 
-    if (value.trim() === '') {
+    if (val.trim() === '') {
       const newStatuses = [...blankStatuses];
       newStatuses[index] = 'idle';
       setBlankStatuses(newStatuses);
@@ -115,6 +106,37 @@ export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
     }
   };
 
+  const getInputStyles = (status: BlankStatus): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      border: '2px dashed #d1d5db',
+      backgroundColor: '#ffffff',
+      borderRadius: 12,
+      padding: inputSize.padding,
+      height: inputSize.height,
+      width: inputSize.width,
+      fontSize: fontSizeValue,
+      outline: 'none',
+      transition: 'border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, font-size 0.3s ease',
+      boxSizing: 'border-box',
+    };
+
+    if (status === 'correct') {
+      return {
+        ...base,
+        borderColor: '#22c55e',
+        backgroundColor: '#f0fdf4',
+      };
+    }
+    if (status === 'wrong') {
+      return {
+        ...base,
+        borderColor: '#ef4444',
+        backgroundColor: '#fef2f2',
+      };
+    }
+    return base;
+  };
+
   const renderStem = () => {
     return stemParts.map((part, partIndex) => {
       if (part.type === 'text') {
@@ -133,31 +155,30 @@ export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
       return (
         <span
           key={`blank-${blankIndex}`}
-          className="inline-flex items-center gap-1 mx-1 align-middle"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            marginLeft: 4,
+            marginRight: 4,
+            verticalAlign: 'middle',
+          }}
         >
           <input
             type="text"
+            className="blank-input"
             value={inputValues[blankIndex]}
             onChange={(e) => handleInputChange(blankIndex, e.target.value)}
             onBlur={() => handleInputBlur(blankIndex)}
             onKeyDown={(e) => handleKeyDown(e, blankIndex)}
-            className={cn(
-              'blank-input rounded-lg border-2 border-dashed px-3 outline-none transition-all duration-0.2s bg-white',
-              fontSizes.input,
-              fontSizes.inputHeight,
-              fontSizes.inputWidth,
-              status === 'idle' && 'border-gray-300 focus:border-blue-500',
-              status === 'correct' && 'border-green-500 bg-green-50',
-              status === 'wrong' && 'border-red-500 bg-red-50'
-            )}
-            style={{ borderRadius: '12px' }}
+            style={getInputStyles(status)}
             placeholder={`空${blankIndex + 1}`}
           />
           {status === 'correct' && (
-            <CheckCircleFilled className="text-green-500 text-lg" />
+            <CheckCircleFilled style={{ color: '#22c55e', fontSize: 18 }} />
           )}
           {status === 'wrong' && (
-            <CloseCircleFilled className="text-red-500 text-lg" />
+            <CloseCircleFilled style={{ color: '#ef4444', fontSize: 18 }} />
           )}
         </span>
       );
@@ -165,33 +186,34 @@ export default function BlankPreview({ value, fontSize }: BlankPreviewProps) {
   };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       <style>{`
-        .blank-input {
-          transition: all 0.2s ease;
-        }
         .blank-input:focus {
-          box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+          box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.15);
+          border-color: #1a365d !important;
         }
       `}</style>
 
       <div
-        className={cn(
-          'font-medium text-gray-800 leading-relaxed',
-          fontSizes.container
-        )}
+        style={{
+          fontWeight: 500,
+          color: '#1f2937',
+          fontSize: fontSizeValue,
+          transition: 'font-size 0.3s ease',
+          lineHeight: 1.75,
+        }}
       >
         {renderStem()}
       </div>
 
-      <div className="mt-6 space-y-2">
-        <div className="text-sm font-medium" style={{ color: '#1a365d' }}>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: '#1a365d' }}>
           参考答案：
         </div>
         {value.blanks.map((blank, index) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
-            <span className="font-medium text-gray-500">空{index + 1}：</span>
-            <span className="text-gray-700">
+          <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            <span style={{ fontWeight: 500, color: '#6b7280' }}>空{index + 1}：</span>
+            <span style={{ color: '#374151' }}>
               {blank.correctAnswers.join(' / ')}
             </span>
           </div>

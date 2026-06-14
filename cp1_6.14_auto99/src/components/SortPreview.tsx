@@ -1,22 +1,21 @@
 import { useMemo, useState } from 'react';
 import { SortQuestion, FontSize, SortItem } from '../types/question';
 import { parseRichText } from '../utils/questionParser';
-import { cn } from '@/lib/utils';
 
 interface SortPreviewProps {
   value: SortQuestion;
   fontSize: FontSize;
 }
 
-const fontSizeMap = {
-  small: 'text-sm',
-  medium: 'text-base',
-  large: 'text-lg',
+const fontSizeValueMap: Record<FontSize, number> = {
+  small: 14,
+  medium: 16,
+  large: 18,
 };
 
 export default function SortPreview({ value, fontSize }: SortPreviewProps) {
   const stemHtml = useMemo(() => parseRichText(value.stem), [value.stem]);
-  const fontClass = fontSizeMap[fontSize];
+  const fontSizeValue = fontSizeValueMap[fontSize];
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const sortedItems = useMemo(() => {
@@ -26,7 +25,7 @@ export default function SortPreview({ value, fontSize }: SortPreviewProps) {
       .filter((item): item is SortItem => item !== undefined);
   }, [value.items, value.correctOrder]);
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -36,34 +35,59 @@ export default function SortPreview({ value, fontSize }: SortPreviewProps) {
   };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       <style>{`
         .sort-card {
-          transition: all 0.2s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
           cursor: grab;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          border: 2px solid #e5e7eb;
+          background-color: #ffffff;
+          padding: 12px 16px;
+          border-radius: 12px;
+          min-width: 120px;
+          position: relative;
         }
         .sort-card:active {
           cursor: grabbing;
         }
         .sort-card.dragging {
           opacity: 0.5;
-          transform: rotate(15deg);
+          transform: scale(1.05) rotate(15deg);
         }
-        .sort-card:hover {
+        .sort-card:hover:not(.dragging) {
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(26, 54, 93, 0.15);
         }
         .sort-order-badge {
           background-color: #1a365d;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
+          border-radius: 50%;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 600;
         }
       `}</style>
 
       <div
-        className={cn('mb-6 font-medium text-gray-800', fontClass)}
+        style={{
+          marginBottom: 24,
+          fontWeight: 500,
+          color: '#1f2937',
+          fontSize: fontSizeValue,
+          transition: 'font-size 0.3s ease',
+        }}
         dangerouslySetInnerHTML={{ __html: stemHtml }}
       />
 
-      <div className="flex flex-wrap gap-4">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
         {sortedItems.map((item, index) => {
           const itemHtml = parseRichText(item.content);
           const isDragging = draggedIndex === index;
@@ -74,18 +98,17 @@ export default function SortPreview({ value, fontSize }: SortPreviewProps) {
               draggable
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={handleDragEnd}
-              className={cn(
-                'sort-card relative flex items-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 py-3',
-                isDragging && 'dragging',
-                fontClass
-              )}
-              style={{ borderRadius: '12px', minWidth: '120px' }}
+              className={`sort-card${isDragging ? ' dragging' : ''}`}
+              style={{
+                fontSize: fontSizeValue,
+                transition: 'font-size 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+              }}
             >
-              <div className="sort-order-badge flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white text-xs font-semibold">
+              <div className="sort-order-badge">
                 {index + 1}
               </div>
               <div
-                className="text-gray-700 whitespace-nowrap"
+                style={{ color: '#374151', whiteSpace: 'nowrap' }}
                 dangerouslySetInnerHTML={{ __html: itemHtml }}
               />
             </div>
@@ -93,12 +116,12 @@ export default function SortPreview({ value, fontSize }: SortPreviewProps) {
         })}
       </div>
 
-      <div className="mt-6 text-sm text-gray-500">
-        <span className="font-medium" style={{ color: '#1a365d' }}>正确排序：</span>
+      <div style={{ marginTop: 24, fontSize: 14, color: '#6b7280' }}>
+        <span style={{ fontWeight: 500, color: '#1a365d' }}>正确排序：</span>
         {sortedItems.map((item, index) => (
           <span key={item.id}>
             {index > 0 && ' → '}
-            <span className="font-medium">{item.content}</span>
+            <span style={{ fontWeight: 500 }}>{item.content}</span>
           </span>
         ))}
       </div>

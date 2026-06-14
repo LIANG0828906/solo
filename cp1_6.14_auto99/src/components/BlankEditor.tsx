@@ -4,6 +4,7 @@ import { PlusOutlined, CloseOutlined } from '@ant-design/icons';
 import type { BlankQuestion, BlankItem } from '@/types/question';
 import { QuestionType } from '@/types/question';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '@/lib/utils';
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -23,18 +24,24 @@ function renderStemWithBlanks(stem: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   const regex = /\{\{blank\}\}/g;
-  let match;
+  let match: RegExpExecArray | null;
   let blankIndex = 0;
 
   while ((match = regex.exec(stem)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(stem.slice(lastIndex, match.index));
+      parts.push(<span key={`text-${lastIndex}`}>{stem.slice(lastIndex, match.index)}</span>);
     }
 
     parts.push(
       <span
         key={`blank-${blankIndex}`}
-        className="inline-block mx-1 px-3 py-0.5 min-w-[80px] text-center bg-yellow-100 text-yellow-700 border-b-2 border-yellow-400 rounded"
+        className={cn(
+          'inline-flex items-center justify-center mx-1 px-3 min-w-[80px] h-10',
+          'text-base font-medium text-blue-700',
+          'bg-blue-50 border-2 border-dashed border-blue-400',
+          'transition-all duration-200'
+        )}
+        style={{ borderRadius: '12px' }}
       >
         空位{blankIndex + 1}
       </span>
@@ -45,7 +52,7 @@ function renderStemWithBlanks(stem: string): React.ReactNode {
   }
 
   if (lastIndex < stem.length) {
-    parts.push(stem.slice(lastIndex));
+    parts.push(<span key={`text-${lastIndex}`}>{stem.slice(lastIndex)}</span>);
   }
 
   return parts.length > 0 ? parts : stem;
@@ -121,6 +128,24 @@ export default function BlankEditor({ value, onChange }: BlankEditorProps) {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        .blank-editor-card {
+          border-radius: 12px !important;
+          transition: all 0.25s ease;
+        }
+        .blank-editor-card:hover {
+          border-color: #1a365d !important;
+          box-shadow: 0 8px 24px rgba(26, 54, 93, 0.12);
+          transform: translateY(-2px);
+        }
+        .blank-editor-card .ant-card-head {
+          border-radius: 12px 12px 0 0 !important;
+        }
+        .blank-editor-card .ant-card-body {
+          border-radius: 0 0 12px 12px !important;
+        }
+      `}</style>
+
       <Form.Item label="题干" required>
         <TextArea
           value={value.stem}
@@ -130,7 +155,11 @@ export default function BlankEditor({ value, onChange }: BlankEditorProps) {
         />
       </Form.Item>
 
-      <Card size="small" className="bg-gray-50">
+      <Card
+        size="small"
+        className="blank-editor-card bg-gray-50"
+        styles={{ body: { borderRadius: '12px' } }}
+      >
         <Text type="secondary" className="text-xs mb-2 block">
           题干预览
         </Text>
@@ -160,7 +189,7 @@ export default function BlankEditor({ value, onChange }: BlankEditorProps) {
                   </Text>
                 </Space>
               }
-              className="border-gray-200"
+              className="blank-editor-card border-gray-200"
             >
               <div className="space-y-2">
                 {blank.correctAnswers.map((answer, answerIndex) => (
@@ -200,7 +229,10 @@ export default function BlankEditor({ value, onChange }: BlankEditorProps) {
           ))}
         </div>
       ) : (
-        <Card size="small" className="border-dashed bg-gray-50">
+        <Card
+          size="small"
+          className="blank-editor-card border-dashed bg-gray-50"
+        >
           <Paragraph type="secondary" className="mb-0 text-center">
             请在题干中使用 <Text code>{'{{blank}}'}</Text> 标记空位
           </Paragraph>

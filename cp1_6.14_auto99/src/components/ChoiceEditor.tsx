@@ -1,9 +1,12 @@
-import { useState, useMemo } from 'react';
-import { Form, Input, Checkbox, Radio, Switch, Card, Row, Col, Typography } from 'antd';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Form, Checkbox, Radio, Switch, Row, Col, Typography, Tooltip } from 'antd';
+import { BoldOutlined, ItalicOutlined } from '@ant-design/icons';
+import ReactQuill from 'react-quill';
 import type { ChoiceQuestion, ChoiceOption } from '@/types/question';
 import { QuestionType } from '@/types/question';
+import 'react-quill/dist/quill.snow.css';
+import './ChoiceEditor.css';
 
-const { TextArea } = Input;
 const { Text } = Typography;
 
 interface ChoiceEditorProps {
@@ -13,39 +16,121 @@ interface ChoiceEditorProps {
 
 const optionLabels = ['A', 'B', 'C', 'D'];
 
-function renderRichText(content: string): React.ReactNode {
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
-  let match;
+const quillModules = {
+  toolbar: false,
+};
 
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index));
+const quillFormats = ['bold', 'italic'];
+
+interface RichTextEditorProps {
+  value: string;
+  onChange: (content: string) => void;
+  placeholder?: string;
+}
+
+function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+  const quillRef = useRef<ReactQuill>(null);
+  const [isBoldActive, setIsBoldActive] = useState(false);
+  const [isItalicActive, setIsItalicActive] = useState(false);
+
+  const handleBold = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    if (quill) {
+      const isActive = quill.getFormat().bold;
+      quill.format('bold', !isActive);
+      setIsBoldActive(!isActive);
     }
+  }, []);
 
-    const text = match[0];
-    if (text.startsWith('**')) {
-      parts.push(<strong key={match.index}>{text.slice(2, -2)}</strong>);
-    } else if (text.startsWith('*')) {
-      parts.push(<em key={match.index}>{text.slice(1, -1)}</em>);
+  const handleItalic = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    if (quill) {
+      const isActive = quill.getFormat().italic;
+      quill.format('italic', !isActive);
+      setIsItalicActive(!isActive);
     }
+  }, []);
 
-    lastIndex = regex.lastIndex;
+  const handleSelectionChange = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    if (quill) {
+      const format = quill.getFormat();
+      setIsBoldActive(!!format.bold);
+      setIsItalicActive(!!format.italic);
+    }
+  }, []);
+
+  useEffect(() => {
+    const quill = quillRef.current?.getEditor();
+    if (quill) {
+      quill.on('selection-change', handleSelectionChange);
+      return () => {
+        quill.off('selection-change', handleSelectionChange);
+      };
+    }
+  }, [handleSelectionChange]);
+
+  return (
+    <div className="choice-editor-quill-wrapper">
+      <div className="choice-editor-toolbar">
+        <Tooltip title="加粗 (Ctrl+B)">
+          <button
+            type="button"
+            className={`choice-editor-toolbar-btn ${isBoldActive ? 'active' : ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleBold();
+            }}
+          >
+            <BoldOutlined />
+          </button>
+        </Tooltip>
+        <Tooltip title="斜体 (Ctrl+I)">
+          <button
+            type="button"
+            className={`choice-editor-toolbar-btn ${isItalicActive ? 'active' : ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleItalic();
+            }}
+          >
+            <ItalicOutlined />
+          </button>
+        </Tooltip>
+      </div>
+      <ReactQuill
+        ref={quillRef}
+        theme="snow"
+        value={value}
+        onChange={onChange}
+        modules={quillModules}
+        formats={quillFormats}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function convertMarkdownToHtml(content: string): string {
+  let result = content;
+  result = result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  result = result.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  return result;
+}
+
+function ensureHtmlContent(content: string): string {
+  if (!content) return '';
+  if (content.includes('<strong>') || content.includes('<em>') || content.includes('<p>')) {
+    return content;
   }
-
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : content;
+  return convertMarkdownToHtml(content);
 }
 
 export default function ChoiceEditor({ value, onChange }: ChoiceEditorProps) {
   const [activeOptionIndex, setActiveOptionIndex] = useState<number | null>(null);
 
-  const handleStemChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange({ ...value, stem: e.target.value });
+  const handleStemChange = (content: string) => {
+    onChange({ ...value, stem: content });
   };
 
   const handleIsMultipleChange = (checked: boolean) => {
@@ -60,30 +145,31 @@ export default function ChoiceEditor({ value, onChange }: ChoiceEditorProps) {
     onChange({ ...value, options: newOptions });
   };
 
-  const handleCorrectAnswersChange = (optionId: string, checked: boolean) => {
+  const handleCorrectAnswersChange = (optionLabel: string, checked: boolean) => {
     let newCorrectAnswers: string[];
     if (value.isMultiple) {
       newCorrectAnswers = checked
-        ? [...value.correctAnswers, optionId]
-        : value.correctAnswers.filter((id) => id !== optionId);
+        ? [...value.correctAnswers, optionLabel]
+        : value.correctAnswers.filter((label) => label !== optionLabel);
     } else {
-      newCorrectAnswers = checked ? [optionId] : [];
+      newCorrectAnswers = checked ? [optionLabel] : [];
     }
     onChange({ ...value, correctAnswers: newCorrectAnswers });
   };
 
-  const previewContents = useMemo(() => {
-    return value.options.map((opt) => renderRichText(opt.content));
-  }, [value.options]);
+  const stemHtml = useMemo(() => ensureHtmlContent(value.stem), [value.stem]);
+  const optionsHtml = useMemo(
+    () => value.options.map((opt) => ensureHtmlContent(opt.content)),
+    [value.options]
+  );
 
   return (
     <div className="space-y-6">
       <Form.Item label="题干" required>
-        <TextArea
-          value={value.stem}
+        <RichTextEditor
+          value={stemHtml}
           onChange={handleStemChange}
           placeholder="请输入题干内容"
-          autoSize={{ minRows: 3, maxRows: 6 }}
         />
       </Form.Item>
 
@@ -106,64 +192,45 @@ export default function ChoiceEditor({ value, onChange }: ChoiceEditorProps) {
           选项设置
         </Text>
         {value.options.map((option: ChoiceOption, index: number) => (
-          <Card
+          <div
             key={option.id}
-            size="small"
-            className="border-gray-200"
+            className={`choice-option-card ${activeOptionIndex === index ? 'choice-option-card-active' : ''}`}
             onMouseEnter={() => setActiveOptionIndex(index)}
             onMouseLeave={() => setActiveOptionIndex(null)}
           >
             <Row gutter={16} align="top">
-              <Col span={2}>
-                <div className="flex items-center justify-center h-10">
+              <Col span={3}>
+                <div className="flex items-center justify-center h-full min-h-[80px]">
                   {value.isMultiple ? (
                     <Checkbox
-                      checked={value.correctAnswers.includes(option.id)}
+                      checked={value.correctAnswers.includes(option.label)}
                       onChange={(e) =>
-                        handleCorrectAnswersChange(option.id, e.target.checked)
+                        handleCorrectAnswersChange(option.label, e.target.checked)
                       }
                     >
-                      <Text strong>{optionLabels[index]}</Text>
+                      <Text strong className="text-lg">{optionLabels[index]}</Text>
                     </Checkbox>
                   ) : (
                     <Radio
-                      checked={value.correctAnswers.includes(option.id)}
+                      checked={value.correctAnswers.includes(option.label)}
                       onChange={(e) =>
-                        handleCorrectAnswersChange(option.id, e.target.checked)
+                        handleCorrectAnswersChange(option.label, e.target.checked)
                       }
                     >
-                      <Text strong>{optionLabels[index]}</Text>
+                      <Text strong className="text-lg">{optionLabels[index]}</Text>
                     </Radio>
                   )}
                 </div>
               </Col>
-              <Col span={13}>
-                <Text type="secondary" className="text-xs mb-1 block">
-                  编辑（支持 **加粗** *斜体*）
-                </Text>
-                <TextArea
-                  value={option.content}
-                  onChange={(e) => handleOptionContentChange(index, e.target.value)}
+              <Col span={21}>
+                <RichTextEditor
+                  value={optionsHtml[index]}
+                  onChange={(content) => handleOptionContentChange(index, content)}
                   placeholder={`请输入选项${optionLabels[index]}的内容`}
-                  autoSize={{ minRows: 2, maxRows: 4 }}
                 />
               </Col>
-              <Col span={9}>
-                <Text type="secondary" className="text-xs mb-1 block">
-                  预览
-                </Text>
-                <div
-                  className={`p-3 bg-gray-50 rounded min-h-[52px] border transition-all duration-200 ${
-                    activeOptionIndex === index
-                      ? 'border-blue-300 bg-blue-50'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  {previewContents[index]}
-                </div>
-              </Col>
             </Row>
-          </Card>
+          </div>
         ))}
       </div>
     </div>

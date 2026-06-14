@@ -2,9 +2,12 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Button, Space, message, Collapse, Typography } from 'antd';
 import type { CollapseProps } from 'antd';
 import { CopyOutlined, FontSizeOutlined, CheckOutlined } from '@ant-design/icons';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import QuestionEditor from './components/QuestionEditor';
 import QuestionPreview from './components/QuestionPreview';
-import { Question, FontSize, QuestionType } from './types/question';
+import type { Question, FontSize } from './types/question';
+import { QuestionType } from './types/question';
 import { createDefaultChoiceQuestion } from './components/ChoiceEditor';
 import { useDebounce } from './hooks/useDebounce';
 import { serializeQuestion, validateQuestion } from './utils/questionParser';
@@ -130,9 +133,23 @@ export default function App() {
               {copied ? '已复制' : '复制'}
             </Button>
           </div>
-          <pre className="json-code-block">
-            <code>{exportedJson}</code>
-          </pre>
+          <div className="json-code-block-wrapper">
+            <SyntaxHighlighter
+              language="json"
+              style={oneDark}
+              customStyle={{
+                margin: 0,
+                padding: '16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                lineHeight: '1.6',
+                maxHeight: '400px',
+              }}
+              showLineNumbers
+            >
+              {exportedJson}
+            </SyntaxHighlighter>
+          </div>
           {!validationResult.valid && (
             <div className="validation-errors">
               <Text type="danger" strong>
