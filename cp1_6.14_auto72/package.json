@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server/index.ts",
+    "server": "nodemon --ignore server/db.json server/index.ts",
     "client": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"

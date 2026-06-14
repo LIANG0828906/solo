@@ -30,10 +30,35 @@ const defaultData: Database = {
 const adapter = new JSONFile<Database>(dbFile);
 const db = new Low<Database>(adapter, defaultData);
 
-await db.read();
-if (!db.data) {
-  db.data = defaultData;
-  await db.write();
+async function initDatabase() {
+  await db.read();
+  if (!db.data) {
+    db.data = defaultData;
+    await db.write();
+  }
+  
+  if (db.data.cats.length === 0) {
+    console.log('Initializing with sample cats...');
+    for (let i = 0; i < 2; i++) {
+      const cat = generateRandomCat();
+      db.data.cats.push(cat);
+    }
+    
+    const cat1 = generateRandomCat();
+    cat1.area = 'shelter';
+    cat1.healthStatus = 'healthy';
+    cat1.metrics = generateRandomMetrics('healthy');
+    db.data.cats.push(cat1);
+    
+    const cat2 = generateRandomCat();
+    cat2.area = 'shelter';
+    cat2.healthStatus = 'mild';
+    cat2.metrics = generateRandomMetrics('mild');
+    db.data.cats.push(cat2);
+    
+    await db.write();
+    console.log(`Initialized with ${db.data.cats.length} sample cats`);
+  }
 }
 
 const breeds = [
@@ -130,6 +155,8 @@ function calculateStats(cats: Cat[]): ShelterStats {
     pendingExams: cats.filter(c => c.area === 'reception' || c.area === 'checkup').length,
   };
 }
+
+await initDatabase();
 
 app.get('/api/stats', async (_req, res) => {
   try {
@@ -333,29 +360,6 @@ app.post('/api/cats/:id/exam/complete', async (req, res) => {
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'Cat Shelter API is running' });
 });
-
-if (db.data.cats.length === 0) {
-  console.log('Initializing with sample cats...');
-  for (let i = 0; i < 2; i++) {
-    const cat = generateRandomCat();
-    db.data.cats.push(cat);
-  }
-  
-  const cat1 = generateRandomCat();
-  cat1.area = 'shelter';
-  cat1.healthStatus = 'healthy';
-  cat1.metrics = generateRandomMetrics('healthy');
-  db.data.cats.push(cat1);
-  
-  const cat2 = generateRandomCat();
-  cat2.area = 'shelter';
-  cat2.healthStatus = 'mild';
-  cat2.metrics = generateRandomMetrics('mild');
-  db.data.cats.push(cat2);
-  
-  await db.write();
-  console.log(`Initialized with ${db.data.cats.length} sample cats`);
-}
 
 app.listen(PORT, () => {
   console.log(`🚀 Cat Shelter API server running on http://localhost:${PORT}`);

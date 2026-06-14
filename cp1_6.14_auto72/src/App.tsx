@@ -109,27 +109,29 @@ function App() {
 
     let progress = 0;
     const duration = 5000;
-    const startTime = Date.now();
+    const intervalMs = 50;
+    const increment = (100 / duration) * intervalMs;
 
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      progress = Math.min(100, (elapsed / duration) * 100);
+    setCats(prev => prev.map(c => 
+      c.id === catId ? { ...c, isExamining: true, examProgress: 0 } : c
+    ));
+
+    const timerId = window.setInterval(() => {
+      progress += increment;
+      
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(timerId);
+        examTimersRef.current.delete(catId);
+        completeExam(catId);
+      }
 
       setCats(prev => prev.map(c => 
         c.id === catId ? { ...c, isExamining: true, examProgress: progress } : c
       ));
+    }, intervalMs);
 
-      if (progress < 100) {
-        const timerId = requestAnimationFrame(updateProgress);
-        examTimersRef.current.set(catId, timerId as unknown as number);
-      } else {
-        completeExam(catId);
-        examTimersRef.current.delete(catId);
-      }
-    };
-
-    const timerId = requestAnimationFrame(updateProgress);
-    examTimersRef.current.set(catId, timerId as unknown as number);
+    examTimersRef.current.set(catId, timerId);
   };
 
   const completeExam = async (catId: string) => {
@@ -311,7 +313,7 @@ function RadarChart({ metrics }: { metrics: Cat['metrics'] }) {
     { key: 'health', label: '健康', angle: 198 },
   ];
 
-  const points = labels.map(({ key, angle }) => {
+  const points = labels.map(({ key, angle, label }) => {
     const value = metrics[key as keyof typeof metrics] / 100;
     const radian = (angle * Math.PI) / 180;
     const x = center + maxRadius * value * Math.cos(radian);
