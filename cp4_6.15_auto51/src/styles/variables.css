@@ -1,0 +1,52 @@
+:root {
+  --color-felt-green: #0d5c33;
+  --color-felt-green-dark: #0a4a29;
+  --color-felt-green-light: #147a45;
+  --color-card-back: #1a365d;
+  --color-card-back-light: #2c5282;
+  --color-gold: #d4af37;
+  --color-gold-dark: #b8941f;
+  --color-gold-light: #f0d060;
+  --color-red: #c41e3a;
+  --color-black: #1a1a1a;
+  --color-white: #ffffff;
+  --color-gray-dark: #2d3748;
+  --color-gray-medium: #4a5568;
+  --color-gray-light: #e2e8f0;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-light: rgba(0, 0, 0, 0.15);
+  --color-highlight: rgba(212, 175, 55, 0.3);
+  --color-error: #ef4444;
+
+  --card-width: 80px;
+  --card-height: 112px;
+  --card-border-radius: 8px;
+  --card-offset-y: 32px;
+  --card-offset-y-small: 16px;
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Roboto', sans-serif;
+
+  --transition-fast: 100ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  --shadow-card: 0 2px 8px var(--color-shadow), 0 1px 3px var(--color-shadow-light);
+  --shadow-card-hover: 0 4px 16px var(--color-shadow), 0 2px 6px var(--color-shadow-light);
+  --shadow-card-dragging: 0 8px 32px var(--color-shadow), 0 4px 12px var(--color-shadow-light);
+
+  --z-board: 1;
+  --z-card: 10;
+  --z-card-dragging: 100;
+  --z-modal: 1000;
+}
+
+@media (max-width: 1919px) {
+  :root {
+    --card-width: 54px;
+    --card-height: 76px;
+    --card-offset-y: 22px;
+    --card-offset-y-small: 11px;
+    --card-border-radius: 6px;
+  }
+}
