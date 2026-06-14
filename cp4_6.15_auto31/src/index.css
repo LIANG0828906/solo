@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Nunito', sans-serif;
+  background-color: #FFF8E7;
+  color: #333333;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4c9a8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8a888;
+}
+
+@layer components {
+  .drag-card {
+    cursor: grab;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.2s ease-out;
+  }
+
+  .drag-card:active {
+    cursor: grabbing;
+  }
+
+  .drag-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    box-shadow: 0 8px 24px rgba(242, 140, 40, 0.3);
+  }
+
+  .meal-slot {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease-out;
+  }
+
+  .meal-slot.drag-over {
+    background-color: #FFF0D4;
+    transform: scale(1.03);
+    border-color: #F28C28;
+  }
+
+  .meal-slot.just-dropped {
+    animation: bounce-in 0.3s ease-out forwards;
+  }
+
+  .circular-checkbox {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #d4c9a8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+    flex-shrink: 0;
+  }
+
+  .circular-checkbox:hover {
+    border-color: #F28C28;
+    background-color: #FFF0D4;
+  }
+
+  .circular-checkbox.checked {
+    background-color: #6B8E23;
+    border-color: #6B8E23;
+  }
+
+  .circular-checkbox .check-icon {
+    color: white;
+    font-size: 14px;
+    animation: check-spin 0.4s ease-out forwards;
+  }
+
+  .progress-ring-circle {
+    transition: stroke-dashoffset 0.5s ease-out;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  .zone-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease-out;
+  }
+
+  .zone-header:hover {
+    background-color: #FFF0D4;
+  }
+
+  .zone-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  }
+
+  .zone-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .zone-content.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+
+  .recipe-form-overlay {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .recipe-form-panel {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  .flash-complete {
+    animation: flash-green 0.8s ease-out;
+  }
+
+  .category-tab {
+    transition: all 0.2s ease-out;
+    cursor: pointer;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .category-tab:hover {
+    opacity: 0.85;
+  }
+
+  .category-tab.active {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
