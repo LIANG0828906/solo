@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePlant } from '../context/PlantContext';
 import { Plant } from '../data/mockData';
 import PlantDetail from './PlantDetail';
@@ -8,8 +8,7 @@ const PAGE_SIZE = 6;
 const LazyImage: React.FC<{
   src: string;
   alt: string;
-  className?: string;
-}> = ({ src, alt, className }) => {
+}> = ({ src, alt }) => {
   const [loaded, setLoaded] = useState(false);
   const [inView, setInView] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
@@ -24,7 +23,7 @@ const LazyImage: React.FC<{
           }
         });
       },
-      { rootMargin: '100px' }
+      { rootMargin: '200px' }
     );
 
     if (imgRef.current) {
@@ -35,7 +34,7 @@ const LazyImage: React.FC<{
   }, []);
 
   return (
-    <div ref={imgRef} className={className} style={{ overflow: 'hidden' }}>
+    <div ref={imgRef} style={{ overflow: 'hidden', position: 'relative' }}>
       {!loaded && <div className="plant-card-img-placeholder" />}
       {inView && (
         <img
@@ -43,15 +42,17 @@ const LazyImage: React.FC<{
           alt={alt}
           className="plant-card-img"
           onLoad={() => setLoaded(true)}
-          style={{ display: loaded ? 'block' : 'none' }}
+          style={{ display: loaded ? 'block' : 'none', willChange: 'transform' }}
+          loading="lazy"
+          decoding="async"
         />
       )}
     </div>
   );
 };
 
-const SkeletonCard: React.FC = () => (
-  <div className="skeleton-card">
+const SkeletonCard: React.FC<{ delay?: number }> = ({ delay = 0 }) => (
+  <div className="skeleton-card" style={{ animationDelay: `${delay}s` }}>
     <div className="skeleton-img" />
     <div className="skeleton-line" />
     <div className="skeleton-line short" />
@@ -66,12 +67,57 @@ const HomePage: React.FC = () => {
   const { plants, getUserById, currentUser } = usePlant();
   const [displayedPlants, setDisplayedPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(0);
+  const lastTimeRef = useRef(performance.now());
+  const frameCountRef = useRef(0);
+  const fpsRef = useRef<number[]>([]);
 
-  const availablePlants = plants.filter(p => p.isAvailable && p.ownerId !== currentUser.id);
+  const availablePlants = useMemo(() => 
+    plants.filter(p => p.isAvailable && p.ownerId !== currentUser.id),
+    [plants, currentUser.id]
+  );
+
+  useEffect(() => {
+    console.log('🎮 FPS监控已启动');
+    let running = true;
+    
+    const measureFPS = () => {
+      if (!running) return;
+      
+      frameCountRef.current++;
+      const now = performance.now();
+      
+      if (now - lastTimeRef.current >= 2000) {
+        const fps = Math.round((frameCountRef.current * 1000) / (now - lastTimeRef.current));
+        fpsRef.current.push(fps);
+        if (fpsRef.current.length > 5) fpsRef.current.shift();
+        const avgFps = fpsRef.current.reduce((a, b) => a + b, 0) / fpsRef.current.length;
+        
+        if (avgFps < 55) {
+          console.warn(`⚠️ 瀑布流滚动FPS较低: ${avgFps.toFixed(1)}，建议优化`);
+        } else {
+          console.log(`✅ 瀑布流滚动FPS: ${avgFps.toFixed(1)}`);
+        }
+        
+        frameCountRef.current = 0;
+        lastTimeRef.current = now;
+      }
+      
+      requestAnimationFrame(measureFPS);
+    };
+    
+    const animId = requestAnimationFrame(measureFPS);
+    
+    return () => {
+      running = false;
+      cancelAnimationFrame(animId);
+      console.log('🎮 FPS监控已停止');
+    };
+  }, []);
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
@@ -86,39 +132,45 @@ const HomePage: React.FC = () => {
       if (newPlants.length === 0) {
         setHasMore(false);
       } else {
-        setDisplayedPlants((prev) => [...prev, ...newPlants]);
+        setDisplayedPlants((prev) => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNew = newPlants.filter(p => !existingIds.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
         pageRef.current = nextPage;
         if (end >= availablePlants.length) {
           setHasMore(false);
         }
       }
       setLoading(false);
-    }, 500);
+      setInitialLoading(false);
+    }, 600);
   }, [loading, hasMore, availablePlants]);
 
   useEffect(() => {
     setDisplayedPlants([]);
     pageRef.current = 0;
     setHasMore(availablePlants.length > 0);
+    setInitialLoading(true);
     setLoading(false);
   }, [availablePlants.length]);
 
   useEffect(() => {
-    if (displayedPlants.length === 0 && !loading && hasMore) {
+    if (displayedPlants.length === 0 && !loading && hasMore && initialLoading) {
       loadMore();
     }
-  }, [displayedPlants.length, loading, hasMore, loadMore]);
+  }, [displayedPlants.length, loading, hasMore, initialLoading, loadMore]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !loading && hasMore) {
+          if (entry.isIntersecting && !loading && hasMore && !initialLoading) {
             loadMore();
           }
         });
       },
-      { rootMargin: '200px' }
+      { rootMargin: '250px', threshold: 0.1 }
     );
 
     if (observerRef.current) {
@@ -126,19 +178,23 @@ const HomePage: React.FC = () => {
     }
 
     return () => observer.disconnect();
-  }, [loading, hasMore, loadMore]);
+  }, [loading, hasMore, initialLoading, loadMore]);
 
   return (
     <div>
-      <h2 className="page-title">🌱 发现绿植</h2>
-      <div className="masonry-grid">
-        {displayedPlants.map((plant, index) => {
+      <h2 className="page-title">🌱 发现绿植 <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', fontWeight: 'normal' }}>(共{availablePlants.length}株可交换)</span></h2>
+      <div className="masonry-grid" style={{ willChange: 'transform' }}>
+        {initialLoading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+          <SkeletonCard key={`init-skeleton-${i}`} delay={i * 0.08} />
+        ))}
+        
+        {!initialLoading && displayedPlants.map((plant, index) => {
           const owner = getUserById(plant.ownerId);
           return (
             <div
               key={plant.id}
               className="plant-card"
-              style={{ animationDelay: `${index * 0.08}s` }}
+              style={{ animationDelay: `${index * 0.08}s`, willChange: 'transform, opacity' }}
               onClick={() => setSelectedPlant(plant)}
             >
               <button
@@ -163,6 +219,7 @@ const HomePage: React.FC = () => {
                       src={owner.avatar}
                       alt={owner.nickname}
                       className="plant-card-avatar"
+                      loading="lazy"
                     />
                     <span className="plant-card-nickname">{owner.nickname}</span>
                   </div>
@@ -171,14 +228,18 @@ const HomePage: React.FC = () => {
             </div>
           );
         })}
-        {loading && Array.from({ length: Math.min(PAGE_SIZE, availablePlants.length - displayedPlants.length) }).map((_, i) => (
-          <SkeletonCard key={`skeleton-${i}`} />
+        
+        {!initialLoading && loading && hasMore && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+          <SkeletonCard key={`load-skeleton-${i}`} delay={i * 0.05} />
         ))}
       </div>
-      <div ref={observerRef} />
+      
+      <div ref={observerRef} style={{ height: '10px' }} />
+      
       {!hasMore && displayedPlants.length > 0 && (
-        <div className="loader">已经到底啦 ~</div>
+        <div className="loader">已经到底啦 ~ 共展示 {displayedPlants.length} 株绿植</div>
       )}
+      
       {selectedPlant && (
         <PlantDetail
           plant={selectedPlant}

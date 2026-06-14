@@ -59,7 +59,7 @@ export const mockUsers: User[] = [
   {
     id: 'u1',
     nickname: '小绿',
-    avatar: 'https://i.pravatar.cc/100?img=1',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaolv',
     bio: '热爱植物的城市女孩，家里有30多盆绿植',
     contact: '微信：xiaolv123',
     swapCount: 8
@@ -67,7 +67,7 @@ export const mockUsers: User[] = [
   {
     id: 'u2',
     nickname: '多肉控阿明',
-    avatar: 'https://i.pravatar.cc/100?img=12',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=aming',
     bio: '多肉植物深度爱好者，收集各种品种',
     contact: '电话：138****5678',
     swapCount: 15
@@ -75,7 +75,7 @@ export const mockUsers: User[] = [
   {
     id: 'u3',
     nickname: '园丁老王',
-    avatar: 'https://i.pravatar.cc/100?img=33',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=laowang',
     bio: '退休园艺师，喜欢分享扦插经验',
     contact: '微信：laowang_garden',
     swapCount: 25
@@ -83,7 +83,7 @@ export const mockUsers: User[] = [
   {
     id: 'u4',
     nickname: '花花世界',
-    avatar: 'https://i.pravatar.cc/100?img=45',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=huahua',
     bio: '阳台党，专注月季花和绿萝',
     contact: 'QQ：123456789',
     swapCount: 6
@@ -91,7 +91,7 @@ export const mockUsers: User[] = [
   {
     id: 'me',
     nickname: '植物新手',
-    avatar: 'https://i.pravatar.cc/100?img=68',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=me',
     bio: '刚刚入坑的植物爱好者，请多指教',
     contact: '微信：plant_lover',
     swapCount: 3

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plant } from '../data/mockData';
 import { usePlant } from '../context/PlantContext';
 
@@ -15,6 +15,10 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState('');
   const [expectation, setExpectation] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const owner = getUserById(plant.ownerId);
   const myRequests = getRequestsFromMe();
@@ -33,6 +37,64 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
 
   const prevImage = () => {
     setCurrentImageIdx((prev) => (prev - 1 + plant.images.length) % plant.images.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (plant.images.length <= 1) return;
+    setIsDragging(true);
+    setDragStartX(e.touches[0].clientX);
+    setDragOffset(0);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const currentX = e.touches[0].clientX;
+    setDragOffset(currentX - dragStartX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const threshold = 80;
+    if (dragOffset > threshold) {
+      prevImage();
+    } else if (dragOffset < -threshold) {
+      nextImage();
+    }
+    setDragOffset(0);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (plant.images.length <= 1) return;
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    setDragOffset(0);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setDragOffset(e.clientX - dragStartX);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const threshold = 80;
+    if (dragOffset > threshold) {
+      prevImage();
+    } else if (dragOffset < -threshold) {
+      nextImage();
+    }
+    setDragOffset(0);
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      handleMouseUp();
+    }
   };
 
   const handleSubmit = () => {
@@ -55,18 +117,48 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
           ✕
         </button>
 
-        <div className="detail-carousel">
-          <img
-            src={plant.images[currentImageIdx]}
-            alt={plant.name}
-            className="detail-carousel-img"
-          />
+        <div 
+          className="detail-carousel"
+          ref={carouselRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        >
+          <div style={{ 
+            display: 'flex', 
+            transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: `translateX(calc(-${currentImageIdx * 100}% + ${dragOffset}px))`,
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
+          }}>
+            {plant.images.map((img, idx) => (
+              <img
+                key={idx}
+                src={img}
+                alt={`${plant.name} ${idx + 1}`}
+                className="detail-carousel-img"
+                style={{ flexShrink: 0, width: '100%', pointerEvents: 'none' }}
+                draggable={false}
+              />
+            ))}
+          </div>
           {plant.images.length > 1 && (
             <>
-              <button className="carousel-nav prev" onClick={prevImage}>
+              <button 
+                className="carousel-nav prev" 
+                onClick={(e) => { e.stopPropagation(); prevImage(); }}
+              >
                 ‹
               </button>
-              <button className="carousel-nav next" onClick={nextImage}>
+              <button 
+                className="carousel-nav next" 
+                onClick={(e) => { e.stopPropagation(); nextImage(); }}
+              >
                 ›
               </button>
               <div className="carousel-dots">
@@ -74,9 +166,22 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
                   <div
                     key={idx}
                     className={`carousel-dot ${idx === currentImageIdx ? 'active' : ''}`}
-                    onClick={() => setCurrentImageIdx(idx)}
+                    onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(idx); }}
                   />
                 ))}
+              </div>
+              <div style={{
+                position: 'absolute',
+                top: '16px',
+                right: '60px',
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                padding: '4px 10px',
+                borderRadius: '12px',
+                fontSize: '0.8rem',
+                fontWeight: '500'
+              }}>
+                {currentImageIdx + 1} / {plant.images.length}
               </div>
             </>
           )}
@@ -157,6 +262,7 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
                 placeholder="告诉对方为什么想交换这盆植物..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+                autoFocus
               />
             </div>
             <div className="form-group">
