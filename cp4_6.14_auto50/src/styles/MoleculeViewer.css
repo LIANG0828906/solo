@@ -1,0 +1,266 @@
+.viewer-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 12px;
+  gap: 16px;
+}
+
+.viewer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  letter-spacing: 1px;
+}
+
+.viewer-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.viewer-molecule-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.molecule-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.molecule-item:hover {
+  background: rgba(56, 189, 248, 0.1);
+  transform: translateX(2px);
+}
+
+.molecule-item.selected {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.molecule-thumbnail {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #38bdf8;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.molecule-thumbnail::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #909090;
+  border-radius: 50%;
+  top: 8px;
+  left: 8px;
+}
+
+.molecule-thumbnail::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #FF0D0D;
+  border-radius: 50%;
+  bottom: 10px;
+  right: 10px;
+}
+
+.molecule-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.molecule-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 2px;
+}
+
+.molecule-formula {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'Consolas', monospace;
+}
+
+.compare-button {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.compare-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+}
+
+.compare-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.compare-button:disabled {
+  background: #475569;
+}
+
+.bottom-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bottom-bar-current {
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.bottom-bar-current strong {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.bottom-bar-hint {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.bottom-bar-hint span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hint-key {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compare-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compare-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.compare-panel-close {
+  background: transparent;
+  color: #94a3b8;
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.compare-panel-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.compare-score-container {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex: 1;
+}
+
+.compare-score {
+  text-align: center;
+}
+
+.compare-score-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #38bdf8;
+  line-height: 1;
+  font-family: 'Consolas', monospace;
+}
+
+.compare-score-label {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+.compare-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compare-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.compare-detail-label {
+  color: #94a3b8;
+}
+
+.compare-detail-value {
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.compare-detail-value.highlight {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.molecule-select-indicator {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.1);
+  margin-bottom: 4px;
+}
