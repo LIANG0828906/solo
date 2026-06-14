@@ -1,6 +1,6 @@
 import { onMounted, watch } from 'vue';
 import { useTimelineStore } from '@/store/timelineStore';
-import type { TimelineEvent, SkillTag, SkillCategory } from '@/types';
+import type { TimelineEvent, SkillCategory } from '@/types';
 
 const STORAGE_KEY = 'timeline_events_v1';
 
