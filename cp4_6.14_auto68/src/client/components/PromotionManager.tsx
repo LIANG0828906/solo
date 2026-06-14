@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Calendar } from 'lucide-react';
 import { promotionApi, menuApi, type Promotion, type MenuItem } from '../api';
 
 interface FormData {
@@ -13,23 +13,25 @@ interface FormData {
 
 const initialFormData: FormData = {
   name: '',
-  discountType: 'percentage',
+  discountType: 'fixed',
   discountValue: '',
   startDate: '',
   endDate: '',
   applicableItems: [],
 };
 
-function getDaysRemaining(endDate: string): number {
+function getRemainingDays(endDate: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-  const now = new Date();
-  const diffTime = end.getTime() - now.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  end.setHours(0, 0, 0, 0);
+  const diffTime = end.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
 }
 
 function isExpired(endDate: string): boolean {
-  return new Date(endDate) < new Date();
+  return getRemainingDays(endDate) < 0;
 }
 
 export default function PromotionManager() {
@@ -38,14 +40,6 @@ export default function PromotionManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [, setCurrentTime] = useState(Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     fetchData();
@@ -69,10 +63,9 @@ export default function PromotionManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const submitData: Omit<Promotion, 'id'> = {
+    const submitData = {
       ...formData,
       discountValue: parseFloat(formData.discountValue),
-      isActive: true,
     };
 
     try {
@@ -98,12 +91,20 @@ export default function PromotionManager() {
     setFormData(initialFormData);
   };
 
-  const handleItemChange = (itemId: string) => {
-    const currentItems = formData.applicableItems;
-    const newItems = currentItems.includes(itemId)
-      ? currentItems.filter((id) => id !== itemId)
-      : [...currentItems, itemId];
-    setFormData({ ...formData, applicableItems: newItems });
+  const handleApplicableItemChange = (menuId: string) => {
+    setFormData((prev) => {
+      if (prev.applicableItems.includes(menuId)) {
+        return {
+          ...prev,
+          applicableItems: prev.applicableItems.filter((id) => id !== menuId),
+        };
+      } else {
+        return {
+          ...prev,
+          applicableItems: [...prev.applicableItems, menuId],
+        };
+      }
+    });
   };
 
   if (loading) {
@@ -141,13 +142,13 @@ export default function PromotionManager() {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 20,
+          gap: 24,
           animation: 'fadeIn 0.3s ease',
         }}
       >
         {promotions.map((promotion) => {
           const expired = isExpired(promotion.endDate);
-          const daysRemaining = getDaysRemaining(promotion.endDate);
+          const remainingDays = getRemainingDays(promotion.endDate);
 
           return (
             <div
@@ -162,24 +163,11 @@ export default function PromotionManager() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4, color: '#1e293b' }}>
-                    {promotion.name}
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: 14,
-                      color: '#3b82f6',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {promotion.discountType === 'fixed'
-                      ? `减 ¥${promotion.discountValue}`
-                      : `${promotion.discountValue}% 折扣`}
-                  </span>
-                </div>
-
+                <h3 style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
+                  {promotion.name}
+                </h3>
                 <div
+                  onClick={() => !expired && handleToggle(promotion.id)}
                   style={{
                     position: 'relative',
                     width: 44,
@@ -188,15 +176,13 @@ export default function PromotionManager() {
                     borderRadius: 12,
                     transition: 'background-color 0.3s ease',
                     cursor: expired ? 'not-allowed' : 'pointer',
-                    opacity: expired ? 0.5 : 1,
                   }}
-                  onClick={() => !expired && handleToggle(promotion.id)}
                 >
                   <div
                     style={{
                       position: 'absolute',
                       top: 2,
-                      left: !expired && promotion.isActive ? 22 : 2,
+                      left: expired ? 2 : promotion.isActive ? 22 : 2,
                       width: 20,
                       height: 20,
                       backgroundColor: '#ffffff',
@@ -208,35 +194,48 @@ export default function PromotionManager() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: 8, fontSize: 13, color: '#64748b' }}>
-                <div style={{ marginBottom: 4 }}>
-                  开始日期: {new Date(promotion.startDate).toLocaleDateString('zh-CN')}
-                </div>
-                <div>
-                  结束日期: {new Date(promotion.endDate).toLocaleDateString('zh-CN')}
-                </div>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontSize: 14, color: '#64748b' }}>优惠类型：</span>
+                <span style={{ fontSize: 14, fontWeight: 500 }}>
+                  {promotion.discountType === 'fixed'
+                    ? `立减 ¥${promotion.discountValue}`
+                    : `${promotion.discountValue}% 折扣`}
+                </span>
               </div>
 
-              {!expired && daysRemaining <= 7 && daysRemaining > 0 && (
-                <div style={{ color: '#ef4444', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                  剩余 {daysRemaining} 天
-                </div>
-              )}
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Calendar size={14} style={{ color: '#64748b' }} />
+                <span style={{ fontSize: 13, color: '#64748b' }}>
+                  {new Date(promotion.startDate).toLocaleDateString('zh-CN')} ~{' '}
+                  {new Date(promotion.endDate).toLocaleDateString('zh-CN')}
+                </span>
+              </div>
 
-              {expired && (
-                <div style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                  活动已过期
-                </div>
-              )}
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>适用菜品：</span>
+                <span style={{ fontSize: 13 }}>
+                  {promotion.applicableItems.length === 0
+                    ? '全部菜品'
+                    : promotion.applicableItems
+                        .map(
+                          (id) => menuItems.find((item) => item.id === id)?.name || id
+                        )
+                        .join('、')}
+                </span>
+              </div>
 
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                适用菜品: {promotion.applicableItems.length === 0
-                  ? '全部菜品'
-                  : promotion.applicableItems
-                      .map(
-                        (id) => menuItems.find((item) => item.id === id)?.name || id
-                      )
-                      .join(', ')}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>
+                  状态：
+                  <span style={{ color: expired ? '#9ca3af' : promotion.isActive ? '#22c55e' : '#9ca3af' }}>
+                    {expired ? '已过期' : promotion.isActive ? '已启用' : '已停用'}
+                  </span>
+                </span>
+                {!expired && (
+                  <span style={{ fontSize: 16, color: '#ef4444', fontWeight: 500 }}>
+                    剩余 {remainingDays} 天
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -275,12 +274,7 @@ export default function PromotionManager() {
               <h2 style={{ fontSize: 20, fontWeight: 'bold' }}>创建优惠活动</h2>
               <button
                 onClick={closeForm}
-                style={{
-                  padding: 4,
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                style={{ padding: 4, backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -317,6 +311,174 @@ export default function PromotionManager() {
                     <input
                       type="radio"
                       name="discountType"
+                      value="fixed"
+                      checked={formData.discountType === 'fixed'}
+                      onChange={(e) =>
+                        setFormData({ ...formData, discountType: e.target.value as 'fixed' | 'percentage' })
+                      }
+                    />
+                    <span style={{ fontSize: 14 }}>固定金额</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="discountType"
                       value="percentage"
                       checked={formData.discountType === 'percentage'}
-                      onChange={() => set
+                      onChange={(e) =>
+                        setFormData({ ...formData, discountType: e.target.value as 'fixed' | 'percentage' })
+                      }
+                    />
+                    <span style={{ fontSize: 14 }}>百分比</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, marginBottom: 6, fontWeight: 500 }}>
+                  折扣值 <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.discountValue}
+                  onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder={formData.discountType === 'fixed' ? '请输入减免金额（元）' : '请输入折扣比例（%）'}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, marginBottom: 6, fontWeight: 500 }}>
+                  开始日期 <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, marginBottom: 6, fontWeight: 500 }}>
+                  结束日期 <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 14, marginBottom: 6, fontWeight: 500 }}>
+                  适用菜品（不选则为全部）
+                </label>
+                <div
+                  style={{
+                    maxHeight: 150,
+                    overflowY: 'auto',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    padding: 8,
+                  }}
+                >
+                  {menuItems.map((item) => (
+                    <label
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 8px',
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.applicableItems.includes(item.id)}
+                        onChange={() => handleApplicableItemChange(item.id)}
+                      />
+                      <span style={{ fontSize: 14 }}>{item.name}</span>
+                      <span style={{ fontSize: 12, color: '#64748b', marginLeft: 'auto' }}>
+                        {item.category}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#e2e8f0',
+                    color: '#1e293b',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    transition: 'filter 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(0.95)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#3b82f6',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    transition: 'filter 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.05)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
+                >
+                  创建
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

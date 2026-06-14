@@ -53,7 +53,7 @@ export const menuApi = {
   getAll: () => api.get<MenuItem[]>('/menu'),
   create: (data: Omit<MenuItem, 'id'>) => api.post<MenuItem>('/menu', data),
   update: (id: string, data: Partial<MenuItem>) => api.put<MenuItem>(`/menu/${id}`, data),
-  delete: (id: string) => api.delete(`/menu/${id}`),
+  delete: (id: string) => api.delete(`/menu/delete/${id}`),
 };
 
 export const orderApi = {
@@ -64,7 +64,7 @@ export const orderApi = {
 
 export const promotionApi = {
   getAll: () => api.get<Promotion[]>('/promotions'),
-  create: (data: Omit<Promotion, 'id'>) => api.post<Promotion>('/promotions', data),
+  create: (data: Omit<Promotion, 'id' | 'isActive'> & { isActive?: boolean }) => api.post<Promotion>('/promotions', data),
   toggle: (id: string) => api.put<Promotion>(`/promotions/${id}/toggle`),
 };
 
