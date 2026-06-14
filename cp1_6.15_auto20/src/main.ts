@@ -311,9 +311,6 @@ class Game {
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     
-    console.log('Click - mouse:', this.mouse.x, this.mouse.y);
-    console.log('Selected stall type:', this.state.selectedStallType);
-    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     
     const stallMeshes: THREE.Object3D[] = [];
@@ -327,7 +324,6 @@ class Game {
     
     const stallIntersects = this.raycaster.intersectObjects(stallMeshes);
     if (stallIntersects.length > 0) {
-      console.log('Hit stall:', stallIntersects[0].object);
       let obj = stallIntersects[0].object;
       while (obj.parent && !obj.userData.stall) {
         obj = obj.parent;
@@ -346,27 +342,13 @@ class Game {
         }
       });
       
-      console.log('Cell meshes count:', cellMeshes.length);
-      
       const cellIntersects = this.raycaster.intersectObjects(cellMeshes);
-      console.log('Cell intersects:', cellIntersects.length);
-      
       if (cellIntersects.length > 0) {
         const cell = cellIntersects[0].object;
-        console.log('Hit cell:', cell.userData);
         const { gridX, gridZ } = cell.userData;
         
         if (this.gridManager.canBuild(gridX, gridZ)) {
-          console.log('Building stall at', gridX, gridZ);
           this.buildStall(this.state.selectedStallType, gridX, gridZ);
-        } else {
-          console.log('Cannot build at', gridX, gridZ);
-        }
-      } else {
-        const allIntersects = this.raycaster.intersectObjects(this.scene.children, true);
-        console.log('All intersects:', allIntersects.length);
-        if (allIntersects.length > 0) {
-          console.log('First hit:', allIntersects[0].object.name, allIntersects[0].object.userData);
         }
       }
     }
