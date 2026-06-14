@@ -156,10 +156,16 @@ export class GameEngine {
     this.stats.totalAttempts++;
 
     const normalizedRot = this.normalizeAngle(this.rotationAngle);
-    const starScreenAngle = this.normalizeAngle(targetAngle - normalizedRot);
+    const starScreenAngle = this.normalizeAngle(targetAngle + normalizedRot);
     const diff = this.getAngleDiff(starScreenAngle, 0);
 
     const success = diff <= ANGLE_TOLERANCE;
+
+    console.log(
+      `[HitCheck] Key=${upper} targetAngle=${targetAngle}° rot=${normalizedRot.toFixed(1)}° ` +
+      `starPos=${starScreenAngle.toFixed(1)}° diff=${diff.toFixed(1)}° ` +
+      `tolerance=±${ANGLE_TOLERANCE}° success=${success}`
+    );
 
     if (success) {
       this.onNoteHit(upper, targetAngle, diff);

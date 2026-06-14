@@ -59,6 +59,7 @@ export class SpriteManager {
   public synthProgress = 0;
   public synthActive = false;
   public synthCenter: { x: number; y: number } = { x: 400, y: 300 };
+  public synthStartTime = 0;
 
   private events: Map<SpriteEvent, Set<EventCallback>> = new Map();
   private nextFallingId = 0;
@@ -105,18 +106,22 @@ export class SpriteManager {
     frag.collected = true;
     frag.collectedAt = performance.now();
 
+    const cx = canvasW / 2;
+    const cy = canvasH / 2;
     const ff: FallingFragment = {
       id: this.nextFallingId++,
       shape: frag.shape,
-      x: canvasW / 2 + (Math.random() * 60 - 30),
-      y: -80,
-      startY: -80,
-      endY: canvasH / 2 + 30,
+      x: cx + (Math.random() * 80 - 40),
+      y: cy,
+      startY: cy + 80,
+      endY: cy - 100 - (index * 35),
       progress: 0,
       duration: 0.5,
       elapsed: 0,
     };
     this.fallingFragments.push(ff);
+
+    console.log(`[Fragment] Collected #${index + 1}, animating from center to y=${ff.endY.toFixed(0)}`);
 
     const allCollected = this.fragments.every((f) => f.collected);
     if (allCollected) {
@@ -130,23 +135,38 @@ export class SpriteManager {
     this.synthActive = true;
     this.synthProgress = 0;
     this.synthCenter = { x: canvasW / 2, y: canvasH / 2 };
+    this.synthStartTime = performance.now();
     this.spawnExplosionParticles(this.synthCenter.x, this.synthCenter.y, 60);
+    console.log('[SpriteSynth] Synthesis started! Particle explosion for 1 second.');
   }
 
   spawnExplosionParticles(cx: number, cy: number, count: number): void {
     for (let i = 0; i < count; i++) {
-      this.addParticle(cx, cy);
+      setTimeout(() => {
+        if (this.synthActive && this.synthProgress < 1) {
+          this.addParticle(cx, cy, true);
+        }
+      }, i * (1000 / count));
     }
   }
 
-  private addParticle(cx: number, cy: number): void {
+  private addParticle(cx: number, cy: number, isExplosion: boolean = false): void {
     const ps = this.particleSystem;
     if (ps.particles.length >= MAX_PARTICLES) {
-      ps.particles.shift();
+      const removed = ps.particles.shift();
+      console.debug(`[ParticlePool] Max ${MAX_PARTICLES} reached, removed oldest #${removed?.id}`);
     }
     const angle = Math.random() * Math.PI * 2;
-    const speed = 80 + Math.random() * 260;
-    const maxLife = 0.6 + Math.random() * 0.6;
+    const speed = isExplosion
+      ? 120 + Math.random() * 320
+      : 60 + Math.random() * 180;
+    const maxLife = isExplosion
+      ? 0.8 + Math.random() * 0.4
+      : 0.5 + Math.random() * 0.4;
+    const size = isExplosion
+      ? 3 + Math.random() * 7
+      : 2 + Math.random() * 4;
+
     ps.particles.push({
       id: ps.nextParticleId++,
       x: cx,
@@ -155,7 +175,7 @@ export class SpriteManager {
       vy: Math.sin(angle) * speed,
       life: maxLife,
       maxLife,
-      size: 2 + Math.random() * 5,
+      size,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() * 2 - 1) * 8,
@@ -230,10 +250,21 @@ export class SpriteManager {
   drawFallingFragments(ctx: CanvasRenderingContext2D): void {
     for (const ff of this.fallingFragments) {
       const p = ff.progress;
-      const bounceY = this.easeOutElastic(p);
-      const y = ff.startY + (ff.endY - ff.startY) * bounceY;
-      const alpha = 0.4 + 0.4 * p;
-      this.drawFragmentShape(ctx, ff.x, y, 64, ff.shape, alpha, p);
+      const easedP = this.easeOutBack(p);
+      const y = ff.startY + (ff.endY - ff.startY) * easedP;
+      const scale = 0.3 + 0.9 * easedP;
+      const alpha = 0.3 + 0.6 * p;
+      const size = 64 * scale;
+      this.drawFragmentShape(ctx, ff.x, y, size, ff.shape, alpha, p);
+
+      if (p > 0.7 && p < 0.95 && Math.random() < 0.4) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = size * 0.5 + Math.random() * 20;
+        this.addParticle(
+          ff.x + Math.cos(angle) * dist,
+          y + Math.sin(angle) * dist
+        );
+      }
     }
   }
 
@@ -458,6 +489,14 @@ export class SpriteManager {
     if (t <= 0) return 0;
     if (t >= 1) return 1;
     return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+  }
+
+  easeOutBack(t: number): number {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   }
 
   getTotalFragments(): number {

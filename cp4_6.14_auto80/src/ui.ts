@@ -363,6 +363,10 @@ export class UIRenderer {
     }
   }
 
+  private gameToCanvasAngle(gameAngle: number): number {
+    return ((gameAngle - 90) * Math.PI) / 180;
+  }
+
   drawRing(): void {
     const ctx = this.offscreenCtx;
     const cx = this.logicalW / 2;
@@ -382,40 +386,38 @@ export class UIRenderer {
     const innerR = 100;
     const outerR = 130;
 
-    for (let pass = 0; pass < 2; pass++) {
-      ctx.save();
-      if (pass === 1) {
-        ctx.globalCompositeOperation = 'source-over';
-      }
-      for (let seg = 0; seg < 360; seg += 2) {
-        const a1 = ((seg + this.engine.rotationAngle) * Math.PI) / 180;
-        const a2 = ((seg + 2 + this.engine.rotationAngle) * Math.PI) / 180;
+    const rot = this.engine.rotationAngle;
 
-        const t1 = seg / 360;
-        const t2 = (seg + 2) / 360;
-        const col1 = this.interpolateColor(t1, brightness);
-        const col2 = this.interpolateColor(t2, brightness);
+    for (let seg = 0; seg < 360; seg += 2) {
+      const gameAngle1 = seg + rot;
+      const gameAngle2 = seg + 2 + rot;
+      const a1 = this.gameToCanvasAngle(gameAngle1);
+      const a2 = this.gameToCanvasAngle(gameAngle2);
 
-        const grad = ctx.createLinearGradient(
-          adjustedCx + Math.cos(a1) * innerR,
-          adjustedCy + Math.sin(a1) * innerR,
-          adjustedCx + Math.cos(a1) * outerR,
-          adjustedCy + Math.sin(a1) * outerR
-        );
-        grad.addColorStop(0, col1);
-        grad.addColorStop(1, col2);
+      const t1 = seg / 360;
+      const t2 = (seg + 2) / 360;
+      const col1 = this.interpolateColor(t1, brightness);
+      const col2 = this.interpolateColor(t2, brightness);
 
-        ctx.beginPath();
-        ctx.arc(adjustedCx, adjustedCy, outerR, a1, a2);
-        ctx.arc(adjustedCx, adjustedCy, innerR, a2, a1, true);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-      }
-      ctx.restore();
+      const midA = (a1 + a2) / 2;
+      const grad = ctx.createLinearGradient(
+        adjustedCx + Math.cos(midA) * innerR,
+        adjustedCy + Math.sin(midA) * innerR,
+        adjustedCx + Math.cos(midA) * outerR,
+        adjustedCy + Math.sin(midA) * outerR
+      );
+      grad.addColorStop(0, col1);
+      grad.addColorStop(1, col2);
+
+      ctx.beginPath();
+      ctx.arc(adjustedCx, adjustedCy, outerR, a1, a2);
+      ctx.arc(adjustedCx, adjustedCy, innerR, a2, a1, true);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
     }
 
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.06 * brightness})`;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.08 * brightness})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(adjustedCx, adjustedCy, outerR + 1, 0, Math.PI * 2);
@@ -449,38 +451,52 @@ export class UIRenderer {
   ): void {
     const ctx = this.offscreenCtx;
     const midR = (innerR + outerR) / 2;
-    const size = 16;
+    const starSize = 16;
+    const rot = this.engine.rotationAngle;
 
     for (let i = 0; i < 8; i++) {
-      const angle = ((i * 45 + this.engine.rotationAngle) * Math.PI) / 180;
-      const sx = cx + Math.cos(angle) * midR;
-      const sy = cy + Math.sin(angle) * midR;
+      const gameAngle = i * 45 + rot;
+      const canvasAngle = this.gameToCanvasAngle(gameAngle);
+      const sx = cx + Math.cos(canvasAngle) * midR;
+      const sy = cy + Math.sin(canvasAngle) * midR;
 
-      const screenAngle = ((i * 45 - (360 - this.engine.rotationAngle % 360)) % 360 + 360) % 360;
-      const pointerDiff = Math.abs(screenAngle - 0);
-      const diff = pointerDiff > 180 ? 360 - pointerDiff : pointerDiff;
+      const normalized = ((gameAngle % 360) + 360) % 360;
+      const diff = Math.min(normalized, 360 - normalized);
       const nearTop = diff <= 15;
 
       ctx.save();
       ctx.translate(sx, sy);
-      ctx.rotate(angle + Math.PI / 2);
+      ctx.rotate(canvasAngle + Math.PI / 2);
 
       if (nearTop) {
         ctx.shadowColor = '#fbbf24';
-        ctx.shadowBlur = 25 * brightness;
+        ctx.shadowBlur = 30 * brightness;
       } else {
         ctx.shadowColor = '#fbbf24';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 12;
       }
 
-      ctx.fillStyle = nearTop ? '#fff8dc' : '#fbbf24';
+      ctx.fillStyle = nearTop ? '#fff9c4' : '#fbbf24';
       ctx.strokeStyle = nearTop ? '#ffffff' : '#fbbf24';
-      ctx.lineWidth = nearTop ? 2 : 1;
+      ctx.lineWidth = nearTop ? 2 : 1.5;
 
-      this.drawStarShape(ctx, size / 2);
+      this.drawStarShape(ctx, starSize / 2);
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+
+      if (nearTop) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.arc(sx, sy, starSize * 1.5, 0, Math.PI * 2);
+        const glowGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, starSize * 1.5);
+        glowGrad.addColorStop(0, 'rgba(251, 191, 36, 0.6)');
+        glowGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.fill();
+        ctx.restore();
+      }
     }
   }
 
