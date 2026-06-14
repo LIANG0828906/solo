@@ -170,7 +170,8 @@ export default function LogForm() {
 
   const brewMethods: BrewMethod[] = ['pourover', 'espresso', 'frenchPress', 'aeropress'];
 
-  const showWaterTempWarning = touched.waterTemp && validation.waterTemp;
+  const showWaterTempWarning = !!validation.waterTemp;
+  const waterTempHasError = form.waterTemp < 80;
 
   return (
     <div className="bg-coffee-100 rounded-2xl p-6 shadow-sm">
@@ -314,21 +315,24 @@ export default function LogForm() {
 
         {/* Water Temp Slider */}
         <div>
-          <label className="block text-sm font-medium text-coffee-700 mb-1.5">
+          <label className={`block text-sm font-medium mb-1.5 transition-colors ${waterTempHasError ? 'text-amber-dark' : 'text-coffee-700'}`}>
             水温 <span className="text-coffee-400 font-normal">({form.waterTemp}°C)</span>
+            {waterTempHasError && <span className="ml-2 text-xs">⚠ 偏低</span>}
           </label>
-          <input
-            type="range"
-            min={70}
-            max={100}
-            step={1}
-            value={form.waterTemp}
-            onChange={(e) => {
-              updateField('waterTemp', Number(e.target.value));
-              markTouched('waterTemp');
-            }}
-            className="slider-coffee"
-          />
+          <div className={`relative rounded-lg p-2 -mx-2 transition-colors ${waterTempHasError ? 'bg-amber/10' : ''}`}>
+            <input
+              type="range"
+              min={70}
+              max={100}
+              step={1}
+              value={form.waterTemp}
+              onChange={(e) => {
+                updateField('waterTemp', Number(e.target.value));
+              }}
+              className={`slider-coffee`}
+              style={waterTempHasError ? { background: 'linear-gradient(to right, #FFBF00, #E5AC00)' } : undefined}
+            />
+          </div>
           <div className="flex justify-between text-xs text-coffee-400 mt-1">
             <span>70°C</span><span>100°C</span>
           </div>
