@@ -1,0 +1,283 @@
+.app {
+  width: 100%;
+  height: 100vh;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  overflow: hidden;
+}
+
+.mainContent {
+  display: flex;
+  height: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 15%;
+}
+
+.editorSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 24px 24px 24px 0;
+}
+
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0 24px 0;
+  margin-left: -24px;
+}
+
+.sidebarHeader {
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #3c3c3c;
+  background-color: #252526;
+  border-radius: 4px 4px 0 0;
+  flex-shrink: 0;
+}
+
+.sidebarTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+  padding: 12px 0;
+}
+
+.sidebarContent {
+  flex: 1;
+  overflow: hidden;
+  background-color: #252526;
+  border-radius: 0 0 4px 4px;
+}
+
+.toolbar {
+  height: 44px;
+  background-color: #333333;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primaryButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: #007acc;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.primaryButton:hover {
+  background-color: #005f9e;
+}
+
+.primaryButton:active {
+  background-color: #004a80;
+}
+
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: transparent;
+  color: #d4d4d4;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.secondaryButton:hover {
+  background-color: #007acc;
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+.menuButton {
+  display: none;
+  width: 36px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: #d4d4d4;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.menuButton:hover {
+  background-color: #007acc;
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+.editorWrapper {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0 0 4px 4px;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  transform: scale(0);
+  animation: ripple-animation 0.4s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.mobileDrawer {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background-color: #252526;
+  border-radius: 16px 16px 0 0;
+  z-index: 999;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  flex-direction: column;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mobileDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #3c3c3c;
+  flex-shrink: 0;
+}
+
+.mobileDrawerTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #d4d4d4;
+}
+
+.closeDrawerButton {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: #858585;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.closeDrawerButton:hover {
+  background-color: #3c3c3c;
+  color: #d4d4d4;
+}
+
+.mobileDrawerContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 0;
+    flex-direction: column;
+  }
+
+  .editorSection {
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .menuButton {
+    display: flex;
+  }
+
+  .toolbar {
+    border-radius: 0;
+  }
+
+  .editorWrapper {
+    border-radius: 0;
+  }
+
+  .mobileDrawer {
+    display: flex;
+  }
+
+  .primaryButton span,
+  .secondaryButton span {
+    display: none;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    padding: 6px 10px;
+  }
+}
