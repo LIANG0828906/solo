@@ -155,16 +155,34 @@ export class GameEngine {
     this.pendingKeyTimestamps.set(upper, now);
     this.stats.totalAttempts++;
 
-    const normalizedRot = this.normalizeAngle(this.rotationAngle);
-    const starScreenAngle = this.normalizeAngle(targetAngle + normalizedRot);
-    const diff = this.getAngleDiff(starScreenAngle, 0);
+    const rot = this.rotationAngle;
+    const normalizedRot = this.normalizeAngle(rot);
+
+    const expectedTopAngle = this.normalizeAngle(targetAngle + rot);
+    let diff = Math.min(expectedTopAngle, 360 - expectedTopAngle);
+
+    let starOnRingIdx = -1;
+    for (let i = 0; i < 8; i++) {
+      if (this.normalizeAngle(i * 45) === this.normalizeAngle(targetAngle)) {
+        starOnRingIdx = i;
+        break;
+      }
+    }
+    const actualStarScreenAngle = starOnRingIdx >= 0
+      ? this.normalizeAngle(starOnRingIdx * 45 + rot)
+      : -1;
 
     const success = diff <= ANGLE_TOLERANCE;
 
     console.log(
-      `[HitCheck] Key=${upper} targetAngle=${targetAngle}° rot=${normalizedRot.toFixed(1)}° ` +
-      `starPos=${starScreenAngle.toFixed(1)}° diff=${diff.toFixed(1)}° ` +
-      `tolerance=±${ANGLE_TOLERANCE}° success=${success}`
+      `========== KEY PRESS ==========\n` +
+      `  Key:           ${upper}\n` +
+      `  TargetAngle:   ${targetAngle}°  (star index ${starOnRingIdx} on ring)\n` +
+      `  RingRotation:  ${normalizedRot.toFixed(2)}°\n` +
+      `  Star@Top:      ${actualStarScreenAngle >= 0 ? actualStarScreenAngle.toFixed(2) + '°' : '?'}  (should be ≈0°)\n` +
+      `  AngleDiff:     ${diff.toFixed(2)}°  (tolerance ±${ANGLE_TOLERANCE}°)\n` +
+      `  Result:        ${success ? '✓ HIT' : '✗ MISS'}\n` +
+      `===============================`
     );
 
     if (success) {
@@ -200,6 +218,12 @@ export class GameEngine {
     const total = baseScore + accuracyBonus + comboBonus;
     this.stats.score += total;
 
+    console.log(
+      `[COMBO] Hit! combo=${this.stats.combo}/${COMBO_THRESHOLD} ` +
+      `score=${total} (base=${baseScore} accuracy=${accuracyBonus} comboBonus=${comboBonus}) ` +
+      `totalScore=${this.stats.score}`
+    );
+
     this.glowTimer = 0.3;
     this.emit('ringGlow');
     this.emit('scoreUpdate', this.stats.score, total);
@@ -207,11 +231,13 @@ export class GameEngine {
     this.emit('noteHit', { key, targetAngle, diff, score: total });
 
     if (this.stats.combo % COMBO_THRESHOLD === 0) {
+      console.log(`[COMBO] Threshold ${COMBO_THRESHOLD} reached! Triggering fragment collect.`);
       this.collectFragment();
     }
   }
 
   private onNoteMiss(key: string, targetAngle: number, diff: number): void {
+    console.log(`[COMBO] Missed! Resetting combo from ${this.stats.combo} to 0`);
     this.stats.combo = 0;
     this.shakeTimer = 0.2;
     this.shakeIntensity = 5;
@@ -221,13 +247,24 @@ export class GameEngine {
   }
 
   private collectFragment(): void {
-    if (this.stats.spriteCompleted) return;
-    if (this.stats.fragments >= FRAGMENTS_TO_SYNTH) return;
+    if (this.stats.spriteCompleted) {
+      console.log('[Fragment] Already completed, skipping');
+      return;
+    }
+    if (this.stats.fragments >= FRAGMENTS_TO_SYNTH) {
+      console.log('[Fragment] Already have all 5 fragments, skipping');
+      return;
+    }
 
     this.stats.fragments++;
+    console.log(
+      `[Fragment] Collected! count=${this.stats.fragments}/${FRAGMENTS_TO_SYNTH} ` +
+      `emitting fragmentCollect event`
+    );
     this.emit('fragmentCollect', this.stats.fragments);
 
     if (this.stats.fragments >= FRAGMENTS_TO_SYNTH) {
+      console.log('[Fragment] All 5 collected! Emitting spriteSynth in 400ms');
       this.stats.spriteCompleted = true;
       setTimeout(() => this.emit('spriteSynth'), 400);
     }
