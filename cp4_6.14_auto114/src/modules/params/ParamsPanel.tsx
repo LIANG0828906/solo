@@ -22,11 +22,21 @@ const ParamCard: React.FC<{
       updates.defaultValue = 'false';
       updates.currentValue = 'false';
     } else if (newType === 'enum') {
-      updates.enumOptions = updates.enumOptions || ['option1', 'option2'];
+      updates.enumOptions = param.enumOptions || ['option1', 'option2'];
       updates.defaultValue = updates.enumOptions[0];
       updates.currentValue = updates.enumOptions[0];
     }
     onUpdate(updates);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    height: '28px',
+    border: '1px solid #cbd5e1',
+    borderRadius: '4px',
+    padding: '0 6px',
+    fontSize: '12px',
+    outline: 'none',
+    background: '#ffffff',
   };
 
   return (
@@ -35,21 +45,7 @@ const ParamCard: React.FC<{
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      style={{
-        width: '100%',
-        height: '48px',
-        background: '#f8fafc',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 8px',
-        gap: '6px',
-        cursor: 'default',
-        transition: 'background 0.15s ease',
-        flexShrink: 0,
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
+      className="param-card"
     >
       <div
         style={{
@@ -71,30 +67,12 @@ const ParamCard: React.FC<{
             onBlur={() => setEditing(false)}
             onKeyDown={(e) => { if (e.key === 'Enter') setEditing(false); }}
             autoFocus
-            style={{
-              width: '60px',
-              height: '28px',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
-              padding: '0 6px',
-              fontSize: '12px',
-              outline: 'none',
-              background: '#ffffff',
-            }}
+            style={{ ...inputStyle, width: '60px', cursor: 'text' }}
           />
           <select
             value={param.type}
             onChange={(e) => handleTypeChange(e.target.value as ParamItem['type'])}
-            style={{
-              height: '28px',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
-              padding: '0 4px',
-              fontSize: '12px',
-              outline: 'none',
-              background: '#ffffff',
-              cursor: 'pointer',
-            }}
+            style={{ ...inputStyle, padding: '0 4px', cursor: 'pointer' }}
           >
             {TYPE_OPTIONS.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -115,6 +93,7 @@ const ParamCard: React.FC<{
               whiteSpace: 'nowrap',
               flexShrink: 0,
               cursor: 'text',
+              lineHeight: '28px',
             }}
             title="双击编辑名称"
           >
@@ -124,9 +103,10 @@ const ParamCard: React.FC<{
             fontSize: '10px',
             color: '#94a3b8',
             background: '#e2e8f0',
-            padding: '1px 5px',
+            padding: '2px 6px',
             borderRadius: '3px',
             flexShrink: 0,
+            lineHeight: 1,
           }}>
             {param.type}
           </span>
@@ -141,30 +121,20 @@ const ParamCard: React.FC<{
           fontSize: '12px',
           color: '#475569',
           flexShrink: 0,
+          height: '28px',
         }}>
           <input
             type="checkbox"
             checked={param.currentValue === 'true'}
             onChange={(e) => onValueChange(e.target.checked ? 'true' : 'false')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', width: '14px', height: '14px' }}
           />
         </label>
       ) : param.type === 'enum' ? (
         <select
           value={param.currentValue}
           onChange={(e) => onValueChange(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: '28px',
-            border: '1px solid #cbd5e1',
-            borderRadius: '4px',
-            padding: '0 4px',
-            fontSize: '12px',
-            outline: 'none',
-            background: '#ffffff',
-            cursor: 'pointer',
-          }}
+          style={{ ...inputStyle, flex: 1, minWidth: 0, padding: '0 4px', cursor: 'pointer' }}
         >
           {(param.enumOptions ?? []).map((opt) => (
             <option key={opt} value={opt}>{opt}</option>
@@ -175,17 +145,7 @@ const ParamCard: React.FC<{
           type={param.type === 'number' ? 'number' : 'text'}
           value={param.currentValue}
           onChange={(e) => onValueChange(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: '28px',
-            border: '1px solid #cbd5e1',
-            borderRadius: '4px',
-            padding: '0 6px',
-            fontSize: '12px',
-            outline: 'none',
-            background: '#ffffff',
-          }}
+          style={{ ...inputStyle, flex: 1, minWidth: 0, cursor: 'text' }}
         />
       )}
 
@@ -196,11 +156,12 @@ const ParamCard: React.FC<{
           border: 'none',
           cursor: 'pointer',
           color: '#94a3b8',
-          padding: '2px',
+          padding: '4px',
           display: 'flex',
           alignItems: 'center',
           flexShrink: 0,
           transition: 'color 0.15s ease',
+          borderRadius: '4px',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
@@ -247,15 +208,7 @@ const ParamsPanel: React.FC = () => {
   }, [reorderParams]);
 
   return (
-    <div style={{
-      width: '240px',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      borderRight: '1px solid #e2e8f0',
-      background: '#ffffff',
-      flexShrink: 0,
-    }}>
+    <div className="params-panel">
       <div style={{
         padding: '16px 16px 12px',
         borderBottom: '1px solid #e2e8f0',

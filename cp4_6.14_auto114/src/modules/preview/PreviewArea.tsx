@@ -59,21 +59,16 @@ const PreviewArea: React.FC = () => {
   }, [snapshots.length, addSnapshot]);
 
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      minWidth: 0,
-    }}>
+    <div className="preview-area">
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 20px',
+        padding: '12px 160px 12px 20px',
         borderBottom: '1px solid #e2e8f0',
         background: '#ffffff',
         flexShrink: 0,
+        minHeight: '60px',
       }}>
         <div style={{
           display: 'flex',
@@ -81,37 +76,23 @@ const PreviewArea: React.FC = () => {
           gap: '8px',
           overflowX: 'auto',
           flex: 1,
+          paddingBottom: '2px',
         }}>
           {snapshots.map((snapshot) => (
             <div
               key={snapshot.id}
               onClick={() => switchSnapshot(snapshot.id)}
-              style={{
-                width: '120px',
-                height: '36px',
-                borderRadius: '8px',
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 400,
-                color: '#475569',
-                position: 'relative',
-                flexShrink: 0,
-                borderBottom: activeSnapshotId === snapshot.id
-                  ? '2px solid #3b82f6'
-                  : '2px solid transparent',
-                transition: 'border-color 0.15s ease',
-                padding: '0 28px 0 12px',
-              }}
+              className={
+                'snapshot-tab ' +
+                (activeSnapshotId === snapshot.id ? 'snapshot-tab-active' : '')
+              }
             >
               <span style={{
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                width: '100%',
+                textAlign: 'center',
               }}>
                 {snapshot.name}
               </span>
@@ -171,62 +152,13 @@ const PreviewArea: React.FC = () => {
             </button>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px', marginLeft: '12px', flexShrink: 0 }}>
-          <button
-            onClick={handleExport}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#475569',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#2563eb';
-              e.currentTarget.style.color = '#ffffff';
-              e.currentTarget.style.borderColor = '#2563eb';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.color = '#475569';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-            }}
-          >
+
+        <div className="io-buttons">
+          <button onClick={handleExport} className="io-btn">
             <Download size={14} />
             导出
           </button>
-          <button
-            onClick={handleImport}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#475569',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#2563eb';
-              e.currentTarget.style.color = '#ffffff';
-              e.currentTarget.style.borderColor = '#2563eb';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.color = '#475569';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-            }}
-          >
+          <button onClick={handleImport} className="io-btn">
             <Upload size={14} />
             导入
           </button>
@@ -248,20 +180,9 @@ const PreviewArea: React.FC = () => {
         background: '#f8fafc',
         overflow: 'auto',
         padding: '24px',
+        position: 'relative',
       }}>
-        <div style={{
-          width: '375px',
-          height: '812px',
-          background: '#f1f5f9',
-          borderRadius: '40px',
-          border: '4px solid #cbd5e1',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
+        <div className="phone-shell">
           <div style={{
             position: 'absolute',
             top: '12px',
