@@ -47,7 +47,45 @@ export async function getAllReplays(): Promise<ReplayMeta[]> {
   return db.data.replays
 }
 
-export async function getBattleLog(id: string): Promise<BattleLog | null> {
+export class ReplayNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Replay with id "${id}" not found in metadata`)
+    this.name = 'ReplayNotFoundError'
+  }
+}
+
+export class BattleLogReadError extends Error {
+  constructor(id: string, cause?: unknown) {
+    super(`Failed to read battle log for id "${id}"`)
+    this.name = 'BattleLogReadError'
+    if (cause) {
+      this.cause = cause
+    }
+  }
+}
+
+export async function getReplayById(id: string): Promise<BattleLog> {
+  const db = await getDb()
+  const meta = db.data.replays.find((r) => r.id === id)
+  if (!meta) {
+    throw new ReplayNotFoundError(id)
+  }
+
+  try {
+    const log = await getBattleLog(id)
+    if (!log) {
+      throw new BattleLogReadError(id)
+    }
+    return log
+  } catch (error) {
+    if (error instanceof ReplayNotFoundError || error instanceof BattleLogReadError) {
+      throw error
+    }
+    throw new BattleLogReadError(id, error)
+  }
+}
+
+async function getBattleLog(id: string): Promise<BattleLog | null> {
   const filePath = join(battleLogsDir, `${id}.json`)
   try {
     const content = await readFile(filePath, 'utf-8')
