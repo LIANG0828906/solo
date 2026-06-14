@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useEffect, useState } from 'react';
+import React, { forwardRef, useRef, useEffect, useState, useMemo } from 'react';
 import PhotoCard from './PhotoCard';
 import type { Photo } from '../types';
 import './PhotoTimeline.css';
@@ -7,25 +7,41 @@ interface PhotoTimelineProps {
   photos: Photo[];
 }
 
-interface Layout {
+interface LayoutConfig {
   cardWidth: number;
   gap: number;
+  bufferSize: number;
 }
 
-const getLayout = (): Layout => {
-  const w = window.innerWidth;
-  if (w <= 480) return { cardWidth: 160, gap: 12 };
-  if (w <= 768) return { cardWidth: 200, gap: 16 };
-  return { cardWidth: 240, gap: 20 };
+interface LayoutBreakpoint {
+  maxWidth: number;
+  config: LayoutConfig;
+}
+
+const LAYOUT_BREAKPOINTS: LayoutBreakpoint[] = [
+  { maxWidth: 480, config: { cardWidth: 160, gap: 12, bufferSize: 2 } },
+  { maxWidth: 768, config: { cardWidth: 200, gap: 16, bufferSize: 2 } },
+];
+
+const DEFAULT_LAYOUT: LayoutConfig = { cardWidth: 240, gap: 20, bufferSize: 2 };
+
+const getLayoutConfig = (width: number): LayoutConfig => {
+  for (const bp of LAYOUT_BREAKPOINTS) {
+    if (width <= bp.maxWidth) {
+      return bp.config;
+    }
+  }
+  return DEFAULT_LAYOUT;
 };
 
 const PhotoTimeline = forwardRef<HTMLDivElement, PhotoTimelineProps>(({ photos }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const photosRef = useRef(photos);
-  const [layout, setLayout] = useState<Layout>(() => getLayout());
+  const [layout, setLayout] = useState<LayoutConfig>(() => getLayoutConfig(window.innerWidth));
   const [startIndex, setStartIndex] = useState(0);
   const [endIndex, setEndIndex] = useState(-1);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     photosRef.current = photos;
@@ -39,22 +55,27 @@ const PhotoTimeline = forwardRef<HTMLDivElement, PhotoTimelineProps>(({ photos }
       setEndIndex(-1);
       return;
     }
-    const currentLayout = getLayout();
+    const currentLayout = getLayoutConfig(window.innerWidth);
     setLayout(currentLayout);
     const slotWidth = currentLayout.cardWidth + currentLayout.gap;
     const scrollLeft = container.scrollLeft;
     const clientWidth = container.clientWidth;
-    const rawStart = Math.floor(scrollLeft / slotWidth) - 2;
-    const rawEnd = Math.ceil((scrollLeft + clientWidth) / slotWidth) + 2;
+    const buffer = currentLayout.bufferSize;
+    const rawStart = Math.floor(scrollLeft / slotWidth) - buffer;
+    const rawEnd = Math.ceil((scrollLeft + clientWidth) / slotWidth) + buffer - 1;
     const s = Math.max(0, rawStart);
-    const e = Math.min(currentPhotos.length - 1, rawEnd);
+    const e = Math.min(currentPhotos.length - 1, Math.max(s, rawEnd));
     setStartIndex(s);
     setEndIndex(e);
   };
 
   useEffect(() => {
     updateRange();
-  }, [photos.length]);
+  }, [photos.length, revision]);
+
+  useEffect(() => {
+    setRevision((r) => r + 1);
+  }, [photos]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -93,31 +114,43 @@ const PhotoTimeline = forwardRef<HTMLDivElement, PhotoTimelineProps>(({ photos }
     }
   };
 
-  const maxIndex = Math.max(0, photos.length - 1);
-  const safeStart = Math.min(startIndex, maxIndex);
-  const safeEnd = Math.min(Math.max(endIndex, safeStart - 1), maxIndex);
+  const { safeStart, leftPlaceholderWidth, rightPlaceholderWidth, visiblePhotos } = useMemo(() => {
+    if (photos.length === 0) {
+      return {
+        safeStart: 0,
+        leftPlaceholderWidth: 0,
+        rightPlaceholderWidth: 0,
+        visiblePhotos: [] as Photo[],
+      };
+    }
 
-  const leftPlaceholderWidth = safeStart > 0
-    ? safeStart * layout.cardWidth + (safeStart - 1) * layout.gap
-    : 0;
+    const maxIndex = photos.length - 1;
+    const s = Math.min(Math.max(0, startIndex), maxIndex);
+    const e = Math.min(Math.max(endIndex, s), maxIndex);
 
-  const rightCount = Math.max(0, photos.length - 1 - safeEnd);
-  const rightPlaceholderWidth = rightCount > 0
-    ? rightCount * layout.cardWidth + (rightCount - 1) * layout.gap
-    : 0;
+    const slotWidth = layout.cardWidth + layout.gap;
+    const leftWidth = s * slotWidth;
+    const rightCount = maxIndex - e;
+    const rightWidth = rightCount * slotWidth;
 
-  const visiblePhotos = safeEnd >= safeStart && photos.length > 0
-    ? photos.slice(safeStart, safeEnd + 1)
-    : [];
+    const visible = e >= s ? photos.slice(s, e + 1) : [];
+
+    return {
+      safeStart: s,
+      leftPlaceholderWidth: leftWidth,
+      rightPlaceholderWidth: rightWidth,
+      visiblePhotos: visible,
+    };
+  }, [photos, startIndex, endIndex, layout]);
 
   return (
-    <div 
+    <div
       ref={mergedRef}
       className="photo-timeline"
     >
       <div className="timeline-track">
         {leftPlaceholderWidth > 0 && (
-          <div 
+          <div
             className="photo-card-placeholder"
             style={{ width: `${leftPlaceholderWidth}px` }}
           />
@@ -125,13 +158,13 @@ const PhotoTimeline = forwardRef<HTMLDivElement, PhotoTimelineProps>(({ photos }
         {visiblePhotos.map((photo, offset) => {
           const index = safeStart + offset;
           return (
-            <div 
+            <div
               key={photo.id}
               className="photo-card-wrapper"
               data-index={index}
             >
-              <PhotoCard 
-                photo={photo} 
+              <PhotoCard
+                photo={photo}
                 isVisible={true}
                 index={index}
               />
@@ -139,7 +172,7 @@ const PhotoTimeline = forwardRef<HTMLDivElement, PhotoTimelineProps>(({ photos }
           );
         })}
         {rightPlaceholderWidth > 0 && (
-          <div 
+          <div
             className="photo-card-placeholder"
             style={{ width: `${rightPlaceholderWidth}px` }}
           />

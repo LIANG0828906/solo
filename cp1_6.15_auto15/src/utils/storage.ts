@@ -67,13 +67,13 @@ export const compressImage = (file: File, maxWidth: number = 800): Promise<strin
           return;
         }
 
-        // 计算初始尺寸（按最大宽度 800px 等比缩放）
-        let currentWidth = img.width;
-        let currentHeight = img.height;
-        if (currentWidth > maxWidth) {
-          currentHeight = (currentHeight * maxWidth) / currentWidth;
-          currentWidth = maxWidth;
-        }
+        const origWidth = img.width;
+        const origHeight = img.height;
+        const aspectRatio = origWidth / origHeight;
+
+        // 计算初始尺寸（按最大宽度等比缩放）
+        let currentWidth = Math.min(origWidth, maxWidth);
+        let currentHeight = currentWidth / aspectRatio;
 
         // 第一阶段：初始压缩 + 逐步降低质量
         let currentQuality = INITIAL_QUALITY;
@@ -107,7 +107,7 @@ export const compressImage = (file: File, maxWidth: number = 800): Promise<strin
         while (currentWidth > MIN_WIDTH) {
           currentWidth -= WIDTH_STEP;
           currentWidth = Math.max(currentWidth, MIN_WIDTH);
-          currentHeight = (img.height * currentWidth) / img.width;
+          currentHeight = currentWidth / aspectRatio;
           currentQuality = MIN_QUALITY;
           result = compressWithCurrentSettings();
           if (result.length <= MAX_BASE64_SIZE) {
