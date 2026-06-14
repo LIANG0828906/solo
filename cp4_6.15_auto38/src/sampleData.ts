@@ -66,7 +66,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '希斯·莱杰的小丑是影史上最伟大的反派表演之一。影片探讨了正义与秩序的边界，深度远超一般超级英雄电影。',
     categories: ['动作', '剧情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h3-1',
+        date: '2022-11-05',
+        comment: '重温小丑的表演，依然震撼。',
+        rating: 9,
+      },
+    ],
   },
   {
     id: '4',
@@ -80,7 +87,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '对阶级差异的辛辣讽刺，节奏把控炉火纯青。前半段黑色幽默，后半段急转直下的悲剧，结局令人久久不能平静。',
     categories: ['剧情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h4-1',
+        date: '2020-02-10',
+        comment: '奥斯卡最佳影片实至名归。',
+        rating: 8,
+      },
+    ],
   },
   {
     id: '5',
@@ -121,7 +135,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '画面美到令人窒息，时间线的交错叙事非常巧妙。RADWIMPS的配乐和剧情完美契合，最后阶梯相遇的场景让人泪目。',
     categories: ['动画', '爱情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h6-1',
+        date: '2017-03-04',
+        comment: '第一次看，结局哭了。',
+        rating: 9,
+      },
+    ],
   },
   {
     id: '7',
@@ -135,7 +156,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '两小时不间断的追逐大戏，视觉奇观层出不穷。女性主义的内核包裹在极致的动作场面之下，动作片的巅峰之作。',
     categories: ['动作', '科幻'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h7-1',
+        date: '2015-09-12',
+        comment: '影院看的，全程喘不过气。',
+        rating: 8,
+      },
+    ],
   },
   {
     id: '8',
@@ -149,7 +177,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '用恐怖片外壳包裹种族议题的社会寓言。悬念层层递进，结尾的反转既意外又合理。乔丹·皮尔的导演处女作一鸣惊人。',
     categories: ['恐怖', '剧情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h8-1',
+        date: '2018-05-20',
+        comment: '阳光底下的恐怖，细思极恐。',
+        rating: 8,
+      },
+    ],
   },
   {
     id: '9',
@@ -163,7 +198,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '献给追梦者的情书。瑞恩·高斯林和艾玛·斯通的化学反应令人信服，开场的高速公路歌舞是近年最棒的长镜头之一。',
     categories: ['爱情', '剧情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h9-1',
+        date: '2017-02-24',
+        comment: '情人节和朋友一起看的。',
+        rating: 9,
+      },
+    ],
   },
   {
     id: '10',
@@ -177,7 +219,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '纪录片的天花板。每一帧画面都美得令人窒息，配乐恢弘大气。城市那一集的蜥蜴追逐蛇群是我看过最紧张的片段。',
     categories: ['纪录片'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h10-1',
+        date: '2017-01-01',
+        comment: '新年夜全家一起看的。',
+        rating: 10,
+      },
+    ],
   },
   {
     id: '11',
@@ -191,7 +240,14 @@ export const sampleMovies: Movie[] = [
     comment:
       '青春喜剧的经典。塞斯·罗根和埃文·戈登伯格的剧本充满了真实的青春期焦虑和爆笑对话， McLovin这个角色太绝了。',
     categories: ['喜剧'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h11-1',
+        date: '2010-07-15',
+        comment: '大学宿舍里和室友一起笑到肚子疼。',
+        rating: 8,
+      },
+    ],
   },
   {
     id: '12',
@@ -205,6 +261,13 @@ export const sampleMovies: Movie[] = [
     comment:
       '关于语言、时间和命运的诗意科幻。维伦纽瓦的镜头语言沉稳大气，艾米·亚当斯的表演内敛而有力量。结局的非线性叙事令人拍案叫绝。',
     categories: ['科幻', '剧情'],
-    watchHistory: [],
+    watchHistory: [
+      {
+        id: 'h12-1',
+        date: '2016-11-18',
+        comment: '和语言学专业的朋友一起看的，讨论了很久。',
+        rating: 9,
+      },
+    ],
   },
 ];

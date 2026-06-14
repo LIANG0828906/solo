@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Movie, Category } from './types';
-import { ALL_CATEGORIES } from './types';
+import { ALL_CATEGORIES, FilterState, createDefaultFilterState } from './types';
 import StarRating from './StarRating';
 import RangeSlider from './RangeSlider';
+import { useDebounce } from './hooks/useDebounce';
 
 interface MovieListProps {
   movies: Movie[];
@@ -12,22 +13,28 @@ interface MovieListProps {
 
 export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieListProps) {
   const currentYear = new Date().getFullYear();
-  const [search, setSearch] = useState('');
-  const [yearRange, setYearRange] = useState<[number, number]>([1980, currentYear]);
-  const [ratingRange, setRatingRange] = useState<[number, number]>([0, 10]);
-  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
+  const [filters, setFilters] = useState<FilterState>(createDefaultFilterState());
   const [fading, setFading] = useState(false);
+  const [gridKey, setGridKey] = useState(0);
   const fadeTimer = useRef<number | null>(null);
+
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const triggerFade = () => {
     setFading(true);
+    setGridKey((k) => k + 1);
     if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
     fadeTimer.current = window.setTimeout(() => setFading(false), 400);
   };
 
   useEffect(() => {
     triggerFade();
-  }, [search, yearRange, ratingRange, selectedCategories]);
+  }, [
+    debouncedSearch,
+    filters.yearRange,
+    filters.ratingRange,
+    filters.selectedCategories,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -36,7 +43,7 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
   }, []);
 
   const filteredMovies = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return movies.filter((m) => {
       if (q) {
         const match =
@@ -45,20 +52,48 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
           m.director.toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (m.year < yearRange[0] || m.year > yearRange[1]) return false;
-      if (m.rating < ratingRange[0] || m.rating > ratingRange[1]) return false;
-      if (selectedCategories.length > 0) {
-        if (!selectedCategories.some((c) => m.categories.includes(c))) return false;
+      if (m.year < filters.yearRange[0] || m.year > filters.yearRange[1]) return false;
+      if (m.rating < filters.ratingRange[0] || m.rating > filters.ratingRange[1]) return false;
+      if (filters.selectedCategories.length > 0) {
+        if (!filters.selectedCategories.some((c) => m.categories.includes(c))) return false;
       }
       return true;
     });
-  }, [movies, search, yearRange, ratingRange, selectedCategories]);
+  }, [
+    movies,
+    debouncedSearch,
+    filters.yearRange,
+    filters.ratingRange,
+    filters.selectedCategories,
+  ]);
+
+  const setSearch = (v: string) =>
+    setFilters((prev) => ({ ...prev, search: v }));
+  const setYearRange = (v: [number, number]) =>
+    setFilters((prev) => ({ ...prev, yearRange: v }));
+  const setRatingRange = (v: [number, number]) =>
+    setFilters((prev) => ({ ...prev, ratingRange: v }));
 
   const toggleCategory = (c: Category) => {
-    setSelectedCategories((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-    );
+    setFilters((prev) => ({
+      ...prev,
+      selectedCategories: prev.selectedCategories.includes(c)
+        ? prev.selectedCategories.filter((x) => x !== c)
+        : [...prev.selectedCategories, c],
+    }));
   };
+
+  const clearFilters = () => {
+    setFilters(createDefaultFilterState());
+  };
+
+  const hasActiveFilters =
+    filters.search ||
+    filters.selectedCategories.length > 0 ||
+    filters.yearRange[0] !== 1980 ||
+    filters.yearRange[1] !== currentYear ||
+    filters.ratingRange[0] !== 0 ||
+    filters.ratingRange[1] !== 10;
 
   return (
     <div>
@@ -81,26 +116,13 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
             <input
               type="text"
               placeholder="🔍  搜索片名、导演..."
-              value={search}
+              value={filters.search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ paddingLeft: 16 }}
             />
           </div>
-          {(search ||
-            selectedCategories.length > 0 ||
-            yearRange[0] !== 1980 ||
-            yearRange[1] !== currentYear ||
-            ratingRange[0] !== 0 ||
-            ratingRange[1] !== 10) && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setSearch('');
-                setYearRange([1980, currentYear]);
-                setRatingRange([0, 10]);
-                setSelectedCategories([]);
-              }}
-            >
+          {hasActiveFilters && (
+            <button className="btn btn-secondary" onClick={clearFilters}>
               清除筛选
             </button>
           )}
@@ -112,13 +134,18 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
             <RangeSlider
               min={1980}
               max={currentYear}
-              value={yearRange}
+              value={filters.yearRange}
               onChange={setYearRange}
             />
           </div>
           <div>
             <label>个人评分</label>
-            <RangeSlider min={0} max={10} value={ratingRange} onChange={setRatingRange} />
+            <RangeSlider
+              min={0}
+              max={10}
+              value={filters.ratingRange}
+              onChange={setRatingRange}
+            />
           </div>
           <div>
             <label>分类标签</label>
@@ -126,7 +153,7 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
               {ALL_CATEGORIES.map((c) => (
                 <div
                   key={c}
-                  className={`chip ${selectedCategories.includes(c) ? 'active' : ''}`}
+                  className={`chip ${filters.selectedCategories.includes(c) ? 'active' : ''}`}
                   onClick={() => toggleCategory(c)}
                 >
                   {c}
@@ -155,10 +182,13 @@ export default function MovieList({ movies, onSelectMovie, onAddMovie }: MovieLi
           )}
         </div>
       ) : (
-        <div className={`movies-grid ${fading ? 'fading' : ''}`} key={String(fading)}>
+        <div
+          className={`movies-grid ${fading ? 'fading' : ''}`}
+          key={`grid-${gridKey}`}
+        >
           {filteredMovies.map((m, idx) => (
             <div
-              key={m.id}
+              key={`${gridKey}-${m.id}`}
               className="movie-card glass"
               style={{ animationDelay: `${Math.min(idx, 20) * 0.05}s` }}
               onClick={() => onSelectMovie(m.id)}

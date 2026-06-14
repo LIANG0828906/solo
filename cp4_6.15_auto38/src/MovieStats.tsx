@@ -199,67 +199,86 @@ export default function MovieStats({ movies }: MovieStatsProps) {
       <div className="stats-grid">
         <div className="glass stats-card" style={{ animationDelay: '0.05s' }}>
           <h3>⭐ 评分分布</h3>
-          <div style={{ width: '100%', height: 320 }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={ratingDistribution}
-                  dataKey="count"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={110}
-                  paddingAngle={2}
-                  animationDuration={800}
-                  animationBegin={100}
-                  label={renderCustomPieLabel as any}
-                  onMouseEnter={(_, index) => setActivePieIndex(index)}
-                  onMouseLeave={() => setActivePieIndex(null)}
-                >
-                  {ratingDistribution.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={RATING_COLORS[index % RATING_COLORS.length]}
-                      opacity={
-                        activePieIndex === null || activePieIndex === index ? 1 : 0.35
-                      }
-                      stroke="none"
-                      style={{
-                        transition: 'opacity 0.3s ease, transform 0.3s ease',
-                        transformOrigin: 'center',
-                        transform:
-                          activePieIndex === index && entry.count > 0
-                            ? 'scale(1.06)'
-                            : 'scale(1)',
-                      }}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: 'rgba(26, 26, 46, 0.95)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: 12,
-                    color: '#fff',
-                    fontFamily: 'inherit',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                  formatter={(value: number, name: string) => [
-                    `${value} 部${totalRated > 0 ? `（${((value / totalRated) * 100).toFixed(1)}%）` : ''}`,
-                    name,
-                  ]}
-                />
-                <Legend
-                  formatter={(value) => (
-                    <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-                      {value}
-                    </span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {totalRated === 0 ? (
+            <div
+              style={{
+                width: '100%',
+                height: 320,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-secondary)',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontSize: 48, opacity: 0.5 }}>⭐</div>
+              <div>暂无评分数据</div>
+              <div style={{ fontSize: 13 }}>给电影评分后将显示评分分布</div>
+            </div>
+          ) : (
+            <div style={{ width: '100%', height: 320 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={ratingDistribution}
+                    dataKey="count"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={110}
+                    paddingAngle={2}
+                    animationDuration={800}
+                    animationBegin={100}
+                    label={renderCustomPieLabel as any}
+                    onMouseEnter={(_, index) => setActivePieIndex(index)}
+                    onMouseLeave={() => setActivePieIndex(null)}
+                  >
+                    {ratingDistribution.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={RATING_COLORS[index % RATING_COLORS.length]}
+                        opacity={
+                          activePieIndex === null || activePieIndex === index ? 1 : 0.35
+                        }
+                        stroke="none"
+                        style={{
+                          transition: 'opacity 0.3s ease, transform 0.3s ease',
+                          transformOrigin: 'center',
+                          transform:
+                            activePieIndex === index && entry.count > 0
+                              ? 'scale(1.06)'
+                              : 'scale(1)',
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      background: 'rgba(26, 26, 46, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: 12,
+                      color: '#fff',
+                      fontFamily: 'inherit',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `${value} 部${totalRated > 0 ? `（${((value / totalRated) * 100).toFixed(1)}%）` : ''}`,
+                      name,
+                    ]}
+                  />
+                  <Legend
+                    formatter={(value) => (
+                      <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div className="glass stats-card" style={{ animationDelay: '0.15s' }}>

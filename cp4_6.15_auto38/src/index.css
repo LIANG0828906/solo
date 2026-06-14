@@ -648,6 +648,20 @@ label {
   border-radius: 2px;
 }
 
+.timeline::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: -1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  border: 3px solid var(--bg-end);
+  box-shadow: 0 0 0 2px var(--accent-light);
+  opacity: 0.85;
+}
+
 .timeline-item {
   position: relative;
   padding-bottom: 28px;

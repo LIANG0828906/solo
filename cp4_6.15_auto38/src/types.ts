@@ -41,3 +41,17 @@ export const ALL_CATEGORIES: Category[] = [
 ];
 
 export type PageType = 'list' | 'detail' | 'form' | 'stats';
+
+export interface FilterState {
+  search: string;
+  yearRange: [number, number];
+  ratingRange: [number, number];
+  selectedCategories: Category[];
+}
+
+export const createDefaultFilterState = (): FilterState => ({
+  search: '',
+  yearRange: [1980, new Date().getFullYear()],
+  ratingRange: [0, 10],
+  selectedCategories: [],
+});

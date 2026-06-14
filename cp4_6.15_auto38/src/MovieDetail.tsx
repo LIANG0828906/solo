@@ -125,32 +125,37 @@ export default function MovieDetail({
         <h3 style={{ fontSize: 18, marginBottom: 20, fontFamily: 'Raleway, sans-serif' }}>
           📅 观影时间线
         </h3>
-        {allRecords.length <= 1 ? (
-          <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            只有一次观影记录。每次重新观看并更新记录后，这里会显示完整的观影历程。
-          </div>
-        ) : (
-          <div className="timeline">
-            {allRecords.map((rec) => (
-              <div key={rec.id} className="timeline-item">
-                <div className="timeline-date">
-                  {formatDate(rec.date)} · 评分 {rec.rating}/10
-                </div>
-                <div className="timeline-content">
-                  {rec.comment ? (
-                    <div className="timeline-comment">{rec.comment}</div>
-                  ) : (
-                    <div
-                      className="timeline-comment"
-                      style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}
-                    >
-                      （没有记录评论）
-                    </div>
-                  )}
-                  <StarRating rating={rec.rating} size="sm" />
-                </div>
+        <div className="timeline">
+          {allRecords.map((rec, idx) => (
+            <div
+              key={rec.id}
+              className="timeline-item"
+              style={{
+                paddingBottom: idx === allRecords.length - 1 ? '0' : undefined,
+              }}
+            >
+              <div className="timeline-date">
+                {formatDate(rec.date)} · 评分 {rec.rating}/10
               </div>
-            ))}
+              <div className="timeline-content">
+                {rec.comment ? (
+                  <div className="timeline-comment">{rec.comment}</div>
+                ) : (
+                  <div
+                    className="timeline-comment"
+                    style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}
+                  >
+                    （没有记录评论）
+                  </div>
+                )}
+                <StarRating rating={rec.rating} size="sm" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {allRecords.length === 1 && (
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 16 }}>
+            每次重新观看并更新记录后，这里会显示完整的观影历程。
           </div>
         )}
       </div>

@@ -85,16 +85,37 @@ export default function MovieForm({ editingMovie, onCancel, onSave }: MovieFormP
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件');
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    const fileName = file.name.toLowerCase();
+    const hasImageExt = /\.(png|jpe?g|webp|gif|bmp)$/i.test(fileName);
+
+    if (!file.type.startsWith('image/') && !hasImageExt) {
+      alert(`不支持的文件格式：${file.type || fileName.split('.').pop()?.toUpperCase() || '未知'}\n请选择 PNG、JPG、WEBP、GIF 等图片格式`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
+
+    if (!ACCEPTED_TYPES.includes(file.type) && !hasImageExt) {
+      alert(`不支持的图片格式：${file.type || '未知'}\n请选择 PNG、JPG、WEBP 或 GIF 格式`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      alert(`图片文件过大：${sizeMB}MB\n请选择不超过 5MB 的图片`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     try {
       const cropped = await cropImageToRatio(file);
       setPoster(cropped);
     } catch (err) {
       console.error(err);
-      alert('图片处理失败');
+      alert('图片处理失败，请尝试其他图片');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
