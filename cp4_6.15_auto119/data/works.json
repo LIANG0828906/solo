@@ -1,0 +1,297 @@
+{
+  "works": [
+    {
+      "id": "1",
+      "name": "橡木书架",
+      "description": "采用优质橡木手工打造的书架，坚固耐用，纹理清晰自然。每一处榫卯结构都经过精心打磨，体现传统木工工艺的精髓。适合书房或客厅，既是实用家具也是艺术品。",
+      "material": "橡木",
+      "materials": ["橡木"],
+      "dimensions": [
+        { "label": "宽度", "value": "120cm" },
+        { "label": "高度", "value": "180cm" },
+        { "label": "深度", "value": "35cm" },
+        { "label": "层数", "value": "5层" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20bookshelf%20handmade%20craftsmanship%20warm%20wood%20texture%20studio%20lighting%20professional%20photo&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20bookshelf%20side%20view%20detail%20mortise%20tenon%20joint%20woodworking&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20bookshelf%20close%20up%20wood%20grain%20texture%20hand%20polished&image_size=landscape_4_3"
+      ],
+      "basePrice": 800,
+      "hours": 40,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "胡桃木茶几",
+      "description": "选用上等胡桃木制作的茶几，深巧克力色木纹散发着沉稳内敛的气质。桌面采用整块木板，边缘保留了自然的弧形，搭配精致的黄铜脚垫，东方美学与北欧简约的完美融合。",
+      "material": "胡桃木",
+      "materials": ["胡桃木", "黄铜"],
+      "dimensions": [
+        { "label": "长度", "value": "100cm" },
+        { "label": "宽度", "value": "60cm" },
+        { "label": "高度", "value": "45cm" },
+        { "label": "桌面厚度", "value": "4cm" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20coffee%20table%20handmade%20dark%20chocolate%20wood%20brass%20feet%20minimalist&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20coffee%20table%20top%20view%20natural%20edge%20wood%20grain&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20coffee%20table%20detail%20brass%20foot%20pad%20living%20room&image_size=landscape_4_3"
+      ],
+      "basePrice": 1200,
+      "hours": 35,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "黑檀木首饰盒",
+      "description": "以珍贵的黑檀木为材，手工雕琢的首饰盒。内部设有多个隔层，天鹅绒内衬呵护每一件饰品。盒盖上的精致花纹由匠人一刀一刻而成，是收藏与馈赠的绝佳之选。",
+      "material": "黑檀木",
+      "materials": ["黑檀木", "天鹅绒"],
+      "dimensions": [
+        { "label": "长度", "value": "30cm" },
+        { "label": "宽度", "value": "20cm" },
+        { "label": "高度", "value": "12cm" },
+        { "label": "隔层数", "value": "6格" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ebony%20jewelry%20box%20handmade%20dark%20wood%20carved%20pattern%20velvet%20interior&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ebony%20jewelry%20box%20open%20view%20velvet%20lining%20compartments%20luxury&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ebony%20jewelry%20box%20carved%20lid%20close%20up%20intricate%20pattern&image_size=landscape_4_3"
+      ],
+      "basePrice": 600,
+      "hours": 50,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "桦木花瓶",
+      "description": "以轻盈的桦木制成的花瓶，柔和的浅色木纹宛如素雅的水墨画。采用车床旋削工艺，线条流畅优雅。内壁经过防水处理，可直接插入鲜花，为生活空间增添自然气息。",
+      "material": "桦木",
+      "materials": ["桦木"],
+      "dimensions": [
+        { "label": "高度", "value": "35cm" },
+        { "label": "口径", "value": "8cm" },
+        { "label": "底径", "value": "12cm" },
+        { "label": "壁厚", "value": "0.8cm" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=birch%20wood%20vase%20handmade%20turned%20lathe%20light%20wood%20elegant%20minimal&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=birch%20wood%20vase%20with%20flowers%20natural%20light%20scandinavian%20style&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=birch%20vase%20close%20up%20wood%20grain%20detail%20waterproof%20interior&image_size=landscape_4_3"
+      ],
+      "basePrice": 350,
+      "hours": 20,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "5",
+      "name": "橡木挂钟",
+      "description": "以橡木为盘面的手工挂钟，表盘上的刻度由黄铜嵌丝构成，指针为手工锻打的铁艺风格。每一只挂钟的木纹都独一无二，是时间与工艺的永恒见证。",
+      "material": "橡木",
+      "materials": ["橡木", "黄铜", "铁"],
+      "dimensions": [
+        { "label": "直径", "value": "40cm" },
+        { "label": "厚度", "value": "5cm" },
+        { "label": "重量", "value": "2.5kg" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20wall%20clock%20handmade%20brass%20inlay%20iron%20hands%20rustic%20craftsmanship&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20wall%20clock%20close%20up%20brass%20hour%20markers%20wrought%20iron%20hands&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20wall%20clock%20hanging%20on%20white%20wall%20scandinavian%20interior&image_size=landscape_4_3"
+      ],
+      "basePrice": 480,
+      "hours": 25,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "胡桃木棋盘",
+      "description": "精选胡桃木与枫木交替镶嵌而成的国际象棋棋盘，格子边缘严丝合缝。配以手工车制的木质棋子，每颗棋子底部附有软垫，落子无声。是棋艺爱好者的珍藏佳品。",
+      "material": "胡桃木",
+      "materials": ["胡桃木", "枫木"],
+      "dimensions": [
+        { "label": "棋盘边长", "value": "45cm" },
+        { "label": "格边长", "value": "5cm" },
+        { "label": "厚度", "value": "2.5cm" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20chess%20board%20handmade%20maple%20inlay%20wooden%20chess%20pieces%20elegant&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20chess%20board%20close%20up%20inlaid%20squares%20precision%20craftsmanship&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=walnut%20chess%20board%20with%20pieces%20arranged%20studio%20lighting%20luxury&image_size=landscape_4_3"
+      ],
+      "basePrice": 950,
+      "hours": 60,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "7",
+      "name": "松木儿童椅",
+      "description": "以环保松木制作的儿童椅，圆润的边角处理确保安全无棱角。椅背雕刻可爱的动物图案，食品级水性漆涂装，让孩子坐得舒适，家长用得放心。",
+      "material": "松木",
+      "materials": ["松木"],
+      "dimensions": [
+        { "label": "座高", "value": "30cm" },
+        { "label": "座宽", "value": "30cm" },
+        { "label": "总高", "value": "55cm" },
+        { "label": "承重", "value": "40kg" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pine%20children%20chair%20handmade%20rounded%20corners%20animal%20carving%20safe%20eco%20friendly&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pine%20children%20chair%20side%20view%20cute%20animal%20backrest%20carving%20pastel&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pine%20children%20chair%20in%20playroom%20bright%20colorful%20child%20sitting&image_size=landscape_4_3"
+      ],
+      "basePrice": 280,
+      "hours": 15,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    },
+    {
+      "id": "8",
+      "name": "橡木烛台",
+      "description": "以厚实的橡木手工旋削而成的烛台，底部宽厚稳重，顶端精巧地托起烛光。木纹在烛光映照下更显温暖，为餐桌或壁炉旁增添一抹手工艺的浪漫。",
+      "material": "橡木",
+      "materials": ["橡木"],
+      "dimensions": [
+        { "label": "高度", "value": "25cm" },
+        { "label": "底径", "value": "10cm" },
+        { "label": "口径", "value": "4cm" }
+      ],
+      "images": [
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20candle%20holder%20handmade%20turned%20wood%20warm%20candlelight%20romantic&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20candle%20holder%20lit%20candle%20dining%20table%20cozy%20ambiance&image_size=landscape_4_3",
+        "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=oak%20candle%20holder%20pair%20fireplace%20mantel%20rustic%20elegant&image_size=landscape_4_3"
+      ],
+      "basePrice": 200,
+      "hours": 12,
+      "woodGrades": [
+        { "id": "pine", "name": "松木（经济）", "priceMultiplier": 1.0 },
+        { "id": "birch", "name": "桦木（标准）", "priceMultiplier": 1.3 },
+        { "id": "oak", "name": "橡木（优质）", "priceMultiplier": 1.6 },
+        { "id": "walnut", "name": "胡桃木（高级）", "priceMultiplier": 2.0 },
+        { "id": "ebony", "name": "黑檀木（奢华）", "priceMultiplier": 2.8 }
+      ],
+      "carvingComplexity": [
+        { "id": "simple", "name": "简单线条", "priceAddition": 0 },
+        { "id": "medium", "name": "中等浮雕", "priceAddition": 200 },
+        { "id": "fine", "name": "精细圆雕", "priceAddition": 500 }
+      ],
+      "accessories": [
+        { "id": "signature-box", "name": "签名木盒", "price": 150 },
+        { "id": "nameplate", "name": "定制铭牌", "price": 80 },
+        { "id": "dust-cover", "name": "防尘展示罩", "price": 120 }
+      ]
+    }
+  ]
+}
