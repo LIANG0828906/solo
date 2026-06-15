@@ -10,15 +10,15 @@ const DEFAULT_STICKERS = ['😂', '❤️', '💣', '🔥', '😎', '🤔', '�
 const HOT_PHRASES = [
   '绝绝子',
   '我真的会谢',
-  '栓Q',
   '笑不活了',
   '这很难评',
   '主打一个陪伴',
   '开什么国际玩笑',
   '有点东西但不多',
   '咱就是说',
-  '一整个大无语'
-];
+  '一整个大无语',
+  '真的栓Q了'
+] as const;
 
 function getAnimationStyle(type: AnimationType, speed: AnimationSpeed, loopCount: number | 'infinite') {
   if (type === 'none') return {};
@@ -33,12 +33,12 @@ function getAnimationStyle(type: AnimationType, speed: AnimationSpeed, loopCount
 function SmileyIllustration() {
   return (
     <svg className="empty-state-smiley" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="60" cy="60" r="56" fill="#F5E642" stroke="#2C2C2C" strokeWidth="3"/>
-      <circle cx="44" cy="50" r="6" fill="#2C2C2C"/>
-      <circle cx="76" cy="50" r="6" fill="#2C2C2C"/>
-      <path d="M36 72 Q60 92 84 72" stroke="#2C2C2C" strokeWidth="4" strokeLinecap="round" fill="none"/>
-      <circle cx="30" cy="66" r="4" fill="#FFB3BA" opacity="0.6"/>
-      <circle cx="90" cy="66" r="4" fill="#FFB3BA" opacity="0.6"/>
+      <circle cx="60" cy="60" r="56" className="smiley-face" stroke="currentColor" strokeWidth="3"/>
+      <circle cx="44" cy="50" r="6" className="smiley-feature"/>
+      <circle cx="76" cy="50" r="6" className="smiley-feature"/>
+      <path d="M36 72 Q60 92 84 72" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none"/>
+      <circle cx="30" cy="66" r="4" className="smiley-blush" opacity="0.6"/>
+      <circle cx="90" cy="66" r="4" className="smiley-blush" opacity="0.6"/>
     </svg>
   );
 }
@@ -237,12 +237,17 @@ function RandomMemeModal({ memes, onClose, onSave }: RandomMemeModalProps) {
   const [overlays, setOverlays] = useState<OverlayElement[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const lastPhraseRef = useRef<string | null>(null);
 
   const generateRandom = () => {
     setIsGenerating(true);
     setTimeout(() => {
       const meme = memes[Math.floor(Math.random() * memes.length)];
-      const phrase = HOT_PHRASES[Math.floor(Math.random() * HOT_PHRASES.length)];
+      let phrase: string;
+      do {
+        phrase = HOT_PHRASES[Math.floor(Math.random() * HOT_PHRASES.length)];
+      } while (phrase === lastPhraseRef.current && HOT_PHRASES.length > 1);
+      lastPhraseRef.current = phrase;
       const sticker = DEFAULT_STICKERS[Math.floor(Math.random() * DEFAULT_STICKERS.length)];
       
       const newOverlays: OverlayElement[] = [

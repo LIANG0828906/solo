@@ -63,6 +63,7 @@ export default function EditorPage() {
     speed: 'medium',
     loopCount: 'infinite',
   });
+  const [animationKey, setAnimationKey] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isAnimationSwitching, setIsAnimationSwitching] = useState(false);
   const [newText, setNewText] = useState('');
@@ -228,8 +229,10 @@ export default function EditorPage() {
         const centerX = startOverlay.x + startOverlay.width / 2;
         const centerY = startOverlay.y + startOverlay.height / 2;
         const currentAngle = Math.atan2(coords.y - centerY, coords.x - centerX) * (180 / Math.PI);
-        const newRotation = startOverlay.rotation + (currentAngle - startAngle);
-        updateOverlay(startOverlay.id, { rotation: newRotation });
+        let newRotation = startOverlay.rotation + (currentAngle - startAngle);
+        while (newRotation > 180) newRotation -= 360;
+        while (newRotation < -180) newRotation += 360;
+        updateOverlay(startOverlay.id, { rotation: Math.round(newRotation * 10) / 10 });
       }
     },
     [getRelativeCoords]
@@ -382,6 +385,7 @@ export default function EditorPage() {
             style={{ width: '100%', maxWidth: 600, maxHeight: '100%' }}
           >
             <div
+              key={animationKey}
               ref={previewRef}
               className="preview-canvas animated-wrapper"
               style={getAnimationStyle()}
@@ -592,7 +596,10 @@ export default function EditorPage() {
                           <button
                             key={opt.value}
                             className={`chip flex-1 justify-center ${animation.speed === opt.value ? 'active' : ''}`}
-                            onClick={() => setAnimation((prev) => ({ ...prev, speed: opt.value }))}
+                            onClick={() => {
+                              setAnimation((prev) => ({ ...prev, speed: opt.value }));
+                              setAnimationKey((k) => k + 1);
+                            }}
                           >
                             {opt.label}
                           </button>
@@ -607,7 +614,10 @@ export default function EditorPage() {
                           <button
                             key={String(opt.value)}
                             className={`chip ${animation.loopCount === opt.value ? 'active' : ''}`}
-                            onClick={() => setAnimation((prev) => ({ ...prev, loopCount: opt.value }))}
+                            onClick={() => {
+                              setAnimation((prev) => ({ ...prev, loopCount: opt.value }));
+                              setAnimationKey((k) => k + 1);
+                            }}
                           >
                             {opt.label}
                           </button>

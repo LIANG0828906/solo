@@ -64,7 +64,7 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .meme-grid {
     grid-template-columns: repeat(1, 1fr);
     gap: 16px;
@@ -403,6 +403,34 @@ body {
   height: 120px;
   margin-bottom: 24px;
   animation: float 3s ease-in-out infinite;
+  color: #2C2C2C;
+}
+
+.smiley-face {
+  fill: #F5E642;
+}
+
+.smiley-feature {
+  fill: #2C2C2C;
+}
+
+.smiley-blush {
+  fill: #FFB3BA;
+}
+
+@media (prefers-color-scheme: dark) {
+  .empty-state-smiley {
+    color: #F5F5F5;
+  }
+  .smiley-face {
+    fill: #E0D230;
+  }
+  .smiley-feature {
+    fill: #F5F5F5;
+  }
+  .smiley-blush {
+    fill: #FF8A9E;
+  }
 }
 
 @keyframes float {
