@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken'
 import type { Response, NextFunction } from 'express'
-import type { AuthRequest } from '../types'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Request } from 'express''../types/index.js'
+import type { AuthRequest } from '../types/index.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRES_IN = '7d'

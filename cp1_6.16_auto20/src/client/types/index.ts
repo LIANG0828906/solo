@@ -1,12 +1,12 @@
 export interface User {
   id: string;
   username: string;
-  password: string;
+  email?: string;
   avatar: string;
-  bio: string;
-  followers: number;
-  following: number;
-  createdAt: Date;
+  bio?: string;
+  followers: string[];
+  following: string[];
+  createdAt: string;
 }
 
 export interface Ingredient {
@@ -29,73 +29,73 @@ export interface Comment {
   username: string;
   avatar: string;
   content: string;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export interface Recipe {
   id: string;
-  userId: string;
-  username: string;
-  avatar: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
   title: string;
-  description: string;
-  imageUrl: string;
-  cookTime: number;
-  servings: number;
-  difficulty: 'easy' | 'medium' | 'hard';
+  description?: string;
+  coverImage: string;
   ingredients: Ingredient[];
   steps: Step[];
-  likes: number;
+  cookTime: number;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  tags: string[];
+  likes: string[];
+  favorites: string[];
   comments: Comment[];
-  createdAt: Date;
+  createdAt: string;
 }
 
-export interface FeedItem extends Recipe {
-  isLiked: boolean;
+export interface FeedItem {
+  id: string;
+  recipeId: string;
+  recipeTitle: string;
+  recipeCover: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  publishedAt: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }
 
 export interface LoginRequest {
-  username: string;
+  username?: string;
+  email?: string;
   password: string;
 }
 
-export interface LoginResponse {
-  user: Omit<User, 'password'>;
+export interface RegisterRequest {
+  username: string;
+  email?: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: User;
   token: string;
 }
 
-export interface CreateRecipeRequest {
-  title: string;
-  description: string;
-  imageUrl: string;
-  cookTime: number;
-  servings: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  ingredients: Omit<Ingredient, 'id'>[];
-  steps: Omit<Step, 'id'>[];
-}
-
-export interface RecipeListResponse {
-  recipes: FeedItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface RecipeListState {
-  recipes: FeedItem[];
-  loading: boolean;
-  error: string | null;
-  page: number;
-  pageSize: number;
-  total: number;
-  hasMore: boolean;
-}
-
 export interface AppContextType {
-  user: Omit<User, 'password'> | null;
+  user: User | null;
   isAuthenticated: boolean;
+  token: string | null;
+  favorites: string[];
+  following: string[];
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (username: string, password: string, email: string) => Promise<void>;
+  register: (username: string, password: string, email?: string) => Promise<void>;
+  toggleFavorite: (recipeId: string) => Promise<void>;
+  toggleFollow: (userId: string) => Promise<void>;
+  toggleLike: (recipeId: string) => void;
 }
