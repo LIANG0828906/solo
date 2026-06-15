@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getColorsByBrand, getBrandNames, ColorItem } from './BrandLibrary';
 
 interface ColorPaletteModuleProps {
@@ -9,21 +9,39 @@ const ColorPaletteModule: React.FC<ColorPaletteModuleProps> = ({ onColorSelect }
   const brandNames = getBrandNames();
   const [currentBrand, setCurrentBrand] = useState<string>(brandNames[0]);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
-  const [animatingIndex, setAnimatingIndex] = useState<number>(-1);
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationTimeoutRef = useRef<number[]>([]);
 
   const colors = getColorsByBrand(currentBrand);
 
-  const handleBrandChange = (brand: string, index: number) => {
-    if (brand !== currentBrand) {
-      setCurrentBrand(brand);
-      setAnimatingIndex(-1);
-      setTimeout(() => {
-        for (let i = 0; i < 12; i++) {
-          setTimeout(() => {
-            setAnimatingIndex(i);
-          }, i * 50);
+  useEffect(() => {
+    setVisibleCount(12);
+  }, []);
+
+  const clearAllTimeouts = () => {
+    animationTimeoutRef.current.forEach(t => clearTimeout(t));
+    animationTimeoutRef.current = [];
+  };
+
+  const handleBrandChange = (brand: string) => {
+    if (brand === currentBrand || isAnimating) return;
+
+    clearAllTimeouts();
+    setIsAnimating(true);
+    setVisibleCount(0);
+
+    const totalColors = getColorsByBrand(brand);
+    
+    for (let i = 0; i < totalColors.length; i++) {
+      const timeoutId = window.setTimeout(() => {
+        setCurrentBrand(brand);
+        setVisibleCount(i + 1);
+        if (i === totalColors.length - 1) {
+          setTimeout(() => setIsAnimating(false), 200);
         }
-      }, 10);
+      }, i * 50);
+      animationTimeoutRef.current.push(timeoutId);
     }
   };
 
@@ -34,47 +52,88 @@ const ColorPaletteModule: React.FC<ColorPaletteModuleProps> = ({ onColorSelect }
 
   return (
     <div style={styles.container}>
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes slideInIndicator {
+          from {
+            transform: scaleX(0);
+            transform-origin: left center;
+          }
+          to {
+            transform: scaleX(1);
+            transform-origin: left center;
+          }
+        }
+        @keyframes ringExpand {
+          0% {
+            transform: translate(-50%, -50%) scale(0.5);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(1.5);
+            opacity: 0;
+          }
+        }
+      `}</style>
       <div style={styles.brandTabs}>
-        {brandNames.map((brand, index) => (
-          <button
-            key={brand}
-            onClick={() => handleBrandChange(brand, index)}
-            style={{
-              ...styles.brandTab,
-              ...(currentBrand === brand ? styles.brandTabActive : {})
-            }}
-          >
-            <span style={styles.brandTabText}>{brand}</span>
-            {currentBrand === brand && (
-              <div style={styles.brandIndicator} />
-            )}
-          </button>
-        ))}
-      </div>
+        {brandNames.map((brand) => (
+        <button
+          key={brand}
+          onClick={() => handleBrandChange(brand)}
+          style={{
+            ...styles.brandTab,
+            ...(currentBrand === brand ? styles.brandTabActive : {})
+          }}
+        >
+          <span style={styles.brandTabText}>{brand}</span>
+          {currentBrand === brand && (
+            <div 
+            style={styles.brandIndicator}
+            />
+          )}
+        </button>
+      ))}
+    </div>
       <div style={styles.paletteGrid}>
-        {colors.map((color, index) => (
-          <div
-            key={color.name}
-            draggable
-            onDragStart={(e) => handleDragStart(e, color, currentBrand)}
-            onMouseEnter={() => setHoveredColor(color.name)}
-            onMouseLeave={() => setHoveredColor(null)}
-            style={{
-              ...styles.colorSwatch,
-              backgroundColor: color.hex,
-              border: color.hex === '#FFFFFF' ? '1px solid #D4C4A8' : 'none',
-              opacity: animatingIndex >= index ? 1 : 0,
-              transform: `translateX(${animatingIndex >= index ? 0 : 20}px) ${hoveredColor === color.name ? 'translateY(-2px)' : ''}`,
-              transition: `all 0.2s ease ${index * 0.05}s`
-            }}
-          >
-            {hoveredColor === color.name && (
-              <div style={styles.tooltip}>
-                <span style={styles.tooltipText}>{color.name}</span>
-              </div>
-            )}
-          </div>
-        ))}
+        {colors.map((color, index) => {
+          const isVisible = index < visibleCount;
+          const delay = index * 0.05;
+          return (
+            <div
+              key={color.name + index}
+              draggable
+              onDragStart={(e) => handleDragStart(e, color, currentBrand)}
+              onMouseEnter={() => setHoveredColor(color.name)}
+              onMouseLeave={() => setHoveredColor(null)}
+              onClick={() => onColorSelect(color, currentBrand)}
+              style={{
+                ...styles.colorSwatch,
+                backgroundColor: color.hex,
+                border: color.hex === '#FFFFFF' ? '1px solid #D4C4A8' : 'none',
+                opacity: isVisible ? 1 : 0,
+                transform: isVisible ? 'translateX(0)' : 'translateX(20px)',
+                transition: 'all 0.2s ease-out',
+                transitionDelay: `${delay}s`,
+                pointerEvents: isVisible ? 'auto' : 'none'
+              }}
+            >
+              {hoveredColor === color.name && (
+                <div style={styles.tooltip}>
+                  <span style={styles.tooltipText}>{color.name}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -129,7 +188,8 @@ const styles = {
     height: '3px',
     background: 'linear-gradient(90deg, #4A90D9, #9B59B6)',
     borderRadius: '2px',
-    animation: 'slideIn 0.3s ease forwards'
+    animation: 'slideInIndicator 0.3s ease forwards',
+    transformOrigin: 'left center'
   },
   paletteGrid: {
     display: 'grid',
@@ -145,7 +205,7 @@ const styles = {
     cursor: 'grab',
     position: 'relative' as const,
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     userSelect: 'none' as const
   },
   tooltip: {
@@ -159,7 +219,9 @@ const styles = {
     borderRadius: '4px',
     whiteSpace: 'nowrap' as const,
     zIndex: 10,
-    pointerEvents: 'none' as const
+    pointerEvents: 'none' as const,
+    fontSize: '10px',
+    fontFamily: "'Noto Sans SC', sans-serif"
   },
   tooltipText: {
     fontFamily: "'Noto Sans SC', sans-serif",

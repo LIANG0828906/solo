@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LayerData } from './CanvasModule';
 
 interface InfoPanelModuleProps {
@@ -7,11 +7,21 @@ interface InfoPanelModuleProps {
 }
 
 const InfoPanelModule: React.FC<InfoPanelModuleProps> = ({ layers, onDeleteLayer }) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const sortedLayers = [...layers].sort((a, b) => b.timestamp - a.timestamp);
 
   const getCenterColor = () => {
     if (layers.length === 0) return '#F5F0E6';
     return layers[layers.length - 1].colorHex;
+  };
+
+  const handleDelete = (id: string) => {
+    if (deletingId) return;
+    setDeletingId(id);
+    onDeleteLayer(id);
+    setTimeout(() => {
+      setDeletingId(null);
+    }, 300);
   };
 
   return (
@@ -25,26 +35,42 @@ const InfoPanelModule: React.FC<InfoPanelModuleProps> = ({ layers, onDeleteLayer
         <div style={styles.layersLabel}>叠色层 ({layers.length})</div>
         <div style={styles.layersList}>
           {sortedLayers.length === 0 ? (
-            <span style={styles.emptyText}>暂无叠色层</span>
+            <span style={styles.emptyText}>暂无叠色层，从左侧拖拽颜色到画布</span>
           ) : (
             sortedLayers.map((layer, index) => (
               <div
                 key={layer.id}
-                style={styles.layerItem}
-                onClick={() => onDeleteLayer(layer.id)}
+                onClick={() => handleDelete(layer.id)}
+                style={{
+                  ...styles.layerItem,
+                  ...(deletingId === layer.id ? styles.layerItemDeleting : {}),
+                  opacity: deletingId === layer.id ? 0 : 1,
+                  transform: deletingId === layer.id ? 'scale(0.8)' : 'scale(1)',
+                  transition: 'all 0.3s ease'
+                }}
               >
-                <div
-                  style={{
-                    ...styles.layerColor,
-                    backgroundColor: layer.colorHex,
-                    border: layer.colorHex === '#FFFFFF' ? '1px solid #D4C4A8' : 'none'
-                  }}
-                />
+                <div style={styles.layerColorWrapper}>
+                  <div
+                    style={{
+                      ...styles.layerColor,
+                      backgroundColor: layer.colorHex,
+                      border: layer.colorHex === '#FFFFFF' ? '1px solid #D4C4A8' : 'none'
+                    }}
+                  />
+                  {deletingId === layer.id && (
+                    <div style={styles.deleteRing}>
+                      <div style={styles.deleteRingInner} />
+                    </div>
+                  )}
+                </div>
                 <div style={styles.layerInfo}>
                   <span style={styles.layerBrand}>{layer.brandName}</span>
                   <span style={styles.layerName}>{layer.colorName}</span>
                 </div>
                 <span style={styles.layerOpacity}>{Math.round(layer.opacity * 100)}%</span>
+                <div style={styles.deleteHint}>
+                  <span style={styles.deleteHintText}>点击删除</span>
+                </div>
               </div>
             ))
           )}
@@ -62,10 +88,12 @@ const styles = {
     padding: '12px 20px',
     backgroundColor: 'rgba(255, 250, 240, 0.85)',
     backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     borderRadius: '8px',
     boxShadow: '0 -2px 8px rgba(0,0,0,0.08)',
     marginTop: '16px',
-    maxHeight: '120px'
+    maxHeight: '120px',
+    minHeight: '80px'
   },
   currentColorSection: {
     display: 'flex',
@@ -110,6 +138,7 @@ const styles = {
     scrollbarWidth: 'thin' as const
   },
   layerItem: {
+    position: 'relative' as const,
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
@@ -122,11 +151,37 @@ const styles = {
     minWidth: '80px',
     flexShrink: 0 as const
   },
+  layerItemDeleting: {
+    opacity: 0,
+    transform: 'scale(0.8)',
+    transition: 'all 0.3s ease'
+  },
+  layerColorWrapper: {
+    position: 'relative' as const,
+    width: '28px',
+    height: '28px'
+  },
   layerColor: {
     width: '28px',
     height: '28px',
     borderRadius: '4px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+  deleteRing: {
+    position: 'absolute' as const,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '28px',
+    height: '28px',
+    pointerEvents: 'none' as const
+  },
+  deleteRingInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    border: '2px solid #E63946',
+    animation: 'ringExpand 0.3s ease-out forwards'
   },
   layerInfo: {
     display: 'flex',
@@ -154,11 +209,24 @@ const styles = {
     fontSize: '10px',
     color: '#6B5D4D'
   },
+  deleteHint: {
+    position: 'absolute' as const,
+    top: '2px',
+    right: '2px',
+    opacity: 0,
+    transition: 'opacity 0.2s ease'
+  },
+  deleteHintText: {
+    fontFamily: "'Noto Sans SC', sans-serif",
+    fontSize: '8px',
+    color: '#E63946'
+  },
   emptyText: {
     fontFamily: "'Noto Sans SC', sans-serif",
     fontSize: '12px',
     color: '#A09080',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    padding: '10px 0'
   }
 };
 

@@ -3,7 +3,7 @@ import ColorPaletteModule from './ColorPaletteModule';
 import CanvasModule, { CanvasModuleRef, LayerData, BrushType } from './CanvasModule';
 import ToolbarModule from './ToolbarModule';
 import InfoPanelModule from './InfoPanelModule';
-import { saveAsPNG, generateShareLink } from './ShareModule';
+import { saveAsPNGFromSnapshot, generateShareLink } from './ShareModule';
 import { ColorItem } from './BrandLibrary';
 
 const App: React.FC = () => {
@@ -42,7 +42,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleSavePNG = useCallback(async () => {
-    await saveAsPNG(canvasContainerRef.current);
+    await saveAsPNGFromSnapshot(() => canvasRef.current?.getCanvasSnapshot() || null);
   }, []);
 
   const handleShare = useCallback(async () => {

@@ -20,7 +20,7 @@ interface CanvasModuleProps {
 }
 
 export interface CanvasModuleRef {
-  addLayer: (color: ColorItem, brandName: string, x: number, y: number) => void;
+  addLayer: (color: ColorItem, brandName: string, x: number, y: number, opacity?: number) => void;
   getLayers: () => LayerData[];
   deleteLayer: (id: string) => void;
   resetCanvas: () => void;
@@ -31,6 +31,7 @@ export interface CanvasModuleRef {
 }
 
 const BRUSH_SIZE = 60;
+const BASE_GRID_SIZE = 50;
 
 const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersChange }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,13 +50,14 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
   const [resettingColumns, setResettingColumns] = useState<number>(-1);
   const [deletingLayerId, setDeletingLayerId] = useState<string | null>(null);
   const [eraserPositions, setEraserPositions] = useState<{ x: number; y: number; time: number }[]>([]);
+  const [deletingAnimProgress, setDeletingAnimProgress] = useState(0);
 
   const lastMousePos = useRef({ x: 0, y: 0 });
   const needsRender = useRef(false);
-  const currentLayersRef = useRef<LayerData[]>([]);
+  const dragStartTimestampRef = useRef(0);
+  const deletingStartTimeRef = useRef(0);
 
   useEffect(() => {
-    currentLayersRef.current = layers;
     onLayersChange?.(layers);
   }, [layers, onLayersChange]);
 
@@ -78,10 +80,8 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     getLayers: () => layers,
     deleteLayer: (id: string) => {
       setDeletingLayerId(id);
-      setTimeout(() => {
-        setLayers(prev => prev.filter(l => l.id !== id));
-        setDeletingLayerId(null);
-      }, 300);
+      deletingStartTimeRef.current = Date.now();
+      setDeletingAnimProgress(0);
     },
     resetCanvas: () => {
       const totalColumns = 10;
@@ -104,15 +104,30 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     setEraserMode: (active: boolean) => setEraserMode(active),
     getCanvasSnapshot: () => {
       const canvas = canvasRef.current;
-      if (!canvas) return null;
+      const container = containerRef.current;
+      if (!canvas || !container) return null;
+
+      const rect = container.getBoundingClientRect();
       const snapshot = document.createElement('canvas');
-      snapshot.width = canvas.width;
-      snapshot.height = canvas.height;
+      snapshot.width = rect.width;
+      snapshot.height = rect.height;
       const ctx = snapshot.getContext('2d');
-      if (ctx) {
-        drawBackground(ctx, canvas.width, canvas.height);
-        drawLayers(ctx, layers);
-      }
+      if (!ctx) return null;
+
+      drawBackground(ctx, rect.width, rect.height);
+      drawGrid(ctx, rect.width, rect.height, scale, offset);
+      
+      const sortedLayers = [...layers].sort((a, b) => a.timestamp - b.timestamp);
+      let baseColor = '#F5F0E6';
+      sortedLayers.forEach(layer => {
+        const drawX = layer.x * scale + offset.x;
+        const drawY = layer.y * scale + offset.y;
+        const drawSize = BRUSH_SIZE * scale;
+        const blendColor = blendColors(baseColor, layer.colorHex, layer.opacity);
+        drawBrushShape(ctx, drawX, drawY, drawSize, layer.brushType, blendColor, layer.opacity);
+        baseColor = blendColor;
+      });
+
       return snapshot;
     },
     getCanvasElement: () => canvasRef.current
@@ -170,10 +185,10 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     ctx.globalAlpha = 0.03;
-    for (let i = 0; i < width; i += 2) {
-      for (let j = 0; j < height; j += 2) {
-        if (Math.random() > 0.7) {
-          ctx.fillStyle = '#8B7355';
+    ctx.fillStyle = '#8B7355';
+    for (let i = 0; i < width; i += 3) {
+      for (let j = 0; j < height; j += 3) {
+        if ((i * 7 + j * 13) % 29 < 8) {
           ctx.fillRect(i, j, 1, 1);
         }
       }
@@ -181,23 +196,37 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     ctx.globalAlpha = 1;
   };
 
-  const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    if (scale < 0.8) return;
-    const gridSize = 50 * scale;
-    ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
-    ctx.lineWidth = 0.5;
-    for (let x = offset.x % gridSize; x < width; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = offset.y % gridSize; y < height; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
+  const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number, currentScale: number, currentOffset: { x: number; y: number }) => {
+    const gridLevels = [
+      { size: 200, alpha: 0.25, minScale: 0.5 },
+      { size: 100, alpha: 0.2, minScale: 0.8 },
+      { size: 50, alpha: 0.15, minScale: 1.2 },
+      { size: 25, alpha: 0.1, minScale: 2.0 }
+    ];
+
+    gridLevels.forEach(level => {
+      if (currentScale < level.minScale) return;
+
+      const gridSize = level.size * currentScale;
+      ctx.strokeStyle = `rgba(180, 170, 150, ${level.alpha})`;
+      ctx.lineWidth = 0.5;
+
+      const startX = currentOffset.x % gridSize;
+      const startY = currentOffset.y % gridSize;
+
+      for (let x = startX; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = startY; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+    });
   };
 
   const drawBrushShape = (
@@ -232,39 +261,29 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
         break;
       case 'flat':
         ctx.beginPath();
-        ctx.roundRect(x - size / 2, y - size / 4, size, size / 2, 4);
+        if (ctx.roundRect) {
+          ctx.roundRect(x - size / 2, y - size / 4, size, size / 2, 4);
+        } else {
+          ctx.rect(x - size / 2, y - size / 4, size, size / 2);
+        }
         ctx.fill();
         break;
     }
     ctx.restore();
   };
 
-  const drawLayers = (ctx: CanvasRenderingContext2D, layersToDraw: LayerData[]) => {
-    let baseColor = '#F5F0E6';
-    const sortedLayers = [...layersToDraw].sort((a, b) => a.timestamp - b.timestamp);
+  const calculateOpacityByTime = (startTime: number) => {
+    const elapsed = (Date.now() - startTime) / 1000;
+    const minOpacity = 0.2;
+    const maxOpacity = 0.8;
+    const minTime = 0.3;
+    const maxTime = 1.0;
+
+    if (elapsed <= minTime) return minOpacity;
+    if (elapsed >= maxTime) return maxOpacity;
     
-    sortedLayers.forEach(layer => {
-      const isDeleting = layer.id === deletingLayerId;
-      const drawX = layer.x * scale + offset.x;
-      const drawY = layer.y * scale + offset.y;
-      const drawSize = BRUSH_SIZE * scale;
-      const blendColor = blendColors(baseColor, layer.colorHex, layer.opacity);
-      
-      if (isDeleting) {
-        const scaleFactor = 1 + (Date.now() % 300) / 300;
-        ctx.save();
-        ctx.globalAlpha = 1 - (Date.now() % 300) / 300;
-        ctx.strokeStyle = layer.colorHex;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(drawX, drawY, drawSize / 2 * scaleFactor, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      } else {
-        drawBrushShape(ctx, drawX, drawY, drawSize, layer.brushType, blendColor, layer.opacity);
-      }
-      baseColor = blendColor;
-    });
+    const progress = (elapsed - minTime) / (maxTime - minTime);
+    return minOpacity + (maxOpacity - minOpacity) * progress;
   };
 
   const render = useCallback(() => {
@@ -287,7 +306,7 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     const height = rect.height;
 
     drawBackground(ctx, width, height);
-    drawGrid(ctx, width, height);
+    drawGrid(ctx, width, height, scale, offset);
 
     if (resettingColumns >= 0) {
       const columnWidth = width / 10;
@@ -304,7 +323,43 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
       return resettingColumns < 0 || columnIndex >= resettingColumns;
     });
 
-    drawLayers(ctx, activeLayers);
+    let baseColor = '#F5F0E6';
+    const sortedLayers = [...activeLayers].sort((a, b) => a.timestamp - b.timestamp);
+    
+    sortedLayers.forEach(layer => {
+      const isDeleting = layer.id === deletingLayerId;
+      const drawX = layer.x * scale + offset.x;
+      const drawY = layer.y * scale + offset.y;
+      const drawSize = BRUSH_SIZE * scale;
+      const blendColor = blendColors(baseColor, layer.colorHex, layer.opacity);
+      
+      if (isDeleting) {
+        const elapsed = Date.now() - deletingStartTimeRef.current;
+        const progress = Math.min(1, elapsed / 300);
+        const ringScale = 1 + progress;
+        const ringAlpha = 1 - progress;
+        const fillAlpha = 1 - progress * 0.8;
+
+        ctx.save();
+        ctx.globalAlpha = fillAlpha;
+        drawBrushShape(ctx, drawX, drawY, drawSize, layer.brushType, blendColor, layer.opacity * (1 - progress));
+        ctx.restore();
+
+        if (progress < 1) {
+          ctx.save();
+          ctx.globalAlpha = ringAlpha * 0.8;
+          ctx.strokeStyle = layer.colorHex;
+          ctx.lineWidth = 3 * (1 - progress);
+          ctx.beginPath();
+          ctx.arc(drawX, drawY, drawSize / 2 * ringScale, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else {
+        drawBrushShape(ctx, drawX, drawY, drawSize, layer.brushType, blendColor, layer.opacity);
+      }
+      baseColor = blendColor;
+    });
 
     const now = Date.now();
     const activeErasers = eraserPositions.filter(e => now - e.time < 300);
@@ -320,8 +375,7 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     });
 
     if (isDragging && dragPosition && currentDragColor) {
-      const elapsed = (now - dragStartTime) / 1000;
-      const opacity = Math.min(0.8, 0.2 + (elapsed / 0.7) * 0.6);
+      const opacity = calculateOpacityByTime(dragStartTimestampRef.current);
       const tempLayer: LayerData = {
         id: 'temp',
         brandName: currentDragColor.brandName,
@@ -333,9 +387,18 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
         brushType,
         timestamp: now
       };
-      drawLayers(ctx, [...activeLayers, tempLayer]);
+      const tempLayers = [...sortedLayers, tempLayer];
+      let tempBase = '#F5F0E6';
+      tempLayers.forEach(layer => {
+        const drawX = layer.x * scale + offset.x;
+        const drawY = layer.y * scale + offset.y;
+        const drawSize = BRUSH_SIZE * scale;
+        const blendColor = blendColors(tempBase, layer.colorHex, layer.opacity);
+        drawBrushShape(ctx, drawX, drawY, drawSize, layer.brushType, blendColor, layer.opacity);
+        tempBase = blendColor;
+      });
     }
-  }, [layers, scale, offset, isDragging, dragPosition, currentDragColor, dragStartTime, brushType, resettingColumns, deletingLayerId, eraserPositions]);
+  }, [layers, scale, offset, isDragging, dragPosition, currentDragColor, brushType, resettingColumns, deletingLayerId, eraserPositions]);
 
   useEffect(() => {
     const animate = () => {
@@ -363,6 +426,21 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (deletingLayerId) {
+      const checkAnim = () => {
+        const elapsed = Date.now() - deletingStartTimeRef.current;
+        if (elapsed >= 300) {
+          setLayers(prev => prev.filter(l => l.id !== deletingLayerId));
+          setDeletingLayerId(null);
+        } else {
+          requestAnimationFrame(checkAnim);
+        }
+      };
+      requestAnimationFrame(checkAnim);
+    }
+  }, [deletingLayerId]);
+
   const screenToCanvas = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -375,6 +453,10 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    if (isDragging) {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      setDragPosition(pos);
+    }
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -383,6 +465,7 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
       const data = JSON.parse(e.dataTransfer.getData('color'));
       setCurrentDragColor(data);
       setIsDragging(true);
+      dragStartTimestampRef.current = Date.now();
       setDragStartTime(Date.now());
       const pos = screenToCanvas(e.clientX, e.clientY);
       setDragPosition(pos);
@@ -391,24 +474,27 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
     }
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-    setCurrentDragColor(null);
-    setDragPosition(null);
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    if (isDragging) {
-      const pos = screenToCanvas(e.clientX, e.clientY);
-      setDragPosition(pos);
+  const handleDragLeave = (e: React.DragEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const { clientX, clientY } = e;
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        setIsDragging(false);
+        setCurrentDragColor(null);
+        setDragPosition(null);
+      }
     }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (currentDragColor && dragPosition) {
-      const elapsed = (Date.now() - dragStartTime) / 1000;
-      const opacity = Math.min(0.8, 0.2 + (elapsed / 0.7) * 0.6);
+      const opacity = calculateOpacityByTime(dragStartTimestampRef.current);
       const newLayer: LayerData = {
         id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         brandName: currentDragColor.brandName,
@@ -487,7 +573,6 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
-      onDrag={handleDrag}
       onDrop={handleDrop}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -517,8 +602,7 @@ const styles = {
   canvas: {
     display: 'block',
     width: '100%',
-    height: '100%',
-    transition: 'transform 0.3s ease'
+    height: '100%'
   }
 };
 

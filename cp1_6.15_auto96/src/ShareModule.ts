@@ -16,27 +16,39 @@ interface ShareData {
   timestamp: number;
 }
 
-export async function saveAsPNG(canvasElement: HTMLElement | null): Promise<boolean> {
+export async function saveAsPNG(canvasElement: HTMLCanvasElement | null): Promise<boolean> {
   if (!canvasElement) return false;
 
   try {
-    const canvas = await html2canvas(canvasElement, {
-      backgroundColor: '#F5F0E6',
-      scale: 2,
-      useCORS: true,
-      logging: false
-    });
+    const link = document.createElement('a');
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomNum = Math.floor(Math.random() * 9000 + 1000);
+    link.download = `${dateStr}${randomNum}.png`;
+    link.href = canvasElement.toDataURL('image/png');
+    link.click();
+    return true;
+  } catch (err) {
+    console.error('Failed to save PNG:', err);
+    return false;
+  }
+}
+
+export async function saveAsPNGFromSnapshot(getSnapshot: () => HTMLCanvasElement | null): Promise<boolean> {
+  try {
+    const snapshot = getSnapshot();
+    if (!snapshot) return false;
 
     const link = document.createElement('a');
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const randomNum = Math.floor(Math.random() * 9000 + 1000);
     link.download = `${dateStr}${randomNum}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = snapshot.toDataURL('image/png');
     link.click();
     return true;
   } catch (err) {
-    console.error('Failed to save PNG:', err);
+    console.error('Failed to save PNG from snapshot:', err);
     return false;
   }
 }
@@ -57,8 +69,8 @@ export async function generateShareLink(layers: LayerData[]): Promise<boolean> {
     };
 
     const jsonStr = JSON.stringify(shareData);
-    const encoded = btoa(encodeURIComponent(jsonStr));
-    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+    const url = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(encoded)}`;
 
     await navigator.clipboard.writeText(url);
     showToast('链接已复制');
@@ -91,7 +103,8 @@ function showToast(message: string) {
     boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
     zIndex: '9999',
     opacity: '0',
-    transition: 'all 0.3s ease'
+    transition: 'all 0.3s ease',
+    pointerEvents: 'none'
   });
 
   document.body.appendChild(toast);
@@ -114,7 +127,8 @@ export function parseShareData(): ShareData | null {
   if (!data) return null;
 
   try {
-    const jsonStr = decodeURIComponent(atob(data));
+    const decoded = decodeURIComponent(data);
+    const jsonStr = decodeURIComponent(escape(atob(decoded)));
     return JSON.parse(jsonStr) as ShareData;
   } catch (err) {
     console.error('Failed to parse share data:', err);
