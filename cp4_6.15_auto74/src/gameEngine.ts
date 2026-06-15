@@ -168,21 +168,19 @@ export function gameTick(state: GameState, now: number): TickResult {
   newState.trail = newTrail;
 
   if (isOutOfBounds(nextHead)) {
+    hitBorder = true;
+    newState.borderFlash = true;
+    newState.lastBorderHitTime = now;
+
     if (newState.shieldBuff.count > 0) {
       newState.shieldBuff = { count: newState.shieldBuff.count - 1 };
-      hitBorder = true;
-      newState.borderFlash = true;
-      newState.lastBorderHitTime = now;
+    } else {
       if (newState.snake.length > 1) {
         newState.snake = newState.snake.slice(0, -1);
       }
-      return { newState, collisionPoint: null, ateItem: null, hitBorder: true };
-    } else {
-      collisionPoint = { ...head };
-      newState.isGameOver = true;
-      newState.highScore = Math.max(newState.highScore, newState.score);
-      return { newState, collisionPoint, ateItem: null, hitBorder: false };
     }
+
+    return { newState, collisionPoint: null, ateItem: null, hitBorder: true };
   }
 
   if (state.borderFlash && now - state.lastBorderHitTime > BORDER_FLASH_DURATION) {

@@ -154,6 +154,11 @@ export default function App() {
     return Math.max(0, Math.ceil((gameState.speedBuff.endTime - now) / 1000));
   }, [gameState.speedBuff, now]);
 
+  const speedProgress = useMemo(() => {
+    if (!gameState.speedBuff.active) return 0;
+    return Math.max(0, Math.min(1, (gameState.speedBuff.endTime - now) / SPEED_BUFF_DURATION));
+  }, [gameState.speedBuff, now]);
+
   return (
     <div
       style={{
@@ -231,6 +236,7 @@ export default function App() {
               icon="⚡"
               label={`${speedRemaining}s`}
               glow="0 0 12px #00bfff, 0 0 24px #00bfff66"
+              progress={speedProgress}
             />
           )}
           {gameState.shieldBuff.count > 0 && (
@@ -263,7 +269,7 @@ export default function App() {
             height: gridPixelSize,
             transform: `translate(${cameraOffset.x}px, ${cameraOffset.y}px)`,
             transition: 'transform 0.15s ease-out',
-            filter: gameState.isPaused ? 'grayscale(0.8) brightness(0.7)' : 'none',
+            filter: gameState.isPaused ? 'grayscale(1) brightness(0.4) contrast(0.8)' : 'none',
             transitionProperty: 'transform, filter',
           }}
         >
@@ -382,15 +388,30 @@ export default function App() {
           >
             <div
               style={{
-                fontSize: 80,
-                fontWeight: 900,
-                color: '#00ffff',
-                letterSpacing: 10,
+                display: 'flex',
+                gap: 16,
+                alignItems: 'center',
                 animation: 'pause-pulse 1.2s ease-in-out infinite',
-                textShadow: '0 0 20px #00ffff, 0 0 40px #00ffff66',
               }}
             >
-              ⏸
+              <div
+                style={{
+                  width: 14,
+                  height: 72,
+                  background: 'linear-gradient(180deg, #00ffff 0%, #0088ff 100%)',
+                  borderRadius: 4,
+                  boxShadow: '0 0 20px #00ffff, 0 0 40px #00ffff66',
+                }}
+              />
+              <div
+                style={{
+                  width: 14,
+                  height: 72,
+                  background: 'linear-gradient(180deg, #00ffff 0%, #0088ff 100%)',
+                  borderRadius: 4,
+                  boxShadow: '0 0 20px #00ffff, 0 0 40px #00ffff66',
+                }}
+              />
             </div>
           </div>
         )}
@@ -492,27 +513,53 @@ function BuffIndicator({
   icon,
   label,
   glow,
+  progress,
 }: {
   color: string;
   icon: string;
   label: string;
   glow: string;
+  progress?: number;
 }) {
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: 6,
+        flexDirection: 'column',
+        gap: 4,
         padding: '6px 12px',
         borderRadius: 10,
         background: `linear-gradient(135deg, ${color}22 0%, ${color}11 100%)`,
         border: `1px solid ${color}66`,
         boxShadow: glow,
+        minWidth: 64,
       }}
     >
-      <span style={{ fontSize: 16 }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color }}>{label}</span>
+      </div>
+      {progress !== undefined && (
+        <div
+          style={{
+            width: '100%',
+            height: 3,
+            borderRadius: 2,
+            background: `${color}22`,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${progress * 100}%`,
+              background: color,
+              boxShadow: `0 0 6px ${color}`,
+              transition: 'width 0.1s linear',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
