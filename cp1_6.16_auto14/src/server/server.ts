@@ -108,7 +108,22 @@ const items: Item[] = [
   },
 ];
 
-const applications: Application[] = [];
+const applications: Application[] = [
+  {
+    id: 'a1',
+    type: 'borrow',
+    targetType: 'pet',
+    targetId: 'p1',
+    targetName: '豆豆',
+    applicantId: 'u2',
+    applicantName: '小红',
+    ownerId: 'u1',
+    reason: '很喜欢金毛，想借来陪伴几天',
+    contact: '13800138000',
+    status: 'pending',
+    createdAt: new Date('2025-03-15').toISOString(),
+  },
+];
 const notifications: Notification[] = [];
 
 const comments: Comment[] = [
@@ -140,8 +155,8 @@ notifications.push({
   id: 'n1',
   userId: 'u1',
   type: 'application_received',
-  applicationId: '',
-  message: '小红对豆豆很感兴趣，发来了借养申请',
+  applicationId: 'a1',
+  message: '小红对豆豆发来了借养申请',
   read: false,
   createdAt: new Date('2025-03-15').toISOString(),
 });
@@ -180,6 +195,10 @@ app.post('/api/users/login', (req, res) => {
     return;
   }
   res.json({ user: sanitizeUser(user), token: user.id });
+});
+
+app.get('/api/users', (_req, res) => {
+  res.json(users.map(sanitizeUser));
 });
 
 app.get('/api/users/:id', (req, res) => {

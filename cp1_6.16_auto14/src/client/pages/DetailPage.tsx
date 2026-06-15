@@ -1,30 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, Send, MapPin, Clock, Check } from 'lucide-react'
+import { Heart, MessageCircle, Send, MapPin, Clock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useStore, type Pet, type Item, type Comment } from '../store'
 import { getAvatarColor } from '../App'
 
 const EMOJIS = ['😊', '😍', '🥰', '😂', '🤣', '😘', '🐶', '🐱', '🐾', '❤️', '👍', '🎉', '💪', '🤗', '😢', '🙏']
 
-function getAvatarColorLocal(name: string): string {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const colors = ['#FF9A5C', '#7BC47F', '#5C9DFF', '#FF5C8A', '#B47CFF', '#FFD25C', '#5CD1FF', '#FF7C5C']
-  return colors[Math.abs(hash) % colors.length]
-}
-
 export default function DetailPage() {
   const { type, id } = useParams<{ type: 'pet' | 'item'; id: string }>()
   const navigate = useNavigate()
-  const { currentUser, pets, items, comments, applications, fetchPets, fetchItems, fetchComments, submitApplication, addComment, toggleLike } = useStore()
+  const { currentUser, pets, items, comments, applications, fetchPets, fetchItems, fetchComments, fetchApplications, submitApplication, addComment, toggleLike } = useStore()
 
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [applyType, setApplyType] = useState<'borrow' | 'adopt'>('borrow')
   const [reason, setReason] = useState('')
   const [contact, setContact] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState('')
@@ -33,7 +25,8 @@ export default function DetailPage() {
   useEffect(() => {
     fetchPets()
     fetchItems()
-  }, [])
+    if (currentUser) fetchApplications()
+  }, [currentUser])
 
   useEffect(() => {
     if (type && id) fetchComments(type, id)
@@ -62,21 +55,26 @@ export default function DetailPage() {
     )
 
   const handleApply = async () => {
-    if (!currentUser) return
-    await submitApplication({
-      type: applyType,
-      targetType: type as 'pet' | 'item',
-      targetId: id!,
-      targetName: target.name,
-      applicantId: currentUser.id,
-      applicantName: currentUser.username,
-      ownerId: target.ownerId,
-      reason,
-      contact,
-    })
-    setShowApplyModal(false)
-    setReason('')
-    setContact('')
+    if (!currentUser || submitting) return
+    setSubmitting(true)
+    try {
+      await submitApplication({
+        type: applyType,
+        targetType: type as 'pet' | 'item',
+        targetId: id!,
+        targetName: target.name,
+        applicantId: currentUser.id,
+        applicantName: currentUser.username,
+        ownerId: target.ownerId,
+        reason,
+        contact,
+      })
+      setShowApplyModal(false)
+      setReason('')
+      setContact('')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleAddComment = async () => {
@@ -289,10 +287,14 @@ export default function DetailPage() {
                 />
               </div>
               <button
-                className="w-full py-2.5 bg-warm-orange text-white rounded-lg font-medium hover:bg-warm-orange-light transition active:scale-[0.98]"
+                className={clsx(
+                  'w-full py-2.5 bg-warm-orange text-white rounded-lg font-medium transition',
+                  submitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-warm-orange-light active:scale-[0.98]'
+                )}
+                disabled={submitting}
                 onClick={handleApply}
               >
-                提交申请
+                {submitting ? '提交中...' : '提交申请'}
               </button>
             </div>
           </div>
@@ -332,7 +334,7 @@ function CommentNode({
       <div className="flex gap-3">
         <div
           className="avatar-circle w-8 h-8 text-xs flex-shrink-0"
-          style={{ backgroundColor: getAvatarColorLocal(comment.username) }}
+          style={{ backgroundColor: getAvatarColor(comment.username) }}
         >
           {comment.username[0].toUpperCase()}
         </div>

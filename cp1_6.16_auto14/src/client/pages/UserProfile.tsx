@@ -11,18 +11,19 @@ type TabKey = 'myPets' | 'myItems' | 'allPets' | 'allItems'
 export default function UserProfile() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
-  const { currentUser, pets, items, fetchPets, fetchItems, users } = useStore()
+  const { currentUser, pets, items, users, fetchPets, fetchItems, fetchUsers, fetchApplications } = useStore()
   const [tab, setTab] = useState<TabKey>('myPets')
   const [showPetModal, setShowPetModal] = useState(false)
   const [showItemModal, setShowItemModal] = useState(false)
-
   const [petForm, setPetForm] = useState({ name: '', breed: '', age: '', personality: '', photo: '', availableForBorrow: true, availableForAdoption: false })
   const [itemForm, setItemForm] = useState({ name: '', image: '', condition: '全新', location: '', availableForBorrow: true })
 
   useEffect(() => {
     fetchPets()
     fetchItems()
-  }, [])
+    fetchUsers()
+    if (currentUser) fetchApplications()
+  }, [currentUser])
 
   if (!currentUser) {
     navigate('/login')
@@ -154,7 +155,7 @@ export default function UserProfile() {
             <input placeholder="品种" className="input-field" value={petForm.breed} onChange={(e) => setPetForm({ ...petForm, breed: e.target.value })} />
             <input placeholder="年龄" className="input-field" value={petForm.age} onChange={(e) => setPetForm({ ...petForm, age: e.target.value })} />
             <input placeholder="性格描述" className="input-field" value={petForm.personality} onChange={(e) => setPetForm({ ...petForm, personality: e.target.value })} />
-            <input placeholder="照片URL" className="input-field" value={petForm.photo} onChange={(e) => setPetForm({ ...petForm, photo: e.target.value })} />
+            <input placeholder="照片URL（可留空）" className="input-field" value={petForm.photo} onChange={(e) => setPetForm({ ...petForm, photo: e.target.value })} />
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={petForm.availableForBorrow} onChange={(e) => setPetForm({ ...petForm, availableForBorrow: e.target.checked })} />
@@ -175,9 +176,14 @@ export default function UserProfile() {
           <h3 className="font-bold text-lg mb-4">发布物品</h3>
           <div className="flex flex-col gap-3">
             <input placeholder="物品名称" className="input-field" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
-            <input placeholder="图片URL" className="input-field" value={itemForm.image} onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })} />
-            <input placeholder="成色" className="input-field" value={itemForm.condition} onChange={(e) => setItemForm({ ...itemForm, condition: e.target.value })} />
-            <input placeholder="位置" className="input-field" value={itemForm.location} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} />
+            <input placeholder="图片URL（可留空）" className="input-field" value={itemForm.image} onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })} />
+            <select className="input-field" value={itemForm.condition} onChange={(e) => setItemForm({ ...itemForm, condition: e.target.value })}>
+              <option value="全新">全新</option>
+              <option value="几乎全新">几乎全新</option>
+              <option value="轻微使用痕迹">轻微使用痕迹</option>
+              <option value="明显使用痕迹">明显使用痕迹</option>
+            </select>
+            <input placeholder="所在地" className="input-field" value={itemForm.location} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={itemForm.availableForBorrow} onChange={(e) => setItemForm({ ...itemForm, availableForBorrow: e.target.checked })} />
               可借出
