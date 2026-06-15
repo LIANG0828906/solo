@@ -1,27 +1,27 @@
-import { createStore, get, set, del, keys, entries } from "idb-keyval";
+import { createStore, get, set, del, keys, entries, UseStore } from 'idb-keyval';
 
-const DB_NAME = "meeting-app-db";
+const DB_NAME = 'meeting-notes-db-v1';
 
-export const MEETINGS_STORE = createStore(DB_NAME, "meetings");
-export const TODOS_STORE = createStore(DB_NAME, "todos");
+export const meetingsStore: UseStore = createStore(DB_NAME, 'meetings');
+export const todosStore: UseStore = createStore(DB_NAME, 'todos');
 
-export async function getAllItems<T>(store: IDBObjectStore): Promise<T[]> {
+export async function getAllItems<T>(store: UseStore): Promise<T[]> {
   const all = await entries<string, T>(store);
   return all.map(([, value]) => value);
 }
 
-export async function getItem<T>(key: string, store: IDBObjectStore): Promise<T | undefined> {
+export async function getItem<T>(key: string, store: UseStore): Promise<T | undefined> {
   return get<T>(key, store);
 }
 
-export async function setItem<T>(key: string, value: T, store: IDBObjectStore): Promise<void> {
+export async function setItem<T>(key: string, value: T, store: UseStore): Promise<void> {
   await set(key, value, store);
 }
 
-export async function deleteItem(key: string, store: IDBObjectStore): Promise<void> {
+export async function deleteItem(key: string, store: UseStore): Promise<void> {
   await del(key, store);
 }
 
-export async function getAllKeys(store: IDBObjectStore): Promise<string[]> {
+export async function getAllKeys(store: UseStore): Promise<string[]> {
   return keys<string>(store);
 }
