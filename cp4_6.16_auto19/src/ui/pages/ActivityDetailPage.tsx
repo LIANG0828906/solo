@@ -13,6 +13,7 @@ import {
 import { getBoardgameById } from '@/modules/boardgame/BoardgameService';
 import { getCurrentPlayer, createPlayer } from '@/modules/player/PlayerService';
 import { RecordResultModal } from '@/ui/components/RecordResultModal';
+import { putToStore, STORES } from '@/utils/db';
 import type { Activity, Boardgame, ActivityPlayer, Player } from '@/types';
 import styles from './ActivityDetailPage.module.css';
 
@@ -277,15 +278,23 @@ export function ActivityDetailPage() {
           </>
         )}
 
-        {isHost && activity.status === 'finished' && (
-          <button className={styles.recordBtn} onClick={() => setShowRecordModal(true)}>
-            编辑比赛结果
+        {isHost && activity.status === 'upcoming' && (
+          <button
+            className={styles.finishBtn}
+            onClick={async () => {
+              if (!id || !confirm('确定要结束本次活动吗？结束后可录入比赛结果。')) return;
+              const updatedActivity = { ...activity, status: 'finished' as const };
+              await putToStore(STORES.ACTIVITIES, updatedActivity);
+              loadData();
+            }}
+          >
+            结束活动
           </button>
         )}
 
-        {isHost && activity.status === 'upcoming' && (
+        {isHost && activity.status === 'finished' && players.length > 0 && (
           <button className={styles.recordBtn} onClick={() => setShowRecordModal(true)}>
-            录入比赛结果
+            {players.some((p) => p.rank !== undefined) ? '编辑比赛结果' : '录入比赛结果'}
           </button>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -14,14 +15,19 @@ interface ActivityCardProps {
 
 export function ActivityCard({ activity, boardgame, playerCount = 0, delay = 0, style }: ActivityCardProps) {
   const navigate = useNavigate();
+  const [clicking, setClicking] = useState(false);
 
   const handleClick = () => {
-    navigate(`/activity/${activity.id}`);
+    setClicking(true);
+    setTimeout(() => {
+      setClicking(false);
+      navigate(`/activity/${activity.id}`);
+    }, 150);
   };
 
   return (
     <div
-      className={styles.card}
+      className={`${styles.card} ${clicking ? styles.clicking : ''}`}
       onClick={handleClick}
       style={{
         animationDelay: `${delay}ms`,

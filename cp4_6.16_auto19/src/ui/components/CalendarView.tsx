@@ -113,7 +113,10 @@ export function CalendarView({ activities, boardgames }: CalendarViewProps) {
                     <span
                       key={activity.id}
                       className={styles.dot}
-                      style={{ animationDelay: `${0.05 * i}s` }}
+                      style={{
+                        left: `${i * 8}px`,
+                        animationDelay: `${0.05 * i}s`,
+                      }}
                     />
                   ))}
                 </div>

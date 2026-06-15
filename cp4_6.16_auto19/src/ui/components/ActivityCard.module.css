@@ -19,6 +19,20 @@
   border-color: var(--color-gold-dark);
 }
 
+.card:active {
+  transform: scale(0.97);
+}
+
+.clicking {
+  animation: bounceClick 0.15s ease;
+}
+
+@keyframes bounceClick {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 .emoji {
   font-size: 40px;
   flex-shrink: 0;

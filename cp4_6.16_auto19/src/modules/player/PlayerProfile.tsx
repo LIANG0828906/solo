@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useAppStore } from '@/store/useAppStore';
 import { getPlayerById, createPlayer, updatePlayerName } from './PlayerService';
 import { getPlayerStats } from '../activity/ActivityService';
-import type { Player, PlayerStats as PlayerStatsType } from '@/types';
+import { getAllBoardgames } from '../boardgame/BoardgameService';
+import type { Player, PlayerStats as PlayerStatsType, Boardgame } from '@/types';
 import styles from './PlayerProfile.module.css';
 
 export function PlayerProfile() {
@@ -15,6 +16,7 @@ export function PlayerProfile() {
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStatsType | null>(null);
+  const [boardgames, setBoardgames] = useState<Boardgame[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -24,6 +26,9 @@ export function PlayerProfile() {
     const loadData = async () => {
       setLoading(true);
       try {
+        const allGames = await getAllBoardgames();
+        setBoardgames(allGames);
+
         let targetPlayer: Player | null = null;
 
         if (playerId === 'me' || !playerId) {
@@ -96,6 +101,12 @@ export function PlayerProfile() {
   const maxCount = stats?.gamePreferences?.length
     ? Math.max(...stats.gamePreferences.map((g) => g.count))
     : 0;
+
+  const boardgameMap = useMemo(() => {
+    const map = new Map<string, Boardgame>();
+    boardgames.forEach((g) => map.set(g.id, g));
+    return map;
+  }, [boardgames]);
 
   return (
     <div className={styles.container}>
@@ -186,7 +197,7 @@ export function PlayerProfile() {
               >
                 <div className={styles.preferenceHeader}>
                   <span className={styles.preferenceName}>
-                    <span className={styles.preferenceEmoji}>🎲</span>
+                    <span className={styles.preferenceEmoji}>{boardgameMap.get(pref.gameId)?.emoji || '🎲'}</span>
                     {pref.gameName}
                   </span>
                   <span className={styles.preferenceCount}>{pref.count} 次</span>
