@@ -4,9 +4,9 @@ import { SubscriptionForm } from '@/modules/subscription/SubscriptionForm';
 import { SubscriptionCard } from '@/modules/subscription/SubscriptionCard';
 import { CalendarView } from '@/modules/calendar/CalendarView';
 import { StatisticsPanel } from '@/modules/stats/StatisticsPanel';
-import { subscribe, getSnapshot, markAsRead, markAllAsRead } from '@/utils/notification';
-import { Plus, Download, Upload, Bell, BellOff } from 'lucide-react';
-import type { Subscription, NotificationItem } from '@/types';
+import { subscribe, getSnapshot, markAsRead, markAllAsRead, getSettings, updateSettings } from '@/utils/notification';
+import { Plus, Download, Upload, Bell, BellOff, Settings, X, Volume2, VolumeX } from 'lucide-react';
+import type { Subscription, NotificationItem, NotificationSetting } from '@/types';
 
 function useNotificationSnapshot() {
   const [items, setItems] = useState<NotificationItem[]>(getSnapshot());
@@ -53,6 +53,8 @@ export default function App() {
   const { subscriptions, loading, init, importSubscriptions, exportSubscriptions } = useSubscriptionStore();
   const [showForm, setShowForm] = useState(false);
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSetting>(getSettings());
   const notifications = useNotificationSnapshot();
 
   useEffect(() => {
@@ -90,14 +92,40 @@ export default function App() {
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        if (Array.isArray(data)) {
-          await importSubscriptions(data);
+        if (!validateSubscriptionData(data)) {
+          alert('JSON文件格式不正确，请检查数据格式');
+          return;
         }
-      } catch {
-        // ignore parse errors
+        await importSubscriptions(data);
+      } catch (err) {
+        alert('导入失败：JSON文件格式损坏或无法解析');
       }
     };
     input.click();
+  };
+
+  const validateSubscriptionData = (data: unknown): data is Subscription[] => {
+    if (!Array.isArray(data)) return false;
+    return data.every((item) => {
+      if (typeof item !== 'object' || item === null) return false;
+      const sub = item as Record<string, unknown>;
+      return (
+        typeof sub.id === 'string' &&
+        typeof sub.name === 'string' &&
+        typeof sub.price === 'number' &&
+        typeof sub.billingCycle === 'string' &&
+        ['monthly', 'quarterly', 'yearly'].includes(sub.billingCycle as string) &&
+        typeof sub.nextBillingDate === 'string' &&
+        typeof sub.category === 'string' &&
+        ['entertainment', 'tool', 'storage', 'other'].includes(sub.category as string) &&
+        typeof sub.note === 'string'
+      );
+    });
+  };
+
+  const handleSaveSettings = (newSettings: Partial<NotificationSetting>) => {
+    updateSettings(newSettings);
+    setNotificationSettings(getSettings());
   };
 
   return (
@@ -120,6 +148,14 @@ export default function App() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ color: 'var(--color-text-secondary)', background: 'var(--color-card)' }}
+              title="设置"
+            >
+              <Settings size={14} />
+            </button>
             <button
               onClick={handleImport}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -240,6 +276,113 @@ export default function App() {
       {/* Form Modal */}
       {showForm && (
         <SubscriptionForm subscription={editingSub} onClose={handleCloseForm} />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+                通知设置
+              </h3>
+              <button onClick={() => setShowSettings(false)} style={{ color: 'var(--color-text-secondary)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                    到期提醒通知
+                  </p>
+                  <p className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    订阅到期前3天内弹出通知
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleSaveSettings({ enabled: !notificationSettings.enabled })}
+                  className={`w-12 h-6 rounded-full transition-colors relative`}
+                  style={{ background: notificationSettings.enabled ? 'var(--color-accent)' : 'var(--color-border)' }}
+                >
+                  <span
+                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                    style={{
+                      left: notificationSettings.enabled ? '26px' : '2px',
+                      transition: 'left 0.2s ease',
+                    }}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                    提示音效
+                  </p>
+                  <p className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    弹出通知时播放提示音
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleSaveSettings({ soundEnabled: !notificationSettings.soundEnabled })}
+                  className={`w-12 h-6 rounded-full transition-colors relative`}
+                  style={{
+                    background: notificationSettings.soundEnabled ? 'var(--color-accent)' : 'var(--color-border)',
+                    opacity: notificationSettings.enabled ? 1 : 0.5,
+                  }}
+                  disabled={!notificationSettings.enabled}
+                >
+                  <span
+                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                    style={{
+                      left: notificationSettings.soundEnabled ? '26px' : '2px',
+                      transition: 'left 0.2s ease',
+                    }}
+                  />
+                </button>
+              </div>
+
+              {notificationSettings.soundEnabled && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                      音量
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <VolumeX size={14} style={{ color: 'var(--color-text-secondary)' }} />
+                      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                        {Math.round(notificationSettings.volume * 100)}%
+                      </span>
+                      <Volume2 size={14} style={{ color: 'var(--color-text-secondary)' }} />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={notificationSettings.volume}
+                    onChange={(e) => handleSaveSettings({ volume: parseFloat(e.target.value) })}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, var(--color-accent) 0%, var(--color-accent) ${notificationSettings.volume * 100}%, var(--color-border) ${notificationSettings.volume * 100}%, var(--color-border) 100%)`,
+                    }}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full py-2.5 rounded-lg text-sm font-medium text-white mt-2"
+                style={{ background: 'var(--color-accent)' }}
+              >
+                完成
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

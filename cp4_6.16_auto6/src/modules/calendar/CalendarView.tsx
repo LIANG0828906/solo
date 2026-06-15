@@ -2,10 +2,8 @@ import { useState, useCallback } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { X } from 'lucide-react';
-import type { Subscription, Category } from '@/types';
+import type { Subscription, Category, CalendarValue } from '@/types';
 import { CATEGORY_CONFIG, BILLING_CYCLE_LABELS } from '@/types';
-
-type CalendarValue = Date | [Date | null, Date | null] | null;
 
 interface CalendarViewProps {
   subscriptions: Subscription[];

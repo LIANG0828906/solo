@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useMemo } from 'react';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { X } from 'lucide-react';
 import type { Subscription, BillingCycle, Category } from '@/types';
-import { CATEGORY_CONFIG, BILLING_CYCLE_LABELS } from '@/types';
+import { CATEGORY_CONFIG, BILLING_CYCLE_LABELS, BILLING_CYCLE_MULTIPLIER } from '@/types';
 
 interface SubscriptionFormProps {
   subscription: Subscription | null;
@@ -67,6 +67,18 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const priceBreakdown = useMemo(() => {
+    const price = parseFloat(form.price) || 0;
+    if (price <= 0) return null;
+    const multiplier = BILLING_CYCLE_MULTIPLIER[form.billingCycle];
+    const monthlyPrice = price / multiplier;
+    return {
+      monthly: monthlyPrice,
+      quarterly: monthlyPrice * 3,
+      yearly: monthlyPrice * 12,
+    };
+  }, [form.price, form.billingCycle]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -109,6 +121,17 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
                 onChange={(e) => updateField('price', e.target.value)}
                 required
               />
+              {priceBreakdown && (
+                <div className="mt-2 p-2 rounded-lg" style={{ background: 'var(--color-card)' }}>
+                  <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    等价月付: ¥{priceBreakdown.monthly.toFixed(2)}
+                  </p>
+                  <div className="flex gap-2 text-[10px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    <span>季付: ¥{priceBreakdown.quarterly.toFixed(2)}</span>
+                    <span>年付: ¥{priceBreakdown.yearly.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>

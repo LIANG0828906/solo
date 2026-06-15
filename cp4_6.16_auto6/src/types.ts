@@ -34,3 +34,18 @@ export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
   quarterly: '季付',
   yearly: '年付',
 };
+
+export const BILLING_CYCLE_MULTIPLIER: Record<BillingCycle, number> = {
+  monthly: 1,
+  quarterly: 3,
+  yearly: 12,
+};
+
+export type NotificationSetting = {
+  enabled: boolean;
+  soundEnabled: boolean;
+  volume: number;
+};
+
+export type CalendarValuePiece = Date | null;
+export type CalendarValue = CalendarValuePiece | [CalendarValuePiece, CalendarValuePiece];

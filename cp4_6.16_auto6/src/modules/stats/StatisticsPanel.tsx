@@ -75,7 +75,7 @@ export function StatisticsPanel({ subscriptions }: StatisticsPanelProps) {
           <p className="text-[10px] font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
             分类支出占比
           </p>
-          <div className="w-36 h-36 mx-auto mb-3">
+          <div className="w-36 h-36 mx-auto mb-3 pie-chart-container">
             <PieChart
               data={stats.pieData}
               lineWidth={40}
@@ -90,16 +90,20 @@ export function StatisticsPanel({ subscriptions }: StatisticsPanelProps) {
                 fontFamily: 'Inter, sans-serif',
                 fill: '#fff',
                 fontWeight: 600,
+                pointerEvents: 'none',
               }}
               labelPosition={60}
-              segmentsStyle={{
+              segmentsStyle={(index) => ({
                 transition: 'transform 0.2s ease',
                 cursor: 'pointer',
                 transformOrigin: 'center',
-              }}
-              segmentsShift={(index) => (index === hoveredIndex ? 4 : 0)}
+                transform: index === hoveredIndex ? 'scale(1.05)' : 'scale(1)',
+              })}
+              segmentsTabIndex={0}
               onMouseOver={(_, index) => setHoveredIndex(index)}
               onMouseOut={() => setHoveredIndex(null)}
+              onFocus={(_, index) => setHoveredIndex(index)}
+              onBlur={() => setHoveredIndex(null)}
             />
           </div>
           <div className="space-y-1.5">

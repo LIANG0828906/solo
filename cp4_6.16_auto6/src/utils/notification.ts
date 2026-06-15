@@ -1,7 +1,13 @@
 import type { NotificationItem } from '@/types';
+import type { NotificationSetting } from '@/types';
 
 let notificationList: NotificationItem[] = [];
 let listeners: Array<() => void> = [];
+let settings: NotificationSetting = {
+  enabled: true,
+  soundEnabled: true,
+  volume: 0.3,
+};
 
 function emitChange() {
   for (const fn of listeners) fn();
@@ -18,12 +24,23 @@ export function getSnapshot(): NotificationItem[] {
   return notificationList;
 }
 
+export function getSettings(): NotificationSetting {
+  return { ...settings };
+}
+
+export function updateSettings(newSettings: Partial<NotificationSetting>): void {
+  settings = { ...settings, ...newSettings };
+}
+
 export function addNotification(item: NotificationItem): void {
+  if (!settings.enabled) return;
   const exists = notificationList.find((n) => n.subscriptionId === item.subscriptionId && !n.read);
   if (exists) return;
   notificationList = [item, ...notificationList];
   emitChange();
-  playNotificationSound();
+  if (settings.soundEnabled) {
+    playNotificationSound(settings.volume);
+  }
   setTimeout(() => {
     notificationList = notificationList.filter((n) => n.id !== item.id);
     emitChange();
@@ -40,7 +57,7 @@ export function markAllAsRead(): void {
   emitChange();
 }
 
-export function playNotificationSound(): void {
+export function playNotificationSound(volume: number = 0.3): void {
   try {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
@@ -50,7 +67,7 @@ export function playNotificationSound(): void {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
