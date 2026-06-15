@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/data/quiz-questions.ts","./src/data/world-geojson.ts","./src/modules/leaderboard/leaderboard.tsx","./src/modules/leaderboard/storageservice.ts","./src/modules/map/mapcontainer.tsx","./src/modules/quiz/quizengine.ts","./src/modules/quiz/quizpanel.tsx","./src/types/index.ts"],"version":"5.8.3"}
