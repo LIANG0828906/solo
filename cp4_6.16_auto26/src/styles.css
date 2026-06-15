@@ -119,12 +119,13 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  transition: transform var(--transition);
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
   z-index: 100;
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .sidebar-logo {
@@ -341,55 +342,106 @@ body {
   color: var(--warning-orange);
 }
 
-.carousel-container {
+.carousel-viewport {
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.carousel-track {
   display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 8px 4px 16px;
-  scroll-behavior: smooth;
+  will-change: transform;
 }
 
-.carousel-container::-webkit-scrollbar {
-  height: 6px;
+.carousel-slide {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 8px 4px;
+  box-sizing: border-box;
 }
 
-.carousel-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
 }
 
-.carousel-container::-webkit-scrollbar-thumb {
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all var(--transition);
+}
+
+.carousel-dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.carousel-dot.active {
   background: var(--accent-secondary);
-  border-radius: 3px;
+  width: 24px;
+  border-radius: 4px;
 }
 
 .renewal-card {
-  flex-shrink: 0;
-  width: 280px;
-  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px;
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
-  animation: pulseScale 2s ease-in-out infinite;
   box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.renewal-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  animation: pulseGlow 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(233, 69, 96, 0.3);
+  }
 }
 
 .renewal-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.02);
   box-shadow: var(--shadow-hover);
 }
 
 .renewal-card.urgent-high {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.renewal-card.urgent-high::after {
+  animation-duration: 1.2s;
 }
 
 .renewal-card.urgent-mid {
-  background: linear-gradient(135deg, #fb923c, #f97316);
+  background: linear-gradient(135deg, #f97316, #ea580c);
 }
 
 .renewal-card.urgent-low {
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
+.renewal-card.urgent-low::after {
+  animation-duration: 2.5s;
 }
 
 .renewal-card-header {
@@ -900,6 +952,102 @@ body {
   border-radius: 3px;
 }
 
+.radar-editor {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  animation: fadeIn 400ms ease-out;
+}
+
+.radar-editor-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radar-editor-title i {
+  color: var(--gradient-start);
+}
+
+.radar-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radar-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+}
+
+.radar-editor-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.radar-editor-color {
+  width: 8px;
+  height: 100%;
+  min-height: 40px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.radar-editor-name {
+  flex: 0 0 100px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.radar-editor-scores {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radar-editor-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.radar-editor-score label {
+  width: 60px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.radar-editor-score input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent-secondary);
+  height: 4px;
+  cursor: pointer;
+}
+
+.radar-editor-value {
+  width: 32px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  font-size: 13px;
+  background: rgba(233, 69, 96, 0.1);
+  padding: 2px 0;
+  border-radius: 6px;
+}
+
 .compare-empty {
   text-align: center;
   padding: 60px 20px;
@@ -1081,15 +1229,21 @@ body {
 
   .sidebar {
     transform: translateX(-100%);
+    box-shadow: none;
   }
 
   .sidebar.open {
     transform: translateX(0);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
   }
 
   .main-content {
     margin-left: 0;
     padding: 76px 16px 24px;
+  }
+
+  .content-wrapper {
+    max-width: 100%;
   }
 
   .page-title {
@@ -1109,7 +1263,7 @@ body {
   }
 
   .renewal-card {
-    width: 240px;
+    max-width: 100%;
   }
 
   .stat-card-value {

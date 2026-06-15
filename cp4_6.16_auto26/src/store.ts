@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import { get as idbGet, set as idbSet } from 'idb-keyval'
-import { addMonths, addQuarters, addYears, differenceInDays, format, parseISO, startOfMonth, subMonths } from 'date-fns'
+import { addMonths, addYears, differenceInDays, format, parseISO, startOfMonth, subMonths, isBefore } from 'date-fns'
+import { storage } from './storage'
 import type { Subscription, BillingCycle, UIState } from './types'
 
 interface SubscriptionStore {
@@ -26,7 +26,7 @@ interface SubscriptionStore {
   getCompareData: () => { service: string; fullMark: number; subject: string; value: number }[]
 }
 
-const getMonthlyAmount = (amount: number, cycle: BillingCycle): number => {
+export const getMonthlyAmount = (amount: number, cycle: BillingCycle): number => {
   switch (cycle) {
     case 'monthly': return amount
     case 'quarterly': return amount / 3
@@ -44,6 +44,7 @@ const defaultUI: UIState = {
 
 const createSampleData = (): Subscription[] => {
   const now = new Date()
+  const oneYearAgo = addYears(now, -1)
   return [
     {
       id: uuidv4(),
@@ -55,8 +56,8 @@ const createSampleData = (): Subscription[] => {
       notes: '团队协作知识库',
       usageFrequency: 8,
       satisfaction: 9,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      createdAt: oneYearAgo.toISOString(),
+      updatedAt: oneYearAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -68,8 +69,8 @@ const createSampleData = (): Subscription[] => {
       notes: '代码托管平台',
       usageFrequency: 10,
       satisfaction: 8,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      createdAt: oneYearAgo.toISOString(),
+      updatedAt: oneYearAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -81,8 +82,8 @@ const createSampleData = (): Subscription[] => {
       notes: 'UI设计工具',
       usageFrequency: 7,
       satisfaction: 9,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      createdAt: oneYearAgo.toISOString(),
+      updatedAt: oneYearAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -94,8 +95,8 @@ const createSampleData = (): Subscription[] => {
       notes: '音乐流媒体',
       usageFrequency: 9,
       satisfaction: 8,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      createdAt: oneYearAgo.toISOString(),
+      updatedAt: oneYearAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -107,8 +108,8 @@ const createSampleData = (): Subscription[] => {
       notes: '创意套件全家桶',
       usageFrequency: 6,
       satisfaction: 7,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      createdAt: oneYearAgo.toISOString(),
+      updatedAt: oneYearAgo.toISOString()
     }
   ]
 }
@@ -125,23 +126,18 @@ export const useStore = create<SubscriptionStore>((set, get) => ({
   isLoaded: false,
 
   hydrate: async () => {
-    try {
-      const stored = await idbGet('subscriptions') as Subscription[] | undefined
-      if (stored && stored.length > 0) {
-        set({ subscriptions: stored, isLoaded: true })
-      } else {
-        const sample = createSampleData()
-        set({ subscriptions: sample, isLoaded: true })
-        await idbSet('subscriptions', sample)
-      }
-    } catch {
+    const stored = await storage.load()
+    if (stored.length > 0) {
+      set({ subscriptions: stored, isLoaded: true })
+    } else {
       const sample = createSampleData()
       set({ subscriptions: sample, isLoaded: true })
+      storage.save(sample)
     }
   },
 
   persist: async () => {
-    await idbSet('subscriptions', get().subscriptions)
+    await storage.save(get().subscriptions)
   },
 
   addSubscription: (data) => {
@@ -236,35 +232,28 @@ export const useStore = create<SubscriptionStore>((set, get) => ({
     for (let i = 11; i >= 0; i--) {
       const targetMonth = subMonths(now, i)
       const monthStart = startOfMonth(targetMonth)
+      const monthEnd = addMonths(monthStart, 1)
       const monthLabel = format(monthStart, 'yyyy-MM')
       const monthServices: { name: string; amount: number }[] = []
       let total = 0
 
       subscriptions.forEach((s) => {
         if (s.status === 'cancelled') return
-        const billingDate = parseISO(s.nextBillingDate)
-        let checkDate = billingDate
-        let found = false
 
-        for (let j = 0; j < 24 && !found; j++) {
-          if (checkDate >= monthStart && checkDate < addMonths(monthStart, 1)) {
-            const amount = getMonthlyAmount(s.amount, s.billingCycle)
-            total += amount
-            monthServices.push({ name: s.name, amount: Math.round(amount * 100) / 100 })
-            found = true
-          }
-          switch (s.billingCycle) {
-            case 'monthly': checkDate = addMonths(checkDate, -1); break
-            case 'quarterly': checkDate = addQuarters(checkDate, -1); break
-            case 'yearly': checkDate = addYears(checkDate, -1); break
-          }
+        const monthlyAmount = getMonthlyAmount(s.amount, s.billingCycle)
+        const createdDate = parseISO(s.createdAt)
+        const isCreatedBeforeMonthEnd = isBefore(createdDate, monthEnd)
+
+        if (isCreatedBeforeMonthEnd) {
+          total += monthlyAmount
+          monthServices.push({ name: s.name, amount: Math.round(monthlyAmount * 100) / 100 })
         }
       })
 
       months.push({
         month: monthLabel,
         total: Math.round(total * 100) / 100,
-        services: monthServices
+        services: monthServices.sort((a, b) => b.amount - a.amount)
       })
     }
     return months
@@ -289,5 +278,3 @@ export const useStore = create<SubscriptionStore>((set, get) => ({
     return result
   }
 }))
-
-export { getMonthlyAmount }

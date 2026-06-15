@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, memo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bar,
@@ -20,11 +20,11 @@ import { useStore } from '../store'
 
 const COLORS = ['#e94560', '#818cf8', '#38bdf8', '#4ade80']
 
-const CustomTooltip = ({ active, payload, label }: {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, label }: {
   active?: boolean
   payload?: { payload: { services: { name: string; amount: number }[]; total: number } }[]
   label?: string
-}) => {
+}) {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
@@ -50,103 +50,228 @@ const CustomTooltip = ({ active, payload, label }: {
     )
   }
   return null
+})
+
+interface TrendChartProps {
+  data: { month: string; total: number; services: { name: string; amount: number }[] }[]
 }
 
-const AnimatedRadar = ({ data, compareList }: {
-  data: { service: string; fullMark: number; subject: string; value: number }[]
-  compareList: string[]
-}) => {
+const TrendChart = memo(function TrendChart({ data }: TrendChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={360}>
+      <ComposedChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+        <defs>
+          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
+            <stop offset="100%" stopColor="#818cf8" stopOpacity={0.9} />
+          </linearGradient>
+          <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#e94560" />
+            <stop offset="100%" stopColor="#fbbf24" />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+        <XAxis
+          dataKey="month"
+          stroke="#a0a0b8"
+          tick={{ fill: '#a0a0b8', fontSize: 12 }}
+          tickFormatter={(value) => value.slice(2)}
+          axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+        />
+        <YAxis
+          stroke="#a0a0b8"
+          tick={{ fill: '#a0a0b8', fontSize: 12 }}
+          tickFormatter={(v) => `¥${v}`}
+          axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+        />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(233,69,96,0.05)' }} />
+        <Bar
+          dataKey="total"
+          name="月度总花费"
+          fill="url(#barGradient)"
+          radius={[6, 6, 0, 0]}
+          isAnimationActive={true}
+          animationDuration={800}
+          animationEasing="ease-out"
+        />
+        <Line
+          type="monotone"
+          dataKey="total"
+          name="趋势线"
+          stroke="url(#lineGradient)"
+          strokeWidth={3}
+          dot={{ fill: '#e94560', strokeWidth: 2, r: 4 }}
+          activeDot={{ r: 6, fill: '#e94560', stroke: 'white', strokeWidth: 2 }}
+          isAnimationActive={true}
+          animationDuration={800}
+          animationBegin={200}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+})
+
+interface RadarChartPanelProps {
+  services: { id: string; name: string; usageFrequency: number; satisfaction: number; monthlyCost: number }[]
+  onUpdateScore: (id: string, field: 'usageFrequency' | 'satisfaction', value: number) => void
+}
+
+const RadarChartPanel = memo(function RadarChartPanel({ services, onUpdateScore }: RadarChartPanelProps) {
   const [animate, setAnimate] = useState(false)
-  const { subscriptions } = useStore()
 
   useEffect(() => {
     setAnimate(false)
-    const t = setTimeout(() => setAnimate(true), 50)
+    const t = setTimeout(() => setAnimate(true), 100)
     return () => clearTimeout(t)
-  }, [compareList.length])
+  }, [services.length])
 
-  const services = [...new Set(data.map(d => d.service))]
+  const maxCost = useMemo(() => {
+    return Math.max(...services.map(s => s.monthlyCost), 1)
+  }, [services])
 
-  const selectedSubs = subscriptions.filter(s => compareList.includes(s.id))
-
-  if (data.length === 0) return null
-
-  const subjects = ['月费用', '使用频率', '满意度']
-  const chartData = subjects.map(subject => {
-    const row: Record<string, string | number> = { subject }
-    services.forEach(svc => {
-      const item = data.find(d => d.service === svc && d.subject === subject)
-      row[svc] = item?.value ?? 0
+  const chartData = useMemo(() => {
+    const subjects = ['月费用', '使用频率', '满意度']
+    return subjects.map(subject => {
+      const row: Record<string, string | number> = { subject }
+      services.forEach(svc => {
+        let value = 0
+        switch (subject) {
+          case '月费用':
+            value = Math.round((svc.monthlyCost / maxCost) * 10)
+            break
+          case '使用频率':
+            value = svc.usageFrequency
+            break
+          case '满意度':
+            value = svc.satisfaction
+            break
+        }
+        row[svc.name] = value
+      })
+      return row
     })
-    return row
-  })
+  }, [services, maxCost])
+
+  const handleFrequencyChange = useCallback((id: string, value: number) => {
+    onUpdateScore(id, 'usageFrequency', value)
+  }, [onUpdateScore])
+
+  const handleSatisfactionChange = useCallback((id: string, value: number) => {
+    onUpdateScore(id, 'satisfaction', value)
+  }, [onUpdateScore])
 
   return (
-    <div style={{
-      animation: animate ? 'rotateIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
-      opacity: animate ? 1 : 0,
-      transform: animate ? 'rotate(0deg) scale(1)' : 'rotate(-30deg) scale(0.8)',
-      transformOrigin: 'center center',
-      transition: 'all 600ms cubic-bezier(0.34, 1.56, 0.64, 1)'
-    }}>
-      <ResponsiveContainer width="100%" height={420}>
-        <RadarChart data={chartData} outerRadius="70%">
-          <PolarGrid stroke="rgba(255,255,255,0.1)" />
-          <PolarAngleAxis
-            dataKey="subject"
-            tick={{ fill: '#a0a0b8', fontSize: 13, fontWeight: 500 }}
-          />
-          <PolarRadiusAxis
-            angle={90}
-            domain={[0, 10]}
-            tick={{ fill: '#a0a0b8', fontSize: 10 }}
-            stroke="rgba(255,255,255,0.2)"
-          />
-          {services.map((svc, idx) => (
-            <Radar
-              key={svc}
-              name={svc}
-              dataKey={svc}
-              stroke={COLORS[idx % COLORS.length]}
-              fill={COLORS[idx % COLORS.length]}
-              fillOpacity={0.25}
-              strokeWidth={2}
-              isAnimationActive={true}
-              animationBegin={idx * 200}
-              animationDuration={800}
+    <div>
+      <div
+        style={{
+          opacity: animate ? 1 : 0,
+          transform: animate ? 'rotate(0deg) scale(1)' : 'rotate(-15deg) scale(0.85)',
+          transition: 'all 700ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transformOrigin: 'center center'
+        }}
+      >
+        <ResponsiveContainer width="100%" height={380}>
+          <RadarChart data={chartData} outerRadius="70%">
+            <PolarGrid stroke="rgba(255,255,255,0.1)" />
+            <PolarAngleAxis
+              dataKey="subject"
+              tick={{ fill: '#a0a0b8', fontSize: 13, fontWeight: 500 }}
             />
-          ))}
-          <Legend
-            wrapperStyle={{ paddingTop: 20 }}
-            iconType="circle"
-            formatter={(value: string) => (
-              <span style={{ color: '#eaeaea', fontSize: 13 }}>{value}</span>
-            )}
-          />
-        </RadarChart>
-      </ResponsiveContainer>
+            <PolarRadiusAxis
+              angle={90}
+              domain={[0, 10]}
+              tick={{ fill: '#a0a0b8', fontSize: 10 }}
+              stroke="rgba(255,255,255,0.2)"
+            />
+            {services.map((svc, idx) => (
+              <Radar
+                key={svc.id}
+                name={svc.name}
+                dataKey={svc.name}
+                stroke={COLORS[idx % COLORS.length]}
+                fill={COLORS[idx % COLORS.length]}
+                fillOpacity={0.25}
+                strokeWidth={2.5}
+                isAnimationActive={true}
+                animationBegin={idx * 200 + 200}
+                animationDuration={900}
+                animationEasing="ease-out"
+              />
+            ))}
+            <Legend
+              wrapperStyle={{ paddingTop: 20 }}
+              iconType="circle"
+              formatter={(value: string) => (
+                <span style={{ color: '#eaeaea', fontSize: 13 }}>{value}</span>
+              )}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
 
-      <div className="radar-legend">
-        {selectedSubs.map((sub, idx) => (
-          <div key={sub.id} className="radar-legend-item">
-            <div className="radar-legend-color" style={{ background: COLORS[idx % COLORS.length] }}></div>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{sub.name}</span>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>
-              | 频率{sub.usageFrequency}/10 · 满意{sub.satisfaction}/10
-            </span>
-          </div>
-        ))}
+      <div className="radar-editor">
+        <div className="radar-editor-title">
+          <i className="fas fa-sliders"></i>
+          调整评分（实时更新雷达图）
+        </div>
+        <div className="radar-editor-list">
+          {services.map((svc, idx) => (
+            <div key={svc.id} className="radar-editor-item">
+              <div
+                className="radar-editor-color"
+                style={{ background: COLORS[idx % COLORS.length] }}
+              ></div>
+              <div className="radar-editor-name">{svc.name}</div>
+              <div className="radar-editor-scores">
+                <div className="radar-editor-score">
+                  <label>使用频率</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={svc.usageFrequency}
+                    onChange={(e) => handleFrequencyChange(svc.id, Number(e.target.value))}
+                  />
+                  <span className="radar-editor-value">{svc.usageFrequency}</span>
+                </div>
+                <div className="radar-editor-score">
+                  <label>满意度</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={svc.satisfaction}
+                    onChange={(e) => handleSatisfactionChange(svc.id, Number(e.target.value))}
+                  />
+                  <span className="radar-editor-value">{svc.satisfaction}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
-}
+})
 
 const ChartPanel = () => {
   const navigate = useNavigate()
-  const { getMonthlyTrend, getCompareData, ui, clearCompare, subscriptions } = useStore()
+  const { getMonthlyTrend, ui, clearCompare, subscriptions, updateSubscription } = useStore()
 
   const trendData = useMemo(() => getMonthlyTrend(), [getMonthlyTrend])
-  const compareData = useMemo(() => getCompareData(), [getCompareData])
+
+  const compareServices = useMemo(() => {
+    return subscriptions
+      .filter(s => ui.compareList.includes(s.id))
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        usageFrequency: s.usageFrequency,
+        satisfaction: s.satisfaction,
+        monthlyCost: s.billingCycle === 'monthly' ? s.amount :
+          s.billingCycle === 'quarterly' ? s.amount / 3 : s.amount / 12
+      }))
+  }, [subscriptions, ui.compareList])
 
   const totalSpend = useMemo(
     () => trendData.reduce((sum, m) => sum + m.total, 0),
@@ -161,9 +286,15 @@ const ChartPanel = () => {
     return trendData.reduce((max, m) => m.total > max.total ? m : max, trendData[0])
   }, [trendData])
 
+  const handleUpdateScore = useCallback((id: string, field: 'usageFrequency' | 'satisfaction', value: number) => {
+    updateSubscription(id, { [field]: value })
+  }, [updateSubscription])
+
   const handleClearCompare = () => {
     clearCompare()
   }
+
+  const hasCompareData = ui.compareList.length >= 2 && ui.compareList.length <= 4
 
   return (
     <>
@@ -230,56 +361,7 @@ const ChartPanel = () => {
             悬停查看当月详细服务列表
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={360}>
-          <ComposedChart data={trendData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#818cf8" stopOpacity={0.9} />
-              </linearGradient>
-              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#e94560" />
-                <stop offset="100%" stopColor="#fbbf24" />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis
-              dataKey="month"
-              stroke="#a0a0b8"
-              tick={{ fill: '#a0a0b8', fontSize: 12 }}
-              tickFormatter={(value) => value.slice(2)}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            />
-            <YAxis
-              stroke="#a0a0b8"
-              tick={{ fill: '#a0a0b8', fontSize: 12 }}
-              tickFormatter={(v) => `¥${v}`}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(233,69,96,0.05)' }} />
-            <Bar
-              dataKey="total"
-              name="月度总花费"
-              fill="url(#barGradient)"
-              radius={[6, 6, 0, 0]}
-              isAnimationActive={true}
-              animationDuration={800}
-              animationEasing="ease-out"
-            />
-            <Line
-              type="monotone"
-              dataKey="total"
-              name="趋势线"
-              stroke="url(#lineGradient)"
-              strokeWidth={3}
-              dot={{ fill: '#e94560', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, fill: '#e94560', stroke: 'white', strokeWidth: 2 }}
-              isAnimationActive={true}
-              animationDuration={800}
-              animationBegin={200}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <TrendChart data={trendData} />
       </div>
 
       <div className="chart-section">
@@ -303,8 +385,11 @@ const ChartPanel = () => {
           )}
         </div>
 
-        {ui.compareList.length >= 2 && ui.compareList.length <= 4 ? (
-          <AnimatedRadar data={compareData} compareList={ui.compareList} />
+        {hasCompareData ? (
+          <RadarChartPanel
+            services={compareServices}
+            onUpdateScore={handleUpdateScore}
+          />
         ) : (
           <div className="compare-empty">
             <i className="fas fa-radar"></i>
@@ -346,6 +431,7 @@ const ChartPanel = () => {
                 const bMonthly = b.billingCycle === 'monthly' ? b.amount : b.billingCycle === 'quarterly' ? b.amount / 3 : b.amount / 12
                 return bMonthly - aMonthly
               })
+              .slice(0, 10)
               .map((sub, idx) => {
                 const monthly = sub.billingCycle === 'monthly' ? sub.amount : sub.billingCycle === 'quarterly' ? sub.amount / 3 : sub.amount / 12
                 const percent = avgMonthly > 0 ? (monthly / avgMonthly) * 50 : 0
