@@ -5,16 +5,23 @@ import {
   DragOverlay,
   closestCorners,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
-  useDraggable,
   useDroppable,
   type DragStartEvent,
   type DragEndEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, Clock, User, Calendar, ListTodo } from 'lucide-react';
 import { useTaskStore, type TodoItem, type TodoStatus } from './TaskStore';
-import { CSS } from '@dnd-kit/utilities';
 
 interface Column {
   id: TodoStatus;
@@ -27,6 +34,14 @@ const COLUMNS: Column[] = [
   { id: 'in-progress', title: '进行中', color: 'bg-blue-500' },
   { id: 'completed', title: '已完成', color: 'bg-green-500' },
 ];
+
+function findContainer(id: string, grouped: Record<TodoStatus, TodoItem[]>): TodoStatus | null {
+  for (const status of Object.keys(grouped) as TodoStatus[]) {
+    if (id === status) return status;
+    if (grouped[status].some((t) => t.id === id)) return status;
+  }
+  return null;
+}
 
 interface TaskCardContentProps {
   todo: TodoItem;
@@ -43,11 +58,14 @@ function TaskCardContent({ todo, isDragging = false }: TaskCardContentProps) {
       className={`
         relative p-4 bg-white rounded-card border border-surface-200 shadow-sm
         transition-all duration-200 select-none
-        ${isDragging ? 'shadow-2xl cursor-grabbing' : 'cursor-grab hover:shadow-md hover:border-primary-200'}
       `}
       style={{
         transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-        zIndex: isDragging ? 100 : undefined,
+        boxShadow: isDragging
+          ? '0 20px 40px rgba(30, 58, 95, 0.18), 0 8px 16px rgba(0, 0, 0, 0.1)'
+          : undefined,
+        zIndex: isDragging ? 1000 : undefined,
+        cursor: isDragging ? 'grabbing' : 'grab',
       }}
     >
       {(dueSoon || overdue) && (
@@ -81,26 +99,36 @@ function TaskCardContent({ todo, isDragging = false }: TaskCardContentProps) {
   );
 }
 
-interface DraggableTaskCardProps {
+interface SortableTaskCardProps {
   todo: TodoItem;
 }
 
-function DraggableTaskCard({ todo }: DraggableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+function SortableTaskCard({ todo }: SortableTaskCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: todo.id,
-    data: { todo },
+    data: {
+      type: 'item',
+      todo,
+      status: todo.status,
+    },
   });
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        opacity: isDragging ? 0.4 : 1,
-      }
-    : undefined;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <TaskCardContent todo={todo} isDragging={isDragging} />
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <TaskCardContent todo={todo} />
     </div>
   );
 }
@@ -113,34 +141,43 @@ interface DroppableColumnProps {
 function DroppableColumn({ column, todos }: DroppableColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
-    data: { status: column.id },
+    data: {
+      type: 'column',
+      status: column.id,
+    },
   });
 
   return (
     <div
       className={`
-        flex flex-col bg-surface-100 rounded-lg p-3 min-h-[400px]
+        flex flex-col bg-surface-100 rounded-lg p-3 min-h-[450px]
         transition-all duration-200
-        ${isOver ? 'bg-primary-50 ring-2 ring-primary-200' : ''}
+        ${isOver ? 'bg-primary-50 ring-2 ring-primary-300 shadow-inner' : ''}
       `}
     >
       <div className="flex items-center gap-2 mb-3 px-1">
         <div className={`w-2.5 h-2.5 rounded-full ${column.color}`} />
         <h3 className="text-sm font-semibold text-primary">{column.title}</h3>
-        <span className="ml-auto text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+        <span className="ml-auto text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full shadow-sm">
           {todos.length}
         </span>
       </div>
 
       <div ref={setNodeRef} className="flex-1 space-y-3 min-h-[200px]">
-        {todos.map((todo) => (
-          <DraggableTaskCard key={todo.id} todo={todo} />
-        ))}
+        <SortableContext
+          items={todos.map((t) => t.id)}
+          strategy={verticalListSortingStrategy}
+          id={`sortable-${column.id}`}
+        >
+          {todos.map((todo) => (
+            <SortableTaskCard key={todo.id} todo={todo} />
+          ))}
+        </SortableContext>
 
         {todos.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
-            <Clock size={24} className="mb-2 opacity-50" />
-            <span>暂无任务</span>
+          <div className="flex flex-col items-center justify-center py-10 text-gray-400 text-xs border-2 border-dashed border-surface-200 rounded-md">
+            <Clock size={20} className="mb-2 opacity-40" />
+            <span>拖拽任务到此处</span>
           </div>
         )}
       </div>
@@ -158,6 +195,9 @@ export default function TaskBoard() {
       activationConstraint: {
         distance: 5,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -174,10 +214,37 @@ export default function TaskBoard() {
     [todos]
   );
 
+  const grouped = useMemo(
+    () => ({
+      pending: pendingTodos,
+      'in-progress': inProgressTodos,
+      completed: completedTodos,
+    }),
+    [pendingTodos, inProgressTodos, completedTodos]
+  );
+
   const activeTodo = activeId ? todos.find((t) => t.id === activeId) : null;
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeContainer = findContainer(activeId, grouped);
+    if (!activeContainer) return;
+
+    const overContainer = findContainer(overId, grouped);
+    if (!overContainer) return;
+
+    if (activeContainer !== overContainer) {
+      // 跨列时不立即更新，在 dragEnd 处理（保持性能）
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -189,16 +256,18 @@ export default function TaskBoard() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const isStatusColumn = COLUMNS.some((col) => col.id === overId);
+    const activeContainer = findContainer(activeId, grouped);
+    const overContainer = findContainer(overId, grouped);
 
-    if (isStatusColumn) {
-      const newStatus = overId as TodoStatus;
-      const activeTodo = todos.find((t) => t.id === activeId);
+    if (!activeContainer || !overContainer) return;
 
-      if (activeTodo && activeTodo.status !== newStatus) {
-        await updateTodoStatus(activeId, newStatus);
-      }
+    if (activeContainer !== overContainer) {
+      await updateTodoStatus(activeId, overContainer);
     }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   return (
@@ -225,7 +294,9 @@ export default function TaskBoard() {
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <DroppableColumn column={COLUMNS[0]} todos={pendingTodos} />
@@ -233,9 +304,14 @@ export default function TaskBoard() {
             <DroppableColumn column={COLUMNS[2]} todos={completedTodos} />
           </div>
 
-          <DragOverlay dropAnimation={null}>
+          <DragOverlay
+            dropAnimation={{
+              duration: 250,
+              easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            }}
+          >
             {activeTodo ? (
-              <div className="w-full md:w-[calc((100%-2rem)/3)]">
+              <div className="w-full md:w-full pointer-events-none">
                 <TaskCardContent todo={activeTodo} isDragging />
               </div>
             ) : null}

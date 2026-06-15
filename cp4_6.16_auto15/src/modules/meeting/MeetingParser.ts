@@ -14,9 +14,23 @@ export interface ParsedMeeting {
 
 const TITLE_KEYWORDS = ['会议主题', '主题', '议题', '会议标题', '会议名称'];
 const CONCLUSION_KEYWORDS = ['结论', '决定', '共识', '达成', '同意', '确认', '决议', '通过'];
-const TODO_KEYWORDS = ['待办', '任务', '行动项', '跟进', '推进', '负责', '完成', '落实', '截止', '提交'];
-const SECTION_CONCLUSION_KEYWORDS = ['会议结论', '核心结论', '主要结论', '三、会议结论', '二、会议结论', '结论', '决议', '达成共识'];
-const SECTION_TODO_KEYWORDS = ['待办事项', '行动项', '任务清单', '任务分配', '工作计划', '四、待办事项', '三、待办事项'];
+
+const SECTION_TODO_PREFIXES = [
+  '待办事项',
+  '待办',
+  '任务清单',
+  '任务分配',
+  '行动项',
+  '行动计划',
+  '工作计划',
+];
+
+const SECTION_CONCLUSION_PREFIXES = [
+  '会议结论',
+  '核心结论',
+  '主要结论',
+  '讨论结论',
+];
 
 const BULLET_RE = /^\s*(\d+[.、)\s]|[-•··➢➤★○▪])\s*/;
 const NUMBER_PREFIX_RE = /^\s*[一二三四五六七八九十\d]+[、.．]\s*/;
@@ -45,23 +59,28 @@ function extractTitle(lines: string[]): string {
   return '未命名会议';
 }
 
-function isSectionHeader(line: string, keywords: string[]): boolean {
+function isTodoSectionHeader(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
 
-  for (const kw of keywords) {
-    if (trimmed.includes(kw)) {
-      if (/^[一二三四五六七八九十\d]+[、.．]/.test(trimmed) && trimmed.length < 20) {
-        return true;
-      }
-      if (trimmed.startsWith(kw) || trimmed.endsWith(kw)) {
-        return true;
-      }
-      if (trimmed.endsWith('：') || trimmed.endsWith(':')) {
-        return true;
-      }
-    }
+  for (const prefix of SECTION_TODO_PREFIXES) {
+    if (trimmed.startsWith(prefix)) return true;
+    if (trimmed.endsWith(prefix)) return true;
+    if (/^[一二三四五六七八九十\d]+[、.．]/.test(trimmed) && trimmed.includes(prefix)) return true;
+    if (trimmed.includes(prefix) && (trimmed.endsWith('：') || trimmed.endsWith(':'))) return true;
   }
+  return false;
+}
+
+function isConclusionSectionHeader(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+
+  for (const prefix of SECTION_CONCLUSION_PREFIXES) {
+    if (trimmed.startsWith(prefix)) return true;
+    if (/^[一二三四五六七八九十\d]+[、.．]/.test(trimmed) && trimmed.includes(prefix)) return true;
+  }
+  if (trimmed === '结论' || trimmed === '决议' || trimmed === '共识') return true;
   return false;
 }
 
@@ -84,12 +103,12 @@ function extractConclusions(lines: string[]): string[] {
       continue;
     }
 
-    if (isSectionHeader(trimmed, SECTION_CONCLUSION_KEYWORDS)) {
+    if (isConclusionSectionHeader(trimmed)) {
       inConclusionSection = true;
       continue;
     }
 
-    if (isSectionHeader(trimmed, SECTION_TODO_KEYWORDS) || isSectionHeader(trimmed, TITLE_KEYWORDS)) {
+    if (isTodoSectionHeader(trimmed)) {
       inConclusionSection = false;
       continue;
     }
@@ -104,7 +123,7 @@ function extractConclusions(lines: string[]): string[] {
           conclusions.push(cleaned);
         }
       }
-    } else if (hasKeyword && !TODO_KEYWORDS.some(kw => trimmed.includes(kw))) {
+    } else if (hasKeyword && !trimmed.includes('待办') && !trimmed.includes('负责')) {
       const cleaned = stripBullet(trimmed);
       if (cleaned && cleaned.length > 6 && !conclusions.includes(cleaned) && cleaned.length < 100) {
         conclusions.push(cleaned);
@@ -122,10 +141,10 @@ const COMMON_NAMES = [
 
 function extractAssignee(text: string): string {
   const patterns = [
-    /由\s*([^\s，,。.；;！!？?、：:]{1,6})\s*(负责|跟进|完成|推进|落实|对接|主导|主责)/,
-    /([^\s，,。.；;！!？?、：:]{1,6})\s*(负责|跟进|完成|推进|落实|主导|主责)/,
-    /负责人[：:]\s*([^\s，,。.；;！!？?、]{1,6})/,
-    /对接人[：:]\s*([^\s，,。.；;！!？?、]{1,6})/,
+    /由\s*([^\s，,。.；;！!？?、：:负责跟进完成推进落实对接主导主责]{1,6})\s*(负责|跟进|完成|推进|落实|对接|主导|主责)/,
+    /([^\s，,。.；;！!？?、：:负责跟进完成推进落实对接主导主责]{1,6})\s*(负责|跟进|完成|推进|落实|主导|主责)/,
+    /负责人[：:]\s*([^\s，,。.；;！!？?、负责跟进完成]{1,6})/,
+    /对接人[：:]\s*([^\s，,。.；;！!？?、负责跟进完成]{1,6})/,
     /@([^\s，,。.；;！!？?、]{1,10})/,
   ];
 
@@ -267,12 +286,11 @@ function cleanTodoTitle(title: string): string {
   clean = clean.replace(/截止[到]?[：:]\s*[^\s，,。.；;]+[，,]?\s*/g, '');
   clean = clean.replace(/[，,]\s*完成时间[：:]\s*[^\s，,。.；;]+/g, '');
   clean = clean.replace(/完成时间[：:]\s*[^\s，,。.；;]+[，,]?\s*/g, '');
+  clean = clean.replace(/预计[^，。,.；;]+/g, '');
 
   clean = clean.replace(/^待办事项?[：:\s]*/, '');
   clean = clean.replace(/^任务[：:\s]*/, '');
   clean = clean.replace(/^行动项[：:\s]*/, '');
-
-  clean = clean.replace(/预计[^，。,.；;]+/g, '');
 
   clean = clean.replace(/^[，,。.；;：:]+/, '');
   clean = clean.replace(/[，,。.；;：:]+$/, '');
@@ -285,7 +303,7 @@ function cleanTodoTitle(title: string): string {
   return title.trim();
 }
 
-function extractTodos(lines: string[], _conclusions: string[]): ParsedTodo[] {
+function extractTodos(lines: string[]): ParsedTodo[] {
   const todos: ParsedTodo[] = [];
   const ref = new Date();
   let inTodoSection = false;
@@ -293,6 +311,7 @@ function extractTodos(lines: string[], _conclusions: string[]): ParsedTodo[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
     if (!trimmed) {
       if (inTodoSection && todos.length > 0) {
         inTodoSection = false;
@@ -300,61 +319,59 @@ function extractTodos(lines: string[], _conclusions: string[]): ParsedTodo[] {
       continue;
     }
 
-    if (isSectionHeader(trimmed, SECTION_TODO_KEYWORDS)) {
+    if (isTodoSectionHeader(trimmed)) {
       inTodoSection = true;
+      const rest = trimmed.replace(/^.*?(待办事项|待办|任务清单|任务分配|行动项|行动计划|工作计划)[：:\s]*/, '');
+      if (rest && rest.length > 6) {
+        const clean = stripBullet(rest);
+        if (clean.length > 4) {
+          todos.push({
+            title: cleanTodoTitle(clean),
+            assignee: extractAssignee(rest),
+            dueDate: parseDate(rest, ref),
+          });
+        }
+      }
       continue;
     }
 
-    if (isSectionHeader(trimmed, SECTION_CONCLUSION_KEYWORDS) || isSectionHeader(trimmed, ['市场分析', '产品规划', '会议内容', '参会人员', '会议时间'])) {
+    if (isConclusionSectionHeader(trimmed)) {
       inTodoSection = false;
       continue;
     }
 
-    const hasKeyword = TODO_KEYWORDS.some(kw => trimmed.includes(kw));
-    const isBullet = BULLET_RE.test(trimmed) || NUMBER_PREFIX_RE.test(trimmed);
-    const hasAssignee = /[^\s，,。.]{2,4}(负责|跟进|完成)/.test(trimmed);
-
     if (inTodoSection) {
-      if (isBullet || hasKeyword || hasAssignee) {
+      const isBullet = BULLET_RE.test(trimmed) || NUMBER_PREFIX_RE.test(trimmed);
+      if (isBullet || trimmed.length > 6) {
         const title = stripBullet(trimmed);
-        if (title && title.length > 4 && !todos.some(t => t.title === title || title.includes(t.title))) {
+        if (title && title.length > 4 && !todos.some(t => title.includes(t.title) || t.title.includes(title))) {
           const cleanTitle = cleanTodoTitle(title);
-          todos.push({
-            title: cleanTitle,
-            assignee: extractAssignee(title),
-            dueDate: parseDate(title, ref),
-          });
-        }
-      }
-    } else if ((hasKeyword || hasAssignee) && (isBullet || trimmed.length < 80)) {
-      const title = stripBullet(trimmed);
-      if (title && title.length > 6 && !todos.some(t => t.title === title || title.includes(t.title))) {
-        const cleanTitle = cleanTodoTitle(title);
-        if (cleanTitle.length > 4) {
-          todos.push({
-            title: cleanTitle,
-            assignee: extractAssignee(title),
-            dueDate: parseDate(title, ref),
-          });
+          if (cleanTitle.length > 4) {
+            todos.push({
+              title: cleanTitle,
+              assignee: extractAssignee(title),
+              dueDate: parseDate(title, ref),
+            });
+          }
         }
       }
     }
   }
 
   const uniqueTodos: ParsedTodo[] = [];
-  const seenTitles = new Set<string>();
+  const seenKeys = new Set<string>();
   for (const todo of todos) {
-    const key = todo.title.slice(0, 20);
-    if (!seenTitles.has(key)) {
-      seenTitles.add(key);
+    const key = todo.title.slice(0, 15);
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
       uniqueTodos.push(todo);
     }
   }
 
-  const result = uniqueTodos.slice(0, 6);
+  const result = uniqueTodos.slice(0, 8);
 
   const defaultAssignees = ['张三', '李四', '王五', '赵六', '陈七'];
-  const defaultDays = [3, 5, 7, 10, 14];
+  const defaultDays = [3, 5, 7, 10, 14, 21];
 
   for (let i = 0; i < result.length; i++) {
     if (!result[i].assignee) {
@@ -394,7 +411,7 @@ export function parseMeetingContent(text: string): ParsedMeeting {
   const lines = text.split('\n');
   const title = extractTitle(lines);
   const conclusions = extractConclusions(lines);
-  const todos = extractTodos(lines, conclusions);
+  const todos = extractTodos(lines);
 
   return { title, conclusions, todos };
 }

@@ -41,6 +41,8 @@ interface MeetingActions {
   setCurrentTodos: (todos: TodoItem[]) => void;
   setSearchKeyword: (keyword: string) => void;
   setDateFilter: (from: string, to: string) => void;
+  filterByKeyword: (keyword: string) => Meeting[];
+  filterByDateRange: (from: string, to: string) => Meeting[];
   getFilteredMeetings: () => Meeting[];
   getTodoCountForMeeting: (meetingId: string) => number;
 }
@@ -159,6 +161,36 @@ export const useMeetingStore = create<MeetingStore>((set, get) => ({
   setSearchKeyword: (keyword) => set({ searchKeyword: keyword }),
 
   setDateFilter: (from, to) => set({ dateFrom: from, dateTo: to }),
+
+  filterByKeyword: (keyword) => {
+    const { meetings } = get();
+    if (!keyword.trim()) return meetings;
+    const kw = keyword.trim().toLowerCase();
+    return meetings.filter((m) =>
+      m.title.toLowerCase().includes(kw) ||
+      m.content.toLowerCase().includes(kw)
+    );
+  },
+
+  filterByDateRange: (from, to) => {
+    const { meetings } = get();
+    return meetings.filter((m) => {
+      try {
+        const meetingDate = parseISO(m.date);
+        if (from) {
+          const fromDate = parseISO(from);
+          if (meetingDate < fromDate) return false;
+        }
+        if (to) {
+          const toDate = parseISO(to);
+          if (meetingDate > toDate) return false;
+        }
+        return true;
+      } catch {
+        return true;
+      }
+    });
+  },
 
   getFilteredMeetings: () => {
     const { meetings, searchKeyword, dateFrom, dateTo } = get();
