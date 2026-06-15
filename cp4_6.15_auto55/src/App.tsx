@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useStore } from '@/store'
 import { MaterialsBoard } from '@/MaterialsBoard'
 import { ProjectGallery } from '@/ProjectGallery'
@@ -12,44 +12,16 @@ import NotificationBell from '@/components/NotificationBell'
 export default function App() {
   const {
     activeTab,
-    setActiveTab,
-    showFavoritesDrawer,
-    setShowFavoritesDrawer,
     showPublishMaterial,
-    setShowPublishMaterial,
     showPublishProject,
+    setShowPublishMaterial,
     setShowPublishProject,
     confirmDialog,
-    setConfirmDialog,
-    updateMaterialStatus,
-    addNotification,
     notifications,
     markNotificationRead,
   } = useStore()
 
   const unreadCount = notifications.filter((n) => !n.read).length
-
-  const handleConfirmTaken = useCallback(() => {
-    if (!confirmDialog) return
-    updateMaterialStatus(confirmDialog.materialId, 'taken')
-    addNotification({
-      type: 'taken',
-      message: confirmDialog.message,
-      materialId: confirmDialog.materialId,
-    })
-    setConfirmDialog(null)
-  }, [confirmDialog, updateMaterialStatus, addNotification, setConfirmDialog])
-
-  const handleOpenPublish = useCallback(
-    (type: 'material' | 'project') => {
-      if (type === 'material') {
-        setShowPublishMaterial(true)
-      } else {
-        setShowPublishProject(true)
-      }
-    },
-    [setShowPublishMaterial, setShowPublishProject]
-  )
 
   useEffect(() => {
     if (unreadCount > 0) {
@@ -62,15 +34,17 @@ export default function App() {
     }
   }, [unreadCount, notifications, markNotificationRead])
 
+  const handleOpenPublish = (type: 'material' | 'project') => {
+    if (type === 'material') {
+      setShowPublishMaterial(true)
+    } else {
+      setShowPublishProject(true)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-sky-light">
-      <NavBar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onOpenFavorites={() => setShowFavoritesDrawer(true)}
-        notificationCount={unreadCount}
-        onOpenPublish={handleOpenPublish}
-      />
+      <NavBar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[88px] pb-12">
         <div className="mb-8">
@@ -127,7 +101,6 @@ export default function App() {
 
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40 hidden md:block">
         <NotificationBell
-          count={unreadCount}
           onClick={() => {
             notifications.forEach((n) => markNotificationRead(n.id))
           }}
@@ -146,14 +119,7 @@ export default function App() {
       <FavoritesDrawer />
       {showPublishMaterial && <PublishMaterialModal />}
       {showPublishProject && <PublishProjectModal />}
-      {confirmDialog && (
-        <ConfirmDialog
-          show={confirmDialog.show}
-          message={confirmDialog.message}
-          onConfirm={handleConfirmTaken}
-          onCancel={() => setConfirmDialog(null)}
-        />
-      )}
+      {confirmDialog && <ConfirmDialog />}
 
       <footer className="bg-cream/50 py-6 text-center text-xs text-gray-400">
         <p>余料交换 — 让闲置焕发新生</p>

@@ -1,19 +1,54 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
+import { useStore } from '@/store';
 
 interface ConfirmDialogProps {
-  show: boolean;
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  show?: boolean;
+  message?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = React.memo(({
-  show,
-  message,
-  onConfirm,
-  onCancel,
+  show: showProp,
+  message: messageProp,
+  onConfirm: onConfirmProp,
+  onCancel: onCancelProp,
 }) => {
+  const storeConfirmDialog = useStore((s) => s.confirmDialog)
+  const setConfirmDialog = useStore((s) => s.setConfirmDialog)
+  const updateMaterialStatus = useStore((s) => s.updateMaterialStatus)
+  const addNotification = useStore((s) => s.addNotification)
+
+  const useStoreMode = showProp === undefined
+
+  const storeShow = storeConfirmDialog?.show ?? false
+  const show = useStoreMode ? storeShow : (showProp ?? false)
+  const message = messageProp ?? storeConfirmDialog?.message ?? ''
+
+  const handleConfirm = () => {
+    if (onConfirmProp) {
+      onConfirmProp()
+      return
+    }
+    if (!storeConfirmDialog) return
+    updateMaterialStatus(storeConfirmDialog.materialId, 'taken')
+    addNotification({
+      type: 'taken',
+      message: storeConfirmDialog.message,
+      materialId: storeConfirmDialog.materialId,
+    })
+    setConfirmDialog(null)
+  }
+
+  const handleCancel = () => {
+    if (onCancelProp) {
+      onCancelProp()
+      return
+    }
+    setConfirmDialog(null)
+  }
+
   if (!show) return null;
 
   return (
@@ -21,11 +56,11 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = React.memo(({
       <div className="shimmer-border" style={modalStyle}>
         <p style={messageStyle}>{message}</p>
         <div style={buttonContainerStyle}>
-          <button className="btn-hover" onClick={onConfirm} style={confirmBtnStyle}>
+          <button className="btn-hover" onClick={handleConfirm} style={confirmBtnStyle}>
             <Check size={16} />
             确认
           </button>
-          <button className="btn-hover" onClick={onCancel} style={cancelBtnStyle}>
+          <button className="btn-hover" onClick={handleCancel} style={cancelBtnStyle}>
             <X size={16} />
             取消
           </button>

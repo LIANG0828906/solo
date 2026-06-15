@@ -1,6 +1,8 @@
 import { useCallback } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { useStore } from '@/store'
+import { toHexColor, COLOR_PRESETS } from '@/types'
+import type { HexColor } from '@/types'
 import { X, Check } from 'lucide-react'
 
 interface ColorThemePickerProps {
@@ -12,7 +14,7 @@ export function ColorThemePicker({ onClose }: ColorThemePickerProps) {
 
   const handleColorChange = useCallback(
     (color: string) => {
-      updateFilters({ color })
+      updateFilters({ color: toHexColor(color) })
     },
     [updateFilters]
   )
@@ -68,7 +70,7 @@ export function ColorThemePicker({ onClose }: ColorThemePickerProps) {
       )}
 
       <div className="flex flex-wrap gap-2 px-2">
-        {PRESET_COLORS.map((c) => (
+        {COLOR_PRESETS.map((c: { value: HexColor; label: string }) => (
           <button
             key={c.value}
             onClick={() => handleColorChange(c.value)}
@@ -97,16 +99,3 @@ export function ColorThemePicker({ onClose }: ColorThemePickerProps) {
     </div>
   )
 }
-
-const PRESET_COLORS = [
-  { value: '#D4A574', label: '原木色' },
-  { value: '#2C5F3B', label: '墨绿' },
-  { value: '#F5F5F5', label: '白色' },
-  { value: '#B87333', label: '铜色' },
-  { value: '#2C2C2C', label: '黑色' },
-  { value: '#C4B99A', label: '亚麻' },
-  { value: '#8B7355', label: '棕色' },
-  { value: '#D0E8F0', label: '天蓝' },
-  { value: '#8B6914', label: '深木色' },
-  { value: '#E8E8E8', label: '浅灰' },
-]

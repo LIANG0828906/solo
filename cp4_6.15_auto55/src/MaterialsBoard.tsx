@@ -1,53 +1,122 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useStore } from '@/store'
-import { MATERIAL_TYPES, CONDITION_EMOJIS } from '@/types'
-import type { MaterialType } from '@/types'
+import {
+  MATERIAL_TYPES,
+  CONDITION_EMOJIS,
+  calculateColorSimilarity,
+  toHexColor,
+} from '@/types'
+import type { MaterialType, HexColor } from '@/types'
 import MaterialCard from '@/components/MaterialCard'
 import { ColorThemePicker } from '@/ColorThemePicker'
 import { Search, SlidersHorizontal, X, Palette } from 'lucide-react'
 
 export function MaterialsBoard() {
-  const { materials, filters, updateFilters, favorites, setConfirmDialog, addFavorite } = useStore()
+  const {
+    materials,
+    filters,
+    updateFilters,
+    favorites,
+    setConfirmDialog,
+    addFavorite,
+    materialOrder,
+    reorderMaterials,
+  } = useStore()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  const materialOrderIndexMap = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {}
+    materialOrder.forEach((id, index) => {
+      map[id] = index
+    })
+    return map
+  }, [materialOrder])
+
+  const searchedMaterials = useMemo(() => {
+    if (!searchQuery.trim()) return materials
+    const q = searchQuery.toLowerCase()
+    return materials.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.materialType.toLowerCase().includes(q) ||
+        m.dimensions.toLowerCase().includes(q)
+    )
+  }, [materials, searchQuery])
+
+  const typeFilteredMaterials = useMemo(() => {
+    if (!filters.materialType) return searchedMaterials
+    return searchedMaterials.filter((m) => m.materialType === filters.materialType)
+  }, [searchedMaterials, filters.materialType])
+
+  const colorFilteredMaterials = useMemo(() => {
+    if (!filters.color) return typeFilteredMaterials
+    const targetColor = toHexColor(filters.color)
+    return typeFilteredMaterials.filter((m) => {
+      return calculateColorSimilarity(m.color, targetColor) >= 40
+    })
+  }, [typeFilteredMaterials, filters.color])
+
+  const conditionFilteredMaterials = useMemo(() => {
+    const [min, max] = filters.conditionRange
+    if (min <= 1 && max >= 5) return colorFilteredMaterials
+    return colorFilteredMaterials.filter(
+      (m) => m.condition >= min && m.condition <= max
+    )
+  }, [colorFilteredMaterials, filters.conditionRange])
 
   const filteredMaterials = useMemo(() => {
-    let result = materials
+    return [...conditionFilteredMaterials].sort((a, b) => {
+      const indexA = materialOrderIndexMap[a.id]
+      const indexB = materialOrderIndexMap[b.id]
+      if (indexA === undefined) return 1
+      if (indexB === undefined) return -1
+      return indexA - indexB
+    })
+  }, [conditionFilteredMaterials, materialOrderIndexMap])
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.materialType.toLowerCase().includes(q) ||
-          m.dimensions.toLowerCase().includes(q)
-      )
-    }
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+  }, [])
 
-    if (filters.materialType) {
-      result = result.filter((m) => m.materialType === filters.materialType)
-    }
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('')
+  }, [])
 
-    if (filters.color) {
-      result = result.filter((m) => {
-        return colorDistance(m.color, filters.color!) < 80
-      })
-    }
+  const handleToggleColorPicker = useCallback(() => {
+    setShowColorPicker((prev) => !prev)
+  }, [])
 
-    if (filters.conditionRange[0] > 1 || filters.conditionRange[1] < 5) {
-      result = result.filter(
-        (m) => m.condition >= filters.conditionRange[0] && m.condition <= filters.conditionRange[1]
-      )
-    }
-
-    return result
-  }, [materials, filters, searchQuery])
+  const handleCloseColorPicker = useCallback(() => {
+    setShowColorPicker(false)
+  }, [])
 
   const handleMaterialTypeFilter = useCallback(
     (type: MaterialType | null) => {
       updateFilters({ materialType: type })
     },
     [updateFilters]
+  )
+
+  const handleMinConditionChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      updateFilters({
+        conditionRange: [Number(e.target.value), filters.conditionRange[1]],
+      })
+    },
+    [updateFilters, filters.conditionRange]
+  )
+
+  const handleMaxConditionChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      updateFilters({
+        conditionRange: [filters.conditionRange[0], Number(e.target.value)],
+      })
+    },
+    [updateFilters, filters.conditionRange]
   )
 
   const handleMarkTaken = useCallback(
@@ -82,6 +151,58 @@ export function MaterialsBoard() {
     [favorites]
   )
 
+  const onDragStart = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, id: string) => {
+      setDraggedId(id)
+      e.dataTransfer.setData('text/plain', id)
+      e.dataTransfer.effectAllowed = 'move'
+    },
+    []
+  )
+
+  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const onDragEnter = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, id: string) => {
+      e.preventDefault()
+      if (draggedId && draggedId !== id) {
+        setDragOverId(id)
+      }
+    },
+    [draggedId]
+  )
+
+  const onDragLeave = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, id: string) => {
+      e.preventDefault()
+      if (dragOverId === id) {
+        setDragOverId(null)
+      }
+    },
+    [dragOverId]
+  )
+
+  const onDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, dropId: string) => {
+      e.preventDefault()
+      const dragId = e.dataTransfer.getData('text/plain')
+      if (dragId && dropId && dragId !== dropId) {
+        reorderMaterials({ dragId, dropId })
+      }
+      setDraggedId(null)
+      setDragOverId(null)
+    },
+    [reorderMaterials]
+  )
+
+  const onDragEnd = useCallback(() => {
+    setDraggedId(null)
+    setDragOverId(null)
+  }, [])
+
   const activeType = filters.materialType
 
   return (
@@ -94,13 +215,13 @@ export function MaterialsBoard() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 placeholder="搜索余料名称、类型、尺寸..."
                 className="w-full pl-10 pr-4 py-2.5 rounded-card bg-white/80 border border-white/60 focus:outline-none focus:ring-2 focus:ring-forest/30 text-sm transition-all"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
                   <X className="w-4 h-4 text-gray-400" />
@@ -108,7 +229,7 @@ export function MaterialsBoard() {
               )}
             </div>
             <button
-              onClick={() => setShowColorPicker(!showColorPicker)}
+              onClick={handleToggleColorPicker}
               className={`btn-hover flex items-center gap-2 px-4 py-2.5 rounded-card text-sm font-medium transition-all ${
                 filters.color
                   ? 'bg-forest text-white'
@@ -160,11 +281,7 @@ export function MaterialsBoard() {
               min="1"
               max="5"
               value={filters.conditionRange[0]}
-              onChange={(e) =>
-                updateFilters({
-                  conditionRange: [Number(e.target.value), filters.conditionRange[1]],
-                })
-              }
+              onChange={handleMinConditionChange}
               className="w-20 accent-forest"
             />
             <span>{CONDITION_EMOJIS[filters.conditionRange[0] - 1]}</span>
@@ -174,11 +291,7 @@ export function MaterialsBoard() {
               min="1"
               max="5"
               value={filters.conditionRange[1]}
-              onChange={(e) =>
-                updateFilters({
-                  conditionRange: [filters.conditionRange[0], Number(e.target.value)],
-                })
-              }
+              onChange={handleMaxConditionChange}
               className="w-20 accent-forest"
             />
             <span>{CONDITION_EMOJIS[filters.conditionRange[1] - 1]}</span>
@@ -187,7 +300,7 @@ export function MaterialsBoard() {
 
         {showColorPicker && (
           <div className="mt-3 animate-fade-in">
-            <ColorThemePicker onClose={() => setShowColorPicker(false)} />
+            <ColorThemePicker onClose={handleCloseColorPicker} />
           </div>
         )}
       </div>
@@ -210,7 +323,20 @@ export function MaterialsBoard() {
             {filteredMaterials.map((material, index) => (
               <div
                 key={material.id}
-                className="animate-fade-in"
+                draggable={true}
+                onDragStart={(e) => onDragStart(e, material.id)}
+                onDragOver={onDragOver}
+                onDragEnter={(e) => onDragEnter(e, material.id)}
+                onDragLeave={(e) => onDragLeave(e, material.id)}
+                onDrop={(e) => onDrop(e, material.id)}
+                onDragEnd={onDragEnd}
+                className={`animate-fade-in transition-all duration-200 ${
+                  draggedId === material.id ? 'opacity-50' : ''
+                } ${
+                  dragOverId === material.id && draggedId !== material.id
+                    ? 'ring-2 ring-forest rounded-card'
+                    : ''
+                }`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <MaterialCard
@@ -227,14 +353,4 @@ export function MaterialsBoard() {
       </div>
     </div>
   )
-}
-
-function colorDistance(hex1: string, hex2: string): number {
-  const r1 = parseInt(hex1.slice(1, 3), 16)
-  const g1 = parseInt(hex1.slice(3, 5), 16)
-  const b1 = parseInt(hex1.slice(5, 7), 16)
-  const r2 = parseInt(hex2.slice(1, 3), 16)
-  const g2 = parseInt(hex2.slice(3, 5), 16)
-  const b2 = parseInt(hex2.slice(5, 7), 16)
-  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
 }

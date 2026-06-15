@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react'
-import { X, Upload, Image, Palette } from 'lucide-react'
+import { X, Upload, Palette } from 'lucide-react'
 import { HexColorPicker } from 'react-colorful'
 import { useStore } from '@/store'
-import { MATERIAL_TYPES, CONDITION_EMOJIS } from '@/types'
+import { MATERIAL_TYPES, CONDITION_EMOJIS, toHexColor, HexColor, MaterialType } from '@/types'
 
 const PublishMaterialModal = () => {
   const showPublishMaterial = useStore((s) => s.showPublishMaterial)
@@ -13,8 +13,8 @@ const PublishMaterialModal = () => {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [dimensions, setDimensions] = useState('')
-  const [materialType, setMaterialType] = useState('')
-  const [color, setColor] = useState('#888888')
+  const [materialType, setMaterialType] = useState<MaterialType | ''>('')
+  const [color, setColor] = useState<HexColor>(toHexColor('#888888'))
   const [condition, setCondition] = useState(3)
   const [publisherName, setPublisherName] = useState('')
   const [contact, setContact] = useState('')
@@ -53,12 +53,13 @@ const PublishMaterialModal = () => {
 
   const handleSubmit = () => {
     if (!name.trim() || !materialType) return
+    const selectedMaterialType = materialType as MaterialType
 
     addMaterial({
       name: name.trim(),
       quantity,
       dimensions,
-      materialType: materialType as any,
+      materialType: selectedMaterialType,
       color,
       condition,
       photos,
@@ -71,7 +72,7 @@ const PublishMaterialModal = () => {
     setQuantity(1)
     setDimensions('')
     setMaterialType('')
-    setColor('#888888')
+    setColor(toHexColor('#888888'))
     setCondition(3)
     setPublisherName('')
     setContact('')
@@ -191,7 +192,7 @@ const PublishMaterialModal = () => {
                 </label>
                 <select
                   value={materialType}
-                  onChange={(e) => setMaterialType(e.target.value)}
+                  onChange={(e) => setMaterialType(e.target.value as MaterialType | '')}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-forest"
                 >
                   <option value="">请选择类型</option>
@@ -219,7 +220,7 @@ const PublishMaterialModal = () => {
                   </button>
                   {showColorPicker && (
                     <div className="absolute left-0 top-full z-10 mt-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
-                      <HexColorPicker color={color} onChange={setColor} />
+                      <HexColorPicker color={color} onChange={(e: string) => setColor(toHexColor(e))} />
                       <button
                         className="mt-2 w-full rounded-lg bg-forest/10 py-1.5 text-xs font-medium text-forest transition-colors hover:bg-forest/20"
                         onClick={() => setShowColorPicker(false)}

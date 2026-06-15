@@ -1,31 +1,48 @@
 import { memo, useEffect, useState } from 'react'
-import { Recycle, Bell, Heart, Plus, Menu } from 'lucide-react'
+import { Recycle, Heart, Plus, Menu } from 'lucide-react'
 import { useStore } from '@/store'
 import NotificationBell from './NotificationBell'
 
-interface NavBarProps {
-  activeTab: 'materials' | 'projects'
-  onTabChange: (tab: 'materials' | 'projects') => void
-  onOpenFavorites: () => void
-  notificationCount: number
-  onOpenPublish: (type: 'material' | 'project') => void
-}
+const NavBar = memo(function NavBar() {
+  const activeTab = useStore((s) => s.activeTab)
+  const setActiveTab = useStore((s) => s.setActiveTab)
+  const setShowFavoritesDrawer = useStore((s) => s.setShowFavoritesDrawer)
+  const notifications = useStore((s) => s.notifications)
+  const setShowPublishMaterial = useStore((s) => s.setShowPublishMaterial)
+  const setShowPublishProject = useStore((s) => s.setShowPublishProject)
 
-const NavBar = memo(function NavBar({
-  activeTab,
-  onTabChange,
-  onOpenFavorites,
-  notificationCount,
-  onOpenPublish,
-}: NavBarProps) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [navOpacity, setNavOpacity] = useState(0.9)
+
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setScrolled(true)
+        setNavOpacity(1)
+      } else {
+        setScrolled(false)
+        setNavOpacity(0.9)
+      }
+    }
+    const timeoutId = setTimeout(() => {
+      window.addEventListener('scroll', handleScroll, { passive: true })
+    }, 100)
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
+
+  const handleOpenPublish = (type: 'material' | 'project') => {
+    if (type === 'material') {
+      setShowPublishMaterial(true)
+    } else {
+      setShowPublishProject(true)
+    }
+  }
 
   return (
     <nav
@@ -34,7 +51,11 @@ const NavBar = memo(function NavBar({
           ? 'bg-[#F5F0E8]/90 shadow-md'
           : 'bg-transparent'
       }`}
-      style={scrolled ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } : undefined}
+      style={{
+        ...(scrolled ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } : undefined),
+        opacity: navOpacity,
+        transition: 'opacity 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease',
+      }}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
@@ -49,7 +70,7 @@ const NavBar = memo(function NavBar({
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'materials' ? 'text-[#2C5F3B]' : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => onTabChange('materials')}
+            onClick={() => setActiveTab('materials')}
           >
             余料看板
           </button>
@@ -57,7 +78,7 @@ const NavBar = memo(function NavBar({
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'projects' ? 'text-[#2C5F3B]' : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => onTabChange('projects')}
+            onClick={() => setActiveTab('projects')}
           >
             项目灵感
           </button>
@@ -71,11 +92,11 @@ const NavBar = memo(function NavBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <NotificationBell count={notificationCount} onClick={() => {}} />
+          <NotificationBell count={unreadCount} onClick={() => {}} />
 
           <button
             className="btn-hover rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-red-500"
-            onClick={onOpenFavorites}
+            onClick={() => setShowFavoritesDrawer(true)}
           >
             <Heart className="h-5 w-5" />
           </button>
@@ -83,7 +104,7 @@ const NavBar = memo(function NavBar({
           <button
             className="btn-hover hidden md:flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium text-white transition-colors"
             style={{ backgroundColor: '#D4A574' }}
-            onClick={() => onOpenPublish('material')}
+            onClick={() => handleOpenPublish('material')}
           >
             <Plus className="h-4 w-4" />
             发布余料
@@ -92,7 +113,7 @@ const NavBar = memo(function NavBar({
           <button
             className="btn-hover hidden md:flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium text-white transition-colors"
             style={{ backgroundColor: '#2C5F3B' }}
-            onClick={() => onOpenPublish('project')}
+            onClick={() => handleOpenPublish('project')}
           >
             <Plus className="h-4 w-4" />
             发布项目
@@ -100,7 +121,7 @@ const NavBar = memo(function NavBar({
 
           <button
             className="btn-hover rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(!mobileMenuOpen) }}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -110,7 +131,7 @@ const NavBar = memo(function NavBar({
       {mobileMenuOpen && (
         <div className="md:hidden bg-cream/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3 space-y-2 animate-fade-in">
           <button
-            onClick={() => { onOpenPublish('material'); setMobileMenuOpen(false) }}
+            onClick={() => { handleOpenPublish('material'); setMobileMenuOpen(false) }}
             className="btn-hover w-full flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: '#D4A574' }}
           >
@@ -118,7 +139,7 @@ const NavBar = memo(function NavBar({
             发布余料
           </button>
           <button
-            onClick={() => { onOpenPublish('project'); setMobileMenuOpen(false) }}
+            onClick={() => { handleOpenPublish('project'); setMobileMenuOpen(false) }}
             className="btn-hover w-full flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: '#2C5F3B' }}
           >

@@ -1,10 +1,16 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import type { Material, Project, AppNotification, Favorite, FilterState, MaterialType } from './types'
+import type { Material, Project, AppNotification, Favorite, FilterState, MaterialType, MaterialStatus } from './types'
+import { calculateColorSimilarity } from './types'
 import { mockMaterials, mockProjects } from './mockData'
+
+type ConfirmDialog = { show: boolean; materialId: string; message: string } | null
+
+type ReorderParams = { dragId: string; dropId: string }
 
 interface AppState {
   materials: Material[]
+  materialOrder: string[]
   projects: Project[]
   notifications: AppNotification[]
   favorites: Favorite[]
@@ -13,18 +19,18 @@ interface AppState {
   showFavoritesDrawer: boolean
   showPublishMaterial: boolean
   showPublishProject: boolean
-  confirmDialog: { show: boolean; materialId: string; message: string } | null
+  confirmDialog: ConfirmDialog
   expandedProjectId: string | null
 
   setActiveTab: (tab: 'materials' | 'projects') => void
   setShowFavoritesDrawer: (show: boolean) => void
   setShowPublishMaterial: (show: boolean) => void
   setShowPublishProject: (show: boolean) => void
-  setConfirmDialog: (dialog: { show: boolean; materialId: string; message: string } | null) => void
+  setConfirmDialog: (dialog: ConfirmDialog) => void
   setExpandedProjectId: (id: string | null) => void
 
   addMaterial: (material: Omit<Material, 'id' | 'createdAt' | 'status'>) => void
-  updateMaterialStatus: (id: string, status: Material['status']) => void
+  updateMaterialStatus: (id: string, status: MaterialStatus) => void
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'matchScore'>) => void
   addNotification: (notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => void
   markNotificationRead: (id: string) => void
@@ -32,10 +38,19 @@ interface AppState {
   removeFavorite: (itemId: string) => void
   updateFilters: (filters: Partial<FilterState>) => void
   calculateMatchScore: (requiredTypes: MaterialType[]) => number
+  reorderMaterials: (params: ReorderParams) => void
+  selectFilteredMaterials: (filters: FilterState, materials: Material[]) => Material[]
+}
+
+const getDefaultMaterialOrder = (materials: Material[]): string[] => {
+  return [...materials]
+    .sort((a: Material, b: Material) => b.createdAt - a.createdAt)
+    .map((m: Material) => m.id)
 }
 
 export const useStore = create<AppState>((set, get) => ({
   materials: mockMaterials,
+  materialOrder: getDefaultMaterialOrder(mockMaterials),
   projects: mockProjects,
   notifications: [],
   favorites: [],
@@ -47,34 +62,37 @@ export const useStore = create<AppState>((set, get) => ({
   confirmDialog: null,
   expandedProjectId: null,
 
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  setShowFavoritesDrawer: (show) => set({ showFavoritesDrawer: show }),
-  setShowPublishMaterial: (show) => set({ showPublishMaterial: show }),
-  setShowPublishProject: (show) => set({ showPublishProject: show }),
-  setConfirmDialog: (dialog) => set({ confirmDialog: dialog }),
-  setExpandedProjectId: (id) => set({ expandedProjectId: id }),
+  setActiveTab: (tab: 'materials' | 'projects'): void => set({ activeTab: tab }),
+  setShowFavoritesDrawer: (show: boolean): void => set({ showFavoritesDrawer: show }),
+  setShowPublishMaterial: (show: boolean): void => set({ showPublishMaterial: show }),
+  setShowPublishProject: (show: boolean): void => set({ showPublishProject: show }),
+  setConfirmDialog: (dialog: ConfirmDialog): void => set({ confirmDialog: dialog }),
+  setExpandedProjectId: (id: string | null): void => set({ expandedProjectId: id }),
 
-  addMaterial: (material) =>
-    set((state) => ({
+  addMaterial: (material: Omit<Material, 'id' | 'createdAt' | 'status'>): void => {
+    const newId: string = uuidv4()
+    set((state: AppState) => ({
       materials: [
         {
           ...material,
-          id: uuidv4(),
+          id: newId,
           status: 'available',
           createdAt: Date.now(),
         },
         ...state.materials,
       ],
+      materialOrder: [newId, ...state.materialOrder],
+    }))
+  },
+
+  updateMaterialStatus: (id: string, status: MaterialStatus): void =>
+    set((state: AppState) => ({
+      materials: state.materials.map((m: Material) => (m.id === id ? { ...m, status } : m)),
     })),
 
-  updateMaterialStatus: (id, status) =>
-    set((state) => ({
-      materials: state.materials.map((m) => (m.id === id ? { ...m, status } : m)),
-    })),
-
-  addProject: (project) => {
-    const matchScore = get().calculateMatchScore(project.requiredMaterialTypes)
-    set((state) => ({
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'matchScore'>): void => {
+    const matchScore: number = get().calculateMatchScore(project.requiredMaterialTypes)
+    set((state: AppState) => ({
       projects: [
         {
           ...project,
@@ -87,8 +105,8 @@ export const useStore = create<AppState>((set, get) => ({
     }))
   },
 
-  addNotification: (notification) =>
-    set((state) => ({
+  addNotification: (notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>): void =>
+    set((state: AppState) => ({
       notifications: [
         {
           ...notification,
@@ -100,14 +118,14 @@ export const useStore = create<AppState>((set, get) => ({
       ],
     })),
 
-  markNotificationRead: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+  markNotificationRead: (id: string): void =>
+    set((state: AppState) => ({
+      notifications: state.notifications.map((n: AppNotification) => (n.id === id ? { ...n, read: true } : n)),
     })),
 
-  addFavorite: (itemId, itemType) =>
-    set((state) => {
-      if (state.favorites.some((f) => f.itemId === itemId)) return state
+  addFavorite: (itemId: string, itemType: Favorite['itemType']): void =>
+    set((state: AppState) => {
+      if (state.favorites.some((f: Favorite) => f.itemId === itemId)) return state
       return {
         favorites: [
           ...state.favorites,
@@ -116,22 +134,56 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }),
 
-  removeFavorite: (itemId) =>
-    set((state) => ({
-      favorites: state.favorites.filter((f) => f.itemId !== itemId),
+  removeFavorite: (itemId: string): void =>
+    set((state: AppState) => ({
+      favorites: state.favorites.filter((f: Favorite) => f.itemId !== itemId),
     })),
 
-  updateFilters: (newFilters) =>
-    set((state) => ({
+  updateFilters: (newFilters: Partial<FilterState>): void =>
+    set((state: AppState) => ({
       filters: { ...state.filters, ...newFilters },
     })),
 
-  calculateMatchScore: (requiredTypes) => {
-    const materials = get().materials.filter((m) => m.status === 'available')
+  calculateMatchScore: (requiredTypes: MaterialType[]): number => {
+    const availableMaterials: Material[] = get().materials.filter((m: Material) => m.status === 'available')
     if (requiredTypes.length === 0) return 0
-    const matchedTypes = requiredTypes.filter((type) =>
-      materials.some((m) => m.materialType === type)
+    const matchedTypes: MaterialType[] = requiredTypes.filter((type: MaterialType) =>
+      availableMaterials.some((m: Material) => m.materialType === type)
     )
     return Math.round((matchedTypes.length / requiredTypes.length) * 100)
+  },
+
+  reorderMaterials: ({ dragId, dropId }: ReorderParams): void =>
+    set((state: AppState) => {
+      const order: string[] = state.materialOrder
+      const dragIndex: number = order.indexOf(dragId)
+      const dropIndex: number = order.indexOf(dropId)
+      if (dragIndex === -1 || dropIndex === -1) return state
+      const newOrder: string[] = [
+        ...order.slice(0, dragIndex),
+        ...order.slice(dragIndex + 1),
+      ]
+      const finalOrder: string[] = [
+        ...newOrder.slice(0, dropIndex),
+        dragId,
+        ...newOrder.slice(dropIndex),
+      ]
+      return { materialOrder: finalOrder }
+    }),
+
+  selectFilteredMaterials: (filters: FilterState, materials: Material[]): Material[] => {
+    return materials.filter((m: Material) => {
+      if (filters.materialType !== null && m.materialType !== filters.materialType) {
+        return false
+      }
+      if (filters.color !== null && calculateColorSimilarity(m.color, filters.color) < 40) {
+        return false
+      }
+      const [minCondition, maxCondition]: [number, number] = filters.conditionRange
+      if (m.condition < minCondition || m.condition > maxCondition) {
+        return false
+      }
+      return true
+    })
   },
 }))

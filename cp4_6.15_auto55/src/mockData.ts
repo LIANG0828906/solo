@@ -1,4 +1,5 @@
 import type { Material, Project } from './types'
+import { toHexColor } from './types'
 
 export const mockMaterials: Material[] = [
   {
@@ -7,7 +8,7 @@ export const mockMaterials: Material[] = [
     quantity: 3,
     dimensions: '120×60×2cm',
     materialType: '木材',
-    color: '#D4A574',
+    color: toHexColor('#D4A574'),
     condition: 4,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=wooden%20plank%20pine%20board%20natural%20texture%20close%20up&image_size=landscape_4_3',
@@ -23,7 +24,7 @@ export const mockMaterials: Material[] = [
     quantity: 2,
     dimensions: '5L/桶',
     materialType: '涂料',
-    color: '#F5F5F5',
+    color: toHexColor('#F5F5F5'),
     condition: 5,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=white%20paint%20bucket%20latex%20paint%20interior&image_size=landscape_4_3',
@@ -39,7 +40,7 @@ export const mockMaterials: Material[] = [
     quantity: 6,
     dimensions: '标准尺寸',
     materialType: '金属',
-    color: '#B87333',
+    color: toHexColor('#B87333'),
     condition: 5,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=brass%20door%20handle%20copper%20hardware%20elegant&image_size=landscape_4_3',
@@ -55,7 +56,7 @@ export const mockMaterials: Material[] = [
     quantity: 1,
     dimensions: '3×2.8m',
     materialType: '织物',
-    color: '#C4B99A',
+    color: toHexColor('#C4B99A'),
     condition: 3,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=linen%20curtain%20fabric%20beige%20natural%20fold&image_size=landscape_4_3',
@@ -71,7 +72,7 @@ export const mockMaterials: Material[] = [
     quantity: 4,
     dimensions: '直径5cm×1m',
     materialType: '塑料',
-    color: '#E8E8E8',
+    color: toHexColor('#E8E8E8'),
     condition: 4,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=PVC%20water%20pipe%20white%20plumbing%20tube&image_size=landscape_4_3',
@@ -87,7 +88,7 @@ export const mockMaterials: Material[] = [
     quantity: 8,
     dimensions: '10cm',
     materialType: '五金',
-    color: '#2C2C2C',
+    color: toHexColor('#2C2C2C'),
     condition: 5,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20iron%20wall%20hook%20black%20metal%20decorative&image_size=landscape_4_3',
@@ -103,7 +104,7 @@ export const mockMaterials: Material[] = [
     quantity: 2,
     dimensions: '0.53×10m',
     materialType: '织物',
-    color: '#8B7355',
+    color: toHexColor('#8B7355'),
     condition: 5,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=floral%20wallpaper%20roll%20vintage%20pattern%20brown&image_size=landscape_4_3',
@@ -119,7 +120,7 @@ export const mockMaterials: Material[] = [
     quantity: 1,
     dimensions: '80×60×0.5cm',
     materialType: '玻璃',
-    color: '#D0E8F0',
+    color: toHexColor('#D0E8F0'),
     condition: 3,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=frosted%20glass%20panel%20translucent%20modern&image_size=landscape_4_3',
@@ -135,7 +136,7 @@ export const mockMaterials: Material[] = [
     quantity: 5,
     dimensions: '90×12×1.5cm',
     materialType: '木材',
-    color: '#8B6914',
+    color: toHexColor('#8B6914'),
     condition: 4,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=solid%20hardwood%20flooring%20oak%20plank%20warm&image_size=landscape_4_3',
@@ -151,7 +152,7 @@ export const mockMaterials: Material[] = [
     quantity: 1,
     dimensions: '2.5L/桶',
     materialType: '涂料',
-    color: '#2C5F3B',
+    color: toHexColor('#2C5F3B'),
     condition: 5,
     photos: [
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=dark%20green%20wall%20paint%20bucket%20forest%20color&image_size=landscape_4_3',
