@@ -161,24 +161,24 @@ export class LayoutEngine {
       const baselineY = startY + lineIndex * lineHeightPx;
       
       ctx.save();
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.30)';
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+      ctx.lineWidth = 1 / dpr;
       ctx.beginPath();
-      ctx.moveTo(startX, baselineY + 0.5);
-      ctx.lineTo(startX + maxWidth, baselineY + 0.5);
+      ctx.moveTo(startX, Math.round(baselineY * dpr) / dpr + 0.5 / dpr);
+      ctx.lineTo(startX + maxWidth, Math.round(baselineY * dpr) / dpr + 0.5 / dpr);
       ctx.stroke();
       ctx.restore();
 
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
+      const chars = Array.from(line);
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
         const charWidth = ctx.measureText(char).width;
         const charTop = baselineY - params.fontSize;
         const charHeight = params.fontSize * 1.4;
 
         if (globalCharIndex === this.hoveredCharIndex) {
           ctx.save();
-          ctx.fillStyle = 'rgba(255, 255, 102, 0.55)';
+          ctx.fillStyle = 'rgba(255, 255, 200, 0.5)';
           const highlightPadding = 3;
           ctx.fillRect(
             charX - highlightPadding,
@@ -186,7 +186,7 @@ export class LayoutEngine {
             charWidth + highlightPadding * 2,
             charHeight + highlightPadding * 2
           );
-          ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+          ctx.strokeStyle = 'rgba(255, 220, 100, 0.6)';
           ctx.lineWidth = 1;
           ctx.strokeRect(
             charX - highlightPadding,
@@ -199,6 +199,10 @@ export class LayoutEngine {
         
         ctx.fillText(char, charX, baselineY);
         
+        const codePoint = char.codePointAt(0) ?? 0;
+        const hex = codePoint.toString(16).toUpperCase();
+        const paddedHex = hex.length <= 4 ? hex.padStart(4, '0') : hex;
+        
         this.charInfos.push({
           char,
           x: charX,
@@ -206,7 +210,7 @@ export class LayoutEngine {
           width: charWidth,
           height: charHeight,
           baselineY,
-          unicode: `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`
+          unicode: `U+${paddedHex}`
         });
 
         charX += charWidth + letterSpacingPx;
@@ -229,11 +233,12 @@ export class LayoutEngine {
       if (word === '') continue;
       
       const testLine = currentLine + word;
+      const chars = Array.from(testLine);
       let testWidth = 0;
-      for (let i = 0; i < testLine.length; i++) {
-        testWidth += ctx.measureText(testLine[i]).width;
+      for (let i = 0; i < chars.length; i++) {
+        testWidth += ctx.measureText(chars[i]).width;
       }
-      testWidth += Math.max(0, testLine.length - 1) * letterSpacingPx;
+      testWidth += Math.max(0, chars.length - 1) * letterSpacingPx;
       
       if (testWidth > maxWidth && currentLine !== '') {
         lines.push(currentLine);

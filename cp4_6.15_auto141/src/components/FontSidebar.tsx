@@ -187,12 +187,12 @@ const FontSidebar: React.FC<FontSidebarProps> = ({
             <span style={{
               marginLeft: 8,
               padding: '2px 8px',
-              backgroundColor: '#4a6fa5',
+              backgroundColor: '#ff6b6b',
               color: 'white',
               borderRadius: 10,
               fontSize: 11,
               fontWeight: 700
-            }}>{favoriteFonts.length}</span>
+            }}>{favorites.length}</span>
           </span>
           <button 
             onClick={() => setShowFavorites(!showFavorites)} 

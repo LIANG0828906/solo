@@ -48,6 +48,19 @@ const Slider: React.FC<SliderProps> = ({ label, value, min, max, step, unit, onC
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setShowTooltip(true);
+    updateTooltipPosition(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    updateTooltipPosition(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    setTimeout(() => setShowTooltip(false), 300);
+  };
+
   const percentage = ((value - min) / (max - min)) * 100;
 
   return (
@@ -108,20 +121,19 @@ const Slider: React.FC<SliderProps> = ({ label, value, min, max, step, unit, onC
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
           onMouseDown={handleMouseDown}
-          onTouchStart={(e) => {
-            setShowTooltip(true);
-            updateTooltipPosition(e.touches[0].clientX);
-          }}
-          onTouchEnd={() => setTimeout(() => setShowTooltip(false), 300)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           style={{
             position: 'absolute',
-            top: -6,
+            top: -12,
             left: 0,
             width: '100%',
-            height: 18,
+            height: 30,
             opacity: 0,
             cursor: 'pointer',
-            margin: 0
+            margin: 0,
+            touchAction: 'none'
           }}
         />
         <div
