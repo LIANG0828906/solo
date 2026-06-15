@@ -64,7 +64,7 @@ export default function WorksGallery() {
           display: flex;
           flex-direction: column;
           padding: 24px 20px 20px;
-          min-height: 220px;
+          aspect-ratio: 4 / 5;
         }
         .work-card:hover {
           transform: translateY(-4px);
@@ -160,7 +160,7 @@ export default function WorksGallery() {
         @keyframes modalSlideUp {
           from {
             opacity: 0;
-            transform: translateY(60px);
+            transform: translateY(80px);
           }
           to {
             opacity: 1;
@@ -173,7 +173,8 @@ export default function WorksGallery() {
           box-shadow: var(--shadow-lg);
           max-height: 90vh;
           overflow: auto;
-          animation: modalSlideUp 0.4s var(--ease-out);
+          animation: modalSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: center bottom;
         }
         .works-modal-cover {
           width: 100%;

@@ -136,7 +136,8 @@ function ProgressSlider({ value, onChange }: ProgressSliderProps) {
           style={{
             position: 'absolute',
             top: 0,
-            left: `calc(${value}% - 18px)`,
+            left: `${value}%`,
+            transform: 'translateX(-50%)',
             background: '#B8A9C9',
             color: 'white',
             fontWeight: 600,

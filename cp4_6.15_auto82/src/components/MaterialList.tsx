@@ -77,13 +77,8 @@ const typeLabelMap: Record<MaterialType, string> = {
   other: '其他',
 };
 
-function getProgressBarGradient(percent: number): string {
-  const hueStart = 0;
-  const hueEnd = 120;
-  const ratio = percent / 100;
-  const startHue = hueStart + ratio * (hueEnd - hueStart);
-  const endHue = Math.min(120, startHue + 30);
-  return `linear-gradient(90deg, hsl(${endHue}, 65%, 50%), hsl(${startHue}, 70%, 48%))`;
+function getProgressBarGradient(): string {
+  return 'linear-gradient(to left, #ff0000 0%, #ffaa00 33%, #aaff00 66%, #00ff00 100%)';
 }
 
 function isExpiringSoon(expiryDate: string): boolean {
@@ -121,25 +116,29 @@ export default function MaterialList() {
       <style>{`
         @keyframes matPulse {
           0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.2); }
+          50% { opacity: 0.4; transform: scale(1.25); }
         }
         .mat-alert-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: rgba(224, 107, 90, 0.12);
-          color: var(--color-danger);
-          cursor: pointer;
-          padding: 0;
-          border: none;
-          animation: matPulse 1.8s ease-in-out infinite;
-          transform-origin: center center;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 28px !important;
+          height: 28px !important;
+          border-radius: 50% !important;
+          background: rgba(224, 107, 90, 0.15) !important;
+          color: #E06B5A !important;
+          cursor: pointer !important;
+          padding: 0 !important;
+          border: none !important;
+          animation: matPulse 1.5s ease-in-out infinite !important;
+          transform-origin: center center !important;
+          line-height: 1 !important;
+          z-index: 10;
+          position: relative;
         }
         .mat-alert-btn:hover {
-          background: rgba(224, 107, 90, 0.22);
+          background: rgba(224, 107, 90, 0.28) !important;
+          transform: scale(1.1) !important;
         }
         .material-grid {
           display: grid;
@@ -221,7 +220,10 @@ export default function MaterialList() {
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
+                      e.nativeEvent.stopImmediatePropagation();
+                      console.log('点击感叹号，材料ID:', m.id, '材料名:', m.name);
                       markNotified(m.id);
+                      console.log('调用markNotified后，store当前值:', useAppStore.getState().materials.find(x => x.id === m.id)?.notified);
                     }}
                     title="即将过期，点击标记已提醒"
                   >
