@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -14,7 +14,9 @@ export default function RecipeDetail() {
   const [commentText, setCommentText] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const [showAnimation, setShowAnimation] = useState(false);
+  const [showIngredients, setShowIngredients] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isLiked = likedRecipes.includes(id || '');
   const matchPercentage = recipe && userProfile ? calculateMatchPercentage(recipe.flavorProfile) : 0;
@@ -22,8 +24,12 @@ export default function RecipeDetail() {
   useEffect(() => {
     if (id) {
       setRecipe(getRecipeById(id));
-      const timer = setTimeout(() => setShowAnimation(true), 100);
-      return () => clearTimeout(timer);
+      const timer1 = setTimeout(() => setShowIngredients(true), 300);
+      const timer2 = setTimeout(() => setShowSteps(true), 800);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     }
   }, [id, getRecipeById]);
 
@@ -49,6 +55,7 @@ export default function RecipeDetail() {
 
     setCommentText('');
     setSelectedEmoji('');
+    inputRef.current?.focus();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -161,11 +168,16 @@ export default function RecipeDetail() {
           <section className="detail-section">
             <h2 className="detail-section-title">🥘 食材清单</h2>
             <ul className="ingredients-list">
-              {showAnimation && recipe.ingredients.map((ingredient, index) => (
+              {recipe.ingredients.map((ingredient, index) => (
                 <li
                   key={index}
-                  className="ingredient-item"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className={`ingredient-item ${showIngredients ? 'animate-in' : ''}`}
+                  style={{
+                    animationDelay: `${index * 0.12}s`,
+                    opacity: showIngredients ? 1 : 0,
+                    transform: showIngredients ? 'translateY(0)' : 'translateY(30px)',
+                    transition: `opacity 0.5s ease ${index * 0.12}s, transform 0.5s ease ${index * 0.12}s`,
+                  }}
                 >
                   {ingredient}
                 </li>
@@ -176,12 +188,15 @@ export default function RecipeDetail() {
           <section className="detail-section">
             <h2 className="detail-section-title">👩‍🍳 烹饪步骤</h2>
             <ol className="steps-list">
-              {showAnimation && recipe.steps.map((step, index) => (
+              {recipe.steps.map((step, index) => (
                 <li
                   key={index}
-                  className="step-item"
+                  className={`step-item ${showSteps ? 'animate-in' : ''}`}
                   style={{
-                    animationDelay: `${recipe.ingredients.length * 0.1 + index * 0.15}s`,
+                    animationDelay: `${index * 0.18}s`,
+                    opacity: showSteps ? 1 : 0,
+                    transform: showSteps ? 'translateY(0)' : 'translateY(30px)',
+                    transition: `opacity 0.5s ease ${index * 0.18}s, transform 0.5s ease ${index * 0.18}s`,
                   }}
                 >
                   <div className="step-number">{index + 1}</div>
@@ -225,17 +240,49 @@ export default function RecipeDetail() {
 
       <div className="comment-input-wrapper">
         <div className="comment-input-container">
-          <input
-            type="text"
-            className="comment-input"
-            placeholder="留下你的美食感想..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onFocus={() => setIsInputFocused(true)}
-            onBlur={() => setTimeout(() => setIsInputFocused(false), 200)}
-            onKeyPress={handleKeyPress}
-          />
-          {isInputFocused && <span className="cursor-blink" />}
+          <div style={{ position: 'relative', flex: 1 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              className="comment-input"
+              placeholder="留下你的美食感想..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setTimeout(() => setIsInputFocused(false), 200)}
+              onKeyPress={handleKeyPress}
+            />
+            {isInputFocused && !commentText && (
+              <span 
+                className="cursor-blink" 
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 16,
+                  pointerEvents: 'none',
+                }}
+              >
+                |
+              </span>
+            )}
+            {isInputFocused && commentText && (
+              <span 
+                className="cursor-blink" 
+                style={{
+                  position: 'absolute',
+                  right: 16,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 16,
+                  pointerEvents: 'none',
+                }}
+              >
+                |
+              </span>
+            )}
+          </div>
           <div className="emoji-picker">
             {EMOJI_OPTIONS.map((emoji) => (
               <button

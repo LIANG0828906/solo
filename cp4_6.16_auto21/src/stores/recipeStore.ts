@@ -1,21 +1,36 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { get, set } from 'idb-keyval';
+import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
-import { format, subDays, isAfter } from 'date-fns';
+import { subDays, isAfter } from 'date-fns';
 import type { Recipe, UserProfile, RecipeFilters, RecipeWithMatch, Comment, FlavorProfile } from '../types';
 import defaultRecipesData from '../data/defaultRecipes.json';
 
+const IDB_KEY = 'retro-recipe-storage';
+
 const IDBStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    const value = await get(name);
-    return value ? JSON.stringify(value) : null;
+    try {
+      const value = await idbGet(name as IDBValidKey);
+      return value ? JSON.stringify(value) : null;
+    } catch (error) {
+      console.error('IndexedDB getItem error:', error);
+      return null;
+    }
   },
   setItem: async (name: string, value: string): Promise<void> => {
-    await set(name, JSON.parse(value));
+    try {
+      await idbSet(name as IDBValidKey, JSON.parse(value));
+    } catch (error) {
+      console.error('IndexedDB setItem error:', error);
+    }
   },
   removeItem: async (name: string): Promise<void> => {
-    await set(name, null);
+    try {
+      await idbDel(name as IDBValidKey);
+    } catch (error) {
+      console.error('IndexedDB removeItem error:', error);
+    }
   },
 };
 
@@ -25,8 +40,9 @@ interface RecipeState {
   filters: RecipeFilters;
   visibleCount: number;
   likedRecipes: string[];
+  isInitialized: boolean;
 
-  initRecipes: () => void;
+  initRecipes: () => Promise<void>;
   addRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'likes' | 'comments'>) => void;
   updateRecipe: (id: string, recipe: Partial<Recipe>) => void;
   deleteRecipe: (id: string) => void;
@@ -42,8 +58,8 @@ interface RecipeState {
   calculateMatchPercentage: (recipeFlavor: FlavorProfile) => number;
 
   addComment: (recipeId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
-  likeRecipe: (recipeId: string) => void;
-  unlikeRecipe: (recipeId: string) => void;
+  likeRecipe: (recipeId: string) => Promise<void>;
+  unlikeRecipe: (recipeId: string) => Promise<void>;
 
   getTrendingRecipes: (days?: number) => Recipe[];
 }
@@ -54,12 +70,6 @@ const defaultFilters: RecipeFilters = {
   cookTimeRange: '全部',
 };
 
-const defaultFlavorProfile: FlavorProfile = {
-  sweet: 3,
-  spicy: 3,
-  sour: 3,
-};
-
 export const useRecipeStore = create<RecipeState>()(
   persist(
     (set, get) => ({
@@ -68,11 +78,28 @@ export const useRecipeStore = create<RecipeState>()(
       filters: defaultFilters,
       visibleCount: 20,
       likedRecipes: [],
+      isInitialized: false,
 
-      initRecipes: () => {
-        const { recipes } = get();
-        if (recipes.length === 0) {
-          set({ recipes: defaultRecipesData as Recipe[] });
+      initRecipes: async () => {
+        try {
+          const storedData = await idbGet(IDB_KEY as IDBValidKey);
+          
+          if (!storedData || !Array.isArray((storedData as any).recipes) || (storedData as any).recipes.length === 0) {
+            console.log('Initializing default recipes...');
+            set({ 
+              recipes: defaultRecipesData as Recipe[],
+              isInitialized: true 
+            });
+          } else {
+            console.log('Recipes loaded from IndexedDB');
+            set({ isInitialized: true });
+          }
+        } catch (error) {
+          console.error('Failed to initialize recipes:', error);
+          set({ 
+            recipes: defaultRecipesData as Recipe[],
+            isInitialized: true 
+          });
         }
       },
 
@@ -144,9 +171,11 @@ export const useRecipeStore = create<RecipeState>()(
       },
 
       loadMore: () => {
-        set((state) => ({
-          visibleCount: state.visibleCount + 10,
-        }));
+        requestAnimationFrame(() => {
+          set((state) => ({
+            visibleCount: state.visibleCount + 10,
+          }));
+        });
       },
 
       registerUser: (userName, flavorProfile) => {
@@ -172,22 +201,33 @@ export const useRecipeStore = create<RecipeState>()(
         if (!userProfile) return 0;
 
         const userFlavor = userProfile.flavorProfile;
+        
+        const sweetDiff = userFlavor.sweet - recipeFlavor.sweet;
+        const spicyDiff = userFlavor.spicy - recipeFlavor.spicy;
+        const sourDiff = userFlavor.sour - recipeFlavor.sour;
+        
         const distance = Math.sqrt(
-          Math.pow(userFlavor.sweet - recipeFlavor.sweet, 2) +
-          Math.pow(userFlavor.spicy - recipeFlavor.spicy, 2) +
-          Math.pow(userFlavor.sour - recipeFlavor.sour, 2)
+          Math.pow(sweetDiff, 2) +
+          Math.pow(spicyDiff, 2) +
+          Math.pow(sourDiff, 2)
         );
 
         const maxDistance = Math.sqrt(
           Math.pow(4, 2) + Math.pow(4, 2) + Math.pow(4, 2)
         );
-        const matchPercentage = Math.round((1 - distance / maxDistance) * 100);
+        
+        const matchPercentage = Math.max(0, Math.min(100, Math.round((1 - distance / maxDistance) * 100)));
 
         return matchPercentage;
       },
 
       getRecommendedRecipes: () => {
-        const { recipes } = get();
+        const { recipes, userProfile } = get();
+        
+        if (!userProfile) {
+          return [];
+        }
+
         const recipesWithMatch: RecipeWithMatch[] = recipes
           .map((recipe) => ({
             ...recipe,
@@ -214,10 +254,12 @@ export const useRecipeStore = create<RecipeState>()(
         }));
       },
 
-      likeRecipe: (recipeId) => {
+      likeRecipe: async (recipeId) => {
         const { likedRecipes } = get();
         if (likedRecipes.includes(recipeId)) return;
 
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         set((state) => ({
           recipes: state.recipes.map((r) =>
             r.id === recipeId ? { ...r, likes: r.likes + 1 } : r
@@ -226,9 +268,11 @@ export const useRecipeStore = create<RecipeState>()(
         }));
       },
 
-      unlikeRecipe: (recipeId) => {
+      unlikeRecipe: async (recipeId) => {
         const { likedRecipes } = get();
         if (!likedRecipes.includes(recipeId)) return;
+
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         set((state) => ({
           recipes: state.recipes.map((r) =>
@@ -249,7 +293,7 @@ export const useRecipeStore = create<RecipeState>()(
       },
     }),
     {
-      name: 'retro-recipe-storage',
+      name: IDB_KEY,
       storage: createJSONStorage(() => IDBStorage),
       partialize: (state) => ({
         recipes: state.recipes,

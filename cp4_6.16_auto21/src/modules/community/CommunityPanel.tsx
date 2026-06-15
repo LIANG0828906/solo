@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecipeStore } from '../../stores/recipeStore';
 import { format } from 'date-fns';
@@ -6,27 +6,79 @@ import { zhCN } from 'date-fns/locale';
 
 const EMOJI_OPTIONS = ['😊', '❤️', '🤤', '👍', '🔥', '✨', '😍', '😋'];
 
+function FlameIcon({ size = 'normal' }: { size?: 'small' | 'normal' | 'large' }) {
+  const sizeClass = size === 'small' ? '14px' : size === 'large' ? '24px' : '18px';
+  
+  return (
+    <span 
+      className="flame-icon"
+      style={{ 
+        display: 'inline-block',
+        fontSize: sizeClass,
+        animation: 'flameFlicker 0.6s ease-in-out infinite',
+        transformOrigin: 'bottom center',
+      }}
+    >
+      🔥
+    </span>
+  );
+}
+
 function TrendingCard() {
   const navigate = useNavigate();
-  const { getTrendingRecipes } = useRecipeStore();
-  const trendingRecipes = useMemo(() => getTrendingRecipes(7), [getTrendingRecipes]);
+  const { getTrendingRecipes, recipes } = useRecipeStore();
+  const [trendingRecipes, setTrendingRecipes] = useState(getTrendingRecipes(7));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTrendingRecipes(getTrendingRecipes(7));
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [getTrendingRecipes, recipes]);
 
   const getRankStyle = (index: number) => {
-    if (index === 0) return { color: '#FFD700', fontSize: '28px' };
-    if (index === 1) return { color: '#C0C0C0', fontSize: '24px' };
-    if (index === 2) return { color: '#CD7F32', fontSize: '22px' };
-    return {};
+    if (index === 0) return { 
+      color: '#FFD700', 
+      fontSize: '32px',
+      textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+      fontWeight: 'bold' as const,
+    };
+    if (index === 1) return { 
+      color: '#C0C0C0', 
+      fontSize: '26px',
+      textShadow: '0 0 8px rgba(192, 192, 192, 0.5)',
+      fontWeight: 'bold' as const,
+    };
+    if (index === 2) return { 
+      color: '#CD7F32', 
+      fontSize: '24px',
+      textShadow: '0 0 6px rgba(205, 127, 50, 0.5)',
+      fontWeight: 'bold' as const,
+    };
+    return {
+      color: '#6B7F99',
+      fontSize: '20px',
+      fontWeight: 'bold' as const,
+    };
+  };
+
+  const getLikesChangeEffect = (likes: number) => {
+    if (likes >= 300) return '🔥🔥🔥';
+    if (likes >= 200) return '🔥🔥';
+    if (likes >= 100) return '🔥';
+    return '';
   };
 
   return (
     <div className="trending-sidebar">
       <div className="trending-card">
-        <h3 className="trending-title">
-          <span className="flame-icon">🔥</span>
+        <h3 className="trending-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FlameIcon size="large" />
           美食雷达
         </h3>
         <p style={{ fontSize: '12px', color: '#6B7F99', marginBottom: 16 }}>
-          最近7天点赞最多的食谱
+          最近7天点赞最多的食谱 · 实时更新
         </p>
         <div className="trending-list">
           {trendingRecipes.length > 0 ? (
@@ -35,16 +87,38 @@ function TrendingCard() {
                 key={recipe.id}
                 className="trending-item"
                 onClick={() => navigate(`/recipe/${recipe.id}`)}
+                style={{
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
               >
+                {index === 0 && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '2px',
+                      background: 'linear-gradient(90deg, transparent, #FFD700, transparent)',
+                      animation: 'shimmer 2s infinite',
+                    }}
+                  />
+                )}
                 <span className="trending-rank" style={getRankStyle(index)}>
                   {index + 1}
                 </span>
                 <div className="trending-item-info">
-                  <div className="trending-item-name">{recipe.name}</div>
+                  <div className="trending-item-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {recipe.name}
+                    <span style={{ fontSize: '12px' }}>{getLikesChangeEffect(recipe.likes)}</span>
+                  </div>
                   <div className="trending-item-stats">
                     <span>{recipe.cuisine}</span>
-                    <span className="trending-item-likes">
-                      <span className="flame-icon">🔥</span> {recipe.likes}
+                    <span className="trending-item-likes" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <FlameIcon size="small" /> 
+                      <span style={{ transition: 'all 0.3s ease' }}>{recipe.likes}</span>
                     </span>
                   </div>
                 </div>
@@ -57,6 +131,28 @@ function TrendingCard() {
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        @keyframes flameFlicker {
+          0%, 100% { 
+            transform: scale(1) rotate(-3deg) translateY(0); 
+          }
+          25% { 
+            transform: scale(1.15) rotate(3deg) translateY(-2px); 
+          }
+          50% { 
+            transform: scale(0.9) rotate(-2deg) translateY(0); 
+          }
+          75% { 
+            transform: scale(1.1) rotate(2deg) translateY(-1px); 
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -67,6 +163,7 @@ function CommunityFeed() {
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('');
+  const [likingRecipes, setLikingRecipes] = useState<Set<string>>(new Set());
 
   const recentRecipes = useMemo(() => {
     return [...recipes]
@@ -89,12 +186,27 @@ function CommunityFeed() {
     setExpandedRecipe(null);
   };
 
-  const handleLikeClick = (e: React.MouseEvent, recipeId: string) => {
+  const handleLikeClick = async (e: React.MouseEvent, recipeId: string) => {
     e.stopPropagation();
-    if (likedRecipes.includes(recipeId)) {
-      unlikeRecipe(recipeId);
-    } else {
-      likeRecipe(recipeId);
+    
+    if (likingRecipes.has(recipeId)) return;
+    
+    setLikingRecipes(prev => new Set(prev).add(recipeId));
+    
+    const isCurrentlyLiked = likedRecipes.includes(recipeId);
+    
+    try {
+      if (isCurrentlyLiked) {
+        await unlikeRecipe(recipeId);
+      } else {
+        await likeRecipe(recipeId);
+      }
+    } finally {
+      setLikingRecipes(prev => {
+        const next = new Set(prev);
+        next.delete(recipeId);
+        return next;
+      });
     }
   };
 
@@ -105,20 +217,24 @@ function CommunityFeed() {
         <p className="hero-subtitle">和口味相投的食友们一起分享美食的快乐 🥂</p>
       </div>
 
-      {recentRecipes.map((recipe) => {
+      {recentRecipes.map((recipe, recipeIndex) => {
         const isLiked = likedRecipes.includes(recipe.id);
         const isExpanded = expandedRecipe === recipe.id;
+        const isLiking = likingRecipes.has(recipe.id);
         const latestComments = [...recipe.comments].reverse().slice(0, 3);
 
         return (
           <div
             key={recipe.id}
-            className="recipe-card"
-            style={{ marginBottom: 0 }}
+            className="recipe-card fade-in"
+            style={{ 
+              marginBottom: 0,
+              animationDelay: `${recipeIndex * 0.05}s`,
+            }}
             onClick={() => navigate(`/recipe/${recipe.id}`)}
           >
             <div className="recipe-card-image" style={{ height: 180 }}>
-              <img src={recipe.coverImage} alt={recipe.name} />
+              <img src={recipe.coverImage} alt={recipe.name} loading="lazy" />
               <span className="recipe-card-cuisine retro-font">{recipe.cuisine}</span>
               <div style={{
                 position: 'absolute',
@@ -132,9 +248,15 @@ function CommunityFeed() {
                 padding: '4px 10px',
                 borderRadius: 20,
                 fontSize: 13,
+                transition: 'all 0.3s ease',
               }}>
-                <span className="flame-icon">🔥</span>
-                <span>{recipe.likes}</span>
+                <FlameIcon size="small" />
+                <span style={{ 
+                  transition: 'all 0.3s ease',
+                  fontWeight: isLiking ? 'bold' : 'normal',
+                }}>
+                  {recipe.likes}
+                </span>
               </div>
             </div>
             <div className="recipe-card-content">
@@ -145,9 +267,19 @@ function CommunityFeed() {
                 <button
                   className={`like-btn ${isLiked ? 'liked' : ''}`}
                   onClick={(e) => handleLikeClick(e, recipe.id)}
+                  disabled={isLiking}
+                  style={{ opacity: isLiking ? 0.7 : 1 }}
                 >
-                  <span className="like-icon">{isLiked ? '❤️' : '🤍'}</span>
-                  <span>点赞</span>
+                  <span 
+                    className="like-icon"
+                    style={{ 
+                      display: 'inline-block',
+                      animation: isLiking ? 'heartBeat 0.6s ease' : 'none',
+                    }}
+                  >
+                    {isLiked ? '❤️' : '🤍'}
+                  </span>
+                  <span>{isLiked ? (isLiked ? recipe.likes : recipe.likes - 1) : recipe.likes}</span>
                 </button>
                 <button
                   className="like-btn"
@@ -208,6 +340,12 @@ function CommunityFeed() {
                     onChange={(e) => setCommentText(e.target.value)}
                     style={{ padding: '8px 12px', fontSize: 13 }}
                     autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmitComment(recipe.id);
+                      }
+                    }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div className="emoji-picker">
@@ -215,7 +353,10 @@ function CommunityFeed() {
                         <button
                           key={emoji}
                           className={`emoji-btn ${selectedEmoji === emoji ? 'selected' : ''}`}
-                          onClick={() => setSelectedEmoji(selectedEmoji === emoji ? '' : emoji)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEmoji(selectedEmoji === emoji ? '' : emoji);
+                          }}
                           style={{ fontSize: 18 }}
                         >
                           {emoji}
@@ -224,7 +365,10 @@ function CommunityFeed() {
                     </div>
                     <button
                       className="submit-comment-btn"
-                      onClick={() => handleSubmitComment(recipe.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubmitComment(recipe.id);
+                      }}
                       disabled={!commentText.trim() && !selectedEmoji}
                       style={{ padding: '6px 16px', fontSize: 13 }}
                     >
