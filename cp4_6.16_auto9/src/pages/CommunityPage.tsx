@@ -52,9 +52,15 @@ const CommunityPage: React.FC = () => {
   }, [getPublicRecipes, keyword, sort]);
 
   const visible = useMemo(() => allPublic.slice(0, visibleCount), [allPublic, visibleCount]);
+  const hasMore = visibleCount < allPublic.length;
+  const totalCount = allPublic.length;
 
   const loadMore = useCallback(() => {
     if (loadingLockRef.current) return;
+    if (!hasMore) {
+      console.debug('[Community] 已加载全部数据，停止加载');
+      return;
+    }
     setVisibleCount((cur) => {
       const next = Math.min(cur + 8, allPublic.length);
       if (next === cur) {
@@ -70,7 +76,7 @@ const CommunityPage: React.FC = () => {
       console.debug(`[Community] 加载更多: ${cur} → ${next}/${allPublic.length}`);
       return next;
     });
-  }, [allPublic.length]);
+  }, [hasMore, allPublic.length]);
 
   const debouncedLoadMore = useMemo(() => debounce(loadMore, 150), [loadMore]);
 
@@ -81,7 +87,7 @@ const CommunityPage: React.FC = () => {
     const io = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry.isIntersecting && visibleCount < allPublic.length && !loadingLockRef.current) {
+        if (entry.isIntersecting && hasMore && !loadingLockRef.current) {
           debouncedLoadMore();
         }
       },
@@ -92,7 +98,7 @@ const CommunityPage: React.FC = () => {
     return () => {
       io.disconnect();
     };
-  }, [debouncedLoadMore, visibleCount, allPublic.length]);
+  }, [debouncedLoadMore, hasMore]);
 
   return (
     <div className="container py-6 md:py-8 max-w-7xl">

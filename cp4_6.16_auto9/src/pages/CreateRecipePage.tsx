@@ -102,6 +102,27 @@ const CreateRecipePage: React.FC = () => {
   }, [editId, getRecipeById]);
 
   const handleImageUpload = useCallback(async (file: File) => {
+    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+    const MAX_SIZE = 5 * 1024 * 1024;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setImageUploadStatus('error');
+      setImageError(
+        `不支持的图片格式：${file.type || '未知'}。请上传 JPEG 或 PNG 格式的图片。`,
+      );
+      setImagePreview('');
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      setImageUploadStatus('error');
+      setImageError(
+        `图片大小为 ${(file.size / 1024 / 1024).toFixed(2)}MB，超过了 5MB 限制。请压缩后再上传，或选择更小的图片。`,
+      );
+      setImagePreview('');
+      return;
+    }
+
     setImageUploadStatus('uploading');
     setImageError('');
     try {
@@ -221,7 +242,7 @@ const CreateRecipePage: React.FC = () => {
               <ImagePlus size={15} className="text-warm-400" />
               成品照片
               <span className="text-[10px] text-cocoa-200 font-normal ml-1">
-                （支持本地图片上传，自动保存到 IndexedDB，≤10MB）
+                （支持 JPEG/PNG 格式，最大 5MB，自动压缩后保存到 IndexedDB）
               </span>
             </span>
             <div className="grid grid-cols-4 gap-3">

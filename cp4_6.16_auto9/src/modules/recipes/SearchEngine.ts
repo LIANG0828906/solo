@@ -12,6 +12,80 @@ const cache: CacheEntry[] = [];
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
+const SYNONYMS: Record<string, string[]> = {
+  '鸡蛋': ['蛋', '鸡蛋', '鸡子'],
+  '蛋': ['鸡蛋', '蛋', '鸡子'],
+  '番茄': ['西红柿', '番茄', '洋柿子'],
+  '西红柿': ['番茄', '西红柿', '洋柿子'],
+  '土豆': ['马铃薯', '土豆', '洋芋', '地蛋'],
+  '马铃薯': ['土豆', '马铃薯', '洋芋', '地蛋'],
+  '洋葱': ['洋葱', '圆葱', '葱头'],
+  '圆葱': ['洋葱', '圆葱', '葱头'],
+  '猪肉': ['猪肉', '五花肉', '里脊', '猪瘦肉'],
+  '牛肉': ['牛肉', '牛腩', '牛腱子'],
+  '鸡肉': ['鸡肉', '鸡', '鸡腿', '鸡胸肉'],
+  '豆腐': ['豆腐', '老豆腐', '嫩豆腐', '北豆腐', '南豆腐'],
+  '青椒': ['青椒', '辣椒', '菜椒', '尖椒'],
+  '辣椒': ['青椒', '辣椒', '辣子'],
+  '葱': ['葱', '大葱', '小葱', '葱花'],
+  '蒜': ['蒜', '大蒜', '蒜瓣', '蒜蓉'],
+  '姜': ['姜', '生姜', '老姜', '姜片'],
+  '面粉': ['面粉', '白面', '小麦粉'],
+  '大米': ['大米', '米', '米饭', '白米'],
+  '生抽': ['生抽', '酱油'],
+  '酱油': ['生抽', '酱油', '老抽'],
+  '蚝油': ['蚝油', '耗油'],
+  '糖': ['糖', '白糖', '白砂糖', '冰糖'],
+  '盐': ['盐', '食盐', '精盐'],
+  '油': ['油', '食用油', '花生油', '菜籽油'],
+  '淀粉': ['淀粉', '生粉', '玉米淀粉', '土豆淀粉'],
+  '料酒': ['料酒', '黄酒', '花雕酒'],
+  '醋': ['醋', '米醋', '陈醋', '白醋'],
+};
+
+const getSynonyms = (name: string): string[] => {
+  const key = normalize(name);
+  if (SYNONYMS[key]) return SYNONYMS[key].map(normalize);
+  return [key];
+};
+
+const isSynonymMatch = (a: string, b: string): boolean => {
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (na === nb) return true;
+  const synsA = getSynonyms(na);
+  const synsB = getSynonyms(nb);
+  return synsA.some((s) => synsB.includes(s)) ||
+    synsA.some((s) => s.includes(nb)) ||
+    synsB.some((s) => s.includes(na));
+};
+
+const TITLE_MATCH_BOOST = 0.25;
+const TAG_MATCH_BOOST = 0.15;
+
+const calcPositionBoost = (recipe: Recipe, queryIngredients: string[]): number => {
+  let boost = 0;
+  const titleLower = recipe.title.toLowerCase();
+  const tagsLower = recipe.tags.map((t) => t.toLowerCase());
+  for (const q of queryIngredients) {
+    const qn = normalize(q);
+    const syns = getSynonyms(qn);
+    for (const s of syns) {
+      if (titleLower.includes(s)) {
+        boost += TITLE_MATCH_BOOST;
+        break;
+      }
+    }
+    for (const s of syns) {
+      if (tagsLower.some((t) => t.includes(s))) {
+        boost += TAG_MATCH_BOOST;
+        break;
+      }
+    }
+  }
+  return Math.min(0.4, boost);
+};
+
 const QUANTITY_PATTERNS = [
   { re: /^(\d+(?:\.\d+)?)\s*(克|g|公斤|kg|斤|两)$/i, score: 2.0, label: 'weight' },
   { re: /^(\d+(?:\.\d+)?)\s*(毫升|ml|升|l)$/i, score: 1.8, label: 'volume' },
@@ -124,7 +198,7 @@ export const searchByIngredients = (
   for (const q of querySet) {
     let found = false;
     for (const [ingName, entries] of idx) {
-      if (ingName === q || ingName.includes(q) || q.includes(ingName)) {
+      if (isSynonymMatch(ingName, q)) {
         entries.forEach((e) => candidateIds.add(e.recipeId));
         found = true;
       }
@@ -153,7 +227,7 @@ export const searchByIngredients = (
     let matchedWeight = 0;
     for (const q of querySet) {
       for (const [rn, info] of recipeSet) {
-        if (rn === q || rn.includes(q) || q.includes(rn)) {
+        if (isSynonymMatch(rn, q)) {
           if (!matchedDisplay.includes(info.displayName)) {
             matchedDisplay.push(info.displayName);
             matchedWeight += Math.min(info.weight, queryDefaultWeight * 1.5);
@@ -169,13 +243,16 @@ export const searchByIngredients = (
       .filter((i) => !matchedDisplay.includes(i.name))
       .map((i) => i.name);
 
-    const score = calcWeightedMatchScore(
+    const baseScore = calcWeightedMatchScore(
       matchedWeight,
       totalQueryWeight,
       totalRecipeWeight,
       matchedDisplay.length,
       querySet.size,
     );
+
+    const positionBoost = calcPositionBoost(recipe, normalized);
+    const score = Math.min(1, baseScore + positionBoost);
 
     results.push({
       recipe,
@@ -310,6 +387,37 @@ export const runSearchTests = (recipes: Recipe[]): SearchTestReport[] => {
     return {
       ok: bad.length === 0,
       msg: bad.length === 0 ? `全部 ${res.length} 条匹配度合法` : `${bad.length} 条越界`,
+    };
+  });
+
+  run('同义词匹配：蛋应匹配鸡蛋', () => {
+    const rEgg = searchByIngredients(['鸡蛋'], recipes, 10);
+    const rDan = searchByIngredients(['蛋'], recipes, 10);
+    const idEgg = rEgg.map((x) => x.recipe.id);
+    const idDan = rDan.map((x) => x.recipe.id);
+    const overlap = idEgg.filter((id) => idDan.includes(id));
+    return {
+      ok: overlap.length >= Math.min(3, rEgg.length),
+      msg: `鸡蛋=${rEgg.length}条, 蛋=${rDan.length}条, 交集=${overlap.length}条`,
+    };
+  });
+
+  run('位置权重：标题包含食材应排名更前', () => {
+    const res = searchByIngredients(['牛肉'], recipes, 10);
+    if (res.length < 2) return { ok: true, msg: `结果不足（${res.length}），跳过` };
+    let titleBoostWorks = true;
+    for (let i = 0; i < Math.min(5, res.length - 1); i++) {
+      const a = res[i], b = res[i + 1];
+      const aHasTitle = a.recipe.title.includes('牛肉');
+      const bHasTitle = b.recipe.title.includes('牛肉');
+      if (!aHasTitle && bHasTitle && a.matchScore <= b.matchScore) {
+        titleBoostWorks = false;
+        break;
+      }
+    }
+    return {
+      ok: titleBoostWorks,
+      msg: `前${Math.min(5, res.length)}条排序符合标题权重：${titleBoostWorks ? '正确' : '有问题'}`,
     };
   });
 

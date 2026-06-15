@@ -205,8 +205,11 @@ interface PostStoreState {
   socket: Socket | FallbackChannel | null;
   connectionStatus: ConnectionStatus;
   connectionError: string | null;
+  joinedRooms: Set<string>;
   init: () => void;
   disconnect: () => void;
+  joinRoom: (recipeId: string) => void;
+  leaveRoom: (recipeId: string) => void;
   isFavorite: (recipeId: string) => boolean;
   toggleFavorite: (recipeId: string) => Promise<void>;
   getCommentsByRecipe: (recipeId: string) => Comment[];
@@ -226,6 +229,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
   socket: null,
   connectionStatus: 'disconnected',
   connectionError: null,
+  joinedRooms: new Set(),
 
   init: () => {
     const favs = loadFavorites();
@@ -260,21 +264,106 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
           return { comments: updated };
         });
       });
+
+      s.on('comment:update', (data) => {
+        const updated = data as Comment;
+        set((state) => {
+          const list = state.comments.map((c) =>
+            c.id === updated.id ? { ...c, ...updated } : c,
+          );
+          saveComments(list);
+          return { comments: list };
+        });
+      });
+
+      s.on('favorite:update', (data) => {
+        const { recipeId, count, favorited } = data as {
+          recipeId: string;
+          count: number;
+          favorited?: boolean;
+        };
+        console.debug(
+          `[PostStore] 收藏更新: recipe=${recipeId} count=${count}`,
+        );
+        if (favorited !== undefined) {
+          set((state) => {
+            const next = new Set(state.favorites);
+            if (favorited) next.add(recipeId);
+            else next.delete(recipeId);
+            saveFavorites(next);
+            return { favorites: next };
+          });
+        }
+      });
+
+      s.on('recipe:update', (data) => {
+        console.debug('[PostStore] 菜谱信息更新:', data);
+      });
+
+      s.on('error', (data) => {
+        const err = data as { message: string; code?: string };
+        console.warn(`[PostStore] 服务器错误: ${err?.message || '未知错误'}`);
+        set({
+          connectionStatus: 'error',
+          connectionError: err?.message || '服务器错误',
+        });
+      });
+
+      s.on('pong', () => {
+        console.debug('[PostStore] 心跳响应正常');
+      });
+    };
+
+    const syncStateAfterConnect = (s: Socket | FallbackChannel) => {
+      const state = get();
+      if (state.joinedRooms.size > 0) {
+        state.joinedRooms.forEach((roomId) => {
+          try {
+            s.emit('room:join', { recipeId: roomId, userId: CURRENT_USER.id });
+          } catch {}
+        });
+      }
+      try {
+        s.emit('sync:favorites', {
+          userId: CURRENT_USER.id,
+          favorites: Array.from(state.favorites),
+        });
+      } catch {}
     };
 
     connectRealSocket()
       .then((socket) => {
         attachListeners(socket);
-        socket.on('disconnect', () => {
+
+        socket.on('disconnect', (reason) => {
+          console.warn(`[PostStore] Socket 断开: ${reason}`);
           set({ connectionStatus: 'disconnected' });
         });
+
         socket.on('connect', () => {
+          console.info('[PostStore] Socket 重连成功');
           set({ connectionStatus: 'connected', connectionError: null });
+          syncStateAfterConnect(socket);
         });
+
         socket.on('connect_error', (err) => {
+          console.warn(`[PostStore] 连接错误: ${err.message}`);
           set({ connectionStatus: 'error', connectionError: err.message });
         });
+
+        socket.on('reconnect_attempt', (attempt) => {
+          console.info(`[PostStore] 正在重连 (第 ${attempt} 次)...`);
+          set({ connectionStatus: 'connecting' });
+        });
+
+        socket.io.on('reconnect_failed', () => {
+          console.error('[PostStore] 重连失败，将继续尝试');
+        });
+
+        syncStateAfterConnect(socket);
+
         set({ socket, connectionStatus: 'connected', connectionError: null });
+        console.info('[PostStore] Socket.io 连接初始化完成');
       })
       .catch((err) => {
         console.warn(
@@ -285,7 +374,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         set({
           socket: fallback,
           connectionStatus: 'degraded-fallback',
-          connectionError: `服务器不可达：${err.message}。当前使用同设备多标签页同步模式。`,
+          connectionError: `服务器不可达：${err.message}。当前使用同设备多标签页同步模式，设置 VITE_SOCKET_URL 环境变量可启用跨设备实时推送。`,
         });
       });
   },
@@ -298,12 +387,47 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
     } else {
       s.disconnect();
     }
-    set({ socket: null, connectionStatus: 'disconnected' });
+    set({ socket: null, connectionStatus: 'disconnected', joinedRooms: new Set() });
+  },
+
+  joinRoom: (recipeId: string) => {
+    const s = get().socket;
+    if (!s || !recipeId) return;
+    set((state) => {
+      const next = new Set(state.joinedRooms);
+      if (next.has(recipeId)) return state;
+      next.add(recipeId);
+      return { joinedRooms: next };
+    });
+    try {
+      s.emit('room:join', { recipeId, userId: CURRENT_USER.id });
+      console.debug(`[PostStore] 加入房间: ${recipeId}`);
+    } catch (e) {
+      console.warn(`[PostStore] 加入房间失败: ${recipeId}`, e);
+    }
+  },
+
+  leaveRoom: (recipeId: string) => {
+    const s = get().socket;
+    if (!s || !recipeId) return;
+    set((state) => {
+      const next = new Set(state.joinedRooms);
+      if (!next.has(recipeId)) return state;
+      next.delete(recipeId);
+      return { joinedRooms: next };
+    });
+    try {
+      s.emit('room:leave', { recipeId, userId: CURRENT_USER.id });
+      console.debug(`[PostStore] 离开房间: ${recipeId}`);
+    } catch (e) {
+      console.warn(`[PostStore] 离开房间失败: ${recipeId}`, e);
+    }
   },
 
   isFavorite: (id) => get().favorites.has(id),
 
   toggleFavorite: async (id) => {
+    const wasFav = get().favorites.has(id);
     set((s) => {
       const next = new Set(s.favorites);
       if (next.has(id)) next.delete(id);
@@ -311,6 +435,35 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
       saveFavorites(next);
       return { favorites: next };
     });
+
+    const s = get().socket;
+    try {
+      if (s && 'emitWithAck' in s && typeof (s as Socket).emitWithAck === 'function') {
+        await (s as Socket).emitWithAck('favorite:toggle', {
+          recipeId: id,
+          userId: CURRENT_USER.id,
+          favorited: !wasFav,
+        }).catch(() => {
+          s.emit('favorite:toggle', {
+            recipeId: id,
+            userId: CURRENT_USER.id,
+            favorited: !wasFav,
+          });
+        });
+      } else {
+        s?.emit('favorite:toggle', {
+          recipeId: id,
+          userId: CURRENT_USER.id,
+          favorited: !wasFav,
+        });
+      }
+    } catch {
+      s?.emit('favorite:toggle', {
+        recipeId: id,
+        userId: CURRENT_USER.id,
+        favorited: !wasFav,
+      });
+    }
   },
 
   getCommentsByRecipe: (recipeId) =>
