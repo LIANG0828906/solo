@@ -1,250 +1,325 @@
-import { Router, type Request, type Response } from 'express'
-import { getItems } from '../data/store.js'
-import type { MatchResult, LostItem } from '../types.js'
+import { Router, type Request, type Response } from 'express';
+import { getItems } from '../data/store.js';
+import type { MatchResult, LostItem } from '../types.js';
 
-const router = Router()
+const router = Router();
 
-const stopWords = new Set([
-  '的', '是', '在', '了', '和', '与', '及', '或', '一个', '有', '我',
-  '你', '他', '她', '它', '这', '那', '个', '只', '把', '被', '给',
-  '让', '从', '到', '向', '往', '由', '以', '于', '上', '下',
-  '左', '右', '前', '后', '里', '外', '中', '内', '旁', '之',
-  '其', '等', '些', '每', '各', '某', '该', '此', '彼', '什么',
-  '怎么', '怎样', '如何', '为什么', '因为', '所以', '但是', '可是',
-  '然而', '不过', '就是', '都', '也', '还', '又', '再', '已经',
-  '正在', '将要', '会', '能', '可以', '应该', '必须', '需要',
-  '把', '被', '给', '让', '向', '对', '为', '以', '用', '拿',
-  '按照', '根据', '通过', '由于', '因此', '于是', '所以', '而且',
-  '并且', '或者', '还是', '不是', '没有', '不', '没', '无',
-  '非', '未', '别', '莫', '勿', '休', '免', '罢了', '而已',
-])
+const STOP_WORDS = new Set<string>([
+  '的', '是', '在', '了', '和', '与', '及', '或', '一个', '有', '我', '你', '他', '她',
+  '它', '这', '那', '个', '只', '把', '被', '给', '让', '从', '到', '向', '往', '由',
+  '以', '于', '上', '下', '左', '右', '前', '后', '里', '外', '中', '内', '旁', '边',
+  '着', '过', '啊', '呢', '吧', '吗', '哦', '嗯', '啊', '就', '也', '都', '还', '而',
+  '但', '然', '其', '之', '所', '为', '对', '将', '会', '能', '可', '要', '去', '来',
+  '很', '稍', '轻', '微', '大', '小', '新', '旧', '长', '短', '高', '低', '多', '少',
+  'some', 'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+  'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you',
+  'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who', 'whom', 'whose',
+  'where', 'when', 'why', 'how', 'and', 'or', 'but', 'if', 'then', 'else',
+  'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into',
+  'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from',
+  'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further',
+]);
 
-function tokenize(text: string): string[] {
-  const tokens: Set<string> = new Set()
+const COLOR_WORDS = new Set([
+  '红', '橙', '黄', '绿', '青', '蓝', '紫', '粉', '灰', '黑', '白', '棕', '褐', '米',
+  '银色', '金色', '米色', '红色', '橙色', '黄色', '绿色', '青色', '蓝色', '紫色',
+  '粉色', '灰色', '黑色', '白色', '棕色', '褐色', '深蓝', '浅蓝', '藏青', '墨绿',
+  '深绿', '浅绿', '粉红', '酒红', '枣红', '咖啡', '卡其', '杏色',
+]);
 
-  const cleanText = text.toLowerCase().trim()
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  '钱包': ['钱包', '皮夹', '钱夹', '卡包'],
+  '钥匙': ['钥匙', '钥匙串', '钥匙扣', '锁匙'],
+  '手机': ['手机', '电话', '智能手机', 'iphone', '安卓'],
+  '雨伞': ['雨伞', '阳伞', '遮阳伞', '折叠伞', '长柄伞'],
+  '书籍': ['书', '书籍', '笔记本', '本子', '课本', '教材', '图书'],
+  '证件': ['身份证', '学生卡', '校园卡', '银行卡', '驾照', '护照', '证件', '卡'],
+  '眼镜': ['眼镜', '墨镜', '太阳镜', '框架眼镜'],
+  '耳机': ['耳机', '蓝牙', 'airpods', '耳塞', '头戴式'],
+  '衣物': ['外套', '衣服', '帽子', '围巾', '手套', '鞋子', '背包', '书包'],
+};
 
-  const parts = cleanText.split(/[\s，。；：！？、,.;:?!~\-——_/\\|()（）【】\[\]{}'"''""\n\r\t]+/)
+function isChineseChar(code: number): boolean {
+  return code >= 0x4e00 && code <= 0x9fa5;
+}
 
-  for (const part of parts) {
-    if (!part) continue
+function isDigit(code: number): boolean {
+  return code >= 48 && code <= 57;
+}
 
-    if (part.length > 0 && part.length <= 4 && !stopWords.has(part)) {
-      tokens.add(part)
+function isAlpha(code: number): boolean {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function chineseTokenizer(text: string): string[] {
+  const tokens: string[] = [];
+  const cleanText = text.toLowerCase();
+
+  let buffer = '';
+  let bufferType: 'cn' | 'en' | 'num' | null = null;
+
+  for (let i = 0; i < cleanText.length; i++) {
+    const ch = cleanText[i];
+    const code = ch.charCodeAt(0);
+
+    let type: 'cn' | 'en' | 'num' | 'other' = 'other';
+    if (isChineseChar(code)) type = 'cn';
+    else if (isAlpha(code)) type = 'en';
+    else if (isDigit(code)) type = 'num';
+
+    if (type === 'other') {
+      if (buffer) {
+        tokens.push(buffer);
+        buffer = '';
+        bufferType = null;
+      }
+      continue;
     }
 
-    for (let i = 0; i < part.length - 1; i++) {
-      const bigram = part.slice(i, i + 2)
-      if (!stopWords.has(bigram) && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(bigram)) {
-        tokens.add(bigram)
-      }
-    }
-
-    for (let i = 0; i < part.length; i++) {
-      const char = part[i]
-      if (char && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(char) && !stopWords.has(char)) {
-        tokens.add(char)
-      }
+    if (bufferType === null || bufferType === type) {
+      buffer += ch;
+      bufferType = type;
+    } else {
+      tokens.push(buffer);
+      buffer = ch;
+      bufferType = type;
     }
   }
 
-  return Array.from(tokens).filter((t) => t.length > 0)
-}
+  if (buffer) tokens.push(buffer);
 
-type TFMap = Map<string, number>
-type IDFMap = Map<string, number>
+  const result: string[] = [];
+  const seen = new Set<string>();
 
-interface DocumentVectors {
-  tf: TFMap
-  titleTf: TFMap
-  descTf: TFMap
-}
-
-let cachedIdf: IDFMap | null = null
-let cachedItemVectors: Map<string, DocumentVectors> | null = null
-let cachedItemsHash: string = ''
-
-function getItemsHash(items: LostItem[]): string {
-  return items.map((item) => `${item.id}-${item.title}-${item.description}`).join('|')
-}
-
-function computeTF(tokens: string[]): TFMap {
-  const tf = new Map<string, number>()
-  const total = tokens.length
-
-  if (total === 0) return tf
+  const addToken = (t: string): void => {
+    if (!t || STOP_WORDS.has(t)) return;
+    if (t.length === 1 && !isChineseChar(t.charCodeAt(0))) return;
+    if (seen.has(t)) return;
+    seen.add(t);
+    result.push(t);
+  };
 
   for (const token of tokens) {
-    tf.set(token, (tf.get(token) || 0) + 1)
-  }
+    if (token.length >= 2) {
+      addToken(token);
+    }
 
-  for (const [token, count] of tf) {
-    tf.set(token, count / total)
-  }
+    if (token.length >= 3) {
+      for (let i = 0; i < token.length - 1; i++) {
+        const bigram = token.slice(i, i + 2);
+        if (bigram.length === 2 && isChineseChar(bigram.charCodeAt(0)) && isChineseChar(bigram.charCodeAt(1))) {
+          addToken(bigram);
+        }
+      }
+    }
 
-  return tf
-}
-
-function computeIDF(items: LostItem[]): IDFMap {
-  const idf = new Map<string, number>()
-  const docCount = items.length
-
-  const tokenDocCount = new Map<string, number>()
-
-  for (const item of items) {
-    const text = `${item.title} ${item.description}`
-    const tokens = tokenize(text)
-    const uniqueTokens = new Set(tokens)
-
-    for (const token of uniqueTokens) {
-      tokenDocCount.set(token, (tokenDocCount.get(token) || 0) + 1)
+    if (token.length === 1 && isChineseChar(token.charCodeAt(0))) {
+      const code = token.charCodeAt(0);
+      if (COLOR_WORDS.has(token)) {
+        addToken(token);
+      }
+      const categoryMatch = Object.keys(CATEGORY_KEYWORDS).find(k => k === token);
+      if (categoryMatch) {
+        addToken(token);
+      }
+      void code;
     }
   }
 
-  for (const [token, count] of tokenDocCount) {
-    idf.set(token, Math.log((docCount + 1) / (count + 1)) + 1)
-  }
-
-  return idf
+  return result;
 }
 
-function computeDocumentVectors(items: LostItem[], idf: IDFMap): Map<string, DocumentVectors> {
-  const vectors = new Map<string, DocumentVectors>()
-
-  for (const item of items) {
-    const titleTokens = tokenize(item.title)
-    const descTokens = tokenize(item.description)
-    const allTokens = tokenize(`${item.title} ${item.description}`)
-
-    const titleTf = computeTF(titleTokens)
-    const descTf = computeTF(descTokens)
-    const tf = computeTF(allTokens)
-
-    vectors.set(item.id, { tf, titleTf, descTf })
-  }
-
-  return vectors
-}
-
-function ensureCache(): void {
-  const items = getItems()
-  const currentHash = getItemsHash(items)
-
-  if (cachedIdf && cachedItemVectors && cachedItemsHash === currentHash) {
-    return
-  }
-
-  cachedIdf = computeIDF(items)
-  cachedItemVectors = computeDocumentVectors(items, cachedIdf)
-  cachedItemsHash = currentHash
-}
-
-export function refreshTFIDFCache(): void {
-  cachedIdf = null
-  cachedItemVectors = null
-  cachedItemsHash = ''
-  ensureCache()
-}
-
-function computeTFIDFVector(tf: TFMap, idf: IDFMap, titleTf?: TFMap, titleWeight: number = 1.5): Map<string, number> {
-  const vector = new Map<string, number>()
-
-  for (const [token, tfValue] of tf) {
-    const idfValue = idf.get(token) || 0
-    let weight = tfValue * idfValue
-
-    if (titleTf && titleTf.has(token)) {
-      weight *= titleWeight
-    }
-
-    if (weight > 0) {
-      vector.set(token, weight)
+function getCategoryTags(text: string): string[] {
+  const tags: string[] = [];
+  const lower = text.toLowerCase();
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some(k => lower.includes(k.toLowerCase()))) {
+      tags.push(cat);
     }
   }
-
-  return vector
+  return tags;
 }
 
-function computeCosineSimilarity(vecA: Map<string, number>, vecB: Map<string, number>): number {
-  let dotProduct = 0
-  let normA = 0
-  let normB = 0
+type TermFreq = Map<string, number>;
 
-  for (const [token, weight] of vecA) {
-    normA += weight * weight
-    const bWeight = vecB.get(token) || 0
-    dotProduct += weight * bWeight
+function buildTermFreq(tokens: string[]): TermFreq {
+  const tf = new Map<string, number>();
+  for (const token of tokens) {
+    tf.set(token, (tf.get(token) || 0) + 1);
   }
-
-  for (const [, weight] of vecB) {
-    normB += weight * weight
-  }
-
-  if (normA === 0 || normB === 0) return 0
-
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
+  return tf;
 }
 
-function calculateScore(description: string, item: LostItem, itemVectors: DocumentVectors, idf: IDFMap): number {
-  const queryTokens = tokenize(description)
-  const queryTf = computeTF(queryTokens)
-  const queryVector = computeTFIDFVector(queryTf, idf)
+type DocInfo = {
+  item: LostItem;
+  tf: TermFreq;
+  tokens: Set<string>;
+  categories: string[];
+  titleTokens: Set<string>;
+  maxTf: number;
+};
 
-  const itemVector = computeTFIDFVector(itemVectors.tf, idf, itemVectors.titleTf, 1.5)
+function buildDocInfo(item: LostItem): DocInfo {
+  const text = `${item.title} ${item.description} ${item.location}`;
+  const tokensArr = chineseTokenizer(text);
+  const tf = buildTermFreq(tokensArr);
+  let maxTf = 0;
+  for (const [, freq] of tf) if (freq > maxTf) maxTf = freq;
 
-  const similarity = computeCosineSimilarity(queryVector, itemVector)
+  const titleTokensArr = chineseTokenizer(item.title);
+  const categories = getCategoryTags(text);
 
-  const score = Math.round(Math.min(100, similarity * 100))
+  return {
+    item,
+    tf,
+    tokens: new Set(tokensArr),
+    categories,
+    titleTokens: new Set(titleTokensArr),
+    maxTf: maxTf || 1,
+  };
+}
 
-  return score
+function computeTfIdf(
+  queryTf: TermFreq,
+  queryTokens: Set<string>,
+  docs: DocInfo[]
+): Map<string, number> {
+  const docCount = docs.length;
+  const scores = new Map<string, number>();
+
+  for (const [queryTerm, queryFreqRaw] of queryTf) {
+    const queryTfNorm = queryFreqRaw;
+
+    let docFreq = 0;
+    for (const doc of docs) {
+      if (doc.tokens.has(queryTerm)) docFreq++;
+    }
+
+    const idf = Math.log(1 + (docCount + 1) / (docFreq + 1));
+
+    for (const doc of docs) {
+      const termFreq = doc.tf.get(queryTerm) || 0;
+      if (termFreq === 0) continue;
+
+      const tfNorm = termFreq / doc.maxTf;
+      const tfIdfScore = tfNorm * idf * queryTfNorm;
+
+      let titleBoost = 1;
+      if (doc.titleTokens.has(queryTerm)) {
+        titleBoost = 1.8;
+      }
+
+      let categoryBoost = 1;
+      if (COLOR_WORDS.has(queryTerm)) {
+        categoryBoost = 1.3;
+      }
+
+      const finalScore = tfIdfScore * titleBoost * categoryBoost;
+
+      scores.set(
+        doc.item.id,
+        (scores.get(doc.item.id) || 0) + finalScore
+      );
+    }
+  }
+
+  return scores;
+}
+
+function computeCategoryScore(queryCategories: string[], doc: DocInfo): number {
+  if (queryCategories.length === 0) return 0;
+  let matches = 0;
+  for (const cat of queryCategories) {
+    if (doc.categories.includes(cat)) matches++;
+  }
+  return (matches / queryCategories.length) * 15;
+}
+
+function computeJaccardScore(queryTokens: Set<string>, doc: DocInfo): number {
+  if (queryTokens.size === 0 || doc.tokens.size === 0) return 0;
+  let intersection = 0;
+  for (const t of queryTokens) {
+    if (doc.tokens.has(t)) intersection++;
+  }
+  const union = queryTokens.size + doc.tokens.size - intersection;
+  return union > 0 ? (intersection / union) * 10 : 0;
+}
+
+function normalizeScores(
+  docs: DocInfo[],
+  tfidfScores: Map<string, number>,
+  queryCategories: string[],
+  queryTokens: Set<string>
+): { id: string; finalScore: number }[] {
+  let maxTfIdf = 0;
+  for (const [, s] of tfidfScores) if (s > maxTfIdf) maxTfIdf = s;
+  if (maxTfIdf === 0) maxTfIdf = 1;
+
+  return docs.map(doc => {
+    const rawTfIdf = tfidfScores.get(doc.item.id) || 0;
+    const normalizedTfIdf = Math.min(100, (rawTfIdf / maxTfIdf) * 75);
+    const categoryScore = computeCategoryScore(queryCategories, doc);
+    const jaccardScore = computeJaccardScore(queryTokens, doc);
+
+    const finalScore = Math.min(
+      100,
+      Math.round(normalizedTfIdf * 0.65 + categoryScore + jaccardScore * 2)
+    );
+
+    return { id: doc.item.id, finalScore };
+  });
 }
 
 router.post('/', (req: Request, res: Response): void => {
-  const { description } = req.body
+  const { description } = req.body;
 
-  if (!description || typeof description !== 'string') {
+  if (!description || typeof description !== 'string' || !description.trim()) {
     res.status(400).json({
       success: false,
-      error: '描述是必填项',
-    })
-    return
+      error: '描述是必填项，请输入失物特征描述',
+    });
+    return;
   }
 
-  ensureCache()
+  const rawQuery = description.trim();
+  const allItems = getItems().filter(item => !item.isClaimed);
 
-  if (!cachedIdf || !cachedItemVectors) {
-    res.status(500).json({
-      success: false,
-      error: '匹配系统初始化失败',
-    })
-    return
+  if (allItems.length === 0) {
+    res.json({
+      success: true,
+      data: [],
+    });
+    return;
   }
 
-  const items = getItems().filter((item) => !item.isClaimed)
+  const queryTokensArr = chineseTokenizer(rawQuery);
+  const queryTf = buildTermFreq(queryTokensArr);
+  const queryTokens = new Set(queryTokensArr);
+  const queryCategories = getCategoryTags(rawQuery);
 
-  const results: MatchResult[] = items.map((item) => {
-    const vectors = cachedItemVectors!.get(item.id)
-    let score = 0
+  const docs = allItems.map(buildDocInfo);
+  const tfidfScores = computeTfIdf(queryTf, queryTokens, docs);
 
-    if (vectors) {
-      score = calculateScore(description, item, vectors, cachedIdf!)
-    }
+  const scored = normalizeScores(docs, tfidfScores, queryCategories, queryTokens);
+  scored.sort((a, b) => b.finalScore - a.finalScore);
 
+  const topResults = scored.slice(0, 5);
+
+  const matches: MatchResult[] = topResults.map(s => {
+    const doc = docs.find(d => d.item.id === s.id)!;
+    const score = s.finalScore;
     return {
-      item,
+      item: doc.item,
       score,
-      isHighMatch: score > 60,
-    }
-  })
-
-  results.sort((a, b) => b.score - a.score)
-
-  const topResults = results.slice(0, 5)
+      isHighMatch: score >= 60,
+    };
+  });
 
   res.json({
     success: true,
-    data: topResults,
-  })
-})
+    data: matches,
+  });
+});
 
-export default router
+export default router;
