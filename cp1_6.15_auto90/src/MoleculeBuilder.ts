@@ -125,11 +125,12 @@ export class MoleculeBuilder {
   private labelSprites: LabelSprite[] = [];
   private currentMode: DisplayMode = 'ball-stick';
   private targetMode: DisplayMode = 'ball-stick';
-  private transitionProgress: number = 1.0;
-  private transitionDuration: number = 0.5;
+  private modeTransitionProgress: number = 1.0;
+  private modeTransitionDuration: number = 0.5;
   private currentMoleculeKey: string = 'h2o';
   private moleculeScale: number = 1.0;
   private moleculeOpacity: number = 1.0;
+  private bondBaseScaleY: number = 1.0;
 
   constructor() {
     this.group = new THREE.Group();
@@ -182,7 +183,7 @@ export class MoleculeBuilder {
       this.bondMeshes.push({ mesh: cylinder, fromIndex: bond.from, toIndex: bond.to });
     }
 
-    this.applyModeInstant(this.currentMode);
+    this.applyAll();
   }
 
   private createLabel(text: string): THREE.Sprite {
@@ -262,77 +263,86 @@ export class MoleculeBuilder {
   }
 
   setDisplayMode(mode: DisplayMode): void {
-    if (mode === this.currentMode && this.transitionProgress >= 1.0) return;
+    if (mode === this.currentMode && this.modeTransitionProgress >= 1.0) return;
     this.targetMode = mode;
-    this.transitionProgress = 0;
+    this.modeTransitionProgress = 0;
   }
 
-  private applyModeInstant(mode: DisplayMode): void {
-    const params = MODE_PARAMS[mode];
+  update(delta: number): void {
+    if (this.modeTransitionProgress < 1.0) {
+      this.modeTransitionProgress = Math.min(
+        1.0,
+        this.modeTransitionProgress + delta / this.modeTransitionDuration
+      );
+    }
+    this.applyAll();
+  }
+
+  private applyAll(): void {
+    const mt = this.getInterpolatedModeParams();
+
+    this.group.visible = this.moleculeOpacity > 0.001;
+
+    const molScale = this.moleculeScale;
+    const molOpacity = this.moleculeOpacity;
+
     for (const atom of this.atomMeshes) {
-      atom.mesh.scale.setScalar(params.radiusScale * this.moleculeScale);
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = params.opacity * this.moleculeOpacity;
+      atom.mesh.scale.setScalar(mt.atomScale * molScale);
+      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = mt.atomOpacity * molOpacity;
     }
+
     for (const bond of this.bondMeshes) {
-      bond.mesh.scale.x = params.bondScale * this.moleculeScale;
-      bond.mesh.scale.z = params.bondScale * this.moleculeScale;
-      bond.mesh.scale.y = this.moleculeScale;
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = params.bondOpacity * this.moleculeOpacity;
-      bond.mesh.visible = params.bondOpacity * this.moleculeOpacity > 0.01;
+      bond.mesh.scale.x = mt.bondScaleXZ * molScale;
+      bond.mesh.scale.z = mt.bondScaleXZ * molScale;
+      bond.mesh.scale.y = this.bondBaseScaleY * molScale;
+      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = mt.bondOpacity * molOpacity;
+      bond.mesh.visible = mt.bondOpacity * molOpacity > 0.001;
     }
+
     for (const label of this.labelSprites) {
-      label.sprite.material.opacity = this.moleculeOpacity;
-      label.sprite.scale.setScalar(0.5 * this.moleculeScale);
+      (label.sprite.material as THREE.SpriteMaterial).opacity = molOpacity;
     }
-    this.currentMode = mode;
-    this.targetMode = mode;
-    this.transitionProgress = 1.0;
+
+    this.updateLabelPositionsInternal();
   }
 
-  updateTransition(delta: number): void {
-    if (this.transitionProgress >= 1.0) return;
-
-    this.transitionProgress = Math.min(1.0, this.transitionProgress + delta / this.transitionDuration);
-    const t = this.easeInOutCubic(this.transitionProgress);
-
-    const fromParams = MODE_PARAMS[this.currentMode];
-    const toParams = MODE_PARAMS[this.targetMode];
-
-    for (const atom of this.atomMeshes) {
-      const scale = fromParams.radiusScale + (toParams.radiusScale - fromParams.radiusScale) * t;
-      atom.mesh.scale.setScalar(scale * this.moleculeScale);
-      const opacity = fromParams.opacity + (toParams.opacity - fromParams.opacity) * t;
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = opacity * this.moleculeOpacity;
+  private getInterpolatedModeParams(): { atomScale: number; atomOpacity: number; bondScaleXZ: number; bondOpacity: number } {
+    if (this.modeTransitionProgress >= 1.0) {
+      const p = MODE_PARAMS[this.currentMode];
+      return {
+        atomScale: p.radiusScale,
+        atomOpacity: p.opacity,
+        bondScaleXZ: p.bondScale,
+        bondOpacity: p.bondOpacity,
+      };
     }
-
-    for (const bond of this.bondMeshes) {
-      const scaleXZ = fromParams.bondScale + (toParams.bondScale - fromParams.bondScale) * t;
-      bond.mesh.scale.x = scaleXZ * this.moleculeScale;
-      bond.mesh.scale.z = scaleXZ * this.moleculeScale;
-      bond.mesh.scale.y = this.moleculeScale;
-      const opacity = fromParams.bondOpacity + (toParams.bondOpacity - fromParams.bondOpacity) * t;
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = opacity * this.moleculeOpacity;
-      bond.mesh.visible = opacity * this.moleculeOpacity > 0.01;
-    }
-
-    if (this.transitionProgress >= 1.0) {
-      this.currentMode = this.targetMode;
-    }
+    const t = this.easeInOutCubic(this.modeTransitionProgress);
+    const from = MODE_PARAMS[this.currentMode];
+    const to = MODE_PARAMS[this.targetMode];
+    return {
+      atomScale: from.radiusScale + (to.radiusScale - from.radiusScale) * t,
+      atomOpacity: from.opacity + (to.opacity - from.opacity) * t,
+      bondScaleXZ: from.bondScale + (to.bondScale - from.bondScale) * t,
+      bondOpacity: from.bondOpacity + (to.bondOpacity - from.bondOpacity) * t,
+    };
   }
 
-  updateLabelPositions(): void {
-    const params = MODE_PARAMS[this.transitionProgress >= 1.0 ? this.currentMode : this.targetMode];
+  private updateLabelPositionsInternal(): void {
+    const mt = this.getInterpolatedModeParams();
+    const molScale = this.moleculeScale;
     for (let i = 0; i < this.atomMeshes.length; i++) {
       const atom = this.atomMeshes[i];
       const label = this.labelSprites[i];
       if (!label) continue;
-      const currentScale = atom.mesh.scale.x;
-      const effectiveRadius = atom.baseRadius * currentScale;
+      const effectiveRadius = atom.baseRadius * mt.atomScale * molScale;
       label.sprite.position.set(
         atom.mesh.position.x,
-        atom.mesh.position.y + effectiveRadius + 0.25,
+        atom.mesh.position.y + effectiveRadius + 0.25 * molScale,
         atom.mesh.position.z
       );
+    }
+    if (this.modeTransitionProgress >= 1.0) {
+      this.currentMode = this.targetMode;
     }
   }
 
@@ -342,52 +352,14 @@ export class MoleculeBuilder {
 
   setGroupOpacity(opacity: number): void {
     this.moleculeOpacity = opacity;
-    this.group.visible = opacity > 0.001;
-
-    const params = this.getEffectiveParams();
-    for (const atom of this.atomMeshes) {
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = params.atomOpacity * opacity;
-    }
-    for (const bond of this.bondMeshes) {
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = params.bondOpacity * opacity;
-      bond.mesh.visible = params.bondOpacity * opacity > 0.001;
-    }
-    for (const label of this.labelSprites) {
-      (label.sprite.material as THREE.SpriteMaterial).opacity = opacity;
-    }
   }
 
   setGroupScale(scale: number): void {
     this.moleculeScale = scale;
-
-    const params = this.getEffectiveParams();
-    for (const atom of this.atomMeshes) {
-      atom.mesh.scale.setScalar(params.atomScale * scale);
-    }
-    for (const bond of this.bondMeshes) {
-      bond.mesh.scale.x = params.bondScaleXZ * scale;
-      bond.mesh.scale.z = params.bondScaleXZ * scale;
-      bond.mesh.scale.y = scale;
-    }
-    for (const label of this.labelSprites) {
-      label.sprite.scale.set(0.5 * scale, 0.25 * scale, 1);
-    }
   }
 
-  private getEffectiveParams(): { atomScale: number; atomOpacity: number; bondScaleXZ: number; bondOpacity: number } {
-    if (this.transitionProgress >= 1.0) {
-      const p = MODE_PARAMS[this.currentMode];
-      return { atomScale: p.radiusScale, atomOpacity: p.opacity, bondScaleXZ: p.bondScale, bondOpacity: p.bondOpacity };
-    }
-    const t = this.easeInOutCubic(this.transitionProgress);
-    const from = MODE_PARAMS[this.currentMode];
-    const to = MODE_PARAMS[this.targetMode];
-    return {
-      atomScale: from.radiusScale + (to.radiusScale - from.radiusScale) * t,
-      atomOpacity: from.opacity + (to.opacity - from.opacity) * t,
-      bondScaleXZ: from.bondScale + (to.bondScale - from.bondScale) * t,
-      bondOpacity: from.bondOpacity + (to.bondOpacity - from.bondOpacity) * t,
-    };
+  getMoleculeScale(): number {
+    return this.moleculeScale;
   }
 
   private easeInOutCubic(t: number): number {

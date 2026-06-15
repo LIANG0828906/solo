@@ -408,10 +408,11 @@ export class UIManager {
   updateLabelSizes(camera: THREE.Camera): void {
     const distance = camera.position.length();
     const scaleFactor = Math.max(0.3, Math.min(2.0, distance / 5));
+    const molScale = this.moleculeBuilder.getMoleculeScale();
     const group = this.moleculeBuilder.getGroup();
     group.traverse((child) => {
       if (child instanceof THREE.Sprite && child.userData.isLabel === true) {
-        const baseScale = 0.5 * scaleFactor * this.moleculeBuilder['moleculeScale'];
+        const baseScale = 0.5 * scaleFactor * molScale;
         child.scale.set(baseScale, baseScale * 0.5, 1);
       }
     });
