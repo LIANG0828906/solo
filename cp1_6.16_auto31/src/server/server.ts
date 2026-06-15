@@ -54,10 +54,10 @@ wss.on("connection", (ws: WebSocket) => {
 
     switch (message.action) {
       case "draw": {
-        const element: CanvasElement = {
-          ...message.element,
-          id: message.element.id || uuidv4(),
-        };
+        const element = message.element;
+        if (!element.id) {
+          element.id = uuidv4();
+        }
         canvasElements.push(element);
         wss.clients.forEach((client) => {
           if (client !== ws && client.readyState === WebSocket.OPEN) {

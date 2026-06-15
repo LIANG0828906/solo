@@ -40,13 +40,21 @@ function generateId(): string {
   return `el-${Date.now()}-${idCounter}`;
 }
 
-function drawElement(ctx: CanvasRenderingContext2D, el: CanvasElement) {
+function drawElement(ctx: CanvasRenderingContext2D, el: CanvasElement, selected?: boolean) {
   ctx.save();
   ctx.strokeStyle = el.color;
   ctx.fillStyle = el.color;
   ctx.lineWidth = el.width;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  if (selected && (el.type === 'text' || el.type === 'sticker') && el.x != null && el.y != null) {
+    const cx = el.x + 20;
+    const cy = el.y + 20;
+    ctx.translate(cx, cy);
+    ctx.scale(1.05, 1.05);
+    ctx.translate(-cx, -cy);
+  }
 
   switch (el.type) {
     case 'freehand': {
@@ -87,12 +95,37 @@ function drawElement(ctx: CanvasRenderingContext2D, el: CanvasElement) {
       if (el.text == null || el.x == null || el.y == null) break;
       ctx.font = `${el.fontSize || 16}px sans-serif`;
       ctx.fillText(el.text, el.x, el.y);
+      if (selected) {
+        const w = (el.text.length * (el.fontSize || 16) * 0.6) + 10;
+        const h = (el.fontSize || 16) + 10;
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(el.x - 5, el.y - (el.fontSize || 16) - 5, w, h);
+      }
       break;
     }
     case 'sticker': {
       if (el.sticker == null || el.x == null || el.y == null) break;
-      ctx.font = '32px sans-serif';
-      ctx.fillText(el.sticker, el.x, el.y);
+      ctx.save();
+      ctx.font = '36px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.textBaseline = 'top';
+      const metrics = ctx.measureText(el.sticker);
+      const textWidth = metrics.width;
+      const textHeight = 36;
+      const scale = Math.min(40 / textWidth, 40 / textHeight);
+      const drawX = el.x + (40 - textWidth * scale) / 2;
+      const drawY = el.y + (40 - textHeight * scale) / 2;
+      ctx.translate(drawX, drawY);
+      ctx.scale(scale, scale);
+      ctx.fillText(el.sticker, 0, 0);
+      ctx.restore();
+      if (selected) {
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(el.x - 2, el.y - 2, 44, 44);
+      }
       break;
     }
   }
@@ -138,7 +171,7 @@ const Canvas: React.FC<CanvasProps> = ({
   });
   const [textValue, setTextValue] = useState('');
 
-  const dragRef = useRef<{ id: string; offsetX: number; offsetY: number; startX: number; startY: number } | null>(null);
+  const dragRef = useRef<{ id: string; offsetX: number; offsetY: number; lastX: number; lastY: number; lastPtX: number; lastPtY: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const getCanvasCoords = useCallback((clientX: number, clientY: number): Point => {
@@ -151,7 +184,7 @@ const Canvas: React.FC<CanvasProps> = ({
     };
   }, []);
 
-  const redraw = useCallback((previewElement?: CanvasElement) => {
+  const redraw = useCallback((previewElement?: CanvasElement, selectedId?: string | null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -160,7 +193,7 @@ const Canvas: React.FC<CanvasProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const el of elements) {
-      drawElement(ctx, el);
+      drawElement(ctx, el, el.id === selectedId);
     }
 
     if (previewElement) {
@@ -245,8 +278,10 @@ const Canvas: React.FC<CanvasProps> = ({
         id: hitEl.id,
         offsetX: pt.x - (hitEl.x || 0),
         offsetY: pt.y - (hitEl.y || 0),
-        startX: hitEl.x || 0,
-        startY: hitEl.y || 0,
+        lastX: hitEl.x || 0,
+        lastY: hitEl.y || 0,
+        lastPtX: pt.x,
+        lastPtY: pt.y,
       };
       setDraggingId(hitEl.id);
       return;
@@ -298,15 +333,17 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [tool, color, brushSize, sticker, getCanvasCoords, findElementAtPoint, onDraw]);
 
-  const lastDragPosRef = useRef<{ x: number; y: number } | null>(null);
-
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     const pt = getCanvasCoords(clientX, clientY);
 
     if (dragRef.current) {
-      const newX = pt.x - dragRef.current.offsetX;
-      const newY = pt.y - dragRef.current.offsetY;
-      lastDragPosRef.current = { x: newX, y: newY };
+      const deltaX = pt.x - dragRef.current.lastPtX;
+      const deltaY = pt.y - dragRef.current.lastPtY;
+      dragRef.current.lastX += deltaX;
+      dragRef.current.lastY += deltaY;
+      dragRef.current.lastPtX = pt.x;
+      dragRef.current.lastPtY = pt.y;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -315,8 +352,8 @@ const Canvas: React.FC<CanvasProps> = ({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (const el of elements) {
         if (el.id === dragRef.current.id) {
-          const moved = { ...el, x: newX, y: newY };
-          drawElement(ctx, moved);
+          const moved = { ...el, x: dragRef.current.lastX, y: dragRef.current.lastY };
+          drawElement(ctx, moved, true);
         } else {
           drawElement(ctx, el);
         }
@@ -345,14 +382,10 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const handlePointerUp = useCallback(() => {
     if (dragRef.current) {
-      const pos = lastDragPosRef.current;
-      if (pos) {
-        onMove(dragRef.current.id, pos.x, pos.y);
-      }
+      onMove(dragRef.current.id, dragRef.current.lastX, dragRef.current.lastY);
       dragRef.current = null;
-      lastDragPosRef.current = null;
       setDraggingId(null);
-      redraw();
+      redraw(undefined, null);
       return;
     }
 

@@ -106,6 +106,7 @@ const App: React.FC = () => {
   }, []);
 
   const onClear = useCallback(() => {
+    setElements([]);
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ action: 'clear' }));
     }
