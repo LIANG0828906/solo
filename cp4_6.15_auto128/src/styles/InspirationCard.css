@@ -85,6 +85,16 @@
   word-break: break-word;
 }
 
+.search-highlight {
+  background: linear-gradient(120deg, rgba(233, 69, 96, 0.35), rgba(251, 191, 36, 0.35));
+  color: var(--color-text-primary);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .card-description {
   font-size: 14px;
   line-height: 1.6;

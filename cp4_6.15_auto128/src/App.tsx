@@ -16,6 +16,8 @@ import type {
 import './styles/App.css';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEARCH_DEBOUNCE_MS = 200;
+const FILTER_FADE_MS = 220;
 
 export default function App() {
   const [cards, setCards] = useState<PublicCardData[]>([]);
@@ -23,10 +25,14 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionKey, setTransitionKey] = useState(0);
   const initializedRef = useRef(false);
+  const prevFilterRef = useRef<{ query: string; type: FilterType }>({ query: '', type: 'all' });
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -140,9 +146,43 @@ export default function App() {
     [showToast]
   );
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(searchInput.trim().toLowerCase());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const prev = prevFilterRef.current;
+    const filterChanged =
+      prev.type !== filterType || prev.query !== debouncedQuery;
+
+    if (filterChanged && !loading) {
+      setIsTransitioning(true);
+
+      const t = setTimeout(() => {
+        setTransitionKey((k) => k + 1);
+        prevFilterRef.current = { query: debouncedQuery, type: filterType };
+
+        requestAnimationFrame(() => {
+          setIsTransitioning(false);
+        });
+      }, FILTER_FADE_MS);
+
+      return () => clearTimeout(t);
+    }
+
+    prevFilterRef.current = { query: debouncedQuery, type: filterType };
+  }, [filterType, debouncedQuery, loading]);
+
+  const handleFilterTabChange = (type: FilterType) => {
+    if (type === filterType) return;
+    setFilterType(type);
+  };
+
   const filteredCards = useMemo(() => {
     const now = Date.now();
-    const query = searchQuery.trim().toLowerCase();
 
     return cards.filter((card) => {
       if (filterType === 'highRating' && card.averageRating < 4) {
@@ -151,19 +191,32 @@ export default function App() {
       if (filterType === 'recent' && now - card.createdAt > ONE_DAY_MS) {
         return false;
       }
-      if (query) {
-        const inTitle = card.title.toLowerCase().includes(query);
-        const inDesc = card.description.toLowerCase().includes(query);
+      if (debouncedQuery) {
+        const inTitle = card.title.toLowerCase().includes(debouncedQuery);
+        const inDesc = card.description.toLowerCase().includes(debouncedQuery);
         if (!inTitle && !inDesc) return false;
       }
       return true;
     });
-  }, [cards, searchQuery, filterType]);
+  }, [cards, debouncedQuery, filterType]);
 
   const selectedCard = useMemo(
     () => cards.find((c) => c.id === selectedCardId) ?? null,
     [cards, selectedCardId]
   );
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterType !== 'all') count++;
+    if (debouncedQuery) count++;
+    return count;
+  }, [filterType, debouncedQuery]);
+
+  const resetFilters = () => {
+    setSearchInput('');
+    setDebouncedQuery('');
+    setFilterType('all');
+  };
 
   return (
     <div className="app-container">
@@ -177,15 +230,28 @@ export default function App() {
           <div className="search-container">
             <input
               type="text"
-              className="search-input"
+              className={`search-input ${searchInput.length > 0 ? 'has-value' : ''}`}
               placeholder="搜索灵感..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
             <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <circle cx="11" cy="11" r="8" />
               <path d="M21 21l-4.35-4.35" />
             </svg>
+            {searchInput.length > 0 && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchInput('')}
+                aria-label="清除搜索"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
@@ -194,13 +260,22 @@ export default function App() {
             <button
               key={type}
               className={`filter-tab ${filterType === type ? 'active' : ''}`}
-              onClick={() => setFilterType(type)}
+              onClick={() => handleFilterTabChange(type)}
             >
               {type === 'all' && '全部'}
               {type === 'highRating' && '高评分 ⭐≥4'}
               {type === 'recent' && '新发布 24h'}
             </button>
           ))}
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              className="filter-reset-btn animate-fade-in"
+              onClick={resetFilters}
+            >
+              重置 ({activeFilterCount})
+            </button>
+          )}
         </div>
       </header>
 
@@ -216,13 +291,21 @@ export default function App() {
               <p className="loading-text">正在加载灵感...</p>
             </div>
           ) : filteredCards.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state animate-fade-in">
               <div className="empty-icon">🔍</div>
               <h3>暂无匹配的灵感卡片</h3>
               <p>试试调整搜索条件，或发布第一个灵感吧！</p>
+              {activeFilterCount > 0 && (
+                <button className="btn btn-primary reset-all-btn" onClick={resetFilters}>
+                  清除所有筛选
+                </button>
+              )}
             </div>
           ) : (
-            <div className="masonry-grid" key={`${filterType}-${searchQuery}`}>
+            <div
+              className={`masonry-grid ${isTransitioning ? 'fading-out' : ''}`}
+              key={`grid-${transitionKey}`}
+            >
               {filteredCards.map((card, index) => (
                 <div
                   key={card.id}
@@ -233,6 +316,7 @@ export default function App() {
                 >
                   <InspirationCard
                     card={card}
+                    highlightQuery={debouncedQuery}
                     onOpenComments={() => setSelectedCardId(card.id)}
                     onToast={showToast}
                   />

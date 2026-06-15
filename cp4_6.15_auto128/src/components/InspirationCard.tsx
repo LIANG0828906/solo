@@ -5,8 +5,33 @@ import '../styles/InspirationCard.css';
 
 interface InspirationCardProps {
   card: PublicCardData;
+  highlightQuery?: string;
   onOpenComments: () => void;
   onToast: (message: string, type?: 'success' | 'error') => void;
+}
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightText(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return text;
+
+  const regex = new RegExp(`(${escapeRegExp(cleanQuery)})`, 'gi');
+  const parts = text.split(regex);
+
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <mark key={i} className="search-highlight">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
 }
 
 function formatTimeAgo(timestamp: number): string {
@@ -28,6 +53,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export default function InspirationCard({
   card,
+  highlightQuery = '',
   onOpenComments,
   onToast,
 }: InspirationCardProps) {
@@ -69,10 +95,12 @@ export default function InspirationCard({
       )}
 
       <div className="card-content">
-        <h3 className="card-title">{card.title}</h3>
+        <h3 className="card-title">{highlightText(card.title, highlightQuery)}</h3>
 
         {card.description && (
-          <p className="card-description">{card.description}</p>
+          <p className="card-description">
+            {highlightText(card.description, highlightQuery)}
+          </p>
         )}
 
         <div className="card-meta-top">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import type { PublicCardData } from '../types';
 import '../styles/Leaderboard.css';
 
@@ -15,12 +15,65 @@ interface RankedItem {
 
 const RANK_UPDATE_THROTTLE_MS = 40;
 const MAX_DISPLAY = 10;
+const FLIP_TRANSITION_MS = 500;
 
 export default function Leaderboard({ cards, onCardClick }: LeaderboardProps) {
   const [rankedItems, setRankedItems] = useState<RankedItem[]>([]);
   const previousRankMapRef = useRef<Map<string, number>>(new Map());
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingCardsRef = useRef<PublicCardData[] | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const itemPositionsRef = useRef<Map<string, DOMRect>>(new Map());
+  const animatingRef = useRef<Set<string>>(new Set());
+
+  useLayoutEffect(() => {
+    if (!listRef.current) return;
+
+    const items = listRef.current.querySelectorAll<HTMLElement>('[data-card-id]');
+    const newPositions = new Map<string, DOMRect>();
+
+    items.forEach((el) => {
+      const id = el.dataset.cardId;
+      if (id) newPositions.set(id, el.getBoundingClientRect());
+    });
+
+    const prevPositions = itemPositionsRef.current;
+
+    if (prevPositions.size > 0) {
+      newPositions.forEach((newRect, id) => {
+        const oldRect = prevPositions.get(id);
+        if (!oldRect) return;
+
+        const deltaY = oldRect.top - newRect.top;
+        if (Math.abs(deltaY) > 1 && !animatingRef.current.has(id)) {
+          animatingRef.current.add(id);
+
+          const el = listRef.current?.querySelector<HTMLElement>(
+            `[data-card-id="${id}"]`
+          );
+          if (el) {
+            el.style.transition = 'none';
+            el.style.transform = `translateY(${deltaY}px)`;
+
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                el.style.transition = `transform ${FLIP_TRANSITION_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+                el.style.transform = '';
+
+                setTimeout(() => {
+                  animatingRef.current.delete(id);
+                  el.style.transition = '';
+                  el.style.transform = '';
+                }, FLIP_TRANSITION_MS + 20);
+              });
+            });
+          }
+        }
+      });
+    }
+
+    itemPositionsRef.current = newPositions;
+  }, [rankedItems]);
 
   useEffect(() => {
     pendingCardsRef.current = cards;
@@ -97,6 +150,8 @@ export default function Leaderboard({ cards, onCardClick }: LeaderboardProps) {
   const getTrendIcon = (item: RankedItem) => {
     if (item.previousRank === item.rank) return null;
     const improved = item.previousRank > item.rank;
+    const isNewEntry = item.previousRank === item.rank && !previousRankMapRef.current.has(item.card.id);
+    if (isNewEntry) return null;
     return (
       <span className={`trend-icon ${improved ? 'trend-up' : 'trend-down'}`}>
         {improved ? '▲' : '▼'}
@@ -114,7 +169,7 @@ export default function Leaderboard({ cards, onCardClick }: LeaderboardProps) {
         <span className="leaderboard-badge animate-pulse">LIVE</span>
       </div>
 
-      <div className="leaderboard-list">
+      <div className="leaderboard-list" ref={listRef}>
         {rankedItems.length === 0 ? (
           <div className="leaderboard-empty">
             <p className="empty-text">暂无数据</p>
@@ -125,6 +180,7 @@ export default function Leaderboard({ cards, onCardClick }: LeaderboardProps) {
             <button
               type="button"
               key={item.card.id}
+              data-card-id={item.card.id}
               className={`leaderboard-item ${getRankStyle(item.rank)}`}
               style={{
                 '--rank-delay': `${(item.rank - 1) * 40}ms`,
