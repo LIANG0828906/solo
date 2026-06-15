@@ -4,6 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Plant, PlantPhoto, GrowthRecord, WateringReminder, LightRequirement, WateringFrequency, RecordType } from '@/types/plant';
 import { resetReminder, registerPlantReminder, cancelPlantReminder, updatePlantInReminder } from '@/services/reminderService';
 
+const STORAGE_VERSION = 1;
+
+interface PersistedState {
+  plants: Plant[];
+  _version?: number;
+}
+
 interface PlantStore {
   plants: Plant[];
   currentView: 'home' | 'detail';
@@ -42,6 +49,24 @@ interface PlantStore {
   removeWateringReminder: (plantId: string) => void;
   
   initializeReminders: () => void;
+}
+
+function migrateState(persisted: PersistedState): PersistedState {
+  const version = persisted._version ?? 0;
+  let state = persisted;
+
+  if (version < 1) {
+    if (state.plants) {
+      state.plants = state.plants.map((plant) => ({
+        ...plant,
+        growthRecords: plant.growthRecords || [],
+        photos: plant.photos || [],
+      }));
+    }
+  }
+
+  state._version = STORAGE_VERSION;
+  return state;
 }
 
 export const usePlantStore = create<PlantStore>()(
@@ -214,9 +239,17 @@ export const usePlantStore = create<PlantStore>()(
     }),
     {
       name: 'plant-reminder-storage',
+      version: STORAGE_VERSION,
       partialize: (state) => ({
         plants: state.plants,
-      }),
+        _version: STORAGE_VERSION,
+      } satisfies PersistedState),
+      migrate: (persisted, version) => {
+        if (version < STORAGE_VERSION) {
+          return migrateState(persisted as PersistedState);
+        }
+        return persisted as PersistedState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.initializeReminders();

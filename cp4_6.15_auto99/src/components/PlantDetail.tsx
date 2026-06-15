@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { Plant, GrowthRecord, RecordType } from '@/types/plant';
+import { PhotoModal } from './PhotoModal';
 import styles from './PlantDetail.module.css';
 
 interface PlantDetailProps {
@@ -48,7 +49,7 @@ export function PlantDetail({
   onAddPhoto,
   onAddRecord,
 }: PlantDetailProps) {
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [photoModalIndex, setPhotoModalIndex] = useState<number | null>(null);
   const [showNoteInput, setShowNoteInput] = useState<RecordType | null>(null);
   const [noteText, setNoteText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +94,15 @@ export function PlantDetail({
       onAddRecord(showNoteInput, noteText.trim());
       setNoteText('');
       setShowNoteInput(null);
+    }
+  };
+
+  const handleTimelinePhotoClick = (photoUrl: string) => {
+    const index = plant.photos.findIndex((p) => p.url === photoUrl);
+    if (index >= 0) {
+      setPhotoModalIndex(index);
+    } else {
+      setPhotoModalIndex(0);
     }
   };
 
@@ -157,11 +167,11 @@ export function PlantDetail({
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>📷 照片画廊</h2>
           <div className={styles.galleryGrid}>
-            {plant.photos.map((photo) => (
+            {plant.photos.map((photo, index) => (
               <div
                 key={photo.id}
                 className={styles.galleryItem}
-                onClick={() => setSelectedPhoto(photo.url)}
+                onClick={() => setPhotoModalIndex(index)}
               >
                 <img src={photo.url} alt={photo.note || '植物照片'} />
               </div>
@@ -209,7 +219,7 @@ export function PlantDetail({
                   border: '1px solid #e9ecef',
                   boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
                 }}
-                onKeyPress={(e) => e.key === 'Enter' && confirmAddRecord()}
+                onKeyDown={(e) => e.key === 'Enter' && confirmAddRecord()}
                 autoFocus
               />
               <button
@@ -250,7 +260,7 @@ export function PlantDetail({
                       src={record.photoUrl}
                       alt="成长照片"
                       className={styles.timelinePhoto}
-                      onClick={() => setSelectedPhoto(record.photoUrl!)}
+                      onClick={() => handleTimelinePhotoClick(record.photoUrl!)}
                     />
                   )}
                 </div>
@@ -260,13 +270,13 @@ export function PlantDetail({
         </section>
       </div>
 
-      {selectedPhoto && (
-        <div className={styles.photoModal} onClick={() => setSelectedPhoto(null)}>
-          <button className={styles.closeModal} onClick={() => setSelectedPhoto(null)}>
-            ×
-          </button>
-          <img src={selectedPhoto} alt="放大照片" />
-        </div>
+      {photoModalIndex !== null && (
+        <PhotoModal
+          photos={plant.photos.map((p) => ({ url: p.url, note: p.note }))}
+          currentIndex={photoModalIndex}
+          onClose={() => setPhotoModalIndex(null)}
+          onNavigate={setPhotoModalIndex}
+        />
       )}
     </div>
   );

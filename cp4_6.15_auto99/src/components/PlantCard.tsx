@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { Plant } from '@/types/plant';
@@ -25,31 +25,37 @@ const lightLabels: Record<Plant['lightRequirement'], string> = {
 };
 
 export function PlantCard({ plant, weatherCoefficient, onClick, onWater }: PlantCardProps) {
-  const [, setTick] = useState(0);
+  const [progress, setProgress] = useState(() =>
+    getWateringProgress(plant, weatherCoefficient)
+  );
+  const [timeUntil, setTimeUntil] = useState(() =>
+    getTimeUntilWatering(plant, weatherCoefficient)
+  );
+  const timerRef = useRef<number | null>(null);
+
+  const updateTimers = useCallback(() => {
+    setProgress(getWateringProgress(plant, weatherCoefficient));
+    setTimeUntil(getTimeUntilWatering(plant, weatherCoefficient));
+  }, [plant, weatherCoefficient]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTick((prev) => prev + 1);
-    }, 1000);
+    updateTimers();
 
-    return () => clearInterval(timer);
-  }, []);
+    timerRef.current = window.setInterval(updateTimers, 1000);
 
-  const progress = useMemo(
-    () => getWateringProgress(plant, weatherCoefficient),
-    [plant, weatherCoefficient]
-  );
-
-  const timeUntil = useMemo(
-    () => getTimeUntilWatering(plant, weatherCoefficient),
-    [plant, weatherCoefficient]
-  );
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [updateTimers]);
 
   const lastWateredText = plant.lastWateredAt
     ? format(new Date(plant.lastWateredAt), 'M月d日', { locale: zhCN })
     : '暂无记录';
 
-  const countdownText = useMemo(() => {
+  const countdownText = (() => {
     if (progress >= 100) {
       return '需要浇水';
     }
@@ -60,8 +66,11 @@ export function PlantCard({ plant, weatherCoefficient, onClick, onWater }: Plant
     if (timeUntil.hours > 0) {
       return `${timeUntil.hours}小时后`;
     }
-    return `${timeUntil.minutes}分钟后`;
-  }, [progress, timeUntil]);
+    if (timeUntil.minutes > 0) {
+      return `${timeUntil.minutes}分钟后`;
+    }
+    return `${timeUntil.seconds}秒后`;
+  })();
 
   const handleWaterClick = (e: React.MouseEvent) => {
     e.stopPropagation();

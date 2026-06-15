@@ -3,13 +3,13 @@ import { PlantCard } from './components/PlantCard';
 import { PlantDetail } from './components/PlantDetail';
 import { PlantForm } from './components/PlantForm';
 import { usePlantStore } from './store/usePlantStore';
-import { getWeather, getWateringCoefficient, getWateringSuitability } from './services/weatherService';
+import { getWeather, getWateringCoefficient, getWateringSuitability, type WeatherResult } from './services/weatherService';
 import { 
   registerReminder,
   getWateringProgress,
   type ReminderHandle,
 } from './services/reminderService';
-import type { WeatherData, WateringReminder, RecordType, WateringFrequency, LightRequirement } from './types/plant';
+import type { WateringReminder, RecordType, WateringFrequency, LightRequirement } from './types/plant';
 import styles from './App.module.css';
 
 function App() {
@@ -33,11 +33,13 @@ function App() {
     initializeReminders,
   } = usePlantStore();
 
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherResult, setWeatherResult] = useState<WeatherResult | null>(null);
   const [weatherCoefficient, setWeatherCoefficient] = useState(1.0);
   const [toasts, setToasts] = useState<{ id: string; type: 'success' | 'error' | 'info'; icon: string }[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const reminderHandleRef = useRef<ReminderHandle | null>(null);
+
+  const weather = weatherResult?.data ?? null;
 
   const selectedPlant = plants.find((p) => p.id === selectedPlantId) || null;
 
@@ -57,9 +59,13 @@ function App() {
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        const weatherData = await getWeather('北京');
-        setWeather(weatherData);
-        setWeatherCoefficient(getWateringCoefficient(weatherData));
+        const result = await getWeather('北京');
+        setWeatherResult(result);
+        setWeatherCoefficient(getWateringCoefficient(result.data));
+        
+        if (result.error) {
+          console.warn('天气数据:', result.error);
+        }
       } catch {
         console.error('Failed to fetch weather');
       }
@@ -164,6 +170,7 @@ function App() {
   const suitability = weather ? getWateringSuitability(weather) : 'moderate';
   const suitabilityFace = { good: '😊', moderate: '😐', bad: '😟' }[suitability];
   const suitabilityText = { good: '适宜浇水', moderate: '一般', bad: '需勤浇水' }[suitability];
+  const weatherSourceLabel = weatherResult?.source === 'fallback' ? '（模拟数据）' : '';
 
   if (!isLoaded) {
     return <div className={styles.app}>加载中...</div>;
@@ -178,7 +185,9 @@ function App() {
               <div className={styles.weatherSection}>
                 <span className={styles.weatherIcon}>{weatherIcon}</span>
                 <div className={styles.weatherInfo}>
-                  <span className={styles.weatherCity}>{weather?.city || '北京'}</span>
+                  <span className={styles.weatherCity}>
+                    {weather?.city || '北京'} {weatherSourceLabel}
+                  </span>
                   <span className={styles.weatherTemp}>
                     {weather ? `${weather.temperature}°C` : '--°C'}
                   </span>

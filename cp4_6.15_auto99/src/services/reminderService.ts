@@ -4,7 +4,12 @@ import type { Plant, WateringReminder } from '@/types/plant';
 
 const REMINDER_CHECK_INTERVAL = 60 * 1000;
 
-const reminderTimers = new Map<string, number>();
+interface RegisteredTimer {
+  timerId: number;
+  checkFn: () => void;
+}
+
+const registeredTimers = new Map<string, RegisteredTimer>();
 const activeReminders = new Map<string, { plant: Plant; triggered: boolean }>();
 
 export function getFrequencyHours(frequency: Plant['wateringFrequency'], customDays?: number): number {
@@ -47,19 +52,20 @@ export function getWateringProgress(plant: Plant, weatherCoefficient: number): n
   return Math.min(100, Math.max(0, (elapsedSeconds / totalSeconds) * 100));
 }
 
-export function getTimeUntilWatering(plant: Plant, weatherCoefficient: number): { hours: number; minutes: number } {
+export function getTimeUntilWatering(plant: Plant, weatherCoefficient: number): { hours: number; minutes: number; seconds: number } {
   const nextWatering = calculateNextWatering(plant, weatherCoefficient);
   const now = new Date();
   
   if (isBefore(nextWatering, now)) {
-    return { hours: 0, minutes: 0 };
+    return { hours: 0, minutes: 0, seconds: 0 };
   }
   
   const totalSeconds = differenceInSeconds(nextWatering, now);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
   
-  return { hours, minutes };
+  return { hours, minutes, seconds };
 }
 
 export function checkDueReminders(plants: Plant[], weatherCoefficient: number): WateringReminder[] {
@@ -84,6 +90,7 @@ export function checkDueReminders(plants: Plant[], weatherCoefficient: number): 
 export interface ReminderHandle {
   id: string;
   cancel: () => void;
+  isActive: () => boolean;
 }
 
 export function registerReminder(
@@ -99,7 +106,7 @@ export function registerReminder(
     }
   });
 
-  const check = () => {
+  const checkFn = () => {
     const currentPlants = Array.from(activeReminders.values()).map(r => r.plant);
     const due = checkDueReminders(currentPlants, weatherCoefficient);
     if (due.length > 0) {
@@ -107,27 +114,32 @@ export function registerReminder(
     }
   };
 
-  check();
-  const timerId = window.setInterval(check, REMINDER_CHECK_INTERVAL);
-  reminderTimers.set(id, timerId);
+  checkFn();
+  const timerId = window.setInterval(checkFn, REMINDER_CHECK_INTERVAL);
+  registeredTimers.set(id, { timerId, checkFn });
 
   return {
     id,
     cancel: () => {
-      const timer = reminderTimers.get(id);
-      if (timer) {
-        clearInterval(timer);
-        reminderTimers.delete(id);
+      const entry = registeredTimers.get(id);
+      if (entry) {
+        clearInterval(entry.timerId);
+        registeredTimers.delete(id);
       }
     },
+    isActive: () => registeredTimers.has(id),
   };
 }
 
 export function cancelAllReminders(): void {
-  reminderTimers.forEach((timerId) => {
-    clearInterval(timerId);
+  registeredTimers.forEach((entry) => {
+    clearInterval(entry.timerId);
   });
-  reminderTimers.clear();
+  registeredTimers.clear();
+}
+
+export function getActiveTimerCount(): number {
+  return registeredTimers.size;
 }
 
 export function resetReminder(plantId: string): void {
@@ -152,27 +164,4 @@ export function updatePlantInReminder(plant: Plant): void {
   if (reminder) {
     activeReminders.set(plant.id, { plant, triggered: false });
   }
-}
-
-export function updateReminderWeatherCoefficient(
-  handleId: string,
-  _plants: Plant[],
-  weatherCoefficient: number,
-  callback: (reminders: WateringReminder[]) => void
-): void {
-  const timer = reminderTimers.get(handleId);
-  if (!timer) return;
-
-  clearInterval(timer);
-
-  const check = () => {
-    const currentPlants = Array.from(activeReminders.values()).map(r => r.plant);
-    const due = checkDueReminders(currentPlants, weatherCoefficient);
-    if (due.length > 0) {
-      callback(due);
-    }
-  };
-
-  const newTimerId = window.setInterval(check, REMINDER_CHECK_INTERVAL);
-  reminderTimers.set(handleId, newTimerId);
 }

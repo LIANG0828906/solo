@@ -1,6 +1,12 @@
 import axios from 'axios';
 import type { WeatherData } from '@/types/plant';
 
+export interface WeatherResult {
+  data: WeatherData;
+  source: 'api' | 'fallback' | 'cache';
+  error?: string;
+}
+
 const CACHE_DURATION = 20 * 60 * 1000;
 
 let weatherCache: { city: string; data: WeatherData; timestamp: number } | null = null;
@@ -21,51 +27,46 @@ const weatherConditionMap: Record<string, WeatherData['condition']> = {
 };
 
 function getApiKey(): string | null {
-  return import.meta.env.VITE_WEATHER_API_KEY || null;
+  const key = import.meta.env.VITE_WEATHER_API_KEY;
+  if (!key) return null;
+  if (key === 'your_weatherapi_key_here' || key === 'undefined' || key === 'null') return null;
+  return key;
 }
 
-let hasShownKeyWarning = false;
-
-function showKeyWarning(): void {
-  if (hasShownKeyWarning) return;
-  hasShownKeyWarning = true;
-  console.warn(
-    '%c🌤️ 天气API提示',
-    'font-size: 14px; font-weight: bold; color: #f4a261;',
-    '\n未检测到天气API密钥，当前使用模拟天气数据。\n' +
-    '如需获取真实天气，请：\n' +
-    '1. 在 https://www.weatherapi.com 注册获取免费API Key\n' +
-    '2. 在项目根目录创建 .env 文件，添加：VITE_WEATHER_API_KEY=你的API密钥\n' +
-    '3. 重启开发服务器'
-  );
+function createFallbackWeather(city: string, now: number): WeatherData {
+  return {
+    city: city || '北京',
+    temperature: 22,
+    condition: 'sunny',
+    precipitation: 0,
+    humidity: 55,
+    timestamp: now,
+  };
 }
 
-export async function getWeather(city: string): Promise<WeatherData> {
+export async function getWeather(city: string): Promise<WeatherResult> {
   const now = Date.now();
   
   if (weatherCache && weatherCache.city === city && now - weatherCache.timestamp < CACHE_DURATION) {
-    return weatherCache.data;
+    return { data: weatherCache.data, source: 'cache' };
   }
 
   const apiKey = getApiKey();
   
   if (!apiKey) {
-    showKeyWarning();
-    const mockWeather: WeatherData = {
-      city: city || '北京',
-      temperature: 22,
-      condition: 'sunny',
-      precipitation: 0,
-      humidity: 55,
-      timestamp: now,
+    const fallbackData = createFallbackWeather(city, now);
+    weatherCache = { city, data: fallbackData, timestamp: now };
+    return {
+      data: fallbackData,
+      source: 'fallback',
+      error: '未配置天气API密钥，使用模拟天气数据。请在.env文件中设置VITE_WEATHER_API_KEY。',
     };
-    weatherCache = { city, data: mockWeather, timestamp: now };
-    return mockWeather;
   }
 
   try {
     const response = await axios.get(
-      `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(city)}&aqi=no`
+      `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(city)}&aqi=no`,
+      { timeout: 8000 }
     );
     const data = response.data;
     const conditionText = data.current.condition.text;
@@ -81,19 +82,17 @@ export async function getWeather(city: string): Promise<WeatherData> {
     };
 
     weatherCache = { city, data: weatherData, timestamp: now };
-    return weatherData;
+    return { data: weatherData, source: 'api' };
   } catch (error) {
-    console.error('获取天气数据失败，使用模拟数据:', error);
-    const mockWeather: WeatherData = {
-      city: city || '北京',
-      temperature: 22,
-      condition: 'sunny',
-      precipitation: 0,
-      humidity: 55,
-      timestamp: now,
+    const fallbackData = createFallbackWeather(city, now);
+    weatherCache = { city, data: fallbackData, timestamp: now };
+    
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    return {
+      data: fallbackData,
+      source: 'fallback',
+      error: `获取天气数据失败(${errorMessage})，使用模拟数据。`,
     };
-    weatherCache = { city, data: mockWeather, timestamp: now };
-    return mockWeather;
   }
 }
 
