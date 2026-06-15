@@ -62,32 +62,29 @@ const DEFAULT_CENTERS: [number, number, number][] = [
   [0, 0, -4.0],
 ];
 
-function hexToRgb(hex: number): [number, number, number] {
-  return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
-}
-
-function torusKnotPoint(theta: number, p: number, q: number, R: number, r: number): [number, number, number] {
+function torusKnotPoint(theta: number, p: number, q: number): [number, number, number] {
+  const R = 2.0;
+  const r = 0.8;
   const cosQ = Math.cos(q * theta);
-  const SCALE = 1.8;
   return [
-    SCALE * (R + r * cosQ) * Math.cos(p * theta),
-    SCALE * (R + r * cosQ) * Math.sin(p * theta),
-    SCALE * r * Math.sin(q * theta),
+    (R + r * cosQ) * Math.cos(p * theta),
+    (R + r * cosQ) * Math.sin(p * theta),
+    r * Math.sin(q * theta),
   ];
 }
 
 function trefoilPoint(theta: number): [number, number, number] {
-  const s = 0.95;
+  const scale = 1.6;
   return [
-    s * (Math.sin(theta) + 2 * Math.sin(2 * theta)),
-    s * (Math.cos(theta) - 2 * Math.cos(2 * theta)),
-    s * (-Math.sin(3 * theta)),
+    scale * (Math.sin(theta) + 2 * Math.sin(2 * theta)),
+    scale * (Math.cos(theta) - 2 * Math.cos(2 * theta)),
+    scale * (-Math.sin(3 * theta)),
   ];
 }
 
 function mobiusPoint(theta: number): [number, number, number] {
-  const R = 2.2;
-  const w = 1.0;
+  const R = 2.4;
+  const w = 1.2;
   const s = w * Math.sin(theta * 0.5);
   return [
     (R + s * Math.cos(theta * 0.5)) * Math.cos(theta),
@@ -102,15 +99,16 @@ function generatePath(type: TopologyMode, p: number, q: number, samples: number)
     const t = (i / samples) * Math.PI * 2;
     let pt: [number, number, number];
     switch (type) {
-      case 'torus':
-      default:
-        pt = torusKnotPoint(t, p, q, 1.15, 0.48);
-        break;
       case 'trefoil':
         pt = trefoilPoint(t);
         break;
       case 'mobius':
         pt = mobiusPoint(t);
+        break;
+      case 'torus':
+      case 'custom':
+      default:
+        pt = torusKnotPoint(t, p, q);
         break;
     }
     points.push(pt);
@@ -196,11 +194,11 @@ export function calculateTopology(config: CalcConfig): TopologyResult {
     };
     knots.push(knot);
 
-    const info = computeTopologyInfo(knot, p, q, name);
+    const info = computeTopologyInfo(knot, p ?? 0, q ?? 0, name);
     knotInfos.push(info);
 
     const samples = 400;
-    const rawPath = generatePath(type, p, q, samples);
+    const rawPath = generatePath(type, p ?? 2, q ?? 3, samples);
     const scaledPath = rawPath.map(([x, y, z]) => [
       x + center[0],
       y + center[1],
@@ -237,34 +235,6 @@ export function calculateTopology(config: CalcConfig): TopologyResult {
   return { particles, knots, knotInfos, pathCache };
 }
 
-export function updateParticleProgress(
-  particles: ParticleData[],
-  pathCache: Record<string, [number, number, number][]>,
-  deltaProgress: number,
-  knotCenters: Record<string, [number, number, number]>,
-): void {
-  const samples = 400;
-  for (const p of particles) {
-    let progress = (p.pathProgress + deltaProgress) % 1;
-    if (progress < 0) progress += 1;
-    p.pathProgress = progress;
-    const path = pathCache[p.knotId];
-    if (!path) continue;
-    const c = knotCenters[p.knotId] ?? [0, 0, 0];
-    const rawIdx = progress * samples;
-    const i0 = Math.floor(rawIdx) % samples;
-    const i1 = (i0 + 1) % samples;
-    const f = rawIdx - Math.floor(rawIdx);
-    const p0 = path[i0];
-    const p1 = path[i1];
-    p.targetPosition = [
-      (p0[0] + (p1[0] - p0[0]) * f),
-      (p0[1] + (p1[1] - p0[1]) * f),
-      (p0[2] + (p1[2] - p0[2]) * f),
-    ];
-  }
-}
-
 export function easeOutBack(t: number): number {
   const c1 = 1.70158;
   const c3 = c1 + 1;
@@ -278,5 +248,3 @@ export function lerp(a: number, b: number, t: number): number {
 export function lerpVec3(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 }
-
-export { hexToRgb };

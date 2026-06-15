@@ -21,7 +21,8 @@ export interface Scene3DHandle {
   captureScreenshot: () => string | null;
 }
 
-const TRANSITION_DURATION = 0.3;
+const TRANSITION_DURATION = 0.35;
+const PATH_SAMPLES = 400;
 
 interface ParticleSystemProps {
   topologyData: TopologyResult;
@@ -33,6 +34,26 @@ interface ParticleSystemProps {
   onKnotCenterChange: (knotId: string, center: [number, number, number]) => void;
   onFpsUpdate?: (fps: number) => void;
   onCaptureRefReady?: (fn: () => string | null) => void;
+}
+
+function buildStaticPathGeometry(pathCache: Record<string, [number, number, number][]>, knot: { id: string; colorHex: number }) {
+  const path = pathCache[knot.id];
+  if (!path || path.length < 2) return { positions: new Float32Array(0), colors: new Float32Array(0), vertexCount: 0 };
+  const segCount = path.length - 1;
+  const positions = new Float32Array(segCount * 6);
+  const colors = new Float32Array(segCount * 8);
+  const r = ((knot.colorHex >> 16) & 255) / 255;
+  const g = ((knot.colorHex >> 8) & 255) / 255;
+  const b = (knot.colorHex & 255) / 255;
+  for (let i = 0; i < segCount; i++) {
+    const p0 = path[i];
+    const p1 = path[i + 1];
+    positions[6 * i] = p0[0]; positions[6 * i + 1] = p0[1]; positions[6 * i + 2] = p0[2];
+    positions[6 * i + 3] = p1[0]; positions[6 * i + 4] = p1[1]; positions[6 * i + 5] = p1[2];
+    colors[8 * i] = r; colors[8 * i + 1] = g; colors[8 * i + 2] = b; colors[8 * i + 3] = 0.35;
+    colors[8 * i + 4] = r; colors[8 * i + 5] = g; colors[8 * i + 6] = b; colors[8 * i + 7] = 0.35;
+  }
+  return { positions, colors, vertexCount: segCount * 2 };
 }
 
 function ParticleSystem({
@@ -50,23 +71,20 @@ function ParticleSystem({
   const posAttrRef = useRef<THREE.BufferAttribute | null>(null);
   const colorAttrRef = useRef<THREE.BufferAttribute | null>(null);
   const sizeAttrRef = useRef<THREE.BufferAttribute | null>(null);
-  const groupsRef = useRef<Record<string, THREE.LineSegments>>({});
   const highlightsRef = useRef<Record<string, THREE.Mesh>>({});
+  const staticPathRefs = useRef<Record<string, THREE.LineSegments>>({});
   const transitionStartRef = useRef<number>(-1);
   const prevPositionsRef = useRef<Float32Array | null>(null);
   const particlesSnapshotRef = useRef<any[]>([]);
   const pathCacheSnapRef = useRef<Record<string, [number, number, number][]>>({});
   const lastFrameTime = useRef<number>(performance.now());
   const fpsAccumulator = useRef<{ count: number; sum: number }>({ count: 0, sum: 0 });
-  const trailRingRef = useRef<Record<string, { buffer: Float32Array; colors: Float32Array; head: number; count: number; capacity: number }>>({});
   const [, forceRender] = useState(0);
 
   const { camera, gl, scene } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const pointer = useMemo(() => new THREE.Vector2(), []);
   const draggingKnotRef = useRef<{ id: string; offset: THREE.Vector3; plane: THREE.Plane } | null>(null);
-
-  const trailCapacity = 360;
 
   useEffect(() => {
     if (onCaptureRefReady) {
@@ -91,16 +109,19 @@ function ParticleSystem({
       position: [...p.position] as [number, number, number],
       targetPosition: [...p.targetPosition] as [number, number, number],
     }));
-    pathCacheSnapRef.current = { ...topologyData.pathCache };
+    pathCacheSnapRef.current = {};
+    for (const key of Object.keys(topologyData.pathCache)) {
+      pathCacheSnapRef.current[key] = topologyData.pathCache[key].map(
+        (pt: [number, number, number]) => [...pt] as [number, number, number]
+      );
+    }
 
     if (particlesRef.current) {
       const geo = particlesRef.current.geometry;
       const oldCount = posAttrRef.current?.count ?? 0;
-
       const positions = new Float32Array(count * 3);
       const colors = new Float32Array(count * 4);
       const sizes = new Float32Array(count);
-
       const prevPositions = prevPositionsRef.current;
       for (let i = 0; i < count; i++) {
         const p: any = particlesSnapshotRef.current[i];
@@ -116,13 +137,9 @@ function ParticleSystem({
         const r = ((p.colorHex >> 16) & 255) / 255;
         const g = ((p.colorHex >> 8) & 255) / 255;
         const b = (p.colorHex & 255) / 255;
-        colors[4 * i] = r;
-        colors[4 * i + 1] = g;
-        colors[4 * i + 2] = b;
-        colors[4 * i + 3] = 1.0;
+        colors[4 * i] = r; colors[4 * i + 1] = g; colors[4 * i + 2] = b; colors[4 * i + 3] = 1.0;
         sizes[i] = p.size;
       }
-
       prevPositionsRef.current = positions;
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 4));
@@ -133,25 +150,6 @@ function ParticleSystem({
       posAttrRef.current.needsUpdate = true;
       colorAttrRef.current.needsUpdate = true;
       sizeAttrRef.current.needsUpdate = true;
-    }
-
-    for (const k of topologyData.knots) {
-      if (!trailRingRef.current[k.id]) {
-        const cap = trailCapacity;
-        trailRingRef.current[k.id] = {
-          buffer: new Float32Array(cap * 6),
-          colors: new Float32Array(cap * 8),
-          head: 0,
-          count: 0,
-          capacity: cap,
-        };
-      }
-    }
-    const validIds = new Set(topologyData.knots.map(k => k.id));
-    for (const id of Object.keys(trailRingRef.current)) {
-      if (!validIds.has(id)) {
-        delete trailRingRef.current[id];
-      }
     }
 
     transitionStartRef.current = performance.now();
@@ -181,10 +179,10 @@ function ParticleSystem({
       transitionT = Math.min(1, elapsed / TRANSITION_DURATION);
       if (transitionT >= 1) transitionStartRef.current = -1;
     }
-    const easeT = easeOutBack(transitionT);
+    const easeT = transitionT < 1 ? easeOutBack(transitionT) : 1;
 
     const baseProgress = 0.12 * speed * delta;
-    const perKnotProgressOffsets: Record<string, number> = {
+    const perKnotOffsets: Record<string, number> = {
       'knot-0': baseProgress,
       'knot-1': -baseProgress * 0.9,
       'knot-2': baseProgress * 1.1,
@@ -192,28 +190,23 @@ function ParticleSystem({
     };
 
     for (const p of snap) {
-      const dp = perKnotProgressOffsets[p.knotId] ?? baseProgress;
+      const dp = perKnotOffsets[p.knotId] ?? baseProgress;
       let prog = (p.pathProgress + dp) % 1;
       if (prog < 0) prog += 1;
       p.pathProgress = prog;
-      const samples = 400;
       const path = pathCacheSnapRef.current[p.knotId];
-      if (path) {
-        const c = knotCenters[p.knotId];
-        const rawIdx = prog * samples;
-        const i0 = Math.floor(rawIdx) % samples;
-        const i1 = (i0 + 1) % samples;
-        const f = rawIdx - Math.floor(rawIdx);
+      if (path && path.length > 1) {
+        const totalPts = path.length;
+        const rawIdx = prog * (totalPts - 1);
+        const i0 = Math.floor(rawIdx);
+        const i1 = Math.min(i0 + 1, totalPts - 1);
+        const f = rawIdx - i0;
         const p0 = path[i0];
         const p1 = path[i1];
-        const origC = topologyData.pathCache[p.knotId][i0];
-        const dx = c ? c[0] - origC[0] : 0;
-        const dy = c ? c[1] - origC[1] : 0;
-        const dz = c ? c[2] - origC[2] : 0;
         p.targetPosition = [
-          (p0[0] + (p1[0] - p0[0]) * f) + dx,
-          (p0[1] + (p1[1] - p0[1]) * f) + dy,
-          (p0[2] + (p1[2] - p0[2]) * f) + dz,
+          p0[0] + (p1[0] - p0[0]) * f,
+          p0[1] + (p1[1] - p0[1]) * f,
+          p0[2] + (p1[2] - p0[2]) * f,
         ];
       }
     }
@@ -231,22 +224,16 @@ function ParticleSystem({
       const y = lerp(oy, p.targetPosition[1], easeT);
       const z = lerp(oz, p.targetPosition[2], easeT);
       p.position = [x, y, z];
-      posArr[3 * i] = x;
-      posArr[3 * i + 1] = y;
-      posArr[3 * i + 2] = z;
+      posArr[3 * i] = x; posArr[3 * i + 1] = y; posArr[3 * i + 2] = z;
 
       if (colArr) {
         let alpha = 1;
-        if (transitionT < 1) {
-          alpha = 0.3 + 0.7 * transitionT;
-        }
+        if (transitionT < 1) alpha = 0.3 + 0.7 * transitionT;
         if (interactionMode === 'play') {
           const flicker = 0.85 + 0.15 * Math.sin(now * 0.01 + i * 0.37) + 0.08 * (Math.random() - 0.5);
           alpha *= Math.max(0.5, Math.min(1.15, flicker));
         }
-        if (selectedKnotId && selectedKnotId !== p.knotId) {
-          alpha *= 0.3;
-        }
+        if (selectedKnotId && selectedKnotId !== p.knotId) alpha *= 0.3;
         colArr[4 * i + 3] = alpha;
       }
 
@@ -261,75 +248,6 @@ function ParticleSystem({
     if (sizeAttrRef.current) sizeAttrRef.current.needsUpdate = true;
 
     for (const k of topologyData.knots) {
-      const ring = trailRingRef.current[k.id];
-      if (!ring) continue;
-      const knotParticles: any[] = [];
-      for (let i = 0; i < snap.length; i++) {
-        if (snap[i].knotId === k.id) knotParticles.push(snap[i]);
-      }
-      if (knotParticles.length < 2) continue;
-      const step = Math.max(1, Math.floor(knotParticles.length / 4));
-      for (let s = 0; s < knotParticles.length; s += step) {
-        const sp = knotParticles[s];
-        const nxt = knotParticles[(s + 1) % knotParticles.length];
-        const a = ring.head;
-        ring.buffer[6 * a] = sp.position[0];
-        ring.buffer[6 * a + 1] = sp.position[1];
-        ring.buffer[6 * a + 2] = sp.position[2];
-        ring.buffer[6 * a + 3] = nxt.position[0];
-        ring.buffer[6 * a + 4] = nxt.position[1];
-        ring.buffer[6 * a + 5] = nxt.position[2];
-        const r = ((k.colorHex >> 16) & 255) / 255;
-        const g = ((k.colorHex >> 8) & 255) / 255;
-        const b = (k.colorHex & 255) / 255;
-        const selectedMul = selectedKnotId && selectedKnotId !== k.id ? 0.25 : 1;
-        ring.colors[8 * a] = r;
-        ring.colors[8 * a + 1] = g;
-        ring.colors[8 * a + 2] = b;
-        ring.colors[8 * a + 3] = 0.55 * selectedMul;
-        ring.colors[8 * a + 4] = r;
-        ring.colors[8 * a + 5] = g;
-        ring.colors[8 * a + 6] = b;
-        ring.colors[8 * a + 7] = 0.55 * selectedMul;
-        ring.head = (a + 1) % ring.capacity;
-        if (ring.count < ring.capacity) ring.count++;
-      }
-
-      const line = groupsRef.current[k.id];
-      if (line) {
-        const lgeo = line.geometry as THREE.BufferGeometry;
-        const posAttr = lgeo.attributes.position as THREE.BufferAttribute;
-        const colAttr = lgeo.attributes.color as THREE.BufferAttribute;
-        const lposArr = posAttr.array as Float32Array;
-        const lcolArr = colAttr.array as Float32Array;
-        const cap = ring.capacity;
-        for (let i = 0; i < cap; i++) {
-          const ageIdx = (ring.head - ring.count + i + cap) % cap;
-          const relative = ring.count === 0 ? 0 : i / ring.count;
-          lposArr[6 * i] = ring.buffer[6 * ageIdx];
-          lposArr[6 * i + 1] = ring.buffer[6 * ageIdx + 1];
-          lposArr[6 * i + 2] = ring.buffer[6 * ageIdx + 2];
-          lposArr[6 * i + 3] = ring.buffer[6 * ageIdx + 3];
-          lposArr[6 * i + 4] = ring.buffer[6 * ageIdx + 4];
-          lposArr[6 * i + 5] = ring.buffer[6 * ageIdx + 5];
-          const fade = Math.pow(relative, 1.6);
-          const baseAlpha = ring.colors[8 * ageIdx + 3] * fade;
-          lcolArr[8 * i] = ring.colors[8 * ageIdx];
-          lcolArr[8 * i + 1] = ring.colors[8 * ageIdx + 1];
-          lcolArr[8 * i + 2] = ring.colors[8 * ageIdx + 2];
-          lcolArr[8 * i + 3] = baseAlpha;
-          lcolArr[8 * i + 4] = ring.colors[8 * ageIdx + 4];
-          lcolArr[8 * i + 5] = ring.colors[8 * ageIdx + 5];
-          lcolArr[8 * i + 6] = ring.colors[8 * ageIdx + 6];
-          lcolArr[8 * i + 7] = baseAlpha;
-        }
-        posAttr.needsUpdate = true;
-        colAttr.needsUpdate = true;
-        lgeo.setDrawRange(0, ring.count * 2);
-      }
-    }
-
-    for (const k of topologyData.knots) {
       const mesh = highlightsRef.current[k.id];
       if (!mesh) continue;
       const c = knotCenters[k.id] ?? k.center;
@@ -337,6 +255,19 @@ function ParticleSystem({
       mesh.visible = selectedKnotId === k.id;
       const scale = 1 + 0.08 * Math.sin(now * 0.004);
       mesh.scale.setScalar(scale);
+    }
+
+    for (const k of topologyData.knots) {
+      const line = staticPathRefs.current[k.id];
+      if (!line) continue;
+      const mat = line.material as THREE.LineBasicMaterial;
+      if (selectedKnotId && selectedKnotId !== k.id) {
+        mat.opacity = 0.1;
+      } else if (selectedKnotId === k.id) {
+        mat.opacity = 0.7;
+      } else {
+        mat.opacity = 0.35;
+      }
     }
   });
 
@@ -390,15 +321,10 @@ function ParticleSystem({
       const hit = new THREE.Vector3();
       if (raycaster.ray.intersectPlane(draggingKnotRef.current.plane, hit)) {
         const final = hit.sub(draggingKnotRef.current.offset);
-        onKnotCenterChange(
-          draggingKnotRef.current.id,
-          [final.x, final.y, final.z],
-        );
+        onKnotCenterChange(draggingKnotRef.current.id, [final.x, final.y, final.z]);
       }
     };
-    const handlePointerUp = () => {
-      draggingKnotRef.current = null;
-    };
+    const handlePointerUp = () => { draggingKnotRef.current = null; };
     canvas.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -409,20 +335,12 @@ function ParticleSystem({
     };
   }, [gl, camera, raycaster, pointer, onKnotSelect, selectedKnotId, interactionMode, knotCenters, onKnotCenterChange]);
 
-  const trails = useMemo(() => {
+  const staticPaths = useMemo(() => {
     return topologyData.knots.map(k => {
-      const positions = new Float32Array(trailCapacity * 6);
-      const colors = new Float32Array(trailCapacity * 8);
-      const r = ((k.colorHex >> 16) & 255) / 255;
-      const g = ((k.colorHex >> 8) & 255) / 255;
-      const b = (k.colorHex & 255) / 255;
-      for (let i = 0; i < trailCapacity; i++) {
-        colors[8 * i] = r; colors[8 * i + 1] = g; colors[8 * i + 2] = b; colors[8 * i + 3] = 0;
-        colors[8 * i + 4] = r; colors[8 * i + 5] = g; colors[8 * i + 6] = b; colors[8 * i + 7] = 0;
-      }
-      return { k, positions, colors };
+      const { positions, colors, vertexCount } = buildStaticPathGeometry(topologyData.pathCache, k);
+      return { k, positions, colors, vertexCount };
     });
-  }, [topologyData.knots]);
+  }, [topologyData]);
 
   const positionsInit = useMemo(() => {
     const count = Math.max(1, topologyData.particles.length);
@@ -431,10 +349,7 @@ function ParticleSystem({
 
   return (
     <group>
-      <points
-        ref={particlesRef}
-        frustumCulled={false}
-      >
+      <points ref={particlesRef} frustumCulled={false}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={positionsInit.length / 3} array={positionsInit} itemSize={3} />
         </bufferGeometry>
@@ -470,33 +385,22 @@ function ParticleSystem({
         />
       </points>
 
-      {trails.map(({ k, positions, colors }) => (
+      {staticPaths.map(({ k, positions, colors, vertexCount }) => (
         <lineSegments
-          key={k.id}
-          ref={el => { if (el) groupsRef.current[k.id] = el; }}
+          key={`path-${k.id}`}
+          ref={el => { if (el) staticPathRefs.current[k.id] = el; }}
           frustumCulled={false}
         >
           <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={positions.length / 3}
-              array={positions}
-              itemSize={3}
-            />
-            <bufferAttribute
-              attach="attributes-color"
-              count={colors.length / 4}
-              array={colors}
-              itemSize={4}
-            />
+            <bufferAttribute attach="attributes-position" count={vertexCount} array={positions} itemSize={3} />
+            <bufferAttribute attach="attributes-color" count={vertexCount} array={colors} itemSize={4} />
           </bufferGeometry>
           <lineBasicMaterial
             vertexColors
             transparent
             depthWrite={false}
             blending={THREE.AdditiveBlending}
-            linewidth={1}
-            opacity={1}
+            opacity={0.35}
           />
         </lineSegments>
       ))}
@@ -552,15 +456,7 @@ function SceneContent({
       <pointLight position={[6, -8, -10]} intensity={1.0} color={0x3dffa2} distance={50} />
       <pointLight position={[-6, -5, 8]} intensity={0.9} color={0xffb347} distance={50} />
 
-      <Stars
-        radius={160}
-        depth={80}
-        count={3500}
-        factor={4}
-        saturation={0.25}
-        fade
-        speed={0.3}
-      />
+      <Stars radius={160} depth={80} count={3500} factor={4} saturation={0.25} fade speed={0.3} />
 
       {topologyData && (
         <ParticleSystem
@@ -589,43 +485,24 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(props, 
     captureScreenshot: () => {
       if (captureFnRef.current) return captureFnRef.current();
       if (canvasRef.current) {
-        try {
-          return canvasRef.current.toDataURL('image/png');
-        } catch (e) {
-          console.error(e);
-          return null;
-        }
+        try { return canvasRef.current.toDataURL('image/png'); } catch { return null; }
       }
       return null;
     },
   }));
 
-  const onCaptureRefReady = (fn: () => string | null) => {
-    captureFnRef.current = fn;
-  };
+  const onCaptureRefReady = (fn: () => string | null) => { captureFnRef.current = fn; };
 
   return (
     <>
       <Canvas
-        gl={{
-          antialias: true,
-          alpha: true,
-          preserveDrawingBuffer: true,
-          powerPreference: 'high-performance',
-        }}
-        camera={{ position: [0, 0, 14], fov: 55, near: 0.1, far: 400 }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
+        camera={{ position: [0, 0, 10], fov: 55, near: 0.1, far: 400 }}
         style={{ position: 'absolute', inset: 0 }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
-          canvasRef.current = gl.domElement;
-        }}
+        onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); canvasRef.current = gl.domElement; }}
         dpr={[1, 1.75]}
       >
-        <SceneContent
-          {...props}
-          onFpsUpdate={setFps}
-          onCaptureRefReady={onCaptureRefReady}
-        />
+        <SceneContent {...props} onFpsUpdate={setFps} onCaptureRefReady={onCaptureRefReady} />
       </Canvas>
       <div className="fps-counter">FPS {fps.toString().padStart(2, '0')}</div>
     </>
