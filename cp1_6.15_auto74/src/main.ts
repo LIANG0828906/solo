@@ -14,9 +14,10 @@ function initMap(): void {
     attributionControl: false,
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    subdomains: 'abcd',
+    subdomains: 'abc',
+    attribution: '© OpenStreetMap contributors',
   }).addTo(map);
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -28,10 +29,11 @@ function initMap(): void {
 }
 
 function handleMarkerClick(stall: FoodStall, latlng: L.LatLng): void {
-  showStallCard(stall, latlng);
+  const point = map.latLngToContainerPoint(latlng);
+  showStallCard(stall, point);
 }
 
-function showStallCard(stall: FoodStall, _latlng: L.LatLng): void {
+function showStallCard(stall: FoodStall, clickPoint: L.Point): void {
   const card = document.getElementById('stall-card');
   if (!card) return;
 
@@ -55,7 +57,37 @@ function showStallCard(stall: FoodStall, _latlng: L.LatLng): void {
   const priceEl = document.getElementById('card-price')!;
   priceEl.innerHTML = `<span style="color:${cfg.color}">¥${stall.priceMin} - ¥${stall.priceMax}</span>`;
 
-  card.classList.add('visible');
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const isMobile = windowWidth <= 768;
+  const cardWidth = isMobile ? (windowWidth - 20) : 340;
+  const cardHeight = 340;
+
+  let cardLeft = Math.max(10, Math.min(windowWidth - cardWidth - 10, clickPoint.x - cardWidth / 2));
+  let cardTop = Math.max(20, Math.min(windowHeight - cardHeight - 20, clickPoint.y - cardHeight - 10));
+
+  if (cardTop < 60) {
+    cardTop = clickPoint.y + 30;
+    if (cardTop + cardHeight > windowHeight - 20) {
+      cardTop = windowHeight - cardHeight - 20;
+    }
+  }
+
+  const offsetX = clickPoint.x - (cardLeft + cardWidth / 2);
+  const offsetY = clickPoint.y - cardTop;
+
+  card.style.left = cardLeft + 'px';
+  card.style.top = cardTop + 'px';
+  card.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(0.3)`;
+  card.style.transformOrigin = 'top center';
+  card.style.opacity = '0';
+  card.style.pointerEvents = 'auto';
+
+  requestAnimationFrame(() => {
+    card.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
+    card.style.transform = 'translate(0, 0) scale(1)';
+    card.style.opacity = '1';
+  });
 }
 
 function renderRating(rating: number): void {
@@ -157,21 +189,31 @@ function showToast(msg: string): void {
   }, 3300);
 }
 
+function hideStallCard(): void {
+  const card = document.getElementById('stall-card');
+  if (!card) return;
+
+  card.style.transition = 'transform 0.3s ease, opacity 0.25s ease';
+  card.style.transform = 'translate(0, 20px) scale(0.85)';
+  card.style.opacity = '0';
+  card.style.pointerEvents = 'none';
+
+  setTimeout(() => {
+    setActiveCardId(null);
+  }, 300);
+}
+
 function initCardClose(): void {
   const closeBtn = document.getElementById('card-close');
   const card = document.getElementById('stall-card');
 
   if (!closeBtn || !card) return;
 
-  closeBtn.addEventListener('click', () => {
-    card.classList.remove('visible');
-    setActiveCardId(null);
-  });
+  closeBtn.addEventListener('click', hideStallCard);
 
   map.on('click', () => {
     if (getActiveCardId() !== null) {
-      card.classList.remove('visible');
-      setActiveCardId(null);
+      hideStallCard();
     }
   });
 }

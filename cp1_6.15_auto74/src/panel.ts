@@ -46,6 +46,19 @@ function renderCategoryTags(): void {
       tag.classList.add('active');
       tag.style.background = cfg.color;
       tag.style.color = '#fff';
+      tag.style.borderRadius = '50%';
+      tag.style.padding = '10px';
+      tag.style.width = '44px';
+      tag.style.height = '44px';
+      tag.style.justifyContent = 'center';
+    } else {
+      tag.style.background = 'rgba(255, 255, 255, 0.06)';
+      tag.style.color = 'var(--text-secondary)';
+      tag.style.borderRadius = '20px';
+      tag.style.padding = '6px 12px';
+      tag.style.width = 'auto';
+      tag.style.height = 'auto';
+      tag.style.justifyContent = 'flex-start';
     }
 
     tag.addEventListener('click', () => {
@@ -53,13 +66,23 @@ function renderCategoryTags(): void {
       if (idx >= 0) {
         selectedCategories.splice(idx, 1);
         tag.classList.remove('active');
-        tag.style.background = '';
-        tag.style.color = '';
+        tag.style.background = 'rgba(255, 255, 255, 0.06)';
+        tag.style.color = 'var(--text-secondary)';
+        tag.style.borderRadius = '20px';
+        tag.style.padding = '6px 12px';
+        tag.style.width = 'auto';
+        tag.style.height = 'auto';
+        tag.style.justifyContent = 'flex-start';
       } else {
         selectedCategories.push(cat);
         tag.classList.add('active');
         tag.style.background = cfg.color;
         tag.style.color = '#fff';
+        tag.style.borderRadius = '50%';
+        tag.style.padding = '10px';
+        tag.style.width = '44px';
+        tag.style.height = '44px';
+        tag.style.justifyContent = 'center';
       }
       emitChange();
     });
@@ -78,6 +101,13 @@ function initPriceSlider(): void {
 
   if (!slider || !track || !thumbLeft || !thumbRight || !minLabel || !maxLabel) return;
 
+  const sliderEl = slider;
+  const trackEl = track;
+  const thumbLeftEl = thumbLeft;
+  const thumbRightEl = thumbRight;
+  const minLabelEl = minLabel;
+  const maxLabelEl = maxLabel;
+
   const MIN = 5;
   const MAX = 50;
   let dragging: 'left' | 'right' | null = null;
@@ -93,12 +123,12 @@ function initPriceSlider(): void {
   function updateTrack(): void {
     const leftPct = posFromValue(priceRange[0]);
     const rightPct = posFromValue(priceRange[1]);
-    thumbLeft.style.left = leftPct + '%';
-    thumbRight.style.left = rightPct + '%';
-    track.style.left = leftPct + '%';
-    track.style.width = (rightPct - leftPct) + '%';
-    minLabel.textContent = '¥' + priceRange[0];
-    maxLabel.textContent = '¥' + priceRange[1];
+    thumbLeftEl.style.left = leftPct + '%';
+    thumbRightEl.style.left = rightPct + '%';
+    trackEl.style.left = leftPct + '%';
+    trackEl.style.width = (rightPct - leftPct) + '%';
+    minLabelEl.textContent = '¥' + priceRange[0];
+    maxLabelEl.textContent = '¥' + priceRange[1];
   }
 
   function onPointerDown(e: PointerEvent, side: 'left' | 'right'): void {
@@ -109,7 +139,7 @@ function initPriceSlider(): void {
 
   function onPointerMove(e: PointerEvent): void {
     if (!dragging) return;
-    const rect = slider.getBoundingClientRect();
+    const rect = sliderEl.getBoundingClientRect();
     let pct = ((e.clientX - rect.left) / rect.width) * 100;
     pct = Math.max(0, Math.min(100, pct));
     const val = valueFromPos(pct);
@@ -144,11 +174,17 @@ function initQueueOptions(): void {
 
   let collapsed = false;
 
+  options.style.maxHeight = '200px';
+  options.style.opacity = '1';
+  options.style.overflow = 'hidden';
+  options.style.transition = 'max-height 0.2s ease, opacity 0.2s ease';
+
   toggle.addEventListener('click', () => {
     collapsed = !collapsed;
     options.style.maxHeight = collapsed ? '0' : '200px';
     options.style.opacity = collapsed ? '0' : '1';
-    icon.textContent = collapsed ? '▸' : '▾';
+    icon.style.transition = 'transform 0.2s ease';
+    icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
   });
 
   const checkboxes = options.querySelectorAll('input[type="checkbox"]');
@@ -173,16 +209,19 @@ function initPanelToggle(): void {
 
   if (!toggleBtn || !closeBtn || !panel || !overlay) return;
 
+  const panelEl = panel;
+  const overlayEl = overlay;
+
   function openPanel(): void {
     panelOpen = true;
-    panel.classList.add('open');
-    overlay.classList.add('active');
+    panelEl.classList.add('open');
+    overlayEl.classList.add('active');
   }
 
   function closePanel(): void {
     panelOpen = false;
-    panel.classList.remove('open');
-    overlay.classList.remove('active');
+    panelEl.classList.remove('open');
+    overlayEl.classList.remove('active');
   }
 
   toggleBtn.addEventListener('click', openPanel);
