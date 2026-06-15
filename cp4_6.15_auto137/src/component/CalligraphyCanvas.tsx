@@ -9,12 +9,17 @@ interface CalligraphyCanvasProps {
   speed: AnimationSpeed;
   onScoreUpdate: (strokeId: number, score: number) => void;
   onAllStrokesComplete: () => void;
+  onUserStrokeAdd?: (stroke: Stroke) => void;
   resetTrigger: number;
 }
 
 export interface CalligraphyCanvasHandle {
+  startAnimation: () => void;
   playAnimation: () => void;
+  pauseAnimation: () => void;
+  resetAnimation: () => void;
   clearCanvas: () => void;
+  isAnimating: () => boolean;
 }
 
 const speedDurationMap: Record<AnimationSpeed, number> = {
@@ -23,6 +28,8 @@ const speedDurationMap: Record<AnimationSpeed, number> = {
   fast: 0.8
 };
 
+const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+
 const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasProps>(({
   characterStrokes,
   character,
@@ -30,6 +37,7 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
   speed,
   onScoreUpdate,
   onAllStrokesComplete,
+  onUserStrokeAdd,
   resetTrigger
 }, ref) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,8 +53,9 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
   const [inkBlots, setInkBlots] = useState<{ x: number; y: number; t: number; r: number }[]>([]);
 
   const animFrameRef = useRef<number | null>(null);
-  const animStartRef = useRef(0);
   const strokeStartTimeRef = useRef(0);
+  const isPausedRef = useRef(false);
+  const pauseStateRef = useRef<{ strokeIndex: number; progress: number } | null>(null);
 
   const drawBrushStroke = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -359,6 +368,10 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
     const newCompleted = { ...currentStroke, completed: true, matched: bestScore >= 80 };
     setCompletedStrokes((prev) => [...prev, newCompleted]);
 
+    if (onUserStrokeAdd) {
+      onUserStrokeAdd(newCompleted);
+    }
+
     if (bestStrokeId !== -1) {
       onScoreUpdate(bestStrokeId, bestScore);
 
@@ -374,24 +387,39 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
     if (matchedCount >= characterStrokes.length || completedStrokes.length + 1 >= characterStrokes.length) {
       setTimeout(() => onAllStrokesComplete(), 600);
     }
-  }, [isDrawing, currentStroke, characterStrokes, matchedStrokeIds, onScoreUpdate, onAllStrokesComplete, completedStrokes]);
+  }, [isDrawing, currentStroke, characterStrokes, matchedStrokeIds, onScoreUpdate, onAllStrokesComplete, completedStrokes, onUserStrokeAdd]);
 
-  const playAnimation = useCallback(() => {
+  const clearAnimCanvas = useCallback(() => {
+    const animCanvas = animCanvasRef.current;
+    if (animCanvas) {
+      const actx = animCanvas.getContext('2d');
+      if (actx) actx.clearRect(0, 0, size, size);
+    }
+  }, [size]);
+
+  const startAnimation = useCallback(() => {
     if (isAnimating) return;
     setIsAnimating(true);
+    isPausedRef.current = false;
+    pauseStateRef.current = null;
     const duration = speedDurationMap[speed] * 1000;
     let strokeIndex = 0;
     strokeStartTimeRef.current = performance.now();
 
     const animateFrame = (now: number) => {
+      if (isPausedRef.current) {
+        pauseStateRef.current = {
+          strokeIndex,
+          progress: Math.min((now - strokeStartTimeRef.current) / duration, 1)
+        };
+        animFrameRef.current = requestAnimationFrame(animateFrame);
+        return;
+      }
+
       if (strokeIndex >= characterStrokes.length) {
         setIsAnimating(false);
         setAnimStrokeIdx(-1);
-        const animCanvas = animCanvasRef.current;
-        if (animCanvas) {
-          const actx = animCanvas.getContext('2d');
-          if (actx) actx.clearRect(0, 0, size, size);
-        }
+        clearAnimCanvas();
         return;
       }
 
@@ -446,7 +474,98 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
     };
 
     animFrameRef.current = requestAnimationFrame(animateFrame);
-  }, [isAnimating, speed, characterStrokes, size, drawBrushStroke]);
+  }, [isAnimating, speed, characterStrokes, size, drawBrushStroke, clearAnimCanvas]);
+
+  const pauseAnimation = useCallback(() => {
+    if (!isAnimating) return;
+    isPausedRef.current = true;
+  }, [isAnimating]);
+
+  const resumeAnimation = useCallback(() => {
+    if (!isAnimating || !isPausedRef.current) return;
+    isPausedRef.current = false;
+    const state = pauseStateRef.current;
+    if (!state) return;
+
+    const duration = speedDurationMap[speed] * 1000;
+    let strokeIndex = state.strokeIndex;
+    strokeStartTimeRef.current = performance.now() - state.progress * duration;
+
+    const animateFrame = (now: number) => {
+      if (isPausedRef.current) {
+        pauseStateRef.current = {
+          strokeIndex,
+          progress: Math.min((now - strokeStartTimeRef.current) / duration, 1)
+        };
+        animFrameRef.current = requestAnimationFrame(animateFrame);
+        return;
+      }
+
+      if (strokeIndex >= characterStrokes.length) {
+        setIsAnimating(false);
+        setAnimStrokeIdx(-1);
+        clearAnimCanvas();
+        return;
+      }
+
+      const elapsed = now - strokeStartTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const stroke = characterStrokes[strokeIndex];
+
+      setAnimStrokeIdx(stroke.id);
+
+      const animCanvas = animCanvasRef.current;
+      if (animCanvas) {
+        const actx = animCanvas.getContext('2d');
+        if (actx) {
+          actx.clearRect(0, 0, size, size);
+          for (let i = 0; i < strokeIndex; i++) {
+            drawBrushStroke(actx, characterStrokes[i].points, characterStrokes[i], { alpha: 0.9 });
+          }
+          const visibleCount = Math.floor(stroke.points.length * easeOutCubic(progress));
+          const visiblePoints = stroke.points.slice(0, Math.max(2, visibleCount + 1));
+          if (visiblePoints.length >= 2) {
+            drawBrushStroke(actx, visiblePoints, stroke, { alpha: 0.95 });
+          }
+          if (visiblePoints.length >= 2) {
+            const tip = visiblePoints[visiblePoints.length - 1];
+            actx.save();
+            const tipGrad = actx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, 16);
+            tipGrad.addColorStop(0, 'rgba(26, 26, 26, 0.5)');
+            tipGrad.addColorStop(1, 'rgba(26, 26, 26, 0)');
+            actx.fillStyle = tipGrad;
+            actx.beginPath();
+            actx.arc(tip.x, tip.y, 16, 0, Math.PI * 2);
+            actx.fill();
+            actx.restore();
+          }
+        }
+      }
+
+      if (progress >= 1) {
+        strokeIndex++;
+        strokeStartTimeRef.current = now;
+        const pauseDuration = 200 / (speed === 'slow' ? 2 : speed === 'fast' ? 0.5 : 1);
+        setTimeout(() => {
+          animFrameRef.current = requestAnimationFrame(animateFrame);
+        }, pauseDuration);
+      } else {
+        animFrameRef.current = requestAnimationFrame(animateFrame);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(animateFrame);
+  }, [isAnimating, speed, characterStrokes, size, drawBrushStroke, clearAnimCanvas]);
+
+  const resetAnimation = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
+    isPausedRef.current = false;
+    pauseStateRef.current = null;
+    setIsAnimating(false);
+    setAnimStrokeIdx(-1);
+    clearAnimCanvas();
+  }, [clearAnimCanvas]);
 
   const clearCanvas = useCallback(() => {
     setCompletedStrokes([]);
@@ -457,21 +576,19 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
   }, []);
 
   useImperativeHandle(ref, () => ({
-    playAnimation,
-    clearCanvas
-  }), [playAnimation, clearCanvas]);
+    startAnimation,
+    playAnimation: startAnimation,
+    pauseAnimation,
+    resumeAnimation,
+    resetAnimation,
+    clearCanvas,
+    isAnimating: () => isAnimating
+  }), [startAnimation, pauseAnimation, resumeAnimation, resetAnimation, clearCanvas, isAnimating]);
 
   useEffect(() => {
     clearCanvas();
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    setIsAnimating(false);
-    setAnimStrokeIdx(-1);
-    const animCanvas = animCanvasRef.current;
-    if (animCanvas) {
-      const actx = animCanvas.getContext('2d');
-      if (actx) actx.clearRect(0, 0, size, size);
-    }
-  }, [resetTrigger, character, clearCanvas, size]);
+    resetAnimation();
+  }, [resetTrigger, character, clearCanvas, resetAnimation]);
 
   useEffect(() => {
     return () => {
@@ -515,10 +632,6 @@ const CalligraphyCanvas = forwardRef<CalligraphyCanvasHandle, CalligraphyCanvasP
     </div>
   );
 });
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
 
 CalligraphyCanvas.displayName = 'CalligraphyCanvas';
 

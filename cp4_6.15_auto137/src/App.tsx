@@ -3,7 +3,7 @@ import Gallery from './component/Gallery';
 import CalligraphyCanvas, { type CalligraphyCanvasHandle } from './component/CalligraphyCanvas';
 import { rubbings } from './data/rubbings';
 import type { Rubbing, PracticeRecord, AnimationSpeed, ViewMode, Stroke } from './types';
-import { calculateOverallScore, getScoreGradient, getScoreColor, calculateStrokeSimilarity } from './utils/scoring';
+import { calculateOverallScore, getScoreGradient, getScoreColor } from './utils/scoring';
 
 const STORAGE_KEY = 'calligraphy_practice_records';
 
@@ -135,6 +135,10 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const handleUserStrokeAdd = useCallback((stroke: Stroke) => {
+    userStrokesRef.current = [...userStrokesRef.current, stroke];
+  }, []);
+
   const handleAllStrokesComplete = useCallback(() => {
     if (!selectedRubbing || !currentChar) return;
 
@@ -238,13 +242,14 @@ const App: React.FC = () => {
     }
   }, [compareRecord]);
 
-  const overallScore = calculateOverallScore(
-    currentChar
-      ? currentChar.strokes.map((s) => strokeScores.get(s.id) || 0)
-      : []
-  );
-
   const sortedRecords = [...records].sort((a, b) => b.timestamp - a.timestamp);
+
+  const handleClearRecords = () => {
+    if (!confirm('确定要清空所有临摹记录吗？此操作不可撤销。')) return;
+    setRecords([]);
+    saveRecords([]);
+    setVisibleRecords(new Set());
+  };
 
   const renderGallery = () => (
     <Gallery rubbings={rubbings} onSelect={handleSelectRubbing} />
@@ -285,6 +290,7 @@ const App: React.FC = () => {
             speed={animationSpeed}
             onScoreUpdate={handleScoreUpdate}
             onAllStrokesComplete={handleAllStrokesComplete}
+            onUserStrokeAdd={handleUserStrokeAdd}
             resetTrigger={resetTrigger}
           />
 
@@ -412,6 +418,14 @@ const App: React.FC = () => {
 
     return (
       <div className="history-list page-enter">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#1a1a1a' }}>
+            临摹记录（共 {sortedRecords.length} 条）
+          </div>
+          <button className="action-btn" onClick={handleClearRecords} style={{ padding: '8px 16px', fontSize: 13 }}>
+            ✦ 清空记录
+          </button>
+        </div>
         {sortedRecords.map((record) => (
           <div
             key={record.id}
