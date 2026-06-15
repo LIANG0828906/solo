@@ -4,7 +4,6 @@ import { ArrowLeft, Trash2, ChevronDown, ChevronUp, X, Music } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { useMoodStore } from '@/store/moodStore';
 import type { HistoryItem, Song } from '@/types';
-import SongCard from './SongCard';
 
 function formatTimeAgo(timestamp: number): string {
   const now = Date.now();
@@ -213,27 +212,47 @@ export default function HistoryPage() {
                         </button>
 
                         {expandedId === item.id && (
-                          <div className="border-t border-gray-100 p-4 bg-gray-50">
-                            <div className="mb-4">
-                              <button
-                                onClick={() => handleViewPlaylist(item)}
-                                className="w-full py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors text-sm"
-                              >
-                                查看完整歌单
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
-                              {item.songs.map((song) => (
-                                <div key={song.id} className="scale-90 origin-top-left">
-                                  <SongCard
-                                    song={song}
-                                    isFavorite={favorites.includes(song.id)}
-                                    isPlaying={currentSong?.id === song.id && isPlaying}
-                                    onPlay={() => handlePlay(song)}
-                                    onToggleFavorite={() => toggleFavorite(song.id)}
-                                  />
-                                </div>
-                              ))}
+                          <div className="border-t border-gray-100 bg-gray-50 overflow-hidden animate-[expandDown_0.3s_ease-out]">
+                            <div className="p-4">
+                              <div className="mb-4">
+                                <button
+                                  onClick={() => handleViewPlaylist(item)}
+                                  className="w-full py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors text-sm"
+                                >
+                                  查看完整歌单
+                                </button>
+                              </div>
+                              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                {item.songs.map((song) => (
+                                  <div
+                                    key={song.id}
+                                    className="flex items-center gap-3 p-2.5 rounded-xl bg-white hover:bg-white/80 shadow-sm transition-all cursor-pointer"
+                                    onClick={() => handlePlay(song)}
+                                  >
+                                    <img
+                                      src={song.coverUrl}
+                                      alt={song.title}
+                                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-800 truncate">{song.title}</p>
+                                      <p className="text-xs text-gray-500 truncate">{song.artist}</p>
+                                    </div>
+                                    <span className="text-xs text-gray-400 flex-shrink-0">
+                                      {Math.floor(song.duration / 60)}:{String(Math.floor(song.duration % 60)).padStart(2, '0')}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleFavorite(song.id);
+                                      }}
+                                      className="flex-shrink-0 p-1"
+                                    >
+                                      <i className={`fa-${favorites.includes(song.id) ? 'solid' : 'regular'} fa-heart text-sm ${favorites.includes(song.id) ? 'text-red-500' : 'text-gray-300'} transition-colors`} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -287,6 +306,16 @@ export default function HistoryPage() {
           }
           to {
             transform: translateY(0);
+          }
+        }
+        @keyframes expandDown {
+          from {
+            opacity: 0;
+            max-height: 0;
+          }
+          to {
+            opacity: 1;
+            max-height: 500px;
           }
         }
       `}</style>

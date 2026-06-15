@@ -32,14 +32,22 @@ export default function WelcomePage() {
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [moodsLoaded, setMoodsLoaded] = useState(false);
 
   useEffect(() => {
-    if (moods.length === 0) {
-      getMoods().then((data) => {
-        setStoreMoods(data);
-      }).catch(console.error);
+    if (moods.length === 0 && !moodsLoaded) {
+      getMoods()
+        .then((data) => {
+          setStoreMoods(data);
+          setMoodsLoaded(true);
+        })
+        .catch((err) => {
+          console.error('加载情绪列表失败:', err);
+        });
+    } else if (moods.length > 0) {
+      setMoodsLoaded(true);
     }
-  }, [moods.length, setStoreMoods]);
+  }, [moods.length, setStoreMoods, moodsLoaded]);
 
   const handleAnalyze = async () => {
     if (!inputText.trim()) return;

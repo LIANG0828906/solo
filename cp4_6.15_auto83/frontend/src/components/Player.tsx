@@ -262,13 +262,46 @@ export default function Player() {
             max="100"
             value={isMuted ? 0 : volume * 100}
             onChange={handleVolumeChange}
-            className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
+            className="volume-slider flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
             style={{
               background: `linear-gradient(to right, ${getVolumeGradient()} ${isMuted ? 0 : volume * 100}%, rgba(255,255,255,0.2) ${isMuted ? 0 : volume * 100}%)`,
-            }}
+              '--thumb-color': getVolumeGradient(),
+            } as React.CSSProperties}
           />
         </div>
       </div>
+
+      <style>{`
+        .volume-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: var(--thumb-color, #4ade80);
+          border: 2px solid rgba(255,255,255,0.9);
+          box-shadow: 0 0 6px var(--thumb-color, #4ade80), 0 2px 4px rgba(0,0,0,0.3);
+          cursor: pointer;
+          transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .volume-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+          box-shadow: 0 0 12px var(--thumb-color, #4ade80), 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .volume-slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: var(--thumb-color, #4ade80);
+          border: 2px solid rgba(255,255,255,0.9);
+          box-shadow: 0 0 6px var(--thumb-color, #4ade80), 0 2px 4px rgba(0,0,0,0.3);
+          cursor: pointer;
+          transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .volume-slider::-moz-range-thumb:hover {
+          box-shadow: 0 0 12px var(--thumb-color, #4ade80), 0 2px 8px rgba(0,0,0,0.4);
+        }
+      `}</style>
     </div>
   );
 }
