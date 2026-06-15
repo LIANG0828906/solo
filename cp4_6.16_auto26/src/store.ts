@@ -44,7 +44,10 @@ const defaultUI: UIState = {
 
 const createSampleData = (): Subscription[] => {
   const now = new Date()
+  const threeYearsAgo = addYears(now, -3)
+  const twoYearsAgo = addYears(now, -2)
   const oneYearAgo = addYears(now, -1)
+  const sixMonthsAgo = addMonths(now, -6)
   return [
     {
       id: uuidv4(),
@@ -56,8 +59,8 @@ const createSampleData = (): Subscription[] => {
       notes: '团队协作知识库',
       usageFrequency: 8,
       satisfaction: 9,
-      createdAt: oneYearAgo.toISOString(),
-      updatedAt: oneYearAgo.toISOString()
+      createdAt: threeYearsAgo.toISOString(),
+      updatedAt: threeYearsAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -69,8 +72,8 @@ const createSampleData = (): Subscription[] => {
       notes: '代码托管平台',
       usageFrequency: 10,
       satisfaction: 8,
-      createdAt: oneYearAgo.toISOString(),
-      updatedAt: oneYearAgo.toISOString()
+      createdAt: twoYearsAgo.toISOString(),
+      updatedAt: twoYearsAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -95,8 +98,8 @@ const createSampleData = (): Subscription[] => {
       notes: '音乐流媒体',
       usageFrequency: 9,
       satisfaction: 8,
-      createdAt: oneYearAgo.toISOString(),
-      updatedAt: oneYearAgo.toISOString()
+      createdAt: sixMonthsAgo.toISOString(),
+      updatedAt: sixMonthsAgo.toISOString()
     },
     {
       id: uuidv4(),
@@ -108,8 +111,8 @@ const createSampleData = (): Subscription[] => {
       notes: '创意套件全家桶',
       usageFrequency: 6,
       satisfaction: 7,
-      createdAt: oneYearAgo.toISOString(),
-      updatedAt: oneYearAgo.toISOString()
+      createdAt: threeYearsAgo.toISOString(),
+      updatedAt: threeYearsAgo.toISOString()
     }
   ]
 }

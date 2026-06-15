@@ -85,7 +85,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className={`main-content ${ui.isMobileMenuOpen ? 'menu-open-shifted' : ''}`}>
         <div className="content-wrapper">
           {children}
         </div>
