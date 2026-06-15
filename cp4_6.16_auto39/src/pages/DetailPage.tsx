@@ -30,7 +30,8 @@ export function DetailPage() {
   const [commentContent, setCommentContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<number | null>(null);
-  const commentsEndRef = useRef<HTMLDivElement | null>(null);
+  const commentsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingMoreRef = useRef(false);
 
   useEffect(() => {
     if (id) {
@@ -42,11 +43,44 @@ export function DetailPage() {
 
   const hasMoreComments = displayedCommentCount < totalCommentCount;
 
-  const handleLoadMoreComments = useCallback(() => {
-    if (id && hasMoreComments) {
-      loadMoreComments(id);
+  const handleLoadMoreComments = useCallback(async () => {
+    if (!id || !hasMoreComments || isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
+    try {
+      await loadMoreComments(id);
+    } finally {
+      setTimeout(() => {
+        isLoadingMoreRef.current = false;
+      }, 300);
     }
   }, [id, hasMoreComments, loadMoreComments]);
+
+  useEffect(() => {
+    if (!hasMoreComments) return;
+
+    const sentinel = commentsSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            handleLoadMoreComments();
+          }
+        });
+      },
+      {
+        rootMargin: '100px',
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreComments, handleLoadMoreComments]);
 
   const goToNext = useCallback(() => {
     if (currentSongs.length === 0) return;
@@ -99,7 +133,7 @@ export function DetailPage() {
       await addComment(id, nickname.trim(), commentContent.trim());
       setCommentContent('');
       setTimeout(() => {
-        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        commentsSentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }, 100);
     } finally {
       setIsSubmitting(false);
@@ -239,14 +273,17 @@ export function DetailPage() {
                     </div>
                   </div>
                 ))}
-                <div ref={commentsEndRef} />
-                {hasMoreComments && (
-                  <div className="load-more-comments">
-                    <button className="btn-load-more" onClick={handleLoadMoreComments}>
-                      加载更多评论 ({totalCommentCount - displayedCommentCount} 条未读)
-                    </button>
-                  </div>
-                )}
+                <div ref={commentsSentinelRef} className="comments-sentinel">
+                  {hasMoreComments && (
+                    <div className="loading-more-comments">
+                      <div className="mini-spinner" />
+                      <span>加载更多评论...</span>
+                    </div>
+                  )}
+                  {!hasMoreComments && totalCommentCount > 0 && (
+                    <div className="no-more-comments">— 已经到底了 —</div>
+                  )}
+                </div>
               </>
             )}
           </div>
