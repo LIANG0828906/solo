@@ -211,11 +211,11 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       pressedKeysRef.current.add(e.key)
 
-      if (e.key === ' ' && isPlanted && !e.repeat) {
+      if (e.key === ' ' && isPlantedRef.current && !e.repeat) {
         e.preventDefault()
-        handleTakePhoto()
+        handleTakePhotoRef.current()
       }
-      if ((e.key === 'p' || e.key === 'P') && isPlanted && !e.repeat) {
+      if ((e.key === 'p' || e.key === 'P') && isPlantedRef.current && !e.repeat) {
         setIsGrowing(prev => !prev)
       }
     }
@@ -306,18 +306,19 @@ export default function App() {
       handleWASDPan(cameraStateRef.current, pressedKeysRef.current, deltaTime)
       updateCamera(sceneStateRef.current, cameraStateRef.current, deltaTime)
 
-      if (plantDataRef.current && isPlanted) {
-        const shouldAdvance = isGrowing && !isWilting
+      if (plantDataRef.current && isPlantedRef.current) {
+        const shouldAdvance = isGrowingRef.current && !isWiltingRef.current
         const currentPhase = plantDataRef.current.phase
+        const speed = growthSpeedRef.current
         const newPhase = shouldAdvance 
-          ? currentPhase + deltaTime * growthSpeed * 12
+          ? currentPhase + deltaTime * speed * 20
           : currentPhase
 
         plantDataRef.current = updateGrowth(
           plantDataRef.current,
           newPhase,
-          growthSpeed,
-          params
+          speed,
+          paramsRef.current
         )
 
         updatePlantMeshes(sceneStateRef.current, plantDataRef.current)
