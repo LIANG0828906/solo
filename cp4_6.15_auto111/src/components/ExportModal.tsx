@@ -87,6 +87,13 @@ export default function ExportModal({ open, onClose }: Props) {
       }
     };
 
+    worker.onerror = (err) => {
+      setError(`Worker 错误: ${err.message || '未知错误'}`);
+      setStage('select');
+      worker.terminate();
+      workerRef.current = null;
+    };
+
     worker.postMessage({
       type: 'export',
       format: options.format,

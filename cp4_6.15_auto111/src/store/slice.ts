@@ -295,6 +295,6 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
     get().updateElement(id, { isGlitching: true }, false);
     setTimeout(() => {
       get().updateElement(id, { isGlitching: false }, false);
-    }, 250);
+    }, 400);
   },
 }));
