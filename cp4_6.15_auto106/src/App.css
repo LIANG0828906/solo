@@ -610,15 +610,11 @@ body {
 
 /*
   Spring弹性动画 (overshoot效果)
-  使用cubic-bezier模拟spring物理效果:
   先快速收缩 → 略微回弹超出 → 稳定到目标值
 */
-.spring-animate {
-  animation: springBounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  transform-origin: left center;
-}
 
-@keyframes springBounce {
+/* HP 回弹动画 */
+@keyframes springBounce-hp {
   0% {
     transform: scaleX(1);
   }
@@ -637,6 +633,50 @@ body {
   100% {
     transform: scaleX(1);
   }
+}
+
+/* MP 回弹动画 */
+@keyframes springBounce-mp {
+  0% {
+    transform: scaleX(1);
+  }
+  25% {
+    transform: scaleX(0.88);
+  }
+  55% {
+    transform: scaleX(1.06);
+  }
+  75% {
+    transform: scaleX(0.97);
+  }
+  90% {
+    transform: scaleX(1.015);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+/* HP 回弹动画触发类 */
+.hp-bounce {
+  animation: springBounce-hp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: left center;
+}
+
+/* MP 回弹动画触发类 */
+.mp-bounce {
+  animation: springBounce-mp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: left center;
+}
+
+/* HP 基础填充类（无动画） */
+.hp-fill-animate {
+  transform-origin: left center;
+}
+
+/* MP 基础填充类（无动画） */
+.mp-fill-animate {
+  transform-origin: left center;
 }
 
 /* HP进度条 - 酒红→鲜红渐变 */
