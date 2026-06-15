@@ -227,8 +227,8 @@ export function getWindowBgColor(progress: number): [number, number, number] {
   ];
 }
 
-export function exportConfigToJSON(config: LightConfig, mode: 'day' | 'night'): string {
-  return JSON.stringify(
+export function exportConfigToJSON(config: LightConfig, mode: 'day' | 'night'): void {
+  const jsonStr = JSON.stringify(
     {
       mode,
       lights: config,
@@ -237,4 +237,14 @@ export function exportConfigToJSON(config: LightConfig, mode: 'day' | 'night'): 
     null,
     2
   );
+
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `light-design-${new Date().toISOString().slice(0, 10)}-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

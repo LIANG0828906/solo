@@ -17,7 +17,12 @@ const TRANSITION_DURATION = 2000;
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('day');
-  const [lightConfig, setLightConfig] = useState<LightConfig>(getDefaultDayConfig());
+  const [lightConfig, setLightConfig] = useState<LightConfig>(() => ({
+    ...getDefaultDayConfig(),
+    main: { ...getDefaultDayConfig().main },
+    back: { ...getDefaultDayConfig().back },
+    fill: { ...getDefaultDayConfig().fill },
+  }));
   const [transitionProgress, setTransitionProgress] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -30,16 +35,25 @@ export default function App() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const transitionRef = useRef<number | null>(null);
-  const startConfigRef = useRef<LightConfig>(getDefaultDayConfig());
-  const endConfigRef = useRef<LightConfig>(getDefaultDayConfig());
+  const startConfigRef = useRef<LightConfig>(lightConfig);
+  const endConfigRef = useRef<LightConfig>(lightConfig);
+  const lightConfigVersion = useRef(0);
 
   const animateTransition = useCallback((fromConfig: LightConfig, toConfig: LightConfig) => {
     if (transitionRef.current) {
       cancelAnimationFrame(transitionRef.current);
     }
 
-    startConfigRef.current = fromConfig;
-    endConfigRef.current = toConfig;
+    startConfigRef.current = {
+      main: { ...fromConfig.main },
+      back: { ...fromConfig.back },
+      fill: { ...fromConfig.fill },
+    };
+    endConfigRef.current = {
+      main: { ...toConfig.main },
+      back: { ...toConfig.back },
+      fill: { ...toConfig.fill },
+    };
 
     const startTime = performance.now();
 
@@ -52,7 +66,12 @@ export default function App() {
         endConfigRef.current,
         t
       );
-      setLightConfig(interpolated);
+      setLightConfig({
+        main: { ...interpolated.main },
+        back: { ...interpolated.back },
+        fill: { ...interpolated.fill },
+      });
+      lightConfigVersion.current++;
 
       const isDayToNight =
         endConfigRef.current.main.colorTemperature <
@@ -79,38 +98,71 @@ export default function App() {
     animateTransition(lightConfig, targetConfig);
   }, [mode, lightConfig, animateTransition]);
 
-  const handleLightToggle = useCallback(
-    (key: LightKey) => {
-      setLightConfig((prev) => ({
-        ...prev,
-        [key]: { ...prev[key], enabled: !prev[key].enabled },
-      }));
-    },
-    []
-  );
+  const handleLightToggle = useCallback((key: LightKey) => {
+    setLightConfig((prev) => {
+      const newConfig = {
+        main: { ...prev.main },
+        back: { ...prev.back },
+        fill: { ...prev.fill },
+      };
+      newConfig[key] = {
+        ...newConfig[key],
+        enabled: !newConfig[key].enabled,
+      };
+      return newConfig;
+    });
+    lightConfigVersion.current++;
+  }, []);
 
   const handleLightIntensityChange = useCallback((key: LightKey, value: number) => {
-    setLightConfig((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], intensity: value },
-    }));
+    setLightConfig((prev) => {
+      const newConfig = {
+        main: { ...prev.main },
+        back: { ...prev.back },
+        fill: { ...prev.fill },
+      };
+      newConfig[key] = {
+        ...newConfig[key],
+        intensity: value,
+      };
+      return newConfig;
+    });
+    lightConfigVersion.current++;
     setActivePreset(null);
   }, []);
 
   const handleLightColorTempChange = useCallback((key: LightKey, value: number) => {
-    setLightConfig((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], colorTemperature: value },
-    }));
+    setLightConfig((prev) => {
+      const newConfig = {
+        main: { ...prev.main },
+        back: { ...prev.back },
+        fill: { ...prev.fill },
+      };
+      newConfig[key] = {
+        ...newConfig[key],
+        colorTemperature: value,
+      };
+      return newConfig;
+    });
+    lightConfigVersion.current++;
     setActivePreset(null);
   }, []);
 
   const handleLightPositionChange = useCallback(
     (key: LightKey, position: [number, number, number]) => {
-      setLightConfig((prev) => ({
-        ...prev,
-        [key]: { ...prev[key], position },
-      }));
+      setLightConfig((prev) => {
+        const newConfig = {
+          main: { ...prev.main },
+          back: { ...prev.back },
+          fill: { ...prev.fill },
+        };
+        newConfig[key] = {
+          ...newConfig[key],
+          position: [position[0], position[1], position[2]],
+        };
+        return newConfig;
+      });
+      lightConfigVersion.current++;
       setActivePreset(null);
     },
     []
@@ -134,20 +186,15 @@ export default function App() {
   );
 
   const handleExport = useCallback(() => {
-    const json = exportConfigToJSON(lightConfig, mode);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `light-design-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportConfigToJSON(lightConfig, mode);
   }, [lightConfig, mode]);
 
   const handlePanelToggle = useCallback(() => {
     setPanelOpen((prev) => !prev);
+  }, []);
+
+  const handlePanelClose = useCallback(() => {
+    setPanelOpen(false);
   }, []);
 
   useEffect(() => {
@@ -212,6 +259,7 @@ export default function App() {
           onCardExpand={handleCardExpand}
           onExport={handleExport}
           onPanelToggle={handlePanelToggle}
+          onPanelClose={handlePanelClose}
         />
       </div>
 

@@ -7,10 +7,10 @@ import {
 } from '@react-three/fiber';
 import {
   OrbitControls,
-  Stars,
   Html,
   useCursor,
   useTexture,
+  useGLTF,
 } from '@react-three/drei';
 import * as THREE from 'three';
 import {
@@ -54,6 +54,7 @@ function DraggableLight({
   const planeRef = useRef<THREE.Plane>(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const pointRef = useRef<THREE.Vector3>(new THREE.Vector3());
   const opacity = enabled ? 0.85 : 0.2;
+  const scale = enabled ? 1 : 0.7;
 
   useCursor(hovered);
 
@@ -97,13 +98,20 @@ function DraggableLight({
 
   const labelPosition = useMemo(() => {
     const [x, y, z] = position;
-    return [x, y + 0.3, z] as [number, number, number];
+    return [x, y + 0.35, z] as [number, number, number];
   }, [position]);
 
+  const lightNameMap: Record<keyof LightConfig, string> = {
+    main: '主光',
+    back: '背光',
+    fill: '补光',
+  };
+
   return (
-    <group position={position}>
+    <group position={position} visible={enabled || isDragging || hovered}>
       <mesh
         ref={meshRef}
+        scale={[scale, scale, scale]}
         onPointerDown={handlePointerDown}
         onPointerOver={(e) => {
           e.stopPropagation();
@@ -111,11 +119,11 @@ function DraggableLight({
         }}
         onPointerOut={() => setHovered(false)}
       >
-        <sphereGeometry args={[enabled ? 0.12 : 0.08, 32, 32]} />
+        <sphereGeometry args={[0.14, 32, 32]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={enabled ? intensity * 2 : 0.1}
+          emissiveIntensity={enabled ? intensity * 2.5 : 0.1}
           transparent
           opacity={opacity}
         />
@@ -123,40 +131,72 @@ function DraggableLight({
       {enabled && (
         <pointLight
           color={color}
-          intensity={0.2}
-          distance={2}
+          intensity={0.15}
+          distance={1.8}
           position={[0, 0, 0]}
         />
       )}
-      {(isDragging || hovered) && enabled && (
+      {(isDragging || hovered) && (
         <Html
           position={labelPosition}
           center
+          distanceFactor={6}
           style={{
             pointerEvents: 'none',
             userSelect: 'none',
+            zIndex: 100,
           }}
         >
           <div
             style={{
-              background: 'rgba(0,0,0,0.8)',
+              background: 'rgba(0, 0, 0, 0.88)',
               color: '#e0e0e0',
-              fontSize: '10px',
-              padding: '3px 6px',
-              borderRadius: '4px',
-              fontFamily: 'monospace',
+              fontSize: '11px',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              fontFamily: '"SF Mono", "Cascadia Code", "Consolas", monospace',
               whiteSpace: 'nowrap',
-              border: '1px solid rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(99, 102, 241, 0.5)',
+              backdropFilter: 'blur(6px)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+              fontWeight: 500,
             }}
           >
-            {lightKey}: X:{position[0].toFixed(2)} Y:{position[1].toFixed(2)} Z:
-            {position[2].toFixed(2)}
+            <div style={{ color: '#8b5cf6', marginBottom: '3px', fontSize: '10px', letterSpacing: '0.5px' }}>
+              {lightNameMap[lightKey].toUpperCase()}
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <span style={{ color: '#f87171' }}>X:{position[0].toFixed(2)}</span>
+              <span style={{ color: '#4ade80' }}>Y:{position[1].toFixed(2)}</span>
+              <span style={{ color: '#60a5fa' }}>Z:{position[2].toFixed(2)}</span>
+            </div>
           </div>
         </Html>
       )}
     </group>
   );
+}
+
+function GLTFRoom() {
+  const modelPath = '/models/room.glb';
+
+  try {
+    const { scene } = useGLTF(modelPath);
+    useEffect(() => {
+      scene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        }
+      });
+      scene.scale.set(1, 1, 1);
+      scene.position.set(0, 0, 0);
+    }, [scene]);
+    return <primitive object={scene} />;
+  } catch (e) {
+    return <RoomGeometry />;
+  }
 }
 
 function RoomScene({
@@ -171,19 +211,16 @@ function RoomScene({
     position: [number, number, number]
   ) => void;
 }) {
-  const { scene } = useThree();
-  const starsRef = useRef<THREE.Points>(null);
+  const { scene, gl } = useThree();
+
+  useEffect(() => {
+    gl.shadowMap.enabled = true;
+    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  }, [gl]);
 
   useFrame(() => {
     const bgColor = getWindowBgColor(transitionProgress);
     scene.background = new THREE.Color(bgColor[0], bgColor[1], bgColor[2]);
-    if (starsRef.current && starsRef.current.material) {
-      const mat = starsRef.current.material as THREE.Material;
-      if ('opacity' in mat) {
-        mat.opacity = Math.max(0, Math.min(1, (transitionProgress - 0.3) * 1.5));
-        mat.transparent = true;
-      }
-    }
   });
 
   const ambientParams = getAmbientParams('day', transitionProgress);
@@ -207,22 +244,10 @@ function RoomScene({
       {lightEntries.map(([key, light]) => {
         const color = colorTemperatureToRGB(light.colorTemperature);
         const hexColor = `#${new THREE.Color(color[0], color[1], color[2]).getHexString()}`;
-        if (!light.enabled)
-          return (
-            <DraggableLight
-              key={key}
-              lightKey={key}
-              position={light.position}
-              color={hexColor}
-              enabled={false}
-              intensity={0}
-              onDrag={() => {}}
-            />
-          );
 
-        if (key === 'main') {
-          return (
-            <group key={key}>
+        return (
+          <group key={key}>
+            {light.enabled && key === 'main' && (
               <directionalLight
                 position={light.position}
                 intensity={light.intensity * 3}
@@ -237,22 +262,11 @@ function RoomScene({
                 shadow-camera-top={5}
                 shadow-camera-bottom={-5}
                 shadow-bias={-0.0001}
+                shadow-normalBias={0.02}
               />
-              <DraggableLight
-                lightKey={key}
-                position={light.position}
-                color={hexColor}
-                enabled={light.enabled}
-                intensity={light.intensity}
-                onDrag={(pos) => onLightPositionChange(key, pos)}
-              />
-            </group>
-          );
-        }
+            )}
 
-        if (key === 'back') {
-          return (
-            <group key={key}>
+            {light.enabled && key === 'back' && (
               <spotLight
                 position={light.position}
                 intensity={light.intensity * 5}
@@ -263,32 +277,25 @@ function RoomScene({
                 shadow-mapSize-width={1024}
                 shadow-mapSize-height={1024}
                 shadow-bias={-0.0001}
+                shadow-normalBias={0.02}
               />
-              <DraggableLight
-                lightKey={key}
-                position={light.position}
-                color={hexColor}
-                enabled={light.enabled}
-                intensity={light.intensity}
-                onDrag={(pos) => onLightPositionChange(key, pos)}
-              />
-            </group>
-          );
-        }
+            )}
 
-        return (
-          <group key={key}>
-            <pointLight
-              position={light.position}
-              intensity={light.intensity * 3}
-              color={hexColor}
-              distance={8}
-              decay={2}
-              castShadow
-              shadow-mapSize-width={1024}
-              shadow-mapSize-height={1024}
-              shadow-bias={-0.0001}
-            />
+            {light.enabled && key === 'fill' && (
+              <pointLight
+                position={light.position}
+                intensity={light.intensity * 3}
+                color={hexColor}
+                distance={8}
+                decay={2}
+                castShadow
+                shadow-mapSize-width={1024}
+                shadow-mapSize-height={1024}
+                shadow-bias={-0.0001}
+                shadow-normalBias={0.02}
+              />
+            )}
+
             <DraggableLight
               lightKey={key}
               position={light.position}
@@ -301,20 +308,9 @@ function RoomScene({
         );
       })}
 
-      <RoomGeometry />
-
-      {transitionProgress > 0.2 && (
-        <Stars
-          ref={starsRef}
-          radius={50}
-          depth={30}
-          count={200}
-          factor={3}
-          saturation={0.2}
-          fade
-          speed={0.5}
-        />
-      )}
+      <Suspense fallback={<RoomGeometry />}>
+        <GLTFRoom />
+      </Suspense>
     </>
   );
 }
@@ -578,6 +574,8 @@ function RoomGeometry() {
     </group>
   );
 }
+
+useGLTF.preload('/models/room.glb');
 
 export default function Scene({
   lightConfig,

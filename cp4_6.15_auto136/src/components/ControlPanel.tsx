@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LightConfig,
   colorTemperatureToHex,
@@ -108,6 +108,7 @@ interface ControlPanelProps {
   onCardExpand: (key: keyof LightConfig) => void;
   onExport: () => void;
   onPanelToggle: () => void;
+  onPanelClose: () => void;
 }
 
 export default function ControlPanel({
@@ -122,6 +123,7 @@ export default function ControlPanel({
   onCardExpand,
   onExport,
   onPanelToggle,
+  onPanelClose,
 }: ControlPanelProps) {
   const lightKeys = [
     { key: 'main' as const, name: '主光源' },
@@ -129,13 +131,43 @@ export default function ControlPanel({
     { key: 'fill' as const, name: '补光源' },
   ];
 
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  useEffect(() => {
+    const checkScreen = () => setIsSmallScreen(window.innerWidth <= 1024);
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
+
+  const showOverlay = isSmallScreen && panelOpen;
+
   return (
     <>
-      <button className="panel-toggle-btn" onClick={onPanelToggle}>
+      {showOverlay && (
+        <div
+          className="panel-overlay"
+          onClick={onPanelClose}
+          data-open={panelOpen}
+        />
+      )}
+
+      <button
+        className="panel-toggle-btn"
+        onClick={onPanelToggle}
+        title={panelOpen ? '关闭控制面板' : '打开控制面板'}
+      >
         {panelOpen ? '✕' : '☰'}
       </button>
 
       <div className={`control-panel ${panelOpen ? 'open' : ''}`}>
+        <div className="panel-close-row">
+          <span className="section-title" style={{ margin: 0 }}>控制面板</span>
+          <button className="panel-close-icon" onClick={onPanelClose}>
+            ✕
+          </button>
+        </div>
+
         <div className="section-title">光照模式</div>
         <button
           className={`day-night-toggle ${mode}`}
@@ -172,7 +204,11 @@ export default function ControlPanel({
         <div className="section-title" style={{ marginTop: '8px' }}>
           导出
         </div>
-        <button className="export-btn" style={{ width: '100%', height: '38px', fontSize: '13px' }} onClick={onExport}>
+        <button
+          className="export-btn"
+          style={{ width: '100%', height: '38px', fontSize: '13px' }}
+          onClick={onExport}
+        >
           💾 导出当前方案
         </button>
       </div>
