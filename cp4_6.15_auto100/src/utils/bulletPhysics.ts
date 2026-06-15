@@ -74,8 +74,9 @@ export const generateInitialAngles = (
     }
     case 'spread': {
       for (let i = 0; i < bulletDensity; i++) {
-        const randomAngle = (Math.random() - 0.5) * angleRange;
-        angles.push(degToRad(randomAngle));
+        const baseAngle = (Math.random() - 0.5) * angleRange;
+        const randomOffset = (Math.random() - 0.5) * (angleRange * 0.3);
+        angles.push(degToRad(baseAngle + randomOffset));
       }
       break;
     }

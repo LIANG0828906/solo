@@ -1,5 +1,25 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useEditorStore } from '../store/editorStore';
+import type { Wave } from '../store/editorStore';
 import type { BulletPatternType } from '../utils/bulletPhysics';
 import ExportModal from './ExportModal';
 
@@ -15,10 +35,151 @@ const presets = [
   { id: 'spread', name: '密集散弹', description: '大范围随机散弹' },
 ];
 
+interface SortableWaveItemProps {
+  wave: Wave;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}
+
+const SortableWaveItem = ({
+  wave,
+  isSelected,
+  onSelect,
+  onDelete,
+}: SortableWaveItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: wave.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        ...style,
+        padding: 12,
+        background: isSelected ? '#121928' : '#0f1624',
+        border: isSelected
+          ? `1px solid ${wave.color}`
+          : '1px solid #1e2a45',
+        borderRadius: 8,
+        cursor: 'pointer',
+        transition: 'all 0.3s ease-out',
+      }}
+      onClick={onSelect}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            cursor: 'grab',
+            padding: '2px 4px',
+            touchAction: 'none',
+          }}
+        >
+          <div
+            style={{
+              width: 12,
+              height: 2,
+              background: '#3a4a6a',
+              borderRadius: 1,
+            }}
+          />
+          <div
+            style={{
+              width: 12,
+              height: 2,
+              background: '#3a4a6a',
+              borderRadius: 1,
+            }}
+          />
+          <div
+            style={{
+              width: 12,
+              height: 2,
+              background: '#3a4a6a',
+              borderRadius: 1,
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            width: 4,
+            height: 24,
+            background: wave.color,
+            borderRadius: 2,
+          }}
+        />
+
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#e0e8f5',
+              fontFamily: "'Oxanium', sans-serif",
+              fontWeight: 500,
+            }}
+          >
+            {wave.name}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: '#5a6a8a',
+              marginTop: 2,
+            }}
+          >
+            {wave.patterns.length} 种弹幕 · {wave.duration}s
+          </div>
+        </div>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          style={{
+            padding: '4px 8px',
+            background: 'transparent',
+            color: '#ff6b35',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 14,
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const EditorPanel = () => {
   const [showExport, setShowExport] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const draggedWaveIndex = useRef<number | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const patterns = useEditorStore((state) => state.patterns);
   const waves = useEditorStore((state) => state.waves);
@@ -48,21 +209,35 @@ const EditorPanel = () => {
   const selectedPattern = patterns.find((p) => p.id === selectedPatternId);
   const selectedWave = waves.find((w) => w.id === selectedWaveId);
 
-  const handleDragStart = (index: number) => {
-    draggedWaveIndex.current = index;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedWaveIndex.current === null) return;
-    if (draggedWaveIndex.current === index) return;
-    reorderWaves(draggedWaveIndex.current, index);
-    draggedWaveIndex.current = index;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (over && active.id !== over.id) {
+      const oldIndex = waves.findIndex((w) => w.id === active.id);
+      const newIndex = waves.findIndex((w) => w.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderWaves(oldIndex, newIndex);
+      }
+    }
   };
 
-  const handleDragEnd = () => {
-    draggedWaveIndex.current = null;
-  };
+  const activeWave = activeId ? waves.find((w) => w.id === activeId) : null;
 
   const panelContent = (
     <div
@@ -605,128 +780,88 @@ const EditorPanel = () => {
           })}
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            marginTop: 12,
-          }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         >
-          {waves.map((wave, index) => (
+          <SortableContext
+            items={waves.map((w) => w.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <div
-              key={wave.id}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              onClick={() => selectWave(wave.id)}
               style={{
-                padding: 12,
-                background:
-                  selectedWaveId === wave.id ? '#121928' : '#0f1624',
-                border:
-                  selectedWaveId === wave.id
-                    ? `1px solid ${wave.color}`
-                    : '1px solid #1e2a45',
-                borderRadius: 8,
-                cursor: 'pointer',
-                transition: 'all 0.3s ease-out',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                marginTop: 12,
               }}
             >
+              {waves.map((wave) => (
+                <SortableWaveItem
+                  key={wave.id}
+                  wave={wave}
+                  isSelected={selectedWaveId === wave.id}
+                  onSelect={() => selectWave(wave.id)}
+                  onDelete={() => deleteWave(wave.id)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeWave ? (
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
+                  padding: 12,
+                  background: '#121928',
+                  border: `1px solid ${activeWave.color}`,
+                  borderRadius: 8,
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
+                  opacity: 0.9,
                 }}
               >
                 <div
                   style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    cursor: 'grab',
-                    padding: '2px 4px',
+                    alignItems: 'center',
+                    gap: 8,
                   }}
                 >
                   <div
                     style={{
-                      width: 12,
-                      height: 2,
-                      background: '#3a4a6a',
-                      borderRadius: 1,
+                      width: 4,
+                      height: 24,
+                      background: activeWave.color,
+                      borderRadius: 2,
                     }}
                   />
-                  <div
-                    style={{
-                      width: 12,
-                      height: 2,
-                      background: '#3a4a6a',
-                      borderRadius: 1,
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 12,
-                      height: 2,
-                      background: '#3a4a6a',
-                      borderRadius: 1,
-                    }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    width: 4,
-                    height: 24,
-                    background: wave.color,
-                    borderRadius: 2,
-                  }}
-                />
-
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: '#e0e8f5',
-                      fontFamily: "'Oxanium', sans-serif",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {wave.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: '#5a6a8a',
-                      marginTop: 2,
-                    }}
-                  >
-                    {wave.patterns.length} 种弹幕 · {wave.duration}s
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: '#e0e8f5',
+                        fontFamily: "'Oxanium', sans-serif",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {activeWave.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: '#5a6a8a',
+                        marginTop: 2,
+                      }}
+                    >
+                      {activeWave.patterns.length} 种弹幕 · {activeWave.duration}s
+                    </div>
                   </div>
                 </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteWave(wave.id);
-                  }}
-                  style={{
-                    padding: '4px 8px',
-                    background: 'transparent',
-                    color: '#ff6b35',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                  }}
-                >
-                  ×
-                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         {selectedWave && (
           <div

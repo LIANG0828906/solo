@@ -204,12 +204,14 @@ const PreviewCanvas = () => {
 
       const count = bulletsRef.current.length;
       setBulletCount(count);
-      setPerformanceMode(count > 500);
+      const isPerfMode = count > 500;
+      setPerformanceMode(isPerfMode);
 
-      const useTrails = !performanceMode && count <= 500;
+      const skipRate = isPerfMode ? Math.ceil(count / 500) : 1;
 
-      bulletsRef.current.forEach((bullet) => {
-        drawBullet(ctx, bullet, useTrails, viewTransform.scale);
+      bulletsRef.current.forEach((bullet, idx) => {
+        if (isPerfMode && idx % skipRate !== 0) return;
+        drawBullet(ctx, bullet, !isPerfMode, viewTransform.scale, isPerfMode);
       });
 
       ctx.restore();
@@ -347,13 +349,14 @@ const drawBullet = (
   ctx: CanvasRenderingContext2D,
   bullet: Bullet,
   useTrails: boolean,
-  scale: number
+  scale: number,
+  isPerfMode: boolean = false
 ) => {
   const opacity = getBulletOpacity(bullet);
   const rgb = hexToRgb(bullet.color);
   const radius = 4 / scale;
 
-  if (useTrails) {
+  if (useTrails && !isPerfMode) {
     const trailLength = 8;
     for (let i = trailLength; i > 0; i--) {
       const t = i / trailLength;
@@ -370,16 +373,22 @@ const drawBullet = (
 
   ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
   ctx.beginPath();
-  ctx.arc(bullet.x, bullet.y, radius, 0, Math.PI * 2);
+  if (isPerfMode) {
+    ctx.rect(bullet.x - radius, bullet.y - radius, radius * 2, radius * 2);
+  } else {
+    ctx.arc(bullet.x, bullet.y, radius, 0, Math.PI * 2);
+  }
   ctx.fill();
 
-  ctx.shadowColor = bullet.color;
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
-  ctx.beginPath();
-  ctx.arc(bullet.x, bullet.y, radius * 0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  if (!isPerfMode) {
+    ctx.shadowColor = bullet.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
 };
 
 const drawStats = (
