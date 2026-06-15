@@ -1,0 +1,14 @@
+.app {
+  min-height: 100vh;
+}
+
+.mainContent {
+  min-height: 100vh;
+  transition: margin-left var(--transition-normal) ease;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    margin-left: 0 !important;
+  }
+}
