@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { shallow } from 'zustand/shallow';
 import { ProgressPanel } from '@/components/ProgressPanel';
 import { PatternGrid } from '@/components/PatternGrid';
 import { useProjectStore } from '@/store/projectStore';
@@ -9,26 +10,19 @@ import './ProjectReader.css';
 export function ProjectReader() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const {
-    loadProjects,
-    advanceRow,
-    undo,
-    startActiveSession,
-    endActiveSession,
-  } = useProjectStore();
-  const projects = useProjectStore((state) => {
-    console.log('[Reader] selector called, projects.length:', state.projects.length);
-    return state.projects;
-  });
+  const projects = useProjectStore((state) => state.projects, shallow);
+  const loadProjects = useProjectStore((state) => state.loadProjects);
+  const advanceRow = useProjectStore((state) => state.advanceRow);
+  const undo = useProjectStore((state) => state.undo);
+  const startActiveSession = useProjectStore((state) => state.startActiveSession);
+  const endActiveSession = useProjectStore((state) => state.endActiveSession);
   const project = id ? projects.find((p) => p.id === id) : undefined;
-  console.log('[Reader] render, project?.currentRow:', project?.currentRow, 'undoStack size:', project?.undoStack?.length);
 
   const [activeSeconds, setActiveSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
   const isLeavingRef = useRef(false);
 
   useEffect(() => {
-    console.log('[Reader] loadProjects useEffect');
     loadProjects();
   }, [loadProjects]);
 
@@ -80,6 +74,7 @@ export function ProjectReader() {
   }, [project, startActiveSession, endActiveSession]);
 
   const handleAdvanceRow = useCallback(() => {
+    console.log('[Reader] handleAdvanceRow called, project?.id:', project?.id, 'currentRow:', project?.currentRow);
     if (!project || project.currentRow >= project.rowCount) return;
     advanceRow(project.id);
   }, [project, advanceRow]);
@@ -141,6 +136,7 @@ export function ProjectReader() {
   }
 
   const isCompleted = project.currentRow >= project.rowCount;
+  console.log('[Reader] About to render JSX, currentRow:', project.currentRow, 'undoStack.length:', project.undoStack.length, 'projectId:', project.id);
 
   return (
     <div className="reader-page">
@@ -162,7 +158,8 @@ export function ProjectReader() {
         <ProgressPanel
           currentRow={project.currentRow}
           totalRows={project.rowCount}
-          elapsedSeconds={activeSeconds}
+          activeSeconds={activeSeconds}
+          elapsedSeconds={project.elapsedSeconds}
         />
       </div>
 

@@ -140,6 +140,18 @@
   user-select: text;
 }
 
+@media (max-width: 1200px) {
+  .pattern-cell {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+
+  .pattern-row {
+    min-height: 30px;
+  }
+}
+
 @media (max-width: 1024px) {
   .pattern-grid {
     padding: 20px;

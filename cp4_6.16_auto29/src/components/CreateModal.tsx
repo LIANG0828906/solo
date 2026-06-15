@@ -23,7 +23,7 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
   const [patternText, setPatternText] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | undefined>();
 
-  const validation = useMemo(() => validatePattern(patternText.trim()), [patternText]);
+  const validation = useMemo(() => validatePattern(patternText.trim(), rowCount), [patternText, rowCount]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -38,9 +38,10 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
 
   const handlePatternChange = (text: string) => {
     setPatternText(text);
-    if (validation.valid) {
-      setRowCount(validation.rowCount);
-      setStitchCount(validation.stitchCount);
+    const newValidation = validatePattern(text.trim());
+    if (newValidation.valid) {
+      setRowCount(newValidation.rowCount);
+      setStitchCount(newValidation.stitchCount);
     }
   };
 

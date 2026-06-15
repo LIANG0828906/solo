@@ -4,12 +4,13 @@ import './ProgressPanel.css';
 interface ProgressPanelProps {
   currentRow: number;
   totalRows: number;
+  activeSeconds: number;
   elapsedSeconds: number;
 }
 
-export function ProgressPanel({ currentRow, totalRows, elapsedSeconds }: ProgressPanelProps) {
+export function ProgressPanel({ currentRow, totalRows, activeSeconds, elapsedSeconds }: ProgressPanelProps) {
   const remainingRows = totalRows - currentRow;
-  const estimatedRemaining = estimateRemainingTime(currentRow, totalRows, elapsedSeconds);
+  const estimatedRemaining = estimateRemainingTime(currentRow, totalRows, activeSeconds, elapsedSeconds);
   const isNearCompletion = remainingRows > 0 && remainingRows < 10;
   const isCompleted = currentRow >= totalRows;
 

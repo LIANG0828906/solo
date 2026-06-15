@@ -31,14 +31,17 @@ export function calculateActiveSeconds(
 export function estimateRemainingTime(
   currentRow: number,
   totalRows: number,
-  activeSeconds: number
+  activeSeconds: number,
+  elapsedSeconds: number = 0
 ): number {
-  if (currentRow <= 0 || activeSeconds <= 0) {
-    return 0;
-  }
+  if (currentRow <= 0) return 0;
   const remainingRows = totalRows - currentRow;
   if (remainingRows <= 0) return 0;
-  const avgSecondsPerRow = activeSeconds / currentRow;
+
+  const totalSeconds = activeSeconds > 0 ? activeSeconds : elapsedSeconds;
+  if (totalSeconds <= 0) return 0;
+
+  const avgSecondsPerRow = totalSeconds / currentRow;
   return Math.max(0, remainingRows * avgSecondsPerRow);
 }
 

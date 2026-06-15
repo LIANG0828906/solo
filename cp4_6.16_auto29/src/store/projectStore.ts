@@ -22,6 +22,10 @@ interface ProjectState {
 
 const MAX_UNDO_STEPS = 5;
 
+function deepCloneSegments(segments: ActiveTimeSegment[]): ActiveTimeSegment[] {
+  return JSON.parse(JSON.stringify(segments));
+}
+
 function createSnapshot(p: Project): ProjectSnapshot {
   return {
     name: p.name,
@@ -32,7 +36,7 @@ function createSnapshot(p: Project): ProjectSnapshot {
     patternText: p.patternText,
     currentRow: p.currentRow,
     elapsedSeconds: p.elapsedSeconds,
-    activeSegments: p.activeSegments.map((s) => ({ ...s })),
+    activeSegments: deepCloneSegments(p.activeSegments),
   };
 }
 
@@ -47,7 +51,7 @@ function applySnapshot(p: Project, snapshot: ProjectSnapshot): Project {
     patternText: snapshot.patternText,
     currentRow: snapshot.currentRow,
     elapsedSeconds: snapshot.elapsedSeconds,
-    activeSegments: snapshot.activeSegments.map((s) => ({ ...s })),
+    activeSegments: deepCloneSegments(snapshot.activeSegments),
   };
 }
 
@@ -151,13 +155,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       updatedAt: Date.now(),
     };
 
-    console.log('[Store] saving to IDB and updating state, new currentRow:', updated.currentRow);
-    await idbSet(`project_${id}`, updated);
-    set((state) => {
-      const newProjects = state.projects.map((p) => (p.id === id ? updated : p));
-      console.log('[Store] setState called, newProjects[0].currentRow:', newProjects[0]?.currentRow);
-      return { projects: newProjects };
-    });
+    console.log('[Store] updating state first, new currentRow:', updated.currentRow);
+    try {
+      set((state) => {
+        const newProjects = state.projects.map((p) => (p.id === id ? updated : p));
+        console.log('[Store] setState callback called, state.projects.length:', state.projects.length, 'newProjects.length:', newProjects.length);
+        console.log('[Store] old ref === new ref?', state.projects === newProjects);
+        console.log('[Store] old[0] === new[0]?', state.projects[0] === newProjects[0]);
+        return { projects: newProjects };
+      });
+      console.log('[Store] set() call completed');
+      
+      console.log('[Store] saving to IDB...');
+      await idbSet(`project_${id}`, updated);
+      console.log('[Store] idbSet completed');
+    } catch (e) {
+      console.error('[Store] Error in advanceRow:', e);
+    }
   },
 
   undo: async (id) => {

@@ -37,10 +37,13 @@ export interface PatternRow {
   symbols: string[];
 }
 
+export const ALLOWED_PATTERN_SYMBOLS = ['｜', 'O', '/', '\\', 'X', '+', '-', '*', '#', '@', '&', '%'];
+
 export interface PatternValidationResult {
   valid: boolean;
   rowCount: number;
   stitchCount: number;
   inconsistentRows: { rowIndex: number; length: number }[];
+  invalidCharacters: { rowIndex: number; char: string; position: number }[];
   error?: string;
 }
