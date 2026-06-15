@@ -1,0 +1,200 @@
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "restaurantName": "北京全聚德烤鸭店",
+    "photos": ["https://images.unsplash.com/photo-1518492104633-130d0cc84637?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 9,
+    "review": "正宗北京烤鸭，皮脆肉嫩，配薄饼和甜面酱简直绝配！百年老店名不虚传。",
+    "latitude": 39.9042,
+    "longitude": 116.4074,
+    "tasteProfile": {
+      "sour": 2,
+      "sweet": 5,
+      "spicy": 1,
+      "salty": 6,
+      "umami": 9
+    },
+    "createdAt": "2026-01-15T12:30:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "restaurantName": "南翔小笼馆",
+    "photos": ["https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 8,
+    "review": "皮薄馅大，汤汁鲜美，轻轻一提就是满满的汤汁。配上姜丝醋，味道更佳。",
+    "latitude": 31.2304,
+    "longitude": 121.4737,
+    "tasteProfile": {
+      "sour": 3,
+      "sweet": 4,
+      "spicy": 1,
+      "salty": 5,
+      "umami": 8
+    },
+    "createdAt": "2026-02-20T11:45:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "restaurantName": "成都老码头火锅",
+    "photos": ["https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 9,
+    "review": "麻辣鲜香，牛油锅底味道醇厚。毛肚、鸭肠、黄喉必点，越煮越香！",
+    "latitude": 30.5728,
+    "longitude": 104.0668,
+    "tasteProfile": {
+      "sour": 3,
+      "sweet": 2,
+      "spicy": 10,
+      "salty": 7,
+      "umami": 8
+    },
+    "createdAt": "2026-03-10T18:20:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440004",
+    "restaurantName": "广州陶陶居",
+    "photos": ["https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 9,
+    "review": "早茶点心种类丰富，虾饺皇晶莹剔透，叉烧包松软香甜，凤爪软糯入味。",
+    "latitude": 23.1291,
+    "longitude": 113.2644,
+    "tasteProfile": {
+      "sour": 2,
+      "sweet": 6,
+      "spicy": 0,
+      "salty": 5,
+      "umami": 9
+    },
+    "createdAt": "2026-04-05T09:15:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440005",
+    "restaurantName": "西安老孙家泡馍",
+    "photos": ["https://images.unsplash.com/photo-1569058242567-93de6f36f8e6?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 8,
+    "review": "自己动手掰馍，享受美食的过程。羊肉汤浓郁醇厚，配上糖蒜和辣酱，风味独特。",
+    "latitude": 34.3416,
+    "longitude": 108.9398,
+    "tasteProfile": {
+      "sour": 2,
+      "sweet": 1,
+      "spicy": 4,
+      "salty": 7,
+      "umami": 8
+    },
+    "createdAt": "2026-05-12T13:00:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440006",
+    "restaurantName": "杭州楼外楼",
+    "photos": ["https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=300&fit=crop"],
+    "cuisineTags": ["中餐"],
+    "rating": 8,
+    "review": "西湖边的百年老店，东坡肉肥而不腻，入口即化。西湖醋鱼酸甜可口，龙井虾仁清爽鲜嫩。",
+    "latitude": 30.2741,
+    "longitude": 120.1551,
+    "tasteProfile": {
+      "sour": 4,
+      "sweet": 7,
+      "spicy": 0,
+      "salty": 4,
+      "umami": 7
+    },
+    "createdAt": "2026-06-01T12:00:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440007",
+    "restaurantName": "寿司之神",
+    "photos": ["https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&h=300&fit=crop"],
+    "cuisineTags": ["日料"],
+    "rating": 9.5,
+    "review": "新鲜的食材，师傅的手艺精湛。三文鱼腩入口即化，海胆鲜甜无比。🍣",
+    "latitude": 35.6762,
+    "longitude": 139.6503,
+    "tasteProfile": {
+      "sour": 2,
+      "sweet": 3,
+      "spicy": 1,
+      "salty": 4,
+      "umami": 10
+    },
+    "createdAt": "2026-06-15T19:30:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440008",
+    "restaurantName": "La Maison",
+    "photos": ["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop"],
+    "cuisineTags": ["西餐"],
+    "rating": 8.5,
+    "review": "法式餐厅的浪漫氛围，惠灵顿牛排做得恰到好处，红酒酱汁浓郁。🥂",
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "tasteProfile": {
+      "sour": 3,
+      "sweet": 4,
+      "spicy": 0,
+      "salty": 5,
+      "umami": 8
+    },
+    "createdAt": "2026-05-20T20:00:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440009",
+    "restaurantName": "韩式烤肉店",
+    "photos": ["https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=300&fit=crop"],
+    "cuisineTags": ["韩餐"],
+    "rating": 8.8,
+    "review": "五花肉烤得金黄焦香，配上泡菜和大酱汤，再来一碗冷面，完美！🇰🇷",
+    "latitude": 37.5665,
+    "longitude": 126.9780,
+    "tasteProfile": {
+      "sour": 4,
+      "sweet": 3,
+      "spicy": 6,
+      "salty": 6,
+      "umami": 8
+    },
+    "createdAt": "2026-04-25T18:45:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440010",
+    "restaurantName": "冬阴功面馆",
+    "photos": ["https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=300&fit=crop"],
+    "cuisineTags": ["泰餐"],
+    "rating": 9.0,
+    "review": "冬阴功汤酸辣够劲，虾的个头很大，椰奶香味浓郁。还有芒果糯米饭必点！🍜",
+    "latitude": 13.7563,
+    "longitude": 100.5018,
+    "tasteProfile": {
+      "sour": 8,
+      "sweet": 5,
+      "spicy": 8,
+      "salty": 5,
+      "umami": 9
+    },
+    "createdAt": "2026-03-18T13:15:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440011",
+    "restaurantName": "Lady M",
+    "photos": ["https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop"],
+    "cuisineTags": ["甜品"],
+    "rating": 9.2,
+    "review": "千层蛋糕层次分明，奶油细腻不甜腻。经典原味和抹茶口味都超爱！🍰",
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "tasteProfile": {
+      "sour": 1,
+      "sweet": 9,
+      "spicy": 0,
+      "salty": 1,
+      "umami": 6
+    },
+    "createdAt": "2026-02-14T15:30:00.000Z"
+  }
+]

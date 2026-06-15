@@ -1,0 +1,153 @@
+.calendar-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-stats {
+  text-align: center;
+}
+
+.calendar-total {
+  font-size: 14px;
+  color: #666;
+}
+
+.calendar-total strong {
+  color: #ff6b9d;
+  font-size: 18px;
+  margin: 0 4px;
+}
+
+.calendar-wrapper {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.calendar-week-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 24px;
+  flex-shrink: 0;
+}
+
+.calendar-week-label {
+  height: 12px;
+  line-height: 12px;
+  font-size: 10px;
+  color: #999;
+  text-align: right;
+  padding-right: 4px;
+}
+
+.calendar-grid-container {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-month-labels {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  display: flex;
+}
+
+.calendar-month-label {
+  position: absolute;
+  font-size: 10px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.calendar-grid {
+  display: flex;
+  gap: 4px;
+  padding-top: 24px;
+}
+
+.calendar-week {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-day {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0;
+  transform: scale(0);
+  animation: calendarDayIn 0.3s ease forwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.calendar-day:not(.empty):hover {
+  transform: scale(1.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.calendar-day.empty {
+  background: transparent !important;
+  cursor: default;
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes calendarDayIn {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.legend-label {
+  font-size: 11px;
+  color: #999;
+}
+
+.legend-colors {
+  display: flex;
+  gap: 3px;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.calendar-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-track {
+  background: #f5f0e6;
+  border-radius: 3px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}

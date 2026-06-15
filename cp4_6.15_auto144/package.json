@@ -1,0 +1,15 @@
+{
+  "name": "taste-map-journal",
+  "version": "1.0.0",
+  "description": "味觉地图个人食记 - 记录和回味每一餐的体验",
+  "scripts": {
+    "install:all": "cd client && npm install && cd ../server && npm install",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

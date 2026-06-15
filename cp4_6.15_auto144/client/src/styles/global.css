@@ -1,0 +1,222 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f0e6;
+  color: #333;
+  overflow-x: hidden;
+}
+
+body {
+  background-image: url("data:image/svg+xml," +
+    encodeURIComponent(`
+    <svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>
+      <defs>
+        <filter id='paperTexture'>
+          <feTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' stitchTiles='stitch' result='noise'/>
+          <feDiffuseLighting in='noise' lighting-color='#f5f0e6' surfaceScale='1.5'>
+            <feDistantLight azimuth='45' elevation='60'/>
+          </feDiffuseLighting>
+          <feColorMatrix type='matrix' values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.05 0'/>
+        </filter>
+      </defs>
+      <rect width='100%' height='100%' filter='url(%23paperTexture)' fill='#f5f0e6'/>
+    </svg>
+  `));
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea {
+  font-family: inherit;
+}
+
+::selection {
+  background: rgba(255, 107, 157, 0.3);
+  color: inherit;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.paper-texture {
+  background-color: #f5f0e6;
+  background-image: url("data:image/svg+xml," +
+    encodeURIComponent(`
+    <svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>
+      <defs>
+        <filter id='noise'>
+          <feTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='4'/>
+          <feColorMatrix type='matrix' values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.03 0'/>
+        </filter>
+      </defs>
+      <rect width='100%' height='100%' filter='url(%23noise)'/>
+    </svg>
+  `));
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a80 100%);
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 107, 157, 0.3);
+}
+
+.btn-gradient:active {
+  transform: translateY(0);
+}
+
+.card-shadow {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.card-shadow-hover {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.card-shadow-hover:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a80 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #ff6b9d;
+  box-shadow: 0 0 0 4px rgba(255, 107, 157, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+@media (max-width: 640px) {
+  .calendar-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
