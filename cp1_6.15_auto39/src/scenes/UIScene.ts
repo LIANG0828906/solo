@@ -28,7 +28,7 @@ export default class UIScene extends Phaser.Scene {
   private defenseText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
 
-  private selectedBuilding: BuildingType = null;
+  private _selectedBuilding: BuildingType = null;
 
   private buildingButtons: { type: BuildingType; button: Phaser.GameObjects.Container; icon: Phaser.GameObjects.Sprite; costText: Phaser.GameObjects.Text }[] = [];
 
@@ -281,15 +281,17 @@ export default class UIScene extends Phaser.Scene {
     button.on('pointerdown', () => {
       this.tweens.add({
         targets: button,
-        scaleX: 0.9,
-        scaleY: 0.9,
-        duration: 100,
+        scaleX: 0.85,
+        scaleY: 0.85,
+        duration: 80,
         yoyo: true,
-        ease: 'Quad.In'
+        ease: 'Elastic.Out',
+        hold: 20,
+        repeat: 0
       });
 
       if (this.canAffordBuilding(type!)) {
-        this.selectedBuilding = type;
+        this._selectedBuilding = type;
         const gameScene = this.scene.get('GameScene');
         gameScene.events.emit('buildBuilding', type);
       }
@@ -463,11 +465,13 @@ export default class UIScene extends Phaser.Scene {
     button.on('pointerdown', () => {
       this.tweens.add({
         targets: button,
-        scaleX: 0.9,
-        scaleY: 0.9,
-        duration: 100,
+        scaleX: 0.85,
+        scaleY: 0.85,
+        duration: 80,
         yoyo: true,
-        ease: 'Quad.In'
+        ease: 'Elastic.Out',
+        hold: 20,
+        repeat: 0
       });
 
       const gameScene = this.scene.get('GameScene');

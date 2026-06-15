@@ -7,12 +7,17 @@ export default class BootScene extends Phaser.Scene {
     private progressHeight: number = 24;
     private currentProgress: number = 0;
     private targetProgress: number = 0;
+    private loadingText!: Phaser.GameObjects.Text;
+    private percentText!: Phaser.GameObjects.Text;
+    private isLoadingComplete: boolean = false;
+    private fadeOverlay!: Phaser.GameObjects.Graphics;
 
     constructor() {
         super('BootScene');
     }
 
     preload(): void {
+        this.cameras.main.setBackgroundColor('#1a0f08');
         this.createProgressBar();
         this.generatePixelAssets();
 
@@ -24,21 +29,35 @@ export default class BootScene extends Phaser.Scene {
             this.targetProgress = 1;
         });
 
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 30; i++) {
             this.load.image(`fake_${i}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
         }
     }
 
     create(): void {
-        this.scene.start('GameScene');
-        this.scene.start('UIScene');
+        this.fadeOverlay = this.add.graphics();
+        this.fadeOverlay.fillStyle(0x000000, 0);
+        this.fadeOverlay.fillRect(0, 0, 1280, 720);
+        this.fadeOverlay.setDepth(100);
     }
 
     update(): void {
-        if (this.currentProgress < this.targetProgress) {
-            this.currentProgress = Math.min(this.currentProgress + 0.02, this.targetProgress);
-            this.updateProgressBar(this.currentProgress);
+        if (!this.isLoadingComplete) {
+            if (this.currentProgress < this.targetProgress) {
+                const easeProgress = this.easeOutCubic(this.currentProgress);
+                this.currentProgress = Math.min(this.currentProgress + 0.015, this.targetProgress);
+                this.updateProgressBar(easeProgress);
+            }
+
+            if (this.currentProgress >= 1 && this.targetProgress >= 1) {
+                this.isLoadingComplete = true;
+                this.startFadeOut();
+            }
         }
+    }
+
+    private easeOutCubic(t: number): number {
+        return 1 - Math.pow(1 - t, 3);
     }
 
     private createProgressBar(): void {
@@ -46,23 +65,75 @@ export default class BootScene extends Phaser.Scene {
         const centerY = this.cameras.main.height / 2;
 
         this.progressBorder = this.add.graphics();
-        this.progressBorder.lineStyle(2, 0xffffff, 1);
-        this.drawPixelRect(
+        this.drawPixelBorder(
             this.progressBorder,
-            centerX - this.progressWidth / 2 - 4,
-            centerY - this.progressHeight / 2 - 4,
-            this.progressWidth + 8,
-            this.progressHeight + 8
+            centerX - this.progressWidth / 2 - 6,
+            centerY - this.progressHeight / 2 - 6,
+            this.progressWidth + 12,
+            this.progressHeight + 12,
+            0x8b6914,
+            0x5c3d24
         );
 
         this.progressBar = this.add.graphics();
 
-        const loadingText = this.add.text(centerX, centerY - 50, '加载中...', {
+        this.loadingText = this.add.text(centerX, centerY - 60, '正在加载资源...', {
             fontFamily: 'monospace',
-            fontSize: '20px',
-            color: '#ffffff'
+            fontSize: '24px',
+            color: '#ffd700',
+            fontStyle: 'bold'
         }).setOrigin(0.5);
-        loadingText.setResolution(2);
+        this.loadingText.setResolution(2);
+
+        this.percentText = this.add.text(centerX, centerY, '0%', {
+            fontFamily: 'monospace',
+            fontSize: '18px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this.percentText.setResolution(2);
+
+        const tipText = this.add.text(centerX, centerY + 60, '提示：点击船只显示可移动范围', {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#aaaaaa'
+        }).setOrigin(0.5);
+        tipText.setResolution(2);
+    }
+
+    private drawPixelBorder(
+        graphics: Phaser.GameObjects.Graphics,
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        lightColor: number,
+        darkColor: number
+    ): void {
+        const pixelSize = 2;
+
+        graphics.fillStyle(lightColor, 1);
+        for (let px = 0; px < w; px += pixelSize) {
+            graphics.fillRect(x + px, y, pixelSize, pixelSize);
+        }
+        for (let py = pixelSize; py < h; py += pixelSize) {
+            graphics.fillRect(x, y + py, pixelSize, pixelSize);
+        }
+
+        graphics.fillStyle(darkColor, 1);
+        for (let px = pixelSize; px < w; px += pixelSize) {
+            graphics.fillRect(x + px, y + h - pixelSize, pixelSize, pixelSize);
+        }
+        for (let py = pixelSize; py < h - pixelSize; py += pixelSize) {
+            graphics.fillRect(x + w - pixelSize, y + py, pixelSize, pixelSize);
+        }
+
+        graphics.fillStyle(0x1a0f08, 1);
+        for (let px = pixelSize; px < w - pixelSize; px += pixelSize) {
+            for (let py = pixelSize; py < h - pixelSize; py += pixelSize) {
+                graphics.fillRect(x + px, y + py, pixelSize, pixelSize);
+            }
+        }
     }
 
     private updateProgressBar(progress: number): void {
@@ -70,36 +141,40 @@ export default class BootScene extends Phaser.Scene {
         const centerY = this.cameras.main.height / 2;
 
         this.progressBar.clear();
-        this.progressBar.fillStyle(0x333333, 1);
-        this.drawPixelFillRect(
-            this.progressBar,
-            centerX - this.progressWidth / 2,
-            centerY - this.progressHeight / 2,
-            this.progressWidth,
-            this.progressHeight
-        );
+
+        const bgLeft = centerX - this.progressWidth / 2;
+        const bgTop = centerY - this.progressHeight / 2;
+
+        this.progressBar.fillStyle(0x2a1b0f, 1);
+        this.drawPixelFill(this.progressBar, bgLeft, bgTop, this.progressWidth, this.progressHeight);
 
         const fillWidth = this.progressWidth * progress;
         const color = this.getProgressColor(progress);
+
         this.progressBar.fillStyle(color, 1);
-        this.drawPixelFillRect(
-            this.progressBar,
-            centerX - this.progressWidth / 2,
-            centerY - this.progressHeight / 2,
-            fillWidth,
-            this.progressHeight
-        );
+        this.drawPixelFill(this.progressBar, bgLeft, bgTop, fillWidth, this.progressHeight);
 
-        const percentText = this.add.text(centerX, centerY, `${Math.floor(progress * 100)}%`, {
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-        percentText.setResolution(2);
+        const highlightAlpha = 0.4 + Math.sin(this.time.now / 100) * 0.2;
+        this.progressBar.fillStyle(0xffffff, highlightAlpha);
+        this.drawPixelFill(this.progressBar, bgLeft, bgTop + 2, fillWidth, 4);
 
-        this.time.delayedCall(16, () => {
-            percentText.destroy();
-        });
+        const percent = Math.floor(progress * 100);
+        this.percentText.setText(`${percent}%`);
+    }
+
+    private drawPixelFill(
+        graphics: Phaser.GameObjects.Graphics,
+        x: number,
+        y: number,
+        w: number,
+        h: number
+    ): void {
+        const pixelSize = 2;
+        for (let px = 0; px < w; px += pixelSize) {
+            for (let py = 0; py < h; py += pixelSize) {
+                graphics.fillRect(x + px, y + py, pixelSize, pixelSize);
+            }
+        }
     }
 
     private getProgressColor(progress: number): number {
@@ -108,25 +183,50 @@ export default class BootScene extends Phaser.Scene {
         return 0x6bcb77;
     }
 
-    private drawPixelRect(graphics: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number): void {
-        const pixelSize = 2;
-        for (let px = 0; px < w; px += pixelSize) {
-            graphics.fillRect(x + px, y, pixelSize, pixelSize);
-            graphics.fillRect(x + px, y + h - pixelSize, pixelSize, pixelSize);
-        }
-        for (let py = 0; py < h; py += pixelSize) {
-            graphics.fillRect(x, y + py, pixelSize, pixelSize);
-            graphics.fillRect(x + w - pixelSize, y + py, pixelSize, pixelSize);
-        }
-    }
+    private startFadeOut(): void {
+        this.tweens.add({
+            targets: this.loadingText,
+            alpha: 0,
+            y: this.loadingText.y - 20,
+            duration: 300,
+            ease: 'Quad.In'
+        });
 
-    private drawPixelFillRect(graphics: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number): void {
-        const pixelSize = 2;
-        for (let px = 0; px < w; px += pixelSize) {
-            for (let py = 0; py < h; py += pixelSize) {
-                graphics.fillRect(x + px, y + py, pixelSize, pixelSize);
+        this.tweens.add({
+            targets: this.percentText,
+            alpha: 0,
+            scale: 1.5,
+            duration: 300,
+            ease: 'Quad.In'
+        });
+
+        this.tweens.add({
+            targets: this.progressBar,
+            alpha: 0,
+            duration: 300,
+            delay: 100,
+            ease: 'Quad.In'
+        });
+
+        this.tweens.add({
+            targets: this.progressBorder,
+            alpha: 0,
+            duration: 300,
+            delay: 100,
+            ease: 'Quad.In'
+        });
+
+        this.tweens.add({
+            targets: this.fadeOverlay,
+            fillAlpha: 1,
+            duration: 500,
+            delay: 400,
+            ease: 'Quad.In',
+            onComplete: () => {
+                this.scene.start('GameScene');
+                this.scene.launch('UIScene');
             }
-        }
+        });
     }
 
     private generatePixelAssets(): void {
@@ -297,8 +397,8 @@ export default class BootScene extends Phaser.Scene {
             { color: 0xffd700, x: 20, y: 8, w: 8, h: 4 },
             { color: 0xffd700, x: 22, y: 4, w: 4, h: 4 },
             { color: 0x8b0000, x: 42, y: 20, w: 4, h: 8 },
-            { color: 0xffffff, x: 12, y: 8, w: 4, h: 4 },
-            { color: 0xffffff, x: 32, y: 8, w: 4, h: 4 }
+            { color: 0xffff00, x: 12, y: 8, w: 4, h: 4 },
+            { color: 0xffff00, x: 32, y: 8, w: 4, h: 4 }
         ]);
     }
 

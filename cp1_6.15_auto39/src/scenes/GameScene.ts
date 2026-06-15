@@ -37,9 +37,11 @@ export default class GameScene extends Phaser.Scene {
   private tiles: Tile[][] = [];
   private tileSprites: Phaser.GameObjects.Sprite[][] = [];
   private buildingSprites: (Phaser.GameObjects.Sprite | null)[][] = [];
+  private buildingLights: (Phaser.GameObjects.Graphics | null)[][] = [];
   private fogSprites: Phaser.GameObjects.Graphics[][] = [];
 
   private shipSprite!: Phaser.GameObjects.Sprite;
+  private shipGlow!: Phaser.GameObjects.Graphics;
   private shipX: number = 2;
   private shipY: number = 2;
   private isMoving: boolean = false;
@@ -57,7 +59,6 @@ export default class GameScene extends Phaser.Scene {
   private nightOverlay!: Phaser.GameObjects.Graphics;
   private rainSprites: Phaser.GameObjects.Sprite[] = [];
   private particlePool: Phaser.GameObjects.Sprite[] = [];
-  private activeParticleCount: number = 0;
 
   private skyTween: Phaser.Tweens.Tween | null = null;
   private skyColor: number = 0x87ceeb;
@@ -96,17 +97,22 @@ export default class GameScene extends Phaser.Scene {
     const startTime = performance.now();
 
     this.tiles = [];
+
+    const islandPositions = this.generateIslandPositions();
+
     for (let y = 0; y < GRID_SIZE; y++) {
       this.tiles[y] = [];
       for (let x = 0; x < GRID_SIZE; x++) {
-        const isIsland = this.isIslandTile(x, y);
+        const islandInfo = islandPositions.find(i => i.x === x && i.y === y);
         let type: TileType = 'water';
+        let islandId = -1;
 
-        if (isIsland) {
+        if (islandInfo) {
+          islandId = islandInfo.id;
           const rand = Math.random();
-          if (rand < 0.3) type = 'forest';
-          else if (rand < 0.5) type = 'stone';
-          else if (rand < 0.7) type = 'farm';
+          if (rand < 0.25) type = 'forest';
+          else if (rand < 0.45) type = 'stone';
+          else if (rand < 0.65) type = 'farm';
           else type = 'ground';
         }
 
@@ -118,26 +124,65 @@ export default class GameScene extends Phaser.Scene {
           maxResource: type === 'forest' ? 50 : type === 'stone' ? 30 : type === 'farm' ? 80 : 0,
           regenRate: type === 'forest' ? 0.1 : type === 'stone' ? 0.05 : type === 'farm' ? 0.2 : 0,
           explored: false,
-          islandId: isIsland ? 0 : -1
+          islandId
         };
       }
     }
 
-    this.tiles[2][2].explored = true;
     this.tiles[2][2].type = 'ground';
+    this.tiles[2][2].explored = true;
+    this.tiles[2][2].islandId = 0;
     this.exploreAround(2, 2);
 
     const elapsed = performance.now() - startTime;
     console.log(`岛屿生成耗时: ${elapsed.toFixed(2)}ms`);
   }
 
-  private isIslandTile(x: number, y: number): boolean {
-    const centerX = GRID_SIZE / 2;
-    const centerY = GRID_SIZE / 2;
-    const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-    const maxDist = 2.8;
-    const noise = (Math.sin(x * 1.5) + Math.cos(y * 1.3)) * 0.5;
-    return distance + noise < maxDist;
+  private generateIslandPositions(): Array<{ x: number; y: number; id: number }> {
+    const positions: Array<{ x: number; y: number; id: number }> = [];
+    let currentIslandId = 0;
+
+    const islands = [
+      { centerX: 2, centerY: 2, size: 3 },
+      { centerX: 0, centerY: 0, size: 2 },
+      { centerX: 4, centerY: 0, size: 2 },
+      { centerX: 0, centerY: 4, size: 2 },
+      { centerX: 4, centerY: 4, size: 2 }
+    ];
+
+    islands.forEach(island => {
+      const offsets = this.getIslandShape(island.size);
+      offsets.forEach(offset => {
+        const x = island.centerX + offset.dx;
+        const y = island.centerY + offset.dy;
+        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+          const existing = positions.find(p => p.x === x && p.y === y);
+          if (!existing) {
+            positions.push({ x, y, id: currentIslandId });
+          }
+        }
+      });
+      currentIslandId++;
+    });
+
+    return positions;
+  }
+
+  private getIslandShape(size: number): Array<{ dx: number; dy: number }> {
+    const offsets: Array<{ dx: number; dy: number }> = [];
+    const halfSize = Math.floor(size / 2);
+
+    for (let dy = -halfSize; dy <= halfSize; dy++) {
+      for (let dx = -halfSize; dx <= halfSize; dx++) {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const noise = (Math.sin(dx * 2 + dy * 3) + Math.cos(dx * 1.5 - dy * 2)) * 0.3;
+        if (distance + noise <= halfSize + 0.3) {
+          offsets.push({ dx, dy });
+        }
+      }
+    }
+
+    return offsets;
   }
 
   private exploreAround(x: number, y: number): void {
@@ -189,10 +234,13 @@ export default class GameScene extends Phaser.Scene {
 
   private createBuildingSprites(): void {
     this.buildingSprites = [];
+    this.buildingLights = [];
     for (let y = 0; y < GRID_SIZE; y++) {
       this.buildingSprites[y] = [];
+      this.buildingLights[y] = [];
       for (let x = 0; x < GRID_SIZE; x++) {
         this.buildingSprites[y][x] = null;
+        this.buildingLights[y][x] = null;
       }
     }
   }
@@ -223,6 +271,11 @@ export default class GameScene extends Phaser.Scene {
     const offsetX = (1280 - GRID_SIZE * TILE_SIZE) / 2;
     const offsetY = (720 - GRID_SIZE * TILE_SIZE) / 2;
 
+    this.shipGlow = this.add.graphics();
+    this.shipGlow.fillStyle(0x00ffff, 0);
+    this.shipGlow.fillCircle(0, 0, 50);
+    this.shipGlow.setDepth(9);
+
     this.shipSprite = this.add.sprite(
       offsetX + this.shipX * TILE_SIZE + TILE_SIZE / 2,
       offsetY + this.shipY * TILE_SIZE + TILE_SIZE / 2,
@@ -231,6 +284,12 @@ export default class GameScene extends Phaser.Scene {
     this.shipSprite.setDisplaySize(64, 42);
     this.shipSprite.setDepth(10);
     this.shipSprite.setInteractive({ useHandCursor: true });
+
+    this.updateShipGlowPosition();
+  }
+
+  private updateShipGlowPosition(): void {
+    this.shipGlow.setPosition(this.shipSprite.x, this.shipSprite.y);
   }
 
   private createNightOverlay(): void {
@@ -251,9 +310,7 @@ export default class GameScene extends Phaser.Scene {
 
   private getParticleFromPool(): Phaser.GameObjects.Sprite | null {
     if (this.particlePool.length > 0) {
-      const sprite = this.particlePool.pop()!;
-      this.activeParticleCount++;
-      return sprite;
+      return this.particlePool.pop()!;
     }
     return null;
   }
@@ -262,7 +319,6 @@ export default class GameScene extends Phaser.Scene {
     sprite.setVisible(false);
     this.tweens.killTweensOf(sprite);
     this.particlePool.push(sprite);
-    this.activeParticleCount = Math.max(0, this.activeParticleCount - 1);
   }
 
   private setupInput(): void {
@@ -358,6 +414,7 @@ export default class GameScene extends Phaser.Scene {
 
     const targetX = offsetX + x * TILE_SIZE + TILE_SIZE / 2;
     const targetY = offsetY + y * TILE_SIZE + TILE_SIZE / 2;
+    const startX = this.shipSprite.x;
     const startY = this.shipSprite.y;
 
     const duration = 400 / this.shipStats.speed;
@@ -365,13 +422,14 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.shipSprite,
       x: targetX,
-      y: targetY,
       duration: duration,
       ease: 'Linear',
       onUpdate: (tween) => {
         const progress = tween.progress;
-        const bobOffset = Math.sin(progress * Math.PI * 4) * 4;
-        this.shipSprite.y = startY + (targetY - startY) * progress + bobOffset;
+        const linearY = startY + (targetY - startY) * progress;
+        const bobOffset = Math.sin(progress * Math.PI * 4) * 6;
+        this.shipSprite.y = linearY + bobOffset;
+        this.updateShipGlowPosition();
       },
       onComplete: () => {
         this.shipX = x;
@@ -382,6 +440,7 @@ export default class GameScene extends Phaser.Scene {
         this.collectResources(x, y);
         this.clearHighlights();
         this.updateNightOverlay();
+        this.updateShipGlowPosition();
       }
     });
   }
@@ -472,9 +531,11 @@ export default class GameScene extends Phaser.Scene {
         const neighbor = this.tiles[ny][nx];
         if (tileType === 'forest' && neighbor.building === 'lumbermill') {
           multiplier = 2;
+          break;
         }
         if (tileType === 'stone' && neighbor.building === 'quarry') {
           multiplier = 2;
+          break;
         }
       }
     }
@@ -492,19 +553,21 @@ export default class GameScene extends Phaser.Scene {
       text,
       {
         fontFamily: 'monospace',
-        fontSize: '20px',
+        fontSize: '22px',
         color: color,
         fontStyle: 'bold'
       }
     ).setOrigin(0.5);
     popup.setDepth(30);
     popup.setResolution(2);
+    popup.setShadow(2, 2, '#000000', 2, true, true);
 
     this.tweens.add({
       targets: popup,
-      y: popup.y - 60,
+      y: popup.y - 80,
       alpha: 0,
-      duration: 1000,
+      scale: 1.2,
+      duration: 1200,
       ease: 'Cubic.Out',
       onComplete: () => {
         popup.destroy();
@@ -515,24 +578,30 @@ export default class GameScene extends Phaser.Scene {
   private showCapacityFullPopup(): void {
     const popup = this.add.text(
       this.shipSprite.x,
-      this.shipSprite.y - 40,
+      this.shipSprite.y - 50,
       '船舱已满!',
       {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: '20px',
         color: '#ff4444',
         fontStyle: 'bold'
       }
     ).setOrigin(0.5);
     popup.setDepth(30);
     popup.setResolution(2);
+    popup.setShadow(2, 2, '#000000', 2, true, true);
 
+    const originalX = popup.x;
     this.tweens.add({
       targets: popup,
-      x: popup.x + Phaser.Math.Between(-3, 3),
+      x: {
+        getStart: () => originalX,
+        getEnd: () => originalX + Phaser.Math.Between(-5, 5)
+      },
       yoyo: true,
-      repeat: 10,
-      duration: 80
+      repeat: 12,
+      duration: 70,
+      ease: 'Linear'
     });
 
     this.tweens.add({
@@ -540,6 +609,7 @@ export default class GameScene extends Phaser.Scene {
       alpha: 0,
       duration: 1500,
       delay: 500,
+      ease: 'Quad.In',
       onComplete: () => {
         popup.destroy();
       }
@@ -554,25 +624,27 @@ export default class GameScene extends Phaser.Scene {
 
     const colorNum = Phaser.Display.Color.HexStringToColor(color).color;
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
       const sprite = this.getParticleFromPool();
       if (!sprite) break;
 
-      const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
-      const distance = 20 + Math.random() * 30;
+      const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.5;
+      const distance = 25 + Math.random() * 35;
 
       sprite.setPosition(centerX, centerY);
       sprite.setVisible(true);
       sprite.setTint(colorNum);
       sprite.setDisplaySize(6, 6);
+      sprite.setAlpha(1);
+      sprite.setScale(1);
 
       this.tweens.add({
         targets: sprite,
         x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance - 20,
+        y: centerY + Math.sin(angle) * distance - 30,
         alpha: 0,
-        scale: 0.5,
-        duration: 600 + Math.random() * 400,
+        scale: 0.3,
+        duration: 700 + Math.random() * 300,
         ease: 'Cubic.Out',
         onComplete: () => {
           this.returnParticleToPool(sprite);
@@ -648,9 +720,67 @@ export default class GameScene extends Phaser.Scene {
       targets: sprite,
       displayWidth: 80,
       displayHeight: 80,
-      duration: 400,
+      scaleX: { from: 0, to: 1 },
+      scaleY: { from: 0, to: 1 },
+      duration: 450,
       ease: 'Back.Out'
     });
+
+    if (type === 'port') {
+      this.createBuildingLight(x, y);
+    }
+  }
+
+  private createBuildingLight(x: number, y: number): void {
+    const offsetX = (1280 - GRID_SIZE * TILE_SIZE) / 2;
+    const offsetY = (720 - GRID_SIZE * TILE_SIZE) / 2;
+
+    const light = this.add.graphics();
+    light.setPosition(
+      offsetX + x * TILE_SIZE + TILE_SIZE / 2,
+      offsetY + y * TILE_SIZE + TILE_SIZE / 2 - 10
+    );
+    light.setDepth(7);
+    light.fillStyle(0xffff00, this.isNight ? 0.6 : 0);
+    light.fillCircle(0, 0, 40);
+    light.setVisible(true);
+
+    this.buildingLights[y][x] = light;
+
+    if (this.isNight) {
+      this.tweens.add({
+        targets: light,
+        fillAlpha: 0.4,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut'
+      });
+    }
+  }
+
+  private updateBuildingLights(): void {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const light = this.buildingLights[y][x];
+        if (light) {
+          this.tweens.killTweensOf(light);
+          if (this.isNight) {
+            light.setAlpha(1);
+            this.tweens.add({
+              targets: light,
+              fillAlpha: 0.4,
+              duration: 1000,
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.InOut'
+            });
+          } else {
+            light.setAlpha(0);
+          }
+        }
+      }
+    }
   }
 
   public upgradeBuilding(x: number, y: number): void {
@@ -678,16 +808,19 @@ export default class GameScene extends Phaser.Scene {
     if (sprite) {
       this.tweens.add({
         targets: sprite,
-        alpha: 0,
-        scaleX: 0.5,
-        scaleY: 0.5,
-        duration: 200,
+        alpha: 0.2,
+        scaleX: 0.6,
+        scaleY: 0.6,
+        duration: 150,
         yoyo: true,
-        repeat: 2,
+        repeat: 4,
+        ease: 'Quad.InOut',
         onComplete: () => {
           const textureKey = `${tile.building}_${newLevel}`;
           sprite.setTexture(textureKey);
           sprite.setDisplaySize(80, 80);
+          sprite.setScale(1);
+          sprite.setAlpha(1);
           this.spawnUpgradeParticles(x, y);
         }
       });
@@ -702,24 +835,27 @@ export default class GameScene extends Phaser.Scene {
     const centerX = offsetX + gridX * TILE_SIZE + TILE_SIZE / 2;
     const centerY = offsetY + gridY * TILE_SIZE + TILE_SIZE / 2;
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
       const sprite = this.getParticleFromPool();
       if (!sprite) break;
 
       const angle = Math.random() * Math.PI * 2;
-      const speed = 50 + Math.random() * 100;
+      const speed = 60 + Math.random() * 120;
 
       sprite.setPosition(centerX, centerY);
       sprite.setVisible(true);
-      sprite.setTint(0xffd700);
-      sprite.setDisplaySize(4, 4);
+      sprite.setTint(Phaser.Math.Between(0xffd700, 0xffa500));
+      sprite.setDisplaySize(5, 5);
+      sprite.setAlpha(1);
 
       this.tweens.add({
         targets: sprite,
         x: centerX + Math.cos(angle) * speed,
-        y: centerY + Math.sin(angle) * speed - 30,
+        y: centerY + Math.sin(angle) * speed - 40,
         alpha: 0,
-        duration: 800,
+        scale: 0.2,
+        rotation: Math.random() * Math.PI * 2,
+        duration: 900,
         ease: 'Cubic.Out',
         onComplete: () => {
           this.returnParticleToPool(sprite);
@@ -745,12 +881,16 @@ export default class GameScene extends Phaser.Scene {
     this.resources.grain -= costs.grain;
     this.resources.gold -= costs.gold;
 
+    const oldCapacity = this.shipStats.capacity;
+    const oldSpeed = this.shipStats.speed;
+    const oldDefense = this.shipStats.defense;
+
     this.shipStats.level++;
     this.shipStats.capacity += 50;
     this.shipStats.speed += 0.2;
     this.shipStats.defense += 1;
 
-    this.playShipUpgradeAnimation();
+    this.playShipUpgradeAnimation(oldCapacity, oldSpeed, oldDefense);
     this.updateUI();
   }
 
@@ -776,30 +916,40 @@ export default class GameScene extends Phaser.Scene {
     };
   }
 
-  private playShipUpgradeAnimation(): void {
+  private playShipUpgradeAnimation(_oldCapacity: number, _oldSpeed: number, _oldDefense: number): void {
     const originalScale = this.shipSprite.scale;
 
     this.tweens.add({
-      targets: this.shipSprite,
-      scaleX: originalScale * 1.3,
-      scaleY: originalScale * 1.3,
-      duration: 300,
+      targets: this.shipGlow,
+      fillAlpha: 0.8,
+      duration: 200,
       yoyo: true,
-      repeat: 2,
+      repeat: 3,
       ease: 'Sine.InOut'
     });
 
-    for (let i = 0; i < 20; i++) {
+    this.tweens.add({
+      targets: this.shipSprite,
+      scaleX: originalScale * 1.4,
+      scaleY: originalScale * 1.4,
+      duration: 250,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Elastic.Out'
+    });
+
+    for (let i = 0; i < 25; i++) {
       const sprite = this.getParticleFromPool();
       if (!sprite) break;
 
       const angle = Math.random() * Math.PI * 2;
-      const distance = 30 + Math.random() * 40;
+      const distance = 40 + Math.random() * 50;
 
       sprite.setPosition(this.shipSprite.x, this.shipSprite.y);
       sprite.setVisible(true);
-      sprite.setTint(0x00ffff);
-      sprite.setDisplaySize(5, 5);
+      sprite.setTint(Phaser.Math.Between(0x00ffff, 0x0088ff));
+      sprite.setDisplaySize(6, 6);
+      sprite.setAlpha(1);
 
       this.tweens.add({
         targets: sprite,
@@ -807,13 +957,17 @@ export default class GameScene extends Phaser.Scene {
         y: this.shipSprite.y + Math.sin(angle) * distance,
         alpha: 0,
         scale: 0,
-        duration: 600,
+        duration: 700,
         ease: 'Cubic.Out',
         onComplete: () => {
           this.returnParticleToPool(sprite);
         }
       });
     }
+
+    this.time.delayedCall(500, () => {
+      this.updateShipGlowPosition();
+    });
   }
 
   public exploreNewIsland(): void {
@@ -822,7 +976,7 @@ export default class GameScene extends Phaser.Scene {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         if (!this.tiles[y][x].explored) {
-          if (Math.random() < 0.3) {
+          if (Math.random() < 0.35) {
             this.tiles[y][x].explored = true;
             this.tiles[y][x].islandId = this.islandCounter;
 
@@ -842,10 +996,13 @@ export default class GameScene extends Phaser.Scene {
 
             this.fogSprites[y][x].setAlpha(1);
             this.fogSprites[y][x].setVisible(true);
+            this.fogSprites[y][x].setScale(1.8);
+
             this.tweens.add({
               targets: this.fogSprites[y][x],
               alpha: 0,
-              duration: 800,
+              scale: 1,
+              duration: 900,
               ease: 'Cubic.Out',
               onComplete: () => {
                 this.fogSprites[y][x].setVisible(false);
@@ -860,18 +1017,19 @@ export default class GameScene extends Phaser.Scene {
   private updateNightOverlay(): void {
     this.nightOverlay.clear();
 
+    if (this.visionMaskSprite) {
+      this.visionMaskSprite.destroy();
+      this.visionMaskSprite = null;
+    }
+
     if (!this.isNight) {
-      if (this.visionMaskSprite) {
-        this.visionMaskSprite.destroy();
-        this.visionMaskSprite = null;
-      }
       return;
     }
 
     const offsetX = (1280 - GRID_SIZE * TILE_SIZE) / 2;
     const offsetY = (720 - GRID_SIZE * TILE_SIZE) / 2;
 
-    this.nightOverlay.fillStyle(0x000020, 0.7);
+    this.nightOverlay.fillStyle(0x000020, 0.75);
     this.nightOverlay.fillRect(0, 0, 1280, 720);
 
     const shipPixelX = offsetX + this.shipX * TILE_SIZE + TILE_SIZE / 2;
@@ -879,7 +1037,7 @@ export default class GameScene extends Phaser.Scene {
     const visionRadius = TILE_SIZE * 3;
 
     const gradientCircle = this.make.graphics();
-    for (let r = visionRadius; r > 0; r -= 4) {
+    for (let r = visionRadius; r > 0; r -= 3) {
       const alpha = 1 - r / visionRadius;
       gradientCircle.fillStyle(0xffffff, alpha);
       gradientCircle.fillCircle(shipPixelX, shipPixelY, r);
@@ -888,9 +1046,6 @@ export default class GameScene extends Phaser.Scene {
     gradientCircle.generateTexture('vision_mask', visionRadius * 2, visionRadius * 2);
     gradientCircle.destroy();
 
-    if (this.visionMaskSprite) {
-      this.visionMaskSprite.destroy();
-    }
     this.visionMaskSprite = this.add.sprite(shipPixelX, shipPixelY, 'vision_mask');
     this.visionMaskSprite.setDepth(6);
 
@@ -938,7 +1093,7 @@ export default class GameScene extends Phaser.Scene {
     this.skyTween = this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: 2000,
+      duration: 2500,
       onUpdate: (tween) => {
         const progress = tween.getValue();
         const r = Math.floor(fromColor.r + (toColor.r - fromColor.r) * progress);
@@ -961,7 +1116,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private startRain(): void {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 80; i++) {
       const sprite = this.getParticleFromPool();
       if (!sprite) break;
 
@@ -971,8 +1126,9 @@ export default class GameScene extends Phaser.Scene {
       );
       sprite.setVisible(true);
       sprite.setTint(0xaaccff);
-      sprite.setDisplaySize(2, 10);
+      sprite.setDisplaySize(2, 12);
       sprite.setDepth(25);
+      sprite.setAlpha(0.7);
 
       this.rainSprites.push(sprite);
 
@@ -981,12 +1137,13 @@ export default class GameScene extends Phaser.Scene {
       this.tweens.add({
         targets: sprite,
         y: 800,
-        x: startX - 50,
-        duration: 800 + Math.random() * 400,
+        x: startX - 60,
+        duration: 700 + Math.random() * 400,
         repeat: -1,
         delay: Math.random() * 1000,
         onRepeat: () => {
           sprite.setPosition(Math.random() * 1280, -20);
+          sprite.setAlpha(0.7);
         }
       });
     }
@@ -1014,6 +1171,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (wasNight !== this.isNight) {
       this.updateNightOverlay();
+      this.updateBuildingLights();
       this.events.emit('dayNightChanged', this.isNight);
     }
   }
