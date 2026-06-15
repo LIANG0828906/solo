@@ -40,6 +40,13 @@ interface DeathEffect {
   timer: number
 }
 
+interface BurnParticle {
+  mesh: THREE.Mesh
+  velocity: THREE.Vector3
+  life: number
+  maxLife: number
+}
+
 export class EnemyManager {
   private scene: THREE.Scene
   private store: typeof useGameStore
@@ -48,6 +55,14 @@ export class EnemyManager {
   private justDied: string[] = []
   private idCounter = 0
   private telegraphTexture: THREE.CanvasTexture | null = null
+
+  private playerIsBurning: boolean = false
+  private playerBurnDuration: number = 0
+  private playerBurnDamage: number = 0
+  private playerBurnTickTimer: number = 0
+  private playerBurnLight: THREE.PointLight | null = null
+  private burnParticles: BurnParticle[] = []
+  private burnParticleTimer: number = 0
 
   constructor(scene: THREE.Scene, store: typeof useGameStore) {
     this.scene = scene
@@ -195,6 +210,7 @@ export class EnemyManager {
     this.deathEffects = []
     this.justDied = []
     this.idCounter = 0
+    this.clearPlayerBurn()
 
     enemyConfigs.forEach((cfg) => {
       const room = rooms.length > 0
@@ -260,6 +276,8 @@ export class EnemyManager {
     this.justDied = []
     const storeState = this.store.getState()
 
+    this.updatePlayerBurn(dt, playerPos)
+
     this.enemies.forEach((ei) => {
       if (ei.state.state === 'dead') return
 
@@ -313,6 +331,131 @@ export class EnemyManager {
 
     this.updateDeathEffects(dt)
     storeState.setEnemies(Array.from(this.enemies.values()).map((e) => e.state))
+  }
+
+  private updatePlayerBurn(dt: number, playerPos: THREE.Vector3): void {
+    this.updateBurnParticles(dt, playerPos)
+
+    if (!this.playerIsBurning) return
+
+    this.playerBurnDuration -= dt
+    this.playerBurnTickTimer -= dt
+
+    if (this.playerBurnTickTimer <= 0) {
+      this.store.getState().damagePlayer(this.playerBurnDamage)
+      this.playerBurnTickTimer = 1
+    }
+
+    if (this.playerBurnDuration <= 0) {
+      this.clearPlayerBurn()
+    }
+
+    this.updateBurnLight(playerPos)
+  }
+
+  private updateBurnLight(playerPos: THREE.Vector3): void {
+    if (!this.playerBurnLight) return
+    this.playerBurnLight.position.set(playerPos.x, playerPos.y + 1, playerPos.z)
+    const flicker = 0.7 + Math.random() * 0.6
+    this.playerBurnLight.intensity = 2 * flicker
+    const hue = 0.05 + Math.random() * 0.05
+    this.playerBurnLight.color.setHSL(hue, 1, 0.5)
+  }
+
+  private updateBurnParticles(dt: number, playerPos: THREE.Vector3): void {
+    if (this.playerIsBurning) {
+      this.burnParticleTimer -= dt
+      if (this.burnParticleTimer <= 0) {
+        this.spawnBurnParticle(playerPos)
+        this.burnParticleTimer = 0.08 + Math.random() * 0.05
+      }
+    }
+
+    for (let i = this.burnParticles.length - 1; i >= 0; i--) {
+      const p = this.burnParticles[i]
+      p.life -= dt
+      p.mesh.position.add(p.velocity.clone().multiplyScalar(dt))
+      p.velocity.y -= 2 * dt
+      const t = Math.max(0, p.life / p.maxLife)
+      const mat = p.mesh.material as THREE.MeshBasicMaterial
+      mat.opacity = t
+      p.mesh.scale.setScalar(0.1 + (1 - t) * 0.15)
+      const hue = 0.05 + (1 - t) * 0.05
+      mat.color.setHSL(hue, 1, 0.5 + t * 0.3)
+
+      if (p.life <= 0) {
+        this.scene.remove(p.mesh)
+        p.mesh.geometry.dispose()
+        mat.dispose()
+        this.burnParticles.splice(i, 1)
+      }
+    }
+  }
+
+  private spawnBurnParticle(playerPos: THREE.Vector3): void {
+    const geo = new THREE.SphereGeometry(0.1, 6, 4)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff6600,
+      transparent: true,
+      opacity: 1,
+    })
+    const mesh = new THREE.Mesh(geo, mat)
+    const offsetX = (Math.random() - 0.5) * 0.6
+    const offsetY = Math.random() * 1.5
+    const offsetZ = (Math.random() - 0.5) * 0.6
+    mesh.position.set(
+      playerPos.x + offsetX,
+      playerPos.y + offsetY,
+      playerPos.z + offsetZ
+    )
+    this.scene.add(mesh)
+
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      1.5 + Math.random() * 1.5,
+      (Math.random() - 0.5) * 0.5
+    )
+
+    this.burnParticles.push({
+      mesh,
+      velocity,
+      life: 0.5 + Math.random() * 0.5,
+      maxLife: 1,
+    })
+  }
+
+  setPlayerBurning(duration: number, damagePerSecond: number): void {
+    this.playerIsBurning = true
+    this.playerBurnDuration = duration
+    this.playerBurnDamage = damagePerSecond
+    this.playerBurnTickTimer = 0
+
+    if (!this.playerBurnLight) {
+      this.playerBurnLight = new THREE.PointLight(0xff6600, 2, 5)
+      this.scene.add(this.playerBurnLight)
+    }
+  }
+
+  private clearPlayerBurn(): void {
+    this.playerIsBurning = false
+    this.playerBurnDuration = 0
+    this.playerBurnDamage = 0
+    this.playerBurnTickTimer = 0
+
+    if (this.playerBurnLight) {
+      this.scene.remove(this.playerBurnLight)
+      this.playerBurnLight.dispose()
+      this.playerBurnLight = null
+    }
+
+    for (let i = this.burnParticles.length - 1; i >= 0; i--) {
+      const p = this.burnParticles[i]
+      this.scene.remove(p.mesh)
+      p.mesh.geometry.dispose()
+      ;(p.mesh.material as THREE.Material).dispose()
+    }
+    this.burnParticles = []
+    this.burnParticleTimer = 0
   }
 
   private updateAI(ei: EnemyInternal, dt: number, playerPos: THREE.Vector3, dist: number): void {
@@ -448,7 +591,7 @@ export class EnemyManager {
             (playerPos.z - ei.state.position.z) ** 2
           )
           if (d < 5) {
-            this.store.getState().damagePlayer(Math.floor(ei.state.attack * 0.3))
+            this.setPlayerBurning(2, 10)
           }
           ei.burnTickTimer = 0.5
         }
@@ -662,5 +805,6 @@ export class EnemyManager {
       this.telegraphTexture.dispose()
       this.telegraphTexture = null
     }
+    this.clearPlayerBurn()
   }
 }
