@@ -1,0 +1,367 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(180deg, #2c2c3a 0%, #1e1e2e 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title {
+  color: #e94560;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.timelineScroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+}
+
+.timelineInner {
+  position: relative;
+}
+
+.tickLine {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tickLabel {
+  position: absolute;
+  top: 4px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+.block {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.8s ease-out;
+}
+
+.blockHidden {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.blockVisible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.blockTitle {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.cursor {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  background: #e94560;
+  z-index: 10;
+  pointer-events: none;
+  transition: left 0.1s linear;
+}
+
+.cursorDot {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e94560;
+}
+
+.controlsBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(22, 33, 62, 0.9);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.playBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #e94560;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.playBtn:hover {
+  background: #d63850;
+}
+
+.speedBtn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.speedBtnActive {
+  background: #e94560;
+  color: #fff;
+  border-color: #e94560;
+}
+
+.timeDisplay {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-family: monospace;
+  margin-left: auto;
+  letter-spacing: 1px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: #e94560;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.detailCard {
+  background: rgba(22, 33, 62, 0.95);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.cardTitle {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cardLabel {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.cardTimeText {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkboxChecked {
+  border: none;
+  background: #e94560;
+}
+
+.timeInput {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: monospace;
+  width: 80px;
+  outline: none;
+}
+
+.timeInput:focus {
+  border-color: rgba(233, 69, 96, 0.5);
+}
+
+.starsRow {
+  display: flex;
+  gap: 4px;
+}
+
+.starBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.2);
+  transition: color 0.2s;
+}
+
+.starBtnFilled {
+  color: #e94560;
+}
+
+.saveBtn {
+  width: 100%;
+  padding: 10px 0;
+  border-radius: 8px;
+  border: none;
+  background: #e94560;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background 0.2s;
+}
+
+.saveBtn:hover {
+  background: #d63850;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.closeBtn:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    border-radius: 8px;
+  }
+
+  .header {
+    padding: 12px 16px;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .controlsBar {
+    padding: 10px 16px;
+    gap: 8px;
+  }
+
+  .playBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .speedBtn {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .timeDisplay {
+    font-size: 12px;
+  }
+
+  .detailCard {
+    width: auto;
+    max-width: 95vw;
+    padding: 20px;
+  }
+
+  .cardTitle {
+    font-size: 15px;
+  }
+
+  .blockTitle {
+    font-size: 11px;
+  }
+
+  .tickLabel {
+    font-size: 10px;
+  }
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1781554280454" clover="3.2.0">
+  <project timestamp="1781554280454" name="All files">
+    <metrics statements="30" coveredstatements="30" conditionals="6" coveredconditionals="6" methods="11" coveredmethods="11" elements="47" coveredelements="47" complexity="0" loc="30" ncloc="30" packages="1" files="2" classes="2"/>
+    <file name="constants.ts" path="D:\P\tasks\auto27\src\lib\constants.ts">
+      <metrics statements="16" coveredstatements="16" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="3"/>
+      <line num="3" count="2" type="stmt"/>
+      <line num="12" count="2" type="stmt"/>
+      <line num="21" count="2" type="stmt"/>
+      <line num="30" count="2" type="stmt"/>
+      <line num="31" count="2" type="stmt"/>
+      <line num="32" count="2" type="stmt"/>
+      <line num="33" count="2" type="stmt"/>
+      <line num="34" count="2" type="stmt"/>
+      <line num="35" count="2" type="stmt"/>
+      <line num="36" count="2" type="stmt"/>
+      <line num="38" count="2" type="stmt"/>
+      <line num="52" count="8" type="stmt"/>
+      <line num="53" count="8" type="stmt"/>
+      <line num="54" count="8" type="stmt"/>
+      <line num="58" count="11" type="stmt"/>
+      <line num="62" count="8" type="stmt"/>
+    </file>
+    <file name="db.ts" path="D:\P\tasks\auto27\src\lib\db.ts">
+      <metrics statements="14" coveredstatements="14" conditionals="6" coveredconditionals="6" methods="8" coveredmethods="8"/>
+      <line num="4" count="1" type="stmt"/>
+      <line num="5" count="1" type="stmt"/>
+      <line num="6" count="1" type="stmt"/>
+      <line num="9" count="3" type="stmt"/>
+      <line num="10" count="3" type="cond" truecount="2" falsecount="0"/>
+      <line num="14" count="2" type="stmt"/>
+      <line num="18" count="2" type="stmt"/>
+      <line num="19" count="2" type="cond" truecount="2" falsecount="0"/>
+      <line num="23" count="1" type="stmt"/>
+      <line num="27" count="2" type="stmt"/>
+      <line num="28" count="2" type="cond" truecount="2" falsecount="0"/>
+      <line num="32" count="1" type="stmt"/>
+      <line num="36" count="1" type="stmt"/>
+      <line num="37" count="2" type="stmt"/>
+    </file>
+  </project>
+</coverage>

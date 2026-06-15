@@ -2,19 +2,24 @@ import { useEffect, useState, useMemo } from 'react';
 import { usePlanStore } from '@/store/usePlanStore';
 import type { TimeBlock, ReviewData } from '@/types';
 import { TASK_TYPES, TASK_TYPE_COLORS, minutesToTime } from '@/lib/constants';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+} from 'recharts';
+import styles from './ReviewStats.module.css';
 
 const COLORS = {
   bg: '#1a1a2e',
   card: '#16213e',
   accent: '#0f3460',
   primary: '#e94560',
-};
-
-const glassStyle: React.CSSProperties = {
-  background: `${COLORS.card}cc`,
-  backdropFilter: 'blur(6px)',
-  WebkitBackdropFilter: 'blur(6px)',
-  borderRadius: 2,
 };
 
 function useAnimatedValue(target: number, duration: number = 1000) {
@@ -51,7 +56,7 @@ function RingProgress({ rate }: { rate: number }) {
   const offset = circumference * (1 - animated);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <div className={styles.ringContainer}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -92,7 +97,7 @@ function RingProgress({ rate }: { rate: number }) {
           {Math.round(animated * 100)}%
         </text>
       </svg>
-      <span style={{ color: '#aaa', fontSize: 13 }}>计划完成率</span>
+      <span className={styles.ringLabel}>计划完成率</span>
     </div>
   );
 }
@@ -102,28 +107,15 @@ function ProgressBar({ rate }: { rate: number }) {
   const pct = Math.min(animated * 100, 100);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: 13 }}>
+    <div className={styles.progressBarContainer}>
+      <div className={styles.progressLabelRow}>
         <span>时间利用率</span>
         <span>{Math.round(animated * 100)}%</span>
       </div>
-      <div
-        style={{
-          width: '100%',
-          height: 12,
-          background: COLORS.accent,
-          borderRadius: 6,
-          overflow: 'hidden',
-        }}
-      >
+      <div className={styles.progressTrack}>
         <div
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            background: `linear-gradient(90deg, ${COLORS.primary}, #ff6b81)`,
-            borderRadius: 6,
-            transition: 'none',
-          }}
+          className={styles.progressFill}
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -145,61 +137,83 @@ function TypeBarChart({ blocks }: { blocks: TimeBlock[] }) {
     }));
   }, [blocks]);
 
-  const maxMinutes = Math.max(...distribution.map((d) => d.minutes), 1);
+  const formatYAxis = (minutes: number) => {
+    if (minutes === 0) return '0';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  };
+
+  const formatLabel = (value: number | string | undefined | null) => {
+    const minutes = Number(value);
+    if (!minutes || minutes === 0) return '';
+    return minutesToTime(minutes);
+  };
+
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; minutes: number } }> }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div
+          style={{
+            background: `${COLORS.card}f0`,
+            backdropFilter: 'blur(6px)',
+            border: `1px solid ${COLORS.accent}`,
+            borderRadius: 6,
+            padding: '8px 12px',
+            color: '#fff',
+            fontSize: 13,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{data.label}</div>
+          <div style={{ color: '#ccc' }}>时长: {minutesToTime(data.minutes)}</div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <span style={{ color: '#aaa', fontSize: 13 }}>任务类型分布</span>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 120, padding: '0 4px' }}>
-        {distribution.map((d) => {
-          const heightPct = (d.minutes / maxMinutes) * 100;
-          return (
-            <div
-              key={d.key}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span style={{ color: '#ccc', fontSize: 11 }}>
-                {d.minutes > 0 ? minutesToTime(d.minutes) : '-'}
-              </span>
-              <Bar heightPct={heightPct} color={d.color} />
-              <span style={{ color: '#aaa', fontSize: 11, whiteSpace: 'nowrap' }}>{d.label}</span>
-            </div>
-          );
-        })}
+    <div className={styles.chartContainer}>
+      <span className={styles.chartTitle}>任务类型分布</span>
+      <div className={styles.chartWrapper}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={distribution} margin={{ top: 20, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.accent} vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: '#aaa', fontSize: 11 }}
+              axisLine={{ stroke: COLORS.accent }}
+              tickLine={{ stroke: COLORS.accent }}
+            />
+            <YAxis
+              tickFormatter={formatYAxis}
+              tick={{ fill: '#aaa', fontSize: 10 }}
+              axisLine={{ stroke: COLORS.accent }}
+              tickLine={{ stroke: COLORS.accent }}
+              tickCount={6}
+              interval={0}
+              domain={[0, 'auto']}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: `${COLORS.accent}40` }} />
+            <Bar dataKey="minutes" radius={[4, 4, 0, 0]} maxBarSize={40} animationDuration={1000}>
+              {distribution.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+              <LabelList
+                dataKey="minutes"
+                position="top"
+                formatter={formatLabel}
+                fill="#ccc"
+                fontSize={10}
+                offset={4}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-    </div>
-  );
-}
-
-function Bar({ heightPct, color }: { heightPct: number; color: string }) {
-  const animated = useAnimatedValue(heightPct / 100);
-  const h = animated * 80;
-
-  return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: 32,
-        height: 80,
-        display: 'flex',
-        alignItems: 'flex-end',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          height: h,
-          background: color,
-          borderRadius: 2,
-          transition: 'none',
-        }}
-      />
     </div>
   );
 }
@@ -229,38 +243,21 @@ export default function ReviewStats() {
   }, [blocks, reviews]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div
-        style={{
-          ...glassStyle,
-          padding: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+    <div className={styles.container}>
+      <div className={`${styles.glassCard} ${styles.ringCard}`}>
         <RingProgress rate={completionRate} />
       </div>
 
-      <div style={{ ...glassStyle, padding: 16 }}>
+      <div className={`${styles.glassCard} ${styles.progressCard}`}>
         <ProgressBar rate={utilizationRate} />
       </div>
 
-      <div style={{ ...glassStyle, padding: 16 }}>
+      <div className={`${styles.glassCard} ${styles.chartCard}`}>
         <TypeBarChart blocks={blocks} />
       </div>
 
       {report?.encouragement && (
-        <div
-          style={{
-            ...glassStyle,
-            padding: 14,
-            textAlign: 'center',
-            color: '#ff6b81',
-            fontSize: 14,
-            fontStyle: 'italic',
-          }}
-        >
+        <div className={`${styles.glassCard} ${styles.encouragementCard}`}>
           {report.encouragement}
         </div>
       )}

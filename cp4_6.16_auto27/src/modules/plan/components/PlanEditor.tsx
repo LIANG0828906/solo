@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { usePlanStore } from '@/store/usePlanStore';
 import { PRESET_COLORS, TASK_TYPES, minutesToTime, snapToSlot } from '@/lib/constants';
 import type { TimeBlock, TaskType } from '@/types';
+import styles from './PlanEditor.module.css';
 
 interface PlanEditorProps {
   visible: boolean;
@@ -27,159 +28,6 @@ function findAvailableLane(blocks: TimeBlock[], start: number, end: number, excl
   }
   return 0;
 }
-
-const styles = {
-  overlay: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  panel: {
-    width: 400,
-    maxHeight: '90vh',
-    overflowY: 'auto' as const,
-    background: '#16213e',
-    borderRadius: 2,
-    border: '1px solid rgba(255,255,255,0.1)',
-    backdropFilter: 'blur(6px)',
-    padding: 24,
-    color: '#eee',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between' as const,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: '#fff',
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#aaa',
-    cursor: 'pointer',
-    padding: 4,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    display: 'block',
-    fontSize: 13,
-    color: '#aaa',
-    marginBottom: 6,
-  },
-  textInput: {
-    width: '100%',
-    boxSizing: 'border-box' as const,
-    padding: '8px 12px',
-    background: '#1a1a2e',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    color: '#eee',
-    fontSize: 14,
-    outline: 'none',
-  },
-  timeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timeInput: {
-    width: 56,
-    padding: '8px 6px',
-    background: '#1a1a2e',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    color: '#eee',
-    fontSize: 14,
-    textAlign: 'center' as const,
-    outline: 'none',
-    MozAppearance: 'textfield' as const,
-  },
-  timeSep: {
-    color: '#aaa',
-    fontSize: 16,
-    fontWeight: 600,
-  },
-  timeDash: {
-    color: '#aaa',
-    fontSize: 14,
-    margin: '0 4px',
-  },
-  colorRow: {
-    display: 'flex',
-    gap: 12,
-  },
-  colorCircle: (selected: boolean, color: string) => ({
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: color,
-    border: selected ? '2px solid #fff' : '2px solid transparent',
-    cursor: 'pointer',
-    transition: 'border-color 0.15s',
-    boxSizing: 'border-box' as const,
-  }),
-  select: {
-    width: '100%',
-    padding: '8px 12px',
-    background: '#1a1a2e',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    color: '#eee',
-    fontSize: 14,
-    outline: 'none',
-    appearance: 'none' as const,
-  },
-  textarea: {
-    width: '100%',
-    boxSizing: 'border-box' as const,
-    padding: '8px 12px',
-    background: '#1a1a2e',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    color: '#eee',
-    fontSize: 14,
-    outline: 'none',
-    resize: 'vertical' as const,
-    minHeight: 64,
-  },
-  footer: {
-    display: 'flex',
-    gap: 12,
-    marginTop: 24,
-  },
-  saveBtn: {
-    flex: 1,
-    padding: '10px 0',
-    background: '#e94560',
-    border: 'none',
-    borderRadius: 2,
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  deleteBtn: {
-    padding: '10px 20px',
-    background: 'transparent',
-    border: '1px solid #e94560',
-    borderRadius: 2,
-    color: '#e94560',
-    fontSize: 14,
-    cursor: 'pointer',
-  },
-};
 
 export default function PlanEditor({ visible, block, startTime, endTime, onSave, onDelete, onClose }: PlanEditorProps) {
   const existingBlocks = usePlanStore(s => s.blocks);
@@ -258,59 +106,59 @@ export default function PlanEditor({ visible, block, startTime, endTime, onSave,
   };
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.panel} onClick={e => e.stopPropagation()}>
-        <div style={styles.header}>
-          <span style={styles.title}>{isEdit ? '编辑时间块' : '新建时间块'}</span>
-          <button style={styles.closeBtn} onClick={onClose}>
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.panel} onClick={e => e.stopPropagation()}>
+        <div className={styles.header}>
+          <span className={styles.title}>{isEdit ? '编辑时间块' : '新建时间块'}</span>
+          <button className={styles.closeBtn} onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>任务名称</label>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>任务名称</label>
           <input
-            style={styles.textInput}
+            className={styles.textInput}
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="输入任务名称"
           />
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>开始时间</label>
-          <div style={styles.timeRow}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>开始时间</label>
+          <div className={styles.timeRow}>
             <input
               type="number"
-              style={styles.timeInput}
+              className={styles.timeInput}
               value={String(startH).padStart(2, '0')}
               onChange={e => updateTime('start', 'h', e.target.value)}
               min={0}
               max={23}
             />
-            <span style={styles.timeSep}>:</span>
+            <span className={styles.timeSep}>:</span>
             <input
               type="number"
-              style={styles.timeInput}
+              className={styles.timeInput}
               value={String(startM).padStart(2, '0')}
               onChange={e => updateTime('start', 'm', e.target.value)}
               min={0}
               max={59}
               step={15}
             />
-            <span style={styles.timeDash}>—</span>
+            <span className={styles.timeDash}>—</span>
             <input
               type="number"
-              style={styles.timeInput}
+              className={styles.timeInput}
               value={String(endH).padStart(2, '0')}
               onChange={e => updateTime('end', 'h', e.target.value)}
               min={0}
               max={23}
             />
-            <span style={styles.timeSep}>:</span>
+            <span className={styles.timeSep}>:</span>
             <input
               type="number"
-              style={styles.timeInput}
+              className={styles.timeInput}
               value={String(endM).padStart(2, '0')}
               onChange={e => updateTime('end', 'm', e.target.value)}
               min={0}
@@ -318,28 +166,29 @@ export default function PlanEditor({ visible, block, startTime, endTime, onSave,
               step={15}
             />
           </div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+          <div className={styles.timeHint}>
             {minutesToTime(snapToSlot(startMin))} — {minutesToTime(snapToSlot(endMin))}
           </div>
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>颜色</label>
-          <div style={styles.colorRow}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>颜色</label>
+          <div className={styles.colorRow}>
             {PRESET_COLORS.map(c => (
               <div
                 key={c}
-                style={styles.colorCircle(color === c, c)}
+                className={`${styles.colorCircle} ${color === c ? styles.colorCircleSelected : ''}`}
+                style={{ background: c }}
                 onClick={() => setColor(c)}
               />
             ))}
           </div>
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>任务类型</label>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>任务类型</label>
           <select
-            style={styles.select}
+            className={styles.select}
             value={type}
             onChange={e => setType(e.target.value as TaskType)}
           >
@@ -349,22 +198,22 @@ export default function PlanEditor({ visible, block, startTime, endTime, onSave,
           </select>
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>备注</label>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>备注</label>
           <textarea
-            style={styles.textarea}
+            className={styles.textarea}
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="添加备注..."
           />
         </div>
 
-        <div style={styles.footer}>
-          <button style={styles.saveBtn} onClick={handleSave}>
+        <div className={styles.footer}>
+          <button className={styles.saveBtn} onClick={handleSave}>
             {isEdit ? '保存修改' : '创建时间块'}
           </button>
           {isEdit && onDelete && (
-            <button style={styles.deleteBtn} onClick={handleDelete}>
+            <button className={styles.deleteBtn} onClick={handleDelete}>
               删除
             </button>
           )}

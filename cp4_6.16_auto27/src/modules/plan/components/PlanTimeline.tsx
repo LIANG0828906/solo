@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { usePlanStore } from '@/store/usePlanStore';
 import {
   SLOT_WIDTH,
-  SLOTS_PER_HOUR,
   TOTAL_SLOTS,
   LANE_HEIGHT,
   MAX_LANES,
@@ -12,6 +11,7 @@ import {
   clampMinutes,
 } from '@/lib/constants';
 import type { TimeBlock } from '@/types';
+import styles from './PlanTimeline.module.css';
 
 interface PlanTimelineProps {
   onCreateBlock: (startTime: number, endTime: number) => void;
@@ -30,12 +30,14 @@ interface DragInfo {
 
 const TIMELINE_WIDTH = SLOT_WIDTH * TOTAL_SLOTS;
 const HEADER_HEIGHT = 44;
-const EDGE_THRESHOLD = 8;
 
 export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragInfo | null>(null);
   const rafRef = useRef<number>(0);
+  const documentListenersActive = useRef(false);
+  const mouseMoveHandlerRef = useRef<(e: MouseEvent) => void>(() => {});
+  const mouseUpHandlerRef = useRef<() => void>(() => {});
 
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
@@ -61,7 +63,7 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
       const target = slot * SLOT_WIDTH - scrollRef.current.clientWidth / 2;
       scrollRef.current.scrollLeft = Math.max(0, target);
     }
-  }, []);
+  }, [currentTime]);
 
   const getSlotFromX = useCallback((clientX: number): number => {
     if (!scrollRef.current) return 0;
@@ -82,6 +84,18 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
     },
     [blocks],
   );
+
+  const handleDocumentMouseLeave = useCallback(() => {
+    // Don't cancel drag on mouseleave
+  }, []);
+
+  const documentMouseMoveHandler = useCallback((e: MouseEvent) => {
+    mouseMoveHandlerRef.current(e);
+  }, []);
+
+  const documentMouseUpHandler = useCallback(() => {
+    mouseUpHandlerRef.current();
+  }, []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -117,12 +131,19 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
       }
 
       e.preventDefault();
+
+      if (!documentListenersActive.current) {
+        document.addEventListener('mousemove', documentMouseMoveHandler);
+        document.addEventListener('mouseup', documentMouseUpHandler);
+        document.addEventListener('mouseleave', handleDocumentMouseLeave);
+        documentListenersActive.current = true;
+      }
     },
-    [blocks, getSlotFromX],
+    [blocks, getSlotFromX, documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave],
   );
 
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       if (!dragRef.current) return;
       const slot = getSlotFromX(e.clientX);
 
@@ -186,7 +207,33 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
 
     dragRef.current = null;
     setDragState(null);
-  }, [onCreateBlock, onBlockClick, blocks, moveBlock]);
+
+    if (documentListenersActive.current) {
+      document.removeEventListener('mousemove', documentMouseMoveHandler);
+      document.removeEventListener('mouseup', documentMouseUpHandler);
+      document.removeEventListener('mouseleave', handleDocumentMouseLeave);
+      documentListenersActive.current = false;
+    }
+  }, [onCreateBlock, onBlockClick, blocks, moveBlock, documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave]);
+
+  useEffect(() => {
+    mouseMoveHandlerRef.current = handleMouseMove;
+  }, [handleMouseMove]);
+
+  useEffect(() => {
+    mouseUpHandlerRef.current = handleMouseUp;
+  }, [handleMouseUp]);
+
+  useEffect(() => {
+    return () => {
+      if (documentListenersActive.current) {
+        document.removeEventListener('mousemove', documentMouseMoveHandler);
+        document.removeEventListener('mouseup', documentMouseUpHandler);
+        document.removeEventListener('mouseleave', handleDocumentMouseLeave);
+        documentListenersActive.current = false;
+      }
+    };
+  }, [documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave]);
 
   const renderTicks = () => {
     const elements: React.ReactNode[] = [];
@@ -199,14 +246,8 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
       elements.push(
         <div
           key={`tick-${i}`}
-          style={{
-            position: 'absolute',
-            left: i * SLOT_WIDTH,
-            top: 0,
-            width: 1,
-            height: isHour ? 22 : 14,
-            background: `rgba(255,255,255,${isHour ? 0.3 : 0.15})`,
-          }}
+          className={`${styles.tickLine} ${isHour ? styles.tickLineHour : styles.tickLineHalf}`}
+          style={{ left: i * SLOT_WIDTH }}
         />,
       );
 
@@ -214,15 +255,8 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
         elements.push(
           <div
             key={`label-${i}`}
-            style={{
-              position: 'absolute',
-              left: i * SLOT_WIDTH + 4,
-              top: 24,
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.5)',
-              whiteSpace: 'nowrap',
-              userSelect: 'none',
-            }}
+            className={styles.tickLabel}
+            style={{ left: i * SLOT_WIDTH + 4 }}
           >
             {minutesToTime(minutes)}
           </div>,
@@ -243,75 +277,32 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
         <div
           key={block.id}
           data-block-id={block.id}
+          className={`${styles.block} ${isDragging ? styles.blockDragging : ''}`}
           style={{
-            position: 'absolute',
             left,
             top,
             width,
             height: LANE_HEIGHT - 8,
             background: block.color,
-            borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             transform: isDragging ? 'scale(1.05)' : 'scale(1)',
             border: isDragging ? '2px solid rgba(255,255,255,0.8)' : 'none',
             cursor: isDragging ? 'grabbing' : 'grab',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            padding: '4px 8px',
-            overflow: 'hidden',
             transition: isDragging ? 'none' : 'transform 0.15s, border 0.15s',
             zIndex: isDragging ? 10 : 1,
-            userSelect: 'none',
-            boxSizing: 'border-box',
           }}
         >
           <div
             data-edge="left"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: EDGE_THRESHOLD,
-              cursor: 'ew-resize',
-              zIndex: 2,
-            }}
+            className={`${styles.blockEdge} ${styles.blockEdgeLeft}`}
           />
           <div
             data-edge="right"
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: EDGE_THRESHOLD,
-              cursor: 'ew-resize',
-              zIndex: 2,
-            }}
+            className={`${styles.blockEdge} ${styles.blockEdgeRight}`}
           />
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#fff',
-              textShadow: '0 1px 2px rgba(0,0,0,0.4)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              pointerEvents: 'none',
-            }}
-          >
+          <div className={styles.blockTitle}>
             {block.title}
           </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: 'rgba(255,255,255,0.75)',
-              marginTop: 2,
-              pointerEvents: 'none',
-            }}
-          >
+          <div className={styles.blockTime}>
             {minutesToTime(block.startTime)} - {minutesToTime(block.endTime)}
           </div>
         </div>
@@ -328,24 +319,15 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
 
     return (
       <div
+        className={styles.placeholder}
         style={{
-          position: 'absolute',
           left: startSlot * SLOT_WIDTH,
           top: lane * LANE_HEIGHT + 4,
           width: (endSlot - startSlot) * SLOT_WIDTH,
           height: LANE_HEIGHT - 8,
-          background: 'rgba(233, 69, 96, 0.3)',
-          borderRadius: 2,
-          border: '2px dashed #e94560',
-          transform: 'scale(1.05)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 5,
-          pointerEvents: 'none',
         }}
       >
-        <span style={{ fontSize: 11, color: '#e94560', userSelect: 'none' }}>
+        <span className={styles.placeholderText}>
           {minutesToTime(startMin)} - {minutesToTime(endMin)}
         </span>
       </div>
@@ -358,52 +340,36 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
     <div
       ref={scrollRef}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      className={`${styles.timelineContainer} ${dragState?.type === 'move' ? styles.timelineContainerGrabbing : ''}`}
       style={{
-        position: 'relative',
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        background: 'linear-gradient(180deg, #2c2c3a 0%, #1e1e2e 100%)',
-        borderRadius: 8,
         height: HEADER_HEIGHT + MAX_LANES * LANE_HEIGHT,
         cursor: dragState?.type === 'move' ? 'grabbing' : 'crosshair',
-        WebkitBackdropFilter: 'blur(6px)',
-        backdropFilter: 'blur(6px)',
       }}
     >
       <div
-        style={{
-          position: 'relative',
-          width: TIMELINE_WIDTH,
-          height: '100%',
-        }}
+        className={styles.timelineInner}
+        style={{ width: TIMELINE_WIDTH, height: '100%' }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, width: TIMELINE_WIDTH, height: HEADER_HEIGHT }}>
+        <div className={styles.ticksContainer} style={{ width: TIMELINE_WIDTH, height: HEADER_HEIGHT }}>
           {renderTicks()}
         </div>
 
         {Array.from({ length: MAX_LANES }).map((_, i) => (
           <div
             key={`lane-${i}`}
+            className={`${styles.lane} ${i % 2 === 0 ? styles.laneEven : styles.laneOdd}`}
             style={{
-              position: 'absolute',
-              left: 0,
               top: HEADER_HEIGHT + i * LANE_HEIGHT,
               width: TIMELINE_WIDTH,
               height: LANE_HEIGHT,
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
             }}
           />
         ))}
 
         <div
+          className={styles.blocksContainer}
           style={{
-            position: 'absolute',
             top: HEADER_HEIGHT,
-            left: 0,
             width: TIMELINE_WIDTH,
             height: MAX_LANES * LANE_HEIGHT,
           }}
@@ -413,28 +379,10 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
         </div>
 
         <div
-          style={{
-            position: 'absolute',
-            left: currentTimePx,
-            top: 0,
-            bottom: 0,
-            width: 0,
-            borderLeft: '2px dashed #e94560',
-            zIndex: 20,
-            pointerEvents: 'none',
-          }}
+          className={styles.currentTimeLine}
+          style={{ left: currentTimePx }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: -5,
-              width: 12,
-              height: 12,
-              background: '#e94560',
-              borderRadius: '50%',
-            }}
-          />
+          <div className={styles.currentTimeDot} />
         </div>
       </div>
     </div>

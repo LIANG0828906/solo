@@ -11,268 +11,10 @@ import {
   TASK_TYPE_COLORS,
 } from '@/lib/constants';
 import type { TimeBlock, ReviewData } from '@/types';
+import styles from './ReviewTimeline.module.css';
 
 const SPEED_OPTIONS = [1, 2, 4] as const;
 type Speed = (typeof SPEED_OPTIONS)[number];
-
-const ANIMATION_DURATION_BASE = 10000;
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    height: '100%',
-    background: 'linear-gradient(180deg, #2c2c3a 0%, #1e1e2e 100%)',
-    borderRadius: 12,
-    overflow: 'hidden',
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-  header: {
-    padding: '16px 20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-  },
-  title: {
-    color: '#e94560',
-    fontSize: 18,
-    fontWeight: 700 as const,
-    letterSpacing: 0.5,
-  },
-  timelineScroll: {
-    flex: 1,
-    overflowX: 'auto' as const,
-    overflowY: 'hidden' as const,
-    position: 'relative' as const,
-  },
-  timelineInner: {
-    position: 'relative' as const,
-  },
-  tickLine: {
-    position: 'absolute' as const,
-    top: 0,
-    width: 1,
-    background: 'rgba(255,255,255,0.08)',
-  },
-  tickLabel: {
-    position: 'absolute' as const,
-    top: 4,
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 11,
-    transform: 'translateX(-50%)',
-    userSelect: 'none' as const,
-  },
-  block: {
-    position: 'absolute' as const,
-    borderRadius: 2,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    transition: 'all 0.8s ease-out',
-  },
-  blockHidden: {
-    opacity: 0,
-    transform: 'translateX(-30px)',
-  },
-  blockVisible: {
-    opacity: 1,
-    transform: 'translateX(0)',
-  },
-  blockTitle: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 500 as const,
-    padding: '0 6px',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-  },
-  cursor: {
-    position: 'absolute' as const,
-    top: 0,
-    width: 2,
-    background: '#e94560',
-    zIndex: 10,
-    pointerEvents: 'none' as const,
-    transition: 'left 0.1s linear',
-  },
-  cursorDot: {
-    position: 'absolute' as const,
-    top: -4,
-    left: -4,
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    background: '#e94560',
-  },
-  controlsBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 20px',
-    background: 'rgba(22, 33, 62, 0.9)',
-    backdropFilter: 'blur(6px)',
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-  },
-  playBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    border: 'none',
-    background: '#e94560',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-  },
-  speedBtn: (active: boolean) => ({
-    padding: '4px 10px',
-    borderRadius: 6,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: active ? '#e94560' : 'transparent',
-    color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    fontWeight: 600 as const,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  }),
-  timeDisplay: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    marginLeft: 'auto',
-    letterSpacing: 1,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    background: 'rgba(255,255,255,0.08)',
-    borderRadius: 2,
-    cursor: 'pointer',
-    position: 'relative' as const,
-  },
-  progressFill: (pct: number) => ({
-    height: '100%',
-    width: `${pct}%`,
-    background: '#e94560',
-    borderRadius: 2,
-    transition: 'width 0.1s linear',
-  }),
-  overlay: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 50,
-  },
-  detailCard: {
-    background: 'rgba(22, 33, 62, 0.95)',
-    backdropFilter: 'blur(6px)',
-    borderRadius: 12,
-    padding: 24,
-    width: 360,
-    maxWidth: '90vw',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-    border: '1px solid rgba(255,255,255,0.08)',
-  },
-  cardTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 700 as const,
-    marginBottom: 16,
-  },
-  cardRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  cardLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
-    width: 72,
-    flexShrink: 0,
-  },
-  cardTimeText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
-  },
-  checkbox: (checked: boolean) => ({
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    border: checked ? 'none' : '2px solid rgba(255,255,255,0.3)',
-    background: checked ? '#e94560' : 'transparent',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  }),
-  timeInput: {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 6,
-    color: '#fff',
-    padding: '6px 10px',
-    fontSize: 13,
-    fontFamily: 'monospace',
-    width: 80,
-    outline: 'none',
-  },
-  starsRow: {
-    display: 'flex',
-    gap: 4,
-  },
-  starBtn: (filled: boolean) => ({
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
-    color: filled ? '#e94560' : 'rgba(255,255,255,0.2)',
-    transition: 'color 0.2s',
-  }),
-  saveBtn: {
-    width: '100%',
-    padding: '10px 0',
-    borderRadius: 8,
-    border: 'none',
-    background: '#e94560',
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 600 as const,
-    cursor: 'pointer',
-    marginTop: 16,
-    transition: 'background 0.2s',
-  },
-  closeBtn: {
-    position: 'absolute' as const,
-    top: 12,
-    right: 12,
-    background: 'none',
-    border: 'none',
-    color: 'rgba(255,255,255,0.4)',
-    cursor: 'pointer',
-    padding: 4,
-  },
-  emptyState: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 14,
-  },
-};
 
 export default function ReviewTimeline() {
   const { blocks, reviews, setReview } = usePlanStore();
@@ -302,7 +44,8 @@ export default function ReviewTimeline() {
   const startAnimation = useCallback((fromProgress: number) => {
     startTimeRef.current = performance.now();
     pausedAtRef.current = fromProgress;
-    const duration = ANIMATION_DURATION_BASE / speed;
+    const totalMinutes = maxTime - minTime;
+    const duration = (totalMinutes * 1000) / speed;
 
     const tick = (now: number) => {
       const elapsed = now - startTimeRef.current;
@@ -317,7 +60,7 @@ export default function ReviewTimeline() {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [speed]);
+  }, [speed, minTime, maxTime]);
 
   useEffect(() => {
     if (playing) {
@@ -383,28 +126,28 @@ export default function ReviewTimeline() {
 
   if (blocks.length === 0) {
     return (
-      <div style={styles.container}>
-        <div style={styles.emptyState}>暂无计划块，请先添加计划</div>
+      <div className={styles.container}>
+        <div className={styles.emptyState}>暂无计划块，请先添加计划</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <span style={styles.title}>日程回顾</span>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <span className={styles.title}>日程回顾</span>
       </div>
 
-      <div style={styles.timelineScroll}>
-        <div style={{ ...styles.timelineInner, width: timelineWidth, height: timelineHeight }}>
+      <div className={styles.timelineScroll}>
+        <div className={styles.timelineInner} style={{ width: timelineWidth, height: timelineHeight }}>
           {Array.from({ length: tickSlots + 1 }, (_, i) => {
             if (i % halfHourSlotStep !== 0) return null;
             const minute = minTime + i * MINUTE_PER_SLOT;
             const left = i * SLOT_WIDTH;
             return (
               <div key={`tick-${i}`}>
-                <div style={{ ...styles.tickLine, left, height: timelineHeight }} />
-                <span style={{ ...styles.tickLabel, left }}>{minutesToTime(minute)}</span>
+                <div className={styles.tickLine} style={{ left, height: timelineHeight }} />
+                <span className={styles.tickLabel} style={{ left }}>{minutesToTime(minute)}</span>
               </div>
             );
           })}
@@ -420,86 +163,89 @@ export default function ReviewTimeline() {
             return (
               <div
                 key={block.id}
+                className={`${styles.block} ${visible ? styles.blockVisible : styles.blockHidden}`}
                 style={{
-                  ...styles.block,
                   left,
                   width: Math.max(width, SLOT_WIDTH / 2),
                   top,
                   height,
                   background: blockColor,
-                  ...(visible ? styles.blockVisible : styles.blockHidden),
                 }}
                 onClick={() => openDetail(block)}
                 onDoubleClick={() => openDetail(block)}
               >
-                <span style={styles.blockTitle}>{block.title}</span>
+                <span className={styles.blockTitle}>{block.title}</span>
               </div>
             );
           })}
 
           <div
+            className={styles.cursor}
             style={{
-              ...styles.cursor,
               left: ((currentMinutes - minTime) / MINUTE_PER_SLOT) * SLOT_WIDTH,
               height: timelineHeight,
             }}
           >
-            <div style={styles.cursorDot} />
+            <div className={styles.cursorDot} />
           </div>
         </div>
       </div>
 
-      <div style={styles.controlsBar}>
-        <button style={styles.playBtn} onClick={togglePlay}>
+      <div className={styles.controlsBar}>
+        <button className={styles.playBtn} onClick={togglePlay}>
           {playing ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
         </button>
 
-        <div style={styles.progressTrack} onClick={handleProgressClick}>
-          <div style={styles.progressFill(progress * 100)} />
+        <div className={styles.progressTrack} onClick={handleProgressClick}>
+          <div className={styles.progressFill} style={{ width: `${progress * 100}%` }} />
         </div>
 
         {SPEED_OPTIONS.map((s) => (
-          <button key={s} style={styles.speedBtn(speed === s)} onClick={() => setSpeed(s)}>
+          <button
+            key={s}
+            className={`${styles.speedBtn} ${speed === s ? styles.speedBtnActive : ''}`}
+            onClick={() => setSpeed(s)}
+          >
             {s}x
           </button>
         ))}
 
-        <span style={styles.timeDisplay}>{minutesToTime(Math.round(currentMinutes))}</span>
+        <span className={styles.timeDisplay}>{minutesToTime(Math.round(currentMinutes))}</span>
       </div>
 
       {selectedBlock && reviewForm && (
-        <div style={styles.overlay} onClick={() => { setSelectedBlock(null); setReviewForm(null); }}>
-          <div style={{ ...styles.detailCard, position: 'relative' as const }} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.overlay} onClick={() => { setSelectedBlock(null); setReviewForm(null); }}>
+          <div className={styles.detailCard} onClick={(e) => e.stopPropagation()}>
             <button
-              style={styles.closeBtn}
+              className={styles.closeBtn}
               onClick={() => { setSelectedBlock(null); setReviewForm(null); }}
             >
               <X size={16} />
             </button>
 
-            <div style={styles.cardTitle}>{selectedBlock.title}</div>
+            <div className={styles.cardTitle}>{selectedBlock.title}</div>
 
-            <div style={styles.cardRow}>
-              <span style={styles.cardLabel}>计划时间</span>
-              <span style={styles.cardTimeText}>
+            <div className={styles.cardRow}>
+              <span className={styles.cardLabel}>计划时间</span>
+              <span className={styles.cardTimeText}>
                 {minutesToTime(selectedBlock.startTime)} - {minutesToTime(selectedBlock.endTime)}
               </span>
             </div>
 
-            <div style={styles.cardRow}>
-              <span style={styles.cardLabel}>已完成</span>
+            <div className={styles.cardRow}>
+              <span className={styles.cardLabel}>已完成</span>
               <div
-                style={styles.checkbox(reviewForm.completed)}
+                className={`${styles.checkbox} ${reviewForm.completed ? styles.checkboxChecked : ''}`}
                 onClick={() => setReviewForm((f) => (f ? { ...f, completed: !f.completed } : f))}
               >
                 {reviewForm.completed && <Check size={14} color="#fff" />}
               </div>
             </div>
 
-            <div style={styles.cardRow}>
-              <span style={styles.cardLabel}>实际开始</span>
+            <div className={styles.cardRow}>
+              <span className={styles.cardLabel}>实际开始</span>
               <input
-                style={styles.timeInput}
+                className={styles.timeInput}
                 value={minutesToInput(reviewForm.actualStart)}
                 onChange={(e) =>
                   setReviewForm((f) => (f ? { ...f, actualStart: snapToSlot(parseInt(e.target.value.split(':')[0], 10) * 60 + parseInt(e.target.value.split(':')[1] || '0', 10)) || f.actualStart } : f))
@@ -508,10 +254,10 @@ export default function ReviewTimeline() {
               />
             </div>
 
-            <div style={styles.cardRow}>
-              <span style={styles.cardLabel}>实际结束</span>
+            <div className={styles.cardRow}>
+              <span className={styles.cardLabel}>实际结束</span>
               <input
-                style={styles.timeInput}
+                className={styles.timeInput}
                 value={minutesToInput(reviewForm.actualEnd)}
                 onChange={(e) =>
                   setReviewForm((f) => (f ? { ...f, actualEnd: snapToSlot(parseInt(e.target.value.split(':')[0], 10) * 60 + parseInt(e.target.value.split(':')[1] || '0', 10)) || f.actualEnd } : f))
@@ -520,13 +266,13 @@ export default function ReviewTimeline() {
               />
             </div>
 
-            <div style={styles.cardRow}>
-              <span style={styles.cardLabel}>满意度</span>
-              <div style={styles.starsRow}>
+            <div className={styles.cardRow}>
+              <span className={styles.cardLabel}>满意度</span>
+              <div className={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
                     key={s}
-                    style={styles.starBtn(s <= reviewForm.satisfaction)}
+                    className={`${styles.starBtn} ${s <= reviewForm.satisfaction ? styles.starBtnFilled : ''}`}
                     onClick={() => setReviewForm((f) => (f ? { ...f, satisfaction: s } : f))}
                   >
                     <Star size={20} fill={s <= reviewForm.satisfaction ? '#e94560' : 'none'} />
@@ -535,7 +281,7 @@ export default function ReviewTimeline() {
               </div>
             </div>
 
-            <button style={styles.saveBtn} onClick={handleSave}>
+            <button className={styles.saveBtn} onClick={handleSave}>
               保存评价
             </button>
           </div>

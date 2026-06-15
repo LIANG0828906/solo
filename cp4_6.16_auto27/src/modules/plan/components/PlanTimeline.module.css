@@ -1,0 +1,193 @@
+.timelineContainer {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: linear-gradient(180deg, #2c2c3a 0%, #1e1e2e 100%);
+  border-radius: 8px;
+  cursor: crosshair;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.timelineContainerGrabbing {
+  cursor: grabbing;
+}
+
+.timelineInner {
+  position: relative;
+}
+
+.ticksContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.tickLine {
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.tickLineHour {
+  height: 22px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.tickLineHalf {
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.tickLabel {
+  position: absolute;
+  top: 24px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.lane {
+  position: absolute;
+  left: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.laneEven {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.laneOdd {
+  background: transparent;
+}
+
+.blocksContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.block {
+  position: absolute;
+  height: calc(var(--lane-height) - 8px);
+  top: calc(var(--lane-index) * var(--lane-height) + 4px);
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  box-sizing: border-box;
+  z-index: 1;
+  transition: transform 0.15s, border 0.15s;
+}
+
+.blockDragging {
+  transform: scale(1.05);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  cursor: grabbing;
+  transition: none;
+  z-index: 10;
+}
+
+.blockEdge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.blockEdgeLeft {
+  left: 0;
+}
+
+.blockEdgeRight {
+  right: 0;
+}
+
+.blockTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.blockTime {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+.placeholder {
+  position: absolute;
+  height: calc(var(--lane-height) - 8px);
+  top: calc(var(--lane-index) * var(--lane-height) + 4px);
+  background: rgba(233, 69, 96, 0.3);
+  border-radius: 2px;
+  border: 2px dashed #e94560;
+  transform: scale(1.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.placeholderText {
+  font-size: 11px;
+  color: #e94560;
+  user-select: none;
+}
+
+.currentTimeLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed #e94560;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.currentTimeDot {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  background: #e94560;
+  border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+  .timelineContainer {
+    border-radius: 6px;
+  }
+
+  .tickLabel {
+    font-size: 10px;
+  }
+
+  .blockTitle {
+    font-size: 11px;
+  }
+
+  .blockTime {
+    font-size: 9px;
+  }
+
+  .placeholderText {
+    font-size: 10px;
+  }
+}

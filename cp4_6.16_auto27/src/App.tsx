@@ -8,6 +8,7 @@ import PlanEditor from '@/modules/plan/components/PlanEditor'
 import ReviewTimeline from '@/modules/review/components/ReviewTimeline'
 import ReviewStats from '@/modules/review/components/ReviewStats'
 import type { TimeBlock } from '@/types'
+import styles from './App.module.css'
 
 function PlanPage() {
   const [editorVisible, setEditorVisible] = useState(false)
@@ -53,7 +54,7 @@ function PlanPage() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className={styles.planPage}>
       <PlanTimeline
         onCreateBlock={handleCreateBlock}
         onBlockClick={handleBlockClick}
@@ -73,8 +74,8 @@ function PlanPage() {
 
 function ReviewPage() {
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 16 }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
+    <div className={styles.reviewPage}>
+      <div className={styles.reviewTimelineContainer}>
         <ReviewTimeline />
       </div>
       <ReviewStats />
@@ -101,37 +102,27 @@ function DateNavigator() {
   }, [setCurrentDate])
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className={styles.dateNav}>
       <button
         onClick={goPrev}
-        style={{
-          background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer',
-          padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center',
-        }}
+        className={styles.navBtn}
       >
         <ChevronLeft size={18} />
       </button>
       <button
         onClick={goToday}
-        style={{
-          background: '#0f3460', border: 'none', color: '#fff', cursor: 'pointer',
-          padding: '4px 12px', borderRadius: 4, fontSize: 13, fontWeight: 600,
-          fontFamily: 'monospace',
-        }}
+        className={styles.todayBtn}
       >
         {currentDate}
       </button>
       <button
         onClick={goNext}
-        style={{
-          background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer',
-          padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center',
-        }}
+        className={styles.navBtn}
       >
         <ChevronRight size={18} />
       </button>
       {currentDate === format(new Date(), 'yyyy-MM-dd') && (
-        <span style={{ fontSize: 11, color: '#e94560', fontWeight: 600, marginLeft: 4 }}>今天</span>
+        <span className={styles.todayLabel}>今天</span>
       )}
     </div>
   )
@@ -146,59 +137,34 @@ export default function App() {
   }, [currentDate, loadFromDB])
 
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      background: '#1a1a2e', color: '#e0e0e0', overflow: 'hidden',
-    }}>
-      <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 20px', background: '#16213e',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(6px)', zIndex: 100, flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, #e94560, #0f3460)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 900, fontSize: 16, color: '#fff',
-          }}>T</div>
-          <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: '0.5px' }}>
+    <div className={styles.app}>
+      <header className={styles.header}>
+        <div className={styles.logoSection}>
+          <div className={styles.logo}>T</div>
+          <h1 className={styles.appTitle}>
             TimeBlock Planner
           </h1>
         </div>
 
         <DateNavigator />
 
-        <nav style={{ display: 'flex', gap: 4 }}>
+        <nav className={styles.desktopNav}>
           <NavLink
             to="/plan"
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600,
-              color: isActive ? '#fff' : '#888',
-              background: isActive ? '#e94560' : 'transparent',
-              textDecoration: 'none', transition: 'all 0.2s',
-            })}
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
           >
             <CalendarDays size={15} /> 计划
           </NavLink>
           <NavLink
             to="/review"
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600,
-              color: isActive ? '#fff' : '#888',
-              background: isActive ? '#e94560' : 'transparent',
-              textDecoration: 'none', transition: 'all 0.2s',
-            })}
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
           >
             <BarChart3 size={15} /> 回顾
           </NavLink>
         </nav>
       </header>
 
-      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <main className={styles.mainContent}>
         <Routes>
           <Route path="/plan" element={<PlanPage />} />
           <Route path="/review" element={<ReviewPage />} />
@@ -206,22 +172,12 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer style={{
-        display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#16213e', borderTop: '1px solid rgba(255,255,255,0.06)',
-        padding: '6px 0', zIndex: 100,
-      }} className="mobile-nav">
-        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          <NavLink to="/plan" style={({ isActive }) => ({
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            color: isActive ? '#e94560' : '#666', textDecoration: 'none', fontSize: 11,
-          })}>
+      <footer className={styles.mobileNav}>
+        <div className={styles.mobileNavInner}>
+          <NavLink to="/plan" className={({ isActive }) => `${styles.mobileNavLink} ${isActive ? styles.mobileNavLinkActive : ''}`}>
             <CalendarDays size={20} /> 计划
           </NavLink>
-          <NavLink to="/review" style={({ isActive }) => ({
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            color: isActive ? '#e94560' : '#666', textDecoration: 'none', fontSize: 11,
-          })}>
+          <NavLink to="/review" className={({ isActive }) => `${styles.mobileNavLink} ${isActive ? styles.mobileNavLinkActive : ''}`}>
             <BarChart3 size={20} /> 回顾
           </NavLink>
         </div>

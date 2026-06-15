@@ -1,0 +1,118 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.glassCard {
+  background: rgba(22, 33, 62, 0.8);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 2px;
+}
+
+.ringCard {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ringContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ringLabel {
+  color: #aaa;
+  font-size: 13px;
+}
+
+.progressCard {
+  padding: 16px;
+}
+
+.progressBarContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.progressLabelRow {
+  display: flex;
+  justify-content: space-between;
+  color: #aaa;
+  font-size: 13px;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 12px;
+  background: #0f3460;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #e94560, #ff6b81);
+  border-radius: 6px;
+  transition: none;
+}
+
+.chartCard {
+  padding: 16px;
+}
+
+.chartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chartTitle {
+  color: #aaa;
+  font-size: 13px;
+}
+
+.chartWrapper {
+  width: 100%;
+  height: 200px;
+  padding: 0 8px;
+}
+
+.encouragementCard {
+  padding: 14px;
+  text-align: center;
+  color: #ff6b81;
+  font-size: 14px;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .container {
+    gap: 12px;
+  }
+
+  .ringCard {
+    padding: 16px;
+  }
+
+  .progressCard,
+  .chartCard {
+    padding: 12px;
+  }
+
+  .encouragementCard {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .chartWrapper {
+    height: 180px;
+    padding: 0 4px;
+  }
+}
