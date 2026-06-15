@@ -47,6 +47,7 @@ type AddCommentInput = {
   time: number;
   trackId?: string;
   text: string;
+  author?: 'creator' | 'viewer';
 };
 
 const STORAGE_QUOTA_WARNING_THRESHOLD = 4 * 1024 * 1024;
@@ -212,7 +213,7 @@ class PresetManager {
       time: comment.time,
       trackId: comment.trackId,
       text: comment.text,
-      author: 'viewer',
+      author: comment.author || 'viewer',
       createdAt: Date.now(),
     };
 
@@ -237,6 +238,22 @@ class PresetManager {
     } catch {
       return [];
     }
+  }
+
+  public deleteComment(shareId: string, commentId: string): boolean {
+    const comments = this.getComments(shareId);
+    const filtered = comments.filter((c) => c.id !== commentId);
+    if (filtered.length === comments.length) return false;
+    try {
+      localStorage.setItem(this.getCommentsKey(shareId), JSON.stringify(filtered));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public getAllCommentsForPreset(presetId: string): Comment[] {
+    return this.getComments(presetId);
   }
 
   public isShareMode(): ShareMode {

@@ -215,7 +215,7 @@ body::-webkit-scrollbar {
 .vu-fill {
   width: 100%;
   transition: height 0.05s linear;
-  background: linear-gradient(to top, var(--vu-green) 0%, var(--vu-green) 80%, var(--vu-yellow) 80%, var(--vu-yellow) 90%, var(--vu-red) 90%, var(--vu-red) 100%);
+  background: linear-gradient(to top, var(--vu-green) 0%, var(--vu-green) 90%, var(--vu-yellow) 90%, var(--vu-yellow) 95%, var(--vu-red) 95%, var(--vu-red) 100%);
 }
 
 .vu-peak {

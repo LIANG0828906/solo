@@ -1,15 +1,7 @@
 import '../styles.css';
 import React, { useState, useRef } from 'react';
 import { X, MessageSquare, Send } from 'lucide-react';
-
-export interface Comment {
-  id: string;
-  time: number;
-  trackId?: string;
-  text: string;
-  author: 'creator' | 'viewer';
-  createdAt: number;
-}
+import { Comment } from '../PresetManager';
 
 export interface CommentPanelProps {
   isOpen: boolean;
@@ -287,7 +279,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         </div>
       )}
 
-      {readOnly && onAddComment && (
+      {onAddComment && (
         <div style={inputAreaStyle}>
           <input
             ref={inputRef}

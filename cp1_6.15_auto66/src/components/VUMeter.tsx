@@ -71,7 +71,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({
   }, []);
 
   const gradientBackground =
-    'linear-gradient(to top, #22c55e 0%, #22c55e 80%, #eab308 80%, #eab308 90%, #ef4444 90%, #ef4444 100%)';
+    'linear-gradient(to top, #22c55e 0%, #22c55e 90%, #eab308 90%, #eab308 95%, #ef4444 95%, #ef4444 100%)';
 
   const barContainerStyle: React.CSSProperties = {
     display: 'flex',

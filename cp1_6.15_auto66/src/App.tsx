@@ -114,6 +114,14 @@ const App: React.FC = () => {
     }
   }, [isPlaying, startUpdateLoop, stopUpdateLoop]);
 
+  useEffect(() => {
+    if (!presetManagerRef.current || !currentPresetId) return;
+    if (sharePresetRef.current) return;
+    const manager = presetManagerRef.current;
+    const loadedComments = manager.getComments(currentPresetId);
+    setComments(loadedComments);
+  }, [currentPresetId]);
+
   const handleImportFiles = useCallback(async (files: FileList | null) => {
     if (!files || !audioEngineRef.current || readOnly) return;
     const engine = audioEngineRef.current;
@@ -183,7 +191,7 @@ const App: React.FC = () => {
     setCurrentPresetId(preset.id);
     setBpm(preset.bpm);
     setLoopEnabled(preset.loopEnabled);
-    setComments(preset.comments);
+    setComments(manager.getComments(preset.id));
 
     engine.setBPM(preset.bpm);
     if (preset.loopEnabled !== engine.getState().loopEnabled) {
@@ -286,11 +294,25 @@ const App: React.FC = () => {
     if (!presetManagerRef.current) return;
 
     const manager = presetManagerRef.current;
+    const shareId = currentPresetId;
+    if (!shareId) return;
+
+    const author = readOnly ? 'viewer' : 'creator';
+    const newComment = manager.addComment(shareId, { time, text, author });
+    if (newComment) {
+      setComments(manager.getComments(shareId));
+    }
+  }, [currentPresetId, readOnly]);
+
+  const handleDeleteComment = useCallback((id: string) => {
+    if (!presetManagerRef.current) return;
+
+    const manager = presetManagerRef.current;
     const shareId = sharePresetRef.current?.id || currentPresetId;
     if (!shareId) return;
 
-    const newComment = manager.addComment(shareId, { time, text });
-    if (newComment) {
+    const success = manager.deleteComment(shareId, id);
+    if (success) {
       setComments(manager.getComments(shareId));
     }
   }, [currentPresetId]);
@@ -703,6 +725,7 @@ const App: React.FC = () => {
         onClose={handleToggleComments}
         onJumpToTime={handleJumpToTime}
         onAddComment={handleAddComment}
+        onDeleteComment={handleDeleteComment}
       />
 
       {renderStorageAlert()}

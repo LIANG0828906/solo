@@ -1,6 +1,24 @@
 import '../styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+export function extractPeaks(audioBuffer: AudioBuffer, pixelWidth: number): number[] {
+  if (pixelWidth <= 0 || !audioBuffer) return [];
+  const channelData = audioBuffer.getChannelData(0);
+  const samplesPerPixel = Math.max(1, Math.floor(channelData.length / pixelWidth));
+  const peaks: number[] = new Array(pixelWidth);
+  for (let i = 0; i < pixelWidth; i++) {
+    const start = i * samplesPerPixel;
+    const end = Math.min(start + samplesPerPixel, channelData.length);
+    let max = 0;
+    for (let j = start; j < end; j++) {
+      const abs = Math.abs(channelData[j]);
+      if (abs > max) max = abs;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
 export interface WaveformProps {
   peaks: number[];
   width: number;
@@ -74,26 +92,31 @@ export const Waveform: React.FC<WaveformProps> = ({
       gradient.addColorStop(1, '#93c5fd');
     }
 
-    const totalSeconds = peaks.length / pixelsPerSecond;
-    const visibleStart = startTime;
-    const visibleEnd = startTime + width / pixelsPerSecond;
-
-    const startIndex = Math.max(0, Math.floor(visibleStart * pixelsPerSecond));
-    const endIndex = Math.min(peaks.length, Math.ceil(visibleEnd * pixelsPerSecond));
+    const step = peaks.length / width;
 
     ctx.beginPath();
     ctx.moveTo(0, centerY);
 
-    for (let i = startIndex; i < endIndex; i++) {
-      const peak = Math.max(0, Math.min(1, peaks[i] || 0));
-      const x = (i / pixelsPerSecond - startTime) * pixelsPerSecond;
+    for (let x = 0; x < width; x++) {
+      const idx = Math.floor(x * step);
+      const idxEnd = Math.min(Math.floor((x + 1) * step), peaks.length);
+      let peak = 0;
+      for (let j = idx; j < idxEnd; j++) {
+        const p = Math.max(0, Math.min(1, peaks[j] || 0));
+        if (p > peak) peak = p;
+      }
       const barHeight = peak * (height / 2 - 2);
       ctx.lineTo(x, centerY - barHeight);
     }
 
-    for (let i = endIndex - 1; i >= startIndex; i--) {
-      const peak = Math.max(0, Math.min(1, peaks[i] || 0));
-      const x = (i / pixelsPerSecond - startTime) * pixelsPerSecond;
+    for (let x = width - 1; x >= 0; x--) {
+      const idx = Math.floor(x * step);
+      const idxEnd = Math.min(Math.floor((x + 1) * step), peaks.length);
+      let peak = 0;
+      for (let j = idx; j < idxEnd; j++) {
+        const p = Math.max(0, Math.min(1, peaks[j] || 0));
+        if (p > peak) peak = p;
+      }
       const barHeight = peak * (height / 2 - 2);
       ctx.lineTo(x, centerY + barHeight);
     }
@@ -108,7 +131,7 @@ export const Waveform: React.FC<WaveformProps> = ({
     ctx.strokeStyle = isGray ? grayColor : 'rgba(147, 197, 253, 0.8)';
     ctx.lineWidth = 1;
     ctx.stroke();
-  }, [peaks, width, height, startTime, pixelsPerSecond, muted, dimmed]);
+  }, [peaks, width, height, muted, dimmed]);
 
   useEffect(() => {
     drawWaveform();
