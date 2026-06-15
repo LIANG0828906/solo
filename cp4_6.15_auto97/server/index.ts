@@ -1,9 +1,9 @@
 /**
- * Vercel deploy entry handler, for serverless deployment, please don't modify this file
+ * Vercel serverless deployment entry
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { IncomingMessage, ServerResponse } from 'http';
 import app from './app.js';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: IncomingMessage, res: ServerResponse) {
   return app(req, res);
 }

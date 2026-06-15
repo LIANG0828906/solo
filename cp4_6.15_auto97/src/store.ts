@@ -1,6 +1,13 @@
 import { create } from 'zustand';
-import type { Book, User, CartItem, Order, Borrow, FilterOptions } from './types';
+import type { Book, User, CartItem, Order, Borrow, FilterOptions, ApiResponse } from './types';
 import * as api from './api';
+
+interface CircleRevealState {
+  active: boolean;
+  x: number;
+  y: number;
+  color: string;
+}
 
 interface AppState {
   books: Book[];
@@ -13,6 +20,7 @@ interface AppState {
   searchQuery: string;
   filters: FilterOptions;
   searchSuggestions: Book[];
+  circleReveal: CircleRevealState;
 
   setSearchQuery: (query: string) => void;
   setFilters: (filters: Partial<FilterOptions>) => void;
@@ -30,11 +38,12 @@ interface AppState {
     address: { name: string; phone: string; address: string },
     paymentMethod: string,
     userId: string
-  ) => Promise<api.ApiResponse<Order>>;
+  ) => Promise<ApiResponse<Order>>;
   fetchBorrows: (userId: string) => Promise<void>;
   fetchAllBorrows: () => Promise<void>;
   renewBorrow: (id: string) => Promise<void>;
   returnBorrow: (id: string) => Promise<void>;
+  setCircleReveal: (state: Partial<CircleRevealState>) => void;
 }
 
 const initialFilters: FilterOptions = {
@@ -54,11 +63,15 @@ export const useStore = create<AppState>((set, get) => ({
   searchQuery: '',
   filters: initialFilters,
   searchSuggestions: [],
+  circleReveal: { active: false, x: 0, y: 0, color: '#C67B3D' },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   setFilters: (filters) =>
     set((state) => ({ filters: { ...state.filters, ...filters } })),
+
+  setCircleReveal: (state) =>
+    set((prev) => ({ circleReveal: { ...prev.circleReveal, ...state } })),
 
   fetchBooks: async () => {
     set({ booksLoading: true });

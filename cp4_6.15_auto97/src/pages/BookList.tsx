@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store';
 import BookCard from '@/components/BookCard';
+import type { Book } from '@/types';
 
 const categories = ['all', '文学', '科技', '历史', '艺术', '经济', '心理'];
 const stockStatuses = [
@@ -11,18 +13,20 @@ const stockStatuses = [
 ];
 
 export default function BookList() {
-  const { 
-    books, 
-    booksLoading, 
-    fetchBooks, 
-    searchQuery, 
+  const navigate = useNavigate();
+  const {
+    books,
+    booksLoading,
+    fetchBooks,
+    searchQuery,
     setSearchQuery,
     searchSuggestions,
     searchBooks,
     filters,
     setFilters,
+    setCircleReveal,
   } = useStore();
-  
+
   const [localQuery, setLocalQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,18 +61,44 @@ export default function BookList() {
     }, 300);
   };
 
-  const handleSuggestionClick = (title: string) => {
+  const handleSuggestionClick = (title: string, book?: Book) => {
     setLocalQuery(title);
     setSearchQuery(title);
     setShowSuggestions(false);
+    if (book) {
+      navigate(`/book/${book.id}`);
+    }
   };
 
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.split(regex).map((part, i) => 
-      regex.test(part) ? <span key={i} className="highlight">{part}</span> : part
-    );
+    try {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = text.split(regex);
+      return parts.map((part, i) =>
+        regex.test(part) ? <span key={i} className="highlight">{part}</span> : part
+      );
+    } catch {
+      return text;
+    }
+  };
+
+  const handleCardClick = (e: React.MouseEvent, book: Book) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    setCircleReveal({
+      active: true,
+      x: centerX,
+      y: centerY,
+      color: '#C67B3D',
+    });
+
+    setTimeout(() => {
+      navigate(`/book/${book.id}`);
+    }, 450);
   };
 
   const filteredBooks = useMemo(() => {
@@ -123,16 +153,18 @@ export default function BookList() {
         />
         {showSuggestions && searchSuggestions.length > 0 && (
           <div className="search-suggestions">
-            {searchSuggestions.map(book => (
+            {searchSuggestions.slice(0, 5).map(book => (
               <div
                 key={book.id}
                 className="search-suggestion"
-                onClick={() => handleSuggestionClick(book.title)}
+                onClick={() => handleSuggestionClick(book.title, book)}
               >
                 <div className="suggestion-title">
+                  <i className="fas fa-book" style={{ marginRight: '8px', color: 'var(--color-primary)', fontSize: '12px' }}></i>
                   {highlightText(book.title, localQuery)}
                 </div>
                 <div className="suggestion-author">
+                  <i className="fas fa-user" style={{ marginRight: '6px', fontSize: '10px' }}></i>
                   {highlightText(book.author, localQuery)}
                 </div>
               </div>
@@ -220,7 +252,12 @@ export default function BookList() {
       ) : (
         <div className="books-grid">
           {filteredBooks.map((book, index) => (
-            <BookCard key={book.id} book={book} index={index} />
+            <BookCard
+              key={book.id}
+              book={book}
+              index={index}
+              onCardClick={handleCardClick}
+            />
           ))}
         </div>
       )}

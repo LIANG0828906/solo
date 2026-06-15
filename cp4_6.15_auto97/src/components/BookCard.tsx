@@ -5,9 +5,10 @@ import { useStore } from '@/store';
 interface BookCardProps {
   book: Book;
   index?: number;
+  onCardClick?: (e: React.MouseEvent, book: Book) => void;
 }
 
-export default function BookCard({ book, index = 0 }: BookCardProps) {
+export default function BookCard({ book, index = 0, onCardClick }: BookCardProps) {
   const navigate = useNavigate();
   const { addToCart } = useStore();
 
@@ -17,9 +18,19 @@ export default function BookCard({ book, index = 0 }: BookCardProps) {
     return 'red';
   };
 
+  const getStockText = (stock: number) => {
+    if (stock > 10) return '充足';
+    if (stock > 0) return `剩${stock}本`;
+    return '缺货';
+  };
+
   const handleViewDetail = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/book/${book.id}`);
+    if (onCardClick) {
+      onCardClick(e, book);
+    } else {
+      navigate(`/book/${book.id}`);
+    }
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -30,16 +41,18 @@ export default function BookCard({ book, index = 0 }: BookCardProps) {
   };
 
   return (
-    <div 
-      className="card book-card" 
+    <div
+      className="card book-card"
       style={{ animationDelay: `${index * 0.05}s` }}
       onClick={handleViewDetail}
     >
       <div className="book-image-wrapper">
-        <div className={`stock-badge ${getStockBadgeClass(book.stock)}`}></div>
-        <img 
-          src={book.coverUrl} 
-          alt={book.title} 
+        <div className={`stock-badge ${getStockBadgeClass(book.stock)}`}>
+          <span className="stock-badge-text">{getStockText(book.stock)}</span>
+        </div>
+        <img
+          src={book.coverUrl}
+          alt={book.title}
           className="book-image"
           loading="lazy"
         />
@@ -47,8 +60,8 @@ export default function BookCard({ book, index = 0 }: BookCardProps) {
           <button className="overlay-btn" onClick={handleViewDetail}>
             <i className="fas fa-info-circle"></i> 查看详情
           </button>
-          <button 
-            className="overlay-btn" 
+          <button
+            className="overlay-btn"
             onClick={handleAddToCart}
             disabled={book.stock === 0}
             style={{ opacity: book.stock === 0 ? 0.5 : 1 }}
