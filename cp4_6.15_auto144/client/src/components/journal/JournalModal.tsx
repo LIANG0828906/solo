@@ -49,7 +49,7 @@ const JournalModal = memo(function JournalModal() {
     filesToProcess.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotos((prev) => [...prev, reader.result as string];
+        setPhotos((prev) => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
     });

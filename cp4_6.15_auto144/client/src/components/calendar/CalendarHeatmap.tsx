@@ -1,4 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
+import { X, Star, MapPin } from 'lucide-react';
+import { FoodJournal } from '../../types';
+import { useJournalStore } from '../../store/useJournalStore';
 import './CalendarHeatmap.css';
 
 interface CalendarHeatmapProps {
@@ -27,14 +30,26 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
   data,
   year = 2026,
 }: CalendarHeatmapProps) {
+  const { entries, openDetail, selectEntry } = useJournalStore();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+
+  const dayEntries = useMemo(() => {
+    if (!selectedDate) return [];
+    return entries.filter((journal) => {
+      const journalDate = new Date(journal.createdAt).toISOString().split('T')[0];
+      return journalDate === selectedDate;
+    });
+  }, [selectedDate, entries]);
+
   const calendarData = useMemo(() => {
     const dateMap = new Map<string, number>();
     data.forEach((item) => {
       dateMap.set(item.date, item.count);
     });
 
-    const now = new Date(year, 11, 31);
     const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31);
 
     const weeks: {
       date: Date;
@@ -65,7 +80,6 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
     }
 
     const currentDate = new Date(startDate);
-    const endDate = new Date(year, 11, 31);
     while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split('T')[0];
       const count = dateMap.get(dateStr) || 0;
@@ -102,7 +116,7 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
     }
 
     return weeks;
-  }, [data]);
+  }, [data, year]);
 
   const monthLabels = useMemo(() => {
     const labels: { month: string; weekIndex: number }[] = [];
@@ -124,11 +138,23 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
 
   const totalEntries = data.reduce((sum, item) => sum + item.count, 0);
 
+  const handleDayClick = (dateStr: string, count: number) => {
+    if (!dateStr || count === 0) return;
+    setSelectedDate(dateStr);
+    setShowDayModal(true);
+  };
+
+  const handleEntryClick = (entry: FoodJournal) => {
+    selectEntry(entry);
+    openDetail(entry);
+    setShowDayModal(false);
+  };
+
   return (
     <div className="calendar-heatmap">
       <div className="calendar-stats">
         <span className="calendar-total">
-          过去一年共记录 <strong>{totalEntries}</strong> 次美食
+          {year}年共记录 <strong>{totalEntries}</strong> 次美食
         </span>
       </div>
 
@@ -164,7 +190,7 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
                 {week.map((day, dayIndex) => (
                   <div
                     key={`${weekIndex}-${dayIndex}`}
-                    className={`calendar-day ${day.dateStr ? '' : 'empty'}`}
+                    className={`calendar-day ${day.dateStr ? (day.count > 0 ? 'clickable' : '') : 'empty'}`}
                     style={{
                       backgroundColor: day.color,
                       animationDelay: `${(weekIndex * 7 + dayIndex) * 0.002}s`,
@@ -174,6 +200,7 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
                         ? `${day.dateStr}: ${day.count} 次`
                         : ''
                     }
+                    onClick={() => handleDayClick(day.dateStr, day.count)}
                   />
                 ))}
               </div>
@@ -204,6 +231,59 @@ const CalendarHeatmap = memo(function CalendarHeatmap({
         </div>
         <span className="legend-label">多</span>
       </div>
+
+      {showDayModal && selectedDate && (
+        <div className="day-modal-overlay" onClick={() => setShowDayModal(false)}>
+          <div className="day-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="day-modal-header">
+              <h3>{selectedDate} 的食记</h3>
+              <button className="day-modal-close" onClick={() => setShowDayModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="day-modal-content">
+              {dayEntries.length === 0 ? (
+                <p className="day-empty">当天没有食记</p>
+              ) : (
+                <div className="day-entry-list">
+                  {dayEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="day-entry-card"
+                      onClick={() => handleEntryClick(entry)}
+                    >
+                      {entry.photos.length > 0 && (
+                        <img
+                          src={entry.photos[0]}
+                          alt={entry.restaurantName}
+                          className="day-entry-thumb"
+                        />
+                      )}
+                      <div className="day-entry-info">
+                        <h4 className="day-entry-name">{entry.restaurantName}</h4>
+                        <div className="day-entry-meta">
+                          <span className="day-entry-rating">
+                            <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                            {entry.rating.toFixed(1)}
+                          </span>
+                          <span className="day-entry-cuisines">
+                            {entry.cuisineTags.join('、')}
+                          </span>
+                        </div>
+                        <p className="day-entry-review">
+                          {entry.review.length > 50
+                            ? entry.review.substring(0, 50) + '...'
+                            : entry.review || '暂无评价'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

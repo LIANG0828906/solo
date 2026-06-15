@@ -9,13 +9,14 @@ import './ProfilePage.css';
 
 const ProfilePage = memo(function ProfilePage() {
   const navigate = useNavigate();
-  const { entries, radarData, calendarData, fetchRadarData, fetchCalendarData, isLoading } = useJournalStore();
+  const { entries, radarData, calendarData, fetchAll, fetchRadarData, fetchCalendarData, isLoading } = useJournalStore();
   const [selectedYear] = useState(2026);
 
   useEffect(() => {
+    fetchAll();
     fetchRadarData();
     fetchCalendarData(selectedYear);
-  }, [fetchRadarData, fetchCalendarData, selectedYear]);
+  }, [fetchAll, fetchRadarData, fetchCalendarData, selectedYear]);
 
   const stats = useMemo(() => {
     const totalEntries = entries.length;

@@ -9,6 +9,8 @@
   width: 100%;
   height: 100%;
   background: #f5f0e6;
+  position: relative;
+  z-index: 1;
 }
 
 .map-overlay {
@@ -30,6 +32,7 @@
   gap: 10px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: 16px;
   padding: 14px 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -67,6 +70,7 @@
   border: none;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,6 +105,7 @@
   box-shadow: 0 8px 32px rgba(255, 107, 157, 0.4);
   z-index: 1000;
   transition: all 0.3s ease;
+  pointer-events: auto;
 }
 
 .add-btn:hover {
@@ -116,6 +121,11 @@
 .leaflet-container {
   background: #f5f0e6 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: crosshair !important;
+}
+
+.leaflet-container:active {
+  cursor: crosshair !important;
 }
 
 .leaflet-control-zoom {
@@ -149,4 +159,55 @@
   font-size: 18px;
   color: #666;
   background: #f5f0e6;
+}
+
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(245, 240, 230, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 107, 157, 0.2);
+  border-top-color: #ff6b9d;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.leaflet-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 16px !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(16px);
+}
+
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
 }
