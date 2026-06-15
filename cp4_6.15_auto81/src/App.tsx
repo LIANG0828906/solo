@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PasswordProvider, usePassword } from './context/PasswordContext';
 import { StrengthMeter } from './components/StrengthMeter';
 import { DimensionRings } from './components/DimensionRings';
@@ -6,26 +6,47 @@ import { CharFrequencyChart } from './components/CharFrequencyChart';
 import { CrackTimeChart } from './components/CrackTimeChart';
 import './index.css';
 
-const PasswordInput: React.FC = () => {
-  const { password, setPassword, loadRandomCommonPassword } = usePassword();
-  const [isAnimating, setIsAnimating] = useState(false);
+const PasswordInput: React.FC = function() {
+  const passwordCtx = usePassword();
+  const password = passwordCtx.password;
+  const setPassword = passwordCtx.setPassword;
+  const loadRandomCommonPassword = passwordCtx.loadRandomCommonPassword;
+  
+  const [flipClass, setFlipClass] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (password) {
-      const perfTime = performance.now();
-      console.log(`[性能监控] 分析耗时: ${(performance.now() - perfTime).toFixed(2)}ms`);
+  useEffect(function() {
+    return function() {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const triggerFlipAnimation = function(callback: () => void) {
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
     }
-  }, [password]);
+    
+    setFlipClass('');
+    
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        setFlipClass('flip-in');
+        callback();
+        
+        animationTimeoutRef.current = setTimeout(function() {
+          setFlipClass('');
+        }, 550);
+      });
+    });
+  };
 
-  const handleCommonPasswordClick = () => {
-    setIsAnimating(true);
-    setTimeout(() => {
+  const handleCommonPasswordClick = function() {
+    triggerFlipAnimation(function() {
       loadRandomCommonPassword();
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 300);
-    }, 150);
+    });
   };
 
   return (
@@ -42,11 +63,11 @@ const PasswordInput: React.FC = () => {
           </svg>
           <span>常见密码库</span>
         </button>
-        <div className={`input-container ${isAnimating ? 'flip-in' : ''}`}>
+        <div className={'input-container ' + flipClass}>
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={function(e) { return setPassword(e.target.value); }}
             placeholder="请输入密码进行分析..."
             className="password-input"
             autoComplete="off"
@@ -55,7 +76,7 @@ const PasswordInput: React.FC = () => {
           <button
             type="button"
             className="toggle-visibility"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={function() { return setShowPassword(!showPassword); }}
             title={showPassword ? '隐藏密码' : '显示密码'}
           >
             {showPassword ? (
@@ -75,7 +96,7 @@ const PasswordInput: React.FC = () => {
       {password && (
         <div className="password-preview">
           <span className="preview-label">当前密码:</span>
-          <span className="preview-value">{showPassword ? password : '•'.repeat(password.length)}</span>
+          <span className="preview-value">{showPassword ? password : '\u2022'.repeat(password.length)}</span>
           <span className="preview-length">({password.length} 字符)</span>
         </div>
       )}
@@ -83,8 +104,9 @@ const PasswordInput: React.FC = () => {
   );
 };
 
-const AnalysisPanel: React.FC = () => {
-  const { result } = usePassword();
+const AnalysisPanel: React.FC = function() {
+  const resultCtx = usePassword();
+  const result = resultCtx.result;
 
   if (!result) {
     return (
@@ -96,7 +118,7 @@ const AnalysisPanel: React.FC = () => {
           </svg>
         </div>
         <h2>开始分析您的密码</h2>
-        <p>在上方输入框中输入密码，或点击"常见密码库"按钮查看示例</p>
+        <p>在上方输入框中输入密码，或点击&quot;常见密码库&quot;按钮查看示例</p>
       </div>
     );
   }
@@ -130,12 +152,12 @@ const AnalysisPanel: React.FC = () => {
   );
 };
 
-const AppContent: React.FC = () => {
+const AppContent: React.FC = function() {
   return (
     <div className="app-container">
       <header className="app-header">
         <h1>
-          <span className="title-icon">🔐</span>
+          <span className="title-icon">&#x1F510;</span>
           密码强度可视化分析仪
         </h1>
         <p className="subtitle">实时分析密码熵值、字符构成与暴力破解时间</p>
@@ -145,13 +167,13 @@ const AppContent: React.FC = () => {
         <AnalysisPanel />
       </main>
       <footer className="app-footer">
-        <p>© 2026 密码强度分析仪 · 所有分析均在本地执行，密码不会上传</p>
+        <p>&copy; 2026 密码强度分析仪 &middot; 所有分析均在本地执行，密码不会上传</p>
       </footer>
     </div>
   );
 };
 
-const App: React.FC = () => {
+const App: React.FC = function() {
   return (
     <PasswordProvider>
       <AppContent />

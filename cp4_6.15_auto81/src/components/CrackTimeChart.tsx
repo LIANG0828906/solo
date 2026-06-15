@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,6 +26,8 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+const MIN_LOG_VALUE = 1e-6;
 
 interface CrackTimeChartProps {
   data: CrackTimeEstimate[];
@@ -82,16 +84,28 @@ export const CrackTimeChart: React.FC<CrackTimeChartProps> = ({ data }) => {
     setIsDragging(false);
   };
 
+  const safeData = useMemo(function() {
+    return data.map(function(d) {
+      const safeSeconds = d.timeSeconds <= 0 ? MIN_LOG_VALUE : Math.max(d.timeSeconds, MIN_LOG_VALUE);
+      return {
+        ...d,
+        timeSeconds: safeSeconds,
+        formattedTime: d.timeSeconds <= 0 ? '即时' : d.formattedTime
+      };
+    });
+  }, [data]);
+
   const chartData = {
-    labels: data.map(d => d.attackType),
+    labels: safeData.map(function(d) { return d.attackType; }),
     datasets: [
       {
         label: '破解时间',
-        data: data.map(d => Math.max(d.timeSeconds, 1e-6)),
+        data: safeData.map(function(d) { return d.timeSeconds; }),
         borderColor: '#00d4ff',
-        backgroundColor: (context: ScriptableContext<'line'>) => {
+        backgroundColor: function(context: ScriptableContext<'line'>) {
           const chart = context.chart;
-          const { ctx, chartArea } = chart;
+          const chartArea = chart.chartArea;
+          const ctx = chart.ctx;
           if (!chartArea) return 'rgba(0, 212, 255, 0.1)';
 
           const gradient = ctx.createLinearGradient(
@@ -153,12 +167,16 @@ export const CrackTimeChart: React.FC<CrackTimeChartProps> = ({ data }) => {
         cornerRadius: 8,
         displayColors: false,
         callbacks: {
-          title: (items: TooltipItem<'line'>[]) => `攻击类型: ${items[0].label}`,
-          label: (item: TooltipItem<'line'>) => {
-            const estimate = data[item.dataIndex];
+          title: function(items: TooltipItem<'line'>[]) { return '攻击类型: ' + items[0].label; },
+          label: function(item: TooltipItem<'line'>) {
+            const originalData = data[item.dataIndex];
+            const displayTime = originalData.timeSeconds <= 0 ? '即时' : originalData.formattedTime;
+            const secondsValue = originalData.timeSeconds <= 0 
+              ? '< 0.000001s' 
+              : originalData.timeSeconds.toExponential(2);
             return [
-              `破解时间: ${estimate.formattedTime}`,
-              `秒数: ${estimate.timeSeconds.toExponential(2)}`
+              '破解时间: ' + displayTime,
+              '秒数: ' + secondsValue
             ];
           }
         }

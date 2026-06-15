@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 interface StrengthMeterProps {
   entropy: number;
@@ -19,7 +19,23 @@ const COLOR_STOPS = [
 ];
 
 function interpolateColor(entropy: number): { r: number; g: number; b: number } {
-  const clampedEntropy = Math.max(0, Math.min(MAX_ENTROPY, entropy));
+  let clampedEntropy = Math.max(0, Math.min(MAX_ENTROPY, entropy));
+  
+  if (clampedEntropy <= COLOR_STOPS[0].entropy) {
+    return {
+      r: COLOR_STOPS[0].r,
+      g: COLOR_STOPS[0].g,
+      b: COLOR_STOPS[0].b
+    };
+  }
+  
+  if (clampedEntropy >= COLOR_STOPS[COLOR_STOPS.length - 1].entropy) {
+    return {
+      r: COLOR_STOPS[COLOR_STOPS.length - 1].r,
+      g: COLOR_STOPS[COLOR_STOPS.length - 1].g,
+      b: COLOR_STOPS[COLOR_STOPS.length - 1].b
+    };
+  }
   
   for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
     const start = COLOR_STOPS[i];
@@ -27,7 +43,7 @@ function interpolateColor(entropy: number): { r: number; g: number; b: number } 
     
     if (clampedEntropy >= start.entropy && clampedEntropy <= end.entropy) {
       const range = end.entropy - start.entropy;
-      const progress = (clampedEntropy - start.entropy) / range;
+      const progress = range === 0 ? 0 : (clampedEntropy - start.entropy) / range;
       
       return {
         r: Math.round(start.r + (end.r - start.r) * progress),
@@ -37,21 +53,25 @@ function interpolateColor(entropy: number): { r: number; g: number; b: number } 
     }
   }
   
-  return COLOR_STOPS[COLOR_STOPS.length - 1];
+  return {
+    r: COLOR_STOPS[COLOR_STOPS.length - 1].r,
+    g: COLOR_STOPS[COLOR_STOPS.length - 1].g,
+    b: COLOR_STOPS[COLOR_STOPS.length - 1].b
+  };
 }
 
-export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthText }) => {
+export function StrengthMeter({ entropy, strengthText }: StrengthMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const [displayEntropy, setDisplayEntropy] = useState(0);
 
-  useEffect(() => {
+  useEffect(function() {
     const startValue = displayEntropy;
     const endValue = Math.min(entropy, MAX_ENTROPY);
     const duration = 500;
     const startTime = performance.now();
 
-    const animate = (currentTime: number) => {
+    const animate = function(currentTime: number) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeProgress = 1 - Math.pow(1 - progress, 3);
@@ -65,14 +85,14 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
 
     animationRef.current = requestAnimationFrame(animate);
 
-    return () => {
+    return function() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
   }, [entropy]);
 
-  useEffect(() => {
+  useEffect(function() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -82,8 +102,8 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
     const dpr = window.devicePixelRatio || 1;
     canvas.width = CANVAS_SIZE * dpr;
     canvas.height = CANVAS_SIZE * dpr;
-    canvas.style.width = `${CANVAS_SIZE}px`;
-    canvas.style.height = `${CANVAS_SIZE}px`;
+    canvas.style.width = CANVAS_SIZE + 'px';
+    canvas.style.height = CANVAS_SIZE + 'px';
     ctx.scale(dpr, dpr);
 
     const centerX = CANVAS_SIZE / 2;
@@ -106,7 +126,7 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
 
     if (progress > 0) {
       const color = interpolateColor(displayEntropy);
-      const colorStr = `rgb(${color.r}, ${color.g}, ${color.b})`;
+      const colorStr = 'rgb(' + color.r + ', ' + color.g + ', ' + color.b + ')';
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, startAngle, currentEndAngle);
@@ -118,25 +138,17 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
       ctx.stroke();
       ctx.shadowBlur = 0;
 
+      const glowX = centerX + Math.cos(currentEndAngle) * radius;
+      const glowY = centerY + Math.sin(currentEndAngle) * radius;
       const glowGradient = ctx.createRadialGradient(
-        centerX + Math.cos(currentEndAngle) * radius,
-        centerY + Math.sin(currentEndAngle) * radius,
-        0,
-        centerX + Math.cos(currentEndAngle) * radius,
-        centerY + Math.sin(currentEndAngle) * radius,
-        ARC_WIDTH
+        glowX, glowY, 0,
+        glowX, glowY, ARC_WIDTH
       );
       glowGradient.addColorStop(0, colorStr);
       glowGradient.addColorStop(1, 'transparent');
 
       ctx.beginPath();
-      ctx.arc(
-        centerX + Math.cos(currentEndAngle) * radius,
-        centerY + Math.sin(currentEndAngle) * radius,
-        ARC_WIDTH,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(glowX, glowY, ARC_WIDTH, 0, Math.PI * 2);
       ctx.fillStyle = glowGradient;
       ctx.globalAlpha = 0.6;
       ctx.fill();
@@ -151,7 +163,7 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`${displayEntropy.toFixed(1)} bits`, centerX, centerY + 25);
+    ctx.fillText(displayEntropy.toFixed(1) + ' bits', centerX, centerY + 25);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
@@ -163,4 +175,4 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthT
       <canvas ref={canvasRef} />
     </div>
   );
-};
+}

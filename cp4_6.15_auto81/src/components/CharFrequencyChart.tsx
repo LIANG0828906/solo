@@ -34,14 +34,14 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     barGapRatio: 0.3
   };
 
-  const getBarGradient = useCallback((ctx: CanvasRenderingContext2D, y: number, height: number) => {
+  const getBarGradient = useCallback(function(ctx: CanvasRenderingContext2D, y: number, height: number) {
     const gradient = ctx.createLinearGradient(0, y + height, 0, y);
     gradient.addColorStop(0, '#00d4ff');
     gradient.addColorStop(1, '#a855f7');
     return gradient;
   }, []);
 
-  const drawChart = useCallback(() => {
+  const drawChart = useCallback(function() {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -55,13 +55,15 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     
     canvas.width = width * dpr;
     canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
     ctx.scale(dpr, dpr);
 
     ctx.clearRect(0, 0, width, height);
 
-    const { padding, barRadius, barGapRatio } = chartConfig;
+    const padding = chartConfig.padding;
+    const barRadius = chartConfig.barRadius;
+    const barGapRatio = chartConfig.barGapRatio;
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
@@ -71,7 +73,7 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     ctx.textBaseline = 'top';
     ctx.fillText('字符频率分布', width / 2, 16);
 
-    const maxCount = data.length > 0 ? Math.max(...data.map(d => d.count)) : 1;
+    const maxCount = data.length > 0 ? Math.max.apply(null, data.map(function(d) { return d.count; })) : 1;
     const barCount = data.length;
     const totalBarWidth = barCount > 0 ? chartWidth / barCount : 0;
     const barWidth = totalBarWidth * (1 - barGapRatio);
@@ -96,9 +98,9 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     }
 
     if (displayHeights.current.length !== data.length) {
-      displayHeights.current = data.map(() => 0);
+      displayHeights.current = data.map(function() { return 0; });
     }
-    targetHeights.current = data.map(d => (d.count / maxCount) * chartHeight);
+    targetHeights.current = data.map(function(d) { return (d.count / maxCount) * chartHeight; });
 
     let allReached = true;
     for (let i = 0; i < data.length; i++) {
@@ -112,7 +114,7 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
       }
     }
 
-    data.forEach((item, index) => {
+    data.forEach(function(item, index) {
       const x = padding.left + gapWidth / 2 + index * totalBarWidth;
       const barHeight = displayHeights.current[index];
       const y = padding.top + chartHeight - barHeight;
@@ -159,25 +161,25 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     }
   }, [data, getBarGradient]);
 
-  useEffect(() => {
+  useEffect(function() {
     animationRef.current = requestAnimationFrame(drawChart);
-    return () => {
+    return function() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
   }, [drawChart]);
 
-  useEffect(() => {
-    const handleResize = () => {
+  useEffect(function() {
+    const handleResize = function() {
       displayHeights.current = [];
       drawChart();
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return function() { return window.removeEventListener('resize', handleResize); };
   }, [drawChart]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = function(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas || data.length === 0) return;
 
@@ -185,7 +187,8 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const { padding, barGapRatio } = chartConfig;
+    const padding = chartConfig.padding;
+    const barGapRatio = chartConfig.barGapRatio;
     const chartWidth = canvas.clientWidth - padding.left - padding.right;
     const chartHeight = 360 - padding.top - padding.bottom;
     const barCount = data.length;
@@ -218,16 +221,16 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
       });
       canvas.style.cursor = 'pointer';
     } else {
-      setTooltip(prev => ({ ...prev, visible: false }));
+      setTooltip(function(prev) { return { ...prev, visible: false }; });
       canvas.style.cursor = 'default';
     }
   };
 
-  const handleMouseLeave = () => {
-    setTooltip(prev => ({ ...prev, visible: false }));
+  const handleMouseLeave = function() {
+    setTooltip(function(prev) { return { ...prev, visible: false }; });
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = function(e: React.MouseEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('.chart-drag-handle')) {
       setIsDragging(true);
@@ -238,7 +241,7 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     }
   };
 
-  const handleMouseMoveDrag = (e: React.MouseEvent) => {
+  const handleMouseMoveDrag = function(e: React.MouseEvent) {
     if (!isDragging) return;
     setPosition({
       x: e.clientX - dragStartRef.current.x,
@@ -246,14 +249,14 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
     });
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = function() {
     setIsDragging(false);
   };
 
   return (
     <div
-      className={`chart-card ${isDragging ? 'dragging' : ''}`}
-      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+      className={isDragging ? 'chart-card dragging' : 'chart-card'}
+      style={{ transform: 'translate(' + position.x + 'px, ' + position.y + 'px)' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMoveDrag}
       onMouseUp={handleMouseUp}
@@ -283,7 +286,7 @@ export function CharFrequencyChart({ data }: { data: CharFrequency[] }) {
                   transform: tooltip.x > 200 ? 'translateX(-110%)' : 'none'
                 }}
               >
-                <div className="tooltip-title">字符: "{tooltip.char}"</div>
+                <div className="tooltip-title">字符: &quot;{tooltip.char}&quot;</div>
                 <div className="tooltip-body">
                   <span>出现次数: {tooltip.count}</span>
                   <span>占比: {tooltip.percentage}%</span>

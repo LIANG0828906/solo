@@ -22,23 +22,49 @@ const RING_CONFIGS: RingConfig[] = [
 
 const CANVAS_SIZE = 110;
 const RING_WIDTH = 10;
+const MAX_ENTROPY = 128;
+const MIN_ROTATION_PERIOD = 2000;
+const MAX_ROTATION_PERIOD = 12000;
+
+function calculateRotationSpeed(currentEntropy: number, frameTimeMs: number): number {
+  const clampedEntropy = Math.max(0, Math.min(MAX_ENTROPY, currentEntropy));
+  
+  const entropyProgress = clampedEntropy / MAX_ENTROPY;
+  
+  const period = MIN_ROTATION_PERIOD + (MAX_ROTATION_PERIOD - MIN_ROTATION_PERIOD) * entropyProgress;
+  
+  const radiansPerMs = (Math.PI * 2) / period;
+  return radiansPerMs * frameTimeMs;
+}
 
 export const DimensionRings: React.FC<DimensionRingsProps> = ({ scores, entropy }) => {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const animationRef = useRef<number>(0);
   const rotationAngles = useRef<number[]>([0, 0, 0, 0, 0]);
+  const lastFrameTime = useRef<number>(performance.now());
+  const entropyRef = useRef<number>(entropy);
 
-  useEffect(() => {
-    const baseSpeed = 0.02;
-    const speedFactor = entropy > 0 ? Math.max(0.1, 1 / (entropy / 20)) : 1;
-    const actualSpeed = baseSpeed * speedFactor;
+  useEffect(function() {
+    entropyRef.current = entropy;
+  }, [entropy]);
 
-    const animate = () => {
-      rotationAngles.current = rotationAngles.current.map(
-        (angle, index) => (angle + actualSpeed * (1 + index * 0.1)) % (Math.PI * 2)
-      );
+  useEffect(function() {
+    lastFrameTime.current = performance.now();
 
-      canvasRefs.current.forEach((canvas, index) => {
+    const animate = function() {
+      const currentTime = performance.now();
+      const frameTime = currentTime - lastFrameTime.current;
+      lastFrameTime.current = currentTime;
+
+      const currentEntropy = entropyRef.current;
+      const speedBase = calculateRotationSpeed(currentEntropy, frameTime);
+
+      rotationAngles.current = rotationAngles.current.map(function(angle, index) {
+        const speedMultiplier = 1 + index * 0.12;
+        return (angle + speedBase * speedMultiplier) % (Math.PI * 2);
+      });
+
+      canvasRefs.current.forEach(function(canvas, index) {
         if (!canvas) return;
         const config = RING_CONFIGS[index];
         const score = scores[config.key];
@@ -50,22 +76,27 @@ export const DimensionRings: React.FC<DimensionRingsProps> = ({ scores, entropy 
 
     animationRef.current = requestAnimationFrame(animate);
 
-    return () => {
+    return function() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [scores, entropy]);
+  }, [scores]);
 
-  const drawRing = (canvas: HTMLCanvasElement, score: number, color: string, rotationAngle: number) => {
+  const drawRing = function(
+    canvas: HTMLCanvasElement,
+    score: number,
+    color: string,
+    rotationAngle: number
+  ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = CANVAS_SIZE * dpr;
     canvas.height = CANVAS_SIZE * dpr;
-    canvas.style.width = `${CANVAS_SIZE}px`;
-    canvas.style.height = `${CANVAS_SIZE}px`;
+    canvas.style.width = CANVAS_SIZE + 'px';
+    canvas.style.height = CANVAS_SIZE + 'px';
     ctx.scale(dpr, dpr);
 
     const centerX = CANVAS_SIZE / 2;
@@ -94,9 +125,12 @@ export const DimensionRings: React.FC<DimensionRingsProps> = ({ scores, entropy 
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      const dotAngle = -Math.PI / 2 + rotationAngle;
-      const dotX = centerX + Math.cos(dotAngle) * radius;
-      const dotY = centerY + Math.sin(dotAngle) * radius;
+      const effectiveAngle = progress > 0.99 
+        ? -Math.PI / 2 + rotationAngle 
+        : -Math.PI / 2 + rotationAngle * progress;
+      
+      const dotX = centerX + Math.cos(effectiveAngle) * radius;
+      const dotY = centerY + Math.sin(effectiveAngle) * radius;
 
       ctx.beginPath();
       ctx.arc(dotX, dotY, 5, 0, Math.PI * 2);
@@ -116,23 +150,25 @@ export const DimensionRings: React.FC<DimensionRingsProps> = ({ scores, entropy 
     ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${score}%`, centerX, centerY);
+    ctx.fillText(score + '%', centerX, centerY);
   };
 
   return (
     <div className="dimension-rings">
-      {RING_CONFIGS.map((config, index) => (
-        <div key={config.key} className="ring-item">
-          <canvas
-            ref={(el) => {
-              canvasRefs.current[index] = el;
-            }}
-          />
-          <span className="ring-label" style={{ color: config.color }}>
-            {config.label}
-          </span>
-        </div>
-      ))}
+      {RING_CONFIGS.map(function(config, index) {
+        return (
+          <div key={config.key} className="ring-item">
+            <canvas
+              ref={function(el) {
+                canvasRefs.current[index] = el;
+              }}
+            />
+            <span className="ring-label" style={{ color: config.color }}>
+              {config.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };
