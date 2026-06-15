@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MoodRecord, MOOD_META } from '../types';
 import { getCommunity } from '../api';
 
@@ -13,46 +13,53 @@ interface CommunityMood extends MoodRecord {
   userAvatar: string;
 }
 
-const rotations = [0, 1, 2, 3, 4, 5].map(() => (Math.random() * 6 - 3).toFixed(1));
-
-const PAPER_COLORS = ['#FFF9C4', '#FFCCBC', '#C8E6C9', '#B3E5FC', '#F3E5F5', '#FFE0B2'];
+const PAPER_COLORS = ['#FFF9C4', '#FFCCBC', '#C8E6C9', '#B3E5FC', '#F3E5F5', '#FFE0B2', '#FCE4EC', '#E8F5E9'];
 
 export default function CommunityPage() {
   const [communityMoods, setCommunityMoods] = useState<CommunityMood[]>([]);
   const [flowers, setFlowers] = useState<FlowerAnim[]>([]);
   const [flowerCount, setFlowerCount] = useState(0);
+  const [basketAnim, setBasketAnim] = useState(false);
   const flowerIdRef = useRef(0);
   const wallRef = useRef<HTMLDivElement>(null);
+
+  const rotations = useMemo(
+    () => communityMoods.map(() => (Math.random() * 6 - 3).toFixed(1)),
+    [communityMoods]
+  );
 
   useEffect(() => {
     getCommunity().then((data) => setCommunityMoods(data as CommunityMood[]));
   }, []);
 
   const handleSendFlower = (e: React.MouseEvent, index: number) => {
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const wallRect = wallRef.current?.getBoundingClientRect();
     if (!wallRect) return;
     const id = flowerIdRef.current++;
     setFlowers((prev) => [
       ...prev,
-      { id, startX: rect.left - wallRect.left, startY: rect.top - wallRect.top },
+      { id, startX: rect.left - wallRect.left + rect.width / 2, startY: rect.top - wallRect.top },
     ]);
     setFlowerCount((c) => c + 1);
+    setBasketAnim(true);
+    setTimeout(() => setBasketAnim(false), 600);
     setTimeout(() => {
       setFlowers((prev) => prev.filter((f) => f.id !== id));
-    }, 1200);
+    }, 1400);
   };
 
   return (
     <div className="community-page">
       <h2 className="page-title">心情花园</h2>
-      <div className="flower-basket">
+      <div className={`flower-basket ${basketAnim ? 'flower-arrived' : ''}`}>
         🧺 <span className="basket-count">{flowerCount}</span>
       </div>
       <div className="cork-wall" ref={wallRef}>
         {communityMoods.map((mood, i) => {
           const meta = MOOD_META[mood.mood as keyof typeof MOOD_META];
-          const rotation = rotations[i % rotations.length];
+          const rotation = rotations[i];
           const paperColor = PAPER_COLORS[i % PAPER_COLORS.length];
           return (
             <div
@@ -92,15 +99,15 @@ export default function CommunityPage() {
             }}
           >
             🌸
-            {[...Array(5)].map((_, pi) => (
+            {[...Array(8)].map((_, pi) => (
               <span
                 key={pi}
                 className="particle"
                 style={{
-                  left: Math.random() * 20 - 10,
-                  top: Math.random() * 20 - 10,
-                  animationDelay: `${pi * 0.1}s`,
-                }}
+                  '--px': `${(Math.random() * 60 - 30)}px`,
+                  '--py': `${(Math.random() * 60 - 30)}px`,
+                  animationDelay: `${pi * 0.08}s`,
+                } as React.CSSProperties}
               />
             ))}
           </div>

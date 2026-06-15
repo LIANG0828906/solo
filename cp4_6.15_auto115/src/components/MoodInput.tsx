@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MoodType, MoodRecord, MOOD_META } from '../types';
 import { submitMood } from '../api';
 
@@ -15,15 +15,38 @@ interface Props {
   onSubmit: (record: MoodRecord) => void;
 }
 
+interface Ripple {
+  id: number;
+  x: number;
+  y: number;
+}
+
 export default function MoodInput({ onSubmit }: Props) {
   const [selected, setSelected] = useState<MoodType | null>(null);
   const [text, setText] = useState('');
+  const [ripples, setRipples] = useState<Ripple[]>([]);
   const [rippling, setRippling] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const rippleIdRef = useRef(0);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.MouseEvent) => {
     if (!selected || rippling) return;
+
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const id = rippleIdRef.current++;
+    setRipples((prev) => [...prev, { id, x, y }]);
     setRippling(true);
+
+    setTimeout(() => {
+      setRipples((prev) => prev.filter((r) => r.id !== id));
+    }, 1200);
+
     try {
       const record = await submitMood({
         userId: 'user1',
@@ -36,7 +59,7 @@ export default function MoodInput({ onSubmit }: Props) {
         setRippling(false);
         setSubmitted(true);
         onSubmit(record);
-      }, 900);
+      }, 1000);
     } catch {
       setRippling(false);
     }
@@ -57,7 +80,7 @@ export default function MoodInput({ onSubmit }: Props) {
   }
 
   return (
-    <div className={`mood-input-panel ${rippling ? 'rippling' : ''}`}>
+    <div ref={panelRef} className={`mood-input-panel ${rippling ? 'rippling' : ''}`}>
       <div className="mood-emoji-grid">
         {MOODS.map((mood) => {
           const meta = MOOD_META[mood];
@@ -86,13 +109,16 @@ export default function MoodInput({ onSubmit }: Props) {
           </button>
         </div>
       )}
-      {rippling && (
-        <div className="ripple-container">
-          <div className="ripple-circle" />
-          <div className="ripple-circle delay-1" />
-          <div className="ripple-circle delay-2" />
-        </div>
-      )}
+      {ripples.map((ripple) => (
+        <div
+          key={ripple.id}
+          className="click-ripple"
+          style={{
+            left: ripple.x,
+            top: ripple.y,
+          }}
+        />
+      ))}
     </div>
   );
 }

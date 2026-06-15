@@ -1,7 +1,11 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
@@ -39,7 +43,8 @@ app.post('/api/moods', (req, res) => {
 
 app.get('/api/community', (req, res) => {
   const data = readData();
-  const threeDaysAgo = new Date();
+  const today = new Date('2026-06-15');
+  const threeDaysAgo = new Date(today);
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
   const cutoff = threeDaysAgo.toISOString().split('T')[0];
   const community = data.moods.filter((m: any) => {

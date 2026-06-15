@@ -6,17 +6,39 @@ interface Props {
   moods: MoodRecord[];
 }
 
-function getMoodColor(mood: MoodType, intensity: number): string {
-  const alpha = 0.3 + intensity * 0.7;
-  const colors: Record<MoodType, string> = {
-    [MoodType.HAPPY]: `rgba(255, 183, 77, ${alpha})`,
-    [MoodType.CALM]: `rgba(129, 199, 132, ${alpha})`,
-    [MoodType.SAD]: `rgba(100, 181, 246, ${alpha})`,
-    [MoodType.ANGRY]: `rgba(239, 83, 80, ${alpha})`,
-    [MoodType.ANXIOUS]: `rgba(255, 167, 38, ${alpha})`,
-    [MoodType.TIRED]: `rgba(144, 164, 174, ${alpha})`,
+function getMoodValence(mood: MoodType): number {
+  const valences: Record<MoodType, number> = {
+    [MoodType.HAPPY]: 1.0,
+    [MoodType.CALM]: 0.6,
+    [MoodType.SAD]: -0.7,
+    [MoodType.ANGRY]: -0.9,
+    [MoodType.ANXIOUS]: -0.4,
+    [MoodType.TIRED]: -0.3,
   };
-  return colors[mood];
+  return valences[mood];
+}
+
+function getMoodColor(mood: MoodType, intensity: number): string {
+  const valence = getMoodValence(mood);
+  const absValence = Math.abs(valence);
+  const alpha = 0.25 + absValence * intensity * 0.75;
+
+  const positiveColors = [
+    { r: 255, g: 235, b: 180 },
+    { r: 255, g: 193, b: 94 },
+    { r: 255, g: 152, b: 0 },
+  ];
+  const negativeColors = [
+    { r: 179, g: 205, b: 240 },
+    { r: 144, g: 164, b: 174 },
+    { r: 156, g: 136, b: 210 },
+  ];
+
+  const palette = valence >= 0 ? positiveColors : negativeColors;
+  const idx = Math.min(Math.floor(absValence * intensity * 3), 2);
+  const c = palette[idx];
+
+  return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
 }
 
 function getMoodScore(mood: MoodType): number {
@@ -83,6 +105,11 @@ export default function HistoryPage({ moods }: Props) {
 
       <div className="heatmap-section">
         <h3 className="section-title">日历热力图</h3>
+        <div className="heatmap-legend">
+          <span className="legend-item neg">⬤ 负面</span>
+          <span className="legend-item neu">⬤ 中性</span>
+          <span className="legend-item pos">⬤ 正面</span>
+        </div>
         <div className="heatmap-scroll">
           <div className="heatmap-grid">
             {days.map((day) => {
@@ -111,14 +138,37 @@ export default function HistoryPage({ moods }: Props) {
         <div className="chart-scroll">
           <svg width={chartWidth} height={chartHeight} className="emotion-chart">
             <defs>
+              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="rgba(66, 165, 245, 0.9)" />
+                <stop offset="50%" stopColor="rgba(156, 136, 210, 0.9)" />
+                <stop offset="100%" stopColor="rgba(255, 152, 0, 0.9)" />
+              </linearGradient>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(255, 167, 38, 0.4)" />
+                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
+                <stop offset="40%" stopColor="rgba(255, 167, 38, 0.15)" />
                 <stop offset="100%" stopColor="rgba(66, 165, 245, 0.05)" />
               </linearGradient>
-              <filter id="frostedGlass">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+              <filter id="frostedGlass" x="-10%" y="-10%" width="120%" height="120%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3" />
+                <feColorMatrix
+                  type="matrix"
+                  values="
+                    1 0 0 0 0
+                    0 1 0 0 0
+                    0 0 1 0 0
+                    0 0 0 0.5 0
+                  "
+                />
+              </filter>
+              <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
               </filter>
             </defs>
+            <rect x={chartPadding.left} y={chartPadding.top} width={chartWidth - chartPadding.left - chartPadding.right} height={chartHeight - chartPadding.top - chartPadding.bottom} fill="rgba(255, 255, 255, 0.03)" rx="8" />
             <line x1={chartPadding.left} y1={chartPadding.top} x2={chartPadding.left} y2={chartHeight - chartPadding.bottom} stroke="rgba(255,255,255,0.2)" />
             <line x1={chartPadding.left} y1={chartHeight - chartPadding.bottom} x2={chartWidth - chartPadding.right} y2={chartHeight - chartPadding.bottom} stroke="rgba(255,255,255,0.2)" />
             {['低', '中', '高'].map((label, i) => {
@@ -127,13 +177,29 @@ export default function HistoryPage({ moods }: Props) {
                 <text key={label} x={chartPadding.left - 8} y={y + 4} fill="rgba(255,255,255,0.5)" textAnchor="end" fontSize="11">{label}</text>
               );
             })}
-            {areaPath && <path d={areaPath} fill="url(#areaGradient)" filter="url(#frostedGlass)" />}
-            {linePath && <path d={linePath} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+            {areaPath && (
+              <g className="chart-area-frosted">
+                <path d={areaPath} fill="url(#areaGradient)" filter="url(#frostedGlass)" />
+                <path d={areaPath} fill="url(#areaGradient)" opacity="0.6" />
+              </g>
+            )}
+            {linePath && (
+              <path
+                d={linePath}
+                fill="none"
+                stroke="url(#lineGradient)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line"
+              />
+            )}
             {points.map((p, i) => {
-              const color = MOOD_META[p.record.mood].color;
+              const valence = getMoodValence(p.record.mood);
+              const dotColor = valence >= 0 ? `hsl(${40 + valence * 20}, 90%, 60%)` : `hsl(${230 + valence * 30}, 60%, 70%)`;
               return (
-                <g key={i}>
-                  <circle cx={p.x} cy={p.y} r="5" fill={color} stroke="white" strokeWidth="2" className="chart-dot" />
+                <g key={i} className="chart-dot-group">
+                  <circle cx={p.x} cy={p.y} r="7" fill={dotColor} stroke="white" strokeWidth="2.5" filter="url(#dotGlow)" className="chart-dot" />
                   <text x={p.x} y={chartHeight - chartPadding.bottom + 18} fill="rgba(255,255,255,0.5)" textAnchor="middle" fontSize="9">
                     {p.record.date.slice(5)}
                   </text>
