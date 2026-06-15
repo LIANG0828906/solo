@@ -3,11 +3,13 @@ import {
   GRID_RESOLUTION,
   PathPoint,
   computeContourLevels,
+  ContourLevel,
   screenToGrid,
   gridToScreen,
   worldToGrid,
   gridToWorld,
   easeOutCubic,
+  GRID_SIZE,
 } from './api'
 
 interface PathPlannerProps {
@@ -26,6 +28,14 @@ interface DraggingState {
   startY: number
 }
 
+interface AnimState {
+  startPoints: { x: number; y: number }[]
+  targetPoints: { x: number; y: number }[]
+  startTime: number
+  duration: number
+  durationMs: number
+}
+
 export default function PathPlanner({
   heights,
   amplitude,
@@ -39,11 +49,13 @@ export default function PathPlanner({
   const containerRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<DraggingState | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const animPointsRef = useRef<{ x: number; y: number }[]>([])
-  const animTargetRef = useRef<{ x: number; y: number }[]>([])
-  const animStartRef = useRef<number>(0)
-  const isAnimatingRef = useRef(false)
-  const rafRef = useRef<number>(0)
+  const animRef = useRef<AnimState | null>(null)
+  const animRafRef = useRef<number>(0)
+  const displayPointsRef = useRef<{ x: number; y: number }[]>([])
+  const targetPointsRef = useRef<{ x: number; y: number }[]>([])
+  const dragPendingRef = useRef<{ index: number; target: { x: number; y: number } } | null>(null)
+  const dragRafRef = useRef<number>(0)
+  const renderedSizeRef = useRef({ w: 0, h: 0 })
 
   const getCanvasSize = useCallback(() => {
     if (compact) return { w: 200, h: 150 }
@@ -54,50 +66,59 @@ export default function PathPlanner({
 
   const drawContours = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-      const levels = computeContourLevels(amplitude)
-      const minH = -amplitude - 2
-      const maxH = amplitude + 2
+      try {
+        const levels: ContourLevel[] = computeContourLevels(amplitude)
+        const safeHeights = heights && heights.length > 0 ? heights : new Float32Array(GRID_RESOLUTION * GRID_RESOLUTION)
+        const safeRes = GRID_RESOLUTION
 
-      for (let level of levels) {
-        const intensity = Math.floor(((level - minH) / (maxH - minH)) * 255)
-        const gray = Math.max(40, Math.min(180, intensity))
-        ctx.strokeStyle = `rgb(${gray}, ${gray}, ${gray + 10})`
-        ctx.lineWidth = compact ? 0.3 : 0.8
+        for (let li = 0; li < levels.length; li++) {
+          const level = levels[li]
+          ctx.strokeStyle = level.color
+          ctx.lineWidth = compact ? 0.4 : 0.9
+          ctx.lineCap = 'round'
 
-        for (let gy = 0; gy < GRID_RESOLUTION - 1; gy++) {
-          for (let gx = 0; gx < GRID_RESOLUTION - 1; gx++) {
-            const h00 = heights[gy * GRID_RESOLUTION + gx]
-            const h10 = heights[gy * GRID_RESOLUTION + gx + 1]
-            const h01 = heights[(gy + 1) * GRID_RESOLUTION + gx]
-            const h11 = heights[(gy + 1) * GRID_RESOLUTION + gx + 1]
+          ctx.beginPath()
+          let hasSegments = false
 
-            const crossings: { x: number; y: number }[] = []
+          for (let gy = 0; gy < safeRes - 1; gy++) {
+            for (let gx = 0; gx < safeRes - 1; gx++) {
+              const idx00 = gy * safeRes + gx
+              const h00 = safeHeights[idx00] || 0
+              const h10 = safeHeights[idx00 + 1] || 0
+              const h01 = safeHeights[idx00 + safeRes] || 0
+              const h11 = safeHeights[idx00 + safeRes + 1] || 0
+              const lh = level.height
 
-            const checkEdge = (ha: number, hb: number, xa: number, ya: number, xb: number, yb: number) => {
-              if ((ha - level) * (hb - level) < 0) {
-                const t = (level - ha) / (hb - ha)
-                crossings.push({
-                  x: xa + t * (xb - xa),
-                  y: ya + t * (yb - ya),
-                })
+              if ((h00 < lh) !== (h10 < lh)) {
+                const t = (lh - h00) / (h10 - h00)
+                const p = gridToScreen(gx + t, gy, w, h)
+                if (!hasSegments) { ctx.moveTo(p.x, p.y); hasSegments = true }
+                else ctx.lineTo(p.x, p.y)
+              }
+              if ((h10 < lh) !== (h11 < lh)) {
+                const t = (lh - h10) / (h11 - h10)
+                const p = gridToScreen(gx + 1, gy + t, w, h)
+                if (!hasSegments) { ctx.moveTo(p.x, p.y); hasSegments = true }
+                else ctx.lineTo(p.x, p.y)
+              }
+              if ((h11 < lh) !== (h01 < lh)) {
+                const t = (lh - h11) / (h01 - h11)
+                const p = gridToScreen(gx + (1 - t), gy + 1, w, h)
+                if (!hasSegments) { ctx.moveTo(p.x, p.y); hasSegments = true }
+                else ctx.lineTo(p.x, p.y)
+              }
+              if ((h01 < lh) !== (h00 < lh)) {
+                const t = (lh - h01) / (h00 - h01)
+                const p = gridToScreen(gx, gy + (1 - t), w, h)
+                if (!hasSegments) { ctx.moveTo(p.x, p.y); hasSegments = true }
+                else ctx.lineTo(p.x, p.y)
               }
             }
-
-            checkEdge(h00, h10, gx, gy, gx + 1, gy)
-            checkEdge(h10, h11, gx + 1, gy, gx + 1, gy + 1)
-            checkEdge(h11, h01, gx + 1, gy + 1, gx, gy + 1)
-            checkEdge(h01, h00, gx, gy + 1, gx, gy)
-
-            if (crossings.length >= 2) {
-              const p1 = gridToScreen(crossings[0].x, crossings[0].y, w, h)
-              const p2 = gridToScreen(crossings[1].x, crossings[1].y, w, h)
-              ctx.beginPath()
-              ctx.moveTo(p1.x, p1.y)
-              ctx.lineTo(p2.x, p2.y)
-              ctx.stroke()
-            }
           }
+          ctx.stroke()
         }
+      } catch (e) {
+        console.error('drawContours error:', e)
       }
     },
     [heights, amplitude, compact]
@@ -105,198 +126,310 @@ export default function PathPlanner({
 
   const drawPath = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-      const points = isAnimatingRef.current ? animPointsRef.current : animTargetRef.current
+      try {
+        const points = displayPointsRef.current
+        if (!points) return
 
-      if (points.length > 1) {
-        ctx.strokeStyle = '#ff7b00'
-        ctx.lineWidth = compact ? 1.5 : 2.5
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-        ctx.beginPath()
-        const first = gridToScreen(points[0].x, points[0].y, w, h)
-        ctx.moveTo(first.x, first.y)
-        for (let i = 1; i < points.length; i++) {
-          const p = gridToScreen(points[i].x, points[i].y, w, h)
-          ctx.lineTo(p.x, p.y)
+        if (points.length > 1) {
+          ctx.strokeStyle = '#ff7b00'
+          ctx.lineWidth = compact ? 1.5 : 2.5
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.beginPath()
+          const first = gridToScreen(points[0].x, points[0].y, w, h)
+          ctx.moveTo(first.x, first.y)
+          for (let i = 1; i < points.length; i++) {
+            const p = gridToScreen(points[i].x, points[i].y, w, h)
+            ctx.lineTo(p.x, p.y)
+          }
+          ctx.stroke()
         }
-        ctx.stroke()
+
+        for (let i = 0; i < points.length; i++) {
+          const gp = points[i]
+          if (!gp) continue
+          const sp = gridToScreen(gp.x, gp.y, w, h)
+          const radius = compact ? 3 : 6
+          const isHovered = hoveredIndex === i
+          const isDragging = dragging?.index === i
+
+          ctx.beginPath()
+          ctx.arc(sp.x, sp.y, radius + 1, 0, Math.PI * 2)
+          ctx.fillStyle = '#ff7b00'
+          ctx.fill()
+
+          ctx.beginPath()
+          ctx.arc(sp.x, sp.y, radius, 0, Math.PI * 2)
+          ctx.fillStyle = isHovered || isDragging ? '#ffe0b3' : '#ffffff'
+          ctx.fill()
+
+          if (!compact) {
+            ctx.fillStyle = '#1a2332'
+            ctx.font = `bold ${radius}px sans-serif`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(String(i + 1), sp.x, sp.y)
+          }
+        }
+      } catch (e) {
+        console.error('drawPath error:', e)
       }
-
-      points.forEach((gp, i) => {
-        const sp = gridToScreen(gp.x, gp.y, w, h)
-        const radius = compact ? 3 : 6
-        const isHovered = hoveredIndex === i
-        const isDragging = dragging?.index === i
-
-        ctx.beginPath()
-        ctx.arc(sp.x, sp.y, radius + 1, 0, Math.PI * 2)
-        ctx.fillStyle = '#ff7b00'
-        ctx.fill()
-
-        ctx.beginPath()
-        ctx.arc(sp.x, sp.y, radius, 0, Math.PI * 2)
-        ctx.fillStyle = isHovered || isDragging ? '#ffe0b3' : '#ffffff'
-        ctx.fill()
-
-        if (!compact) {
-          ctx.fillStyle = '#1a2332'
-          ctx.font = `bold ${radius}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(String(i + 1), sp.x, sp.y)
-        }
-      })
     },
     [compact, hoveredIndex, dragging]
   )
 
   const render = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    try {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
 
-    const { w, h } = getCanvasSize()
-    canvas.width = w * window.devicePixelRatio
-    canvas.height = h * window.devicePixelRatio
-    canvas.style.width = w + 'px'
-    canvas.style.height = h + 'px'
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+      const { w, h } = getCanvasSize()
+      if (w <= 0 || h <= 0) return
 
-    ctx.fillStyle = '#0f1722'
-    ctx.fillRect(0, 0, w, h)
+      renderedSizeRef.current = { w, h }
+      canvas.width = w * window.devicePixelRatio
+      canvas.height = h * window.devicePixelRatio
+      canvas.style.width = w + 'px'
+      canvas.style.height = h + 'px'
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
 
-    drawContours(ctx, w, h)
+      ctx.fillStyle = '#0f1722'
+      ctx.fillRect(0, 0, w, h)
 
-    ctx.strokeStyle = '#2a3b4a'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(0, 0, w, h)
+      drawContours(ctx, w, h)
 
-    drawPath(ctx, w, h)
+      ctx.strokeStyle = '#2a3b4a'
+      ctx.lineWidth = 0.5
+      ctx.strokeRect(0, 0, w, h)
+
+      drawPath(ctx, w, h)
+    } catch (e) {
+      console.error('PathPlanner render error:', e)
+    }
   }, [drawContours, drawPath, getCanvasSize])
 
-  const startAnimation = useCallback(() => {
-    if (isAnimatingRef.current) return
-    isAnimatingRef.current = true
-    animStartRef.current = performance.now()
+  const cancelAnim = useCallback(() => {
+    if (animRafRef.current) {
+      cancelAnimationFrame(animRafRef.current)
+      animRafRef.current = 0
+    }
+    animRef.current = null
+  }, [])
 
-    const step = () => {
-      const elapsed = performance.now() - animStartRef.current
-      const t = Math.min(1, elapsed / 300)
-      const eased = easeOutCubic(t)
+  const startPointsAnim = useCallback((from: { x: number; y: number }[], to: { x: number; y: number }[], duration = 300) => {
+    try {
+      cancelAnim()
 
-      for (let i = 0; i < animPointsRef.current.length; i++) {
-        const start = animPointsRef.current[i]
-        const target = animTargetRef.current[i]
-        if (start && target) {
-          animPointsRef.current[i] = {
-            x: start.x + (target.x - start.x) * eased,
-            y: start.y + (target.y - start.y) * eased,
+      if (from.length === 0 || to.length === 0) {
+        displayPointsRef.current = [...to]
+        targetPointsRef.current = [...to]
+        render()
+        return
+      }
+
+      animRef.current = {
+        startPoints: from.map(p => ({ ...p })),
+        targetPoints: to.map(p => ({ ...p })),
+        startTime: performance.now(),
+        duration,
+        durationMs: duration,
+      }
+
+      const step = () => {
+        const anim = animRef.current
+        if (!anim) return
+
+        const now = performance.now()
+        const t = Math.min(1, (now - anim.startTime) / anim.durationMs)
+        const eased = easeOutCubic(t)
+        const count = Math.min(anim.startPoints.length, anim.targetPoints.length)
+
+        for (let i = 0; i < count; i++) {
+          const s = anim.startPoints[i]
+          const e2 = anim.targetPoints[i]
+          displayPointsRef.current[i] = {
+            x: s.x + (e2.x - s.x) * eased,
+            y: s.y + (e2.y - s.y) * eased,
           }
+        }
+
+        render()
+
+        if (t < 1) {
+          animRafRef.current = requestAnimationFrame(step)
+        } else {
+          displayPointsRef.current = [...anim.targetPoints]
+          targetPointsRef.current = [...anim.targetPoints]
+          animRef.current = null
+          animRafRef.current = 0
+        }
+      }
+
+      animRafRef.current = requestAnimationFrame(step)
+    } catch (e) {
+      console.error('startPointsAnim error:', e)
+    }
+  }, [cancelAnim, render])
+
+  const cancelDragAnim = useCallback(() => {
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current)
+      dragRafRef.current = 0
+    }
+  }, [])
+
+  const applyPendingDrag = useCallback(() => {
+    try {
+      const pending = dragPendingRef.current
+      dragPendingRef.current = null
+
+      if (!pending) return
+
+      const { index, target } = pending
+
+      if (index >= 0 && index < targetPointsRef.current.length) {
+        targetPointsRef.current[index] = { ...target }
+        if (!animRef.current) {
+          displayPointsRef.current[index] = { ...target }
         }
       }
 
       render()
 
-      if (t < 1 && isAnimatingRef.current) {
-        rafRef.current = requestAnimationFrame(step)
+      if (dragging && dragging.index === index) {
+        dragRafRef.current = requestAnimationFrame(applyPendingDrag)
       } else {
-        isAnimatingRef.current = false
-        animPointsRef.current = [...animTargetRef.current]
+        dragRafRef.current = 0
       }
+    } catch (e) {
+      console.error('applyPendingDrag error:', e)
     }
-    rafRef.current = requestAnimationFrame(step)
-  }, [render])
+  }, [dragging, render])
 
   useEffect(() => {
-    const newTargets: { x: number; y: number }[] = pathPoints.map((p) => {
-      const g = worldToGrid(p.x, p.z)
-      return { x: g.x, y: g.y }
-    })
+    try {
+      const newTargets: { x: number; y: number }[] = []
+      for (let i = 0; i < pathPoints.length; i++) {
+        const p = pathPoints[i]
+        if (p && typeof p.x === 'number' && isFinite(p.x)) {
+          const g = worldToGrid(p.x, p.z)
+          newTargets.push({ x: g.x, y: g.y })
+        }
+      }
 
-    if (isAnimatingRef.current) {
-      cancelAnimationFrame(rafRef.current)
-      isAnimatingRef.current = false
+      cancelAnim()
+      cancelDragAnim()
+
+      const from = targetPointsRef.current.length > 0 && targetPointsRef.current.length === newTargets.length
+        ? [...targetPointsRef.current]
+        : newTargets.length > 0
+        ? newTargets.map(p => ({ ...p }))
+        : []
+
+      targetPointsRef.current = newTargets.map(p => ({ ...p }))
+
+      if (from.length > 0) {
+        startPointsAnim(from, newTargets, 250)
+      } else {
+        displayPointsRef.current = [...newTargets]
+        render()
+      }
+    } catch (e) {
+      console.error('pathPoints effect error:', e)
     }
+  }, [pathPoints, cancelAnim, cancelDragAnim, startPointsAnim, render])
 
-    if (animTargetRef.current.length > 0 && animTargetRef.current.length === newTargets.length) {
-      animPointsRef.current = animTargetRef.current.map((p) => ({ ...p }))
-    } else {
-      animPointsRef.current = newTargets.map((p) => ({ ...p }))
-    }
-    animTargetRef.current = newTargets
-
-    if (pathPoints.length > 0) {
-      startAnimation()
-    } else {
-      animPointsRef.current = []
-      animTargetRef.current = []
+  useEffect(() => {
+    try {
       render()
-    }
-  }, [pathPoints, startAnimation, render])
-
-  useEffect(() => {
-    render()
+    } catch (_) { /* ignore */ }
   }, [heights, amplitude, render])
 
   useEffect(() => {
-    const onResize = () => render()
+    const onResize = () => {
+      try { render() } catch (_) { /* ignore */ }
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [render])
 
+  useEffect(() => {
+    return () => {
+      cancelAnim()
+      cancelDragAnim()
+    }
+  }, [cancelAnim, cancelDragAnim])
+
   const findPointAt = useCallback(
     (clientX: number, clientY: number): number => {
-      const canvas = canvasRef.current
-      if (!canvas) return -1
-      const rect = canvas.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
-      const { w, h } = getCanvasSize()
-      const threshold = compact ? 8 : 15
+      try {
+        const canvas = canvasRef.current
+        if (!canvas) return -1
+        const rect = canvas.getBoundingClientRect()
+        const x = clientX - rect.left
+        const y = clientY - rect.top
+        const { w, h } = renderedSizeRef.current
+        const threshold = compact ? 10 : 18
+        const thresholdSq = threshold * threshold
 
-      const points = isAnimatingRef.current ? animPointsRef.current : animTargetRef.current
-      for (let i = points.length - 1; i >= 0; i--) {
-        const sp = gridToScreen(points[i].x, points[i].y, w, h)
-        const dx = x - sp.x
-        const dy = y - sp.y
-        if (dx * dx + dy * dy <= threshold * threshold) {
-          return i
+        const points = displayPointsRef.current
+        for (let i = points.length - 1; i >= 0; i--) {
+          const gp = points[i]
+          if (!gp) continue
+          const sp = gridToScreen(gp.x, gp.y, w, h)
+          const dx = x - sp.x
+          const dy = y - sp.y
+          if (dx * dx + dy * dy <= thresholdSq) {
+            return i
+          }
         }
+        return -1
+      } catch (e) {
+        console.error('findPointAt error:', e)
+        return -1
       }
-      return -1
     },
-    [getCanvasSize, compact]
+    [compact]
   )
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (compact || dragging) return
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      const { w, h } = getCanvasSize()
-      const grid = screenToGrid(x, y, w, h)
-      const world = gridToWorld(grid.x, grid.y, heights)
-      onAddPoint(world)
+      if (compact) return
+      if (dragging) return
+      try {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+        const { w, h } = renderedSizeRef.current
+        if (w <= 0 || h <= 0) return
+        const grid = screenToGrid(x, y, w, h)
+        const world = gridToWorld(grid.x, grid.y, heights)
+        if (world && typeof world.x === 'number' && isFinite(world.x)) {
+          onAddPoint(world)
+        }
+      } catch (e) {
+        console.error('handleClick error:', e)
+      }
     },
-    [compact, dragging, heights, getCanvasSize, onAddPoint]
+    [compact, dragging, heights, onAddPoint]
   )
-
-  const handleDoubleClick = useCallback(() => {
-    if (compact) return
-  }, [compact])
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (compact) return
-      const idx = findPointAt(e.clientX, e.clientY)
-      if (idx >= 0) {
-        setDragging({ index: idx, startX: e.clientX, startY: e.clientY })
-        e.preventDefault()
-      }
+      try {
+        if (e.button !== 0) return
+        const idx = findPointAt(e.clientX, e.clientY)
+        if (idx >= 0 && displayPointsRef.current[idx]) {
+          setDragging({ index: idx, startX: e.clientX, startY: e.clientY })
+          e.preventDefault()
+        }
+      } catch (_) { /* ignore */ }
     },
     [compact, findPointAt]
   )
@@ -306,53 +439,97 @@ export default function PathPlanner({
       if (compact) return
 
       if (dragging) {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const rect = canvas.getBoundingClientRect()
-        const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
-        const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
-        const { w, h } = getCanvasSize()
-        const grid = screenToGrid(x, y, w, h)
-        const world = gridToWorld(grid.x, grid.y, heights)
+        try {
+          const canvas = canvasRef.current
+          if (!canvas) return
+          const rect = canvas.getBoundingClientRect()
+          const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
+          const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
+          const { w, h } = renderedSizeRef.current
+          const grid = screenToGrid(x, y, w, h)
 
-        animTargetRef.current[dragging.index] = { x: grid.x, y: grid.y }
-        if (!isAnimatingRef.current) {
-          animPointsRef.current[dragging.index] = { x: grid.x, y: grid.y }
-        }
-        render()
+          dragPendingRef.current = {
+            index: dragging.index,
+            target: { x: grid.x, y: grid.y },
+          }
+
+          if (!dragRafRef.current) {
+            dragRafRef.current = requestAnimationFrame(applyPendingDrag)
+          }
+        } catch (_) { /* ignore */ }
       } else {
-        const idx = findPointAt(e.clientX, e.clientY)
-        setHoveredIndex(idx >= 0 ? idx : null)
+        try {
+          const idx = findPointAt(e.clientX, e.clientY)
+          if (idx !== hoveredIndex) {
+            setHoveredIndex(idx >= 0 ? idx : null)
+          }
+        } catch (_) { /* ignore */ }
       }
     },
-    [compact, dragging, heights, getCanvasSize, findPointAt, render]
+    [compact, dragging, hoveredIndex, findPointAt, applyPendingDrag]
   )
 
-  const handleMouseUp = useCallback(() => {
-    if (dragging) {
-      const canvas = canvasRef.current
-      if (!canvas) {
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      if (!dragging) return
+      try {
+        const pending = dragPendingRef.current
+        const targetIdx = pending && pending.index === dragging.index
+          ? pending.target
+          : targetPointsRef.current[dragging.index]
+
         setDragging(null)
-        return
+        dragPendingRef.current = null
+
+        if (targetIdx && heights) {
+          const world = gridToWorld(targetIdx.x, targetIdx.y, heights)
+          if (world && typeof world.x === 'number' && isFinite(world.x)) {
+            onUpdatePoint(dragging.index, world)
+          }
+        }
+
+        if (hoveredIndex !== null) {
+          const idx = findPointAt(e.clientX, e.clientY)
+          setHoveredIndex(idx >= 0 ? idx : null)
+        }
+      } catch (e) {
+        console.error('handleMouseUp error:', e)
+        setDragging(null)
       }
-      const target = animTargetRef.current[dragging.index]
-      if (target) {
-        const world = gridToWorld(target.x, target.y, heights)
-        onUpdatePoint(dragging.index, world)
-      }
+    },
+    [dragging, heights, hoveredIndex, findPointAt, onUpdatePoint]
+  )
+
+  const handleMouseLeave = useCallback(() => {
+    try {
       setDragging(null)
-    }
-  }, [dragging, heights, onUpdatePoint])
+      dragPendingRef.current = null
+      setHoveredIndex(null)
+    } catch (_) { /* ignore */ }
+  }, [])
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
-      e.preventDefault()
-      if (!compact) onClearPath()
+      try {
+        e.preventDefault()
+        if (!compact) {
+          onClearPath()
+        }
+      } catch (_) { /* ignore */ }
     },
     [compact, onClearPath]
   )
 
-  const cursor = dragging ? 'grabbing' : hoveredIndex !== null ? 'grab' : 'crosshair'
+  let cursor: string
+  if (compact) {
+    cursor = 'default'
+  } else if (dragging) {
+    cursor = 'grabbing'
+  } else if (hoveredIndex !== null) {
+    cursor = 'grab'
+  } else {
+    cursor = 'crosshair'
+  }
 
   return (
     <div
@@ -369,20 +546,21 @@ export default function PathPlanner({
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
         style={{
-          cursor: compact ? 'default' : cursor,
+          cursor,
           borderRadius: compact ? '4px' : '8px',
           border: compact ? '1px solid #2a3b4a' : '1px solid #3a4b5a',
           boxShadow: compact ? 'none' : '0 4px 20px rgba(0,0,0,0.3)',
+          userSelect: 'none',
+          touchAction: 'none',
         }}
       />
-      {!compact && pathPoints.length === 0 && (
+      {!compact && displayPointsRef.current.length === 0 && (
         <div
           style={{
             position: 'absolute',
@@ -391,6 +569,8 @@ export default function PathPlanner({
             pointerEvents: 'none',
             textAlign: 'center',
             bottom: '20px',
+            left: 0,
+            right: 0,
           }}
         >
           点击添加路径点 · 拖拽调整 · 右键清空
