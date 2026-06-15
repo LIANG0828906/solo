@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { MenuItem as MenuItemType } from '@/types';
 import { useCartStore } from '@/store/cartStore';
@@ -18,6 +18,8 @@ const categories: { key: Category; label: string }[] = [
 export default function MenuBoard({ menuItems }: MenuBoardProps) {
   const [activeCategory, setActiveCategory] = useState<Category>('iced');
   const [selectedItem, setSelectedItem] = useState<MenuItemType | null>(null);
+  const [modalOrigin, setModalOrigin] = useState<{ x: number; y: number } | null>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((state) => state.addItem);
 
   const itemsByCategory = categories.map((cat) => ({
@@ -30,7 +32,25 @@ export default function MenuBoard({ menuItems }: MenuBoardProps) {
     addItem(item);
   };
 
+  const handleCardClick = (item: MenuItemType, e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setModalOrigin({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    });
+    setSelectedItem(item);
+  };
+
   const currentIndex = categories.findIndex((c) => c.key === activeCategory);
+
+  const getModalStyle = (): React.CSSProperties => {
+    if (modalOrigin && modalContentRef.current) {
+      return {
+        transformOrigin: `${modalOrigin.x}px ${modalOrigin.y}px`,
+      } as React.CSSProperties;
+    }
+    return {};
+  };
 
   return (
     <div>
@@ -57,7 +77,7 @@ export default function MenuBoard({ menuItems }: MenuBoardProps) {
                 <div
                   key={item.id}
                   className="menu-card"
-                  onClick={() => setSelectedItem(item)}
+                  onClick={(e) => handleCardClick(item, e)}
                 >
                   <button
                     className="add-to-cart-btn"
@@ -86,7 +106,9 @@ export default function MenuBoard({ menuItems }: MenuBoardProps) {
           onClick={() => setSelectedItem(null)}
         >
           <div
+            ref={modalContentRef}
             className="modal-content"
+            style={getModalStyle()}
             onClick={(e) => e.stopPropagation()}
           >
             <button
