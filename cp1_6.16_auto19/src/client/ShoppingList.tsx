@@ -78,6 +78,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ recipes, onViewRecipeDetail
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedIngredients, manualItems: manualItemsPayload }),
       });
+      if (!res.ok) throw new Error('生成购物清单失败');
       const data: ShoppingItem[] = await res.json();
       setItems((prev) => {
         const idToChecked = new Map(prev.map((i) => [i.name.toLowerCase(), i.checked]));
@@ -87,7 +88,8 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ recipes, onViewRecipeDetail
         }));
       });
     } catch (err) {
-      console.error('生成购物清单失败', err);
+      console.error('生成购物清单失败:', err);
+      alert('生成购物清单失败，请重试');
     }
   }, [selectedRecipes, manualItems]);
 

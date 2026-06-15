@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import {
   Search, Plus, X, ChefHat, Clock, Flame, Trash2,
   GripVertical, Share2, Copy, Check, ArrowUpFromLine, Eye,
@@ -61,12 +62,14 @@ const App: React.FC = () => {
           ? `/api/recipes/search?q=${encodeURIComponent(debouncedSearch)}`
           : '/api/recipes';
         const [rRes, fRes] = await Promise.all([fetch(url), fetch('/api/favorites')]);
+        if (!rRes.ok) throw new Error('加载食谱失败');
+        if (!fRes.ok) throw new Error('加载收藏失败');
         const rData: Recipe[] = await rRes.json();
         const fData: Favorite[] = await fRes.json();
         setRecipes(rData);
         setFavoriteIds(fData.sort((a, b) => a.order - b.order).map((f) => f.recipeId));
       } catch (err) {
-        console.error('加载数据失败', err);
+        console.error('加载数据失败:', err);
       }
     };
     loadAll();
@@ -78,38 +81,44 @@ const App: React.FC = () => {
         ? `/api/recipes/search?q=${encodeURIComponent(debouncedSearch)}`
         : '/api/recipes';
       const res = await fetch(url);
+      if (!res.ok) throw new Error('加载食谱失败');
       const data: Recipe[] = await res.json();
       setRecipes(data);
     } catch (err) {
-      console.error(err);
+      console.error('加载食谱失败:', err);
+      alert('加载食谱失败，请刷新页面重试');
     }
   }, [debouncedSearch]);
 
   const refreshFavorites = useCallback(async () => {
     try {
       const res = await fetch('/api/favorites');
+      if (!res.ok) throw new Error('加载收藏失败');
       const data: Favorite[] = await res.json();
       setFavoriteIds(data.sort((a, b) => a.order - b.order).map((f) => f.recipeId));
     } catch (err) {
-      console.error(err);
+      console.error('加载收藏失败:', err);
     }
   }, []);
 
   const toggleFavorite = useCallback(async (recipeId: string) => {
     try {
       if (favoriteIds.includes(recipeId)) {
-        await fetch(`/api/favorites/${recipeId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/favorites/${recipeId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('取消收藏失败');
         setFavoriteIds((prev) => prev.filter((id) => id !== recipeId));
       } else {
-        await fetch('/api/favorites', {
+        const res = await fetch('/api/favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ recipeId }),
         });
+        if (!res.ok) throw new Error('收藏失败');
         setFavoriteIds((prev) => [...prev, recipeId]);
       }
     } catch (err) {
-      console.error(err);
+      console.error('收藏操作失败:', err);
+      alert('操作失败，请重试');
     }
   }, [favoriteIds]);
 
@@ -126,11 +135,13 @@ const App: React.FC = () => {
   const handleDeleteRecipe = async (recipeId: string) => {
     if (!confirm('确定删除这道食谱吗？此操作不可撤销。')) return;
     try {
-      await fetch(`/api/recipes/${recipeId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/recipes/${recipeId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('删除失败');
       setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
       setFavoriteIds((prev) => prev.filter((id) => id !== recipeId));
     } catch (err) {
-      console.error(err);
+      console.error('删除食谱失败:', err);
+      alert('删除失败，请重试');
     }
   };
 
@@ -142,6 +153,7 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
+        if (!res.ok) throw new Error('更新食谱失败');
         await res.json();
       } else {
         const res = await fetch('/api/recipes', {
@@ -149,13 +161,15 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
+        if (!res.ok) throw new Error('创建食谱失败');
         await res.json();
       }
       setIsFormOpen(false);
       setEditingRecipe(null);
       await refreshRecipes();
     } catch (err) {
-      console.error(err);
+      console.error('保存食谱失败:', err);
+      alert('保存失败，请重试');
     }
   };
 
@@ -167,7 +181,7 @@ const App: React.FC = () => {
   const handleSubmitIngredientsToShopping = async () => {
     if (!detailRecipe) return;
     try {
-      await fetch('/api/shopping/generate', {
+      const res = await fetch('/api/shopping/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,11 +191,13 @@ const App: React.FC = () => {
           }],
         }),
       });
+      if (!res.ok) throw new Error('添加购物清单失败');
       setDetailRecipe(null);
       setSelectedIngredientsForShopping([]);
       setActiveTab('shopping');
     } catch (err) {
-      console.error(err);
+      console.error('添加购物清单失败:', err);
+      alert('添加失败，请重试');
     }
   };
 
@@ -406,11 +422,13 @@ const FridgeScanPage: React.FC<FridgeScanPageProps> = ({ onViewRecipeDetail, onA
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients: tags }),
       });
+      if (!res.ok) throw new Error('获取推荐失败');
       const data: FridgeRecommendation[] = await res.json();
       console.log(`推荐耗时: ${(performance.now() - start).toFixed(1)}ms`);
       setRecommendations(data);
     } catch (err) {
-      console.error(err);
+      console.error('获取推荐失败:', err);
+      alert('获取推荐失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -504,14 +522,16 @@ const FridgeScanPage: React.FC<FridgeScanPageProps> = ({ onViewRecipeDetail, onA
           </div>
         ) : (
           <div className="recommend-list">
-            {recommendations.map((rec, idx) => {
-              const opacity = 0.45 + 0.55 * rec.matchScore;
-              return (
-                <div
-                  key={rec.recipe.id}
-                  className="recommend-card"
-                  style={{ opacity: Math.max(0.4, opacity) }}
-                >
+            {[...recommendations]
+              .sort((a, b) => b.matchScore - a.matchScore)
+              .map((rec, idx) => {
+                const opacity = 0.35 + 0.65 * rec.matchScore;
+                return (
+                  <div
+                    key={rec.recipe.id}
+                    className="recommend-card"
+                    style={{ opacity: Math.max(0.35, opacity) }}
+                  >
                   <div className="recommend-emoji">{pickEmoji(rec.recipe)}</div>
                   <div className="recommend-info">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -579,22 +599,31 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({
   shareCode, setShareCode, copySuccess, setCopySuccess,
 }) => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [sharingRecipe, setSharingRecipe] = useState<Recipe | null>(null);
+  const [shareType, setShareType] = useState<'single' | 'all'>('all');
 
   const favoriteRecipes = useMemo(
     () => favoriteIds.map((id) => recipes.find((r) => r.id === id)).filter(Boolean) as Recipe[],
     [favoriteIds, recipes]
   );
 
-  const handleGenerateShareCode = async () => {
+  const handleGenerateShareCode = async (recipe?: Recipe) => {
     try {
-      const res = await fetch('/api/favorites/share', { method: 'POST' });
+      const body = recipe ? { recipeId: recipe.id } : {};
+      const res = await fetch('/api/favorites/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('获取分享码失败');
       const data = await res.json();
       setShareCode(data.shareCode);
+      setShareType(recipe ? 'single' : 'all');
+      if (recipe) setSharingRecipe(recipe);
       setShareModalOpen(true);
     } catch (err) {
-      console.error(err);
+      console.error('获取分享码失败:', err);
+      alert('获取分享码失败，请重试');
     }
   };
 
@@ -629,51 +658,28 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({
     return '🍽️';
   };
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggingId(id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+    if (source.index === destination.index) return;
 
-  const handleDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverId !== id) setDragOverId(id);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (!draggingId || draggingId === targetId) {
-      setDraggingId(null);
-      setDragOverId(null);
-      return;
-    }
     const newOrder = [...favoriteIds];
-    const from = newOrder.indexOf(draggingId);
-    const to = newOrder.indexOf(targetId);
-    if (from < 0 || to < 0) return;
-    newOrder.splice(from, 1);
-    newOrder.splice(to, 0, draggingId);
-    setFavoriteIdsLocally(newOrder);
+    const [removed] = newOrder.splice(source.index, 1);
+    newOrder.splice(destination.index, 0, removed);
 
-    const orders = newOrder.map((recipeId, order) => ({ recipeId, order }));
     try {
-      await fetch('/api/favorites/order', {
+      const orders = newOrder.map((recipeId, order) => ({ recipeId, order }));
+      const res = await fetch('/api/favorites/order', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orders }),
       });
+      if (!res.ok) throw new Error('保存顺序失败');
     } catch (err) {
-      console.error(err);
+      console.error('保存顺序失败:', err);
       refreshFavorites();
     }
-    setDraggingId(null);
-    setDragOverId(null);
   };
-
-  const [, setFavoriteIdsLocally] = useState<string[]>(favoriteIds);
-  useEffect(() => {
-    setFavoriteIdsLocally(favoriteIds);
-  }, [favoriteIds]);
 
   return (
     <div>
@@ -687,7 +693,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({
         <button
           className="btn btn-primary"
           disabled={favoriteRecipes.length === 0}
-          onClick={handleGenerateShareCode}
+          onClick={() => handleGenerateShareCode()}
         >
           <Share2 size={18} /> 分享收藏夹
         </button>
@@ -700,63 +706,101 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({
           <p>在食谱页面点击❤️按钮，把喜欢的菜谱加入收藏吧！</p>
         </div>
       ) : (
-        <div className="favorites-waterfall">
-          {favoriteRecipes.map((r, index) => (
-            <div
-              key={r.id}
-              className={`favorite-card ${draggingId === r.id ? 'dragging' : ''} ${dragOverId === r.id ? 'drag-over' : ''}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, r.id)}
-              onDragOver={(e) => handleDragOver(e, r.id)}
-              onDrop={(e) => handleDrop(e, r.id)}
-              onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-              onClick={() => onViewRecipeDetail(r)}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="favorites" direction="vertical">
+            {(provided, snapshot) => (
+              <div
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              className="favorites-waterfall"
             >
-              <div className="favorite-card-cover">
-                <div
-                  className="favorite-card-handle"
-                  draggable
-                  onDragStart={(e) => { handleDragStart(e, r.id); e.stopPropagation(); }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <GripVertical size={14} />
-                </div>
-                <span style={{ fontSize: 56 }}>{pickEmoji(r)}</span>
-                <button
-                  className="action-icon-btn"
-                  style={{ position: 'absolute', top: 10, right: 10, opacity: 1 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFavorite(r.id);
-                  }}
-                  title="取消收藏"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <div className="favorite-card-body">
-                <h3>{r.name}</h3>
-                <p>{r.cuisine} · {r.ingredients.length}种食材 · #{index + 1}</p>
-                <div className="favorite-card-meta">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-light)' }}>
-                    <Clock size={12} /> {r.cookTime}分钟
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-light)' }}>
-                    <Flame size={12} /> {DIFFICULTY_LABELS[r.difficulty]}
-                  </span>
-                </div>
-              </div>
+              {favoriteRecipes.map((r, index) => (
+                <Draggable key={r.id} draggableId={r.id} index={index}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{
+                        ...provided.draggableProps.style,
+                        opacity: snapshot.isDragging ? 0.8 : 1,
+                        transform: snapshot.isDragging
+                          ? `${provided.draggableProps.style?.transform}`
+                          : provided.draggableProps.style?.transform,
+                      }}
+                      className={`favorite-card ${snapshot.isDragging ? 'dragging' : ''}`}
+                      onClick={() => onViewRecipeDetail(r)}
+                    >
+                      <div className="favorite-card-cover">
+                        <div
+                          className="favorite-card-handle"
+                          {...provided.dragHandleProps}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <GripVertical size={14} />
+                        </div>
+                        <span style={{ fontSize: 56 }}>{pickEmoji(r)}</span>
+                        <button
+                          className="action-icon-btn"
+                          style={{ position: 'absolute', top: 10, right: 10, opacity: 1 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(r.id);
+                          }}
+                          title="取消收藏"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <button
+                          className="action-icon-btn"
+                          style={{
+                            position: 'absolute',
+                            bottom: 10,
+                            right: 10,
+                            opacity: 1,
+                            background: 'rgba(255,255,255,0.95)',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateShareCode(r);
+                          }}
+                          title="分享"
+                        >
+                          <Share2 size={14} />
+                        </button>
+                      </div>
+                      <div className="favorite-card-body">
+                        <h3>{r.name}</h3>
+                        <p>{r.cuisine} · {r.ingredients.length}种食材 · #{index + 1}</p>
+                        <div className="favorite-card-meta">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-light)' }}>
+                            <Clock size={12} /> {r.cookTime}分钟
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-light)' }}>
+                            <Flame size={12} /> {DIFFICULTY_LABELS[r.difficulty]}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
             </div>
-          ))}
-        </div>
+          )}
+          </Droppable>
+        </DragDropContext>
       )}
 
       {shareModalOpen && (
-        <div className="modal-overlay" onClick={() => setShareModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => { setShareModalOpen(false); setSharingRecipe(null); }}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <h2 className="modal-title"><Share2 size={20} style={{ display: 'inline', marginRight: 6 }} /> 分享收藏夹</h2>
-              <button className="action-icon-btn" onClick={() => setShareModalOpen(false)}>
+              <h2 className="modal-title">
+                <Share2 size={20} style={{ display: 'inline', marginRight: 6 }} />
+                {shareType === 'single' ? `分享「${sharingRecipe?.name}」` : '分享收藏夹'}
+              </h2>
+              <button className="action-icon-btn" onClick={() => { setShareModalOpen(false); setSharingRecipe(null); }}>
                 <X size={18} />
               </button>
             </div>
@@ -764,7 +808,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({
               <div className="share-modal">
                 <p style={{ fontSize: 14, color: 'var(--color-text-light)', marginBottom: 8 }}>
                   将下方 6 位分享码发给家人，对方在首页/收藏夹输入后
-                  <br />即可浏览全部食谱（查看权限，不可编辑）
+                  <br />即可浏览{shareType === 'single' ? '该食谱' : '全部食谱'}（查看权限，不可编辑）
                 </p>
                 <div className="share-code-display">{shareCode}</div>
                 <button className="btn btn-primary" onClick={handleCopy}>

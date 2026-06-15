@@ -288,9 +288,11 @@ body {
   will-change: transform, box-shadow;
 }
 
-.recipe-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-lg);
+@media (min-width: 769px) {
+  .recipe-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+  }
 }
 
 .recipe-card-header {
@@ -331,7 +333,8 @@ body {
   z-index: 2;
   opacity: 0;
   transform: translateX(8px);
-  transition: all var(--transition-base);
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  will-change: opacity, transform;
 }
 
 .recipe-card:hover .recipe-card-badges {
@@ -977,7 +980,8 @@ body {
   color: var(--color-text);
   position: relative;
   display: inline-block;
-  transition: color var(--transition-base);
+  transition: color 350ms ease-out;
+  will-change: color;
 }
 
 .shopping-item-name::after {
@@ -989,7 +993,8 @@ body {
   height: 2px;
   background: var(--color-text-light);
   transform: translateY(-50%);
-  transition: width var(--transition-base);
+  transform-origin: left center;
+  will-change: width, transform;
 }
 
 .shopping-item.checked .shopping-item-name {
@@ -997,7 +1002,7 @@ body {
 }
 
 .shopping-item.checked .shopping-item-name::after {
-  width: 100%;
+  animation: line-through 350ms ease-out forwards;
 }
 
 .shopping-item-amount {
@@ -1141,8 +1146,9 @@ body {
   grid-template-columns: 80px 1fr auto;
   gap: 20px;
   align-items: center;
-  transition: all var(--transition-base);
+  transition: opacity var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
   border: 2px solid transparent;
+  will-change: opacity, transform;
 }
 
 .recommend-card:hover {
@@ -1251,20 +1257,22 @@ body {
 }
 
 .favorites-waterfall {
-  columns: 3;
-  column-gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 
 .favorite-card {
-  break-inside: avoid;
-  margin-bottom: 20px;
   background: white;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   cursor: grab;
-  transition: all var(--transition-base);
+  transition: opacity var(--transition-base), transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base), background-color var(--transition-base);
   border: 2px solid transparent;
+  position: relative;
+  will-change: transform, opacity;
+  height: fit-content;
 }
 
 .favorite-card:hover {
@@ -1275,11 +1283,12 @@ body {
 
 .favorite-card.dragging {
   opacity: 0.5;
+  transform: scale(0.98);
   cursor: grabbing;
 }
 
 .favorite-card.drag-over {
-  border-color: var(--color-warm-orange);
+  border: 2px solid var(--color-warm-orange);
   background: var(--color-warm-orange-light);
 }
 
@@ -1339,6 +1348,47 @@ body {
   align-items: center;
 }
 
+.favorite-card-share-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-light);
+  transition: all var(--transition-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(4px);
+  will-change: opacity, transform;
+  z-index: 2;
+}
+
+.favorite-card:hover .favorite-card-share-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.favorite-card-share-btn:hover {
+  background: var(--color-warm-orange);
+  color: white;
+  transform: scale(1.08);
+}
+
+@media (max-width: 768px) {
+  .favorite-card-share-btn {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .share-modal {
   text-align: center;
   padding: 20px 0;
@@ -1386,10 +1436,15 @@ body {
   }
 }
 
+@keyframes line-through {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
 /* 响应式适配 */
 @media (max-width: 1024px) {
   .favorites-waterfall {
-    columns: 2;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1490,7 +1545,7 @@ body {
   }
 
   .favorites-waterfall {
-    columns: 1;
+    grid-template-columns: 1fr;
   }
 
   .fridge-section {
@@ -1538,9 +1593,7 @@ body {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
-  .favorite-card {
-    margin-bottom: 16px;
-  }
+
 
   .favorite-card-handle {
     opacity: 1;

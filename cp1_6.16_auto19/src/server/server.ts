@@ -3,7 +3,7 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());
@@ -59,6 +59,67 @@ export interface FridgeRecommendation {
 const recipes: Map<string, Recipe> = new Map();
 const favorites: Map<string, Favorite> = new Map();
 const shareCodes: Map<string, string[]> = new Map();
+
+interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+}
+
+class LRUCache<K, V> {
+  private cache: Map<K, CacheEntry<V>>;
+  private maxSize: number;
+  private ttl: number;
+
+  constructor(maxSize: number = 100, ttl: number = 5 * 60 * 1000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+    this.ttl = ttl;
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+
+    if (Date.now() - entry.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return undefined;
+    }
+
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value as K | undefined;
+      if (firstKey !== undefined) this.cache.delete(firstKey);
+    }
+
+    this.cache.set(key, { value, timestamp: Date.now() });
+  }
+
+  has(key: K): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (Date.now() - entry.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const searchCache = new LRUCache<string, Recipe[]>();
+const recommendCache = new LRUCache<string, FridgeRecommendation[]>();
 
 const seedRecipes: Recipe[] = [
   {
@@ -286,25 +347,34 @@ app.get('/api/recipes', (_req: Request, res: Response) => {
 
 app.get('/api/recipes/search', (req: Request, res: Response) => {
   const q = String(req.query.q || '').toLowerCase().trim();
-  if (!q) {
-    const list = Array.from(recipes.values()).sort((a, b) => b.createdAt - a.createdAt);
-    res.json(list);
+  const cacheKey = q;
+
+  if (searchCache.has(cacheKey)) {
+    res.json(searchCache.get(cacheKey));
     return;
   }
-  const results: Recipe[] = [];
-  for (const r of recipes.values()) {
-    if (r.name.toLowerCase().includes(q)) {
-      results.push(r);
-      continue;
-    }
-    if (r.ingredients.some((ing) => ing.name.toLowerCase().includes(q))) {
-      results.push(r);
-      continue;
-    }
-    if (r.cuisine.toLowerCase().includes(q)) {
-      results.push(r);
+
+  let results: Recipe[];
+  if (!q) {
+    results = Array.from(recipes.values()).sort((a, b) => b.createdAt - a.createdAt);
+  } else {
+    results = [];
+    for (const r of recipes.values()) {
+      if (r.name.toLowerCase().includes(q)) {
+        results.push(r);
+        continue;
+      }
+      if (r.ingredients.some((ing) => ing.name.toLowerCase().includes(q))) {
+        results.push(r);
+        continue;
+      }
+      if (r.cuisine.toLowerCase().includes(q)) {
+        results.push(r);
+      }
     }
   }
+
+  searchCache.set(cacheKey, results);
   res.json(results);
 });
 
@@ -313,6 +383,11 @@ app.get('/api/recipes/:id', (req: Request, res: Response) => {
   if (!r) return res.status(404).json({ error: '食谱不存在' });
   res.json(r);
 });
+
+const clearAllCaches = () => {
+  searchCache.clear();
+  recommendCache.clear();
+};
 
 app.post('/api/recipes', (req: Request, res: Response) => {
   const body = req.body as Partial<Recipe>;
@@ -331,6 +406,7 @@ app.post('/api/recipes', (req: Request, res: Response) => {
     createdAt: Date.now(),
   };
   recipes.set(recipe.id, recipe);
+  clearAllCaches();
   res.json(recipe);
 });
 
@@ -340,6 +416,7 @@ app.put('/api/recipes/:id', (req: Request, res: Response) => {
   const body = req.body as Partial<Recipe>;
   const updated: Recipe = { ...existing, ...body, id: existing.id, createdAt: existing.createdAt };
   recipes.set(existing.id, updated);
+  clearAllCaches();
   res.json(updated);
 });
 
@@ -347,6 +424,7 @@ app.delete('/api/recipes/:id', (req: Request, res: Response) => {
   if (!recipes.has(req.params.id)) return res.status(404).json({ error: '食谱不存在' });
   recipes.delete(req.params.id);
   favorites.delete(req.params.id);
+  clearAllCaches();
   res.json({ success: true });
 });
 
@@ -356,31 +434,36 @@ interface GenerateShoppingBody {
   manualItems?: Omit<ShoppingItem, 'id' | 'checked' | 'sourceRecipes'>[];
 }
 
+interface MergedIngredient {
+  name: string;
+  category: IngredientCategory;
+  units: Map<string, { amount: number; sourceRecipes: Set<string> }>;
+}
+
 app.post('/api/shopping/generate', (req: Request, res: Response) => {
   const body = req.body as GenerateShoppingBody;
-  const merged = new Map<string, ShoppingItem>();
+  const merged = new Map<string, MergedIngredient>();
 
   const addIngredient = (ing: Ingredient, sourceRecipeId: string) => {
     const key = ing.name.toLowerCase();
-    if (merged.has(key)) {
-      const existing = merged.get(key)!;
-      if (existing.unit === ing.unit) {
-        existing.amount += ing.amount;
-      }
-      if (!existing.sourceRecipes.includes(sourceRecipeId)) {
-        existing.sourceRecipes.push(sourceRecipeId);
-      }
-    } else {
-      merged.set(key, {
-        id: uuidv4(),
+    let entry = merged.get(key);
+    if (!entry) {
+      entry = {
         name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
         category: ing.category,
-        checked: false,
-        sourceRecipes: [sourceRecipeId],
-      });
+        units: new Map(),
+      };
+      merged.set(key, entry);
     }
+
+    const unitKey = ing.unit;
+    let unitEntry = entry.units.get(unitKey);
+    if (!unitEntry) {
+      unitEntry = { amount: 0, sourceRecipes: new Set() };
+      entry.units.set(unitKey, unitEntry);
+    }
+    unitEntry.amount += ing.amount;
+    unitEntry.sourceRecipes.add(sourceRecipeId);
   };
 
   if (body.selectedIngredients && body.selectedIngredients.length > 0) {
@@ -407,27 +490,46 @@ app.post('/api/shopping/generate', (req: Request, res: Response) => {
   if (body.manualItems) {
     for (const item of body.manualItems) {
       const key = item.name.toLowerCase();
-      if (merged.has(key)) {
-        const existing = merged.get(key)!;
-        if (existing.unit === item.unit) existing.amount += item.amount;
-      } else {
-        merged.set(key, {
-          id: uuidv4(),
+      let entry = merged.get(key);
+      if (!entry) {
+        entry = {
           name: item.name,
-          amount: item.amount,
-          unit: item.unit,
           category: item.category as IngredientCategory,
-          checked: false,
-          sourceRecipes: [],
-        });
+          units: new Map(),
+        };
+        merged.set(key, entry);
       }
+
+      const unitKey = item.unit;
+      let unitEntry = entry.units.get(unitKey);
+      if (!unitEntry) {
+        unitEntry = { amount: 0, sourceRecipes: new Set() };
+        entry.units.set(unitKey, unitEntry);
+      }
+      unitEntry.amount += item.amount;
     }
   }
 
-  const list = Array.from(merged.values()).sort((a, b) => {
-    const catOrder = ['vegetable', 'meat', 'grain', 'dairy', 'seasoning', 'other'];
+  const list: ShoppingItem[] = [];
+  const catOrder: IngredientCategory[] = ['vegetable', 'meat', 'grain', 'dairy', 'seasoning', 'other'];
+  const sortedEntries = Array.from(merged.values()).sort((a, b) => {
     return catOrder.indexOf(a.category) - catOrder.indexOf(b.category);
   });
+
+  for (const entry of sortedEntries) {
+    const sortedUnits = Array.from(entry.units.entries()).sort((a, b) => b[1].amount - a[1].amount);
+    for (const [unit, unitData] of sortedUnits) {
+      list.push({
+        id: uuidv4(),
+        name: entry.name,
+        amount: unitData.amount,
+        unit: unit,
+        category: entry.category,
+        checked: false,
+        sourceRecipes: Array.from(unitData.sourceRecipes),
+      });
+    }
+  }
 
   res.json(list);
 });
@@ -439,6 +541,12 @@ interface FridgeRecommendBody {
 app.post('/api/fridge/recommend', (req: Request, res: Response) => {
   const body = req.body as FridgeRecommendBody;
   const have = (body.ingredients || []).map((s) => s.toLowerCase().trim()).filter(Boolean);
+  const cacheKey = have.sort().join('|');
+
+  if (recommendCache.has(cacheKey)) {
+    res.json(recommendCache.get(cacheKey));
+    return;
+  }
 
   if (have.length === 0) {
     res.json([]);
@@ -464,6 +572,7 @@ app.post('/api/fridge/recommend', (req: Request, res: Response) => {
   }
 
   results.sort((a, b) => b.matchScore - a.matchScore);
+  recommendCache.set(cacheKey, results);
   res.json(results);
 });
 
@@ -512,11 +621,25 @@ app.delete('/api/favorites/:recipeId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+const generateShareCode = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 app.post('/api/favorites/share', (_req: Request, res: Response) => {
   const favRecipeIds = Array.from(favorites.values())
     .sort((a, b) => a.order - b.order)
     .map((f) => f.recipeId);
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+  
+  let code: string;
+  do {
+    code = generateShareCode();
+  } while (shareCodes.has(code));
+  
   shareCodes.set(code, favRecipeIds);
   res.json({ shareCode: code });
 });
