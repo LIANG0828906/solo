@@ -22,7 +22,10 @@ function Detail() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
-  const [fadeTransition, setFadeTransition] = useState(true);
+  const [dragVelocity, setDragVelocity] = useState(0);
+  const [lastMoveTime, setLastMoveTime] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imageOpacity, setImageOpacity] = useState(1);
 
   useEffect(() => {
     const saved = localStorage.getItem('museum_user');
@@ -121,77 +124,154 @@ function Detail() {
   };
 
   // 轮播拖拽逻辑
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (isTransitioning) return;
     setIsDragging(true);
-    setStartX(e.clientX);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setStartX(clientX);
     setDragOffset(0);
-    setFadeTransition(false);
-  }, []);
+    setDragVelocity(0);
+    setLastMoveTime(Date.now());
+  }, [isTransitioning]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const diff = e.clientX - startX;
-    setDragOffset(diff);
-  }, [isDragging, startX]);
+  const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging || isTransitioning) return;
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const now = Date.now();
+    const deltaTime = now - lastMoveTime;
+    const diff = clientX - startX;
+    
+    // 计算速度
+    if (deltaTime > 0) {
+      setDragVelocity(diff / deltaTime);
+    }
+    setLastMoveTime(now);
+    
+    // 橡皮筋效果：在边缘位置增加阻力
+    let effectiveOffset = diff;
+    const elasticResistance = 0.35;
+    
+    if (currentImage === 0 && diff > 0) {
+      // 在第一张图向右拖，应用橡皮筋
+      effectiveOffset = Math.pow(Math.abs(diff), 0.6) * Math.sign(diff) * elasticResistance;
+    } else if (artwork && currentImage === artwork.images.length - 1 && diff < 0) {
+      // 在最后一张图向左拖，应用橡皮筋
+      effectiveOffset = Math.pow(Math.abs(diff), 0.6) * Math.sign(diff) * elasticResistance;
+    }
+    
+    setDragOffset(effectiveOffset);
+    
+    // 根据拖拽距离调整图片透明度，实现淡入淡出预览
+    const maxDrag = 150;
+    const opacityChange = Math.min(Math.abs(effectiveOffset) / maxDrag, 0.4);
+    setImageOpacity(1 - opacityChange * 0.5);
+  }, [isDragging, isTransitioning, startX, lastMoveTime, currentImage, artwork]);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
-    setFadeTransition(true);
-
-    const threshold = 80;
-    const elasticResistance = 0.3;
-
-    if (dragOffset > threshold) {
-      if (currentImage > 0) {
-        setCurrentImage(currentImage - 1);
+    
+    const threshold = 60;
+    const velocityThreshold = 0.5;
+    const absOffset = Math.abs(dragOffset);
+    const absVelocity = Math.abs(dragVelocity);
+    
+    // 判断是否切换图片：达到阈值距离 或 快速滑动
+    const shouldSwitch = absOffset > threshold || absVelocity > velocityThreshold;
+    
+    if (shouldSwitch) {
+      if (dragOffset > 0 && currentImage > 0) {
+        // 向右滑，切换到上一张
+        setIsTransitioning(true);
+        setImageOpacity(0);
+        setTimeout(() => {
+          setCurrentImage(prev => prev - 1);
+          setDragOffset(0);
+          setImageOpacity(1);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }, 150);
+      } else if (dragOffset < 0 && artwork && currentImage < artwork.images.length - 1) {
+        // 向左滑，切换到下一张
+        setIsTransitioning(true);
+        setImageOpacity(0);
+        setTimeout(() => {
+          setCurrentImage(prev => prev + 1);
+          setDragOffset(0);
+          setImageOpacity(1);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }, 150);
+      } else {
+        // 边缘，橡皮筋回弹
+        animateElasticBack();
       }
-    } else if (dragOffset < -threshold) {
-      if (currentImage < artwork!.images.length - 1) {
-        setCurrentImage(currentImage + 1);
-      }
+    } else {
+      // 未达阈值，回弹
+      animateElasticBack();
     }
+  }, [isDragging, dragOffset, dragVelocity, currentImage, artwork]);
 
-    setDragOffset(0);
-  }, [isDragging, dragOffset, currentImage, artwork]);
+  const animateElasticBack = () => {
+    setIsTransitioning(true);
+    // 弹性回弹动画
+    const startOffset = dragOffset;
+    const startTime = Date.now();
+    const duration = 400;
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // 弹性缓动函数
+      const elasticProgress = 1 - Math.pow(1 - progress, 3);
+      const currentOffset = startOffset * (1 - elasticProgress);
+      setDragOffset(currentOffset);
+      setImageOpacity(1 - Math.abs(currentOffset / 300));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDragOffset(0);
+        setImageOpacity(1);
+        setIsTransitioning(false);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  };
 
   const handleMouseLeave = useCallback(() => {
     if (isDragging) {
-      setIsDragging(false);
-      setFadeTransition(true);
-      setDragOffset(0);
+      handleMouseUp();
     }
-  }, [isDragging]);
+  }, [isDragging, handleMouseUp]);
 
   // 触摸支持
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    setIsDragging(true);
-    setStartX(e.touches[0].clientX);
-    setDragOffset(0);
-    setFadeTransition(false);
-  }, []);
+    handleMouseDown(e);
+  }, [handleMouseDown]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
-    const diff = e.touches[0].clientX - startX;
-    setDragOffset(diff);
-  }, [isDragging, startX]);
+    handleMouseMove(e);
+  }, [handleMouseMove]);
 
   const handleTouchEnd = useCallback(() => {
     handleMouseUp();
   }, [handleMouseUp]);
 
+  const handleImageChange = useCallback((newIndex: number) => {
+    if (isTransitioning || newIndex === currentImage) return;
+    setIsTransitioning(true);
+    setImageOpacity(0);
+    setTimeout(() => {
+      setCurrentImage(newIndex);
+      setDragOffset(0);
+      setImageOpacity(1);
+      setTimeout(() => setIsTransitioning(false), 300);
+    }, 150);
+  }, [isTransitioning, currentImage]);
+
   const getImageTransform = () => {
-    if (!fadeTransition && isDragging) {
-      const elasticResistance = 0.3;
-      let offset = dragOffset;
-      if ((currentImage === 0 && dragOffset > 0) || 
-          (artwork && currentImage === artwork.images.length - 1 && dragOffset < 0)) {
-        offset = dragOffset * elasticResistance;
-      }
-      return `translateX(${offset}px)`;
-    }
-    return 'translateX(0)';
+    return `translateX(${dragOffset}px)`;
   };
 
   if (loading) {
@@ -242,7 +322,7 @@ function Detail() {
             className="carousel-track"
             style={{ 
               transform: getImageTransform(),
-              transition: fadeTransition ? 'transform 0.3s ease' : 'none',
+              transition: isTransitioning && !isDragging ? 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)' : 'none',
               cursor: isDragging ? 'grabbing' : 'grab'
             }}
           >
@@ -252,9 +332,10 @@ function Detail() {
                 alt={artwork.name}
                 className="carousel-image"
                 style={{ 
-                  opacity: fadeTransition ? 1 : 1,
+                  opacity: imageOpacity,
                   transition: 'opacity 0.3s ease'
                 }}
+                draggable={false}
               />
             </div>
           </div>
@@ -263,7 +344,7 @@ function Detail() {
           {currentImage > 0 && (
             <button 
               className="carousel-arrow prev"
-              onClick={(e) => { e.stopPropagation(); setCurrentImage(currentImage - 1); }}
+              onClick={(e) => { e.stopPropagation(); handleImageChange(currentImage - 1); }}
             >
               ‹
             </button>
@@ -271,7 +352,7 @@ function Detail() {
           {currentImage < artwork.images.length - 1 && (
             <button 
               className="carousel-arrow next"
-              onClick={(e) => { e.stopPropagation(); setCurrentImage(currentImage + 1); }}
+              onClick={(e) => { e.stopPropagation(); handleImageChange(currentImage + 1); }}
             >
               ›
             </button>
@@ -283,7 +364,7 @@ function Detail() {
               <button
                 key={idx}
                 className={`indicator ${idx === currentImage ? 'active' : ''}`}
-                onClick={(e) => { e.stopPropagation(); setCurrentImage(idx); }}
+                onClick={(e) => { e.stopPropagation(); handleImageChange(idx); }}
               />
             ))}
           </div>
@@ -294,9 +375,9 @@ function Detail() {
               <div
                 key={idx}
                 className={`thumbnail ${idx === currentImage ? 'active' : ''}`}
-                onClick={(e) => { e.stopPropagation(); setCurrentImage(idx); }}
+                onClick={(e) => { e.stopPropagation(); handleImageChange(idx); }}
               >
-                <img src={img} alt="" />
+                <img src={img} alt="" draggable={false} />
               </div>
             ))}
           </div>

@@ -70,18 +70,21 @@ function reducer(state: State, action: Action): State {
 
 const CARD_HEIGHT = 280;
 const CARD_GAP = 20;
-const ROWS_VISIBLE = 4;
-const BUFFER_ROWS = 2;
+const ESTIMATED_ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
+const BUFFER_ROWS = 3;
 
 function Gallery() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(4);
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 20 });
+  const [scrollTop, setScrollTop] = useState(0);
+  const [gridOffsetTop, setGridOffsetTop] = useState(0);
   const [fadeKey, setFadeKey] = useState(0);
+  const rafRef = useRef<number | null>(null);
 
   const getColumns = useCallback(() => {
     const width = window.innerWidth;
@@ -91,14 +94,42 @@ function Gallery() {
     return 4;
   }, []);
 
+  const updateOffset = useCallback(() => {
+    if (gridRef.current) {
+      const rect = gridRef.current.getBoundingClientRect();
+      setGridOffsetTop(rect.top + window.scrollY);
+    }
+  }, []);
+
   useEffect(() => {
     const handleResize = () => {
       setColumns(getColumns());
+      updateOffset();
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [getColumns]);
+  }, [getColumns, updateOffset]);
+
+  useEffect(() => {
+    updateOffset();
+  }, [state.artworks.length, updateOffset]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+      rafRef.current = requestAnimationFrame(() => {
+        setScrollTop(window.scrollY);
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const fetchArtworks = useCallback(async (page: number, append = false) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -167,21 +198,30 @@ function Gallery() {
     dispatch({ type: 'SET_PRICE_RANGE', payload: { min, max } });
   };
 
-  const virtualItems = useMemo(() => {
+  const { visibleItems, paddingTop, totalHeight } = useMemo(() => {
     const items = state.artworks;
     const rowCount = Math.ceil(items.length / columns);
-    const visibleRows = ROWS_VISIBLE + BUFFER_ROWS * 2;
-    const startRow = Math.max(0, Math.floor(visibleRange.start / (CARD_HEIGHT + CARD_GAP)) - BUFFER_ROWS);
+    const viewportHeight = window.innerHeight;
+    const scrollOffset = Math.max(0, scrollTop - gridOffsetTop);
+    
+    const startRow = Math.max(0, Math.floor(scrollOffset / ESTIMATED_ROW_HEIGHT) - BUFFER_ROWS);
+    const visibleRows = Math.ceil(viewportHeight / ESTIMATED_ROW_HEIGHT) + BUFFER_ROWS * 2;
     const endRow = Math.min(rowCount, startRow + visibleRows);
+    
     const startIndex = startRow * columns;
     const endIndex = Math.min(items.length, endRow * columns);
-    return items.slice(startIndex, endIndex).map((item, index) => ({
+    
+    const visible = items.slice(startIndex, endIndex).map((item, idx) => ({
       item,
-      index: startIndex + index,
+      index: startIndex + idx,
     }));
-  }, [state.artworks, columns, visibleRange]);
-
-  const totalHeight = Math.ceil(state.artworks.length / columns) * (CARD_HEIGHT + CARD_GAP);
+    
+    return {
+      visibleItems: visible,
+      paddingTop: startRow * ESTIMATED_ROW_HEIGHT,
+      totalHeight: rowCount * ESTIMATED_ROW_HEIGHT,
+    };
+  }, [state.artworks, columns, scrollTop, gridOffsetTop]);
 
   const materials = [
     { value: 'all', label: '全部材质' },
@@ -319,34 +359,56 @@ function Gallery() {
         </div>
       ) : (
         <div
-          ref={containerRef}
-          className="gallery-container"
-          style={{ position: 'relative', height: 'auto', minHeight: '400px' }}
+          ref={gridRef}
+          className="virtual-list-container"
+          style={{ position: 'relative', minHeight: '400px', height: `${totalHeight}px` }}
         >
           <div
             key={fadeKey}
-            className="gallery-grid fade-grid"
+            className="gallery-grid virtual-grid"
             style={{
               gridTemplateColumns: `repeat(${columns}, 1fr)`,
               gap: `${CARD_GAP}px`,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              transform: `translateY(${paddingTop}px)`,
             }}
           >
-            {state.artworks.map((artwork, index) => (
+            {visibleItems.map(({ item, index }) => (
               <ArtworkCard
-                key={artwork.id}
-                artwork={artwork}
+                key={item.id}
+                artwork={item}
                 index={index}
-                onClick={() => navigate(`/artwork/${artwork.id}`)}
+                onClick={() => navigate(`/artwork/${item.id}`)}
               />
             ))}
           </div>
 
           {/* 加载更多触发器 */}
-          <div ref={loadMoreRef} style={{ height: '60px', marginTop: '20px' }} />
+          <div 
+            ref={loadMoreRef} 
+            style={{ 
+              position: 'absolute',
+              bottom: '20px',
+              left: 0,
+              right: 0,
+              height: '60px',
+            }} 
+          />
 
           {/* 加载中指示器 */}
           {state.loading && (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ 
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              padding: '20px 0',
+              background: 'linear-gradient(to top, var(--bg-primary), transparent)'
+            }}>
               <div className="loading-spinner" />
               <span style={{ color: 'var(--text-muted)', fontSize: '13px', marginLeft: '10px' }}>加载中...</span>
             </div>
@@ -355,6 +417,14 @@ function Gallery() {
       )}
 
       <style>{`
+        .virtual-list-container {
+          overflow: visible;
+          will-change: transform;
+        }
+        .virtual-grid {
+          will-change: transform;
+          contain: layout style;
+        }
         .gallery-grid {
           display: grid;
         }
@@ -372,6 +442,7 @@ function Gallery() {
           opacity: 0;
           animation: cardFadeIn 0.4s ease forwards;
           animation-delay: calc(var(--delay) * 0.05s);
+          will-change: transform;
         }
         @keyframes cardFadeIn {
           from { opacity: 0; transform: translateY(20px); }
