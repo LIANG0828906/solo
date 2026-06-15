@@ -326,10 +326,10 @@ export default function StatsDashboard() {
                     const startAngle = p.startAngle ?? 0;
                     const endAngle = p.endAngle ?? 0;
                     // 使用 SVG path 绘制放大的扇形（activeShape 自定义渲染放大 8px）
-                    const x0 = cx + innerRadius * Math.cos(-midAngle * RADIAN);
-                    const y0 = cy + innerRadius * Math.sin(-midAngle * RADIAN);
-                    const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
-                    const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                    const _x0 = cx + innerRadius * Math.cos(-midAngle * RADIAN);
+                    const _y0 = cy + innerRadius * Math.sin(-midAngle * RADIAN);
+                    const _x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                    const _y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
                     const startX = cx + outerRadius * Math.cos(-startAngle * RADIAN);
                     const startY = cy + outerRadius * Math.sin(-startAngle * RADIAN);
                     const endX = cx + outerRadius * Math.cos(-endAngle * RADIAN);
