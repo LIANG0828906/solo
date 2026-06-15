@@ -251,51 +251,62 @@ export class BuildingManager {
       this.getVentilationColor(data.ventilationValue)
     ];
 
-    colors.forEach((color, idx) => {
-      const expandWidth = data.width + 2;
-      const expandHeight = data.height + 2;
-      const expandDepth = data.depth + 2;
+    const expandWidth = data.width * 1.15;
+    const expandHeight = data.height * 1.15;
+    const expandDepth = data.depth * 1.15;
+    const maxRadius = Math.sqrt(
+      Math.pow(expandWidth / 2, 2) +
+      Math.pow(expandHeight / 2, 2) +
+      Math.pow(expandDepth / 2, 2)
+    );
 
+    const vertexShader = `
+      varying vec3 vLocalPos;
+      void main() {
+        vLocalPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    const fragmentShader = `
+      uniform float u_progress;
+      uniform vec3 u_color;
+      uniform float u_maxRadius;
+      varying vec3 vLocalPos;
+
+      void main() {
+        float dist = length(vLocalPos);
+        float easedProgress = 1.0 - pow(1.0 - u_progress, 3.0);
+        float currentRadius = u_maxRadius * easedProgress;
+
+        float alpha = 0.0;
+        if (dist < currentRadius) {
+          float relDist = dist / currentRadius;
+          alpha = pow(1.0 - relDist, 1.5);
+          alpha *= 0.55;
+        }
+
+        if (alpha < 0.01) discard;
+
+        gl_FragColor = vec4(u_color, alpha);
+      }
+    `;
+
+    colors.forEach((color, idx) => {
       const blockGeometry = new THREE.BoxGeometry(expandWidth, expandHeight, expandDepth);
 
-      const positions = blockGeometry.attributes.position;
-      const colorsArray = new Float32Array(positions.count * 3);
-      const center = new THREE.Vector3(0, 0, 0);
-
-      let maxDist = 0;
-      for (let i = 0; i < positions.count; i++) {
-        const v = new THREE.Vector3(
-          positions.getX(i),
-          positions.getY(i),
-          positions.getZ(i)
-        );
-        maxDist = Math.max(maxDist, v.distanceTo(center));
-      }
-
-      for (let i = 0; i < positions.count; i++) {
-        const v = new THREE.Vector3(
-          positions.getX(i),
-          positions.getY(i),
-          positions.getZ(i)
-        );
-        const dist = v.distanceTo(center) / maxDist;
-        const fade = Math.pow(1 - dist, 1.5);
-
-        const c = color.clone();
-        colorsArray[i * 3] = c.r;
-        colorsArray[i * 3 + 1] = c.g;
-        colorsArray[i * 3 + 2] = c.b;
-        void fade;
-      }
-
-      blockGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
-
-      const blockMaterial = new THREE.MeshBasicMaterial({
-        vertexColors: true,
+      const blockMaterial = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        uniforms: {
+          u_progress: { value: 0 },
+          u_color: { value: new THREE.Color(color) },
+          u_maxRadius: { value: maxRadius }
+        },
         transparent: true,
-        opacity: 0,
         side: THREE.DoubleSide,
-        depthWrite: false
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
       });
 
       const blockMesh = new THREE.Mesh(blockGeometry, blockMaterial);
@@ -303,29 +314,24 @@ export class BuildingManager {
       blockMesh.userData = { sourceMesh: mesh, type: 'ventBlock', side: idx };
 
       this.colorBlocksGroup.add(blockMesh);
-      this.animateColorBlock(blockMesh, duration);
+      this.animateColorBlock(blockMesh, duration, idx);
     });
   }
 
-  private animateColorBlock(mesh: THREE.Mesh, duration: number): void {
-    const material = mesh.material as THREE.MeshBasicMaterial;
+  private animateColorBlock(mesh: THREE.Mesh, duration: number, idx: number = 0): void {
+    const material = mesh.material as THREE.ShaderMaterial;
     const startTime = performance.now();
-    const targetOpacity = 0.45;
-    const scaleStart = 0.6;
-    const scaleEnd = 1.15;
-
-    mesh.scale.setScalar(scaleStart);
+    const phaseOffset = idx * 0.12;
 
     const animate = () => {
       const elapsed = performance.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const rawProgress = Math.min(elapsed / duration, 1);
+      const adjustedProgress = Math.max(0, Math.min(1, (rawProgress - phaseOffset) / (1 - phaseOffset)));
+      const easedProgress = 1 - Math.pow(1 - adjustedProgress, 3);
 
-      material.opacity = targetOpacity * (1 - Math.pow(progress - 0.3, 2) / 0.49) * (progress > 0.3 ? 1 : progress / 0.3);
-      const s = scaleStart + (scaleEnd - scaleStart) * eased;
-      mesh.scale.setScalar(s);
+      material.uniforms.u_progress.value = easedProgress;
 
-      if (progress < 1) {
+      if (rawProgress < 1) {
         requestAnimationFrame(animate);
       } else {
         this.colorBlocksGroup.remove(mesh);
@@ -378,18 +384,19 @@ export class BuildingManager {
       }
 
       this.updateDataLabel(mesh);
+      requestAnimationFrame(() => {
+        if (this.dataLabelElement) {
+          this.dataLabelElement.classList.add('visible');
+        }
+      });
     } else {
       if (this.dataLabelElement) {
-        this.dataLabelElement.style.transform = this.labelBaseTransform + ' translateY(8px)';
         this.dataLabelElement.classList.remove('visible');
       }
       if (this.labelHideTimer !== null) {
         window.clearTimeout(this.labelHideTimer);
       }
       this.labelHideTimer = window.setTimeout(() => {
-        if (this.dataLabelElement) {
-          this.dataLabelElement.style.opacity = '0';
-        }
         this.labelHideTimer = null;
       }, 500);
     }
