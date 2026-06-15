@@ -152,8 +152,8 @@ export const useScriptStore = create<ScriptState>((set, get) => ({
   loadFromStorage: async () => {
     set({ isLoading: true });
     try {
-      const raw = await get<string>(STORAGE_KEY);
-      if (raw) {
+      const raw = await get(STORAGE_KEY);
+      if (typeof raw === 'string' && raw) {
         const parsed = JSON.parse(raw) as ScriptSegment[];
         set({ segments: parsed, isLoading: false, isInitialized: true });
       } else {

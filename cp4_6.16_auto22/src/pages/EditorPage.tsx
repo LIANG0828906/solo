@@ -1,8 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Plus, RotateCcw, Clock, Layers, Save } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import ScriptCard from '@/components/ScriptCard';
 import { useScriptStore } from '@/store/scriptStore';
 import { formatDurationLong } from '@/utils/audioAnalyzer';
+import { ScriptSegment } from '@/types';
 
 interface EditorPageProps {
   embedded?: boolean;
@@ -16,12 +33,32 @@ const EditorPage = ({ embedded = false }: EditorPageProps) => {
   const getSegmentPercentages = useScriptStore(s => s.getSegmentPercentages);
   const resetToDefaults = useScriptStore(s => s.resetToDefaults);
 
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const sortedSegments = useMemo(
     () => [...segments].sort((a, b) => a.order - b.order),
     [segments]
+  );
+
+  const sortedSegmentIds = useMemo(
+    () => sortedSegments.map(s => s.id),
+    [sortedSegments]
+  );
+
+  const activeSegment = useMemo(
+    () => sortedSegments.find(s => s.id === activeId) || null,
+    [sortedSegments, activeId]
   );
 
   const totalDuration = getTotalDuration();
@@ -36,22 +73,22 @@ const EditorPage = ({ embedded = false }: EditorPageProps) => {
     });
   };
 
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
 
-  const handleDragOver = (index: number) => {
-    if (dragIndex === null || dragIndex === index) return;
-    setDragOverIndex(index);
-  };
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-  const handleDragEnd = () => {
-    if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
-      reorderSegments(dragIndex, dragOverIndex);
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedSegments.findIndex(s => s.id === active.id);
+      const newIndex = sortedSegments.findIndex(s => s.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderSegments(oldIndex, newIndex);
+      }
     }
-    setDragIndex(null);
-    setDragOverIndex(null);
-  };
+  }, [sortedSegments, reorderSegments]);
 
   const containerStyle = embedded
     ? { flex: 1, overflow: 'hidden', display: 'flex' as const, flexDirection: 'column' as const }
@@ -420,72 +457,85 @@ const EditorPage = ({ embedded = false }: EditorPageProps) => {
             </div>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-            }}
-            onDragLeave={() => setDragOverIndex(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              handleDragEnd();
-            }}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
-            {sortedSegments.map((segment, index) => (
+            <SortableContext
+              items={sortedSegmentIds}
+              strategy={verticalListSortingStrategy}
+            >
               <div
-                key={segment.id}
-                className="fade-in-up"
                 style={{
-                  animationDelay: `${index * 50}ms`,
-                  opacity: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
                 }}
               >
-                <ScriptCard
-                  segment={segment}
-                  index={index}
-                  percentage={percentages.get(segment.id) || 0}
-                  totalDuration={totalDuration}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDragEnd={handleDragEnd}
-                  isDragging={dragIndex === index}
-                  dragOverIndex={dragOverIndex}
-                />
-              </div>
-            ))}
+                {sortedSegments.map((segment, index) => (
+                  <div
+                    key={segment.id}
+                    className="fade-in-up"
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                      opacity: 0,
+                    }}
+                  >
+                    <ScriptCard
+                      segment={segment}
+                      index={index}
+                      percentage={percentages.get(segment.id) || 0}
+                    />
+                  </div>
+                ))}
 
-            <button
-              onClick={handleAddSegment}
-              style={{
-                padding: '24px',
-                borderRadius: 'var(--radius-lg)',
-                border: '2px dashed var(--color-border)',
-                background: 'rgba(255,255,255,0.01)',
-                color: 'var(--color-text-muted)',
-                fontSize: 13,
-                cursor: 'pointer',
-                transition: 'var(--transition-base)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                fontFamily: 'var(--font-mono)',
-              }}
-              onMouseOver={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)';
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(233,69,96,0.06)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-accent)';
-              }}
-              onMouseOut={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)';
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.01)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-muted)';
-              }}
-            >
-              <Plus size={16} /> 继续添加段落...
-            </button>
-          </div>
+                <button
+                  onClick={handleAddSegment}
+                  style={{
+                    padding: '24px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '2px dashed var(--color-border)',
+                    background: 'rgba(255,255,255,0.01)',
+                    color: 'var(--color-text-muted)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    transition: 'var(--transition-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                  onMouseOver={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)';
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(233,69,96,0.06)';
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-accent)';
+                  }}
+                  onMouseOut={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)';
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.01)';
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-muted)';
+                  }}
+                >
+                  <Plus size={16} /> 继续添加段落...
+                </button>
+              </div>
+            </SortableContext>
+
+            <DragOverlay>
+              {activeSegment ? (
+                <div style={{ opacity: 0.9, transform: 'scale(1.02)' }}>
+                  <ScriptCard
+                    segment={activeSegment}
+                    index={sortedSegments.findIndex(s => s.id === activeId)}
+                    percentage={percentages.get(activeSegment.id) || 0}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
     </div>

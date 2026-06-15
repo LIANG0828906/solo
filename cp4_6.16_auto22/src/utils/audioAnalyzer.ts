@@ -1,5 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
-import { ScriptSegment, TimelineSegment, RhythmMetrics, AudioAnalysisResult, FILLER_WORDS } from '@/types';
+import { 
+  ScriptSegment, 
+  TimelineSegment, 
+  RhythmMetrics, 
+  AudioAnalysisResult, 
+  FILLER_WORDS,
+  SilenceDetectionOptions,
+  SilenceSegment,
+} from '@/types';
 
 export const getAudioDuration = (file: File): Promise<number> => {
   return new Promise((resolve, reject) => {
@@ -35,37 +43,159 @@ const standardDeviation = (values: number[]): number => {
   return Math.sqrt(avgSqDiff);
 };
 
+export const detectSilenceMock = (
+  audioDuration: number,
+  options?: SilenceDetectionOptions
+): SilenceSegment[] => {
+  const minSilenceDuration = options?.minSilenceDuration ?? 1.5;
+  const seed = Math.floor(audioDuration * 1000);
+  const rand = seededRandom(seed);
+
+  const segments: SilenceSegment[] = [];
+  let currentTime = 0;
+  let isSpeech = true;
+
+  while (currentTime < audioDuration) {
+    if (isSpeech) {
+      const speechDuration = 10 + rand() * 50;
+      const end = Math.min(currentTime + speechDuration, audioDuration);
+      segments.push({
+        start: currentTime,
+        end,
+        duration: end - currentTime,
+        type: 'speech',
+      });
+      currentTime = end;
+    } else {
+      const silenceDuration = 0.5 + rand() * 2.5;
+      const end = Math.min(currentTime + silenceDuration, audioDuration);
+      const actualDuration = end - currentTime;
+      
+      if (actualDuration > 0) {
+        segments.push({
+          start: currentTime,
+          end,
+          duration: actualDuration,
+          type: 'silence',
+        });
+        currentTime = end;
+      }
+    }
+    isSpeech = !isSpeech;
+  }
+
+  if (segments.length > 0 && segments[segments.length - 1].type === 'silence') {
+    const lastSilence = segments[segments.length - 1];
+    if (lastSilence.duration < minSilenceDuration * 0.5) {
+      segments.pop();
+      if (segments.length > 0) {
+        const lastSpeech = segments[segments.length - 1];
+        lastSpeech.end = audioDuration;
+        lastSpeech.duration = audioDuration - lastSpeech.start;
+      }
+    }
+  }
+
+  return segments;
+};
+
 export const analyzeAudio = (
   file: File,
   audioDuration: number,
-  segments: ScriptSegment[]
+  segments: ScriptSegment[],
+  options?: SilenceDetectionOptions
 ): AudioAnalysisResult => {
+  const mode = options?.mode ?? 'hybrid';
   const seed = Math.floor(audioDuration * 1000) + file.name.length;
   const rand = seededRandom(seed);
 
   const sortedSegments = [...segments].sort((a, b) => a.order - b.order);
   const totalExpected = sortedSegments.reduce((sum, s) => sum + s.expectedDuration, 0);
+  const segmentCount = options?.segmentCount ?? sortedSegments.length;
 
   const timeline: TimelineSegment[] = [];
   let currentTime = 0;
   const actualDurations: number[] = [];
 
-  sortedSegments.forEach((seg, index) => {
-    const expectedRatio = totalExpected > 0 ? seg.expectedDuration / totalExpected : 1 / sortedSegments.length;
-    const baseActual = audioDuration * expectedRatio;
-    
-    const variation = (rand() - 0.45) * 0.6;
-    let actualDuration = Math.max(5, baseActual * (1 + variation));
-    
-    if (index === sortedSegments.length - 1) {
-      actualDuration = Math.max(5, audioDuration - currentTime);
+  const silenceSegments = mode !== 'interval' 
+    ? detectSilenceMock(audioDuration, options).filter(s => s.type === 'silence')
+    : [];
+
+  const calculateSplitPoints = (): number[] => {
+    if (mode === 'interval') {
+      const interval = audioDuration / segmentCount;
+      return Array.from({ length: segmentCount - 1 }, (_, i) => (i + 1) * interval);
     }
 
+    if (mode === 'silence') {
+      const validSilences = silenceSegments.filter(s => 
+        s.duration >= (options?.minSilenceDuration ?? 1.5)
+      );
+      const targetSplits = sortedSegments.length - 1;
+      
+      if (validSilences.length <= targetSplits) {
+        return validSilences.map(s => s.start + s.duration / 2);
+      }
+
+      const step = validSilences.length / targetSplits;
+      const selected: number[] = [];
+      for (let i = 0; i < targetSplits; i++) {
+        const idx = Math.floor((i + 0.5) * step);
+        const silence = validSilences[Math.min(idx, validSilences.length - 1)];
+        selected.push(silence.start + silence.duration / 2);
+      }
+      return selected.sort((a, b) => a - b);
+    }
+
+    const expectedSplitPoints: number[] = [];
+    let expectedTime = 0;
+    for (let i = 0; i < sortedSegments.length - 1; i++) {
+      const ratio = totalExpected > 0 
+        ? sortedSegments[i].expectedDuration / totalExpected 
+        : 1 / sortedSegments.length;
+      expectedTime += audioDuration * ratio;
+      expectedSplitPoints.push(expectedTime);
+    }
+
+    const hybridPoints: number[] = [];
+    for (const expectedPoint of expectedSplitPoints) {
+      let bestSilence = silenceSegments[0];
+      let bestDist = Infinity;
+      
+      for (const silence of silenceSegments) {
+        const silenceMid = silence.start + silence.duration / 2;
+        const dist = Math.abs(silenceMid - expectedPoint);
+        if (dist < bestDist && silence.duration >= (options?.minSilenceDuration ?? 1.5) * 0.5) {
+          bestDist = dist;
+          bestSilence = silence;
+        }
+      }
+
+      if (bestSilence && bestDist < audioDuration * 0.15) {
+        hybridPoints.push(bestSilence.start + bestSilence.duration / 2);
+      } else {
+        hybridPoints.push(expectedPoint);
+      }
+    }
+
+    return hybridPoints.sort((a, b) => a - b);
+  };
+
+  const splitPoints = calculateSplitPoints();
+
+  sortedSegments.forEach((seg, index) => {
+    let endTime: number;
+    
+    if (index < splitPoints.length) {
+      endTime = splitPoints[index];
+    } else {
+      endTime = audioDuration;
+    }
+
+    const actualDuration = endTime - currentTime;
     const deviation = actualDuration - seg.expectedDuration;
     const isOverBudget = deviation > seg.expectedDuration * 0.2;
 
-    const endTime = Math.min(currentTime + actualDuration, audioDuration);
-    
     timeline.push({
       id: uuidv4(),
       segmentId: seg.id,

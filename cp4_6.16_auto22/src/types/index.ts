@@ -39,6 +39,22 @@ export interface AudioAnalysisResult {
   metrics: RhythmMetrics;
 }
 
+export type SilenceDetectionMode = 'silence' | 'interval' | 'hybrid';
+
+export interface SilenceDetectionOptions {
+  minSilenceDuration?: number;
+  silenceThreshold?: number;
+  mode?: SilenceDetectionMode;
+  segmentCount?: number;
+}
+
+export interface SilenceSegment {
+  start: number;
+  end: number;
+  duration: number;
+  type: 'silence' | 'speech';
+}
+
 export const ROLE_LABELS: Record<RoleType, string> = {
   host: '主播',
   guest: '嘉宾',

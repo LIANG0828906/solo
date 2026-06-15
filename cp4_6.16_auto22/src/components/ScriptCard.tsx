@@ -1,5 +1,7 @@
 import { useState, useRef, memo } from 'react';
 import { GripVertical, ChevronDown, ChevronUp, Trash2, Clock, Edit3, Check, X } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ScriptSegment, RoleType, ROLE_LABELS, ROLE_COLORS } from '@/types';
 import { useScriptStore } from '@/store/scriptStore';
 import { formatDuration } from '@/utils/audioAnalyzer';
@@ -8,24 +10,22 @@ interface ScriptCardProps {
   segment: ScriptSegment;
   index: number;
   percentage: number;
-  totalDuration: number;
-  onDragStart: (index: number) => void;
-  onDragOver: (index: number) => void;
-  onDragEnd: () => void;
-  isDragging: boolean;
-  dragOverIndex: number | null;
 }
 
 const ScriptCard = memo(function ScriptCard({
   segment,
   index,
   percentage,
-  onDragStart,
-  onDragOver,
-  onDragEnd,
-  isDragging,
-  dragOverIndex,
 }: ScriptCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: segment.id });
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(segment.title);
   const [editContent, setEditContent] = useState(segment.content);
@@ -39,9 +39,6 @@ const ScriptCard = memo(function ScriptCard({
   const preview = segment.content.length > 50 
     ? segment.content.slice(0, 50) + '...' 
     : segment.content || '（暂无内容）';
-
-  const showDropAbove = dragOverIndex === index && !isDragging;
-  const showDropBelow = dragOverIndex === index + 1 && !isDragging;
 
   const handleSave = () => {
     updateSegment(segment.id, {
@@ -73,48 +70,42 @@ const ScriptCard = memo(function ScriptCard({
     { value: 'narrator', label: '旁白' },
   ];
 
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition || 'transform 300ms ease',
+    opacity: isDragging ? 0.5 : 1,
+    transformOrigin: '50% 50%',
+    position: 'relative',
+    zIndex: isDragging ? 999 : 'auto',
+  };
+
+  const cardStyle: React.CSSProperties = {
+    transform: isDragging ? 'scale(1.02)' : 'none',
+    boxShadow: isDragging ? '0 20px 40px rgba(0,0,0,0.4)' : 'none',
+    background: 'linear-gradient(135deg, rgba(15,52,96,0.6) 0%, rgba(22,33,62,0.8) 100%)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: isExpanded ? 0 : '18px',
+    cursor: isDragging ? 'grabbing' : 'default',
+    overflow: 'hidden',
+  };
+
   return (
     <div
-      className="drag-transition"
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        transform: isDragging ? 'scale(0.98)' : 'none',
-        position: 'relative',
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        onDragOver(index);
-      }}
+      ref={setNodeRef}
+      style={style}
     >
-      {showDropAbove && (
-        <div style={{
-          position: 'absolute', top: -2, left: 0, right: 0, height: 3,
-          background: 'var(--color-accent)', borderRadius: 2, zIndex: 10,
-          boxShadow: '0 0 12px var(--color-accent-glow)',
-        }} />
-      )}
-
       <div
-        draggable
-        onDragStart={() => onDragStart(index)}
-        onDragEnd={onDragEnd}
         className="card-hover"
-        style={{
-          background: 'linear-gradient(135deg, rgba(15,52,96,0.6) 0%, rgba(22,33,62,0.8) 100%)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: isExpanded ? 0 : '18px',
-          cursor: isDragging ? 'grabbing' : 'default',
-          overflow: 'hidden',
-        }}
+        style={cardStyle}
       >
         {!isExpanded ? (
           <div style={{ display: 'flex', gap: 14 }}>
             <div
-              draggable
-              onMouseDown={(e) => e.stopPropagation()}
+              {...attributes}
+              {...listeners}
               style={{
-                cursor: 'grab',
+                cursor: isDragging ? 'grabbing' : 'grab',
                 padding: '8px 6px',
                 borderRadius: 'var(--radius-sm)',
                 color: 'var(--color-text-muted)',
@@ -127,6 +118,7 @@ const ScriptCard = memo(function ScriptCard({
                 alignSelf: 'flex-start',
                 marginTop: 2,
                 userSelect: 'none',
+                touchAction: 'none',
               }}
             >
               <GripVertical size={16} />
@@ -312,13 +304,18 @@ const ScriptCard = memo(function ScriptCard({
               gap: 10,
               background: 'rgba(233,69,96,0.05)',
             }}>
-              <div style={{
-                padding: '6px 8px',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--color-text-muted)',
-                cursor: 'grab',
-                flexShrink: 0,
-              }}>
+              <div
+                {...attributes}
+                {...listeners}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-muted)',
+                  cursor: isDragging ? 'grabbing' : 'grab',
+                  flexShrink: 0,
+                  touchAction: 'none',
+                }}
+              >
                 <GripVertical size={16} />
               </div>
               <div style={{
@@ -612,14 +609,6 @@ const ScriptCard = memo(function ScriptCard({
           </div>
         )}
       </div>
-
-      {showDropBelow && (
-        <div style={{
-          position: 'absolute', bottom: -2, left: 0, right: 0, height: 3,
-          background: 'var(--color-accent)', borderRadius: 2, zIndex: 10,
-          boxShadow: '0 0 12px var(--color-accent-glow)',
-        }} />
-      )}
     </div>
   );
 });

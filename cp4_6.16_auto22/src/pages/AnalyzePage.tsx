@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { Upload, FileAudio, AlertCircle, Loader2, Sparkles, Music2 } from 'lucide-react';
 import Timeline from '@/components/Timeline';
 import Dashboard from '@/components/Dashboard';
 import { useScriptStore } from '@/store/scriptStore';
 import { getAudioDuration, analyzeAudio, formatDurationLong } from '@/utils/audioAnalyzer';
-import { AudioAnalysisResult } from '@/types';
+import { AudioAnalysisResult, SilenceDetectionMode, SilenceDetectionOptions } from '@/types';
 
 interface AnalyzePageProps {
   embedded?: boolean;
@@ -13,11 +13,22 @@ interface AnalyzePageProps {
 const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
   const segments = useScriptStore(s => s.segments);
   const [file, setFile] = useState<File | null>(null);
-  const [analysis, setAnalysis] = useState<AudioAnalysisResult | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<SilenceDetectionMode>('hybrid');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sortedSegments = useMemo(() => {
+    return [...segments].sort((a, b) => a.order - b.order);
+  }, [segments]);
+
+  const analysis = useMemo<AudioAnalysisResult | null>(() => {
+    if (!file || !duration || sortedSegments.length === 0) return null;
+    const options: SilenceDetectionOptions = { mode: analysisMode };
+    return analyzeAudio(file, duration, sortedSegments, options);
+  }, [file, duration, sortedSegments, analysisMode]);
 
   const handleFileSelect = useCallback(async (selectedFile: File) => {
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-wav', 'audio/ogg'];
@@ -33,21 +44,19 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
 
     setError(null);
     setFile(selectedFile);
+    setDuration(null);
     setIsAnalyzing(true);
-    setAnalysis(null);
 
     try {
-      const duration = await getAudioDuration(selectedFile);
+      const dur = await getAudioDuration(selectedFile);
       await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
-      const sortedSegs = [...segments].sort((a, b) => a.order - b.order);
-      const result = analyzeAudio(selectedFile, duration, sortedSegs);
-      setAnalysis(result);
+      setDuration(dur);
     } catch (err) {
       setError('音频分析失败，请尝试其他文件');
     } finally {
       setIsAnalyzing(false);
     }
-  }, [segments]);
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -55,6 +64,39 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
     const f = e.dataTransfer.files?.[0];
     if (f) handleFileSelect(f);
   }, [handleFileSelect]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleFileSelect(f);
+  }, [handleFileSelect]);
+
+  const handleModeChange = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const mode = e.currentTarget.dataset.mode as SilenceDetectionMode;
+    if (mode) setAnalysisMode(mode);
+  }, []);
+
+  const handleButtonMouseOver = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.borderColor = 'var(--color-accent)';
+    e.currentTarget.style.color = 'var(--color-accent)';
+  }, []);
+
+  const handleButtonMouseOut = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.borderColor = 'var(--color-border)';
+    e.currentTarget.style.color = 'var(--color-text-secondary)';
+  }, []);
 
   const containerStyle = embedded
     ? { flex: 1, overflow: 'hidden', display: 'flex' as const, flexDirection: 'column' as const }
@@ -195,13 +237,10 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
       }}>
         {!file || segments.length === 0 ? (
           <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleUploadClick}
             style={{
               padding: '48px 32px',
               borderRadius: 'var(--radius-xl)',
@@ -219,10 +258,7 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
               type="file"
               accept=".mp3,.wav,.ogg,.m4a,.aac,audio/*"
               style={{ display: 'none' }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileSelect(f);
-              }}
+              onChange={handleFileChange}
             />
             <div style={{
               width: 72, height: 72,
@@ -319,6 +355,7 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
             display: 'flex',
             alignItems: 'center',
             gap: 14,
+            flexWrap: 'wrap',
           }}>
             <div style={{
               width: 40, height: 40,
@@ -386,8 +423,39 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
                 <Sparkles size={14} /> 分析完成
               </div>
             ) : null}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0,
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden',
+              border: '1px solid var(--color-border)',
+            }}>
+              {(['silence', 'interval', 'hybrid'] as SilenceDetectionMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  data-mode={mode}
+                  onClick={handleModeChange}
+                  style={{
+                    padding: '8px 14px',
+                    border: 'none',
+                    background: analysisMode === mode
+                      ? 'linear-gradient(135deg, #9B87F5 0%, #7B68EE 100%)'
+                      : 'transparent',
+                    color: analysisMode === mode ? '#fff' : 'var(--color-text-secondary)',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    transition: 'var(--transition-base)',
+                    borderRight: mode !== 'hybrid' ? '1px solid var(--color-border)' : 'none',
+                    fontWeight: analysisMode === mode ? 600 : 400,
+                  }}
+                >
+                  {mode === 'silence' ? '静音检测' : mode === 'interval' ? '固定间隔' : '智能混合'}
+                </button>
+              ))}
+            </div>
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleUploadClick}
               style={{
                 padding: '8px 14px',
                 borderRadius: 'var(--radius-sm)',
@@ -398,14 +466,8 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
                 cursor: 'pointer',
                 transition: 'var(--transition-base)',
               }}
-              onMouseOver={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-accent)';
-              }}
-              onMouseOut={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)';
-              }}
+              onMouseOver={handleButtonMouseOver}
+              onMouseOut={handleButtonMouseOut}
             >
               更换文件
             </button>
@@ -414,10 +476,7 @@ const AnalyzePage = ({ embedded = false }: AnalyzePageProps) => {
               type="file"
               accept=".mp3,.wav,.ogg,.m4a,.aac,audio/*"
               style={{ display: 'none' }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileSelect(f);
-              }}
+              onChange={handleFileChange}
             />
           </div>
         )}
