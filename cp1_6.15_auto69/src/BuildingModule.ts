@@ -35,23 +35,27 @@ export function getHeatLevel(temperature: number): HeatLevel {
 }
 
 export function temperatureToColor(temperature: number): THREE.Color {
-  const t = Math.max(15, Math.min(45, temperature));
+  const t = Math.max(15, Math.min(42, temperature));
   const color = new THREE.Color();
+
   if (t <= 20) {
     const f = (t - 15) / 5;
-    color.setRGB(0, 0.1 * f, 0.4 + 0.2 * f);
-  } else if (t <= 27) {
-    const f = (t - 20) / 7;
-    color.setRGB(0, 0.4 + 0.5 * f, 0.85 - 0.2 * f);
-  } else if (t <= 31) {
-    const f = (t - 27) / 4;
-    color.setRGB(0.8 * f, 0.9 - 0.1 * f, 0.65 - 0.35 * f);
-  } else if (t <= 37) {
-    const f = (t - 31) / 6;
-    color.setRGB(0.8 + 0.2 * f, 0.55 - 0.45 * f, 0.15 * (1 - f));
+    color.setRGB(0.02 + 0.02 * f, 0.08 + 0.18 * f, 0.35 + 0.25 * f);
+  } else if (t <= 25) {
+    const f = (t - 20) / 5;
+    color.setRGB(0.04 + 0.06 * f, 0.26 + 0.34 * f, 0.6 + 0.2 * f);
+  } else if (t <= 29) {
+    const f = (t - 25) / 4;
+    color.setRGB(0.1 + 0.5 * f, 0.6 + 0.25 * f, 0.8 - 0.2 * f);
+  } else if (t <= 33) {
+    const f = (t - 29) / 4;
+    color.setRGB(0.6 + 0.35 * f, 0.85 - 0.25 * f, 0.6 - 0.45 * f);
+  } else if (t <= 38) {
+    const f = (t - 33) / 5;
+    color.setRGB(0.95 + 0.05 * f, 0.6 - 0.4 * f, 0.15 * (1 - f));
   } else {
-    const f = Math.min(1, (t - 37) / 8);
-    color.setRGB(0.8 + 0.2 * f, 0, 0);
+    const f = Math.min(1, (t - 38) / 4);
+    color.setRGB(0.9 + 0.1 * f, 0.1 + 0.1 * f, 0.05 + 0.05 * f);
   }
   return color;
 }
@@ -194,7 +198,7 @@ export class BuildingModule implements BuildingModuleType {
     }
   }
 
-  public handleClick(clientX: number, clientY: number, containerRect: DOMRect): void {
+  public handleClick(clientX: number, clientY: number, containerRect: DOMRect): boolean {
     this.mouse.x = ((clientX - containerRect.left) / containerRect.width) * 2 - 1;
     this.mouse.y = -((clientY - containerRect.top) / containerRect.height) * 2 + 1;
 
@@ -204,7 +208,9 @@ export class BuildingModule implements BuildingModuleType {
     if (intersects.length > 0) {
       const buildingId = intersects[0].object.userData.buildingId as string;
       this.selectBuilding(buildingId);
+      return true;
     }
+    return false;
   }
 
   private selectBuilding(id: string): void {

@@ -24,7 +24,7 @@ function generateBuildings() {
       const width = 2 + seededRandom(seed * 2) * 3;
       const depth = 2 + seededRandom(seed * 3) * 3;
       const height = 2 + seededRandom(seed * 5) * 10;
-      const baseTemperature = 18 + seededRandom(seed * 7) * 10;
+      const baseTemperature = 16 + seededRandom(seed * 7) * 14;
 
       const streetIdx = Math.floor(seededRandom(seed * 11) * STREET_NAMES.length);
       const prefixIdx = Math.floor(seededRandom(seed * 13) * CITY_PREFIX.length);
@@ -49,17 +49,26 @@ function generateBuildings() {
 const BUILDINGS = generateBuildings();
 
 function calculateTemperature(baseTemperature, time, seed = 0) {
-  let amplitude = 8 + ((baseTemperature - 18) / 10) * 4;
-  if (time >= 6 && time <= 18) {
-    const phase = Math.PI * (time - 6) / 12;
-    amplitude = amplitude * Math.sin(phase);
-  } else if (time < 6) {
-    amplitude = amplitude * -0.3 * (time / 6);
+  const dailyAmplitude = 10 + ((baseTemperature - 16) / 14) * 8;
+  let tempDelta = 0;
+
+  if (time >= 5 && time <= 15) {
+    const phase = Math.PI * (time - 5) / 10;
+    tempDelta = dailyAmplitude * Math.sin(phase);
+  } else if (time > 15 && time <= 22) {
+    const phase = Math.PI * (time - 15) / 7;
+    tempDelta = dailyAmplitude * Math.cos(phase * 0.5);
   } else {
-    amplitude = amplitude * -0.3 * ((24 - time) / 6);
+    if (time <= 5) {
+      tempDelta = -dailyAmplitude * 0.5 * (1 - time / 5);
+    } else {
+      tempDelta = -dailyAmplitude * 0.5 * ((time - 22) / 2);
+    }
   }
-  const randomness = (seededRandom(seed + time * 1000) - 0.5) * 3;
-  return Math.max(10, Math.min(45, baseTemperature + amplitude + randomness));
+
+  const heightFactor = seededRandom(seed + 999) * 3;
+  const randomness = (seededRandom(seed + time * 1000) - 0.5) * 2;
+  return Math.max(12, Math.min(44, baseTemperature + tempDelta + heightFactor + randomness));
 }
 
 function getBuildingTemperatures(time) {

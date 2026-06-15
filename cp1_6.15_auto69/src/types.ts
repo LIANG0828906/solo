@@ -4,7 +4,7 @@ export interface BuildingModule {
   loadBuildings(buildings: BuildingData[]): void;
   updateTemperatures(temps: BuildingTemperature[]): void;
   updateAnimations(deltaTime: number): void;
-  handleClick(clientX: number, clientY: number, containerRect: DOMRect): void;
+  handleClick(clientX: number, clientY: number, containerRect: DOMRect): boolean;
   setClickHandler(handler: (building: BuildingData, temperature: number) => void): void;
   applyFilter(level: 'all' | HeatLevel): void;
   getBuildingData(id: string): BuildingData | null;
