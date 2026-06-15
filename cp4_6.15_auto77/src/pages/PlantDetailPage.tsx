@@ -1,25 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
 import Toast from '../components/Toast';
 import { useStore, generateGradientColor } from '../store';
-import type { GrowthRecord } from '../types';
+import { getPlantStatusDisplay, formatRelativeTime, formatDate } from '../utils';
+import type { GrowthRecord, Plant } from '../types';
 
-function formatDate(isoString: string): string {
-  const date = new Date(isoString);
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-}
 
-function getRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 1) return '刚刚';
-  if (hours < 24) return `${hours}小时前`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}天前`;
-  return formatDate(isoString);
-}
 
 const lightLabels: Record<string, { label: string; icon: string }> = {
   low: { label: '低光照', icon: 'fa-cloud-sun' },
@@ -58,7 +47,7 @@ function GrowthTimeline({ records }: { records: GrowthRecord[] }) {
               <i className="fas fa-leaf text-olive-600 text-sm"></i>
             </div>
             <div className="text-xs text-olive-600 font-semibold mb-1">
-              {getRelativeTime(record.date)}
+              {formatRelativeTime(record.date)}
             </div>
             <div className="text-xs text-gray-400 mb-2">{formatDate(record.date)}</div>
             <p className="text-gray-700 text-sm leading-relaxed">{record.description}</p>
@@ -79,11 +68,25 @@ function GrowthTimeline({ records }: { records: GrowthRecord[] }) {
 export default function PlantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const plants = useStore((s) => s.plants);
-  const allGrowthRecords = useStore((s) => s.growthRecords);
-  const adoptionRequests = useStore((s) => s.adoptionRequests);
-  const currentUser = useStore((s) => s.currentUser);
-  const addAdoptionRequest = useStore((s) => s.addAdoptionRequest);
+  const isMounted = useRef(true);
+  const flashIntervalRef = useRef<number | null>(null);
+  const flashTimeoutRef = useRef<number | null>(null);
+
+  const {
+    plants,
+    allGrowthRecords,
+    adoptionRequests,
+    currentUser,
+    addAdoptionRequest,
+  } = useStore(
+    useShallow((s) => ({
+      plants: s.plants as Plant[],
+      allGrowthRecords: s.growthRecords as GrowthRecord[],
+      adoptionRequests: s.adoptionRequests,
+      currentUser: s.currentUser,
+      addAdoptionRequest: s.addAdoptionRequest,
+    }))
+  );
 
   const plant = useMemo(() => plants.find((p) => p.id === id), [plants, id]);
   const growthRecords = useMemo(
@@ -105,6 +108,28 @@ export default function PlantDetailPage() {
   const [buttonState, setButtonState] = useState<'idle' | 'flashing' | 'applied'>('idle');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    const timer = setTimeout(() => {
+      if (isMounted.current) {
+        setIsDataLoaded(true);
+      }
+    }, 50);
+    return () => {
+      isMounted.current = false;
+      clearTimeout(timer);
+      if (flashIntervalRef.current) {
+        clearInterval(flashIntervalRef.current);
+      }
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const plantStatus = plant ? getPlantStatusDisplay(plant.status) : null;
 
   if (!plant) {
     return (
@@ -125,6 +150,7 @@ export default function PlantDetailPage() {
 
   const gradient = generateGradientColor(plant.name);
   const isOwner = plant.ownerId === currentUser.id;
+  const pageAnimClass = isDataLoaded ? 'route-enter' : 'opacity-0';
 
   const handleApplyClick = () => {
     if (alreadyRequested || isOwner || plant.status === 'adopted') return;
@@ -137,22 +163,41 @@ export default function PlantDetailPage() {
     addAdoptionRequest(plant.id);
 
     const startTime = Date.now();
-    const flashInterval = setInterval(() => {
+    flashIntervalRef.current = window.setInterval(() => {
+      if (!isMounted.current) {
+        if (flashIntervalRef.current) {
+          clearInterval(flashIntervalRef.current);
+          flashIntervalRef.current = null;
+        }
+        return;
+      }
       const elapsed = Date.now() - startTime;
       if (elapsed >= 3000) {
-        clearInterval(flashInterval);
-        setButtonState('applied');
-        setToastMessage('领养申请已提交');
-        setToastVisible(true);
+        if (flashIntervalRef.current) {
+          clearInterval(flashIntervalRef.current);
+          flashIntervalRef.current = null;
+        }
+        if (isMounted.current) {
+          setButtonState('applied');
+          setToastMessage('领养申请已提交');
+          setToastVisible(true);
+        }
       }
     }, 100);
+
+    flashTimeoutRef.current = window.setTimeout(() => {
+      if (flashIntervalRef.current) {
+        clearInterval(flashIntervalRef.current);
+        flashIntervalRef.current = null;
+      }
+    }, 3100);
   };
 
   const lightInfo = lightLabels[plant.lightRequirement];
   const waterInfo = waterLabels[plant.waterFrequency];
 
   return (
-    <div className="route-enter min-h-screen bg-beige-100 pb-28 md:pb-12">
+    <div className={`${pageAnimClass} min-h-screen bg-beige-100 pb-28 md:pb-12`}>
       <Navbar showSearch={false} />
 
       <div className="pt-16">
@@ -209,13 +254,9 @@ export default function PlantDetailPage() {
                 发布者：{plant.ownerNickname}
               </span>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  plant.status === 'available'
-                    ? 'bg-olive-100 text-olive-700'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${plantStatus?.className.replace('bg-olive-600', 'bg-olive-100 text-olive-700').replace('bg-gray-400', 'bg-gray-100 text-gray-500')}`}
               >
-                {plant.status === 'available' ? '可领养' : '已领养'}
+                {plantStatus?.label === '待领养' ? '可领养' : plantStatus?.label}
               </span>
             </div>
             <h2 className="text-lg font-bold text-gray-800 mb-2 font-merriweather">

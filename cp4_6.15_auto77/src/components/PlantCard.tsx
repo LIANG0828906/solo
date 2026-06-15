@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import type { Plant } from '../types';
 import { generateGradientColor, useStore } from '../store';
+import { getPlantStatusDisplay, getDifficultyLabel } from '../utils';
 
 interface PlantCardProps {
   plant: Plant;
@@ -25,9 +27,11 @@ function DifficultyStars({ difficulty }: { difficulty: number }) {
 
 export default function PlantCard({ plant, onClick, isNew, isSearchResult }: PlantCardProps) {
   const navigate = useNavigate();
-  const clearNewPlantMarker = useStore((s) => s.clearNewPlantMarker);
+  const clearNewPlantMarker = useStore(useShallow((s) => s.clearNewPlantMarker));
   const [showRemoveAnim, setShowRemoveAnim] = useState(false);
   const gradient = generateGradientColor(plant.name);
+  const statusDisplay = getPlantStatusDisplay(plant.status);
+  const difficultyLabel = getDifficultyLabel(plant.difficulty);
 
   useEffect(() => {
     if (isNew) {
@@ -85,19 +89,9 @@ export default function PlantCard({ plant, onClick, isNew, isSearchResult }: Pla
             </div>
           )}
           <span
-            className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
-              plant.status === 'available'
-                ? 'bg-olive-600 text-white'
-                : plant.status === 'adopted'
-                ? 'bg-gray-400 text-white'
-                : 'bg-gray-400 text-white'
-            }`}
+            className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold ${statusDisplay.className}`}
           >
-            {plant.status === 'available'
-              ? '待领养'
-              : plant.status === 'adopted'
-              ? '已领养'
-              : '待领养'}
+            {statusDisplay.label}
           </span>
           {onClick && (
             <button
@@ -117,7 +111,7 @@ export default function PlantCard({ plant, onClick, isNew, isSearchResult }: Pla
         <div className="flex items-center justify-between">
           <DifficultyStars difficulty={plant.difficulty} />
           <span className="text-xs text-gray-400">
-            {plant.difficulty <= 2 ? '容易' : plant.difficulty <= 3 ? '中等' : '困难'}
+            {difficultyLabel}
           </span>
         </div>
       </div>

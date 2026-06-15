@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Navbar from '../components/Navbar';
 import PlantCard from '../components/PlantCard';
@@ -29,9 +29,17 @@ export default function HomePage() {
   const [searchValue, setSearchValue] = useState('');
   const [activeFilter, setActiveFilter] = useState<DifficultyFilter>('all');
   const [searchKey, setSearchKey] = useState(0);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const { plants, newPlantIds } = useStore(
     useShallow((s) => ({ plants: s.plants as Plant[], newPlantIds: s.newPlantIds }))
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsDataLoaded(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);
@@ -50,9 +58,10 @@ export default function HomePage() {
   }, [plants, activeFilter, searchValue]);
 
   const isSearching = searchValue.trim() !== '';
+  const pageAnimClass = isDataLoaded ? 'route-enter' : 'opacity-0';
 
   return (
-    <div className="route-enter min-h-screen bg-beige-100 pb-24 md:pb-8">
+    <div className={`${pageAnimClass} min-h-screen bg-beige-100 pb-24 md:pb-8`}>
       <Navbar searchValue={searchValue} onSearchChange={handleSearchChange} />
 
       <main className="max-w-6xl mx-auto px-4 pt-24">

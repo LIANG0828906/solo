@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import Navbar from '../components/Navbar';
@@ -6,6 +6,11 @@ import PlantCard from '../components/PlantCard';
 import Modal from '../components/Modal';
 import Toast from '../components/Toast';
 import { useStore, generateGradientColor } from '../store';
+import {
+  getRequestStatusDisplay,
+  formatRelativeTime,
+  uploadFileWithProgress,
+} from '../utils';
 import type {
   Difficulty,
   LightRequirement,
@@ -15,22 +20,6 @@ import type {
   Plant,
   User,
 } from '../types';
-
-function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const minutes = Math.floor(diff / (1000 * 60));
-  if (minutes < 60) return `${minutes}分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
-  const days = Math.floor(hours / 24);
-  return `${days}天前`;
-}
-
-const statusConfig: Record<RequestStatus, { label: string; className: string }> = {
-  pending: { label: '待处理', className: 'bg-orange-100 text-orange-600' },
-  approved: { label: '已同意', className: 'bg-olive-100 text-olive-700' },
-  rejected: { label: '已拒绝', className: 'bg-gray-100 text-gray-500' },
-};
 
 function UploadProgress({ progress }: { progress: number }) {
   const radius = 24;
@@ -105,8 +94,21 @@ export default function ProfilePage() {
   const [removingPlantId, setRemovingPlantId] = useState<string | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const uploadAbortRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsDataLoaded(true);
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      uploadAbortRef.current = true;
+    };
+  }, []);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pageAnimClass = isDataLoaded ? 'route-enter' : 'opacity-0';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -134,42 +136,47 @@ export default function ProfilePage() {
     }, 300);
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     const remainingSlots = 3 - photos.length;
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
-    filesToProcess.forEach((file, index) => {
+    for (let index = 0; index < filesToProcess.length; index++) {
+      const file = filesToProcess[index];
       if (!['image/png', 'image/jpeg'].includes(file.type)) {
         showToast('只支持 PNG/JPG 格式');
-        return;
+        continue;
       }
       if (file.size > 3 * 1024 * 1024) {
         showToast('每张图片不能超过 3MB');
-        return;
+        continue;
       }
 
-      setUploadProgress(0);
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 20;
-        setUploadProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const result = ev.target?.result as string;
-            setPhotos((prev) => [...prev, result]);
-            if (index === filesToProcess.length - 1) {
-              setTimeout(() => setUploadProgress(null), 300);
-            }
-          };
-          reader.readAsDataURL(file);
+      try {
+        setUploadProgress(0);
+        const result = await uploadFileWithProgress(file, (progress) => {
+          if (!uploadAbortRef.current) {
+            setUploadProgress(progress);
+          }
+        });
+        if (!uploadAbortRef.current) {
+          setPhotos((prev) => [...prev, result]);
+          if (index === filesToProcess.length - 1) {
+            setTimeout(() => {
+              if (!uploadAbortRef.current) {
+                setUploadProgress(null);
+              }
+            }, 300);
+          }
         }
-      }, 100);
-    });
+      } catch (error) {
+        showToast('上传失败，请重试');
+        setUploadProgress(null);
+      }
+    }
+    e.target.value = '';
   };
 
   const removePhoto = (index: number) => {
@@ -218,7 +225,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="route-enter min-h-screen bg-beige-100 pb-28 md:pb-12">
+    <div className={`${pageAnimClass} min-h-screen bg-beige-100 pb-28 md:pb-12`}>
       <Navbar showSearch={false} />
 
       <main className="max-w-6xl mx-auto px-4 pt-24">
@@ -347,10 +354,18 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <select
                       value={req.status}
-                      onChange={(e) =>
-                        updateRequestStatus(req.id, e.target.value as RequestStatus)
-                      }
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border-none outline-none cursor-pointer ${statusConfig[req.status].className}`}
+                      onChange={(e) => {
+                        const newStatus = e.target.value as RequestStatus;
+                        updateRequestStatus(req.id, newStatus);
+                        showToast(
+                          newStatus === 'approved'
+                            ? '已同意领养请求'
+                            : newStatus === 'rejected'
+                            ? '已拒绝领养请求'
+                            : '已设为待处理'
+                        );
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border-none outline-none cursor-pointer ${getRequestStatusDisplay(req.status).className}`}
                     >
                       <option value="pending">待处理</option>
                       <option value="approved">已同意</option>
