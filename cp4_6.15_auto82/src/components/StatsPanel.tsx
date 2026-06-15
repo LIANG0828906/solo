@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store';
-import { isThisMonth } from 'date-fns';
+import { isThisMonth, subMonths, isAfter, isBefore } from 'date-fns';
 
 export default function StatsPanel() {
   const materials = useAppStore((s) => s.materials);
@@ -8,7 +8,20 @@ export default function StatsPanel() {
 
   const stats = useMemo(() => {
     const totalMaterials = materials.length;
-    const growthPercent = Math.floor(Math.random() * 6) + 3;
+    const now = new Date();
+    const oneMonthAgo = subMonths(now, 1);
+    const recentMaterials = materials.filter(m => isAfter(new Date(m.purchaseDate), oneMonthAgo));
+    const olderMaterials = materials.length - recentMaterials.length;
+    let growthPercent = 0;
+    let growthDirection: 'up' | 'down' = 'up';
+    if (olderMaterials > 0) {
+      growthPercent = Math.round(((recentMaterials.length - 0) / olderMaterials) * 100);
+      growthDirection = growthPercent >= 0 ? 'up' : 'down';
+      growthPercent = Math.abs(growthPercent);
+    } else if (recentMaterials.length > 0) {
+      growthPercent = 100;
+      growthDirection = 'up';
+    }
 
     const inProgressCount = projects.filter((p) => p.status === 'in-progress').length;
 
@@ -17,7 +30,7 @@ export default function StatsPanel() {
       return isThisMonth(new Date(p.completedAt));
     }).length;
 
-    return { totalMaterials, growthPercent, inProgressCount, completedThisMonth };
+    return { totalMaterials, growthPercent, growthDirection, inProgressCount, completedThisMonth };
   }, [materials, projects]);
 
   return (
@@ -28,13 +41,9 @@ export default function StatsPanel() {
           grid-template-columns: repeat(3, 1fr);
           gap: 20px;
         }
-
         @media (max-width: 480px) {
-          .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
+          .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
-
         .stat-card {
           border-radius: 18px;
           padding: 22px;
@@ -42,54 +51,40 @@ export default function StatsPanel() {
           align-items: center;
           justify-content: space-between;
           transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          cursor: pointer;
+          cursor: default;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
-
         .stat-card:hover {
           transform: translateY(-3px);
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
-
-        .stat-card-1 {
-          background: #D8E8D8;
-        }
-
-        .stat-card-2 {
-          background: #E5DFEE;
-        }
-
-        .stat-card-3 {
-          background: #F5E4CF;
-        }
-
+        .stat-card-1 { background: #D8E8D8; }
+        .stat-card-2 { background: #E5DFEE; }
+        .stat-card-3 { background: #F5E4CF; }
         .stat-info {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-
         .stat-number {
           font-size: 28px;
           font-weight: 700;
           color: #2c2c2c;
           line-height: 1.1;
         }
-
         .stat-label {
           font-size: 12px;
           color: #888;
         }
-
         .stat-growth {
           font-size: 11px;
-          color: #2e7d32;
           font-weight: 600;
           display: flex;
           align-items: center;
           gap: 2px;
         }
-
+        .stat-growth-up { color: #2e7d32; }
+        .stat-growth-down { color: #c62828; }
         .stat-icon-wrap {
           width: 56px;
           height: 56px;
@@ -99,37 +94,29 @@ export default function StatsPanel() {
           align-items: center;
           justify-content: center;
         }
-
         .stat-icon {
-          font-size: 32px;
+          font-size: 24px;
           color: #5a5a5a;
         }
-
         @keyframes gearSpin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-
         .gear-spin {
           animation: gearSpin 8s linear infinite;
         }
-
-        @keyframes glow {
+        @keyframes trophyGlow {
           0%, 100% {
-            filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.6));
+            filter: drop-shadow(0 0 6px rgba(212, 160, 23, 0.5));
+            color: #b8860b;
           }
           50% {
-            filter: drop-shadow(0 0 12px rgba(255, 193, 7, 0.9));
+            filter: drop-shadow(0 0 18px rgba(255, 193, 7, 1)) drop-shadow(0 0 6px rgba(255, 152, 0, 0.8));
+            color: #ffc107;
           }
         }
-
         .trophy-glow {
-          animation: glow 2.5s ease-in-out infinite;
-          color: #d4a017 !important;
+          animation: trophyGlow 2.5s ease-in-out infinite;
         }
       `}</style>
 
@@ -138,13 +125,13 @@ export default function StatsPanel() {
           <div className="stat-info">
             <span className="stat-number">{stats.totalMaterials}</span>
             <span className="stat-label">总材料数</span>
-            <span className="stat-growth">
-              <i className="fa-solid fa-arrow-up"></i>
-              +{stats.growthPercent}%
+            <span className={`stat-growth ${stats.growthDirection === 'up' ? 'stat-growth-up' : 'stat-growth-down'}`}>
+              <i className={`fa-solid fa-arrow-${stats.growthDirection === 'up' ? 'up' : 'down'}`}></i>
+              {stats.growthDirection === 'up' ? '+' : '-'}{stats.growthPercent}%
             </span>
           </div>
           <div className="stat-icon-wrap">
-            <i className="fa-solid fa-boxes-stacked stat-icon" style={{ fontSize: '16px' }}></i>
+            <i className="fa-solid fa-boxes-stacked stat-icon" style={{ fontSize: 20 }}></i>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { v4 as uuidv4 } from 'uuid';
 import type { NavTab, Material, Project } from '@/types';
 import { generateMaterials, generateSampleProjects } from '@/utils/mockData';
 
@@ -38,10 +39,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   addMaterial: (m) => {
-    const { v4 } = require('uuid');
     const newMat: Material = {
       ...m,
-      id: v4(),
+      id: uuidv4(),
       notified: false,
       initialQuantity: m.initialQuantity ?? m.quantity,
     };
@@ -62,11 +62,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   addProject: (p) => {
-    const { v4 } = require('uuid');
     const now = new Date().toISOString();
     const newProject: Project = {
       ...p,
-      id: v4(),
+      id: uuidv4(),
       progress: 0,
       status: 'pending',
       createdAt: now,

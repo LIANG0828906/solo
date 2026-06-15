@@ -1,7 +1,6 @@
 import { useReducer } from 'react';
 import { useAppStore } from '@/store';
 import type { Material, MaterialType, MaterialFormState } from '@/types';
-import { cn } from '@/lib/utils';
 
 type FormField = keyof MaterialFormState['form'];
 
@@ -30,11 +29,7 @@ const initialState: MaterialFormState = {
 function reducer(state: MaterialFormState, action: ReducerAction): MaterialFormState {
   switch (action.type) {
     case 'OPEN_ADD':
-      return {
-        isOpen: true,
-        editingId: null,
-        form: { ...emptyForm },
-      };
+      return { isOpen: true, editingId: null, form: { ...emptyForm } };
     case 'OPEN_EDIT': {
       const m = action.payload;
       return {
@@ -51,23 +46,11 @@ function reducer(state: MaterialFormState, action: ReducerAction): MaterialFormS
       };
     }
     case 'CLOSE':
-      return {
-        ...state,
-        isOpen: false,
-      };
+      return { ...state, isOpen: false };
     case 'SET_FIELD':
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          [action.payload.field]: action.payload.value,
-        },
-      };
+      return { ...state, form: { ...state.form, [action.payload.field]: action.payload.value } };
     case 'SUBMIT':
-      return {
-        ...state,
-        isOpen: false,
-      };
+      return { ...state, isOpen: false };
     default:
       return state;
   }
@@ -80,6 +63,13 @@ const typeColorMap: Record<MaterialType, string> = {
   other: 'var(--color-other)',
 };
 
+const typeDotColor: Record<MaterialType, string> = {
+  textile: '#B8A9C9',
+  wood: '#D4AF82',
+  paint: '#8AAED4',
+  other: '#B0A080',
+};
+
 const typeLabelMap: Record<MaterialType, string> = {
   textile: '面料',
   wood: '木料',
@@ -87,10 +77,13 @@ const typeLabelMap: Record<MaterialType, string> = {
   other: '其他',
 };
 
-function getProgressColor(percent: number): string {
-  if (percent >= 70) return 'var(--color-success)';
-  if (percent >= 40) return 'var(--color-warning)';
-  return 'var(--color-danger)';
+function getProgressBarGradient(percent: number): string {
+  const hueStart = 0;
+  const hueEnd = 120;
+  const ratio = percent / 100;
+  const startHue = hueStart + ratio * (hueEnd - hueStart);
+  const endHue = Math.min(120, startHue + 30);
+  return `linear-gradient(90deg, hsl(${endHue}, 65%, 50%), hsl(${startHue}, 70%, 48%))`;
 }
 
 function isExpiringSoon(expiryDate: string): boolean {
@@ -99,7 +92,7 @@ function isExpiringSoon(expiryDate: string): boolean {
   const expiry = new Date(expiryDate);
   expiry.setHours(0, 0, 0, 0);
   const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  return diffDays <= 7;
+  return diffDays <= 7 && diffDays >= 0;
 }
 
 export default function MaterialList() {
@@ -125,32 +118,61 @@ export default function MaterialList() {
 
   return (
     <div className="page-fade-enter">
-      <div className="mb-6 flex items-center justify-between">
+      <style>{`
+        @keyframes matPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .mat-alert-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: rgba(224, 107, 90, 0.12);
+          color: var(--color-danger);
+          cursor: pointer;
+          padding: 0;
+          border: none;
+          animation: matPulse 1.8s ease-in-out infinite;
+          transform-origin: center center;
+        }
+        .mat-alert-btn:hover {
+          background: rgba(224, 107, 90, 0.22);
+        }
+        .material-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+        }
+        @media (max-width: 1200px) {
+          .material-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (max-width: 900px) {
+          .material-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 560px) {
+          .material-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
             材料管理
           </h2>
-          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted)', fontSize: 14 }}>
             共 {materials.length} 种材料
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => dispatch({ type: 'OPEN_ADD' })}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
+          <i className="fa-solid fa-plus" style={{ fontSize: 13 }}></i>
           添加材料
         </button>
       </div>
 
-      <div
-        className="material-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '20px',
-        }}
-      >
+      <div className="material-grid">
         {materials.map((m, index) => {
           const percent = m.initialQuantity > 0 ? Math.min(100, (m.quantity / m.initialQuantity) * 100) : 0;
           const showAlert = isExpiringSoon(m.expiryDate) && !m.notified;
@@ -173,12 +195,12 @@ export default function MaterialList() {
                 gap: '14px',
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-hover)';
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-hover)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)';
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
               onClick={() => dispatch({ type: 'OPEN_EDIT', payload: m })}
             >
@@ -188,43 +210,22 @@ export default function MaterialList() {
                     width: '12px',
                     height: '12px',
                     borderRadius: '50%',
-                    background: typeColorMap[m.type],
+                    background: typeDotColor[m.type],
                     flexShrink: 0,
                     marginTop: '4px',
                   }}
                 />
                 {showAlert && (
                   <button
+                    className="mat-alert-btn"
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
                       markNotified(m.id);
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'rgba(224, 107, 90, 0.12)',
-                      color: 'var(--color-danger)',
-                      animation: 'pulse 1.8s ease-in-out infinite',
-                      cursor: 'pointer',
-                      padding: 0,
-                      border: 'none',
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(224, 107, 90, 0.22)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(224, 107, 90, 0.12)';
-                    }}
-                    title="即将过期，点击标记已通知"
+                    title="即将过期，点击标记已提醒"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2v-2zm0-6h2v4h-2v-4z" />
-                    </svg>
+                    <i className="fa-solid fa-exclamation" style={{ fontSize: 12 }}></i>
                   </button>
                 )}
               </div>
@@ -270,7 +271,7 @@ export default function MaterialList() {
                     style={{
                       height: '100%',
                       width: `${percent}%`,
-                      background: `linear-gradient(90deg, ${getProgressColor(Math.max(percent, 10))}, ${getProgressColor(percent)})`,
+                      background: getProgressBarGradient(percent),
                       borderRadius: 'var(--radius-full)',
                       transition: 'width 0.4s var(--ease-out)',
                     }}
@@ -282,18 +283,6 @@ export default function MaterialList() {
         })}
       </div>
 
-      <style>{`
-        @media (max-width: 1200px) {
-          .material-grid { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        @media (max-width: 900px) {
-          .material-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        @media (max-width: 560px) {
-          .material-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
       {state.isOpen && (
         <div className="modal-overlay" onClick={() => dispatch({ type: 'CLOSE' })}>
           <div
@@ -301,7 +290,7 @@ export default function MaterialList() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: '480px', padding: '28px' }}
           >
-            <h3 className="mb-5 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+            <h3 style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: 'var(--color-text)' }}>
               {state.editingId ? '编辑材料' : '添加材料'}
             </h3>
 
@@ -389,10 +378,7 @@ export default function MaterialList() {
               <div>
                 {state.editingId && (
                   <button className="btn btn-danger" onClick={handleDelete}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
+                    <i className="fa-solid fa-trash-can" style={{ fontSize: 13 }}></i>
                     删除
                   </button>
                 )}
