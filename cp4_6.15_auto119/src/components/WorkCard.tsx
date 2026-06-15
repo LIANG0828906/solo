@@ -8,9 +8,12 @@ interface WorkCardProps {
   index: number;
 }
 
+const PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="100%" height="100%" fill="%23D2A679"/><text x="50%" y="50%" font-family="serif" font-size="24" fill="%238B5E3C" text-anchor="middle" dominant-baseline="middle">匠心工坊</text></svg>';
+
 export default function WorkCard({ work, index }: WorkCardProps) {
   const navigate = useNavigate();
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
   const [visible, setVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -38,13 +41,17 @@ export default function WorkCard({ work, index }: WorkCardProps) {
           className={`
             absolute inset-0 bg-cream animate-pulse
             transition-opacity duration-500
-            ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+            ${loaded || error ? 'opacity-0 pointer-events-none' : 'opacity-100'}
           `}
         />
         <img
-          src={work.images[0]}
+          src={error ? PLACEHOLDER_SVG : work.images[0]}
           alt={work.name}
           onLoad={() => setLoaded(true)}
+          onError={() => {
+            setError(true);
+            setLoaded(true);
+          }}
           style={{
             filter: loaded ? 'blur(0px)' : 'blur(12px)',
             opacity: loaded ? 1 : 0,

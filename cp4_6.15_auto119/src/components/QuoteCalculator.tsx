@@ -60,6 +60,29 @@ export default function QuoteCalculator({ work }: QuoteCalculatorProps) {
     }
   };
 
+  const priceBreakdown = useMemo(() => {
+    const woodGrade = work.woodGrades.find(g => g.id === woodGradeId) || work.woodGrades[0];
+    const carving = work.carvingComplexity.find(c => c.id === carvingId) || work.carvingComplexity[0];
+    const accessories = work.accessories.filter(a => accessoryIds.includes(a.id));
+    const baseWithWood = work.basePrice * woodGrade.priceMultiplier;
+    const accessoryTotal = accessories.reduce((sum, a) => sum + a.price, 0);
+    const urgentFee = urgent ? work.basePrice * 0.3 : 0;
+
+    const breakdown = [];
+    breakdown.push({ label: '作品基价', value: work.basePrice, note: '固定价格' });
+    breakdown.push({ label: `${woodGrade.name}`, value: baseWithWood - work.basePrice, note: `基价 × ${woodGrade.priceMultiplier} 乘数` });
+    if (carving.priceAddition > 0) {
+      breakdown.push({ label: `${carving.name}`, value: carving.priceAddition, note: '固定加价' });
+    }
+    accessories.forEach(a => {
+      breakdown.push({ label: a.name, value: a.price, note: '固定加价' });
+    });
+    if (urgentFee > 0) {
+      breakdown.push({ label: '加急制作', value: urgentFee, note: `基价 × 30%` });
+    }
+    return breakdown;
+  }, [work, woodGradeId, carvingId, accessoryIds, urgent]);
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-card p-5 shadow-warm">
@@ -166,6 +189,27 @@ export default function QuoteCalculator({ work }: QuoteCalculatorProps) {
         <div className="flex items-center justify-between mb-4">
           <span className="font-body text-sm text-oak-dark/60">预估总价</span>
           <PriceDisplay value={totalPrice} />
+        </div>
+
+        <div className="border-t border-oak-light/20 pt-4 mb-4">
+          <h4 className="font-body text-sm font-medium text-oak-dark/70 mb-3">价格构成说明</h4>
+          <div className="space-y-2">
+            {priceBreakdown.map((item, i) => (
+              <div key={i} className="flex items-center justify-between font-body text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-walnut">{item.label}</span>
+                  <span className="text-xs text-oak-dark/40">（{item.note}）</span>
+                </div>
+                <span className="text-oak-dark/80">
+                  {item.value >= 0 ? '+' : ''}¥{item.value.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-2 border-t border-oak-light/10 flex items-center justify-between font-body text-sm font-medium">
+            <span className="text-walnut">总价</span>
+            <span className="text-walnut">¥{totalPrice.toFixed(2)}</span>
+          </div>
         </div>
         <RippleButton
           onClick={handleGenerateQuote}

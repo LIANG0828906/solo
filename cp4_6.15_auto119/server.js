@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
+import bwipjs from 'bwip-js';
 import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,28 +40,39 @@ function calculatePrice(work, options) {
     basePrice: work.basePrice,
     woodGradeName: woodGrade.name,
     woodGradePrice: baseWithWood,
+    woodGradeMultiplier: woodGrade.priceMultiplier,
     carvingName: carving.name,
     carvingPrice: carving.priceAddition,
     accessories: selectedAccessories.map(a => ({ name: a.name, price: a.price })),
     accessoryTotal,
     urgentFee,
+    urgentRate: 0.3,
     total: Math.round(total * 100) / 100
   };
 }
 
-function generateBarcodeLines(doc, x, y, code) {
-  const lineWidth = 1.5;
-  const lineHeight = 40;
-  let currentX = x;
-  for (let i = 0; i < code.length; i++) {
-    const charCode = code.charCodeAt(i);
-    for (let bit = 7; bit >= 0; bit--) {
-      const isBlack = (charCode >> bit) & 1;
-      if (isBlack) {
-        doc.rect(currentX, y, lineWidth, lineHeight).fill('#333333');
-      }
-      currentX += lineWidth;
-    }
+function generateBarcodeNumber() {
+  const timestamp = Date.now().toString().slice(-10);
+  const random = Math.floor(Math.random() * 90 + 10).toString();
+  return timestamp + random;
+}
+
+async function generateBarcodePNG(code) {
+  try {
+    const png = await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: code,
+      scale: 2,
+      height: 20,
+      includetext: true,
+      textxalign: 'center',
+      backgroundcolor: 'FFFFFF',
+      barcolor: '333333',
+    });
+    return png;
+  } catch (err) {
+    console.error('Barcode generation failed:', err);
+    return null;
   }
 }
 
@@ -76,7 +88,7 @@ app.get('/api/works/:id', (req, res) => {
   res.json(work);
 });
 
-app.post('/api/quote', (req, res) => {
+app.post('/api/quote', async (req, res) => {
   const { workId, woodGradeId, carvingComplexityId, accessoryIds, urgent } = req.body;
   const work = getWorkById(workId);
   if (!work) {
@@ -91,6 +103,9 @@ app.post('/api/quote', (req, res) => {
   });
 
   const quoteId = uuidv4();
+  const barcodeCode = generateBarcodeNumber();
+  const barcodePNG = await generateBarcodePNG(barcodeCode);
+
   const doc = new PDFDocument({
     size: 'A4',
     margins: { top: 60, bottom: 60, left: 50, right: 50 }
@@ -136,24 +151,28 @@ app.post('/api/quote', (req, res) => {
   yPos += 30;
 
   const items = [
-    { label: '作品基价', value: `¥${pricing.basePrice.toFixed(2)}` },
-    { label: `木料等级：${pricing.woodGradeName}`, value: `¥${pricing.woodGradePrice.toFixed(2)}` },
-    { label: `雕刻复杂度：${pricing.carvingName}`, value: `¥${pricing.carvingPrice.toFixed(2)}` },
+    { label: '作品基价', value: `¥${pricing.basePrice.toFixed(2)}`, note: '' },
+    { label: `木料等级：${pricing.woodGradeName}`, value: `¥${pricing.woodGradePrice.toFixed(2)}`, note: `×${pricing.woodGradeMultiplier} 乘数` },
+    { label: `雕刻复杂度：${pricing.carvingName}`, value: `¥${pricing.carvingPrice.toFixed(2)}`, note: pricing.carvingPrice > 0 ? '固定加价' : '包含' },
   ];
 
   pricing.accessories.forEach(a => {
-    items.push({ label: `配件：${a.name}`, value: `¥${a.price.toFixed(2)}` });
+    items.push({ label: `配件：${a.name}`, value: `¥${a.price.toFixed(2)}`, note: '固定加价' });
   });
 
   if (pricing.urgentFee > 0) {
-    items.push({ label: '加急费用（30%）', value: `¥${pricing.urgentFee.toFixed(2)}` });
+    items.push({ label: '加急制作', value: `¥${pricing.urgentFee.toFixed(2)}`, note: '基价 × 30%' });
   }
 
   items.forEach(item => {
     doc.fontSize(11).font('Helvetica').fillColor('#333333')
-      .text(item.label, 70, yPos, { width: contentWidth - 120 })
-      .text(item.value, 70, yPos, { width: contentWidth - 120, align: 'right' });
-    yPos += 24;
+      .text(item.label, 70, yPos, { width: contentWidth - 180 })
+      .text(item.value, 70, yPos, { width: contentWidth - 180, align: 'right' });
+    if (item.note) {
+      doc.fontSize(9).fillColor('#999999')
+        .text(item.note, 70, yPos + 14, { width: contentWidth - 180, align: 'right' });
+    }
+    yPos += item.note ? 38 : 24;
   });
 
   yPos += 10;
@@ -191,20 +210,26 @@ app.post('/api/quote', (req, res) => {
   doc.moveTo(50, yPos).lineTo(pageWidth - 50, yPos).strokeColor('#DDDDDD').lineWidth(0.5).stroke();
   yPos += 20;
 
-  doc.fontSize(10).font('Helvetica').fillColor('#999999')
-    .text('条形码识别码：', 50, yPos);
-  yPos += 5;
+  doc.fontSize(11).font('Helvetica').fillColor('#666666')
+    .text('条形码（CODE128标准）：', 50, yPos);
+  yPos += 10;
 
-  const barcodeX = 50;
-  generateBarcodeLines(doc, barcodeX, yPos + 12, quoteId.replace(/-/g, '').substring(0, 16));
-  yPos += 60;
+  if (barcodePNG) {
+    doc.image(barcodePNG, 50, yPos, { width: 220 });
+    yPos += 60;
+  } else {
+    doc.rect(50, yPos, 220, 50).fill('#FFFFFF').stroke('#DDDDDD');
+    doc.fontSize(10).font('Courier').fillColor('#333333')
+      .text(barcodeCode, 50, yPos + 20, { width: 220, align: 'center' });
+    yPos += 60;
+  }
 
   doc.fontSize(8).font('Courier').fillColor('#999999')
-    .text(quoteId.replace(/-/g, '').substring(0, 16), barcodeX, yPos);
-  yPos += 30;
+    .text(barcodeCode, 50, yPos, { width: 220, align: 'center' });
+  yPos += 20;
 
   doc.fontSize(9).font('Helvetica').fillColor('#BBBBBB')
-    .text('本报价单有效期为30天', 50, yPos, { width: contentWidth, align: 'center' });
+    .text('本报价单有效期为30天，30天后请重新询价', 50, yPos, { width: contentWidth, align: 'center' });
   yPos += 16;
   doc.fontSize(8).fillColor('#CCCCCC')
     .text('匠心工坊 © 2026 | 保留所有权利', 50, yPos, { width: contentWidth, align: 'center' });

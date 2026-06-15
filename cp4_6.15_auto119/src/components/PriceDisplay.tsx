@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 interface SlotDigitProps {
   value: number;
@@ -6,38 +6,45 @@ interface SlotDigitProps {
 }
 
 function SlotDigit({ value, duration = 500 }: SlotDigitProps) {
-  const [offset, setOffset] = useState(0);
+  const [displayValue, setDisplayValue] = useState(value);
+  const [isAnimating, setIsAnimating] = useState(false);
   const prevValue = useRef(value);
 
   useEffect(() => {
     if (prevValue.current === value) return;
 
-    setOffset(prevValue.current - value);
-    const timer = setTimeout(() => {
-      setOffset(0);
-    }, 30);
+    const diff = value - prevValue.current;
+    const steps = 10;
+    const increment = diff / steps;
+    let step = 0;
 
-    prevValue.current = value;
-    return () => clearTimeout(timer);
-  }, [value]);
+    setIsAnimating(true);
 
-  const translateY = offset * 100;
+    const interval = setInterval(() => {
+      step++;
+      if (step >= steps) {
+        setDisplayValue(value);
+        setIsAnimating(false);
+        prevValue.current = value;
+        clearInterval(interval);
+      } else {
+        setDisplayValue(Math.round(((prevValue.current + increment * step) % 10) + 10) % 10);
+      }
+    }, duration / steps);
+
+    return () => clearInterval(interval);
+  }, [value, duration]);
 
   return (
-    <div className="inline-flex flex-col overflow-hidden align-bottom" style={{ height: '1.2em' }}>
-      <div
-        style={{
-          transform: `translateY(${translateY}%)`,
-          transition: `transform ${duration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`,
-        }}
-      >
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex items-center justify-center" style={{ height: '1.2em' }}>
-            {((value - offset + i + 100) % 10)}
-          </div>
-        ))}
-      </div>
-    </div>
+    <span
+      className="inline-block"
+      style={{
+        transition: `transform ${duration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`,
+        transform: isAnimating ? 'translateY(-2px) scale(1.05)' : 'translateY(0) scale(1)',
+      }}
+    >
+      {displayValue}
+    </span>
   );
 }
 
@@ -78,27 +85,40 @@ export default function PriceDisplay({ value }: PriceDisplayProps) {
   const [intPart, decPart] = formatted.split('.');
   const digits = intPart.split('');
 
+  const priceBreakdown = useMemo(() => {
+    if (displayValue >= 2000) return { text: '精品定制', color: 'text-amber-600' };
+    if (displayValue >= 500) return { text: '品质之选', color: 'text-sky-600' };
+    return { text: '经济实惠', color: 'text-green-600' };
+  }, [displayValue]);
+
   return (
-    <div className={`inline-flex items-baseline transition-transform duration-300 ${isAnimating ? 'scale-[1.08]' : 'scale-100'}`}>
-      <span className="text-3xl font-display font-bold text-walnut mr-1">¥</span>
-      {digits.map((d, i) => (
+    <div className="text-right">
+      <div className={`transition-transform duration-300 ${isAnimating ? 'scale-[1.08]' : 'scale-100'}`}>
+        <span className="text-3xl font-display font-bold text-walnut mr-1">¥</span>
+        {digits.map((d, i) => (
+          <span key={i} className="text-3xl font-display font-bold text-walnut">
+            <SlotDigit
+              key={`digit-${i}-${displayValue}`}
+              value={parseInt(d)}
+              duration={500 + i * 40}
+            />
+          </span>
+        ))}
+        <span className="text-3xl font-display font-bold text-walnut">.</span>
         <SlotDigit
-          key={`${i}-${displayValue}`}
-          value={parseInt(d)}
-          duration={600 + i * 50}
+          key={`dec1-${displayValue}`}
+          value={parseInt(decPart[0])}
+          duration={650}
         />
-      ))}
-      <span className="text-3xl font-display font-bold text-walnut">.</span>
-      <SlotDigit
-        key={`dec1-${displayValue}`}
-        value={parseInt(decPart[0])}
-        duration={800}
-      />
-      <SlotDigit
-        key={`dec2-${displayValue}`}
-        value={parseInt(decPart[1])}
-        duration={850}
-      />
+        <SlotDigit
+          key={`dec2-${displayValue}`}
+          value={parseInt(decPart[1])}
+          duration={700}
+        />
+      </div>
+      <div className={`text-xs font-body mt-1 ${priceBreakdown.color}`}>
+        {priceBreakdown.text}
+      </div>
     </div>
   );
 }
