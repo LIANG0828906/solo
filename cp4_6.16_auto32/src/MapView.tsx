@@ -1,9 +1,15 @@
-import { useMemo, useEffect, Fragment } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import L from 'leaflet';
-import type { Photo } from './types';
+import type { Photo, Weather } from './types';
+
+const weatherIcons: Record<Weather, string> = {
+  sunny: '☀️',
+  cloudy: '☁️',
+  rainy: '🌧️'
+};
 
 function lerpColor(t: number): string {
   const tClamped = Math.max(0, Math.min(1, t));
@@ -13,6 +19,59 @@ function lerpColor(t: number): string {
   const g = Math.round(startG + (endG - startG) * tClamped);
   const b = Math.round(startB + (endB - startB) * tClamped);
   return `rgb(${r}, ${g}, ${b})`;
+}
+
+interface GradientPolylineProps {
+  positions: [number, number][];
+  startT: number;
+  endT: number;
+  segments?: number;
+}
+
+function GradientPolyline({ positions, startT, endT, segments = 12 }: GradientPolylineProps) {
+  const segmentsArray = useMemo(() => {
+    if (positions.length < 2) return [];
+    const start = positions[0];
+    const end = positions[1];
+    const result: { color: string; positions: [number, number][] }[] = [];
+    for (let i = 0; i < segments; i++) {
+      const segStart = i / segments;
+      const segEnd = (i + 1) / segments;
+      const latStart = start[0] + (end[0] - start[0]) * segStart;
+      const lngStart = start[1] + (end[1] - start[1]) * segStart;
+      const latEnd = start[0] + (end[0] - start[0]) * segEnd;
+      const lngEnd = start[1] + (end[1] - start[1]) * segEnd;
+      const segStartT = startT + (endT - startT) * segStart;
+      const segEndT = startT + (endT - startT) * segEnd;
+      const midT = (segStartT + segEndT) / 2;
+      result.push({
+        color: lerpColor(midT),
+        positions: [
+          [latStart, lngStart] as [number, number],
+          [latEnd, lngEnd] as [number, number]
+        ]
+      });
+    }
+    return result;
+  }, [positions, startT, endT, segments]);
+
+  return (
+    <>
+      {segmentsArray.map((seg, i) => (
+        <Polyline
+          key={`seg-${i}`}
+          positions={seg.positions}
+          pathOptions={{
+            color: seg.color,
+            weight: 5,
+            opacity: 0.92,
+            lineCap: 'butt',
+            lineJoin: 'round'
+          }}
+        />
+      ))}
+    </>
+  );
 }
 
 function AutoFitBounds({ photos }: { photos: Photo[] }) {
@@ -42,27 +101,7 @@ function AutoFitBounds({ photos }: { photos: Photo[] }) {
   return null;
 }
 
-interface MarkerData {
-  index: number;
-  total: number;
-}
-
-const memoizedDivIcon = (color: string, index: number) => {
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `<div class="marker-dot marker-animate" style="
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background-color: ${color};
-      border: 3px solid #1e1e2e;
-      box-shadow: 0 0 0 2px ${color};
-      animation-delay: ${index * 0.02}s;
-    "></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  });
-};
+const FALLBACK_CENTER: [number, number] = [35.8617, 104.1954];
 
 export default function MapView({ photos }: { photos: Photo[] }) {
   const sortedPhotos = useMemo(() => {
@@ -75,22 +114,17 @@ export default function MapView({ photos }: { photos: Photo[] }) {
     return sortedPhotos.filter((p) => p.latitude != null && p.longitude != null);
   }, [sortedPhotos]);
 
+  const noGpsPhotos = useMemo(() => {
+    return sortedPhotos.filter((p) => p.latitude == null || p.longitude == null);
+  }, [sortedPhotos]);
+
   const positions = useMemo(() => {
     return validPhotos.map((p) => [p.latitude!, p.longitude!] as [number, number]);
   }, [validPhotos]);
 
-  const polylineColors = useMemo(() => {
-    if (positions.length < 2) return [];
-    const result: string[] = [];
-    for (let i = 0; i < positions.length - 1; i++) {
-      const t = validPhotos.length > 1 ? (i + 1) / (validPhotos.length - 1) : 0;
-      result.push(lerpColor(t));
-    }
-    return result;
-  }, [positions, validPhotos]);
-
   const total = validPhotos.length;
-  const noGpsCount = photos.length - validPhotos.length;
+  const noGpsCount = noGpsPhotos.length;
+  const [, forceRender] = useState(0);
 
   if (photos.length === 0) {
     return (
@@ -115,36 +149,15 @@ export default function MapView({ photos }: { photos: Photo[] }) {
     );
   }
 
-  if (validPhotos.length === 0) {
-    return (
-      <div
-        style={{
-          height: '400px',
-          backgroundColor: '#2d2d44',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          color: '#8080a0'
-        }}
-      >
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>📍</div>
-        <p>照片缺少GPS坐标</p>
-        <p style={{ fontSize: '13px', marginTop: '4px', color: '#606080' }}>
-          {photos.length} 张照片均未包含GPS位置信息
-        </p>
-        <p style={{ fontSize: '12px', marginTop: '8px', color: '#505070' }}>
-          时间线仍可正常显示，地图需GPS坐标才能绘制轨迹
-        </p>
-      </div>
-    );
-  }
+  const fallbackCenter: [number, number] =
+    validPhotos.length > 0
+      ? [validPhotos[0].latitude!, validPhotos[0].longitude!]
+      : FALLBACK_CENTER;
 
   return (
     <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}>
       <MapContainer
-        center={[35.8617, 104.1954]}
+        center={FALLBACK_CENTER}
         zoom={4}
         style={{ height: '400px', width: '100%', borderRadius: '12px' }}
         zoomControl={true}
@@ -156,41 +169,21 @@ export default function MapView({ photos }: { photos: Photo[] }) {
         />
         <AutoFitBounds photos={sortedPhotos} />
 
-        {positions.length >= 2 && (
-          <>
-            {positions.slice(0, positions.length - 1).map((pos, i) => {
-              const nextPos = positions[i + 1];
-              const t = i / (positions.length - 1);
-              const nextT = (i + 1) / (positions.length - 1);
-              const midLat = (pos[0] + nextPos[0]) / 2;
-              const midLng = (pos[1] + nextPos[1]) / 2;
-              return (
-                <Fragment key={`line-${i}`}>
-                  <Polyline
-                    positions={[pos, [midLat, midLng]]}
-                    pathOptions={{
-                      color: lerpColor(t),
-                      weight: 4,
-                      opacity: 0.9,
-                      lineCap: 'round',
-                      lineJoin: 'round'
-                    }}
-                  />
-                  <Polyline
-                    positions={[[midLat, midLng], nextPos]}
-                    pathOptions={{
-                      color: lerpColor((t + nextT) / 2),
-                      weight: 4,
-                      opacity: 0.9,
-                      lineCap: 'round',
-                      lineJoin: 'round'
-                    }}
-                  />
-                </Fragment>
-              );
-            })}
-          </>
-        )}
+        {positions.length >= 2 &&
+          positions.slice(0, -1).map((pos, i) => {
+            const nextPos = positions[i + 1];
+            const tStart = total > 1 ? i / (total - 1) : 0;
+            const tEnd = total > 1 ? (i + 1) / (total - 1) : 0;
+            return (
+              <GradientPolyline
+                key={`grad-${i}`}
+                positions={[pos, nextPos]}
+                startT={tStart}
+                endT={tEnd}
+                segments={12}
+              />
+            );
+          })}
 
         {validPhotos.map((photo, index) => {
           const t = total > 1 ? index / (total - 1) : 0;
@@ -222,14 +215,89 @@ export default function MapView({ photos }: { photos: Photo[] }) {
                       marginBottom: '8px'
                     }}
                   />
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#e0e0ff', marginBottom: '4px' }}>
-                    📍 {photo.cityName}
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      color: '#e0e0ff',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    📍 {photo.cityName} {weatherIcons[photo.weather]}
                   </div>
                   <div style={{ fontSize: '12px', color: '#a0a0c0' }}>
-                    {format(new Date(photo.captureTime), 'yyyy年M月d日 HH:mm', { locale: zhCN })}
+                    {format(new Date(photo.captureTime), 'yyyy年M月d日 HH:mm', {
+                      locale: zhCN
+                    })}
                   </div>
                   <div style={{ fontSize: '12px', marginTop: '6px', color: '#8080a0' }}>
                     第 {index + 1} / {total} 站
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+
+        {noGpsPhotos.map((photo, index) => {
+          const offsetAngle = (index * 137.5) * (Math.PI / 180);
+          const offsetRadius = 0.05 + index * 0.015;
+          const lat = fallbackCenter[0] + Math.sin(offsetAngle) * offsetRadius;
+          const lng = fallbackCenter[1] + Math.cos(offsetAngle) * offsetRadius;
+          return (
+            <CircleMarker
+              key={`nogps-${photo.id}`}
+              center={[lat, lng]}
+              radius={7}
+              pathOptions={{
+                color: '#606080',
+                fillColor: '#8080a0',
+                fillOpacity: 0.6,
+                weight: 2,
+                opacity: 0.8,
+                dashArray: '4, 4',
+                className: 'marker-animate'
+              }}
+            >
+              <Popup style={{ transition: 'all 0.3s ease' }}>
+                <div style={{ minWidth: '180px', textAlign: 'center' }}>
+                  <img
+                    src={photo.dataUrl}
+                    alt={photo.fileName}
+                    style={{
+                      width: '100%',
+                      height: '120px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      marginBottom: '8px'
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      color: '#e0e0ff',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    📍 {photo.cityName} {weatherIcons[photo.weather]}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#a0a0c0' }}>
+                    {format(new Date(photo.captureTime), 'yyyy年M月d日 HH:mm', {
+                      locale: zhCN
+                    })}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      marginTop: '8px',
+                      color: '#fdcb6e',
+                      padding: '4px 8px',
+                      backgroundColor: 'rgba(253, 203, 110, 0.1)',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    ⚠️ 此照片无GPS，显示为默认位置
                   </div>
                 </div>
               </Popup>
@@ -260,13 +328,41 @@ export default function MapView({ photos }: { photos: Photo[] }) {
             background: 'linear-gradient(90deg, rgb(108, 92, 231) 0%, rgb(255, 107, 129) 100%)'
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', color: '#8080a0' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            width: '120px',
+            fontSize: '11px',
+            color: '#8080a0'
+          }}
+        >
           <span>行程开始</span>
           <span>行程结束</span>
         </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginLeft: '4px'
+          }}
+        >
+          <div
+            style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#8080a0',
+              border: '2px solid #1e1e2e',
+              opacity: 0.6
+            }}
+          />
+          <span style={{ color: '#8080a0', fontSize: '11px' }}>无GPS照片</span>
+        </div>
         {noGpsCount > 0 && (
           <span style={{ color: '#fdcb6e', fontSize: '11px' }}>
-            ⚠️ {noGpsCount} 张照片无GPS，未在地图显示
+            ⚠️ {noGpsCount} 张照片无GPS，灰色标记为默认位置
           </span>
         )}
       </div>

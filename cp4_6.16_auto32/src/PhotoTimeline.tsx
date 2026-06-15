@@ -13,6 +13,7 @@ interface PendingPhoto {
   longitude: number | null;
   needsManualInput: boolean;
   cityName?: string;
+  weather?: Weather;
 }
 
 const weatherIcons: Record<Weather, { icon: string; label: string }> = {
@@ -95,6 +96,7 @@ function MissingDataModal({
     format(new Date(), "yyyy-MM-dd'T'HH:mm")
   );
   const [btnHover, setBtnHover] = useState(false);
+  const [weather, setWeather] = useState<Weather>('sunny');
 
   const current = pendingPhotos[currentIndex];
   const needsInput = pendingPhotos.filter((p) => p.needsManualInput);
@@ -113,12 +115,14 @@ function MissingDataModal({
     currentNeedInput.cityName = cityName;
     currentNeedInput.captureTime = new Date(captureTime).toISOString();
     currentNeedInput.needsManualInput = false;
+    currentNeedInput.weather = weather;
 
     if (currentIndex + 1 >= needsInput.length) {
       onComplete(pendingPhotos);
     } else {
       setCurrentIndex(currentIndex + 1);
       setCityName('');
+      setWeather('sunny');
     }
   };
 
@@ -195,6 +199,47 @@ function MissingDataModal({
           />
         </div>
 
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontSize: '13px', color: '#a0a0c0', marginBottom: '10px', fontWeight: 500 }}>
+            天气情况
+          </label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {weatherOptions.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setWeather(w)}
+                style={{
+                  flex: 1,
+                  padding: '14px 12px',
+                  backgroundColor: weather === w ? 'rgba(108, 92, 231, 0.2)' : '#1e1e2e',
+                  border: weather === w ? '2px solid #6c5ce7' : '1px solid #3d3d5c',
+                  borderRadius: '10px',
+                  color: '#e0e0ff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                onMouseEnter={(e) => {
+                  if (weather !== w) e.currentTarget.style.borderColor = '#4d4d6c';
+                }}
+                onMouseLeave={(e) => {
+                  if (weather !== w) e.currentTarget.style.borderColor = '#3d3d5c';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>{weatherIcons[w].icon}</span>
+                <span style={{ fontSize: '12px', color: weather === w ? '#a29bfe' : '#8080a0' }}>
+                  {weatherIcons[w].label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <button
             type="button"
@@ -234,6 +279,7 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
   const photos = useTravelStore((s) => s.getPhotosByTripId(tripId));
   const addPhotos = useTravelStore((s) => s.addPhotos);
   const deletePhoto = useTravelStore((s) => s.deletePhoto);
+  const updatePhoto = useTravelStore((s) => s.updatePhoto);
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -267,48 +313,76 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
       setUploading(true);
       setUploadProgress(0);
 
+      const EXIF_WHITELIST = [
+        'DateTimeOriginal',
+        'CreateDate',
+        'ModifyDate',
+        'GPSLatitude',
+        'GPSLongitude',
+        'GPSLatitudeRef',
+        'GPSLongitudeRef'
+      ];
+
+      const BATCH_SIZE = 3;
+      const pending: PendingPhoto[] = [];
+      const total = validFiles.length;
+
       try {
-        const pending: PendingPhoto[] = [];
-        const total = validFiles.length;
+        for (let batchStart = 0; batchStart < total; batchStart += BATCH_SIZE) {
+          const batchEnd = Math.min(batchStart + BATCH_SIZE, total);
+          const batch = validFiles.slice(batchStart, batchEnd);
 
-        for (let i = 0; i < total; i++) {
-          const file = validFiles[i];
-          const dataUrl = await fileToDataUrl(file);
+          const batchResults = await Promise.all(
+            batch.map(async (file) => {
+              const dataUrl = await fileToDataUrl(file);
 
-          let captureTime: Date | null = null;
-          let latitude: number | null = null;
-          let longitude: number | null = null;
+              let captureTime: Date | null = null;
+              let latitude: number | null = null;
+              let longitude: number | null = null;
 
-          try {
-            const exifData = await exifr.parse(file, ['DateTimeOriginal', 'GPSLatitude', 'GPSLongitude', 'CreateDate']);
-            if (exifData) {
-              if (exifData.DateTimeOriginal) {
-                captureTime = new Date(exifData.DateTimeOriginal);
-              } else if (exifData.CreateDate) {
-                captureTime = new Date(exifData.CreateDate);
+              try {
+                const exifData = await exifr.parse(file, EXIF_WHITELIST);
+                if (exifData) {
+                  if (exifData.DateTimeOriginal) {
+                    captureTime = new Date(exifData.DateTimeOriginal);
+                  } else if (exifData.CreateDate) {
+                    captureTime = new Date(exifData.CreateDate);
+                  } else if (exifData.ModifyDate) {
+                    captureTime = new Date(exifData.ModifyDate);
+                  }
+                  if (exifData.GPSLatitude !== undefined && exifData.GPSLongitude !== undefined) {
+                    latitude = exifData.GPSLatitude;
+                    longitude = exifData.GPSLongitude;
+                  }
+                }
+              } catch {
+                // EXIF解析失败，继续使用空数据
               }
-              if (exifData.GPSLatitude !== undefined && exifData.GPSLongitude !== undefined) {
-                latitude = exifData.GPSLatitude;
-                longitude = exifData.GPSLongitude;
-              }
-            }
-          } catch {
-            // EXIF解析失败，继续使用空数据
+
+              const needsManualInput = !captureTime;
+
+              return {
+                file,
+                dataUrl,
+                captureTime: captureTime ? captureTime.toISOString() : null,
+                latitude,
+                longitude,
+                needsManualInput
+              } as PendingPhoto;
+            })
+          );
+
+          pending.push(...batchResults);
+
+          const progress = Math.round((batchEnd / total) * 85);
+          setUploadProgress(progress);
+
+          if (batchEnd < total) {
+            await new Promise((r) => setTimeout(r, 0));
           }
-
-          const needsManualInput = !captureTime || (!latitude && !trip?.destinationCity);
-
-          pending.push({
-            file,
-            dataUrl,
-            captureTime: captureTime ? captureTime.toISOString() : null,
-            latitude,
-            longitude,
-            needsManualInput
-          });
-
-          setUploadProgress(Math.round(((i + 1) / total) * 80));
         }
+
+        setUploadProgress(90);
 
         const hasMissing = pending.some((p) => p.needsManualInput);
         if (hasMissing) {
@@ -318,6 +392,8 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
           return;
         }
 
+        await new Promise((r) => setTimeout(r, 0));
+        setUploadProgress(95);
         finalizeUpload(pending);
       } catch (err) {
         console.error('上传处理失败:', err);
@@ -326,13 +402,14 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
         setUploadProgress(0);
       }
     },
-    [trip]
+    []
   );
 
   const finalizeUpload = useCallback(
     (pending: PendingPhoto[]) => {
       const newPhotos: Omit<Photo, 'id'>[] = pending.map((p) => {
-        let cityName = trip?.destinationCity || '未知城市';
+        let cityName = p.cityName || trip?.destinationCity || '未知城市';
+        const weather = p.weather || randomWeather();
         return {
           tripId,
           dataUrl: p.dataUrl,
@@ -341,14 +418,14 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
           latitude: p.latitude,
           longitude: p.longitude,
           cityName,
-          weather: randomWeather()
+          weather
         };
       });
 
       addPhotos(newPhotos);
       setUploading(false);
       setUploadProgress(100);
-      setTimeout(() => setUploadProgress(0), 500);
+      setTimeout(() => setUploadProgress(0), 800);
       setPendingPhotos(null);
     },
     [addPhotos, tripId, trip]
@@ -522,6 +599,7 @@ export default function PhotoTimeline({ tripId }: { tripId: string }) {
                     onDelete={() => {
                       if (window.confirm('确定删除这张照片吗？')) deletePhoto(photo.id);
                     }}
+                    onUpdateWeather={(weather) => updatePhoto(photo.id, { weather })}
                   />
                 ))}
               </div>
@@ -538,15 +616,18 @@ function PhotoCard({
   index,
   cardBase,
   cardHover,
-  onDelete
+  onDelete,
+  onUpdateWeather
 }: {
   photo: Photo;
   index: number;
   cardBase: React.CSSProperties;
   cardHover: React.CSSProperties;
   onDelete: () => void;
+  onUpdateWeather: (weather: Weather) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
 
   return (
     <div
@@ -556,7 +637,10 @@ function PhotoCard({
         animationDelay: `${index * 0.03}s`
       }}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => {
+        setHovered(false);
+        setWeatherMenuOpen(false);
+      }}
     >
       <div style={{ position: 'relative', paddingTop: '66.67%', overflow: 'hidden', backgroundColor: '#1e1e2e' }}>
         <img
@@ -610,9 +694,75 @@ function PhotoCard({
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#e0e0ff' }}>
             📍 {photo.cityName}
           </span>
-          <span title={weatherIcons[photo.weather].label} style={{ fontSize: '18px' }}>
-            {weatherIcons[photo.weather].icon}
-          </span>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setWeatherMenuOpen(!weatherMenuOpen);
+              }}
+              title={`${weatherIcons[photo.weather].label}（点击修改）`}
+              style={{
+                fontSize: '18px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                borderRadius: '6px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(108, 92, 231, 0.2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {weatherIcons[photo.weather].icon}
+            </button>
+            {weatherMenuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '100%',
+                  marginTop: '4px',
+                  backgroundColor: '#2d2d44',
+                  border: '1px solid #3d3d5c',
+                  borderRadius: '10px',
+                  padding: '8px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  zIndex: 10,
+                  display: 'flex',
+                  gap: '6px'
+                }}
+              >
+                {weatherOptions.map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => {
+                      onUpdateWeather(w);
+                      setWeatherMenuOpen(false);
+                    }}
+                    title={weatherIcons[w].label}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundColor: photo.weather === w ? 'rgba(108, 92, 231, 0.25)' : '#1e1e2e',
+                      border: photo.weather === w ? '2px solid #6c5ce7' : '1px solid #3d3d5c',
+                      cursor: 'pointer',
+                      fontSize: '20px',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#a29bfe')}
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        photo.weather === w ? '#6c5ce7' : '#3d3d5c')
+                    }
+                  >
+                    {weatherIcons[w].icon}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <span style={{ fontSize: '12px', color: '#8080a0' }}>
           {format(new Date(photo.captureTime), 'HH:mm')}

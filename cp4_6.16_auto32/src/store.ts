@@ -14,9 +14,13 @@ interface TravelStore {
   trips: Trip[];
   photos: Photo[];
   hydrating: boolean;
+  hydrationError: string | null;
+  retryCount: number;
 
   initFromIDB: () => Promise<void>;
-  persistToIDB: () => Promise<void>;
+  retryHydration: () => Promise<void>;
+  resetHydrationError: () => void;
+  persistToIDB: () => Promise<boolean>;
 
   createTrip: (data: Omit<Trip, 'id' | 'createdAt'>) => void;
   updateTrip: (id: string, data: Partial<Trip>) => void;
@@ -30,34 +34,90 @@ interface TravelStore {
   deletePhotosByTripId: (tripId: string) => void;
 }
 
+const MAX_RETRY = 3;
+const RETRY_DELAY_MS = 1000;
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function attemptLoadFromIDB(): Promise<{ trips: Trip[]; photos: Photo[] } | null> {
+  try {
+    await idbKeys(idbStore);
+    const tripsData = await idbGet('trips', idbStore);
+    const photosData = await idbGet('photos', idbStore);
+    return {
+      trips: tripsData ? (tripsData as Trip[]) : [],
+      photos: photosData ? (photosData as Photo[]) : []
+    };
+  } catch {
+    return null;
+  }
+}
+
 export const useTravelStore = create<TravelStore>((set, get) => ({
   trips: [],
   photos: [],
   hydrating: true,
+  hydrationError: null,
+  retryCount: 0,
 
   initFromIDB: async () => {
-    try {
-      await idbKeys(idbStore);
-      const tripsData = await idbGet('trips', idbStore);
-      const photosData = await idbGet('photos', idbStore);
+    let retry = 0;
+    let result: { trips: Trip[]; photos: Photo[] } | null = null;
+
+    while (retry < MAX_RETRY) {
+      result = await attemptLoadFromIDB();
+      if (result) break;
+      retry++;
+      if (retry < MAX_RETRY) {
+        set({ retryCount: retry });
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
+
+    if (result) {
       set({
-        trips: tripsData ? (tripsData as Trip[]) : [],
-        photos: photosData ? (photosData as Photo[]) : [],
-        hydrating: false
+        trips: result.trips,
+        photos: result.photos,
+        hydrating: false,
+        hydrationError: null,
+        retryCount: retry
       });
-    } catch (err) {
-      console.error('Failed to load from IDB:', err);
-      set({ hydrating: false });
+    } else {
+      set({
+        hydrating: false,
+        hydrationError:
+          '数据加载失败，请检查浏览器是否允许IndexedDB存储，或点击重试按钮重新加载。',
+        retryCount: retry
+      });
     }
   },
 
+  retryHydration: async () => {
+    set({ hydrating: true, hydrationError: null, retryCount: 0 });
+    await get().initFromIDB();
+  },
+
+  resetHydrationError: () => {
+    set({ hydrationError: null });
+  },
+
   persistToIDB: async () => {
-    try {
-      await idbSet('trips', get().trips, idbStore);
-      await idbSet('photos', get().photos, idbStore);
-    } catch (err) {
-      console.error('Failed to persist to IDB:', err);
+    let success = false;
+    for (let i = 0; i < 2 && !success; i++) {
+      try {
+        await idbSet('trips', get().trips, idbStore);
+        await idbSet('photos', get().photos, idbStore);
+        success = true;
+      } catch {
+        if (i < 1) await sleep(RETRY_DELAY_MS);
+      }
     }
+    if (!success) {
+      console.warn('[Store] persistToIDB failed after 2 attempts');
+    }
+    return success;
   },
 
   createTrip: (data) => {

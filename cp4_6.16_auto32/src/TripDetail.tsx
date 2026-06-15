@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useTravelStore } from './store';
 import { format } from 'date-fns';
@@ -12,7 +12,11 @@ export default function TripDetail() {
   const trip = useTravelStore((s) => s.getTripById(id || ''));
   const photos = useTravelStore((s) => s.getPhotosByTripId(id || ''));
   const hydrating = useTravelStore((s) => s.hydrating);
+  const hydrationError = useTravelStore((s) => s.hydrationError);
+  const retryCount = useTravelStore((s) => s.retryCount);
   const initFromIDB = useTravelStore((s) => s.initFromIDB);
+  const retryHydration = useTravelStore((s) => s.retryHydration);
+  const [btnHover, setBtnHover] = useState(false);
 
   useEffect(() => {
     void initFromIDB();
@@ -20,8 +24,78 @@ export default function TripDetail() {
 
   if (hydrating) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '16px' }}>
         <div className="spinner" />
+        <div style={{ color: '#a0a0c0', fontSize: '14px' }}>
+          {retryCount > 0
+            ? `正在恢复数据... (第 ${retryCount + 1} 次尝试)`
+            : '正在加载数据...'}
+        </div>
+      </div>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '24px', padding: '24px' }}>
+        <div style={{ fontSize: '64px' }}>⚠️</div>
+        <div
+          style={{
+            maxWidth: '480px',
+            padding: '28px',
+            backgroundColor: '#2d2d44',
+            borderRadius: '16px',
+            textAlign: 'center',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)'
+          }}
+        >
+          <h2 style={{ fontSize: '20px', color: '#e0e0ff', marginBottom: '12px' }}>
+            数据加载失败
+          </h2>
+          <p style={{ fontSize: '14px', color: '#a0a0c0', marginBottom: '24px' }}>
+            {hydrationError}
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/" style={{
+              padding: '10px 20px',
+              backgroundColor: 'transparent',
+              border: '1px solid #3d3d5c',
+              color: '#e0e0ff',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3d3d5c')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              返回首页
+            </Link>
+            <button
+              onClick={() => void retryHydration()}
+              style={{
+                background: btnHover
+                  ? 'linear-gradient(135deg, #6c5ce7 0%, #b1a9ff 100%)'
+                  : 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%)',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 600,
+                transition: 'filter 0.2s',
+                filter: btnHover ? 'brightness(1.15)' : 'brightness(1)'
+              }}
+              onMouseEnter={() => setBtnHover(true)}
+              onMouseLeave={() => setBtnHover(false)}
+            >
+              重新加载
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

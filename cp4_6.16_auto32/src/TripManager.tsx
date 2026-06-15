@@ -309,11 +309,14 @@ export default function TripManager() {
   const updateTrip = useTravelStore((s) => s.updateTrip);
   const deleteTrip = useTravelStore((s) => s.deleteTrip);
   const hydrating = useTravelStore((s) => s.hydrating);
+  const hydrationError = useTravelStore((s) => s.hydrationError);
+  const retryCount = useTravelStore((s) => s.retryCount);
   const initFromIDB = useTravelStore((s) => s.initFromIDB);
+  const retryHydration = useTravelStore((s) => s.retryHydration);
+  const [btnHover, setBtnHover] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
-  const [btnHover, setBtnHover] = useState(false);
 
   useEffect(() => {
     void initFromIDB();
@@ -325,8 +328,69 @@ export default function TripManager() {
 
   if (hydrating) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '16px' }}>
         <div className="spinner" />
+        <div style={{ color: '#a0a0c0', fontSize: '14px' }}>
+          {retryCount > 0
+            ? `正在恢复数据... (第 ${retryCount + 1} 次尝试)`
+            : '正在加载数据...'}
+        </div>
+      </div>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '24px', padding: '24px' }}>
+        <div style={{ fontSize: '64px' }}>⚠️</div>
+        <div
+          style={{
+            maxWidth: '480px',
+            padding: '28px',
+            backgroundColor: '#2d2d44',
+            borderRadius: '16px',
+            textAlign: 'center',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)'
+          }}
+        >
+          <h2 style={{ fontSize: '20px', color: '#e0e0ff', marginBottom: '12px' }}>
+            数据加载失败
+          </h2>
+          <p style={{ fontSize: '14px', color: '#a0a0c0', marginBottom: '8px', lineHeight: 1.6 }}>
+            {hydrationError}
+          </p>
+          <p style={{ fontSize: '12px', color: '#8080a0', marginBottom: '24px' }}>
+            已重试 {retryCount} 次
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'transparent',
+                border: '1px solid #3d3d5c',
+                color: '#e0e0ff',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3d3d5c')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              🔄 刷新页面
+            </button>
+            <button
+              onClick={() => void retryHydration()}
+              style={btnHover ? buttonHover : buttonStyle}
+              onMouseEnter={() => setBtnHover(true)}
+              onMouseLeave={() => setBtnHover(false)}
+            >
+              重新加载
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
