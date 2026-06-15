@@ -147,8 +147,9 @@
   height: 8px;
   border-radius: 50%;
   pointer-events: none;
-  animation: particle-fly 0.6s ease-out forwards;
+  animation: particle-fly 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   z-index: 100;
+  box-shadow: 0 0 8px currentColor;
 }
 
 @keyframes particle-fly {
@@ -162,6 +163,37 @@
         calc(-50% + var(--end-y))
       )
       scale(0);
+    opacity: 0;
+  }
+}
+
+.victory-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: victory-explode 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 150;
+  border-radius: 50%;
+  box-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+}
+
+@keyframes victory-explode {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2) rotate(calc(var(--rotation) * 0.2));
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(
+        calc(-50% + var(--end-x)),
+        calc(-50% + var(--end-y))
+      )
+      scale(0.2) rotate(var(--rotation));
     opacity: 0;
   }
 }

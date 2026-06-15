@@ -1,21 +1,31 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { ThemeTile } from '@/data/themes';
 
+/**
+ * 棋盘中的图块运行时实例
+ * - 每个图块实例通过 tileData 引用 themes.ts 中的 ThemeTile（静态定义）
+ * - tileIndex 记录其在主题 tiles 数组中的下标，用于主题切换时平滑替换 tileData
+ * - 一个 ThemeTile 会对应多个 Tile 实例（保证成对出现）
+ */
 export interface Tile {
   id: string;
   tileId: string;
+  /** 在主题 tiles 数组中的下标，主题切换时使用此索引映射新图块 */
   tileIndex: number;
   row: number;
   col: number;
   matched: boolean;
+  /** 引用 themes.ts 中的 ThemeTile */
   tileData: ThemeTile;
 }
 
+/** 路径坐标点（行、列），带边界扩展后使用 */
 export interface Point {
   row: number;
   col: number;
 }
 
+/** 匹配结果：是否匹配成功 + 连接路径点数组 */
 export interface PathResult {
   matched: boolean;
   path: Point[];
@@ -88,6 +98,10 @@ export function canMatch(
   gridSize: number
 ): PathResult {
   if (tile1.id === tile2.id || tile1.tileId !== tile2.tileId) {
+    return { matched: false, path: [] };
+  }
+
+  if (tile1.matched || tile2.matched) {
     return { matched: false, path: [] };
   }
 

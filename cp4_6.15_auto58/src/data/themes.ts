@@ -1,3 +1,8 @@
+/**
+ * 主题图块的静态定义
+ * 用于描述一个主题中包含哪些图块种类，以及每种图块的展示内容
+ * 与 matching.ts 中的 Tile（运行时棋盘实例）是一对多的关系
+ */
 export interface ThemeTile {
   id: string;
   name: string;
@@ -6,10 +11,16 @@ export interface ThemeTile {
   imageUrl?: string;
 }
 
+/**
+ * 主题配置
+ * 包含一组预定义的图块种类（ThemeTile[]）和主题元信息
+ * 生成棋盘时，根据难度从 tiles 数组中取前 N 种
+ */
 export interface Theme {
   id: string;
   name: string;
   description: string;
+  /** 该主题包含的图块种类，tileIndex 即为此数组的下标 */
   tiles: ThemeTile[];
   accentColor: string;
 }

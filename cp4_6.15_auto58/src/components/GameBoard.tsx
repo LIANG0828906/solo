@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Tile, Point, Difficulty } from '@/utils/matching';
 import { canMatch, DIFFICULTY_CONFIG } from '@/utils/matching';
 import './GameBoard.css';
@@ -20,6 +20,19 @@ interface Particle {
   endX: number;
   endY: number;
   color: string;
+  size: number;
+}
+
+interface VictoryParticle {
+  id: string;
+  x: number;
+  y: number;
+  endX: number;
+  endY: number;
+  color: string;
+  size: number;
+  rotation: number;
+  delay: number;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({
@@ -36,6 +49,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [particles, setParticles] = useState<Particle[]>([]);
   const [matchingTiles, setMatchingTiles] = useState<Set<string>>(new Set());
   const [boardSize, setBoardSize] = useState(480);
+  const [victoryParticles, setVictoryParticles] = useState<VictoryParticle[]>([]);
+  const prevVictoryRef = useRef(false);
 
   const config = DIFFICULTY_CONFIG[difficulty];
   const gridSize = config.gridSize;
@@ -73,9 +88,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const createParticles = useCallback((x: number, y: number, color: string) => {
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI * 2 * i) / 12;
-      const distance = 50 + Math.random() * 20;
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI * 2 * i) / 16 + Math.random() * 0.3;
+      const distance = 50 + Math.random() * 30;
       newParticles.push({
         id: `${Date.now()}-${i}-${Math.random()}`,
         x,
@@ -83,13 +98,56 @@ const GameBoard: React.FC<GameBoardProps> = ({
         endX: x + Math.cos(angle) * distance,
         endY: y + Math.sin(angle) * distance,
         color,
+        size: 4 + Math.random() * 6,
       });
     }
     setParticles((prev) => [...prev, ...newParticles]);
     setTimeout(() => {
       setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)));
-    }, 600);
+    }, 700);
   }, []);
+
+  const createVictoryParticles = useCallback((centerX: number, centerY: number) => {
+    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#FF9FF3', '#00D9FF', '#FFA502'];
+    const newParticles: VictoryParticle[] = [];
+    const totalParticles = 80;
+
+    for (let i = 0; i < totalParticles; i++) {
+      const angle = (Math.PI * 2 * i) / totalParticles + Math.random() * 0.5;
+      const distance = 100 + Math.random() * 200;
+      newParticles.push({
+        id: `v-${Date.now()}-${i}-${Math.random()}`,
+        x: centerX,
+        y: centerY,
+        endX: centerX + Math.cos(angle) * distance,
+        endY: centerY + Math.sin(angle) * distance,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 6 + Math.random() * 10,
+        rotation: Math.random() * 360,
+        delay: Math.random() * 300,
+      });
+    }
+    setVictoryParticles(newParticles);
+    setTimeout(() => {
+      setVictoryParticles([]);
+    }, 2500);
+  }, []);
+
+  useEffect(() => {
+    if (isVictory && !prevVictoryRef.current) {
+      const boardEl = document.getElementById('game-board');
+      if (boardEl) {
+        const rect = boardEl.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        setTimeout(() => createVictoryParticles(cx, cy), 100);
+        setTimeout(() => createVictoryParticles(cx, cy - 50), 300);
+        setTimeout(() => createVictoryParticles(cx + 50, cy), 500);
+        setTimeout(() => createVictoryParticles(cx - 50, cy), 700);
+      }
+    }
+    prevVictoryRef.current = isVictory;
+  }, [isVictory, createVictoryParticles]);
 
   const handleTileClick = useCallback(
     (tile: Tile) => {
@@ -209,9 +267,29 @@ const GameBoard: React.FC<GameBoardProps> = ({
           style={{
             left: p.x,
             top: p.y,
+            width: p.size,
+            height: p.size,
             backgroundColor: p.color,
             '--end-x': `${p.endX - p.x}px`,
             '--end-y': `${p.endY - p.y}px`,
+          } as React.CSSProperties}
+        />
+      ))}
+
+      {victoryParticles.map((p) => (
+        <div
+          key={p.id}
+          className="victory-particle"
+          style={{
+            left: p.x,
+            top: p.y,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            '--end-x': `${p.endX - p.x}px`,
+            '--end-y': `${p.endY - p.y}px`,
+            '--rotation': `${p.rotation}deg`,
+            animationDelay: `${p.delay}ms`,
           } as React.CSSProperties}
         />
       ))}

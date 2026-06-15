@@ -42,25 +42,52 @@ const Customizer: React.FC<CustomizerProps> = ({
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
           const size = 200;
+          const canvas = document.createElement('canvas');
           canvas.width = size;
           canvas.height = size;
           const ctx = canvas.getContext('2d');
 
           if (ctx) {
             const scale = Math.max(size / img.width, size / img.height);
-            const x = (size - img.width * scale) / 2;
-            const y = (size - img.height * scale) / 2;
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
+            const sx = (img.width - size / scale) / 2;
+            const sy = (img.height - size / scale) / 2;
+            const sw = Math.min(img.width, size / scale);
+            const sh = Math.min(img.height, size / scale);
 
-            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+            if (sx >= 0 && sy >= 0 && sw > 0 && sh > 0) {
+              ctx.drawImage(
+                img,
+                sx, sy, sw, sh,
+                0, 0, size, size
+              );
+            } else {
+              const x = (size - drawWidth) / 2;
+              const y = (size - drawHeight) / 2;
+              ctx.drawImage(img, x, y, drawWidth, drawHeight);
+            }
+
+            const imageData = ctx.getImageData(size / 2 - 5, size / 2 - 5, 10, 10);
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let i = 0; i < imageData.data.length; i += 4) {
+              r += imageData.data[i];
+              g += imageData.data[i + 1];
+              b += imageData.data[i + 2];
+              count++;
+            }
+            r = Math.round(r / count);
+            g = Math.round(g / count);
+            b = Math.round(b / count);
+            const dominantColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
             const thumbnailUrl = canvas.toDataURL('image/webp', 0.8);
 
             resolve({
               id: uuidv4(),
               name: file.name.replace(/\.[^/.]+$/, ''),
-              color: '#6B7280',
+              color: dominantColor,
               imageUrl: thumbnailUrl,
             });
           } else {

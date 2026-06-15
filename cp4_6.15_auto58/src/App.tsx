@@ -89,7 +89,7 @@ const App: React.FC = () => {
     setTiles((prevTiles) =>
       prevTiles.map((tile) => {
         const newTileData = themeTiles[tile.tileIndex % themeTiles.length];
-        if (newTileData && newTileData.id !== tile.tileId) {
+        if (newTileData) {
           return {
             ...tile,
             tileId: newTileData.id,
@@ -99,8 +99,7 @@ const App: React.FC = () => {
         return tile;
       })
     );
-    setThemeTransitionKey((prev) => prev + 1);
-  }, [currentTheme]);
+  }, [currentTheme, tiles.length]);
 
   useEffect(() => {
     if (!isPlaying || isPaused || isGameOver) {
@@ -256,7 +255,6 @@ const App: React.FC = () => {
           </div>
         ) : (
           <GameBoard
-            key={themeTransitionKey}
             tiles={tiles}
             difficulty={difficulty}
             isPaused={isPaused}
