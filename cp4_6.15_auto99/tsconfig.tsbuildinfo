@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/plantcard.tsx","./src/components/plantdetail.tsx","./src/components/plantform.tsx","./src/services/reminderservice.ts","./src/services/weatherservice.ts","./src/store/useplantstore.ts","./src/types/plant.ts"],"version":"5.8.3"}
