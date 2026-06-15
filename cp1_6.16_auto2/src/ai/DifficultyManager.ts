@@ -17,16 +17,15 @@ export interface DifficultyConfig {
 
 export class DifficultyManager {
   private currentLevel: number = 1;
-  private maxLevel: number = 5;
-  private minLevel: number = 1;
+  private readonly maxLevel: number = 5;
+  private readonly minLevel: number = 1;
   private metrics: DifficultyMetrics;
-  private lastKillTime: number = 0;
-  private healthThreshold: number = 0;
-  private consecutiveKillsForLevelUp: number = 5;
-  private healthThresholdForLevelUp: number = 0.8;
-  private healthThresholdForLevelDown: number = 0.3;
-  private consecutiveFailuresForLevelDown: number = 3;
-  private lastHealth: number = 100;
+
+  private readonly consecutiveKillsForLevelUp: number = 5;
+  private readonly healthThresholdForLevelUp: number = 0.8;
+  private readonly healthThresholdForLevelDown: number = 0.3;
+  private readonly consecutiveFailuresForLevelDown: number = 3;
+
   private onDifficultyChangeCallback: ((level: number) => void) | null = null;
 
   constructor() {
@@ -47,19 +46,15 @@ export class DifficultyManager {
   }
 
   updateMetrics(partial: Partial<DifficultyMetrics>): void {
-    const prevHealth = this.metrics.playerHealth;
-    Object.assign(this.metrics, partial);
-
     if (partial.playerHealth !== undefined) {
-      if (partial.playerHealth < prevHealth) {
+      if (partial.playerHealth < this.metrics.playerHealth) {
         this.metrics.consecutiveKills = 0;
-        if (partial.playerHealth <= 0) {
-          this.metrics.consecutiveFailures++;
-        }
       }
-      this.lastHealth = partial.playerHealth;
+      if (partial.playerHealth <= 0 && this.metrics.playerHealth > 0) {
+        this.metrics.consecutiveFailures++;
+      }
     }
-
+    Object.assign(this.metrics, partial);
     this.evaluateDifficulty();
   }
 
@@ -67,7 +62,6 @@ export class DifficultyManager {
     this.metrics.killCount++;
     this.metrics.consecutiveKills++;
     this.metrics.consecutiveFailures = 0;
-    this.lastKillTime = Date.now();
     this.evaluateDifficulty();
   }
 
@@ -109,35 +103,33 @@ export class DifficultyManager {
   }
 
   getDifficultyConfig(): DifficultyConfig {
+    const level = this.currentLevel;
     const spawnInterval = Phaser.Math.Clamp(
-      2000 - (this.currentLevel - 1) * 375,
+      2000 - (level - 1) * 375,
       500,
       2000
     );
-
     const enemyWeights = this.calculateEnemyWeights();
 
     return {
-      level: this.currentLevel,
+      level,
       spawnInterval,
       enemyWeights
     };
   }
 
   private calculateEnemyWeights(): Record<string, number> {
-    const baseWeights: Record<string, number> = {
-      melee: 60,
-      ranged: 30,
-      explosive: 10
+    const level = this.currentLevel;
+    let meleeWeight = Math.max(30, 60 - level * 5);
+    let suicideWeight = Math.min(40, 10 + level * 6);
+    let rangedWeight = 100 - meleeWeight - suicideWeight;
+    rangedWeight = Math.max(10, rangedWeight);
+
+    return {
+      melee: meleeWeight,
+      ranged: rangedWeight,
+      suicide: suicideWeight
     };
-
-    const levelMultiplier = (this.currentLevel - 1) * 0.15;
-
-    baseWeights.melee = Math.max(30, baseWeights.melee - this.currentLevel * 4);
-    baseWeights.explosive = Math.min(40, baseWeights.explosive + this.currentLevel * 6);
-    baseWeights.ranged = 100 - baseWeights.melee - baseWeights.explosive;
-
-    return baseWeights;
   }
 
   getCurrentLevel(): number {
