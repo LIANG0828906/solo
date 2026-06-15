@@ -803,9 +803,7 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
                 display: 'block',
                 width: 500,
                 maxWidth: '100%',
-                height: 'auto',
-                transform: 'translateZ(0)',
-                willChange: 'transform'
+                height: 'auto'
               }}
             />
           </div>
@@ -814,16 +812,8 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
 
       <style>{`
         @keyframes dateIn {
-          from { opacity: 0; transform: translateZ(0) translateX(-6px); }
-          to { opacity: 1; transform: translateZ(0) translateX(0); }
-        }
-        .poster-canvas, .form-panel, .btn, .date-item {
-          will-change: transform;
-          backface-visibility: hidden;
-          transform: translateZ(0);
-        }
-        .poster-canvas {
-          will-change: transform, opacity;
+          from { opacity: 0; transform: translateX(-6px); }
+          to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </div>

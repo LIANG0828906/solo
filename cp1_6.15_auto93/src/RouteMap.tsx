@@ -654,9 +654,7 @@ export default function RouteMap({ venues, tourDates }: Props) {
               style={{
                 width: '100%',
                 height: 'auto',
-                display: 'block',
-                transform: 'translateZ(0)',
-                willChange: 'transform'
+                display: 'block'
               }}
             />
           </div>
@@ -665,16 +663,12 @@ export default function RouteMap({ venues, tourDates }: Props) {
 
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateZ(0) translateY(16px); }
-          to { opacity: 1; transform: translateZ(0) translateY(0); }
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes venueIn {
-          from { opacity: 0; transform: translateZ(0) translateX(-8px); }
-          to { opacity: 1; transform: translateZ(0) translateX(0); }
-        }
-        .venue-item, .map-container, canvas {
-          will-change: transform;
-          backface-visibility: hidden;
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </div>
