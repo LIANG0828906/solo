@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Plus, Minus, ShoppingCart, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Plus, Minus, ShoppingCart, FileText, Copy, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import { api } from '../api';
 import type { QuoteItem } from '../types';
@@ -19,13 +19,49 @@ const QuotePanel: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   const showToast = (type: 'success' | 'error', message: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ type, message });
-    setTimeout(() => setToast(null), 2500);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 2500);
   };
 
   const total = quoteItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  const formatQuoteText = () => {
+    const lines = quoteItems.map(
+      (item) => `${item.name}x${item.quantity} - ¥${item.unitPrice.toFixed(2)}`
+    );
+    lines.push(`总价：¥${total.toFixed(2)}`);
+    return lines.join('\n');
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formatQuoteText());
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 1500);
+    } catch {
+      showToast('error', '复制失败，请手动复制');
+    }
+  };
 
   const handleSubmit = async () => {
     if (quoteItems.length === 0) {
@@ -39,7 +75,6 @@ const QuotePanel: React.FC = () => {
       decrementStock(quoteItems.map((i) => ({ productId: i.productId, quantity: i.quantity })));
       clearSelection();
       setQuotePanelOpen(false, []);
-      showToast('success', '订单创建成功！');
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : '创建订单失败');
     } finally {
@@ -52,7 +87,7 @@ const QuotePanel: React.FC = () => {
   return (
     <>
       <style>{`
-        @keyframes slideInRight {
+        @keyframes quoteSlideIn {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
@@ -89,7 +124,7 @@ const QuotePanel: React.FC = () => {
           zIndex: 101,
           display: 'flex',
           flexDirection: 'column',
-          animation: 'slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          animation: 'quoteSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
         <div
@@ -118,7 +153,7 @@ const QuotePanel: React.FC = () => {
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: '#111827' }}>
-                生成报价单
+                报价单
               </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6B7280' }}>
                 共 {quoteItems.length} 种商品
@@ -164,7 +199,7 @@ const QuotePanel: React.FC = () => {
             >
               <ShoppingCart style={{ width: '56px', height: '56px', opacity: 0.4 }} />
               <p style={{ fontSize: '14px', margin: 0 }}>暂无选中商品</p>
-              <p style={{ fontSize: '12px', margin: 0 }}>请在商品管理中选择需要报价的商品</p>
+              <p style={{ fontSize: '12px', margin: 0 }}>请在商品管理中勾选商品</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -209,40 +244,75 @@ const QuotePanel: React.FC = () => {
                 ¥{total.toFixed(2)}
               </span>
             </div>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              style={{
-                width: '100%',
-                padding: '13px',
-                backgroundColor: '#10B981',
-                color: '#ffffff',
-                fontSize: '15px',
-                fontWeight: 600,
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
-                transition: 'all 0.2s ease',
-                opacity: isSubmitting ? 0.7 : 1,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                if (!isSubmitting) {
-                  (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.02)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 10px rgba(16, 185, 129, 0.25)';
-              }}
-            >
-              <ShoppingCart style={{ width: '18px', height: '18px' }} />
-              {isSubmitting ? '提交中...' : '确认生成订单'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleCopy}
+                style={{
+                  flex: '0 0 auto',
+                  padding: '12px 18px',
+                  backgroundColor: copied ? '#10B981' : '#fff',
+                  color: copied ? '#ffffff' : '#374151',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  border: '1px solid #E5E7EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!copied) {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F9FAFB';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#D1D5DB';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!copied) {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#fff';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB';
+                  }
+                }}
+              >
+                {copied ? <Check style={{ width: '16px', height: '16px' }} /> : <Copy style={{ width: '16px', height: '16px' }} />}
+                {copied ? '已复制' : '复制文本'}
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#10B981',
+                  color: '#ffffff',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
+                  transition: 'all 0.2s ease',
+                  opacity: isSubmitting ? 0.7 : 1,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSubmitting) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.02)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 10px rgba(16, 185, 129, 0.25)';
+                }}
+              >
+                <ShoppingCart style={{ width: '18px', height: '18px' }} />
+                {isSubmitting ? '提交中...' : '确认生成订单'}
+              </button>
+            </div>
           </div>
         )}
       </div>

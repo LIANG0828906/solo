@@ -232,9 +232,9 @@ const App: React.FC = () => {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
-        @keyframes activeBarSlide {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
+        @keyframes activeBarSlideIn {
+          from { transform: scaleY(0); }
+          to { transform: scaleY(1); }
         }
         @keyframes modalFadeInScale {
           from { opacity: 0; transform: scale(0.92) translateY(8px); }
@@ -270,6 +270,17 @@ const App: React.FC = () => {
           .product-grid {
             grid-template-columns: repeat(2, 1fr);
           }
+        }
+        .sidebar-indicator-active {
+          transform: scaleY(1);
+          transform-origin: top;
+          transition: transform 0.3s ease-out;
+          animation: activeBarSlideIn 0.3s ease-out forwards;
+        }
+        .sidebar-indicator-inactive {
+          transform: scaleY(0);
+          transform-origin: top;
+          transition: transform 0.2s ease-out;
         }
       `}</style>
 
@@ -390,19 +401,16 @@ const App: React.FC = () => {
                   }}
                 >
                   <div
+                    className={isActive ? 'sidebar-indicator-active' : 'sidebar-indicator-inactive'}
                     style={{
                       position: 'absolute',
                       left: 0,
                       top: '50%',
-                      transform: 'translateY(-50%)',
+                      marginTop: '-18px',
                       width: '3px',
                       height: '36px',
                       backgroundColor: '#3B82F6',
                       borderRadius: '0 3px 3px 0',
-                      transformOrigin: 'left',
-                      animation: isActive ? 'activeBarSlide 0.3s ease-out forwards' : undefined,
-                      opacity: isActive ? 1 : 0,
-                      transition: 'opacity 0.2s ease',
                     }}
                   />
                   <div
