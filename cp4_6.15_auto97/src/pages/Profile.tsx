@@ -242,3 +242,14 @@ function BorrowCard({
           )}
         </div>
         {borrow.lateFee > 0 && (
+          <div style={{ marginTop: '12px' }}>
+            <span className="late-fee">
+              <i className="fas fa-exclamation-triangle" style={{ marginRight: '4px' }}></i>
+              滞纳金：¥{borrow.lateFee.toFixed(2)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
