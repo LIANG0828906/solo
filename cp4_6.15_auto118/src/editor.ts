@@ -1,35 +1,7 @@
-export interface EditorNote {
-  id: string;
-  time: number;
-  track: number;
-  y: number;
-  snappingTarget?: number;
-  isDragging?: boolean;
-}
+import type { EditorNote, EditorState, SnapResult, GridLine, TrackType } from './types';
+import { generateId as genId } from './types';
 
-export interface EditorState {
-  notes: EditorNote[];
-  currentTime: number;
-  bpm: number;
-  pixelsPerSecond: number;
-  scrollLeft: number;
-  selectedNoteId: string | null;
-  isDragging: boolean;
-}
-
-export interface SnapResult {
-  snappedTime: number;
-  snappedBeat: number;
-}
-
-export interface GridLine {
-  pixel: number;
-  time: number;
-  type: 'beat' | 'quarter' | 'sixteenth';
-  height: number;
-}
-
-export interface DragState {
+interface DragState {
   noteId: string;
   offsetX: number;
   startX: number;
@@ -37,7 +9,7 @@ export interface DragState {
   originalTime: number;
 }
 
-export interface AnimationState {
+interface AnimationState {
   noteId: string;
   startTime: number;
   startValue: number;
@@ -45,10 +17,14 @@ export interface AnimationState {
   duration: number;
 }
 
+interface AnimationCallback {
+  (note: EditorNote): void;
+}
+
 const ANIMATION_DURATION = 0.2;
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  return genId();
 }
 
 function spring(t: number): number {
@@ -65,6 +41,7 @@ export class TimelineEditor {
   private _animations: Map<string, AnimationState>;
   private _currentTime: number;
   private _animationFrameId: number | null;
+  private _onNoteUpdate: AnimationCallback | null = null;
 
   constructor(bpm: number = 120, pixelsPerSecond: number = 100, notes: EditorNote[] = []) {
     this._notes = [...notes];
@@ -78,8 +55,12 @@ export class TimelineEditor {
     this._animationFrameId = null;
   }
 
+  onNoteUpdate(callback: AnimationCallback | null): void {
+    this._onNoteUpdate = callback;
+  }
+
   getNotes(): EditorNote[] {
-    return this._notes.map(note => ({ ...note }));
+    return this._notes.map((note) => ({ ...note }));
   }
 
   getState(): EditorState {
@@ -94,7 +75,7 @@ export class TimelineEditor {
     };
   }
 
-  addNote(time: number, track: number, y: number): EditorNote {
+  addNote(time: number, track: TrackType, y: number): EditorNote {
     const snapped = this.snapTo16th(time);
     const note: EditorNote = {
       id: generateId(),
@@ -107,7 +88,7 @@ export class TimelineEditor {
   }
 
   removeNote(id: string): boolean {
-    const index = this._notes.findIndex(n => n.id === id);
+    const index = this._notes.findIndex((n) => n.id === id);
     if (index === -1) return false;
     this._notes.splice(index, 1);
     if (this._selectedNoteId === id) {
@@ -117,9 +98,10 @@ export class TimelineEditor {
   }
 
   startDrag(id: string, offsetX: number): void {
-    const note = this._notes.find(n => n.id === id);
+    const note = this._notes.find((n) => n.id === id);
     if (!note) return;
 
+    this.cancelAnimation(id);
     this._selectedNoteId = id;
     this._draggingNote = {
       noteId: id,
@@ -129,7 +111,7 @@ export class TimelineEditor {
       originalTime: note.time,
     };
 
-    const noteIndex = this._notes.findIndex(n => n.id === id);
+    const noteIndex = this._notes.findIndex((n) => n.id === id);
     if (noteIndex !== -1) {
       this._notes[noteIndex] = { ...this._notes[noteIndex], isDragging: true };
     }
@@ -144,7 +126,7 @@ export class TimelineEditor {
     const rawTime = this.pixelToTime(pixelX);
     const snapped = this.snapTo16th(rawTime);
 
-    const noteIndex = this._notes.findIndex(n => n.id === this._draggingNote!.noteId);
+    const noteIndex = this._notes.findIndex((n) => n.id === this._draggingNote!.noteId);
     if (noteIndex !== -1) {
       this._notes[noteIndex] = {
         ...this._notes[noteIndex],
@@ -160,8 +142,8 @@ export class TimelineEditor {
     if (!this._draggingNote) return null;
 
     const noteId = this._draggingNote.noteId;
-    const noteIndex = this._notes.findIndex(n => n.id === noteId);
-    
+    const noteIndex = this._notes.findIndex((n) => n.id === noteId);
+
     if (noteIndex === -1) {
       this._draggingNote = null;
       return null;
@@ -169,6 +151,17 @@ export class TimelineEditor {
 
     const note = this._notes[noteIndex];
     const snapped = this.snapTo16th(note.time);
+
+    if (Math.abs(note.time - snapped.snappedTime) < 0.001) {
+      this._notes[noteIndex] = {
+        ...note,
+        isDragging: false,
+        snappingTarget: undefined,
+        time: snapped.snappedTime,
+      };
+      this._draggingNote = null;
+      return { ...this._notes[noteIndex] };
+    }
 
     this._animations.set(noteId, {
       noteId,
@@ -203,15 +196,22 @@ export class TimelineEditor {
         const eased = spring(t);
         const currentTime = anim.startValue + (anim.endValue - anim.startValue) * eased;
 
-        const noteIndex = this._notes.findIndex(n => n.id === noteId);
+        const noteIndex = this._notes.findIndex((n) => n.id === noteId);
         if (noteIndex !== -1) {
           this._notes[noteIndex] = { ...this._notes[noteIndex], time: currentTime };
+
+          if (this._onNoteUpdate) {
+            this._onNoteUpdate({ ...this._notes[noteIndex] });
+          }
         }
 
         if (t >= 1) {
           completed.push(noteId);
           if (noteIndex !== -1) {
             this._notes[noteIndex] = { ...this._notes[noteIndex], time: anim.endValue };
+            if (this._onNoteUpdate) {
+              this._onNoteUpdate({ ...this._notes[noteIndex] });
+            }
           }
         }
       }
@@ -322,7 +322,7 @@ export class TimelineEditor {
     if (this._notes.length === 0) {
       return this.getBeatDuration() * 4;
     }
-    const maxTime = Math.max(...this._notes.map(n => n.time));
+    const maxTime = Math.max(...this._notes.map((n) => n.time));
     const beatDuration = this.getBeatDuration();
     const beats = Math.ceil(maxTime / beatDuration) + 2;
     return beats * beatDuration;
@@ -330,7 +330,7 @@ export class TimelineEditor {
 
   getSelectedNote(): EditorNote | null {
     if (!this._selectedNoteId) return null;
-    const note = this._notes.find(n => n.id === this._selectedNoteId);
+    const note = this._notes.find((n) => n.id === this._selectedNoteId);
     return note ? { ...note } : null;
   }
 

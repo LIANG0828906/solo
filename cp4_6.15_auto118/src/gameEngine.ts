@@ -1,48 +1,12 @@
-export interface Note {
-  id: string;
-  time: number;
-  track: 'melody' | 'drum' | 'harmony';
-  y: number;
-}
-
-export interface Particle {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  life: number;
-  maxLife: number;
-  size: number;
-}
-
-export interface GameState {
-  isPlaying: boolean;
-  currentTime: number;
-  speed: number;
-  notes: Note[];
-  particles: Particle[];
-  performanceMode: 'normal' | 'low';
-}
-
-export interface EngineOptions {
-  bpm?: number;
-  noteFlyTime?: number;
-  judgementLineX?: number;
-}
+import type { Note, Particle, GameState, EngineOptions, TrackType } from './types';
+import { TRACK_COLORS } from './types';
 
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
 }
 
-export function getTrackColor(track: 'melody' | 'drum' | 'harmony'): string {
-  const colors: Record<'melody' | 'drum' | 'harmony', string> = {
-    melody: '#ff3366',
-    drum: '#3399ff',
-    harmony: '#ffcc00',
-  };
-  return colors[track];
+export function getTrackColor(track: TrackType): string {
+  return TRACK_COLORS[track];
 }
 
 export class GameEngine {
@@ -55,6 +19,9 @@ export class GameEngine {
   private _fpsHistory: number[] = [];
   private _frameCount: number = 0;
   private _fpsTime: number = 0;
+  private _lowParticlesThreshold: number = 300;
+  private _normalParticleCount: number = 20;
+  private _lowParticleCount: number = 8;
 
   constructor(options: EngineOptions = {}, initialNotes: Note[] = []) {
     this._options = {
@@ -107,7 +74,11 @@ export class GameEngine {
   }
 
   getState(): GameState {
-    return { ...this._state, notes: [...this._state.notes], particles: [...this._state.particles] };
+    return {
+      ...this._state,
+      notes: [...this._state.notes],
+      particles: [...this._state.particles],
+    };
   }
 
   setSpeed(speed: number): void {
@@ -119,6 +90,15 @@ export class GameEngine {
     this._hitNotes.clear();
   }
 
+  setCurrentTime(time: number): void {
+    this._state.currentTime = time;
+    this._hitNotes.clear();
+  }
+
+  getOptions(): Required<EngineOptions> {
+    return { ...this._options };
+  }
+
   private _animate = (): void => {
     if (!this._state.isPlaying) return;
 
@@ -128,7 +108,7 @@ export class GameEngine {
 
     this._frameCount++;
     if (now - this._fpsTime >= 1000) {
-      const fps = this._frameCount * 1000 / (now - this._fpsTime);
+      const fps = (this._frameCount * 1000) / (now - this._fpsTime);
       this._fpsHistory.push(fps);
       if (this._fpsHistory.length > 3) {
         this._fpsHistory.shift();
@@ -173,7 +153,10 @@ export class GameEngine {
 
   private _spawnParticles(note: Note): void {
     const color = getTrackColor(note.track);
-    const baseCount = this._state.performanceMode === 'low' ? 10 : 20;
+    const baseCount =
+      this._state.performanceMode === 'low'
+        ? this._lowParticleCount
+        : this._normalParticleCount;
     const count = baseCount + Math.floor(Math.random() * (baseCount / 2));
     const x = this._options.judgementLineX;
     const y = note.y;
@@ -222,15 +205,34 @@ export class GameEngine {
   private _checkPerformance(): void {
     if (this._fpsHistory.length < 3) return;
 
-    const lowFpsCount = this._fpsHistory.filter(fps => fps < 45).length;
+    const lowFpsCount = this._fpsHistory.filter((fps) => fps < 45).length;
     if (lowFpsCount >= 3) {
       this._state.performanceMode = 'low';
+    } else if (this._state.performanceMode === 'low') {
+      const avgFps =
+        this._fpsHistory.reduce((a, b) => a + b, 0) / this._fpsHistory.length;
+      if (avgFps >= 55 && this._state.particles.length < this._lowParticlesThreshold / 2) {
+        this._state.performanceMode = 'normal';
+      }
     }
   }
 
   private _checkParticleCount(): void {
-    if (this._state.particles.length > 300) {
+    const particleCount = this._state.particles.length;
+
+    if (particleCount > this._lowParticlesThreshold) {
       this._state.performanceMode = 'low';
+
+      if (particleCount > this._lowParticlesThreshold * 1.5) {
+        this._state.particles = this._state.particles.slice(
+          Math.floor(this._state.particles.length / 3)
+        );
+      }
     }
+  }
+
+  getCurrentFps(): number | null {
+    if (this._fpsHistory.length === 0) return null;
+    return this._fpsHistory.reduce((a, b) => a + b, 0) / this._fpsHistory.length;
   }
 }

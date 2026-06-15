@@ -1,40 +1,5 @@
-export interface Note {
-  id: string;
-  time: number;
-  track: 'melody' | 'drum' | 'harmony';
-  y: number;
-}
-
-export interface Particle {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  life: number;
-  maxLife: number;
-  size: number;
-}
-
-export interface RenderState {
-  width: number;
-  height: number;
-  currentTime: number;
-  notes: Note[];
-  particles: Particle[];
-  isPlaying: boolean;
-  bpm: number;
-  performanceMode: 'normal' | 'low';
-  judgementLineX: number;
-  noteFlyTime: number;
-}
-
-const TRACK_COLORS: Record<string, string> = {
-  melody: '#ff3366',
-  drum: '#3399ff',
-  harmony: '#ffcc00',
-};
+import type { Note, Particle, RenderState } from './types';
+import { TRACK_COLORS } from './types';
 
 const NOTE_SIZE = 30;
 const NOTE_STROKE = 2;
@@ -241,7 +206,11 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function getFlashIntensity(notes: Note[], currentTime: number, judgementWindow: number = 0.05): number {
+function getFlashIntensity(
+  notes: Note[],
+  currentTime: number,
+  judgementWindow: number = 0.05
+): number {
   let maxIntensity = 0;
   for (const note of notes) {
     const diff = Math.abs(note.time - currentTime);
@@ -288,4 +257,8 @@ export function drawFrame(
   for (const particle of particles) {
     drawParticle(ctx, particle, performanceMode);
   }
+}
+
+export function getNoteSize(): number {
+  return NOTE_SIZE;
 }
