@@ -1,9 +1,17 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import { Molecule, VibrationMode, MoleculeStoreState } from '../types/molecule';
 
-const MoleculeContext = createContext<MoleculeStoreState | undefined>(undefined);
+export const MoleculeContext = createContext<MoleculeStoreState | undefined>(undefined);
 
-export const MoleculeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function useMoleculeStore(): MoleculeStoreState {
+  const context = useContext(MoleculeContext);
+  if (context === undefined) {
+    throw new Error('useMoleculeStore must be used within a MoleculeProvider');
+  }
+  return context;
+}
+
+export function createStoreState(): MoleculeStoreState {
   const [currentMolecule, setCurrentMoleculeState] = useState<Molecule | null>(null);
   const [selectedAtoms, setSelectedAtomsState] = useState<string[]>([]);
   const [vibrationMode, setVibrationModeState] = useState<VibrationMode | null>(null);
@@ -15,11 +23,13 @@ export const MoleculeProvider: React.FC<{ children: ReactNode }> = ({ children }
     atomId: string;
     position: { x: number; y: number };
   } | null>(null);
+  const [moleculeKey, setMoleculeKey] = useState<number>(0);
 
   const setCurrentMolecule = useCallback((molecule: Molecule | null) => {
     setCurrentMoleculeState(molecule);
     setSelectedAtomsState([]);
     setAtomInfoCardState(null);
+    setMoleculeKey((prev) => prev + 1);
   }, []);
 
   const setSelectedAtoms = useCallback((atoms: string[]) => {
@@ -56,7 +66,7 @@ export const MoleculeProvider: React.FC<{ children: ReactNode }> = ({ children }
     []
   );
 
-  const value: MoleculeStoreState = {
+  return {
     currentMolecule,
     selectedAtoms,
     vibrationMode,
@@ -65,6 +75,7 @@ export const MoleculeProvider: React.FC<{ children: ReactNode }> = ({ children }
     isRecording,
     isPanelCollapsed,
     atomInfoCard,
+    moleculeKey,
     setCurrentMolecule,
     setSelectedAtoms,
     addSelectedAtom,
@@ -77,14 +88,4 @@ export const MoleculeProvider: React.FC<{ children: ReactNode }> = ({ children }
     setIsPanelCollapsed,
     setAtomInfoCard,
   };
-
-  return <MoleculeContext.Provider value={value}>{children}</MoleculeContext.Provider>;
-};
-
-export const useMoleculeStore = (): MoleculeStoreState => {
-  const context = useContext(MoleculeContext);
-  if (context === undefined) {
-    throw new Error('useMoleculeStore must be used within a MoleculeProvider');
-  }
-  return context;
-};
+}

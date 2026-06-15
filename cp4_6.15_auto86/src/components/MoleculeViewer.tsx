@@ -4,7 +4,7 @@ import { OrbitControls, Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { calculateVibration, generateTrajectoryPoints } from '../utils/vibrationEngine';
-import { Atom, Bond, Molecule } from '../types/molecule';
+import { Atom, Bond, Molecule, BondType } from '../types/molecule';
 import { ELEMENT_PROPERTIES } from '../data/presetMolecules';
 
 interface AtomMeshProps {
@@ -17,6 +17,7 @@ interface AtomMeshProps {
   scale: number;
   showTrajectory?: boolean;
   trajectoryPoints?: Array<{ x: number; y: number; z: number }>;
+  animationProgress: number;
 }
 
 const AtomMesh: React.FC<AtomMeshProps> = ({
@@ -29,6 +30,7 @@ const AtomMesh: React.FC<AtomMeshProps> = ({
   scale,
   showTrajectory = false,
   trajectoryPoints = [],
+  animationProgress,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const actualPosition = [
@@ -39,6 +41,7 @@ const AtomMesh: React.FC<AtomMeshProps> = ({
 
   const color = isSelected ? '#00d4ff' : atom.color;
   const emissiveIntensity = isSelected ? 0.5 : 0.2;
+  const animationScale = Math.min(animationProgress * 2, 1);
 
   const trajectoryLinePoints = useMemo(() => {
     if (!showTrajectory || trajectoryPoints.length === 0) return [];
@@ -46,7 +49,7 @@ const AtomMesh: React.FC<AtomMeshProps> = ({
   }, [showTrajectory, trajectoryPoints, scale]);
 
   return (
-    <group>
+    <group scale={animationScale}>
       <mesh
         ref={meshRef}
         position={actualPosition}
@@ -75,7 +78,7 @@ const AtomMesh: React.FC<AtomMeshProps> = ({
           color="#00d4ff"
           lineWidth={1}
           transparent
-          opacity={0.4}
+          opacity={0.5}
           dashed
           dashSize={0.2}
           gapSize={0.1}
@@ -92,9 +95,18 @@ interface BondMeshProps {
   displacement1?: { x: number; y: number; z: number };
   displacement2?: { x: number; y: number; z: number };
   scale: number;
+  animationProgress: number;
 }
 
-const BondMesh: React.FC<BondMeshProps> = ({ bond, atom1, atom2, displacement1 = { x: 0, y: 0, z: 0 }, displacement2 = { x: 0, y: 0, z: 0 }, scale }) => {
+const BondMesh: React.FC<BondMeshProps> = ({
+  bond,
+  atom1,
+  atom2,
+  displacement1 = { x: 0, y: 0, z: 0 },
+  displacement2 = { x: 0, y: 0, z: 0 },
+  scale,
+  animationProgress,
+}) => {
   const groupRef = useRef<THREE.Group>(null);
 
   const p1 = new THREE.Vector3(
@@ -117,42 +129,74 @@ const BondMesh: React.FC<BondMeshProps> = ({ bond, atom1, atom2, displacement1 =
 
   const bondRadius = 0.15 * scale;
   const bondColor = '#888888';
+  const animationScale = Math.min(animationProgress * 2, 1);
 
-  const renderBondCylinder = (offset: number, isDouble: boolean = false) => {
-    const actualRadius = isDouble ? bondRadius * 0.6 : bondRadius;
-    const pos = isDouble ? new THREE.Vector3(offset, 0, 0).applyQuaternion(quaternion) : new THREE.Vector3();
+  const bondOrder = typeof bond.order === 'number' ? bond.order : bond.order;
 
+  const renderSingleBond = (offsetX: number = 0, offsetZ: number = 0) => {
+    const pos = new THREE.Vector3(offsetX, 0, offsetZ).applyQuaternion(quaternion);
     return (
       <mesh
         position={[midpoint.x + pos.x, midpoint.y + pos.y, midpoint.z + pos.z]}
         quaternion={quaternion}
       >
-        <cylinderGeometry args={[actualRadius, actualRadius, length, 16]} />
+        <cylinderGeometry args={[bondRadius * 0.5, bondRadius * 0.5, length, 12]} />
         <meshStandardMaterial color={bondColor} transparent opacity={0.8} roughness={0.3} />
       </mesh>
     );
   };
 
-  if (bond.order >= 2) {
-    const offset = bondRadius * 0.8;
-    return (
-      <group ref={groupRef}>
-        {renderBondCylinder(-offset, true)}
-        {renderBondCylinder(offset, true)}
-      </group>
-    );
-  }
+  const renderBond = () => {
+    if (bondOrder >= 3) {
+      const offset = bondRadius * 0.6;
+      return (
+        <group ref={groupRef} scale={animationScale}>
+          {renderSingleBond(-offset, 0)}
+          {renderSingleBond(0, 0)}
+          {renderSingleBond(offset, 0)}
+        </group>
+      );
+    } else if (bondOrder >= 2) {
+      const offset = bondRadius * 0.6;
+      return (
+        <group ref={groupRef} scale={animationScale}>
+          {renderSingleBond(-offset * 0.5, 0)}
+          {renderSingleBond(offset * 0.5, 0)}
+        </group>
+      );
+    } else if (bondOrder === BondType.AROMATIC) {
+      return (
+        <group ref={groupRef} scale={animationScale}>
+          <mesh position={midpoint} quaternion={quaternion}>
+            <cylinderGeometry args={[bondRadius * 0.5, bondRadius * 0.5, length, 12]} />
+            <meshStandardMaterial color={bondColor} transparent opacity={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={midpoint} quaternion={quaternion}>
+            <cylinderGeometry args={[bondRadius * 0.8, bondRadius * 0.8, length * 0.9, 12]} />
+            <meshStandardMaterial color={bondColor} transparent opacity={0.3} roughness={0.3} wireframe />
+          </mesh>
+        </group>
+      );
+    } else {
+      return (
+        <group ref={groupRef} scale={animationScale}>
+          {renderSingleBond(0, 0)}
+        </group>
+      );
+    }
+  };
 
-  return <group ref={groupRef}>{renderBondCylinder(0)}</group>;
+  return renderBond();
 };
 
 interface MoleculeSceneProps {
   molecule: Molecule;
   scale: number;
   autoRotate: boolean;
+  moleculeKey: number;
 }
 
-const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRotate }) => {
+const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRotate, moleculeKey }) => {
   const groupRef = useRef<THREE.Group>(null);
   const {
     selectedAtoms,
@@ -167,14 +211,31 @@ const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRota
   const [displacements, setDisplacements] = useState<Record<string, { x: number; y: number; z: number }>>({});
   const [time, setTime] = useState(0);
   const [hoveredAtom, setHoveredAtom] = useState<string | null>(null);
+  const [animationProgress, setAnimationProgress] = useState(0);
   const { camera, size } = useThree();
+  const startTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    startTimeRef.current = performance.now();
+    setAnimationProgress(0);
+    setDisplacements({});
+    setTime(0);
+  }, [moleculeKey]);
 
   useFrame((state, delta) => {
-    if (groupRef.current && autoRotate && !isVibrating) {
+    const elapsed = (performance.now() - startTimeRef.current) / 1000;
+    const newProgress = Math.min(elapsed / 1.0, 1);
+    setAnimationProgress(newProgress);
+
+    if (groupRef.current && autoRotate && !isVibrating && newProgress >= 1) {
       groupRef.current.rotation.y += delta * 0.2;
     }
 
-    if (isVibrating && vibrationMode) {
+    if (groupRef.current && newProgress < 1) {
+      groupRef.current.rotation.y = (1 - newProgress) * Math.PI * 2;
+    }
+
+    if (isVibrating && vibrationMode && newProgress >= 0.5) {
       const newTime = time + delta;
       setTime(newTime);
       const frame = calculateVibration(molecule, vibrationMode, newTime, vibrationAmplitude);
@@ -198,7 +259,6 @@ const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRota
         setAtomInfoCard(null);
       } else {
         addSelectedAtom(atomId);
-        const vector = new THREE.Vector3();
         const atom = molecule.atoms.find((a) => a.id === atomId);
         if (atom) {
           const screenPos = new THREE.Vector3(
@@ -222,7 +282,7 @@ const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRota
     selectedAtoms.forEach((atomId) => {
       const atom = molecule.atoms.find((a) => a.id === atomId);
       if (atom) {
-        points[atomId] = generateTrajectoryPoints(atom, molecule, vibrationMode, vibrationAmplitude);
+        points[atomId] = generateTrajectoryPoints(atom, molecule, vibrationMode, vibrationAmplitude, 30);
       }
     });
     return points;
@@ -236,46 +296,59 @@ const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRota
 
   return (
     <group ref={groupRef} onClick={handleBackgroundClick}>
-      {molecule.bonds.map((bond) => {
-        const atom1 = getAtomById(bond.atom1Id);
-        const atom2 = getAtomById(bond.atom2Id);
-        if (!atom1 || !atom2) return null;
-        return (
-          <BondMesh
-            key={bond.id}
-            bond={bond}
-            atom1={atom1}
-            atom2={atom2}
-            displacement1={displacements[bond.atom1Id]}
-            displacement2={displacements[bond.atom2Id]}
-            scale={scale}
-          />
-        );
-      })}
+      {animationProgress > 0.1 && (
+        <>
+          {molecule.bonds.map((bond) => {
+            const atom1 = getAtomById(bond.atom1Id);
+            const atom2 = getAtomById(bond.atom2Id);
+            if (!atom1 || !atom2) return null;
+            return (
+              <BondMesh
+                key={bond.id}
+                bond={bond}
+                atom1={atom1}
+                atom2={atom2}
+                displacement1={displacements[bond.atom1Id]}
+                displacement2={displacements[bond.atom2Id]}
+                scale={scale}
+                animationProgress={animationProgress}
+              />
+            );
+          })}
 
-      {molecule.atoms.map((atom) => (
-        <AtomMesh
-          key={atom.id}
-          atom={atom}
-          displacement={displacements[atom.id]}
-          isSelected={selectedAtoms.includes(atom.id)}
-          onClick={(e) => handleAtomClick(atom.id, e)}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            setHoveredAtom(atom.id);
-            document.body.style.cursor = 'pointer';
-          }}
-          onPointerOut={() => {
-            setHoveredAtom(null);
-            document.body.style.cursor = 'default';
-          }}
-          scale={scale}
-          showTrajectory={selectedAtoms.includes(atom.id) && isVibrating}
-          trajectoryPoints={trajectoryPoints[atom.id]}
-        />
-      ))}
+          {molecule.atoms.map((atom) => (
+            <AtomMesh
+              key={atom.id}
+              atom={atom}
+              displacement={displacements[atom.id]}
+              isSelected={selectedAtoms.includes(atom.id)}
+              onClick={(e) => handleAtomClick(atom.id, e)}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                setHoveredAtom(atom.id);
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                setHoveredAtom(null);
+                document.body.style.cursor = 'default';
+              }}
+              scale={scale}
+              showTrajectory={selectedAtoms.includes(atom.id) && isVibrating && animationProgress >= 1}
+              trajectoryPoints={trajectoryPoints[atom.id]}
+              animationProgress={animationProgress}
+            />
+          ))}
+        </>
+      )}
 
-      {hoveredAtom && (
+      {animationProgress < 1 && (
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[0.1 + animationProgress * 0.5, 32, 32]} />
+          <meshBasicMaterial color="#00d4ff" transparent opacity={1 - animationProgress * 0.8} />
+        </mesh>
+      )}
+
+      {hoveredAtom && animationProgress >= 1 && (
         <Html
           position={[
             (getAtomById(hoveredAtom)?.x || 0) * scale,
@@ -296,7 +369,8 @@ const MoleculeScene: React.FC<MoleculeSceneProps> = ({ molecule, scale, autoRota
               whiteSpace: 'nowrap',
             }}
           >
-            {ELEMENT_PROPERTIES[getAtomById(hoveredAtom)?.element || '']?.name || getAtomById(hoveredAtom)?.element}
+            {ELEMENT_PROPERTIES[getAtomById(hoveredAtom)?.element || '']?.name ||
+              getAtomById(hoveredAtom)?.element}
           </div>
         </Html>
       )}
@@ -313,21 +387,56 @@ const SelectionBox: React.FC<SelectionBoxProps> = ({ children, onSelectionEnd })
   const [isSelecting, setIsSelecting] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [currentPos, setCurrentPos] = useState<{ x: number; y: number } | null>(null);
+  const [animatedPos, setAnimatedPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
   const { currentMolecule, clearSelectedAtoms } = useMoleculeStore();
+
+  const animateBox = useCallback((targetX: number, targetY: number) => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    const startTime = performance.now();
+    const startX = animatedPos?.x ?? startPos?.x ?? targetX;
+    const startY = animatedPos?.y ?? startPos?.y ?? targetY;
+    const duration = 300;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+      setAnimatedPos({
+        x: startX + (targetX - startX) * easeProgress,
+        y: startY + (targetY - startY) * easeProgress,
+      });
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [animatedPos, startPos]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0 && e.shiftKey) {
       setIsSelecting(true);
-      setStartPos({ x: e.clientX, y: e.clientY });
-      setCurrentPos({ x: e.clientX, y: e.clientY });
+      const pos = { x: e.clientX, y: e.clientY };
+      setStartPos(pos);
+      setCurrentPos(pos);
+      setAnimatedPos(pos);
       clearSelectedAtoms();
+      e.preventDefault();
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isSelecting) {
-      setCurrentPos({ x: e.clientX, y: e.clientY });
+      const newPos = { x: e.clientX, y: e.clientY };
+      setCurrentPos(newPos);
+      animateBox(newPos.x, newPos.y);
     }
   };
 
@@ -340,38 +449,52 @@ const SelectionBox: React.FC<SelectionBoxProps> = ({ children, onSelectionEnd })
 
       if (Math.abs(maxX - minX) > 5 && Math.abs(maxY - minY) > 5) {
         const selectedIds: string[] = [];
-        currentMolecule.atoms.forEach((atom) => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          if (rect) {
-            const x = ((atom.x + 10) / 20) * rect.width + rect.left;
-            const y = ((-atom.y + 10) / 20) * rect.height + rect.top;
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const { camera } = useThree.getState();
+
+          currentMolecule.atoms.forEach((atom) => {
+            const screenPos = new THREE.Vector3(atom.x, atom.y, atom.z);
+            screenPos.project(camera);
+            const x = (screenPos.x * 0.5 + 0.5) * rect.width + rect.left;
+            const y = (-screenPos.y * 0.5 + 0.5) * rect.height + rect.top;
+
             if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
               selectedIds.push(atom.id);
             }
-          }
-        });
+          });
+        }
+
         if (selectedIds.length > 0) {
           onSelectionEnd(selectedIds);
         }
       }
     }
+
     setIsSelecting(false);
     setStartPos(null);
     setCurrentPos(null);
+    setAnimatedPos(null);
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
   }, [isSelecting, startPos, currentPos, currentMolecule, onSelectionEnd]);
 
   useEffect(() => {
     if (isSelecting) {
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => window.removeEventListener('mouseup', handleMouseUp);
+      const handleWindowMouseUp = () => handleMouseUp();
+      window.addEventListener('mouseup', handleWindowMouseUp);
+      return () => window.removeEventListener('mouseup', handleWindowMouseUp);
     }
   }, [isSelecting, handleMouseUp]);
 
-  const boxStyle = startPos && currentPos ? {
-    left: Math.min(startPos.x, currentPos.x),
-    top: Math.min(startPos.y, currentPos.y),
-    width: Math.abs(currentPos.x - startPos.x),
-    height: Math.abs(currentPos.y - startPos.y),
+  const displayPos = animatedPos || currentPos;
+  const boxStyle = startPos && displayPos ? {
+    left: Math.min(startPos.x, displayPos.x),
+    top: Math.min(startPos.y, displayPos.y),
+    width: Math.abs(displayPos.x - startPos.x),
+    height: Math.abs(displayPos.y - startPos.y),
   } : null;
 
   return (
@@ -397,30 +520,22 @@ const MoleculeViewer: React.FC = () => {
     atomInfoCard,
     setAtomInfoCard,
     isPanelCollapsed,
+    moleculeKey,
   } = useMoleculeStore();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
 
   useEffect(() => {
     if (currentMolecule) {
       setIsLoading(true);
-      setLoadProgress(0);
-      const timer = setInterval(() => {
-        setLoadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(timer);
-            setIsLoading(false);
-            return 100;
-          }
-          return prev + 20;
-        });
-      }, 100);
-      return () => clearInterval(timer);
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 800);
+      return () => clearTimeout(timer);
     }
-  }, [currentMolecule?.id]);
+  }, [moleculeKey]);
 
-  const scale = currentMolecule?.id === 'dna-fragment' ? 0.5 : 1;
+  const scale = currentMolecule?.id === 'dna-fragment' ? 0.4 : 1;
 
   const handleSelectionEnd = useCallback(
     (atomIds: string[]) => {
@@ -446,7 +561,13 @@ const MoleculeViewer: React.FC = () => {
           <pointLight position={[0, 0, -10]} intensity={0.3} color="#7b2ff7" />
 
           {currentMolecule && !isLoading && (
-            <MoleculeScene molecule={currentMolecule} scale={scale} autoRotate={!isVibrating} />
+            <MoleculeScene
+              key={moleculeKey}
+              molecule={currentMolecule}
+              scale={scale}
+              autoRotate={!isVibrating}
+              moleculeKey={moleculeKey}
+            />
           )}
 
           <OrbitControls
@@ -488,7 +609,11 @@ const MoleculeViewer: React.FC = () => {
       )}
 
       {atomInfoCard && currentMolecule && (
-        <AtomInfoCard atomId={atomInfoCard.atomId} position={atomInfoCard.position} onClose={() => setAtomInfoCard(null)} />
+        <AtomInfoCard
+          atomId={atomInfoCard.atomId}
+          position={atomInfoCard.position}
+          onClose={() => setAtomInfoCard(null)}
+        />
       )}
 
       <div

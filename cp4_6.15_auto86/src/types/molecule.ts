@@ -1,3 +1,10 @@
+export enum BondType {
+  SINGLE = 1,
+  DOUBLE = 2,
+  TRIPLE = 3,
+  AROMATIC = 1.5,
+}
+
 export interface Atom {
   id: string;
   element: string;
@@ -12,7 +19,7 @@ export interface Bond {
   id: string;
   atom1Id: string;
   atom2Id: string;
-  order: number;
+  order: BondType | number;
 }
 
 export interface Molecule {
@@ -44,6 +51,7 @@ export interface MoleculeStoreState {
   isRecording: boolean;
   isPanelCollapsed: boolean;
   atomInfoCard: { atomId: string; position: { x: number; y: number } } | null;
+  moleculeKey: number;
   setCurrentMolecule: (molecule: Molecule | null) => void;
   setSelectedAtoms: (atoms: string[]) => void;
   addSelectedAtom: (atomId: string) => void;

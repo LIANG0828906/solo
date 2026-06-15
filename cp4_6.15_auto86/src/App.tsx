@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { MoleculeProvider, useMoleculeStore } from './store/moleculeStore';
+import { MoleculeProvider } from './store/moleculeProvider';
+import { useMoleculeStore } from './store/moleculeStore';
 import MoleculeViewer from './components/MoleculeViewer';
 import ControlPanel from './components/ControlPanel';
 import { PRESET_MOLECULES } from './data/presetMolecules';
