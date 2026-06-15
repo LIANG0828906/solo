@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/canvasoverlay.tsx","./src/components/previewplayer.tsx","./src/components/recorder.tsx","./src/components/regionselector.tsx","./src/components/toolbar.tsx","./src/hooks/uselocalstorage.ts","./src/types/index.ts","./src/utils/annotationengine.ts"],"version":"5.8.3"}
