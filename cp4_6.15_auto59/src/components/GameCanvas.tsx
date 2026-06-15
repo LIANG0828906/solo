@@ -5,7 +5,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, PLATFORM_HEIGHT, COIN_RADIUS } from '../le
 
 interface GameCanvasProps {
   gameState: GameState;
-  onMouseDown?: (x: number, y: number) => void;
+  onMouseDown?: (x: number, y: number, isRightClick?: boolean) => void;
   onMouseMove?: (x: number, y: number) => void;
   onMouseUp?: () => void;
   isEditor?: boolean;
@@ -180,11 +180,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
-      const container = containerRef.current;
-      if (!canvas || !container) return;
+      if (!canvas) return;
 
-      const containerWidth = container.clientWidth;
-      const scale = Math.min(1, containerWidth / CANVAS_WIDTH);
+      const windowWidth = window.innerWidth;
+      let scale = 1;
+      if (windowWidth < 900) {
+        scale = Math.min(1, (windowWidth - 40) / CANVAS_WIDTH);
+      }
       canvas.style.width = `${CANVAS_WIDTH * scale}px`;
       canvas.style.height = `${CANVAS_HEIGHT * scale}px`;
     };
@@ -209,7 +211,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isEditor || !onMouseDown) return;
     const { x, y } = getCanvasCoords(e);
-    onMouseDown(x, y);
+    const isRightClick = e.button === 2;
+    onMouseDown(x, y, isRightClick);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -221,6 +224,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const handleMouseUp = () => {
     if (!isEditor || !onMouseUp) return;
     onMouseUp();
+  };
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isEditor) return;
+    e.preventDefault();
+    const { x, y } = getCanvasCoords(e);
+    if (onMouseDown) {
+      onMouseDown(x, y, true);
+    }
   };
 
   return (
@@ -240,6 +252,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onContextMenu={handleContextMenu}
         style={{
           border: '3px solid #333',
           borderRadius: '8px',

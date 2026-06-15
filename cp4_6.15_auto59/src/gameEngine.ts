@@ -101,6 +101,7 @@ export function updateGame(
   let score = state.score;
   let lives = state.lives;
   let gameStatus: GameState['gameStatus'] = state.gameStatus;
+  const wasGrounded = player.isGrounded;
 
   player.vx = 0;
   if (input.left) {
@@ -108,12 +109,6 @@ export function updateGame(
   }
   if (input.right) {
     player.vx = MOVE_SPEED;
-  }
-
-  if (input.jumpPressed && player.isGrounded) {
-    player.vy = JUMP_FORCE;
-    player.isGrounded = false;
-    player.isJumping = true;
   }
 
   player.vy += GRAVITY;
@@ -147,6 +142,12 @@ export function updateGame(
   }
   if (player.x + player.width > 800) {
     player.x = 800 - player.width;
+  }
+
+  if (input.jumpPressed && player.isGrounded) {
+    player.vy = JUMP_FORCE;
+    player.isGrounded = false;
+    player.isJumping = true;
   }
 
   for (const coin of coins) {

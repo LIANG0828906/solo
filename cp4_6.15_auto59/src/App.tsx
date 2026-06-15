@@ -247,48 +247,24 @@ const App: React.FC = () => {
     return null;
   };
 
-  const handleMouseDown = (x: number, y: number) => {
-    if (!editingLevel || gameState.selectedTool) {
-      if (gameState.selectedTool && editingLevel) {
-        const tool = gameState.selectedTool;
-        let newLevel = { ...editingLevel };
+  const handleMouseDown = (x: number, y: number, isRightClick?: boolean) => {
+    if (!editingLevel) return;
 
-        switch (tool) {
+    if (isRightClick) {
+      const element = findElementAt(x, y);
+      if (element) {
+        let newLevel = { ...editingLevel };
+        switch (element.type) {
           case 'platform':
-            newLevel = {
-              ...newLevel,
-              platforms: [
-                ...newLevel.platforms,
-                { x: x - 30, y, width: 60, height: PLATFORM_HEIGHT },
-              ],
-            };
+            newLevel.platforms = newLevel.platforms.filter((_, i) => i !== element.index);
             break;
           case 'coin':
-            newLevel = {
-              ...newLevel,
-              coins: [
-                ...newLevel.coins,
-                { x, y, radius: COIN_RADIUS, collected: false, floatOffset: Math.random() * Math.PI * 2, collectAnimation: 0 },
-              ],
-            };
+            newLevel.coins = newLevel.coins.filter((_, i) => i !== element.index);
             break;
           case 'spike':
-            newLevel = {
-              ...newLevel,
-              spikes: [
-                ...newLevel.spikes,
-                { x: x - SPIKE_SIZE / 2, y: y - SPIKE_SIZE / 2, width: SPIKE_SIZE, height: SPIKE_SIZE },
-              ],
-            };
-            break;
-          case 'goal':
-            newLevel = {
-              ...newLevel,
-              goal: { x: x - GOAL_WIDTH / 2, y: y - GOAL_HEIGHT / 2, width: GOAL_WIDTH, height: GOAL_HEIGHT },
-            };
+            newLevel.spikes = newLevel.spikes.filter((_, i) => i !== element.index);
             break;
         }
-
         setEditingLevel(newLevel);
         setGameState((prev) => ({
           ...prev,
@@ -298,6 +274,57 @@ const App: React.FC = () => {
           goal: newLevel.goal,
         }));
       }
+      return;
+    }
+
+    if (gameState.selectedTool) {
+      const tool = gameState.selectedTool;
+      let newLevel = { ...editingLevel };
+
+      switch (tool) {
+        case 'platform':
+          newLevel = {
+            ...newLevel,
+            platforms: [
+              ...newLevel.platforms,
+              { x: x - 30, y, width: 60, height: PLATFORM_HEIGHT },
+            ],
+          };
+          break;
+        case 'coin':
+          newLevel = {
+            ...newLevel,
+            coins: [
+              ...newLevel.coins,
+              { x, y, radius: COIN_RADIUS, collected: false, floatOffset: Math.random() * Math.PI * 2, collectAnimation: 0 },
+            ],
+          };
+          break;
+        case 'spike':
+          newLevel = {
+            ...newLevel,
+            spikes: [
+              ...newLevel.spikes,
+              { x: x - SPIKE_SIZE / 2, y: y - SPIKE_SIZE / 2, width: SPIKE_SIZE, height: SPIKE_SIZE },
+            ],
+          };
+          break;
+        case 'goal':
+          newLevel = {
+            ...newLevel,
+            goal: { x: x - GOAL_WIDTH / 2, y: y - GOAL_HEIGHT / 2, width: GOAL_WIDTH, height: GOAL_HEIGHT },
+          };
+          break;
+      }
+
+      setEditingLevel(newLevel);
+      setGameState((prev) => ({
+        ...prev,
+        platforms: newLevel.platforms,
+        coins: newLevel.coins,
+        spikes: newLevel.spikes,
+        goal: newLevel.goal,
+      }));
       return;
     }
 
