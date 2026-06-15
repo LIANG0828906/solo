@@ -178,7 +178,13 @@ const CraftingTable: React.FC = () => {
                 onDrop={(e) => handleDrop(e, rowIndex, colIndex)}
               >
                 {item && (
-                  <div className={showSuccess ? 'craft-item-scatter' : ''}>
+                  <div 
+                    className={showSuccess ? 'craft-item-scatter' : ''}
+                    style={{
+                      '--scatter-x': `${(Math.random() - 0.5) * 80}px`,
+                      '--scatter-y': `${-40 - Math.random() * 60}px`,
+                    } as React.CSSProperties}
+                  >
                     <PixelIcon
                       type={item.iconType}
                       color={item.color}

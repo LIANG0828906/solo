@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useGameStore } from '@/store/gameStore';
+import React, { useState, useEffect, useRef } from 'react';
+import { useGameStore, COLLECT_DURATION_MS } from '@/store/gameStore';
 import PixelIcon from './PixelIcon';
 
 interface FloatingResource {
@@ -12,107 +12,107 @@ interface FloatingResource {
   duration: number;
 }
 
-const COLLECT_DURATION = 3000;
-const COOLDOWN_DURATION = 5000;
-
 const ResourceCollector: React.FC = () => {
-  const { 
-    isCollecting, 
-    cooldownRemaining,
-    isInventoryFull,
-    startCollecting,
-    finishCollecting,
-    updateCooldown,
-    items,
-  } = useGameStore();
-  
+  const isCollecting = useGameStore(s => s.isCollecting);
+  const collectProgress = useGameStore(s => s.collectProgress);
+  const cooldownRemaining = useGameStore(s => s.cooldownRemaining);
+  const isInventoryFull = useGameStore(s => s.isInventoryFull());
+  const startCollecting = useGameStore(s => s.startCollecting);
+  const finishCollecting = useGameStore(s => s.finishCollecting);
+  const updateCollectProgress = useGameStore(s => s.updateCollectProgress);
+  const updateCooldown = useGameStore(s => s.updateCooldown);
+  const items = useGameStore(s => s.items);
+
   const [floatingResources, setFloatingResources] = useState<FloatingResource[]>([]);
-  const animationRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
-  const collectStartRef = useRef<number>(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  const animate = useCallback((timestamp: number) => {
-    console.log('[animate] 调用，timestamp=', timestamp);
-    
-    if (lastTimeRef.current === 0) {
-      lastTimeRef.current = timestamp;
-    }
-    
-    const delta = (timestamp - lastTimeRef.current) / 1000;
-    lastTimeRef.current = timestamp;
-    
-    const state = useGameStore.getState();
-    console.log('[animate] state.isCollecting=', state.isCollecting, 'state.cooldownRemaining=', state.cooldownRemaining);
-    
-    if (state.isCollecting) {
-      if (collectStartRef.current === 0) {
-        collectStartRef.current = timestamp;
-      }
-      
-      const elapsed = timestamp - collectStartRef.current;
-      const progress = Math.min(100, (elapsed / COLLECT_DURATION) * 100);
-      console.log('[animate] 采集中，progress=', progress);
-      
-      state.updateCollectProgress(progress);
-      
-      if (progress >= 100) {
-        collectStartRef.current = 0;
-        state.finishCollecting();
-      }
-    } else {
-      collectStartRef.current = 0;
-    }
-    
-    if (state.cooldownRemaining > 0) {
-      console.log('[animate] 冷却中，cooldownRemaining=', state.cooldownRemaining);
-      state.updateCooldown(delta);
-    }
-    
-    setFloatingResources(prev => {
-      const now = timestamp;
-      return prev.filter(r => now - r.startTime < r.duration);
-    });
-    
-    animationRef.current = requestAnimationFrame(animate);
-  }, []);
-  
+  const lastTsRef = useRef<number>(0);
+  const collectStartTsRef = useRef<number>(0);
+  const rafIdRef = useRef<number | null>(null);
+
   useEffect(() => {
-    console.log('[ResourceCollector] useEffect 执行，启动动画');
-    (window as any).__resourceCollectorMounted = true;
-    (window as any).__animate = animate;
-    
-    animationRef.current = requestAnimationFrame(animate);
-    
+    let alive = true;
+    let rafId: number;
+    let firstTs = 0;
+
+    const loop = (ts: number) => {
+      if (!alive) return;
+      if (firstTs === 0) firstTs = ts;
+
+      if (lastTsRef.current === 0) lastTsRef.current = ts;
+      const delta = (ts - lastTsRef.current) / 1000;
+      lastTsRef.current = ts;
+
+      const st = useGameStore.getState();
+
+      if (st.isCollecting) {
+        if (collectStartTsRef.current === 0) collectStartTsRef.current = ts;
+        const elapsed = ts - collectStartTsRef.current;
+        const progress = Math.min(100, (elapsed / COLLECT_DURATION_MS) * 100);
+        st.updateCollectProgress(progress);
+        if (progress >= 100) {
+          collectStartTsRef.current = 0;
+          st.finishCollecting();
+        }
+      } else {
+        collectStartTsRef.current = 0;
+      }
+
+      if (st.cooldownRemaining > 0) {
+        st.updateCooldown(Math.min(delta, 0.1));
+      }
+
+      setFloatingResources(prev => prev.filter(r => ts - r.startTime < r.duration));
+
+      rafId = requestAnimationFrame(loop);
+      rafIdRef.current = rafId;
+    };
+
+    rafId = requestAnimationFrame(loop);
+    rafIdRef.current = rafId;
+
     return () => {
-      console.log('[ResourceCollector] useEffect cleanup，取消动画');
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      alive = false;
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [animate]);
-  
+  }, []);
+
   const handleCollect = () => {
-    if (isCollecting || cooldownRemaining > 0 || isInventoryFull()) return;
-    startCollecting();
+    const st = useGameStore.getState();
+    if (st.isCollecting || st.cooldownRemaining > 0 || st.isInventoryFull()) return;
+    st.startCollecting();
   };
-  
-  const isDisabled = isCollecting || cooldownRemaining > 0 || isInventoryFull();
-  const isFull = isInventoryFull();
-  
-  const collectProgress = useGameStore(state => state.collectProgress);
-  
+
+  const isFull = isInventoryFull;
+  const isDisabled = isCollecting || cooldownRemaining > 0 || isFull;
+
   return (
-    <div ref={containerRef} className="collector-section">
+    <div className="collector-section">
       <div className="section-title" style={{ marginTop: 0 }}>资源采集</div>
-      
+
       <div className="progress-bar-container">
-        <div 
-          className="progress-bar-fill" 
+        <div
+          className="progress-bar-fill"
           style={{ width: `${collectProgress}%` }}
         />
+        {isCollecting && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '6px',
+            color: '#2a2a3a',
+          }}>
+            {collectProgress.toFixed(0)}%
+          </div>
+        )}
       </div>
-      
+
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
           className={`pixel-button gold ${isFull ? 'danger' : ''}`}
@@ -120,22 +120,22 @@ const ResourceCollector: React.FC = () => {
           onClick={handleCollect}
           disabled={isDisabled}
         >
-          {isCollecting 
-            ? '采集中...' 
-            : isFull 
-              ? '背包已满' 
-              : cooldownRemaining > 0 
-                ? `冷却中 ${cooldownRemaining.toFixed(1)}s` 
+          {isCollecting
+            ? '采集中...'
+            : isFull
+              ? '背包已满'
+              : cooldownRemaining > 0
+                ? `冷却 ${cooldownRemaining.toFixed(1)}s`
                 : '采集'
           }
         </button>
       </div>
-      
+
       <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '8px' }}>
         {['stone', 'wood', 'iron_ore', 'crystal_shard'].map(itemId => {
           const item = items[itemId];
           if (!item) return null;
-          
+
           return (
             <div key={itemId} style={{ textAlign: 'center' }}>
               <PixelIcon
@@ -151,20 +151,18 @@ const ResourceCollector: React.FC = () => {
           );
         })}
       </div>
-      
+
       {floatingResources.map(resource => {
         const item = items[resource.itemId];
         if (!item) return null;
-        
         const elapsed = (performance.now() - resource.startTime) / resource.duration;
         const progress = Math.min(1, elapsed);
         const easeProgress = 1 - Math.pow(1 - progress, 3);
-        
         const currentX = resource.x + (0 - resource.x) * easeProgress;
         const currentY = resource.y + (-60 - resource.y) * easeProgress;
         const scale = 1 + Math.sin(progress * Math.PI) * 0.3;
         const opacity = 1 - progress;
-        
+
         return (
           <div
             key={resource.id}
@@ -185,7 +183,7 @@ const ResourceCollector: React.FC = () => {
               size={32}
             />
             {resource.count > 1 && (
-              <span 
+              <span
                 style={{
                   position: 'absolute',
                   bottom: '-4px',

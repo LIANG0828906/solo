@@ -681,7 +681,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       state.addToInventory(itemId, 1);
     }
     
-    console.log('[finishCollecting] 设置冷却为5秒');
     set({ 
       isCollecting: false, 
       collectProgress: 0,
@@ -704,7 +703,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     if (state.cooldownRemaining > 0) {
       const newCooldown = Math.max(0, state.cooldownRemaining - deltaSeconds);
-      console.log('[updateCooldown]', state.cooldownRemaining, '-', deltaSeconds, '=', newCooldown);
       set({ cooldownRemaining: newCooldown });
     }
   },
@@ -767,7 +765,3 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().saveGame();
   },
 }));
-
-if (typeof window !== 'undefined') {
-  (window as any).__gameStore = useGameStore;
-}
