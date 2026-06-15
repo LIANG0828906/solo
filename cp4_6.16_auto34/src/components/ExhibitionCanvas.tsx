@@ -32,6 +32,18 @@ const ExhibitionCanvas: React.FC = () => {
 
   const { isExhibition, exhibitionPoemId, poems, endExhibition } = usePoemStore()
 
+  useEffect(() => {
+    if (isExhibition) {
+      console.log('[Exhibition] isExhibition=true, exhibitionPoemId=', exhibitionPoemId)
+      console.log('[Exhibition] poems=', poems)
+      const found = poems.find(p => p.id === exhibitionPoemId)
+      console.log('[Exhibition] found poem=', found)
+      if (found) {
+        console.log('[Exhibition] poem.lines=', found.lines)
+      }
+    }
+  }, [isExhibition, exhibitionPoemId, poems])
+
   const poem = useMemo(() => 
     poems.find(p => p.id === exhibitionPoemId),
     [poems, exhibitionPoemId]
@@ -228,8 +240,12 @@ const ExhibitionCanvas: React.FC = () => {
   }, [poem])
 
   useEffect(() => {
-    if (!isVisible || !poem || poem.lines.length === 0) return
+    if (!isVisible || !poem || poem.lines.length === 0) {
+      console.log('[Typewriter] Skipping: isVisible=', isVisible, 'poem=', !!poem, 'lines.length=', poem?.lines?.length)
+      return
+    }
 
+    console.log('[Typewriter] Starting with lines=', poem.lines)
     const lines = poem.lines
 
     setVisibleLines(new Array(lines.length).fill(false))
