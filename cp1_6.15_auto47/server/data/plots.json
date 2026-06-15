@@ -1,0 +1,367 @@
+[
+  {
+    "id": "p1",
+    "plotNumber": "A01",
+    "status": "claimed",
+    "claimant": "张阿姨",
+    "crop": "番茄",
+    "growthDays": 45,
+    "logs": [
+      {
+        "id": "l1",
+        "date": "2026-06-10",
+        "photoUrl": "",
+        "height": 35,
+        "note": "今天浇了水，发现有几株开出了小黄花，期待结果~",
+        "healthStatus": "good"
+      },
+      {
+        "id": "l2",
+        "date": "2026-06-05",
+        "photoUrl": "",
+        "height": 22,
+        "note": "叶子有点蔫，可能缺水了，多浇了点水。",
+        "healthStatus": "thirsty"
+      },
+      {
+        "id": "l3",
+        "date": "2026-05-28",
+        "photoUrl": "",
+        "height": 10,
+        "note": "小苗苗破土啦，绿油油的真可爱！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p2",
+    "plotNumber": "A02",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p3",
+    "plotNumber": "A03",
+    "status": "claimed",
+    "claimant": "李大叔",
+    "crop": "黄瓜",
+    "growthDays": 60,
+    "logs": [
+      {
+        "id": "l4",
+        "date": "2026-06-12",
+        "photoUrl": "",
+        "height": 80,
+        "note": "黄瓜藤已经爬满架子了，结了好多小黄瓜！",
+        "healthStatus": "good"
+      },
+      {
+        "id": "l5",
+        "date": "2026-06-08",
+        "photoUrl": "",
+        "height": 55,
+        "note": "发现叶子背面有蚜虫，喷了点大蒜水，希望能管用。",
+        "healthStatus": "pests"
+      }
+    ]
+  },
+  {
+    "id": "p4",
+    "plotNumber": "A04",
+    "status": "harvest",
+    "claimant": "王奶奶",
+    "crop": "生菜",
+    "growthDays": 50,
+    "logs": [
+      {
+        "id": "l6",
+        "date": "2026-06-14",
+        "photoUrl": "",
+        "height": 20,
+        "note": "生菜已经成熟啦，今天采收了一大捆，新鲜又美味！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p5",
+    "plotNumber": "A05",
+    "status": "claimed",
+    "claimant": "小明",
+    "crop": "辣椒",
+    "growthDays": 30,
+    "logs": [
+      {
+        "id": "l7",
+        "date": "2026-06-11",
+        "photoUrl": "",
+        "height": 28,
+        "note": "辣椒苗长高了不少，已经有小花苞了。",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p6",
+    "plotNumber": "A06",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p7",
+    "plotNumber": "A07",
+    "status": "claimed",
+    "claimant": "刘姐",
+    "crop": "茄子",
+    "growthDays": 40,
+    "logs": [
+      {
+        "id": "l8",
+        "date": "2026-06-09",
+        "photoUrl": "",
+        "height": 45,
+        "note": "茄子开花了，紫色的小花真漂亮！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p8",
+    "plotNumber": "A08",
+    "status": "claimed",
+    "claimant": "小陈",
+    "crop": "空心菜",
+    "growthDays": 25,
+    "logs": []
+  },
+  {
+    "id": "p9",
+    "plotNumber": "B01",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p10",
+    "plotNumber": "B02",
+    "status": "claimed",
+    "claimant": "赵师傅",
+    "crop": "豆角",
+    "growthDays": 55,
+    "logs": [
+      {
+        "id": "l9",
+        "date": "2026-06-13",
+        "photoUrl": "",
+        "height": 100,
+        "note": "豆角已经挂满架子了，今天摘了一把炒着吃，真嫩！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p11",
+    "plotNumber": "B03",
+    "status": "harvest",
+    "claimant": "孙阿姨",
+    "crop": "小白菜",
+    "growthDays": 35,
+    "logs": [
+      {
+        "id": "l10",
+        "date": "2026-06-12",
+        "photoUrl": "",
+        "height": 18,
+        "note": "小白菜可以采收了，鲜嫩多汁！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p12",
+    "plotNumber": "B04",
+    "status": "claimed",
+    "claimant": "周叔",
+    "crop": "南瓜",
+    "growthDays": 70,
+    "logs": [
+      {
+        "id": "l11",
+        "date": "2026-06-10",
+        "photoUrl": "",
+        "height": 150,
+        "note": "南瓜藤爬了一大片，已经有小南瓜长出来了！",
+        "healthStatus": "good"
+      },
+      {
+        "id": "l12",
+        "date": "2026-06-01",
+        "photoUrl": "",
+        "height": 80,
+        "note": "叶子上发现一些虫洞，需要留意一下。",
+        "healthStatus": "pests"
+      }
+    ]
+  },
+  {
+    "id": "p13",
+    "plotNumber": "B05",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p14",
+    "plotNumber": "B06",
+    "status": "claimed",
+    "claimant": "吴阿姨",
+    "crop": "西红柿",
+    "growthDays": 38,
+    "logs": []
+  },
+  {
+    "id": "p15",
+    "plotNumber": "B07",
+    "status": "claimed",
+    "claimant": "郑大爷",
+    "crop": "韭菜",
+    "growthDays": 90,
+    "logs": [
+      {
+        "id": "l13",
+        "date": "2026-06-08",
+        "photoUrl": "",
+        "height": 30,
+        "note": "韭菜又长高了，割了一茬包饺子，香得很！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p16",
+    "plotNumber": "B08",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p17",
+    "plotNumber": "C01",
+    "status": "claimed",
+    "claimant": "小杨",
+    "crop": "西瓜",
+    "growthDays": 50,
+    "logs": [
+      {
+        "id": "l14",
+        "date": "2026-06-11",
+        "photoUrl": "",
+        "height": 120,
+        "note": "西瓜花已经谢了，小西瓜开始膨胀啦！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p18",
+    "plotNumber": "C02",
+    "status": "claimed",
+    "claimant": "钱阿姨",
+    "crop": "胡萝卜",
+    "growthDays": 42,
+    "logs": []
+  },
+  {
+    "id": "p19",
+    "plotNumber": "C03",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p20",
+    "plotNumber": "C04",
+    "status": "harvest",
+    "claimant": "孙师傅",
+    "crop": "土豆",
+    "growthDays": 80,
+    "logs": [
+      {
+        "id": "l15",
+        "date": "2026-06-14",
+        "photoUrl": "",
+        "height": 40,
+        "note": "今天挖了土豆，产量还不错，一大筐呢！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p21",
+    "plotNumber": "C05",
+    "status": "claimed",
+    "claimant": "朱小姐",
+    "crop": "草莓",
+    "growthDays": 65,
+    "logs": [
+      {
+        "id": "l16",
+        "date": "2026-06-12",
+        "photoUrl": "",
+        "height": 25,
+        "note": "草莓红了！摘了几颗，酸甜可口，太开心了~",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p22",
+    "plotNumber": "C06",
+    "status": "claimed",
+    "claimant": "韩叔叔",
+    "crop": "玉米",
+    "growthDays": 75,
+    "logs": [
+      {
+        "id": "l17",
+        "date": "2026-06-10",
+        "photoUrl": "",
+        "height": 180,
+        "note": "玉米已经抽穗了，期待饱满的玉米棒！",
+        "healthStatus": "good"
+      }
+    ]
+  },
+  {
+    "id": "p23",
+    "plotNumber": "C07",
+    "status": "idle",
+    "claimant": "",
+    "crop": "",
+    "growthDays": 0,
+    "logs": []
+  },
+  {
+    "id": "p24",
+    "plotNumber": "C08",
+    "status": "claimed",
+    "claimant": "冯阿姨",
+    "crop": "菠菜",
+    "growthDays": 20,
+    "logs": []
+  }
+]
