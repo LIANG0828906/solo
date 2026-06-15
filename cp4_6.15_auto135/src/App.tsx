@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { NebulaCore } from './components/NebulaCore';
 import { ControlPanel } from './components/ControlPanel';
@@ -12,6 +12,7 @@ function CameraResetter() {
 
   useEffect(() => {
     camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
   }, [resetKey, camera]);
 
   return null;
@@ -21,13 +22,29 @@ function App() {
   const togglePlaying = useNebulaStore((state) => state.togglePlaying);
   const togglePanel = useNebulaStore((state) => state.togglePanel);
   const setShowExportDialog = useNebulaStore((state) => state.setShowExportDialog);
-  const showHint = useNebulaStore((state) => state.showHint);
-  const setShowHint = useNebulaStore((state) => state.setShowHint);
   const isExporting = useNebulaStore((state) => state.isExporting);
-  const setIsPlaying = useNebulaStore((state) => state.setIsPlaying);
   const setResetKey = useNebulaStore((state) => state.setResetKey);
 
+  const [hintVisible, setHintVisible] = useState(true);
   const hintTimeoutRef = useRef<number | null>(null);
+
+  const startHintTimer = useCallback(() => {
+    if (hintTimeoutRef.current) {
+      clearTimeout(hintTimeoutRef.current);
+    }
+    hintTimeoutRef.current = window.setTimeout(() => {
+      setHintVisible(false);
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    startHintTimer();
+    return () => {
+      if (hintTimeoutRef.current) {
+        clearTimeout(hintTimeoutRef.current);
+      }
+    };
+  }, [startHintTimer]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -55,43 +72,18 @@ function App() {
           setShowExportDialog(true);
         }
         break;
-      case 'Escape':
-        if (showHint) {
-          setShowHint(false);
-        }
-        break;
     }
-  }, [togglePlaying, togglePanel, setShowExportDialog, isExporting, showHint, setShowHint, setResetKey]);
+  }, [togglePlaying, togglePanel, setShowExportDialog, isExporting, setResetKey]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  useEffect(() => {
-    if (showHint) {
-      hintTimeoutRef.current = window.setTimeout(() => {
-        setShowHint(false);
-      }, 5000);
-    }
-    return () => {
-      if (hintTimeoutRef.current) {
-        clearTimeout(hintTimeoutRef.current);
-      }
-    };
-  }, [showHint, setShowHint]);
-
   const handleMouseMove = useCallback(() => {
-    if (!showHint) {
-      setShowHint(true);
-    }
-    if (hintTimeoutRef.current) {
-      clearTimeout(hintTimeoutRef.current);
-    }
-    hintTimeoutRef.current = window.setTimeout(() => {
-      setShowHint(false);
-    }, 5000);
-  }, [showHint, setShowHint]);
+    setHintVisible(true);
+    startHintTimer();
+  }, [startHintTimer]);
 
   return (
     <div className="app-container" onMouseMove={handleMouseMove}>
@@ -111,7 +103,7 @@ function App() {
       <ControlPanel />
       <ExportDialog />
 
-      <div className={`hint-box ${showHint ? 'visible' : 'hidden'}`}>
+      <div className={`hint-box ${hintVisible ? 'visible' : 'hidden'}`}>
         <div className="hint-title">快捷键</div>
         <div className="hint-list">
           <div className="hint-item">

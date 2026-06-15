@@ -1,9 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { useNebulaStore, colorPalettes, ColorPalette } from '../store/useNebulaStore';
 import './ControlPanel.css';
 
 export function ControlPanel() {
   const isPanelOpen = useNebulaStore((state) => state.isPanelOpen);
   const togglePanel = useNebulaStore((state) => state.togglePanel);
+  const setIsPanelOpen = useNebulaStore((state) => state.setIsPanelOpen);
   const particleCount = useNebulaStore((state) => state.particleCount);
   const setParticleCount = useNebulaStore((state) => state.setParticleCount);
   const colorPalette = useNebulaStore((state) => state.colorPalette);
@@ -20,10 +22,49 @@ export function ControlPanel() {
   const isPlaying = useNebulaStore((state) => state.isPlaying);
   const togglePlaying = useNebulaStore((state) => state.togglePlaying);
 
+  const autoCloseTimerRef = useRef<number | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const startAutoCloseTimer = () => {
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+    }
+    autoCloseTimerRef.current = window.setTimeout(() => {
+      setIsPanelOpen(false);
+    }, 8000);
+  };
+
+  useEffect(() => {
+    if (isPanelOpen) {
+      startAutoCloseTimer();
+    }
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, [isPanelOpen]);
+
+  const handlePanelInteraction = () => {
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+    }
+    startAutoCloseTimer();
+  };
+
   const palettes = Object.entries(colorPalettes) as [ColorPalette, typeof colorPalettes.nebula][];
 
   return (
-    <div className={`control-panel ${isPanelOpen ? 'open' : 'closed'}`}>
+    <div
+      ref={panelRef}
+      className={`control-panel ${isPanelOpen ? 'open' : 'closed'}`}
+      onMouseEnter={() => {
+        if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+      }}
+      onMouseLeave={() => {
+        if (isPanelOpen) startAutoCloseTimer();
+      }}
+    >
       <button
         className="panel-toggle"
         onClick={togglePanel}
@@ -32,8 +73,8 @@ export function ControlPanel() {
         <span className="toggle-icon">{isPanelOpen ? '›' : '‹'}</span>
       </button>
 
-      {isPanelOpen && (
-        <div className="panel-content">
+      <div className={`panel-body ${isPanelOpen ? 'panel-body-open' : 'panel-body-closed'}`}>
+        <div className="panel-content" onScroll={handlePanelInteraction}>
           <h2 className="panel-title">星云控制台</h2>
           <p className="panel-subtitle">调节参数实时预览效果</p>
 
@@ -183,7 +224,7 @@ export function ControlPanel() {
             </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

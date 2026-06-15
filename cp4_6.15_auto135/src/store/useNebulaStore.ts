@@ -65,14 +65,14 @@ interface NebulaState {
 }
 
 export const useNebulaStore = create<NebulaState>((set) => ({
-  particleCount: 1000,
+  particleCount: 1500,
   colorPalette: 'nebula',
   rotationSpeed: 1,
   spreadRadius: 1.5,
   particleSize: 0.05,
   trailLength: 0.5,
   isPlaying: true,
-  isPanelOpen: true,
+  isPanelOpen: false,
   showExportDialog: false,
   exportProgress: 0,
   isExporting: false,

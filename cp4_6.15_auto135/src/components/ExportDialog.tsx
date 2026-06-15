@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNebulaStore } from '../store/useNebulaStore';
 import { exportNebula } from '../utils/exportUtils';
-import { useThree } from '@react-three/fiber';
 import './ExportDialog.css';
 
 export function ExportDialog() {
@@ -15,16 +14,13 @@ export function ExportDialog() {
   const setIsExporting = useNebulaStore((state) => state.setIsExporting);
   const isPlaying = useNebulaStore((state) => state.isPlaying);
   const setIsPlaying = useNebulaStore((state) => state.setIsPlaying);
-  const { gl } = useThree();
 
   const wasPlayingRef = useRef(false);
 
   useEffect(() => {
     if (showExportDialog && !isExporting) {
       wasPlayingRef.current = isPlaying;
-      if (isPlaying) {
-        setIsPlaying(false);
-      }
+      setIsPlaying(false);
     }
   }, [showExportDialog, isExporting, isPlaying, setIsPlaying]);
 
@@ -37,7 +33,7 @@ export function ExportDialog() {
   };
 
   const handleExport = async () => {
-    const canvas = gl.domElement;
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
 
     setIsExporting(true);
@@ -59,12 +55,13 @@ export function ExportDialog() {
             if (wasPlayingRef.current) {
               setIsPlaying(true);
             }
-          }, 1000);
+          }, 1200);
         }
       });
     } catch (error) {
-      console.error('导出失败:', error);
+      console.error('Export failed:', error);
       setIsExporting(false);
+      setExportProgress(0);
     }
   };
 
