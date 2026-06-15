@@ -11,7 +11,7 @@ import type {
   SubmissionCreateInput,
   ExportData,
   CsvRow,
-} from '../shared/types';
+} from '../shared/types.js';
 
 const surveys = new Map<string, Survey>();
 const submissions = new Map<string, Submission>();

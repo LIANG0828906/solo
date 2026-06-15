@@ -67,3 +67,12 @@ export interface ExportData {
   submissions: Submission[];
   exportedAt: Date;
 }
+
+export interface CsvRow {
+  submissionId: string;
+  submittedAt: string;
+  questionId: string;
+  questionTitle: string;
+  questionType: string;
+  answer: string;
+}

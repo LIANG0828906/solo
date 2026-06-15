@@ -9,15 +9,42 @@ import {
   publishSurvey,
   createSubmission,
   getSurveyResults,
+  getCsvExportData,
 } from './dataStore.js';
 import type {
-  Survey,
   SurveyCreateInput,
   SubmissionCreateInput,
+  CsvRow,
 } from '../shared/types.js';
 
 const app = express();
 const PORT = 3001;
+
+function escapeCsvField(value: string): string {
+  if (typeof value !== 'string') {
+    value = String(value);
+  }
+  const needsQuoting = value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r');
+  if (needsQuoting) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function convertToCsv(rows: CsvRow[]): string {
+  const headers: Array<keyof CsvRow> = ['submissionId', 'submittedAt', 'questionId', 'questionTitle', 'questionType', 'answer'];
+  const headerNames = ['提交ID', '提交时间', '问题ID', '问题标题', '问题类型', '答案'];
+  
+  const csvLines: string[] = [];
+  csvLines.push(headers.map((_, i) => escapeCsvField(headerNames[i])).join(','));
+  
+  for (const row of rows) {
+    const line = headers.map(key => escapeCsvField(row[key])).join(',');
+    csvLines.push(line);
+  }
+  
+  return csvLines.join('\n');
+}
 
 app.use(cors());
 app.use(express.json());
@@ -169,42 +196,14 @@ app.get('/api/surveys/:id/export', (req: Request, res: Response): void => {
   const endTimeDate = endTime ? new Date(parseInt(endTime as string, 10)) : undefined;
 
   const survey = getSurvey(req.params.id);
-  const results = getSurveyResults(req.params.id, startTimeDate, endTimeDate);
+  const csvData = getCsvExportData(req.params.id, startTimeDate, endTimeDate);
 
-  if (!survey || !results) {
+  if (!survey || !csvData) {
     res.status(404).json({ success: false, error: '问卷不存在' });
     return;
   }
 
-  const escapeCsv = (value: string): string => {
-    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
-  };
-
-  const headers = ['问题', '选项/答案', '计数'];
-  const rows: string[][] = [];
-
-  for (const questionStats of results.questionStats) {
-    if (questionStats.optionCounts) {
-      for (const [option, count] of Object.entries(questionStats.optionCounts)) {
-        rows.push([questionStats.questionTitle, option, String(count)]);
-      }
-    } else if (questionStats.averageRating !== undefined) {
-      rows.push([questionStats.questionTitle, '平均分', String(questionStats.averageRating)]);
-    } else if (questionStats.textResponses) {
-      for (const text of questionStats.textResponses) {
-        rows.push([questionStats.questionTitle, text, '1']);
-      }
-    }
-    rows.push(['', '', '']);
-  }
-
-  const csvContent = [
-    headers.map(escapeCsv).join(','),
-    ...rows.map(row => row.map(escapeCsv).join(',')),
-  ].join('\n');
+  const csvContent = convertToCsv(csvData);
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="survey_${survey.id}_${Date.now()}.csv"`);
