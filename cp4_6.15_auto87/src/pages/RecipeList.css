@@ -112,14 +112,14 @@
 
   .recipe-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    gap: 14px;
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .recipe-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
 
   .recipe-list-page {

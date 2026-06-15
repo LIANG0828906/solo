@@ -12,18 +12,19 @@ function RecipeDetail() {
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [animKey, setAnimKey] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [slideState, setSlideState] = useState<'idle' | 'slide-out' | 'slide-in'>('idle');
 
   useEffect(() => {
     if (!id) return;
     const loadData = async () => {
       setRecipe(null);
+      setSlideState('slide-in');
       const data = await fetchRecipeById(id);
       setRecipe(data);
       await fetchRecommendations(id);
       setAnimKey((k) => k + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => setSlideState('idle'), 400);
     };
     loadData();
   }, [id, fetchRecipeById, fetchRecommendations]);
@@ -35,17 +36,12 @@ function RecipeDetail() {
   };
 
   const handleRecommendationClick = useCallback((recipeId: string) => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setSlideDirection('left');
-    
+    if (slideState !== 'idle') return;
+    setSlideState('slide-out');
     setTimeout(() => {
       navigate(`/recipe/${recipeId}`);
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, 100);
-    }, 400);
-  }, [isTransitioning, navigate]);
+    }, 350);
+  }, [slideState, navigate]);
 
   if (!recipe && loading) {
     return (
@@ -166,15 +162,14 @@ function RecipeDetail() {
         <p className="recommendations-subtitle">基于当前食谱的食材和口味，为你推荐以下相似食谱</p>
         {recommendations.length > 0 ? (
           <div
-            className={`recommendations-slider ${isTransitioning ? `slide-${slideDirection}` : ''}`}
+            className={`recommendations-slider ${slideState}`}
             key={`rec-${animKey}`}
           >
             <div className="recommendations-track">
               {recommendations.map((rec, index) => (
                 <div
                   key={rec.id}
-                  className={`recommendation-item ${isTransitioning ? 'fade-slide' : ''}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className="recommendation-item"
                   onClick={(e) => {
                     e.preventDefault();
                     handleRecommendationClick(rec.id);

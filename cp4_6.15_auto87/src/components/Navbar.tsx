@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SearchBar from './SearchBar';
 import './Navbar.css';
@@ -7,6 +7,10 @@ function Navbar() {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <nav className="navbar">
@@ -22,13 +26,15 @@ function Navbar() {
           </div>
         )}
 
-        <button
-          className="mobile-menu-btn"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="菜单"
-        >
-          <i className={`fa-solid ${mobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
-        </button>
+        {isHome && (
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="菜单"
+          >
+            <i className={`fa-solid ${mobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+          </button>
+        )}
       </div>
 
       {isHome && (

@@ -360,29 +360,21 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.recommendations-slider.slide-left .recommendations-track {
-  animation: slideLeftOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.recommendations-slider.slide-out .recommendations-track {
+  opacity: 0;
+  transform: translateX(-40px);
 }
 
-@keyframes slideLeftOut {
-  0% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-40px);
-  }
+.recommendations-slider.slide-in .recommendations-track {
+  animation: slideFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.recommendations-slider.slide-left .recommendations-track {
-  animation: slideRightIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.1s backwards;
-}
-
-@keyframes slideRightIn {
+@keyframes slideFadeIn {
   0% {
     opacity: 0;
     transform: translateX(40px);
@@ -394,39 +386,12 @@
 }
 
 .recommendation-item {
-  animation: slideFadeIn 0.5s ease backwards;
   cursor: pointer;
   transition: transform 0.3s ease;
 }
 
 .recommendation-item:hover {
   transform: translateY(-4px);
-}
-
-.recommendation-item.fade-slide {
-  animation: slideFadeOut 0.4s ease forwards;
-}
-
-@keyframes slideFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideFadeOut {
-  0% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
 }
 
 .no-recommendations {
@@ -519,7 +484,7 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 
-  .recommendations-grid {
+  .recommendations-track {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
@@ -550,8 +515,8 @@
   }
 }
 
-@media (max-width: 480px) {
-  .recommendations-grid {
+@media (max-width: 520px) {
+  .recommendations-track {
     grid-template-columns: 1fr;
   }
 }

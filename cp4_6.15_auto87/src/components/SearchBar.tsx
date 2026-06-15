@@ -5,8 +5,7 @@ import type { Suggestion } from '../types';
 import './SearchBar.css';
 
 function SearchBar() {
-  const initialKeyword = useRecipeStore.getState().searchKeyword;
-  const [localInput, setLocalInput] = useState(initialKeyword);
+  const [localInput, setLocalInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -14,16 +13,32 @@ function SearchBar() {
 
   const debouncedInput = useDebounce(localInput, 300);
 
+  const recipes = useRecipeStore((s) => s.recipes);
+
   useEffect(() => {
-    const store = useRecipeStore.getState();
-    if (debouncedInput !== store.searchKeyword) {
-      store.setSearchKeyword(debouncedInput);
-    }
+    useRecipeStore.getState().setSearchKeyword(debouncedInput);
   }, [debouncedInput]);
 
   const suggestions: Suggestion[] = useMemo(() => {
-    return useRecipeStore.getState().getSuggestions();
-  }, [debouncedInput]);
+    if (!debouncedInput.trim()) return [];
+    const keyword = debouncedInput.toLowerCase().trim();
+    const result: Suggestion[] = [];
+    const seen = new Set<string>();
+    for (const recipe of recipes) {
+      if (recipe.name.toLowerCase().includes(keyword) && !seen.has(recipe.name)) {
+        result.push({ text: recipe.name, type: 'recipe' });
+        seen.add(recipe.name);
+      }
+      for (const ing of recipe.ingredients) {
+        if (ing.toLowerCase().includes(keyword) && !seen.has(ing)) {
+          result.push({ text: ing, type: 'ingredient' });
+          seen.add(ing);
+        }
+      }
+      if (result.length >= 8) break;
+    }
+    return result;
+  }, [debouncedInput, recipes]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
