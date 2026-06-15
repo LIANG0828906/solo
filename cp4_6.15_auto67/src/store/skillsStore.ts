@@ -13,6 +13,8 @@ interface SkillsState {
   setSearchQuery: (query: string) => void;
   addExchangeRequest: (skillId: string, reason: string, expectedTime: string) => void;
   updateProfile: (profile: Partial<UserProfile>) => void;
+  incrementSearchCount: (query: string) => void;
+  removeSkill: (skillId: string) => void;
   getFilteredSkills: () => Skill[];
 }
 
@@ -36,6 +38,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
   addExchangeRequest: (skillId, reason, expectedTime) => {
     const id = uuidv4();
     const date = new Date().toLocaleDateString('zh-CN');
+    const skill = get().skills.find((s) => s.id === skillId);
     const newRequest: ExchangeRequestItem = {
       id,
       skillId,
@@ -47,12 +50,45 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     set((state) => ({
       exchangeRequests: [newRequest, ...state.exchangeRequests],
       appliedSkillIds: new Set([...state.appliedSkillIds, skillId]),
+      userProfile: {
+        ...state.userProfile,
+        points: state.userProfile.points - (skill?.pointsCost ?? 0),
+      },
     }));
   },
 
   updateProfile: (profile) =>
     set((state) => ({
       userProfile: { ...state.userProfile, ...profile },
+    })),
+
+  incrementSearchCount: (query) => {
+    const q = query.toLowerCase().trim();
+    if (!q) return;
+    set((state) => {
+      const matchedIds = new Set<string>();
+      state.skills.forEach((s) => {
+        if (
+          s.title.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q) ||
+          s.username.toLowerCase().includes(q) ||
+          s.category.toLowerCase().includes(q)
+        ) {
+          matchedIds.add(s.id);
+        }
+      });
+      if (matchedIds.size === 0) return {};
+      return {
+        skills: state.skills.map((s) =>
+          matchedIds.has(s.id) ? { ...s, searchCount: s.searchCount + 1 } : s
+        ),
+      };
+    });
+  },
+
+  removeSkill: (skillId) =>
+    set((state) => ({
+      skills: state.skills.filter((s) => s.id !== skillId),
     })),
 
   getFilteredSkills: () => {
