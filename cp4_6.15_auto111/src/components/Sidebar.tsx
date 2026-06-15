@@ -92,7 +92,6 @@ export default function Sidebar({ drawerMode = false }: Props) {
 
   const handlePresetClick = useCallback(
     (e: React.MouseEvent, preset: PresetElement) => {
-      e.dataTransfer;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;

@@ -4,6 +4,7 @@ import { X, Move, Maximize2, RotateCw, Palette, Zap } from 'lucide-react';
 import { useStore } from '@/store/slice';
 import { getPresetById, NEON_COLORS } from '@/utils/presets';
 import { clamp } from '@/utils/geometry';
+import type { CanvasElement } from '@/types';
 
 interface Props {
   closeable?: boolean;
@@ -43,7 +44,7 @@ export default function PropertyPanel({ closeable = false }: Props) {
   );
 
   const updateAndDebounce = useCallback(
-    (id: string, patch: Partial<typeof selectedElement>, pushDebounceKey: string) => {
+    (id: string, patch: Partial<CanvasElement>, pushDebounceKey: string) => {
       updateElement(id, patch, false);
       pushHistoryDebounced.current(id);
       void pushDebounceKey;

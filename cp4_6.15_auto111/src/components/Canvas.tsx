@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useGesture } from '@use-gesture/react';
+import { useDrag, usePinch, useWheel } from '@use-gesture/react';
 import useResizeObserver from 'use-resize-observer';
 import { useStore } from '@/store/slice';
 import { CanvasElementView } from './CanvasElementView';
@@ -132,7 +132,7 @@ export default function Canvas() {
 
   // 元素点击选中
   const handleElementClick = useCallback(
-    (id: string, e: React.MouseEvent) => {
+    (id: string, e: React.MouseEvent | React.PointerEvent) => {
       const additive = e.shiftKey || e.metaKey || e.ctrlKey;
       const state = useStore.getState();
       const alreadySelected = state.selectedIds.includes(id);
@@ -269,48 +269,62 @@ export default function Canvas() {
     };
   }, [isDragging, updateElement, setDragging, setGridVisible, draggingIds]);
 
-  // 画布拖拽（平移） + 滚轮缩放 (use-gesture)
-  const worldGesture = useGesture(
-    {
-      onWheel: ({ delta: [, dy], ctrlKey, metaKey }) => {
-        const shouldZoom = ctrlKey || metaKey;
-        if (shouldZoom) {
-          const newScale = clamp(viewport.scale * (dy > 0 ? 0.92 : 1.08), 0.2, 4);
-          setViewport({ scale: newScale });
-        } else {
-          setViewport({
-            x: viewport.x - dy / viewport.scale,
-            y: viewport.y,
-          });
-        }
-      },
-      onPinch: ({ origin, first, movement: [scale], memo }) => {
-        if (first) memo = { startScale: viewport.scale };
-        const newScale = clamp(memo.startScale * scale, 0.2, 4);
+  // 滚轮缩放 (useWheel)
+  useWheel(
+    ({ delta: [, dy], ctrlKey, metaKey }) => {
+      const shouldZoom = ctrlKey || metaKey;
+      if (shouldZoom) {
+        const newScale = clamp(viewport.scale * (dy > 0 ? 0.92 : 1.08), 0.2, 4);
         setViewport({ scale: newScale });
-        return memo;
-      },
-      onDrag: ({ movement: [dx, dy], dragging, button, shiftKey }) => {
-        if (button !== 0 && button !== 1) return;
-        // 如果没有选中元素 或 按了空格/shift键模拟panning，panning via middle-mouse or alt+left:
-        // 简单处理：仅在无选中元素 且 左键拖拽时平移
-        const state = useStore.getState();
-        const shouldPan =
-          (state.selectedIds.length === 0 && !isDragging) ||
-          button === 1 ||
-          shiftKey;
-        if (dragging && shouldPan) {
-          setViewport({
-            x: viewport.x + dx / state.viewport.scale,
-            y: viewport.y + dy / state.viewport.scale,
-          });
-        }
-      },
+      } else {
+        setViewport({
+          x: viewport.x - dy / viewport.scale,
+          y: viewport.y,
+        });
+      }
     },
     {
       target: canvasRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.2, max: 4 } },
+    }
+  );
+
+  // 触屏捏合缩放 (usePinch)
+  usePinch(
+    ({ first, movement: [scale], memo }) => {
+      if (first) memo = { startScale: viewport.scale };
+      const newScale = clamp(memo.startScale * scale, 0.2, 4);
+      setViewport({ scale: newScale });
+      return memo;
+    },
+    {
+      target: canvasRef,
+      eventOptions: { passive: false },
+      scaleBounds: { min: 0.2, max: 4 },
+    }
+  );
+
+  // 画布背景拖拽平移 (useDrag)
+  useDrag(
+    ({ movement: [dx, dy], dragging, event, shiftKey }) => {
+      const button = (event as PointerEvent).button;
+      if (button !== 0 && button !== 1) return;
+      const state = useStore.getState();
+      const shouldPan =
+        (state.selectedIds.length === 0 && !isDragging) ||
+        button === 1 ||
+        shiftKey;
+      if (dragging && shouldPan) {
+        setViewport({
+          x: viewport.x + dx / state.viewport.scale,
+          y: viewport.y + dy / state.viewport.scale,
+        });
+      }
+    },
+    {
+      target: canvasRef,
+      eventOptions: { passive: false },
+      filterTaps: true,
     }
   );
 
@@ -380,7 +394,6 @@ export default function Canvas() {
           el;
         sizeRef(el);
       }}
-      {...worldGesture()}
       onPointerDown={onCanvasPointerDown}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -421,7 +434,7 @@ export default function Canvas() {
             preset={presetsMap[el.presetId]}
             selected={selectedIds.includes(el.id)}
             viewportScale={viewport.scale}
-            onClick={() => handleElementClick(el.id, window.event as React.MouseEvent)}
+            onClick={(e) => handleElementClick(el.id, e)}
             onDragStart={(e) => handleElementDragStart(el.id, e)}
             dragging={draggingIds.has(el.id)}
           />
