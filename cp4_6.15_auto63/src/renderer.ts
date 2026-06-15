@@ -14,23 +14,19 @@ interface Particle {
 }
 
 export class MazeRenderer {
-  private scene: THREE.Scene;
-  private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer;
-  private container: HTMLElement;
-  private walls: THREE.Mesh[] = [];
-  private wallEdges: { mesh: THREE.LineSegments; cellX: number; cellZ: number; side: string }[] = [];
-  private badges: { mesh: THREE.Group; badgeId: number; collected: boolean }[] = [];
-  private particles: Particle[] = [];
-  private floor!: THREE.Mesh;
-  private exitRing!: THREE.Mesh;
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  renderer: THREE.WebGLRenderer;
+  walls: THREE.Mesh[] = [];
+  wallEdges: { mesh: THREE.LineSegments; cellX: number; cellZ: number; side: string }[] = [];
+  badges: { mesh: THREE.Group; badgeId: number; collected: boolean }[] = [];
+  particles: Particle[] = [];
+  floor!: THREE.Mesh;
+  exitRing!: THREE.Mesh;
   private exitRingScale = 0;
   private bobOffset = 0;
   private bobSpeed = 8;
   private bobAmount = 0.04;
-  private transitionProgress = 0;
-  private transitionTarget = 0;
-  private transitionMode: 'none' | 'out' | 'in' = 'none';
   private collisionCells: Set<string> = new Set();
   private cornerLights: THREE.PointLight[] = [];
   private badgePanel: HTMLElement;
@@ -41,30 +37,34 @@ export class MazeRenderer {
   private startHint: HTMLElement;
   private collectedCount = 0;
   private audioContext: AudioContext | null = null;
+  private container: HTMLElement;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a1f);
-    this.scene.fog = new THREE.Fog(0x0a0a1f, 8, 25);
+    this.scene.fog = new THREE.Fog(0x0a0a1f, 8, 28);
 
     this.camera = new THREE.PerspectiveCamera(
       75,
       container.clientWidth / container.clientHeight,
       0.1,
-      100
+      200
     );
-    this.camera.position.set(
-      CELL_SIZE / 2,
-      PLAYER_EYE_HEIGHT,
-      CELL_SIZE / 2
-    );
+
+    const initialX = CELL_SIZE / 2;
+    const initialZ = CELL_SIZE / 2;
+    const initialYaw = state.getState().player.rotation;
+    this.camera.position.set(initialX, PLAYER_EYE_HEIGHT, initialZ);
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.y = initialYaw;
+    this.camera.rotation.x = -0.2;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.1;
     container.appendChild(this.renderer.domElement);
 
     this.badgePanel = document.getElementById('badge-icons')!;
@@ -81,16 +81,18 @@ export class MazeRenderer {
     this.setupBadgeUI();
     this.setupEventListeners();
     this.setupResize();
+
+    this.renderer.render(this.scene, this.camera);
   }
 
   private setupLights(): void {
-    const ambient = new THREE.AmbientLight(0x404060, 0.6);
+    const ambient = new THREE.AmbientLight(0x6060a0, 0.8);
     this.scene.add(ambient);
 
-    const hemisphere = new THREE.HemisphereLight(0x8866cc, 0x222244, 0.4);
+    const hemisphere = new THREE.HemisphereLight(0xaa88ff, 0x222244, 0.5);
     this.scene.add(hemisphere);
 
-    const directional = new THREE.DirectionalLight(0xffffff, 0.3);
+    const directional = new THREE.DirectionalLight(0xffffff, 0.5);
     directional.position.set(10, 20, 10);
     this.scene.add(directional);
   }
@@ -99,11 +101,11 @@ export class MazeRenderer {
     const size = MAZE_SIZE * CELL_SIZE;
     const geometry = new THREE.PlaneGeometry(size, size);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x3a3a4a,
+      color: 0x4a4a5a,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.7,
       roughness: 0.9,
-      metalness: 0.1
+      metalness: 0.05
     });
 
     this.floor = new THREE.Mesh(geometry, material);
@@ -111,9 +113,9 @@ export class MazeRenderer {
     this.floor.position.set(size / 2, 0, size / 2);
     this.scene.add(this.floor);
 
-    const gridHelper = new THREE.GridHelper(size, MAZE_SIZE, 0x444466, 0x333355);
-    gridHelper.position.set(size / 2, 0.01, size / 2);
-    (gridHelper.material as THREE.Material).opacity = 0.3;
+    const gridHelper = new THREE.GridHelper(size, MAZE_SIZE, 0x555577, 0x444466);
+    gridHelper.position.set(size / 2, 0.02, size / 2);
+    (gridHelper.material as THREE.Material).opacity = 0.4;
     (gridHelper.material as THREE.Material).transparent = true;
     this.scene.add(gridHelper);
   }
@@ -129,13 +131,13 @@ export class MazeRenderer {
         const baseZ = z * CELL_SIZE;
 
         const colorMix = (x + z) / (MAZE_SIZE * 2);
-        const wallColor = this.lerpColor(0xff00aa, 0x3344ff, colorMix);
+        const wallColor = this.lerpColor(0xff33aa, 0x5566ff, colorMix);
 
         if (cell.walls.north) {
           this.createWall(
             baseX + CELL_SIZE / 2,
             baseZ,
-            CELL_SIZE,
+            CELL_SIZE + WALL_THICKNESS,
             WALL_THICKNESS,
             wallColor,
             x,
@@ -147,7 +149,7 @@ export class MazeRenderer {
           this.createWall(
             baseX + CELL_SIZE / 2,
             baseZ + CELL_SIZE,
-            CELL_SIZE,
+            CELL_SIZE + WALL_THICKNESS,
             WALL_THICKNESS,
             wallColor,
             x,
@@ -160,7 +162,7 @@ export class MazeRenderer {
             baseX,
             baseZ + CELL_SIZE / 2,
             WALL_THICKNESS,
-            CELL_SIZE,
+            CELL_SIZE + WALL_THICKNESS,
             wallColor,
             x,
             z,
@@ -172,7 +174,7 @@ export class MazeRenderer {
             baseX + CELL_SIZE,
             baseZ + CELL_SIZE / 2,
             WALL_THICKNESS,
-            CELL_SIZE,
+            CELL_SIZE + WALL_THICKNESS,
             wallColor,
             x,
             z,
@@ -180,8 +182,7 @@ export class MazeRenderer {
           );
         }
 
-        const isCorner = this.isCorner(cell);
-        if (isCorner) {
+        if (this.isCorner(cell)) {
           this.createCornerLight(baseX + CELL_SIZE / 2, baseZ + CELL_SIZE / 2);
         }
       }
@@ -217,12 +218,13 @@ export class MazeRenderer {
     const material = new THREE.MeshPhysicalMaterial({
       color: color,
       transparent: true,
-      opacity: 0.35,
-      roughness: 0.1,
+      opacity: 0.45,
+      roughness: 0.08,
       metalness: 0.1,
-      transmission: 0.6,
-      thickness: 0.5,
-      ior: 1.3
+      transmission: 0.5,
+      thickness: 0.8,
+      ior: 1.3,
+      clearcoat: 0.2
     });
 
     const wall = new THREE.Mesh(geometry, material);
@@ -243,16 +245,16 @@ export class MazeRenderer {
   }
 
   private createCornerLight(x: number, z: number): void {
-    const light = new THREE.PointLight(0xffaa55, 0.3, 3, 2);
-    light.position.set(x, WALL_HEIGHT - 0.3, z);
+    const light = new THREE.PointLight(0xffbb66, 0.4, 4, 2);
+    light.position.set(x, WALL_HEIGHT - 0.4, z);
     this.scene.add(light);
     this.cornerLights.push(light);
 
-    const bulbGeo = new THREE.SphereGeometry(0.08, 8, 8);
+    const bulbGeo = new THREE.SphereGeometry(0.1, 10, 10);
     const bulbMat = new THREE.MeshBasicMaterial({
-      color: 0xffcc88,
+      color: 0xffdd99,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.95
     });
     const bulb = new THREE.Mesh(bulbGeo, bulbMat);
     bulb.position.copy(light.position);
@@ -269,9 +271,9 @@ export class MazeRenderer {
       const mainMat = new THREE.MeshStandardMaterial({
         color: 0xffcc33,
         emissive: 0xff8800,
-        emissiveIntensity: 0.5,
-        metalness: 0.8,
-        roughness: 0.3
+        emissiveIntensity: 0.6,
+        metalness: 0.9,
+        roughness: 0.25
       });
       const torus = new THREE.Mesh(mainGeo, mainMat);
       torus.rotation.x = Math.PI / 2;
@@ -281,8 +283,8 @@ export class MazeRenderer {
       const innerMat = new THREE.MeshStandardMaterial({
         color: 0xffaa00,
         emissive: 0xff6600,
-        emissiveIntensity: 0.3,
-        metalness: 0.9,
+        emissiveIntensity: 0.4,
+        metalness: 0.95,
         roughness: 0.2
       });
       const inner = new THREE.Mesh(innerGeo, innerMat);
@@ -290,11 +292,11 @@ export class MazeRenderer {
       inner.position.y = 0.01;
       group.add(inner);
 
-      const glowGeo = new THREE.RingGeometry(0.3, 0.4, 16);
+      const glowGeo = new THREE.RingGeometry(0.3, 0.45, 16);
       const glowMat = new THREE.MeshBasicMaterial({
         color: 0xffcc66,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.35,
         side: THREE.DoubleSide
       });
       const glow = new THREE.Mesh(glowGeo, glowMat);
@@ -304,7 +306,7 @@ export class MazeRenderer {
 
       group.position.set(
         badge.cellX * CELL_SIZE + CELL_SIZE / 2,
-        0.8,
+        0.9,
         badge.cellZ * CELL_SIZE + CELL_SIZE / 2
       );
 
@@ -318,7 +320,7 @@ export class MazeRenderer {
     const exitX = gameState.exitCell.x * CELL_SIZE + CELL_SIZE / 2;
     const exitZ = gameState.exitCell.z * CELL_SIZE + CELL_SIZE / 2;
 
-    const ringGeo = new THREE.RingGeometry(0.1, 0.3, 32);
+    const ringGeo = new THREE.RingGeometry(0.15, 0.4, 48);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x88ccff,
       transparent: true,
@@ -328,12 +330,17 @@ export class MazeRenderer {
 
     this.exitRing = new THREE.Mesh(ringGeo, ringMat);
     this.exitRing.rotation.x = -Math.PI / 2;
-    this.exitRing.position.set(exitX, 0.02, exitZ);
+    this.exitRing.position.set(exitX, 0.05, exitZ);
     this.scene.add(this.exitRing);
+
+    const exitLight = new THREE.PointLight(0x66aaff, 0.8, 6, 2);
+    exitLight.position.set(exitX, 1.5, exitZ);
+    this.scene.add(exitLight);
   }
 
   private setupBadgeUI(): void {
     this.badgePanel.innerHTML = '';
+    this.badgeIcons = [];
     for (let i = 0; i < TOTAL_BADGES; i++) {
       const icon = document.createElement('div');
       icon.className = 'badge-icon';
@@ -378,14 +385,14 @@ export class MazeRenderer {
     const badgeObj = this.badges.find((b) => b.badgeId === badge.id);
     if (badgeObj) {
       badgeObj.collected = true;
-      this.spawnCollectParticles(badgeObj.mesh.position);
+      this.spawnCollectParticles(badgeObj.mesh.position.clone());
       this.playCollectSound();
     }
   }
 
   private spawnCollectParticles(position: THREE.Vector3): void {
     for (let i = 0; i < 10; i++) {
-      const geo = new THREE.SphereGeometry(0.05, 4, 4);
+      const geo = new THREE.SphereGeometry(0.06, 6, 6);
       const mat = new THREE.MeshBasicMaterial({
         color: 0xffcc33,
         transparent: true,
@@ -394,19 +401,19 @@ export class MazeRenderer {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.copy(position);
 
-      const angle = (i / 10) * Math.PI * 2;
-      const speed = 1.5 + Math.random() * 1;
+      const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.3;
+      const speed = 1.5 + Math.random() * 1.5;
       const velocity = new THREE.Vector3(
         Math.cos(angle) * speed,
-        Math.random() * 2 + 1,
+        Math.random() * 2.5 + 0.5,
         Math.sin(angle) * speed
       );
 
       this.particles.push({
         mesh,
         velocity,
-        life: 1,
-        maxLife: 1
+        life: 1.2,
+        maxLife: 1.2
       });
 
       this.scene.add(mesh);
@@ -425,16 +432,16 @@ export class MazeRenderer {
 
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+      oscillator.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
 
       gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
 
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
       oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.3);
+      oscillator.stop(ctx.currentTime + 0.35);
     } catch (e) {
     }
   }
@@ -487,13 +494,10 @@ export class MazeRenderer {
 
   private resetGame(): void {
     this.resultPanel.classList.remove('visible');
-    this.transitionMode = 'out';
-    this.transitionTarget = 1;
-    this.transitionProgress = 0;
 
     setTimeout(() => {
       state.resetGame();
-    }, 500);
+    }, 300);
   }
 
   private resetScene(): void {
@@ -555,16 +559,9 @@ export class MazeRenderer {
       PLAYER_EYE_HEIGHT,
       gameState.player.z
     );
-
-    this.transitionMode = 'in';
-    this.transitionTarget = 0;
-    this.transitionProgress = 1;
-  }
-
-  private playTransitionIn(): void {
-    this.transitionProgress = 1;
-    this.transitionMode = 'in';
-    this.transitionTarget = 0;
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.y = gameState.player.rotation;
+    this.camera.rotation.x = -0.2;
   }
 
   private setupResize(): void {
@@ -599,7 +596,6 @@ export class MazeRenderer {
     this.updateParticles(deltaTime);
     this.updateExitRing(deltaTime, gameState.nearExit);
     this.updateCollisionGlow(deltaTime);
-    this.updateTransition(deltaTime);
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -616,8 +612,8 @@ export class MazeRenderer {
         continue;
       }
 
-      badge.mesh.rotation.y += deltaTime * 1.5;
-      badge.mesh.position.y = 0.8 + Math.sin(performance.now() * 0.002 + badge.badgeId) * 0.1;
+      badge.mesh.rotation.y += deltaTime * 1.8;
+      badge.mesh.position.y = 0.9 + Math.sin(performance.now() * 0.002 + badge.badgeId) * 0.12;
 
       const badgePos = new THREE.Vector2(
         badge.mesh.position.x,
@@ -625,16 +621,16 @@ export class MazeRenderer {
       );
       const dist = playerPos.distanceTo(badgePos);
 
-      if (dist < 1.5) {
-        const scale = Math.max(0.1, 1 - (1.5 - dist) / 1.5);
+      if (dist < 1.6) {
+        const scale = Math.max(0.12, 1 - (1.6 - dist) / 1.6);
         badge.mesh.scale.setScalar(scale);
 
         const dir = new THREE.Vector2(
           playerPos.x - badgePos.x,
           playerPos.y - badgePos.y
         ).normalize();
-        badge.mesh.position.x += dir.x * deltaTime * 3;
-        badge.mesh.position.z += dir.y * deltaTime * 3;
+        badge.mesh.position.x += dir.x * deltaTime * 3.5;
+        badge.mesh.position.z += dir.y * deltaTime * 3.5;
       } else {
         badge.mesh.scale.setScalar(1);
       }
@@ -645,12 +641,12 @@ export class MazeRenderer {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime));
-      p.velocity.y -= 3 * deltaTime;
+      p.velocity.y -= 4 * deltaTime;
       p.life -= deltaTime;
 
       const opacity = Math.max(0, p.life / p.maxLife);
       (p.mesh.material as THREE.MeshBasicMaterial).opacity = opacity;
-      p.mesh.scale.setScalar(opacity);
+      p.mesh.scale.setScalar(Math.max(0.1, opacity));
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
@@ -663,23 +659,15 @@ export class MazeRenderer {
 
   private updateExitRing(deltaTime: number, nearExit: boolean): void {
     if (nearExit) {
-      this.exitRingScale += deltaTime * 2;
-      if (this.exitRingScale > 3) {
+      this.exitRingScale += deltaTime * 2.5;
+      if (this.exitRingScale > 3.5) {
         this.exitRingScale = 0;
       }
 
       const ringMat = this.exitRing.material as THREE.MeshBasicMaterial;
-      ringMat.opacity = 0.6 * (1 - this.exitRingScale / 3);
+      ringMat.opacity = 0.7 * (1 - this.exitRingScale / 3.5);
 
       this.exitRing.scale.setScalar(this.exitRingScale);
-
-      const pulseSize = 0.5 + Math.sin(performance.now() * 0.003) * 0.2;
-      (this.exitRing.geometry as THREE.RingGeometry).dispose();
-      this.exitRing.geometry = new THREE.RingGeometry(
-        this.exitRingScale * 0.3,
-        this.exitRingScale * 0.5,
-        32
-      );
     } else {
       const ringMat = this.exitRing.material as THREE.MeshBasicMaterial;
       ringMat.opacity = 0;
@@ -689,77 +677,21 @@ export class MazeRenderer {
   setCollisionCells(cells: { x: number; z: number }[]): void {
     this.collisionCells.clear();
     for (const cell of cells) {
-      this.collisionCells.add(`${cell.x},${cell.z}`);
+      this.collisionCells.add(cell.x + ',' + cell.z);
     }
   }
 
   private updateCollisionGlow(deltaTime: number): void {
     for (const edge of this.wallEdges) {
-      const cellKey = `${edge.cellX},${edge.cellZ}`;
+      const cellKey = edge.cellX + ',' + edge.cellZ;
       const mat = edge.mesh.material as THREE.LineBasicMaterial;
 
       if (this.collisionCells.has(cellKey)) {
-        mat.opacity = Math.min(1, mat.opacity + deltaTime * 5);
+        mat.opacity = Math.min(1, mat.opacity + deltaTime * 6);
       } else {
-        mat.opacity = Math.max(0, mat.opacity - deltaTime * 2);
+        mat.opacity = Math.max(0, mat.opacity - deltaTime * 2.5);
       }
     }
-  }
-
-  private updateTransition(deltaTime: number): void {
-    if (this.transitionMode === 'none') return;
-
-    const speed = 1.5;
-    if (this.transitionMode === 'out') {
-      this.transitionProgress = Math.min(1, this.transitionProgress + deltaTime * speed);
-      if (this.transitionProgress >= 1) {
-        this.transitionMode = 'none';
-      }
-    } else if (this.transitionMode === 'in') {
-      this.transitionProgress = Math.max(0, this.transitionProgress - deltaTime * speed);
-      if (this.transitionProgress <= 0) {
-        this.transitionMode = 'none';
-        this.startHint.style.opacity = '1';
-        setTimeout(() => {
-          this.startHint.style.transition = 'opacity 1s';
-          this.startHint.style.opacity = '0';
-        }, 3000);
-      }
-    }
-
-    this.applyTransitionEffect();
-  }
-
-  private applyTransitionEffect(): void {
-    const progress = this.transitionProgress;
-    if (progress <= 0) {
-      this.scene.children.forEach((child) => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments || child instanceof THREE.Group) {
-          child.visible = true;
-        }
-      });
-      return;
-    }
-
-    const numTiles = 8;
-    const centerX = MAZE_SIZE * CELL_SIZE / 2;
-    const centerZ = MAZE_SIZE * CELL_SIZE / 2;
-
-    this.scene.children.forEach((child) => {
-      if (child instanceof THREE.Mesh && child !== this.floor && child !== this.exitRing) {
-        const dx = child.position.x - centerX;
-        const dz = child.position.z - centerZ;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        const maxDist = MAZE_SIZE * CELL_SIZE * 0.7;
-        const threshold = progress * maxDist;
-
-        const tileX = Math.floor((child.position.x / CELL_SIZE + 0.5) * numTiles / MAZE_SIZE);
-        const tileZ = Math.floor((child.position.z / CELL_SIZE + 0.5) * numTiles / MAZE_SIZE);
-        const checkerboard = (tileX + tileZ) % 2 === 0;
-
-        child.visible = dist < threshold || !checkerboard;
-      }
-    });
   }
 
   private lerpColor(color1: number, color2: number, t: number): number {
@@ -779,6 +711,8 @@ export class MazeRenderer {
 
   dispose(): void {
     this.renderer.dispose();
-    this.container.removeChild(this.renderer.domElement);
+    if (this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
   }
 }

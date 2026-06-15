@@ -1,4 +1,4 @@
-import { state, CELL_SIZE } from './state';
+import { state, CELL_SIZE, MAZE_SIZE } from './state';
 
 const PLAYER_RADIUS = 0.3;
 const MOVE_SPEED = 3.5;
@@ -9,7 +9,7 @@ export class Controls {
   private isDragging: boolean = false;
   private lastMouseX: number = 0;
   private lastMouseY: number = 0;
-  private yaw: number = 0;
+  private yaw: number = Math.PI;
   private pitch: number = -0.2;
   private container: HTMLElement;
   private onRotationChange?: (yaw: number, pitch: number) => void;
@@ -17,7 +17,23 @@ export class Controls {
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.initInitialYaw();
     this.setupEventListeners();
+  }
+
+  private initInitialYaw(): void {
+    const s = state.getState();
+    const startCell = s.maze[s.startCell.z][s.startCell.x];
+    if (!startCell.walls.south) {
+      this.yaw = Math.PI;
+    } else if (!startCell.walls.east) {
+      this.yaw = -Math.PI / 2;
+    } else if (!startCell.walls.north) {
+      this.yaw = 0;
+    } else if (!startCell.walls.west) {
+      this.yaw = Math.PI / 2;
+    }
+    state.setPlayerRotation(this.yaw);
   }
 
   setOnRotationChange(callback: (yaw: number, pitch: number) => void): void {
@@ -192,6 +208,12 @@ export class Controls {
     if (localZ > CELL_SIZE - PLAYER_RADIUS && cell.walls.south) return false;
 
     return true;
+  }
+
+  reset(): void {
+    this.keys.clear();
+    this.initInitialYaw();
+    this.pitch = -0.2;
   }
 
   getYaw(): number {
