@@ -93,11 +93,31 @@ export default function Player() {
     if (v > 0) setIsMuted(false);
   };
 
-  const getVolumeColor = () => {
+  const getVolumeGradient = () => {
     const v = isMuted ? 0 : volume * 100;
-    if (v < 33) return '#4ade80';
-    if (v < 66) return '#facc15';
-    return '#ef4444';
+    const green = [74, 222, 128];
+    const yellow = [250, 204, 21];
+    const red = [239, 68, 68];
+
+    let color1: number[];
+    let color2: number[];
+    let ratio: number;
+
+    if (v < 50) {
+      color1 = green;
+      color2 = yellow;
+      ratio = v / 50;
+    } else {
+      color1 = yellow;
+      color2 = red;
+      ratio = (v - 50) / 50;
+    }
+
+    const r = Math.round(color1[0] + (color2[0] - color1[0]) * ratio);
+    const g = Math.round(color1[1] + (color2[1] - color1[1]) * ratio);
+    const b = Math.round(color1[2] + (color2[2] - color1[2]) * ratio);
+
+    return `rgb(${r}, ${g}, ${b})`;
   };
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
@@ -244,7 +264,7 @@ export default function Player() {
             onChange={handleVolumeChange}
             className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
             style={{
-              background: `linear-gradient(to right, ${getVolumeColor()} ${isMuted ? 0 : volume * 100}%, rgba(255,255,255,0.2) ${isMuted ? 0 : volume * 100}%)`,
+              background: `linear-gradient(to right, ${getVolumeGradient()} ${isMuted ? 0 : volume * 100}%, rgba(255,255,255,0.2) ${isMuted ? 0 : volume * 100}%)`,
             }}
           />
         </div>
