@@ -234,13 +234,14 @@ export default function RecordManager({
     setEditingBudget(null);
   };
 
-  // 虚拟滚动逻辑
   const VIRTUAL_THRESHOLD = 500;
-  const ITEM_HEIGHT = 88;
-  const BUFFER = 8;
+  const ROW_HEIGHT = 88;
+  const ROW_GAP = 10;
+  const ITEM_HEIGHT = ROW_HEIGHT + ROW_GAP;
+  const BUFFER = 5;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(600);
+  const [containerHeight, setContainerHeight] = useState(0);
 
   const useVirtual = filteredTransactions.length > VIRTUAL_THRESHOLD;
 
@@ -251,13 +252,28 @@ export default function RecordManager({
 
   useEffect(() => {
     const el = scrollContainerRef.current;
-    if (el) {
-      setContainerHeight(el.clientHeight || 600);
+    if (!el) return;
+    const updateHeight = () => {
+      if (el.clientHeight > 0) {
+        setContainerHeight(el.clientHeight);
+      }
+    };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [useVirtual]);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      setScrollTop(scrollContainerRef.current.scrollTop);
     }
-  }, [useVirtual, filteredTransactions.length]);
+  }, [listKey]);
 
   const visibleRange = useMemo(() => {
-    if (!useVirtual) return null;
+    if (!useVirtual || containerHeight === 0) {
+      return { startIdx: 0, endIdx: filteredTransactions.length };
+    }
     const startIdx = Math.max(
       0,
       Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER
@@ -267,9 +283,44 @@ export default function RecordManager({
       Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER
     );
     return { startIdx, endIdx };
-  }, [useVirtual, scrollTop, containerHeight, filteredTransactions.length]);
+  }, [useVirtual, scrollTop, containerHeight, filteredTransactions.length, ITEM_HEIGHT]);
 
-  const renderList = () => {
+  const renderVirtualList = () => {
+    const items = filteredTransactions;
+    const { startIdx, endIdx } = visibleRange;
+    const visible = items.slice(startIdx, endIdx);
+    const totalHeight = items.length * ITEM_HEIGHT - ROW_GAP;
+    const offsetY = startIdx * ITEM_HEIGHT;
+
+    return (
+      <div key={listKey} className="fade-in" style={{ position: 'relative' }}>
+        <div style={{ height: totalHeight }} />
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            transform: `translateY(${offsetY}px)`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: ROW_GAP,
+          }}
+        >
+          {visible.map((tx) => (
+            <TransactionRow
+              key={tx.id}
+              tx={tx}
+              onEdit={startEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderNormalList = () => {
     const items = filteredTransactions;
     if (items.length === 0) {
       return (
@@ -287,55 +338,20 @@ export default function RecordManager({
         </div>
       );
     }
-
-    if (!useVirtual) {
-      return (
-        <div
-          key={listKey}
-          className="fade-in"
-          style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
-        >
-          {items.map((tx) => (
-            <TransactionRow
-              key={tx.id}
-              tx={tx}
-              onEdit={startEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      );
-    }
-
-    const { startIdx, endIdx } = visibleRange!;
-    const visible = items.slice(startIdx, endIdx);
-    const totalHeight = items.length * ITEM_HEIGHT;
-    const offsetY = startIdx * ITEM_HEIGHT;
-
     return (
       <div
         key={listKey}
         className="fade-in"
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        style={{
-          maxHeight: 600,
-          overflowY: 'auto',
-          position: 'relative',
-        }}
+        style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
       >
-        <div style={{ height: totalHeight, position: 'relative' }}>
-          <div style={{ transform: `translateY(${offsetY}px)` }}>
-            {visible.map((tx) => (
-              <TransactionRow
-                key={tx.id}
-                tx={tx}
-                onEdit={startEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        </div>
+        {items.map((tx) => (
+          <TransactionRow
+            key={tx.id}
+            tx={tx}
+            onEdit={startEdit}
+            onDelete={handleDelete}
+          />
+        ))}
       </div>
     );
   };
@@ -876,19 +892,16 @@ export default function RecordManager({
           </h3>
         </div>
 
-        {useVirtual ? (
-          renderList()
-        ) : (
-          <div
-            ref={scrollContainerRef}
-            style={{
-              maxHeight: 600,
-              overflowY: 'auto',
-            }}
-          >
-            {renderList()}
-          </div>
-        )}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          style={{
+            maxHeight: 600,
+            overflowY: 'auto',
+          }}
+        >
+          {useVirtual ? renderVirtualList() : renderNormalList()}
+        </div>
       </div>
 
       {editingBudget && (

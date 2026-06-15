@@ -463,6 +463,20 @@ body {
     max-width: calc(100vw - 200px);
     padding: 24px;
   }
+
+  .page-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-card .count-up {
+    font-size: 20px;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -510,5 +524,23 @@ body {
     margin-left: 0;
     max-width: 100%;
     padding: 20px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 900px) {
+  .page-title {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 18px;
+  }
+
+  .stat-card {
+    padding: 14px;
   }
 }
