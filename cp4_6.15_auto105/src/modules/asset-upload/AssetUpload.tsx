@@ -15,6 +15,43 @@ interface UploadingFile {
   size: string;
 }
 
+const lerpColor = (color1: string, color2: string, t: number): string => {
+  const hex = (x: string) => parseInt(x, 16);
+  const r1 = hex(color1.slice(1, 3));
+  const g1 = hex(color1.slice(3, 5));
+  const b1 = hex(color1.slice(5, 7));
+  const r2 = hex(color2.slice(1, 3));
+  const g2 = hex(color2.slice(3, 5));
+  const b2 = hex(color2.slice(5, 7));
+
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const getProgressColor = (progress: number): string => {
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+  if (clampedProgress < 50) {
+    const t = clampedProgress / 50;
+    return lerpColor('#ef4444', '#3b82f6', t);
+  } else {
+    const t = (clampedProgress - 50) / 50;
+    return lerpColor('#3b82f6', '#10b981', t);
+  }
+};
+
+const lightenColor = (color: string, amount: number): string => {
+  const hex = (x: string) => parseInt(x, 16);
+  const r = Math.min(255, hex(color.slice(1, 3)) + amount);
+  const g = Math.min(255, hex(color.slice(3, 5)) + amount);
+  const b = Math.min(255, hex(color.slice(5, 7)) + amount);
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
 export default function AssetUpload() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
@@ -231,6 +268,7 @@ export default function AssetUpload() {
                         className="progress-fill"
                         style={{
                           width: `${fileItem.progress}%`,
+                          background: `linear-gradient(90deg, ${getProgressColor(fileItem.progress)} 0%, ${lightenColor(getProgressColor(fileItem.progress), 30)} 100%)`,
                         }}
                       />
                     </div>
