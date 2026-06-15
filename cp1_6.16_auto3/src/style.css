@@ -286,67 +286,72 @@ body {
   }
 }
 
+.card--matched {
+  animation: matchBounce 0.5s ease 0.1s;
+}
+
 .card--matched .card__face--front {
   border-color: var(--success-color);
-  animation: matchBounce 0.5s ease, successGlow 1.5s ease-out;
+  animation: successGlow 1.5s ease-out forwards;
 }
 
 @keyframes matchBounce {
   0% {
-    transform: rotateY(180deg) translateY(0);
+    transform: translateY(0);
   }
-  40% {
-    transform: rotateY(180deg) translateY(-12px);
+  30% {
+    transform: translateY(-14px);
   }
-  60% {
-    transform: rotateY(180deg) translateY(-6px);
+  50% {
+    transform: translateY(-6px);
   }
-  80% {
-    transform: rotateY(180deg) translateY(-10px);
+  70% {
+    transform: translateY(-12px);
+  }
+  85% {
+    transform: translateY(-3px);
   }
   100% {
-    transform: rotateY(180deg) translateY(0);
+    transform: translateY(0);
   }
 }
 
 @keyframes successGlow {
   0% {
     box-shadow: 0 4px 8px var(--shadow),
-      0 0 0 0 rgba(74, 222, 128, 0);
+      0 0 0 0 rgba(74, 222, 128, 0),
+      inset 0 0 0 0 rgba(74, 222, 128, 0);
   }
-  30% {
+  20% {
     box-shadow: 0 4px 8px var(--shadow),
-      0 0 30px 10px rgba(74, 222, 128, 0.6);
+      0 0 40px 15px rgba(74, 222, 128, 0.7),
+      inset 0 0 20px 5px rgba(74, 222, 128, 0.2);
+  }
+  40% {
+    box-shadow: 0 4px 8px var(--shadow),
+      0 0 30px 10px rgba(74, 222, 128, 0.5),
+      inset 0 0 15px 3px rgba(74, 222, 128, 0.15);
   }
   100% {
     box-shadow: 0 4px 8px var(--shadow),
-      0 0 0 0 rgba(74, 222, 128, 0);
-  }
-}
-
-.card--wrong {
-  animation: wrongFlash 0.2s ease 3;
-}
-
-@keyframes wrongFlash {
-  0%, 100% {
-    border-color: transparent;
-  }
-  50% {
-    border-color: var(--error-color);
+      0 0 0 0 rgba(74, 222, 128, 0),
+      inset 0 0 0 0 rgba(74, 222, 128, 0);
   }
 }
 
 .card--wrong .card__face {
-  animation: wrongFlashBorder 0.2s ease 3;
+  animation: wrongFlashBorder 0.2s ease-in-out 2;
 }
 
 @keyframes wrongFlashBorder {
   0%, 100% {
     border-color: transparent;
   }
-  50% {
+  25%, 75% {
     border-color: var(--error-color);
+  }
+  50% {
+    border-color: transparent;
   }
 }
 
