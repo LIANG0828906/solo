@@ -263,7 +263,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 })
 
 app.get('/api/books', (req: Request, res: Response) => {
-  const { status, category, ownerId } = req.query
+  const { status, category, ownerId, keyword, yearMin, yearMax, priceMin, priceMax } = req.query
 
   let filteredBooks = [...books]
 
@@ -275,6 +275,38 @@ app.get('/api/books', (req: Request, res: Response) => {
   }
   if (ownerId && typeof ownerId === 'string') {
     filteredBooks = filteredBooks.filter((b) => b.ownerId === ownerId)
+  }
+  if (keyword && typeof keyword === 'string') {
+    const lowerKeyword = keyword.toLowerCase()
+    filteredBooks = filteredBooks.filter(
+      (b) =>
+        b.title.toLowerCase().includes(lowerKeyword) ||
+        b.author.toLowerCase().includes(lowerKeyword)
+    )
+  }
+  if (yearMin && typeof yearMin === 'string') {
+    const min = Number(yearMin)
+    if (!isNaN(min)) {
+      filteredBooks = filteredBooks.filter((b) => b.publishYear >= min)
+    }
+  }
+  if (yearMax && typeof yearMax === 'string') {
+    const max = Number(yearMax)
+    if (!isNaN(max)) {
+      filteredBooks = filteredBooks.filter((b) => b.publishYear <= max)
+    }
+  }
+  if (priceMin && typeof priceMin === 'string') {
+    const min = Number(priceMin)
+    if (!isNaN(min)) {
+      filteredBooks = filteredBooks.filter((b) => b.price !== undefined && b.price >= min)
+    }
+  }
+  if (priceMax && typeof priceMax === 'string') {
+    const max = Number(priceMax)
+    if (!isNaN(max)) {
+      filteredBooks = filteredBooks.filter((b) => b.price !== undefined && b.price <= max)
+    }
   }
 
   res.json({
@@ -371,6 +403,11 @@ app.put('/api/books/:id/review', authenticateToken, (req: AuthRequest, res: Resp
     return
   }
 
+  if (status === 'rejected' && rejectReason && rejectReason.length > 50) {
+    res.status(400).json({ success: false, error: '驳回原因不能超过50字' })
+    return
+  }
+
   const book = books.find((b) => b.id === req.params.id)
   if (!book) {
     res.status(404).json({ success: false, error: '书籍不存在' })
@@ -445,7 +482,7 @@ app.post('/api/transactions', authenticateToken, (req: AuthRequest, res: Respons
 
 app.get('/api/transactions', authenticateToken, (req: AuthRequest, res: Response) => {
   const userId = req.user!.id
-  const { status } = req.query
+  const { status, sortBy, sortOrder } = req.query
 
   let userTransactions = transactions.filter(
     (t) => t.buyerId === userId || t.sellerId === userId
@@ -453,6 +490,13 @@ app.get('/api/transactions', authenticateToken, (req: AuthRequest, res: Response
 
   if (status && typeof status === 'string') {
     userTransactions = userTransactions.filter((t) => t.status === status)
+  }
+
+  if (sortBy === 'date') {
+    const order = sortOrder === 'asc' ? 1 : -1
+    userTransactions = [...userTransactions].sort((a, b) => {
+      return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order
+    })
   }
 
   res.json({
