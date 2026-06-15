@@ -5,6 +5,11 @@ export class MenuScene extends Phaser.Scene {
   private selectedDifficulty: Difficulty = 'normal';
   private difficultyCards: Map<Difficulty, Phaser.GameObjects.Container> = new Map();
   private starField: Phaser.GameObjects.Group | null = null;
+  private titleText: Phaser.GameObjects.Text | null = null;
+  private subtitleText: Phaser.GameObjects.Text | null = null;
+  private startButtonBg: Phaser.GameObjects.Rectangle | null = null;
+  private startButtonText: Phaser.GameObjects.Text | null = null;
+  private keyboardListeners: Phaser.Input.Keyboard.Key[] = [];
   private isMobile: boolean = false;
   private uiScale: number = 1;
 
@@ -49,7 +54,7 @@ export class MenuScene extends Phaser.Scene {
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
 
-    this.add.text(centerX, centerY - 200 * this.uiScale, '法阵召唤模拟器', {
+    this.titleText = this.add.text(centerX, centerY - 200 * this.uiScale, '法阵召唤模拟器', {
       fontFamily: 'Arial Black, sans-serif',
       fontSize: `${48 * this.uiScale}px`,
       color: '#e0b0ff',
@@ -58,7 +63,7 @@ export class MenuScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5).setShadow(0, 0, 10 * this.uiScale, 'rgba(153, 51, 255, 1)');
 
-    this.add.text(centerX, centerY - 140 * this.uiScale, '选择难度开始召唤', {
+    this.subtitleText = this.add.text(centerX, centerY - 140 * this.uiScale, '选择难度开始召唤', {
       fontFamily: 'Arial, sans-serif',
       fontSize: `${20 * this.uiScale}px`,
       color: '#b080ff'
@@ -238,37 +243,40 @@ export class MenuScene extends Phaser.Scene {
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
 
-    const buttonBg = this.add.rectangle(centerX, centerY + 150 * this.uiScale, 200 * this.uiScale, 60 * this.uiScale, 0x6b238e)
+    this.startButtonBg = this.add.rectangle(centerX, centerY + 150 * this.uiScale, 200 * this.uiScale, 60 * this.uiScale, 0x6b238e)
       .setStrokeStyle(2 * this.uiScale, 0xe0b0ff)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(centerX, centerY + 150 * this.uiScale, '开始召唤', {
+    this.startButtonText = this.add.text(centerX, centerY + 150 * this.uiScale, '开始召唤', {
       fontFamily: 'Arial Black',
       fontSize: `${24 * this.uiScale}px`,
       color: '#ffffff'
     }).setOrigin(0.5);
 
-    buttonBg.on('pointerover', () => {
+    this.startButtonBg?.on('pointerover', () => {
+      if (!this.startButtonBg) return;
       this.tweens.add({
-        targets: buttonBg,
+        targets: this.startButtonBg,
         scale: 1.05,
         duration: 150,
         ease: 'Power2'
       });
     });
 
-    buttonBg.on('pointerout', () => {
+    this.startButtonBg?.on('pointerout', () => {
+      if (!this.startButtonBg) return;
       this.tweens.add({
-        targets: buttonBg,
+        targets: this.startButtonBg,
         scale: 1,
         duration: 150,
         ease: 'Power2'
       });
     });
 
-    buttonBg.on('pointerdown', () => {
+    this.startButtonBg?.on('pointerdown', () => {
+      if (!this.startButtonBg) return;
       this.tweens.add({
-        targets: buttonBg,
+        targets: this.startButtonBg,
         scale: 0.95,
         duration: 100,
         ease: 'Power2',
@@ -281,7 +289,13 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createInputHandlers(): void {
-    this.input.keyboard?.on('keydown-LEFT', () => {
+    if (!this.input.keyboard) return;
+
+    const leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+    const rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+    const enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+
+    leftKey.on('down', () => {
       const difficulties: Difficulty[] = ['easy', 'normal', 'hard'];
       const currentIndex = difficulties.indexOf(this.selectedDifficulty);
       if (currentIndex > 0) {
@@ -289,7 +303,7 @@ export class MenuScene extends Phaser.Scene {
       }
     });
 
-    this.input.keyboard?.on('keydown-RIGHT', () => {
+    rightKey.on('down', () => {
       const difficulties: Difficulty[] = ['easy', 'normal', 'hard'];
       const currentIndex = difficulties.indexOf(this.selectedDifficulty);
       if (currentIndex < difficulties.length - 1) {
@@ -297,9 +311,11 @@ export class MenuScene extends Phaser.Scene {
       }
     });
 
-    this.input.keyboard?.on('keydown-ENTER', () => {
+    enterKey.on('down', () => {
       this.startGame();
     });
+
+    this.keyboardListeners.push(leftKey, rightKey, enterKey);
   }
 
   private startGame(): void {
@@ -321,6 +337,28 @@ export class MenuScene extends Phaser.Scene {
       this.starField.destroy();
       this.starField = null;
     }
+
+    if (this.titleText) {
+      this.titleText.destroy();
+      this.titleText = null;
+    }
+    if (this.subtitleText) {
+      this.subtitleText.destroy();
+      this.subtitleText = null;
+    }
+    if (this.startButtonBg) {
+      this.startButtonBg.destroy();
+      this.startButtonBg = null;
+    }
+    if (this.startButtonText) {
+      this.startButtonText.destroy();
+      this.startButtonText = null;
+    }
+
+    this.keyboardListeners.forEach(key => {
+      key.removeAllListeners();
+    });
+    this.keyboardListeners = [];
 
     this.scale.off('resize', this.handleResize, this);
     this.tweens.killAll();

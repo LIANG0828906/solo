@@ -9,10 +9,10 @@ export const RUNE_COLORS: Record<RuneType, number> = {
 };
 
 export const RUNE_SYMBOLS: Record<RuneType, string> = {
-  fire: '🔥',
-  water: '💧',
-  wind: '🌪️',
-  earth: '🌍'
+  fire: '�',
+  water: '�',
+  wind: '🜁',
+  earth: '🜃'
 };
 
 export const DIFFICULTY_CONFIG = {

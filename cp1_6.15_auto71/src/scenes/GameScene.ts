@@ -66,8 +66,7 @@ export class GameScene extends Phaser.Scene {
   private summonedType: RuneType | null = null;
 
   private prevHeartsCount: number = -1;
-  private blinkTimer: number = 0;
-  private lastBlinkSecond: number = -1;
+  private lastBlinkTimestamp: number = 0;
 
   constructor() {
     super('GameScene');
@@ -337,11 +336,11 @@ export class GameScene extends Phaser.Scene {
         this.tweens.killTweensOf(heart);
         this.tweens.add({
           targets: heart,
-          scale: { from: 1, to: gained ? 1.6 : 0.5, yoyo: true },
+          scale: { from: 1, to: gained ? 1.3 : 0.6, yoyo: true },
           alpha: { from: heart.alpha, to: isActive ? 1 : 0.2 },
-          duration: 350,
-          ease: gained ? 'Elastic.easeOut' : 'Back.easeIn',
-          hold: gained ? 100 : 0
+          duration: 300,
+          ease: gained ? 'Quad.easeOut' : 'Quad.easeIn',
+          hold: gained ? 80 : 0
         });
       } else if (!isActive && heart.alpha !== 0.2) {
         heart.setAlpha(0.2);
@@ -455,22 +454,13 @@ export class GameScene extends Phaser.Scene {
     const originalY = rune.container.y;
     this.tweens.killTweensOf(rune.container);
 
-    this.tweens.chain({
+    this.tweens.add({
       targets: rune.container,
-      tweens: [
-        {
-          y: originalY + 6,
-          scale: 0.92,
-          duration: 75,
-          ease: 'Quad.easeIn'
-        },
-        {
-          y: originalY,
-          scale: 1,
-          duration: 75,
-          ease: 'Back.easeOut'
-        }
-      ]
+      y: { from: originalY, to: originalY + 6 },
+      scale: { from: 1, to: 0.9 },
+      duration: 150,
+      ease: 'Quad.easeOut',
+      yoyo: true
     });
 
     const expectedType = this.sequence[this.playerInput.length];
@@ -865,11 +855,10 @@ export class GameScene extends Phaser.Scene {
 
     this.updateParticles(dt);
 
-    this.blinkTimer += delta;
-    const currentSecond = Math.ceil(this.timeRemaining);
-    if (this.timeText && this.timeRemaining > 0 && currentSecond > 0) {
-      if (currentSecond % 5 === 0 && this.lastBlinkSecond !== currentSecond) {
-        this.lastBlinkSecond = currentSecond;
+    if (this.timeText && this.timeRemaining > 0) {
+      const elapsedSinceBlink = time - this.lastBlinkTimestamp;
+      if (elapsedSinceBlink >= 5000 && this.lastBlinkTimestamp !== 0) {
+        this.lastBlinkTimestamp = time;
         this.tweens.killTweensOf(this.timeText);
         this.tweens.add({
           targets: this.timeText,
@@ -878,6 +867,8 @@ export class GameScene extends Phaser.Scene {
           duration: 450,
           ease: 'Quad.easeInOut'
         });
+      } else if (this.lastBlinkTimestamp === 0) {
+        this.lastBlinkTimestamp = time;
       }
     }
   }
