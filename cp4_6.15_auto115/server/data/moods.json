@@ -1,0 +1,51 @@
+{
+  "users": [
+    { "id": "user1", "name": "我", "avatar": "😊" },
+    { "id": "user2", "name": "小雨", "avatar": "🌧️" },
+    { "id": "user3", "name": "晴天", "avatar": "☀️" },
+    { "id": "user4", "name": "云朵", "avatar": "☁️" }
+  ],
+  "moods": [
+    { "id": "1", "userId": "user1", "mood": "calm", "text": "今天很平静", "date": "2026-05-16", "intensity": 0.6 },
+    { "id": "2", "userId": "user1", "mood": "happy", "text": "和朋友聚餐很开心", "date": "2026-05-17", "intensity": 0.9 },
+    { "id": "3", "userId": "user1", "mood": "happy", "text": "周末阳光明媚", "date": "2026-05-18", "intensity": 0.85 },
+    { "id": "4", "userId": "user1", "mood": "tired", "text": "加班到很晚", "date": "2026-05-19", "intensity": 0.4 },
+    { "id": "5", "userId": "user1", "mood": "anxious", "text": "明天有重要会议", "date": "2026-05-20", "intensity": 0.5 },
+    { "id": "6", "userId": "user1", "mood": "calm", "text": "会议顺利结束了", "date": "2026-05-21", "intensity": 0.7 },
+    { "id": "7", "userId": "user1", "mood": "happy", "text": "收到意外的好消息", "date": "2026-05-22", "intensity": 0.9 },
+    { "id": "8", "userId": "user1", "mood": "sad", "text": "想家了", "date": "2026-05-23", "intensity": 0.4 },
+    { "id": "9", "userId": "user1", "mood": "calm", "text": "在家看书很惬意", "date": "2026-05-24", "intensity": 0.65 },
+    { "id": "10", "userId": "user1", "mood": "anxious", "text": "项目截止日期临近", "date": "2026-05-25", "intensity": 0.55 },
+    { "id": "11", "userId": "user1", "mood": "tired", "text": "连续工作好几天了", "date": "2026-05-26", "intensity": 0.35 },
+    { "id": "12", "userId": "user1", "mood": "angry", "text": "遇到不公正的对待", "date": "2026-05-27", "intensity": 0.6 },
+    { "id": "13", "userId": "user1", "mood": "sad", "text": "和好朋友吵架了", "date": "2026-05-28", "intensity": 0.45 },
+    { "id": "14", "userId": "user1", "mood": "calm", "text": "事情慢慢好转", "date": "2026-05-29", "intensity": 0.6 },
+    { "id": "15", "userId": "user1", "mood": "happy", "text": "和解了，心情舒畅", "date": "2026-05-30", "intensity": 0.85 },
+    { "id": "16", "userId": "user1", "mood": "happy", "text": "月末总结很满意", "date": "2026-05-31", "intensity": 0.8 },
+    { "id": "17", "userId": "user1", "mood": "calm", "text": "儿童节快乐", "date": "2026-06-01", "intensity": 0.7 },
+    { "id": "18", "userId": "user1", "mood": "tired", "text": "新的一周很疲惫", "date": "2026-06-02", "intensity": 0.3 },
+    { "id": "19", "userId": "user1", "mood": "anxious", "text": "身体不太舒服", "date": "2026-06-03", "intensity": 0.5 },
+    { "id": "20", "userId": "user1", "mood": "calm", "text": "休息了一天后好多了", "date": "2026-06-04", "intensity": 0.65 },
+    { "id": "21", "userId": "user1", "mood": "happy", "text": "看完了一本好书", "date": "2026-06-05", "intensity": 0.8 },
+    { "id": "22", "userId": "user1", "mood": "sad", "text": "下了一整天的雨", "date": "2026-06-07", "intensity": 0.45 },
+    { "id": "23", "userId": "user1", "mood": "calm", "text": "雨天也有雨天的美", "date": "2026-06-08", "intensity": 0.6 },
+    { "id": "24", "userId": "user1", "mood": "angry", "text": "被误解了很委屈", "date": "2026-06-10", "intensity": 0.65 },
+    { "id": "25", "userId": "user1", "mood": "calm", "text": "慢慢释怀了", "date": "2026-06-11", "intensity": 0.55 },
+    { "id": "26", "userId": "user1", "mood": "happy", "text": "学了新技能很有成就感", "date": "2026-06-12", "intensity": 0.85 },
+    { "id": "27", "userId": "user1", "mood": "happy", "text": "周末出去散步了", "date": "2026-06-13", "intensity": 0.75 },
+    { "id": "28", "userId": "user1", "mood": "calm", "text": "安静的午后", "date": "2026-06-14", "intensity": 0.7 },
+    { "id": "29", "userId": "user1", "mood": "happy", "text": "今天心情不错", "date": "2026-06-15", "intensity": 0.8 },
+
+    { "id": "30", "userId": "user2", "mood": "sad", "text": "考试没考好", "date": "2026-06-13", "intensity": 0.4 },
+    { "id": "31", "userId": "user2", "mood": "calm", "text": "慢慢调整中", "date": "2026-06-14", "intensity": 0.55 },
+    { "id": "32", "userId": "user2", "mood": "happy", "text": "今天天气真好", "date": "2026-06-15", "intensity": 0.75 },
+
+    { "id": "33", "userId": "user3", "mood": "anxious", "text": "面试快到了", "date": "2026-06-13", "intensity": 0.5 },
+    { "id": "34", "userId": "user3", "mood": "happy", "text": "面试通过了！", "date": "2026-06-14", "intensity": 0.9 },
+    { "id": "35", "userId": "user3", "mood": "calm", "text": "终于可以放松了", "date": "2026-06-15", "intensity": 0.7 },
+
+    { "id": "36", "userId": "user4", "mood": "tired", "text": "赶项目太累了", "date": "2026-06-13", "intensity": 0.3 },
+    { "id": "37", "userId": "user4", "mood": "tired", "text": "还在加班", "date": "2026-06-14", "intensity": 0.35 },
+    { "id": "38", "userId": "user4", "mood": "calm", "text": "项目终于交付了", "date": "2026-06-15", "intensity": 0.65 }
+  ]
+}
