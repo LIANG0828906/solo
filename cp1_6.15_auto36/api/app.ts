@@ -11,7 +11,7 @@ import cors from 'cors'
 import path from 'path'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
-import authRoutes from './routes/auth.js'
+import scoreRoutes from '../server/scoreAPI'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 /**
  * API Routes
  */
-app.use('/api/auth', authRoutes)
+app.use('/api', scoreRoutes)
 
 /**
  * health
