@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useTransition } from 'react';
 import Masonry from 'react-masonry-css';
 import { Funnel, X } from 'lucide-react';
 import { useSkillsStore } from '@/store/skillsStore';
@@ -28,27 +28,31 @@ export default function SkillList() {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const prevQueryRef = useRef(searchQuery);
-  const [animateKey, setAnimateKey] = useState(0);
+  const [isPending, startTransition] = useTransition();
 
   const handleSearchChange = useCallback((value: string) => {
     setLocalQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setSearchQuery(value);
+      startTransition(() => {
+        setSearchQuery(value);
+      });
     }, DEBOUNCE_MS);
   }, [setSearchQuery]);
 
   useEffect(() => {
     if (prevQueryRef.current !== searchQuery && searchQuery.trim()) {
-      incrementSearchCount(searchQuery);
+      startTransition(() => {
+        incrementSearchCount(searchQuery);
+      });
     }
     prevQueryRef.current = searchQuery;
-    setAnimateKey((k) => k + 1);
   }, [searchQuery, incrementSearchCount]);
 
   const handleCategoryChange = useCallback((cat: SkillCategory | 'all') => {
-    setFilterCategory(cat);
-    setAnimateKey((k) => k + 1);
+    startTransition(() => {
+      setFilterCategory(cat);
+    });
   }, [setFilterCategory]);
 
   useEffect(() => {
@@ -83,7 +87,11 @@ export default function SkillList() {
           </div>
           <button
             onClick={() => setFilterOpen(!filterOpen)}
-            className="shrink-0 p-3 bg-white rounded-xl shadow-sm border border-gray-200 hover:border-[#246A73] hover:text-[#246A73] text-gray-500 transition-all duration-200 ease-in-out"
+            className={`shrink-0 p-3 rounded-xl shadow-sm border transition-all duration-200 ease-in-out ${
+              filterOpen
+                ? 'bg-[#246A73] border-[#246A73] text-white'
+                : 'bg-white border-gray-200 hover:border-[#246A73] hover:text-[#246A73] text-gray-500'
+            }`}
           >
             <Funnel size={20} />
           </button>
@@ -147,7 +155,6 @@ export default function SkillList() {
 
       <div className="px-4 md:px-8 lg:px-12 pb-16">
         <Masonry
-          key={animateKey}
           breakpointCols={breakpointColumns}
           className="flex w-auto"
           columnClassName="bg-clip-padding"
@@ -157,7 +164,11 @@ export default function SkillList() {
             <div
               key={skill.id}
               className="mb-6 animate-fade-in"
-              style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+              style={{
+                animationDelay: `${Math.min(idx * 30, 300)}ms`,
+                opacity: isPending ? 0.6 : 1,
+                transition: 'opacity 0.2s ease-in-out',
+              }}
             >
               <SkillCard skill={skill} onRequestExchange={setSelectedSkill} />
             </div>

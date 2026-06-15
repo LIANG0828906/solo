@@ -14,7 +14,6 @@ interface SkillsState {
   addExchangeRequest: (skillId: string, reason: string, expectedTime: string) => void;
   updateProfile: (profile: Partial<UserProfile>) => void;
   incrementSearchCount: (query: string) => void;
-  removeSkill: (skillId: string) => void;
   getFilteredSkills: () => Skill[];
 }
 
@@ -85,11 +84,6 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
       };
     });
   },
-
-  removeSkill: (skillId) =>
-    set((state) => ({
-      skills: state.skills.filter((s) => s.id !== skillId),
-    })),
 
   getFilteredSkills: () => {
     const { skills, filterCategory, searchQuery } = get();

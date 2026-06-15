@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useSkillsStore } from '@/store/skillsStore';
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '@/data/mockSkills';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { userProfile, updateProfile, skills, removeSkill } = useSkillsStore();
+  const { userProfile, updateProfile, skills } = useSkillsStore();
 
   const [username, setUsername] = useState(userProfile.username);
   const [avatar, setAvatar] = useState(userProfile.avatar);
@@ -95,7 +95,7 @@ export default function SettingsPage() {
               {publishedSkills.map((skill) => (
                 <li
                   key={skill.id}
-                  className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 hover:bg-gray-100/70 transition-colors"
+                  className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <span
@@ -107,12 +107,6 @@ export default function SettingsPage() {
                       <span className="text-xs text-gray-400">{CATEGORY_LABELS[skill.category]} · {skill.pointsCost} 积分</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeSkill(skill.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-all duration-200 ease-in-out hover:bg-red-50 hover:text-red-500 ml-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </li>
               ))}
             </ul>
