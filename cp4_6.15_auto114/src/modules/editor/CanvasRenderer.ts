@@ -191,25 +191,9 @@ export class CanvasRenderer {
 
   setDragPosition(pos: Point | null): void {
     this.dragPosition = pos;
-    if (pos && !this.dragAnimFrameId) {
+    if (pos) {
       this.dragAnimStartTime = performance.now();
-      this.startDragAnimationLoop();
-    } else if (!pos && this.dragAnimFrameId) {
-      cancelAnimationFrame(this.dragAnimFrameId);
-      this.dragAnimFrameId = null;
     }
-  }
-
-  private startDragAnimationLoop(): void {
-    const animate = () => {
-      if (!this.dragPosition) {
-        this.dragAnimFrameId = null;
-        return;
-      } else {
-        this.dragAnimFrameId = requestAnimationFrame(animate);
-      }
-    };
-    this.dragAnimFrameId = requestAnimationFrame(animate);
   }
 
   private getDragElasticScale(): number {
@@ -542,9 +526,7 @@ export class CanvasRenderer {
 
     if (this.lightSource) {
       this.drawLighting();
-      if (this.appMode === 'editor') {
-        this.drawLightSource();
-      }
+      this.drawLightSource();
     }
 
     if (this.appMode === 'preview' && this.character) {
