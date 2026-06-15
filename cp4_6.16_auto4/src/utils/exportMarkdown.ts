@@ -1,11 +1,13 @@
-import type { DocDocument } from '../../shared/types';
-
 function quillDeltaToMarkdown(content: Record<string, unknown>): string {
   if (!content || !content.ops) {
     return '';
   }
 
-  const ops = content.ops as Array<{ insert?: string | Record<string, unknown>; attributes?: Record<string, unknown> }>;
+  const ops = content.ops as Array<{
+    insert?: string | Record<string, unknown>;
+    attributes?: Record<string, unknown>;
+  }>;
+
   let markdown = '';
 
   for (const op of ops) {
@@ -37,13 +39,16 @@ function quillDeltaToMarkdown(content: Record<string, unknown>): string {
   return markdown;
 }
 
-export function exportToMarkdown(doc: DocDocument): void {
-  const markdown = quillDeltaToMarkdown(doc.content);
+export function exportDeltaToMarkdown(
+  content: Record<string, unknown>,
+  title: string
+): void {
+  const markdown = quillDeltaToMarkdown(content);
   const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${doc.title || 'untitled'}.md`;
+  link.download = `${title || 'untitled'}.md`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

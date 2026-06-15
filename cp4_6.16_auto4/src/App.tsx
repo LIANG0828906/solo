@@ -1,17 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDocStore } from './store/useDocStore';
 import { useSocket } from './hooks/useSocket';
-import Editor from './Editor';
+import Editor, { EditorHandle } from './Editor';
 import Sidebar from './components/Sidebar';
 import OnlineUsers from './components/OnlineUsers';
 import VersionHistory from './components/VersionHistory';
 import ConnectionToast from './components/ConnectionToast';
 import JoinModal from './components/JoinModal';
 import { Download, Maximize2, Minimize2, History } from 'lucide-react';
-import { exportToMarkdown } from './utils/exportMarkdown';
+import { exportDeltaToMarkdown } from './utils/exportMarkdown';
 
 export default function App() {
   const [joined, setJoined] = useState(false);
+  const editorRef = useRef<EditorHandle>(null);
 
   const documents = useDocStore((s) => s.documents);
   const activeDocId = useDocStore((s) => s.activeDocId);
@@ -51,10 +52,11 @@ export default function App() {
   );
 
   const handleExport = useCallback(() => {
-    if (activeDoc) {
-      exportToMarkdown(activeDoc);
-    }
-  }, [activeDoc]);
+    if (!editorRef.current || !activeDocId) return;
+    const content = editorRef.current.getContent();
+    const title = editorRef.current.getTitle();
+    exportDeltaToMarkdown(content, title);
+  }, [activeDocId]);
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen(!isFullscreen);
@@ -138,7 +140,7 @@ export default function App() {
         {!isFullscreen && <Sidebar />}
 
         <div className="flex-1 relative flex">
-          <Editor />
+          <Editor ref={editorRef} />
           <OnlineUsers />
           <VersionHistory />
         </div>

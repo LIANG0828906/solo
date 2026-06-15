@@ -147,7 +147,13 @@ io.on('connection', (socket) => {
     }
 
     const docVersions = versions.get(data.docId) || [];
-    socket.emit('version-list', { docId: data.docId, versions: docVersions });
+
+    if (docVersions.length === 0 && doc) {
+      saveVersion(data.docId);
+    }
+
+    const refreshedVersions = versions.get(data.docId) || [];
+    socket.emit('version-list', { docId: data.docId, versions: refreshedVersions });
   });
 
   socket.on('leave-document', (data: { docId: string }) => {
@@ -256,6 +262,39 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3001;
+
+app.get('/api/versions/:docId', (req, res) => {
+  const docId = req.params.docId;
+  const docVersions = versions.get(docId) || [];
+  res.json({
+    success: true,
+    docId,
+    versions: docVersions.sort((a, b) => b.createdAt - a.createdAt),
+  });
+});
+
+app.post('/api/rollback/:docId/:versionId', (req, res) => {
+  const docId = req.params.docId;
+  const versionId = req.params.versionId;
+  const doc = documents.get(docId);
+  const docVersions = versions.get(docId) || [];
+  const version = docVersions.find((v) => v.id === versionId);
+
+  if (!doc || !version) {
+    res.status(404).json({ success: false, error: 'Document or version not found' });
+    return;
+  }
+
+  doc.content = JSON.parse(JSON.stringify(version.content));
+  doc.updatedAt = Date.now();
+  io.to(`doc:${docId}`).emit('document-content', {
+    docId,
+    content: doc.content,
+  });
+
+  res.json({ success: true });
+});
+
 httpServer.listen(PORT, () => {
   console.log(`QuickDoc server running on port ${PORT}`);
 });
