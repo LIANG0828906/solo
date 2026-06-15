@@ -247,19 +247,30 @@ function AttackPoint({ position, color, scale = 1 }: {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const outerGlowRef = useRef<THREE.Mesh>(null);
+  const baseColor = useMemo(() => new THREE.Color(color), [color]);
+  const brightColor = useMemo(() => new THREE.Color(color).multiplyScalar(1.8), [color]);
+  const tempColor = useMemo(() => new THREE.Color(), []);
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     const pulse = 1 + Math.sin(time * 3 + position.x * 10) * 0.35;
     const glowPulse = 0.8 + Math.sin(time * 2 + position.y * 10) * 0.4;
+    const colorFlicker = 0.6 + Math.sin(time * 4 + position.z * 10) * 0.4;
 
     if (meshRef.current) {
       meshRef.current.scale.setScalar(scale * pulse);
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      tempColor.copy(baseColor).lerp(brightColor, colorFlicker);
+      mat.color.copy(tempColor);
+      mat.emissive.copy(tempColor);
+      mat.emissiveIntensity = 0.5 + colorFlicker * 0.8;
     }
     if (glowRef.current) {
       glowRef.current.scale.setScalar(scale * 2.5 * glowPulse);
       const mat = glowRef.current.material as THREE.MeshBasicMaterial;
       mat.opacity = 0.4 * glowPulse;
+      tempColor.copy(baseColor).lerp(brightColor, colorFlicker);
+      mat.color.copy(tempColor);
     }
     if (outerGlowRef.current) {
       outerGlowRef.current.scale.setScalar(scale * 4 * (0.7 + Math.sin(time * 1.5) * 0.3));
@@ -272,7 +283,12 @@ function AttackPoint({ position, color, scale = 1 }: {
     <group position={position}>
       <mesh ref={meshRef}>
         <sphereGeometry args={[0.04, 16, 16]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.8}
+          toneMapped={false}
+        />
       </mesh>
       <mesh ref={glowRef}>
         <sphereGeometry args={[0.04, 16, 16]} />
@@ -303,10 +319,15 @@ function AttackArc({ source, target, index }: {
   target: THREE.Vector3;
   index: number;
 }) {
-  const lineRef = useRef<THREE.Line>(null);
+  const lineRef = useRef<any>(null);
   const flowRef = useRef<THREE.Mesh>(null);
+  const appearProgress = useRef(0);
+  const prevSource = useRef<THREE.Vector3>(source.clone());
+  const prevTarget = useRef<THREE.Vector3>(target.clone());
+  const currentSource = useRef<THREE.Vector3>(source.clone());
+  const currentTarget = useRef<THREE.Vector3>(target.clone());
 
-  const { points, curve } = useMemo(() => {
+  const { curve } = useMemo(() => {
     const mid = new THREE.Vector3().addVectors(source, target).multiplyScalar(0.5);
     const dist = source.distanceTo(target);
     const arcHeight = 0.6 + dist * 0.2;
@@ -315,27 +336,35 @@ function AttackArc({ source, target, index }: {
     const control = midNorm.multiplyScalar(EARTH_RADIUS + arcHeight);
 
     const curveObj = new THREE.QuadraticBezierCurve3(source, control, target);
-    const pts = curveObj.getPoints(40);
-
-    return { points: pts, curve: curveObj };
+    return { curve: curveObj };
   }, [source, target]);
 
-  useFrame((state) => {
+  const linePoints = useMemo(() => curve.getPoints(40), [curve]);
+
+  useFrame((state, delta) => {
     const t = (state.clock.elapsedTime * 0.3 + index * 0.15) % 1;
+
+    if (appearProgress.current < 1) {
+      appearProgress.current = Math.min(1, appearProgress.current + delta * 2);
+    }
+
+    currentSource.current.lerp(source, Math.min(1, delta * 4));
+    currentTarget.current.lerp(target, Math.min(1, delta * 4));
 
     if (flowRef.current) {
       const pos = curve.getPoint(t);
       flowRef.current.position.copy(pos);
       flowRef.current.lookAt(curve.getPoint(Math.min(t + 0.05, 1)));
+      flowRef.current.scale.setScalar(appearProgress.current);
       const mat = flowRef.current.material as THREE.MeshBasicMaterial;
       const pulse = 0.5 + Math.sin(state.clock.elapsedTime * 5 + index) * 0.5;
-      mat.opacity = 0.8 * pulse;
+      mat.opacity = 0.8 * pulse * appearProgress.current;
     }
 
     if (lineRef.current) {
       const mat = lineRef.current.material as THREE.LineBasicMaterial;
       const pulse = 0.5 + Math.sin(state.clock.elapsedTime * 1.5 + index * 0.5) * 0.3;
-      mat.opacity = 0.25 + pulse * 0.25;
+      mat.opacity = (0.25 + pulse * 0.25) * appearProgress.current;
     }
   });
 
@@ -345,7 +374,7 @@ function AttackArc({ source, target, index }: {
     <group>
       <Line
         ref={lineRef}
-        points={points}
+        points={linePoints}
         color="#ff0040"
         lineWidth={1.5}
         transparent

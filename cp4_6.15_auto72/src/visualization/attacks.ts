@@ -91,8 +91,11 @@ export function useAttackAnimation(points: AttackPoint[], arcs: AttackArc[]) {
   const sourceDummy = useMemo(() => new THREE.Object3D(), []);
   const targetDummy = useMemo(() => new THREE.Object3D(), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
+  const brightColor = useMemo(() => new THREE.Color(), []);
 
   const arcLinesRef = useRef<THREE.Group | null>(null);
+  const currentPositions = useRef<Map<string, Float32Array>>(new Map());
+  const targetPositions = useRef<Map<string, Float32Array>>(new Map());
 
   useFrame((_state, delta) => {
     const time = performance.now() * 0.001;
@@ -104,6 +107,7 @@ export function useAttackAnimation(points: AttackPoint[], arcs: AttackArc[]) {
         const p = points[i];
         const pulse = 1 + Math.sin(time * 2 + p.phase) * 0.3;
         const s = p.scale * pulse;
+        const colorFlicker = 0.6 + Math.sin(time * 4 + p.phase * 2) * 0.4;
 
         const dummy = p.type === 'source' ? sourceDummy : targetDummy;
         dummy.position.copy(p.position);
@@ -111,9 +115,12 @@ export function useAttackAnimation(points: AttackPoint[], arcs: AttackArc[]) {
         dummy.lookAt(0, 0, 0);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
-        mesh.setColorAt
-          ? mesh.setColorAt(i, p.color.clone().multiplyScalar(0.7 + Math.sin(time * 3 + p.phase) * 0.3))
-          : null;
+
+        if (mesh.setColorAt) {
+          brightColor.copy(p.color).multiplyScalar(1.5 + colorFlicker * 0.5);
+          tempColor.copy(p.color).lerp(brightColor, colorFlicker);
+          mesh.setColorAt(i, tempColor);
+        }
       }
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -124,10 +131,45 @@ export function useAttackAnimation(points: AttackPoint[], arcs: AttackArc[]) {
       for (let i = 0; i < group.children.length && i < arcs.length; i++) {
         const line = group.children[i] as THREE.Line;
         const arc = arcs[i];
+        const arcId = arc.id;
+
+        if (!targetPositions.current.has(arcId)) {
+          targetPositions.current.set(arcId, arc.positions.slice());
+          currentPositions.current.set(arcId, arc.positions.slice());
+        } else {
+          const prev = targetPositions.current.get(arcId)!;
+          if (prev.length !== arc.positions.length ||
+              prev.some((v, idx) => Math.abs(v - arc.positions[idx]) > 0.001)) {
+            targetPositions.current.set(arcId, arc.positions.slice());
+          }
+        }
+
+        const curr = currentPositions.current.get(arcId)!;
+        const tgt = targetPositions.current.get(arcId)!;
+        const lerpFactor = Math.min(1, delta * 3);
+        for (let j = 0; j < curr.length; j++) {
+          curr[j] += (tgt[j] - curr[j]) * lerpFactor;
+        }
+
+        const geom = line.geometry as THREE.BufferGeometry;
+        const posAttr = geom.getAttribute('position') as THREE.BufferAttribute;
+        const arr = posAttr.array as Float32Array;
+        for (let j = 0; j < Math.min(arr.length, curr.length); j++) {
+          arr[j] = curr[j];
+        }
+        posAttr.needsUpdate = true;
 
         if (line.material instanceof THREE.LineBasicMaterial) {
           const opacity = Math.sin((arc.age / arc.lifetime) * Math.PI) * 0.6 + 0.2;
           line.material.opacity = opacity;
+        }
+      }
+
+      const validIds = new Set(arcs.map((a) => a.id));
+      for (const id of currentPositions.current.keys()) {
+        if (!validIds.has(id)) {
+          currentPositions.current.delete(id);
+          targetPositions.current.delete(id);
         }
       }
     }
