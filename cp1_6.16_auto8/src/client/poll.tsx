@@ -55,29 +55,35 @@ export default function Poll({ episodeId, wsOn }: PollPanelProps) {
       <div className="poll-options">
         {poll.options.map((opt) => {
           const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+          const isHovered = hoveredOption === opt.id;
           return (
             <div
               key={opt.id}
-              className={`poll-option ${voted === opt.id ? 'poll-option-selected' : ''}`}
+              className={`poll-option ${voted === opt.id ? 'poll-option-selected' : ''} ${isHovered ? 'poll-option-hovered' : ''}`}
               onMouseEnter={() => setHoveredOption(opt.id)}
               onMouseLeave={() => setHoveredOption(null)}
               onClick={() => handleVote(opt.id)}
+              role="button"
+              tabIndex={0}
             >
               <div className="poll-option-label">
-                <span>{opt.label}</span>
-                {hoveredOption === opt.id && (
-                  <span className="poll-detail">{opt.votes}票 ({pct}%)</span>
+                <span className="poll-option-text">{opt.label}</span>
+                {isHovered && (
+                  <span className="poll-detail">{opt.votes}票 · {pct}%</span>
                 )}
               </div>
               <div className="poll-bar-bg">
-                <div className="poll-bar-fill" style={{ width: `${pct}%` }} />
+                <div
+                  className="poll-bar-fill"
+                  style={{ width: `${pct}%` }}
+                />
               </div>
-              {!hoveredOption && <span className="poll-pct">{pct}%</span>}
+              {!isHovered && <span className="poll-pct">{pct}%</span>}
             </div>
           );
         })}
       </div>
-      <p className="poll-total">共 {totalVotes} 人参与</p>
+      <p className="poll-total">共 {totalVotes} 人参与 · 点击选项即可投票</p>
     </div>
   );
 }

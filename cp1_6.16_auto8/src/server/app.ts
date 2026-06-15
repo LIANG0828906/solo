@@ -15,18 +15,18 @@ const EPISODE_ID = 'ep-001';
 
 const chapters = [
   { id: 'ch-1', title: '开场与话题引入', startTime: 0, color: '#e94560' },
-  { id: 'ch-2', title: '核心观点讨论', startTime: 120, color: '#0f3460' },
-  { id: 'ch-3', title: '嘉宾对话环节', startTime: 360, color: '#533483' },
-  { id: 'ch-4', title: '听众互动问答', startTime: 720, color: '#e9a560' },
-  { id: 'ch-5', title: '总结与下期预告', startTime: 1080, color: '#48c9b0' },
+  { id: 'ch-2', title: '核心观点讨论', startTime: 35, color: '#0f3460' },
+  { id: 'ch-3', title: '嘉宾对话环节', startTime: 75, color: '#533483' },
+  { id: 'ch-4', title: '听众互动问答', startTime: 115, color: '#e9a560' },
+  { id: 'ch-5', title: '总结与下期预告', startTime: 150, color: '#48c9b0' },
 ];
 
 const episode: Episode = {
   id: EPISODE_ID,
   title: '深度对话：科技与人文的交汇',
   description: '本期节目我们邀请到了知名科技评论人，一起探讨科技发展如何影响我们的日常生活与文化认同。',
-  audioUrl: '/audio/episode-001.mp3',
-  duration: 1500,
+  audioUrl: '/audio/episode-001.wav',
+  duration: 180,
   chapters,
   pollId: 'poll-001',
 };
@@ -66,7 +66,7 @@ app.get('/api/comments', (req, res) => {
 });
 
 app.post('/api/comments', (req, res) => {
-  const { author, content, episodeId } = req.body;
+  const { author, content, episodeId, avatarColor } = req.body;
   if (!author || !content || !episodeId) {
     res.status(400).json({ error: 'Missing fields' });
     return;
@@ -75,7 +75,7 @@ app.post('/api/comments', (req, res) => {
   const comment: Comment = {
     id: uuid(),
     author,
-    avatarColor: colors[Math.floor(Math.random() * colors.length)],
+    avatarColor: avatarColor || colors[Math.floor(Math.random() * colors.length)],
     content,
     timestamp: Date.now(),
     episodeId,

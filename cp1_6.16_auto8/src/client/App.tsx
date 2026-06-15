@@ -42,7 +42,7 @@ function useWebSocket() {
 export default function App() {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [chapterTransition, setChapterTransition] = useState(false);
+  const [chapterKey, setChapterKey] = useState(0);
   const { on } = useWebSocket();
 
   useEffect(() => {
@@ -62,11 +62,8 @@ export default function App() {
         }
       }
       if (active && active.id !== currentChapter?.id) {
-        setChapterTransition(true);
-        setTimeout(() => {
-          setCurrentChapter(active);
-          setChapterTransition(false);
-        }, 150);
+        setChapterKey((k) => k + 1);
+        setTimeout(() => setCurrentChapter(active), 150);
       }
     },
     [episode, currentChapter]
@@ -78,9 +75,9 @@ export default function App() {
     <div className="app">
       <header
         className="chapter-header"
-        style={{ backgroundColor: currentChapter?.color || '#1a1a2e', transition: 'background-color 0.3s ease' }}
+        style={{ backgroundColor: currentChapter?.color || '#1a1a2e' }}
       >
-        <div className={`chapter-title-wrapper ${chapterTransition ? 'fade-out' : 'fade-in'}`}>
+        <div key={chapterKey} className="chapter-title-wrapper chapter-fade">
           <span className="chapter-label">正在播放</span>
           <h1 className="chapter-title">{currentChapter?.title || episode.title}</h1>
         </div>

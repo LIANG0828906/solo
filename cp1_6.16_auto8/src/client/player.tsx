@@ -12,114 +12,112 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [dragging, setDragging] = useState(false);
+  const [duration, setDuration] = useState(episode.duration);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
-  const startTimeRef = useRef<number>(0);
-  const offsetRef = useRef<number>(0);
-  const playingRef = useRef(false);
+  const draggingRef = useRef(false);
 
-  const getCurrentTime = useCallback(() => {
-    if (!playingRef.current || !audioCtxRef.current) return offsetRef.current;
-    return offsetRef.current + (audioCtxRef.current.currentTime - startTimeRef.current);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleLoadedMetadata = () => {
+      if (isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+
+    const handleEnded = () => {
+      setPlaying(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
   }, []);
 
   useEffect(() => {
+    const audio = audioRef.current;
     const tick = () => {
-      if (!dragging) {
-        const ct = getCurrentTime();
-        if (ct <= episode.duration) {
-          setProgress((ct / episode.duration) * 100);
-          onTimeUpdate(ct);
+      if (audio && !draggingRef.current) {
+        const ct = audio.currentTime;
+        setCurrentTime(ct);
+        const dur = isFinite(audio.duration) ? audio.duration : duration;
+        if (dur > 0) {
+          setProgress((ct / dur) * 100);
         }
+        onTimeUpdate(ct);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [dragging, onTimeUpdate, episode.duration, getCurrentTime]);
+  }, [duration, onTimeUpdate]);
 
   useEffect(() => {
-    if (gainRef.current) {
-      gainRef.current.gain.value = volume;
-    }
-  }, [volume]);
-
-  const startOscillator = useCallback((time: number) => {
-    if (oscillatorRef.current) {
-      try { oscillatorRef.current.stop(); } catch { /* ok */ }
-    }
-    if (!audioCtxRef.current) return;
-    const osc = audioCtxRef.current.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(220, audioCtxRef.current.currentTime);
-    const gain = audioCtxRef.current.createGain();
-    gain.gain.value = volume;
-    osc.connect(gain);
-    gain.connect(audioCtxRef.current.destination);
-    osc.start();
-    oscillatorRef.current = osc;
-    gainRef.current = gain;
+    if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
   const togglePlay = useCallback(() => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    if (playingRef.current) {
-      offsetRef.current = getCurrentTime();
-      if (oscillatorRef.current) {
-        try { oscillatorRef.current.stop(); } catch { /* ok */ }
-        oscillatorRef.current = null;
-      }
-      playingRef.current = false;
-      setPlaying(false);
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
     } else {
-      if (offsetRef.current >= episode.duration) {
-        offsetRef.current = 0;
-      }
-      startTimeRef.current = audioCtxRef.current.currentTime;
-      startOscillator(0);
-      playingRef.current = true;
-      setPlaying(true);
+      audio.play().catch((err) => console.warn('Play error:', err));
     }
-  }, [episode.duration, getCurrentTime, startOscillator]);
-
-  const seekTo = useCallback((pct: number) => {
-    const t = pct * episode.duration;
-    offsetRef.current = t;
-    if (playingRef.current && audioCtxRef.current) {
-      startTimeRef.current = audioCtxRef.current.currentTime;
-    }
-    setProgress(pct * 100);
-    onTimeUpdate(t);
-  }, [episode.duration, onTimeUpdate]);
+    setPlaying(!playing);
+  }, [playing]);
 
   const seekFromEvent = useCallback(
-    (e: MouseEvent) => {
+    (clientX: number) => {
       const bar = barRef.current;
       if (!bar) return 0;
       const rect = bar.getBoundingClientRect();
-      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     },
     []
   );
 
+  const seekTo = useCallback(
+    (pct: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const dur = isFinite(audio.duration) ? audio.duration : duration;
+      const t = pct * dur;
+      audio.currentTime = t;
+      setProgress(pct * 100);
+      setCurrentTime(t);
+      onTimeUpdate(t);
+    },
+    [duration, onTimeUpdate]
+  );
+
+  useEffect(() => {
+    draggingRef.current = dragging;
+  }, [dragging]);
+
   const handleBarMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       setDragging(true);
-      const pct = seekFromEvent(e.nativeEvent);
+      const pct = seekFromEvent(e.clientX);
       seekTo(pct);
 
       const onMouseMove = (ev: MouseEvent) => {
-        const p = seekFromEvent(ev);
-        seekTo(p);
+        const p = seekFromEvent(ev.clientX);
+        const dur = isFinite(audioRef.current?.duration ?? 0) ? audioRef.current!.duration : duration;
+        setProgress(p * 100);
+        setCurrentTime(p * dur);
       };
 
       const onMouseUp = (ev: MouseEvent) => {
-        const p = seekFromEvent(ev);
+        const p = seekFromEvent(ev.clientX);
         seekTo(p);
         setDragging(false);
         document.removeEventListener('mousemove', onMouseMove);
@@ -129,8 +127,43 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     },
+    [seekFromEvent, seekTo, duration]
+  );
+
+  const handleBarTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      setDragging(true);
+      const pct = seekFromEvent(e.touches[0].clientX);
+      seekTo(pct);
+    },
     [seekFromEvent, seekTo]
   );
+
+  useEffect(() => {
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!draggingRef.current || !barRef.current) return;
+      ev.preventDefault();
+      const p = seekFromEvent(ev.touches[0].clientX);
+      const dur = isFinite(audioRef.current?.duration ?? 0) ? audioRef.current!.duration : duration;
+      setProgress(p * 100);
+      setCurrentTime(p * dur);
+    };
+
+    const onTouchEnd = (ev: TouchEvent) => {
+      if (!draggingRef.current || !barRef.current) return;
+      const lastTouch = ev.changedTouches[0];
+      const p = seekFromEvent(lastTouch.clientX);
+      seekTo(p);
+      setDragging(false);
+    };
+
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    return () => {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [seekFromEvent, seekTo, duration]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -150,6 +183,8 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
 
   return (
     <div className="player">
+      <audio ref={audioRef} src={episode.audioUrl} preload="metadata" />
+
       <div className="player-controls">
         <button
           className="play-btn"
@@ -162,11 +197,16 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
         </button>
 
         <div className="player-main">
-          <div className="progress-bar" ref={barRef} onMouseDown={handleBarMouseDown}>
+          <div
+            className="progress-bar"
+            ref={barRef}
+            onMouseDown={handleBarMouseDown}
+            onTouchStart={handleBarTouchStart}
+          >
             <div className="progress-fill" style={{ width: `${progress}%` }} />
             <div className="progress-thumb" style={{ left: `${progress}%` }} />
             {episode.chapters.map((ch: Chapter) => {
-              const pct = (ch.startTime / episode.duration) * 100;
+              const pct = (ch.startTime / duration) * 100;
               return (
                 <button
                   key={ch.id}
@@ -174,8 +214,12 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
                   style={{ left: `${pct}%`, backgroundColor: ch.color }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    seekTo(pct / 100);
+                    const tp = ch.startTime / duration;
+                    seekTo(tp);
                     onChapterClick(ch.startTime);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
                   }}
                   title={ch.title}
                 >
@@ -186,8 +230,8 @@ export default function Player({ episode, onTimeUpdate, onChapterClick }: Player
           </div>
 
           <div className="time-display">
-            <span>{formatTime((progress / 100) * episode.duration)}</span>
-            <span>{formatTime(episode.duration)}</span>
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
 
