@@ -1,11 +1,11 @@
 import { addHours, differenceInSeconds, isBefore } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 import type { Plant, WateringReminder } from '@/types/plant';
 
 const REMINDER_CHECK_INTERVAL = 60 * 1000;
 
-let reminderTimer: number | null = null;
+const reminderTimers = new Map<string, number>();
 const activeReminders = new Map<string, { plant: Plant; triggered: boolean }>();
-let reminderCallback: ((reminders: WateringReminder[]) => void) | null = null;
 
 export function getFrequencyHours(frequency: Plant['wateringFrequency'], customDays?: number): number {
   switch (frequency) {
@@ -81,40 +81,53 @@ export function checkDueReminders(plants: Plant[], weatherCoefficient: number): 
   return due;
 }
 
-export function startReminderPolling(
+export interface ReminderHandle {
+  id: string;
+  cancel: () => void;
+}
+
+export function registerReminder(
   plants: Plant[],
   weatherCoefficient: number,
   callback: (reminders: WateringReminder[]) => void
-): void {
-  reminderCallback = callback;
-  
+): ReminderHandle {
+  const id = uuidv4();
+
   plants.forEach(plant => {
     if (!activeReminders.has(plant.id)) {
       activeReminders.set(plant.id, { plant, triggered: false });
     }
   });
 
-  if (reminderTimer) {
-    clearInterval(reminderTimer);
-  }
-
   const check = () => {
     const currentPlants = Array.from(activeReminders.values()).map(r => r.plant);
     const due = checkDueReminders(currentPlants, weatherCoefficient);
-    if (due.length > 0 && reminderCallback) {
-      reminderCallback(due);
+    if (due.length > 0) {
+      callback(due);
     }
   };
 
   check();
-  reminderTimer = window.setInterval(check, REMINDER_CHECK_INTERVAL);
+  const timerId = window.setInterval(check, REMINDER_CHECK_INTERVAL);
+  reminderTimers.set(id, timerId);
+
+  return {
+    id,
+    cancel: () => {
+      const timer = reminderTimers.get(id);
+      if (timer) {
+        clearInterval(timer);
+        reminderTimers.delete(id);
+      }
+    },
+  };
 }
 
-export function stopReminderPolling(): void {
-  if (reminderTimer) {
-    clearInterval(reminderTimer);
-    reminderTimer = null;
-  }
+export function cancelAllReminders(): void {
+  reminderTimers.forEach((timerId) => {
+    clearInterval(timerId);
+  });
+  reminderTimers.clear();
 }
 
 export function resetReminder(plantId: string): void {
@@ -139,4 +152,27 @@ export function updatePlantInReminder(plant: Plant): void {
   if (reminder) {
     activeReminders.set(plant.id, { plant, triggered: false });
   }
+}
+
+export function updateReminderWeatherCoefficient(
+  handleId: string,
+  _plants: Plant[],
+  weatherCoefficient: number,
+  callback: (reminders: WateringReminder[]) => void
+): void {
+  const timer = reminderTimers.get(handleId);
+  if (!timer) return;
+
+  clearInterval(timer);
+
+  const check = () => {
+    const currentPlants = Array.from(activeReminders.values()).map(r => r.plant);
+    const due = checkDueReminders(currentPlants, weatherCoefficient);
+    if (due.length > 0) {
+      callback(due);
+    }
+  };
+
+  const newTimerId = window.setInterval(check, REMINDER_CHECK_INTERVAL);
+  reminderTimers.set(handleId, newTimerId);
 }

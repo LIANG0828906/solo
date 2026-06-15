@@ -20,6 +20,26 @@ const weatherConditionMap: Record<string, WeatherData['condition']> = {
   'Heavy Snow': 'snowy',
 };
 
+function getApiKey(): string | null {
+  return import.meta.env.VITE_WEATHER_API_KEY || null;
+}
+
+let hasShownKeyWarning = false;
+
+function showKeyWarning(): void {
+  if (hasShownKeyWarning) return;
+  hasShownKeyWarning = true;
+  console.warn(
+    '%c🌤️ 天气API提示',
+    'font-size: 14px; font-weight: bold; color: #f4a261;',
+    '\n未检测到天气API密钥，当前使用模拟天气数据。\n' +
+    '如需获取真实天气，请：\n' +
+    '1. 在 https://www.weatherapi.com 注册获取免费API Key\n' +
+    '2. 在项目根目录创建 .env 文件，添加：VITE_WEATHER_API_KEY=你的API密钥\n' +
+    '3. 重启开发服务器'
+  );
+}
+
 export async function getWeather(city: string): Promise<WeatherData> {
   const now = Date.now();
   
@@ -27,9 +47,25 @@ export async function getWeather(city: string): Promise<WeatherData> {
     return weatherCache.data;
   }
 
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    showKeyWarning();
+    const mockWeather: WeatherData = {
+      city: city || '北京',
+      temperature: 22,
+      condition: 'sunny',
+      precipitation: 0,
+      humidity: 55,
+      timestamp: now,
+    };
+    weatherCache = { city, data: mockWeather, timestamp: now };
+    return mockWeather;
+  }
+
   try {
     const response = await axios.get(
-      `https://api.weatherapi.com/v1/current.json?key=demo&q=${encodeURIComponent(city)}&aqi=no`
+      `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(city)}&aqi=no`
     );
     const data = response.data;
     const conditionText = data.current.condition.text;
@@ -46,7 +82,8 @@ export async function getWeather(city: string): Promise<WeatherData> {
 
     weatherCache = { city, data: weatherData, timestamp: now };
     return weatherData;
-  } catch {
+  } catch (error) {
+    console.error('获取天气数据失败，使用模拟数据:', error);
     const mockWeather: WeatherData = {
       city: city || '北京',
       temperature: 22,

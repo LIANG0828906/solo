@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PlantCard } from './components/PlantCard';
 import { PlantDetail } from './components/PlantDetail';
 import { PlantForm } from './components/PlantForm';
 import { usePlantStore } from './store/usePlantStore';
 import { getWeather, getWateringCoefficient, getWateringSuitability } from './services/weatherService';
 import { 
-  startReminderPolling, 
-  stopReminderPolling, 
-  getWateringProgress 
+  registerReminder,
+  getWateringProgress,
+  type ReminderHandle,
 } from './services/reminderService';
 import type { WeatherData, WateringReminder, RecordType, WateringFrequency, LightRequirement } from './types/plant';
 import styles from './App.module.css';
@@ -30,13 +30,14 @@ function App() {
     setEditingPlant,
     addWateringReminder,
     removeWateringReminder,
-    loadFromStorage,
+    initializeReminders,
   } = usePlantStore();
 
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherCoefficient, setWeatherCoefficient] = useState(1.0);
   const [toasts, setToasts] = useState<{ id: string; type: 'success' | 'error' | 'info'; icon: string }[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const reminderHandleRef = useRef<ReminderHandle | null>(null);
 
   const selectedPlant = plants.find((p) => p.id === selectedPlantId) || null;
 
@@ -49,9 +50,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    loadFromStorage();
+    initializeReminders();
     setIsLoaded(true);
-  }, [loadFromStorage]);
+  }, [initializeReminders]);
 
   useEffect(() => {
     const fetchWeather = async () => {
@@ -70,22 +71,30 @@ function App() {
   }, [isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && plants.length > 0) {
-      startReminderPolling(plants, weatherCoefficient, (reminders: WateringReminder[]) => {
-        reminders.forEach((reminder) => {
-          addWateringReminder(reminder);
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('植物浇水提醒', {
-              body: `${reminder.plantName} 需要浇水了！`,
-              icon: '💧',
-            });
-          }
-        });
-      });
+    if (!isLoaded || plants.length === 0) {
+      return;
     }
 
+    if (reminderHandleRef.current) {
+      reminderHandleRef.current.cancel();
+    }
+
+    const handle = registerReminder(plants, weatherCoefficient, (reminders: WateringReminder[]) => {
+      reminders.forEach((reminder) => {
+        addWateringReminder(reminder);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('植物浇水提醒', {
+            body: `${reminder.plantName} 需要浇水了！`,
+            icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💧</text></svg>',
+          });
+        }
+      });
+    });
+
+    reminderHandleRef.current = handle;
+
     return () => {
-      stopReminderPolling();
+      handle.cancel();
     };
   }, [isLoaded, plants, weatherCoefficient, addWateringReminder]);
 

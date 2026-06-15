@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { Plant } from '@/types/plant';
@@ -25,6 +25,16 @@ const lightLabels: Record<Plant['lightRequirement'], string> = {
 };
 
 export function PlantCard({ plant, weatherCoefficient, onClick, onWater }: PlantCardProps) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const progress = useMemo(
     () => getWateringProgress(plant, weatherCoefficient),
     [plant, weatherCoefficient]
