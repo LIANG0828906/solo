@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Download, GripVertical } from 'lucide-react';
-import type { EffectParams, ScaleCurvePreset, ColorStop } from './types';
+import type { EffectParams, ScaleCurvePreset } from './types';
 import { presets } from './presets';
 import styles from './ParamPanel.module.css';
 
@@ -136,20 +136,15 @@ export default function ParamPanel({
         return;
       }
 
-      const draggedStop = stops[draggedIndex] as ColorStop;
-      const targetStop = stops[targetIndex] as ColorStop;
+      const [removed] = stops.splice(draggedIndex, 1);
+      stops.splice(targetIndex, 0, removed);
 
-      const newStops = stops.map((stop) => {
-        if (stop.id === draggedId) {
-          return { ...stop, position: targetStop.position };
-        }
-        if (stop.id === targetId) {
-          return { ...stop, position: draggedStop.position };
-        }
-        return stop;
-      });
+      const redistributed = stops.map((stop, idx) => ({
+        ...stop,
+        position: stops.length === 1 ? 0 : idx / (stops.length - 1),
+      }));
 
-      onChange({ colorGradient: newStops });
+      onChange({ colorGradient: redistributed });
       setDraggingStopId(null);
       setDragOverStopId(null);
     },
@@ -373,7 +368,7 @@ export default function ParamPanel({
               onDrop={(e) => handleDrop(e, stop.id)}
               onDragEnd={handleDragEnd}
             >
-              <div className={styles.dragHandle}>
+              <div className={styles.dragHandle} aria-label="拖拽排序" role="button" tabIndex={0}>
                 <GripVertical size={14} />
               </div>
               <input

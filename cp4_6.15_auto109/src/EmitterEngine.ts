@@ -118,9 +118,8 @@ export class EmitterEngine {
       for (let i = 0; i < historyLen; i++) {
         const point = particle.history[i] as MutableParticleHistoryPoint;
         const ageRatio = point.age / lifetime;
-        const ageFactor = 1 - ageRatio;
         const historyFactor = (i + 1) / historyLen;
-        const trailAlpha = ageFactor * historyFactor * 0.6;
+        const trailAlpha = historyFactor * 0.6;
         const scale = this.params
           ? sampleScaleCurve(this.params.scaleCurve, this.params.scaleCurvePreset, ageRatio)
           : 1;
@@ -171,27 +170,25 @@ export class EmitterEngine {
 
     const pulsePeriod = 1.5;
     const pulsePhase = (this.pulseTime % pulsePeriod) / pulsePeriod;
-    const easeOut = 1 - Math.pow(1 - pulsePhase, 3);
-    const radius = 5 + easeOut * 15;
-    const opacity = Math.max(0, 0.8 - easeOut * 0.8);
+
+    let radius: number;
+    let opacity: number;
+
+    if (pulsePhase < 0.5) {
+      const growPhase = pulsePhase / 0.5;
+      radius = 5 + growPhase * 15;
+      opacity = 0.8;
+    } else {
+      const fadePhase = (pulsePhase - 0.5) / 0.5;
+      radius = 20;
+      opacity = 0.8 * (1 - fadePhase);
+    }
 
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     this.ctx.strokeStyle = `rgba(168, 85, 247, ${opacity})`;
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
-
-    if (pulsePhase > 0.3) {
-      const secondPhase = (pulsePhase - 0.3) / 0.7;
-      const secondEaseOut = 1 - Math.pow(1 - secondPhase, 3);
-      const secondRadius = 5 + secondEaseOut * 15;
-      const secondOpacity = Math.max(0, 0.5 - secondEaseOut * 0.5);
-      this.ctx.beginPath();
-      this.ctx.arc(centerX, centerY, secondRadius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(72, 198, 239, ${secondOpacity})`;
-      this.ctx.lineWidth = 1.5;
-      this.ctx.stroke();
-    }
 
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
@@ -286,7 +283,13 @@ function interpolateColor(stops: readonly ColorStop[], t: number): string {
 
   t = Math.max(0, Math.min(1, t));
 
-  const sortedStops = [...stops].sort((a, b) => a.position - b.position);
+  const validStops = [...stops].filter(
+    (s) => s.position !== undefined && !Number.isNaN(s.position)
+  );
+  if (validStops.length === 0) return '#ffffff';
+  if (validStops.length === 1) return validStops[0].color;
+
+  const sortedStops = validStops.sort((a, b) => a.position - b.position);
 
   if (t <= sortedStops[0].position) {
     return sortedStops[0].color;
@@ -309,7 +312,7 @@ function interpolateColor(stops: readonly ColorStop[], t: number): string {
     }
   }
 
-  if (Math.abs(prevStop.position - nextStop.position) < 0.001) {
+  if (prevStop.position === nextStop.position) {
     return prevStop.color;
   }
 
@@ -336,17 +339,20 @@ function sampleScaleCurve(
       return t;
 
     case 'easeOut':
-      return 1 - Math.pow(1 - t, 3);
+      return 1 - Math.pow(1 - t, 2);
 
     case 'sine':
-      return Math.sin(t * Math.PI) * 0.5 + 0.5;
+      return Math.sin(t * Math.PI);
 
     case 'custom':
-    default:
-      if (curve.length === 0) return 1;
-      if (curve.length === 1) return curve[0]?.y ?? 1;
+    default: {
+      const validCurve = [...curve].filter(
+        (p) => p.x !== undefined && !Number.isNaN(p.x) && p.y !== undefined && !Number.isNaN(p.y)
+      );
+      if (validCurve.length === 0) return 1;
+      if (validCurve.length === 1) return validCurve[0].y;
 
-      const sortedCurve = [...curve].sort((a, b) => a.x - b.x);
+      const sortedCurve = validCurve.sort((a, b) => a.x - b.x);
 
       if (t <= sortedCurve[0].x) {
         return sortedCurve[0].y;
@@ -369,12 +375,13 @@ function sampleScaleCurve(
         }
       }
 
-      if (Math.abs(prevPoint.x - nextPoint.x) < 0.001) {
+      if (prevPoint.x === nextPoint.x) {
         return prevPoint.y;
       }
 
       const localT = (t - prevPoint.x) / (nextPoint.x - prevPoint.x);
       return prevPoint.y + (nextPoint.y - prevPoint.y) * localT;
+    }
   }
 }
 
