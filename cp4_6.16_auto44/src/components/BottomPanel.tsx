@@ -16,6 +16,7 @@ export default function BottomPanel() {
   const props = useStoryStore((state) => state.props);
   const selectedSceneId = useStoryStore((state) => state.selectedSceneId);
   const scenes = useStoryStore((state) => state.scenes);
+  const isInitialized = useStoryStore((state) => state.isInitialized);
   const linkCharacterToScene = useStoryStore((state) => state.linkCharacterToScene);
   const linkPropToScene = useStoryStore((state) => state.linkPropToScene);
   const addCharacter = useStoryStore((state) => state.addCharacter);
@@ -44,26 +45,26 @@ export default function BottomPanel() {
   };
 
   const handleCharacterClick = (charId: string) => {
-    if (!selectedSceneId) return;
-    const selectedScene = scenes.find((s) => s.id === selectedSceneId);
-    if (selectedScene) {
-      if (selectedScene.characterIds.includes(charId)) {
-        unlinkCharacterFromScene(charId, selectedSceneId);
-      } else {
-        linkCharacterToScene(charId, selectedSceneId);
-      }
+    if (!isInitialized || !selectedSceneId) return;
+    const scene = scenes.find((s) => s.id === selectedSceneId);
+    if (!scene) return;
+
+    if (scene.characterIds.includes(charId)) {
+      unlinkCharacterFromScene(charId, selectedSceneId);
+    } else {
+      linkCharacterToScene(charId, selectedSceneId);
     }
   };
 
   const handlePropClick = (propId: string) => {
-    if (!selectedSceneId) return;
-    const selectedScene = scenes.find((s) => s.id === selectedSceneId);
-    if (selectedScene) {
-      if (selectedScene.propIds.includes(propId)) {
-        unlinkPropFromScene(propId, selectedSceneId);
-      } else {
-        linkPropToScene(propId, selectedSceneId);
-      }
+    if (!isInitialized || !selectedSceneId) return;
+    const scene = scenes.find((s) => s.id === selectedSceneId);
+    if (!scene) return;
+
+    if (scene.propIds.includes(propId)) {
+      unlinkPropFromScene(propId, selectedSceneId);
+    } else {
+      linkPropToScene(propId, selectedSceneId);
     }
   };
 
@@ -137,7 +138,9 @@ export default function BottomPanel() {
               characters.map((char) => (
                 <div
                   key={char.id}
-                  className={`pool-item ${isCharActive(char.id) ? 'active' : ''}`}
+                  className={`pool-item ${isCharActive(char.id) ? 'active' : ''} ${
+                    !selectedSceneId ? 'disabled' : ''
+                  }`}
                   onClick={() => handleCharacterClick(char.id)}
                   title={
                     selectedSceneId
@@ -169,7 +172,10 @@ export default function BottomPanel() {
                   onKeyDown={handleCharKeyDown}
                 />
                 <div className="pool-add-actions">
-                  <button className="pool-add-confirm" onClick={handleAddCharacter}>
+                  <button
+                    className="pool-add-confirm"
+                    onClick={handleAddCharacter}
+                  >
                     ✓
                   </button>
                   <button
@@ -203,7 +209,9 @@ export default function BottomPanel() {
               props.map((prop) => (
                 <div
                   key={prop.id}
-                  className={`pool-item ${isPropActive(prop.id) ? 'active' : ''}`}
+                  className={`pool-item ${isPropActive(prop.id) ? 'active' : ''} ${
+                    !selectedSceneId ? 'disabled' : ''
+                  }`}
                   onClick={() => handlePropClick(prop.id)}
                   title={
                     selectedSceneId

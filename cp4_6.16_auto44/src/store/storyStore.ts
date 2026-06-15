@@ -9,10 +9,12 @@ interface StoryState {
   props: Prop[];
   selectedSceneId: string | null;
   isLoading: boolean;
+  isInitialized: boolean;
   addScene: (x: number, y: number) => void;
   updateScene: (id: string, updates: Partial<Scene>) => void;
   deleteScene: (id: string) => void;
   moveScene: (id: string, x: number, y: number) => void;
+  commitScenePosition: (id: string, x: number, y: number) => void;
   selectScene: (id: string | null) => void;
   addCharacter: (name: string, avatarUrl: string, color: string) => void;
   addProp: (name: string, icon: string, color: string) => void;
@@ -39,14 +41,55 @@ const CHARACTER_COLORS = [
 
 const PROP_ICONS = ['📦', '⚔️', '🔮', '📜', '🗝️', '💎', '🎭', '🖼️'];
 
+const defaultScenes = (): Scene[] => {
+  const s1: Scene = {
+    id: uuidv4(),
+    title: '开场',
+    description: '故事的开始，主角登场。',
+    x: 100,
+    y: 150,
+    characterIds: [],
+    propIds: [],
+    createdAt: Date.now(),
+    order: 0,
+    nextSceneIds: [],
+  };
+  const s2: Scene = {
+    id: uuidv4(),
+    title: '发展',
+    description: '情节逐渐展开，冲突出现。',
+    x: 400,
+    y: 200,
+    characterIds: [],
+    propIds: [],
+    createdAt: Date.now() + 1000,
+    order: 1,
+    nextSceneIds: [],
+  };
+  s1.nextSceneIds = [s2.id];
+  return [s1, s2];
+};
+
+const defaultCharacters = (): Character[] => [
+  { id: uuidv4(), name: '主角', avatarUrl: '', color: '#4da6ff' },
+  { id: uuidv4(), name: '配角', avatarUrl: '', color: '#ff6b6b' },
+];
+
+const defaultProps = (): Prop[] => [
+  { id: uuidv4(), name: '宝剑', icon: '⚔️', color: '#0f3460' },
+  { id: uuidv4(), name: '魔法书', icon: '📜', color: '#0f3460' },
+];
+
 export const useStoryStore = create<StoryState>((set, get) => ({
   scenes: [],
   characters: [],
   props: [],
   selectedSceneId: null,
   isLoading: true,
+  isInitialized: false,
 
   addScene: (x: number, y: number) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     const newScene: Scene = {
       id: uuidv4(),
@@ -65,6 +108,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   updateScene: (id: string, updates: Partial<Scene>) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -75,6 +119,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   deleteScene: (id: string) => {
+    if (!get().isInitialized) return;
     const { scenes, selectedSceneId, saveToDB } = get();
     const newScenes = scenes
       .filter((s) => s.id !== id)
@@ -90,6 +135,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   moveScene: (id: string, x: number, y: number) => {
+    if (!get().isInitialized) return;
     const { scenes } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -98,11 +144,23 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     });
   },
 
+  commitScenePosition: (id: string, x: number, y: number) => {
+    if (!get().isInitialized) return;
+    const { scenes, saveToDB } = get();
+    set({
+      scenes: scenes.map((scene) =>
+        scene.id === id ? { ...scene, x, y } : scene
+      ),
+    });
+    saveToDB();
+  },
+
   selectScene: (id: string | null) => {
     set({ selectedSceneId: id });
   },
 
   addCharacter: (name: string, avatarUrl: string, color: string) => {
+    if (!get().isInitialized) return;
     const { characters, saveToDB } = get();
     const newCharacter: Character = {
       id: uuidv4(),
@@ -115,6 +173,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   addProp: (name: string, icon: string, color: string) => {
+    if (!get().isInitialized) return;
     const { props, saveToDB } = get();
     const newProp: Prop = {
       id: uuidv4(),
@@ -127,6 +186,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   linkCharacterToScene: (characterId: string, sceneId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -139,6 +199,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   unlinkCharacterFromScene: (characterId: string, sceneId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -151,6 +212,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   linkPropToScene: (propId: string, sceneId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -163,6 +225,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   unlinkPropFromScene: (propId: string, sceneId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -175,6 +238,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   linkScenes: (fromId: string, toId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -187,6 +251,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   unlinkScenes: (fromId: string, toId: string) => {
+    if (!get().isInitialized) return;
     const { scenes, saveToDB } = get();
     set({
       scenes: scenes.map((scene) =>
@@ -206,80 +271,35 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         idbGet('storyboard_props'),
       ]);
 
-      const scenes = scenesData as Scene[] | undefined;
-      const characters = charactersData as Character[] | undefined;
-      const props = propsData as Prop[] | undefined;
+      const scenes = (scenesData as Scene[] | undefined) || defaultScenes();
+      const characters = (charactersData as Character[] | undefined) || defaultCharacters();
+      const props = (propsData as Prop[] | undefined) || defaultProps();
 
-      if (scenes && scenes.length > 0) {
-        set({ scenes });
-      } else {
-        const defaultScenes: Scene[] = [
-          {
-            id: uuidv4(),
-            title: '开场',
-            description: '故事的开始，主角登场。',
-            x: 100,
-            y: 150,
-            characterIds: [],
-            propIds: [],
-            createdAt: Date.now(),
-            order: 0,
-            nextSceneIds: [],
-          },
-          {
-            id: uuidv4(),
-            title: '发展',
-            description: '情节逐渐展开，冲突出现。',
-            x: 400,
-            y: 200,
-            characterIds: [],
-            propIds: [],
-            createdAt: Date.now() + 1000,
-            order: 1,
-            nextSceneIds: [],
-          },
-        ];
-        defaultScenes[0].nextSceneIds = [defaultScenes[1].id];
-        set({ scenes: defaultScenes });
-      }
-
-      if (characters && characters.length > 0) {
-        set({ characters });
-      } else {
-        const defaultCharacters: Character[] = [
-          { id: uuidv4(), name: '主角', avatarUrl: '', color: '#4da6ff' },
-          { id: uuidv4(), name: '配角', avatarUrl: '', color: '#ff6b6b' },
-        ];
-        set({ characters: defaultCharacters });
-      }
-
-      if (props && props.length > 0) {
-        set({ props });
-      } else {
-        const defaultProps: Prop[] = [
-          { id: uuidv4(), name: '宝剑', icon: '⚔️', color: '#0f3460' },
-          { id: uuidv4(), name: '魔法书', icon: '📜', color: '#0f3460' },
-        ];
-        set({ props: defaultProps });
-      }
+      set({ scenes, characters, props, isLoading: false, isInitialized: true });
     } catch (error) {
       console.error('Failed to load from IndexedDB:', error);
-    } finally {
-      set({ isLoading: false });
+      set({
+        scenes: defaultScenes(),
+        characters: defaultCharacters(),
+        props: defaultProps(),
+        isLoading: false,
+        isInitialized: true,
+      });
     }
   },
 
-  saveToDB: async () => {
+  saveToDB: () => {
+    if (!get().isInitialized) return;
     const { scenes, characters, props } = get();
-    try {
-      await Promise.all([
-        idbSet('storyboard_scenes', scenes),
-        idbSet('storyboard_characters', characters),
-        idbSet('storyboard_props', props),
-      ]);
-    } catch (error) {
-      console.error('Failed to save to IndexedDB:', error);
-    }
+    idbSet('storyboard_scenes', scenes).catch((e) =>
+      console.error('Failed to save scenes:', e)
+    );
+    idbSet('storyboard_characters', characters).catch((e) =>
+      console.error('Failed to save characters:', e)
+    );
+    idbSet('storyboard_props', props).catch((e) =>
+      console.error('Failed to save props:', e)
+    );
   },
 }));
 
@@ -288,6 +308,7 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 const originalSaveToDB = useStoryStore.getState().saveToDB;
 useStoryStore.setState({
   saveToDB: () => {
+    if (!useStoryStore.getState().isInitialized) return;
     if (saveTimeout) {
       clearTimeout(saveTimeout);
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStoryStore } from '@/store/storyStore';
 
 export default function SidePanel() {
@@ -17,41 +17,108 @@ export default function SidePanel() {
   const addProp = useStoryStore((state) => state.addProp);
   const selectScene = useStoryStore((state) => state.selectScene);
 
+  const [localTitle, setLocalTitle] = useState('');
+  const [localDesc, setLocalDesc] = useState('');
   const [newCharName, setNewCharName] = useState('');
   const [newPropName, setNewPropName] = useState('');
   const [showAddChar, setShowAddChar] = useState(false);
   const [showAddProp, setShowAddProp] = useState(false);
 
+  const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const selectedScene = scenes.find((s) => s.id === selectedSceneId);
   const isOpen = selectedSceneId !== null;
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
     if (selectedScene) {
-      updateScene(selectedScene.id, { title: e.target.value });
+      setLocalTitle(selectedScene.title);
+      setLocalDesc(selectedScene.description);
+    }
+  }, [selectedSceneId, selectedScene?.title, selectedScene?.description]);
+
+  const debouncedUpdateTitle = useCallback(
+    (value: string) => {
+      if (titleTimerRef.current) {
+        clearTimeout(titleTimerRef.current);
+      }
+      titleTimerRef.current = setTimeout(() => {
+        if (selectedSceneId) {
+          updateScene(selectedSceneId, { title: value });
+        }
+      }, 300);
+    },
+    [selectedSceneId, updateScene]
+  );
+
+  const debouncedUpdateDesc = useCallback(
+    (value: string) => {
+      if (descTimerRef.current) {
+        clearTimeout(descTimerRef.current);
+      }
+      descTimerRef.current = setTimeout(() => {
+        if (selectedSceneId) {
+          updateScene(selectedSceneId, { description: value });
+        }
+      }, 300);
+    },
+    [selectedSceneId, updateScene]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+      if (descTimerRef.current) clearTimeout(descTimerRef.current);
+    };
+  }, []);
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalTitle(value);
+    debouncedUpdateTitle(value);
+  };
+
+  const handleTitleBlur = () => {
+    if (titleTimerRef.current) {
+      clearTimeout(titleTimerRef.current);
+      titleTimerRef.current = null;
+    }
+    if (selectedSceneId && localTitle !== selectedScene?.title) {
+      updateScene(selectedSceneId, { title: localTitle });
     }
   };
 
   const handleDescChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (selectedScene) {
-      updateScene(selectedScene.id, { description: e.target.value });
+    const value = e.target.value;
+    setLocalDesc(value);
+    debouncedUpdateDesc(value);
+  };
+
+  const handleDescBlur = () => {
+    if (descTimerRef.current) {
+      clearTimeout(descTimerRef.current);
+      descTimerRef.current = null;
+    }
+    if (selectedSceneId && localDesc !== selectedScene?.description) {
+      updateScene(selectedSceneId, { description: localDesc });
     }
   };
 
   const toggleCharacter = (charId: string) => {
-    if (!selectedScene) return;
-    if (selectedScene.characterIds.includes(charId)) {
-      unlinkCharacterFromScene(charId, selectedScene.id);
+    if (!selectedSceneId) return;
+    if (selectedScene?.characterIds.includes(charId)) {
+      unlinkCharacterFromScene(charId, selectedSceneId);
     } else {
-      linkCharacterToScene(charId, selectedScene.id);
+      linkCharacterToScene(charId, selectedSceneId);
     }
   };
 
   const toggleProp = (propId: string) => {
-    if (!selectedScene) return;
-    if (selectedScene.propIds.includes(propId)) {
-      unlinkPropFromScene(propId, selectedScene.id);
+    if (!selectedSceneId) return;
+    if (selectedScene?.propIds.includes(propId)) {
+      unlinkPropFromScene(propId, selectedSceneId);
     } else {
-      linkPropToScene(propId, selectedScene.id);
+      linkPropToScene(propId, selectedSceneId);
     }
   };
 
@@ -76,6 +143,16 @@ export default function SidePanel() {
   };
 
   const handleClose = () => {
+    if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+    if (descTimerRef.current) clearTimeout(descTimerRef.current);
+    if (selectedSceneId && selectedScene) {
+      if (localTitle !== selectedScene.title) {
+        updateScene(selectedSceneId, { title: localTitle });
+      }
+      if (localDesc !== selectedScene.description) {
+        updateScene(selectedSceneId, { description: localDesc });
+      }
+    }
     selectScene(null);
   };
 
@@ -98,8 +175,9 @@ export default function SidePanel() {
               <input
                 type="text"
                 className="form-input"
-                value={selectedScene.title}
+                value={localTitle}
                 onChange={handleTitleChange}
+                onBlur={handleTitleBlur}
                 placeholder="输入场景标题"
               />
             </div>
@@ -108,8 +186,9 @@ export default function SidePanel() {
               <label className="form-label">描述</label>
               <textarea
                 className="form-textarea"
-                value={selectedScene.description}
+                value={localDesc}
                 onChange={handleDescChange}
+                onBlur={handleDescBlur}
                 placeholder="输入场景描述..."
               />
             </div>
@@ -146,7 +225,9 @@ export default function SidePanel() {
               </div>
 
               {showAddChar ? (
-                <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
+                <div
+                  style={{ marginTop: '8px', display: 'flex', gap: '6px' }}
+                >
                   <input
                     type="text"
                     className="form-input"
@@ -178,7 +259,10 @@ export default function SidePanel() {
                   </button>
                 </div>
               ) : (
-                <button className="add-item-btn" onClick={() => setShowAddChar(true)}>
+                <button
+                  className="add-item-btn"
+                  onClick={() => setShowAddChar(true)}
+                >
                   + 添加新角色
                 </button>
               )}
@@ -194,7 +278,9 @@ export default function SidePanel() {
                     <div
                       key={prop.id}
                       className={`multi-select-item ${
-                        selectedScene.propIds.includes(prop.id) ? 'selected' : ''
+                        selectedScene.propIds.includes(prop.id)
+                          ? 'selected'
+                          : ''
                       }`}
                       onClick={() => toggleProp(prop.id)}
                     >
@@ -209,7 +295,9 @@ export default function SidePanel() {
               </div>
 
               {showAddProp ? (
-                <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
+                <div
+                  style={{ marginTop: '8px', display: 'flex', gap: '6px' }}
+                >
                   <input
                     type="text"
                     className="form-input"
@@ -241,7 +329,10 @@ export default function SidePanel() {
                   </button>
                 </div>
               ) : (
-                <button className="add-item-btn" onClick={() => setShowAddProp(true)}>
+                <button
+                  className="add-item-btn"
+                  onClick={() => setShowAddProp(true)}
+                >
                   + 添加新道具
                 </button>
               )}

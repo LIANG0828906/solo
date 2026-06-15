@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { select } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { useStoryStore } from '@/store/storyStore';
@@ -18,7 +18,7 @@ interface SceneCardProps {
 const CARD_WIDTH = 220;
 const CARD_HEIGHT = 160;
 
-export default function SceneCard({
+function SceneCard({
   scene,
   characters,
   props,
@@ -29,9 +29,9 @@ export default function SceneCard({
   onEndConnection,
 }: SceneCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const moveScene = useStoryStore((state) => state.moveScene);
-  const saveToDB = useStoryStore((state) => state.saveToDB);
+  const commitScenePosition = useStoryStore((state) => state.commitScenePosition);
   const selectScene = useStoryStore((state) => state.selectScene);
+  const [isDragging, setIsDragging] = useState(false);
 
   const sceneCharacters = characters.filter((c) =>
     scene.characterIds.includes(c.id)
@@ -42,31 +42,41 @@ export default function SceneCard({
     if (!cardRef.current) return;
 
     const node = select(cardRef.current);
-
-    let startX = 0;
-    let startY = 0;
-    let initialSceneX = 0;
-    let initialSceneY = 0;
+    let startClientX = 0;
+    let startClientY = 0;
+    let initialX = 0;
+    let initialY = 0;
 
     const dragBehavior = drag<HTMLDivElement, unknown>()
       .on('start', function (event) {
+        setIsDragging(true);
         select(this).classed('dragging', true);
         event.sourceEvent.stopPropagation();
-        startX = event.sourceEvent.clientX;
-        startY = event.sourceEvent.clientY;
-        initialSceneX = scene.x;
-        initialSceneY = scene.y;
+        startClientX = event.sourceEvent.clientX;
+        startClientY = event.sourceEvent.clientY;
+        initialX = scene.x;
+        initialY = scene.y;
       })
       .on('drag', function (event) {
-        const dx = event.sourceEvent.clientX - startX;
-        const dy = event.sourceEvent.clientY - startY;
-        const newX = Math.max(0, initialSceneX + dx);
-        const newY = Math.max(0, initialSceneY + dy);
-        moveScene(scene.id, newX, newY);
+        const dx = event.sourceEvent.clientX - startClientX;
+        const dy = event.sourceEvent.clientY - startClientY;
+        const newX = Math.max(0, initialX + dx);
+        const newY = Math.max(0, initialY + dy);
+        if (cardRef.current) {
+          cardRef.current.style.transform = `translate(${newX - scene.x}px, ${newY - scene.y}px)`;
+        }
       })
-      .on('end', function () {
+      .on('end', function (event) {
+        setIsDragging(false);
         select(this).classed('dragging', false);
-        saveToDB();
+        const dx = event.sourceEvent.clientX - startClientX;
+        const dy = event.sourceEvent.clientY - startClientY;
+        const finalX = Math.max(0, Math.round(initialX + dx));
+        const finalY = Math.max(0, Math.round(initialY + dy));
+        if (cardRef.current) {
+          cardRef.current.style.transform = '';
+        }
+        commitScenePosition(scene.id, finalX, finalY);
       });
 
     node.call(dragBehavior);
@@ -74,9 +84,10 @@ export default function SceneCard({
     return () => {
       node.on('.drag', null);
     };
-  }, [scene.id, scene.x, scene.y, moveScene, saveToDB]);
+  }, [scene.id, scene.x, scene.y, commitScenePosition]);
 
   const handleCardClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
     e.stopPropagation();
     selectScene(scene.id);
   };
@@ -95,16 +106,9 @@ export default function SceneCard({
 
   const handleRightPointMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (rect) {
-      const canvas = cardRef.current?.closest('.canvas-inner');
-      const canvasRect = canvas?.getBoundingClientRect();
-      if (canvasRect) {
-        const startX = scene.x + CARD_WIDTH;
-        const startY = scene.y + CARD_HEIGHT / 2;
-        onStartConnection(scene.id, startX, startY);
-      }
-    }
+    const startX = scene.x + CARD_WIDTH;
+    const startY = scene.y + CARD_HEIGHT / 2;
+    onStartConnection(scene.id, startX, startY);
   };
 
   const handleLeftPointMouseUp = (e: React.MouseEvent) => {
@@ -127,7 +131,10 @@ export default function SceneCard({
       }}
       onClick={handleCardClick}
     >
-      <div className="connection-point right" onMouseDown={handleRightPointMouseDown} />
+      <div
+        className="connection-point right"
+        onMouseDown={handleRightPointMouseDown}
+      />
       <div className="connection-point left" onMouseUp={handleLeftPointMouseUp} />
 
       <h3 className="scene-card-title">{scene.title}</h3>
@@ -154,7 +161,11 @@ export default function SceneCard({
           {sceneProps.length > 0 && (
             <div className="scene-card-props">
               {sceneProps.slice(0, 3).map((prop) => (
-                <div key={prop.id} className="prop-icon-small" title={prop.name}>
+                <div
+                  key={prop.id}
+                  className="prop-icon-small"
+                  title={prop.name}
+                >
                   {prop.icon}
                 </div>
               ))}
@@ -164,7 +175,11 @@ export default function SceneCard({
       </div>
 
       <div className="scene-card-actions">
-        <button className="card-action-btn" onClick={handleEditClick} title="编辑">
+        <button
+          className="card-action-btn"
+          onClick={handleEditClick}
+          title="编辑"
+        >
           ✏️
         </button>
         <button
@@ -178,3 +193,5 @@ export default function SceneCard({
     </div>
   );
 }
+
+export default memo(SceneCard);

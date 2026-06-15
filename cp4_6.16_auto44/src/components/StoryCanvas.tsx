@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import SceneCard from './SceneCard';
 import { useStoryStore } from '@/store/storyStore';
 import type { Scene } from '@/types';
@@ -6,13 +6,8 @@ import type { Scene } from '@/types';
 const CARD_WIDTH = 220;
 const CARD_HEIGHT = 160;
 
-interface ConnectionLine {
-  fromId: string;
-  toId: string;
-  key: string;
-}
-
 export default function StoryCanvas() {
+  const canvasRef = useRef<HTMLDivElement>(null);
   const scenes = useStoryStore((state) => state.scenes);
   const characters = useStoryStore((state) => state.characters);
   const props = useStoryStore((state) => state.props);
@@ -21,238 +16,259 @@ export default function StoryCanvas() {
   const deleteScene = useStoryStore((state) => state.deleteScene);
   const selectScene = useStoryStore((state) => state.selectScene);
   const linkScenes = useStoryStore((state) => state.linkScenes);
+  const unlinkScenes = useStoryStore((state) => state.unlinkScenes);
+  const isInitialized = useStoryStore((state) => state.isInitialized);
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStart, setConnectionStart] = useState<{
-    sceneId: string;
-    x: number;
-    y: number;
+  const [connecting, setConnecting] = useState<{
+    fromSceneId: string;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
   } | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [hoveredLine, setHoveredLine] = useState<string | null>(null);
 
-  const connectionLines: ConnectionLine[] = [];
-  const sceneMap = new Map(scenes.map((s) => [s.id, s]));
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
-  const sortedByOrder = [...scenes].sort((a, b) => a.order - b.order);
+  const getSceneRightCenter = useCallback((scene: Scene) => {
+    return {
+      x: scene.x + CARD_WIDTH,
+      y: scene.y + CARD_HEIGHT / 2,
+    };
+  }, []);
 
-  for (let i = 0; i < sortedByOrder.length - 1; i++) {
-    const from = sortedByOrder[i];
-    const to = sortedByOrder[i + 1];
-    if (!from.nextSceneIds.includes(to.id)) {
-      connectionLines.push({
-        fromId: from.id,
-        toId: to.id,
-        key: `default-${from.id}-${to.id}`,
+  const getSceneLeftCenter = useCallback((scene: Scene) => {
+    return {
+      x: scene.x,
+      y: scene.y + CARD_HEIGHT / 2,
+    };
+  }, []);
+
+  const generateBezierPath = useCallback(
+    (x1: number, y1: number, x2: number, y2: number) => {
+      const dx = Math.abs(x2 - x1);
+      const controlOffset = Math.max(50, dx * 0.4);
+      return `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+    },
+    []
+  );
+
+  const links = useMemo(() => {
+    const result: {
+      id: string;
+      fromScene: Scene;
+      toScene: Scene;
+      path: string;
+    }[] = [];
+
+    if (scenes.length === 0) return result;
+
+    const sceneMap = new Map(scenes.map((s) => [s.id, s]));
+
+    scenes.forEach((fromScene) => {
+      fromScene.nextSceneIds.forEach((toId) => {
+        const toScene = sceneMap.get(toId);
+        if (toScene) {
+          const from = getSceneRightCenter(fromScene);
+          const to = getSceneLeftCenter(toScene);
+          result.push({
+            id: `${fromScene.id}-${toId}`,
+            fromScene,
+            toScene,
+            path: generateBezierPath(from.x, from.y, to.x, to.y),
+          });
+        }
       });
-    }
-  }
+    });
 
-  scenes.forEach((scene) => {
-    scene.nextSceneIds.forEach((toId) => {
-      if (sceneMap.has(toId)) {
-        connectionLines.push({
-          fromId: scene.id,
-          toId,
-          key: `custom-${scene.id}-${toId}`,
+    if (result.length === 0 && scenes.length > 1) {
+      const sorted = [...scenes].sort(
+        (a, b) => a.createdAt - b.createdAt
+      );
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const from = getSceneRightCenter(sorted[i]);
+        const to = getSceneLeftCenter(sorted[i + 1]);
+        result.push({
+          id: `auto-${sorted[i].id}-${sorted[i + 1].id}`,
+          fromScene: sorted[i],
+          toScene: sorted[i + 1],
+          path: generateBezierPath(from.x, from.y, to.x, to.y),
         });
       }
-    });
-  });
-
-  const uniqueLines = new Map<string, ConnectionLine>();
-  connectionLines.forEach((line) => {
-    const key = `${line.fromId}-${line.toId}`;
-    if (!uniqueLines.has(key)) {
-      uniqueLines.set(key, line);
     }
-  });
-  const finalLines = Array.from(uniqueLines.values());
 
-  const getCardCenterRight = (scene: Scene) => ({
-    x: scene.x + CARD_WIDTH,
-    y: scene.y + CARD_HEIGHT / 2,
-  });
+    return result;
+  }, [scenes, generateBezierPath, getSceneRightCenter, getSceneLeftCenter]);
 
-  const getCardCenterLeft = (scene: Scene) => ({
-    x: scene.x,
-    y: scene.y + CARD_HEIGHT / 2,
-  });
-
-  const generateBezierPath = (
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
-  ) => {
-    const dx = Math.abs(x2 - x1);
-    const controlOffset = Math.max(50, dx * 0.4);
-    return `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+  const handleCanvasClick = () => {
+    selectScene(null);
   };
 
-  const handleCanvasClick = useCallback(() => {
-    selectScene(null);
-  }, [selectScene]);
-
-  const handleAddScene = () => {
+  const handleAddScene = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const scrollLeft = canvas.scrollLeft;
-    const scrollTop = canvas.scrollTop;
-    const x = scrollLeft + rect.width / 2 - CARD_WIDTH / 2;
-    const y = scrollTop + rect.height / 2 - CARD_HEIGHT / 2;
-    addScene(x, y);
+    const x = e.clientX - rect.left + canvas.scrollLeft - CARD_WIDTH / 2;
+    const y = e.clientY - rect.top + canvas.scrollTop - CARD_HEIGHT / 2;
+    addScene(Math.max(0, x), Math.max(0, y));
   };
 
   const handleStartConnection = useCallback(
     (sceneId: string, x: number, y: number) => {
-      setIsConnecting(true);
-      setConnectionStart({ sceneId, x, y });
-      setMousePos({ x, y });
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const scrollLeft = canvas.scrollLeft;
+      const scrollTop = canvas.scrollTop;
+      setConnecting({
+        fromSceneId: sceneId,
+        startX: x,
+        startY: y,
+        currentX: x,
+        currentY: y,
+      });
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const canvasX = e.clientX - rect.left + scrollLeft;
+        const canvasY = e.clientY - rect.top + scrollTop;
+        setConnecting((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentX: canvasX,
+                currentY: canvasY,
+              }
+            : null
+        );
+      };
+
+      const handleMouseUp = () => {
+        setConnecting(null);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
     },
     []
   );
 
   const handleEndConnection = useCallback(
-    (targetSceneId: string) => {
-      if (isConnecting && connectionStart && connectionStart.sceneId !== targetSceneId) {
-        linkScenes(connectionStart.sceneId, targetSceneId);
-      }
-      setIsConnecting(false);
-      setConnectionStart(null);
-    },
-    [isConnecting, connectionStart, linkScenes]
-  );
+    (toSceneId: string) => {
+      if (!connecting) return;
+      if (connecting.fromSceneId === toSceneId) return;
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (isConnecting && canvasRef.current) {
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left + canvas.scrollLeft;
-        const y = e.clientY - rect.top + canvas.scrollTop;
-        setMousePos({ x, y });
+      const fromScene = scenes.find((s) => s.id === connecting.fromSceneId);
+      if (fromScene && fromScene.nextSceneIds.includes(toSceneId)) {
+        unlinkScenes(connecting.fromSceneId, toSceneId);
+      } else {
+        linkScenes(connecting.fromSceneId, toSceneId);
       }
     },
-    [isConnecting]
+    [connecting, scenes, linkScenes, unlinkScenes]
   );
 
-  const handleMouseUp = useCallback(() => {
-    if (isConnecting) {
-      setIsConnecting(false);
-      setConnectionStart(null);
-    }
-  }, [isConnecting]);
-
-  useEffect(() => {
-    if (isConnecting) {
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => window.removeEventListener('mouseup', handleMouseUp);
-    }
-  }, [isConnecting, handleMouseUp]);
-
-  const handleEditScene = (sceneId: string) => {
+  const handleEdit = (sceneId: string) => {
     selectScene(sceneId);
   };
 
-  const handleDeleteScene = (sceneId: string) => {
+  const handleDelete = (sceneId: string) => {
     deleteScene(sceneId);
   };
 
+  const svgWidth = useMemo(() => {
+    if (scenes.length === 0) return 2000;
+    return Math.max(2000, Math.max(...scenes.map((s) => s.x)) + CARD_WIDTH + 200);
+  }, [scenes]);
+
+  const svgHeight = useMemo(() => {
+    if (scenes.length === 0) return 2000;
+    return Math.max(2000, Math.max(...scenes.map((s) => s.y)) + CARD_HEIGHT + 200);
+  }, [scenes]);
+
   return (
-    <div
-      className="story-canvas"
-      ref={canvasRef}
-      onClick={handleCanvasClick}
-      onMouseMove={handleMouseMove}
-    >
-      <button className="add-scene-btn" onClick={(e) => {
-        e.stopPropagation();
-        handleAddScene();
-      }}>
+    <div className="story-canvas" ref={canvasRef} onClick={handleCanvasClick}>
+      <button className="add-scene-btn" onClick={handleAddScene}>
         + 添加场景
       </button>
 
-      <div className="canvas-inner">
-        <svg className="canvas-svg">
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-              className="arrow-marker"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" />
-            </marker>
-            <marker
-              id="arrowhead-highlight"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-              className="arrow-marker highlight"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" />
-            </marker>
-          </defs>
+      <svg
+        className="connections-svg"
+        width={svgWidth}
+        height={svgHeight}
+      >
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="rgba(77, 166, 255, 0.5)" />
+          </marker>
+          <marker
+            id="arrowhead-hover"
+            markerWidth="12"
+            markerHeight="9"
+            refX="11"
+            refY="4.5"
+            orient="auto"
+          >
+            <polygon points="0 0, 12 4.5, 0 9" fill="#00e5ff" />
+          </marker>
+        </defs>
 
-          {finalLines.map((line) => {
-            const fromScene = sceneMap.get(line.fromId);
-            const toScene = sceneMap.get(line.toId);
-            if (!fromScene || !toScene) return null;
+        {links.map((link) => (
+          <path
+            key={link.id}
+            d={link.path}
+            className={`connection-path ${hoveredLink === link.id ? 'hovered' : ''}`}
+            onMouseEnter={() => setHoveredLink(link.id)}
+            onMouseLeave={() => setHoveredLink(null)}
+            markerEnd={hoveredLink === link.id ? 'url(#arrowhead-hover)' : 'url(#arrowhead)'}
+          />
+        ))}
 
-            const start = getCardCenterRight(fromScene);
-            const end = getCardCenterLeft(toScene);
-            const path = generateBezierPath(start.x, start.y, end.x, end.y);
-            const isHovered = hoveredLine === line.key;
+        {connecting && (
+          <path
+            d={generateBezierPath(
+              connecting.startX,
+              connecting.startY,
+              connecting.currentX,
+              connecting.currentY
+            )}
+            className="connection-preview"
+            strokeDasharray="5,5"
+          />
+        )}
+      </svg>
 
-            return (
-              <path
-                key={line.key}
-                d={path}
-                className={`connection-line ${isHovered ? 'highlight' : ''}`}
-                markerEnd={isHovered ? 'url(#arrowhead-highlight)' : 'url(#arrowhead)'}
-                onMouseEnter={() => setHoveredLine(line.key)}
-                onMouseLeave={() => setHoveredLine(null)}
-              />
-            );
-          })}
-
-          {isConnecting && connectionStart && (
-            <path
-              d={generateBezierPath(
-                connectionStart.x,
-                connectionStart.y,
-                mousePos.x,
-                mousePos.y
-              )}
-              className="connection-line highlight"
-              strokeDasharray="5,5"
-              markerEnd="url(#arrowhead-highlight)"
-            />
-          )}
-        </svg>
-
-        {scenes.map((scene) => (
+      {isInitialized &&
+        scenes.map((scene) => (
           <SceneCard
             key={scene.id}
             scene={scene}
             characters={characters}
             props={props}
             isSelected={selectedSceneId === scene.id}
-            onEdit={() => handleEditScene(scene.id)}
-            onDelete={() => handleDeleteScene(scene.id)}
+            onEdit={() => handleEdit(scene.id)}
+            onDelete={() => handleDelete(scene.id)}
             onStartConnection={handleStartConnection}
             onEndConnection={handleEndConnection}
           />
         ))}
-      </div>
+
+      {scenes.length === 0 && isInitialized && (
+        <div className="canvas-empty">
+          <p style={{ marginBottom: '16px' }}>画布还是空的</p>
+          <p style={{ fontSize: '14px', opacity: 0.7 }}>
+            点击左上角"添加场景"按钮来创建第一个场景
+          </p>
+        </div>
+      )}
     </div>
   );
 }
