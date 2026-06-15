@@ -5,15 +5,26 @@ import {
   Resources,
   BuildQueueItem,
   MAX_FORMATION_SLOTS,
-  SHIP_CONFIGS
+  SHIP_CONFIGS,
+  BuildResult,
+  BuildResultCode
 } from './types';
 
-export function canAfford(resources: Resources, cost: Resources): boolean {
-  return (
-    resources.iron >= cost.iron &&
-    resources.crystal >= cost.crystal &&
-    resources.energy >= cost.energy
-  );
+export function canAfford(resources: Resources, cost: Resources): {
+  canAfford: boolean;
+  code: BuildResultCode;
+  missingResource?: keyof Resources;
+} {
+  if (resources.iron < cost.iron) {
+    return { canAfford: false, code: 'ERR_INSUFFICIENT_IRON', missingResource: 'iron' };
+  }
+  if (resources.crystal < cost.crystal) {
+    return { canAfford: false, code: 'ERR_INSUFFICIENT_CRYSTAL', missingResource: 'crystal' };
+  }
+  if (resources.energy < cost.energy) {
+    return { canAfford: false, code: 'ERR_INSUFFICIENT_ENERGY', missingResource: 'energy' };
+  }
+  return { canAfford: true, code: 'SUCCESS' };
 }
 
 export function subtractResources(resources: Resources, cost: Resources): Resources {
@@ -38,7 +49,10 @@ export function createPlayerShip(type: ShipType): Ship {
     id: uuidv4(),
     type,
     name: config.name,
-    stats: { ...config.baseStats },
+    stats: {
+      ...config.baseStats,
+      shield: { ...config.baseStats.shield }
+    },
     bridgeSlots: config.bridgeSlots,
     position: { x: 0, y: 0 },
     isEnemy: false,
@@ -48,61 +62,107 @@ export function createPlayerShip(type: ShipType): Ship {
 
 export function buildShip(
   type: ShipType,
-  resources: Resources,
-  availableShips: Ship[]
-): { success: boolean; newResources: Resources; newShip: Ship | null; message: string } {
+  resources: Resources
+): {
+  success: boolean;
+  code: BuildResultCode;
+  message: string;
+  newResources: Resources;
+  newShip: Ship | null;
+} {
   const config = SHIP_CONFIGS[type];
-  if (!canAfford(resources, config.cost)) {
+  const affordability = canAfford(resources, config.cost);
+
+  if (!affordability.canAfford) {
+    let message = '资源不足';
+    switch (affordability.code) {
+      case 'ERR_INSUFFICIENT_IRON':
+        message = `铁不足 (需要 ${config.cost.iron}，当前 ${resources.iron})`;
+        break;
+      case 'ERR_INSUFFICIENT_CRYSTAL':
+        message = `晶体不足 (需要 ${config.cost.crystal}，当前 ${resources.crystal})`;
+        break;
+      case 'ERR_INSUFFICIENT_ENERGY':
+        message = `能量不足 (需要 ${config.cost.energy}，当前 ${resources.energy})`;
+        break;
+    }
     return {
       success: false,
+      code: affordability.code,
+      message,
       newResources: resources,
-      newShip: null,
-      message: '资源不足'
+      newShip: null
     };
   }
+
   const newResources = subtractResources(resources, config.cost);
   const newShip = createPlayerShip(type);
   return {
     success: true,
+    code: 'SUCCESS',
+    message: `${config.name} 建造完成`,
     newResources,
-    newShip,
-    message: `${config.name} 建造完成`
+    newShip
   };
+}
+
+export function getBuildErrorMessage(code: BuildResultCode): string {
+  const messages: Record<BuildResultCode, string> = {
+    SUCCESS: '操作成功',
+    ERR_INSUFFICIENT_IRON: '铁不足',
+    ERR_INSUFFICIENT_CRYSTAL: '晶体不足',
+    ERR_INSUFFICIENT_ENERGY: '能量不足',
+    ERR_INSUFFICIENT_RESOURCES: '资源不足',
+    ERR_FORMATION_FULL: '编队已满',
+    ERR_SLOT_OCCUPIED: '该槽位已被占用',
+    ERR_SHIP_IN_FORMATION: '该飞船已在编队中',
+    ERR_SHIP_NOT_FOUND: '未找到该飞船'
+  };
+  return messages[code];
 }
 
 export function addShipToFormation(
   formationSlots: (Ship | null)[],
   ship: Ship,
   slotIndex?: number
-): { success: boolean; newFormation: (Ship | null)[]; message: string } {
+): {
+  success: boolean;
+  code: BuildResultCode;
+  message: string;
+  newFormation: (Ship | null)[];
+} {
   const targetIndex = slotIndex ?? formationSlots.findIndex(s => s === null);
   if (targetIndex === -1 || targetIndex >= MAX_FORMATION_SLOTS) {
     return {
       success: false,
-      newFormation: formationSlots,
-      message: '编队已满'
+      code: 'ERR_FORMATION_FULL',
+      message: getBuildErrorMessage('ERR_FORMATION_FULL'),
+      newFormation: formationSlots
     };
   }
   if (formationSlots[targetIndex] !== null) {
     return {
       success: false,
-      newFormation: formationSlots,
-      message: '该槽位已被占用'
+      code: 'ERR_SLOT_OCCUPIED',
+      message: getBuildErrorMessage('ERR_SLOT_OCCUPIED'),
+      newFormation: formationSlots
     };
   }
   if (formationSlots.some(s => s?.id === ship.id)) {
     return {
       success: false,
-      newFormation: formationSlots,
-      message: '该飞船已在编队中'
+      code: 'ERR_SHIP_IN_FORMATION',
+      message: getBuildErrorMessage('ERR_SHIP_IN_FORMATION'),
+      newFormation: formationSlots
     };
   }
   const newFormation = [...formationSlots];
   newFormation[targetIndex] = ship;
   return {
     success: true,
-    newFormation,
-    message: '飞船已加入编队'
+    code: 'SUCCESS',
+    message: '飞船已加入编队',
+    newFormation
   };
 }
 
@@ -122,6 +182,7 @@ export function reorderFormation(
 ): (Ship | null)[] {
   if (fromIndex < 0 || fromIndex >= MAX_FORMATION_SLOTS) return formationSlots;
   if (toIndex < 0 || toIndex >= MAX_FORMATION_SLOTS) return formationSlots;
+  if (fromIndex === toIndex) return formationSlots;
   const newFormation = [...formationSlots];
   const [removed] = newFormation.splice(fromIndex, 1);
   newFormation.splice(toIndex, 0, removed);
@@ -160,20 +221,28 @@ export function processBuildQueue(
   queue: BuildQueueItem[],
   resources: Resources,
   availableShips: Ship[]
-): { newQueue: BuildQueueItem[]; newResources: Resources; newShips: Ship[] } {
+): {
+  newQueue: BuildQueueItem[];
+  newResources: Resources;
+  newShips: Ship[];
+  results: BuildResult[];
+} {
   const newShips: Ship[] = [...availableShips];
   let newResources = { ...resources };
   const remainingQueue: BuildQueueItem[] = [];
+  const results: BuildResult[] = [];
 
   queue.forEach(item => {
-    const config = SHIP_CONFIGS[item.shipType];
-    if (canAfford(newResources, config.cost)) {
-      newResources = subtractResources(newResources, config.cost);
-      newShips.push(createPlayerShip(item.shipType));
+    const buildResult = buildShip(item.shipType, newResources);
+    if (buildResult.success && buildResult.newShip) {
+      newResources = buildResult.newResources;
+      newShips.push(buildResult.newShip);
+      results.push({ success: true, code: 'SUCCESS', message: buildResult.message });
     } else {
       remainingQueue.push(item);
+      results.push({ success: false, code: buildResult.code, message: buildResult.message });
     }
   });
 
-  return { newQueue: remainingQueue, newResources, newShips };
+  return { newQueue: remainingQueue, newResources, newShips, results };
 }
