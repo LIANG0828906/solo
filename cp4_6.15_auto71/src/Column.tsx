@@ -43,6 +43,7 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
   };
 
   const visibleCardIds = column.cardIds.filter(id => !isCardFiltered(id));
+  const filteredCardIds = column.cardIds.filter(id => isCardFiltered(id));
   const visibleCount = visibleCardIds.length;
 
   useEffect(() => {
@@ -101,6 +102,7 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
   const handleTitleClick = (e: React.MouseEvent) => {
     if (longPressTriggered.current) {
       e.preventDefault();
+      e.stopPropagation();
       longPressTriggered.current = false;
     }
   };
@@ -143,15 +145,15 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <h3 className="column-title">{column.title}</h3>
-          )}
-          {!isEditing && (
-            <span className="column-edit-hint">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-              </svg>
-            </span>
+            <React.Fragment>
+              <h3 className="column-title">{column.title}</h3>
+              <span className="column-edit-hint">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+              </span>
+            </React.Fragment>
           )}
         </div>
         <div className="column-badge">{visibleCount}</div>
@@ -173,46 +175,52 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
             {...provided.droppableProps}
             className={`column-content ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
           >
-            {column.cardIds.map((cardId, originalIndex) => {
+            {visibleCardIds.map((cardId, index) => {
               const card = cards[cardId];
               if (!card) return null;
 
-              const filtered = isCardFiltered(cardId);
-              const draggableIndex = visibleCardIds.indexOf(cardId);
-
               return (
-                <div
+                <Draggable
                   key={cardId}
-                  style={{ display: 'contents' }}
+                  draggableId={cardId}
+                  index={index}
                 >
-                  <Draggable
-                    draggableId={cardId}
-                    index={originalIndex}
-                    isDragDisabled={filtered}
-                  >
-                    {(dragProvided, dragSnapshot) => (
-                      <div
-                        ref={dragProvided.innerRef}
-                        {...dragProvided.draggableProps}
-                        {...dragProvided.dragHandleProps}
-                        style={{
-                          ...dragProvided.draggableProps.style,
-                        }}
-                      >
-                        <Card
-                          card={card}
-                          index={originalIndex}
-                          isFiltered={filtered}
-                          isDragging={dragSnapshot.isDragging}
-                          labelColors={card.labels.map(getCardLabelColor)}
-                        />
-                      </div>
-                    )}
-                  </Draggable>
-                </div>
+                  {(dragProvided, dragSnapshot) => (
+                    <div
+                      ref={dragProvided.innerRef}
+                      {...dragProvided.draggableProps}
+                      {...dragProvided.dragHandleProps}
+                      style={{
+                        ...dragProvided.draggableProps.style,
+                      }}
+                    >
+                      <Card
+                        card={card}
+                        index={index}
+                        isFiltered={false}
+                        isDragging={dragSnapshot.isDragging}
+                        labelColors={card.labels.map(getCardLabelColor)}
+                      />
+                    </div>
+                  )}
+                </Draggable>
               );
             })}
             {provided.placeholder}
+            {filteredCardIds.map((cardId, index) => {
+              const card = cards[cardId];
+              if (!card) return null;
+              return (
+                <Card
+                  key={cardId}
+                  card={card}
+                  index={visibleCardIds.length + index}
+                  isFiltered={true}
+                  isDragging={false}
+                  labelColors={card.labels.map(getCardLabelColor)}
+                />
+              );
+            })}
             {visibleCount === 0 && (
               <div className="empty-column-hint">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

@@ -30,7 +30,9 @@ const Board: React.FC = () => {
   const handleDragEnd = useCallback((result: DropResult) => {
     const { source, destination, draggableId } = result;
 
-    if (!destination) return;
+    if (!destination) {
+      return;
+    }
 
     if (
       source.droppableId === destination.droppableId &&
