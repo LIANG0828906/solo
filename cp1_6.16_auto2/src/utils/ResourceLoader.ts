@@ -50,9 +50,6 @@ export class ResourceLoader {
     g.clear();
     const w = 1024;
     const h = 768;
-    const grd = g.createLinearGradient(0, 0, 0, h);
-    (grd as any).addColorStop(0, '#1a2a1a');
-    (grd as any).addColorStop(1, '#0f1a0f');
     g.fillGradientStyle(0x1a2a1a, 0x1a2a1a, 0x0f1a0f, 0x0f1a0f, 1);
     g.fillRect(0, 0, w, h);
     g.generateTexture('forest_bg', w, h);

@@ -1,7 +1,7 @@
 {
   "name": "dynamic-enemy-spawner",
   "version": "1.0.0",
-  "description": "Dynamic enemy spawn system with difficulty adjustment",
+  "description": "动态敌人生成系统 - 实时难度调整",
   "main": "index.html",
   "scripts": {
     "dev": "vite",

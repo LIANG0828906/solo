@@ -26,9 +26,16 @@ export class DifficultyManager {
   private readonly healthThresholdForLevelDown: number = 0.3;
   private readonly consecutiveFailuresForLevelDown: number = 3;
 
+  private readonly levelTimeThresholdSeconds: number = 120;
+  private readonly killRateThreshold: number = 0.08;
+  private lastLevelUpTime: number = 0;
+  private levelStartTime: number = 0;
+
   private onDifficultyChangeCallback: ((level: number) => void) | null = null;
 
   constructor() {
+    this.levelStartTime = Date.now();
+    this.lastLevelUpTime = this.levelStartTime;
     this.metrics = {
       playerHealth: 100,
       maxPlayerHealth: 100,
@@ -55,6 +62,11 @@ export class DifficultyManager {
       }
     }
     Object.assign(this.metrics, partial);
+
+    if (partial.levelTime !== undefined) {
+      this.metrics.levelTime = partial.levelTime;
+      this.evaluateLevelTime(partial.levelTime);
+    }
     this.evaluateDifficulty();
   }
 
@@ -69,10 +81,39 @@ export class DifficultyManager {
     this.metrics.consecutiveKills = 0;
   }
 
+  private evaluateLevelTime(levelTimeSec: number): void {
+    const timeSinceLastLevelUp = (Date.now() - this.lastLevelUpTime) / 1000;
+
+    if (
+      timeSinceLastLevelUp >= 30 &&
+      levelTimeSec >= this.levelTimeThresholdSeconds &&
+      this.currentLevel < this.maxLevel
+    ) {
+      const killRate = this.metrics.killCount / Math.max(1, levelTimeSec);
+      const healthRatio = this.metrics.playerHealth / this.metrics.maxPlayerHealth;
+
+      if (killRate >= this.killRateThreshold && healthRatio >= 0.5) {
+        this.currentLevel++;
+        this.metrics.consecutiveKills = 0;
+        this.lastLevelUpTime = Date.now();
+        this.notifyLevelChange();
+      }
+    }
+
+    if (
+      levelTimeSec >= 60 &&
+      this.metrics.killCount / Math.max(1, levelTimeSec) < 0.02 &&
+      this.currentLevel > this.minLevel
+    ) {
+      this.currentLevel--;
+      this.lastLevelUpTime = Date.now();
+      this.notifyLevelChange();
+    }
+  }
+
   private evaluateDifficulty(): void {
     const healthRatio = this.metrics.playerHealth / this.metrics.maxPlayerHealth;
     let levelChanged = false;
-    const oldLevel = this.currentLevel;
 
     if (
       this.metrics.consecutiveKills >= this.consecutiveKillsForLevelUp &&
@@ -81,6 +122,7 @@ export class DifficultyManager {
     ) {
       this.currentLevel++;
       this.metrics.consecutiveKills = 0;
+      this.lastLevelUpTime = Date.now();
       levelChanged = true;
     }
 
@@ -97,7 +139,14 @@ export class DifficultyManager {
 
     this.metrics.currentLevel = this.currentLevel;
 
-    if (levelChanged && this.onDifficultyChangeCallback) {
+    if (levelChanged) {
+      this.notifyLevelChange();
+    }
+  }
+
+  private notifyLevelChange(): void {
+    this.metrics.currentLevel = this.currentLevel;
+    if (this.onDifficultyChangeCallback) {
       this.onDifficultyChangeCallback(this.currentLevel);
     }
   }
@@ -142,6 +191,8 @@ export class DifficultyManager {
 
   reset(): void {
     this.currentLevel = 1;
+    this.levelStartTime = Date.now();
+    this.lastLevelUpTime = this.levelStartTime;
     this.metrics = {
       playerHealth: 100,
       maxPlayerHealth: 100,

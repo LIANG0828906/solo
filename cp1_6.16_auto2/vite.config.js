@@ -4,8 +4,9 @@ import path from 'path';
 export default defineConfig({
   root: '.',
   server: {
-    port: 5173,
-    open: true
+    port: 5180,
+    open: true,
+    host: true
   },
   resolve: {
     alias: {
@@ -14,5 +15,19 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['phaser']
+  },
+  esbuild: {
+    target: 'es2020'
+  },
+  build: {
+    target: 'es2020',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          phaser: ['phaser']
+        }
+      }
+    }
   }
 });

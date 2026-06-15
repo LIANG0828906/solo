@@ -13,9 +13,9 @@ export class Enemy extends Phaser.GameObjects.Container {
   private maxHealth: number;
   private isAlive: boolean = true;
   private lastAttackTime: number = 0;
-  private healthBar: Phaser.GameObjects.Graphics;
-  private bodyVisual: Phaser.GameObjects.Arc;
-  private eyeVisual: Phaser.GameObjects.Arc;
+  private healthBar!: Phaser.GameObjects.Graphics;
+  private bodyVisual!: Phaser.GameObjects.Arc;
+  private eyeVisual!: Phaser.GameObjects.Arc;
   private isHitFlashing: boolean = false;
   private hitFlashTimer: Phaser.Time.TimerEvent | null = null;
   private onDeathCallback: (() => void) | null = null;
@@ -25,6 +25,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   private currentAngle: number = 0;
   private explosionTriggered: boolean = false;
   private physicsBody: Phaser.Physics.Arcade.Body | null = null;
+  private particleSystems: Phaser.GameObjects.GameObject[] = [];
 
   constructor(scene: Scene, x: number, y: number, data: EnemyRuntimeData) {
     super(scene, x, y);
@@ -96,9 +97,9 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   private darkenColor(color: number, factor: number): number {
-    const r = Math.floor(((color >> 16) & 0xff) * factor;
-    const g = Math.floor(((color >> 8) & 0xff) * factor;
-    const b = Math.floor(color & 0xff) * factor;
+    const r = Math.floor(((color >> 16) & 0xff) * factor);
+    const g = Math.floor(((color >> 8) & 0xff) * factor);
+    const b = Math.floor((color & 0xff) * factor);
     return (r << 16) | (g << 8) | b;
   }
 
@@ -112,8 +113,8 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.healthBar.fillRoundedRect(-barWidth / 2, -barHeight, barWidth, barHeight, 2);
 
     const c = Phaser.Display.Color.Interpolate.ColorWithColor(
-      { r: 255, g: 0, b: 0 },
-      { r: 0, g: 255, b: 100 },
+      new Phaser.Display.Color(255, 0, 0),
+      new Phaser.Display.Color(0, 255, 100),
       100,
       Math.floor(ratio * 100)
     );
@@ -163,8 +164,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   private updateMelee(dx: number, dy: number, distance: number): void {
     const speed = this.enemyData.speed;
     if (distance > this.enemyData.attackRange) {
-      const nx = dx / distance;
-      const ny = dy / distance;
+      const nx = dx / (distance || 1);
+      const ny = dy / (distance || 1);
       if (this.physicsBody) {
         this.physicsBody.velocity.x = nx * speed;
         this.physicsBody.velocity.y = ny * speed;
@@ -188,15 +189,15 @@ export class Enemy extends Phaser.GameObjects.Container {
     const idealMax = this.enemyData.attackRange * 0.85;
 
     if (distance < idealMin) {
-      const nx = -dx / distance;
-      const ny = -dy / distance;
+      const nx = -dx / (distance || 1);
+      const ny = -dy / (distance || 1);
       if (this.physicsBody) {
         this.physicsBody.velocity.x = nx * speed;
         this.physicsBody.velocity.y = ny * speed;
       }
     } else if (distance > idealMax) {
-      const nx = dx / distance;
-      const ny = dy / distance;
+      const nx = dx / (distance || 1);
+      const ny = dy / (distance || 1);
       if (this.physicsBody) {
         this.physicsBody.velocity.x = nx * speed;
         this.physicsBody.velocity.y = ny * speed;
@@ -247,12 +248,12 @@ export class Enemy extends Phaser.GameObjects.Container {
 
     bullet.setActive(true);
     bullet.setVisible(true);
-    (bullet.body as Phaser.Physics.Arcade.Body).reset(this.x, this.y);
+    const bb = bullet.body as Phaser.Physics.Arcade.Body;
+    bb.reset(this.x, this.y);
 
     const nx = dx / (distance || 1);
     const ny = dy / (distance || 1);
     const bs = this.enemyData.bulletSpeed || 200;
-    const bb = bullet.body as Phaser.Physics.Arcade.Body;
     bb.velocity.x = nx * bs;
     bb.velocity.y = ny * bs;
 
@@ -272,11 +273,16 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.takeDamage(this.currentHealth);
   }
 
+  /**
+   * 敌人受到伤害 - 触发受击闪烁
+   */
   takeDamage(amount: number): boolean {
     if (!this.isAlive) return false;
+
     this.currentHealth -= amount;
     this.updateHealthBar();
-    this.triggerHitFlash();
+    this.playHitFlashEffect();
+
     if (this.currentHealth <= 0) {
       this.die();
       return true;
@@ -284,72 +290,143 @@ export class Enemy extends Phaser.GameObjects.Container {
     return false;
   }
 
-  private triggerHitFlash(): void {
-    if (this.isHitFlashing) {
-      if (this.hitFlashTimer) this.hitFlashTimer.destroy();
+  /**
+   * 受击闪烁效果 - 变红0.2秒后恢复原色
+   */
+  private playHitFlashEffect(): void {
+    if (this.isHitFlashing && this.hitFlashTimer) {
+      this.hitFlashTimer.destroy();
     }
+
     this.isHitFlashing = true;
+
     this.bodyVisual.setFillStyle(0xff0000, 1);
+    this.bodyVisual.setStrokeStyle(3, 0xffff00, 1);
+
+    this.scene.tweens.add({
+      targets: this.bodyVisual,
+      scaleX: { from: 1.15, to: 1 },
+      scaleY: { from: 1.15, to: 1 },
+      duration: 150,
+      ease: 'Cubic.easeOut'
+    });
+
     this.hitFlashTimer = this.scene.time.delayedCall(200, () => {
       this.bodyVisual.setFillStyle(this.enemyData.color, 1);
+      this.bodyVisual.setStrokeStyle(2, this.darkenColor(this.enemyData.color, 0.6), 1);
       this.isHitFlashing = false;
     });
   }
 
+  /**
+   * 敌人死亡 - 触发死亡粒子效果
+   */
   private die(): void {
     if (!this.isAlive) return;
     this.isAlive = false;
-    this.createDeathParticles();
-    this.scene.time.delayedCall(100, () => {
-      if (this.onDeathCallback) this.onDeathCallback();
-      this.destroyEnemy();
+
+    this.playDeathParticles();
+
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 0,
+      scaleY: 0,
+      alpha: 0,
+      duration: 150,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        if (this.onDeathCallback) this.onDeathCallback();
+        this.destroyEnemy();
+      }
     });
   }
 
-  private createDeathParticles(): void {
-    const colors = [0xff6b35, 0xffd93d, 0xffffff, 0xff0000];
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.5;
-      const idx = Math.floor(Math.random() * colors.length);
-      const p = this.scene.add.circle(this.x, this.y, 3 + Math.random() * 3, colors[idx], 1);
+  /**
+   * 死亡粒子效果 - 至少8个颜色粒子向四周飞散
+   */
+  private playDeathParticles(): void {
+    const particleColors = [0xff6b35, 0xffd93d, 0xffffff, 0xff0000, 0x00ff88, 0x4682B4];
+    const particleCount = 12;
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+      const colorIdx = Math.floor(Math.random() * particleColors.length);
+      const color = particleColors[colorIdx];
+      const size = 3 + Math.random() * 4;
+      const travelDist = 45 + Math.random() * 70;
+      const lifespan = 450 + Math.random() * 400;
+
+      const particle = this.scene.add.circle(
+        this.x,
+        this.y,
+        size,
+        color,
+        1
+      );
+      particle.setDepth(this.depth + 10);
+      this.particleSystems.push(particle);
+
       this.scene.tweens.add({
-        targets: p,
-        x: this.x + Math.cos(angle) * (40 + Math.random() * 60),
-        y: this.y + Math.sin(angle) * (40 + Math.random() * 60),
-        alpha: 0,
-        scale: 0.5,
-        duration: 500 + Math.random() * 300,
-        ease: 'Power2',
-        onComplete: () => p.destroy()
+        targets: particle,
+        x: this.x + Math.cos(angle) * travelDist,
+        y: this.y + Math.sin(angle) * travelDist,
+        alpha: { from: 1, to: 0 },
+        scale: { from: 1, to: 0.3 },
+        duration: lifespan,
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+          const idx = this.particleSystems.indexOf(particle);
+          if (idx !== -1) this.particleSystems.splice(idx, 1);
+          particle.destroy();
+        }
       });
     }
   }
 
+  /**
+   * 自爆爆炸效果 - 环形冲击波+15个粒子
+   */
   private createExplosionEffect(): void {
     const radius = this.enemyData.explosionRadius || 100;
+
     const ring = this.scene.add.circle(this.x, this.y, 5, 0xff6b35, 0.8);
+    ring.setDepth(this.depth + 15);
+    this.particleSystems.push(ring);
     this.scene.tweens.add({
       targets: ring,
       scale: radius / 5,
       alpha: 0,
       duration: 400,
       ease: 'Cubic.easeOut',
-      onComplete: () => ring.destroy()
+      onComplete: () => {
+        const idx = this.particleSystems.indexOf(ring);
+        if (idx !== -1) this.particleSystems.splice(idx, 1);
+        ring.destroy();
+      }
     });
+
     for (let i = 0; i < 15; i++) {
       const angle = (i / 15) * Math.PI * 2;
       const c = i % 2 === 0 ? 0xff6b35 : 0xffd93d;
       const p = this.scene.add.circle(this.x, this.y, 4 + Math.random() * 4, c, 1);
+      p.setDepth(this.depth + 12);
+      this.particleSystems.push(p);
       this.scene.tweens.add({
         targets: p,
         x: this.x + Math.cos(angle) * radius,
         y: this.y + Math.sin(angle) * radius,
         alpha: 0,
         duration: 450,
-        ease: 'Power2',
-        onComplete: () => p.destroy()
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+          const idx = this.particleSystems.indexOf(p);
+          if (idx !== -1) this.particleSystems.splice(idx, 1);
+          p.destroy();
+        }
       });
     }
+
+    this.scene.cameras.main.shake(200, 0.008);
   }
 
   setOnDeathCallback(callback: () => void): void {
@@ -391,6 +468,10 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (this.hitFlashTimer) {
       this.hitFlashTimer.destroy();
     }
+    for (const p of this.particleSystems) {
+      if (p && p.active) p.destroy();
+    }
+    this.particleSystems = [];
     super.destroy();
   }
 
