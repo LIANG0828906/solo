@@ -1,4 +1,4 @@
-import { useRef, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useOceanStore } from '../../store';
@@ -6,163 +6,213 @@ import type { RenderableSpecies } from '../../types';
 
 const tempMatrix = new THREE.Matrix4();
 const tempColor = new THREE.Color();
-const tempVec = new THREE.Vector3();
+const tempPos = new THREE.Vector3();
+const tempScale = new THREE.Vector3();
+const dummyObj = new THREE.Object3D();
 
-interface InstanceData {
-  targetPos: THREE.Vector3;
+interface AnimState {
+  id: string;
   currentPos: THREE.Vector3;
-  targetScale: number;
+  targetPos: THREE.Vector3;
   currentScale: number;
-  targetOpacity: number;
+  targetScale: number;
   currentOpacity: number;
-  color: string;
+  targetOpacity: number;
+  basePulsePhase: number;
+  colorStr: string;
   speciesData: RenderableSpecies;
 }
 
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function easeInOutCubic(x: number): number {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }
 
 export default function SpeciesPoints() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const glowRef = useRef<THREE.InstancedMesh>(null);
   const renderableData = useOceanStore((s) => s.renderableData);
   const setHoveredSpecies = useOceanStore((s) => s.setHoveredSpecies);
   const setSelectedSpecies = useOceanStore((s) => s.setSelectedSpecies);
+  const selectedSpecies = useOceanStore((s) => s.selectedSpecies);
+  const hoveredSpecies = useOceanStore((s) => s.hoveredSpecies);
 
-  const maxCount = 2000;
-  const instanceDataRef = useRef<Map<number, InstanceData>>(new Map());
-  const animProgressRef = useRef<Map<number, number>>(new Map());
+  const MAX_INSTANCES = 2000;
+  const animStatesRef = useRef<AnimState[]>([]);
+  const hoveredIdRef = useRef<number | null>(null);
+  const selectedIdRef = useRef<number | null>(null);
 
-  const prevDataRef = useRef<RenderableSpecies[]>([]);
-
-  useMemo(() => {
-    const newMap = new Map<number, InstanceData>();
-    const prevMap = instanceDataRef.current;
+  useEffect(() => {
+    const prevStates = animStatesRef.current;
+    const newStates: AnimState[] = [];
 
     for (let i = 0; i < renderableData.length; i++) {
       const d = renderableData[i];
-      const pos = new THREE.Vector3(...d.position);
-      const prev = prevMap.get(i);
-      const startPos = prev ? prev.currentPos.clone() : pos.clone();
+      const prev = prevStates[i];
+      const targetPos = new THREE.Vector3(...d.position);
+      const startPos = prev ? prev.currentPos.clone() : targetPos.clone();
       const startScale = prev ? prev.currentScale : d.scale;
       const startOpacity = prev ? prev.currentOpacity : d.opacity;
 
-      newMap.set(i, {
-        targetPos: pos,
+      newStates.push({
+        id: d.speciesId + '-' + i,
         currentPos: startPos,
-        targetScale: d.scale,
+        targetPos,
         currentScale: startScale,
-        targetOpacity: d.opacity,
+        targetScale: d.scale,
         currentOpacity: startOpacity,
-        color: d.color,
+        targetOpacity: d.opacity,
+        basePulsePhase: Math.random() * Math.PI * 2,
+        colorStr: d.color,
         speciesData: d,
       });
-      animProgressRef.current.set(i, 0);
     }
-
-    instanceDataRef.current = newMap;
-    prevDataRef.current = renderableData;
+    animStatesRef.current = newStates;
+    hoveredIdRef.current = null;
+    selectedIdRef.current = null;
   }, [renderableData]);
 
-  useFrame((_, delta) => {
-    if (!meshRef.current) return;
+  useFrame((state, delta) => {
+    if (!meshRef.current || !glowRef.current) return;
     const mesh = meshRef.current;
-    const animSpeed = 2.0;
+    const glow = glowRef.current;
+    const t = state.clock.elapsedTime;
+
+    const hoveredId = hoveredSpecies ? renderableData.findIndex(
+      (r, idx) =>
+        animStatesRef.current[idx]?.speciesData.speciesId === hoveredSpecies.speciesId &&
+        Math.abs(animStatesRef.current[idx]?.speciesData.depth - hoveredSpecies.depth) < 8
+    ) : -1;
+    const selectedId = selectedSpecies ? renderableData.findIndex(
+      (r, idx) =>
+        animStatesRef.current[idx]?.speciesData.speciesId === selectedSpecies.speciesId &&
+        Math.abs(animStatesRef.current[idx]?.speciesData.depth - selectedSpecies.depth) < 8
+    ) : -1;
+
+    const transitionT = Math.min(1, delta * 2.4);
+    const easedTrans = easeInOutCubic(Math.min(1, transitionT * 1.8));
 
     for (let i = 0; i < renderableData.length; i++) {
-      const data = instanceDataRef.current.get(i);
-      if (!data) continue;
+      const anim = animStatesRef.current[i];
+      if (!anim) continue;
 
-      let progress = animProgressRef.current.get(i) || 0;
-      progress = Math.min(1, progress + delta * animSpeed);
-      animProgressRef.current.set(i, progress);
+      anim.currentPos.lerp(anim.targetPos, easedTrans * 0.32);
+      anim.currentScale = lerp(anim.currentScale, anim.targetScale, easedTrans * 0.35);
+      anim.currentOpacity = lerp(anim.currentOpacity, anim.targetOpacity, easedTrans * 0.35);
 
-      const eased = easeInOut(progress);
+      const isHovered = i === hoveredId;
+      const isSelected = i === selectedId;
+      const pulse =
+        1 +
+        Math.sin(t * 2 + anim.basePulsePhase) * 0.05 +
+        (isHovered ? 0.22 : 0) +
+        (isSelected ? 0.35 : 0);
+      const displayScale = Math.max(0.05, anim.currentScale * pulse);
 
-      data.currentPos.lerpVectors(data.currentPos, data.targetPos, eased > 0.01 ? 0.1 : 0);
-      if (eased > 0.01) {
-        data.currentPos.lerpVectors(
-          new THREE.Vector3(
-            data.currentPos.x + (data.targetPos.x - data.currentPos.x) * 0,
-            data.currentPos.y,
-            data.currentPos.z
-          ),
-          data.targetPos,
-          eased
-        );
-      }
+      dummyObj.position.copy(anim.currentPos);
+      dummyObj.scale.setScalar(displayScale);
+      dummyObj.rotation.set(0, t * 0.3 + anim.basePulsePhase, 0);
+      dummyObj.updateMatrix();
 
-      data.currentScale += (data.targetScale - data.currentScale) * Math.min(1, delta * animSpeed);
-      data.currentOpacity += (data.targetOpacity - data.currentOpacity) * Math.min(1, delta * animSpeed);
-
-      const s = Math.max(0.05, data.currentScale);
-      tempMatrix.makeTranslation(data.currentPos.x, data.currentPos.y, data.currentPos.z);
-      tempMatrix.scale(tempVec.set(s, s, s));
-      mesh.setMatrixAt(i, tempMatrix);
-
-      tempColor.set(data.color);
+      mesh.setMatrixAt(i, dummyObj.matrix);
+      tempColor.set(anim.colorStr);
+      if (isHovered) tempColor.lerp(new THREE.Color('#ffffff'), 0.35);
+      if (isSelected) tempColor.lerp(new THREE.Color('#ffffff'), 0.55);
       mesh.setColorAt(i, tempColor);
+
+      const glowScale = displayScale * (isSelected ? 3.2 : isHovered ? 2.6 : 2.0);
+      dummyObj.scale.setScalar(glowScale);
+      dummyObj.updateMatrix();
+      glow.setMatrixAt(i, dummyObj.matrix);
+      tempColor.set(anim.colorStr);
+      glow.setColorAt(i, tempColor);
     }
 
-    for (let i = renderableData.length; i < maxCount; i++) {
-      tempMatrix.makeScale(0, 0, 0);
-      mesh.setMatrixAt(i, tempMatrix);
+    for (let i = renderableData.length; i < MAX_INSTANCES; i++) {
+      dummyObj.position.set(0, -9999, 0);
+      dummyObj.scale.setScalar(0);
+      dummyObj.updateMatrix();
+      mesh.setMatrixAt(i, dummyObj.matrix);
+      glow.setMatrixAt(i, dummyObj.matrix);
     }
 
     mesh.instanceMatrix.needsUpdate = true;
+    glow.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (glow.instanceColor) glow.instanceColor.needsUpdate = true;
+
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    mat.emissiveIntensity = 0.55 + Math.sin(t * 1.6) * 0.12;
   });
 
-  const geometry = useMemo(() => new THREE.SphereGeometry(0.5, 12, 8), []);
+  const geometry = useMemo(() => new THREE.IcosahedronGeometry(0.55, 1), []);
+  const glowGeometry = useMemo(() => new THREE.SphereGeometry(0.55, 14, 10), []);
 
-  const material = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        transparent: true,
-        opacity: 0.85,
-        roughness: 0.3,
-        metalness: 0.1,
-        emissive: new THREE.Color('#00e5ff'),
-        emissiveIntensity: 0.3,
-      }),
-    []
-  );
-
-  const handlePointerOver = useCallback(
-    (e: ThreeEvent<PointerEvent>) => {
-      e.stopPropagation();
-      const id = e.instanceId;
-      if (id !== undefined) {
-        const data = instanceDataRef.current.get(id);
-        if (data) setHoveredSpecies(data.speciesData);
+  const handlePointerOver = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (e.instanceId === undefined) return;
+    const anim = animStatesRef.current[e.instanceId];
+    if (anim) {
+      hoveredIdRef.current = e.instanceId;
+      setHoveredSpecies(anim.speciesData);
+      if (typeof document !== 'undefined') {
+        document.body.style.cursor = 'pointer';
       }
-    },
-    [setHoveredSpecies]
-  );
+    }
+  };
 
-  const handlePointerOut = useCallback(() => {
+  const handlePointerOut = () => {
+    hoveredIdRef.current = null;
     setHoveredSpecies(null);
-  }, [setHoveredSpecies]);
+    if (typeof document !== 'undefined') {
+      document.body.style.cursor = 'default';
+    }
+  };
 
-  const handleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      e.stopPropagation();
-      const id = e.instanceId;
-      if (id !== undefined) {
-        const data = instanceDataRef.current.get(id);
-        if (data) setSelectedSpecies(data.speciesData);
-      }
-    },
-    [setSelectedSpecies]
-  );
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (e.instanceId === undefined) return;
+    const anim = animStatesRef.current[e.instanceId];
+    if (anim) {
+      selectedIdRef.current = e.instanceId;
+      setSelectedSpecies(anim.speciesData);
+    }
+  };
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[geometry, material, maxCount]}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-      onClick={handleClick}
-    />
+    <>
+      <instancedMesh
+        ref={glowRef}
+        args={[glowGeometry, undefined as unknown as THREE.Material | THREE.Material[], MAX_INSTANCES]}
+      >
+        <meshBasicMaterial
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </instancedMesh>
+
+      <instancedMesh
+        ref={meshRef}
+        args={[geometry, undefined as unknown as THREE.Material | THREE.Material[], MAX_INSTANCES]}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+        onClick={handleClick}
+      >
+        <meshStandardMaterial
+          transparent
+          opacity={0.92}
+          roughness={0.22}
+          metalness={0.08}
+          emissive="#00e5ff"
+          emissiveIntensity={0.55}
+          blending={THREE.NormalBlending}
+        />
+      </instancedMesh>
+    </>
   );
 }

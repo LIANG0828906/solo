@@ -8,6 +8,7 @@ import SpeciesDetail from './speciesDetail';
 import SimulationProgress from './simulationProgress';
 import ReportPreview from './reportPreview';
 import HoverTooltip from './oceanScene/components/HoverTooltip';
+import DepthMarkers from './oceanScene/components/DepthMarkers';
 
 export default function App() {
   const initialize = useOceanStore((s) => s.initialize);
@@ -68,7 +69,7 @@ export default function App() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
-        camera={{ position: [20, 15, 20], fov: 55, near: 0.1, far: 500 }}
+        camera={{ position: [18, 8, 22], fov: 52, near: 0.1, far: 800 }}
         gl={{ antialias: true, alpha: false }}
         style={{ background: 'linear-gradient(180deg, #0a1628 0%, #000510 100%)' }}
       >
@@ -87,6 +88,7 @@ export default function App() {
         />
       </Canvas>
 
+      <DepthMarkers />
       <HoverTooltip />
       <ControlPanel />
       <SpeciesDetail />

@@ -52,7 +52,7 @@ export default function OceanWater() {
   });
 
   return (
-    <mesh ref={meshRef} position={[0, 2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh ref={meshRef} position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[80, 80, 128, 128]} />
       <shaderMaterial
         vertexShader={vertexShader}

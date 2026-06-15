@@ -1,4 +1,4 @@
-import type { Species, SpeciesTreeLayer, RenderableSpecies, EnvParams } from './types';
+import type { Species, SpeciesTreeLayer, RenderableSpecies, EnvParams, SamplePoint } from './types';
 
 const SPECIES_DATA: Species[] = [
   {
@@ -11,13 +11,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 5,
     depthRange: [0, 30],
     color: '#ff6b35',
-    samplePoints: [
-      { lat: 18.2, lng: 109.5, depth: 5, abundance: 0.92, season: 'summer' },
-      { lat: 18.5, lng: 110.2, depth: 8, abundance: 0.85, season: 'summer' },
-      { lat: 19.0, lng: 109.8, depth: 12, abundance: 0.65, season: 'autumn' },
-      { lat: 18.8, lng: 110.5, depth: 6, abundance: 0.88, season: 'spring' },
-      { lat: 18.3, lng: 109.9, depth: 15, abundance: 0.45, season: 'winter' },
-    ],
+    samplePoints: generateSamplePoints(18.5, 110, 5, 30, 0.75, 8),
   },
   {
     id: 'sp-002',
@@ -29,12 +23,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 3,
     depthRange: [0, 15],
     color: '#ff9a3c',
-    samplePoints: [
-      { lat: 18.4, lng: 109.6, depth: 3, abundance: 0.78, season: 'summer' },
-      { lat: 18.6, lng: 110.0, depth: 5, abundance: 0.82, season: 'spring' },
-      { lat: 18.9, lng: 109.7, depth: 8, abundance: 0.55, season: 'autumn' },
-      { lat: 18.7, lng: 110.3, depth: 4, abundance: 0.90, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.6, 110.1, 3, 15, 0.72, 6),
   },
   {
     id: 'sp-003',
@@ -46,14 +35,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 10,
     depthRange: [0, 40],
     color: '#ffd166',
-    samplePoints: [
-      { lat: 18.1, lng: 109.4, depth: 10, abundance: 0.35, season: 'summer' },
-      { lat: 18.7, lng: 110.1, depth: 15, abundance: 0.28, season: 'spring' },
-      { lat: 19.2, lng: 109.6, depth: 20, abundance: 0.15, season: 'autumn' },
-      { lat: 18.5, lng: 110.4, depth: 8, abundance: 0.42, season: 'summer' },
-      { lat: 18.3, lng: 109.8, depth: 12, abundance: 0.30, season: 'winter' },
-      { lat: 18.9, lng: 110.0, depth: 25, abundance: 0.12, season: 'spring' },
-    ],
+    samplePoints: generateSamplePoints(18.4, 109.8, 10, 40, 0.32, 7),
   },
   {
     id: 'sp-004',
@@ -65,13 +47,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 50,
     depthRange: [10, 200],
     color: '#7b68ee',
-    samplePoints: [
-      { lat: 18.0, lng: 109.3, depth: 50, abundance: 0.68, season: 'spring' },
-      { lat: 18.5, lng: 110.0, depth: 80, abundance: 0.55, season: 'summer' },
-      { lat: 19.0, lng: 109.5, depth: 120, abundance: 0.35, season: 'autumn' },
-      { lat: 18.8, lng: 110.2, depth: 60, abundance: 0.72, season: 'spring' },
-      { lat: 18.3, lng: 109.7, depth: 100, abundance: 0.42, season: 'winter' },
-    ],
+    samplePoints: generateSamplePoints(18.3, 109.9, 50, 200, 0.58, 8),
   },
   {
     id: 'sp-005',
@@ -83,12 +59,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 100,
     depthRange: [30, 300],
     color: '#4ecdc4',
-    samplePoints: [
-      { lat: 18.2, lng: 109.5, depth: 100, abundance: 0.58, season: 'summer' },
-      { lat: 18.6, lng: 110.1, depth: 150, abundance: 0.45, season: 'autumn' },
-      { lat: 19.1, lng: 109.4, depth: 200, abundance: 0.30, season: 'winter' },
-      { lat: 18.4, lng: 110.3, depth: 80, abundance: 0.65, season: 'spring' },
-    ],
+    samplePoints: generateSamplePoints(18.5, 109.7, 100, 300, 0.48, 7),
   },
   {
     id: 'sp-006',
@@ -100,13 +71,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 500,
     depthRange: [200, 1000],
     color: '#00b4d8',
-    samplePoints: [
-      { lat: 18.0, lng: 109.2, depth: 500, abundance: 0.72, season: 'spring' },
-      { lat: 18.4, lng: 109.8, depth: 600, abundance: 0.65, season: 'summer' },
-      { lat: 18.8, lng: 110.0, depth: 800, abundance: 0.40, season: 'autumn' },
-      { lat: 19.0, lng: 109.5, depth: 400, abundance: 0.80, season: 'winter' },
-      { lat: 18.6, lng: 110.2, depth: 700, abundance: 0.55, season: 'spring' },
-    ],
+    samplePoints: generateSamplePoints(18.4, 109.8, 500, 1000, 0.55, 9),
   },
   {
     id: 'sp-007',
@@ -118,12 +83,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 800,
     depthRange: [500, 2000],
     color: '#0077b6',
-    samplePoints: [
-      { lat: 18.1, lng: 109.3, depth: 800, abundance: 0.45, season: 'winter' },
-      { lat: 18.5, lng: 109.9, depth: 1200, abundance: 0.30, season: 'spring' },
-      { lat: 18.9, lng: 110.1, depth: 1000, abundance: 0.38, season: 'autumn' },
-      { lat: 18.3, lng: 109.6, depth: 600, abundance: 0.52, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.5, 109.9, 800, 2000, 0.42, 6),
   },
   {
     id: 'sp-008',
@@ -135,12 +95,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 1500,
     depthRange: [800, 3000],
     color: '#023e8a',
-    samplePoints: [
-      { lat: 18.2, lng: 109.4, depth: 1500, abundance: 0.62, season: 'winter' },
-      { lat: 18.6, lng: 110.0, depth: 2000, abundance: 0.48, season: 'spring' },
-      { lat: 19.0, lng: 109.6, depth: 1800, abundance: 0.55, season: 'autumn' },
-      { lat: 18.4, lng: 110.2, depth: 1200, abundance: 0.35, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.6, 109.8, 1500, 3000, 0.52, 7),
   },
   {
     id: 'sp-009',
@@ -152,12 +107,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 8,
     depthRange: [2, 50],
     color: '#ef476f',
-    samplePoints: [
-      { lat: 18.3, lng: 109.7, depth: 8, abundance: 0.82, season: 'summer' },
-      { lat: 18.7, lng: 110.2, depth: 12, abundance: 0.70, season: 'spring' },
-      { lat: 19.1, lng: 109.5, depth: 20, abundance: 0.45, season: 'autumn' },
-      { lat: 18.5, lng: 110.4, depth: 6, abundance: 0.88, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.7, 110, 8, 50, 0.72, 6),
   },
   {
     id: 'sp-010',
@@ -169,12 +119,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 1200,
     depthRange: [600, 2500],
     color: '#48bfe3',
-    samplePoints: [
-      { lat: 18.0, lng: 109.1, depth: 1200, abundance: 0.55, season: 'winter' },
-      { lat: 18.4, lng: 109.7, depth: 1500, abundance: 0.42, season: 'spring' },
-      { lat: 18.8, lng: 110.3, depth: 1000, abundance: 0.60, season: 'autumn' },
-      { lat: 19.2, lng: 109.3, depth: 1800, abundance: 0.30, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.2, 109.4, 1200, 2500, 0.48, 7),
   },
   {
     id: 'sp-011',
@@ -186,13 +131,7 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 60,
     depthRange: [10, 200],
     color: '#5e60ce',
-    samplePoints: [
-      { lat: 18.1, lng: 109.5, depth: 60, abundance: 0.50, season: 'summer' },
-      { lat: 18.5, lng: 110.1, depth: 80, abundance: 0.45, season: 'spring' },
-      { lat: 18.9, lng: 109.3, depth: 100, abundance: 0.38, season: 'autumn' },
-      { lat: 18.7, lng: 110.4, depth: 50, abundance: 0.55, season: 'summer' },
-      { lat: 18.3, lng: 109.9, depth: 120, abundance: 0.32, season: 'winter' },
-    ],
+    samplePoints: generateSamplePoints(18.5, 109.6, 60, 200, 0.45, 8),
   },
   {
     id: 'sp-012',
@@ -204,27 +143,115 @@ const SPECIES_DATA: Species[] = [
     baseDepth: 150,
     depthRange: [30, 500],
     color: '#6930c3',
-    samplePoints: [
-      { lat: 18.2, lng: 109.6, depth: 150, abundance: 0.62, season: 'spring' },
-      { lat: 18.6, lng: 110.0, depth: 200, abundance: 0.50, season: 'winter' },
-      { lat: 19.0, lng: 109.8, depth: 250, abundance: 0.38, season: 'autumn' },
-      { lat: 18.4, lng: 110.3, depth: 100, abundance: 0.70, season: 'summer' },
-    ],
+    samplePoints: generateSamplePoints(18.4, 109.5, 150, 500, 0.55, 7),
+  },
+  {
+    id: 'sp-013',
+    name: '海马',
+    latinName: 'Hippocampus spp.',
+    category: 'shallow',
+    preferredTemp: [20, 26],
+    preferredSalinity: [33, 36],
+    baseDepth: 12,
+    depthRange: [0, 40],
+    color: '#ffc857',
+    samplePoints: generateSamplePoints(18.8, 110.2, 12, 40, 0.38, 5),
+  },
+  {
+    id: 'sp-014',
+    name: '皇带鱼',
+    latinName: 'Regalecus glesne',
+    category: 'deep',
+    preferredTemp: [4, 12],
+    preferredSalinity: [34, 37],
+    baseDepth: 700,
+    depthRange: [200, 1200],
+    color: '#90e0ef',
+    samplePoints: generateSamplePoints(18.3, 109.5, 700, 1200, 0.28, 6),
   },
 ];
 
-function latLngToWorld(lat: number, lng: number): [number, number] {
-  const x = (lng - 110) * 40;
-  const z = (lat - 18.5) * 40;
-  return [x, z];
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
 }
 
-function depthToWorld(depth: number): number {
-  return -depth * 0.5;
+function generateSamplePoints(
+  centerLat: number,
+  centerLng: number,
+  baseDepth: number,
+  maxDepth: number,
+  baseAbundance: number,
+  count: number
+): SamplePoint[] {
+  const seasons: SamplePoint['season'][] = ['spring', 'summer', 'autumn', 'winter'];
+  const rand = seededRandom(Math.floor(centerLat * 1000 + centerLng * 100 + baseDepth));
+  const points: SamplePoint[] = [];
+  for (let i = 0; i < count; i++) {
+    const latOffset = (rand() - 0.5) * 2.0;
+    const lngOffset = (rand() - 0.5) * 2.0;
+    const depth =
+      Math.max(0, baseDepth + (rand() - 0.5) * Math.min(maxDepth, baseDepth * 2));
+    const seasonAbundanceFactor =
+      seasons[i % seasons.length] === 'summer'
+        ? 1.1
+        : seasons[i % seasons.length] === 'winter'
+        ? 0.8
+        : 1.0;
+    const abundance = Math.max(
+      0.05,
+      Math.min(1, baseAbundance * seasonAbundanceFactor + (rand() - 0.5) * 0.3)
+    );
+    points.push({
+      lat: centerLat + latOffset,
+      lng: centerLng + lngOffset,
+      depth,
+      abundance,
+      season: seasons[i % seasons.length],
+    });
+  }
+  return points;
 }
 
 export function loadSpeciesData(): Species[] {
   return SPECIES_DATA;
+}
+
+export async function loadSpeciesDataAsync(): Promise<Species[]> {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  return SPECIES_DATA;
+}
+
+export async function loadSpeciesFromAPI(
+  apiUrl: string = '/api/species'
+): Promise<Species[]> {
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = (await response.json()) as Species[];
+    return validateSpeciesData(data);
+  } catch (_err) {
+    return SPECIES_DATA;
+  }
+}
+
+function validateSpeciesData(data: Species[]): Species[] {
+  if (!Array.isArray(data)) return SPECIES_DATA;
+  return data.filter(
+    (sp) =>
+      sp &&
+      typeof sp.id === 'string' &&
+      typeof sp.name === 'string' &&
+      Array.isArray(sp.samplePoints)
+  );
 }
 
 export function formatToTree(species: Species[]): SpeciesTreeLayer[] {
@@ -234,56 +261,34 @@ export function formatToTree(species: Species[]): SpeciesTreeLayer[] {
     { depth: 'deep', label: '深海层 (1000m+)', species: [] },
   ];
   for (const sp of species) {
-    const layer = layers.find((l) => l.depth === sp.category);
-    if (layer) layer.species.push(sp);
+    if (sp.category === 'shallow') layers[0].species.push(sp);
+    else if (sp.category === 'mid') layers[1].species.push(sp);
+    else if (sp.category === 'deep') layers[2].species.push(sp);
   }
   return layers;
 }
 
-export function speciesToRenderable(
-  species: Species[],
-  envParams: EnvParams
-): RenderableSpecies[] {
-  const results: RenderableSpecies[] = [];
-  for (const sp of species) {
-    for (const pt of sp.samplePoints) {
-      const [wx, wz] = latLngToWorld(pt.lat, pt.lng);
-      const wy = depthToWorld(pt.depth);
-      const tempFit = gaussianFit(
-        envParams.temperature,
-        sp.preferredTemp[0],
-        sp.preferredTemp[1]
-      );
-      const salFit = gaussianFit(
-        envParams.salinity,
-        sp.preferredSalinity[0],
-        sp.preferredSalinity[1]
-      );
-      const lightFactor =
-        pt.depth < envParams.lightPenetration
-          ? 1.0
-          : Math.max(0.3, 1.0 - (pt.depth - envParams.lightPenetration) / 200);
-      const fitness = tempFit * salFit * lightFactor;
-      const depthOpacity = Math.max(
-        0.15,
-        1.0 - (pt.depth / 3000) * 0.85
-      );
-      results.push({
-        speciesId: sp.id,
-        position: [wx, wy, wz],
-        scale: 0.3 + pt.abundance * fitness * 0.7,
-        opacity: depthOpacity * (0.4 + fitness * 0.6),
-        color: sp.color,
-        name: sp.name,
-        latinName: sp.latinName,
-        depth: pt.depth,
-        abundance: pt.abundance * fitness,
-        category: sp.category,
-        preferredTemp: sp.preferredTemp,
-      });
-    }
-  }
-  return results;
+export function buildHierarchicalTree(species: Species[]) {
+  return {
+    name: '海洋生态系统',
+    children: [
+      {
+        name: '浅海层',
+        depthRange: [0, 200],
+        species: species.filter((s) => s.category === 'shallow'),
+      },
+      {
+        name: '中层',
+        depthRange: [200, 1000],
+        species: species.filter((s) => s.category === 'mid'),
+      },
+      {
+        name: '深海层',
+        depthRange: [1000, 5000],
+        species: species.filter((s) => s.category === 'deep'),
+      },
+    ],
+  };
 }
 
 function gaussianFit(value: number, min: number, max: number): number {
@@ -293,6 +298,76 @@ function gaussianFit(value: number, min: number, max: number): number {
   return Math.exp(-(diff * diff) / (2 * sigma * sigma));
 }
 
-export async function loadSpeciesFromAPI(): Promise<Species[]> {
-  return SPECIES_DATA;
+export function latLngDepthToWorld(
+  lat: number,
+  lng: number,
+  depth: number,
+  scale = 40,
+  depthScale = 0.06
+): [number, number, number] {
+  const x = (lng - 110) * scale;
+  const y = -depth * depthScale;
+  const z = (lat - 18.5) * scale;
+  return [x, y, z];
+}
+
+export function speciesToRenderable(
+  species: Species[],
+  envParams: EnvParams
+): RenderableSpecies[] {
+  const results: RenderableSpecies[] = [];
+  const { temperature, salinity, lightPenetration } = envParams;
+  for (const sp of species) {
+    const [tMin, tMax] = sp.preferredTemp;
+    const [sMin, sMax] = sp.preferredSalinity;
+    const tempOptimal = (tMin + tMax) / 2;
+    const isWarmSpecies = tempOptimal >= 20;
+    const isColdSpecies = tempOptimal < 12;
+    for (const pt of sp.samplePoints) {
+      const tempFit = gaussianFit(temperature, tMin, tMax);
+      const salFit = gaussianFit(salinity, sMin, sMax);
+      const lightFactor =
+        pt.depth < lightPenetration
+          ? 1.0
+          : Math.max(0.25, 1 - (pt.depth - lightPenetration) / 220);
+      const tempDiff = temperature - tempOptimal;
+      let depthBias = 0;
+      if (isWarmSpecies && tempDiff > 0) {
+        depthBias = tempDiff * 6;
+      } else if (isColdSpecies && tempDiff > 0) {
+        depthBias = tempDiff * 10;
+      } else if (isColdSpecies && tempDiff < 0) {
+        depthBias = tempDiff * 5;
+      }
+      const adjustedDepth = Math.max(0, pt.depth + depthBias);
+      const fitness = Math.max(0.1, tempFit * salFit * lightFactor);
+      const depthOpacity = Math.max(
+        0.25,
+        1 - (adjustedDepth / 3200) * 0.65
+      );
+      const [wx, wy, wz] = latLngDepthToWorld(pt.lat, pt.lng, adjustedDepth);
+      const finalAbundance = Math.min(1, pt.abundance * fitness);
+      results.push({
+        speciesId: sp.id,
+        position: [wx, wy, wz],
+        scale: 0.22 + finalAbundance * 0.78,
+        opacity: depthOpacity * (0.38 + fitness * 0.62),
+        color: sp.color,
+        name: sp.name,
+        latinName: sp.latinName,
+        depth: adjustedDepth,
+        abundance: finalAbundance,
+        category: sp.category,
+        preferredTemp: sp.preferredTemp,
+      });
+    }
+  }
+  return results;
+}
+
+export function getCategoryStats(species: Species[]) {
+  const shallow = species.filter((s) => s.category === 'shallow').length;
+  const mid = species.filter((s) => s.category === 'mid').length;
+  const deep = species.filter((s) => s.category === 'deep').length;
+  return { shallow, mid, deep, total: species.length };
 }

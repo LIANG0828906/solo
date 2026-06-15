@@ -14,11 +14,11 @@ function WaterLayer({ y, opacity, color }: { y: number; opacity: number; color: 
 }
 
 const layers = [
-  { y: -5, opacity: 0.04, color: '#004466' },
-  { y: -30, opacity: 0.06, color: '#003355' },
-  { y: -80, opacity: 0.08, color: '#002244' },
-  { y: -150, opacity: 0.1, color: '#001133' },
-  { y: -300, opacity: 0.12, color: '#000a22' },
+  { y: -0.5, opacity: 0.04, color: '#004466' },
+  { y: -3, opacity: 0.06, color: '#003355' },
+  { y: -8, opacity: 0.08, color: '#002244' },
+  { y: -15, opacity: 0.1, color: '#001133' },
+  { y: -30, opacity: 0.12, color: '#000a22' },
 ];
 
 export default function WaterLayers() {
