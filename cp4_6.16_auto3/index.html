@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知识管理看板</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+  <style>
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-card: #1e2a45;
+      --bg-card-hover: #243352;
+      --text-primary: #e0e0e0;
+      --text-secondary: #8892b0;
+      --accent-amber: #f5a623;
+      --accent-green: #27ae60;
+      --accent-red: #e74c3c;
+      --accent-blue: #3498db;
+      --border-color: #2a3a5c;
+      --shadow-card: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-elevated: 0 8px 24px rgba(0,0,0,0.5);
+      --transition-fast: 0.2s ease;
+      --transition-normal: 0.25s ease;
+      --transition-panel: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --nav-width: 120px;
+      --detail-width: 400px;
+      --font-stack: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: var(--font-stack);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    #app { height: 100%; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    input, textarea, select, button { font-family: inherit; }
+    button { cursor: pointer; border: none; background: none; color: inherit; }
+    a { color: var(--accent-amber); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
