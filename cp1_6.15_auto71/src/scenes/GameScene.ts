@@ -39,7 +39,6 @@ export class GameScene extends Phaser.Scene {
   private score: number = 0;
   private isGameOver: boolean = false;
   private timerEvent: Phaser.Time.TimerEvent | null = null;
-  private lastBlinkTime: number = 0;
 
   private centerX: number = 0;
   private centerY: number = 0;
@@ -65,6 +64,10 @@ export class GameScene extends Phaser.Scene {
 
   private summonedSprite: Phaser.GameObjects.Text | null = null;
   private summonedType: RuneType | null = null;
+
+  private prevHeartsCount: number = -1;
+  private blinkTimer: number = 0;
+  private lastBlinkSecond: number = -1;
 
   constructor() {
     super('GameScene');
@@ -323,13 +326,31 @@ export class GameScene extends Phaser.Scene {
 
   private updateHearts(): void {
     const fullHearts = Math.max(0, Math.ceil(this.timeRemaining / 3));
+    const heartsChanged = this.prevHeartsCount !== -1 && fullHearts !== this.prevHeartsCount;
+    const gained = heartsChanged && fullHearts > this.prevHeartsCount;
+
     this.hearts.forEach((heart, index) => {
-      if (index < fullHearts) {
-        heart.setAlpha(1);
-      } else {
+      const wasActive = this.prevHeartsCount === -1 ? false : index < this.prevHeartsCount;
+      const isActive = index < fullHearts;
+
+      if (wasActive !== isActive) {
+        this.tweens.killTweensOf(heart);
+        this.tweens.add({
+          targets: heart,
+          scale: { from: 1, to: gained ? 1.6 : 0.5, yoyo: true },
+          alpha: { from: heart.alpha, to: isActive ? 1 : 0.2 },
+          duration: 350,
+          ease: gained ? 'Elastic.easeOut' : 'Back.easeIn',
+          hold: gained ? 100 : 0
+        });
+      } else if (!isActive && heart.alpha !== 0.2) {
         heart.setAlpha(0.2);
+      } else if (isActive && heart.alpha !== 1) {
+        heart.setAlpha(1);
       }
     });
+
+    this.prevHeartsCount = fullHearts;
   }
 
   private startRound(): void {
@@ -431,11 +452,25 @@ export class GameScene extends Phaser.Scene {
     const rune = this.runes.get(type);
     if (!rune) return;
 
-    this.tweens.add({
+    const originalY = rune.container.y;
+    this.tweens.killTweensOf(rune.container);
+
+    this.tweens.chain({
       targets: rune.container,
-      scale: { from: 1, to: 0.9, yoyo: true },
-      duration: 150,
-      ease: 'Quad.easeInOut'
+      tweens: [
+        {
+          y: originalY + 6,
+          scale: 0.92,
+          duration: 75,
+          ease: 'Quad.easeIn'
+        },
+        {
+          y: originalY,
+          scale: 1,
+          duration: 75,
+          ease: 'Back.easeOut'
+        }
+      ]
     });
 
     const expectedType = this.sequence[this.playerInput.length];
@@ -830,16 +865,20 @@ export class GameScene extends Phaser.Scene {
 
     this.updateParticles(dt);
 
-    if (this.timeText && Math.floor(this.timeRemaining) !== this.lastBlinkTime) {
-      if (Math.floor(this.timeRemaining) % 5 === 0 && this.timeRemaining > 0) {
+    this.blinkTimer += delta;
+    const currentSecond = Math.ceil(this.timeRemaining);
+    if (this.timeText && this.timeRemaining > 0 && currentSecond > 0) {
+      if (currentSecond % 5 === 0 && this.lastBlinkSecond !== currentSecond) {
+        this.lastBlinkSecond = currentSecond;
+        this.tweens.killTweensOf(this.timeText);
         this.tweens.add({
           targets: this.timeText,
-          alpha: { from: 1, to: 0.3, yoyo: true },
-          duration: 300,
+          alpha: { from: 1, to: 0.25, yoyo: true },
+          scale: { from: 1, to: 1.15, yoyo: true },
+          duration: 450,
           ease: 'Quad.easeInOut'
         });
       }
-      this.lastBlinkTime = Math.floor(this.timeRemaining);
     }
   }
 
@@ -877,5 +916,40 @@ export class GameScene extends Phaser.Scene {
   private handleResize(): void {
     this.checkMobile();
     this.scene.restart({ difficulty: this.difficulty });
+  }
+
+  shutdown(): void {
+    this.runes.forEach(rune => {
+      rune.container.destroy();
+    });
+    this.runes.clear();
+
+    this.particles.forEach(p => p.sprite.destroy());
+    this.particles = [];
+
+    this.rainParticles.forEach(p => p.sprite.destroy());
+    this.rainParticles = [];
+
+    this.hearts.forEach(h => h.destroy());
+    this.hearts = [];
+
+    if (this.starField) {
+      this.starField.clear(true, true);
+      this.starField.destroy();
+      this.starField = null;
+    }
+
+    if (this.hexagram) {
+      this.hexagram.destroy();
+      this.hexagram = null;
+    }
+
+    if (this.timerEvent) {
+      this.timerEvent.remove();
+      this.timerEvent = null;
+    }
+
+    this.scale.off('resize', this.handleResize, this);
+    this.tweens.killAll();
   }
 }

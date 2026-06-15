@@ -56,7 +56,7 @@ export class MenuScene extends Phaser.Scene {
       stroke: '#4a0080',
       strokeThickness: 4 * this.uiScale,
       align: 'center'
-    }).setOrigin(0.5).setShadow(0, 0, 10 * this.uiScale, '#9933ff');
+    }).setOrigin(0.5).setShadow(0, 0, 10 * this.uiScale, 'rgba(153, 51, 255, 1)');
 
     this.add.text(centerX, centerY - 140 * this.uiScale, '选择难度开始召唤', {
       fontFamily: 'Arial, sans-serif',
@@ -303,10 +303,31 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startGame(): void {
+    this.cleanupUI();
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.time.delayedCall(500, () => {
       this.scene.start('GameScene', { difficulty: this.selectedDifficulty });
     });
+  }
+
+  private cleanupUI(): void {
+    this.difficultyCards.forEach(card => {
+      card.destroy();
+    });
+    this.difficultyCards.clear();
+
+    if (this.starField) {
+      this.starField.clear(true, true);
+      this.starField.destroy();
+      this.starField = null;
+    }
+
+    this.scale.off('resize', this.handleResize, this);
+    this.tweens.killAll();
+  }
+
+  shutdown(): void {
+    this.cleanupUI();
   }
 
   update(time: number, _delta: number): void {
