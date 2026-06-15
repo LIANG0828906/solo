@@ -84,10 +84,8 @@ export default function TrendChart({ data, width = 150, height = 50 }: TrendChar
       g.append('circle')
         .attr('cx', xScale(lastPoint.index))
         .attr('cy', yScale(lastPoint.ev))
-        .attr('r', 4)
-        .attr('fill', '#ff8c42')
-        .attr('stroke', '#ffffff')
-        .attr('stroke-width', 1.5);
+        .attr('r', 3)
+        .attr('fill', '#ff8c42');
     }
 
     g.append('text')
@@ -95,10 +93,8 @@ export default function TrendChart({ data, width = 150, height = 50 }: TrendChar
       .attr('y', innerHeight / 2)
       .attr('text-anchor', 'start')
       .attr('dominant-baseline', 'middle')
-      .attr('font-size', '10px')
-      .attr('font-weight', '600')
-      .attr('fill', '#555')
-      .attr('letter-spacing', '0.5px')
+      .attr('font-size', '9px')
+      .attr('fill', '#a0a0a0')
       .text('EV');
 
     const yTicks = yScale.ticks(3);

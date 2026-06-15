@@ -76,52 +76,35 @@ function round1(value: number): number {
 function scoreApertureDetail(aperture: number): number {
   const logA = Math.log2(aperture);
   const bestLogA = Math.log2(9.5);
-  const sigma = 1.15;
+  const sigma = 1.35;
   const g = gaussian(logA, bestLogA, sigma);
-  const base = 1 + 9 * g;
-  
-  if (aperture <= 1.4) return Math.max(3.5, base - 2.5);
-  if (aperture >= 16) return Math.max(3.5, base - 2);
-  if (aperture >= 11) return Math.max(5, base - 1);
-  return base;
+  return clampScore(1 + 9 * g);
 }
 
 function scoreIsoDetail(iso: number): number {
-  const stops = Math.log2(iso / 100);
-  if (stops <= 0) return 10;
-  if (stops <= 2) return 10 - stops * 1.0;
-  if (stops <= 4) return 8 - (stops - 2) * 1.2;
-  if (stops <= 5) return 5.6 - (stops - 4) * 1.8;
-  return Math.max(1, 3.8 - (stops - 5) * 1.4);
+  const isoRatio = iso / 100;
+  const base = 10 / Math.sqrt(isoRatio);
+  return clampScore(base);
 }
 
 function scoreNoise(iso: number): number {
-  const stops = Math.log2(iso / 100);
-  if (stops <= 0) return 10;
-  if (stops <= 2) return 10 - stops * 0.9;
-  if (stops <= 4) return 8.2 - (stops - 2) * 1.3;
-  if (stops <= 5) return 5.6 - (stops - 4) * 2.0;
-  return Math.max(1, 3.6 - (stops - 5) * 1.5);
+  const isoRatio = iso / 100;
+  const base = 1 + 9 * Math.exp(-0.6931 * (Math.sqrt(isoRatio) - 1));
+  return clampScore(base);
 }
 
 function scoreDepthOfField(aperture: number): number {
-  if (aperture <= 1.4) return 10;
-  if (aperture <= 2.0) return 9.7 - (aperture - 1.4) * 0.6;
-  if (aperture <= 2.8) return 9.3 - (aperture - 2.0) * 0.5;
-  if (aperture <= 4.0) return 8.9 - (aperture - 2.8) * 0.9;
-  if (aperture <= 5.6) return 7.8 - (aperture - 4.0) * 0.9;
-  if (aperture <= 8.0) return 6.4 - (aperture - 5.6) * 0.7;
-  if (aperture <= 11) return 4.7 - (aperture - 8.0) * 0.55;
-  return Math.max(1, 3.0 - (aperture - 11) * 0.3);
+  const logA = Math.log2(aperture);
+  const bestLogA = Math.log2(1.4);
+  const sigma = 2.2;
+  const g = gaussian(logA, bestLogA, sigma);
+  return clampScore(1 + 9 * g);
 }
 
 function scoreIsoDynamicRange(iso: number): number {
-  if (iso <= 100) return 10;
-  const stops = Math.log2(iso / 100);
-  if (stops <= 2) return 10 - stops * 0.8;
-  if (stops <= 4) return 8.4 - (stops - 2) * 1.1;
-  if (stops <= 5) return 6.2 - (stops - 4) * 1.7;
-  return Math.max(1, 4.5 - (stops - 5) * 1.3);
+  const isoRatio = iso / 100;
+  const base = 1 + 9 * Math.exp(-0.4621 * (isoRatio - 1));
+  return clampScore(base);
 }
 
 function scoreShutterDynamicRange(shutterSpeedNum: number): number {
@@ -130,15 +113,9 @@ function scoreShutterDynamicRange(shutterSpeedNum: number): number {
   const bestMax = Math.log2(1 / 30);
   const bestCenter = (bestMin + bestMax) / 2;
   const halfRange = (bestMax - bestMin) / 2;
-  const sigma = halfRange * 1.1;
+  const sigma = halfRange * 1.4;
   const g = gaussian(logShutter, bestCenter, sigma);
-  const base = 3 + 7 * g;
-  
-  if (shutterSpeedNum >= 1) return Math.max(2.5, base - 2);
-  if (shutterSpeedNum >= 1 / 8) return Math.max(4, base - 1.2);
-  if (shutterSpeedNum <= 1 / 1000) return Math.max(5, base - 0.8);
-  if (shutterSpeedNum <= 1 / 500) return Math.max(7, base - 0.3);
-  return base;
+  return clampScore(3 + 7 * g);
 }
 
 function scoreColorSaturation(ev: number): number {
@@ -146,15 +123,9 @@ function scoreColorSaturation(ev: number): number {
   const bestMax = 13;
   const bestCenter = (bestMin + bestMax) / 2;
   const halfRange = (bestMax - bestMin) / 2;
-  const sigma = halfRange * 0.95;
+  const sigma = halfRange * 1.2;
   const g = gaussian(ev, bestCenter, sigma);
-  const base = 2 + 8 * g;
-  
-  if (ev < 4) return Math.max(1, base - 2.5);
-  if (ev < 6) return Math.max(2, base - 1.8);
-  if (ev > 16) return Math.max(1.5, base - 2);
-  if (ev > 15) return Math.max(2.5, base - 1.5);
-  return base;
+  return clampScore(2 + 8 * g);
 }
 
 function calculateRadarScores(params: PhotoParams): RadarScores {

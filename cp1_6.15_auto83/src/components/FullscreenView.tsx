@@ -49,49 +49,82 @@ export default function FullscreenView({ photo, onClose }: FullscreenViewProps) 
       drawWidth *= ratio;
     }
 
+    const MAX_PIXELS = 2000000;
+    const totalPixels = drawWidth * drawHeight;
+    if (totalPixels > MAX_PIXELS) {
+      const downscaleRatio = Math.sqrt(MAX_PIXELS / totalPixels);
+      drawWidth = Math.floor(drawWidth * downscaleRatio);
+      drawHeight = Math.floor(drawHeight * downscaleRatio);
+    }
+
     const sizeChanged =
       !lastSizeRef.current ||
       lastSizeRef.current.w !== drawWidth ||
       lastSizeRef.current.h !== drawHeight;
 
-    if (sizeChanged) {
-      canvas.width = drawWidth;
-      canvas.height = drawHeight;
-      ctx.filter = 'none';
-      ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+    try {
+      if (sizeChanged) {
+        canvas.width = drawWidth;
+        canvas.height = drawHeight;
+        ctx.filter = 'none';
+        try {
+          ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+        } catch (drawErr) {
+          console.error('Canvas绘制图片失败:', drawErr);
+          return;
+        }
+        try {
+          originalImageDataRef.current = ctx.getImageData(0, 0, drawWidth, drawHeight);
+        } catch (imgErr) {
+          console.error('获取像素数据失败（可能为CORS或跨域资源限制）:', imgErr);
+          originalImageDataRef.current = null;
+          return;
+        }
+        lastSizeRef.current = { w: drawWidth, h: drawHeight };
+      }
+
+      if (!originalImageDataRef.current) return;
+
+      const original = originalImageDataRef.current;
+      let outputData: ImageData;
       try {
-        originalImageDataRef.current = ctx.getImageData(0, 0, drawWidth, drawHeight);
-      } catch (e) {
-        console.error('获取像素数据失败，请确认图片CORS配置正确:', e);
+        outputData = ctx.createImageData(original.width, original.height);
+      } catch (createErr) {
+        console.error('创建输出ImageData失败:', createErr);
         return;
       }
-      lastSizeRef.current = { w: drawWidth, h: drawHeight };
+      const src = original.data;
+      const dst = outputData.data;
+      const len = src.length;
+
+      try {
+        for (let i = 0; i < len; i += 4) {
+          let r = src[i] * brightness;
+          let g = src[i + 1] * brightness;
+          let b = src[i + 2] * brightness;
+
+          r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
+          g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
+          b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
+
+          dst[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+          dst[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+          dst[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+          dst[i + 3] = src[i + 3];
+        }
+      } catch (processErr) {
+        console.error('像素处理过程中出错:', processErr);
+        return;
+      }
+
+      try {
+        ctx.putImageData(outputData, 0, 0);
+      } catch (putErr) {
+        console.error('写入像素数据到Canvas失败:', putErr);
+      }
+    } catch (globalErr) {
+      console.error('滤镜处理流程发生未预期错误:', globalErr);
     }
-
-    if (!originalImageDataRef.current) return;
-
-    const original = originalImageDataRef.current;
-    const outputData = ctx.createImageData(original.width, original.height);
-    const src = original.data;
-    const dst = outputData.data;
-    const len = src.length;
-
-    for (let i = 0; i < len; i += 4) {
-      let r = src[i] * brightness;
-      let g = src[i + 1] * brightness;
-      let b = src[i + 2] * brightness;
-
-      r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
-      g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
-      b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
-
-      dst[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-      dst[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
-      dst[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
-      dst[i + 3] = src[i + 3];
-    }
-
-    ctx.putImageData(outputData, 0, 0);
   }, [brightness, contrast]);
 
   useEffect(() => {

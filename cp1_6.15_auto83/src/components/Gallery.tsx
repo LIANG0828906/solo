@@ -88,11 +88,14 @@ export default function Gallery({
     return () => resizeObserver.disconnect();
   }, []);
 
+  const measureRef = useRef<HTMLDivElement>(null);
+
   const cardPositions = useMemo<{ positions: CardPosition[]; maxHeight: number }>(() => {
     if (containerWidth === 0 || columns === 0) return { positions: [], maxHeight: 0 };
 
     const availableWidth = containerWidth - GAP * (columns - 1);
     const cardWidth = availableWidth / columns;
+    const MIN_ASPECT_RATIO = 0.5;
     const colHeights = Array(columns).fill(0);
     const positions: CardPosition[] = [];
 
@@ -107,7 +110,10 @@ export default function Gallery({
         }
       }
 
-      const cardHeight = cardWidth * (photo.height / photo.width);
+      const rawHeight = photo.height && photo.width
+        ? cardWidth * (photo.height / photo.width)
+        : cardWidth;
+      const cardHeight = Math.max(cardWidth * MIN_ASPECT_RATIO, rawHeight);
       const top = shortestHeight;
       const left = shortestCol * (cardWidth + GAP);
 
@@ -128,24 +134,18 @@ export default function Gallery({
   }, [visiblePhotos, columns, containerWidth]);
 
   useEffect(() => {
-    setGalleryHeight(cardPositions.maxHeight);
-  }, [cardPositions.maxHeight]);
-
-  useEffect(() => {
-    if (!galleryWrapperRef.current) return;
+    if (!measureRef.current) return;
 
     const heightObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const observedHeight = entry.contentRect.height;
-        if (Math.abs(observedHeight - galleryHeight) > 1) {
-          // 高度变化的回调可以在这里处理额外逻辑
-        }
+        setGalleryHeight(observedHeight);
       }
     });
 
-    heightObserver.observe(galleryWrapperRef.current);
+    heightObserver.observe(measureRef.current);
     return () => heightObserver.disconnect();
-  }, [galleryHeight]);
+  }, []);
 
   const scrollTags = useCallback((direction: 'left' | 'right') => {
     if (!tagContainerRef.current) return;
@@ -228,6 +228,22 @@ export default function Gallery({
           </button>
         </div>
       )}
+
+      <div
+        ref={measureRef}
+        style={{
+          height: cardPositions.maxHeight > 0 ? `${cardPositions.maxHeight}px` : '0px',
+          transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: '1px',
+          pointerEvents: 'none',
+          opacity: 0,
+          visibility: 'hidden',
+        }}
+        aria-hidden="true"
+      />
 
       <div
         className="gallery-wrapper"
