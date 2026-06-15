@@ -1,6 +1,6 @@
-import { eventBus, type LightData, type AnimationMode } from './eventBus'
+import { eventBus, type LightData, type AnimationMode, type StageConfig } from './eventBus'
 
-const LIGHT_COUNT = 12
+let LIGHT_COUNT = 12
 const TRANSITION_DURATION = 300
 
 interface LightState {
@@ -13,6 +13,8 @@ interface LightState {
   startBrightness: number
   colorStartTime: number
   brightnessStartTime: number
+  isColorTransitioning: boolean
+  isBrightnessTransitioning: boolean
 }
 
 class LightController {
@@ -23,10 +25,62 @@ class LightController {
   private startTime: number = 0
   private baseBrightness: number = 80
   private baseColor: { r: number; g: number; b: number } = { r: 0, g: 150, b: 255 }
+  private perfStats = {
+    lightUpdateLatency: 0,
+    animationSwitchLatency: 0,
+    lastLightUpdateStart: 0,
+    lastAnimationSwitchStart: 0,
+  }
 
   constructor() {
     this.initLights()
     this.startAnimationLoop()
+    this.bindConfigEvents()
+  }
+
+  private bindConfigEvents(): void {
+    eventBus.on('configChange', (config: Partial<StageConfig>) => {
+      if (config.lightCount !== undefined) {
+        this.setLightCount(config.lightCount)
+      }
+    })
+  }
+
+  setLightCount(count: number): void {
+    const clampedCount = Math.max(1, Math.min(36, count))
+    if (clampedCount === LIGHT_COUNT) return
+    
+    LIGHT_COUNT = clampedCount
+    
+    while (this.lights.length < clampedCount) {
+      const newId = this.lights.length
+      this.lights.push({
+        id: newId,
+        currentColor: { ...this.baseColor },
+        targetColor: { ...this.baseColor },
+        startColor: { ...this.baseColor },
+        currentBrightness: this.baseBrightness,
+        targetBrightness: this.baseBrightness,
+        startBrightness: this.baseBrightness,
+        colorStartTime: 0,
+        brightnessStartTime: 0,
+        isColorTransitioning: false,
+        isBrightnessTransitioning: false,
+      })
+    }
+    
+    if (this.lights.length > clampedCount) {
+      this.lights = this.lights.slice(0, clampedCount)
+    }
+    
+    if (this.selectedLightId !== null && this.selectedLightId >= clampedCount) {
+      this.selectedLightId = null
+      eventBus.emit('selectLight', null)
+    }
+  }
+
+  getLightCount(): number {
+    return LIGHT_COUNT
   }
 
   private initLights(): void {
@@ -41,6 +95,8 @@ class LightController {
         startBrightness: this.baseBrightness,
         colorStartTime: 0,
         brightnessStartTime: 0,
+        isColorTransitioning: false,
+        isBrightnessTransitioning: false,
       })
     }
   }
@@ -49,28 +105,41 @@ class LightController {
     let lastFrameTime = performance.now()
     let frameCount = 0
     let fpsUpdateTime = lastFrameTime
+    let currentFps = 60
+    let currentFrameTime = 16
 
     const loop = () => {
       const now = performance.now()
       const frameTime = now - lastFrameTime
       lastFrameTime = now
       
+      frameCount++
+      if (now - fpsUpdateTime >= 500) {
+        currentFps = Math.round(frameCount * 1000 / (now - fpsUpdateTime))
+        currentFrameTime = frameTime
+        frameCount = 0
+        fpsUpdateTime = now
+      }
+
       if (import.meta.env.DEV) {
-        frameCount++
         if (now - fpsUpdateTime >= 1000) {
-          const fps = Math.round(frameCount * 1000 / (now - fpsUpdateTime))
-          console.debug(`[LightController] FPS: ${fps}, Frame time: ${frameTime.toFixed(2)}ms`)
-          frameCount = 0
-          fpsUpdateTime = now
+          console.debug(`[LightController] FPS: ${currentFps}, Frame time: ${frameTime.toFixed(2)}ms`)
         }
       }
 
-      performance.mark('lightUpdate-start')
+      this.perfStats.lastLightUpdateStart = now
       this.updateTransitions(now)
       this.updateAnimations(now)
       this.emitLightData()
-      performance.mark('lightUpdate-end')
-      performance.measure('lightUpdate', 'lightUpdate-start', 'lightUpdate-end')
+      this.perfStats.lightUpdateLatency = performance.now() - this.perfStats.lastLightUpdateStart
+
+      eventBus.emit('perfUpdate', {
+        fps: currentFps,
+        frameTime: currentFrameTime,
+        lightUpdateLatency: this.perfStats.lightUpdateLatency,
+        animationSwitchLatency: this.perfStats.animationSwitchLatency,
+        dragFps: 0,
+      })
 
       this.animationFrame = requestAnimationFrame(loop)
     }
@@ -79,15 +148,25 @@ class LightController {
 
   private updateTransitions(now: number): void {
     this.lights.forEach(light => {
-      const colorProgress = Math.min(1, (now - light.colorStartTime) / TRANSITION_DURATION)
-      const easeColor = this.easeInOutCubic(colorProgress)
-      light.currentColor.r = light.startColor.r + (light.targetColor.r - light.startColor.r) * easeColor
-      light.currentColor.g = light.startColor.g + (light.targetColor.g - light.startColor.g) * easeColor
-      light.currentColor.b = light.startColor.b + (light.targetColor.b - light.startColor.b) * easeColor
+      if (light.isColorTransitioning) {
+        const colorProgress = Math.min(1, (now - light.colorStartTime) / TRANSITION_DURATION)
+        const easeColor = this.easeInOutCubic(colorProgress)
+        light.currentColor.r = light.startColor.r + (light.targetColor.r - light.startColor.r) * easeColor
+        light.currentColor.g = light.startColor.g + (light.targetColor.g - light.startColor.g) * easeColor
+        light.currentColor.b = light.startColor.b + (light.targetColor.b - light.startColor.b) * easeColor
+        if (colorProgress >= 1) {
+          light.isColorTransitioning = false
+        }
+      }
 
-      const brightnessProgress = Math.min(1, (now - light.brightnessStartTime) / TRANSITION_DURATION)
-      const easeBrightness = this.easeInOutCubic(brightnessProgress)
-      light.currentBrightness = light.startBrightness + (light.targetBrightness - light.startBrightness) * easeBrightness
+      if (light.isBrightnessTransitioning) {
+        const brightnessProgress = Math.min(1, (now - light.brightnessStartTime) / TRANSITION_DURATION)
+        const easeBrightness = this.easeInOutCubic(brightnessProgress)
+        light.currentBrightness = light.startBrightness + (light.targetBrightness - light.startBrightness) * easeBrightness
+        if (brightnessProgress >= 1) {
+          light.isBrightnessTransitioning = false
+        }
+      }
     })
   }
 
@@ -180,14 +259,20 @@ class LightController {
     if (this.selectedLightId === null) {
       this.baseBrightness = value
       this.lights.forEach(light => {
-        light.startBrightness = light.currentBrightness
+        if (!light.isBrightnessTransitioning) {
+          light.startBrightness = light.currentBrightness
+          light.isBrightnessTransitioning = true
+        }
         light.targetBrightness = value
         light.brightnessStartTime = now
       })
     } else {
       const light = this.lights[this.selectedLightId]
       if (light) {
-        light.startBrightness = light.currentBrightness
+        if (!light.isBrightnessTransitioning) {
+          light.startBrightness = light.currentBrightness
+          light.isBrightnessTransitioning = true
+        }
         light.targetBrightness = value
         light.brightnessStartTime = now
       }
@@ -202,14 +287,20 @@ class LightController {
     if (this.selectedLightId === null) {
       this.baseColor = rgb
       this.lights.forEach(light => {
-        light.startColor = { ...light.currentColor }
+        if (!light.isColorTransitioning) {
+          light.startColor = { ...light.currentColor }
+          light.isColorTransitioning = true
+        }
         light.targetColor = { ...rgb }
         light.colorStartTime = now
       })
     } else {
       const light = this.lights[this.selectedLightId]
       if (light) {
-        light.startColor = { ...light.currentColor }
+        if (!light.isColorTransitioning) {
+          light.startColor = { ...light.currentColor }
+          light.isColorTransitioning = true
+        }
         light.targetColor = { ...rgb }
         light.colorStartTime = now
       }
@@ -217,6 +308,8 @@ class LightController {
   }
 
   setAnimationMode(mode: AnimationMode): void {
+    this.perfStats.lastAnimationSwitchStart = performance.now()
+    
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame)
       this.animationFrame = null
@@ -228,16 +321,24 @@ class LightController {
     if (mode === 'static') {
       const now = performance.now()
       this.lights.forEach(light => {
-        light.startBrightness = light.currentBrightness
+        if (!light.isBrightnessTransitioning) {
+          light.startBrightness = light.currentBrightness
+          light.isBrightnessTransitioning = true
+        }
         light.targetBrightness = this.baseBrightness
         light.brightnessStartTime = now
-        light.startColor = { ...light.currentColor }
+        
+        if (!light.isColorTransitioning) {
+          light.startColor = { ...light.currentColor }
+          light.isColorTransitioning = true
+        }
         light.targetColor = { ...this.baseColor }
         light.colorStartTime = now
       })
     }
     
     this.startAnimationLoop()
+    this.perfStats.animationSwitchLatency = performance.now() - this.perfStats.lastAnimationSwitchStart
   }
 
   selectAll(): void {

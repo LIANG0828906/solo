@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react'
-import { eventBus, type LightData } from './eventBus'
+import { useEffect, useRef, useState } from 'react'
+import { eventBus, type LightData, type StageConfig, type PerfStats } from './eventBus'
 
-const LIGHT_COUNT = 12
-const RING_RADIUS_RATIO = 0.3
-const LIGHT_BASE_RADIUS = 25
+interface StageProps {
+  lightCount?: number
+  ringRadiusRatio?: number
+}
 
-export default function Stage() {
+export default function Stage({ lightCount: initialLightCount = 12, ringRadiusRatio: initialRingRadius = 0.3 }: StageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const lightsRef = useRef<LightData[]>([])
@@ -15,13 +16,39 @@ export default function Stage() {
   const lastPosRef = useRef({ x: 0, y: 0 })
   const lastTimeRef = useRef(0)
   const animationFrameRef = useRef<number | null>(null)
+  const configRef = useRef<StageConfig>({
+    lightCount: initialLightCount,
+    ringRadiusRatio: initialRingRadius,
+  })
+  const perfRef = useRef<PerfStats>({
+    fps: 0,
+    frameTime: 0,
+    lightUpdateLatency: 0,
+    animationSwitchLatency: 0,
+    dragFps: 0,
+  })
 
   useEffect(() => {
     const handleLightUpdate = (lights: LightData[]) => {
       lightsRef.current = lights
     }
+    
+    const handleConfigChange = (config: Partial<StageConfig>) => {
+      configRef.current = { ...configRef.current, ...config }
+    }
+    
+    const handlePerfUpdate = (stats: PerfStats) => {
+      perfRef.current = { ...perfRef.current, ...stats }
+    }
+    
     eventBus.on('lightUpdate', handleLightUpdate)
-    return () => eventBus.off('lightUpdate', handleLightUpdate)
+    eventBus.on('configChange', handleConfigChange)
+    eventBus.on('perfUpdate', handlePerfUpdate)
+    return () => {
+      eventBus.off('lightUpdate', handleLightUpdate)
+      eventBus.off('configChange', handleConfigChange)
+      eventBus.off('perfUpdate', handlePerfUpdate)
+    }
   }, [])
 
   useEffect(() => {
@@ -102,6 +129,9 @@ export default function Stage() {
     let lastFrameTime = performance.now()
     let frameCount = 0
     let fpsUpdateTime = lastFrameTime
+    let dragFrameCount = 0
+    let dragStartTime = 0
+    let currentDragFps = 0
 
     const render = () => {
       const now = performance.now()
@@ -118,6 +148,25 @@ export default function Stage() {
         }
       }
 
+      if (isDraggingRef.current) {
+        if (dragStartTime === 0) {
+          dragStartTime = now
+          dragFrameCount = 0
+        }
+        dragFrameCount++
+      } else if (dragStartTime > 0) {
+        const dragDuration = now - dragStartTime
+        if (dragDuration > 100) {
+          currentDragFps = Math.round(dragFrameCount * 1000 / dragDuration)
+          perfRef.current.dragFps = currentDragFps
+          eventBus.emit('perfUpdate', { ...perfRef.current })
+          if (import.meta.env.DEV) {
+            console.debug(`[Stage] Drag FPS: ${currentDragFps}`)
+          }
+        }
+        dragStartTime = 0
+      }
+
       if (!isDraggingRef.current) {
         rotationRef.current.y += velocityRef.current.y
         rotationRef.current.x += velocityRef.current.x
@@ -126,8 +175,9 @@ export default function Stage() {
         velocityRef.current.y *= 0.95
       }
 
-      performance.mark('draw-start')
+      const drawStart = performance.now()
       draw()
+      performance.mark('draw-start')
       performance.mark('draw-end')
       performance.measure('stageDraw', 'draw-start', 'draw-end')
 
@@ -167,8 +217,10 @@ export default function Stage() {
 
     const centerX = w / 2
     const centerY = h / 2
-    const ringRadius = Math.min(w, h) * RING_RADIUS_RATIO
-    const lightRadius = LIGHT_BASE_RADIUS * dpr
+    const minDim = Math.min(w, h)
+    const ringRadius = minDim * configRef.current.ringRadiusRatio
+    const lightRadius = minDim * 0.035 * dpr
+    const glowScale = minDim / 400
 
     const rotX = (rotationRef.current.x * Math.PI) / 180
     const rotY = (rotationRef.current.y * Math.PI) / 180
@@ -184,7 +236,7 @@ export default function Stage() {
       }
     }
 
-    const lightCount = Math.max(LIGHT_COUNT, lightsRef.current.length)
+    const lightCount = Math.max(configRef.current.lightCount, lightsRef.current.length)
     for (let i = 0; i < lightCount; i++) {
       const pos3d = calculateRingPosition(i, lightCount, ringRadius)
 
@@ -217,7 +269,7 @@ export default function Stage() {
       if (!light) continue
 
       const brightness = light.brightness / 100
-      const glowSize = lightRadius * 4 * pos.scale * (0.3 + brightness * 0.7)
+      const glowSize = lightRadius * glowScale * pos.scale * (0.3 + brightness * 0.7)
 
       const glowGradient = ctx.createRadialGradient(
         pos.screenX, pos.screenY, 0,
