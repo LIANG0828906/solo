@@ -172,6 +172,9 @@ export async function createTransaction(data: CreateTransactionData): Promise<Tr
   })
 }
 
-export async function getTransactions(): Promise<Transaction[]> {
-  return request<Transaction[]>('/transactions')
+export async function getTransactions(params?: Record<string, string | number>): Promise<Transaction[]> {
+  const query = params
+    ? '?' + new URLSearchParams(params as Record<string, string>).toString()
+    : ''
+  return request<Transaction[]>(`/transactions${query}`)
 }

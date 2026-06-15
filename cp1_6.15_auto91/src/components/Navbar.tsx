@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { User } from '@/api'
 
 interface NavbarProps {
-  user?: User | null
+  user?: Omit<User, 'password'> | null
   onLogin?: () => void
   onLogout?: () => void
   onSearch?: (query: string) => void
@@ -30,6 +31,7 @@ export default function Navbar({
   searchPlaceholder = '搜索书籍...',
   className,
 }: NavbarProps) {
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 300)
@@ -127,7 +129,9 @@ export default function Navbar({
               <button
                 type="button"
                 className="hidden sm:flex items-center gap-2 btn btn-ghost btn-sm"
+                onClick={() => navigate('/publish')}
               >
+                <span>➕</span>
                 <span>发布</span>
               </button>
               <div className="flex items-center gap-2">
