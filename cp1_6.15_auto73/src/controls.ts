@@ -23,12 +23,16 @@ export function buildControls(controls: GalaxyControls): void {
   let particleCountDebounce: number | null = null
 
   particleCountSlider.addEventListener('input', () => {
+    const sliderStartTime = performance.now()
     const value = parseInt(particleCountSlider.value)
-    particleCountValue.textContent = value
+    particleCountValue.textContent = String(value)
+
     if (particleCountDebounce) window.clearTimeout(particleCountDebounce)
     particleCountDebounce = window.setTimeout(() => {
-      const t0 = performance.now()
-      controls.setParticleCount(value, t0)
+      const uiDelay = performance.now() - sliderStartTime
+      console.log(`[UI Delay] 粒子数量滑块延迟: ${uiDelay.toFixed(2)}ms`)
+      if (uiDelay > 100) console.warn(`[UI Warning] 滑块值变化到粒子更新开始延迟超过100ms!`)
+      controls.setParticleCount(value, sliderStartTime)
     }, 50)
   })
 
@@ -37,7 +41,7 @@ export function buildControls(controls: GalaxyControls): void {
   attractor1Group.className = 'control-group'
   attractor1Group.innerHTML = `
     <div class="group-label">
-      <span>吸引子 #1 强度</span>
+      <span>吸引子 #1 强度 (2,1,0)</span>
       <span class="value" id="attractor1Value">${initParams.attractor1Strength.toFixed(1)}</span>
     </div>
     <input type="range" id="attractor1" min="-5" max="5" step="0.1" value="${initParams.attractor1Strength}" />
@@ -48,10 +52,13 @@ export function buildControls(controls: GalaxyControls): void {
   const attractor1Value = attractor1Group.querySelector('#attractor1Value') as HTMLElement
 
   attractor1Slider.addEventListener('input', () => {
+    const sliderStartTime = performance.now()
     const v = parseFloat(attractor1Slider.value)
     attractor1Value.textContent = parseFloat(v).toFixed(1)
-    const t0 = performance.now()
-    controls.setAttractor1Strength(parseFloat(v), t0)
+    const uiDelay = performance.now() - sliderStartTime
+    console.log(`[UI Delay] 吸引子1滑块延迟: ${uiDelay.toFixed(2)}ms`)
+    if (uiDelay > 100) console.warn(`[UI Warning] 滑块值变化到粒子更新开始延迟超过100ms!`)
+    controls.setAttractor1Strength(parseFloat(v), sliderStartTime)
   })
 
   // 吸引子 2
@@ -59,7 +66,7 @@ export function buildControls(controls: GalaxyControls): void {
   attractor2Group.className = 'control-group'
   attractor2Group.innerHTML = `
     <div class="group-label">
-      <span>吸引子 #2 强度</span>
+      <span>吸引子 #2 强度 (-2,-1,0)</span>
       <span class="value" id="attractor2Value">${initParams.attractor2Strength.toFixed(1)}</span>
     </div>
     <input type="range" id="attractor2" min="-5" max="5" step="0.1" value="${initParams.attractor2Strength}" />
@@ -70,10 +77,13 @@ export function buildControls(controls: GalaxyControls): void {
   const attractor2Value = attractor2Group.querySelector('#attractor2Value') as HTMLElement
 
   attractor2Slider.addEventListener('input', () => {
+    const sliderStartTime = performance.now()
     const v = parseFloat(attractor2Slider.value)
     attractor2Value.textContent = parseFloat(v).toFixed(1)
-    const t0 = performance.now()
-    controls.setAttractor2Strength(parseFloat(v), t0)
+    const uiDelay = performance.now() - sliderStartTime
+    console.log(`[UI Delay] 吸引子2滑块延迟: ${uiDelay.toFixed(2)}ms`)
+    if (uiDelay > 100) console.warn(`[UI Warning] 滑块值变化到粒子更新开始延迟超过100ms!`)
+    controls.setAttractor2Strength(parseFloat(v), sliderStartTime)
   })
 
   // 颜色主题
@@ -105,11 +115,14 @@ export function buildControls(controls: GalaxyControls): void {
 
   colorThemeGroup.querySelectorAll('.theme-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      const clickStartTime = performance.now()
       const idx = parseInt((btn as HTMLElement).dataset.theme!)
       colorThemeGroup.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'))
       btn.classList.add('active')
-      const t0 = performance.now()
-      controls.setColorTheme(idx, t0)
+      const uiDelay = performance.now() - clickStartTime
+      console.log(`[UI Delay] 颜色主题按钮延迟: ${uiDelay.toFixed(2)}ms`)
+      if (uiDelay > 100) console.warn(`[UI Warning] 主题切换延迟超过100ms!`)
+      controls.setColorTheme(idx, clickStartTime)
     })
   })
 
@@ -129,10 +142,13 @@ export function buildControls(controls: GalaxyControls): void {
   const moveSpeedValue = moveSpeedGroup.querySelector('#moveSpeedValue') as HTMLElement
 
   moveSpeedSlider.addEventListener('input', () => {
+    const sliderStartTime = performance.now()
     const v = parseFloat(moveSpeedSlider.value)
     moveSpeedValue.textContent = v.toFixed(1)
-    const t0 = performance.now()
-    controls.setMoveSpeed(v, t0)
+    const uiDelay = performance.now() - sliderStartTime
+    console.log(`[UI Delay] 速度滑块延迟: ${uiDelay.toFixed(2)}ms`)
+    if (uiDelay > 100) console.warn(`[UI Warning] 速度调整延迟超过100ms!`)
+    controls.setMoveSpeed(v, sliderStartTime)
   })
 
   // 暂停/恢复
@@ -146,8 +162,8 @@ export function buildControls(controls: GalaxyControls): void {
 
   const pauseBtn = pauseGroup.querySelector('#pauseBtn') as HTMLButtonElement
   pauseBtn.addEventListener('click', () => {
-    const t0 = performance.now()
-    const isPaused = controls.togglePaused(t0)
+    const clickStartTime = performance.now()
+    const isPaused = controls.togglePaused(clickStartTime)
     if (isPaused) {
       pauseBtn.textContent = '恢复运动'
       pauseBtn.classList.add('paused')
@@ -155,5 +171,10 @@ export function buildControls(controls: GalaxyControls): void {
       pauseBtn.textContent = '暂停运动'
       pauseBtn.classList.remove('paused')
     }
+    const uiDelay = performance.now() - clickStartTime
+    console.log(`[UI Delay] 暂停按钮延迟: ${uiDelay.toFixed(2)}ms`)
+    if (uiDelay > 100) console.warn(`[UI Warning] 暂停切换延迟超过100ms!`)
   })
+
+  console.log('[Controls Init] UI控件初始化完成')
 }
