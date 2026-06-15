@@ -93,7 +93,7 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
     })
   }
 
-  const calculateHabitStreak = (habitId: string): number => {
+  const calculateHabitStreak = (habitId: string, checks: HabitCheck[]): number => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     let count = 0
@@ -101,7 +101,7 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
 
     while (true) {
       const dateStr = current.toISOString().split('T')[0]
-      const check = habitChecks.find(
+      const check = checks.find(
         hc => hc.habitId === habitId && hc.date === dateStr && hc.completed
       )
       if (check) {
@@ -117,13 +117,13 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
 
   const streak = useMemo(() => {
     if (!selectedHabit) return 0
-    return calculateHabitStreak(selectedHabit)
+    return calculateHabitStreak(selectedHabit, habitChecks)
   }, [selectedHabit, habitChecks])
 
   const habitStreaks = useMemo(() => {
     const streaks: Record<string, number> = {}
     habits.forEach(habit => {
-      streaks[habit.id] = calculateHabitStreak(habit.id)
+      streaks[habit.id] = calculateHabitStreak(habit.id, habitChecks)
     })
     return streaks
   }, [habits, habitChecks])
