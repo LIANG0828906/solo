@@ -84,18 +84,20 @@ function Buildings({ buildings }: { buildings: BuildingData[] }) {
 
   return (
     <group>
-      <instancedMesh ref={meshRef} args={[undefined, undefined, buildings.length]}>
+      <instancedMesh
+        ref={meshRef}
+        args={[undefined, undefined, buildings.length]}
+        renderOrder={1}
+      >
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
-          color="#9a9aaa"
+          color="#b8b8c8"
           metalness={0.08}
           roughness={0.85}
-          transparent
-          opacity={0.85}
         />
       </instancedMesh>
 
-      <group ref={edgesGroupRef}>
+      <group ref={edgesGroupRef} renderOrder={2}>
         <lineSegments>
           <bufferGeometry>
             <bufferAttribute
@@ -117,6 +119,7 @@ function Buildings({ buildings }: { buildings: BuildingData[] }) {
             opacity={edgeOpacity}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
+            depthTest={true}
           />
         </lineSegments>
       </group>
@@ -226,49 +229,36 @@ function ParticleSystem({
   const trailSegmentsPerParticle = TRAIL_LENGTH - 1;
   const totalTrailPoints = particleCount * trailSegmentsPerParticle * 2;
 
+  const pointsGeometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3));
+    return geo;
+  }, [particleCount]);
+
+  const trailsGeometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(totalTrailPoints * 3), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(totalTrailPoints * 3), 3));
+    return geo;
+  }, [particleCount, totalTrailPoints]);
+
   return (
     <group>
-      <points ref={pointsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={particleCount}
-            array={new Float32Array(particleCount * 3)}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-color"
-            count={particleCount}
-            array={new Float32Array(particleCount * 3)}
-            itemSize={3}
-          />
-        </bufferGeometry>
+      <points ref={pointsRef} geometry={pointsGeometry} renderOrder={3}>
         <pointsMaterial
-          size={0.7}
+          size={1.2}
           vertexColors
           transparent
-          opacity={0.95}
+          opacity={1.0}
           sizeAttenuation
           blending={THREE.AdditiveBlending}
           depthWrite={false}
+          depthTest={true}
         />
       </points>
 
-      <lineSegments ref={trailsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={totalTrailPoints}
-            array={new Float32Array(totalTrailPoints * 3)}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-color"
-            count={totalTrailPoints}
-            array={new Float32Array(totalTrailPoints * 3)}
-            itemSize={3}
-          />
-        </bufferGeometry>
+      <lineSegments ref={trailsRef} geometry={trailsGeometry}>
         <lineBasicMaterial
           vertexColors
           transparent
@@ -319,7 +309,7 @@ export default function CityScene({
   return (
     <Canvas
       shadows
-      camera={{ position: [45, 35, 45], fov: 55, near: 0.1, far: 500 }}
+      camera={{ position: [55, 40, 55], fov: 50, near: 1, far: 500 }}
       gl={{ antialias: true, alpha: false }}
       onCreated={({ gl, scene }) => {
         gl.setClearColor('#1a1a2a');

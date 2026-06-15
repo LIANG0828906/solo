@@ -21,18 +21,38 @@ export default function App() {
   const lastTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    const checkLandscape = () => {
+    const mq = window.matchMedia('(max-width: 768px) and (orientation: landscape)');
+
+    const handleOrientationChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      const isMobileLandscape = 'matches' in e ? e.matches : false;
+      setIsLandscape(isMobileLandscape);
+      setShowSidePanel(!isMobileLandscape);
+    };
+
+    handleOrientationChange(mq);
+
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handleOrientationChange);
+    } else {
+      mq.addListener(handleOrientationChange);
+    }
+
+    const handleResize = () => {
       const isMobile = window.innerWidth < 768;
       const isLandscapeMode = window.innerWidth > window.innerHeight;
       setIsLandscape(isMobile && isLandscapeMode);
       setShowSidePanel(!(isMobile && isLandscapeMode));
     };
 
-    checkLandscape();
-    window.addEventListener('resize', checkLandscape);
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('resize', checkLandscape);
+      if (mq.removeEventListener) {
+        mq.removeEventListener('change', handleOrientationChange);
+      } else {
+        mq.removeListener(handleOrientationChange);
+      }
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 

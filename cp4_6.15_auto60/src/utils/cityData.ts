@@ -94,12 +94,14 @@ export function generateBuildings(): BuildingData[] {
       const width = GRID_SIZE * (0.7 + Math.random() * 0.25);
       const depth = GRID_SIZE * (0.7 + Math.random() * 0.25);
 
-      const x = gx * GRID_SIZE + (Math.random() - 0.5) * GRID_SIZE * 0.15;
-      const z = gz * GRID_SIZE + (Math.random() - 0.5) * GRID_SIZE * 0.15;
+      const baseX = gx * GRID_SIZE;
+      const baseZ = gz * GRID_SIZE;
+      const offsetX = (Math.random() - 0.5) * GRID_SIZE * 0.15;
+      const offsetZ = (Math.random() - 0.5) * GRID_SIZE * 0.15;
 
       buildings.push({
         id: `bld_${gx}_${gz}`,
-        position: new THREE.Vector3(x, height / 2, z),
+        position: new THREE.Vector3(baseX + offsetX, height / 2, baseZ + offsetZ),
         size: new THREE.Vector3(width, height, depth),
         floors,
         zoneType,
@@ -136,43 +138,100 @@ export function generateGroundTiles(): GroundTile[] {
 
 export function createGroundTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 1024;
+  canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = '#1e1e28';
-  ctx.fillRect(0, 0, 512, 512);
+  const tileCount = 20;
+  const tileSize = canvas.width / tileCount;
 
-  ctx.strokeStyle = '#2a2a3a';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 512; i += 32) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i, 512);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, i);
-    ctx.lineTo(512, i);
-    ctx.stroke();
+  const streetInterval = 4;
+  const parkLocations = [
+    { gx: 5, gz: 5 }, { gx: -5, gz: 5 }, { gx: 5, gz: -5 }, { gx: -5, gz: -5 },
+    { gx: 7, gz: 0 }, { gx: -7, gz: 0 }, { gx: 0, gz: 7 }, { gx: 0, gz: -7 },
+  ];
+
+  function isStreetTile(gx: number, gz: number): boolean {
+    return (
+      (gx % streetInterval === 0 && Math.abs(gz) > 0) ||
+      (gz % streetInterval === 0 && Math.abs(gx) > 0)
+    );
   }
 
-  ctx.fillStyle = '#233a28';
-  for (let i = 0; i < 8; i++) {
-    const x = 32 + Math.random() * 400;
-    const y = 32 + Math.random() * 400;
-    const w = 40 + Math.random() * 60;
-    const h = 40 + Math.random() * 60;
-    ctx.fillRect(x, y, w, h);
+  function isParkTile(gx: number, gz: number): boolean {
+    return parkLocations.some((loc) => {
+      return Math.abs(gx - loc.gx) < 2 && Math.abs(gz - loc.gz) < 2;
+    });
+  }
+
+  for (let gx = 0; gx < tileCount; gx++) {
+    for (let gz = 0; gz < tileCount; gz++) {
+      const x = gx * tileSize;
+      const y = gz * tileSize;
+      const centeredGx = gx - tileCount / 2;
+      const centeredGz = gz - tileCount / 2;
+
+      let fillColor: string;
+
+      if (isStreetTile(centeredGx, centeredGz)) {
+        fillColor = '#1a1a24';
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(x, y, tileSize, tileSize);
+
+        ctx.strokeStyle = '#252535';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, y + tileSize / 2);
+        ctx.lineTo(x + tileSize, y + tileSize / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (isParkTile(centeredGx, centeredGz)) {
+        fillColor = '#1e3a24';
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(x, y, tileSize, tileSize);
+
+        ctx.fillStyle = '#2a5030';
+        for (let i = 0; i < 5; i++) {
+          const dotX = x + Math.random() * tileSize;
+          const dotY = y + Math.random() * tileSize;
+          const dotR = 2 + Math.random() * 4;
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        fillColor = '#1e1e28';
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(x, y, tileSize, tileSize);
+
+        ctx.fillStyle = '#242432';
+        ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+      }
+
+      const uvX = (x + tileSize / 2) / canvas.width;
+      const uvY = (y + tileSize / 2) / canvas.height;
+    }
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 10);
+  texture.repeat.set(1, 1);
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.needsUpdate = true;
 
   return texture;
+}
+
+export function computeGroundUV(
+  position: THREE.Vector2,
+  citySize: number
+): THREE.Vector2 {
+  const u = (position.x + citySize / 2) / citySize;
+  const v = (position.y + citySize / 2) / citySize;
+  return new THREE.Vector2(u, v);
 }
 
 export { FLOOR_HEIGHT, CITY_SIZE, GRID_SIZE };

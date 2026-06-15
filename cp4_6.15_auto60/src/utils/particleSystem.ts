@@ -24,7 +24,8 @@ export interface ParticleSystemData {
 }
 
 const PARTICLE_COUNT = 800;
-const TRAIL_LENGTH = 25;
+const TRAIL_LENGTH = 24;
+const TRAIL_SEGMENTS = TRAIL_LENGTH - 1;
 const FLOOR_HEIGHT = 3;
 
 interface ZoneBounds {
@@ -65,7 +66,7 @@ function getRandomPositionInZone(zone: ZoneType): THREE.Vector3 {
   const bounds = boundsList[Math.floor(Math.random() * boundsList.length)];
   const x = randomInRange(bounds.minX, bounds.maxX);
   const z = randomInRange(bounds.minZ, bounds.maxZ);
-  return new THREE.Vector3(x, 1.5 + Math.random() * 0.5, z);
+  return new THREE.Vector3(x, 3 + Math.random() * 2, z);
 }
 
 function getZoneCenter(zone: ZoneType): THREE.Vector3 {
@@ -230,8 +231,6 @@ export function updateParticles(
     particle.currentZone = closestZone;
   }
 }
-
-const TRAIL_SEGMENTS = TRAIL_LENGTH - 1;
 
 export function getParticleData(particles: Particle[]): ParticleSystemData {
   const positions = new Float32Array(particles.length * 3);

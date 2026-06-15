@@ -66,33 +66,40 @@ export default function PieChart({
     canvas.height = size * dpr;
     ctx.scale(dpr, dpr);
 
+    let isAnimating = true;
+
     const animate = () => {
+      if (!isAnimating) return;
+
       const zones: ZoneType[] = ['residential', 'commercial', 'office', 'other'];
       let needsUpdate = false;
+      const newValues: Record<ZoneType, number> = {
+        residential: animatedValuesRef.current.residential.value,
+        commercial: animatedValuesRef.current.commercial.value,
+        office: animatedValuesRef.current.office.value,
+        other: animatedValuesRef.current.other.value,
+      };
 
       for (const zone of zones) {
         const anim = animatedValuesRef.current[zone];
         const diff = anim.target - anim.value;
-        if (Math.abs(diff) > 0.001) {
-          anim.value += diff * 0.08;
+        if (Math.abs(diff) > 0.0005) {
+          anim.value += diff * 0.12;
+          newValues[zone] = anim.value;
           needsUpdate = true;
-        } else {
+        } else if (Math.abs(diff) > 0) {
           anim.value = anim.target;
+          newValues[zone] = anim.value;
+          needsUpdate = true;
         }
       }
 
       if (needsUpdate) {
-        const newValues: Record<ZoneType, number> = {
-          residential: animatedValuesRef.current.residential.value,
-          commercial: animatedValuesRef.current.commercial.value,
-          office: animatedValuesRef.current.office.value,
-          other: animatedValuesRef.current.other.value,
-        };
-        setDisplayValues(newValues);
-
+        setDisplayValues({ ...newValues });
         draw(ctx, newValues);
-        animationFrameRef.current = requestAnimationFrame(animate);
       }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     const draw = (ctx: CanvasRenderingContext2D, values: Record<ZoneType, number>) => {
@@ -137,6 +144,7 @@ export default function PieChart({
     animationFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
+      isAnimating = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
