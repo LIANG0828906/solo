@@ -61,7 +61,10 @@ const HabitsPanel: React.FC = () => {
   const [newHabitReminder, setNewHabitReminder] = useState('');
   const [particles, setParticles] = useState<Particle[]>([]);
   const particleIdRef = useRef(0);
-  const animationFrameRef = useRef<number>();
+  const animatingCards = useRef<Set<string>>(new Set());
+  const particleAnimFrameRef = useRef<number | null>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const flipTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const todayFormatted = useMemo(() => format(new Date(), 'M月d日 EEEE', { locale: zhCN }), []);

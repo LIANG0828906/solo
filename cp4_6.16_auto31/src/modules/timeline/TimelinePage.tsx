@@ -9,6 +9,67 @@ import {
 } from 'date-fns';
 import { useHabitStore, Habit } from '../../store';
 
+interface ColorThreshold {
+  days: number;
+  color: string;
+}
+
+const COLOR_THRESHOLDS: ColorThreshold[] = [
+  { days: 0, color: 'rgba(255,255,255,0.2)' },
+  { days: 7, color: '#cd7f32' },
+  { days: 14, color: '#c0c0c0' },
+  { days: 30, color: '#ffd700' },
+];
+
+const parseColor = (color: string): { r: number; g: number; b: number; a: number } => {
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return { r, g, b, a: 1 };
+  }
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+  if (match) {
+    return {
+      r: parseInt(match[1]),
+      g: parseInt(match[2]),
+      b: parseInt(match[3]),
+      a: match[4] !== undefined ? parseFloat(match[4]) : 1,
+    };
+  }
+  return { r: 255, g: 255, b: 255, a: 1 };
+};
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+const getGradientColor = (streakDays: number): string => {
+  if (streakDays <= COLOR_THRESHOLDS[0].days) return COLOR_THRESHOLDS[0].color;
+  if (streakDays >= COLOR_THRESHOLDS[COLOR_THRESHOLDS.length - 1].days) {
+    return COLOR_THRESHOLDS[COLOR_THRESHOLDS.length - 1].color;
+  }
+
+  for (let i = 0; i < COLOR_THRESHOLDS.length - 1; i++) {
+    const lower = COLOR_THRESHOLDS[i];
+    const upper = COLOR_THRESHOLDS[i + 1];
+    if (streakDays >= lower.days && streakDays <= upper.days) {
+      const t = (streakDays - lower.days) / (upper.days - lower.days);
+      const c1 = parseColor(lower.color);
+      const c2 = parseColor(upper.color);
+      const r = Math.round(lerp(c1.r, c2.r, t));
+      const g = Math.round(lerp(c1.g, c2.g, t));
+      const b = Math.round(lerp(c1.b, c2.b, t));
+      const a = lerp(c1.a, c2.a, t);
+      if (a < 1) {
+        return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+      }
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+  }
+
+  return COLOR_THRESHOLDS[COLOR_THRESHOLDS.length - 1].color;
+};
+
 interface DayData {
   date: Date;
   dateStr: string;
