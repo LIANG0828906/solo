@@ -1,30 +1,46 @@
 import { SONGS } from '../types';
 import type { ISongConfig } from '../types';
 
+interface VinylShard {
+  element: HTMLElement;
+  vx: number;
+  vy: number;
+  vr: number;
+  x: number;
+  y: number;
+  rotation: number;
+}
+
 export class MenuScene {
   private container: HTMLElement;
   private onStart: (songId: string, difficulty: 'normal' | 'hard') => void;
   private vinylAngle: number = 0;
-  private rotationSpeed: number = 1;
+  private rotationSpeed: number = 2.13;
   private isTransitioning: boolean = false;
   private loadingProgress: number = 0;
   private selectedSong: ISongConfig = SONGS[0];
+  private difficulty: 'normal' | 'hard' = 'normal';
 
   private vinylEl: SVGSVGElement | null = null;
   private progressBar: HTMLElement | null = null;
   private startBtn: HTMLElement | null = null;
+  private animationFrameId: number = 0;
+  private shards: VinylShard[] = [];
 
   constructor(container: HTMLElement, onStart: (songId: string, difficulty: 'normal' | 'hard') => void) {
     this.container = container;
     this.onStart = onStart;
+    this.rotationSpeed = (this.selectedSong.bpm / 60) * 3;
     this.render();
-    this.animate();
+    this.startAnimationLoop();
   }
 
   private render(): void {
     this.container.innerHTML = '';
+    this.shards = [];
 
     const wrapper = document.createElement('div');
+    wrapper.id = 'menu-wrapper';
     wrapper.style.cssText = `
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       width: 100%; height: 100%; position: relative;
@@ -48,8 +64,10 @@ export class MenuScene {
     wrapper.appendChild(subtitle);
 
     const vinylContainer = document.createElement('div');
+    vinylContainer.id = 'vinyl-container';
     vinylContainer.style.cssText = `
       position: relative; width: clamp(200px, 30vw, 300px); height: clamp(200px, 30vw, 300px); margin-bottom: 30px;
+      transform-style: preserve-3d; perspective: 1000px;
     `;
 
     this.vinylEl = this.createVinylSVG();
@@ -64,12 +82,20 @@ export class MenuScene {
       border: 2px solid ${this.selectedSong.color}; display: flex;
       align-items: center; justify-content: center; font-family: 'Orbitron', monospace;
       font-size: 10px; color: ${this.selectedSong.color}; text-align: center; padding: 8px;
-      box-shadow: 0 0 15px ${this.selectedSong.color}66;
+      box-shadow: 0 0 15px ${this.selectedSong.color}66; z-index: 2;
     `;
     cover.innerHTML = this.selectedSong.title;
     vinylContainer.appendChild(cover);
 
     wrapper.appendChild(vinylContainer);
+
+    const bpmInfo = document.createElement('div');
+    bpmInfo.style.cssText = `
+      font-family: 'Orbitron', monospace; font-size: 10px; color: #ffffff44;
+      margin-bottom: 18px; letter-spacing: 2px;
+    `;
+    bpmInfo.textContent = `${this.selectedSong.artist.toUpperCase()}  •  ${this.selectedSong.bpm} BPM  •  ${this.selectedSong.style.toUpperCase()}`;
+    wrapper.appendChild(bpmInfo);
 
     const songSelector = document.createElement('div');
     songSelector.style.cssText = `
@@ -99,8 +125,7 @@ export class MenuScene {
       });
       btn.addEventListener('click', () => {
         this.selectedSong = song;
-        this.rotationSpeed = song.bpm / 60;
-        this.updateSongUI();
+        this.rotationSpeed = (song.bpm / 60) * 3;
         this.render();
       });
       songSelector.appendChild(btn);
@@ -108,9 +133,7 @@ export class MenuScene {
     wrapper.appendChild(songSelector);
 
     const difficultyRow = document.createElement('div');
-    difficultyRow.style.cssText = `
-      display: flex; gap: 12px; margin-bottom: 30px;
-    `;
+    difficultyRow.style.cssText = `display: flex; gap: 12px; margin-bottom: 30px;`;
 
     const diffBtnStyle = (active: boolean, color: string) => `
       font-family: 'Orbitron', monospace; font-size: 11px; padding: 6px 18px;
@@ -123,15 +146,15 @@ export class MenuScene {
     const normalBtn = document.createElement('button');
     normalBtn.textContent = 'NORMAL';
     normalBtn.style.cssText = diffBtnStyle(true, '#00e5ff');
+    const hardBtn = document.createElement('button');
+    hardBtn.textContent = 'HARD';
+    hardBtn.style.cssText = diffBtnStyle(this.difficulty === 'hard', '#ff4081');
+
     normalBtn.addEventListener('click', () => {
       this.difficulty = 'normal';
       normalBtn.style.cssText = diffBtnStyle(true, '#00e5ff');
       hardBtn.style.cssText = diffBtnStyle(false, '#ff4081');
     });
-
-    const hardBtn = document.createElement('button');
-    hardBtn.textContent = 'HARD';
-    hardBtn.style.cssText = diffBtnStyle(false, '#ff4081');
     hardBtn.addEventListener('click', () => {
       this.difficulty = 'hard';
       hardBtn.style.cssText = diffBtnStyle(true, '#ff4081');
@@ -143,11 +166,11 @@ export class MenuScene {
     wrapper.appendChild(difficultyRow);
 
     const progressContainer = document.createElement('div');
+    progressContainer.id = 'progress-container';
     progressContainer.style.cssText = `
       width: clamp(250px, 40vw, 400px); height: 6px; background: #1a1a2e;
       border-radius: 3px; margin-bottom: 20px; overflow: hidden; opacity: 0; transition: opacity 0.3s;
     `;
-    progressContainer.id = 'progress-container';
 
     this.progressBar = document.createElement('div');
     this.progressBar.style.cssText = `
@@ -180,9 +203,7 @@ export class MenuScene {
         this.startBtn.style.background = 'transparent';
       }
     });
-    this.startBtn.addEventListener('click', () => {
-      this.handleStart();
-    });
+    this.startBtn.addEventListener('click', () => this.handleStart());
     wrapper.appendChild(this.startBtn);
 
     const controls = document.createElement('div');
@@ -196,13 +217,11 @@ export class MenuScene {
     this.container.appendChild(wrapper);
   }
 
-  private difficulty: 'normal' | 'hard' = 'normal';
-
   private createVinylSVG(): SVGSVGElement {
-    const size = '100%';
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 200 200');
-    svg.style.cssText = `width: ${size}; height: ${size};`;
+    svg.setAttribute('id', 'vinyl-svg');
+    svg.style.cssText = 'width: 100%; height: 100%; transform-origin: 50% 50%;';
 
     svg.innerHTML = `
       <defs>
@@ -211,106 +230,172 @@ export class MenuScene {
           <stop offset="30%" stop-color="#111122"/>
           <stop offset="100%" stop-color="#0a0a0f"/>
         </radialGradient>
-        <filter id="glow">
+        <filter id="vinylGlow">
           <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
           <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <circle cx="100" cy="100" r="95" fill="url(#vinylGrad)" stroke="#bf40ff33" stroke-width="1"/>
-      <circle cx="100" cy="100" r="75" fill="none" stroke="#ffffff08" stroke-width="0.5"/>
-      <circle cx="100" cy="100" r="55" fill="none" stroke="#ffffff08" stroke-width="0.5"/>
-      <circle cx="100" cy="100" r="35" fill="none" stroke="#ffffff08" stroke-width="0.5"/>
-      <circle cx="100" cy="100" r="20" fill="#1a0a2e" stroke="#bf40ff44" stroke-width="1" filter="url(#glow)"/>
-      <circle cx="100" cy="100" r="3" fill="#bf40ff" filter="url(#glow)"/>
+      <circle cx="100" cy="100" r="95" fill="url(#vinylGrad)" stroke="${this.selectedSong.color}55" stroke-width="1" filter="url(#vinylGlow)"/>
       ${this.generateGrooves()}
+      <circle cx="100" cy="100" r="22" fill="#1a0a2e" stroke="${this.selectedSong.color}44" stroke-width="1"/>
+      <circle cx="100" cy="100" r="3.5" fill="${this.selectedSong.color}" filter="url(#vinylGlow)"/>
     `;
-
     return svg;
   }
 
   private generateGrooves(): string {
     let grooves = '';
-    for (let r = 25; r < 90; r += 4) {
-      const opacity = (0.05 + Math.random() * 0.08).toFixed(2);
+    for (let r = 28; r < 92; r += 3.5) {
+      const opacity = (0.04 + Math.random() * 0.07).toFixed(2);
       grooves += `<circle cx="100" cy="100" r="${r}" fill="none" stroke="#ffffff" stroke-width="0.3" opacity="${opacity}"/>`;
     }
-
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * 60 + Math.random() * 30) * (Math.PI / 180);
-      const x1 = 100 + Math.cos(angle) * 25;
-      const y1 = 100 + Math.sin(angle) * 25;
-      const x2 = 100 + Math.cos(angle) * 90;
-      const y2 = 100 + Math.sin(angle) * 90;
-      grooves += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ffffff06" stroke-width="0.3"/>`;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * 45 + Math.random() * 25) * (Math.PI / 180);
+      const r1 = 28, r2 = 92;
+      grooves += `<line x1="${100 + Math.cos(angle) * r1}" y1="${100 + Math.sin(angle) * r1}" x2="${100 + Math.cos(angle) * r2}" y2="${100 + Math.sin(angle) * r2}" stroke="#ffffff05" stroke-width="0.25"/>`;
     }
-
     return grooves;
   }
 
-  private updateSongUI(): void {
-    const cover = document.getElementById('song-cover');
-    if (cover) {
-      cover.style.background = `radial-gradient(circle, ${this.selectedSong.color}44, ${this.selectedSong.color}22)`;
-      cover.style.borderColor = this.selectedSong.color;
-      cover.style.color = this.selectedSong.color;
-      cover.style.boxShadow = `0 0 15px ${this.selectedSong.color}66`;
-      cover.innerHTML = this.selectedSong.title;
-    }
+  private startAnimationLoop(): void {
+    const tick = () => {
+      if (!this.isTransitioning && this.vinylEl) {
+        this.vinylAngle += this.rotationSpeed;
+        this.vinylEl.style.transform = `rotate(${this.vinylAngle}deg)`;
+      }
+
+      if (this.shards.length > 0) {
+        for (const s of this.shards) {
+          s.vy += 0.15;
+          s.x += s.vx;
+          s.y += s.vy;
+          s.rotation += s.vr;
+          s.element.style.transform = `translate(${s.x}px, ${s.y}px) rotate(${s.rotation}deg)`;
+          s.element.style.opacity = Math.max(0, parseFloat(s.element.style.opacity || '1') - 0.008);
+        }
+        this.shards = this.shards.filter(s => parseFloat(s.element.style.opacity || '0') > 0);
+      }
+
+      this.animationFrameId = requestAnimationFrame(tick);
+    };
+    tick();
   }
 
   private async handleStart(): Promise<void> {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
 
-    const progressContainer = document.getElementById('progress-container');
-    if (progressContainer) {
-      progressContainer.style.opacity = '1';
-    }
+    const progressContainer = document.getElementById('progress-container') as HTMLElement;
+    if (progressContainer) progressContainer.style.opacity = '1';
 
     this.loadingProgress = 0;
-    const loadInterval = setInterval(() => {
-      this.loadingProgress = Math.min(100, this.loadingProgress + Math.random() * 15 + 5);
-      if (this.progressBar) {
-        this.progressBar.style.width = this.loadingProgress + '%';
-      }
-      if (this.loadingProgress >= 100) {
-        clearInterval(loadInterval);
-        this.transitionToGame();
-      }
-    }, 100);
+    await new Promise<void>(resolve => {
+      const loadInterval = setInterval(() => {
+        this.loadingProgress = Math.min(100, this.loadingProgress + Math.random() * 18 + 6);
+        if (this.progressBar) this.progressBar.style.width = this.loadingProgress + '%';
+        if (this.loadingProgress >= 100) {
+          clearInterval(loadInterval);
+          resolve();
+        }
+      }, 100);
+    });
+
+    this.shatterVinyl();
   }
 
-  private transitionToGame(): void {
-    const vinylContainer = this.vinylEl?.parentElement;
-    if (!vinylContainer) {
-      this.onStart(this.selectedSong.id, this.difficulty);
-      this.hide();
+  private shatterVinyl(): void {
+    const vinylContainer = document.getElementById('vinyl-container') as HTMLElement;
+    const vinylSvg = document.getElementById('vinyl-svg') as SVGSVGElement;
+    const songCover = document.getElementById('song-cover') as HTMLElement;
+    if (!vinylContainer || !vinylSvg) {
+      this.fadeOutAndStart();
       return;
     }
 
-    vinylContainer.style.transition = 'transform 0.5s ease-in, opacity 0.5s ease-in';
-    vinylContainer.style.transform = 'scale(1.5) rotate(720deg)';
-    vinylContainer.style.opacity = '0';
+    const rect = vinylSvg.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const radius = Math.min(rect.width, rect.height) / 2;
+    const containerRect = vinylContainer.getBoundingClientRect();
 
-    this.container.style.transition = 'opacity 0.8s ease-out';
+    if (songCover) songCover.style.display = 'none';
+
+    const shardCount = 18;
+    const colors = [this.selectedSong.color, '#bf40ff', '#00e5ff', '#ff4081'];
+
+    for (let i = 0; i < shardCount; i++) {
+      const angle1 = (i / shardCount) * Math.PI * 2;
+      const angle2 = ((i + 1) / shardCount) * Math.PI * 2 + 0.05;
+
+      const innerR = radius * (0.22 + Math.random() * 0.1);
+      const outerR = radius * (0.92 + Math.random() * 0.05);
+
+      const p1x = cx + Math.cos(angle1) * innerR;
+      const p1y = cy + Math.sin(angle1) * innerR;
+      const p2x = cx + Math.cos(angle1) * outerR;
+      const p2y = cy + Math.sin(angle1) * outerR;
+      const p3x = cx + Math.cos(angle2) * outerR;
+      const p3y = cy + Math.sin(angle2) * outerR;
+      const p4x = cx + Math.cos(angle2) * innerR;
+      const p4y = cy + Math.sin(angle2) * innerR;
+
+      const shard = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      shard.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+      shard.style.cssText = `
+        position: absolute;
+        top: 0; left: 0;
+        width: ${rect.width}px; height: ${rect.height}px;
+        pointer-events: none;
+        opacity: 1;
+        overflow: visible;
+      `;
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', `${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y} ${p4x},${p4y}`);
+      poly.setAttribute('fill', `rgba(15, 15, 30, 0.95)`);
+      poly.setAttribute('stroke', colors[i % colors.length]);
+      poly.setAttribute('stroke-width', '1');
+      poly.setAttribute('stroke-opacity', '0.6');
+      shard.appendChild(poly);
+
+      const centroidAngle = (angle1 + angle2) / 2;
+      const dirX = Math.cos(centroidAngle);
+      const dirY = Math.sin(centroidAngle);
+
+      const distance = 2 + Math.random() * 3;
+      const vx = dirX * distance + (Math.random() - 0.5) * 2;
+      const vy = dirY * distance - Math.random() * 4 - 2;
+      const vr = (Math.random() - 0.5) * 18;
+
+      vinylContainer.appendChild(shard);
+
+      this.shards.push({
+        element: shard,
+        vx, vy, vr,
+        x: 0, y: 0,
+        rotation: 0,
+      });
+    }
+
+    vinylSvg.style.display = 'none';
+
     setTimeout(() => {
-      this.container.style.opacity = '0';
-      setTimeout(() => {
-        this.onStart(this.selectedSong.id, this.difficulty);
-        this.hide();
-      }, 800);
-    }, 500);
+      this.fadeOutAndStart();
+    }, 600);
   }
 
-  private animate(): void {
-    const tick = () => {
-      if (!this.isTransitioning && this.vinylEl) {
-        this.vinylAngle += this.rotationSpeed;
-        this.vinylEl.style.transform = `rotate(${this.vinylAngle}deg)`;
-      }
-      requestAnimationFrame(tick);
-    };
-    tick();
+  private fadeOutAndStart(): void {
+    const wrapper = document.getElementById('menu-wrapper') as HTMLElement;
+    if (wrapper) {
+      wrapper.style.transition = 'opacity 0.7s ease-out, transform 0.7s ease-out';
+      wrapper.style.opacity = '0';
+      wrapper.style.transform = 'scale(1.05)';
+    }
+
+    setTimeout(() => {
+      this.onStart(this.selectedSong.id, this.difficulty);
+      this.hide();
+    }, 700);
   }
 
   hide(): void {
@@ -322,6 +407,11 @@ export class MenuScene {
     this.container.style.opacity = '1';
     this.isTransitioning = false;
     this.loadingProgress = 0;
+    cancelAnimationFrame(this.animationFrameId);
+    for (const s of this.shards) {
+      s.element.remove();
+    }
+    this.shards = [];
     this.render();
   }
 }

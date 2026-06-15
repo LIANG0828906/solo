@@ -8,6 +8,15 @@ interface Particle {
   maxLife: number;
 }
 
+interface PixelChunk {
+  mesh: THREE.Mesh;
+  originalLocal: THREE.Vector3;
+  velocity: THREE.Vector3;
+  angularVelocity: THREE.Vector3;
+  life: number;
+  maxLife: number;
+}
+
 export class Player {
   public group: THREE.Group;
   public state: PlayerState = 'idle';
@@ -20,17 +29,23 @@ export class Player {
   private body: THREE.Group;
   private board: THREE.Mesh;
   private trailParticles: Particle[] = [];
+  private pixelChunks: PixelChunk[] = [];
+  private bodyChildren: THREE.Object3D[] = [];
   private particleGeometry: THREE.BoxGeometry;
+  private chunkGeometry: THREE.BoxGeometry;
   private jumpCount: number = 0;
 
   private hitboxWidth = 1.2;
   private hitboxHeight = 2.0;
   private hitboxDepth = 1.0;
 
+  private characterParts: THREE.Mesh[] = [];
+
   constructor() {
     this.group = new THREE.Group();
     this.body = new THREE.Group();
     this.particleGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+    this.chunkGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.15);
 
     this.board = this.createBoard();
     const character = this.createCharacter();
@@ -70,6 +85,7 @@ export class Player {
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), bodyMat);
     torso.position.y = 0.9;
     group.add(torso);
+    this.characterParts.push(torso);
 
     const head = new THREE.Mesh(
       new THREE.BoxGeometry(0.4, 0.4, 0.4),
@@ -81,6 +97,7 @@ export class Player {
     );
     head.position.y = 1.5;
     group.add(head);
+    this.characterParts.push(head);
 
     const visor = new THREE.Mesh(
       new THREE.BoxGeometry(0.42, 0.12, 0.15),
@@ -92,24 +109,35 @@ export class Player {
     );
     visor.position.set(0, 1.52, 0.18);
     group.add(visor);
+    this.characterParts.push(visor);
 
     const legMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, metalness: 0.6, roughness: 0.3 });
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), legMat);
     leftLeg.position.set(-0.15, 0.25, 0);
     group.add(leftLeg);
+    this.characterParts.push(leftLeg);
 
     const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), legMat);
     rightLeg.position.set(0.15, 0.25, 0);
     group.add(rightLeg);
+    this.characterParts.push(rightLeg);
 
     const armMat = new THREE.MeshStandardMaterial({ color: 0xbf40ff, metalness: 0.4, roughness: 0.5 });
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), armMat);
     leftArm.position.set(-0.45, 0.85, 0);
     group.add(leftArm);
+    this.characterParts.push(leftArm);
 
     const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), armMat);
     rightArm.position.set(0.45, 0.85, 0);
     group.add(rightArm);
+    this.characterParts.push(rightArm);
+
+    group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        this.bodyChildren.push(obj);
+      }
+    });
 
     return group;
   }
@@ -140,20 +168,20 @@ export class Player {
 
   moveLeft(): void {
     if (this.isDead) return;
-    if (this.targetLane > 0) {
-      this.targetLane--;
-    }
+    if (this.targetLane > 0) this.targetLane--;
   }
 
   moveRight(): void {
     if (this.isDead) return;
-    if (this.targetLane < 2) {
-      this.targetLane++;
-    }
+    if (this.targetLane < 2) this.targetLane++;
   }
 
   update(delta: number, scene: THREE.Scene): void {
-    if (this.isDead) return;
+    if (this.isDead) {
+      this.updatePixelChunks(delta, scene);
+      this.updateParticles(delta, scene);
+      return;
+    }
 
     const targetX = LANE_POSITIONS[this.targetLane];
     const diff = targetX - this.group.position.x;
@@ -186,8 +214,6 @@ export class Player {
       }
 
       this.spawnSlideParticles();
-    } else {
-      this.hitboxHeight = this.state === 'jumping' || this.state === 'doubleJumping' ? 2.0 : 2.0;
     }
 
     if (this.state === 'running' || this.state === 'idle') {
@@ -265,10 +291,10 @@ export class Player {
     this.isDead = true;
     this.state = 'dead';
 
-    const colors = [0xbf40ff, 0x00e5ff, 0xff4081, 0xffd54f, 0xffffff];
-    const explosionCount = 40;
+    this.shatterIntoPixelChunks(scene);
 
-    for (let i = 0; i < explosionCount; i++) {
+    const colors = [0xbf40ff, 0x00e5ff, 0xff4081, 0xffd54f];
+    for (let i = 0; i < 30; i++) {
       if (this.trailParticles.length >= MAX_PARTICLES) break;
       const mat = new THREE.MeshBasicMaterial({
         color: colors[Math.floor(Math.random() * colors.length)],
@@ -276,19 +302,143 @@ export class Player {
       });
       const mesh = new THREE.Mesh(this.particleGeometry, mat);
       mesh.position.copy(this.group.position);
+      mesh.position.y += Math.random() * 1.5;
       const vel = new THREE.Vector3(
         (Math.random() - 0.5) * 10,
-        Math.random() * 8 + 2,
+        Math.random() * 10 + 3,
         (Math.random() - 0.5) * 10
       );
       const maxLife = 0.8 + Math.random() * 1.2;
       this.trailParticles.push({ mesh, velocity: vel, life: maxLife, maxLife });
     }
 
-    this.body.visible = false;
-    this.board.visible = false;
+    this.updatePixelChunks(0, scene);
+  }
 
-    this.updateParticles(0, scene);
+  private shatterIntoPixelChunks(scene: THREE.Scene): void {
+    const partsToShatter = [...this.characterParts, this.board];
+
+    for (const part of partsToShatter) {
+      const worldPos = new THREE.Vector3();
+      part.getWorldPosition(worldPos);
+
+      const mat = part.material as THREE.MeshStandardMaterial;
+      const chunkColor = mat?.color?.getHex() ?? 0xbf40ff;
+      const emissiveColor = mat?.emissive?.getHex() ?? 0x000000;
+      const emissiveIntensity = mat?.emissiveIntensity ?? 0;
+
+      const geo = part.geometry as THREE.BoxGeometry;
+      const params = geo?.parameters ?? { width: 0.5, height: 0.5, depth: 0.5 };
+      const w = params.width ?? 0.4;
+      const h = params.height ?? 0.4;
+      const d = params.depth ?? 0.4;
+
+      const chunkSize = 0.12;
+      const nx = Math.max(2, Math.ceil(w / chunkSize));
+      const ny = Math.max(2, Math.ceil(h / chunkSize));
+      const nz = Math.max(2, Math.ceil(d / chunkSize));
+
+      const totalChunks = nx * ny * nz;
+
+      for (let ix = 0; ix < nx; ix++) {
+        for (let iy = 0; iy < ny; iy++) {
+          for (let iz = 0; iz < nz; iz++) {
+            if (this.pixelChunks.length >= MAX_PARTICLES) break;
+
+            const size = chunkSize * 0.6;
+            const geoChunk = new THREE.BoxGeometry(size, size, size);
+            const chunkMat = new THREE.MeshStandardMaterial({
+              color: chunkColor,
+              emissive: emissiveColor,
+              emissiveIntensity: emissiveIntensity * 0.5,
+              metalness: 0.7,
+              roughness: 0.4,
+              transparent: true,
+            });
+
+            const chunk = new THREE.Mesh(geoChunk, chunkMat);
+
+            const localX = -w / 2 + chunkSize / 2 + ix * chunkSize + (Math.random() - 0.5) * chunkSize * 0.4;
+            const localY = -h / 2 + chunkSize / 2 + iy * chunkSize + (Math.random() - 0.5) * chunkSize * 0.4;
+            const localZ = -d / 2 + chunkSize / 2 + iz * chunkSize + (Math.random() - 0.5) * chunkSize * 0.4;
+
+            const originalLocal = new THREE.Vector3(localX, localY, localZ);
+            const worldChunkPos = new THREE.Vector3().copy(originalLocal).add(worldPos);
+
+            chunk.position.copy(worldChunkPos);
+
+            const explodeDir = worldChunkPos.clone().sub(this.group.position).normalize();
+            explodeDir.x += (Math.random() - 0.5) * 0.5;
+            explodeDir.y += Math.random() * 0.8 + 0.3;
+            explodeDir.z += (Math.random() - 0.5) * 0.5;
+            explodeDir.normalize();
+
+            const speed = 3 + Math.random() * 7;
+            const velocity = new THREE.Vector3(
+              explodeDir.x * speed,
+              explodeDir.y * speed + Math.random() * 4,
+              explodeDir.z * speed
+            );
+
+            const angularVel = new THREE.Vector3(
+              (Math.random() - 0.5) * 10,
+              (Math.random() - 0.5) * 10,
+              (Math.random() - 0.5) * 10
+            );
+
+            scene.add(chunk);
+
+            this.pixelChunks.push({
+              mesh: chunk,
+              originalLocal,
+              velocity,
+              angularVelocity: angularVel,
+              life: 1.2 + Math.random() * 1.0,
+              maxLife: 1.8 + Math.random() * 1.0,
+            });
+          }
+        }
+      }
+    }
+
+    for (const child of this.bodyChildren) {
+      if (child instanceof THREE.Mesh) {
+        child.visible = false;
+      }
+    }
+    this.board.visible = false;
+    this.body.visible = false;
+  }
+
+  private updatePixelChunks(delta: number, scene: THREE.Scene): void {
+    for (let i = this.pixelChunks.length - 1; i >= 0; i--) {
+      const chunk = this.pixelChunks[i];
+      chunk.life -= delta;
+
+      if (chunk.life <= 0) {
+        scene.remove(chunk.mesh);
+        chunk.mesh.geometry.dispose();
+        const mat = chunk.mesh.material as THREE.MeshStandardMaterial;
+        mat.dispose();
+        this.pixelChunks.splice(i, 1);
+        continue;
+      }
+
+      chunk.velocity.y -= 14 * delta;
+      chunk.mesh.position.add(chunk.velocity.clone().multiplyScalar(delta));
+
+      chunk.mesh.rotation.x += chunk.angularVelocity.x * delta;
+      chunk.mesh.rotation.y += chunk.angularVelocity.y * delta;
+      chunk.mesh.rotation.z += chunk.angularVelocity.z * delta;
+
+      const alpha = Math.max(0, chunk.life / chunk.maxLife);
+      const mat = chunk.mesh.material as THREE.MeshStandardMaterial;
+      mat.opacity = alpha;
+      mat.emissiveIntensity = 0.3 * alpha;
+
+      const scale = 0.6 + alpha * 0.6;
+      chunk.mesh.scale.setScalar(scale);
+    }
   }
 
   reset(): void {
@@ -299,10 +449,17 @@ export class Player {
     this.yVelocity = 0;
     this.slideTimer = 0;
     this.jumpCount = 0;
-    this.body.visible = true;
+
+    for (const child of this.bodyChildren) {
+      if (child instanceof THREE.Mesh) {
+        child.visible = true;
+      }
+    }
     this.board.visible = true;
+    this.body.visible = true;
     this.body.scale.y = 1.0;
     this.body.position.y = 0;
+    this.hitboxHeight = 2.0;
     this.group.position.set(LANE_POSITIONS[1], 0.5, 0);
   }
 

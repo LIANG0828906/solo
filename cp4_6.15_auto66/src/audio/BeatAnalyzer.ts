@@ -1,46 +1,143 @@
 import * as Tone from 'tone';
 import type { IBeatData, ISongConfig } from '../types';
 
+export type BeatCallback = (beat: IBeatData, index: number) => void;
+
 export class BeatAnalyzer {
   private beats: IBeatData[] = [];
   private audioBuffer: AudioBuffer | null = null;
   private player: Tone.Player | null = null;
   private startTime: number = 0;
   private isPlaying: boolean = false;
+  private currentConfig: ISongConfig | null = null;
+  private onBeatCallback: BeatCallback | null = null;
+  private triggeredBeats: Set<number> = new Set();
+  private activeLoops: Tone.Loop[] = [];
 
-  async analyzeSong(config: ISongConfig): Promise<IBeatData[]> {
-    this.beats = this.generateBeatMap(config);
+  getBeats(): IBeatData[] {
     return this.beats;
   }
 
-  private generateBeatMap(config: ISongConfig): IBeatData[] {
+  getCurrentBPM(): number {
+    return this.currentConfig?.bpm ?? 120;
+  }
+
+  getBeatInterval(): number {
+    return 60 / (this.currentConfig?.bpm ?? 120);
+  }
+
+  getVinylRotationSpeed(): number {
+    const bpm = this.currentConfig?.bpm ?? 120;
+    return (bpm / 60) * 3;
+  }
+
+  setOnBeatCallback(cb: BeatCallback): void {
+    this.onBeatCallback = cb;
+  }
+
+  async parse(config: ISongConfig): Promise<IBeatData[]> {
+    this.currentConfig = config;
+
+    if (config.audioUrl) {
+      this.beats = await this.parseRealAudio(config);
+    } else {
+      this.beats = this.parseProceduralBeatMap(config);
+    }
+
+    return this.beats;
+  }
+
+  private async parseRealAudio(config: ISongConfig): Promise<IBeatData[]> {
+    const t0 = performance.now();
+
+    await Tone.start();
+    const audioUrl = config.audioUrl;
+
+    const response = await fetch(audioUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const buffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+
+    const channelData = buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+    const beatInterval = 60 / config.bpm;
+    const beats: IBeatData[] = [];
+
+    const windowSize = Math.floor(sampleRate * beatInterval * 0.6);
+    const hopSize = Math.floor(sampleRate * 0.01);
+
+    let energyHistory: number[] = [];
+    for (let i = 0; i < channelData.length; i += hopSize) {
+      let energy = 0;
+      const end = Math.min(i + windowSize, channelData.length);
+      for (let j = i; j < end; j++) {
+        energy += Math.abs(channelData[j]);
+      }
+      energy = energy / (end - i);
+      energyHistory.push(energy);
+    }
+
+    const expectedBeats = Math.floor(buffer.duration / beatInterval);
+    const types: Array<'spike' | 'bar' | 'wall'> = ['spike', 'bar', 'wall'];
+
+    for (let i = 0; i < expectedBeats; i++) {
+      const time = i * beatInterval;
+      const hopIndex = Math.floor((time / buffer.duration) * energyHistory.length);
+
+      let intensity = 0.5;
+      if (hopIndex < energyHistory.length) {
+        const window = energyHistory.slice(
+          Math.max(0, hopIndex - 10),
+          Math.min(energyHistory.length, hopIndex + 10)
+        );
+        const maxE = Math.max(...window);
+        const avgE = window.reduce((a, b) => a + b, 0) / window.length || 1;
+        intensity = Math.min(1, (maxE / avgE - 1) * 0.7 + 0.3);
+      }
+
+      let type: 'spike' | 'bar' | 'wall';
+      if (i % 8 === 0) type = 'wall';
+      else if (i % 4 === 0) type = 'bar';
+      else type = types[Math.floor(Math.random() * 2)];
+
+      beats.push({ time, intensity, type });
+    }
+
+    const latency = performance.now() - t0;
+    if (latency > 50) {
+      console.warn(`[BeatAnalyzer] 解析耗时: ${latency.toFixed(0)}ms (超过50ms阈值)`);
+    }
+
+    audioCtx.close();
+    return beats;
+  }
+
+  private parseProceduralBeatMap(config: ISongConfig): IBeatData[] {
     const beats: IBeatData[] = [];
     const beatInterval = 60 / config.bpm;
     const totalBeats = Math.floor(config.duration / beatInterval);
 
-    let lastType: 'spike' | 'bar' | 'wall' = 'spike';
     const types: Array<'spike' | 'bar' | 'wall'> = ['spike', 'bar', 'wall'];
 
     for (let i = 0; i < totalBeats; i++) {
       const time = i * beatInterval;
-      const intensity = 0.5 + Math.random() * 0.5;
+
+      let intensity: number;
+      if (i % 8 === 0) {
+        intensity = 0.85 + Math.random() * 0.15;
+      } else if (i % 4 === 0) {
+        intensity = 0.7 + Math.random() * 0.2;
+      } else {
+        const base = 0.5;
+        const modulation = Math.sin(i * 0.3) * 0.15;
+        intensity = base + modulation + Math.random() * 0.15;
+      }
+      intensity = Math.min(1, Math.max(0.2, intensity));
 
       let type: 'spike' | 'bar' | 'wall';
-      if (i % 8 === 0) {
-        type = 'wall';
-      } else if (i % 4 === 0) {
-        type = 'bar';
-      } else {
-        type = 'spike';
-      }
-
-      if (type === lastType && Math.random() > 0.4) {
-        const idx = types.indexOf(type);
-        type = types[(idx + 1 + Math.floor(Math.random() * 2)) % 3];
-      }
-      lastType = type;
-
-      const lane = Math.floor(Math.random() * 3);
+      if (i % 8 === 0) type = 'wall';
+      else if (i % 4 === 0) type = 'bar';
+      else type = types[Math.floor(Math.random() * 2)];
 
       beats.push({ time, intensity, type });
     }
@@ -50,6 +147,7 @@ export class BeatAnalyzer {
 
   async loadAndPlay(config: ISongConfig, onEnd?: () => void): Promise<void> {
     await Tone.start();
+    this.cleanupLoops();
 
     if (this.player) {
       this.player.stop();
@@ -63,6 +161,7 @@ export class BeatAnalyzer {
       },
       onstop: () => {
         this.isPlaying = false;
+        this.cleanupLoops();
         onEnd?.();
       },
     }).toDestination();
@@ -71,12 +170,19 @@ export class BeatAnalyzer {
       await Tone.loaded();
     }
 
+    this.scheduleBeatCallbacks();
+
     this.startTime = Tone.now();
     this.isPlaying = true;
+    this.triggeredBeats.clear();
     this.player.start();
   }
 
   playProceduralMusic(config: ISongConfig, onEnd?: () => void): void {
+    this.cleanupLoops();
+    Tone.Transport.cancel();
+    Tone.Transport.stop();
+
     const beatInterval = 60 / config.bpm;
     const totalBeats = Math.floor(config.duration / beatInterval);
 
@@ -109,9 +215,12 @@ export class BeatAnalyzer {
     const loop = new Tone.Loop((time) => {
       if (beatIndex >= totalBeats) {
         loop.stop();
-        synth.dispose();
-        bass.dispose();
-        noise.dispose();
+        this.cleanupLoops();
+        setTimeout(() => {
+          synth.dispose();
+          bass.dispose();
+          noise.dispose();
+        }, 500);
         onEnd?.();
         return;
       }
@@ -125,17 +234,54 @@ export class BeatAnalyzer {
 
       if (beatIndex % 4 === 0) {
         const noteIdx = Math.floor(beatIndex / 4) % notes.length;
-        synth.triggerAttackRelease(noteIdx < 2 ? notes[noteIdx] : notes[noteIdx].replace('2', '4'), '16n', time);
+        synth.triggerAttackRelease(notes[noteIdx].replace('2', '4'), '16n', time);
+      }
+
+      const beat = this.beats[beatIndex];
+      if (beat && this.onBeatCallback) {
+        Tone.Draw.schedule(() => {
+          this.onBeatCallback!(beat, beatIndex);
+        }, time);
       }
 
       beatIndex++;
     }, beatInterval);
 
+    this.activeLoops.push(loop);
+
+    this.scheduleBeatCallbacks();
+
     this.startTime = Tone.now();
     this.isPlaying = true;
+    this.triggeredBeats.clear();
 
     Tone.Transport.start();
     loop.start(0);
+  }
+
+  private scheduleBeatCallbacks(): void {
+    if (!this.onBeatCallback) return;
+
+    this.beats.forEach((beat, index) => {
+      Tone.Transport.schedule((time) => {
+        Tone.Draw.schedule(() => {
+          if (!this.triggeredBeats.has(index)) {
+            this.triggeredBeats.add(index);
+            this.onBeatCallback!(beat, index);
+          }
+        }, time);
+      }, beat.time);
+    });
+  }
+
+  private cleanupLoops(): void {
+    for (const loop of this.activeLoops) {
+      try {
+        loop.stop();
+        loop.dispose();
+      } catch {}
+    }
+    this.activeLoops = [];
   }
 
   getCurrentTime(): number {
@@ -143,8 +289,17 @@ export class BeatAnalyzer {
     return Tone.now() - this.startTime;
   }
 
-  getBeats(): IBeatData[] {
-    return this.beats;
+  getBeatProgress(): number {
+    if (!this.isPlaying || !this.currentConfig) return 0;
+    const interval = this.getBeatInterval();
+    return (this.getCurrentTime() % interval) / interval;
+  }
+
+  getNextBeatIntensity(): number {
+    if (!this.isPlaying) return 0;
+    const t = this.getCurrentTime();
+    const idx = this.beats.findIndex(b => b.time > t);
+    return idx >= 0 ? this.beats[idx].intensity : 0;
   }
 
   stop(): void {
@@ -153,7 +308,9 @@ export class BeatAnalyzer {
     }
     Tone.Transport.stop();
     Tone.Transport.cancel();
+    this.cleanupLoops();
     this.isPlaying = false;
+    this.triggeredBeats.clear();
   }
 
   dispose(): void {

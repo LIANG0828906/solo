@@ -13,15 +13,20 @@ const menu = new MenuScene(menuLayer, (songId, difficulty) => {
 });
 
 let animationId: number = 0;
+let currentSongId: string = 'electronic';
+let currentDifficulty: 'normal' | 'hard' = 'normal';
 
 function startGame(songId: string, difficulty: 'normal' | 'hard'): void {
+  currentSongId = songId;
+  currentDifficulty = difficulty;
+
   menuLayer.classList.add('hidden');
   uiLayer.style.display = 'block';
   hud.hideGameOver();
 
   gameEngine.setCallbacks(
-    (state) => {
-      hud.update(state);
+    (state, beatProgress, nextBeatIntensity) => {
+      hud.update(state, beatProgress, nextBeatIntensity);
     },
     () => {
       const state = gameEngine.getState();
@@ -31,7 +36,7 @@ function startGame(songId: string, difficulty: 'normal' | 'hard'): void {
         () => {
           hud.hideGameOver();
           gameEngine.reset();
-          startGame(songId, difficulty);
+          startGame(currentSongId, currentDifficulty);
         },
         () => {
           hud.hideGameOver();
@@ -40,6 +45,9 @@ function startGame(songId: string, difficulty: 'normal' | 'hard'): void {
           menu.show();
         }
       );
+    },
+    (beat, index) => {
+      hud.onBeat(beat, index);
     }
   );
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BeatAnalyzer } from '../audio/BeatAnalyzer';
+import { BeatAnalyzer, BeatCallback } from '../audio/BeatAnalyzer';
 import { Player } from './Player';
 import { ObstacleManager } from './ObstacleManager';
 import type { IGameState, ISongConfig, IBeatData } from '../types';
@@ -25,8 +25,9 @@ export class GameEngine {
   private sideParticles: THREE.Points | null = null;
   private feverRing: THREE.Mesh | null = null;
   private environmentObjects: THREE.Object3D[] = [];
-  private onStateChange?: (state: IGameState) => void;
+  private onStateChange?: (state: IGameState, beatProgress: number, nextBeatIntensity: number) => void;
   private onGameOver?: () => void;
+  private onBeat?: BeatCallback;
 
   private groundMaterial: THREE.MeshStandardMaterial | null = null;
 
@@ -164,9 +165,14 @@ export class GameEngine {
     });
   }
 
-  setCallbacks(onStateChange: (state: IGameState) => void, onGameOver: () => void): void {
+  setCallbacks(
+    onStateChange: (state: IGameState, beatProgress: number, nextBeatIntensity: number) => void,
+    onGameOver: () => void,
+    onBeat?: BeatCallback
+  ): void {
     this.onStateChange = onStateChange;
     this.onGameOver = onGameOver;
+    this.onBeat = onBeat;
   }
 
   async startSong(songId: string, difficulty: 'normal' | 'hard'): Promise<void> {
@@ -189,8 +195,12 @@ export class GameEngine {
 
     this.player.reset();
     this.obstacleManager.reset();
+    this.beatAnalyzer.setOnBeatCallback((beat, index) => {
+      this.state.currentBeatIndex = index;
+      this.onBeat?.(beat, index);
+    });
 
-    const beats = await this.beatAnalyzer.analyzeSong(song);
+    const beats = await this.beatAnalyzer.parse(song);
     this.obstacleManager.setBeats(beats, difficulty);
 
     this.beatAnalyzer.playProceduralMusic(song, () => {
@@ -203,7 +213,7 @@ export class GameEngine {
 
   private gameWin(): void {
     this.state.isRunning = false;
-    this.onStateChange?.({ ...this.state });
+    this.onStateChange?.({ ...this.state }, 0, 0);
   }
 
   handleInput(action: string): void {
@@ -228,11 +238,16 @@ export class GameEngine {
   update(): void {
     if (!this.state.isRunning || this.state.isGameOver) {
       this.renderer.render(this.scene, this.camera);
+      if (this.onStateChange) {
+        this.onStateChange({ ...this.state }, 0, 0);
+      }
       return;
     }
 
     const delta = Math.min(this.clock.getDelta(), 0.05);
     const currentTime = this.beatAnalyzer.getCurrentTime();
+    const beatProgress = this.beatAnalyzer.getBeatProgress();
+    const nextBeatIntensity = this.beatAnalyzer.getNextBeatIntensity();
     const speed = SCROLL_SPEED;
 
     this.player.update(delta, this.scene);
@@ -245,8 +260,10 @@ export class GameEngine {
         this.state.maxCombo = this.state.combo;
       }
 
+      const baseScore = Math.floor(beat.intensity * 100);
+      const comboBonus = Math.min(this.state.combo * 5, 100);
       const multiplier = this.state.isComboFever ? 2 : 1;
-      this.state.score += Math.floor(beat.intensity * 100 * multiplier);
+      this.state.score += Math.floor((baseScore + comboBonus) * multiplier);
 
       if (this.state.combo >= COMBO_FEVER_THRESHOLD && !this.state.isComboFever) {
         this.state.isComboFever = true;
@@ -266,7 +283,7 @@ export class GameEngine {
       this.removeFeverRing();
       setTimeout(() => {
         this.onGameOver?.();
-      }, 1500);
+      }, 1800);
     }
 
     this.updateEnvironment(delta, currentTime);
@@ -274,14 +291,16 @@ export class GameEngine {
     if (this.feverRing) {
       this.feverRing.rotation.y += delta * 3;
       this.feverRing.rotation.x += delta * 1.5;
-      if (this.player.group.visible !== false) {
+      if (!this.player.isDead) {
         this.feverRing.position.copy(this.player.group.position);
         this.feverRing.position.y += 1.5;
       }
     }
 
     this.renderer.render(this.scene, this.camera);
-    this.onStateChange?.({ ...this.state });
+    if (this.onStateChange) {
+      this.onStateChange({ ...this.state }, beatProgress, nextBeatIntensity);
+    }
   }
 
   private updateEnvironment(delta: number, currentTime: number): void {
@@ -308,12 +327,14 @@ export class GameEngine {
       (this.sideParticles.material as THREE.PointsMaterial).opacity = 0.6 + pulse * 0.3;
     }
 
-    if (this.state.isComboFever && this.scene.background) {
+    if (this.state.isComboFever) {
       const t = Date.now() * 0.002;
       const r = 0.04 + Math.sin(t) * 0.03;
       const g = 0.02 + Math.sin(t * 1.3) * 0.02;
       const b = 0.08 + Math.sin(t * 0.7) * 0.04;
       this.scene.background = new THREE.Color(r, g, b);
+    } else if (this.scene.background) {
+      this.scene.background = null;
     }
   }
 
@@ -344,6 +365,7 @@ export class GameEngine {
 
   reset(): void {
     this.beatAnalyzer.stop();
+    this.beatAnalyzer.setOnBeatCallback(() => {});
     this.obstacleManager.reset();
     this.player.reset();
     this.removeFeverRing();
