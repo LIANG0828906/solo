@@ -83,7 +83,7 @@ function RingProgress({ rate }: { rate: number }) {
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'none' }}
+          className={styles.ringProgressCircle}
         />
         <text
           x={size / 2}
@@ -137,16 +137,7 @@ function TypeBarChart({ blocks }: { blocks: TimeBlock[] }) {
     }));
   }, [blocks]);
 
-  const formatYAxis = (minutes: number) => {
-    if (minutes === 0) return '0';
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  };
-
-  const formatLabel = (value: number | string | undefined | null) => {
+  const formatLabel = (value: any) => {
     const minutes = Number(value);
     if (!minutes || minutes === 0) return '';
     return minutesToTime(minutes);
@@ -156,19 +147,9 @@ function TypeBarChart({ blocks }: { blocks: TimeBlock[] }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div
-          style={{
-            background: `${COLORS.card}f0`,
-            backdropFilter: 'blur(6px)',
-            border: `1px solid ${COLORS.accent}`,
-            borderRadius: 6,
-            padding: '8px 12px',
-            color: '#fff',
-            fontSize: 13,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{data.label}</div>
-          <div style={{ color: '#ccc' }}>时长: {minutesToTime(data.minutes)}</div>
+        <div className={styles.tooltip}>
+          <div className={styles.tooltipTitle}>{data.label}</div>
+          <div className={styles.tooltipText}>时长: {minutesToTime(data.minutes)}</div>
         </div>
       );
     }
@@ -189,7 +170,7 @@ function TypeBarChart({ blocks }: { blocks: TimeBlock[] }) {
               tickLine={{ stroke: COLORS.accent }}
             />
             <YAxis
-              tickFormatter={formatYAxis}
+              tickFormatter={minutesToTime}
               tick={{ fill: '#aaa', fontSize: 10 }}
               axisLine={{ stroke: COLORS.accent }}
               tickLine={{ stroke: COLORS.accent }}

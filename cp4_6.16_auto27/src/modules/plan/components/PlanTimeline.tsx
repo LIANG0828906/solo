@@ -36,8 +36,14 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
   const dragRef = useRef<DragInfo | null>(null);
   const rafRef = useRef<number>(0);
   const documentListenersActive = useRef(false);
-  const mouseMoveHandlerRef = useRef<(e: MouseEvent) => void>(() => {});
-  const mouseUpHandlerRef = useRef<() => void>(() => {});
+
+  const latestHandlersRef = useRef<{
+    handleMouseMove: (e: MouseEvent) => void;
+    handleMouseUp: () => void;
+  }>({
+    handleMouseMove: () => {},
+    handleMouseUp: () => {},
+  });
 
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
@@ -85,79 +91,31 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
     [blocks],
   );
 
+  const documentMouseMoveHandler = useCallback((e: MouseEvent) => {
+    latestHandlersRef.current.handleMouseMove(e);
+  }, []);
+
+  const documentMouseUpHandler = useCallback(() => {
+    latestHandlersRef.current.handleMouseUp();
+  }, []);
+
   const handleDocumentMouseLeave = useCallback(() => {
     // Don't cancel drag on mouseleave
   }, []);
 
-  const documentMouseMoveHandler = useCallback((e: MouseEvent) => {
-    mouseMoveHandlerRef.current(e);
-  }, []);
+  latestHandlersRef.current.handleMouseMove = (e: MouseEvent) => {
+    if (!dragRef.current) return;
+    const slot = getSlotFromX(e.clientX);
 
-  const documentMouseUpHandler = useCallback(() => {
-    mouseUpHandlerRef.current();
-  }, []);
-
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const blockEl = target.closest('[data-block-id]');
-
-      if (blockEl) {
-        const blockId = blockEl.getAttribute('data-block-id')!;
-        const block = blocks.find((b) => b.id === blockId);
-        if (!block) return;
-
-        const edgeEl = target.closest('[data-edge]');
-        const edge = edgeEl ? (edgeEl.getAttribute('data-edge') as 'left' | 'right') : 'body';
-
-        dragRef.current = {
-          type: 'move',
-          startSlot: getSlotFromX(e.clientX),
-          currentSlot: getSlotFromX(e.clientX),
-          blockId,
-          originalStart: block.startTime,
-          originalEnd: block.endTime,
-          edge,
-        };
-        setDragState({ ...dragRef.current });
-      } else {
-        const slot = getSlotFromX(e.clientX);
-        dragRef.current = {
-          type: 'create',
-          startSlot: slot,
-          currentSlot: slot,
-        };
-        setDragState({ ...dragRef.current });
-      }
-
-      e.preventDefault();
-
-      if (!documentListenersActive.current) {
-        document.addEventListener('mousemove', documentMouseMoveHandler);
-        document.addEventListener('mouseup', documentMouseUpHandler);
-        document.addEventListener('mouseleave', handleDocumentMouseLeave);
-        documentListenersActive.current = true;
-      }
-    },
-    [blocks, getSlotFromX, documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave],
-  );
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
       if (!dragRef.current) return;
-      const slot = getSlotFromX(e.clientX);
+      dragRef.current = { ...dragRef.current, currentSlot: slot };
+      setDragState({ ...dragRef.current });
+    });
+  };
 
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        if (!dragRef.current) return;
-        dragRef.current = { ...dragRef.current, currentSlot: slot };
-        setDragState({ ...dragRef.current });
-      });
-    },
-    [getSlotFromX],
-  );
-
-  const handleMouseUp = useCallback(() => {
+  latestHandlersRef.current.handleMouseUp = () => {
     if (!dragRef.current) return;
     const drag = dragRef.current;
 
@@ -214,15 +172,52 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
       document.removeEventListener('mouseleave', handleDocumentMouseLeave);
       documentListenersActive.current = false;
     }
-  }, [onCreateBlock, onBlockClick, blocks, moveBlock, documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave]);
+  };
 
-  useEffect(() => {
-    mouseMoveHandlerRef.current = handleMouseMove;
-  }, [handleMouseMove]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const blockEl = target.closest('[data-block-id]');
 
-  useEffect(() => {
-    mouseUpHandlerRef.current = handleMouseUp;
-  }, [handleMouseUp]);
+      if (blockEl) {
+        const blockId = blockEl.getAttribute('data-block-id')!;
+        const block = blocks.find((b) => b.id === blockId);
+        if (!block) return;
+
+        const edgeEl = target.closest('[data-edge]');
+        const edge = edgeEl ? (edgeEl.getAttribute('data-edge') as 'left' | 'right') : 'body';
+
+        dragRef.current = {
+          type: 'move',
+          startSlot: getSlotFromX(e.clientX),
+          currentSlot: getSlotFromX(e.clientX),
+          blockId,
+          originalStart: block.startTime,
+          originalEnd: block.endTime,
+          edge,
+        };
+        setDragState({ ...dragRef.current });
+      } else {
+        const slot = getSlotFromX(e.clientX);
+        dragRef.current = {
+          type: 'create',
+          startSlot: slot,
+          currentSlot: slot,
+        };
+        setDragState({ ...dragRef.current });
+      }
+
+      e.preventDefault();
+
+      if (!documentListenersActive.current) {
+        document.addEventListener('mousemove', documentMouseMoveHandler);
+        document.addEventListener('mouseup', documentMouseUpHandler);
+        document.addEventListener('mouseleave', handleDocumentMouseLeave);
+        documentListenersActive.current = true;
+      }
+    },
+    [blocks, getSlotFromX, documentMouseMoveHandler, documentMouseUpHandler, handleDocumentMouseLeave],
+  );
 
   useEffect(() => {
     return () => {
@@ -284,11 +279,6 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
             width,
             height: LANE_HEIGHT - 8,
             background: block.color,
-            transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-            border: isDragging ? '2px solid rgba(255,255,255,0.8)' : 'none',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            transition: isDragging ? 'none' : 'transform 0.15s, border 0.15s',
-            zIndex: isDragging ? 10 : 1,
           }}
         >
           <div
@@ -343,7 +333,6 @@ export default function PlanTimeline({ onCreateBlock, onBlockClick }: PlanTimeli
       className={`${styles.timelineContainer} ${dragState?.type === 'move' ? styles.timelineContainerGrabbing : ''}`}
       style={{
         height: HEADER_HEIGHT + MAX_LANES * LANE_HEIGHT,
-        cursor: dragState?.type === 'move' ? 'grabbing' : 'crosshair',
       }}
     >
       <div

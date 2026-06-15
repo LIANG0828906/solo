@@ -1,6 +1,6 @@
 .container {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
@@ -12,6 +12,7 @@
 }
 
 .ringCard {
+  grid-row: span 1;
   padding: 20px;
   display: flex;
   align-items: center;
@@ -30,7 +31,12 @@
   font-size: 13px;
 }
 
+.ringProgressCircle {
+  transition: none;
+}
+
 .progressCard {
+  grid-row: span 1;
   padding: 16px;
 }
 
@@ -64,6 +70,7 @@
 }
 
 .chartCard {
+  grid-column: span 2;
   padding: 16px;
 }
 
@@ -84,7 +91,27 @@
   padding: 0 8px;
 }
 
+.tooltip {
+  background: rgba(22, 33, 62, 0.94);
+  backdrop-filter: blur(6px);
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltipText {
+  color: #ccc;
+}
+
 .encouragementCard {
+  grid-column: span 2;
   padding: 14px;
   text-align: center;
   color: #ff6b81;
@@ -94,7 +121,15 @@
 
 @media (max-width: 768px) {
   .container {
+    grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .ringCard,
+  .progressCard,
+  .chartCard,
+  .encouragementCard {
+    grid-column: span 1;
   }
 
   .ringCard {

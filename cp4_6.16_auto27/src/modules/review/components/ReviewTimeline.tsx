@@ -193,7 +193,7 @@ export default function ReviewTimeline() {
 
       <div className={styles.controlsBar}>
         <button className={styles.playBtn} onClick={togglePlay}>
-          {playing ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
+          {playing ? <Pause size={18} /> : <Play size={18} className={styles.playIcon} />}
         </button>
 
         <div className={styles.progressTrack} onClick={handleProgressClick}>

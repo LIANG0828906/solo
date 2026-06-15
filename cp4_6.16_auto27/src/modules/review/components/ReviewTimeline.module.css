@@ -131,6 +131,10 @@
   background: #d63850;
 }
 
+.playIcon {
+  margin-left: 2px;
+}
+
 .speedBtn {
   padding: 4px 10px;
   border-radius: 6px;
@@ -348,9 +352,12 @@
   }
 
   .detailCard {
-    width: auto;
-    max-width: 95vw;
+    width: 92vw;
+    max-width: 92vw;
+    max-height: 85vh;
     padding: 20px;
+    margin: 0;
+    overflow-y: auto;
   }
 
   .cardTitle {

@@ -210,9 +210,12 @@
 
 @media (max-width: 768px) {
   .panel {
-    width: auto;
-    max-width: 95vw;
+    width: 92vw;
+    max-width: 92vw;
+    max-height: 85vh;
     padding: 20px;
+    margin: 0;
+    border-radius: 12px;
   }
 
   .title {
