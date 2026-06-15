@@ -224,9 +224,9 @@ export class GreeneryManager {
     for (const plant of this.plants.values()) {
       if (plant.phase === 'shrinking') continue;
       if (plant.config.type === 'tree') {
-        totalArea += Math.PI * 1.5 * 1.5;
+        totalArea += Math.PI * 2.5 * 2.5;
       } else {
-        totalArea += Math.PI * 0.8 * 0.8;
+        totalArea += Math.PI * 1.5 * 1.5;
       }
     }
     const gridArea = 50 * 50;

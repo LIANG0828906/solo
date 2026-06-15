@@ -76,7 +76,7 @@ app.post('/api/simulate', (req, res) => {
 
   const temperature = addNoise(
     smoothField(
-      calculateField(greenery, 25, -0.3, -0.15, 8, 5),
+      calculateField(greenery, 27, -0.8, -0.4, 8, 5),
       2
     ),
     0.15
