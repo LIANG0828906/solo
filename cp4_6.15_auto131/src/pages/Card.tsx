@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store'
 import { getCarbonLevel } from '@/carbonCalculator'
 import CarbonCard from '@/components/CarbonCard'
@@ -49,13 +50,13 @@ export default function CardPage() {
           <p className="text-6xl mb-4">🌱</p>
           <h2 className="text-xl font-bold text-white mb-2">还没有今日记录</h2>
           <p className="text-white/80 text-sm mb-6">先去首页添加今天的活动吧</p>
-          <a
-            href="/"
+          <Link
+            to="/"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/30 text-white font-bold hover:bg-white/40 transition-all"
           >
             <ArrowLeft size={18} />
             返回首页
-          </a>
+          </Link>
         </div>
       </div>
     )
@@ -64,10 +65,10 @@ export default function CardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#a8e6cf] via-[#66bb6a] to-[#1b5e20] flex flex-col items-center py-6 px-4">
       <header className="w-full max-w-[480px] mb-6">
-        <a href="/" className="inline-flex items-center gap-1 text-white/80 hover:text-white transition-colors text-sm font-semibold">
+        <Link to="/" className="inline-flex items-center gap-1 text-white/80 hover:text-white transition-colors text-sm font-semibold">
           <ArrowLeft size={16} />
           返回首页
-        </a>
+        </Link>
       </header>
 
       <CarbonCard
@@ -81,19 +82,19 @@ export default function CardPage() {
       />
 
       <div className="w-full max-w-[360px] mt-6 flex gap-3">
-        <a
-          href="/"
+        <Link
+          to="/"
           className="flex-1 py-3 text-center rounded-2xl bg-white/20 text-white font-bold hover:bg-white/30 transition-all flex items-center justify-center gap-2"
         >
           <RotateCcw size={16} />
           重新记录
-        </a>
-        <a
-          href="/community"
+        </Link>
+        <Link
+          to="/community"
           className="flex-1 py-3 text-center rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 text-white font-bold hover:from-green-500 hover:to-emerald-400 transition-all shadow-lg"
         >
           🏆 挑战排行
-        </a>
+        </Link>
       </div>
     </div>
   )

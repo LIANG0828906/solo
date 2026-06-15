@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useStore } from '@/store'
 import { calculateCarbon, getCategoryActivities, getCarbonLevel, type Category, type ActivityItem } from '@/carbonCalculator'
 import CarbonDashboard from '@/components/CarbonDashboard'
@@ -123,22 +124,22 @@ export default function Home() {
 
       {dailyRecord && (
         <div className="w-full max-w-[480px] mt-4">
-          <a
-            href="/card"
+          <Link
+            to="/card"
             className="block w-full py-3 text-center rounded-2xl bg-white/20 text-white font-bold hover:bg-white/30 transition-all duration-200"
           >
             📊 查看今日碳足迹卡片 →
-          </a>
+          </Link>
         </div>
       )}
 
       <div className="w-full max-w-[480px] mt-4">
-        <a
-          href="/community"
+        <Link
+          to="/community"
           className="block w-full py-3 text-center rounded-2xl bg-white/10 text-white/80 font-semibold hover:bg-white/20 hover:text-white transition-all duration-200"
         >
           🏆 社区碳减排挑战 →
-        </a>
+        </Link>
       </div>
     </div>
   )

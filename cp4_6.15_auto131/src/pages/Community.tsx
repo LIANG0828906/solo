@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useStore } from '@/store'
 import type { LeaderboardEntry } from '@/store'
 import { ArrowLeft, Trophy, Medal, Users, Send, Leaf } from 'lucide-react'
@@ -113,10 +114,10 @@ export default function Community() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#a8e6cf] via-[#66bb6a] to-[#1b5e20] flex flex-col items-center py-6 px-4">
       <header className="w-full max-w-[480px] mb-6">
-        <a href="/" className="inline-flex items-center gap-1 text-white/80 hover:text-white transition-colors text-sm font-semibold">
+        <Link to="/" className="inline-flex items-center gap-1 text-white/80 hover:text-white transition-colors text-sm font-semibold">
           <ArrowLeft size={16} />
           返回首页
-        </a>
+        </Link>
         <div className="flex items-center gap-2 mt-2">
           <Trophy className="text-yellow-300" size={24} />
           <h1 className="text-xl font-extrabold text-white">社区碳减排挑战</h1>
@@ -249,13 +250,13 @@ export default function Community() {
       </div>
 
       <div className="w-full max-w-[480px] mt-4">
-        <a
-          href="/"
+        <Link
+          to="/"
           className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-white/10 text-white/70 font-semibold hover:bg-white/20 hover:text-white transition-all"
         >
           <Leaf size={16} />
           返回碳足迹速算器
-        </a>
+        </Link>
       </div>
     </div>
   )

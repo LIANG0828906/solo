@@ -92,13 +92,14 @@ export const useStore = create<CarbonState>((set, get) => ({
   submitRecord: async () => {
     const { activities, totalCarbon, currentUser } = get()
     const level = getCarbonLevel(totalCarbon)
-    const record: DailyRecord = {
+    const record = {
       userId: currentUser.userId,
       date: new Date().toISOString().slice(0, 10),
       activities,
       totalCarbon,
       level,
-    }
+      advice: '',
+    } satisfies DailyRecord
 
     try {
       const res = await fetch('/api/records', {
