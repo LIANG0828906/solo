@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import type { ImageItem, LightingParams } from './utils/imageFilters'
 import { calculateLightingFilter } from './utils/imageFilters'
 import './ImageGrid.css'
@@ -8,17 +8,20 @@ interface ImageGridProps {
   lighting: LightingParams
   selectedImageId: string | null
   onSelectImage: (id: string | null) => void
+  isResetting?: boolean
 }
 
 const ImageGrid: React.FC<ImageGridProps> = ({
   images,
   lighting,
   selectedImageId,
-  onSelectImage
+  onSelectImage,
+  isResetting = false
 }) => {
+  const gridRef = useRef<HTMLDivElement>(null)
   const filter = calculateLightingFilter(lighting.angle, lighting.intensity)
 
-  const handleBackgroundClick = (e: React.MouseEvent) => {
+  const handleContainerClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && selectedImageId !== null) {
       onSelectImage(null)
     }
@@ -28,6 +31,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
     e.stopPropagation()
     if (selectedImageId === id) {
       onSelectImage(null)
+    } else if (selectedImageId === null) {
+      onSelectImage(id)
     }
   }
 
@@ -39,12 +44,13 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   return (
     <div
       className="image-grid-container"
-      onClick={handleBackgroundClick}
+      onClick={handleContainerClick}
+      ref={gridRef}
     >
-      <div className="image-grid">
+      <div className={`image-grid ${isResetting ? 'resetting' : ''}`}>
         {Array.from({ length: 6 }).map((_, index) => {
           const image = images[index]
-          const isSelected = image && selectedImageId === image.id
+          const isSelected = image ? selectedImageId === image.id : false
           const isBlurred = selectedImageId !== null && !isSelected
 
           return (
@@ -52,7 +58,9 @@ const ImageGrid: React.FC<ImageGridProps> = ({
               key={image?.id || `empty-${index}`}
               className={`image-card ${image ? 'has-image' : 'empty'} ${
                 isSelected ? 'selected' : ''
-              } ${isBlurred ? 'blurred' : ''}`}
+              } ${isBlurred ? 'blurred' : ''} ${
+                isResetting ? 'resetting' : ''
+              }`}
               onClick={(e) => image && handleCardClick(e, image.id)}
             >
               {image ? (

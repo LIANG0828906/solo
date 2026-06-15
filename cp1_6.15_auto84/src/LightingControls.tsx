@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useCallback, useState } from 'react'
 import type { LightingParams } from './utils/imageFilters'
 import './LightingControls.css'
 
@@ -6,12 +6,14 @@ interface LightingControlsProps {
   lighting: LightingParams
   onChange: (lighting: LightingParams) => void
   onReset: () => void
+  isResetting?: boolean
 }
 
 const LightingControls: React.FC<LightingControlsProps> = ({
   lighting,
   onChange,
-  onReset
+  onReset,
+  isResetting = false
 }) => {
   const circleRef = useRef<HTMLDivElement>(null)
   const [angleDragging, setAngleDragging] = useState(false)
@@ -27,6 +29,7 @@ const LightingControls: React.FC<LightingControlsProps> = ({
       const dy = clientY - cy
       let angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90
       if (angle < 0) angle += 360
+      if (angle >= 360) angle -= 360
       angle = Math.round(angle)
       if (angle !== lighting.angle) {
         onChange({ ...lighting, angle })
@@ -38,7 +41,7 @@ const LightingControls: React.FC<LightingControlsProps> = ({
   const handleAnglePointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
     setAngleDragging(true)
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     handleAngleChange(e.clientX, e.clientY)
   }
 
@@ -49,7 +52,7 @@ const LightingControls: React.FC<LightingControlsProps> = ({
 
   const handleAnglePointerUp = (e: React.PointerEvent) => {
     setAngleDragging(false)
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
   }
 
   const intensityTrackRef = useRef<HTMLDivElement>(null)
@@ -70,7 +73,7 @@ const LightingControls: React.FC<LightingControlsProps> = ({
   const handleIntensityPointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
     setIntensityDragging(true)
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     handleIntensityChange(e.clientX)
   }
 
@@ -81,19 +84,15 @@ const LightingControls: React.FC<LightingControlsProps> = ({
 
   const handleIntensityPointerUp = (e: React.PointerEvent) => {
     setIntensityDragging(false)
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
   }
 
-  useEffect(() => {
-    return () => {}
-  }, [])
-
   const angleRadians = ((lighting.angle - 90) * Math.PI) / 180
-  const handleX = 50 + Math.cos(angleRadians) * 42
-  const handleY = 50 + Math.sin(angleRadians) * 42
+  const handleX = 50 + Math.cos(angleRadians) * 46
+  const handleY = 50 + Math.sin(angleRadians) * 46
 
   return (
-    <div className="lighting-controls">
+    <div className={`lighting-controls ${isResetting ? 'resetting' : ''}`}>
       <div className="control-section angle-control">
         <div className="angle-value">{lighting.angle}°</div>
         <div
@@ -107,7 +106,9 @@ const LightingControls: React.FC<LightingControlsProps> = ({
           <div className="angle-ring" />
           <div className="angle-center" />
           <div
-            className={`angle-handle ${angleDragging ? 'dragging' : ''}`}
+            className={`angle-handle ${angleDragging ? 'dragging' : ''} ${
+              isResetting ? 'resetting' : ''
+            }`}
             style={{
               left: `${handleX}%`,
               top: `${handleY}%`
@@ -128,11 +129,9 @@ const LightingControls: React.FC<LightingControlsProps> = ({
           onPointerCancel={handleIntensityPointerUp}
         >
           <div
-            className="intensity-fill"
-            style={{ width: `${lighting.intensity}%` }}
-          />
-          <div
-            className={`intensity-handle ${intensityDragging ? 'dragging' : ''}`}
+            className={`intensity-handle ${
+              intensityDragging ? 'dragging' : ''
+            } ${isResetting ? 'resetting' : ''}`}
             style={{ left: `${lighting.intensity}%` }}
           />
         </div>
@@ -140,7 +139,7 @@ const LightingControls: React.FC<LightingControlsProps> = ({
       </div>
 
       <button
-        className="reset-button"
+        className={`reset-button ${isResetting ? 'resetting' : ''}`}
         onClick={onReset}
         title="重置光照"
       >

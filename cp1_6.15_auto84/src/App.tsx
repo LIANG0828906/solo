@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import ImageGrid from './ImageGrid'
 import LightingControls from './LightingControls'
 import type { ImageItem, LightingParams } from './utils/imageFilters'
@@ -13,7 +13,17 @@ const App: React.FC = () => {
   const [images, setImages] = useState<ImageItem[]>([])
   const [lighting, setLighting] = useState<LightingParams>(DEFAULT_LIGHTING)
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const resetTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (resetTimeoutRef.current) {
+        window.clearTimeout(resetTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click()
@@ -34,6 +44,13 @@ const App: React.FC = () => {
 
       const newImages: ImageItem[] = []
       let processed = 0
+
+      if (validFiles.length === 0) {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
 
       validFiles.forEach((file) => {
         const reader = new FileReader()
@@ -62,8 +79,19 @@ const App: React.FC = () => {
   )
 
   const handleReset = useCallback(() => {
-    setLighting(DEFAULT_LIGHTING)
+    setIsResetting(true)
     setSelectedImageId(null)
+
+    requestAnimationFrame(() => {
+      setLighting(DEFAULT_LIGHTING)
+    })
+
+    if (resetTimeoutRef.current) {
+      window.clearTimeout(resetTimeoutRef.current)
+    }
+    resetTimeoutRef.current = window.setTimeout(() => {
+      setIsResetting(false)
+    }, 500)
   }, [])
 
   const handleLightingChange = useCallback((newLighting: LightingParams) => {
@@ -71,7 +99,7 @@ const App: React.FC = () => {
   }, [])
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isResetting ? 'resetting' : ''}`}>
       <div className="top-bar">
         <button
           className="upload-button"
@@ -108,12 +136,14 @@ const App: React.FC = () => {
         lighting={lighting}
         selectedImageId={selectedImageId}
         onSelectImage={setSelectedImageId}
+        isResetting={isResetting}
       />
 
       <LightingControls
         lighting={lighting}
         onChange={handleLightingChange}
         onReset={handleReset}
+        isResetting={isResetting}
       />
 
       <input

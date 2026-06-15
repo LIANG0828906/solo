@@ -10,8 +10,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 48px;
-  padding: 0 24px;
+  gap: 64px;
+  padding: 0 32px;
   z-index: 100;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -20,13 +20,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .control-label {
   font-size: 11px;
   color: #9e9e9e;
   letter-spacing: 0.5px;
+  order: 3;
 }
 
 .angle-control {
@@ -38,21 +39,23 @@
   font-size: 14px;
   font-weight: 600;
   color: #ffffff;
-  min-width: 40px;
+  min-width: 48px;
   text-align: center;
   position: absolute;
-  top: -18px;
+  top: -22px;
   left: 50%;
   transform: translateX(-50%);
+  order: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .angle-circle {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   cursor: grab;
   touch-action: none;
-  margin-top: 6px;
+  order: 2;
 }
 
 .angle-circle:active {
@@ -66,97 +69,102 @@
   background: conic-gradient(
     from 0deg,
     #ff4d4d,
+    #ffa53d,
     #ffd93d,
-    #6bcb77,
-    #4d96ff,
-    #c74dff,
-    #ff4d9a,
+    #a5d96b,
+    #4dd0ff,
+    #6b4dff,
+    #d24dff,
+    #ff4d9e,
     #ff4d4d
   );
-  opacity: 0.8;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
 .angle-center {
   position: absolute;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background-color: #2a2a2a;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: #1e1e1e;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .angle-handle {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background-color: #ffffff;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%) scale(1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.3);
   transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    width var(--transition-fast),
-    height var(--transition-fast);
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+  pointer-events: none;
 }
 
 .angle-handle.dragging {
   transform: translate(-50%, -50%) scale(1.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(33, 150, 243, 0.5);
 }
 
 .intensity-control {
-  width: 280px;
+  width: 320px;
   position: relative;
 }
 
 .intensity-value {
   position: absolute;
-  top: -18px;
+  top: -22px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 14px;
   font-weight: 600;
   color: #ffffff;
-  min-width: 30px;
+  min-width: 36px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .intensity-track {
   position: relative;
   width: 100%;
-  height: 6px;
-  background: linear-gradient(to right, #1a237e, #ffd600);
-  border-radius: 3px;
+  height: 8px;
+  background: linear-gradient(
+    to right,
+    #0d1b4d 0%,
+    #1a237e 30%,
+    #5c6bc0 60%,
+    #ffd600 100%
+  );
+  border-radius: 4px;
   cursor: pointer;
-  margin-top: 6px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  margin-top: 4px;
 }
 
 .intensity-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  border-radius: 3px;
-  pointer-events: none;
+  display: none;
 }
 
 .intensity-handle {
   position: absolute;
   top: 50%;
-  transform: translate(-50%, -50%);
-  width: 18px;
-  height: 18px;
+  transform: translate(-50%, -50%) scale(1);
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background-color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.3);
   cursor: grab;
   transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out;
 }
 
 .intensity-handle:active {
@@ -165,7 +173,7 @@
 
 .intensity-handle.dragging {
   transform: translate(-50%, -50%) scale(1.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(33, 150, 243, 0.5);
 }
 
 .reset-button {
@@ -180,12 +188,14 @@
   line-height: 1;
   cursor: pointer;
   transition:
-    background-color var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+    background-color 0.2s ease-out,
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    opacity 0.5s ease-in-out;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .reset-button:hover {
@@ -198,33 +208,104 @@
   transform: scale(0.95);
 }
 
+.reset-button.resetting {
+  animation: reset-pulse 0.5s ease-out;
+}
+
+@keyframes reset-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(211, 47, 47, 0);
+    transform: scale(1.1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+    transform: scale(1);
+  }
+}
+
 @media (max-width: 768px) {
   .lighting-controls {
     height: auto;
     flex-direction: column;
     gap: 16px;
-    padding: 12px 16px 16px;
+    padding: 14px 16px 18px;
     align-items: stretch;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .control-section {
+    width: 100%;
+    position: relative;
+    padding-right: 60px;
   }
 
   .angle-control {
-    align-items: center;
+    align-items: flex-start;
+  }
+
+  .angle-control .angle-value {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    text-align: left;
+    margin-bottom: 4px;
+    order: 0;
+  }
+
+  .angle-control .control-label {
+    order: 2;
   }
 
   .intensity-control {
     width: 100%;
   }
 
+  .intensity-control .intensity-value {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    text-align: left;
+    margin-bottom: 4px;
+  }
+
+  .intensity-track {
+    width: 100%;
+  }
+
   .reset-button {
     position: absolute;
     right: 16px;
-    top: 12px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
+    top: 16px;
+    transform: none;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    z-index: 2;
   }
 
-  .control-section {
-    padding-right: 60px;
+  .reset-button:hover {
+    transform: scale(1.05);
+  }
+
+  .reset-button:active {
+    transform: scale(0.95);
+  }
+
+  .angle-circle {
+    width: 56px;
+    height: 56px;
+  }
+
+  .angle-center {
+    width: 32px;
+    height: 32px;
   }
 }

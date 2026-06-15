@@ -4,8 +4,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  padding-bottom: 112px;
+  padding: 80px 16px 112px;
+  position: relative;
 }
 
 .image-grid {
@@ -14,6 +14,7 @@
   grid-template-rows: repeat(2, 200px);
   gap: 24px;
   position: relative;
+  transition: filter 0.5s ease-in-out;
 }
 
 .image-card {
@@ -26,9 +27,10 @@
   overflow: hidden;
   cursor: default;
   transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    opacity var(--transition-slow);
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    opacity 0.4s ease-out;
+  transform-origin: center center;
 }
 
 .image-card.has-image {
@@ -44,10 +46,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: filter var(--transition-mid);
+  transition: filter 0.3s ease-in-out;
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .image-card .empty-placeholder {
@@ -75,10 +78,12 @@
   cursor: pointer;
   opacity: 0;
   transition:
-    opacity var(--transition-fast),
-    color var(--transition-fast),
-    transform var(--transition-fast),
-    background var(--transition-fast);
+    opacity 0.2s ease-out,
+    color 0.2s ease-out,
+    transform 0.2s ease-out,
+    background 0.2s ease-out;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .image-card.has-image:hover .compare-icon {
@@ -94,25 +99,45 @@
 .image-card.selected {
   position: relative;
   z-index: 10;
-  transform: scale(1.8);
+  transform: scale(1.8) translateY(0);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
   transition:
-    transform var(--transition-slow),
-    box-shadow var(--transition-slow);
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.4s ease-out;
 }
 
 .image-card.selected:hover {
-  transform: scale(1.8);
+  transform: scale(1.8) translateY(0);
+}
+
+.image-card.selected .compare-icon {
+  opacity: 1;
+  color: var(--accent-blue);
 }
 
 .image-card.blurred {
   opacity: 0.3;
   pointer-events: none;
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.4s ease-out;
+}
+
+.image-grid.resetting .image-card img {
+  transition: filter 0.5s ease-in-out;
+}
+
+.image-grid.resetting .image-card {
+  transition:
+    opacity 0.5s ease-in-out,
+    transform 0.5s ease-in-out;
 }
 
 @media (max-width: 768px) {
   .image-grid-container {
-    padding-bottom: 200px;
+    padding-top: 72px;
+    padding-bottom: 220px;
     overflow-y: auto;
     align-items: flex-start;
   }
@@ -135,5 +160,10 @@
 
   .image-card.selected:hover {
     transform: scale(1);
+  }
+
+  .image-card.blurred {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
