@@ -3,7 +3,28 @@ import { X, Wind, Gauge, MapPin, Calendar, Clock } from 'lucide-react';
 import { useStormStore } from '@/store/useStormStore';
 import { getStormById } from '@/data/stormDataLoader';
 import { categoryToColor } from '@/utils/colorScale';
-import { format } from 'd3-time-format';
+
+function formatTimestamp(ts: string): string {
+  try {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch {
+    return ts;
+  }
+}
+
+function windSpeedToColor(windSpeed: number): string {
+  if (windSpeed >= 137) return '#ef4444';
+  if (windSpeed >= 113) return '#f87171';
+  if (windSpeed >= 96) return '#fb923c';
+  if (windSpeed >= 83) return '#facc15';
+  if (windSpeed >= 64) return '#4ade80';
+  return '#38bdf8';
+}
 
 export default function StormDetailPanel() {
   const { selectedStormId, selectStorm } = useStormStore();
@@ -15,6 +36,7 @@ export default function StormDetailPanel() {
   useEffect(() => {
     if (selectedStormId) {
       setIsVisible(true);
+      setIsFlipping(false);
     }
   }, [selectedStormId]);
 
@@ -38,14 +60,6 @@ export default function StormDetailPanel() {
   }
 
   const catColor = categoryToColor(storm?.category || 1);
-
-  const formatDate = (timestamp: string) => {
-    try {
-      return format(new Date(timestamp), '%Y-%m-%d');
-    } catch {
-      return timestamp;
-    }
-  };
 
   return (
     <div
@@ -126,7 +140,7 @@ export default function StormDetailPanel() {
                   className="path-dot"
                   style={{ backgroundColor: windSpeedToColor(point.windSpeed) }}
                 />
-                <span className="path-date">{formatDate(point.timestamp)}</span>
+                <span className="path-date">{formatTimestamp(point.timestamp)}</span>
                 <span className="path-wind">{point.windSpeed} kt</span>
               </div>
             ))}
@@ -138,13 +152,4 @@ export default function StormDetailPanel() {
       </div>
     </div>
   );
-}
-
-function windSpeedToColor(windSpeed: number): string {
-  if (windSpeed >= 137) return '#ef4444';
-  if (windSpeed >= 113) return '#f87171';
-  if (windSpeed >= 96) return '#fb923c';
-  if (windSpeed >= 83) return '#facc15';
-  if (windSpeed >= 64) return '#4ade80';
-  return '#38bdf8';
 }

@@ -2,17 +2,19 @@ import { useRef, useState, useEffect, useMemo } from 'react';
 import { TrendingUp, GripVertical } from 'lucide-react';
 import Draggable from 'react-draggable';
 import { useStormStore } from '@/store/useStormStore';
-import { windSpeedColorScale } from '@/utils/colorScale';
+import { filterStorms } from '@/data/stormDataLoader';
 import type { StormRecord } from '@/data/types';
 
 export default function StatsChart() {
-  const { yearRange, category, basin } = useStormStore();
+  const yearRange = useStormStore(s => s.yearRange);
+  const category = useStormStore(s => s.category);
+  const basin = useStormStore(s => s.basin);
   const [storms, setStorms] = useState<StormRecord[]>([]);
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const { filterStorms } = require('@/data/stormDataLoader');
     const filtered = filterStorms({ yearRange, category, basin });
     setStorms(filtered);
   }, [yearRange, category, basin]);
@@ -45,7 +47,7 @@ export default function StatsChart() {
 
   const xScale = (year: number) => {
     const [startYear, endYear] = yearRange;
-    return padding.left + ((year - startYear) / (endYear - startYear)) * (width - padding.left - padding.right);
+    return padding.left + ((year - startYear) / Math.max(1, endYear - startYear)) * (width - padding.left - padding.right);
   };
 
   const yScale = (count: number) => {
@@ -83,7 +85,7 @@ export default function StatsChart() {
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const [startYear, endYear] = yearRange;
-    const ratio = (x - padding.left) / (width - padding.left - padding.right);
+    const ratio = (x - padding.left) / Math.max(1, width - padding.left - padding.right);
     const year = Math.round(startYear + ratio * (endYear - startYear));
     const clampedYear = Math.max(startYear, Math.min(endYear, year));
     setHoveredYear(clampedYear);
@@ -96,8 +98,8 @@ export default function StatsChart() {
   const hoveredData = hoveredYear ? chartData.find(d => d.year === hoveredYear) : null;
 
   return (
-    <Draggable handle=".stats-drag-handle" bounds="parent">
-      <div className="stats-chart-panel">
+    <Draggable nodeRef={nodeRef as React.RefObject<HTMLDivElement>} handle=".stats-drag-handle">
+      <div ref={nodeRef} className="stats-chart-panel">
         <div className="stats-header">
           <div className="stats-drag-handle">
             <GripVertical size={14} />

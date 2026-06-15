@@ -1,7 +1,7 @@
 import stormRecords from './stormRecords.json';
-import type { StormRecord, StormPathPoint, FilterState } from './types';
+import type { StormRecord, FilterState } from './types';
 
-const allStorms = stormRecords as StormRecord[];
+const allStorms: StormRecord[] = stormRecords as StormRecord[];
 
 export function getAllStorms(): StormRecord[] {
   return allStorms;
@@ -32,8 +32,7 @@ export function getStormFrequencyByYear(storms: StormRecord[]): Map<number, numb
 }
 
 export function getYearRange(): [number, number] {
+  if (allStorms.length === 0) return [1900, 2024];
   const years = allStorms.map(s => s.year);
   return [Math.min(...years), Math.max(...years)];
 }
-
-export { StormRecord, StormPathPoint, FilterState };

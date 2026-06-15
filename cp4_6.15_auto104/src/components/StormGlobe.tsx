@@ -3,140 +3,191 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Sphere, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { windSpeedColorScale, categoryToColor } from '@/utils/colorScale';
+import { filterStorms } from '@/data/stormDataLoader';
 import { useStormStore } from '@/store/useStormStore';
-import type { StormRecord, StormPathPoint } from '@/data/types';
+import type { StormRecord } from '@/data/types';
 
 const EARTH_RADIUS = 1;
 const PATH_HEIGHT = 0.008;
-const GLOW_BALL_HEIGHT = 0.015;
+const GLOW_BALL_HEIGHT = 0.018;
 const MAX_STORMS = 200;
+const GLOW_BALLS_PER_STORM = 4;
 
-function latLonToVector3(lat: number, lon: number, radius: number): THREE.Vector3 {
+function latLonToVec3(lat: number, lon: number, r: number): [number, number, number] {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
+  return [
+    -r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta),
+  ];
 }
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-interface StormPathLineProps {
-  storm: StormRecord;
-  opacity: number;
-  highlighted: boolean;
+interface MergedPathsProps {
+  storms: StormRecord[];
+  selectedStormId: string | null;
   onPointClick: (stormId: string, pointIndex: number) => void;
-  progress: number;
 }
 
-function StormPathLine({ storm, opacity, highlighted, onPointClick, progress }: StormPathLineProps) {
-  const lineRef = useRef<THREE.Line>(null);
-  const glowBallsRef = useRef<THREE.Points>(null);
-  const numGlowBalls = 3;
-
-  const { positions, colors } = useMemo(() => {
-    const points = storm.path;
-    const pos: number[] = [];
-    const col: number[] = [];
-
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      const vec = latLonToVector3(p.lat, p.lon, EARTH_RADIUS + PATH_HEIGHT);
-      pos.push(vec.x, vec.y, vec.z);
-      const color = new THREE.Color(windSpeedColorScale(p.windSpeed));
-      col.push(color.r, color.g, color.b);
-    }
-
-    return { positions: new Float32Array(pos), colors: new Float32Array(col) };
-  }, [storm]);
-
-  useFrame((state, delta) => {
-    if (!glowBallsRef.current) return;
-
-    const positions = glowBallsRef.current.geometry.attributes.position.array as Float32Array;
-    const pathPoints = storm.path;
-    const totalSegments = pathPoints.length - 1;
-
-    for (let i = 0; i < numGlowBalls; i++) {
-      let t = ((state.clock.elapsedTime * 0.3 + i * (1 / numGlowBalls)) % 1);
-      t = t * progress;
-      const segIndex = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
-      const segT = (t * totalSegments) - segIndex;
-
-      const p1 = pathPoints[segIndex];
-      const p2 = pathPoints[Math.min(segIndex + 1, pathPoints.length - 1)];
-
-      const lat = lerp(p1.lat, p2.lat, segT);
-      const lon = lerp(p1.lon, p2.lon, segT);
-      const vec = latLonToVector3(lat, lon, EARTH_RADIUS + GLOW_BALL_HEIGHT);
-
-      positions[i * 3] = vec.x;
-      positions[i * 3 + 1] = vec.y;
-      positions[i * 3 + 2] = vec.z;
-    }
-
-    glowBallsRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
-  const glowGeometry = useMemo(() => {
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(numGlowBalls * 3);
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geometry;
-  }, []);
-
-  const lineColor = highlighted ? categoryToColor(storm.category) : '#64748b';
-  const lineOpacity = highlighted ? opacity : opacity * 0.3;
-
-  const handlePointerDown = (e: any) => {
-    e.stopPropagation();
-    const point = e.point;
-    let closestIndex = 0;
-    let closestDist = Infinity;
-    const points = storm.path;
-
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      const vec = latLonToVector3(p.lat, p.lon, EARTH_RADIUS + PATH_HEIGHT);
-      const dist = vec.distanceTo(point);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestIndex = i;
-      }
-    }
-    onPointClick(storm.id, closestIndex);
-  };
+function MergedPaths({ storms, selectedStormId, onPointClick }: MergedPathsProps) {
+  const visibleStorms = useMemo(() => {
+    if (storms.length <= MAX_STORMS) return storms;
+    const sorted = [...storms].sort((a, b) => b.category - a.category);
+    return sorted.slice(0, MAX_STORMS);
+  }, [storms]);
 
   return (
     <group>
-      <Line
-        ref={lineRef}
-        points={storm.path.map(p => {
-          const v = latLonToVector3(p.lat, p.lon, EARTH_RADIUS + PATH_HEIGHT);
-          return [v.x, v.y, v.z];
-        })}
-        color={lineColor}
-        lineWidth={highlighted ? 2 : 1}
-        transparent
-        opacity={lineOpacity}
-        onPointerDown={handlePointerDown}
-      />
-      <points ref={glowBallsRef} geometry={glowGeometry} visible={highlighted}>
-        <pointsMaterial
-          size={0.025}
-          color="#22d3ee"
-          transparent
-          opacity={0.9}
-          sizeAttenuation
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
+      {visibleStorms.map(storm => (
+        <StormPath
+          key={storm.id}
+          storm={storm}
+          highlighted={selectedStormId === storm.id || selectedStormId === null}
+          onPointClick={onPointClick}
         />
-      </points>
+      ))}
+      <MergedGlowBalls storms={visibleStorms} selectedStormId={selectedStormId} />
     </group>
+  );
+}
+
+function StormPath({
+  storm,
+  highlighted,
+  onPointClick,
+}: {
+  storm: StormRecord;
+  highlighted: boolean;
+  onPointClick: (stormId: string, pointIndex: number) => void;
+}) {
+  const linePoints = useMemo(() => {
+    return storm.path.map(p => {
+      const [x, y, z] = latLonToVec3(p.lat, p.lon, EARTH_RADIUS + PATH_HEIGHT);
+      return new THREE.Vector3(x, y, z);
+    });
+  }, [storm]);
+
+  const lineColor = highlighted ? categoryToColor(storm.category) : '#334155';
+  const lineWidth = highlighted ? 2 : 0.8;
+  const lineOpacity = highlighted ? 0.95 : 0.2;
+
+  const handlePointerDown = useCallback(
+    (e: any) => {
+      e.stopPropagation();
+      if (!highlighted) return;
+      const point = e.point as THREE.Vector3;
+      let closestIdx = 0;
+      let closestDist = Infinity;
+      storm.path.forEach((p, i) => {
+        const [x, y, z] = latLonToVec3(p.lat, p.lon, EARTH_RADIUS + PATH_HEIGHT);
+        const dx = x - point.x;
+        const dy = y - point.y;
+        const dz = z - point.z;
+        const dist = dx * dx + dy * dy + dz * dz;
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIdx = i;
+        }
+      });
+      onPointClick(storm.id, closestIdx);
+    },
+    [storm, highlighted, onPointClick],
+  );
+
+  return (
+    <Line
+      points={linePoints}
+      color={lineColor}
+      lineWidth={lineWidth}
+      transparent
+      opacity={lineOpacity}
+      onPointerDown={handlePointerDown}
+    />
+  );
+}
+
+function MergedGlowBalls({
+  storms,
+  selectedStormId,
+}: {
+  storms: StormRecord[];
+  selectedStormId: string | null;
+}) {
+  const pointsRef = useRef<THREE.Points>(null);
+
+  const highlightedStorms = useMemo(() => {
+    if (selectedStormId !== null) {
+      const s = storms.find(st => st.id === selectedStormId);
+      return s ? [s] : [];
+    }
+    return storms;
+  }, [storms, selectedStormId]);
+
+  const totalBalls = highlightedStorms.length * GLOW_BALLS_PER_STORM;
+
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(totalBalls * 3);
+    const sizes = new Float32Array(totalBalls);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    return geo;
+  }, [totalBalls]);
+
+  useFrame((state) => {
+    if (!pointsRef.current || highlightedStorms.length === 0) return;
+
+    const posArr = pointsRef.current.geometry.attributes.position.array as Float32Array;
+    const time = state.clock.elapsedTime;
+
+    for (let si = 0; si < highlightedStorms.length; si++) {
+      const storm = highlightedStorms[si];
+      const path = storm.path;
+      const segs = path.length - 1;
+
+      for (let bi = 0; bi < GLOW_BALLS_PER_STORM; bi++) {
+        const ballIdx = si * GLOW_BALLS_PER_STORM + bi;
+        if (ballIdx * 3 + 2 >= posArr.length) break;
+
+        let t = ((time * 0.25 + bi * (1 / GLOW_BALLS_PER_STORM) + si * 0.17) % 1);
+        const segFloat = t * segs;
+        const segIdx = Math.min(Math.floor(segFloat), segs - 1);
+        const segT = segFloat - segIdx;
+
+        const p1 = path[segIdx];
+        const p2 = path[Math.min(segIdx + 1, path.length - 1)];
+
+        const lat = lerp(p1.lat, p2.lat, segT);
+        const lon = lerp(p1.lon, p2.lon, segT);
+        const [x, y, z] = latLonToVec3(lat, lon, EARTH_RADIUS + GLOW_BALL_HEIGHT);
+
+        posArr[ballIdx * 3] = x;
+        posArr[ballIdx * 3 + 1] = y;
+        posArr[ballIdx * 3 + 2] = z;
+      }
+    }
+
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  if (totalBalls === 0) return null;
+
+  return (
+    <points ref={pointsRef} geometry={geometry}>
+      <pointsMaterial
+        size={0.03}
+        color="#22d3ee"
+        transparent
+        opacity={0.85}
+        sizeAttenuation
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
   );
 }
 
@@ -144,20 +195,12 @@ interface EarthProps {
   storms: StormRecord[];
   selectedStormId: string | null;
   onStormPointClick: (stormId: string, pointIndex: number) => void;
-  pathProgress: number;
 }
 
-function Earth({ storms, selectedStormId, onStormPointClick, pathProgress }: EarthProps) {
+function Earth({ storms, selectedStormId, onStormPointClick }: EarthProps) {
   const earthRef = useRef<THREE.Group>(null);
-  const { camera } = useThree();
-  const targetRotation = useRef(new THREE.Euler(0, 0, 0));
-  const currentRotation = useRef(new THREE.Euler(0, 0, 0));
-
-  const visibleStorms = useMemo(() => {
-    if (storms.length <= MAX_STORMS) return storms;
-    const sorted = [...storms].sort((a, b) => b.category - a.category);
-    return sorted.slice(0, MAX_STORMS);
-  }, [storms]);
+  const targetRotation = useRef({ x: 0, y: 0 });
+  const currentRotation = useRef({ x: 0, y: 0 });
 
   useFrame((_, delta) => {
     if (!earthRef.current) return;
@@ -169,10 +212,8 @@ function Earth({ storms, selectedStormId, onStormPointClick, pathProgress }: Ear
   });
 
   const rotateToPoint = useCallback((lat: number, lon: number) => {
-    const targetLon = -lon * (Math.PI / 180);
-    const targetLat = lat * (Math.PI / 180);
-    targetRotation.current.y = targetLon;
-    targetRotation.current.x = -targetLat * 0.3;
+    targetRotation.current.y = -lon * (Math.PI / 180);
+    targetRotation.current.x = -lat * (Math.PI / 180) * 0.3;
   }, []);
 
   useEffect(() => {
@@ -215,16 +256,11 @@ function Earth({ storms, selectedStormId, onStormPointClick, pathProgress }: Ear
           side={THREE.BackSide}
         />
       </Sphere>
-      {visibleStorms.map(storm => (
-        <StormPathLine
-          key={storm.id}
-          storm={storm}
-          opacity={1}
-          highlighted={selectedStormId === storm.id || selectedStormId === null}
-          onPointClick={onStormPointClick}
-          progress={pathProgress}
-        />
-      ))}
+      <MergedPaths
+        storms={storms}
+        selectedStormId={selectedStormId}
+        onPointClick={onStormPointClick}
+      />
     </group>
   );
 }
@@ -234,27 +270,25 @@ interface StormGlobeProps {
 }
 
 export default function StormGlobe({ className }: StormGlobeProps) {
-  const { yearRange, category, basin, selectStorm, playbackYear, isPlaying } = useStormStore();
+  const yearRange = useStormStore(s => s.yearRange);
+  const category = useStormStore(s => s.category);
+  const basin = useStormStore(s => s.basin);
+  const selectedStormId = useStormStore(s => s.selectedStormId);
+  const selectStorm = useStormStore(s => s.selectStorm);
+
   const [storms, setStorms] = useState<StormRecord[]>([]);
-  const [pathProgress, setPathProgress] = useState(1);
-  const prevYearRef = useRef(yearRange[1]);
 
   useEffect(() => {
-    const { filterStorms } = require('@/data/stormDataLoader');
     const filtered = filterStorms({ yearRange, category, basin });
     setStorms(filtered);
   }, [yearRange, category, basin]);
 
-  useEffect(() => {
-    if (isPlaying) {
-      setPathProgress(1);
-      prevYearRef.current = playbackYear;
-    }
-  }, [isPlaying, playbackYear]);
-
-  const handleStormPointClick = (stormId: string, _pointIndex: number) => {
-    selectStorm(stormId);
-  };
+  const handleStormPointClick = useCallback(
+    (stormId: string, _pointIndex: number) => {
+      selectStorm(stormId);
+    },
+    [selectStorm],
+  );
 
   return (
     <div className={className} style={{ width: '100%', height: '100%' }}>
@@ -265,9 +299,8 @@ export default function StormGlobe({ className }: StormGlobeProps) {
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
         <Earth
           storms={storms}
-          selectedStormId={useStormStore.getState().selectedStormId}
+          selectedStormId={selectedStormId}
           onStormPointClick={handleStormPointClick}
-          pathProgress={pathProgress}
         />
         <OrbitControls
           enablePan={false}

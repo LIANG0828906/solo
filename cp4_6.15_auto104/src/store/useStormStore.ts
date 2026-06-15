@@ -2,15 +2,15 @@ import { create } from 'zustand';
 import { filterStorms, getYearRange } from '@/data/stormDataLoader';
 import type { FilterState, StormRecord } from '@/data/types';
 
-interface PlaybackState {
+interface StormStore {
+  yearRange: [number, number];
+  category: number | null;
+  basin: string | null;
+  selectedStormId: string | null;
   isPlaying: boolean;
   playbackYear: number;
   playbackSpeed: number;
-  playIntervalId: number | null;
-}
-
-interface StormStore extends FilterState, PlaybackState {
-  selectedStormId: string | null;
+  playIntervalId: ReturnType<typeof setInterval> | null;
   setYearRange: (range: [number, number]) => void;
   setCategory: (cat: number | null) => void;
   setBasin: (basin: string | null) => void;
@@ -32,7 +32,7 @@ export const useStormStore = create<StormStore>((set, get) => ({
   selectedStormId: null,
   isPlaying: false,
   playbackYear: minYear,
-  playbackSpeed: 300,
+  playbackSpeed: 500,
   playIntervalId: null,
 
   setYearRange: (range) => set({ yearRange: range }),
@@ -52,16 +52,17 @@ export const useStormStore = create<StormStore>((set, get) => ({
 
   setPlaybackYear: (year) => {
     const clampedYear = Math.max(minYear, Math.min(maxYear, year));
-    set({ playbackYear: clampedYear });
-    const state = get();
-    if (state.isPlaying && clampedYear >= maxYear) {
+    set({
+      playbackYear: clampedYear,
+      yearRange: [minYear, clampedYear],
+    });
+    if (get().isPlaying && clampedYear >= maxYear) {
       get().stopPlayback();
     }
   },
 
   togglePlay: () => {
-    const state = get();
-    if (state.isPlaying) {
+    if (get().isPlaying) {
       get().stopPlayback();
     } else {
       get().startPlayback();
@@ -73,9 +74,13 @@ export const useStormStore = create<StormStore>((set, get) => ({
     if (state.isPlaying) return;
 
     let currentYear = state.playbackYear >= maxYear ? minYear : state.playbackYear;
-    set({ isPlaying: true, playbackYear: currentYear });
+    set({
+      isPlaying: true,
+      playbackYear: currentYear,
+      yearRange: [minYear, currentYear],
+    });
 
-    const intervalId = window.setInterval(() => {
+    const intervalId = setInterval(() => {
       const s = get();
       if (!s.isPlaying) {
         clearInterval(intervalId);
@@ -85,7 +90,10 @@ export const useStormStore = create<StormStore>((set, get) => ({
       if (currentYear > maxYear) {
         currentYear = minYear;
       }
-      set({ playbackYear: currentYear });
+      set({
+        playbackYear: currentYear,
+        yearRange: [minYear, currentYear],
+      });
     }, state.playbackSpeed);
 
     set({ playIntervalId: intervalId });
@@ -95,15 +103,13 @@ export const useStormStore = create<StormStore>((set, get) => ({
     const state = get();
     if (state.playIntervalId !== null) {
       clearInterval(state.playIntervalId);
-      set({ playIntervalId: null });
     }
-    set({ isPlaying: false });
+    set({ isPlaying: false, playIntervalId: null });
   },
 
   setPlaybackSpeed: (speed) => {
     set({ playbackSpeed: speed });
-    const state = get();
-    if (state.isPlaying) {
+    if (get().isPlaying) {
       get().stopPlayback();
       get().startPlayback();
     }
