@@ -196,7 +196,7 @@ export class GameScene extends Phaser.Scene {
 
     this.penFences[index] = container as unknown as Phaser.GameObjects.Graphics;
 
-    if (!this.state.creatures.find(c => c.penIndex === index)) {
+    if (this.state && !this.state.creatures.find(c => c.penIndex === index)) {
       const placeholder = this.add.text(PEN_WIDTH / 2, PEN_HEIGHT / 2, '空围栏\n(商店购买)', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
         fontSize: '14px',
@@ -212,7 +212,9 @@ export class GameScene extends Phaser.Scene {
     const postSpacing = 22;
     const postWidth = 6;
     const postHeight = 14;
-    const railHeight = 4;
+    const railHeight = 5;
+    const plankWidth = 20;
+    const plankGap = 2;
 
     for (let side = 0; side < 4; side++) {
       const isTopOrBottom = side < 2;
@@ -222,42 +224,81 @@ export class GameScene extends Phaser.Scene {
 
       if (isTopOrBottom) {
         const y = isTop ? offsetY - 2 : offsetY + PEN_HEIGHT - 2;
+
         for (let px = offsetX; px <= offsetX + PEN_WIDTH; px += postSpacing) {
           graphics.fillStyle(0x5c3a1e, 1);
           graphics.fillRect(px - postWidth / 2, y - postHeight / 2, postWidth, postHeight);
-          graphics.fillStyle(0x7a4d2b, 1);
+          graphics.fillStyle(0x8b5a2b, 1);
           graphics.fillRect(px - postWidth / 2 + 1, y - postHeight / 2 + 1, 2, postHeight - 2);
           graphics.fillStyle(0x4a2e15, 1);
           graphics.fillRect(px + 1, y - postHeight / 2 + 1, 2, postHeight - 2);
+
+          for (let w = 0; w < 3; w++) {
+            graphics.fillStyle(0x3a2510, 0.5);
+            graphics.fillRect(px - 2, y - postHeight / 2 + 3 + w * 4, 4, 1);
+          }
         }
-        graphics.fillStyle(0x8b5a2b, 1);
-        graphics.fillRect(offsetX, y - 1, PEN_WIDTH, railHeight);
-        graphics.fillStyle(0xa06b36, 1);
-        graphics.fillRect(offsetX, y - 1, PEN_WIDTH, 1);
-        graphics.fillStyle(0x6b4423, 1);
-        graphics.fillRect(offsetX, y + railHeight - 2, PEN_WIDTH, 1);
-        for (let nx = offsetX; nx < offsetX + PEN_WIDTH; nx += 18) {
-          graphics.fillStyle(0x5c3a1e, 0.4);
-          graphics.fillRect(nx, y, 10, railHeight);
+
+        const railY1 = y - railHeight - 3;
+        const railY2 = y + 2;
+        for (let ry = railY1; ry <= railY2; ry += railHeight + 1) {
+          for (let px = offsetX; px < offsetX + PEN_WIDTH; px += plankWidth + plankGap) {
+            const actualWidth = Math.min(plankWidth, offsetX + PEN_WIDTH - px);
+            graphics.fillStyle(0x8b5a2b, 1);
+            graphics.fillRect(px, ry, actualWidth, railHeight);
+            graphics.fillStyle(0xa06b36, 1);
+            graphics.fillRect(px, ry, actualWidth, 1);
+            graphics.fillStyle(0x6b4423, 1);
+            graphics.fillRect(px, ry + railHeight - 1, actualWidth, 1);
+
+            for (let g = 0; g < 3; g++) {
+              graphics.fillStyle(0x6b4423, 0.4);
+              graphics.fillRect(px + 3 + g * 6, ry + 1, 1, railHeight - 2);
+            }
+
+            graphics.fillStyle(0x5c3a1e, 0.35);
+            graphics.fillRect(px + actualWidth - 1, ry, 1, railHeight);
+          }
         }
       } else {
         const x = isLeft ? offsetX - 2 : offsetX + PEN_WIDTH - 2;
+
         for (let py = offsetY; py <= offsetY + PEN_HEIGHT; py += postSpacing) {
           graphics.fillStyle(0x5c3a1e, 1);
           graphics.fillRect(x - postHeight / 2, py - postWidth / 2, postHeight, postWidth);
-          graphics.fillStyle(0x7a4d2b, 1);
+          graphics.fillStyle(0x8b5a2b, 1);
           graphics.fillRect(x - postHeight / 2 + 1, py - postWidth / 2 + 1, postHeight - 2, 2);
           graphics.fillStyle(0x4a2e15, 1);
           graphics.fillRect(x - postHeight / 2 + 1, py + 1, postHeight - 2, 2);
         }
-        graphics.fillStyle(0x8b5a2b, 1);
-        graphics.fillRect(x - 1, offsetY, railHeight, PEN_HEIGHT);
+
+        const railX1 = x - railHeight - 3;
+        const railX2 = x + 2;
+        for (let rx = railX1; rx <= railX2; rx += railHeight + 1) {
+          for (let py = offsetY; py < offsetY + PEN_HEIGHT; py += plankWidth + plankGap) {
+            const actualHeight = Math.min(plankWidth, offsetY + PEN_HEIGHT - py);
+            graphics.fillStyle(0x8b5a2b, 1);
+            graphics.fillRect(rx, py, railHeight, actualHeight);
+            graphics.fillStyle(0xa06b36, 1);
+            graphics.fillRect(rx, py, 1, actualHeight);
+            graphics.fillStyle(0x6b4423, 1);
+            graphics.fillRect(rx + railHeight - 1, py, 1, actualHeight);
+
+            for (let g = 0; g < 3; g++) {
+              graphics.fillStyle(0x6b4423, 0.4);
+              graphics.fillRect(rx + 1, py + 3 + g * 6, railHeight - 2, 1);
+            }
+          }
+        }
       }
     }
+
     for (let px = offsetX + postSpacing; px < offsetX + PEN_WIDTH; px += postSpacing) {
-      graphics.fillStyle(0x3a2510, 0.6);
-      graphics.fillCircle(px, offsetY - 2, 1);
-      graphics.fillCircle(px, offsetY + PEN_HEIGHT - 2, 1);
+      graphics.fillStyle(0x3a2510, 0.7);
+      graphics.fillCircle(px, offsetY - 6, 1.5);
+      graphics.fillCircle(px, offsetY - 2, 1.5);
+      graphics.fillCircle(px, offsetY + PEN_HEIGHT - 6, 1.5);
+      graphics.fillCircle(px, offsetY + PEN_HEIGHT - 2, 1.5);
     }
   }
 
@@ -698,22 +739,61 @@ export class GameScene extends Phaser.Scene {
       const oldVal = parseInt(text.text);
       const newVal = (this.state.resources as any)[key];
       if (oldVal !== newVal) {
+        const isIncrease = newVal > oldVal;
+        const diff = Math.abs(newVal - oldVal);
+        const duration = Math.min(800, 300 + diff * 20);
+
         this.tweens.addCounter({
           from: oldVal,
           to: newVal,
-          duration: 400,
-          ease: 'Cubic.easeOut',
+          duration: duration,
+          ease: isIncrease ? 'Cubic.easeOut' : 'Cubic.easeInOut',
           onUpdate: (tween: Phaser.Tweens.Tween) => {
             const val = tween.getValue();
             text.setText(`${Math.floor(val ?? 0)}`);
+          },
+          onComplete: () => {
+            text.setText(`${newVal}`);
           }
         });
+
+        const color = isIncrease ? '#ffff66' : '#ff6666';
         this.tweens.add({
           targets: text,
-          scale: { from: 1.2, to: 1 },
-          duration: 300,
-          ease: 'Back.easeOut'
+          scale: { from: 1.35, to: 1 },
+          y: { from: text.y - 8, to: text.y },
+          duration: 350,
+          ease: 'Back.easeOut',
+          onStart: () => {
+            text.setColor(color);
+          },
+          onComplete: () => {
+            text.setColor('#ffffff');
+          }
         });
+
+        if (isIncrease && diff > 1) {
+          for (let i = 0; i < Math.min(diff, 5); i++) {
+            const sparkle = this.add.text(text.x + 10, text.y + 5, '+', {
+              fontFamily: 'Comic Sans MS, Microsoft YaHei',
+              fontSize: '16px',
+              color: color,
+              fontStyle: 'bold'
+            }).setOrigin(0.5);
+            sparkle.setAlpha(0);
+            this.tweens.add({
+              targets: sparkle,
+              alpha: { from: 0, to: 0.8 },
+              y: { from: text.y + 5, to: text.y - 25 - i * 5 },
+              x: { from: text.x + 10, to: text.x + 20 + i * 8 },
+              scale: { from: 0.8, to: 1.2 },
+              duration: 500,
+              delay: i * 50,
+              ease: 'Cubic.easeOut',
+              onComplete: () => sparkle.destroy()
+            });
+          }
+        }
       }
     });
   }
@@ -1066,16 +1146,32 @@ export class GameScene extends Phaser.Scene {
 
     } else if (eventType === 'monsterRaid') {
       const warningFrame = this.add.graphics();
+      const innerGlow = this.add.graphics();
       this.eventBanner.add(warningFrame);
+      this.eventBanner.add(innerGlow);
       const animateWarning = () => {
         if (!this.eventBanner.visible) return;
+        const now = Date.now();
+        const pulse = 0.6 + 0.4 * Math.sin(now * 0.015);
+        const fastPulse = 0.5 + 0.5 * Math.sin(now * 0.025);
         warningFrame.clear();
-        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
-        warningFrame.lineStyle(8, 0xff2222, pulse);
-        warningFrame.strokeRoundedRect(-245, -85, 490, 170, 15);
-        warningFrame.lineStyle(4, 0xff6666, pulse * 0.8);
-        warningFrame.strokeRoundedRect(-240, -80, 480, 160, 15);
-        this.time.delayedCall(30, animateWarning);
+        innerGlow.clear();
+        for (let l = 0; l < 4; l++) {
+          const layerOffset = l * 6;
+          const layerAlpha = (1 - l * 0.2) * (l === 0 ? pulse : fastPulse * 0.5);
+          warningFrame.lineStyle(6 - l, l === 0 ? 0xff2222 : (l === 1 ? 0xff4444 : 0xff6666), layerAlpha);
+          warningFrame.strokeRoundedRect(-250 - layerOffset, -90 - layerOffset, 500 + layerOffset * 2, 180 + layerOffset * 2, 18 - l * 2);
+        }
+        innerGlow.fillStyle(0xff0000, fastPulse * 0.1);
+        innerGlow.fillRoundedRect(-245, -85, 490, 170, 15);
+        for (let c = 0; c < 4; c++) {
+          const cx = c % 2 === 0 ? -245 : 245;
+          const cy = c < 2 ? -85 : 85;
+          const cornerPulse = 0.5 + 0.5 * Math.sin(now * 0.03 + c);
+          warningFrame.fillStyle(0xff4444, cornerPulse);
+          warningFrame.fillTriangle(cx, cy, cx + 15 * (c % 2 === 0 ? 1 : -1), cy, cx, cy + 15 * (c < 2 ? 1 : -1));
+        }
+        this.time.delayedCall(25, animateWarning);
       };
       animateWarning();
 
@@ -1083,22 +1179,23 @@ export class GameScene extends Phaser.Scene {
       bg.fillRoundedRect(-235, -75, 470, 150, 12);
       this.eventBanner.add(bg);
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 6; i++) {
         const corner = this.add.graphics();
         corner.lineStyle(4, 0xff4444, 1);
-        const cx = -200 + i * 400 / 3;
+        const cx = -200 + i * 80;
         corner.beginPath();
-        corner.moveTo(cx - 20, -60);
-        corner.lineTo(cx, -40);
-        corner.lineTo(cx + 20, -60);
+        corner.moveTo(cx - 15, -55);
+        corner.lineTo(cx, -35);
+        corner.lineTo(cx + 15, -55);
         corner.strokePath();
         this.eventBanner.add(corner);
         this.tweens.add({
           targets: corner,
-          scaleY: { from: 1, to: 1.3 },
-          alpha: { from: 1, to: 0.3 },
-          duration: 400,
-          delay: i * 100,
+          scaleY: { from: 1, to: 1.5 },
+          scaleX: { from: 1, to: 1.2 },
+          alpha: { from: 1, to: 0.2 },
+          duration: 350,
+          delay: i * 60,
           yoyo: true,
           loop: -1
         });
@@ -1490,12 +1587,21 @@ export class GameScene extends Phaser.Scene {
       const container = fence as unknown as Phaser.GameObjects.Container;
       if (container.getData) {
         const baseX = container.getData('baseX') as number;
+        const baseY = container.getData('baseY') as number;
         const fenceGraphics = container.getData('fenceGraphics') as Phaser.GameObjects.Graphics;
         if (fenceGraphics && baseX !== undefined) {
-          const swayOffset = Math.sin(t + idx * 1.3) * 0.8;
+          const swayOffset = Math.sin(t + idx * 1.3) * 1.2;
           container.x = baseX + swayOffset;
-          const rotOffset = Math.sin(t * 1.5 + idx) * 0.005;
+          const rotOffset = Math.sin(t * 1.5 + idx) * 0.008;
           container.rotation = rotOffset;
+          const yOffset = Math.sin(t * 1.2 + idx * 0.8) * 0.5;
+          container.y = baseY + yOffset;
+
+          if (fenceGraphics.clear) {
+            fenceGraphics.clear();
+            const wobbleOffset = Math.sin(t * 0.8 + idx) * 0.5;
+            this.drawWoodenFence(fenceGraphics, wobbleOffset, 0);
+          }
         }
       }
     });
@@ -1507,18 +1613,33 @@ export class GameScene extends Phaser.Scene {
       if (drop.active) {
         const speed = (drop.getData('speed') as number) || 2;
         const offset = (drop.getData('offset') as number) || 0;
-        drop.y += delta * 0.1 * speed;
-        drop.x += Math.sin(drop.y * 0.015 + offset) * 0.4;
-        if (drop.y > 80) {
-          drop.y = -140 + Math.random() * 60;
-          drop.x = -200 + Math.random() * 400;
+        drop.y += delta * 0.12 * speed;
+        drop.x += Math.sin(drop.y * 0.015 + offset) * 0.3;
+        if (drop.y > 90) {
+          drop.y = -150 + Math.random() * 70;
+          drop.x = -210 + Math.random() * 420;
         }
-        const alpha = 0.5 + 0.5 * Math.sin(t * 4 + i * 0.3);
-        const width = 2 + Math.sin(t * 2 + i) * 1;
-        const height = 6 + Math.sin(t * 3 + i * 0.5) * 3;
-        drop.fillStyle(0x66bbff, alpha);
+        const alpha = 0.6 + 0.4 * Math.sin(t * 4 + i * 0.3);
+        const baseSize = 3 + Math.sin(t * 2 + i) * 0.5;
+        const height = 10 + Math.sin(t * 3 + i * 0.5) * 4;
         drop.clear();
-        drop.fillEllipse(0, 0, width, height);
+        const dropAny = drop as any;
+        dropAny.fillStyle(0x66bbff, alpha * 0.3);
+        dropAny.beginPath();
+        dropAny.moveTo(0, height / 2);
+        dropAny.quadraticCurveTo(-baseSize * 1.2, height / 4, -baseSize * 0.8, -height / 4);
+        dropAny.quadraticCurveTo(0, -height / 2 - 3, baseSize * 0.8, -height / 4);
+        dropAny.quadraticCurveTo(baseSize * 1.2, height / 4, 0, height / 2);
+        dropAny.fillPath();
+        dropAny.fillStyle(0x88ccff, alpha);
+        dropAny.beginPath();
+        dropAny.moveTo(0, height / 2 - 1);
+        dropAny.quadraticCurveTo(-baseSize, height / 4, -baseSize * 0.6, -height / 4 + 1);
+        dropAny.quadraticCurveTo(0, -height / 2, baseSize * 0.6, -height / 4 + 1);
+        dropAny.quadraticCurveTo(baseSize, height / 4, 0, height / 2 - 1);
+        dropAny.fillPath();
+        drop.fillStyle(0xffffff, alpha * 0.8);
+        drop.fillEllipse(-baseSize * 0.3, -height / 6, baseSize * 0.3, baseSize * 0.4);
       }
     });
     this.rotatingLights.forEach((particle, i) => {
@@ -1527,27 +1648,42 @@ export class GameScene extends Phaser.Scene {
         if (isLeaf) {
           const baseX = particle.getData('baseX') as number;
           const baseY = particle.getData('baseY') as number;
-          const rotSpeed = (particle.getData('rotSpeed') as number) || 0.02;
+          const rotSpeed = (particle.getData('rotSpeed') as number) || 0.03;
           const floatOffset = (particle.getData('floatOffset') as number) || 0;
-          particle.x = baseX + Math.sin(t * 1.5 + floatOffset) * 15;
-          particle.y = baseY + Math.cos(t * 2 + floatOffset) * 10;
+          particle.x = baseX + Math.sin(t * 1.8 + floatOffset) * 18;
+          particle.y = baseY + Math.cos(t * 2.2 + floatOffset) * 12;
           particle.rotation += rotSpeed;
-          const alpha = 0.6 + 0.4 * Math.sin(t * 3 + i);
-          particle.fillStyle(0x88dd88, alpha);
+          const alpha = 0.7 + 0.3 * Math.sin(t * 3 + i);
+          particle.clear();
+          const particleAny = particle as any;
+          particleAny.fillStyle(0x88dd88, alpha);
+          particleAny.beginPath();
+          particleAny.moveTo(0, -8);
+          particleAny.quadraticCurveTo(8, 0, 0, 8);
+          particleAny.quadraticCurveTo(-8, 0, 0, -8);
+          particleAny.fillPath();
+          particle.fillStyle(0xaaffaa, alpha * 0.6);
+          particle.fillCircle(-2, -2, 2);
         } else {
           const baseAngle = (particle.getData('baseAngle') as number) || 0;
-          const radius = (particle.getData('radius') as number) || 130;
-          const speed = (particle.getData('speed') as number) || 1;
-          const size = (particle.getData('size') as number) || 3;
-          const angle = baseAngle + t * 2 * speed;
-          const r = radius + Math.sin(t * 3 + i) * 15;
+          const radius = (particle.getData('radius') as number) || 140;
+          const speed = (particle.getData('speed') as number) || 1.2;
+          const size = (particle.getData('size') as number) || 4;
+          const angle = baseAngle + t * 2.5 * speed;
+          const r = radius + Math.sin(t * 3 + i) * 20;
           particle.x = Math.cos(angle) * r;
-          particle.y = Math.sin(angle) * 60;
-          const alpha = 0.4 + 0.6 * Math.sin(t * 4 + i * 0.4);
-          const s = size + Math.sin(t * 2 + i) * 2;
-          particle.fillStyle(0xaaffbb, alpha);
+          particle.y = Math.sin(angle * 0.8) * 70;
+          const alpha = 0.5 + 0.5 * Math.sin(t * 5 + i * 0.4);
+          const s = size + Math.sin(t * 3 + i) * 2.5;
           particle.clear();
-          particle.fillCircle(0, 0, Math.max(1, s));
+          particle.fillStyle(0x88ff88, alpha * 0.3);
+          particle.fillCircle(0, 0, s * 2);
+          particle.fillStyle(0xaaffaa, alpha * 0.6);
+          particle.fillCircle(0, 0, s * 1.4);
+          particle.fillStyle(0xccffcc, alpha * 0.8);
+          particle.fillCircle(0, 0, s * 0.8);
+          particle.fillStyle(0xffffff, alpha);
+          particle.fillCircle(0, 0, s * 0.4);
         }
       }
     });
@@ -1565,36 +1701,72 @@ export class GameScene extends Phaser.Scene {
       if (graphics) {
         graphics.clear();
         const canShoot = now - tower.lastShootTime >= 2000;
-        const isShooting = now - tower.lastShootTime < 200;
+        const isShooting = now - tower.lastShootTime < 250;
+        const hasTarget = this.combatManager.getMonsters().some(m => {
+          const dx = m.x - tower.x;
+          const dy = m.y - tower.y;
+          return Math.sqrt(dx * dx + dy * dy) < 150;
+        });
+
         graphics.fillStyle(0x696969, 1);
         graphics.fillRect(-12, 0, 24, 40);
         graphics.fillStyle(0x8b4513, 1);
         for (let i = 0; i < 4; i++) {
           graphics.fillRect(-14, 8 + i * 10, 28, 2);
         }
-        graphics.fillStyle(0x555555, 1);
-        graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
-        graphics.fillStyle(0x444444, 1);
-        graphics.fillTriangle(-15, 0, 15, 0, 0, -17);
-        const glowIntensity = isShooting ? 1 : (canShoot ? 0.6 + 0.4 * Math.sin(now * 0.008) : 0.3);
-        const glowSize = isShooting ? 10 : (canShoot ? 7 : 5);
-        graphics.fillStyle(0xffff00, glowIntensity * 0.4);
-        graphics.fillCircle(0, -10, glowSize + 3);
-        graphics.fillStyle(0xffff66, glowIntensity * 0.7);
+        graphics.fillStyle(0x4a4a4a, 1);
+        graphics.fillRect(-12, 2, 24, 3);
+
+        if (isShooting) {
+          graphics.fillStyle(0xff6600, 1);
+          graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
+          graphics.fillStyle(0xffaa00, 1);
+          graphics.fillTriangle(-15, 0, 15, 0, 0, -17);
+        } else if (hasTarget) {
+          graphics.fillStyle(0x555555, 1);
+          graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
+          graphics.fillStyle(0x666666, 1);
+          graphics.fillTriangle(-15, 0, 15, 0, 0, -17);
+        } else {
+          graphics.fillStyle(0x555555, 1);
+          graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
+          graphics.fillStyle(0x444444, 1);
+          graphics.fillTriangle(-15, 0, 15, 0, 0, -17);
+        }
+
+        const glowIntensity = isShooting ? 1.2 : (hasTarget ? 0.8 + 0.2 * Math.sin(now * 0.012) : (canShoot ? 0.5 + 0.3 * Math.sin(now * 0.006) : 0.25));
+        const glowSize = isShooting ? 14 : (hasTarget ? 10 : (canShoot ? 7 : 4));
+        const glowColor = isShooting ? 0xff6600 : (hasTarget ? 0xffaa00 : 0xffff00);
+
+        graphics.fillStyle(glowColor, glowIntensity * 0.25);
+        graphics.fillCircle(0, -10, glowSize + 8);
+        graphics.fillStyle(glowColor, glowIntensity * 0.4);
+        graphics.fillCircle(0, -10, glowSize + 4);
+        graphics.fillStyle(glowColor, glowIntensity * 0.65);
         graphics.fillCircle(0, -10, glowSize);
-        graphics.fillStyle(0xffffff, glowIntensity);
-        graphics.fillCircle(0, -10, glowSize * 0.6);
+        graphics.fillStyle(0xffffff, glowIntensity * 0.9);
+        graphics.fillCircle(0, -10, glowSize * 0.55);
+        graphics.fillStyle(0xffffff, Math.min(1, glowIntensity + 0.3));
+        graphics.fillCircle(0, -10, glowSize * 0.25);
+
         if (isShooting) {
           const flash = this.add.graphics();
-          flash.fillStyle(0xffffff, 0.8);
+          flash.fillStyle(0xffaa00, 0.6);
+          flash.fillCircle(tower.x, tower.y - 10, 25);
+          flash.fillStyle(0xffffff, 0.9);
           flash.fillCircle(tower.x, tower.y - 10, 15);
           this.tweens.add({
             targets: flash,
             alpha: 0,
-            scale: 2,
-            duration: 150,
+            scale: 2.5,
+            duration: 200,
             onComplete: () => flash.destroy()
           });
+        }
+
+        if (hasTarget && !isShooting) {
+          graphics.lineStyle(1, 0xff4444, 0.25);
+          graphics.strokeCircle(0, 20, 150);
         }
       }
     });
@@ -1722,24 +1894,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderUpdate(): void {
-    this.resourceTexts.forEach((text, key) => {
-      const newVal = (this.state.resources as any)[key];
-      if (parseInt(text.text) !== newVal) {
-        this.tweens.addCounter({
-          from: parseInt(text.text),
-          to: newVal,
-          duration: 300,
-          ease: 'Cubic.easeOut',
-          onUpdate: (tween: Phaser.Tweens.Tween) => {
-            const val = tween.getValue();
-            text.setText(`${Math.floor(val ?? 0)}`);
-          }
-        });
-      }
-    });
-  }
-
-  resize(): void {
+    this.animateResourceChange();
   }
 
   destroy(): void {

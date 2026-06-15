@@ -5,6 +5,27 @@ import { GameState, Resources, CREATURE_CONFIG } from './types';
 const GAME_WIDTH = 1280;
 const GAME_HEIGHT = 720;
 
+const origScaleManagerResize = Phaser.Scale.ScaleManager.prototype.resize;
+const origScaleManagerRefresh = Phaser.Scale.ScaleManager.prototype.refresh;
+(Phaser.Scale.ScaleManager.prototype as any).resize = function(this: any, width: number, height: number) {
+  if (this._resizing) return;
+  this._resizing = true;
+  try {
+    origScaleManagerResize.call(this, width, height);
+  } finally {
+    this._resizing = false;
+  }
+};
+(Phaser.Scale.ScaleManager.prototype as any).refresh = function(this: any) {
+  if (this._resizing) return;
+  this._resizing = true;
+  try {
+    origScaleManagerRefresh.call(this);
+  } finally {
+    this._resizing = false;
+  }
+};
+
 function createInitialState(playerName: string): GameState {
   const resources: Resources = {
     coins: 50,
@@ -163,10 +184,12 @@ async function bootstrap() {
     height: GAME_HEIGHT,
     backgroundColor: '#2d5a3f',
     scale: {
-      mode: Phaser.Scale.ScaleModes.NONE,
+      mode: Phaser.Scale.ScaleModes.FIT,
       autoCenter: Phaser.Scale.Center.CENTER_BOTH,
-      width: GAME_WIDTH,
-      height: GAME_HEIGHT,
+      min: {
+        width: 800,
+        height: 450,
+      },
     },
     physics: {
       default: 'arcade',
@@ -187,29 +210,6 @@ async function bootstrap() {
 
   const game = new Phaser.Game(config);
   game.scene.start('GameScene', { state: gameState });
-
-  const resizeGame = () => {
-    const container = document.getElementById('game-container');
-    const canvas = document.querySelector('#game-container canvas');
-    if (!container || !canvas) return;
-    const containerWidth = Math.max(800, container.clientWidth);
-    const containerHeight = container.clientHeight;
-    const scaleX = containerWidth / GAME_WIDTH;
-    const scaleY = containerHeight / GAME_HEIGHT;
-    const scale = Math.min(scaleX, scaleY);
-    const canvasEl = canvas as HTMLCanvasElement;
-    canvasEl.style.transform = `scale(${scale})`;
-    canvasEl.style.transformOrigin = 'center center';
-    const scaledWidth = GAME_WIDTH * scale;
-    const scaledHeight = GAME_HEIGHT * scale;
-    const offsetX = (containerWidth - scaledWidth) / 2;
-    const offsetY = (containerHeight - scaledHeight) / 2;
-    canvasEl.style.marginLeft = `${offsetX}px`;
-    canvasEl.style.marginTop = `${offsetY}px`;
-  };
-
-  window.addEventListener('resize', resizeGame);
-  setTimeout(resizeGame, 100);
 }
 
 bootstrap();

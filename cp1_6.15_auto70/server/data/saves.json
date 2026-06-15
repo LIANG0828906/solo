@@ -1,1 +1,29 @@
-{}
+{
+  "测试": {
+    "playerName": "测试",
+    "state": {
+      "resources": {
+        "coins": 50,
+        "firePepper": 0,
+        "iceRadish": 0,
+        "windWheat": 0,
+        "flameEgg": 0,
+        "frostWool": 0,
+        "thunderShard": 0,
+        "seeds": 5
+      },
+      "crops": [],
+      "creatures": [],
+      "monsters": [],
+      "towers": [],
+      "fenceUpgradeLevel": 0,
+      "activeEvent": null,
+      "eventEndTime": 0,
+      "acidRainEndTime": 0,
+      "lastAutoSaveTime": 1781504585006,
+      "playerName": "测试",
+      "gameOver": false
+    },
+    "timestamp": 1781504648248
+  }
+}
