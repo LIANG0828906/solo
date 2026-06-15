@@ -152,20 +152,8 @@ async function bootstrap() {
   const savedState = await tryLoadGame(playerName);
   const gameState = savedState || createInitialState(playerName);
 
-  if (!savedState && gameState.creatures.length === 0) {
-    const types = ['flameChicken', 'frostSheep', 'thunderBird'] as const;
-    types.forEach((type, idx) => {
-      gameState.creatures.push({
-        id: `init_${type}_${idx}`,
-        type,
-        penIndex: idx,
-        lastProduceTime: Date.now(),
-        currentAction: 'idle',
-        actionEndTime: 0,
-        nextActionTime: Date.now() + 5000 + idx * 2000,
-        produceSpeedMultiplier: 1,
-      });
-    });
+  if (!savedState) {
+    gameState.resources.seeds = 5;
   }
 
   const config: Phaser.Types.Core.GameConfig = {
@@ -177,6 +165,8 @@ async function bootstrap() {
     scale: {
       mode: Phaser.Scale.ScaleModes.NONE,
       autoCenter: Phaser.Scale.Center.CENTER_BOTH,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
     },
     physics: {
       default: 'arcade',
@@ -198,13 +188,28 @@ async function bootstrap() {
   const game = new Phaser.Game(config);
   game.scene.start('GameScene', { state: gameState });
 
-  window.addEventListener('resize', () => {
+  const resizeGame = () => {
     const container = document.getElementById('game-container');
-    if (!container) return;
-    const w = Math.max(800, container.clientWidth);
-    const h = (w * 9) / 16;
-    game.scale.resize(w, h);
-  });
+    const canvas = document.querySelector('#game-container canvas');
+    if (!container || !canvas) return;
+    const containerWidth = Math.max(800, container.clientWidth);
+    const containerHeight = container.clientHeight;
+    const scaleX = containerWidth / GAME_WIDTH;
+    const scaleY = containerHeight / GAME_HEIGHT;
+    const scale = Math.min(scaleX, scaleY);
+    const canvasEl = canvas as HTMLCanvasElement;
+    canvasEl.style.transform = `scale(${scale})`;
+    canvasEl.style.transformOrigin = 'center center';
+    const scaledWidth = GAME_WIDTH * scale;
+    const scaledHeight = GAME_HEIGHT * scale;
+    const offsetX = (containerWidth - scaledWidth) / 2;
+    const offsetY = (containerHeight - scaledHeight) / 2;
+    canvasEl.style.marginLeft = `${offsetX}px`;
+    canvasEl.style.marginTop = `${offsetY}px`;
+  };
+
+  window.addEventListener('resize', resizeGame);
+  setTimeout(resizeGame, 100);
 }
 
 bootstrap();

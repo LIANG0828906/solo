@@ -170,48 +170,95 @@ export class GameScene extends Phaser.Scene {
       this.penFences[index].destroy();
     }
 
-    const fence = this.add.graphics();
-    fence.fillStyle(0x8b6914, 1);
-    fence.fillRect(x, y, PEN_WIDTH, PEN_HEIGHT);
+    const container = this.add.container(x, y);
+    container.setData('penIndex', index);
+    container.setData('baseX', x);
+    container.setData('baseY', y);
 
+    const ground = this.add.graphics();
+    ground.fillStyle(0x8b6914, 1);
+    ground.fillRect(0, 0, PEN_WIDTH, PEN_HEIGHT);
     const innerColor = hasCreature ? 0x90e090 : 0x7cb87c;
-    fence.fillStyle(innerColor, 1);
-    fence.fillRect(x + 6, y + 6, PEN_WIDTH - 12, PEN_HEIGHT - 12);
+    ground.fillStyle(innerColor, 1);
+    ground.fillRect(6, 6, PEN_WIDTH - 12, PEN_HEIGHT - 12);
+    for (let i = 0; i < 20; i++) {
+      const gx = 10 + Math.random() * (PEN_WIDTH - 20);
+      const gy = 10 + Math.random() * (PEN_HEIGHT - 20);
+      ground.fillStyle(hasCreature ? 0x6fb86f : 0x5a9a5a, 0.6);
+      ground.fillRect(gx, gy, 4 + Math.random() * 4, 2);
+    }
+    container.add(ground);
 
-    this.drawFence(fence, x, y);
-    this.penFences[index] = fence;
+    const fenceGraphics = this.add.graphics();
+    this.drawWoodenFence(fenceGraphics, 0, 0);
+    container.add(fenceGraphics);
+    container.setData('fenceGraphics', fenceGraphics);
+
+    this.penFences[index] = container as unknown as Phaser.GameObjects.Graphics;
 
     if (!this.state.creatures.find(c => c.penIndex === index)) {
-      const placeholder = this.add.text(x + PEN_WIDTH / 2, y + PEN_HEIGHT / 2, '空围栏\n(商店购买)', {
+      const placeholder = this.add.text(PEN_WIDTH / 2, PEN_HEIGHT / 2, '空围栏\n(商店购买)', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
         fontSize: '14px',
         color: '#5c4033',
         align: 'center'
       }).setOrigin(0.5);
       placeholder.setData('penPlaceholder', index);
+      container.add(placeholder);
     }
   }
 
-  private drawFence(graphics: Phaser.GameObjects.Graphics, x: number, y: number): void {
-    graphics.lineStyle(4, 0x6b4423, 1);
-    const postSpacing = 25;
-    for (let px = x; px <= x + PEN_WIDTH; px += postSpacing) {
-      graphics.fillStyle(0x6b4423, 1);
-      graphics.fillRect(px - 3, y - 4, 6, 8);
+  private drawWoodenFence(graphics: Phaser.GameObjects.Graphics, offsetX: number, offsetY: number): void {
+    const postSpacing = 22;
+    const postWidth = 6;
+    const postHeight = 14;
+    const railHeight = 4;
+
+    for (let side = 0; side < 4; side++) {
+      const isTopOrBottom = side < 2;
+      const isTop = side === 0;
+      const isBottom = side === 1;
+      const isLeft = side === 2;
+
+      if (isTopOrBottom) {
+        const y = isTop ? offsetY - 2 : offsetY + PEN_HEIGHT - 2;
+        for (let px = offsetX; px <= offsetX + PEN_WIDTH; px += postSpacing) {
+          graphics.fillStyle(0x5c3a1e, 1);
+          graphics.fillRect(px - postWidth / 2, y - postHeight / 2, postWidth, postHeight);
+          graphics.fillStyle(0x7a4d2b, 1);
+          graphics.fillRect(px - postWidth / 2 + 1, y - postHeight / 2 + 1, 2, postHeight - 2);
+          graphics.fillStyle(0x4a2e15, 1);
+          graphics.fillRect(px + 1, y - postHeight / 2 + 1, 2, postHeight - 2);
+        }
+        graphics.fillStyle(0x8b5a2b, 1);
+        graphics.fillRect(offsetX, y - 1, PEN_WIDTH, railHeight);
+        graphics.fillStyle(0xa06b36, 1);
+        graphics.fillRect(offsetX, y - 1, PEN_WIDTH, 1);
+        graphics.fillStyle(0x6b4423, 1);
+        graphics.fillRect(offsetX, y + railHeight - 2, PEN_WIDTH, 1);
+        for (let nx = offsetX; nx < offsetX + PEN_WIDTH; nx += 18) {
+          graphics.fillStyle(0x5c3a1e, 0.4);
+          graphics.fillRect(nx, y, 10, railHeight);
+        }
+      } else {
+        const x = isLeft ? offsetX - 2 : offsetX + PEN_WIDTH - 2;
+        for (let py = offsetY; py <= offsetY + PEN_HEIGHT; py += postSpacing) {
+          graphics.fillStyle(0x5c3a1e, 1);
+          graphics.fillRect(x - postHeight / 2, py - postWidth / 2, postHeight, postWidth);
+          graphics.fillStyle(0x7a4d2b, 1);
+          graphics.fillRect(x - postHeight / 2 + 1, py - postWidth / 2 + 1, postHeight - 2, 2);
+          graphics.fillStyle(0x4a2e15, 1);
+          graphics.fillRect(x - postHeight / 2 + 1, py + 1, postHeight - 2, 2);
+        }
+        graphics.fillStyle(0x8b5a2b, 1);
+        graphics.fillRect(x - 1, offsetY, railHeight, PEN_HEIGHT);
+      }
     }
-    for (let px = x; px <= x + PEN_WIDTH; px += postSpacing) {
-      graphics.fillStyle(0x6b4423, 1);
-      graphics.fillRect(px - 3, y + PEN_HEIGHT - 4, 6, 8);
+    for (let px = offsetX + postSpacing; px < offsetX + PEN_WIDTH; px += postSpacing) {
+      graphics.fillStyle(0x3a2510, 0.6);
+      graphics.fillCircle(px, offsetY - 2, 1);
+      graphics.fillCircle(px, offsetY + PEN_HEIGHT - 2, 1);
     }
-    graphics.lineStyle(3, 0x8b5a2b, 1);
-    graphics.beginPath();
-    graphics.moveTo(x, y);
-    graphics.lineTo(x + PEN_WIDTH, y);
-    graphics.strokePath();
-    graphics.beginPath();
-    graphics.moveTo(x, y + PEN_HEIGHT);
-    graphics.lineTo(x + PEN_WIDTH, y + PEN_HEIGHT);
-    graphics.strokePath();
   }
 
   private createResourceBar(): void {
@@ -569,18 +616,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupResizeHandler(): void {
-    this.scale.on('resize', this.resize, this);
-    this.resize();
-  }
-
-  private resize(): void {
-    const container = document.getElementById('game-container');
-    if (!container) return;
-    const w = Math.max(800, container.clientWidth);
-    const h = (w * 9) / 16;
-    this.scale.resize(w, h);
-    this.cameras.main.setZoom(w / GAME_WIDTH);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private onCellClick(gx: number, gy: number, cell: Phaser.GameObjects.Container): void {
@@ -963,80 +998,256 @@ export class GameScene extends Phaser.Scene {
 
   private showEventBanner(eventType: EventType): void {
     this.eventBanner.removeAll(true);
-    const bg = this.add.graphics();
+    this.rainDrops = [];
+    this.rotatingLights = [];
     this.eventBannerTimer = 3000;
+    const bg = this.add.graphics();
+
     if (eventType === 'acidRain') {
-      bg.fillStyle(0x2244aa, 0.9);
-      bg.fillRoundedRect(-220, -70, 440, 140, 20);
+      bg.fillStyle(0x1a3366, 0.95);
+      bg.fillRoundedRect(-230, -80, 460, 160, 20);
+      bg.lineStyle(3, 0x4488ff, 0.8);
+      bg.strokeRoundedRect(-230, -80, 460, 160, 20);
       this.eventBanner.add(bg);
-      const text = this.add.text(0, -20, '💧 酸雨来袭！', {
+
+      for (let i = 0; i < 30; i++) {
+        const drop = this.add.graphics();
+        const dx = -200 + Math.random() * 400;
+        const dy = -140 + Math.random() * 280;
+        drop.setData('baseX', dx);
+        drop.setData('baseY', dy);
+        drop.setData('speed', 1.5 + Math.random() * 2.5);
+        drop.setData('offset', Math.random() * Math.PI * 2);
+        drop.fillStyle(0x66bbff, 0.7 + Math.random() * 0.3);
+        drop.fillEllipse(dx, dy, 2 + Math.random() * 2, 6 + Math.random() * 6);
+        this.rainDrops.push(drop);
+        this.eventBanner.add(drop);
+      }
+
+      for (let i = 0; i < 3; i++) {
+        const splash = this.add.graphics();
+        splash.fillStyle(0x88ccff, 0.4);
+        splash.fillEllipse(-150 + i * 150, 50 + Math.random() * 20, 30 + Math.random() * 20, 6 + Math.random() * 4);
+        this.eventBanner.add(splash);
+        this.tweens.add({
+          targets: splash,
+          scaleX: { from: 0.5, to: 1.5 },
+          scaleY: { from: 0.5, to: 2 },
+          alpha: { from: 0.6, to: 0 },
+          duration: 1500,
+          delay: i * 300,
+          loop: -1
+        });
+      }
+
+      const text = this.add.text(0, -25, '💧 酸雨来袭！', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
-        fontSize: '32px',
+        fontSize: '34px',
         color: '#88ccff',
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        stroke: '#2244aa',
+        strokeThickness: 4
       }).setOrigin(0.5);
       this.eventBanner.add(text);
+      this.tweens.add({
+        targets: text,
+        scale: { from: 0.8, to: 1 },
+        duration: 500,
+        yoyo: true,
+        loop: -1
+      });
+
       const subText = this.add.text(0, 25, '作物生长减速50%，持续15秒', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
         fontSize: '16px',
         color: '#aaddff'
       }).setOrigin(0.5);
       this.eventBanner.add(subText);
-      for (let i = 0; i < 15; i++) {
-        const drop = this.add.graphics();
-        drop.fillStyle(0x66aaff, 0.9);
-        const dx = -180 + Math.random() * 360;
-        const dy = -100 + Math.random() * 40;
-        drop.fillEllipse(dx, dy, 3, 8);
-        this.rainDrops.push(drop);
-        this.eventBanner.add(drop);
-      }
+
     } else if (eventType === 'monsterRaid') {
-      bg.lineStyle(6, 0xff0000, 1);
-      bg.strokeRoundedRect(-240, -80, 480, 160, 12);
-      bg.fillStyle(0x440000, 0.9);
-      bg.fillRoundedRect(-230, -70, 460, 140, 10);
+      const warningFrame = this.add.graphics();
+      this.eventBanner.add(warningFrame);
+      const animateWarning = () => {
+        if (!this.eventBanner.visible) return;
+        warningFrame.clear();
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
+        warningFrame.lineStyle(8, 0xff2222, pulse);
+        warningFrame.strokeRoundedRect(-245, -85, 490, 170, 15);
+        warningFrame.lineStyle(4, 0xff6666, pulse * 0.8);
+        warningFrame.strokeRoundedRect(-240, -80, 480, 160, 15);
+        this.time.delayedCall(30, animateWarning);
+      };
+      animateWarning();
+
+      bg.fillStyle(0x3d0000, 0.95);
+      bg.fillRoundedRect(-235, -75, 470, 150, 12);
       this.eventBanner.add(bg);
-      const text = this.add.text(0, -20, '⚠️ 怪物侵扰！', {
+
+      for (let i = 0; i < 4; i++) {
+        const corner = this.add.graphics();
+        corner.lineStyle(4, 0xff4444, 1);
+        const cx = -200 + i * 400 / 3;
+        corner.beginPath();
+        corner.moveTo(cx - 20, -60);
+        corner.lineTo(cx, -40);
+        corner.lineTo(cx + 20, -60);
+        corner.strokePath();
+        this.eventBanner.add(corner);
+        this.tweens.add({
+          targets: corner,
+          scaleY: { from: 1, to: 1.3 },
+          alpha: { from: 1, to: 0.3 },
+          duration: 400,
+          delay: i * 100,
+          yoyo: true,
+          loop: -1
+        });
+      }
+
+      const text = this.add.text(0, -25, '⚠️ 怪物侵扰！', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
-        fontSize: '32px',
-        color: '#ff6666',
-        fontStyle: 'bold'
+        fontSize: '34px',
+        color: '#ff4444',
+        fontStyle: 'bold',
+        stroke: '#660000',
+        strokeThickness: 4
       }).setOrigin(0.5);
       this.eventBanner.add(text);
+      this.tweens.add({
+        targets: text,
+        scale: { from: 1, to: 1.08 },
+        duration: 200,
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
+      });
+      this.tweens.add({
+        targets: text,
+        x: { from: -3, to: 3 },
+        duration: 80,
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
+      });
+
       const subText = this.add.text(0, 25, '暗影狼出现！点击攻击击败它', {
         fontFamily: 'Comic Sans MS, Microsoft YaHei',
         fontSize: '16px',
         color: '#ffaaaa'
       }).setOrigin(0.5);
       this.eventBanner.add(subText);
+
+      for (let i = 0; i < 6; i++) {
+        const sparkle = this.add.graphics();
+        sparkle.fillStyle(0xff6666, 0.8);
+        const sx = -180 + i * 70;
+        const sy = -55 + (i % 2) * 110;
+        sparkle.fillCircle(sx, sy, 4);
+        sparkle.fillStyle(0xffaaaa, 0.6);
+        sparkle.fillCircle(sx - 3, sy - 3, 2);
+        sparkle.fillCircle(sx + 3, sy - 3, 2);
+        sparkle.fillCircle(sx, sy + 4, 2);
+        this.eventBanner.add(sparkle);
+        this.tweens.add({
+          targets: sparkle,
+          alpha: { from: 0.8, to: 0 },
+          scale: { from: 0.5, to: 1.5 },
+          duration: 600,
+          delay: i * 150,
+          loop: -1
+        });
+      }
+
     } else {
-      bg.fillStyle(0x44cc88, 0.9);
-      bg.fillRoundedRect(-220, -70, 440, 140, 20);
+      bg.fillStyle(0x228855, 0.95);
+      bg.fillRoundedRect(-230, -80, 460, 160, 20);
+      bg.lineStyle(3, 0x66ddaa, 0.8);
+      bg.strokeRoundedRect(-230, -80, 460, 160, 20);
       this.eventBanner.add(bg);
-      const text = this.add.text(0, -20, '🍃 丰收之风！', {
-        fontFamily: 'Comic Sans MS, Microsoft YaHei',
-        fontSize: '32px',
-        color: '#eeffee',
-        fontStyle: 'bold'
-      }).setOrigin(0.5);
-      this.eventBanner.add(text);
-      const subText = this.add.text(0, 25, '所有作物立即缩短一个生长阶段', {
-        fontFamily: 'Comic Sans MS, Microsoft YaHei',
-        fontSize: '16px',
-        color: '#ccffcc'
-      }).setOrigin(0.5);
-      this.eventBanner.add(subText);
-      for (let i = 0; i < 12; i++) {
+
+      for (let i = 0; i < 20; i++) {
         const light = this.add.graphics();
-        light.fillStyle(0xaaffbb, 0.8);
-        light.fillCircle(0, 0, 4);
-        const angle = (i / 12) * Math.PI * 2;
-        light.setPosition(Math.cos(angle) * 150, Math.sin(angle) * 50);
+        const angle = (i / 20) * Math.PI * 2;
+        const radius = 100 + Math.random() * 80;
+        light.setData('baseAngle', angle);
+        light.setData('radius', radius);
+        light.setData('speed', 0.5 + Math.random() * 1.5);
+        light.setData('size', 2 + Math.random() * 4);
+        light.setPosition(Math.cos(angle) * radius, Math.sin(angle) * 60);
+        light.fillStyle(0xaaffbb, 0.7 + Math.random() * 0.3);
+        light.fillCircle(0, 0, light.getData('size'));
         this.rotatingLights.push(light);
         this.eventBanner.add(light);
       }
+
+      for (let i = 0; i < 8; i++) {
+        const leaf = this.add.graphics();
+        leaf.fillStyle(0x88dd88, 0.8);
+        const lx = -180 + Math.random() * 360;
+        const ly = -100 + Math.random() * 200;
+        leaf.setData('baseX', lx);
+        leaf.setData('baseY', ly);
+        leaf.setData('rotSpeed', (Math.random() - 0.5) * 0.05);
+        leaf.setData('floatOffset', Math.random() * Math.PI * 2);
+        leaf.beginPath();
+        leaf.moveTo(0, -8);
+        (leaf as any).quadraticCurveTo(6, 0, 0, 8);
+        (leaf as any).quadraticCurveTo(-6, 0, 0, -8);
+        leaf.fillPath();
+        leaf.setPosition(lx, ly);
+        this.rotatingLights.push(leaf);
+        this.eventBanner.add(leaf);
+      }
+
+      const text = this.add.text(0, -25, '🍃 丰收之风！', {
+        fontFamily: 'Comic Sans MS, Microsoft YaHei',
+        fontSize: '34px',
+        color: '#ddffdd',
+        fontStyle: 'bold',
+        stroke: '#226644',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      this.eventBanner.add(text);
+      this.tweens.add({
+        targets: text,
+        rotation: { from: -0.03, to: 0.03 },
+        scale: { from: 0.95, to: 1.05 },
+        duration: 1500,
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      const subText = this.add.text(0, 25, '所有作物立即缩短一个生长阶段', {
+        fontFamily: 'Comic Sans MS, Microsoft YaHei',
+        fontSize: '16px',
+        color: '#bbffbb'
+      }).setOrigin(0.5);
+      this.eventBanner.add(subText);
+
+      const windLine = this.add.graphics();
+      this.eventBanner.add(windLine);
+      const animateWind = () => {
+        if (!this.eventBanner.visible) return;
+        windLine.clear();
+        const t = Date.now() * 0.003;
+        for (let i = 0; i < 4; i++) {
+          const y = -60 + i * 40;
+          const offset = Math.sin(t + i) * 10;
+          windLine.lineStyle(2, 0xaaffbb, 0.4 + 0.2 * Math.sin(t * 2 + i));
+          windLine.beginPath();
+          windLine.moveTo(-200, y + offset);
+          for (let x = -200; x < 200; x += 10) {
+            const wy = y + offset + Math.sin((x + t * 100) * 0.02 + i) * 5;
+            windLine.lineTo(x, wy);
+          }
+          windLine.strokePath();
+        }
+        this.time.delayedCall(30, animateWind);
+      };
+      animateWind();
     }
+
     this.eventBanner.setVisible(true);
     this.eventBanner.setAlpha(0);
     this.eventBanner.setScale(0.5);
@@ -1273,29 +1484,118 @@ export class GameScene extends Phaser.Scene {
   }
 
   private animateFences(): void {
+    const t = Date.now() * 0.002;
     this.penFences.forEach((fence, idx) => {
       if (!fence) return;
+      const container = fence as unknown as Phaser.GameObjects.Container;
+      if (container.getData) {
+        const baseX = container.getData('baseX') as number;
+        const fenceGraphics = container.getData('fenceGraphics') as Phaser.GameObjects.Graphics;
+        if (fenceGraphics && baseX !== undefined) {
+          const swayOffset = Math.sin(t + idx * 1.3) * 0.8;
+          container.x = baseX + swayOffset;
+          const rotOffset = Math.sin(t * 1.5 + idx) * 0.005;
+          container.rotation = rotOffset;
+        }
+      }
     });
   }
 
   private animateEventBanner(delta: number): void {
+    const t = Date.now() * 0.001;
     this.rainDrops.forEach((drop, i) => {
       if (drop.active) {
-        drop.y += (delta * 0.15) * ((i % 3) + 1);
-        drop.x += Math.sin(drop.y * 0.1) * 0.5;
-        if (drop.y > 100) {
-          drop.y = -100 + Math.random() * 40;
-          drop.x = -180 + Math.random() * 360;
+        const speed = (drop.getData('speed') as number) || 2;
+        const offset = (drop.getData('offset') as number) || 0;
+        drop.y += delta * 0.1 * speed;
+        drop.x += Math.sin(drop.y * 0.015 + offset) * 0.4;
+        if (drop.y > 80) {
+          drop.y = -140 + Math.random() * 60;
+          drop.x = -200 + Math.random() * 400;
+        }
+        const alpha = 0.5 + 0.5 * Math.sin(t * 4 + i * 0.3);
+        const width = 2 + Math.sin(t * 2 + i) * 1;
+        const height = 6 + Math.sin(t * 3 + i * 0.5) * 3;
+        drop.fillStyle(0x66bbff, alpha);
+        drop.clear();
+        drop.fillEllipse(0, 0, width, height);
+      }
+    });
+    this.rotatingLights.forEach((particle, i) => {
+      if (particle.active) {
+        const isLeaf = particle.getData('baseX') !== undefined;
+        if (isLeaf) {
+          const baseX = particle.getData('baseX') as number;
+          const baseY = particle.getData('baseY') as number;
+          const rotSpeed = (particle.getData('rotSpeed') as number) || 0.02;
+          const floatOffset = (particle.getData('floatOffset') as number) || 0;
+          particle.x = baseX + Math.sin(t * 1.5 + floatOffset) * 15;
+          particle.y = baseY + Math.cos(t * 2 + floatOffset) * 10;
+          particle.rotation += rotSpeed;
+          const alpha = 0.6 + 0.4 * Math.sin(t * 3 + i);
+          particle.fillStyle(0x88dd88, alpha);
+        } else {
+          const baseAngle = (particle.getData('baseAngle') as number) || 0;
+          const radius = (particle.getData('radius') as number) || 130;
+          const speed = (particle.getData('speed') as number) || 1;
+          const size = (particle.getData('size') as number) || 3;
+          const angle = baseAngle + t * 2 * speed;
+          const r = radius + Math.sin(t * 3 + i) * 15;
+          particle.x = Math.cos(angle) * r;
+          particle.y = Math.sin(angle) * 60;
+          const alpha = 0.4 + 0.6 * Math.sin(t * 4 + i * 0.4);
+          const s = size + Math.sin(t * 2 + i) * 2;
+          particle.fillStyle(0xaaffbb, alpha);
+          particle.clear();
+          particle.fillCircle(0, 0, Math.max(1, s));
         }
       }
     });
-    const t = Date.now() * 0.003;
-    this.rotatingLights.forEach((light, i) => {
-      if (light.active) {
-        const angle = (i / 12) * Math.PI * 2 + t;
-        light.x = Math.cos(angle) * 150;
-        light.y = Math.sin(angle) * 50;
-        light.alpha = 0.5 + 0.5 * Math.sin(t * 2 + i);
+  }
+
+  private syncTowerSprites(): void {
+    const now = Date.now();
+    this.state.towers.forEach(tower => {
+      const sprite = this.towerSprites.get(tower.id);
+      if (!sprite) {
+        this.addTowerSprite(tower);
+        return;
+      }
+      const graphics = sprite.list[0] as Phaser.GameObjects.Graphics;
+      if (graphics) {
+        graphics.clear();
+        const canShoot = now - tower.lastShootTime >= 2000;
+        const isShooting = now - tower.lastShootTime < 200;
+        graphics.fillStyle(0x696969, 1);
+        graphics.fillRect(-12, 0, 24, 40);
+        graphics.fillStyle(0x8b4513, 1);
+        for (let i = 0; i < 4; i++) {
+          graphics.fillRect(-14, 8 + i * 10, 28, 2);
+        }
+        graphics.fillStyle(0x555555, 1);
+        graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
+        graphics.fillStyle(0x444444, 1);
+        graphics.fillTriangle(-15, 0, 15, 0, 0, -17);
+        const glowIntensity = isShooting ? 1 : (canShoot ? 0.6 + 0.4 * Math.sin(now * 0.008) : 0.3);
+        const glowSize = isShooting ? 10 : (canShoot ? 7 : 5);
+        graphics.fillStyle(0xffff00, glowIntensity * 0.4);
+        graphics.fillCircle(0, -10, glowSize + 3);
+        graphics.fillStyle(0xffff66, glowIntensity * 0.7);
+        graphics.fillCircle(0, -10, glowSize);
+        graphics.fillStyle(0xffffff, glowIntensity);
+        graphics.fillCircle(0, -10, glowSize * 0.6);
+        if (isShooting) {
+          const flash = this.add.graphics();
+          flash.fillStyle(0xffffff, 0.8);
+          flash.fillCircle(tower.x, tower.y - 10, 15);
+          this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 2,
+            duration: 150,
+            onComplete: () => flash.destroy()
+          });
+        }
       }
     });
   }
@@ -1395,35 +1695,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private syncTowerSprites(): void {
-    const now = Date.now();
-    this.state.towers.forEach(tower => {
-      const sprite = this.towerSprites.get(tower.id);
-      if (!sprite) {
-        this.addTowerSprite(tower);
-        return;
-      }
-      const graphics = sprite.list[0] as Phaser.GameObjects.Graphics;
-      if (graphics) {
-        graphics.clear();
-        const canShoot = now - tower.lastShootTime >= 2000;
-        graphics.fillStyle(0x696969, 1);
-        graphics.fillRect(-12, 0, 24, 40);
-        graphics.fillStyle(0x8b4513, 1);
-        for (let i = 0; i < 4; i++) {
-          graphics.fillRect(-14, 8 + i * 10, 28, 2);
-        }
-        graphics.fillStyle(0x444444, 1);
-        graphics.fillTriangle(-18, 0, 18, 0, 0, -20);
-        const glowAlpha = canShoot ? 0.6 + 0.4 * Math.sin(now * 0.005) : 0.2;
-        graphics.fillStyle(0xffff00, glowAlpha);
-        graphics.fillCircle(0, -10, 6);
-        graphics.fillStyle(0xffff88, 1);
-        graphics.fillCircle(0, -10, 4);
-      }
-    });
-  }
-
   private syncBulletSprites(): void {
     const currentIds = new Set(this.combatManager.getBullets().map(b => b.id));
     this.bulletSprites.forEach((sprite, id) => {
@@ -1466,5 +1737,11 @@ export class GameScene extends Phaser.Scene {
         });
       }
     });
+  }
+
+  resize(): void {
+  }
+
+  destroy(): void {
   }
 }
