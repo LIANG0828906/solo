@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -112,6 +112,8 @@ export default function StatsDashboard() {
   const portfolios = useStore((s) => s.portfolios);
   const inquiries = useStore((s) => s.inquiries);
   const projects = useStore((s) => s.projects);
+  // 饼图悬停扇形索引（用于闪烁高亮效果）
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
 
   const totalPhotos = portfolios.reduce((sum, p) => sum + p.photos.length, 0);
   const totalPortfolios = portfolios.length;
@@ -299,24 +301,83 @@ export default function StatsDashboard() {
                   )}
                   wrapperStyle={{ paddingTop: 10 }}
                 />
+                {/*
+                  饼图扇形闪烁高亮效果实现:
+                  1. activeIndex 控制哪个扇形处于激活状态（通过 onMouseEnter 设置）
+                  2. 激活的扇形使用 outerRadius +8 放大，并附加 pie-flicker CSS 动画
+                  3. pie-flicker keyframes 实现 0.5s 周期的 opacity 轻微闪烁
+                  4. 同时 filter 使用增强型高斯模糊 drop-shadow 增强光晕
+                */}
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="45%"
                   innerRadius={55}
                   outerRadius={95}
+                  activeIndex={activePieIndex ?? undefined}
+                  activeShape={(props: unknown) => {
+                    const p = props as { cx?: number; cy?: number; midAngle?: number; innerRadius?: number; outerRadius?: number; startAngle?: number; endAngle?: number; fill?: string };
+                    const RADIAN = Math.PI / 180;
+                    const cx = p.cx ?? 0;
+                    const cy = p.cy ?? 0;
+                    const midAngle = p.midAngle ?? 0;
+                    const innerRadius = p.innerRadius ?? 55;
+                    const outerRadius = (p.outerRadius ?? 95) + 8;
+                    const startAngle = p.startAngle ?? 0;
+                    const endAngle = p.endAngle ?? 0;
+                    // 使用 SVG path 绘制放大的扇形（activeShape 自定义渲染放大 8px）
+                    const x0 = cx + innerRadius * Math.cos(-midAngle * RADIAN);
+                    const y0 = cy + innerRadius * Math.sin(-midAngle * RADIAN);
+                    const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                    const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                    const startX = cx + outerRadius * Math.cos(-startAngle * RADIAN);
+                    const startY = cy + outerRadius * Math.sin(-startAngle * RADIAN);
+                    const endX = cx + outerRadius * Math.cos(-endAngle * RADIAN);
+                    const endY = cy + outerRadius * Math.sin(-endAngle * RADIAN);
+                    const sInner = cx + innerRadius * Math.cos(-startAngle * RADIAN);
+                    const sInnerY = cy + innerRadius * Math.sin(-startAngle * RADIAN);
+                    const eInner = cx + innerRadius * Math.cos(-endAngle * RADIAN);
+                    const eInnerY = cy + innerRadius * Math.sin(-endAngle * RADIAN);
+                    // 简化：用 circle 表示放大高亮光圈，path 绘制扇形
+                    const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+                    const d = `
+                      M ${sInner} ${sInnerY}
+                      A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${eInner} ${eInnerY}
+                      L ${endX} ${endY}
+                      A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${startX} ${startY}
+                      Z
+                    `.replace(/\s+/g, ' ').trim();
+                    return (
+                      <path
+                        d={d}
+                        fill={p.fill}
+                        style={{
+                          transition: 'all 0.25s ease',
+                          transformOrigin: `${cx}px ${cy}px`,
+                        }}
+                        className="pie-flicker"
+                      />
+                    );
+                  }}
                   paddingAngle={3}
                   dataKey="value"
                   strokeWidth={0}
+                  onMouseEnter={(_, index) => setActivePieIndex(index)}
+                  onMouseLeave={() => setActivePieIndex(null)}
                 >
                   {pieData.map((_, index) => (
                     <Cell
                       key={index}
                       fill={PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length]}
-                      filter={`url(#glow${index % PORTFOLIO_COLORS.length})`}
+                      filter={activePieIndex === index
+                        ? `url(#glow${index % PORTFOLIO_COLORS.length})`
+                        : `url(#glow${index % PORTFOLIO_COLORS.length})`
+                      }
+                      className={activePieIndex === index ? 'pie-flicker' : ''}
                       style={{
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         transformOrigin: 'center',
+                        cursor: 'pointer',
                       }}
                     />
                   ))}

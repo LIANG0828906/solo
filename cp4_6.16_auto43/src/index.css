@@ -96,6 +96,50 @@ input, textarea, select {
   }
 }
 
+/* ============================================================
+   饼图扇形闪烁高亮效果 (Stats Dashboard)
+   - 需求: 悬停时带有轻微闪烁
+   - 实现: 2.2s 周期, opacity 在 0.72 ~ 1.0 间轻微波动
+   - 叠加 drop-shadow 光晕增强效果
+   ============================================================ */
+@keyframes pieFlicker {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 2px currentColor);
+  }
+  25% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 0 4px currentColor);
+  }
+  50% {
+    opacity: 0.72;
+    filter: drop-shadow(0 0 16px currentColor) drop-shadow(0 0 8px currentColor);
+  }
+  75% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 0 4px currentColor);
+  }
+}
+
+.pie-flicker {
+  animation: pieFlicker 2.2s ease-in-out infinite;
+  will-change: opacity, filter;
+}
+
+/*
+  看板拖拽卡片 GPU 加速层优化
+  - @dnd-kit 使用 transform 移动，确保走合成层
+  - will-change 告知浏览器提前为该元素创建独立合成层
+  - contain: layout paint; 限制重排重绘范围
+  - backface-visibility: hidden; 减少 GPU 开销
+*/
+.draggable-card {
+  will-change: transform, opacity;
+  contain: layout paint;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 @keyframes pulse {
   0%, 100% {
     transform: scale(1);
