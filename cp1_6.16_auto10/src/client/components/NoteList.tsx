@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Note } from '../../types';
+import { tagToColor } from '../utils/color';
 
 const PAGE_SIZE = 20;
-
-function tagToColor(tag: string): string {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 45%, 55%)`;
-}
 
 interface NoteListProps {
   notes: Note[];
@@ -25,6 +17,7 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const sortedNotes = useMemo(() => {
     return [...notes].sort(
@@ -55,29 +48,43 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
   }, [sortedNotes, searchQuery, activeTag]);
 
   const visibleNotes = filteredNotes.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredNotes.length;
 
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const target = entries[0];
-      if (target.isIntersecting && visibleCount < filteredNotes.length) {
-        setVisibleCount((prev) => prev + PAGE_SIZE);
-      }
-    },
-    [visibleCount, filteredNotes.length]
-  );
+  const loadMore = useCallback(() => {
+    if (hasMore) {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredNotes.length));
+    }
+  }, [hasMore, filteredNotes.length]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [searchQuery, activeTag]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 });
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observerRef.current = observer;
     const sentinel = sentinelRef.current;
-    if (sentinel) observer.observe(sentinel);
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
+
     return () => {
-      if (sentinel) observer.unobserve(sentinel);
+      observer.disconnect();
     };
-  }, [handleObserver]);
+  }, [loadMore, filteredNotes.length]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -111,6 +118,7 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
               key={tag}
               className={`tag-filter-chip ${activeTag === tag ? 'active' : ''}`}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+              style={activeTag === tag ? {} : { background: `${tagToColor(tag)}20`, color: tagToColor(tag) }}
             >
               {tag}
             </button>
@@ -140,7 +148,11 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
                   <span className="note-item-page">第 {note.pageNumber} 页</span>
                   <div className="note-item-tags">
                     {note.tags.map((tag) => (
-                      <span key={tag} className="note-item-tag" style={{ background: `${tagToColor(tag)}20`, color: tagToColor(tag) }}>
+                      <span
+                        key={tag}
+                        className="note-item-tag"
+                        style={{ background: `${tagToColor(tag)}20`, color: tagToColor(tag) }}
+                      >
                         {tag}
                       </span>
                     ))}
@@ -153,7 +165,11 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
 
                 <div
                   className="note-item-expanded"
-                  style={{ maxHeight: isExpanded ? '500px' : '0px' }}
+                  style={{
+                    maxHeight: isExpanded ? '1000px' : '0px',
+                    transition: 'max-height 0.2s ease',
+                    overflow: 'hidden',
+                  }}
                 >
                   {note.thought && (
                     <div className="note-item-thought">{note.thought}</div>
@@ -161,10 +177,22 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
                 </div>
 
                 <div className="note-item-actions">
-                  <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); onEdit(note); }}>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(note);
+                    }}
+                  >
                     编辑
                   </button>
-                  <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); onAddToBoard(note); }}>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToBoard(note);
+                    }}
+                  >
                     加到灵感板
                   </button>
                   <button
@@ -181,10 +209,31 @@ const NoteList: React.FC<NoteListProps> = ({ notes, onEdit, onDelete, onAddToBoa
             );
           })}
 
-          <div ref={sentinelRef} className="load-more-sentinel" />
-          {visibleCount < filteredNotes.length && (
-            <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>
-              加载更多...
+          {hasMore && (
+            <div ref={sentinelRef} className="load-more-sentinel" />
+          )}
+          {hasMore && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 16,
+                color: 'var(--text-muted)',
+                fontSize: 13,
+              }}
+            >
+              加载更多笔记...
+            </div>
+          )}
+          {!hasMore && filteredNotes.length > 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 16,
+                color: 'var(--text-muted)',
+                fontSize: 12,
+              }}
+            >
+              已加载全部 {filteredNotes.length} 条笔记
             </div>
           )}
         </>

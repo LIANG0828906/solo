@@ -5,30 +5,44 @@ import { Book, Note, BookSearchResult } from '../types';
 import BookCard from './components/BookCard';
 import NoteList from './components/NoteList';
 import InspirationBoard from './components/InspirationBoard';
+import { SkeletonGrid, SearchResultSkeleton } from './components/Skeleton';
 
-const NavBar: React.FC = () => (
+const NavBar: React.FC<{ onExport: () => void }> = ({ onExport }) => (
   <nav className="navbar">
     <Link to="/" className="navbar-brand">BookNotes</Link>
     <div className="navbar-links">
-      <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>我的书架</NavLink>
-      <NavLink to="/inspiration" className={({ isActive }) => isActive ? 'active' : ''}>灵感板</NavLink>
+      <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
+        我的书架
+      </NavLink>
+      <NavLink to="/inspiration" className={({ isActive }) => (isActive ? 'active' : '')}>
+        灵感板
+      </NavLink>
+      <button
+        onClick={onExport}
+        style={{
+          marginLeft: 8,
+          padding: '8px 14px',
+          border: 'none',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--accent)',
+          color: 'white',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-hover)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)';
+        }}
+      >
+        📥 导出笔记
+      </button>
     </div>
   </nav>
 );
-
-function SkeletonGrid() {
-  return (
-    <div className="skeleton-grid">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="skeleton-card">
-          <div className="skeleton-cover" />
-          <div className="skeleton-line" />
-          <div className="skeleton-line skeleton-line-short" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 const BookShelfPage: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -37,11 +51,14 @@ const BookShelfPage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [addingOlid, setAddingOlid] = useState<string | null>(null);
+  const [loadingBooks, setLoadingBooks] = useState(true);
   const navigate = useNavigate();
 
   const fetchBooks = useCallback(async () => {
+    setLoadingBooks(true);
     const res = await axios.get<Book[]>('/api/books');
     setBooks(res.data);
+    setLoadingBooks(false);
   }, []);
 
   useEffect(() => {
@@ -102,18 +119,25 @@ const BookShelfPage: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <button className="btn btn-primary" onClick={handleSearch}>
-            搜索
+          <button className="btn btn-primary" onClick={handleSearch} disabled={isSearching}>
+            {isSearching ? '搜索中...' : '搜索'}
           </button>
         </div>
 
         {showResults && (
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                marginBottom: 12,
+                color: 'var(--text-secondary)',
+              }}
+            >
               搜索结果
             </h3>
             {isSearching ? (
-              <SkeletonGrid />
+              <SearchResultSkeleton count={6} />
             ) : searchResults.length === 0 ? (
               <div className="empty-state" style={{ padding: 30 }}>
                 <div className="empty-state-text">未找到相关书籍</div>
@@ -152,7 +176,11 @@ const BookShelfPage: React.FC = () => {
                             cursor: added ? 'default' : 'pointer',
                           }}
                         >
-                          {addingOlid === result.olid ? '添加中...' : added ? '已添加' : '加入书架'}
+                          {addingOlid === result.olid
+                            ? '添加中...'
+                            : added
+                            ? '已添加'
+                            : '加入书架'}
                         </button>
                       </div>
                     </div>
@@ -166,7 +194,9 @@ const BookShelfPage: React.FC = () => {
 
       <div>
         <h2 className="section-title">我的书架</h2>
-        {books.length === 0 ? (
+        {loadingBooks ? (
+          <SkeletonGrid count={8} />
+        ) : books.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📚</div>
             <div className="empty-state-text">书架空空如也，搜索并添加你喜欢的书吧</div>
@@ -350,7 +380,9 @@ const BookDetailPage: React.FC = () => {
 
   return (
     <div className="main-content">
-      <Link to="/" className="back-link">← 返回书架</Link>
+      <Link to="/" className="back-link">
+        ← 返回书架
+      </Link>
 
       <div className="detail-header">
         {book.coverUrl ? (
@@ -361,7 +393,9 @@ const BookDetailPage: React.FC = () => {
         <div className="detail-info">
           <h1 className="detail-title">{book.title}</h1>
           <p className="detail-author">{book.author}</p>
-          <p className="detail-year">{book.publishYear ? `${book.publishYear} 年出版` : ''}</p>
+          <p className="detail-year">
+            {book.publishYear ? `${book.publishYear} 年出版` : ''}
+          </p>
 
           <div className="progress-section">
             <div className="progress-label">阅读进度：{book.progress}%</div>
@@ -377,7 +411,9 @@ const BookDetailPage: React.FC = () => {
                 onBlur={(e) => handleProgressUpdate(parseInt(e.target.value) || 0)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleProgressUpdate(parseInt((e.target as HTMLInputElement).value) || 0);
+                    handleProgressUpdate(
+                      parseInt((e.target as HTMLInputElement).value) || 0
+                    );
                   }
                 }}
               />
@@ -386,7 +422,13 @@ const BookDetailPage: React.FC = () => {
           </div>
 
           <div className="detail-actions">
-            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+            >
               + 添加笔记
             </button>
           </div>
@@ -395,7 +437,9 @@ const BookDetailPage: React.FC = () => {
 
       {showForm && (
         <div className="note-form">
-          <h3 className="note-form-title">{editingNote ? '编辑笔记' : '添加新笔记'}</h3>
+          <h3 className="note-form-title">
+            {editingNote ? '编辑笔记' : '添加新笔记'}
+          </h3>
 
           <div className="note-form-row">
             <label className="note-form-label">页码</label>
@@ -454,7 +498,10 @@ const BookDetailPage: React.FC = () => {
                 {formTags.map((tag) => (
                   <span key={tag} className="tag-chip">
                     {tag}
-                    <span className="tag-chip-remove" onClick={() => handleRemoveTag(tag)}>
+                    <span
+                      className="tag-chip-remove"
+                      onClick={() => handleRemoveTag(tag)}
+                    >
                       ×
                     </span>
                   </span>
@@ -475,9 +522,7 @@ const BookDetailPage: React.FC = () => {
       )}
 
       <div>
-        <h2 className="section-title">
-          笔记 ({notes.length})
-        </h2>
+        <h2 className="section-title">笔记 ({notes.length})</h2>
         <NoteList
           notes={notes}
           onEdit={openEditForm}
@@ -505,11 +550,17 @@ const InspirationPage: React.FC = () => {
   return (
     <div className="main-content">
       <h1 className="section-title">💡 灵感板</h1>
-      <InspirationBoard
-        notes={notes}
-        books={books}
-        onRemoveCard={() => {}}
-      />
+      <InspirationBoard notes={notes} books={books} onRemoveCard={() => {}} />
+      <p
+        style={{
+          marginTop: 16,
+          fontSize: 13,
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+        }}
+      >
+        拖拽卡片来重新排列你的灵感 · 布局自动保存
+      </p>
     </div>
   );
 };
@@ -517,26 +568,33 @@ const InspirationPage: React.FC = () => {
 const ExportModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const [markdown, setMarkdown] = useState('');
+  const [files, setFiles] = useState<{ filename: string; content: string }[]>([]);
+  const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/api/export').then((res) => {
-      setMarkdown(res.data.markdown);
-      setLoading(false);
-    });
+    axios
+      .get('/api/export')
+      .then((res) => {
+        setFiles(res.data.files);
+        setPreview(res.data.markdown);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
-  const handleDownload = async () => {
-    const res = await axios.get('/api/export');
-    const files: { filename: string; content: string }[] = res.data.files;
+  const handleDownload = () => {
     files.forEach((file) => {
       const blob = new Blob([file.content], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = file.filename;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
     onClose();
@@ -550,14 +608,37 @@ const ExportModal: React.FC<{
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
             生成预览中...
           </div>
+        ) : files.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+            暂无笔记可导出
+          </div>
         ) : (
           <>
-            <div className="modal-preview">{markdown || '暂无笔记可导出'}</div>
+            <div
+              style={{
+                marginBottom: 12,
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              预览（共 {files.length} 本书籍）：
+            </div>
+            <div className="modal-preview">{preview}</div>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                marginTop: 8,
+                marginBottom: 16,
+              }}
+            >
+              下载后将按书籍分组生成文件，文件名格式：书名_作者.md
+            </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={onClose}>
                 取消
               </button>
-              <button className="btn btn-primary" onClick={handleDownload} disabled={!markdown}>
+              <button className="btn btn-primary" onClick={handleDownload}>
                 确认导出
               </button>
             </div>
@@ -573,23 +654,11 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <NavBar />
+      <NavBar onExport={() => setShowExport(true)} />
       <Routes>
         <Route path="/" element={<BookShelfPage />} />
         <Route path="/book/:id" element={<BookDetailPage />} />
-        <Route
-          path="/inspiration"
-          element={
-            <div>
-              <InspirationPage />
-              <div className="export-section" style={{ marginTop: 24, padding: '0 24px 24px', maxWidth: 1400, marginLeft: 'auto', marginRight: 'auto' }}>
-                <button className="btn btn-primary" onClick={() => setShowExport(true)}>
-                  📥 导出所有笔记为 Markdown
-                </button>
-              </div>
-            </div>
-          }
-        />
+        <Route path="/inspiration" element={<InspirationPage />} />
       </Routes>
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
     </BrowserRouter>

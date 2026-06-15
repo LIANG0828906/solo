@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { InspirationCard, Note, Book } from '../../types';
+import { tagToColor } from '../utils/color';
 
 interface InspirationBoardProps {
   notes: Note[];
@@ -22,21 +24,8 @@ function saveLayout(cards: InspirationCard[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
 }
 
-function tagToColor(tag: string): string {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 45%, 55%)`;
-}
-
 const InspirationBoard: React.FC<InspirationBoardProps> = ({ notes, books, onRemoveCard }) => {
   const [cards, setCards] = useState<InspirationCard[]>(loadLayout);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const boardRef = useRef<HTMLDivElement>(null);
-  const dragInfoRef = useRef<{ startX: number; startY: number; cardX: number; cardY: number } | null>(null);
 
   useEffect(() => {
     saveLayout(cards);
@@ -50,52 +39,15 @@ const InspirationBoard: React.FC<InspirationBoardProps> = ({ notes, books, onRem
     [books]
   );
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent, cardId: string) => {
-      e.preventDefault();
-      const card = cards.find((c) => c.id === cardId);
-      if (!card) return;
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
 
-      setDragging(cardId);
-      dragInfoRef.current = {
-        startX: e.clientX,
-        startY: e.clientY,
-        cardX: card.x,
-        cardY: card.y,
-      };
-    },
-    [cards]
-  );
+    const items = Array.from(cards);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!dragging || !dragInfoRef.current) return;
-      const { startX, startY, cardX, cardY } = dragInfoRef.current;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-
-      setCards((prev) =>
-        prev.map((c) => (c.id === dragging ? { ...c, x: cardX + dx, y: cardY + dy } : c))
-      );
-    },
-    [dragging]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setDragging(null);
-    dragInfoRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    if (dragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [dragging, handleMouseMove, handleMouseUp]);
+    setCards(items);
+  };
 
   const handleAddCard = (noteId: string) => {
     const note = notes.find((n) => n.id === noteId);
@@ -109,8 +61,8 @@ const InspirationBoard: React.FC<InspirationBoardProps> = ({ notes, books, onRem
       bookId: note.bookId,
       summary: note.highlightText || note.thought || `第${note.pageNumber}页笔记`,
       tags: note.tags,
-      x: 20 + Math.random() * 200,
-      y: 20 + Math.random() * 200,
+      x: 0,
+      y: 0,
     };
     setCards((prev) => [...prev, newCard]);
   };
@@ -126,7 +78,10 @@ const InspirationBoard: React.FC<InspirationBoardProps> = ({ notes, books, onRem
     }
   };
 
-  const notesNotOnBoard = notes.filter((n) => !cards.some((c) => c.noteId === n.id));
+  const notesNotOnBoard = useMemo(
+    () => notes.filter((n) => !cards.some((c) => c.noteId === n.id)),
+    [notes, cards]
+  );
 
   return (
     <div>
@@ -167,46 +122,131 @@ const InspirationBoard: React.FC<InspirationBoardProps> = ({ notes, books, onRem
           </div>
         </div>
       ) : (
-        <div
-          ref={boardRef}
-          className="inspiration-board"
-          style={{ minHeight: Math.max(600, ...cards.map((c) => c.y + 200)) }}
-        >
-          {cards.map((card) => {
-            const isDragging = dragging === card.id;
-            return (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="inspiration-board" direction="horizontal">
+            {(provided) => (
               <div
-                key={card.id}
-                className={`inspiration-card ${isDragging ? 'dragging' : 'inspiration-card-snapped'}`}
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="inspiration-board"
                 style={{
-                  left: card.x,
-                  top: card.y,
-                  borderLeft: `3px solid ${card.tags.length > 0 ? tagToColor(card.tags[0]) : 'var(--accent)'}`,
+                  padding: 16,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, 240px)',
+                  gap: 16,
+                  alignContent: 'start',
                 }}
-                onMouseDown={(e) => handleMouseDown(e, card.id)}
               >
-                <button
-                  className="inspiration-card-remove"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => handleRemoveCard(card.id)}
-                >
-                  ✕
-                </button>
-                <div className="inspiration-card-book">📖 {getBookTitle(card.bookId)}</div>
-                <div className="inspiration-card-summary">{card.summary}</div>
-                {card.tags.length > 0 && (
-                  <div className="inspiration-card-tags">
-                    {card.tags.map((tag) => (
-                      <span key={tag} className="inspiration-card-tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {cards.map((card, index) => (
+                  <Draggable key={card.id} draggableId={card.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={{
+                          ...provided.draggableProps.style,
+                          transition: snapshot.isDragging
+                            ? 'none'
+                            : 'transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                        }}
+                      >
+                        <div
+                          className={`inspiration-card-dnd ${snapshot.isDragging ? 'dragging-dnd' : ''}`}
+                          style={{
+                            width: '100%',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: 14,
+                            cursor: snapshot.isDragging ? 'grabbing' : 'grab',
+                            boxShadow: snapshot.isDragging ? 'var(--shadow-lg)' : 'var(--shadow-sm)',
+                            opacity: snapshot.isDragging ? 0.7 : 1,
+                            borderLeft: `3px solid ${card.tags.length > 0 ? tagToColor(card.tags[0]) : 'var(--accent)'}`,
+                            userSelect: 'none',
+                            transform: snapshot.isDragging ? 'scale(1.02)' : 'scale(1)',
+                          }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCard(card.id);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: 6,
+                              right: 6,
+                              width: 20,
+                              height: 20,
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              fontSize: 14,
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: 0,
+                              transition: 'opacity 0.2s',
+                              zIndex: 1,
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+                              (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)';
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.opacity = '0';
+                              (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)';
+                            }}
+                          >
+                            ✕
+                          </button>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                            📖 {getBookTitle(card.bookId)}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              lineHeight: 1.5,
+                              color: 'var(--text-primary)',
+                              marginBottom: 8,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 4,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {card.summary}
+                          </div>
+                          {card.tags.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {card.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 8,
+                                    background: `${tagToColor(tag)}20`,
+                                    color: tagToColor(tag),
+                                  }}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
     </div>
   );
