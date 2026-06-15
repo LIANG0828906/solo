@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #1A1A2E;
+  --color-surface: #16213E;
+  --color-card: #1E2A45;
+  --color-card-hover: #243352;
+  --color-text: #F0F0F5;
+  --color-text-secondary: #A0A0B8;
+  --color-accent: #E94560;
+  --color-accent-hover: #FF5C75;
+  --color-border: #2A3A5C;
+  --color-purple: #9333EA;
+  --color-blue: #3B82F6;
+  --color-green: #22C55E;
+  --color-gray: #9CA3AF;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-card) 25%, var(--color-card-hover) 50%, var(--color-card) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.form-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 4px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.25s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.form-input:focus {
+  border-bottom-color: var(--color-accent);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+.react-calendar {
+  background: var(--color-surface) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  width: 100% !important;
+  font-family: 'Inter', sans-serif !important;
+  color: var(--color-text) !important;
+  transition: opacity 0.3s ease;
+}
+
+.react-calendar__navigation button {
+  color: var(--color-text) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  background: none !important;
+  border-radius: 8px !important;
+  min-width: 36px !important;
+}
+
+.react-calendar__navigation button:hover {
+  background: var(--color-card) !important;
+}
+
+.react-calendar__navigation button:disabled {
+  background: none !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.react-calendar__month-view__weekdays {
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.react-calendar__month-view__weekdays abbr {
+  text-decoration: none !important;
+}
+
+.react-calendar__tile {
+  background: none !important;
+  color: var(--color-text) !important;
+  border-radius: 8px !important;
+  padding: 8px 4px !important;
+  font-size: 13px !important;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.react-calendar__tile:hover {
+  background: var(--color-card) !important;
+}
+
+.react-calendar__tile--now {
+  background: var(--color-card) !important;
+  font-weight: 700 !important;
+  color: var(--color-accent) !important;
+}
+
+.react-calendar__tile--active {
+  background: var(--color-accent) !important;
+  color: #fff !important;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: var(--color-text-secondary) !important;
+  opacity: 0.3 !important;
+}
+
+.react-calendar__tile--hasBilling {
+  font-weight: 600 !important;
+}
+
+.billing-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.billing-dots {
+  display: flex;
+  gap: 2px;
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.billing-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 480px;
+  width: 90%;
+  border: 1px solid var(--color-border);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.notification-enter {
+  animation: slideInRight 0.3s ease forwards;
+}
+
+select.form-input {
+  appearance: none;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
