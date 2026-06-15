@@ -1,0 +1,297 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --accent: #e94560;
+  --accent-hover: #d13a54;
+  --card-bg: #0f3460;
+  --text-primary: #e1e1e1;
+  --text-secondary: #a0a0a0;
+  --link: #00b4d8;
+  --link-hover: #0096c7;
+  --staff-line: #ffd700;
+  --note-color: #ffffff;
+  --diff-add: rgba(74, 222, 128, 0.35);
+  --diff-remove: rgba(248, 113, 113, 0.35);
+  --highlight: rgba(255, 255, 128, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.1s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+.ease-standard {
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes cardSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-40px) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+.card-enter {
+  animation: cardSlideIn 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes pageExpandUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scaleY(0.95);
+  }
+  60% {
+    transform: translateY(-5px) scaleY(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.page-enter {
+  animation: pageExpandUp 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  transform-origin: bottom center;
+}
+
+@keyframes avatarDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.5);
+  }
+  60% {
+    transform: translateY(8px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.avatar-drop {
+  animation: avatarDrop 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes bubbleUp {
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.bubble-toast {
+  animation: bubbleUp 2s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes noteFlash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(255, 255, 128, 0.6);
+  }
+}
+
+.note-flash {
+  animation: noteFlash 0.2s ease-in-out;
+}
+
+@keyframes diffFadeOut {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.diff-highlight {
+  animation: diffFadeOut 3.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+@keyframes rippleExpand {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-ripple {
+  animation: rippleExpand 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes slideUpModal {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-slide-up {
+  animation: slideUpModal 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes fadeInContent {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.content-fade-in {
+  animation: fadeInContent 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.check-pop {
+  animation: checkPop 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 0.0667s linear infinite;
+}
+
+.project-card {
+  transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+  background: linear-gradient(135deg, #2a2a3e 0%, #1f1f35 100%);
+}
+
+.project-card:hover {
+  background: linear-gradient(135deg, #30304a 0%, #252550 100%);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.nav-icon-btn {
+  transition: background-color 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.nav-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.glass-panel {
+  background: rgba(22, 33, 62, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+  .desktop-sidebar {
+    display: none;
+  }
+  .mobile-topbar {
+    display: flex;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-topbar {
+    display: none;
+  }
+}

@@ -95,3 +95,22 @@ export function formatVersionName(projectName: string, versionNum: number): stri
   const minute = String(now.getMinutes()).padStart(2, '0');
   return `${projectName}_v${versionNum}_${year}${month}${day}_${hour}${minute}`;
 }
+
+export function getProjectById<T>(projectId: string): T | null {
+  const projects = getAllProjects<any[]>();
+  const project = projects.find(p => p.id === projectId);
+  return project || null;
+}
+
+export function updateProject(projectId: string, updates: Record<string, unknown>): boolean {
+  const projects = getAllProjects<any[]>();
+  const index = projects.findIndex(p => p.id === projectId);
+  if (index === -1) return false;
+  projects[index] = { ...projects[index], ...updates, updatedAt: new Date().toISOString() };
+  saveProjects(projects);
+  return true;
+}
+
+export function getVersionById<T>(projectId: string, versionId: string): T | null {
+  return getVersion<T>(projectId, versionId);
+}
