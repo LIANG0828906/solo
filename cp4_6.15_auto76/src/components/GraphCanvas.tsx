@@ -62,6 +62,13 @@ const GraphCanvas: React.FC = () => {
   const [editScale, setEditScale] = useState(0);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [cameraAnimating, setCameraAnimating] = useState(false);
+  const [originPos, setOriginPos] = useState({ x: 0, y: 0 });
+  const [isClosing, setIsClosing] = useState(false);
+
+  const trianglesCacheRef = useRef<Triangle[]>([]);
+  const prevNodeIdsRef = useRef<Set<string>>(new Set());
+  const prevLinkIdsRef = useRef<Set<string>>(new Set());
+  const adjacencyMapRef = useRef<Record<string, Set<string>>>({});
 
   const { getNodePosition, dragStart, drag, dragEnd } = useForceLayout(nodes, links, size.width, size.height);
 
@@ -78,17 +85,35 @@ const GraphCanvas: React.FC = () => {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const adjacencyMap = useMemo(() => {
+  const currentNodeIds = useMemo(() => {
+    return new Set(nodes.map(n => n.id));
+  }, [nodes]);
+
+  const currentLinkIds = useMemo(() => {
+    return new Set(links.map(l => l.id));
+  }, [links]);
+
+  const triangles = useMemo<Triangle[]>(() => {
+    const nodeIdsChanged =
+      currentNodeIds.size !== prevNodeIdsRef.current.size ||
+      [...currentNodeIds].some(id => !prevNodeIdsRef.current.has(id));
+
+    const linkIdsChanged =
+      currentLinkIds.size !== prevLinkIdsRef.current.size ||
+      [...currentLinkIds].some(id => !prevLinkIdsRef.current.has(id));
+
+    if (!nodeIdsChanged && !linkIdsChanged) {
+      return trianglesCacheRef.current;
+    }
+
     const map: Record<string, Set<string>> = {};
     nodes.forEach(n => { map[n.id] = new Set(); });
     links.forEach(l => {
       map[l.source]?.add(l.target);
       map[l.target]?.add(l.source);
     });
-    return map;
-  }, [nodes, links]);
+    adjacencyMapRef.current = map;
 
-  const triangles = useMemo<Triangle[]>(() => {
     const result: Triangle[] = [];
     const n = nodes.length;
     for (let i = 0; i < n; i++) {
@@ -97,17 +122,22 @@ const GraphCanvas: React.FC = () => {
           const a = nodes[i].id;
           const b = nodes[j].id;
           const c = nodes[k].id;
-          const ab = adjacencyMap[a]?.has(b);
-          const ac = adjacencyMap[a]?.has(c);
-          const bc = adjacencyMap[b]?.has(c);
+          const ab = map[a]?.has(b);
+          const ac = map[a]?.has(c);
+          const bc = map[b]?.has(c);
           if (ab && ac && bc) {
             result.push({ id: `tri-${a}-${b}-${c}`, a, b, c });
           }
         }
       }
     }
+
+    trianglesCacheRef.current = result;
+    prevNodeIdsRef.current = new Set(currentNodeIds);
+    prevLinkIdsRef.current = new Set(currentLinkIds);
+
     return result;
-  }, [nodes, adjacencyMap]);
+  }, [currentNodeIds, currentLinkIds, nodes, links]);
 
   const screenToSvg = useCallback((clientX: number, clientY: number) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -162,8 +192,16 @@ const GraphCanvas: React.FC = () => {
       }
     } else {
       if (draggingNodeId === null) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setOriginPos({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+        setIsClosing(false);
         setEditingNode(node);
-        setEditScale(1);
+        requestAnimationFrame(() => {
+          setEditScale(1);
+        });
         selectNode(node.id);
       }
     }
@@ -221,8 +259,12 @@ const GraphCanvas: React.FC = () => {
   };
 
   const closeEditPanel = () => {
+    setIsClosing(true);
     setEditScale(0);
-    setTimeout(() => setEditingNode(null), 200);
+    setTimeout(() => {
+      setEditingNode(null);
+      setIsClosing(false);
+    }, 300);
   };
 
   const handleEditSave = () => {
@@ -362,6 +404,7 @@ const GraphCanvas: React.FC = () => {
       const isSelected = selectedNodeId === node.id;
       const isConnecting = connectingFromId === node.id;
       const isNew = newNodeIds.has(node.id);
+      const isDragging = draggingNodeId === node.id;
 
       return (
         <g
@@ -387,15 +430,15 @@ const GraphCanvas: React.FC = () => {
             </filter>
           </defs>
           <circle
-            r={isHovered || isConnecting ? 27 : 24}
+            r={isHovered || isConnecting || isDragging ? 27 : 24}
             fill={`url(#${gradId})`}
             filter={`url(#shadow-${node.id})`}
             stroke={isConnecting ? '#ffffff' : 'rgba(255,255,255,0.2)'}
             strokeWidth={isConnecting ? 3 : (isSelected ? 2 : 1)}
             style={{
-              transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+              transform: isDragging ? 'scale(1.15)' : (isHovered ? 'scale(1.1)' : 'scale(1)'),
               transformOrigin: 'center',
-              transition: 'all 0.2s ease',
+              transition: isDragging ? 'none' : 'all 0.2s ease',
               animation: isNew ? 'nodeFadeIn 800ms ease-out forwards' : undefined,
               opacity: isNew ? 0 : 1,
             }}
@@ -494,11 +537,11 @@ const GraphCanvas: React.FC = () => {
         <div
           style={{
             position: 'fixed',
-            left: '50%',
-            top: '50%',
+            left: originPos.x + ((typeof window !== 'undefined' ? window.innerWidth : 800) / 2 - originPos.x) * editScale,
+            top: originPos.y + ((typeof window !== 'undefined' ? window.innerHeight : 600) / 2 - originPos.y) * editScale,
             transform: `translate(-50%, -50%) scale(${editScale})`,
             transformOrigin: 'center center',
-            transition: 'transform 0.2s ease, opacity 0.2s ease',
+            transition: 'left 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), top 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 300ms ease',
             opacity: editScale,
             zIndex: 9999,
             backgroundColor: '#161b22',
