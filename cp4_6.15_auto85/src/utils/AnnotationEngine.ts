@@ -4,16 +4,16 @@ import type { Annotation, BrushAnnotation, HighlightAnnotation, TextAnnotation }
 const COLOR_NAME_MAP: Record<string, string> = {
   '#e94560': '亮橙红',
   '#f39c12': '橙黄',
-  '#f1c40f': '黄色',
-  '#2ecc71': '绿色',
-  '#3498db': '蓝色',
-  '#9b59b6': '紫色',
-  '#e74c3c': '红色',
-  '#ffffff': '白色',
-  '#000000': '黑色',
+  '#f1c40f': '明黄',
+  '#2ecc71': '翠绿',
+  '#3498db': '天蓝',
+  '#9b59b6': '紫罗兰',
+  '#e74c3c': '朱红',
+  '#ffffff': '纯白',
+  '#000000': '纯黑',
   '#0f3460': '电光蓝',
   '#1a1a2e': '深紫蓝',
-  '#16213e': '深蓝',
+  '#16213e': '藏青',
 };
 
 function getColorName(hex: string): string {

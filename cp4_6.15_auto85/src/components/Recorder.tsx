@@ -3,6 +3,8 @@ import React, { useRef, useCallback, useEffect } from 'react';
 interface RecorderProps {
   mediaStream: MediaStream | null;
   fps: 15 | 30 | 60;
+  videoWidth: number;
+  videoHeight: number;
   onRecordingStart: () => void;
   onRecordingStop: (blob: Blob) => void;
   onRecordingTimeUpdate: (timeMs: number) => void;
@@ -12,6 +14,8 @@ interface RecorderProps {
 const Recorder: React.FC<RecorderProps> = ({
   mediaStream,
   fps,
+  videoWidth,
+  videoHeight,
   onRecordingStart,
   onRecordingStop,
   onRecordingTimeUpdate,
@@ -42,8 +46,13 @@ const Recorder: React.FC<RecorderProps> = ({
     }
 
     try {
+      const baseBitrate = videoWidth * videoHeight * fps * 0.1;
+      const minBitrate = 1000000;
+      const maxBitrate = 10000000;
+      const videoBitsPerSecond = Math.max(minBitrate, Math.min(maxBitrate, baseBitrate));
+
       const options: MediaRecorderOptions = {
-        videoBitsPerSecond: fps * 1000000,
+        videoBitsPerSecond,
       };
       if (mimeType) {
         options.mimeType = mimeType;
@@ -84,7 +93,7 @@ const Recorder: React.FC<RecorderProps> = ({
     } catch (err) {
       console.error('Failed to start recording:', err);
     }
-  }, [mediaStream, fps, onRecordingStart, onRecordingStop, onRecordingTimeUpdate]);
+  }, [mediaStream, fps, videoWidth, videoHeight, onRecordingStart, onRecordingStop, onRecordingTimeUpdate]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {

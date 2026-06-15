@@ -141,10 +141,11 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ videoBlob, annotations, o
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
-    if (!video || duration === 0) return;
+    if (!video || duration === 0 || isNaN(duration)) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = percent * duration;
+    if (isNaN(newTime) || !isFinite(newTime) || newTime < 0) return;
     video.currentTime = newTime / 1000;
   };
 
@@ -152,7 +153,19 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ videoBlob, annotations, o
     e.stopPropagation();
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = annotation.timestamp / 1000;
+    if (
+      annotation.timestamp === undefined ||
+      annotation.timestamp === null ||
+      isNaN(annotation.timestamp) ||
+      annotation.timestamp < 0
+    ) {
+      return;
+    }
+    const targetTime = annotation.timestamp / 1000;
+    if (isNaN(targetTime) || !isFinite(targetTime)) {
+      return;
+    }
+    video.currentTime = Math.max(0, Math.min(video.duration || Infinity, targetTime));
     setRippleId(annotation.id);
     setTimeout(() => setRippleId(null), 600);
   };

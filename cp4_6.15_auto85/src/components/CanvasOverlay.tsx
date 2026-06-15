@@ -87,6 +87,73 @@ function getAnnotationBoundingBox(ann: Annotation): Region | null {
   }
 }
 
+function generateCandidatePositions(
+  clickPos: Point,
+  textBBox: Region,
+  canvasWidth: number,
+  canvasHeight: number
+): Point[] {
+  const stepX = Math.max(textBBox.width * 0.5, 30);
+  const stepY = Math.max(textBBox.height * 0.8, 25);
+
+  const positions: Point[] = [clickPos];
+
+  const maxDistance = Math.max(canvasWidth, canvasHeight) * 0.3;
+
+  for (let ring = 1; ring <= 5; ring++) {
+    const offsetX = stepX * ring;
+    const offsetY = stepY * ring;
+
+    if (offsetX > maxDistance && offsetY > maxDistance) break;
+
+    const directions: Point[] = [
+      { x: clickPos.x + offsetX, y: clickPos.y },
+      { x: clickPos.x - offsetX, y: clickPos.y },
+      { x: clickPos.x, y: clickPos.y + offsetY },
+      { x: clickPos.x, y: clickPos.y - offsetY },
+      { x: clickPos.x + offsetX, y: clickPos.y + offsetY },
+      { x: clickPos.x - offsetX, y: clickPos.y - offsetY },
+      { x: clickPos.x + offsetX, y: clickPos.y - offsetY },
+      { x: clickPos.x - offsetX, y: clickPos.y + offsetY },
+    ];
+
+    for (const pos of directions) {
+      const testBBox: Region = {
+        x: pos.x,
+        y: pos.y - textBBox.height,
+        width: textBBox.width,
+        height: textBBox.height,
+      };
+
+      if (
+        testBBox.x >= 10 &&
+        testBBox.y >= 10 &&
+        testBBox.x + testBBox.width <= canvasWidth - 10 &&
+        testBBox.y + testBBox.height <= canvasHeight - 10
+      ) {
+        positions.push(pos);
+      }
+    }
+  }
+
+  if (positions.length < 5) {
+    const fallbackPositions: Point[] = [
+      { x: 20, y: textBBox.height + 20 },
+      { x: canvasWidth - textBBox.width - 20, y: textBBox.height + 20 },
+      { x: 20, y: canvasHeight - 20 },
+      { x: canvasWidth - textBBox.width - 20, y: canvasHeight - 20 },
+      { x: canvasWidth / 2, y: textBBox.height + 20 },
+    ];
+    for (const pos of fallbackPositions) {
+      if (!positions.some((p) => Math.abs(p.x - pos.x) < 5 && Math.abs(p.y - pos.y) < 5)) {
+        positions.push(pos);
+      }
+    }
+  }
+
+  return positions;
+}
+
 function calculateOptimalTextPosition(
   text: string,
   clickPos: Point,
@@ -98,27 +165,8 @@ function calculateOptimalTextPosition(
 ): Point {
   if (!text.trim()) return clickPos;
 
-  const candidatePositions: Point[] = [
-    { x: clickPos.x, y: clickPos.y },
-    { x: clickPos.x + 40, y: clickPos.y },
-    { x: clickPos.x - 40, y: clickPos.y },
-    { x: clickPos.x, y: clickPos.y + 40 },
-    { x: clickPos.x, y: clickPos.y - 40 },
-    { x: clickPos.x + 40, y: clickPos.y + 40 },
-    { x: clickPos.x - 40, y: clickPos.y - 40 },
-    { x: clickPos.x + 40, y: clickPos.y - 40 },
-    { x: clickPos.x - 40, y: clickPos.y + 40 },
-    { x: clickPos.x + 80, y: clickPos.y },
-    { x: clickPos.x - 80, y: clickPos.y },
-    { x: clickPos.x, y: clickPos.y + 80 },
-    { x: clickPos.x, y: clickPos.y - 80 },
-    { x: clickPos.x + 80, y: clickPos.y + 80 },
-    { x: clickPos.x - 80, y: clickPos.y - 80 },
-    { x: clickPos.x + 120, y: clickPos.y },
-    { x: clickPos.x - 120, y: clickPos.y },
-    { x: clickPos.x, y: clickPos.y + 120 },
-    { x: clickPos.x, y: clickPos.y - 120 },
-  ];
+  const textBBox = getTextBoundingBox(text, clickPos, fontSize, ctx);
+  const candidatePositions = generateCandidatePositions(clickPos, textBBox, canvasWidth, canvasHeight);
 
   const existingBBoxes = existingAnnotations
     .map((ann) => getAnnotationBoundingBox(ann))
@@ -140,13 +188,18 @@ function calculateOptimalTextPosition(
     }
 
     let penalty = 0;
-    penalty += Math.abs(pos.x - clickPos.x) + Math.abs(pos.y - clickPos.y);
+    const distance = Math.abs(pos.x - clickPos.x) + Math.abs(pos.y - clickPos.y);
+    penalty += distance * 1.5;
 
     for (const bbox of existingBBoxes) {
       if (checkCollision(candidateBBox, bbox)) {
-        penalty += 10000;
+        penalty += 100000;
       }
     }
+
+    const centerDist =
+      Math.abs(pos.x - canvasWidth / 2) + Math.abs(pos.y - canvasHeight / 2);
+    penalty += centerDist * 0.1;
 
     if (penalty < minPenalty) {
       minPenalty = penalty;

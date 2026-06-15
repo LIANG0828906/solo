@@ -83,6 +83,13 @@ const App: React.FC = () => {
     }
   }, [isDraggingPreview, handlePreviewDragMove, handlePreviewDragEnd]);
 
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', handlePreviewDragMove);
+      window.removeEventListener('mouseup', handlePreviewDragEnd);
+    };
+  }, [handlePreviewDragMove, handlePreviewDragEnd]);
+
   const getCurrentTime = useCallback(() => {
     if (!isRecordingRef.current) return 0;
     return performance.now() - recordingStartTimeRef.current;
@@ -406,6 +413,8 @@ const App: React.FC = () => {
         <Recorder
           mediaStream={mediaStream}
           fps={fps}
+          videoWidth={CANVAS_WIDTH}
+          videoHeight={CANVAS_HEIGHT}
           onRecordingStart={handleRecordingStart}
           onRecordingStop={handleRecordingStop}
           onRecordingTimeUpdate={handleRecordingTimeUpdate}
