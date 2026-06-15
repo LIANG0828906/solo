@@ -10,6 +10,10 @@
   --shadow-hover: 0 8px 24px rgba(255, 140, 66, 0.2);
   --radius: 10px;
   --transition: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --progress-pending: #9CA3AF;
+  --progress-inprogress: #3B82F6;
+  --progress-completed: #10B981;
+  --progress-duration: 0.6s;
 }
 
 * {
@@ -547,7 +551,9 @@ body {
 .progress-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.6s var(--transition);
+  width: 0%;
+  transition: width var(--progress-duration) var(--transition),
+              background-color var(--progress-duration) ease;
 }
 
 .progress-fill.animated {

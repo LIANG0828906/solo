@@ -30,6 +30,7 @@ const Dashboard: React.FC = () => {
   const loadingRef = useRef(false);
   const hasMoreRef = useRef(true);
   const activeTabRef = useRef<TabType>('plaza');
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -44,12 +45,13 @@ const Dashboard: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (observerRef.current) {
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      api.cancelAllRequests();
     };
   }, []);
 
@@ -57,11 +59,16 @@ const Dashboard: React.FC = () => {
     (node: HTMLDivElement | null) => {
       if (observerRef.current) {
         observerRef.current.disconnect();
+        observerRef.current = null;
       }
-      if (!node) return;
+      if (!node || !mountedRef.current) return;
 
       observerRef.current = new IntersectionObserver(
-        (entries) => {
+        (entries, obs) => {
+          if (!mountedRef.current) {
+            obs.disconnect();
+            return;
+          }
           const entry = entries[0];
           if (
             entry.isIntersecting &&
@@ -122,10 +129,17 @@ const Dashboard: React.FC = () => {
     };
   }, [page, petType, minBudget, maxBudget]);
 
+  const firstFilterRef = useRef(true);
   useEffect(() => {
+    if (firstFilterRef.current) {
+      firstFilterRef.current = false;
+      return;
+    }
+    api.cancelAllRequests();
     setPage(1);
     setRequirements([]);
     setHasMore(true);
+    loadingRef.current = false;
   }, [petType, minBudget, maxBudget]);
 
   useEffect(() => {

@@ -30,7 +30,7 @@ class Requirement:
         if not self.age:
             self.age = self.pet_age
         if not self.personality_tags:
-            self.personality_tags = self.pet_personality
+            self.personality_tags = list(self.pet_personality)
 
     @classmethod
     def create(cls, pet_name: str, pet_breed: str, pet_age: int,
