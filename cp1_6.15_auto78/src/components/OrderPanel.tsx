@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Minus, Plus, X, ShoppingCart, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createOrder } from '@/api';
@@ -22,6 +22,8 @@ export default function OrderPanel({ onOrderCreated }: OrderPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [showTimeError, setShowTimeError] = useState(false);
+  const errorTimeoutRef = useRef<number | null>(null);
 
   const timeSlots = useMemo(() => {
     const slots: string[] = [];
@@ -33,11 +35,14 @@ export default function OrderPanel({ onOrderCreated }: OrderPanelProps) {
     nextSlot.setSeconds(0);
     nextSlot.setMilliseconds(0);
 
-    for (let i = 0; i < 4; i++) {
-      const slotTime = new Date(nextSlot.getTime() + i * 15 * 60 * 1000);
-      const hours = slotTime.getHours().toString().padStart(2, '0');
-      const mins = slotTime.getMinutes().toString().padStart(2, '0');
+    const endTime = new Date(now.getTime() + 30 * 60 * 1000);
+
+    let currentSlot = new Date(nextSlot);
+    while (currentSlot <= endTime) {
+      const hours = currentSlot.getHours().toString().padStart(2, '0');
+      const mins = currentSlot.getMinutes().toString().padStart(2, '0');
       slots.push(`${hours}:${mins}`);
+      currentSlot = new Date(currentSlot.getTime() + 15 * 60 * 1000);
     }
 
     return slots;
@@ -46,9 +51,20 @@ export default function OrderPanel({ onOrderCreated }: OrderPanelProps) {
   const total = getTotal();
   const totalItems = getTotalItems();
 
+  const triggerTimeError = () => {
+    setShowTimeError(true);
+    if (errorTimeoutRef.current) {
+      window.clearTimeout(errorTimeoutRef.current);
+    }
+    errorTimeoutRef.current = window.setTimeout(() => {
+      setShowTimeError(false);
+    }, 300);
+  };
+
   const handleSubmitOrder = async () => {
     if (items.length === 0) return;
     if (!selectedTime) {
+      triggerTimeError();
       return;
     }
 
@@ -177,14 +193,17 @@ export default function OrderPanel({ onOrderCreated }: OrderPanelProps) {
             </div>
 
             <div className="cart-panel-footer">
-              <div className="time-selector-section">
+              <div className={`time-selector-section ${showTimeError ? 'time-selector-error' : ''}`}>
                 <p className="time-selector-label">选择取餐时间</p>
                 <div className="time-slots">
                   {timeSlots.map((slot) => (
                     <button
                       key={slot}
-                      className={`time-slot ${selectedTime === slot ? 'selected' : ''}`}
-                      onClick={() => setSelectedTime(slot)}
+                      className={`time-slot ${selectedTime === slot ? 'selected' : ''} ${showTimeError ? 'error-flash' : ''}`}
+                      onClick={() => {
+                        setSelectedTime(slot);
+                        setShowTimeError(false);
+                      }}
                     >
                       {slot}
                     </button>
@@ -200,7 +219,7 @@ export default function OrderPanel({ onOrderCreated }: OrderPanelProps) {
               <button
                 className="submit-order-btn"
                 onClick={handleSubmitOrder}
-                disabled={items.length === 0 || !selectedTime || isSubmitting}
+                disabled={items.length === 0 || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
