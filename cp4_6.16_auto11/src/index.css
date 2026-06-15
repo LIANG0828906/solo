@@ -1,0 +1,578 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #faf8f5;
+  --color-bg-secondary: #f5f1ea;
+  --color-card: #ffffff;
+  --color-card-secondary: #fdfbf7;
+  --color-text: #2d2a26;
+  --color-text-secondary: #6b6560;
+  --color-text-muted: #9c948b;
+  --color-border: #e8e2d9;
+  --color-border-secondary: #f0ebe3;
+  --color-accent: #c9a66b;
+  --color-accent-hover: #b8955a;
+  --color-accent-light: #f5ecd9;
+  --color-primary: #8b6914;
+  --color-danger: #c0392b;
+  --color-success: #27ae60;
+  --color-info: #2980b9;
+  --color-map-control-bg: rgba(255, 255, 255, 0.95);
+  --color-map-control-text: #2d2a26;
+  --color-photo-progress: #c9a66b;
+  --color-shadow: rgba(45, 42, 38, 0.08);
+  --color-shadow-lg: rgba(45, 42, 38, 0.15);
+}
+
+.dark {
+  --color-bg: #1a1816;
+  --color-bg-secondary: #252220;
+  --color-card: #2d2a26;
+  --color-card-secondary: #35322e;
+  --color-text: #f5f1ea;
+  --color-text-secondary: #c9c4bd;
+  --color-text-muted: #8b857e;
+  --color-border: #4a4641;
+  --color-border-secondary: #3a3632;
+  --color-accent: #d4b078;
+  --color-accent-hover: #e5c58f;
+  --color-accent-light: #3d3524;
+  --color-primary: #c9a66b;
+  --color-danger: #e74c3c;
+  --color-success: #2ecc71;
+  --color-info: #3498db;
+  --color-map-control-bg: rgba(45, 42, 38, 0.95);
+  --color-map-control-text: #f5f1ea;
+  --color-photo-progress: #d4b078;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-lg: rgba(0, 0, 0, 0.5);
+}
+
+* {
+  transition: background-color 0.3s ease-in-out,
+    border-color 0.3s ease-in-out,
+    color 0.3s ease-in-out,
+    fill 0.3s ease-in-out,
+    stroke 0.3s ease-in-out,
+    box-shadow 0.3s ease-in-out;
+}
+
+body {
+  font-family: 'Noto Serif SC', 'Playfair Display', Georgia, serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', 'Noto Serif SC', Georgia, serif;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.font-playfair {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-noto-serif {
+  font-family: 'Noto Serif SC', Georgia, serif;
+}
+
+/* Page Layout */
+.page-container {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Scrapbook / Notebook Page Style */
+.scrapbook-page {
+  position: relative;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 
+    0 4px 6px var(--color-shadow),
+    0 10px 20px var(--color-shadow);
+  overflow: hidden;
+}
+
+.scrapbook-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      var(--color-border-secondary) 31px,
+      var(--color-border-secondary) 32px
+    );
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.scrapbook-page::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 48px;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--color-danger) 10%,
+    var(--color-danger) 90%,
+    transparent
+  );
+  opacity: 0.3;
+}
+
+/* Page Corner Curl Animation */
+.page-corner-curl {
+  position: relative;
+}
+
+.page-corner-curl::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  background: linear-gradient(
+    135deg,
+    var(--color-bg-secondary) 45%,
+    var(--color-border) 50%,
+    var(--color-text-muted) 56%,
+    var(--color-shadow-lg) 80%
+  );
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 0 0 8px 0;
+}
+
+.page-corner-curl:hover::after {
+  width: 40px;
+  height: 40px;
+  box-shadow: -2px -2px 5px var(--color-shadow);
+}
+
+/* Hover Effects */
+.hover-scale-105 {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.hover-scale-105:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px var(--color-shadow-lg);
+}
+
+/* Ripple Effect */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(201, 166, 107, 0.4);
+  transform: scale(0);
+  animation: ripple-animation 0.6s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Map Info Card Popup Animation */
+.map-info-card {
+  animation: card-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes card-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Marker Popup Animation */
+.leaflet-popup-content-wrapper {
+  animation: popup-bounce-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px var(--color-shadow-lg) !important;
+  background: var(--color-card) !important;
+}
+
+.leaflet-popup-content {
+  margin: 16px !important;
+  font-family: 'Noto Serif SC', Georgia, serif;
+  color: var(--color-text);
+}
+
+.leaflet-popup-tip {
+  background: var(--color-card) !important;
+  box-shadow: none !important;
+}
+
+@keyframes popup-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-10px);
+  }
+  60% {
+    transform: scale(1.03) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Leaflet Map Controls Rounded Style */
+.leaflet-control-zoom {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 10px var(--color-shadow) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: var(--color-map-control-bg) !important;
+  color: var(--color-map-control-text) !important;
+  border: none !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: var(--color-accent-light) !important;
+  color: var(--color-primary) !important;
+}
+
+.leaflet-control-attribution {
+  background: var(--color-map-control-bg) !important;
+  border-radius: 8px 0 0 0 !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-primary) !important;
+}
+
+.leaflet-container {
+  background: var(--color-bg-secondary) !important;
+  border-radius: 12px;
+  font-family: 'Noto Serif SC', Georgia, serif;
+}
+
+/* Photo Progress Bar */
+.photo-progress-container {
+  width: 100%;
+  height: 6px;
+  background-color: var(--color-border-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.photo-progress-bar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    var(--color-accent-hover)
+  );
+  border-radius: 3px;
+  transition: width 0.4s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: progress-shimmer 1.5s infinite;
+}
+
+@keyframes progress-shimmer {
+  to {
+    left: 100%;
+  }
+}
+
+/* Blur Preview Thumbnail */
+.blur-thumbnail {
+  position: relative;
+  overflow: hidden;
+}
+
+.blur-thumbnail-placeholder {
+  filter: blur(20px);
+  transform: scale(1.1);
+  opacity: 0.8;
+  transition: filter 0.5s ease, opacity 0.5s ease, transform 0.5s ease;
+}
+
+.blur-thumbnail.loaded .blur-thumbnail-placeholder {
+  filter: blur(0);
+  transform: scale(1);
+  opacity: 1;
+}
+
+.blur-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Button Styles */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: #ffffff;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px var(--color-shadow);
+}
+
+.btn-secondary {
+  background-color: var(--color-card-secondary);
+  color: var(--color-text);
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+/* Card Styles */
+.trip-card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.trip-card:hover {
+  transform: scale(1.05) translateY(-4px);
+  box-shadow: 0 12px 30px var(--color-shadow-lg);
+  border-color: var(--color-accent);
+}
+
+/* Sidebar Responsive */
+.sidebar {
+  transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    z-index: 50;
+    transform: translateX(-100%);
+    height: 100vh;
+    top: 0;
+    left: 0;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+}
+
+/* Trip Editor Layout */
+.trip-editor-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  min-height: calc(100vh - 8rem);
+}
+
+@media (max-width: 768px) {
+  .trip-editor-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Map View Layout */
+.map-view-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.5rem;
+  min-height: calc(100vh - 8rem);
+}
+
+@media (max-width: 1024px) {
+  .map-view-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form Input Styles */
+.form-input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background-color: var(--color-card-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-family: 'Noto Serif SC', Georgia, serif;
+  transition: all 0.3s ease-in-out;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-light);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fade-in 0.2s ease-out;
+}
+
+.modal-content {
+  background-color: var(--color-card);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 25px 50px var(--color-shadow-lg);
+  animation: modal-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Thumbnail Sidebar */
+.thumbnail-sidebar {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.thumbnail-sidebar.collapsed {
+  width: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+/* Scrollbar Style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+  transition: background-color 0.3s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Selection Style */
+::selection {
+  background-color: var(--color-accent-light);
+  color: var(--color-primary);
+}
