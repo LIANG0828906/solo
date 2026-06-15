@@ -12,6 +12,7 @@ import {
   Clock,
   Map as MapIcon,
   Trash2,
+  AlertCircle,
 } from 'lucide-react';
 import { useRecordStore, useGeolocationTracking } from '@/modules/record';
 import { useMapStore } from '@/modules/map';
@@ -51,6 +52,7 @@ export default function MapPage() {
     setAddingPOI,
     enableCompareMode,
     disableCompareMode,
+    setCompareTrails,
   } = useMapStore();
 
   const {
@@ -67,6 +69,7 @@ export default function MapPage() {
   const [trailName, setTrailName] = useState('');
   const [, setTick] = useState(0);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [comparePanelVisible, setComparePanelVisible] = useState(false);
 
   useGeolocationTracking();
 
@@ -87,6 +90,14 @@ export default function MapPage() {
     const interval = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(interval);
   }, [isRecording]);
+
+  useEffect(() => {
+    if (compareMode) {
+      setTimeout(() => setComparePanelVisible(true), 50);
+    } else {
+      setComparePanelVisible(false);
+    }
+  }, [compareMode]);
 
   const handleStartRecording = () => {
     setShowNameInput(true);
@@ -125,26 +136,86 @@ export default function MapPage() {
 
   const handleStartCompare = () => {
     if (selectedCompareTrails.length === 2) {
-      enableCompareMode(selectedCompareTrails[0], selectedCompareTrails[1]);
-      clearCompareSelection();
+      const [id1, id2] = selectedCompareTrails;
+      Promise.all([
+        !trails.has(id1) ? loadTrail(id1) : Promise.resolve(),
+        !trails.has(id2) ? loadTrail(id2) : Promise.resolve(),
+      ]).then(() => {
+        enableCompareMode(id1, id2);
+      });
     }
   };
 
   const handleTrailClick = (trail: Trail) => {
     if (compareMode) {
-      toggleTrailSelection(trail.id);
+      if (compareTrailIds?.includes(trail.id)) {
+        return;
+      }
+      if (!trails.has(trail.id)) {
+        loadTrail(trail.id);
+      }
+      const newCompareIds = [...compareTrailIds!];
+      newCompareIds.shift();
+      newCompareIds.push(trail.id);
+      setCompareTrails(newCompareIds[0], newCompareIds[1]);
     } else {
       selectTrail(trail.id);
       navigate(`/map?trailId=${trail.id}`, { replace: true });
     }
   };
 
+  const handleCompareCheckboxToggle = (trail: Trail) => {
+    if (compareMode) {
+      if (compareTrailIds?.includes(trail.id)) {
+        return;
+      }
+      if (!trails.has(trail.id)) {
+        loadTrail(trail.id);
+      }
+      const newCompareIds = [...compareTrailIds!];
+      newCompareIds.shift();
+      newCompareIds.push(trail.id);
+      setCompareTrails(newCompareIds[0], newCompareIds[1]);
+    } else {
+      toggleCompareSelection(trail.id);
+      if (!trails.has(trail.id)) {
+        loadTrail(trail.id);
+      }
+    }
+  };
+
+  const getTrailCompareIndex = (trailId: string): number | null => {
+    if (!compareTrailIds) return null;
+    const idx = compareTrailIds.indexOf(trailId);
+    return idx >= 0 ? idx : null;
+  };
+
   const canExport = isRecording || (trailIdParam && trails.has(trailIdParam));
   const compareTrail1 = compareTrailIds ? trails.get(compareTrailIds[0]) || null : null;
   const compareTrail2 = compareTrailIds ? trails.get(compareTrailIds[1]) || null : null;
+  const showCheckbox = compareMode || selectedCompareTrails.length > 0;
+  const canStartCompare = selectedCompareTrails.length === 2 && !compareMode;
 
   return (
     <div className="map-page">
+      {compareMode && (
+        <div className="compare-status-bar">
+          <div className="compare-status-content">
+            <GitCompare size={18} />
+            <span className="compare-status-text">
+              对比模式：<span className="trail-blue-name">{compareTrail1?.name || '轨迹1'}</span>
+              <span className="vs-text"> VS </span>
+              <span className="trail-orange-name">{compareTrail2?.name || '轨迹2'}</span>
+            </span>
+            <span className="compare-status-hint">（点击其他轨迹可替换对比）</span>
+          </div>
+          <button className="compare-status-close" onClick={disableCompareMode}>
+            <X size={18} />
+            退出对比
+          </button>
+        </div>
+      )}
+
       <div className={`sidebar ${showSidebar ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <button className="back-btn" onClick={() => navigate('/')}>
@@ -213,6 +284,14 @@ export default function MapPage() {
             onClick={() => {
               if (compareMode) {
                 disableCompareMode();
+              } else if (selectedCompareTrails.length === 0) {
+                const firstTwo = socialTrails.slice(0, 2);
+                if (firstTwo.length === 2) {
+                  firstTwo.forEach(t => {
+                    toggleCompareSelection(t.id);
+                    if (!trails.has(t.id)) loadTrail(t.id);
+                  });
+                }
               }
             }}
           >
@@ -234,6 +313,13 @@ export default function MapPage() {
           </div>
         )}
 
+        {showCheckbox && !compareMode && (
+          <div className="compare-selection-info">
+            <AlertCircle size={16} />
+            <span>请选择 2 条轨迹进行对比</span>
+          </div>
+        )}
+
         <div className="trail-list">
           <div className="list-header">
             <h3>我的轨迹</h3>
@@ -241,43 +327,92 @@ export default function MapPage() {
           </div>
           
           <div className="trail-cards">
-            {socialTrails.map(trail => (
-              <TrailCard
-                key={trail.id}
-                trail={trail}
-                isLikedAnimating={likeAnimation === trail.id}
-                isSelected={
-                  (compareMode && compareTrailIds?.includes(trail.id)) ||
-                  selectedCompareTrails.includes(trail.id) ||
-                  trailIdParam === trail.id
-                }
-                showCompareCheckbox={compareMode || selectedCompareTrails.length > 0}
-                onLike={() => likeTrail(trail.id)}
-                onClick={() => handleTrailClick(trail)}
-                onToggleSelect={() => {
-                  toggleCompareSelection(trail.id);
-                  loadTrail(trail.id);
-                }}
-              />
-            ))}
+            {socialTrails.map(trail => {
+              const compareIndex = compareMode ? getTrailCompareIndex(trail.id) : null;
+              const isInCompare = compareIndex !== null;
+              const isCheckboxChecked = compareMode
+                ? isInCompare
+                : selectedCompareTrails.includes(trail.id);
+              const isSelected =
+                (compareMode && isInCompare) ||
+                selectedCompareTrails.includes(trail.id) ||
+                trailIdParam === trail.id;
+
+              return (
+                <TrailCard
+                  key={trail.id}
+                  trail={trail}
+                  isLikedAnimating={likeAnimation === trail.id}
+                  isSelected={isSelected}
+                  showCompareCheckbox={showCheckbox}
+                  compareIndex={compareMode ? compareIndex : (selectedCompareTrails.length > 0 ? selectedCompareTrails.indexOf(trail.id) : -1)}
+                  onLike={() => likeTrail(trail.id)}
+                  onClick={() => handleTrailClick(trail)}
+                  onToggleSelect={() => handleCompareCheckboxToggle(trail)}
+                />
+              );
+            })}
           </div>
 
-          {selectedCompareTrails.length > 0 && (
+          {selectedCompareTrails.length > 0 && !compareMode && (
             <div className="compare-selection-bar">
-              <span>已选 {selectedCompareTrails.length}/2</span>
-              <button
-                className="compare-confirm-btn"
-                disabled={selectedCompareTrails.length !== 2}
-                onClick={handleStartCompare}
-              >
-                开始对比
-              </button>
-              <button
-                className="compare-clear-btn"
-                onClick={clearCompareSelection}
-              >
-                <X size={14} />
-              </button>
+              <div className="compare-selection-info-bar">
+                <div className="compare-selected-items">
+                  {selectedCompareTrails.map((id, idx) => {
+                    const t = socialTrails.find(tr => tr.id === id);
+                    return (
+                      <span key={id} className={`compare-selected-tag tag-${idx}`}>
+                        {idx === 0 ? '①' : '②'} {t?.name?.slice(0, 8) || '轨迹'}
+                      </span>
+                    );
+                  })}
+                  {selectedCompareTrails.length === 1 && (
+                    <span className="compare-selected-placeholder">
+                      再选 1 条...
+                    </span>
+                  )}
+                </div>
+                <span className="compare-selection-count">
+                  已选 {selectedCompareTrails.length}/2
+                </span>
+              </div>
+              <div className="compare-selection-actions">
+                <button
+                  className="compare-clear-btn"
+                  onClick={clearCompareSelection}
+                  title="清除选择"
+                >
+                  <X size={14} />
+                </button>
+                <button
+                  className={`compare-confirm-btn ${canStartCompare ? 'ready' : ''}`}
+                  disabled={!canStartCompare}
+                  onClick={handleStartCompare}
+                >
+                  <GitCompare size={16} />
+                  {canStartCompare ? '开始对比' : `还需选择 ${2 - selectedCompareTrails.length} 条`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {compareMode && (
+            <div className="compare-selection-bar compare-mode-active">
+              <div className="compare-selection-info-bar">
+                <div className="compare-selected-items">
+                  {compareTrailIds?.map((id, idx) => {
+                    const t = socialTrails.find(tr => tr.id === id) || trails.get(id);
+                    return (
+                      <span key={id} className={`compare-selected-tag tag-${idx}`}>
+                        {idx === 0 ? '①' : '②'} {t?.name?.slice(0, 10) || '轨迹'}
+                      </span>
+                    );
+                  })}
+                </div>
+                <span className="compare-selection-count compare-mode-text">
+                  对比中
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -286,7 +421,7 @@ export default function MapPage() {
       <div className="map-container">
         <TrailMap height="100%" />
 
-        {compareMode && compareTrail1 && compareTrail2 && (
+        {compareMode && compareTrail1 && compareTrail2 && comparePanelVisible && (
           <div className="compare-panel-wrapper">
             <ComparePanel
               trail1={compareTrail1}

@@ -15,6 +15,7 @@ const initialState: MapState = {
   compareTrailIds: null,
   mapCenter: [39.9042, 116.4074],
   mapZoom: 12,
+  fitBoundsTrigger: 0,
 };
 
 export const useMapStore = create<MapState & MapActions>((set, get) => ({
@@ -111,16 +112,29 @@ export const useMapStore = create<MapState & MapActions>((set, get) => ({
       compareMode: true,
       compareTrailIds: [trail1Id, trail2Id],
       selectedTrailIds: [trail1Id, trail2Id],
+      activeTrailId: null,
     });
     setTimeout(() => {
       get().fitCompareBounds();
-    }, 100);
+    }, 150);
+  },
+
+  setCompareTrails: (trail1Id: string, trail2Id: string) => {
+    set({
+      compareTrailIds: [trail1Id, trail2Id],
+      selectedTrailIds: [trail1Id, trail2Id],
+      activeTrailId: null,
+    });
+    setTimeout(() => {
+      get().fitCompareBounds();
+    }, 150);
   },
 
   disableCompareMode: () => {
     set({
       compareMode: false,
       compareTrailIds: null,
+      activeTrailId: null,
     });
   },
 
@@ -136,7 +150,22 @@ export const useMapStore = create<MapState & MapActions>((set, get) => ({
     if (bounds) {
       const centerLat = (bounds[0][0] + bounds[1][0]) / 2;
       const centerLng = (bounds[0][1] + bounds[1][1]) / 2;
-      set({ mapCenter: [centerLat, centerLng] });
+      const latDiff = Math.abs(bounds[1][0] - bounds[0][0]);
+      const lngDiff = Math.abs(bounds[1][1] - bounds[0][1]);
+      const maxDiff = Math.max(latDiff, lngDiff);
+      
+      let zoom = 14;
+      if (maxDiff > 0.1) zoom = 11;
+      else if (maxDiff > 0.05) zoom = 12;
+      else if (maxDiff > 0.02) zoom = 13;
+      else if (maxDiff > 0.01) zoom = 14;
+      else zoom = 15;
+      
+      set({ 
+        mapCenter: [centerLat, centerLng], 
+        mapZoom: zoom,
+        fitBoundsTrigger: get().fitBoundsTrigger + 1,
+      });
     }
   },
 
@@ -158,7 +187,23 @@ export const useMapStore = create<MapState & MapActions>((set, get) => ({
     if (bounds) {
       const centerLat = (bounds[0][0] + bounds[1][0]) / 2;
       const centerLng = (bounds[0][1] + bounds[1][1]) / 2;
-      set({ mapCenter: [centerLat, centerLng] });
+      const latDiff = Math.abs(bounds[1][0] - bounds[0][0]);
+      const lngDiff = Math.abs(bounds[1][1] - bounds[0][1]);
+      const maxDiff = Math.max(latDiff, lngDiff);
+      
+      let zoom = 14;
+      if (maxDiff > 0.15) zoom = 10;
+      else if (maxDiff > 0.1) zoom = 11;
+      else if (maxDiff > 0.05) zoom = 12;
+      else if (maxDiff > 0.02) zoom = 13;
+      else if (maxDiff > 0.01) zoom = 14;
+      else zoom = 15;
+      
+      set({ 
+        mapCenter: [centerLat, centerLng], 
+        mapZoom: zoom,
+        fitBoundsTrigger: get().fitBoundsTrigger + 1,
+      });
     }
   },
 }));

@@ -9,6 +9,7 @@ interface TrailCardProps {
   isLikedAnimating?: boolean;
   isSelected?: boolean;
   showCompareCheckbox?: boolean;
+  compareIndex?: number | null;
   onLike?: () => void;
   onClick?: () => void;
   onToggleSelect?: () => void;
@@ -19,24 +20,29 @@ export function TrailCard({
   isLikedAnimating = false,
   isSelected = false,
   showCompareCheckbox = false,
+  compareIndex = -1,
   onLike,
   onClick,
   onToggleSelect,
 }: TrailCardProps) {
+  const isCompare0 = compareIndex === 0;
+  const isCompare1 = compareIndex === 1;
+  const compareClass = isCompare0 ? 'compare-blue' : isCompare1 ? 'compare-orange' : '';
+
   return (
     <div
-      className={`trail-card ${isSelected ? 'selected' : ''}`}
+      className={`trail-card ${isSelected ? 'selected' : ''} ${compareClass}`}
       onClick={onClick}
     >
       {showCompareCheckbox && (
         <div
-          className={`compare-checkbox ${isSelected ? 'checked' : ''}`}
+          className={`compare-checkbox ${isSelected ? 'checked' : ''} ${compareClass}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleSelect?.();
           }}
         >
-          {isSelected && '✓'}
+          {isSelected && (isCompare0 || isCompare1 ? (compareIndex === 0 ? '①' : '②') : '✓')}
         </div>
       )}
       

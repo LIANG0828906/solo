@@ -7,32 +7,25 @@ const MAX_SAMPLE_ERROR = 500;
 export function useGeolocationTracking() {
   const { isRecording, currentTrailId, addPoint, setCurrentPosition, setError } = useRecordStore();
   const watchIdRef = useRef<number | null>(null);
-  const lastSampleTimeRef = useRef<number>(0);
-  const intervalIdRef = useRef<number | null>(null);
+  const currentPositionRef = useRef<{
+    lat: number;
+    lng: number;
+    elevation: number | null;
+  } | null>(null);
+  const expectedSampleTimeRef = useRef<number>(0);
+  const sampleCountRef = useRef<number>(0);
+  const rafIdRef = useRef<number | null>(null);
 
   const handlePosition = useCallback((position: GeolocationPosition) => {
-    const now = Date.now();
     const pos = {
       lat: position.coords.latitude,
       lng: position.coords.longitude,
       elevation: position.coords.altitude,
     };
-    
-    setCurrentPosition(pos);
 
-    if (isRecording && currentTrailId) {
-      if (now - lastSampleTimeRef.current >= SAMPLE_INTERVAL - MAX_SAMPLE_ERROR) {
-        addPoint({
-          trailId: currentTrailId,
-          lat: pos.lat,
-          lng: pos.lng,
-          elevation: pos.elevation,
-          timestamp: new Date(),
-        });
-        lastSampleTimeRef.current = now;
-      }
-    }
-  }, [isRecording, currentTrailId, addPoint, setCurrentPosition]);
+    currentPositionRef.current = pos;
+    setCurrentPosition(pos);
+  }, [setCurrentPosition]);
 
   const handleError = useCallback((error: GeolocationPositionError) => {
     const errorMessages: Record<number, string> = {
@@ -42,6 +35,33 @@ export function useGeolocationTracking() {
     };
     setError(errorMessages[error.code] || '获取位置失败');
   }, [setError]);
+
+  const performSample = useCallback(() => {
+    if (!currentTrailId || !currentPositionRef.current) return;
+
+    const now = Date.now();
+    const deviation = now - expectedSampleTimeRef.current;
+
+    sampleCountRef.current += 1;
+
+    console.log(
+      `[GPS采样] #${sampleCountRef.current} | ` +
+      `期望时间: ${new Date(expectedSampleTimeRef.current).toISOString()} | ` +
+      `实际时间: ${new Date(now).toISOString()} | ` +
+      `偏差: ${deviation >= 0 ? '+' : ''}${deviation}ms | ` +
+      `状态: ${Math.abs(deviation) <= MAX_SAMPLE_ERROR ? '✓正常' : '⚠超差'}`
+    );
+
+    addPoint({
+      trailId: currentTrailId,
+      lat: currentPositionRef.current.lat,
+      lng: currentPositionRef.current.lng,
+      elevation: currentPositionRef.current.elevation,
+      timestamp: new Date(now),
+    });
+
+    expectedSampleTimeRef.current += SAMPLE_INTERVAL;
+  }, [currentTrailId, addPoint]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -70,34 +90,40 @@ export function useGeolocationTracking() {
   }, [handlePosition, handleError, setError]);
 
   useEffect(() => {
-    if (isRecording) {
-      lastSampleTimeRef.current = Date.now();
-    }
-  }, [isRecording]);
-
-  useEffect(() => {
     if (!isRecording) {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
       return;
     }
 
-    intervalIdRef.current = window.setInterval(() => {
-      const now = Date.now();
-      if (now - lastSampleTimeRef.current >= SAMPLE_INTERVAL + MAX_SAMPLE_ERROR) {
-        console.warn('GPS采样延迟超过阈值');
+    const now = Date.now();
+    expectedSampleTimeRef.current = now + SAMPLE_INTERVAL;
+    sampleCountRef.current = 0;
+
+    console.log(`[GPS采样] 启动 | 采样间隔: ${SAMPLE_INTERVAL}ms | 允许误差: ±${MAX_SAMPLE_ERROR}ms`);
+
+    const checkAndSample = () => {
+      const currentTime = Date.now();
+
+      if (currentTime >= expectedSampleTimeRef.current - MAX_SAMPLE_ERROR) {
+        performSample();
       }
-    }, 1000);
+
+      rafIdRef.current = requestAnimationFrame(checkAndSample);
+    };
+
+    rafIdRef.current = requestAnimationFrame(checkAndSample);
 
     return () => {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
+      console.log(`[GPS采样] 停止 | 总采样次数: ${sampleCountRef.current}`);
     };
-  }, [isRecording]);
+  }, [isRecording, performSample]);
 
   return null;
 }

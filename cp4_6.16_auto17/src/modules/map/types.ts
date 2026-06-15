@@ -12,6 +12,7 @@ export interface MapState {
   compareTrailIds: [string, string] | null;
   mapCenter: [number, number];
   mapZoom: number;
+  fitBoundsTrigger: number;
 }
 
 export interface MapActions {
@@ -27,6 +28,7 @@ export interface MapActions {
   setSelectedPOI: (poi: POI | null) => void;
   setAddingPOI: (adding: boolean) => void;
   enableCompareMode: (trail1Id: string, trail2Id: string) => void;
+  setCompareTrails: (trail1Id: string, trail2Id: string) => void;
   disableCompareMode: () => void;
   setMapCenter: (center: [number, number]) => void;
   setMapZoom: (zoom: number) => void;

@@ -12,16 +12,16 @@ interface TrailMapProps {
 }
 
 function MapController() {
-  const { mapCenter, mapZoom, trails, compareMode, compareTrailIds, activeTrailId, isAddingPOI, loadPOIs, addPOI, selectedPOI, setSelectedPOI, updatePOIPosition, pois } = useMapStore();
+  const { mapCenter, mapZoom, trails, compareMode, compareTrailIds, activeTrailId, isAddingPOI, loadPOIs, addPOI, selectedPOI, setSelectedPOI, updatePOIPosition, pois, fitBoundsTrigger } = useMapStore();
   const { points: recordPoints, isRecording, currentTrailId } = useRecordStore();
   const map = useMap();
   const [pendingPOIPos, setPendingPOIPos] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (mapCenter) {
-      map.setView(mapCenter, mapZoom, { animate: true });
+    if (mapCenter && map) {
+      map.setView(mapCenter, mapZoom, { animate: true, duration: 0.5 });
     }
-  }, [mapCenter, mapZoom, map]);
+  }, [mapCenter, mapZoom, map, fitBoundsTrigger]);
 
   useMapEvents({
     click: (e) => {
@@ -51,13 +51,30 @@ function MapController() {
 
   const trailList = compareMode && compareTrailIds
     ? compareTrailIds.map(id => ({ id, trail: trails.get(id) }))
-    : Array.from(trails.entries()).map(([id, trail]) => ({ id, trail }));
+    : (activeTrailId 
+        ? [{ id: activeTrailId, trail: trails.get(activeTrailId) }]
+        : []);
 
-  const getTrailColor = (index: number, isActive: boolean) => {
-    if (compareMode) {
-      return index === 0 ? '#1976D2' : '#FF9800';
+  const getTrailColor = (index: number, isActive: boolean, trailId: string) => {
+    if (compareMode && compareTrailIds) {
+      const idx = compareTrailIds.indexOf(trailId);
+      return idx === 0 ? '#1976D2' : idx === 1 ? '#FF9800' : '#90CAF9';
     }
     return isActive ? '#1976D2' : '#90CAF9';
+  };
+
+  const getTrailWeight = (index: number, isActive: boolean, trailId: string) => {
+    if (compareMode && compareTrailIds && compareTrailIds.includes(trailId)) {
+      return 6;
+    }
+    return isActive ? 5 : 3;
+  };
+
+  const getTrailOpacity = (index: number, isActive: boolean, trailId: string) => {
+    if (compareMode && compareTrailIds && compareTrailIds.includes(trailId)) {
+      return 1;
+    }
+    return isActive ? 1 : 0.8;
   };
 
   const positionIcon = L.divIcon({
@@ -79,11 +96,14 @@ function MapController() {
           <TrailPolyline
             key={id}
             points={trail.points}
-            color={getTrailColor(index, id === activeTrailId)}
-            isActive={id === activeTrailId}
+            color={getTrailColor(index, id === activeTrailId, id)}
+            isActive={compareMode ? compareTrailIds?.includes(id) || false : id === activeTrailId}
             isCompare={compareMode}
+            compareIndex={compareMode && compareTrailIds ? compareTrailIds.indexOf(id) : -1}
             trailName={trail.name}
             distance={trail.distance}
+            weight={getTrailWeight(index, id === activeTrailId, id)}
+            opacity={getTrailOpacity(index, id === activeTrailId, id)}
           />
         )
       ))}
