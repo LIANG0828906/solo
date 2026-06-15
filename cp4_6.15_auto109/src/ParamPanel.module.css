@@ -241,6 +241,43 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.colorStopRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(108, 99, 255, 0.3);
+}
+
+.colorStopRow.draggingRow {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.colorStopRow.dragOverRow {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.6);
+  transform: scale(1.02);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: grab;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.dragHandle:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .colorPicker {

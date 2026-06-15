@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Download, GripVertical } from 'lucide-react';
-import type { EffectParams, ScaleCurvePreset } from './types';
+import type { EffectParams, ScaleCurvePreset, ColorStop } from './types';
 import { presets } from './presets';
 import styles from './ParamPanel.module.css';
 
@@ -29,6 +29,7 @@ export default function ParamPanel({
   onExport,
 }: ParamPanelProps) {
   const [draggingStopId, setDraggingStopId] = useState<string | null>(null);
+  const [dragOverStopId, setDragOverStopId] = useState<string | null>(null);
   const gradientBarRef = useRef<HTMLDivElement>(null);
 
   const handleSliderChange = (key: keyof EffectParams, value: number) => {
@@ -90,6 +91,75 @@ export default function ParamPanel({
   }, [draggingStopId, handleMouseMove, handleMouseUp]);
 
   const sortedColorStops = [...params.colorGradient].sort((a, b) => a.position - b.position);
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, stopId: string) => {
+      setDraggingStopId(stopId);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', stopId);
+    },
+    []
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, stopId: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (stopId !== draggingStopId) {
+        setDragOverStopId(stopId);
+      }
+    },
+    [draggingStopId]
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverStopId(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, targetId: string) => {
+      e.preventDefault();
+      const draggedId = draggingStopId;
+      if (!draggedId || draggedId === targetId) {
+        setDraggingStopId(null);
+        setDragOverStopId(null);
+        return;
+      }
+
+      const stops = [...params.colorGradient];
+      const draggedIndex = stops.findIndex((s) => s.id === draggedId);
+      const targetIndex = stops.findIndex((s) => s.id === targetId);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        setDraggingStopId(null);
+        setDragOverStopId(null);
+        return;
+      }
+
+      const draggedStop = stops[draggedIndex] as ColorStop;
+      const targetStop = stops[targetIndex] as ColorStop;
+
+      const newStops = stops.map((stop) => {
+        if (stop.id === draggedId) {
+          return { ...stop, position: targetStop.position };
+        }
+        if (stop.id === targetId) {
+          return { ...stop, position: draggedStop.position };
+        }
+        return stop;
+      });
+
+      onChange({ colorGradient: newStops });
+      setDraggingStopId(null);
+      setDragOverStopId(null);
+    },
+    [draggingStopId, params.colorGradient, onChange]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingStopId(null);
+    setDragOverStopId(null);
+  }, []);
 
   const gradientStyle = {
     background: `linear-gradient(to right, ${sortedColorStops
@@ -291,7 +361,21 @@ export default function ParamPanel({
         </div>
         <div className={styles.colorStopsList}>
           {sortedColorStops.map((stop) => (
-            <div key={stop.id} className={styles.colorStopRow}>
+            <div
+              key={stop.id}
+              className={`${styles.colorStopRow} ${
+                draggingStopId === stop.id ? styles.draggingRow : ''
+              } ${dragOverStopId === stop.id ? styles.dragOverRow : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, stop.id)}
+              onDragOver={(e) => handleDragOver(e, stop.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, stop.id)}
+              onDragEnd={handleDragEnd}
+            >
+              <div className={styles.dragHandle}>
+                <GripVertical size={14} />
+              </div>
               <input
                 type="color"
                 value={stop.color.startsWith('rgba') ? '#ffffff' : stop.color}

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { EffectParams, ColorStop, CurvePoint } from './types';
+import type { EffectParams, ColorStop, CurvePoint, ScaleCurvePreset } from './types';
 
 export class EmitterEngine {
   private readonly canvas: HTMLCanvasElement;
@@ -114,12 +114,17 @@ export class EmitterEngine {
   private drawTrails(): void {
     for (const particle of this.particles) {
       const lifetime = particle.lifetime;
-      for (let i = 0; i < particle.history.length; i++) {
+      const historyLen = particle.history.length;
+      for (let i = 0; i < historyLen; i++) {
         const point = particle.history[i] as MutableParticleHistoryPoint;
         const ageRatio = point.age / lifetime;
-        const trailAlpha = (i / particle.history.length) * (1 - ageRatio) * 0.5;
-        const scale = this.params ? sampleScaleCurve(this.params.scaleCurve, ageRatio) : 1;
-        const size = particle.size * scale * (i / particle.history.length);
+        const ageFactor = 1 - ageRatio;
+        const historyFactor = (i + 1) / historyLen;
+        const trailAlpha = ageFactor * historyFactor * 0.6;
+        const scale = this.params
+          ? sampleScaleCurve(this.params.scaleCurve, this.params.scaleCurvePreset, ageRatio)
+          : 1;
+        const size = particle.size * scale * historyFactor * 0.8;
 
         if (size <= 0) continue;
 
@@ -138,7 +143,9 @@ export class EmitterEngine {
       const ageRatio = particle.currentAge / particle.lifetime;
       const lifeRemaining = 1 - ageRatio;
       const color = interpolateColor(particle.colorStops, ageRatio);
-      const scale = this.params ? sampleScaleCurve(this.params.scaleCurve, ageRatio) : 1;
+      const scale = this.params
+        ? sampleScaleCurve(this.params.scaleCurve, this.params.scaleCurvePreset, ageRatio)
+        : 1;
       const size = particle.size * scale;
 
       if (size <= 0) continue;
@@ -162,12 +169,11 @@ export class EmitterEngine {
     const centerX = this.canvas.width / 2 + this.params.originOffsetX;
     const centerY = this.canvas.height / 2 + this.params.originOffsetY;
 
-    const pulsePeriod = 1;
+    const pulsePeriod = 1.5;
     const pulsePhase = (this.pulseTime % pulsePeriod) / pulsePeriod;
-    const pulseValue = pulsePhase < 0.5 ? pulsePhase * 2 : (1 - pulsePhase) * 2;
-
-    const radius = 5 + pulseValue * 15;
-    const opacity = 0.8 - pulseValue * 0.6;
+    const easeOut = 1 - Math.pow(1 - pulsePhase, 3);
+    const radius = 5 + easeOut * 15;
+    const opacity = Math.max(0, 0.8 - easeOut * 0.8);
 
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -175,9 +181,25 @@ export class EmitterEngine {
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
 
+    if (pulsePhase > 0.3) {
+      const secondPhase = (pulsePhase - 0.3) / 0.7;
+      const secondEaseOut = 1 - Math.pow(1 - secondPhase, 3);
+      const secondRadius = 5 + secondEaseOut * 15;
+      const secondOpacity = Math.max(0, 0.5 - secondEaseOut * 0.5);
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, secondRadius, 0, Math.PI * 2);
+      this.ctx.strokeStyle = `rgba(72, 198, 239, ${secondOpacity})`;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.stroke();
+    }
+
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
-    this.ctx.fillStyle = 'rgba(168, 85, 247, 0.9)';
+    const gradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 6);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.5, 'rgba(168, 85, 247, 0.8)');
+    gradient.addColorStop(1, 'rgba(168, 85, 247, 0)');
+    this.ctx.fillStyle = gradient;
     this.ctx.fill();
   }
 
@@ -264,20 +286,30 @@ function interpolateColor(stops: readonly ColorStop[], t: number): string {
 
   t = Math.max(0, Math.min(1, t));
 
-  let prevStop = stops[0] as ColorStop;
-  let nextStop = stops[stops.length - 1] as ColorStop;
+  const sortedStops = [...stops].sort((a, b) => a.position - b.position);
 
-  for (let i = 0; i < stops.length - 1; i++) {
-    const current = stops[i] as ColorStop;
-    const next = stops[i + 1] as ColorStop;
-    if (t >= current.position && t <= next.position) {
+  if (t <= sortedStops[0].position) {
+    return sortedStops[0].color;
+  }
+
+  if (t >= sortedStops[sortedStops.length - 1].position) {
+    return sortedStops[sortedStops.length - 1].color;
+  }
+
+  let prevStop = sortedStops[0] as ColorStop;
+  let nextStop = sortedStops[sortedStops.length - 1] as ColorStop;
+
+  for (let i = 0; i < sortedStops.length - 1; i++) {
+    const current = sortedStops[i] as ColorStop;
+    const next = sortedStops[i + 1] as ColorStop;
+    if (t >= current.position && t < next.position) {
       prevStop = current;
       nextStop = next;
       break;
     }
   }
 
-  if (prevStop.position === nextStop.position) {
+  if (Math.abs(prevStop.position - nextStop.position) < 0.001) {
     return prevStop.color;
   }
 
@@ -292,31 +324,58 @@ function interpolateColor(stops: readonly ColorStop[], t: number): string {
   return rgbToHex(r, g, b);
 }
 
-function sampleScaleCurve(curve: readonly CurvePoint[], t: number): number {
-  if (curve.length === 0) return 1;
-  if (curve.length === 1) return curve[0]?.y ?? 1;
-
+function sampleScaleCurve(
+  curve: readonly CurvePoint[],
+  preset: ScaleCurvePreset,
+  t: number
+): number {
   t = Math.max(0, Math.min(1, t));
 
-  let prevPoint = curve[0] as CurvePoint;
-  let nextPoint = curve[curve.length - 1] as CurvePoint;
+  switch (preset) {
+    case 'linear':
+      return t;
 
-  for (let i = 0; i < curve.length - 1; i++) {
-    const current = curve[i] as CurvePoint;
-    const next = curve[i + 1] as CurvePoint;
-    if (t >= current.x && t <= next.x) {
-      prevPoint = current;
-      nextPoint = next;
-      break;
-    }
+    case 'easeOut':
+      return 1 - Math.pow(1 - t, 3);
+
+    case 'sine':
+      return Math.sin(t * Math.PI) * 0.5 + 0.5;
+
+    case 'custom':
+    default:
+      if (curve.length === 0) return 1;
+      if (curve.length === 1) return curve[0]?.y ?? 1;
+
+      const sortedCurve = [...curve].sort((a, b) => a.x - b.x);
+
+      if (t <= sortedCurve[0].x) {
+        return sortedCurve[0].y;
+      }
+
+      if (t >= sortedCurve[sortedCurve.length - 1].x) {
+        return sortedCurve[sortedCurve.length - 1].y;
+      }
+
+      let prevPoint = sortedCurve[0] as CurvePoint;
+      let nextPoint = sortedCurve[sortedCurve.length - 1] as CurvePoint;
+
+      for (let i = 0; i < sortedCurve.length - 1; i++) {
+        const current = sortedCurve[i] as CurvePoint;
+        const next = sortedCurve[i + 1] as CurvePoint;
+        if (t >= current.x && t < next.x) {
+          prevPoint = current;
+          nextPoint = next;
+          break;
+        }
+      }
+
+      if (Math.abs(prevPoint.x - nextPoint.x) < 0.001) {
+        return prevPoint.y;
+      }
+
+      const localT = (t - prevPoint.x) / (nextPoint.x - prevPoint.x);
+      return prevPoint.y + (nextPoint.y - prevPoint.y) * localT;
   }
-
-  if (prevPoint.x === nextPoint.x) {
-    return prevPoint.y;
-  }
-
-  const localT = (t - prevPoint.x) / (nextPoint.x - prevPoint.x);
-  return prevPoint.y + (nextPoint.y - prevPoint.y) * localT;
 }
 
 function randomRange(min: number, max: number): number {
