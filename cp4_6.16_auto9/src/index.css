@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
+    color: #5D4037;
+    background-color: #FFF9F2;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #FFF9F2 0%, #FFF3E8 100%);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #FFFBF5;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #FFB988;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #FF8C42;
+  }
+}
+
+@layer components {
+  .recipe-card {
+    @apply bg-white rounded-card shadow-card overflow-hidden transition-all duration-200 ease-out cursor-pointer;
+    will-change: transform, box-shadow;
+  }
+  .recipe-card:hover {
+    @apply shadow-card-hover;
+    transform: translateY(-6px);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-warm-400 to-warm-500 text-white font-medium text-sm shadow-card hover:shadow-card-hover hover:scale-[1.02] active:scale-[0.98] transition-all duration-200;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-cream-100 text-cocoa-400 font-medium text-sm border border-warm-100 hover:bg-warm-50 hover:border-warm-200 transition-all duration-200;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-sm text-cocoa-300 hover:text-warm-500 hover:bg-warm-50 transition-colors duration-150;
+  }
+
+  .input-base {
+    @apply w-full px-4 py-3 rounded-xl border-2 border-warm-100 bg-white text-cocoa-400 placeholder-cocoa-100 text-sm transition-all duration-150 outline-none;
+  }
+  .input-base:focus {
+    @apply border-warm-400 shadow-glow-warm;
+  }
+
+  .tag-chip {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-warm-50 text-warm-500 border border-warm-100 hover:bg-warm-100 cursor-pointer transition-colors;
+  }
+  .tag-chip-active {
+    @apply bg-gradient-to-r from-warm-400 to-warm-500 text-white border-transparent shadow-card;
+  }
+
+  .progress-track {
+    @apply relative h-2.5 rounded-full bg-cream-200 overflow-hidden;
+  }
+  .progress-bar {
+    @apply absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-warm-300 via-warm-400 to-warm-500;
+    animation: progressFill 400ms cubic-bezier(0.22, 1.2, 0.36, 1) forwards;
+  }
+
+  .comment-bubble {
+    @apply relative bg-cream-50 rounded-2xl rounded-tl-md p-4 border border-cream-200;
+    animation: fadeInUp 300ms ease forwards;
+  }
+
+  .masonry-grid {
+    column-count: 1;
+    column-gap: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .masonry-grid { column-count: 2; }
+  }
+  @media (min-width: 1024px) {
+    .masonry-grid { column-count: 3; }
+  }
+  @media (min-width: 1280px) {
+    .masonry-grid { column-count: 4; }
+  }
+  .masonry-item {
+    break-inside: avoid;
+    margin-bottom: 1.25rem;
+    display: inline-block;
+    width: 100%;
+  }
+
+  .stagger-item {
+    opacity: 0;
+    animation: fadeInUp 400ms ease forwards;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+}
