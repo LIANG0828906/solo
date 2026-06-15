@@ -60,30 +60,62 @@ class RoomManager {
     if (!room) return undefined;
 
     if (operation.type === 'add') {
-      room.shapes.push(operation.shape);
+      const existing = room.shapes.find(s => s.id === operation.shape.id);
+      if (!existing) {
+        room.shapes.push(operation.shape);
+      } else {
+        const idx = room.shapes.findIndex(s => s.id === operation.shape.id);
+        room.shapes[idx] = operation.shape;
+      }
     } else if (operation.type === 'update') {
       const idx = room.shapes.findIndex(s => s.id === operation.shape.id);
       if (idx !== -1) {
+        if (!operation.prevShape) {
+          (operation as Operation & { prevShape?: Shape }).prevShape = room.shapes[idx];
+        }
         room.shapes[idx] = operation.shape;
       }
     } else if (operation.type === 'delete') {
+      if (!operation.shape) {
+        const shape = room.shapes.find(s => s.id === operation.shapeId);
+        if (shape) {
+          (operation as Operation & { shape?: Shape }).shape = shape;
+        }
+      }
       room.shapes = room.shapes.filter(s => s.id !== operation.shapeId);
     }
 
     room.history.push(operation);
-    if (room.history.length > 50) {
-      room.history = room.history.slice(-50);
+    if (room.history.length > 100) {
+      room.history = room.history.slice(-100);
     }
 
     return room;
   }
 
-  undoLastOperation(roomId: string, _userId: string): { room: Room; operation: Operation } | undefined {
+  undoLastOperationForUser(roomId: string, userId: string): { room: Room; operation: Operation } | undefined {
     const room = this.rooms.get(roomId);
     if (!room || room.history.length === 0) return undefined;
 
-    const lastOp = room.history[room.history.length - 1];
-    room.history.pop();
+    let opIndex = -1;
+    for (let i = room.history.length - 1; i >= 0; i--) {
+      const op = room.history[i];
+      let opUserId = '';
+      if (op.type === 'add' || op.type === 'update') {
+        opUserId = op.shape.userId;
+      } else if (op.type === 'delete') {
+        opUserId = op.shape.userId;
+      }
+      if (opUserId === userId) {
+        opIndex = i;
+        break;
+      }
+    }
+
+    if (opIndex === -1) return undefined;
+
+    const lastOp = room.history[opIndex];
+    room.history.splice(opIndex, 1);
 
     let undoOp: Operation;
 
@@ -92,12 +124,20 @@ class RoomManager {
       room.shapes = room.shapes.filter(s => s.id !== lastOp.shape.id);
     } else if (lastOp.type === 'delete') {
       undoOp = { type: 'add', shape: lastOp.shape };
-      room.shapes.push(lastOp.shape);
+      const exists = room.shapes.find(s => s.id === lastOp.shape.id);
+      if (!exists) {
+        room.shapes.push(lastOp.shape);
+      }
     } else if (lastOp.type === 'update') {
-      undoOp = lastOp;
-      const idx = room.shapes.findIndex(s => s.id === lastOp.shape.id);
-      if (idx !== -1) {
-        room.shapes[idx] = lastOp.shape;
+      const prevShape = lastOp.prevShape;
+      if (prevShape) {
+        undoOp = { type: 'update', shape: prevShape, prevShape: lastOp.shape };
+        const idx = room.shapes.findIndex(s => s.id === prevShape.id);
+        if (idx !== -1) {
+          room.shapes[idx] = prevShape;
+        }
+      } else {
+        return undefined;
       }
     } else {
       return undefined;

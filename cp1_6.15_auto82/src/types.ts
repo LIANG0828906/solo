@@ -50,9 +50,9 @@ export interface User {
 }
 
 export type Operation = 
-  | { type: 'add'; shape: Shape }
-  | { type: 'update'; shape: Shape }
-  | { type: 'delete'; shapeId: string; shape: Shape }
+  | { type: 'add'; shape: Shape; prevShape?: Shape }
+  | { type: 'update'; shape: Shape; prevShape: Shape }
+  | { type: 'delete'; shapeId: string; shape: Shape; prevShape?: Shape }
   | { type: 'undo'; userId: string };
 
 export interface RoomState {

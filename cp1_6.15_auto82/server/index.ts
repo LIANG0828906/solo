@@ -80,7 +80,7 @@ io.on('connection', (socket: Socket) => {
   socket.on('request_undo', (data: UndoData) => {
     const { roomId, userId } = data;
     
-    const result = roomManager.undoLastOperation(roomId, userId);
+    const result = roomManager.undoLastOperationForUser(roomId, userId);
     if (result) {
       const { operation } = result;
       io.to(roomId).emit('undo_performed', operation);

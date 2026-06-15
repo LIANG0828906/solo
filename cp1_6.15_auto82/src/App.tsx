@@ -128,92 +128,146 @@ const App: React.FC = () => {
     });
 
     socket.on('operation', (operation) => {
-      applyOperation(operation);
+      if (operation.type === 'add') {
+        setShapes(prev => {
+          const exists = prev.find(s => s.id === operation.shape.id);
+          if (exists) return prev.map(s => s.id === operation.shape.id ? operation.shape : s);
+          return [...prev, operation.shape];
+        });
+      } else if (operation.type === 'update') {
+        setShapes(prev => prev.map(s => s.id === operation.shape.id ? operation.shape : s));
+      } else if (operation.type === 'delete') {
+        setUndoAnimatingIds(prev => {
+          const next = new Set(prev);
+          next.add(operation.shapeId);
+          return next;
+        });
+        setTimeout(() => {
+          setShapes(prev => prev.filter(s => s.id !== operation.shapeId));
+          setUndoAnimatingIds(prev => {
+            const next = new Set(prev);
+            next.delete(operation.shapeId);
+            return next;
+          });
+        }, 200);
+      }
     });
 
     socket.on('undo_performed', (operation) => {
-      applyOperation(operation, true);
-    });
-  }, [socket]);
-
-  const applyOperation = useCallback((operation: Operation, isUndo: boolean = false) => {
-    const startTime = performance.now();
-    
-    if (operation.type === 'add') {
-      setShapes(prev => [...prev, operation.shape]);
-      if (!isUndo) {
-        setHistory(prev => {
-          const newHistory = [...prev, operation];
-          if (newHistory.length > 10) {
-            return newHistory.slice(-10);
-          }
-          return newHistory;
-        });
-      }
-    } else if (operation.type === 'update') {
-      setShapes(prev => prev.map(s => s.id === operation.shape.id ? operation.shape : s));
-      if (!isUndo) {
-        setHistory(prev => {
-          const newHistory = [...prev, operation];
-          if (newHistory.length > 10) {
-            return newHistory.slice(-10);
-          }
-          return newHistory;
-        });
-      }
-    } else if (operation.type === 'delete') {
-      setUndoAnimatingIds(prev => {
-        const next = new Set(prev);
-        next.add(operation.shapeId);
-        return next;
-      });
-      
-      setTimeout(() => {
-        setShapes(prev => prev.filter(s => s.id !== operation.shapeId));
+      if (operation.type === 'delete') {
         setUndoAnimatingIds(prev => {
           const next = new Set(prev);
-          next.delete(operation.shapeId);
+          next.add(operation.shapeId);
           return next;
         });
-      }, 200);
-      
-      if (!isUndo) {
-        setHistory(prev => {
-          const newHistory = [...prev, operation];
-          if (newHistory.length > 10) {
-            return newHistory.slice(-10);
-          }
-          return newHistory;
+        setTimeout(() => {
+          setShapes(prev => prev.filter(s => s.id !== operation.shapeId));
+          setUndoAnimatingIds(prev => {
+            const next = new Set(prev);
+            next.delete(operation.shapeId);
+            return next;
+          });
+        }, 200);
+      } else if (operation.type === 'add') {
+        setShapes(prev => {
+          const exists = prev.find(s => s.id === operation.shape.id);
+          if (exists) return prev;
+          return [...prev, operation.shape];
         });
+      } else if (operation.type === 'update') {
+        setShapes(prev => prev.map(s => s.id === operation.shape.id ? operation.shape : s));
       }
-    }
-
-    const elapsed = performance.now() - startTime;
-    console.log(`Operation applied in ${elapsed.toFixed(2)}ms`);
-  }, []);
+    });
+  }, [socket]);
 
   const broadcastOperation = useCallback((operation: Operation) => {
     if (!socket || !roomId) return;
     socket.emit('operation', { roomId, operation });
   }, [socket, roomId]);
 
+  const shapesMapRef = useRef<Map<string, Shape>>(new Map());
+
+  useEffect(() => {
+    const map = new Map<string, Shape>();
+    for (const shape of shapes) {
+      map.set(shape.id, shape);
+    }
+    shapesMapRef.current = map;
+  }, [shapes]);
+
+  const pushToHistory = useCallback((operation: Operation) => {
+    setHistory(prev => {
+      const newHistory = [...prev, operation];
+      if (newHistory.length > 10) {
+        return newHistory.slice(-10);
+      }
+      return newHistory;
+    });
+  }, []);
+
   const handleShapeAdd = useCallback((shape: Shape) => {
     const operation: Operation = { type: 'add', shape };
-    applyOperation(operation);
+    setShapes(prev => [...prev, shape]);
+    pushToHistory(operation);
     broadcastOperation(operation);
-  }, [applyOperation, broadcastOperation]);
+  }, [pushToHistory, broadcastOperation]);
 
   const handleShapeUpdate = useCallback((shape: Shape) => {
-    const operation: Operation = { type: 'update', shape };
-    applyOperation(operation);
+    const prevShape = shapesMapRef.current.get(shape.id);
+    if (!prevShape) return;
+    
+    const operation: Operation = { type: 'update', shape, prevShape };
+    setShapes(prev => prev.map(s => s.id === shape.id ? shape : s));
+    pushToHistory(operation);
     broadcastOperation(operation);
-  }, [applyOperation, broadcastOperation]);
+  }, [pushToHistory, broadcastOperation]);
 
   const handleShapeDelete = useCallback((shapeId: string, shape: Shape) => {
     const operation: Operation = { type: 'delete', shapeId, shape };
-    applyOperation(operation);
+    
+    setUndoAnimatingIds(prev => {
+      const next = new Set(prev);
+      next.add(shapeId);
+      return next;
+    });
+    
+    setTimeout(() => {
+      setShapes(prev => prev.filter(s => s.id !== shapeId));
+      setUndoAnimatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(shapeId);
+        return next;
+      });
+    }, 200);
+    
+    pushToHistory(operation);
     broadcastOperation(operation);
-  }, [applyOperation, broadcastOperation]);
+  }, [pushToHistory, broadcastOperation]);
+
+  const executeUndoLocal = useCallback((operation: Operation) => {
+    if (operation.type === 'add') {
+      setUndoAnimatingIds(prev => {
+        const next = new Set(prev);
+        next.add(operation.shape.id);
+        return next;
+      });
+      
+      setTimeout(() => {
+        setShapes(prev => prev.filter(s => s.id !== operation.shape.id));
+        setUndoAnimatingIds(prev => {
+          const next = new Set(prev);
+          next.delete(operation.shape.id);
+          return next;
+        });
+      }, 200);
+    } else if (operation.type === 'delete') {
+      setShapes(prev => [...prev, operation.shape]);
+    } else if (operation.type === 'update') {
+      setShapes(prev => prev.map(s => 
+        s.id === operation.prevShape.id ? operation.prevShape : s
+      ));
+    }
+  }, []);
 
   const handleUndo = useCallback(() => {
     if (historyRef.current.length === 0 || !socket || !roomId || !currentUser) return;
@@ -222,29 +276,10 @@ const App: React.FC = () => {
     
     setHistory(prev => prev.slice(0, -1));
 
-    if (lastOp.type === 'add') {
-      setUndoAnimatingIds(prev => {
-        const next = new Set(prev);
-        next.add(lastOp.shape.id);
-        return next;
-      });
-      
-      setTimeout(() => {
-        setShapes(prev => prev.filter(s => s.id !== lastOp.shape.id));
-        setUndoAnimatingIds(prev => {
-          const next = new Set(prev);
-          next.delete(lastOp.shape.id);
-          return next;
-        });
-      }, 200);
-    } else if (lastOp.type === 'delete') {
-      setShapes(prev => [...prev, lastOp.shape]);
-    } else if (lastOp.type === 'update') {
-      // For update, we'd need the previous state - simplified handling
-    }
+    executeUndoLocal(lastOp);
 
     socket.emit('request_undo', { roomId, userId: currentUser.id });
-  }, [socket, roomId, currentUser]);
+  }, [socket, roomId, currentUser, executeUndoLocal]);
 
   const handleScaleChange = useCallback((newScale: number, newOffsetX: number, newOffsetY: number) => {
     if (scaleAnimRef.current) {

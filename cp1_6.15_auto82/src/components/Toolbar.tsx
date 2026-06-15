@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ToolType } from '../types';
 
 interface ToolbarProps {
@@ -62,14 +62,27 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onUndo,
   canUndo
 }) => {
-  const [activeColor, setActiveColor] = useState<string | null>(null);
+  const [animatingColor, setAnimatingColor] = useState<string | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showThicknessPicker, setShowThicknessPicker] = useState(false);
+  const animTimeoutRef = useRef<number | null>(null);
 
   const handleColorClick = (color: string) => {
     onPenColorChange(color);
-    setActiveColor(color);
-    setTimeout(() => setActiveColor(null), 200);
+    
+    if (animTimeoutRef.current) {
+      clearTimeout(animTimeoutRef.current);
+    }
+    setAnimatingColor(null);
+    
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setAnimatingColor(color);
+        animTimeoutRef.current = window.setTimeout(() => {
+          setAnimatingColor(null);
+        }, 200);
+      });
+    });
   };
 
   const toolButtons: { tool: ToolType; icon: React.FC }[] = [
@@ -218,7 +231,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <button
               key={color}
               onClick={() => handleColorClick(color)}
-              className={activeColor === color ? 'color-swatch-active' : ''}
+              className={`color-swatch ${animatingColor === color ? 'color-swatch-active' : ''}`}
               style={{
                 width: '32px',
                 height: '32px',
@@ -226,14 +239,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 border: penColor === color ? '3px solid white' : '2px solid transparent',
                 backgroundColor: color,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
                 padding: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
               }}
             />
           ))}

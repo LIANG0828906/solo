@@ -26,6 +26,26 @@ interface RemoteCursor {
   lastUpdate: number;
 }
 
+interface ShapeAnimationState {
+  shape: Shape;
+  startTime: number;
+  duration: number;
+  type: 'draw' | 'undo';
+  processed: boolean;
+}
+
+const ANIMATION_DURATION_PER_POINT = 30;
+const MIN_ANIMATION_DURATION = 100;
+const ANIMATION_SPEED_FACTOR = 0.1;
+
+const calculateAnimationDuration = (shape: Shape): number => {
+  if (shape.type === 'pen') {
+    const pointCount = shape.points.length;
+    return Math.max(MIN_ANIMATION_DURATION, pointCount * ANIMATION_DURATION_PER_POINT * ANIMATION_SPEED_FACTOR);
+  }
+  return 200;
+};
+
 const Canvas: React.FC<CanvasProps> = ({
   tool,
   penColor,
@@ -51,19 +71,61 @@ const Canvas: React.FC<CanvasProps> = ({
   const panStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const [remoteCursors] = useState<Map<string, RemoteCursor>>(new Map());
   const [localCursor, setLocalCursor] = useState<Point>({ x: 0, y: 0 });
-  const animatingShapesRef = useRef<Map<string, { shape: Shape; startTime: number; duration: number; type: 'draw' | 'undo' }>>(new Map());
+  
+  const shapesRef = useRef<Shape[]>([]);
+  const animationsRef = useRef<Map<string, ShapeAnimationState>>(new Map());
+  const processedShapeIdsRef = useRef<Set<string>>(new Set());
   const rafRef = useRef<number | null>(null);
-  const newShapeIdsRef = useRef<Set<string>>(new Set());
+  const scaleRef = useRef(scale);
+  const offsetXRef = useRef(offsetX);
+  const offsetYRef = useRef(offsetY);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    offsetXRef.current = offsetX;
+  }, [offsetX]);
+
+  useEffect(() => {
+    offsetYRef.current = offsetY;
+  }, [offsetY]);
+
+  useEffect(() => {
+    shapesRef.current = shapes;
+    
+    for (const shape of shapes) {
+      if (!processedShapeIdsRef.current.has(shape.id) && shape.type !== 'sticky') {
+        const duration = calculateAnimationDuration(shape);
+        animationsRef.current.set(shape.id, {
+          shape,
+          startTime: performance.now(),
+          duration,
+          type: 'draw',
+          processed: false,
+        });
+        processedShapeIdsRef.current.add(shape.id);
+      }
+    }
+    
+    const currentIds = new Set(shapes.map(s => s.id));
+    for (const id of processedShapeIdsRef.current) {
+      if (!currentIds.has(id) && !animationsRef.current.has(id)) {
+        processedShapeIdsRef.current.delete(id);
+      }
+    }
+  }, [shapes]);
 
   const screenToWorld = useCallback((screenX: number, screenY: number): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (screenX - rect.left - offsetX) / scale,
-      y: (screenY - rect.top - offsetY) / scale,
+      x: (screenX - rect.left - offsetXRef.current) / scaleRef.current,
+      y: (screenY - rect.top - offsetYRef.current) / scaleRef.current,
     };
-  }, [offsetX, offsetY, scale]);
+  }, []);
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -85,18 +147,22 @@ const Canvas: React.FC<CanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const s = scaleRef.current;
+    const ox = offsetXRef.current;
+    const oy = offsetYRef.current;
+
     ctx.fillStyle = '#F0F0F0';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const gridSize = 5 * scale;
+    const gridSize = 5 * s;
     if (gridSize < 3) return;
 
     ctx.strokeStyle = '#D0D0D0';
     ctx.lineWidth = 1 * window.devicePixelRatio;
     ctx.setLineDash([2 * window.devicePixelRatio, 2 * window.devicePixelRatio]);
 
-    const startX = (offsetX % gridSize) * window.devicePixelRatio;
-    const startY = (offsetY % gridSize) * window.devicePixelRatio;
+    const startX = (ox % gridSize) * window.devicePixelRatio;
+    const startY = (oy % gridSize) * window.devicePixelRatio;
 
     ctx.beginPath();
     for (let x = startX; x < canvas.width; x += gridSize * window.devicePixelRatio) {
@@ -109,9 +175,13 @@ const Canvas: React.FC<CanvasProps> = ({
     }
     ctx.stroke();
     ctx.setLineDash([]);
-  }, [scale, offsetX, offsetY]);
+  }, []);
 
   const drawShape = useCallback((ctx: CanvasRenderingContext2D, shape: Shape, progress: number = 1, isUndo: boolean = false) => {
+    const s = scaleRef.current;
+    const ox = offsetXRef.current;
+    const oy = offsetYRef.current;
+
     ctx.save();
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
@@ -126,15 +196,15 @@ const Canvas: React.FC<CanvasProps> = ({
         if (endIndex < 2) break;
         
         ctx.strokeStyle = shape.color;
-        ctx.lineWidth = shape.thickness * scale;
+        ctx.lineWidth = shape.thickness * s;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
         const first = points[0];
-        ctx.moveTo(first.x * scale + offsetX, first.y * scale + offsetY);
+        ctx.moveTo(first.x * s + ox, first.y * s + oy);
         for (let i = 1; i < endIndex; i++) {
           const p = points[i];
-          ctx.lineTo(p.x * scale + offsetX, p.y * scale + offsetY);
+          ctx.lineTo(p.x * s + ox, p.y * s + oy);
         }
         ctx.stroke();
         break;
@@ -144,14 +214,14 @@ const Canvas: React.FC<CanvasProps> = ({
         const currentEndX = startPoint.x + (endPoint.x - startPoint.x) * progress;
         const currentEndY = startPoint.y + (endPoint.y - startPoint.y) * progress;
         ctx.strokeStyle = shape.color;
-        ctx.lineWidth = shape.thickness * scale;
+        ctx.lineWidth = shape.thickness * s;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeRect(
-          startPoint.x * scale + offsetX,
-          startPoint.y * scale + offsetY,
-          (currentEndX - startPoint.x) * scale,
-          (currentEndY - startPoint.y) * scale
+          startPoint.x * s + ox,
+          startPoint.y * s + oy,
+          (currentEndX - startPoint.x) * s,
+          (currentEndY - startPoint.y) * s
         );
         break;
       }
@@ -159,12 +229,12 @@ const Canvas: React.FC<CanvasProps> = ({
         const { center, radius } = shape;
         const currentRadius = radius * progress;
         ctx.strokeStyle = shape.color;
-        ctx.lineWidth = shape.thickness * scale;
+        ctx.lineWidth = shape.thickness * s;
         ctx.beginPath();
         ctx.arc(
-          center.x * scale + offsetX,
-          center.y * scale + offsetY,
-          currentRadius * scale,
+          center.x * s + ox,
+          center.y * s + oy,
+          currentRadius * s,
           0,
           Math.PI * 2
         );
@@ -173,7 +243,7 @@ const Canvas: React.FC<CanvasProps> = ({
       }
     }
     ctx.restore();
-  }, [scale, offsetX, offsetY]);
+  }, []);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -184,29 +254,30 @@ const Canvas: React.FC<CanvasProps> = ({
     drawGrid(ctx);
 
     const now = performance.now();
-    const shapesToRemove: string[] = [];
+    const animationsToRemove: string[] = [];
 
-    const stickyNoteShapes: StickyNoteType[] = [];
+    const currentShapes = shapesRef.current;
+
     const drawableShapes: Exclude<Shape, StickyNoteType>[] = [];
-
-    for (const shape of shapes) {
-      if (shape.type === 'sticky') {
-        stickyNoteShapes.push(shape);
-      } else {
-        drawableShapes.push(shape);
+    for (const shape of currentShapes) {
+      if (shape.type !== 'sticky') {
+        drawableShapes.push(shape as Exclude<Shape, StickyNoteType>);
       }
     }
 
     for (const shape of drawableShapes) {
-      const animInfo = animatingShapesRef.current.get(shape.id);
-      if (animInfo) {
-        const elapsed = now - animInfo.startTime;
-        const progress = Math.min(1, elapsed / animInfo.duration);
-        drawShape(ctx, animInfo.shape, progress, animInfo.type === 'undo');
+      const animState = animationsRef.current.get(shape.id);
+      
+      if (animState && !animState.processed) {
+        const elapsed = now - animState.startTime;
+        const progress = Math.min(1, elapsed / animState.duration);
+        
+        drawShape(ctx, animState.shape, progress, animState.type === 'undo');
+        
         if (progress >= 1) {
-          shapesToRemove.push(shape.id);
-          if (animInfo.type === 'undo') {
-            // undo animation complete - shape already removed from state
+          animState.processed = true;
+          if (animState.type === 'draw') {
+            animationsToRemove.push(shape.id);
           }
         }
       } else {
@@ -221,12 +292,12 @@ const Canvas: React.FC<CanvasProps> = ({
       drawShape(ctx, currentShape, 1, false);
     }
 
-    for (const id of shapesToRemove) {
-      animatingShapesRef.current.delete(id);
+    for (const id of animationsToRemove) {
+      animationsRef.current.delete(id);
     }
 
     rafRef.current = requestAnimationFrame(render);
-  }, [shapes, currentShape, drawGrid, drawShape, undoAnimatingIds]);
+  }, [drawGrid, drawShape, currentShape, undoAnimatingIds]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(render);
@@ -237,35 +308,20 @@ const Canvas: React.FC<CanvasProps> = ({
     };
   }, [render]);
 
-  useEffect(() => {
-    for (const shape of shapes) {
-      if (newShapeIdsRef.current.has(shape.id) && shape.type !== 'sticky') {
-        const points = shape.type === 'pen' ? shape.points.length : 1;
-        const duration = Math.max(100, points * 100);
-        animatingShapesRef.current.set(shape.id, {
-          shape,
-          startTime: performance.now(),
-          duration,
-          type: 'draw',
-        });
-        newShapeIdsRef.current.delete(shape.id);
-      }
-    }
-  }, [shapes]);
-
-  const addShapeWithAnimation = (shape: Shape) => {
+  const addShapeWithAnimation = useCallback((shape: Shape) => {
     if (shape.type !== 'sticky') {
-      const points = shape.type === 'pen' ? shape.points.length : 1;
-      const duration = Math.max(100, points * 100);
-      animatingShapesRef.current.set(shape.id, {
+      const duration = calculateAnimationDuration(shape);
+      animationsRef.current.set(shape.id, {
         shape,
         startTime: performance.now(),
         duration,
         type: 'draw',
+        processed: false,
       });
+      processedShapeIdsRef.current.add(shape.id);
     }
     onShapeAdd(shape);
-  };
+  }, [onShapeAdd]);
 
   const startDrawing = (e: React.MouseEvent) => {
     if (tool === 'none') return;
@@ -325,7 +381,11 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const continueDrawing = (e: React.MouseEvent) => {
     const worldPos = screenToWorld(e.clientX, e.clientY);
-    setLocalCursor({ x: e.clientX, y: e.clientY });
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      setLocalCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    }
 
     if (!isDrawing || !currentShape) return;
 
@@ -369,7 +429,6 @@ const Canvas: React.FC<CanvasProps> = ({
       };
     }
 
-    newShapeIdsRef.current.add(finalShape.id);
     addShapeWithAnimation(finalShape);
     setCurrentShape(null);
     setIsDrawing(false);
@@ -377,7 +436,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' && !e.repeat) {
         setSpacePressed(true);
         if (containerRef.current) {
           containerRef.current.style.cursor = 'grab';
@@ -421,8 +480,8 @@ const Canvas: React.FC<CanvasProps> = ({
       panStartRef.current = {
         x: e.clientX,
         y: e.clientY,
-        offsetX,
-        offsetY,
+        offsetX: offsetXRef.current,
+        offsetY: offsetYRef.current,
       };
       if (containerRef.current) {
         containerRef.current.style.cursor = 'grabbing';
@@ -436,8 +495,8 @@ const Canvas: React.FC<CanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const cursorWorldX = e.clientX - rect.left;
-    const cursorWorldY = e.clientY - rect.top;
+    const cursorScreenX = e.clientX - rect.left;
+    const cursorScreenY = e.clientY - rect.top;
 
     if (isPanning && panStartRef.current) {
       const dx = e.clientX - panStartRef.current.x;
@@ -450,7 +509,7 @@ const Canvas: React.FC<CanvasProps> = ({
       continueDrawing(e);
     }
 
-    setLocalCursor({ x: cursorWorldX, y: cursorWorldY });
+    setLocalCursor({ x: cursorScreenX, y: cursorScreenY });
   };
 
   const handleMouseUp = () => {
@@ -482,11 +541,11 @@ const Canvas: React.FC<CanvasProps> = ({
     const mouseY = e.clientY - rect.top;
 
     const delta = -e.deltaY * 0.001;
-    const newScale = Math.max(0.3, Math.min(5, scale * (1 + delta)));
-    const scaleRatio = newScale / scale;
+    const newScale = Math.max(0.3, Math.min(5, scaleRef.current * (1 + delta)));
+    const scaleRatio = newScale / scaleRef.current;
 
-    const newOffsetX = mouseX - (mouseX - offsetX) * scaleRatio;
-    const newOffsetY = mouseY - (mouseY - offsetY) * scaleRatio;
+    const newOffsetX = mouseX - (mouseX - offsetXRef.current) * scaleRatio;
+    const newOffsetY = mouseY - (mouseY - offsetYRef.current) * scaleRatio;
 
     onScaleChange(newScale, newOffsetX, newOffsetY);
   };
