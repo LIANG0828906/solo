@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { marked } from 'marked';
+import {
+  TextOperation,
+  VersionVector,
+  ChangeMessage,
+  ChangeAckMessage,
+  CursorMessage,
+  JoinMessage,
+  LeaveMessage,
+  UserListMessage,
+  SyncMessage,
+  ErrorMessage,
+  WSMessage,
+  generateOpId,
+  compareVersions,
+  transformOperation,
+  applyOperation,
+  operationFromDiff,
+} from '../../../shared/protocol';
 
 interface RemoteUser {
   id: string;
@@ -14,6 +32,14 @@ interface Version {
   timestamp: number;
   content: string;
   message: string;
+}
+
+interface PendingOperation {
+  operation: TextOperation;
+  message: ChangeMessage;
+  retryCount: number;
+  sentAt: number;
+  timeoutId: number;
 }
 
 interface MarkdownEditorProps {
@@ -39,7 +65,9 @@ const STORE_NAME = 'documents';
 const VERSION_STORE = 'versions';
 const MAX_VERSIONS = 10;
 const AUTO_SAVE_INTERVAL = 5000;
-const WS_SYNC_DEBOUNCE = 200;
+const ACK_TIMEOUT = 5000;
+const MAX_RETRIES = 3;
+const SAVE_TIMEOUT = 10000;
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   documentId,
@@ -60,12 +88,26 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
-  const syncDebounceRef = useRef<number | null>(null);
   const dbRef = useRef<IDBDatabase | null>(null);
+
+  const contentRef = useRef<string>('');
+  const versionRef = useRef<number>(0);
+  const vectorRef = useRef<VersionVector>({});
+  const pendingOpsRef = useRef<PendingOperation[]>([]);
+  const appliedOpIdsRef = useRef<Set<string>>(new Set());
+
+  const saveQueueRef = useRef<Array<() => Promise<void>>>([]);
+  const isSavingRef = useRef<boolean>(false);
+  const saveTimeoutRef = useRef<number | null>(null);
+
   const userColor = useMemo(() => {
     const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return USER_COLORS[hash % USER_COLORS.length];
   }, [userId]);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   const initDB = useCallback((): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -90,208 +132,531 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   }, []);
 
   const loadFromDB = useCallback(async () => {
-    const db = dbRef.current || (await initDB());
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(documentId);
-    return new Promise<string | null>((resolve) => {
-      request.onsuccess = () => {
-        const data = request.result;
-        resolve(data?.content || null);
-      };
-      request.onerror = () => resolve(null);
-    });
+    try {
+      const db = dbRef.current || (await initDB());
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(documentId);
+      return new Promise<string | null>((resolve) => {
+        request.onsuccess = () => {
+          const data = request.result;
+          resolve(data?.content || null);
+        };
+        request.onerror = () => resolve(null);
+      });
+    } catch (error) {
+      console.error('Failed to load from DB:', error);
+      return null;
+    }
   }, [documentId, initDB]);
 
   const saveToDB = useCallback(async (newContent: string) => {
-    const db = dbRef.current || (await initDB());
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.put({ documentId, content: newContent, timestamp: Date.now() });
-    setLastSaved(new Date());
+    try {
+      const db = dbRef.current || (await initDB());
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      store.put({ documentId, content: newContent, timestamp: Date.now() });
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Failed to save to DB:', error);
+      throw error;
+    }
   }, [documentId, initDB]);
 
   const loadVersions = useCallback(async () => {
-    const db = dbRef.current || (await initDB());
-    const transaction = db.transaction(VERSION_STORE, 'readonly');
-    const store = transaction.objectStore(VERSION_STORE);
-    const index = store.index('documentId');
-    const request = index.getAll(IDBKeyRange.only(documentId));
-    return new Promise<Version[]>((resolve) => {
-      request.onsuccess = () => {
-        const all = request.result as Version[];
-        const sorted = all.sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_VERSIONS);
-        resolve(sorted);
-      };
-      request.onerror = () => resolve([]);
-    });
+    try {
+      const db = dbRef.current || (await initDB());
+      const transaction = db.transaction(VERSION_STORE, 'readonly');
+      const store = transaction.objectStore(VERSION_STORE);
+      const index = store.index('documentId');
+      const request = index.getAll(IDBKeyRange.only(documentId));
+      return new Promise<Version[]>((resolve) => {
+        request.onsuccess = () => {
+          const all = request.result as Version[];
+          const sorted = all.sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_VERSIONS);
+          resolve(sorted);
+        };
+        request.onerror = () => resolve([]);
+      });
+    } catch (error) {
+      console.error('Failed to load versions:', error);
+      return [];
+    }
   }, [documentId, initDB]);
 
   const saveVersion = useCallback(async (newContent: string, message?: string) => {
-    const db = dbRef.current || (await initDB());
-    const version: Version = {
-      id: `${documentId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      content: newContent,
-      message: message || `保存于 ${new Date().toLocaleTimeString()}`,
-    };
-    const transaction = db.transaction(VERSION_STORE, 'readwrite');
-    const store = transaction.objectStore(VERSION_STORE);
-    store.put({ ...version, documentId });
+    try {
+      const db = dbRef.current || (await initDB());
+      const version: Version = {
+        id: `${documentId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        content: newContent,
+        message: message || `保存于 ${new Date().toLocaleTimeString()}`,
+      };
+      const transaction = db.transaction(VERSION_STORE, 'readwrite');
+      const store = transaction.objectStore(VERSION_STORE);
+      store.put({ ...version, documentId });
 
-    const allVersions = await loadVersions();
-    if (allVersions.length >= MAX_VERSIONS) {
-      const toDelete = allVersions.slice(MAX_VERSIONS - 1);
-      const deleteTransaction = db.transaction(VERSION_STORE, 'readwrite');
-      const deleteStore = deleteTransaction.objectStore(VERSION_STORE);
-      toDelete.forEach((v) => deleteStore.delete(v.id));
+      const allVersions = await loadVersions();
+      if (allVersions.length >= MAX_VERSIONS) {
+        const toDelete = allVersions.slice(MAX_VERSIONS - 1);
+        const deleteTransaction = db.transaction(VERSION_STORE, 'readwrite');
+        const deleteStore = deleteTransaction.objectStore(VERSION_STORE);
+        toDelete.forEach((v) => deleteStore.delete(v.id));
+      }
+      setVersions(await loadVersions());
+    } catch (error) {
+      console.error('Failed to save version:', error);
+      throw error;
     }
-    setVersions(await loadVersions());
   }, [documentId, initDB, loadVersions]);
 
   const rollbackToVersion = useCallback((version: Version) => {
     setContent(version.content);
+    contentRef.current = version.content;
     setSelectedVersion(null);
     setCompareMode(false);
     setShowVersionHistory(false);
   }, []);
 
+  const sendMessage = useCallback((message: WSMessage) => {
+    try {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(message));
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  }, []);
+
+  const resendOperation = useCallback((pendingOp: PendingOperation) => {
+    try {
+      if (pendingOp.retryCount >= MAX_RETRIES) {
+        console.warn('Max retries reached for operation:', pendingOp.operation.id);
+        pendingOpsRef.current = pendingOpsRef.current.filter(p => p.operation.id !== pendingOp.operation.id);
+        return;
+      }
+
+      pendingOp.retryCount++;
+      pendingOp.sentAt = Date.now();
+      sendMessage(pendingOp.message);
+
+      pendingOp.timeoutId = window.setTimeout(() => {
+        const op = pendingOpsRef.current.find(p => p.operation.id === pendingOp.operation.id);
+        if (op) {
+          resendOperation(op);
+        }
+      }, ACK_TIMEOUT);
+    } catch (error) {
+      console.error('Failed to resend operation:', error);
+    }
+  }, [sendMessage]);
+
+  const sendChangeMessage = useCallback((operation: TextOperation) => {
+    try {
+      const message: ChangeMessage = {
+        type: 'change',
+        documentId,
+        operation,
+        currentVersion: versionRef.current,
+        vector: { ...vectorRef.current },
+      };
+
+      const timeoutId = window.setTimeout(() => {
+        const op = pendingOpsRef.current.find(p => p.operation.id === operation.id);
+        if (op) {
+          resendOperation(op);
+        }
+      }, ACK_TIMEOUT);
+
+      const pendingOp: PendingOperation = {
+        operation,
+        message,
+        retryCount: 0,
+        sentAt: Date.now(),
+        timeoutId,
+      };
+
+      pendingOpsRef.current.push(pendingOp);
+      sendMessage(message);
+    } catch (error) {
+      console.error('Failed to send change message:', error);
+    }
+  }, [documentId, sendMessage, resendOperation]);
+
+  const handleIncomingChange = useCallback((message: ChangeMessage) => {
+    try {
+      const { operation } = message;
+
+      if (appliedOpIdsRef.current.has(operation.id)) {
+        return;
+      }
+
+      if (operation.baseVersion > versionRef.current) {
+        console.warn('Operation baseVersion ahead of local version, waiting for sync');
+        return;
+      }
+
+      let transformed = operation;
+      for (const pendingOp of pendingOpsRef.current) {
+        const result = transformOperation(transformed, pendingOp.operation);
+        if (result === null) {
+          return;
+        }
+        transformed = result;
+      }
+
+      const newContent = applyOperation(contentRef.current, transformed);
+      contentRef.current = newContent;
+      setContent(newContent);
+
+      appliedOpIdsRef.current.add(operation.id);
+
+      if (appliedOpIdsRef.current.size > 1000) {
+        const oldestIds = Array.from(appliedOpIdsRef.current).slice(0, 500);
+        oldestIds.forEach(id => appliedOpIdsRef.current.delete(id));
+      }
+    } catch (error) {
+      console.error('Failed to handle incoming change:', error);
+    }
+  }, []);
+
+  const handleChangeAck = useCallback((message: ChangeAckMessage) => {
+    try {
+      const pendingIndex = pendingOpsRef.current.findIndex(
+        p => p.operation.id === message.operationId
+      );
+
+      if (pendingIndex !== -1) {
+        const pendingOp = pendingOpsRef.current[pendingIndex];
+        window.clearTimeout(pendingOp.timeoutId);
+        pendingOpsRef.current.splice(pendingIndex, 1);
+      }
+
+      if (message.applied) {
+        versionRef.current = message.newVersion;
+        vectorRef.current[userId] = message.newVersion;
+      }
+    } catch (error) {
+      console.error('Failed to handle change ack:', error);
+    }
+  }, [userId]);
+
+  const handleSync = useCallback((message: SyncMessage) => {
+    try {
+      contentRef.current = message.content;
+      setContent(message.content);
+      versionRef.current = message.version;
+      vectorRef.current = { ...message.vector };
+
+      pendingOpsRef.current.forEach(op => window.clearTimeout(op.timeoutId));
+      pendingOpsRef.current = [];
+
+      console.log(`Synced content, version: ${message.version}, reason: ${message.reason}`);
+    } catch (error) {
+      console.error('Failed to handle sync:', error);
+    }
+  }, []);
+
+  const handleCursor = useCallback((message: CursorMessage) => {
+    try {
+      if (message.userId === userId) return;
+
+      setRemoteUsers((prev) => {
+        const existing = prev.find((u) => u.id === message.userId);
+        if (existing) {
+          return prev.map((u) =>
+            u.id === message.userId ? { ...u, cursor: message.cursor, selection: message.selection } : u
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: message.userId,
+            name: message.userName || '用户',
+            color: message.color || USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)],
+            cursor: message.cursor,
+            selection: message.selection,
+          },
+        ];
+      });
+    } catch (error) {
+      console.error('Failed to handle cursor:', error);
+    }
+  }, [userId]);
+
+  const handleUserList = useCallback((message: UserListMessage) => {
+    try {
+      setRemoteUsers(
+        message.users
+          .filter((u) => u.userId !== userId)
+          .map((u) => ({
+            id: u.userId,
+            name: u.userName || '用户',
+            color: u.color || USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)],
+            cursor: u.cursor || null,
+            selection: null,
+          }))
+      );
+    } catch (error) {
+      console.error('Failed to handle user list:', error);
+    }
+  }, [userId]);
+
+  const handleUserLeave = useCallback((message: LeaveMessage) => {
+    try {
+      setRemoteUsers((prev) => prev.filter((u) => u.id !== message.userId));
+    } catch (error) {
+      console.error('Failed to handle user leave:', error);
+    }
+  }, []);
+
+  const handleError = useCallback((message: ErrorMessage) => {
+    console.error(`Server error [${message.code}]: ${message.message}`);
+    if (message.operationId) {
+      const pendingIndex = pendingOpsRef.current.findIndex(
+        p => p.operation.id === message.operationId
+      );
+      if (pendingIndex !== -1) {
+        const pendingOp = pendingOpsRef.current[pendingIndex];
+        window.clearTimeout(pendingOp.timeoutId);
+        pendingOpsRef.current.splice(pendingIndex, 1);
+      }
+    }
+  }, []);
+
   const connectWebSocket = useCallback(() => {
     try {
-      const ws = new WebSocket(`${wsUrl}?documentId=${documentId}&userId=${userId}&userName=${encodeURIComponent(userName)}`);
+      const ws = new WebSocket(
+        `${wsUrl}?documentId=${documentId}&userId=${userId}&userName=${encodeURIComponent(userName)}`
+      );
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setIsConnected(true);
-        ws.send(JSON.stringify({ type: 'join', documentId, userId, userName, color: userColor }));
+        try {
+          setIsConnected(true);
+          const joinMessage: JoinMessage = {
+            type: 'join',
+            documentId,
+            userId,
+            userName,
+            color: userColor,
+            currentVersion: versionRef.current,
+          };
+          sendMessage(joinMessage);
+        } catch (error) {
+          console.error('Failed to send join message:', error);
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           switch (data.type) {
-            case 'content-update':
-              if (data.userId !== userId) {
-                setContent(data.content);
-              }
+            case 'change':
+              handleIncomingChange(data as ChangeMessage);
               break;
-            case 'cursor-update':
-              if (data.userId !== userId) {
-                setRemoteUsers((prev) => {
-                  const existing = prev.find((u) => u.id === data.userId);
-                  if (existing) {
-                    return prev.map((u) =>
-                      u.id === data.userId ? { ...u, cursor: data.cursor, selection: data.selection } : u
-                    );
-                  }
-                  return [
-                    ...prev,
-                    {
-                      id: data.userId,
-                      name: data.userName || '用户',
-                      color: data.color || USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)],
-                      cursor: data.cursor,
-                      selection: data.selection,
-                    },
-                  ];
-                });
-              }
+            case 'change-ack':
+              handleChangeAck(data as ChangeAckMessage);
+              break;
+            case 'cursor':
+              handleCursor(data as CursorMessage);
               break;
             case 'user-list':
-              setRemoteUsers(
-                data.users
-                  .filter((u: RemoteUser) => u.id !== userId)
-                  .map((u: RemoteUser) => ({
-                    ...u,
-                    color: u.color || USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)],
-                  }))
-              );
+              handleUserList(data as UserListMessage);
               break;
             case 'user-leave':
-              setRemoteUsers((prev) => prev.filter((u) => u.id !== data.userId));
+              handleUserLeave(data as LeaveMessage);
+              break;
+            case 'sync':
+              handleSync(data as SyncMessage);
+              break;
+            case 'error':
+              handleError(data as ErrorMessage);
               break;
           }
-        } catch {
-          // ignore parse errors
+        } catch (error) {
+          console.error('Failed to parse incoming message:', error);
         }
       };
 
       ws.onclose = () => {
-        setIsConnected(false);
-        setTimeout(connectWebSocket, 3000);
+        try {
+          setIsConnected(false);
+          setTimeout(connectWebSocket, 3000);
+        } catch (error) {
+          console.error('Reconnect error:', error);
+        }
       };
 
       ws.onerror = () => {
-        ws.close();
+        try {
+          ws.close();
+        } catch {
+          // ignore
+        }
       };
-    } catch {
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error);
       setIsConnected(false);
     }
-  }, [wsUrl, documentId, userId, userName, userColor]);
-
-  const syncContent = useCallback((newContent: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'content-update', documentId, userId, content: newContent }));
-    }
-  }, [documentId, userId]);
+  }, [wsUrl, documentId, userId, userName, userColor, sendMessage, handleIncomingChange, handleChangeAck, handleCursor, handleUserList, handleUserLeave, handleSync, handleError]);
 
   const syncCursor = useCallback(() => {
-    const textarea = editorRef.current;
-    if (!textarea || wsRef.current?.readyState !== WebSocket.OPEN) return;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const textBefore = value.substring(0, selectionStart);
-    const lines = textBefore.split('\n');
-    const cursor = {
-      line: lines.length - 1,
-      column: lines[lines.length - 1].length,
-    };
-    const selection = selectionStart !== selectionEnd ? { start: selectionStart, end: selectionEnd } : null;
-    wsRef.current.send(JSON.stringify({ type: 'cursor-update', documentId, userId, cursor, selection }));
-  }, [documentId, userId]);
+    try {
+      const textarea = editorRef.current;
+      if (!textarea || wsRef.current?.readyState !== WebSocket.OPEN) return;
+      const { selectionStart, selectionEnd, value } = textarea;
+      const textBefore = value.substring(0, selectionStart);
+      const lines = textBefore.split('\n');
+      const cursor = {
+        line: lines.length - 1,
+        column: lines[lines.length - 1].length,
+      };
+      const selection = selectionStart !== selectionEnd ? { start: selectionStart, end: selectionEnd } : null;
+
+      const message: CursorMessage = {
+        type: 'cursor',
+        documentId,
+        userId,
+        userName,
+        color: userColor,
+        cursor,
+        selection,
+        timestamp: Date.now(),
+      };
+      sendMessage(message);
+    } catch (error) {
+      console.error('Failed to sync cursor:', error);
+    }
+  }, [documentId, userId, userName, userColor, sendMessage]);
 
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
+    try {
+      const newContent = e.target.value;
+      const oldContent = contentRef.current;
 
-    if (syncDebounceRef.current) {
-      window.clearTimeout(syncDebounceRef.current);
+      const operation = operationFromDiff(
+        oldContent,
+        newContent,
+        userId,
+        versionRef.current
+      );
+
+      if (operation) {
+        sendChangeMessage(operation);
+      }
+
+      contentRef.current = newContent;
+      setContent(newContent);
+    } catch (error) {
+      console.error('Failed to handle content change:', error);
     }
-    syncDebounceRef.current = window.setTimeout(() => {
-      syncContent(newContent);
-    }, WS_SYNC_DEBOUNCE);
-  }, [syncContent]);
+  }, [userId, sendChangeMessage]);
 
   const insertMarkdown = useCallback((prefix: string, suffix: string = '', placeholder: string = '') => {
-    const textarea = editorRef.current;
-    if (!textarea) return;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selectedText = value.substring(selectionStart, selectionEnd) || placeholder;
-    const newText = value.substring(0, selectionStart) + prefix + selectedText + suffix + value.substring(selectionEnd);
-    setContent(newText);
-    setTimeout(() => {
-      textarea.focus();
-      const newCursor = selectionStart + prefix.length + selectedText.length;
-      textarea.setSelectionRange(newCursor, newCursor);
-      syncContent(newText);
-    }, 0);
-  }, [syncContent]);
+    try {
+      const textarea = editorRef.current;
+      if (!textarea) return;
+      const { selectionStart, selectionEnd, value } = textarea;
+      const selectedText = value.substring(selectionStart, selectionEnd) || placeholder;
+      const newText = value.substring(0, selectionStart) + prefix + selectedText + suffix + value.substring(selectionEnd);
+
+      const operation = operationFromDiff(
+        contentRef.current,
+        newText,
+        userId,
+        versionRef.current
+      );
+
+      if (operation) {
+        sendChangeMessage(operation);
+      }
+
+      contentRef.current = newText;
+      setContent(newText);
+
+      setTimeout(() => {
+        textarea.focus();
+        const newCursor = selectionStart + prefix.length + selectedText.length;
+        textarea.setSelectionRange(newCursor, newCursor);
+        syncCursor();
+      }, 0);
+    } catch (error) {
+      console.error('Failed to insert markdown:', error);
+    }
+  }, [userId, sendChangeMessage, syncCursor]);
 
   const insertLinePrefix = useCallback((prefix: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) return;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const startLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
-    const endLine = value.indexOf('\n', selectionEnd);
-    const actualEnd = endLine === -1 ? value.length : endLine;
-    const lines = value.substring(startLine, actualEnd).split('\n');
-    const modifiedLines = lines.map((line) => prefix + line);
-    const newText = value.substring(0, startLine) + modifiedLines.join('\n') + value.substring(actualEnd);
-    setContent(newText);
-    setTimeout(() => {
-      textarea.focus();
-      syncContent(newText);
-    }, 0);
-  }, [syncContent]);
+    try {
+      const textarea = editorRef.current;
+      if (!textarea) return;
+      const { selectionStart, selectionEnd, value } = textarea;
+      const startLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
+      const endLine = value.indexOf('\n', selectionEnd);
+      const actualEnd = endLine === -1 ? value.length : endLine;
+      const lines = value.substring(startLine, actualEnd).split('\n');
+      const modifiedLines = lines.map((line) => prefix + line);
+      const newText = value.substring(0, startLine) + modifiedLines.join('\n') + value.substring(actualEnd);
+
+      const operation = operationFromDiff(
+        contentRef.current,
+        newText,
+        userId,
+        versionRef.current
+      );
+
+      if (operation) {
+        sendChangeMessage(operation);
+      }
+
+      contentRef.current = newText;
+      setContent(newText);
+
+      setTimeout(() => {
+        textarea.focus();
+        syncCursor();
+      }, 0);
+    } catch (error) {
+      console.error('Failed to insert line prefix:', error);
+    }
+  }, [userId, sendChangeMessage, syncCursor]);
+
+  const processSaveQueue = useCallback(async () => {
+    if (isSavingRef.current) return;
+    if (saveQueueRef.current.length === 0) return;
+
+    isSavingRef.current = true;
+
+    saveTimeoutRef.current = window.setTimeout(() => {
+      console.warn('Save operation timed out');
+      isSavingRef.current = false;
+    }, SAVE_TIMEOUT);
+
+    try {
+      while (saveQueueRef.current.length > 0) {
+        const saveTask = saveQueueRef.current.shift();
+        if (saveTask) {
+          try {
+            await saveTask();
+          } catch (error) {
+            console.error('Save task failed:', error);
+          }
+        }
+      }
+    } finally {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      isSavingRef.current = false;
+    }
+  }, []);
+
+  const queueSave = useCallback((saveFn: () => Promise<void>) => {
+    saveQueueRef.current.push(saveFn);
+    processSaveQueue();
+  }, [processSaveQueue]);
 
   const toolbarActions = useMemo(() => [
     { label: 'B', title: '加粗', action: () => insertMarkdown('**', '**', '粗体文字'), style: { fontWeight: 'bold' } },
@@ -332,14 +697,32 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       });
   }, [remoteUsers, getLineHeight]);
 
+  const computeDiff = useCallback((oldText: string, newText: string): { old: string[]; new: string[] } => {
+    const oldLines = oldText.split('\n');
+    const newLines = newText.split('\n');
+    return { old: oldLines, new: newLines };
+  }, []);
+
+  const renderedContent = useMemo(() => {
+    try {
+      return marked.parse(content) as string;
+    } catch {
+      return content;
+    }
+  }, [content]);
+
+  const remoteCursorPositions = useMemo(() => getRemoteCursorPositions(), [getRemoteCursorPositions]);
+
   useEffect(() => {
     const init = async () => {
-      await initDB();
-      const saved = await loadFromDB();
-      if (saved) {
-        setContent(saved);
-      } else {
-        const defaultContent = `# 欢迎使用 Markdown 编辑器
+      try {
+        await initDB();
+        const saved = await loadFromDB();
+        if (saved) {
+          contentRef.current = saved;
+          setContent(saved);
+        } else {
+          const defaultContent = `# 欢迎使用 Markdown 编辑器
 
 ## 功能特性
 
@@ -357,57 +740,54 @@ function hello() {
 
 > 💡 提示：开始输入即可体验！
 `;
-        setContent(defaultContent);
+          contentRef.current = defaultContent;
+          setContent(defaultContent);
+        }
+        setVersions(await loadVersions());
+        connectWebSocket();
+      } catch (error) {
+        console.error('Initialization failed:', error);
       }
-      setVersions(await loadVersions());
-      connectWebSocket();
     };
     init();
 
     return () => {
       wsRef.current?.close();
       if (autoSaveTimerRef.current) window.clearInterval(autoSaveTimerRef.current);
-      if (syncDebounceRef.current) window.clearTimeout(syncDebounceRef.current);
+      pendingOpsRef.current.forEach(op => window.clearTimeout(op.timeoutId));
+      if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     };
   }, [initDB, loadFromDB, loadVersions, connectWebSocket]);
 
   useEffect(() => {
     autoSaveTimerRef.current = window.setInterval(() => {
-      if (content) {
-        saveToDB(content);
+      if (contentRef.current) {
+        queueSave(() => saveToDB(contentRef.current));
       }
     }, AUTO_SAVE_INTERVAL);
 
     return () => {
       if (autoSaveTimerRef.current) window.clearInterval(autoSaveTimerRef.current);
     };
-  }, [content, saveToDB]);
+  }, [saveToDB, queueSave]);
 
   useEffect(() => {
     return () => {
-      saveToDB(content);
+      if (contentRef.current) {
+        saveToDB(contentRef.current).catch(error => {
+          console.error('Final save failed:', error);
+        });
+      }
     };
-  }, [content, saveToDB]);
+  }, [saveToDB]);
 
   const handleSaveVersion = useCallback(async () => {
-    await saveVersion(content);
-  }, [content, saveVersion]);
-
-  const computeDiff = useCallback((oldText: string, newText: string): { old: string[]; new: string[] } => {
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-    return { old: oldLines, new: newLines };
-  }, []);
-
-  const renderedContent = useMemo(() => {
     try {
-      return marked.parse(content) as string;
-    } catch {
-      return content;
+      await saveVersion(contentRef.current);
+    } catch (error) {
+      console.error('Failed to save version:', error);
     }
-  }, [content]);
-
-  const remoteCursorPositions = useMemo(() => getRemoteCursorPositions(), [getRemoteCursorPositions]);
+  }, [saveVersion]);
 
   return (
     <div style={styles.container}>

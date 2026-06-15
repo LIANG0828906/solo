@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock, LogIn, UserPlus } from 'lucide-react';
+import { withErrorBoundary } from '../components/withErrorBoundary';
 
 type TabType = 'login' | 'register';
 
@@ -677,4 +678,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default withErrorBoundary(Login);

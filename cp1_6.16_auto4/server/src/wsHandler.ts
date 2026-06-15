@@ -1,89 +1,52 @@
-/**
- * WebSocket 处理器
- * 负责协同编辑的实时通信，包括：
- * - 房间（文档）的加入/离开管理
- * - 文本变更实时广播
- * - 光标位置同步
- * - 冲突检测与自动合并
- * - 版本保存与历史记录
- */
-
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import jwt from 'jsonwebtoken';
 import db, { Document } from './db';
+import {
+  TextOperation,
+  VersionVector,
+  ChangeMessage,
+  ChangeAckMessage,
+  CursorMessage,
+  JoinMessage,
+  LeaveMessage,
+  UserListMessage,
+  SyncMessage,
+  ErrorMessage,
+  WSMessage,
+  transformOperation,
+  applyOperation,
+  compareVersions,
+  generateOpId,
+} from '../../shared/protocol';
 
-// ==================== 类型定义 ====================
+const JWT_SECRET = process.env.JWT_SECRET || 'auto4-secret-key-change-in-production';
+const AUTO_SAVE_INTERVAL_MS = 30_000;
+const MAX_HISTORY_SIZE = 100;
 
-/**
- * WebSocket 客户端扩展类型，携带鉴权与房间信息
- */
 export interface ClientSocket extends WebSocket {
   userId?: string;
   username?: string;
   documentId?: string;
+  color?: string;
 }
 
-/**
- * 光标位置信息
- */
-export interface CursorPosition {
-  line: number;
-  column: number;
-  selectionStart?: number;
-  selectionEnd?: number;
-}
-
-/**
- * 文本变更操作（简化版 OT 操作）
- */
-export interface TextChange {
-  start: number;
-  end: number;
-  text: string;
-}
-
-/**
- * WebSocket 消息基础结构
- */
-export interface WSMessage<T = unknown> {
-  type: 'join' | 'leave' | 'editor' | 'change' | 'cursor' | 'save' | 'version' | 'error' | 'info';
-  payload: T;
-  timestamp: number;
-  userId?: string;
-  username?: string;
-}
-
-/**
- * 房间信息：维护每个文档的连接客户端与实时状态
- */
 interface RoomState {
   clients: Set<ClientSocket>;
-  cursors: Map<string, { username: string; position: CursorPosition }>;
-  pendingChanges: TextChange[];
+  cursors: Map<string, { userName: string; color: string; cursor: { line: number; column: number }; selection: { start: number; end: number } | null }>;
+  currentContent: string;
+  version: number;
+  vector: VersionVector;
+  history: TextOperation[];
+  pendingOps: Map<string, TextOperation>;
+  appliedOpIds: Set<string>;
   lastSavedVersion: number;
 }
 
-// ==================== 常量配置 ====================
-
-const JWT_SECRET = process.env.JWT_SECRET || 'auto4-secret-key-change-in-production';
-const AUTO_SAVE_INTERVAL_MS = 30_000; // 30秒自动保存
-
-// ==================== 全局状态 ====================
-
-/**
- * 房间映射表：documentId -> RoomState
- */
 const rooms = new Map<string, RoomState>();
 
-// ==================== 工具函数 ====================
-
-/**
- * 从 HTTP 请求头中解析并验证 JWT Token
- */
 function authenticateRequest(req: IncomingMessage): { userId: string; username: string } | null {
   try {
-    // 从 URL query 或 Authorization header 获取 token
     const url = new URL(req.url || '/', 'http://localhost');
     const tokenFromQuery = url.searchParams.get('token');
     const authHeader = req.headers.authorization;
@@ -99,21 +62,15 @@ function authenticateRequest(req: IncomingMessage): { userId: string; username: 
   }
 }
 
-/**
- * 向指定客户端发送 JSON 消息
- */
-function send<T>(ws: ClientSocket, message: WSMessage<T>): void {
+function send(ws: ClientSocket, message: WSMessage): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   }
 }
 
-/**
- * 向房间内除发送者外的所有客户端广播消息
- */
-function broadcastToRoom<T>(
+function broadcastToRoom(
   documentId: string,
-  message: WSMessage<T>,
+  message: WSMessage,
   excludeWs?: ClientSocket,
 ): void {
   const room = rooms.get(documentId);
@@ -126,68 +83,65 @@ function broadcastToRoom<T>(
   }
 }
 
-/**
- * 获取或创建房间状态对象
- */
-function getOrCreateRoom(documentId: string): RoomState {
+function generateUserColor(userId: string): string {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+  ];
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
+async function getOrCreateRoom(documentId: string): Promise<RoomState> {
   let room = rooms.get(documentId);
   if (!room) {
+    await db.read();
+    const doc = db.data!.documents.find((d) => d.id === documentId);
+
     room = {
       clients: new Set(),
       cursors: new Map(),
-      pendingChanges: [],
-      lastSavedVersion: 0,
+      currentContent: doc?.content || '',
+      version: doc?.version || 0,
+      vector: {},
+      history: [],
+      pendingOps: new Map(),
+      appliedOpIds: new Set(),
+      lastSavedVersion: doc?.version || 0,
     };
     rooms.set(documentId, room);
   }
   return room;
 }
 
-/**
- * 基于简单转换操作的冲突合并
- * 将新变更基于已应用的变更进行位置偏移调整
- */
-function mergeChange(change: TextChange, appliedChanges: TextChange[]): TextChange {
-  let { start, end, text } = change;
+function isOperationDuplicate(room: RoomState, opId: string): boolean {
+  if (room.appliedOpIds.has(opId)) return true;
+  if (room.pendingOps.has(opId)) return true;
+  return room.history.some((h) => h.id === opId);
+}
 
-  for (const applied of appliedChanges) {
-    // 已应用变更删除的文本长度
-    const removedLen = applied.end - applied.start;
-    // 已应用变更新增的文本长度
-    const insertedLen = applied.text.length;
-    // 净长度变化
-    const delta = insertedLen - removedLen;
+function transformAgainstHistory(
+  op: TextOperation,
+  history: TextOperation[],
+  fromVersion: number,
+  toVersion: number,
+): TextOperation | null {
+  let transformed: TextOperation | null = op;
+  const startIdx = Math.max(0, history.length - (toVersion - fromVersion));
 
-    // 当前变更完全在已应用变更之后
-    if (start >= applied.end) {
-      start += delta;
-      end += delta;
-    }
-    // 当前变更完全在已应用变更之前，无需调整
-    else if (end <= applied.start) {
-      continue;
-    }
-    // 重叠情况：保守地调整到已应用变更之后，避免文本丢失
-    else {
-      const overlapStart = Math.max(0, applied.end - start);
-      start = applied.end + delta;
-      end = start + Math.max(0, end - applied.start - overlapStart);
-    }
+  for (let i = startIdx; i < history.length; i++) {
+    if (!transformed) break;
+    const appliedOp = history[i];
+    if (appliedOp.id === transformed.id) continue;
+    transformed = transformOperation(transformed, appliedOp);
   }
 
-  return { start, end, text };
+  return transformed;
 }
 
-/**
- * 将变更应用到文档内容字符串
- */
-function applyChange(content: string, change: TextChange): string {
-  return content.slice(0, change.start) + change.text + content.slice(change.end);
-}
-
-/**
- * 将房间的当前变更持久化到数据库
- */
 async function saveRoomToDatabase(documentId: string): Promise<Document | null> {
   const room = rooms.get(documentId);
   if (!room) return null;
@@ -196,85 +150,87 @@ async function saveRoomToDatabase(documentId: string): Promise<Document | null> 
   const doc = db.data!.documents.find((d) => d.id === documentId);
   if (!doc) return null;
 
-  if (room.pendingChanges.length === 0) return doc;
+  if (room.version === room.lastSavedVersion) return doc;
 
-  // 依次应用所有待保存的变更
-  let newContent = doc.content;
-  for (const change of room.pendingChanges) {
-    newContent = applyChange(newContent, change);
-  }
-
-  // 递增版本并保存历史
-  const newVersion = doc.version + 1;
-  doc.content = newContent;
-  doc.version = newVersion;
+  doc.content = room.currentContent;
+  doc.version = room.version;
   doc.updatedAt = new Date().toISOString();
   doc.history.push({
-    version: newVersion,
-    content: newContent,
+    version: room.version,
+    content: room.currentContent,
     timestamp: new Date().toISOString(),
   });
 
-  room.pendingChanges = [];
-  room.lastSavedVersion = newVersion;
+  room.lastSavedVersion = room.version;
 
   await db.write();
 
-  // 广播新版本通知
-  broadcastToRoom(documentId, {
-    type: 'version',
-    payload: { version: newVersion, content: newContent },
-    timestamp: Date.now(),
-  });
+  const syncMessage: SyncMessage = {
+    type: 'sync',
+    documentId,
+    content: room.currentContent,
+    version: room.version,
+    vector: { ...room.vector },
+    reason: 'save',
+  };
+  broadcastToRoom(documentId, syncMessage);
 
   return doc;
 }
 
-// ==================== 消息处理器 ====================
+function sendSync(ws: ClientSocket, room: RoomState, documentId: string, reason: 'init' | 'reset' | 'save'): void {
+  const syncMessage: SyncMessage = {
+    type: 'sync',
+    documentId,
+    content: room.currentContent,
+    version: room.version,
+    vector: { ...room.vector },
+    reason,
+  };
+  send(ws, syncMessage);
+}
 
-/**
- * 加入文档房间
- */
-function handleJoin(ws: ClientSocket, documentId: string): void {
+function sendUserList(room: RoomState, documentId: string): void {
+  const users = Array.from(room.clients)
+    .filter((c) => c.userId)
+    .map((c) => ({
+      userId: c.userId!,
+      userName: c.username || '未知用户',
+      color: c.color || generateUserColor(c.userId!),
+      cursor: room.cursors.get(c.userId!)?.cursor,
+    }));
+
+  const userListMessage: UserListMessage = {
+    type: 'user-list',
+    documentId,
+    users,
+  };
+  broadcastToRoom(documentId, userListMessage);
+}
+
+function handleJoin(ws: ClientSocket, message: JoinMessage): void {
   if (!ws.userId) return;
 
+  const { documentId, userId, userName, color } = message;
   ws.documentId = documentId;
-  const room = getOrCreateRoom(documentId);
-  room.clients.add(ws);
+  ws.color = color || generateUserColor(userId);
 
-  // 通知房间中其他用户
-  broadcastToRoom(
-    documentId,
-    {
-      type: 'join',
-      payload: { userId: ws.userId, username: ws.username, documentId },
-      timestamp: Date.now(),
-      userId: ws.userId,
-      username: ws.username,
-    },
-    ws,
-  );
+  getOrCreateRoom(documentId).then((room) => {
+    room.clients.add(ws);
 
-  // 将当前在线用户列表发送给新加入者
-  const userList = Array.from(room.clients)
-    .filter((c) => c.userId)
-    .map((c) => ({ userId: c.userId, username: c.username }));
-
-  send(ws, {
-    type: 'info',
-    payload: {
-      users: userList,
-      cursors: Object.fromEntries(
-        Array.from(room.cursors.entries()).map(([uid, data]) => [uid, data]),
-      ),
-    },
-    timestamp: Date.now(),
+    sendSync(ws, room, documentId, 'init');
+    sendUserList(room, documentId);
+  }).catch((err) => {
+    console.error('加入房间失败:', err);
+    const errorMsg: ErrorMessage = {
+      type: 'error',
+      code: 500,
+      message: '加入房间失败',
+    };
+    send(ws, errorMsg);
   });
 }
 
-/**
- * 离开文档房间
- */
 function handleLeave(ws: ClientSocket): void {
   if (!ws.documentId || !ws.userId) return;
 
@@ -284,120 +240,190 @@ function handleLeave(ws: ClientSocket): void {
   room.clients.delete(ws);
   room.cursors.delete(ws.userId);
 
-  // 如果房间已清空，触发一次保存并清理房间
   if (room.clients.size === 0) {
     saveRoomToDatabase(ws.documentId).finally(() => {
       rooms.delete(ws.documentId!);
     });
   } else {
-    // 通知其他用户该用户已离开
-    broadcastToRoom(ws.documentId, {
-      type: 'leave',
-      payload: { userId: ws.userId, username: ws.username },
-      timestamp: Date.now(),
-      userId: ws.userId,
-      username: ws.username,
-    });
+    sendUserList(room, ws.documentId);
   }
 
   ws.documentId = undefined;
 }
 
-/**
- * 处理文本变更（带冲突合并）
- */
-function handleChange(ws: ClientSocket, change: TextChange): void {
+function handleChange(ws: ClientSocket, message: ChangeMessage): void {
   if (!ws.documentId || !ws.userId) return;
 
-  const room = rooms.get(ws.documentId);
+  const { documentId, operation, currentVersion, vector: clientVector } = message;
+  const room = rooms.get(documentId);
   if (!room) return;
 
-  // 合并冲突：基于房间内尚未保存的变更进行位置转换
-  const mergedChange = mergeChange(change, room.pendingChanges);
+  if (isOperationDuplicate(room, operation.id)) {
+    const ack: ChangeAckMessage = {
+      type: 'change-ack',
+      documentId,
+      operationId: operation.id,
+      newVersion: room.version,
+      applied: true,
+    };
+    send(ws, ack);
+    return;
+  }
 
-  // 记录到待保存队列
-  room.pendingChanges.push(mergedChange);
+  if (currentVersion < room.version) {
+    sendSync(ws, room, documentId, 'reset');
+    const errorMsg: ErrorMessage = {
+      type: 'error',
+      code: 409,
+      message: '版本落后，请重置后重试',
+      operationId: operation.id,
+    };
+    send(ws, errorMsg);
+    return;
+  }
 
-  // 广播合并后的变更给房间内其他用户
-  broadcastToRoom(
-    ws.documentId,
-    {
+  if (currentVersion > room.version) {
+    sendSync(ws, room, documentId, 'reset');
+    const errorMsg: ErrorMessage = {
+      type: 'error',
+      code: 400,
+      message: '客户端版本高于服务端，请重置',
+      operationId: operation.id,
+    };
+    send(ws, errorMsg);
+    return;
+  }
+
+  const vectorCompare = compareVersions(clientVector, room.vector);
+  if (vectorCompare < 0) {
+    sendSync(ws, room, documentId, 'reset');
+    const errorMsg: ErrorMessage = {
+      type: 'error',
+      code: 409,
+      message: '版本向量落后，请重置后重试',
+      operationId: operation.id,
+    };
+    send(ws, errorMsg);
+    return;
+  }
+
+  room.pendingOps.set(operation.id, operation);
+
+  let transformedOp: TextOperation | null = operation;
+  const otherPendingOps = Array.from(room.pendingOps.values()).filter(op => op.id !== operation.id);
+  for (const pendingOp of otherPendingOps) {
+    if (!transformedOp) break;
+    transformedOp = transformOperation(transformedOp, pendingOp);
+  }
+
+  if (!transformedOp) {
+    room.pendingOps.delete(operation.id);
+    const ack: ChangeAckMessage = {
+      type: 'change-ack',
+      documentId,
+      operationId: operation.id,
+      newVersion: room.version,
+      applied: false,
+    };
+    send(ws, ack);
+    return;
+  }
+
+  try {
+    const newContent = applyOperation(room.currentContent, transformedOp);
+    room.currentContent = newContent;
+    room.version += 1;
+    room.vector[transformedOp.userId] = (room.vector[transformedOp.userId] || 0) + 1;
+    room.history.push(transformedOp);
+    if (room.history.length > MAX_HISTORY_SIZE) {
+      room.history.shift();
+    }
+    room.appliedOpIds.add(transformedOp.id);
+    room.pendingOps.delete(operation.id);
+
+    const ack: ChangeAckMessage = {
+      type: 'change-ack',
+      documentId,
+      operationId: operation.id,
+      newVersion: room.version,
+      applied: true,
+    };
+    send(ws, ack);
+
+    const broadcastMsg: ChangeMessage = {
       type: 'change',
-      payload: mergedChange,
-      timestamp: Date.now(),
-      userId: ws.userId,
-      username: ws.username,
-    },
-    ws,
-  );
+      documentId,
+      operation: transformedOp,
+      currentVersion: room.version,
+      vector: { ...room.vector },
+    };
+    broadcastToRoom(documentId, broadcastMsg, ws);
+  } catch (err) {
+    console.error('应用操作失败:', err);
+    room.pendingOps.delete(operation.id);
+    const errorMsg: ErrorMessage = {
+      type: 'error',
+      code: 500,
+      message: '应用操作失败',
+      operationId: operation.id,
+    };
+    send(ws, errorMsg);
+  }
 }
 
-/**
- * 处理光标位置同步
- */
-function handleCursor(ws: ClientSocket, position: CursorPosition): void {
+function handleCursor(ws: ClientSocket, message: CursorMessage): void {
   if (!ws.documentId || !ws.userId) return;
 
-  const room = rooms.get(ws.documentId);
+  const { documentId, cursor, selection } = message;
+  const room = rooms.get(documentId);
   if (!room) return;
 
-  // 更新房间内该用户的光标记录
   room.cursors.set(ws.userId, {
-    username: ws.username || '未知用户',
-    position,
+    userName: ws.username || '未知用户',
+    color: ws.color || generateUserColor(ws.userId),
+    cursor,
+    selection,
   });
 
-  // 广播给其他用户
-  broadcastToRoom(
-    ws.documentId,
-    {
-      type: 'cursor',
-      payload: { userId: ws.userId, username: ws.username, position },
-      timestamp: Date.now(),
-      userId: ws.userId,
-      username: ws.username,
-    },
-    ws,
-  );
+  const broadcastMsg: CursorMessage = {
+    ...message,
+    userId: ws.userId,
+    userName: ws.username || '未知用户',
+    color: ws.color || generateUserColor(ws.userId),
+  };
+  broadcastToRoom(documentId, broadcastMsg, ws);
 }
 
-/**
- * 处理显式保存请求
- */
 async function handleSave(ws: ClientSocket): Promise<void> {
   if (!ws.documentId) return;
 
   try {
     const doc = await saveRoomToDatabase(ws.documentId);
     if (doc) {
-      send(ws, {
-        type: 'save',
-        payload: { success: true, version: doc.version, updatedAt: doc.updatedAt },
-        timestamp: Date.now(),
-      });
+      const room = rooms.get(ws.documentId);
+      if (room) {
+        sendSync(ws, room, ws.documentId, 'save');
+      }
     } else {
-      send(ws, {
+      const errorMsg: ErrorMessage = {
         type: 'error',
-        payload: { message: '文档不存在' },
-        timestamp: Date.now(),
-      });
+        code: 404,
+        message: '文档不存在',
+      };
+      send(ws, errorMsg);
     }
   } catch (err) {
-    send(ws, {
+    console.error('保存失败:', err);
+    const errorMsg: ErrorMessage = {
       type: 'error',
-      payload: { message: '保存失败', error: String(err) },
-      timestamp: Date.now(),
-    });
+      code: 500,
+      message: '保存失败',
+    };
+    send(ws, errorMsg);
   }
 }
 
-// ==================== 对外接口 ====================
-
-/**
- * 挂载 WebSocket 服务器到 HTTP 服务
- */
 export function setupWebSocketServer(wss: WebSocketServer): void {
-  // 定时自动保存所有房间
   const autoSaveTimer = setInterval(() => {
     const documentIds = Array.from(rooms.keys());
     for (const docId of documentIds) {
@@ -408,14 +434,14 @@ export function setupWebSocketServer(wss: WebSocketServer): void {
   }, AUTO_SAVE_INTERVAL_MS);
 
   wss.on('connection', (ws: ClientSocket, req: IncomingMessage) => {
-    // 连接建立时先鉴权
     const auth = authenticateRequest(req);
     if (!auth) {
-      send(ws, {
+      const errorMsg: ErrorMessage = {
         type: 'error',
-        payload: { message: '未授权的连接，请提供有效 Token' },
-        timestamp: Date.now(),
-      });
+        code: 401,
+        message: '未授权的连接，请提供有效 Token',
+      };
+      send(ws, errorMsg);
       ws.close(4001, 'Unauthorized');
       return;
     }
@@ -423,50 +449,53 @@ export function setupWebSocketServer(wss: WebSocketServer): void {
     ws.userId = auth.userId;
     ws.username = auth.username;
 
-    send(ws, {
-      type: 'info',
-      payload: { message: '连接成功', userId: ws.userId, username: ws.username },
-      timestamp: Date.now(),
-    });
-
-    // 处理收到的消息
     ws.on('message', async (rawData) => {
       try {
         const message: WSMessage = JSON.parse(rawData.toString());
 
         switch (message.type) {
           case 'join':
-            handleJoin(ws, message.payload as string);
+            handleJoin(ws, message as JoinMessage);
             break;
           case 'leave':
             handleLeave(ws);
             break;
           case 'change':
-            handleChange(ws, message.payload as TextChange);
+            handleChange(ws, message as ChangeMessage);
             break;
           case 'cursor':
-            handleCursor(ws, message.payload as CursorPosition);
+            handleCursor(ws, message as CursorMessage);
             break;
-          case 'save':
-            await handleSave(ws);
+          case 'sync':
+            if (ws.documentId) {
+              const room = rooms.get(ws.documentId);
+              if (room) {
+                sendSync(ws, room, ws.documentId, 'init');
+              }
+            }
+            break;
+          case 'error':
+            console.error('收到客户端错误:', message);
             break;
           default:
-            send(ws, {
+            const errorMsg: ErrorMessage = {
               type: 'error',
-              payload: { message: `未知的消息类型: ${message.type}` },
-              timestamp: Date.now(),
-            });
+              code: 400,
+              message: `未知的消息类型: ${(message as WSMessage).type}`,
+            };
+            send(ws, errorMsg);
         }
       } catch (err) {
-        send(ws, {
+        console.error('消息处理失败:', err);
+        const errorMsg: ErrorMessage = {
           type: 'error',
-          payload: { message: '消息格式错误', error: String(err) },
-          timestamp: Date.now(),
-        });
+          code: 400,
+          message: '消息格式错误',
+        };
+        send(ws, errorMsg);
       }
     });
 
-    // 连接断开时自动清理
     ws.on('close', () => {
       handleLeave(ws);
     });
@@ -477,10 +506,8 @@ export function setupWebSocketServer(wss: WebSocketServer): void {
     });
   });
 
-  // 服务器关闭时清理
   wss.on('close', () => {
     clearInterval(autoSaveTimer);
-    // 关闭前保存所有房间
     const savePromises = Array.from(rooms.keys()).map((docId) => saveRoomToDatabase(docId));
     Promise.all(savePromises).catch((err) => {
       console.error('服务器关闭时保存失败:', err);

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Loader2, Save } from 'lucide-react';
 import DirectoryTree, { TreeNode } from '../components/DirectoryTree';
 import MarkdownEditor from '../components/MarkdownEditor';
+import { withErrorBoundary } from '../components/withErrorBoundary';
 import {
   getDocument,
   updateDocument,
@@ -554,4 +555,4 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-export default Editor;
+export default withErrorBoundary(Editor);

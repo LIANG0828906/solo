@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, LogOut, User, FileText, Menu, X, Loader2, AlertCircle, Folder } from 'lucide-react';
 import DirectoryTree, { TreeNode } from '../components/DirectoryTree';
+import { withErrorBoundary } from '../components/withErrorBoundary';
 
 interface Document {
   id: string;
@@ -1041,4 +1042,4 @@ const Workspace: React.FC = () => {
   );
 };
 
-export default Workspace;
+export default withErrorBoundary(Workspace);
