@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>代码对战竞技场</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: 'Orbitron', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #app {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+    }
+
+    #lobby {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      background: #1a1a2e;
+    }
+
+    #lobby.hidden {
+      display: none;
+    }
+
+    .lobby-title {
+      font-size: 42px;
+      font-weight: 900;
+      color: #00d4ff;
+      text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+      margin-bottom: 8px;
+      letter-spacing: 4px;
+    }
+
+    .lobby-subtitle {
+      font-size: 14px;
+      color: #ff6b35;
+      margin-bottom: 48px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+
+    .lobby-input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .lobby-input {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 8px;
+      padding: 14px 20px;
+      color: #00d4ff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      width: 260px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .lobby-input:focus {
+      border-color: #00d4ff;
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
+    }
+
+    .lobby-input::placeholder {
+      color: #4a5568;
+    }
+
+    .btn-match {
+      background: linear-gradient(135deg, #00d4ff, #0099cc);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 32px;
+      color: #1a1a2e;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .btn-match:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 212, 255, 0.4);
+    }
+
+    .btn-match:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .matching-area {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    .matching-area.active {
+      display: flex;
+    }
+
+    .hex-spinner {
+      width: 80px;
+      height: 80px;
+      animation: hexSpin 0.8s linear infinite;
+    }
+
+    @keyframes hexSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .matching-text {
+      margin-top: 16px;
+      color: #00d4ff;
+      font-size: 14px;
+      letter-spacing: 3px;
+    }
+
+    #editor-panel {
+      width: 40%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #0f3460;
+      background: #16213e;
+    }
+
+    #editor-panel.hidden {
+      display: none;
+    }
+
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #0f3460;
+      border-bottom: 1px solid #1a1a4e;
+    }
+
+    .editor-header-title {
+      font-size: 12px;
+      color: #00d4ff;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .editor-status {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: #1a1a2e;
+      color: #ff6b35;
+    }
+
+    .challenge-area {
+      padding: 12px 16px;
+      background: #1a1a2e;
+      border-bottom: 1px solid #0f3460;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #b0b0c0;
+      max-height: 120px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .challenge-label {
+      color: #00d4ff;
+      font-weight: 700;
+      margin-bottom: 4px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    #code-editor {
+      flex: 1;
+      width: 100%;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 16px;
+      border: none;
+      outline: none;
+      resize: none;
+      tab-size: 2;
+    }
+
+    .editor-footer {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f3460;
+      border-top: 1px solid #1a1a4e;
+    }
+
+    .countdown-display {
+      font-size: 28px;
+      font-weight: 900;
+      color: #ff6b35;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .countdown-display.pulse {
+      animation: countPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes countPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #ff6b35, #cc5522);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 1px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4);
+    }
+
+    .btn-submit:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #battle-panel {
+      flex: 1;
+      height: 100vh;
+      position: relative;
+    }
+
+    #battle-panel.hidden {
+      display: none;
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    #game-container canvas {
+      display: block;
+    }
+
+    #result-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(26, 26, 46, 0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    #result-overlay.active {
+      display: flex;
+    }
+
+    .result-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: #00d4ff;
+      margin-bottom: 32px;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+    }
+
+    .ranking-list {
+      list-style: none;
+      width: 400px;
+      max-width: 90%;
+    }
+
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      transition: all 0.3s;
+    }
+
+    .ranking-item.gold {
+      background: linear-gradient(135deg, #2a1f00, #3d2e00);
+      border-color: #ffd700;
+      box-shadow: 0 0 16px rgba(255, 215, 0, 0.2);
+    }
+
+    .ranking-item.silver {
+      background: linear-gradient(135deg, #1a1a2e, #2a2a3e);
+      border-color: #c0c0c0;
+      box-shadow: 0 0 16px rgba(192, 192, 192, 0.15);
+    }
+
+    .ranking-item.bronze {
+      background: linear-gradient(135deg, #2a1a0a, #3d2a14);
+      border-color: #cd7f32;
+      box-shadow: 0 0 16px rgba(205, 127, 50, 0.15);
+    }
+
+    .ranking-rank {
+      font-size: 20px;
+      font-weight: 900;
+      width: 36px;
+    }
+
+    .ranking-name {
+      flex: 1;
+      margin-left: 12px;
+      font-size: 14px;
+    }
+
+    .ranking-score {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ff6b35;
+    }
+
+    .btn-again {
+      margin-top: 32px;
+      background: linear-gradient(135deg, #00d4ff, #0099cc);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 40px;
+      color: #1a1a2e;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 2px;
+    }
+
+    .btn-again:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 212, 255, 0.4);
+    }
+
+    @media (max-width: 768px) {
+      #app {
+        flex-direction: column;
+      }
+
+      #editor-panel {
+        width: 100%;
+        height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid #0f3460;
+      }
+
+      #battle-panel {
+        height: 60vh;
+      }
+
+      .lobby-title {
+        font-size: 28px;
+      }
+
+      .lobby-input {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="lobby">
+    <div class="lobby-title">CODE ARENA</div>
+    <div class="lobby-subtitle">在线代码对战竞技场</div>
+    <div class="lobby-input-group">
+      <input type="text" class="lobby-input" id="nickname-input" placeholder="输入你的昵称" maxlength="16" />
+      <button class="btn-match" id="btn-match">开始匹配</button>
+    </div>
+    <div class="matching-area" id="matching-area">
+      <svg class="hex-spinner" viewBox="0 0 100 100">
+        <polygon points="50,5 93,27.5 93,72.5 50,95 7,72.5 7,27.5"
+          fill="none" stroke="#00d4ff" stroke-width="3" stroke-linejoin="round" />
+        <polygon points="50,20 78,35 78,65 50,80 22,65 22,35"
+          fill="none" stroke="#ff6b35" stroke-width="2" stroke-linejoin="round" opacity="0.6" />
+      </svg>
+      <div class="matching-text">正在寻找对手...</div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="editor-panel" class="hidden">
+      <div class="editor-header">
+        <span class="editor-header-title">Code Editor</span>
+        <span class="editor-status" id="editor-status">待提交</span>
+      </div>
+      <div class="challenge-area" id="challenge-area">
+        <div class="challenge-label">CHALLENGE</div>
+        <div id="challenge-text">等待题目下发...</div>
+      </div>
+      <textarea id="code-editor" spellcheck="false" placeholder="// 在这里编写你的代码..."></textarea>
+      <div class="editor-footer">
+        <div class="countdown-display" id="countdown-display">--</div>
+        <button class="btn-submit" id="btn-submit">提交代码</button>
+      </div>
+    </div>
+
+    <div id="battle-panel" class="hidden">
+      <div id="game-container"></div>
+    </div>
+  </div>
+
+  <div id="result-overlay">
+    <div class="result-title">RANKING</div>
+    <ul class="ranking-list" id="ranking-list"></ul>
+    <button class="btn-again" id="btn-again">继续匹配</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
