@@ -101,6 +101,33 @@ router.post('/login', (req, res) => {
   });
 });
 
+const calculateMonthlyHours = (userId: string) => {
+  const userRegs = registrations.filter(r => r.userId === userId && r.status === 'approved' && r.serviceHours > 0);
+  
+  const monthlyMap: { [key: string]: number } = {};
+  
+  userRegs.forEach(reg => {
+    const project = projects.find(p => p.id === reg.projectId);
+    if (project) {
+      const month = project.serviceDate.slice(0, 7);
+      monthlyMap[month] = (monthlyMap[month] || 0) + reg.serviceHours;
+    }
+  });
+  
+  const months: { month: string; hours: number }[] = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = date.toISOString().slice(0, 7);
+    months.push({
+      month: monthStr,
+      hours: monthlyMap[monthStr] || 0
+    });
+  }
+  
+  return months;
+};
+
 router.get('/profile', authenticateToken, (req, res) => {
   const userId = (req as any).user.id;
   const user = users.find(u => u.id === userId);
@@ -122,14 +149,17 @@ router.get('/profile', authenticateToken, (req, res) => {
     };
   });
 
+  const monthlyHours = calculateMonthlyHours(userId);
+  const totalHours = monthlyHours.reduce((sum, m) => sum + m.hours, 0);
+
   res.json({
     user: {
       id: user.id,
       username: user.username,
       nickname: user.nickname,
       role: user.role,
-      totalHours: user.totalHours,
-      monthlyHours: user.monthlyHours,
+      totalHours: totalHours,
+      monthlyHours,
       avatar: user.avatar
     },
     registrations: userRegistrations,
@@ -140,13 +170,17 @@ router.get('/profile', authenticateToken, (req, res) => {
 router.get('/ranking', (req, res) => {
   const volunteerUsers = users.filter(u => u.role === 'volunteer');
   const ranking = volunteerUsers
-    .map(u => ({
-      id: u.id,
-      nickname: u.nickname,
-      totalHours: u.totalHours,
-      avatar: u.avatar,
-      isSenior: u.totalHours >= 50
-    }))
+    .map(u => {
+      const monthlyHours = calculateMonthlyHours(u.id);
+      const totalHours = monthlyHours.reduce((sum, m) => sum + m.hours, 0) + u.totalHours;
+      return {
+        id: u.id,
+        nickname: u.nickname,
+        totalHours,
+        avatar: u.avatar,
+        isSenior: totalHours >= 50
+      };
+    })
     .sort((a, b) => b.totalHours - a.totalHours)
     .slice(0, 20);
 

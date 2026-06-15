@@ -57,7 +57,10 @@ const Admin: React.FC<AdminProps> = ({ user, ws, onNotification }) => {
     }
   };
 
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
   const handleApprove = async (regId: string, projectId: string, status: 'approved' | 'rejected') => {
+    setApprovingId(regId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/projects/${projectId}/registrations/${regId}/approve`, {
@@ -70,11 +73,17 @@ const Admin: React.FC<AdminProps> = ({ user, ws, onNotification }) => {
       });
 
       if (response.ok) {
+        onNotification(status === 'approved' ? '✅ 已通过报名申请' : '❌ 已拒绝报名申请');
         fetchRegistrations();
+      } else {
+        const data = await response.json();
+        onNotification(`操作失败：${data.message || '未知错误'}`);
       }
     } catch (error) {
       console.error('审批失败:', error);
+      onNotification('操作失败：网络错误');
     }
+    setApprovingId(null);
   };
 
   const handleHoursSubmit = async (regId: string, projectId: string, hours: number) => {
@@ -213,14 +222,16 @@ const Admin: React.FC<AdminProps> = ({ user, ws, onNotification }) => {
                           <button
                             className="btn btn-sm btn-success"
                             onClick={() => handleApprove(reg.id, reg.projectId, 'approved')}
+                            disabled={approvingId === reg.id}
                           >
-                            通过
+                            {approvingId === reg.id ? '...' : '通过'}
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
                             onClick={() => handleApprove(reg.id, reg.projectId, 'rejected')}
+                            disabled={approvingId === reg.id}
                           >
-                            拒绝
+                            {approvingId === reg.id ? '...' : '拒绝'}
                           </button>
                         </div>
                       )}

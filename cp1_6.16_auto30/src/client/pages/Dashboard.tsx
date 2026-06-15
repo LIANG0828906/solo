@@ -49,7 +49,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return <div className="loading-more">加载中...</div>;
   }
 
-  const monthlyHours = profile?.user?.monthlyHours || [];
+  const rawMonthlyHours = profile?.user?.monthlyHours || [];
+  
+  const monthlyHours = rawMonthlyHours.map((item: any) => ({
+    ...item,
+    monthLabel: item.month ? item.month.slice(5) + '月' : ''
+  }));
+  
   const isSenior = (profile?.user?.totalHours || 0) >= 50;
 
   return (
@@ -116,14 +122,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyHours}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis dataKey="month" stroke="#999" fontSize={12} />
-                <YAxis stroke="#999" fontSize={12} />
+                <XAxis dataKey="monthLabel" stroke="#999" fontSize={12} />
+                <YAxis stroke="#999" fontSize={12} unit="h" />
                 <Tooltip 
                   contentStyle={{ 
                     borderRadius: '8px', 
                     border: 'none', 
                     boxShadow: '0 4px 15px rgba(0,0,0,0.1)' 
-                  }} 
+                  }}
+                  formatter={(value: number) => [`${value} 小时`, '服务时长']}
+                  labelFormatter={(label: string) => `${label}`}
                 />
                 <Line 
                   type="monotone" 

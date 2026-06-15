@@ -118,7 +118,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<ProjectList />} />
-            <Route path="/projects/:id" element={<ProjectDetail user={user} ws={ws} />} />
+            <Route path="/projects/:id" element={<ProjectDetail user={user} ws={ws} onNotification={handleNotification} />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route path="/register" element={<Register onLogin={handleLogin} />} />
             <Route 
