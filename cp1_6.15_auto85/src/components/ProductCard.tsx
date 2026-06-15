@@ -18,13 +18,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [showPop, setShowPop] = useState(false);
 
   const handleCheckboxClick = () => {
-    if (!selected) {
-      setShowPop(true);
-      setTimeout(() => setShowPop(false), 150);
-    }
     onToggleSelect(product.id);
   };
 
@@ -54,15 +49,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
     width: '24px',
     height: '24px',
     borderRadius: '50%',
-    border: selected ? 'none' : '2px solid #d1d5db',
+    boxSizing: 'border-box' as const,
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: selected ? '#22c55e' : '#d1d5db',
     backgroundColor: selected ? '#22c55e' : '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
     transition: 'background-color 0.15s ease, border-color 0.15s ease',
-    transform: showPop ? 'scale(1.2)' : 'scale(1)',
-    animation: showPop ? 'pop 0.15s ease-out' : undefined,
+    animationName: selected ? 'checkboxPop' : undefined,
+    animationDuration: selected ? '0.15s' : undefined,
+    animationTimingFunction: selected ? 'ease-out' : undefined,
+    animationFillMode: selected ? 'forwards' : undefined,
   };
 
   const checkIconStyle: React.CSSProperties = {
@@ -167,14 +167,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <style>{`
-        @keyframes pop {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.25); }
+        @keyframes checkboxPop {
+          0% { transform: scale(1); border-width: 2px; }
+          40% { transform: scale(1.3); }
+          70% { transform: scale(0.92); }
           100% { transform: scale(1); }
         }
       `}</style>
 
-      <div style={checkboxStyle} onClick={handleCheckboxClick}>
+      <div
+        key={selected ? 'selected' : 'unselected'}
+        style={checkboxStyle}
+        onClick={handleCheckboxClick}
+      >
         {selected && <Check style={checkIconStyle} />}
       </div>
 

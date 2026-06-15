@@ -15,6 +15,10 @@ interface BarState {
   currentColorTop: string;
   currentColorBottom: string;
   lowStock: boolean;
+  colorProgress: number;
+  prevColorTop: string;
+  prevColorBottom: string;
+  colorAnimating: boolean;
 }
 
 const parseRGB = (hex: string): [number, number, number] => {
@@ -63,6 +67,7 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
   const barStatesRef = useRef<Map<string, BarState>>(new Map());
   const frameRef = useRef<number>(0);
   const productsRef = useRef<Product[]>([]);
@@ -109,8 +114,19 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
           currentColorTop: targetColorTop,
           currentColorBottom: targetColorBottom,
           lowStock,
+          colorProgress: 1,
+          prevColorTop: targetColorTop,
+          prevColorBottom: targetColorBottom,
+          colorAnimating: false,
         });
       } else {
+        const colorChanged = existing.targetColorTop !== targetColorTop;
+        if (colorChanged) {
+          existing.prevColorTop = existing.currentColorTop;
+          existing.prevColorBottom = existing.currentColorBottom;
+          existing.colorProgress = 0;
+          existing.colorAnimating = true;
+        }
         existing.targetHeight = targetHeight;
         existing.targetColorTop = targetColorTop;
         existing.targetColorBottom = targetColorBottom;
@@ -129,6 +145,10 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
     const items = productsRef.current;
     const chartAreaHeight = CHART_HEIGHT - AXIS_HEIGHT - TOP_PADDING;
     const baseY = TOP_PADDING + chartAreaHeight;
+
+    const now = performance.now();
+    const deltaTime = lastTimeRef.current ? now - lastTimeRef.current : 16;
+    lastTimeRef.current = now;
 
     ctx.clearRect(0, 0, width, height);
 
@@ -149,6 +169,7 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
       ctx.font = '14px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('暂无数据', width / 2, height / 2);
+      animationRef.current = requestAnimationFrame(() => draw(ctx, width, height));
       return;
     }
 
@@ -160,12 +181,14 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
 
     initOrUpdateBarStates(items, chartAreaHeight, maxStock);
 
-    const elapsed = performance.now() - startTimeRef.current;
+    const elapsed = now - startTimeRef.current;
     const t = clamp(elapsed / TRANSITION_DURATION, 0, 1);
     const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
     frameRef.current++;
     const wave = frameRef.current * 0.05;
+
+    let needsNextFrame = false;
 
     items.forEach((p, i) => {
       const state = barStatesRef.current.get(p.id);
@@ -173,21 +196,33 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
 
       const hDiff = state.targetHeight - state.currentHeight;
       state.currentHeight += hDiff * easeT;
+      if (Math.abs(hDiff) > 0.5) {
+        needsNextFrame = true;
+      }
 
-      state.currentColorTop = interpolateColor(
-        state.currentColorTop,
-        state.targetColorTop,
-        easeT
-      );
-      state.currentColorBottom = interpolateColor(
-        state.currentColorBottom,
-        state.targetColorBottom,
-        easeT
-      );
+      if (state.colorAnimating) {
+        state.colorProgress = clamp(state.colorProgress + deltaTime / 500, 0, 1);
+        if (state.colorProgress >= 1) {
+          state.colorAnimating = false;
+        } else {
+          needsNextFrame = true;
+        }
+        state.currentColorTop = interpolateColor(
+          state.prevColorTop,
+          state.targetColorTop,
+          state.colorProgress
+        );
+        state.currentColorBottom = interpolateColor(
+          state.prevColorBottom,
+          state.targetColorBottom,
+          state.colorProgress
+        );
+      }
 
       let barYOffset = 0;
       if (state.lowStock) {
         barYOffset = Math.sin(wave + i * 0.7) * 3;
+        needsNextFrame = true;
       }
 
       const x = BAR_GAP + i * (barWidth + BAR_GAP);
@@ -229,7 +264,11 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
       ctx.fillText(displayName, x + barWidth / 2, baseY + 22);
     });
 
-    if (t < 1 || items.some((p) => p.stock < 5)) {
+    if (t < 1) {
+      needsNextFrame = true;
+    }
+
+    if (needsNextFrame) {
       animationRef.current = requestAnimationFrame(() => draw(ctx, width, height));
     } else {
       animationRef.current = requestAnimationFrame(() => draw(ctx, width, height));
@@ -256,6 +295,7 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     startTimeRef.current = performance.now();
+    lastTimeRef.current = 0;
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
@@ -283,6 +323,7 @@ const InventoryChart: React.FC<InventoryChartProps> = ({ products }) => {
 
   useEffect(() => {
     startTimeRef.current = performance.now();
+    lastTimeRef.current = 0;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
