@@ -89,8 +89,15 @@ input:focus, select:focus {
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  75% { transform: translateX(3px); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes warningPulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(244, 67, 54, 0.15); }
+  50% { box-shadow: 0 4px 25px rgba(244, 67, 54, 0.3); }
 }
 
 .fade-in {
@@ -98,7 +105,12 @@ input:focus, select:focus {
 }
 
 .shake {
-  animation: shake 0.4s ease-in-out;
+  animation: shake 0.5s ease-in-out, warningPulse 0.8s ease-in-out;
+  border: 2px solid #F44336 !important;
+}
+
+.warning-shake .circle-progress {
+  filter: drop-shadow(0 0 6px rgba(244, 67, 54, 0.6));
 }
 
 .app-container {

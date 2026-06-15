@@ -111,7 +111,7 @@ export default function WeeklyChart() {
     }
 
     points.forEach((p) => {
-      const reached = p.calories >= p.target * 0.9
+      const reached = p.calories >= p.target
       const color = reached ? '#4CAF50' : '#F44336'
 
       ctx.beginPath()

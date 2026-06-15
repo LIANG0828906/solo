@@ -32,13 +32,13 @@ function CircleProgress({ label, current, target, colorStart, colorEnd, unit }: 
   }, [offset])
 
   useEffect(() => {
-    if (isOver && !prevOverRef.current) {
+    if (isOver) {
       setShake(true)
       const t = setTimeout(() => setShake(false), 500)
       return () => clearTimeout(t)
     }
     prevOverRef.current = isOver
-  }, [isOver])
+  }, [isOver, current])
 
   const strokeColor = isOver
     ? '#F44336'

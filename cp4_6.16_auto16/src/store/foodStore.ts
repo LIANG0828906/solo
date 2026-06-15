@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 import { set, get, del } from 'idb-keyval'
-import { format, isSameDay } from 'date-fns'
+import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import defaultFoods from '../data/foods.json'
 
@@ -52,7 +52,7 @@ export interface DailyTarget {
 }
 
 interface FoodState {
-  foods: Food[]
+  customFoods: Food[]
   records: MealRecord[]
   profile: UserProfile | null
   target: DailyTarget
@@ -61,13 +61,14 @@ interface FoodState {
   initStore: () => Promise<void>
   addRecord: (food: Food, quantity: number, mealType: MealType) => void
   deleteRecord: (recordId: string) => void
-  addCustomFood: (food: Omit<Food, 'id' | 'isCustom'>) => void
+  addCustomFood: (food: Omit<Food, 'id' | 'isCustom'>) => Food
   setProfile: (profile: UserProfile) => void
   calculateTarget: (profile: UserProfile) => DailyTarget
   getDayRecords: (date: Date) => MealRecord[]
   getDayNutrition: (date: Date) => { calories: number; protein: number; carbs: number; fat: number }
   hasRecordsOnDay: (date: Date) => boolean
   getWeeklyData: () => { date: string; calories: number; target: number }[]
+  getAllFoods: () => Food[]
 }
 
 const idbStorage = {
@@ -86,11 +87,15 @@ const idbStorage = {
 export const useFoodStore = create<FoodState>()(
   persist(
     (set, get) => ({
-      foods: defaultFoods as Food[],
+      customFoods: [] as Food[],
       records: [],
       profile: null,
       target: { calories: 2000, protein: 120, carbs: 250, fat: 65 },
       isFirstTime: true,
+
+      getAllFoods: () => {
+        return [...(defaultFoods as Food[]), ...get().customFoods]
+      },
 
       initStore: async () => {
         try {
@@ -138,7 +143,7 @@ export const useFoodStore = create<FoodState>()(
           isCustom: true,
         }
         set((state) => ({
-          foods: [...state.foods, newFood],
+          customFoods: [...state.customFoods, newFood],
         }))
         return newFood
       },
@@ -244,7 +249,7 @@ export const useFoodStore = create<FoodState>()(
       name: 'nutrition-diary-storage',
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
-        foods: state.foods,
+        customFoods: state.customFoods,
         records: state.records,
         profile: state.profile,
         target: state.target,

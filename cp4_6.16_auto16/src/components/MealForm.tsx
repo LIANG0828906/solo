@@ -11,7 +11,8 @@ import {
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
 export default function MealForm() {
-  const { foods, addRecord, deleteRecord, addCustomFood, getDayRecords } = useFoodStore()
+  const { getAllFoods, addRecord, deleteRecord, addCustomFood, getDayRecords } = useFoodStore()
+  const foods = getAllFoods()
   const today = new Date()
   const todayRecords = getDayRecords(today)
 
