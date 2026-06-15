@@ -85,28 +85,53 @@ export function renderTypewriterText(
     return;
   }
 
-  const chars = Array.from(text);
+  const words = text.split(/(\s+|\n)/);
   const charDelay = 80;
+  let globalIndex = 0;
 
-  chars.forEach((char, index) => {
-    const span = document.createElement('span');
-    span.className = 'char';
-    if (char === '\n') {
-      span.innerHTML = '<br/>';
-    } else if (char === ' ') {
-      span.innerHTML = '&nbsp;';
-    } else {
-      span.textContent = char;
+  words.forEach((word) => {
+    if (!word) return;
+
+    if (word === '\n') {
+      const br = document.createElement('br');
+      element.appendChild(br);
+      return;
     }
-    element.appendChild(span);
 
-    typewriterTimer = window.setTimeout(() => {
-      span.classList.add('show');
-      if (index === chars.length - 1) {
-        onComplete?.();
-      }
-    }, index * charDelay);
+    if (/^\s+$/.test(word)) {
+      const spaceSpan = document.createElement('span');
+      spaceSpan.className = 'char show';
+      spaceSpan.innerHTML = word.replace(/ /g, '&nbsp;');
+      element.appendChild(spaceSpan);
+      globalIndex += word.length;
+      return;
+    }
+
+    const wordSpan = document.createElement('span');
+    wordSpan.style.display = 'inline-block';
+    wordSpan.style.whiteSpace = 'nowrap';
+
+    const chars = Array.from(word);
+    chars.forEach((char, charIndex) => {
+      const span = document.createElement('span');
+      span.className = 'char';
+      span.textContent = char;
+      wordSpan.appendChild(span);
+
+      const currentIndex = globalIndex + charIndex;
+      typewriterTimer = window.setTimeout(() => {
+        span.classList.add('show');
+      }, currentIndex * charDelay);
+    });
+
+    element.appendChild(wordSpan);
+    globalIndex += chars.length;
   });
+
+  const totalChars = Array.from(text).length;
+  typewriterTimer = window.setTimeout(() => {
+    onComplete?.();
+  }, totalChars * charDelay);
 }
 
 export function renderStaticText(
@@ -123,17 +148,30 @@ export function renderStaticText(
     return;
   }
 
-  const chars = Array.from(text);
+  const words = text.split(/(\s+|\n)/);
   let html = '';
-  for (const char of chars) {
-    if (char === '\n') {
+
+  for (const word of words) {
+    if (!word) continue;
+
+    if (word === '\n') {
       html += '<br/>';
-    } else if (char === ' ') {
-      html += '<span class="char show">&nbsp;</span>';
-    } else {
+      continue;
+    }
+
+    if (/^\s+$/.test(word)) {
+      html += `<span class="char show">${word.replace(/ /g, '&nbsp;')}</span>`;
+      continue;
+    }
+
+    html += '<span style="display:inline-block;white-space:nowrap;">';
+    const chars = Array.from(word);
+    for (const char of chars) {
       html += `<span class="char show">${escapeHtml(char)}</span>`;
     }
+    html += '</span>';
   }
+
   element.innerHTML = html;
 }
 
@@ -177,22 +215,26 @@ export function showPreview(
 
     const img = refs.previewImage;
     img.onload = () => {
-      refs.previewContainer.classList.add('show', 'enter');
+      refs.previewContainer.classList.add('show');
+      requestAnimationFrame(() => {
+        refs.previewContainer.classList.add('enter');
+      });
       applyFilter(img, initialFilter);
       setActiveFilter(refs.filterBtns, initialFilter);
       updateFontSizeDisplay(refs.fontValue, initialFontSize);
 
-      refs.previewContainer.addEventListener(
-        'animationend',
-        () => {
-          refs.inputContainer.classList.add('show');
-          refs.toolbar.classList.add('show');
-          resolve();
-        },
-        { once: true }
-      );
+      const onAnimEnd = () => {
+        refs.inputContainer.classList.add('show');
+        refs.toolbar.classList.add('show');
+        img.removeEventListener('animationend', onAnimEnd);
+        resolve();
+      };
 
-      window.setTimeout(resolve, 600);
+      img.addEventListener('animationend', onAnimEnd, { once: true });
+
+      window.setTimeout(() => {
+        onAnimEnd();
+      }, 600);
     };
     img.src = imageSrc;
   });

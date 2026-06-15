@@ -154,15 +154,16 @@ function drawWrappedText(
       continue;
     }
 
+    const words = paragraph.split(/(\s+)/);
     let currentLine = '';
-    const chars = Array.from(paragraph);
 
-    for (const char of chars) {
-      const testLine = currentLine + char;
+    for (const word of words) {
+      if (!word) continue;
+      const testLine = currentLine + word;
       const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && currentLine) {
+      if (metrics.width > maxWidth && currentLine && !/^\s+$/.test(word)) {
         lines.push(currentLine);
-        currentLine = char;
+        currentLine = /^\s+/.test(word) ? word.slice(1) : word;
       } else {
         currentLine = testLine;
       }
