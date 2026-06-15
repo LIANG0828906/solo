@@ -31,9 +31,9 @@ let valueTransitionStart = 0;
 let currentTool: 'tree' | 'shrub' = 'tree';
 
 const initialCameraPos = new THREE.Vector3(
-  GRID_SIZE * 0.5 * Math.cos(Math.PI / 4),
-  GRID_SIZE * 0.5 * Math.sin(Math.PI / 4),
-  GRID_SIZE * 0.5 * Math.cos(Math.PI / 4)
+  GRID_SIZE / 2 + 30 * Math.sin(Math.PI / 4) * Math.cos(Math.PI / 4),
+  30 * Math.cos(Math.PI / 4),
+  GRID_SIZE / 2 + 30 * Math.sin(Math.PI / 4) * Math.sin(Math.PI / 4)
 );
 
 function init() {
@@ -73,7 +73,11 @@ function init() {
 
   greeneryManager = new GreeneryManager(scene, groundPlane, onGreeneryChange);
 
-  animate(0);
+  updateGreeneryUI();
+  const initialTempData = new Array(RESOLUTION * RESOLUTION).fill(25);
+  updateCloudTexture(initialTempData, 20, 30);
+
+  animate(performance.now());
 }
 
 function setupLighting() {
@@ -201,8 +205,17 @@ function createCloudPlane() {
     }
   `;
 
+  const initialData = new Float32Array(RESOLUTION * RESOLUTION * 4);
+  const defaultTemp = (25 - 20) / (30 - 20);
+  for (let i = 0; i < RESOLUTION * RESOLUTION; i++) {
+    initialData[i * 4] = defaultTemp;
+    initialData[i * 4 + 1] = 0;
+    initialData[i * 4 + 2] = 0;
+    initialData[i * 4 + 3] = 1;
+  }
+
   const dataTexture = new THREE.DataTexture(
-    new Float32Array(RESOLUTION * RESOLUTION * 4),
+    initialData,
     RESOLUTION,
     RESOLUTION,
     THREE.RGBAFormat,
@@ -485,9 +498,6 @@ function animate(time: number) {
   displayWind = displayWind + (targetWind - displayWind) * valEase;
 
   updateClimateUI();
-
-  cloudPlane.lookAt(camera.position);
-  cloudPlane.rotation.x = -Math.PI / 2;
 
   renderer.render(scene, camera);
 }
