@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { PhotoData, TAGS } from '../utils/photoData';
 import PhotoCard from './PhotoCard';
 
@@ -13,6 +13,14 @@ interface GalleryProps {
   compareModeAvailable: boolean;
 }
 
+interface CardPosition {
+  photo: PhotoData;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 export default function Gallery({
   photos,
   selectedPhotoIds,
@@ -24,7 +32,12 @@ export default function Gallery({
   compareModeAvailable,
 }: GalleryProps) {
   const tagContainerRef = useRef<HTMLDivElement>(null);
+  const galleryWrapperRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(5);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [galleryHeight, setGalleryHeight] = useState(0);
+
+  const GAP = 10;
 
   const filteredPhotos = useMemo(() => {
     if (selectedTags.length === 0) return photos;
@@ -54,36 +67,94 @@ export default function Gallery({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const galleryColumns = useMemo(() => {
-    const cols: PhotoData[][] = Array.from({ length: columns }, () => []);
+  useEffect(() => {
+    if (!galleryWrapperRef.current) return;
+
+    const updateWidth = () => {
+      if (galleryWrapperRef.current) {
+        setContainerWidth(galleryWrapperRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(galleryWrapperRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const cardPositions = useMemo<{ positions: CardPosition[]; maxHeight: number }>(() => {
+    if (containerWidth === 0 || columns === 0) return { positions: [], maxHeight: 0 };
+
+    const availableWidth = containerWidth - GAP * (columns - 1);
+    const cardWidth = availableWidth / columns;
     const colHeights = Array(columns).fill(0);
+    const positions: CardPosition[] = [];
 
     visiblePhotos.forEach((photo) => {
       let shortestCol = 0;
       let shortestHeight = colHeights[0];
-      
+
       for (let i = 1; i < columns; i++) {
         if (colHeights[i] < shortestHeight) {
           shortestHeight = colHeights[i];
           shortestCol = i;
         }
       }
-      
-      cols[shortestCol].push(photo);
-      colHeights[shortestCol] += photo.height / photo.width;
+
+      const cardHeight = cardWidth * (photo.height / photo.width);
+      const top = shortestHeight;
+      const left = shortestCol * (cardWidth + GAP);
+
+      positions.push({
+        photo,
+        top,
+        left,
+        width: cardWidth,
+        height: cardHeight,
+      });
+
+      colHeights[shortestCol] += cardHeight + GAP;
     });
 
-    return cols;
-  }, [visiblePhotos, columns]);
+    const maxHeight = Math.max(...colHeights) - GAP;
 
-  const scrollTags = (direction: 'left' | 'right') => {
+    return { positions, maxHeight: maxHeight > 0 ? maxHeight : 0 };
+  }, [visiblePhotos, columns, containerWidth]);
+
+  useEffect(() => {
+    setGalleryHeight(cardPositions.maxHeight);
+  }, [cardPositions.maxHeight]);
+
+  useEffect(() => {
+    if (!galleryWrapperRef.current) return;
+
+    const heightObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const observedHeight = entry.contentRect.height;
+        if (Math.abs(observedHeight - galleryHeight) > 1) {
+          // 高度变化的回调可以在这里处理额外逻辑
+        }
+      }
+    });
+
+    heightObserver.observe(galleryWrapperRef.current);
+    return () => heightObserver.disconnect();
+  }, [galleryHeight]);
+
+  const scrollTags = useCallback((direction: 'left' | 'right') => {
     if (!tagContainerRef.current) return;
     const scrollAmount = 200;
     tagContainerRef.current.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth',
     });
-  };
+  }, []);
 
   return (
     <>
@@ -158,27 +229,41 @@ export default function Gallery({
         </div>
       )}
 
-      <div className="gallery-wrapper">
+      <div
+        className="gallery-wrapper"
+        ref={galleryWrapperRef}
+        style={{
+          height: galleryHeight > 0 ? `${galleryHeight}px` : 'auto',
+        }}
+      >
         <div className="gallery">
-          {galleryColumns.map((col, colIndex) => (
-            <div key={colIndex} className="gallery-column">
-              {col.map((photo) => {
-                const originalIndex = photos.findIndex(p => p.id === photo.id);
-                return (
-                  <PhotoCard
-                    key={photo.id}
-                    photo={photo}
-                    index={originalIndex}
-                    allPhotos={photos}
-                    isSelected={selectedPhotoIds.includes(photo.id)}
-                    isEntering={true}
-                    isExiting={false}
-                    onClick={(e) => onPhotoClick(photo, e)}
-                  />
-                );
-              })}
-            </div>
-          ))}
+          {cardPositions.positions.map(({ photo, top, left, width, height }) => {
+            const originalIndex = photos.findIndex(p => p.id === photo.id);
+            return (
+              <div
+                key={photo.id}
+                className="gallery-card-wrapper"
+                style={{
+                  position: 'absolute',
+                  top: `${top}px`,
+                  left: `${left}px`,
+                  width: `${width}px`,
+                  height: `${height}px`,
+                  transition: 'top 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                <PhotoCard
+                  photo={photo}
+                  index={originalIndex}
+                  allPhotos={photos}
+                  isSelected={selectedPhotoIds.includes(photo.id)}
+                  isEntering={true}
+                  isExiting={false}
+                  onClick={(e) => onPhotoClick(photo, e)}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
 

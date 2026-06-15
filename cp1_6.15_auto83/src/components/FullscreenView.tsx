@@ -14,6 +14,8 @@ export default function FullscreenView({ photo, onClose }: FullscreenViewProps) 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const animationRef = useRef<number | null>(null);
+  const originalImageDataRef = useRef<ImageData | null>(null);
+  const lastSizeRef = useRef<{ w: number; h: number } | null>(null);
 
   const { brightness, contrast } = calculateExposureAdjustment(
     photo.params.ev,
@@ -47,11 +49,49 @@ export default function FullscreenView({ photo, onClose }: FullscreenViewProps) 
       drawWidth *= ratio;
     }
 
-    canvas.width = drawWidth;
-    canvas.height = drawHeight;
+    const sizeChanged =
+      !lastSizeRef.current ||
+      lastSizeRef.current.w !== drawWidth ||
+      lastSizeRef.current.h !== drawHeight;
 
-    ctx.filter = `brightness(${brightness}) contrast(${contrast})`;
-    ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+    if (sizeChanged) {
+      canvas.width = drawWidth;
+      canvas.height = drawHeight;
+      ctx.filter = 'none';
+      ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+      try {
+        originalImageDataRef.current = ctx.getImageData(0, 0, drawWidth, drawHeight);
+      } catch (e) {
+        console.error('获取像素数据失败，请确认图片CORS配置正确:', e);
+        return;
+      }
+      lastSizeRef.current = { w: drawWidth, h: drawHeight };
+    }
+
+    if (!originalImageDataRef.current) return;
+
+    const original = originalImageDataRef.current;
+    const outputData = ctx.createImageData(original.width, original.height);
+    const src = original.data;
+    const dst = outputData.data;
+    const len = src.length;
+
+    for (let i = 0; i < len; i += 4) {
+      let r = src[i] * brightness;
+      let g = src[i + 1] * brightness;
+      let b = src[i + 2] * brightness;
+
+      r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
+      g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
+      b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
+
+      dst[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+      dst[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      dst[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+      dst[i + 3] = src[i + 3];
+    }
+
+    ctx.putImageData(outputData, 0, 0);
   }, [brightness, contrast]);
 
   useEffect(() => {

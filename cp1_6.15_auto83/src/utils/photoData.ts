@@ -61,36 +61,125 @@ function calculateEV(aperture: number, shutterSpeed: number, iso: number): numbe
   return Math.round(ev * 10) / 10;
 }
 
+function clampScore(value: number): number {
+  return Math.max(1, Math.min(10, value));
+}
+
+function gaussian(x: number, center: number, sigma: number): number {
+  return Math.exp(-((x - center) ** 2) / (2 * sigma ** 2));
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function scoreApertureDetail(aperture: number): number {
+  const logA = Math.log2(aperture);
+  const bestLogA = Math.log2(9.5);
+  const sigma = 1.15;
+  const g = gaussian(logA, bestLogA, sigma);
+  const base = 1 + 9 * g;
+  
+  if (aperture <= 1.4) return Math.max(3.5, base - 2.5);
+  if (aperture >= 16) return Math.max(3.5, base - 2);
+  if (aperture >= 11) return Math.max(5, base - 1);
+  return base;
+}
+
+function scoreIsoDetail(iso: number): number {
+  const stops = Math.log2(iso / 100);
+  if (stops <= 0) return 10;
+  if (stops <= 2) return 10 - stops * 1.0;
+  if (stops <= 4) return 8 - (stops - 2) * 1.2;
+  if (stops <= 5) return 5.6 - (stops - 4) * 1.8;
+  return Math.max(1, 3.8 - (stops - 5) * 1.4);
+}
+
+function scoreNoise(iso: number): number {
+  const stops = Math.log2(iso / 100);
+  if (stops <= 0) return 10;
+  if (stops <= 2) return 10 - stops * 0.9;
+  if (stops <= 4) return 8.2 - (stops - 2) * 1.3;
+  if (stops <= 5) return 5.6 - (stops - 4) * 2.0;
+  return Math.max(1, 3.6 - (stops - 5) * 1.5);
+}
+
+function scoreDepthOfField(aperture: number): number {
+  if (aperture <= 1.4) return 10;
+  if (aperture <= 2.0) return 9.7 - (aperture - 1.4) * 0.6;
+  if (aperture <= 2.8) return 9.3 - (aperture - 2.0) * 0.5;
+  if (aperture <= 4.0) return 8.9 - (aperture - 2.8) * 0.9;
+  if (aperture <= 5.6) return 7.8 - (aperture - 4.0) * 0.9;
+  if (aperture <= 8.0) return 6.4 - (aperture - 5.6) * 0.7;
+  if (aperture <= 11) return 4.7 - (aperture - 8.0) * 0.55;
+  return Math.max(1, 3.0 - (aperture - 11) * 0.3);
+}
+
+function scoreIsoDynamicRange(iso: number): number {
+  if (iso <= 100) return 10;
+  const stops = Math.log2(iso / 100);
+  if (stops <= 2) return 10 - stops * 0.8;
+  if (stops <= 4) return 8.4 - (stops - 2) * 1.1;
+  if (stops <= 5) return 6.2 - (stops - 4) * 1.7;
+  return Math.max(1, 4.5 - (stops - 5) * 1.3);
+}
+
+function scoreShutterDynamicRange(shutterSpeedNum: number): number {
+  const logShutter = Math.log2(shutterSpeedNum);
+  const bestMin = Math.log2(1 / 250);
+  const bestMax = Math.log2(1 / 30);
+  const bestCenter = (bestMin + bestMax) / 2;
+  const halfRange = (bestMax - bestMin) / 2;
+  const sigma = halfRange * 1.1;
+  const g = gaussian(logShutter, bestCenter, sigma);
+  const base = 3 + 7 * g;
+  
+  if (shutterSpeedNum >= 1) return Math.max(2.5, base - 2);
+  if (shutterSpeedNum >= 1 / 8) return Math.max(4, base - 1.2);
+  if (shutterSpeedNum <= 1 / 1000) return Math.max(5, base - 0.8);
+  if (shutterSpeedNum <= 1 / 500) return Math.max(7, base - 0.3);
+  return base;
+}
+
+function scoreColorSaturation(ev: number): number {
+  const bestMin = 8;
+  const bestMax = 13;
+  const bestCenter = (bestMin + bestMax) / 2;
+  const halfRange = (bestMax - bestMin) / 2;
+  const sigma = halfRange * 0.95;
+  const g = gaussian(ev, bestCenter, sigma);
+  const base = 2 + 8 * g;
+  
+  if (ev < 4) return Math.max(1, base - 2.5);
+  if (ev < 6) return Math.max(2, base - 1.8);
+  if (ev > 16) return Math.max(1.5, base - 2);
+  if (ev > 15) return Math.max(2.5, base - 1.5);
+  return base;
+}
+
 function calculateRadarScores(params: PhotoParams): RadarScores {
   const { aperture, iso, shutterSpeedNum, ev } = params;
   
-  const detail = Math.max(1, Math.min(10, 
-    10 - (aperture - 1.4) * 0.8 - Math.log2(iso / 100) * 0.6
-  ));
+  const apertureDetail = scoreApertureDetail(aperture);
+  const isoDetail = scoreIsoDetail(iso);
+  const detail = clampScore(apertureDetail * 0.62 + isoDetail * 0.38);
   
-  const noise = Math.max(1, Math.min(10, 
-    10 - Math.log2(iso / 100) * 1.2
-  ));
+  const noise = clampScore(scoreNoise(iso));
   
-  const depthOfField = Math.max(1, Math.min(10, 
-    10 - (aperture - 1.4) * 1.1
-  ));
+  const depthOfField = clampScore(scoreDepthOfField(aperture));
   
-  const dynamicRange = Math.max(1, Math.min(10, 
-    9 - Math.log2(iso / 100) * 0.8
-  ));
+  const isoDr = scoreIsoDynamicRange(iso);
+  const shutterDr = scoreShutterDynamicRange(shutterSpeedNum);
+  const dynamicRange = clampScore(isoDr * 0.55 + shutterDr * 0.45);
   
-  const evDeviation = Math.abs(ev - 10);
-  const colorSaturation = Math.max(1, Math.min(10, 
-    8 - evDeviation * 0.5
-  ));
+  const colorSaturation = clampScore(scoreColorSaturation(ev));
   
   return {
-    detail: Math.round(detail * 10) / 10,
-    noise: Math.round(noise * 10) / 10,
-    depthOfField: Math.round(depthOfField * 10) / 10,
-    dynamicRange: Math.round(dynamicRange * 10) / 10,
-    colorSaturation: Math.round(colorSaturation * 10) / 10,
+    detail: round1(detail),
+    noise: round1(noise),
+    depthOfField: round1(depthOfField),
+    dynamicRange: round1(dynamicRange),
+    colorSaturation: round1(colorSaturation),
   };
 }
 
