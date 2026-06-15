@@ -33,6 +33,8 @@ const ResourceCollector: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   
   const animate = useCallback((timestamp: number) => {
+    console.log('[animate] 调用，timestamp=', timestamp);
+    
     if (lastTimeRef.current === 0) {
       lastTimeRef.current = timestamp;
     }
@@ -41,6 +43,7 @@ const ResourceCollector: React.FC = () => {
     lastTimeRef.current = timestamp;
     
     const state = useGameStore.getState();
+    console.log('[animate] state.isCollecting=', state.isCollecting, 'state.cooldownRemaining=', state.cooldownRemaining);
     
     if (state.isCollecting) {
       if (collectStartRef.current === 0) {
@@ -49,6 +52,9 @@ const ResourceCollector: React.FC = () => {
       
       const elapsed = timestamp - collectStartRef.current;
       const progress = Math.min(100, (elapsed / COLLECT_DURATION) * 100);
+      console.log('[animate] 采集中，progress=', progress);
+      
+      state.updateCollectProgress(progress);
       
       if (progress >= 100) {
         collectStartRef.current = 0;
@@ -59,6 +65,7 @@ const ResourceCollector: React.FC = () => {
     }
     
     if (state.cooldownRemaining > 0) {
+      console.log('[animate] 冷却中，cooldownRemaining=', state.cooldownRemaining);
       state.updateCooldown(delta);
     }
     
@@ -71,9 +78,14 @@ const ResourceCollector: React.FC = () => {
   }, []);
   
   useEffect(() => {
+    console.log('[ResourceCollector] useEffect 执行，启动动画');
+    (window as any).__resourceCollectorMounted = true;
+    (window as any).__animate = animate;
+    
     animationRef.current = requestAnimationFrame(animate);
     
     return () => {
+      console.log('[ResourceCollector] useEffect cleanup，取消动画');
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
