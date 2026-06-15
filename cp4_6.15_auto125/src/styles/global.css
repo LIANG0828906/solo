@@ -52,21 +52,71 @@ body {
   height: 100%;
   background-color: var(--color-panel);
   background-image:
+    /* 第1层：细密水平经纱线 - 模拟亚麻横向纤维 */
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.025) 0px,
+      rgba(0, 0, 0, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    /* 第2层：细密垂直纬纱线 - 模拟亚麻纵向纤维，与经纱交错形成织纹 */
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.02) 0px,
+      rgba(0, 0, 0, 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    /* 第3层：斜向45°纤维纹理 - 模拟斜纹布的次要纤维方向 */
     repeating-linear-gradient(
       45deg,
-      rgba(0, 0, 0, 0.015) 0px,
-      rgba(0, 0, 0, 0.015) 1px,
+      rgba(0, 0, 0, 0.008) 0px,
+      rgba(0, 0, 0, 0.008) 1px,
       transparent 1px,
-      transparent 6px
+      transparent 5px
     ),
+    /* 第4层：反斜向-45°纤维 - 形成十字交叉的麻布纹路 */
     repeating-linear-gradient(
       -45deg,
-      rgba(0, 0, 0, 0.015) 0px,
-      rgba(0, 0, 0, 0.015) 1px,
+      rgba(0, 0, 0, 0.008) 0px,
+      rgba(0, 0, 0, 0.008) 1px,
       transparent 1px,
-      transparent 6px
+      transparent 5px
     ),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+    /* 第5层：粗颗粒节点 - 模拟麻布上散布的粗纱节 */
+    repeating-radial-gradient(
+      circle at 20% 30%,
+      rgba(0, 0, 0, 0.015) 0px,
+      rgba(0, 0, 0, 0.015) 1.5px,
+      transparent 2px,
+      transparent 14px
+    ),
+    /* 第6层：另一种颗粒，错开位置 */
+    repeating-radial-gradient(
+      circle at 70% 65%,
+      rgba(255, 255, 255, 0.04) 0px,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1.5px,
+      transparent 11px
+    ),
+    /* 第7层：左上到右下对角线高光 - 模拟光照下的布面光泽 */
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.04) 40%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.03) 100%
+    ),
+    /* 第8层：整体v型柔和明暗 - 模拟木板拼接后轻微的色差 */
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.015) 0%,
+      transparent 15%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.02) 85%,
+      rgba(0, 0, 0, 0.04) 100%
+    );
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;

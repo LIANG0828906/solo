@@ -39,7 +39,7 @@ const SVGElement = memo(function SVGElement({
 }: {
   element: CanvasElement;
   selected: boolean;
-  onPointerDown: (e: React.PointerEvent, id: string) => void;
+  onPointerDown: (e: React.PointerEvent<SVGGElement>, id: string) => void;
   onDoubleClick: (id: string) => void;
 }) {
   const material = getMaterialById(element.materialId);
@@ -83,7 +83,7 @@ const TransformToolbar = memo(function TransformToolbar({
   onClose: () => void;
 }) {
   const knobRef = useRef<HTMLDivElement>(null);
-  const [isDraggingKnob, setIsDraggingKnob] = useState(false);
+  const isDraggingKnobRef = useRef(false);
 
   const handleScaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const scale = parseFloat(e.target.value);
@@ -103,21 +103,25 @@ const TransformToolbar = memo(function TransformToolbar({
     [onUpdate]
   );
 
-  const handleKnobStart = (e: React.PointerEvent) => {
+  const handleKnobStart = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDraggingKnob(true);
+    isDraggingKnobRef.current = true;
     handleRotationChange(e.clientX, e.clientY);
     (e.target as Element).setPointerCapture(e.pointerId);
   };
 
-  const handleKnobMove = (e: React.PointerEvent) => {
-    if (!isDraggingKnob) return;
+  const handleKnobMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingKnobRef.current) return;
     handleRotationChange(e.clientX, e.clientY);
   };
 
-  const handleKnobEnd = (e: React.PointerEvent) => {
-    setIsDraggingKnob(false);
-    (e.target as Element).releasePointerCapture(e.pointerId);
+  const handleKnobEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDraggingKnobRef.current = false;
+    try {
+      (e.target as Element).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleReset = () => {
@@ -226,6 +230,7 @@ export function CanvasArea({
   const viewportRef = useRef(viewport);
   const rafIdRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<CanvasElement[] | null>(null);
+  const lastPointerEvtRef = useRef<PointerEvent | null>(null);
 
   useEffect(() => {
     elementsRef.current = elements;
@@ -243,18 +248,105 @@ export function CanvasArea({
     };
   }, []);
 
+  /**
+   * 拖拽/平移的 RAF 动画帧回调
+   * - 读取 lastPointerEvtRef 中缓存的最新指针位置
+   * - 使用 requestAnimationFrame 节流（约60fps，不受浏览器合成的触摸事件频率影响）
+   * - 元素拖拽时直接操作 SVG DOM 的 transform 属性，跳过 React 重渲染
+   * - 平移时直接调用 onViewportChange（setState，但因为被 rAF 节流仍能稳定50fps+）
+   */
+  const runAnimationFrame = useCallback(() => {
+    const evt = lastPointerEvtRef.current;
+    if (!evt) return;
+
+    const draggingId = dragStateRef.current.elementId;
+    if (dragStateRef.current.isDragging && draggingId) {
+      const state = dragStateRef.current;
+
+      const canvasPos = screenToCanvas(
+        evt.clientX,
+        evt.clientY,
+        viewportRef.current.offsetX,
+        viewportRef.current.offsetY,
+        viewportRef.current.zoom
+      );
+
+      let newX = canvasPos.x - state.offsetX;
+      let newY = canvasPos.y - state.offsetY;
+
+      const canvasSize = getCanvasSize();
+      const bounds = screenToCanvas(
+        canvasSize.width,
+        canvasSize.height,
+        viewportRef.current.offsetX,
+        viewportRef.current.offsetY,
+        viewportRef.current.zoom
+      );
+
+      const snapped = snapToNeighbor(newX, newY, elementsRef.current, draggingId, 12);
+      newX = clampToBounds(snapped.x, 0, bounds.x, 50);
+      newY = clampToBounds(snapped.y, 0, bounds.y, 50);
+
+      const svgEl = svgRef.current;
+      if (svgEl) {
+        const elementNode = svgEl.querySelector<SVGGElement>(
+          `[data-id="${draggingId}"] .element-group`
+        );
+        if (elementNode) {
+          const el = elementsRef.current.find((e) => e.id === draggingId);
+          if (el) {
+            const transform = `translate(${newX}, ${newY}) rotate(${el.rotation}) scale(${el.scale})`;
+            elementNode.setAttribute('transform', transform);
+          }
+        }
+      }
+
+      pendingUpdateRef.current = elementsRef.current.map((el) =>
+        el.id === draggingId ? { ...el, x: newX, y: newY } : el
+      );
+    } else if (panStateRef.current.isPanning) {
+      const state = panStateRef.current;
+      const dx = evt.clientX - state.startX;
+      const dy = evt.clientY - state.startY;
+
+      onViewportChange({
+        ...viewportRef.current,
+        offsetX: state.viewportStartX + dx,
+        offsetY: state.viewportStartY + dy,
+      });
+    }
+  }, [getCanvasSize, onViewportChange]);
+
+  const scheduleRAF = useCallback(() => {
+    if (rafIdRef.current != null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      runAnimationFrame();
+      rafIdRef.current = null;
+      if (
+        dragStateRef.current.isDragging ||
+        panStateRef.current.isPanning
+      ) {
+        scheduleRAF();
+      }
+    });
+  }, [runAnimationFrame]);
+
+  /**
+   * React 合成事件 onPointerDown
+   * - 自动兼容 mouse + touch + pen 三种输入
+   * - 鼠标左键 / 手指按下 / 触控笔按下 统一入口
+   */
   const handleElementPointerDown = useCallback(
-    (e: React.PointerEvent, id: string) => {
+    (e: React.PointerEvent<SVGGElement>, id: string) => {
       e.stopPropagation();
       e.preventDefault();
 
       const element = elementsRef.current.find((el) => el.id === id);
       if (!element) return;
 
-      const { clientX, clientY } = e;
       const canvasPos = screenToCanvas(
-        clientX,
-        clientY,
+        e.clientX,
+        e.clientY,
         viewportRef.current.offsetX,
         viewportRef.current.offsetY,
         viewportRef.current.zoom
@@ -263,8 +355,8 @@ export function CanvasArea({
       dragStateRef.current = {
         isDragging: true,
         elementId: id,
-        startX: clientX,
-        startY: clientY,
+        startX: e.clientX,
+        startY: e.clientY,
         elementStartX: element.x,
         elementStartY: element.y,
         offsetX: canvasPos.x - element.x,
@@ -273,133 +365,117 @@ export function CanvasArea({
 
       setIsDragging(true);
       setSelectedId(id);
-      (e.target as Element).setPointerCapture(e.pointerId);
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
     },
     []
   );
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      if (dragStateRef.current.isDragging && dragStateRef.current.elementId) {
-        if (rafIdRef.current) {
-          cancelAnimationFrame(rafIdRef.current);
-        }
+  /**
+   * 画布 SVG 根级的 onPointerDown
+   * - 点击空白处开启平移（画布拖拽）
+   * - 点击空白取消选中和工具栏
+   */
+  const handleCanvasPointerDown = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      const target = e.target as SVGElement;
+      const tagName = target.tagName.toLowerCase();
+      const isBlank =
+        target === e.currentTarget ||
+        tagName === 'rect' ||
+        tagName === 'line' ||
+        tagName === 'svg';
 
-        rafIdRef.current = requestAnimationFrame(() => {
-          const state = dragStateRef.current;
-          if (!state.elementId) return;
+      if (isBlank) {
+        setSelectedId(null);
+        setShowToolbar(false);
 
-          const canvasPos = screenToCanvas(
-            e.clientX,
-            e.clientY,
-            viewportRef.current.offsetX,
-            viewportRef.current.offsetY,
-            viewportRef.current.zoom
-          );
-
-          let newX = canvasPos.x - state.offsetX;
-          let newY = canvasPos.y - state.offsetY;
-
-          const canvasSize = getCanvasSize();
-          const bounds = screenToCanvas(
-            canvasSize.width,
-            canvasSize.height,
-            viewportRef.current.offsetX,
-            viewportRef.current.offsetY,
-            viewportRef.current.zoom
-          );
-
-          const snapped = snapToNeighbor(newX, newY, elementsRef.current, state.elementId, 12);
-          newX = clampToBounds(snapped.x, 0, bounds.x, 50);
-          newY = clampToBounds(snapped.y, 0, bounds.y, 50);
-
-          const svgEl = svgRef.current;
-          if (svgEl) {
-            const elementNode = svgEl.querySelector(`[data-id="${state.elementId}"] .element-group`);
-            if (elementNode) {
-              const el = elementsRef.current.find((e) => e.id === state.elementId);
-              if (el) {
-                const updatedEl = { ...el, x: newX, y: newY };
-                const transform = `translate(${updatedEl.x}, ${updatedEl.y}) rotate(${updatedEl.rotation}) scale(${updatedEl.scale})`;
-                (elementNode as SVGGElement).setAttribute('transform', transform);
-              }
-            }
-          }
-
-          pendingUpdateRef.current = elementsRef.current.map((el) =>
-            el.id === state.elementId ? { ...el, x: newX, y: newY } : el
-          );
-
-          rafIdRef.current = null;
-        });
-      } else if (panStateRef.current.isPanning) {
-        if (rafIdRef.current) {
-          cancelAnimationFrame(rafIdRef.current);
-        }
-
-        rafIdRef.current = requestAnimationFrame(() => {
-          const state = panStateRef.current;
-          const dx = e.clientX - state.startX;
-          const dy = e.clientY - state.startY;
-
-          onViewportChange({
-            ...viewportRef.current,
-            offsetX: state.viewportStartX + dx,
-            offsetY: state.viewportStartY + dy,
-          });
-
-          rafIdRef.current = null;
-        });
+        panStateRef.current = {
+          isPanning: true,
+          startX: e.clientX,
+          startY: e.clientY,
+          viewportStartX: viewportRef.current.offsetX,
+          viewportStartY: viewportRef.current.offsetY,
+        };
+        setIsPanning(true);
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
       }
     },
-    [getCanvasSize, onViewportChange]
+    []
   );
 
-  const handlePointerUp = useCallback(
-    (e: PointerEvent) => {
-      if (dragStateRef.current.isDragging) {
-        dragStateRef.current.isDragging = false;
-        setIsDragging(false);
-
-        if (pendingUpdateRef.current) {
-          onUpdateElements(pendingUpdateRef.current);
-          pendingUpdateRef.current = null;
-        }
-
-        try {
-          (e.target as Element).releasePointerCapture(e.pointerId);
-        } catch {
-          /* ignore */
-        }
+  /**
+   * 统一的合成事件 onPointerMove
+   * - 不直接在 handler 里 setState，只缓存坐标 + 唤醒 rAF 循环
+   * - 触摸事件默认 60-120Hz，经 rAF 降频到 60fps 稳定输出
+   */
+  const handleCanvasPointerMove = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      if (
+        !dragStateRef.current.isDragging &&
+        !panStateRef.current.isPanning
+      ) {
+        return;
       }
-
-      if (panStateRef.current.isPanning) {
-        panStateRef.current.isPanning = false;
-        setIsPanning(false);
-      }
+      lastPointerEvtRef.current = e.nativeEvent;
+      scheduleRAF();
     },
-    [onUpdateElements]
+    [scheduleRAF]
   );
 
-  const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.target === e.currentTarget || (e.target as SVGElement).tagName === 'rect') {
-      setSelectedId(null);
-      setShowToolbar(false);
+  const handleDragOrPanEnd = useCallback(() => {
+    if (dragStateRef.current.isDragging) {
+      dragStateRef.current.isDragging = false;
+      setIsDragging(false);
 
-      panStateRef.current = {
-        isPanning: true,
-        startX: e.clientX,
-        startY: e.clientY,
-        viewportStartX: viewportRef.current.offsetX,
-        viewportStartY: viewportRef.current.offsetY,
-      };
-      setIsPanning(true);
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      if (pendingUpdateRef.current) {
+        onUpdateElements(pendingUpdateRef.current);
+        pendingUpdateRef.current = null;
+      }
     }
-  }, []);
 
+    if (panStateRef.current.isPanning) {
+      panStateRef.current.isPanning = false;
+      setIsPanning(false);
+    }
+
+    lastPointerEvtRef.current = null;
+    if (rafIdRef.current != null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+  }, [onUpdateElements]);
+
+  const handleCanvasPointerUp = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      handleDragOrPanEnd();
+      try {
+        (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [handleDragOrPanEnd]
+  );
+
+  const handleCanvasPointerCancel = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      handleDragOrPanEnd();
+      try {
+        (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [handleDragOrPanEnd]
+  );
+
+  /**
+   * 滚轮缩放：React onWheel 合成事件
+   * - 通过 deltaY 正负决定方向
+   * - 以鼠标位置为锚点缩放（zoom toward cursor）
+   */
   const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+    (e: React.WheelEvent<HTMLDivElement>) => {
       e.preventDefault();
 
       const rect = containerRef.current?.getBoundingClientRect();
@@ -448,38 +524,26 @@ export function CanvasArea({
   }, [selectedId, onDeleteElement]);
 
   useEffect(() => {
-    const newElements = elements.map((el) => ({ ...el, isNew: false }));
     if (elements.some((el) => el.isNew)) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        const newElements = elements.map((el) => ({ ...el, isNew: false }));
         onUpdateElements(newElements);
       }, 350);
+      return () => clearTimeout(timer);
     }
   }, [elements, onUpdateElements]);
-
-  useEffect(() => {
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, [handlePointerMove, handlePointerUp]);
 
   const selectedElement = selectedId ? elements.find((el) => el.id === selectedId) : null;
   const canvasSize = getCanvasSize();
 
   const gridSpacing = 40;
-  const gridLines = [];
+  const gridLines: JSX.Element[] = [];
   const numLinesX = Math.ceil(canvasSize.width / (gridSpacing * viewport.zoom)) + 4;
   const numLinesY = Math.ceil(canvasSize.height / (gridSpacing * viewport.zoom)) + 4;
-  const startOffsetX = (viewport.offsetX % (gridSpacing * viewport.zoom)) - gridSpacing * viewport.zoom;
-  const startOffsetY = (viewport.offsetY % (gridSpacing * viewport.zoom)) - gridSpacing * viewport.zoom;
+  const startOffsetX =
+    (viewport.offsetX % (gridSpacing * viewport.zoom)) - gridSpacing * viewport.zoom;
+  const startOffsetY =
+    (viewport.offsetY % (gridSpacing * viewport.zoom)) - gridSpacing * viewport.zoom;
 
   for (let i = 0; i < numLinesX; i++) {
     const x = startOffsetX + i * gridSpacing * viewport.zoom;
@@ -521,6 +585,9 @@ export function CanvasArea({
           ref={svgRef}
           className="canvas-svg"
           onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerCancel}
           width={canvasSize.width}
           height={canvasSize.height}
         >
