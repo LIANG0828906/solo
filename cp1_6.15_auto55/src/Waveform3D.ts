@@ -14,26 +14,23 @@ export class Waveform3D {
   private scene: THREE.Scene;
   private group: THREE.Group;
   private waveformMesh: THREE.LineSegments;
-  private oldWaveformMesh: THREE.LineSegments | null = null;
-  private envelopeHelper: THREE.Mesh | null = null;
+  private envelopeHelpers: Map<string, THREE.Mesh> = new Map();
   private geometry: THREE.BufferGeometry;
-  private oldGeometry: THREE.BufferGeometry | null = null;
   private positions: Float32Array;
-  private oldPositions: Float32Array | null = null;
   private colors: Float32Array;
   private targetPositions: Float32Array;
-  
+
   private params: WaveformParams;
   private transition: WaveformTransition;
   private currentDensity: number = 64;
   private targetDensity: number = 64;
   private maxVertices: number = 5000;
-  
+
   private phase: number = 0;
   private time: number = 0;
   private displayAmplitude: number = 0;
   private targetAmplitude: number = 0;
-  
+
   private baseColor: THREE.Color = new THREE.Color(0x00d4ff);
   private gridWidth: number = 16;
   private gridDepth: number = 8;
@@ -54,7 +51,7 @@ export class Waveform3D {
 
     this.currentDensity = freqToGridDensity(params.frequency);
     this.targetDensity = this.currentDensity;
-    
+
     const vertexCount = this.calculateVertexCount(this.currentDensity);
     this.positions = new Float32Array(vertexCount * 3);
     this.targetPositions = new Float32Array(vertexCount * 3);
@@ -87,20 +84,30 @@ export class Waveform3D {
   }
 
   private createEnvelopeHelper(): void {
-    const geometry = new THREE.PlaneGeometry(this.gridWidth, this.gridDepth, 1, 1);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x00d4ff,
-      transparent: true,
-      opacity: 0.08,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
+    const phases: Array<{name: string; color: number; opacity: number}> = [
+      { name: 'attack', color: 0x00ff88, opacity: 0.08 },
+      { name: 'decay', color: 0xffaa00, opacity: 0.07 },
+      { name: 'sustain', color: 0x00d4ff, opacity: 0.06 },
+      { name: 'release', color: 0xff4466, opacity: 0.08 }
+    ];
 
-    this.envelopeHelper = new THREE.Mesh(geometry, material);
-    this.envelopeHelper.rotation.x = -Math.PI / 2;
-    this.envelopeHelper.position.y = -3;
-    this.envelopeHelper.visible = false;
-    this.group.add(this.envelopeHelper);
+    for (const p of phases) {
+      const geometry = new THREE.PlaneGeometry(this.gridWidth, this.gridDepth, 1, 1);
+      const material = new THREE.MeshBasicMaterial({
+        color: p.color,
+        transparent: true,
+        opacity: p.opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.y = -3;
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.envelopeHelpers.set(p.name, mesh);
+    }
   }
 
   private initializeGrid(): void {
@@ -177,13 +184,6 @@ export class Waveform3D {
       toType: newType
     };
 
-    this.oldPositions = new Float32Array(this.positions);
-    this.oldGeometry = this.geometry.clone();
-    
-    const oldMaterial = (this.waveformMesh.material as THREE.LineBasicMaterial).clone();
-    this.oldWaveformMesh = new THREE.LineSegments(this.oldGeometry, oldMaterial);
-    this.group.add(this.oldWaveformMesh);
-
     this.params.type = newType;
   }
 
@@ -198,7 +198,7 @@ export class Waveform3D {
 
   public update(deltaTime: number, envelope: EnvelopePhase, isPlaying: boolean): void {
     this.time += deltaTime;
-    
+
     const freqFactor = this.params.frequency / 440;
     this.phase += deltaTime * freqFactor * 2 * Math.PI;
 
@@ -220,25 +220,8 @@ export class Waveform3D {
     const elapsed = performance.now() - this.transition.startTime;
     const progress = easeInOutCubic(Math.min(elapsed / this.transition.duration, 1));
 
-    if (this.oldWaveformMesh) {
-      const oldMaterial = this.oldWaveformMesh.material as THREE.LineBasicMaterial;
-      oldMaterial.opacity = 1 - progress;
-    }
-
-    const newMaterial = this.waveformMesh.material as THREE.LineBasicMaterial;
-    newMaterial.opacity = progress;
-
     if (progress >= 1) {
       this.transition.active = false;
-      if (this.oldWaveformMesh) {
-        this.group.remove(this.oldWaveformMesh);
-        (this.oldWaveformMesh.material as THREE.Material).dispose();
-        this.oldGeometry?.dispose();
-        this.oldWaveformMesh = null;
-        this.oldGeometry = null;
-        this.oldPositions = null;
-      }
-      newMaterial.opacity = 1;
     }
   }
 
@@ -253,6 +236,12 @@ export class Waveform3D {
     const currentType = this.params.type;
     const amplitude = isPlaying ? this.displayAmplitude : 0.3;
     const maxIndex = Math.floor(this.maxVertices / 2);
+
+    let transitionProgress = 0;
+    if (this.transition.active) {
+      const elapsed = performance.now() - this.transition.startTime;
+      transitionProgress = easeInOutCubic(Math.min(elapsed / this.transition.duration, 1));
+    }
 
     let index = 0;
 
@@ -269,15 +258,12 @@ export class Waveform3D {
         let y1 = getWaveformValue(currentType, phaseOffset1) * amplitude * 3 * depthFactor;
         let y2 = getWaveformValue(currentType, phaseOffset2) * amplitude * 3 * depthFactor;
 
-        if (this.transition.active && this.oldPositions) {
-          const elapsed = performance.now() - this.transition.startTime;
-          const progress = easeInOutCubic(Math.min(elapsed / this.transition.duration, 1));
-          
+        if (this.transition.active) {
           const oldY1 = getWaveformValue(this.transition.fromType, phaseOffset1) * amplitude * 3 * depthFactor;
           const oldY2 = getWaveformValue(this.transition.fromType, phaseOffset2) * amplitude * 3 * depthFactor;
-          
-          y1 = lerp(oldY1, y1, progress);
-          y2 = lerp(oldY2, y2, progress);
+
+          y1 = lerp(oldY1, y1, transitionProgress);
+          y2 = lerp(oldY2, y2, transitionProgress);
         }
 
         this.positions[index * 6] = x1;
@@ -304,15 +290,12 @@ export class Waveform3D {
         let y1 = getWaveformValue(currentType, phaseOffset) * amplitude * 3 * depthFactor1;
         let y2 = getWaveformValue(currentType, phaseOffset) * amplitude * 3 * depthFactor2;
 
-        if (this.transition.active && this.oldPositions) {
-          const elapsed = performance.now() - this.transition.startTime;
-          const progress = easeInOutCubic(Math.min(elapsed / this.transition.duration, 1));
-          
+        if (this.transition.active) {
           const oldY1 = getWaveformValue(this.transition.fromType, phaseOffset) * amplitude * 3 * depthFactor1;
           const oldY2 = getWaveformValue(this.transition.fromType, phaseOffset) * amplitude * 3 * depthFactor2;
-          
-          y1 = lerp(oldY1, y1, progress);
-          y2 = lerp(oldY2, y2, progress);
+
+          y1 = lerp(oldY1, y1, transitionProgress);
+          y2 = lerp(oldY2, y2, transitionProgress);
         }
 
         this.positions[index * 6] = x;
@@ -330,45 +313,57 @@ export class Waveform3D {
   }
 
   private updateEnvelopeHelper(envelope: EnvelopePhase): void {
-    if (!this.envelopeHelper) return;
+    const phaseNames = ['attack', 'decay', 'sustain', 'release'];
 
-    const material = this.envelopeHelper.material as THREE.MeshBasicMaterial;
-    
-    if (envelope.phase !== 'idle') {
-      this.envelopeHelper.visible = true;
-      const scaleY = 0.5 + envelope.amplitude * 0.5;
-      this.envelopeHelper.scale.y = scaleY;
+    for (const name of phaseNames) {
+      const mesh = this.envelopeHelpers.get(name);
+      if (!mesh) continue;
 
-      const color = new THREE.Color();
-      switch (envelope.phase) {
-        case 'attack':
-          color.setHex(0x00ff88);
-          break;
-        case 'decay':
-          color.setHex(0xffaa00);
-          break;
-        case 'sustain':
-          color.setHex(0x00d4ff);
-          break;
-        case 'release':
-          color.setHex(0xff4466);
-          break;
+      if (envelope.phase === 'idle' || envelope.phase !== name) {
+        mesh.visible = false;
+        continue;
       }
-      material.color = color;
-      material.opacity = 0.06 + envelope.progress * 0.04;
-    } else {
-      this.envelopeHelper.visible = false;
+
+      mesh.visible = true;
+      const material = mesh.material as THREE.MeshBasicMaterial;
+
+      switch (envelope.phase) {
+        case 'attack': {
+          mesh.scale.y = 0.5 + envelope.amplitude * 0.5;
+          mesh.position.y = -3 + envelope.amplitude * 2;
+          material.opacity = 0.06 + envelope.progress * 0.04;
+          break;
+        }
+        case 'decay': {
+          mesh.scale.y = 0.5 + envelope.amplitude * 0.5;
+          mesh.position.y = -3 + envelope.amplitude * 2;
+          material.opacity = 0.06 + (1 - envelope.progress) * 0.04;
+          break;
+        }
+        case 'sustain': {
+          mesh.scale.y = 0.5 + envelope.amplitude * 0.5;
+          mesh.position.y = -3 + envelope.amplitude * 2;
+          material.opacity = 0.06;
+          break;
+        }
+        case 'release': {
+          mesh.scale.y = 0.5 + envelope.amplitude * 0.5;
+          mesh.position.y = -3 + envelope.amplitude * 2;
+          material.opacity = 0.06 + envelope.amplitude * 0.04;
+          break;
+        }
+      }
     }
   }
 
   private updateColors(envelope: EnvelopePhase): void {
     const colorAttribute = this.geometry.attributes.color as THREE.BufferAttribute;
     const colors = colorAttribute.array as Float32Array;
-    
+
     const baseR = this.baseColor.r;
     const baseG = this.baseColor.g;
     const baseB = this.baseColor.b;
-    
+
     let intensityMod = 1;
     if (envelope.phase === 'attack') {
       intensityMod = 0.8 + envelope.progress * 0.4;
@@ -381,7 +376,7 @@ export class Waveform3D {
       colors[i + 1] = baseG * intensityMod;
       colors[i + 2] = baseB * intensityMod;
     }
-    
+
     colorAttribute.needsUpdate = true;
   }
 
@@ -396,13 +391,10 @@ export class Waveform3D {
   public dispose(): void {
     this.geometry.dispose();
     (this.waveformMesh.material as THREE.Material).dispose();
-    this.oldGeometry?.dispose();
-    if (this.oldWaveformMesh) {
-      (this.oldWaveformMesh.material as THREE.Material).dispose();
+    for (const mesh of this.envelopeHelpers.values()) {
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
     }
-    if (this.envelopeHelper) {
-      this.envelopeHelper.geometry.dispose();
-      (this.envelopeHelper.material as THREE.Material).dispose();
-    }
+    this.envelopeHelpers.clear();
   }
 }

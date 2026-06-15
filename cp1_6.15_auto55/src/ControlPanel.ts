@@ -34,11 +34,9 @@ export class ControlPanel {
   
   private spectrumEnabled: boolean = false;
   private isPlaying: boolean = false;
-  
-  private targetFrequency: number = 440;
-  private displayFrequency: number = 440;
-  private dampingTime: number = 0.1;
-  private lastUpdateTime: number = 0;
+
+  private freqDebounceTimer: number | null = null;
+  private touchStartY: number = 0;
 
   constructor(params: WaveformParams, callbacks: ControlPanelCallbacks) {
     this.params = params;
@@ -78,14 +76,22 @@ export class ControlPanel {
 
     this.frequencySlider.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
-      this.targetFrequency = value;
       this.updateFrequencyDisplay(value);
+      if (this.freqDebounceTimer !== null) {
+        clearTimeout(this.freqDebounceTimer);
+      }
+      this.freqDebounceTimer = window.setTimeout(() => {
+        this.callbacks.onFrequencyChange(value);
+        this.freqDebounceTimer = null;
+      }, 30);
     });
 
     this.frequencySlider.addEventListener('change', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
-      this.targetFrequency = value;
-      this.displayFrequency = value;
+      if (this.freqDebounceTimer !== null) {
+        clearTimeout(this.freqDebounceTimer);
+        this.freqDebounceTimer = null;
+      }
       this.callbacks.onFrequencyChange(value);
     });
 
@@ -131,6 +137,24 @@ export class ControlPanel {
       this.controlPanel.classList.toggle('drawer-open');
     });
 
+    this.controlPanel.addEventListener('touchstart', (e) => {
+      this.touchStartY = (e as TouchEvent).touches[0].clientY;
+    });
+
+    this.controlPanel.addEventListener('touchmove', (e) => {
+      const touchY = (e as TouchEvent).touches[0].clientY;
+      const deltaY = this.touchStartY - touchY;
+      if (deltaY > 50) {
+        this.controlPanel.classList.add('drawer-open');
+      } else if (deltaY < -50) {
+        this.controlPanel.classList.remove('drawer-open');
+      }
+    });
+
+    this.controlPanel.addEventListener('touchend', () => {
+      this.touchStartY = 0;
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
@@ -168,20 +192,7 @@ export class ControlPanel {
     this.callbacks.onPlayToggle();
   }
 
-  public update(deltaTime: number): void {
-    const now = performance.now();
-    
-    if (Math.abs(this.targetFrequency - this.displayFrequency) > 0.5) {
-      const alpha = 1 - Math.exp(-deltaTime / this.dampingTime);
-      this.displayFrequency += (this.targetFrequency - this.displayFrequency) * alpha;
-      
-      if (now - this.lastUpdateTime > 16) {
-        this.updateFrequencyDisplay(this.displayFrequency);
-        this.callbacks.onFrequencyChange(this.displayFrequency);
-        this.lastUpdateTime = now;
-      }
-    }
-  }
+  public update(_deltaTime: number): void {}
 
   public setPlaying(playing: boolean): void {
     this.isPlaying = playing;

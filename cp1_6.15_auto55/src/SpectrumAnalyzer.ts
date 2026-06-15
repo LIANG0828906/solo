@@ -164,8 +164,6 @@ export class SpectrumAnalyzer {
 
   public update(deltaTime: number, isPlaying: boolean): void {
     this.pulsePhase += deltaTime * 2;
-    const pulse = 0.95 + Math.sin(this.pulsePhase) * 0.05;
-
     this.currentOpacity = lerp(this.currentOpacity, this.targetOpacity, deltaTime * 4);
     
     if (this.currentOpacity < 0.01 && !this.visible) {
@@ -181,7 +179,8 @@ export class SpectrumAnalyzer {
       const currentHeight = this.bars[i].scale.y;
       const newHeight = lerp(currentHeight, targetHeight, deltaTime * 8);
       
-      this.bars[i].scale.y = Math.max(0.01, newHeight * pulse);
+      const barPulse = 1 + Math.sin(this.pulsePhase + i * 0.08) * 0.05;
+      this.bars[i].scale.y = Math.max(0.01, newHeight * barPulse);
       this.bars[i].position.y = newHeight / 2;
       
       const barOpacity = this.currentOpacity * (0.6 + value * 0.4);
@@ -189,7 +188,8 @@ export class SpectrumAnalyzer {
       
       if (value > 0.1 && isPlaying) {
         const haloScale = this.barWidth * (0.5 + value * 0.5);
-        this.halos[i].scale.set(haloScale, haloScale, 1);
+        const haloPulse = 1 + Math.sin(this.pulsePhase * 1.3 + i * 0.12) * 0.1;
+        this.halos[i].scale.set(haloScale * haloPulse, haloScale * haloPulse, 1);
         this.halos[i].position.y = newHeight;
         this.haloMaterials[i].opacity = this.currentOpacity * value * 0.6;
       } else {
