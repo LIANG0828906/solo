@@ -36,13 +36,17 @@ const GRADIENT_PAIRS = [
   ['#667eea', '#43e97b'],
 ];
 
-export function generateShareCode(): string {
+export function generateShortCode(length = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let code = '';
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < length; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+export function generateShareCode(): string {
+  return generateShortCode(8);
 }
 
 export function generateId(): string {
@@ -67,19 +71,50 @@ export function formatDateShort(dateStr: string): string {
 }
 
 export async function exportAsImage(elementId: string, fileName: string): Promise<void> {
-  const html2canvas = (await import('html2canvas')).default;
+  const html2canvasModule = await import('html2canvas');
+  const html2canvas = html2canvasModule.default || (html2canvasModule as any);
   const element = document.getElementById(elementId);
-  if (!element) return;
+  if (!element) throw new Error('Export element not found');
+
+  const originalScroll = window.scrollY;
+  window.scrollTo(0, 0);
+  await new Promise((r) => setTimeout(r, 100));
+
   const canvas = await html2canvas(element, {
     backgroundColor: '#0f0f1a',
-    scale: 2,
+    scale: Math.min(2, window.devicePixelRatio || 1),
     useCORS: true,
     allowTaint: true,
+    logging: false,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: element.scrollWidth,
+    windowHeight: element.scrollHeight,
   });
-  const link = document.createElement('a');
-  link.download = `${fileName}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+
+  window.scrollTo(0, originalScroll);
+
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Canvas toBlob failed'));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        resolve();
+      }, 'image/png');
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 export function createStoryboard(title: string, description: string): Storyboard {
