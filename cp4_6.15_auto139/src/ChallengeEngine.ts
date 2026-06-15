@@ -159,7 +159,7 @@ export class ChallengeEngine {
 
     setTimeout(() => {
       this.reset();
-    }, 3000);
+    }, 4000);
   }
 
   reset(): void {
@@ -190,5 +190,3 @@ export class ChallengeEngine {
     }
   }
 }
-
-export const challengeEngine = new ChallengeEngine();
