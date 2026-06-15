@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import IdeaCard from './IdeaCard';
 import type { Idea, GroupType } from '../types';
 
@@ -8,6 +8,9 @@ interface BrainstormBoardProps {
   onAddComment: (ideaId: string, text: string) => void;
   onUpdateGroup: (ideaId: string, group: GroupType) => void;
   userId: string;
+  setIdeas: React.Dispatch<React.SetStateAction<Idea[]>>;
+  newestIdeaId?: string | null;
+  newIdeaStartPosition?: { x: number; y: number } | null;
 }
 
 const groups: { key: GroupType; title: string }[] = [
@@ -16,18 +19,27 @@ const groups: { key: GroupType; title: string }[] = [
   { key: 'completed', title: '已完成' }
 ];
 
-function BrainstormBoard({ ideas, onLike, onAddComment, onUpdateGroup, userId }: BrainstormBoardProps) {
+function BrainstormBoard({ ideas, onLike, onAddComment, onUpdateGroup, userId, setIdeas, newestIdeaId, newIdeaStartPosition }: BrainstormBoardProps) {
   const [draggedIdeaId, setDraggedIdeaId] = useState<string | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<GroupType | null>(null);
+  const [longPressIdeaId, setLongPressIdeaId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDragStart = useCallback((e: React.DragEvent, ideaId: string) => {
-    setDraggedIdeaId(ideaId);
+    e.preventDefault();
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ideaId);
+    setDraggedIdeaId(ideaId);
   }, []);
 
   const handleDragEnd = useCallback(() => {
     setDraggedIdeaId(null);
     setDragOverGroup(null);
+    setLongPressIdeaId(null);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, group: GroupType) => {
@@ -42,12 +54,37 @@ function BrainstormBoard({ ideas, onLike, onAddComment, onUpdateGroup, userId }:
 
   const handleDrop = useCallback((e: React.DragEvent, group: GroupType) => {
     e.preventDefault();
-    if (draggedIdeaId) {
-      onUpdateGroup(draggedIdeaId, group);
+    const ideaId = e.dataTransfer.getData('text/plain') || draggedIdeaId;
+    
+    if (ideaId) {
+      setIdeas(prev => prev.map(idea => {
+        if (idea.id === ideaId) {
+          return { ...idea, group };
+        }
+        return idea;
+      }));
+      
+      onUpdateGroup(ideaId, group);
     }
+    
     setDraggedIdeaId(null);
     setDragOverGroup(null);
-  }, [draggedIdeaId, onUpdateGroup]);
+    setLongPressIdeaId(null);
+  }, [draggedIdeaId, onUpdateGroup, setIdeas]);
+
+  const handleLongPressStart = useCallback((ideaId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressIdeaId(ideaId);
+    }, 300);
+  }, []);
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    setLongPressIdeaId(null);
+  }, []);
 
   const getIdeasByGroup = (group: GroupType) => {
     return ideas.filter(idea => idea.group === group);
@@ -82,8 +119,13 @@ function BrainstormBoard({ ideas, onLike, onAddComment, onUpdateGroup, userId }:
                 onAddComment={onAddComment}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onLongPressStart={handleLongPressStart}
+                onLongPressEnd={handleLongPressEnd}
                 isDragging={draggedIdeaId === idea.id}
+                isLongPressing={longPressIdeaId === idea.id}
                 userId={userId}
+                isNew={newestIdeaId === idea.id}
+                startPosition={newestIdeaId === idea.id ? newIdeaStartPosition || undefined : undefined}
               />
             ))}
           </div>

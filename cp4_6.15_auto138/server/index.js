@@ -21,9 +21,30 @@ const groupColors = {
   'completed': '#4caf50'
 };
 
-function calculateMatrixScore(idea) {
-  const feasibility = Math.min(100, idea.likes * 10 + idea.comments.length * 5);
-  const influence = Math.min(100, idea.likes * 8 + idea.comments.length * 7);
+function calculateMatrixScore(idea, allIdeas = ideas) {
+  if (allIdeas.length === 0) {
+    return { feasibility: 0, influence: 0 };
+  }
+
+  const feasibilityRaw = idea.likes * 0.6 + idea.comments.length * 0.4;
+  const influenceRaw = idea.likes * 0.4 + idea.comments.length * 0.6;
+
+  let maxFeasibility = 0;
+  let maxInfluence = 0;
+  allIdeas.forEach(i => {
+    const f = i.likes * 0.6 + i.comments.length * 0.4;
+    const inf = i.likes * 0.4 + i.comments.length * 0.6;
+    if (f > maxFeasibility) maxFeasibility = f;
+    if (inf > maxInfluence) maxInfluence = inf;
+  });
+
+  const feasibility = maxFeasibility > 0 
+    ? Math.max(0, Math.min(100, (feasibilityRaw / maxFeasibility) * 100))
+    : 0;
+  const influence = maxInfluence > 0 
+    ? Math.max(0, Math.min(100, (influenceRaw / maxInfluence) * 100))
+    : 0;
+
   return { feasibility, influence };
 }
 
@@ -62,8 +83,17 @@ io.on('connection', (socket) => {
         idea.likes--;
         idea.likedBy.splice(userIndex, 1);
       }
-      idea.matrixScore = calculateMatrixScore(idea);
+      
+      ideas.forEach(i => {
+        i.matrixScore = calculateMatrixScore(i, ideas);
+      });
+      
       io.emit('ideaUpdated', idea);
+      io.emit('allMatrixScoresUpdated', ideas.map(i => ({
+        id: i.id,
+        feasibility: i.matrixScore.feasibility,
+        influence: i.matrixScore.influence
+      })));
     }
   });
   
@@ -77,8 +107,17 @@ io.on('connection', (socket) => {
         createdAt: Date.now()
       };
       idea.comments.push(newComment);
-      idea.matrixScore = calculateMatrixScore(idea);
+      
+      ideas.forEach(i => {
+        i.matrixScore = calculateMatrixScore(i, ideas);
+      });
+      
       io.emit('commentAdded', { ideaId, comment: newComment });
+      io.emit('allMatrixScoresUpdated', ideas.map(i => ({
+        id: i.id,
+        feasibility: i.matrixScore.feasibility,
+        influence: i.matrixScore.influence
+      })));
     }
   });
   
@@ -125,10 +164,27 @@ app.get('/api/matrix', (req, res) => {
 });
 
 app.get('/api/matrix-scores', (req, res) => {
+  const maxRawFeasibility = Math.max(...ideas.map(i => i.likes * 0.6 + i.comments.length * 0.4), 1);
+  const maxRawInfluence = Math.max(...ideas.map(i => i.likes * 0.4 + i.comments.length * 0.6), 1);
+
   const scores = ideas.map(idea => {
-    const baseScore = calculateMatrixScore(idea);
-    const finalFeasibility = idea.matrixScore.feasibility > 0 ? idea.matrixScore.feasibility : baseScore.feasibility;
-    const finalInfluence = idea.matrixScore.influence > 0 ? idea.matrixScore.influence : baseScore.influence;
+    const rawFeasibility = idea.likes * 0.6 + idea.comments.length * 0.4;
+    const rawInfluence = idea.likes * 0.4 + idea.comments.length * 0.6;
+    
+    const calculatedFeasibility = maxRawFeasibility > 0 
+      ? Math.max(0, Math.min(100, (rawFeasibility / maxRawFeasibility) * 100))
+      : 0;
+    const calculatedInfluence = maxRawInfluence > 0 
+      ? Math.max(0, Math.min(100, (rawInfluence / maxRawInfluence) * 100))
+      : 0;
+    
+    const finalFeasibility = (idea.matrixScore.feasibility > 0 || idea.matrixScore.influence > 0) 
+      ? idea.matrixScore.feasibility 
+      : calculatedFeasibility;
+    const finalInfluence = (idea.matrixScore.feasibility > 0 || idea.matrixScore.influence > 0) 
+      ? idea.matrixScore.influence 
+      : calculatedInfluence;
+
     return {
       id: idea.id,
       title: idea.title,
@@ -136,9 +192,9 @@ app.get('/api/matrix-scores', (req, res) => {
       commentsCount: idea.comments.length,
       group: idea.group,
       color: groupColors[idea.group] || '#999',
-      feasibility: finalFeasibility,
-      influence: finalInfluence,
-      totalScore: finalFeasibility + finalInfluence
+      feasibility: Math.round(finalFeasibility),
+      influence: Math.round(finalInfluence),
+      totalScore: Math.round(finalFeasibility + finalInfluence)
     };
   });
   scores.sort((a, b) => b.totalScore - a.totalScore);

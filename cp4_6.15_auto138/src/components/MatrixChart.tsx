@@ -4,6 +4,7 @@ import type { Idea } from '../types';
 interface MatrixChartProps {
   ideas: Idea[];
   onUpdateScore: (ideaId: string, feasibility: number, influence: number) => void;
+  onScoresRecalculated?: () => void;
 }
 
 interface TooltipData {
@@ -20,13 +21,15 @@ const groupColors: Record<string, string> = {
   'completed': '#4caf50'
 };
 
-function MatrixChart({ ideas, onUpdateScore }: MatrixChartProps) {
+function MatrixChart({ ideas, onUpdateScore, onScoresRecalculated }: MatrixChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   const [canvasSize] = useState({ width: 300, height: 300 });
   const padding = 40;
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const getChartCoords = useCallback((feasibility: number, influence: number) => {
     const chartWidth = canvasSize.width - padding * 2;
@@ -138,27 +141,48 @@ function MatrixChart({ ideas, onUpdateScore }: MatrixChartProps) {
     drawMatrix();
   }, [drawMatrix]);
 
+  const getCanvasCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const dpr = window.devicePixelRatio || 1;
+
+    const canvasX = (e.clientX - rect.left) * (canvasSize.width / rect.width);
+    const canvasY = (e.clientY - rect.top) * (canvasSize.height / rect.height);
+
+    return { x: canvasX, y: canvasY };
+  }, [canvasSize]);
+
   const findIdeaAtPosition = useCallback((x: number, y: number): Idea | null => {
     for (let i = ideas.length - 1; i >= 0; i--) {
       const idea = ideas[i];
       if (idea.matrixScore.feasibility === 0 && idea.matrixScore.influence === 0) continue;
-      
+
       const coords = getChartCoords(idea.matrixScore.feasibility, idea.matrixScore.influence);
       const distance = Math.sqrt((x - coords.x) ** 2 + (y - coords.y) ** 2);
-      if (distance < 12) {
+      if (distance < 15) {
         return idea;
       }
     }
     return null;
   }, [ideas, getChartCoords]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const triggerScoreRecalculation = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (onScoresRecalculated) {
+        onScoresRecalculated();
+      }
+    }, 500);
+  }, [onScoresRecalculated]);
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { x, y } = getCanvasCoords(e);
 
     if (draggingId) {
       const { feasibility, influence } = getScoreFromCoords(x, y);
@@ -187,30 +211,34 @@ function MatrixChart({ ideas, onUpdateScore }: MatrixChartProps) {
         setTooltip(null);
       }
     }
-  }, [draggingId, findIdeaAtPosition, getScoreFromCoords, onUpdateScore, ideas]);
+  }, [draggingId, findIdeaAtPosition, getCanvasCoords, getScoreFromCoords, onUpdateScore, ideas]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCanvasCoords(e);
 
     const idea = findIdeaAtPosition(x, y);
     if (idea) {
       setDraggingId(idea.id);
+      setDragStartPos({ x, y });
     }
-  }, [findIdeaAtPosition]);
+  }, [findIdeaAtPosition, getCanvasCoords]);
 
   const handleMouseUp = useCallback(() => {
+    if (draggingId) {
+      triggerScoreRecalculation();
+    }
     setDraggingId(null);
-  }, []);
+    setDragStartPos(null);
+  }, [draggingId, triggerScoreRecalculation]);
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
+    if (draggingId) {
+      triggerScoreRecalculation();
+    }
     setDraggingId(null);
-  }, []);
+    setDragStartPos(null);
+  }, [draggingId, triggerScoreRecalculation]);
 
   return (
     <div ref={containerRef} className="matrix-canvas-container">
