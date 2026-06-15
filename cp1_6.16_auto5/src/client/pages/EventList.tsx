@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/api';
 import { formatDateTime } from '@/utils/format';
 import type { EventWithStats } from '../../shared/types';
 
 export default function EventList() {
+  const navigate = useNavigate();
   const [events, setEvents] = useState<EventWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,11 @@ export default function EventList() {
         <div className="events-grid">
           {events.map((e) => {
             const pct = Math.min(100, (e.registeredCount / e.maxCapacity) * 100);
+            const handleCheckInClick = (ev: React.MouseEvent) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              navigate('/checkin', { state: { autoEventId: e.id, autoEventName: e.name } });
+            };
             return (
               <Link key={e.id} to={`/event/${e.id}`} className="glass-card event-card">
                 {e.isFull && <span className="full-tag">已满员</span>}
@@ -89,7 +95,14 @@ export default function EventList() {
                       />
                     </div>
                   </div>
-                  <span style={{ fontSize: 14, opacity: 0.85 }}>查看详情 →</span>
+                  <button
+                    type="button"
+                    className="btn-checkin-card"
+                    onClick={handleCheckInClick}
+                    title="进入签到管理"
+                  >
+                    ✅ 签到
+                  </button>
                 </div>
               </Link>
             );

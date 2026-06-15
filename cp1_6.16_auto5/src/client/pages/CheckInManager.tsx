@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '@/api';
 import { formatDateTime, shortId } from '@/utils/format';
 import type { Registration } from '../../shared/types';
 
 export default function CheckInManager() {
+  const location = useLocation() as any;
   const [eventId, setEventId] = useState('');
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loadingList, setLoadingList] = useState(false);
@@ -14,13 +16,42 @@ export default function CheckInManager() {
   const [poppingId, setPoppingId] = useState<string | null>(null);
   const [eventInfo, setEventInfo] = useState<{ name: string } | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const firstEventKey = Object.keys(sessionStorage).find((k) => k.startsWith('demo_event_'));
-    if (firstEventKey) {
-      setEventId(sessionStorage.getItem(firstEventKey) || '');
+    const state = location.state as { autoEventId?: string; autoEventName?: string } | null;
+    if (state?.autoEventId) {
+      setEventId(state.autoEventId);
+      if (state.autoEventName) {
+        setEventInfo({ name: state.autoEventName });
+      }
+      setTimeout(() => loadList(state.autoEventId), 50);
+    } else {
+      const firstEventKey = Object.keys(sessionStorage).find((k) => k.startsWith('demo_event_'));
+      if (firstEventKey) {
+        setEventId(sessionStorage.getItem(firstEventKey) || '');
+      }
     }
     scanInputRef.current?.focus();
+  }, [location.state]);
+
+  const debouncedVerify = useCallback((id: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (id.trim()) {
+        doVerify(id.trim());
+      }
+    }, 500);
+  }, [loadedEventId]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -180,12 +211,21 @@ export default function CheckInManager() {
               ref={scanInputRef}
               type="text"
               className="form-input"
-              placeholder="扫描二维码或粘贴报名 ID"
+              placeholder="扫描二维码或粘贴报名 ID（停止输入后自动验证）"
               value={scanId}
-              onChange={(e) => setScanId(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setScanId(val);
+                if (val.trim()) {
+                  debouncedVerify(val);
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current);
+                  }
                   doVerify();
                 }
               }}
@@ -266,35 +306,39 @@ export default function CheckInManager() {
                 </tr>
               </thead>
               <tbody>
-                {registrations.map((r, idx) => (
-                  <tr key={r.id} className={justCheckedId === r.id ? 'just-checked' : ''}>
-                    <td style={{ color: '#9ca3af', fontWeight: 600 }}>{String(idx + 1).padStart(2, '0')}</td>
-                    <td style={{ fontWeight: 600 }}>{r.name}</td>
-                    <td style={{ color: '#6b7280' }}>{r.email}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#4b5563' }}>{shortId(r.id)}</td>
-                    <td style={{ fontSize: 12, color: '#9ca3af' }}>{formatDateTime(r.createdAt).split(' ')[0]}</td>
-                    <td>
-                      {r.checkedIn ? (
-                        <span className="status-badge checked">
-                          <span className={poppingId === r.id ? 'checkmark-pop' : ''}>✓</span>
-                          已签到
-                        </span>
-                      ) : (
-                        <span className="status-badge pending">⏳ 未签到</span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn-success"
-                        disabled={r.checkedIn}
-                        onClick={() => manualCheckRow(r)}
-                      >
-                        {r.checkedIn ? '已完成' : '手动签到'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {registrations.map((r, idx) => {
+                  const rowClass = idx % 2 === 0 ? 'reg-row reg-row-odd' : 'reg-row reg-row-even';
+                  const checkedClass = justCheckedId === r.id ? ' just-checked' : '';
+                  return (
+                    <tr key={r.id} className={rowClass + checkedClass} data-row-idx={idx}>
+                      <td style={{ color: '#9ca3af', fontWeight: 600 }}>{String(idx + 1).padStart(2, '0')}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td style={{ color: '#6b7280' }}>{r.email}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#4b5563' }}>{shortId(r.id)}</td>
+                      <td style={{ fontSize: 12, color: '#9ca3af' }}>{formatDateTime(r.createdAt).split(' ')[0]}</td>
+                      <td>
+                        {r.checkedIn ? (
+                          <span className="status-badge checked">
+                            <span className={poppingId === r.id ? 'checkmark-pop' : ''}>✓</span>
+                            已签到
+                          </span>
+                        ) : (
+                          <span className="status-badge pending">⏳ 未签到</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-success"
+                          disabled={r.checkedIn}
+                          onClick={() => manualCheckRow(r)}
+                        >
+                          {r.checkedIn ? '已完成' : '手动签到'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

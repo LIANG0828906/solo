@@ -15,6 +15,10 @@
   --color-danger-bg: rgba(239, 68, 68, 0.15);
   --color-warning: #f59e0b;
   --color-row-alt: rgba(249, 250, 251, 0.8);
+  --color-row-odd-bg: #ffffff;
+  --color-row-even-bg: rgba(249, 250, 251, 0.8);
+  --shadow-card-normal: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.15);
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.12);
@@ -85,13 +89,41 @@ input, textarea {
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--color-glass-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-card-normal);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .glass-card:hover {
   transform: scale(1.02);
-  box-shadow: var(--shadow-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.btn-checkin-card {
+  background: linear-gradient(135deg, var(--color-primary-deep) 0%, var(--color-primary-violet) 100%);
+  color: var(--color-text-white);
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(26, 42, 108, 0.35);
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 10;
+}
+
+.btn-checkin-card:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(26, 42, 108, 0.5);
+}
+
+.btn-checkin-card:active {
+  transform: translateY(0);
 }
 
 .glass-card-static {
@@ -855,12 +887,16 @@ input, textarea {
   border-bottom: 1px solid #f9fafb;
 }
 
-.registrations-table tbody tr:nth-child(even) {
-  background: var(--color-row-alt);
+.reg-row {
+  transition: background-color 0.5s ease;
 }
 
-.registrations-table tbody tr {
-  transition: background-color 0.5s ease;
+.reg-row-odd {
+  background: var(--color-row-odd-bg);
+}
+
+.reg-row-even {
+  background: var(--color-row-even-bg);
 }
 
 .registrations-table tbody tr.just-checked {
