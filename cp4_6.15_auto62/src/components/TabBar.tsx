@@ -9,8 +9,7 @@ const TabBar: React.FC = () => {
   const { tabs } = state;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
+  const [scrollState, setScrollState] = useState({ showLeft: false, showRight: false, leftDisabled: true, rightDisabled: true });
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -23,20 +22,26 @@ const TabBar: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const checkScrollButtons = useCallback(() => {
+  const updateScrollState = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    setShowLeftArrow(container.scrollLeft > 0);
-    setShowRightArrow(
-      container.scrollLeft < container.scrollWidth - container.clientWidth - 1
-    );
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    const canScroll = scrollWidth > clientWidth + 1;
+    const atLeft = scrollLeft <= 0;
+    const atRight = scrollLeft + clientWidth >= scrollWidth - 1;
+    setScrollState({
+      showLeft: canScroll,
+      showRight: canScroll,
+      leftDisabled: atLeft,
+      rightDisabled: atRight
+    });
   }, []);
 
   useEffect(() => {
-    checkScrollButtons();
-  }, [tabs.length, checkScrollButtons]);
+    updateScrollState();
+  }, [tabs.length, updateScrollState]);
 
-  const scroll = (direction: 'left' | 'right') => {
+  const scroll = useCallback((direction: 'left' | 'right') => {
     const container = scrollContainerRef.current;
     if (!container) return;
     const scrollAmount = 200;
@@ -44,7 +49,8 @@ const TabBar: React.FC = () => {
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth'
     });
-  };
+    setTimeout(updateScrollState, 300);
+  }, [updateScrollState]);
 
   const handleTabClick = (tabId: string) => {
     if (draggedTabId) return;
@@ -61,19 +67,20 @@ const TabBar: React.FC = () => {
   };
 
   const computeInsertIndex = useCallback((clientX: number): number => {
-    const container = scrollContainerRef.current;
-    if (!container) return 0;
+    if (tabs.length === 0) return 0;
+    const containerRect = scrollContainerRef.current?.getBoundingClientRect();
+    if (!containerRect) return 0;
+    const scrollLeft = scrollContainerRef.current?.scrollLeft || 0;
 
-    const containerRect = container.getBoundingClientRect();
-    const relativeX = clientX - containerRect.left + container.scrollLeft;
-
-    let accumulated = 0;
     for (let i = 0; i < tabs.length; i++) {
       const el = tabRefs.current.get(tabs[i].id);
       if (!el) continue;
-      const tabMid = accumulated + el.offsetWidth / 2;
-      if (relativeX < tabMid) return i;
-      accumulated += el.offsetWidth + 4;
+      const rect = el.getBoundingClientRect();
+      const left = rect.left - containerRect.left + scrollLeft;
+      const right = rect.right - containerRect.left + scrollLeft;
+      const mid = (left + right) / 2;
+      const relativeX = clientX - containerRect.left + scrollLeft;
+      if (relativeX < mid) return i;
     }
     return tabs.length;
   }, [tabs]);
@@ -166,20 +173,30 @@ const TabBar: React.FC = () => {
 
   return (
     <div className="tab-bar">
-      {showLeftArrow && (
-        <button className="scroll-btn left" onClick={() => scroll('left')} aria-label="向左滚动">
+      {scrollState.showLeft && (
+        <button
+          className={`scroll-btn left ${scrollState.leftDisabled ? 'disabled' : ''}`}
+          onClick={() => !scrollState.leftDisabled && scroll('left')}
+          disabled={scrollState.leftDisabled}
+          aria-label="向左滚动"
+        >
           ‹
         </button>
       )}
       <div
         className="tabs-container"
         ref={scrollContainerRef}
-        onScroll={checkScrollButtons}
+        onScroll={updateScrollState}
       >
         {tabs.map((tab, index) => renderTab(tab, index))}
       </div>
-      {showRightArrow && (
-        <button className="scroll-btn right" onClick={() => scroll('right')} aria-label="向右滚动">
+      {scrollState.showRight && (
+        <button
+          className={`scroll-btn right ${scrollState.rightDisabled ? 'disabled' : ''}`}
+          onClick={() => !scrollState.rightDisabled && scroll('right')}
+          disabled={scrollState.rightDisabled}
+          aria-label="向右滚动"
+        >
           ›
         </button>
       )}

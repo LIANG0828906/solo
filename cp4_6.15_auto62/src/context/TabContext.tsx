@@ -79,7 +79,6 @@ const tabReducer = (state: TabState, action: TabAction): TabState => {
       return {
         ...state,
         tabs: state.tabs.map(tab => {
-          if (tab.id === state.activeTabId) return tab;
           if (tab.isSleeping) return tab;
           if (now - tab.lastActivityTime > SLEEP_TIMEOUT) {
             return { ...tab, isSleeping: true };
@@ -144,11 +143,7 @@ export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const checkInterval = 30000;
     sleepCheckRef.current = setInterval(() => {
-      const now = Date.now();
-      const timeSinceActivity = now - lastActivityRef.current;
-      if (timeSinceActivity > SLEEP_TIMEOUT) {
-        dispatch({ type: 'SLEEP_INACTIVE_TABS' });
-      }
+      dispatch({ type: 'SLEEP_INACTIVE_TABS' });
     }, checkInterval);
     return () => {
       if (sleepCheckRef.current) clearInterval(sleepCheckRef.current);

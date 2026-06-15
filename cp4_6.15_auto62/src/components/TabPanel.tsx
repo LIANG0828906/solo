@@ -13,6 +13,26 @@ const TabPanel: React.FC = () => {
   const [wakingTabId, setWakingTabId] = useState<string | null>(null);
   const wakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const clearWaking = useCallback(() => {
+    if (wakeTimerRef.current) {
+      clearTimeout(wakeTimerRef.current);
+      wakeTimerRef.current = null;
+    }
+    setWakingTabId(null);
+  }, []);
+
+  const triggerWaking = useCallback((tabId: string) => {
+    if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
+    setWakingTabId(tabId);
+    wakeTimerRef.current = setTimeout(() => {
+      setWakingTabId(prev => prev === tabId ? null : prev);
+    }, 550);
+  }, []);
+
+  const handleWakingAnimationEnd = useCallback(() => {
+    clearWaking();
+  }, [clearWaking]);
+
   const handleIframeLoad = useCallback((tabId: string) => {
     dispatch({ type: 'SET_LOADING', payload: { id: tabId, isLoading: false } });
   }, [dispatch]);
@@ -31,13 +51,9 @@ const TabPanel: React.FC = () => {
       if (iframe) {
         iframe.src = activeTab.url;
       }
-      setWakingTabId(activeTab.id);
-      if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
-      wakeTimerRef.current = setTimeout(() => {
-        setWakingTabId(null);
-      }, 500);
+      triggerWaking(activeTab.id);
     }
-  }, [activeTab?.id, activeTab?.isSleeping, activeTab?.isLoading, activeTab?.url]);
+  }, [activeTab?.id, activeTab?.isSleeping, activeTab?.isLoading, activeTab?.url, triggerWaking]);
 
   useEffect(() => {
     return () => {
@@ -52,12 +68,8 @@ const TabPanel: React.FC = () => {
   };
 
   const handleWakeTab = (tabId: string) => {
-    setWakingTabId(tabId);
+    triggerWaking(tabId);
     dispatch({ type: 'WAKE_UP_TAB', payload: { id: tabId } });
-    if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
-    wakeTimerRef.current = setTimeout(() => {
-      setWakingTabId(null);
-    }, 500);
   };
 
   const renderIframe = (tab: Tab) => {
@@ -96,7 +108,7 @@ const TabPanel: React.FC = () => {
           </div>
         )}
         {isWaking && (
-          <div className="waking-overlay" />
+          <div className="waking-overlay" onAnimationEnd={handleWakingAnimationEnd} />
         )}
         <iframe
           ref={(el) => setIframeRef(tab.id, el)}
