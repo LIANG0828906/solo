@@ -162,14 +162,13 @@ export function generateTrajectoryPoints(
   molecule: Molecule,
   mode: VibrationMode,
   amplitude: number,
-  numPoints: number = 20
+  numPoints: number = 60
 ): Array<{ x: number; y: number; z: number }> {
   const points: Array<{ x: number; y: number; z: number }> = [];
   const center = calculateCenter(molecule.atoms);
 
   for (let i = 0; i <= numPoints; i++) {
-    const time = i / (mode.frequency * numPoints);
-    const phase = 2 * Math.PI * mode.frequency * time;
+    const phase = (i / numPoints) * Math.PI * 2;
     const displacement = calculateAtomDisplacement(atom, molecule, mode, phase, amplitude, center);
     points.push({
       x: atom.x + displacement.x,

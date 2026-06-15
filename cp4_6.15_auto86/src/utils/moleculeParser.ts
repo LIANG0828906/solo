@@ -180,7 +180,7 @@ function generate3DCoordinates(atoms: Atom[], bonds: Bond[]): Atom[] {
         .strength(0.8)
     )
     .force('charge', d3.forceManyBody().strength(-2))
-    .force('center', d3.forceCenter(0, 0, 0))
+    .force('center', d3.forceCenter(0, 0))
     .stop();
 
   for (let i = 0; i < 100; i++) {

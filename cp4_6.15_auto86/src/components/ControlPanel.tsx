@@ -1,9 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Play, Pause, Download, Circle, Square } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Play, Pause, Circle, Square } from 'lucide-react';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { PRESET_MOLECULES, VIBRATION_MODES } from '../data/presetMolecules';
 import { parseSMILES } from '../utils/moleculeParser';
 import { VibrationMode } from '../types/molecule';
+
+declare const GIF: any;
 
 const ControlPanel: React.FC = () => {
   const {
@@ -25,10 +27,22 @@ const ControlPanel: React.FC = () => {
   const [smilesInput, setSmilesInput] = useState('');
   const [exportFormat, setExportFormat] = useState<'webm' | 'gif'>('webm');
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isGifLoaded, setIsGifLoaded] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const gifRef = useRef<any>(null);
+  const gifFrameIntervalRef = useRef<number | null>(null);
+  const gifCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
+      script.onload = () => setIsGifLoaded(true);
+      document.head.appendChild(script);
+    }
+  }, []);
 
   const handleMoleculeSelect = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -78,69 +92,145 @@ const ControlPanel: React.FC = () => {
   }, [vibrationMode, isVibrating, setIsVibrating]);
 
   const handleStartRecording = useCallback(async () => {
-    const canvas = document.querySelector('canvas');
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
     if (!canvas) {
       alert('无法找到画布元素');
       return;
     }
-    canvasRef.current = canvas;
 
     try {
-      const stream = canvas.captureStream(60);
-      const options: MediaRecorderOptions = {
-        mimeType: exportFormat === 'webm' ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp9',
-      };
-
-      const mediaRecorder = new MediaRecorder(stream, options);
-      mediaRecorderRef.current = mediaRecorder;
-      recordedChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          recordedChunksRef.current.push(e.data);
+      if (exportFormat === 'webm') {
+        const stream = canvas.captureStream(60);
+        let mimeType = 'video/webm;codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm;codecs=vp8';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+          }
         }
-      };
+        const options: MediaRecorderOptions = { mimeType };
 
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, {
-          type: exportFormat === 'webm' ? 'video/webm' : 'video/webm',
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `molecule-${Date.now()}.${exportFormat}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const mediaRecorder = new MediaRecorder(stream, options);
+        mediaRecorderRef.current = mediaRecorder;
         recordedChunksRef.current = [];
-      };
 
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            recordedChunksRef.current.push(e.data);
+          }
+        };
 
-      recordingTimerRef.current = window.setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `molecule-${Date.now()}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          recordedChunksRef.current = [];
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        setRecordingTime(0);
+
+        recordingTimerRef.current = window.setInterval(() => {
+          setRecordingTime((prev) => prev + 1);
+        }, 1000);
+      } else {
+        if (!isGifLoaded || typeof (window as any).GIF === 'undefined') {
+          alert('GIF库正在加载中，请稍候再试');
+          return;
+        }
+
+        gifCanvasRef.current = canvas;
+
+        const gif = new (window as any).GIF({
+          workers: 2,
+          quality: 10,
+          width: canvas.width,
+          height: canvas.height,
+          workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+        });
+
+        gifRef.current = gif;
+        setIsRecording(true);
+        setRecordingTime(0);
+
+        let frameCount = 0;
+        const captureFrame = () => {
+          if (!gifCanvasRef.current || !gifRef.current) return;
+          try {
+            gifRef.current.addFrame(gifCanvasRef.current, { delay: 33, copy: true });
+            frameCount++;
+          } catch (e) {
+            console.warn('Frame capture failed:', e);
+          }
+        };
+
+        recordingTimerRef.current = window.setInterval(() => {
+          setRecordingTime((prev) => prev + 1);
+        }, 1000);
+
+        gifFrameIntervalRef.current = window.setInterval(captureFrame, 33);
+
+        gif.on('finished', (blob: Blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `molecule-${Date.now()}.gif`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+      }
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('无法开始录制，请确保浏览器支持屏幕录制功能');
+      alert(`无法开始录制: ${error instanceof Error ? error.message : '未知错误'}`);
     }
-  }, [exportFormat, setIsRecording]);
+  }, [exportFormat, setIsRecording, isGifLoaded]);
 
   const handleStopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    if (exportFormat === 'webm') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
 
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        setRecordingTime(0);
       }
-      setRecordingTime(0);
+    } else {
+      if (gifRef.current) {
+        if (gifFrameIntervalRef.current) {
+          clearInterval(gifFrameIntervalRef.current);
+          gifFrameIntervalRef.current = null;
+        }
+
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        setIsRecording(false);
+        setRecordingTime(0);
+
+        try {
+          gifRef.current.render();
+        } catch (e) {
+          console.error('GIF render failed:', e);
+          alert('GIF渲染失败');
+        }
+        gifRef.current = null;
+      }
     }
-  }, [setIsRecording]);
+  }, [exportFormat, setIsRecording]);
 
   const handleClearSelection = useCallback(() => {
     clearSelectedAtoms();
@@ -262,10 +352,10 @@ const ControlPanel: React.FC = () => {
               <button
                 className="btn recording"
                 onClick={handleStartRecording}
-                disabled={!currentMolecule}
+                disabled={!currentMolecule || (exportFormat === 'gif' && !isGifLoaded)}
               >
                 <Circle size={18} fill="currentColor" />
-                开始录制
+                {exportFormat === 'gif' && !isGifLoaded ? 'GIF加载中...' : '开始录制'}
               </button>
             ) : (
               <div className="button-group">
