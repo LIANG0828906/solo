@@ -1,7 +1,6 @@
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react'
 import { useFrame, ThreeEvent } from '@react-three/fiber'
 import { TransformControls } from '@react-three/drei'
-import type { TransformControls as TransformControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import type { BuildingModel } from '../types'
 
@@ -23,7 +22,6 @@ export default function BuildingModelComponent({
   showControls = true,
 }: BuildingModelProps) {
   const groupRef = useRef<THREE.Group>(null)
-  const controlsRef = useRef<TransformControlsImpl>(null)
   const [animY, setAnimY] = useState(20)
   const [animStarted, setAnimStarted] = useState(false)
 
@@ -59,32 +57,6 @@ export default function BuildingModelComponent({
     }
   }, [model.id, onTransform])
 
-  useEffect(() => {
-    if (isSelected && showControls && controlsRef.current) {
-      const controls = controlsRef.current as unknown as { domElement: HTMLElement }
-      const domElement = controls.domElement
-      if (domElement) {
-        domElement.style.touchAction = 'none'
-        domElement.style.userSelect = 'none'
-        
-        const handleTouchEnd = (e: TouchEvent) => {
-          e.stopPropagation()
-          handleTransformChange()
-        }
-        
-        domElement.addEventListener('touchend', handleTouchEnd)
-        domElement.addEventListener('touchcancel', handleTouchEnd)
-        
-        return () => {
-          domElement.removeEventListener('touchend', handleTouchEnd)
-          domElement.removeEventListener('touchcancel', handleTouchEnd)
-          domElement.style.touchAction = ''
-          domElement.style.userSelect = ''
-        }
-      }
-    }
-  }, [isSelected, showControls, handleTransformChange])
-
   const building = useMemo(() => {
     switch (model.modelType) {
       case 'skyscraper':
@@ -109,11 +81,14 @@ export default function BuildingModelComponent({
       {building}
       {isSelected && showControls && (
         <TransformControls
-          ref={controlsRef}
           object={groupRef}
           mode="translate"
           onMouseUp={handleTransformChange}
+          onPointerUp={handleTransformChange}
           onChange={handleTransformChange}
+          onDraggingChange={(dragging) => {
+            if (!dragging) handleTransformChange()
+          }}
         />
       )}
     </group>

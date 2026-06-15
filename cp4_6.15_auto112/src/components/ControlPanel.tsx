@@ -139,7 +139,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ className }) => {
       }
       dateDebounceRef.current = window.setTimeout(() => {
         setConfig({ date: value })
-      }, 50)
+      }, 250)
     },
     [setConfig, updateSliderPosition]
   )
@@ -167,7 +167,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ className }) => {
       }
       timeDebounceRef.current = window.setTimeout(() => {
         setConfig({ time: value })
-      },  50)
+      }, 250)
     },
     [setConfig, updateSliderPosition]
   )

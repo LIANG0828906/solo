@@ -131,39 +131,39 @@ export const useAppStore = create<Store>((set, get) => ({
   },
 
   runAnalysis: async () => {
-    const { buildings, config, analysisResult } = get();
-
-    if (buildings.length === 0) {
-      return;
-    }
-
-    if (analysisResult?.isComputing) {
-      shadowAnalysisWorker.cancel();
-    }
-
-    set({
-      analysisResult: {
-        samples: [],
-        totalSamplePoints: 0,
-        avgSunlightHours: 0,
-        shadowCoveragePercent: 0,
-        maxSunlightHours: 0,
-        minSunlightHours: 0,
-        isComputing: true,
-        progress: 0,
-      },
-    });
-
-    const params: AnalysisParams = {
-      buildings,
-      dayOfYear: config.date,
-      latitude: config.location.latitude,
-      longitude: config.location.longitude,
-      gridSize: config.gridSize,
-      sampleResolution: config.sampleResolution,
-    };
-
     try {
+      const { buildings, config, analysisResult } = get();
+
+      if (buildings.length === 0) {
+        return;
+      }
+
+      if (analysisResult?.isComputing) {
+        shadowAnalysisWorker.cancel();
+      }
+
+      set({
+        analysisResult: {
+          samples: [],
+          totalSamplePoints: 0,
+          avgSunlightHours: 0,
+          shadowCoveragePercent: 0,
+          maxSunlightHours: 0,
+          minSunlightHours: 0,
+          isComputing: true,
+          progress: 0,
+        },
+      });
+
+      const params: AnalysisParams = {
+        buildings,
+        dayOfYear: config.date,
+        latitude: config.location.latitude,
+        longitude: config.location.longitude,
+        gridSize: config.gridSize,
+        sampleResolution: config.sampleResolution,
+      };
+
       const result = await shadowAnalysisWorker.analyze(
         params,
         (progress: number) => {

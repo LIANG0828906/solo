@@ -159,14 +159,14 @@ export function rayBoxIntersect(
   dir: [number, number, number],
   boxMin: [number, number, number],
   boxMax: [number, number, number]
-): boolean {
+): number | null {
   let tmin = -Infinity;
   let tmax = Infinity;
 
   for (let i = 0; i < 3; i++) {
     if (Math.abs(dir[i]) < 1e-8) {
       if (origin[i] < boxMin[i] || origin[i] > boxMax[i]) {
-        return false;
+        return null;
       }
     } else {
       const t1 = (boxMin[i] - origin[i]) / dir[i];
@@ -176,12 +176,16 @@ export function rayBoxIntersect(
       tmin = Math.max(tmin, tlow);
       tmax = Math.min(tmax, thigh);
       if (tmin > tmax) {
-        return false;
+        return null;
       }
     }
   }
 
-  return tmax >= 0 && tmin <= tmax;
+  if (tmax < 0) {
+    return null;
+  }
+
+  return Math.max(tmin, 0);
 }
 
 function rayTriangleIntersect(
@@ -190,7 +194,7 @@ function rayTriangleIntersect(
   v0: [number, number, number],
   v1: [number, number, number],
   v2: [number, number, number]
-): boolean {
+): number | null {
   const edge1: [number, number, number] = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
   const edge2: [number, number, number] = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
 
@@ -203,7 +207,7 @@ function rayTriangleIntersect(
   const a = edge1[0] * h[0] + edge1[1] * h[1] + edge1[2] * h[2];
 
   if (Math.abs(a) < 1e-8) {
-    return false;
+    return null;
   }
 
   const f = 1.0 / a;
@@ -215,7 +219,7 @@ function rayTriangleIntersect(
 
   const u = f * (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]);
   if (u < 0 || u > 1) {
-    return false;
+    return null;
   }
 
   const q: [number, number, number] = [
@@ -226,11 +230,11 @@ function rayTriangleIntersect(
 
   const v = f * (dir[0] * q[0] + dir[1] * q[1] + dir[2] * q[2]);
   if (v < 0 || u + v > 1) {
-    return false;
+    return null;
   }
 
   const t = f * (edge2[0] * q[0] + edge2[1] * q[1] + edge2[2] * q[2]);
-  return t > 1e-8;
+  return t > 1e-8 ? t : null;
 }
 
 export function rayConeIntersect(
@@ -239,7 +243,7 @@ export function rayConeIntersect(
   coneHeight: number,
   coneRadius: number,
   segments: number = 4
-): boolean {
+): number | null {
   const halfHeight = coneHeight / 2;
   const apex: [number, number, number] = [0, halfHeight, 0];
   const baseY = -halfHeight;
@@ -256,21 +260,25 @@ export function rayConeIntersect(
     ]);
   }
 
+  let minT: number | null = null;
+
   for (let i = 0; i < segments; i++) {
     const v1 = baseVertices[i];
     const v2 = baseVertices[(i + 1) % segments];
-    if (rayTriangleIntersect(origin, dir, apex, v1, v2)) {
-      return true;
+    const t = rayTriangleIntersect(origin, dir, apex, v1, v2);
+    if (t !== null && (minT === null || t < minT)) {
+      minT = t;
     }
   }
 
   for (let i = 2; i < segments; i++) {
-    if (rayTriangleIntersect(origin, dir, baseVertices[0], baseVertices[i - 1], baseVertices[i])) {
-      return true;
+    const t = rayTriangleIntersect(origin, dir, baseVertices[0], baseVertices[i - 1], baseVertices[i]);
+    if (t !== null && (minT === null || t < minT)) {
+      minT = t;
     }
   }
 
-  return false;
+  return minT;
 }
 
 function rayBuildingIntersect(
@@ -291,6 +299,7 @@ function rayBuildingIntersect(
   );
 
   const geometries = getBuildingGeometry(building);
+  let hasIntersection = false;
 
   for (const geom of geometries) {
     const [gx, gy, gz] = geom.position;
@@ -308,17 +317,19 @@ function rayBuildingIntersect(
     if (geom.type === 'box') {
       const boxMin: [number, number, number] = [-halfW, -halfH, -halfD];
       const boxMax: [number, number, number] = [halfW, halfH, halfD];
-      if (rayBoxIntersect(geomOrigin, localDir, boxMin, boxMax)) {
-        return true;
+      const t = rayBoxIntersect(geomOrigin, localDir, boxMin, boxMax);
+      if (t !== null && t > 1e-6) {
+        hasIntersection = true;
       }
     } else if (geom.type === 'cone') {
-      if (rayConeIntersect(geomOrigin, localDir, h, halfW, 4)) {
-        return true;
+      const t = rayConeIntersect(geomOrigin, localDir, h, halfW, 4);
+      if (t !== null && t > 1e-6) {
+        hasIntersection = true;
       }
     }
   }
 
-  return false;
+  return hasIntersection;
 }
 
 export function analyzeShadows(

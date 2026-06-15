@@ -1,4 +1,5 @@
 import { AnalysisParams, ShadowAnalysisResult } from '../types';
+import { analyzeShadows } from './shadowAnalyzer';
 
 type WorkerMessage =
   | { type: 'analyze'; payload: AnalysisParams }
@@ -42,6 +43,26 @@ export class ShadowAnalysisWorker {
     return worker;
   }
 
+  private runFallbackAnalysis(
+    params: AnalysisParams,
+    onProgress?: (progress: number) => void
+  ): Promise<ShadowAnalysisResult> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const result = analyzeShadows(
+          params.buildings,
+          params.dayOfYear,
+          params.latitude,
+          params.longitude,
+          params.gridSize,
+          params.sampleResolution,
+          onProgress
+        );
+        resolve(result);
+      }, 0);
+    });
+  }
+
   analyze(
     params: AnalysisParams,
     onProgress?: (progress: number) => void
@@ -50,18 +71,24 @@ export class ShadowAnalysisWorker {
       this.cancel();
     }
 
-    this.worker = this.createWorker();
     this.onProgress = onProgress || null;
 
-    return new Promise<ShadowAnalysisResult>((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
+    try {
+      this.worker = this.createWorker();
 
-      this.worker?.postMessage({
-        type: 'analyze',
-        payload: params,
-      } as WorkerMessage);
-    });
+      return new Promise<ShadowAnalysisResult>((resolve, reject) => {
+        this.resolve = resolve;
+        this.reject = reject;
+
+        this.worker?.postMessage({
+          type: 'analyze',
+          payload: params,
+        } as WorkerMessage);
+      });
+    } catch (e) {
+      console.warn('Web Worker unavailable, falling back to main thread:', e);
+      return this.runFallbackAnalysis(params, onProgress);
+    }
   }
 
   cancel(): void {
