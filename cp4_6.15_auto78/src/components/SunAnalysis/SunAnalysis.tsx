@@ -59,9 +59,9 @@ function BuildingMesh({ type, sunDirection }: BuildingProps) {
     }
   }, [type])
 
-  const litColor = useMemo(() => new THREE.Color('#e8e8e8'), [])
+  const litColor = useMemo(() => new THREE.Color('#f0f0f0'), [])
   const darkColor = useMemo(() => {
-    const c = new THREE.Color('#e8e8e8')
+    const c = new THREE.Color('#f0f0f0')
     c.multiplyScalar(0.7)
     return c
   }, [])
@@ -110,8 +110,8 @@ function BuildingMesh({ type, sunDirection }: BuildingProps) {
           <boxGeometry args={part.size} />
           <meshStandardMaterial
             color={partColors[index] || litColor}
-            roughness={0.85}
-            metalness={0.05}
+            roughness={0.7}
+            metalness={0.02}
           />
         </mesh>
       ))}
@@ -120,17 +120,25 @@ function BuildingMesh({ type, sunDirection }: BuildingProps) {
 }
 
 function GroundGrid({ gridOpacity }: { gridOpacity: number }) {
+  const gridRef = useRef<THREE.GridHelper>(null)
+
+  useEffect(() => {
+    if (gridRef.current) {
+      const mat = gridRef.current.material as THREE.Material
+      if ('opacity' in mat) {
+        mat.opacity = gridOpacity
+        mat.transparent = true
+        mat.needsUpdate = true
+      }
+    }
+  }, [gridOpacity])
+
   return (
     <gridHelper
-      args={[20, 20, '#4a5568', '#2d3748']}
+      ref={gridRef}
+      args={[20, 20, '#5a6578', '#3a4558']}
       position={[0, 0.01, 0]}
-    >
-      <meshBasicMaterial
-        attach="material"
-        transparent
-        opacity={gridOpacity}
-      />
-    </gridHelper>
+    />
   )
 }
 
@@ -139,24 +147,17 @@ function GroundPlane({ shadowStrength }: { shadowStrength: number }) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[30, 30]} />
-        <meshStandardMaterial color="#d6d8dc" roughness={1.0} metalness={0} />
+        <meshStandardMaterial color="#c8cad0" roughness={0.95} metalness={0} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} receiveShadow>
         <planeGeometry args={[30, 30]} />
-        <shadowMaterial transparent opacity={0.5 * shadowStrength} />
+        <shadowMaterial transparent opacity={0.55 * shadowStrength} />
       </mesh>
     </group>
   )
 }
 
 function DirectionArrows() {
-  const { camera } = useThree()
-  const [camPos, setCamPos] = useState({ x: 0, z: 0 })
-
-  useFrame(() => {
-    setCamPos({ x: camera.position.x, z: camera.position.z })
-  })
-
   const arrows = useMemo(() => {
     const dirs = [
       { label: 'N', pos: [0, 0.5, -9] as [number, number, number], rot: [0, 0, 0] as [number, number, number] },
@@ -203,6 +204,7 @@ function SunLight({ solarResult }: SunLightProps) {
   const elevationDeg = radToDeg(solarResult.elevation)
 
   const shadowStrength = elevationDeg > 30 ? 0.5 : 1.0
+  const shadowSoftness = elevationDeg > 30 ? 8 : 3
 
   const lightColor = useMemo(() => {
     if (elevationDeg < 10) return new THREE.Color('#ff9955')
@@ -212,49 +214,64 @@ function SunLight({ solarResult }: SunLightProps) {
   }, [elevationDeg])
 
   const lightIntensity = useMemo(() => {
-    if (elevationDeg <= 0) return 0.1
-    if (elevationDeg < 10) return 0.8 + (elevationDeg / 10) * 0.6
-    if (elevationDeg < 30) return 1.4 + ((elevationDeg - 10) / 20) * 0.8
-    return 2.2
+    if (elevationDeg <= 0) return 0.2
+    if (elevationDeg < 10) return 1.0 + (elevationDeg / 10) * 0.8
+    if (elevationDeg < 30) return 1.8 + ((elevationDeg - 10) / 20) * 0.7
+    return 2.5
   }, [elevationDeg])
 
   const ambientIntensity = useMemo(() => {
-    if (elevationDeg <= 0) return 0.3
-    if (elevationDeg < 15) return 0.4 + (elevationDeg / 15) * 0.15
-    return 0.55
+    if (elevationDeg <= 0) return 0.4
+    if (elevationDeg < 15) return 0.5 + (elevationDeg / 15) * 0.15
+    return 0.65
   }, [elevationDeg])
 
   const sunDir = solarResult.directionVector
   const lightDistance = 20
 
   const lightPos: [number, number, number] = useMemo(() => {
-    const y = Math.max(sunDir.y * lightDistance, 5)
+    const dir = new THREE.Vector3(sunDir.x, sunDir.y, sunDir.z).normalize()
+    const y = Math.max(dir.y * lightDistance, 5)
     return [
-      sunDir.x * lightDistance,
+      dir.x * lightDistance,
       y,
-      sunDir.z * lightDistance,
+      dir.z * lightDistance,
     ]
   }, [sunDir.x, sunDir.y, sunDir.z])
 
+  useEffect(() => {
+    console.log('[SunLight] debug:', {
+      elevationDeg,
+      lightIntensity,
+      ambientIntensity,
+      shadowStrength,
+      shadowSoftness,
+      lightPos,
+      directionVector: sunDir,
+      lightColorHex: lightColor.getHexString(),
+    })
+  }, [elevationDeg, lightIntensity, ambientIntensity, shadowStrength, shadowSoftness, lightPos, sunDir, lightColor])
+
   return (
     <>
-      <ambientLight intensity={ambientIntensity} color="#c8d5ea" />
+      <ambientLight intensity={ambientIntensity} color="#d8e0ee" />
       <directionalLight
         ref={directionalLightRef}
         position={lightPos}
         intensity={lightIntensity}
         color={lightColor}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-18}
+        shadow-camera-right={18}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
         shadow-camera-near={0.5}
-        shadow-camera-far={50}
+        shadow-camera-far={60}
         shadow-bias={-0.0005}
-        shadow-radius={shadowStrength < 1 ? 6 : 4}
+        shadow-normalBias={0.02}
+        shadow-radius={shadowSoftness}
       />
     </>
   )
@@ -286,6 +303,13 @@ function DynamicBackground({ solarResult }: { solarResult: SolarResult }) {
     return { topColor, bottomColor }
   }, [elevationDeg])
 
+  useEffect(() => {
+    console.log('[DynamicBackground] debug:', {
+      elevationDeg,
+      bgColor: colors.bottomColor.getStyle(),
+    })
+  }, [elevationDeg, colors])
+
   return (
     <>
       <color attach="background" args={[colors.bottomColor]} />
@@ -311,6 +335,10 @@ function SceneContent({ solarResult, selectedBuilding, gridOpacity }: SceneConte
     )
   }, [solarResult.directionVector.x, solarResult.directionVector.y, solarResult.directionVector.z])
 
+  useEffect(() => {
+    console.log('[SceneContent] debug mount - elevationDeg:', elevationDeg, 'shadowStrength:', shadowStrength, 'building:', selectedBuilding)
+  }, [elevationDeg, shadowStrength, selectedBuilding])
+
   return (
     <>
       <DynamicBackground solarResult={solarResult} />
@@ -327,7 +355,7 @@ function SceneWithControls() {
   const [gridOpacity, setGridOpacity] = useState(0.3)
   const isRotatingRef = useRef(false)
   const lastRotateTimeRef = useRef(0)
-  const sizeInitedRef = useRef(false)
+  const mountedLogRef = useRef(false)
 
   const { gl, camera, size: threeSize } = useThree()
 
@@ -342,6 +370,13 @@ function SceneWithControls() {
     [dayOfYear, timeHours, latitude, longitude],
   )
 
+  useEffect(() => {
+    if (!mountedLogRef.current) {
+      console.log('[SceneWithControls] mounted - camera pos:', camera.position.toArray(), 'gl.domElement size:', gl.domElement.width, 'x', gl.domElement.height, 'threeSize:', threeSize)
+      mountedLogRef.current = true
+    }
+  }, [camera, gl, threeSize])
+
   useFrame((_, delta) => {
     const now = Date.now()
     if (isRotatingRef.current) {
@@ -355,23 +390,6 @@ function SceneWithControls() {
         }
         return prev
       })
-    }
-
-    if (!sizeInitedRef.current || threeSize.width !== gl.domElement.clientWidth || threeSize.height !== gl.domElement.clientHeight) {
-      const w = gl.domElement.clientWidth
-      const h = gl.domElement.clientHeight
-      if (w > 10 && h > 10) {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2)
-        if (gl.domElement.width !== Math.floor(w * dpr) || gl.domElement.height !== Math.floor(h * dpr)) {
-          gl.setPixelRatio(dpr)
-          gl.setSize(w, h, false)
-          if (camera instanceof THREE.PerspectiveCamera) {
-            camera.aspect = w / h
-            camera.updateProjectionMatrix()
-          }
-        }
-        sizeInitedRef.current = true
-      }
     }
   })
 
@@ -416,36 +434,33 @@ function SceneWithControls() {
 
 export function SunAnalysis() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [dims, setDims] = useState({ w: 0, h: 0 })
+
+  console.log('[SunAnalysis] RENDER - dims:', dims)
 
   useEffect(() => {
-    const updateCanvas = () => {
-      const canvas = document.querySelector('.sun-analysis-container canvas') as HTMLCanvasElement | null
-      const container = containerRef.current
-      if (!canvas || !container) return
-      const w = container.clientWidth
-      const h = container.clientHeight
-      if (w <= 0 || h <= 0) return
-
-      canvas.width = Math.floor(w * (window.devicePixelRatio || 1))
-      canvas.height = Math.floor(h * (window.devicePixelRatio || 1))
+    console.log('[SunAnalysis] useEffect mount')
+    const measure = () => {
+      if (containerRef.current) {
+        const w = containerRef.current.clientWidth
+        const h = containerRef.current.clientHeight
+        console.log('[SunAnalysis] measure:', w, 'x', h)
+        if (w > 0 && h > 0) {
+          setDims({ w, h })
+        }
+      }
     }
-
-    updateCanvas()
-    const t1 = setTimeout(updateCanvas, 50)
-    const t2 = setTimeout(updateCanvas, 200)
-    const t3 = setTimeout(updateCanvas, 1000)
-
-    const ro = new ResizeObserver(updateCanvas)
+    measure()
+    const t1 = setTimeout(measure, 50)
+    const t2 = setTimeout(measure, 200)
+    const t3 = setTimeout(measure, 500)
+    const ro = new ResizeObserver(measure)
     if (containerRef.current) ro.observe(containerRef.current)
-    window.addEventListener('resize', updateCanvas)
-
+    window.addEventListener('resize', measure)
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3)
       ro.disconnect()
-      window.removeEventListener('resize', updateCanvas)
+      window.removeEventListener('resize', measure)
     }
   }, [])
 
@@ -453,21 +468,27 @@ export function SunAnalysis() {
     <div
       ref={containerRef}
       className="sun-analysis-container"
-      style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
     >
-      <Canvas
-        shadows
-        camera={{ position: [14, 10, 14], fov: 45, near: 0.1, far: 200 }}
-        gl={{
-          antialias: true,
-          alpha: false,
-          powerPreference: 'high-performance',
-        }}
-        ref={canvasRef as any}
-        dpr={[1, 2]}
-      >
-        <SceneWithControls />
-      </Canvas>
+      {dims.w > 0 && dims.h > 0 && (
+        <Canvas
+          shadows
+          camera={{ position: [14, 10, 14], fov: 45, near: 0.1, far: 200 }}
+          gl={{
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+          }}
+          dpr={[1, 2]}
+          size={{ width: dims.w, height: dims.h }}
+          onCreated={({ gl, camera }) => {
+            console.log('[SunAnalysis] Canvas onCreated - size:', gl.domElement.width, 'x', gl.domElement.height, 'input dims:', dims)
+            console.log('[SunAnalysis] camera pos:', camera.position.toArray())
+          }}
+        >
+          <SceneWithControls />
+        </Canvas>
+      )}
     </div>
   )
 }
