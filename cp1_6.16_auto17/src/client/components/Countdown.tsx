@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface CountdownProps {
   endTime: number
@@ -7,13 +7,27 @@ interface CountdownProps {
 
 export default function Countdown({ endTime, className = '' }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<number>(() => endTime - Date.now())
+  const timerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(endTime - Date.now())
-    }, 1000)
+    const updateTime = () => {
+      const remaining = endTime - Date.now()
+      setTimeLeft(remaining)
+      if (remaining <= 0 && timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
 
-    return () => clearInterval(timer)
+    updateTime()
+    timerRef.current = window.setInterval(updateTime, 1000)
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
   }, [endTime])
 
   if (timeLeft <= 0) {
