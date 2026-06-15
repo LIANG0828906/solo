@@ -20,28 +20,42 @@ const App: React.FC = () => {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [shareData, setShareData] = useState<ShareLink | null>(null);
 
-  useEffect(() => {
-    const checkShareRoute = async () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/shared/')) {
-        const shareId = hash.replace('#/shared/', '');
-        try {
-          const share = await api.getShare(shareId);
-          if (share) {
-            setShareData(share);
-            const book = await api.getBook(share.bookId);
-            setSelectedBook(book);
-            setIsReadOnly(true);
-          }
-        } catch (error) {
-          console.error('Failed to load share:', error);
-        }
+  const loadShareData = useCallback(async (shareId: string) => {
+    try {
+      const share = await api.getShare(shareId);
+      if (share) {
+        setShareData(share);
+        const book = await api.getBook(share.bookId);
+        setSelectedBook(book);
+        setIsReadOnly(true);
       }
-    };
-
-    checkShareRoute();
-    loadBooks();
+    } catch (error) {
+      console.error('Failed to load share:', error);
+    }
   }, []);
+
+  const checkHashRoute = useCallback(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/shared/')) {
+      const shareId = hash.replace('#/shared/', '');
+      loadShareData(shareId);
+    } else {
+      setIsReadOnly(false);
+      setShareData(null);
+      setSelectedBook(null);
+    }
+  }, [loadShareData]);
+
+  useEffect(() => {
+    checkHashRoute();
+    loadBooks();
+
+    const handleHashChange = () => {
+      checkHashRoute();
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [checkHashRoute]);
 
   const loadBooks = async () => {
     try {

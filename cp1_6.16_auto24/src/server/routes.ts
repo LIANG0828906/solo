@@ -125,6 +125,15 @@ router.get('/annotations', (req, res) => {
 
 router.post('/annotations', (req, res) => {
   const { bookId, chapterId, startOffset, endOffset, selectedText, color, note } = req.body;
+  
+  if (!bookId || !chapterId || startOffset === undefined || endOffset === undefined || !selectedText) {
+    return res.status(400).json({ error: 'bookId, chapterId, startOffset, endOffset, and selectedText are required' });
+  }
+  
+  if (typeof startOffset !== 'number' || typeof endOffset !== 'number') {
+    return res.status(400).json({ error: 'startOffset and endOffset must be numbers' });
+  }
+  
   const annotation: Annotation = {
     id: uuidv4(),
     bookId,
@@ -132,7 +141,7 @@ router.post('/annotations', (req, res) => {
     startOffset,
     endOffset,
     selectedText,
-    color,
+    color: color || 'yellow',
     note,
     createdAt: Date.now(),
   };
