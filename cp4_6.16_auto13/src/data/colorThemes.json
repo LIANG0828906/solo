@@ -1,0 +1,47 @@
+[
+  {
+    "id": "morandi",
+    "name": "莫兰迪",
+    "colors": {
+      "primary": "#847577",
+      "secondary": "#A6A2A2",
+      "background": "#E5E1D8"
+    }
+  },
+  {
+    "id": "vintage",
+    "name": "复古",
+    "colors": {
+      "primary": "#6F4E37",
+      "secondary": "#C4A77D",
+      "background": "#F4E8C1"
+    }
+  },
+  {
+    "id": "candy",
+    "name": "糖果色",
+    "colors": {
+      "primary": "#FF6B9D",
+      "secondary": "#7BED9F",
+      "background": "#FFF3CD"
+    }
+  },
+  {
+    "id": "ocean",
+    "name": "海洋蓝",
+    "colors": {
+      "primary": "#2E86AB",
+      "secondary": "#A23B72",
+      "background": "#E8F6FF"
+    }
+  },
+  {
+    "id": "sunset",
+    "name": "日落橙",
+    "colors": {
+      "primary": "#E94F37",
+      "secondary": "#F6C90E",
+      "background": "#FFF8E7"
+    }
+  }
+]
