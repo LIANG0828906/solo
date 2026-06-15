@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useReducer, useContext, useEffect, useCallback, useRef, ReactNode } from 'react';
 import type { TabState, TabAction, TabContextType } from '@/types';
 import { generateTabId, extractTitleFromUrl, handleCloseTab, reorderTabs, MAX_TABS, SLEEP_TIMEOUT } from '@/utils/tabUtils';
 
@@ -74,6 +74,20 @@ const tabReducer = (state: TabState, action: TabAction): TabState => {
         )
       };
     }
+    case 'SLEEP_INACTIVE_TABS': {
+      const now = Date.now();
+      return {
+        ...state,
+        tabs: state.tabs.map(tab => {
+          if (tab.id === state.activeTabId) return tab;
+          if (tab.isSleeping) return tab;
+          if (now - tab.lastActivityTime > SLEEP_TIMEOUT) {
+            return { ...tab, isSleeping: true };
+          }
+          return tab;
+        })
+      };
+    }
     case 'UPDATE_ACTIVITY': {
       return {
         ...state,
@@ -108,20 +122,38 @@ const TabContext = createContext<TabContextType | undefined>(undefined);
 
 export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(tabReducer, initialState);
+  const lastActivityRef = useRef<number>(Date.now());
+  const sleepCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const checkSleepingTabs = useCallback(() => {
-    const now = Date.now();
-    state.tabs.forEach(tab => {
-      if (!tab.isSleeping && now - tab.lastActivityTime > SLEEP_TIMEOUT) {
-        dispatch({ type: 'SET_SLEEPING', payload: { id: tab.id, isSleeping: true } });
-      }
-    });
-  }, [state.tabs]);
+  const recordGlobalActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (state.activeTabId) {
+      dispatch({ type: 'UPDATE_ACTIVITY', payload: { id: state.activeTabId } });
+    }
+  }, [state.activeTabId]);
 
   useEffect(() => {
-    const interval = setInterval(checkSleepingTabs, 60000);
-    return () => clearInterval(interval);
-  }, [checkSleepingTabs]);
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart'] as const;
+    const handler = () => recordGlobalActivity();
+    events.forEach(evt => window.addEventListener(evt, handler, { passive: true }));
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, handler));
+    };
+  }, [recordGlobalActivity]);
+
+  useEffect(() => {
+    const checkInterval = 30000;
+    sleepCheckRef.current = setInterval(() => {
+      const now = Date.now();
+      const timeSinceActivity = now - lastActivityRef.current;
+      if (timeSinceActivity > SLEEP_TIMEOUT) {
+        dispatch({ type: 'SLEEP_INACTIVE_TABS' });
+      }
+    }, checkInterval);
+    return () => {
+      if (sleepCheckRef.current) clearInterval(sleepCheckRef.current);
+    };
+  }, []);
 
   return (
     <TabContext.Provider value={{ state, dispatch }}>

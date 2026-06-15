@@ -24,6 +24,7 @@
 
 .menu-btn.mobile {
   padding: 8px 14px;
+  gap: 6px;
 }
 
 .menu-icon {
@@ -240,6 +241,13 @@
 }
 
 @media (max-width: 768px) {
+  .menu-label {
+    display: inline;
+    font-size: 13px;
+    font-weight: 500;
+    color: #343a40;
+  }
+
   .bookmark-sidebar {
     width: 100%;
     border-radius: 0;

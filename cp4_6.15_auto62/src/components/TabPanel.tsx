@@ -1,38 +1,17 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useTabContext } from '@/context/TabContext';
 import type { Tab } from '@/types';
 import './TabPanel.css';
+
+const loadedUrls = new Map<string, string>();
 
 const TabPanel: React.FC = () => {
   const { state, dispatch } = useTabContext();
   const { tabs, activeTabId } = state;
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
-
-  const handleActivity = useCallback((tabId: string) => {
-    dispatch({ type: 'UPDATE_ACTIVITY', payload: { id: tabId } });
-  }, [dispatch]);
-
-  useEffect(() => {
-    const handleMouseMove = () => {
-      if (activeTabId) {
-        handleActivity(activeTabId);
-      }
-    };
-    const handleKeyDown = () => {
-      if (activeTabId) {
-        handleActivity(activeTabId);
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [activeTabId, handleActivity]);
+  const [wakingTabId, setWakingTabId] = useState<string | null>(null);
+  const wakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleIframeLoad = useCallback((tabId: string) => {
     dispatch({ type: 'SET_LOADING', payload: { id: tabId, isLoading: false } });
@@ -52,8 +31,19 @@ const TabPanel: React.FC = () => {
       if (iframe) {
         iframe.src = activeTab.url;
       }
+      setWakingTabId(activeTab.id);
+      if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
+      wakeTimerRef.current = setTimeout(() => {
+        setWakingTabId(null);
+      }, 500);
     }
   }, [activeTab?.id, activeTab?.isSleeping, activeTab?.isLoading, activeTab?.url]);
+
+  useEffect(() => {
+    return () => {
+      if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
+    };
+  }, []);
 
   const handleCloseTab = () => {
     if (activeTabId) {
@@ -61,15 +51,34 @@ const TabPanel: React.FC = () => {
     }
   };
 
+  const handleWakeTab = (tabId: string) => {
+    setWakingTabId(tabId);
+    dispatch({ type: 'WAKE_UP_TAB', payload: { id: tabId } });
+    if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
+    wakeTimerRef.current = setTimeout(() => {
+      setWakingTabId(null);
+    }, 500);
+  };
+
   const renderIframe = (tab: Tab) => {
     const isVisible = tab.id === activeTabId;
+    const isWaking = tab.id === wakingTabId;
+    const shouldLoadIframe = !tab.isSleeping;
+
+    if (!tab.isSleeping && tab.url) {
+      loadedUrls.set(tab.id, tab.url);
+    }
+
+    const iframeSrc = tab.isSleeping
+      ? 'about:blank'
+      : loadedUrls.get(tab.id) || tab.url;
 
     return (
       <div
         key={tab.id}
-        className={`iframe-wrapper ${isVisible ? 'visible' : 'hidden'} ${tab.isSleeping ? 'sleeping' : ''}`}
+        className={`iframe-wrapper ${isVisible ? 'visible' : 'hidden'} ${tab.isSleeping ? 'sleeping' : ''} ${isWaking ? 'waking' : ''}`}
       >
-        {tab.isLoading && (
+        {tab.isLoading && isVisible && (
           <div className="progress-bar-container">
             <div className="progress-bar" />
           </div>
@@ -80,15 +89,18 @@ const TabPanel: React.FC = () => {
             <p>此标签页已休眠</p>
             <button
               className="wake-btn"
-              onClick={() => dispatch({ type: 'WAKE_UP_TAB', payload: { id: tab.id } })}
+              onClick={() => handleWakeTab(tab.id)}
             >
               点击唤醒
             </button>
           </div>
         )}
+        {isWaking && (
+          <div className="waking-overlay" />
+        )}
         <iframe
           ref={(el) => setIframeRef(tab.id, el)}
-          src={tab.isSleeping ? 'about:blank' : tab.url}
+          src={shouldLoadIframe ? iframeSrc : 'about:blank'}
           title={tab.title}
           onLoad={() => handleIframeLoad(tab.id)}
           className={`tab-iframe ${tab.isLoading ? 'loading' : 'loaded'}`}

@@ -20,6 +20,7 @@ export type TabAction =
   | { type: 'REORDER_TABS'; payload: { fromIndex: number; toIndex: number } }
   | { type: 'SET_LOADING'; payload: { id: string; isLoading: boolean } }
   | { type: 'SET_SLEEPING'; payload: { id: string; isSleeping: boolean } }
+  | { type: 'SLEEP_INACTIVE_TABS' }
   | { type: 'UPDATE_ACTIVITY'; payload: { id: string } }
   | { type: 'WAKE_UP_TAB'; payload: { id: string } };
 
