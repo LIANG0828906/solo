@@ -617,7 +617,7 @@ export function startAuctionChecker(): void {
     if (newOrders.length > 0) {
       console.log(`Auto-created ${newOrders.length} orders for expired auctions`)
     }
-  }, 60000)
+  }, 1000)
 }
 
 export function stopAuctionChecker(): void {
