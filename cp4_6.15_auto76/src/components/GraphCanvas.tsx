@@ -59,16 +59,22 @@ const GraphCanvas: React.FC = () => {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
-  const [editScale, setEditScale] = useState(0);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [cameraAnimating, setCameraAnimating] = useState(false);
   const [originPos, setOriginPos] = useState({ x: 0, y: 0 });
-  const [isClosing, setIsClosing] = useState(false);
+  const [editAnim, setEditAnim] = useState({
+    visible: false,
+    scale: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   const trianglesCacheRef = useRef<Triangle[]>([]);
   const prevNodeIdsRef = useRef<Set<string>>(new Set());
   const prevLinkIdsRef = useRef<Set<string>>(new Set());
+  const prevNodePositionsRef = useRef<string>('');
   const adjacencyMapRef = useRef<Record<string, Set<string>>>({});
+  const draggingNodeIdRef = useRef<string | null>(null);
 
   const { getNodePosition, dragStart, drag, dragEnd } = useForceLayout(nodes, links, size.width, size.height);
 
@@ -93,6 +99,13 @@ const GraphCanvas: React.FC = () => {
     return new Set(links.map(l => l.id));
   }, [links]);
 
+  const nodePositionHash = useMemo(() => {
+    return nodes
+      .map(n => `${n.id}:${n.x ?? 0},${n.y ?? 0}`)
+      .sort()
+      .join('|');
+  }, [nodes]);
+
   const triangles = useMemo<Triangle[]>(() => {
     const nodeIdsChanged =
       currentNodeIds.size !== prevNodeIdsRef.current.size ||
@@ -103,6 +116,7 @@ const GraphCanvas: React.FC = () => {
       [...currentLinkIds].some(id => !prevLinkIdsRef.current.has(id));
 
     if (!nodeIdsChanged && !linkIdsChanged) {
+      prevNodePositionsRef.current = nodePositionHash;
       return trianglesCacheRef.current;
     }
 
@@ -135,9 +149,10 @@ const GraphCanvas: React.FC = () => {
     trianglesCacheRef.current = result;
     prevNodeIdsRef.current = new Set(currentNodeIds);
     prevLinkIdsRef.current = new Set(currentLinkIds);
+    prevNodePositionsRef.current = nodePositionHash;
 
     return result;
-  }, [currentNodeIds, currentLinkIds, nodes, links]);
+  }, [currentNodeIds, currentLinkIds, nodes, links, nodePositionHash]);
 
   const screenToSvg = useCallback((clientX: number, clientY: number) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -151,23 +166,27 @@ const GraphCanvas: React.FC = () => {
   }, []);
 
   const handleNodeMouseDown = (e: React.MouseEvent, node: GraphNode) => {
+    e.preventDefault();
     e.stopPropagation();
     const svgCoords = screenToSvg(e.clientX, e.clientY);
+    draggingNodeIdRef.current = node.id;
     dragStart({ x: svgCoords.x, y: svgCoords.y, dx: 0, dy: 0 }, node.id);
     setDraggingNodeId(node.id);
   };
 
   useEffect(() => {
-    if (!draggingNodeId) return;
-
     const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingNodeIdRef.current) return;
       const svgCoords = screenToSvg(e.clientX, e.clientY);
-      drag({ x: svgCoords.x, y: svgCoords.y, dx: 0, dy: 0 }, draggingNodeId);
+      drag({ x: svgCoords.x, y: svgCoords.y, dx: 0, dy: 0 }, draggingNodeIdRef.current);
     };
 
     const handleMouseUp = (e: MouseEvent) => {
+      if (!draggingNodeIdRef.current) return;
       const svgCoords = screenToSvg(e.clientX, e.clientY);
-      dragEnd({ x: svgCoords.x, y: svgCoords.y, dx: 0, dy: 0 }, draggingNodeId);
+      const nodeId = draggingNodeIdRef.current;
+      draggingNodeIdRef.current = null;
+      dragEnd({ x: svgCoords.x, y: svgCoords.y, dx: 0, dy: 0 }, nodeId);
       setDraggingNodeId(null);
     };
 
@@ -177,7 +196,7 @@ const GraphCanvas: React.FC = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingNodeId, drag, dragEnd, screenToSvg]);
+  }, [drag, dragEnd, screenToSvg]);
 
   const handleNodeClick = (e: React.MouseEvent, node: GraphNode) => {
     e.stopPropagation();
@@ -193,14 +212,25 @@ const GraphCanvas: React.FC = () => {
     } else {
       if (draggingNodeId === null) {
         const rect = e.currentTarget.getBoundingClientRect();
-        setOriginPos({
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
-        });
-        setIsClosing(false);
+        const nodeCenterX = rect.left + rect.width / 2;
+        const nodeCenterY = rect.top + rect.height / 2;
+        const windowCenterX = window.innerWidth / 2;
+        const windowCenterY = window.innerHeight / 2;
+        setOriginPos({ x: nodeCenterX, y: nodeCenterY });
         setEditingNode(node);
+        setEditAnim({
+          visible: true,
+          scale: 0,
+          offsetX: nodeCenterX - windowCenterX,
+          offsetY: nodeCenterY - windowCenterY,
+        });
         requestAnimationFrame(() => {
-          setEditScale(1);
+          setEditAnim({
+            visible: true,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+          });
         });
         selectNode(node.id);
       }
@@ -259,11 +289,22 @@ const GraphCanvas: React.FC = () => {
   };
 
   const closeEditPanel = () => {
-    setIsClosing(true);
-    setEditScale(0);
+    const windowCenterX = window.innerWidth / 2;
+    const windowCenterY = window.innerHeight / 2;
+    setEditAnim({
+      visible: true,
+      scale: 0,
+      offsetX: originPos.x - windowCenterX,
+      offsetY: originPos.y - windowCenterY,
+    });
     setTimeout(() => {
       setEditingNode(null);
-      setIsClosing(false);
+      setEditAnim({
+        visible: false,
+        scale: 0,
+        offsetX: 0,
+        offsetY: 0,
+      });
     }, 300);
   };
 
@@ -533,16 +574,16 @@ const GraphCanvas: React.FC = () => {
         </div>
       )}
 
-      {editingNode && (
+      {editingNode && editAnim.visible && (
         <div
           style={{
             position: 'fixed',
-            left: originPos.x + ((typeof window !== 'undefined' ? window.innerWidth : 800) / 2 - originPos.x) * editScale,
-            top: originPos.y + ((typeof window !== 'undefined' ? window.innerHeight : 600) / 2 - originPos.y) * editScale,
-            transform: `translate(-50%, -50%) scale(${editScale})`,
+            left: '50%',
+            top: '50%',
+            transform: `translate(calc(-50% + ${editAnim.offsetX}px), calc(-50% + ${editAnim.offsetY}px)) scale(${editAnim.scale})`,
             transformOrigin: 'center center',
-            transition: 'left 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), top 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 300ms ease',
-            opacity: editScale,
+            transition: 'transform 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 200ms ease',
+            opacity: editAnim.scale,
             zIndex: 9999,
             backgroundColor: '#161b22',
             border: '1px solid rgba(255,255,255,0.1)',

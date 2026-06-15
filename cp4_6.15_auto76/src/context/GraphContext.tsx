@@ -322,8 +322,8 @@ export function GraphProvider({ children }: { children: ReactNode }) {
       })),
       links: state.links.map(link => ({
         id: link.id,
-        source: link.source,
-        target: link.target,
+        source: String(link.source),
+        target: String(link.target),
         description: link.description,
       })),
       clusters: state.clusters.map(cluster => ({
