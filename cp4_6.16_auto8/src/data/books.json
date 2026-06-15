@@ -1,0 +1,112 @@
+[
+  {
+    "id": "book-001",
+    "title": "百年孤独",
+    "author": "加西亚·马尔克斯",
+    "price": 58.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20book%20cover%20magical%20realism%20novel%20butterflies%20yellow%20warm%20tones%20elegant%20illustration&image_size=portrait_4_3",
+    "description": "《百年孤独》是哥伦比亚作家加西亚·马尔克斯的代表作，也是拉丁美洲魔幻现实主义文学的代表作，被誉为'再现拉丁美洲历史社会图景的鸿篇巨著'。描写了布恩迪亚家族七代人的传奇故事，以及加勒比海沿岸小镇马孔多的百年兴衰，反映了拉丁美洲一个世纪以来风云变幻的历史。作品融入神话传说、民间故事、宗教典故等神秘因素，巧妙地糅合了现实与虚幻，展现出一个瑰丽的想象世界，成为20世纪最重要的经典文学巨著之一。",
+    "category": "小说",
+    "stock": 45,
+    "publishDate": "2024-03-15"
+  },
+  {
+    "id": "book-002",
+    "title": "三体",
+    "author": "刘慈欣",
+    "price": 68.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sci-fi%20book%20cover%20three%20body%20problem%20cosmic%20space%20stars%20dark%20blue%20purple%20planets%20futuristic&image_size=portrait_4_3",
+    "description": "文化大革命如火如荼进行的同时，军方探寻外星文明的绝秘计划'红岸工程'取得了突破性进展。但在按下发射键的那一刻，历经劫难的叶文洁没有意识到，她彻底改变了人类的命运。地球文明向宇宙发出的第一声啼鸣，以太阳为中心，以光速向宇宙深处飞驰……四光年外，'三体文明'正遭受母星无法生存的困境。人类的命运，从这一刻开始改变。",
+    "category": "小说",
+    "stock": 82,
+    "publishDate": "2024-06-20"
+  },
+  {
+    "id": "book-003",
+    "title": "算法导论",
+    "author": "Thomas H. Cormen",
+    "price": 128.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=computer%20science%20book%20cover%20algorithms%20flow%20charts%20binary%20code%20green%20matrix%20academic%20technical&image_size=portrait_4_3",
+    "description": "《算法导论》一书深入浅出，全面地介绍了计算机算法。对每一个算法的分析既富于直觉，又严谨透彻，适合作为高等院校计算机及相关专业的本科生和研究生的教材，也适合软件开发人员、工程技术人员、计算机教学科研人员参考。全书共分8部分，主要内容包括：算法在计算中的作用、概率分析和随机算法、分治策略、动态规划、贪心算法、摊还分析，以及图论中的基本算法等。",
+    "category": "科技",
+    "stock": 23,
+    "publishDate": "2024-01-10"
+  },
+  {
+    "id": "book-004",
+    "title": "深度学习",
+    "author": "Ian Goodfellow",
+    "price": 168.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=deep%20learning%20AI%20book%20cover%20neural%20network%20nodes%20connections%20cyan%20orange%20gradient%20modern&image_size=portrait_4_3",
+    "description": "《深度学习》由全球知名的三位专家Ian Goodfellow、Yoshua Bengio和Aaron Courville撰写，是深度学习领域奠基性的经典教材。全书内容包括：应用数学与机器学习基础，深度网络的实践方法，深度学习研究界的前沿性问题。这本书可以帮助读者深入了解深度学习的理论与实践，是AI从业者必备的案头书。",
+    "category": "科技",
+    "stock": 17,
+    "publishDate": "2024-08-05"
+  },
+  {
+    "id": "book-005",
+    "title": "艺术的故事",
+    "author": "贡布里希",
+    "price": 98.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=art%20history%20book%20cover%20renaissance%20painting%20golden%20frame%20warm%20sepia%20tones%20classic%20elegant&image_size=portrait_4_3",
+    "description": "《艺术的故事》是有关艺术的书籍中最著名、最流行的著作之一。它概括地叙述了从最早的洞窟绘画到当今的实验艺术的发展历程，以阐明艺术史是'各种传统不断迂回、不断改变的历史，每一件作品在这历史中都既回顾过去又导向未来'。全书语言优美，图文并茂，是介绍艺术发展史的入门佳作。",
+    "category": "艺术",
+    "stock": 31,
+    "publishDate": "2024-02-28"
+  },
+  {
+    "id": "book-006",
+    "title": "梵高手稿",
+    "author": "文森特·梵高",
+    "price": 88.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=van%20gogh%20sketchbook%20cover%20sunflowers%20swirls%20post%20impressionism%20yellow%20blue%20artistic%20hand%20drawn&image_size=portrait_4_3",
+    "description": "《梵高手稿》收录了梵高一生中最重要的书信和素描手稿，让读者以最亲密的方式走进这位天才艺术家的内心世界。从荷兰的早期绘画生涯到法国南部的阳光岁月，从忧郁的自画像到炽热的向日葵，每一幅素描、每一段文字都展现了梵高对艺术的执着与热爱。这不仅是一本艺术画册，更是一段触动人心的生命独白。",
+    "category": "艺术",
+    "stock": 56,
+    "publishDate": "2024-05-12"
+  },
+  {
+    "id": "book-007",
+    "title": "中国居民膳食指南",
+    "author": "中国营养学会",
+    "price": 48.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=healthy%20eating%20cookbook%20cover%20fresh%20vegetables%20fruits%20balance%20green%20red%20natural%20food%20pyramid&image_size=portrait_4_3",
+    "description": "《中国居民膳食指南》是中国营养学会组织近百位专家，根据我国居民的膳食结构特点和营养需求修订的科学饮食指导书。全书结合最新营养学研究成果，针对不同人群给出了具体的膳食建议，包括食物种类、摄入量、烹饪方式等，帮助读者建立健康的饮食习惯，预防慢性病，提升生活质量。",
+    "category": "生活",
+    "stock": 94,
+    "publishDate": "2024-07-18"
+  },
+  {
+    "id": "book-008",
+    "title": "小家，越住越大",
+    "author": "逯薇",
+    "price": 55.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=home%20organization%20book%20cover%20minimalist%20interior%20design%20storage%20warm%20beige%20wood%20cozy%20modern%20apartment&image_size=portrait_4_3",
+    "description": "房价高、面积小、东西多、收纳少——这是绝大多数中国家庭居住的痛点。如何在有限的空间里，打造一个既美观又实用的家？逯薇老师结合自己15年的住宅设计经验，用手绘插画和实景照片，从收纳、功能、颜值三大维度出发，教你从零开始打造理想的家。无论你是租房一族还是有房一族，都能从中找到适合自己的居住方案。",
+    "category": "生活",
+    "stock": 67,
+    "publishDate": "2024-04-22"
+  },
+  {
+    "id": "book-009",
+    "title": "活着",
+    "author": "余华",
+    "price": 35.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=chinese%20literary%20novel%20book%20cover%20rural%20landscape%20ox%20farmer%20earth%20tones%20sepia%20melancholic%20field&image_size=portrait_4_3",
+    "description": "《活着》是作家余华的代表作之一，讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如命，终于赌光了家业一贫如洗。他的父亲被他活活气死，母亲则在穷困中患了重病，福贵前去求药，却在途中被国民党抓去当壮丁。经过几番波折回到家里，才知道母亲早已去世，妻子家珍含辛茹苦地养大两个儿女。此后更加悲惨的命运一次又一次降临到福贵身上……",
+    "category": "小说",
+    "stock": 78,
+    "publishDate": "2024-09-30"
+  },
+  {
+    "id": "book-010",
+    "title": "人间草木",
+    "author": "汪曾祺",
+    "price": 32.00,
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=chinese%20essay%20book%20cover%20flowers%20plants%20botanical%20illustration%20ink%20painting%20style%20soft%20pastel%20elegant&image_size=portrait_4_3",
+    "description": "《人间草木》是汪曾祺先生的散文集，收录了他描写草木虫鱼、山川风物、文化美食的经典篇目。他用淡而有味的笔触，记录了生活中那些容易被忽略的美好。窗外的一草一木，盘中的一粥一饭，在他的笔下都充满了生趣。读汪曾祺的文字，如同听一位睿智的老者闲话家常，让人心生欢喜，感受到生活的诗意。",
+    "category": "生活",
+    "stock": 100,
+    "publishDate": "2024-10-08"
+  }
+]

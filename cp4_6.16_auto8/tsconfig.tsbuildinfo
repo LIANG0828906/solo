@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/bookcard.tsx","./src/components/cartdrawer.tsx","./src/components/navbar.tsx","./src/hooks/useripple.ts","./src/pages/bookdetail.tsx","./src/pages/booklist.tsx","./src/store/booksstore.ts","./src/types/index.ts"],"version":"5.8.3"}

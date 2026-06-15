@@ -1,0 +1,231 @@
+.layout {
+  display: flex;
+  flex: 1;
+  padding: 24px;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  position: sticky;
+  top: calc(var(--navbar-height) + 24px);
+  align-self: flex-start;
+  height: fit-content;
+  background: var(--color-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.sidebarTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-wood-dark);
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--color-wood-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterGroup {
+  margin-bottom: 24px;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-light);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.categoryBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.categoryBtn {
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-text-light);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.categoryBtn:hover {
+  background: var(--color-wood-pale);
+  color: var(--color-wood-dark);
+}
+
+.categoryBtn.active {
+  background: var(--color-wood);
+  color: var(--color-cream);
+  border-color: var(--color-wood-dark);
+  box-shadow: 0 2px 8px rgba(139, 90, 43, 0.3);
+}
+
+.categoryCount {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.categoryBtn.active .categoryCount {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sortSelect {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-cream);
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  font-family: inherit;
+}
+
+.sortSelect:focus {
+  outline: none;
+  border-color: var(--color-wood);
+}
+
+.mobileFilterBtn {
+  display: none;
+  position: fixed;
+  top: calc(var(--navbar-height) + 12px);
+  left: 12px;
+  z-index: 80;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-wood);
+  color: var(--color-cream);
+  box-shadow: var(--shadow-card);
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileSidebarOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: 90;
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+.title {
+  font-size: 28px;
+  color: var(--color-wood-dark);
+}
+
+.bookCount {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-paper);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    padding: 16px;
+    gap: 16px;
+  }
+  .sidebar {
+    width: 160px;
+    padding: 18px 14px;
+  }
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobileFilterBtn {
+    display: flex;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 80%;
+    max-width: 320px;
+    height: 100vh;
+    z-index: 95;
+    border-radius: 0;
+    border: none;
+    padding: calc(var(--navbar-height) + 20px) 20px 20px;
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+    overflow-y: auto;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .mobileSidebarOverlay.show {
+    display: block;
+  }
+  .layout {
+    padding: 70px 16px 16px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
