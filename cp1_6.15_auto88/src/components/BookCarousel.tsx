@@ -67,7 +67,7 @@ export default function BookCarousel({ books, onBorrow, onReturn, onViewHistory 
       )}
       <div
         className="carousel-track"
-        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        style={{ transform: `translateX(-${currentIndex * (100 / books.length)}%)` }}
       >
         {books.map((book) => (
           <div className="carousel-slide" key={book.id}>
