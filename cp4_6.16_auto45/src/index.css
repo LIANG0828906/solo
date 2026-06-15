@@ -199,7 +199,7 @@ select {
 }
 
 .animate-particle {
-  animation: particleFly 0.8s ease-out forwards;
+  animation: particleFly 0.9s ease-out forwards;
 }
 
 .animate-celebrate {

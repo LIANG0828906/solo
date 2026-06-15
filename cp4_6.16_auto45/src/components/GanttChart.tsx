@@ -374,11 +374,12 @@ const GanttChart: React.FC = () => {
 
           {tooltip && (
             <div
-              className="absolute glass pointer-events-none z-10 p-3 rounded-xl animate-scale-in"
+              className="absolute glass pointer-events-none z-10 p-3 animate-scale-in"
               style={{
                 left: Math.min(tooltip.x + 16, containerSize.width - 220),
                 top: Math.max(tooltip.y - 100, 80),
                 minWidth: 200,
+                borderRadius: 16,
                 boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
               }}
             >

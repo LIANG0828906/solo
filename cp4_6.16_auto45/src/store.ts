@@ -16,14 +16,20 @@ function isValidIdea(obj: unknown): obj is Idea {
   const o = obj as Record<string, unknown>;
   return (
     typeof o.id === 'string' &&
+    o.id.length > 0 &&
     typeof o.title === 'string' &&
+    o.title.length > 0 &&
     typeof o.description === 'string' &&
     typeof o.creativeScore === 'number' &&
+    o.creativeScore >= 0 &&
+    o.creativeScore <= 5 &&
     typeof o.status === 'string' &&
     VALID_STATUSES.includes(o.status as IdeaStatus) &&
     Array.isArray(o.milestones) &&
     typeof o.createdAt === 'string' &&
-    typeof o.updatedAt === 'string'
+    o.createdAt.length > 0 &&
+    typeof o.updatedAt === 'string' &&
+    o.updatedAt.length > 0
   );
 }
 
@@ -32,11 +38,17 @@ function isValidMilestone(obj: unknown): obj is Milestone {
   const o = obj as Record<string, unknown>;
   return (
     typeof o.id === 'string' &&
+    o.id.length > 0 &&
     typeof o.name === 'string' &&
+    o.name.length > 0 &&
     typeof o.description === 'string' &&
     typeof o.startDate === 'string' &&
+    o.startDate.length > 0 &&
     typeof o.endDate === 'string' &&
+    o.endDate.length > 0 &&
     typeof o.progress === 'number' &&
+    o.progress >= 0 &&
+    o.progress <= 100 &&
     typeof o.priority === 'string' &&
     VALID_PRIORITIES.includes(o.priority as string) &&
     typeof o.completed === 'boolean'
@@ -44,61 +56,102 @@ function isValidMilestone(obj: unknown): obj is Milestone {
 }
 
 function migrateIdeas(rawIdeas: unknown[]): { validIdeas: Idea[]; migrated: boolean } {
-  let migrated = false;
+  let migrated = rawIdeas.length > 0;
   const validIdeas: Idea[] = [];
   const now = new Date().toISOString();
+  const todayISO = now.split('T')[0];
+  const nextWeekISO = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   for (let i = 0; i < rawIdeas.length; i++) {
     const raw = rawIdeas[i];
-    if (!isValidIdea(raw)) {
+    if (!raw || typeof raw !== 'object') {
       migrated = true;
       continue;
     }
 
-    let idea = { ...raw };
+    const o = raw as Record<string, unknown>;
 
-    const validMilestones: Milestone[] = [];
-    for (let j = 0; j < idea.milestones.length; j++) {
-      const m = idea.milestones[j];
-      if (isValidMilestone(m)) {
-        let milestone = { ...m };
-        if (milestone.progress < 0) {
-          milestone.progress = 0;
-          migrated = true;
-        }
-        if (milestone.progress > 100) {
-          milestone.progress = 100;
-          migrated = true;
-        }
-        if (milestone.completed && milestone.progress < 100) {
-          milestone.progress = 100;
-          migrated = true;
-        }
-        validMilestones.push(milestone);
-      } else {
+    const idea: Idea = {
+      id: typeof o.id === 'string' && o.id.length > 0 ? o.id : uuidv4(),
+      title: typeof o.title === 'string' && o.title.length > 0 ? o.title : '未命名灵感',
+      description: typeof o.description === 'string' ? o.description : '',
+      creativeScore: typeof o.creativeScore === 'number' ? Math.max(0, Math.min(5, Math.floor(o.creativeScore))) : 0,
+      status:
+        typeof o.status === 'string' && VALID_STATUSES.includes(o.status as IdeaStatus)
+          ? (o.status as IdeaStatus)
+          : 'fresh',
+      milestones: [],
+      createdAt: typeof o.createdAt === 'string' ? o.createdAt : now,
+      updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : now,
+    };
+
+    if (o.id !== idea.id) migrated = true;
+    if (o.title !== idea.title) migrated = true;
+    if (o.description !== idea.description) migrated = true;
+    if (o.creativeScore !== idea.creativeScore) migrated = true;
+    if (o.status !== idea.status) migrated = true;
+    if (!o.createdAt) migrated = true;
+    if (!o.updatedAt) migrated = true;
+
+    const rawMilestones = Array.isArray(o.milestones) ? o.milestones : [];
+    for (let j = 0; j < rawMilestones.length; j++) {
+      const mRaw = rawMilestones[j];
+      if (!mRaw || typeof mRaw !== 'object') {
         migrated = true;
+        continue;
       }
-    }
-    if (validMilestones.length !== idea.milestones.length) {
-      idea.milestones = validMilestones;
-    }
+      const m = mRaw as Record<string, unknown>;
 
-    if (idea.creativeScore < 0) {
-      idea.creativeScore = 0;
-      migrated = true;
-    }
-    if (idea.creativeScore > 5) {
-      idea.creativeScore = 5;
-      migrated = true;
+      let startDate = typeof m.startDate === 'string' ? m.startDate : todayISO;
+      let endDate = typeof m.endDate === 'string' ? m.endDate : nextWeekISO;
+      try {
+        if (new Date(startDate).toString() === 'Invalid Date') startDate = todayISO;
+        if (new Date(endDate).toString() === 'Invalid Date') endDate = nextWeekISO;
+        if (new Date(startDate) > new Date(endDate)) {
+          endDate = startDate;
+          migrated = true;
+        }
+      } catch {
+        startDate = todayISO;
+        endDate = nextWeekISO;
+      }
+
+      let progress = typeof m.progress === 'number' ? Math.floor(m.progress) : 0;
+      if (progress < 0) progress = 0;
+      if (progress > 100) progress = 100;
+
+      const completed = typeof m.completed === 'boolean' ? m.completed : progress >= 100;
+      if (completed && progress < 100) progress = 100;
+
+      const priority =
+        typeof m.priority === 'string' && VALID_PRIORITIES.includes(m.priority)
+          ? (m.priority as 'high' | 'medium' | 'low')
+          : 'medium';
+
+      const milestone: Milestone = {
+        id: typeof m.id === 'string' && m.id.length > 0 ? m.id : uuidv4(),
+        name: typeof m.name === 'string' && m.name.length > 0 ? m.name : `里程碑 ${j + 1}`,
+        description: typeof m.description === 'string' ? m.description : '',
+        startDate,
+        endDate,
+        progress,
+        priority,
+        completed,
+      };
+
+      if (m.id !== milestone.id) migrated = true;
+      if (m.name !== milestone.name) migrated = true;
+      if (m.description !== milestone.description) migrated = true;
+      if (m.startDate !== milestone.startDate) migrated = true;
+      if (m.endDate !== milestone.endDate) migrated = true;
+      if (m.progress !== milestone.progress) migrated = true;
+      if (m.priority !== milestone.priority) migrated = true;
+      if (m.completed !== milestone.completed) migrated = true;
+
+      idea.milestones.push(milestone);
     }
 
     idea.milestones = idea.milestones.slice(0, MAX_MILESTONES);
-
-    if (!idea.updatedAt) {
-      idea.updatedAt = idea.createdAt || now;
-      migrated = true;
-    }
-
     validIdeas.push(idea);
   }
 

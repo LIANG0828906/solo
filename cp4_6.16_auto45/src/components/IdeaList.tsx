@@ -19,7 +19,19 @@ interface Particle {
   ty: number;
   x: number;
   y: number;
+  size: number;
+  color: string;
 }
+
+const PARTICLE_COLORS = [
+  '#fbbf24',
+  '#f59e0b',
+  '#ef4444',
+  '#ec4899',
+  '#f472b6',
+  '#a78bfa',
+  '#8b5cf6',
+];
 
 const StarRating: React.FC<{
   score: number;
@@ -38,23 +50,26 @@ const StarRating: React.FC<{
     const clickX = event.clientX - (rect?.left || 0);
     const clickY = event.clientY - (rect?.top || 0);
 
+    const particleCount = 12 + Math.floor(Math.random() * 5);
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
-      const distance = 30 + Math.random() * 40;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.6 - 0.3;
+      const distance = 28 + Math.random() * 52;
       newParticles.push({
         id: particleIdRef.current++,
         tx: Math.cos(angle) * distance,
         ty: Math.sin(angle) * distance,
         x: clickX,
         y: clickY,
+        size: 4 + Math.random() * 6,
+        color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
       });
     }
 
     setParticles((prev) => [...prev, ...newParticles]);
     setTimeout(() => {
       setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)));
-    }, 800);
+    }, 900);
   };
 
   return (
@@ -91,11 +106,11 @@ const StarRating: React.FC<{
               top: p.y,
               '--tx': `${p.tx}px`,
               '--ty': `${p.ty}px`,
-              width: 6,
-              height: 6,
+              width: p.size,
+              height: p.size,
               borderRadius: '50%',
-              background: 'var(--color-star)',
-              boxShadow: '0 0 8px var(--color-star)',
+              background: p.color,
+              boxShadow: `0 0 ${Math.ceil(p.size * 1.8)}px ${p.color}`,
             } as React.CSSProperties
           }
         />
