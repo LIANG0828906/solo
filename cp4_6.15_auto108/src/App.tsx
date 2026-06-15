@@ -1,7 +1,7 @@
-import { useRecipeStore } from '../store/recipeStore';
-import RecipeCard from './RecipeCard';
-import RecipeDetail from './RecipeDetail';
-import SearchBar from './SearchBar';
+import { useRecipeStore } from './store/recipeStore';
+import RecipeCard from './components/RecipeCard';
+import RecipeDetail from './components/RecipeDetail';
+import SearchBar from './components/SearchBar';
 
 export default function App() {
   const recipes = useRecipeStore((s) => s.recipes);
