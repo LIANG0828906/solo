@@ -10,6 +10,7 @@ export function createChart(
 ): () => void {
   const width = container.clientWidth;
   const height = container.clientHeight;
+  const chartId = config.id.replace(/-/g, '');
 
   container.innerHTML = '';
 
@@ -26,7 +27,7 @@ export function createChart(
 
   switch (config.type) {
     case 'line':
-      renderLineChart(g, config, innerWidth, innerHeight, onDataPointClick);
+      renderLineChart(g, config, innerWidth, innerHeight, chartId, onDataPointClick);
       break;
     case 'bar':
       renderBarChart(g, config, innerWidth, innerHeight, onDataPointClick);
@@ -61,6 +62,7 @@ function renderLineChart(
   config: ChartConfig,
   width: number,
   height: number,
+  chartId: string,
   onDataPointClick?: (index: number) => void
 ) {
   const data = config.data;
@@ -106,10 +108,11 @@ function renderLineChart(
       .text(config.yAxisLabel);
   }
 
+  const gradientId = `line-gradient-${chartId}`;
   const gradient = g
     .append('defs')
     .append('linearGradient')
-    .attr('id', 'line-gradient')
+    .attr('id', gradientId)
     .attr('x1', '0%')
     .attr('y1', '0%')
     .attr('x2', '0%')
@@ -133,7 +136,7 @@ function renderLineChart(
 
   g.append('path')
     .datum(data)
-    .attr('fill', 'url(#line-gradient)')
+    .attr('fill', `url(#${gradientId})`)
     .attr('d', area);
 
   g.append('path')

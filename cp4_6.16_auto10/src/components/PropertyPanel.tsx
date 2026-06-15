@@ -62,7 +62,7 @@ export default function PropertyPanel() {
     { id: 'interactions', label: '交互', icon: MousePointer2 },
   ] as const;
 
-  if (!selectedSlide) {
+  if (!selectedSlide || !selectedSlideId) {
     return (
       <div className="h-full flex flex-col bg-white">
         <div className="p-4 border-b border-gray-100">
@@ -74,6 +74,8 @@ export default function PropertyPanel() {
       </div>
     );
   }
+
+  const currentSlideId = selectedSlideId;
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -109,7 +111,7 @@ export default function PropertyPanel() {
                 type="text"
                 value={selectedSlide.chartConfig.title}
                 onChange={(e) =>
-                  updateChartConfig(selectedSlideId, { title: e.target.value })
+                  updateChartConfig(currentSlideId, { title: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E]"
               />
@@ -123,7 +125,7 @@ export default function PropertyPanel() {
                 type="text"
                 value={selectedSlide.chartConfig.xAxisLabel}
                 onChange={(e) =>
-                  updateChartConfig(selectedSlideId, { xAxisLabel: e.target.value })
+                  updateChartConfig(currentSlideId, { xAxisLabel: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E]"
               />
@@ -137,7 +139,7 @@ export default function PropertyPanel() {
                 type="text"
                 value={selectedSlide.chartConfig.yAxisLabel}
                 onChange={(e) =>
-                  updateChartConfig(selectedSlideId, { yAxisLabel: e.target.value })
+                  updateChartConfig(currentSlideId, { yAxisLabel: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E]"
               />
@@ -194,7 +196,7 @@ export default function PropertyPanel() {
               <label className="text-sm font-medium text-gray-700">显示图例</label>
               <button
                 onClick={() =>
-                  updateChartConfig(selectedSlideId, {
+                  updateChartConfig(currentSlideId, {
                     showLegend: !selectedSlide.chartConfig.showLegend,
                   })
                 }
@@ -222,7 +224,7 @@ export default function PropertyPanel() {
                 {(['fade', 'slide'] as const).map((t) => (
                   <button
                     key={t}
-                    onClick={() => updateSlide(selectedSlideId, { transition: t })}
+                    onClick={() => updateSlide(currentSlideId, { transition: t })}
                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                       selectedSlide.transition === t
                         ? 'bg-[#1A237E] text-white'
@@ -248,7 +250,7 @@ export default function PropertyPanel() {
                       onChange={(e) => {
                         const newColors = [...selectedSlide.chartConfig.colors];
                         newColors[i] = e.target.value;
-                        updateChartConfig(selectedSlideId, { colors: newColors });
+                        updateChartConfig(currentSlideId, { colors: newColors });
                       }}
                       className="w-8 h-8 rounded cursor-pointer border-0 p-0"
                     />
@@ -268,7 +270,7 @@ export default function PropertyPanel() {
               <textarea
                 value={selectedSlide.notes}
                 onChange={(e) =>
-                  updateSlide(selectedSlideId, { notes: e.target.value })
+                  updateSlide(currentSlideId, { notes: e.target.value })
                 }
                 placeholder="支持 Markdown 格式\n\n## 标题\n\n**粗体** *斜体*\n\n- 列表项"
                 className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E] resize-none"
@@ -346,4 +348,47 @@ export default function PropertyPanel() {
                   <input
                     type="text"
                     value={interaction.eventName}
-                    onChange
+                    onChange={(e) =>
+                      handleUpdateInteraction(index, { eventName: e.target.value })
+                    }
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    描述
+                  </label>
+                  <textarea
+                    value={interaction.description}
+                    onChange={(e) =>
+                      handleUpdateInteraction(index, { description: e.target.value })
+                    }
+                    placeholder="点击该数据点时显示的描述内容"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E] resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    图片URL
+                  </label>
+                  <input
+                    type="text"
+                    value={interaction.imageUrl}
+                    onChange={(e) =>
+                      handleUpdateInteraction(index, { imageUrl: e.target.value })
+                    }
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1A237E]/30 focus:border-[#1A237E]"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
