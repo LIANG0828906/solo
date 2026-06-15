@@ -194,6 +194,17 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return () => clearInterval(interval);
   }, [roomId]);
 
+  const handleWordCloudItemClick = useCallback(async (item: [string, number]) => {
+    const word = item[0];
+    if (!roomId || blockedWords.includes(word)) return;
+
+    try {
+      await blockWord(roomId, word);
+    } catch (err) {
+      console.error('Failed to block word:', err);
+    }
+  }, [roomId, blockedWords]);
+
   useEffect(() => {
     if (!wordcloudCanvasRef.current || wordCloudData.length === 0) return;
 
@@ -221,46 +232,16 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       backgroundColor: '#ffffff',
       drawOutOfBound: false,
       shrinkToFit: true,
+      click: (item: [string, number]) => {
+        handleWordCloudItemClick(item);
+      },
     });
 
     const renderTime = performance.now() - startTime;
     if (renderTime > 500) {
       console.warn(`Word cloud render took ${renderTime}ms, exceeding 500ms target`);
     }
-  }, [wordCloudData]);
-
-  const handleWordCloudClick = useCallback(async (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!wordcloudCanvasRef.current || !roomId) return;
-
-    const canvas = wordcloudCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const imageData = ctx.getImageData(x * dpr, y * dpr, 1, 1);
-    const [r, g, b] = imageData.data;
-    
-    if (r === 255 && g === 255 && b === 255) return;
-
-    const clickedItem = wordCloudData.find(([word]) => {
-      return blockedWords.includes(word) ? false : true;
-    });
-
-    if (clickedItem) {
-      const word = clickedItem[0];
-      if (!blockedWords.includes(word)) {
-        try {
-          await blockWord(roomId, word);
-        } catch (err) {
-          console.error('Failed to block word:', err);
-        }
-      }
-    }
-  }, [roomId, wordCloudData, blockedWords]);
+  }, [wordCloudData, handleWordCloudItemClick]);
 
   const handleAddOption = useCallback(() => {
     if (pollOptions.length < 6) {
@@ -371,7 +352,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           <canvas
             ref={wordcloudCanvasRef}
             className="wordcloud-canvas"
-            onClick={handleWordCloudClick}
           />
         </div>
         

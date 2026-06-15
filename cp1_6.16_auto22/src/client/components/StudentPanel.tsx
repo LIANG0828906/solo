@@ -20,8 +20,31 @@ const StudentPanel: React.FC<StudentPanelProps> = ({
   danmakuStream,
   onBack
 }) => {
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [danmakuInput, setDanmakuInput] = useState('');
+  const [hasVoted, setHasVoted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeDanmaku, setActiveDanmaku] = useState<Array<{
+    id: string;
+    text: string;
+    style: { color: string; backgroundColor: string };
+    top: number;
+    duration: number;
+    createdAt: number;
+  }>>([]);
 
+  const danmakuContainerRef = useRef<HTMLDivElement>(null);
+  const danmakuIdCounter = useRef(0);
   const lastDanmakuIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setActiveDanmaku(prev => prev.filter(d => now - d.createdAt < d.duration * 1000 + 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const latestDanmaku = danmakuStream[danmakuStream.length - 1];
@@ -47,30 +70,6 @@ const StudentPanel: React.FC<StudentPanelProps> = ({
       setActiveDanmaku(prev => [...prev, newDanmaku]);
     }
   }, [danmakuStream, blockedWords]);
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [danmakuInput, setDanmakuInput] = useState('');
-  const [hasVoted, setHasVoted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeDanmaku, setActiveDanmaku] = useState<Array<{
-    id: string;
-    text: string;
-    style: { color: string; backgroundColor: string };
-    top: number;
-    duration: number;
-    createdAt: number;
-  }>>([]);
-
-  const danmakuContainerRef = useRef<HTMLDivElement>(null);
-  const danmakuIdCounter = useRef(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setActiveDanmaku(prev => prev.filter(d => now - d.createdAt < d.duration * 1000 + 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     setSelectedOptions([]);
@@ -182,7 +181,6 @@ const StudentPanel: React.FC<StudentPanelProps> = ({
               color: danmaku.style.color,
               backgroundColor: danmaku.style.backgroundColor,
               top: `${danmaku.top}%`,
-              left: '-100%',
               animationDuration: `${danmaku.duration}s`,
             }}
           >

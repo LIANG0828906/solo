@@ -13,6 +13,8 @@ declare module 'wordcloud' {
     shrinkToFit?: boolean;
     minSize?: number;
     maxSize?: number;
+    click?: (item: [string, number], dimension: { x: number; y: number; w: number; h: number }, event: MouseEvent) => void;
+    hover?: (item: [string, number], dimension: { x: number; y: number; w: number; h: number }, event: MouseEvent) => void;
   }
 
   function WordCloud(

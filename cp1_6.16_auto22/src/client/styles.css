@@ -268,16 +268,20 @@ body {
   font-size: 16px;
   font-weight: 500;
   pointer-events: none;
+  left: 0;
+  transform: translateX(-100%);
   animation: danmaku-move linear forwards;
-  will-change: transform;
+  will-change: transform, left;
 }
 
 @keyframes danmaku-move {
   from {
-    transform: translateX(0);
+    left: 0;
+    transform: translateX(-100%);
   }
   to {
-    transform: translateX(calc(100vw + 100%));
+    left: 100%;
+    transform: translateX(100%);
   }
 }
 
