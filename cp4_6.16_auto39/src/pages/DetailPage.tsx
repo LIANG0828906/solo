@@ -13,9 +13,12 @@ export function DetailPage() {
     currentPlaylist,
     currentSongs,
     currentComments,
+    totalCommentCount,
+    displayedCommentCount,
     loadPlaylist,
     loadSongs,
     loadComments,
+    loadMoreComments,
     addComment,
     deletePlaylist,
   } = usePlaylistStore();
@@ -27,6 +30,7 @@ export function DetailPage() {
   const [commentContent, setCommentContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const commentsEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -35,6 +39,14 @@ export function DetailPage() {
       loadComments(id);
     }
   }, [id, loadPlaylist, loadSongs, loadComments]);
+
+  const hasMoreComments = displayedCommentCount < totalCommentCount;
+
+  const handleLoadMoreComments = useCallback(() => {
+    if (id && hasMoreComments) {
+      loadMoreComments(id);
+    }
+  }, [id, hasMoreComments, loadMoreComments]);
 
   const goToNext = useCallback(() => {
     if (currentSongs.length === 0) return;
@@ -86,6 +98,9 @@ export function DetailPage() {
     try {
       await addComment(id, nickname.trim(), commentContent.trim());
       setCommentContent('');
+      setTimeout(() => {
+        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } finally {
       setIsSubmitting(false);
     }
@@ -175,7 +190,7 @@ export function DetailPage() {
         </section>
 
         <section className="comments-section">
-          <h2>评论区 ({currentComments.length})</h2>
+          <h2>评论区 ({totalCommentCount})</h2>
 
           <form className="comment-form" onSubmit={handleSubmitComment}>
             <input
@@ -207,22 +222,32 @@ export function DetailPage() {
                 <p>还没有评论，来说点什么吧~</p>
               </div>
             ) : (
-              currentComments.map((comment: Comment) => (
-                <div key={comment.id} className="comment-item">
-                  <div className="comment-avatar">
-                    {comment.nickname.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="comment-content">
-                    <div className="comment-header">
-                      <span className="comment-nickname">{comment.nickname}</span>
-                      <span className="comment-time">
-                        {format(comment.createdAt, 'yyyy-MM-dd HH:mm', { locale: zhCN })}
-                      </span>
+              <>
+                {currentComments.map((comment: Comment) => (
+                  <div key={comment.id} className="comment-item">
+                    <div className="comment-avatar">
+                      {comment.nickname.charAt(0).toUpperCase()}
                     </div>
-                    <p className="comment-text">{comment.content}</p>
+                    <div className="comment-content">
+                      <div className="comment-header">
+                        <span className="comment-nickname">{comment.nickname}</span>
+                        <span className="comment-time">
+                          {format(comment.createdAt, 'yyyy-MM-dd HH:mm', { locale: zhCN })}
+                        </span>
+                      </div>
+                      <p className="comment-text">{comment.content}</p>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                <div ref={commentsEndRef} />
+                {hasMoreComments && (
+                  <div className="load-more-comments">
+                    <button className="btn-load-more" onClick={handleLoadMoreComments}>
+                      加载更多评论 ({totalCommentCount - displayedCommentCount} 条未读)
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>

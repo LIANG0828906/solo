@@ -37,6 +37,17 @@ export interface MockSong {
 
 export type SortType = 'createdAt' | 'songCount';
 
+export interface PlaylistSummary {
+  id: string;
+  title: string;
+  coverColor: string;
+  description: string;
+  creator: string;
+  songCount: number;
+  commentCount: number;
+  updatedAt: number;
+}
+
 export interface PlaylistWithStats extends Playlist {
   songCount: number;
   commentCount: number;

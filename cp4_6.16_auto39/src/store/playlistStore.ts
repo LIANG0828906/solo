@@ -1,19 +1,24 @@
 import { create } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
-import type { Playlist, Song, Comment, SortType } from '../types';
+import type { Playlist, Song, Comment, SortType, PlaylistSummary } from '../types';
+
+const COMMENTS_PAGE_SIZE = 20;
 
 interface PlaylistState {
   playlists: Playlist[];
   currentPlaylist: Playlist | null;
   currentSongs: Song[];
   currentComments: Comment[];
+  totalCommentCount: number;
+  displayedCommentCount: number;
   isLoading: boolean;
 
   loadPlaylists: () => Promise<void>;
   loadPlaylist: (id: string) => Promise<void>;
   loadSongs: (playlistId: string) => Promise<void>;
-  loadComments: (playlistId: string) => Promise<void>;
+  loadComments: (playlistId: string, limit?: number) => Promise<void>;
+  loadMoreComments: (playlistId: string) => Promise<void>;
 
   createPlaylist: (data: Omit<Playlist, 'id' | 'createdAt' | 'updatedAt' | 'creator' | 'songCount' | 'commentCount'>) => Promise<string>;
   updatePlaylist: (id: string, data: Partial<Playlist>) => Promise<void>;
@@ -26,7 +31,7 @@ interface PlaylistState {
 
   addComment: (playlistId: string, nickname: string, content: string) => Promise<void>;
 
-  getFilteredPlaylists: (sortBy: SortType, searchQuery?: string) => Playlist[];
+  getFilteredPlaylistSummaries: (sortBy: SortType, searchQuery?: string) => PlaylistSummary[];
 }
 
 export const usePlaylistStore = create<PlaylistState>((set, get) => ({
@@ -34,6 +39,8 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   currentPlaylist: null,
   currentSongs: [],
   currentComments: [],
+  totalCommentCount: 0,
+  displayedCommentCount: 0,
   isLoading: false,
 
   loadPlaylists: async () => {
@@ -71,13 +78,35 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     }
   },
 
-  loadComments: async (playlistId: string) => {
+  loadComments: async (playlistId: string, limit: number = COMMENTS_PAGE_SIZE) => {
     try {
       const comments = await idbGet<Comment[]>(`comments:${playlistId}`) || [];
       const sortedComments = [...comments].sort((a, b) => a.createdAt - b.createdAt);
-      set({ currentComments: sortedComments });
+      const displayed = sortedComments.slice(0, limit);
+      set({
+        currentComments: displayed,
+        totalCommentCount: sortedComments.length,
+        displayedCommentCount: displayed.length,
+      });
     } catch (error) {
       console.error('Failed to load comments:', error);
+    }
+  },
+
+  loadMoreComments: async (playlistId: string) => {
+    try {
+      const { displayedCommentCount } = get();
+      const nextLimit = displayedCommentCount + COMMENTS_PAGE_SIZE;
+      const comments = await idbGet<Comment[]>(`comments:${playlistId}`) || [];
+      const sortedComments = [...comments].sort((a, b) => a.createdAt - b.createdAt);
+      const displayed = sortedComments.slice(0, nextLimit);
+      set({
+        currentComments: displayed,
+        totalCommentCount: sortedComments.length,
+        displayedCommentCount: displayed.length,
+      });
+    } catch (error) {
+      console.error('Failed to load more comments:', error);
     }
   },
 
@@ -99,7 +128,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     await idbSet(`songs:${newPlaylist.id}`, []);
     await idbSet(`comments:${newPlaylist.id}`, []);
 
-    set({ playlists: updatedPlaylists, currentPlaylist: newPlaylist, currentSongs: [], currentComments: [] });
+    set({ playlists: updatedPlaylists, currentPlaylist: newPlaylist, currentSongs: [], currentComments: [], totalCommentCount: 0, displayedCommentCount: 0 });
     return newPlaylist.id;
   },
 
@@ -129,7 +158,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     set({ playlists: updatedPlaylists });
     const currentPlaylist = get().currentPlaylist;
     if (currentPlaylist && currentPlaylist.id === id) {
-      set({ currentPlaylist: null, currentSongs: [], currentComments: [] });
+      set({ currentPlaylist: null, currentSongs: [], currentComments: [], totalCommentCount: 0, displayedCommentCount: 0 });
     }
   },
 
@@ -231,7 +260,13 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const sortedComments = [...updatedComments].sort((a, b) => a.createdAt - b.createdAt);
     await idbSet(`comments:${playlistId}`, updatedComments);
 
-    set({ currentComments: sortedComments });
+    const { displayedCommentCount } = get();
+    const displayed = sortedComments.slice(0, Math.max(displayedCommentCount + 1, COMMENTS_PAGE_SIZE));
+    set({
+      currentComments: displayed,
+      totalCommentCount: sortedComments.length,
+      displayedCommentCount: displayed.length,
+    });
 
     const playlists = await idbGet<Playlist[]>('playlists') || [];
     const updatedPlaylists = playlists.map(p =>
@@ -248,7 +283,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     }
   },
 
-  getFilteredPlaylists: (sortBy, searchQuery = '') => {
+  getFilteredPlaylistSummaries: (sortBy, searchQuery = '') => {
     const { playlists } = get();
 
     let filtered = playlists;
@@ -259,13 +294,23 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       );
     }
 
-    const sorted = [...filtered];
+    const summaries: PlaylistSummary[] = filtered.map(p => ({
+      id: p.id,
+      title: p.title,
+      coverColor: p.coverColor,
+      description: p.description,
+      creator: p.creator,
+      songCount: p.songCount,
+      commentCount: p.commentCount,
+      updatedAt: p.updatedAt,
+    }));
+
     if (sortBy === 'createdAt') {
-      sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+      summaries.sort((a, b) => b.updatedAt - a.updatedAt);
     } else if (sortBy === 'songCount') {
-      sorted.sort((a, b) => b.songCount - a.songCount);
+      summaries.sort((a, b) => b.songCount - a.songCount);
     }
 
-    return sorted;
+    return summaries;
   },
 }));

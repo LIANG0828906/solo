@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { usePlaylistStore } from '../store/playlistStore';
 import { mockSongs, presetColors } from '../data/mockSongs';
 import { useDebounce } from '../hooks/useDebounce';

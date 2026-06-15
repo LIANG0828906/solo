@@ -7,7 +7,7 @@ import type { SortType } from '../types';
 import './HomePage.css';
 
 export function HomePage() {
-  const { playlists, loadPlaylists, isLoading, getFilteredPlaylists } = usePlaylistStore();
+  const { playlists, loadPlaylists, isLoading, getFilteredPlaylistSummaries } = usePlaylistStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortType>('createdAt');
 
@@ -18,8 +18,8 @@ export function HomePage() {
   }, [loadPlaylists]);
 
   const filteredPlaylists = useMemo(() => {
-    return getFilteredPlaylists(sortBy, debouncedSearch);
-  }, [playlists, sortBy, debouncedSearch, getFilteredPlaylists]);
+    return getFilteredPlaylistSummaries(sortBy, debouncedSearch);
+  }, [playlists, sortBy, debouncedSearch, getFilteredPlaylistSummaries]);
 
   return (
     <div className="home-page">

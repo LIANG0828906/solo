@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import type { Playlist } from '../types';
+import type { PlaylistSummary } from '../types';
 import './PlaylistCard.css';
 
 interface PlaylistCardProps {
-  playlist: Playlist;
+  playlist: PlaylistSummary;
 }
 
 export function PlaylistCard({ playlist }: PlaylistCardProps) {
