@@ -65,6 +65,33 @@ const useSketchStore = create<SketchStore>((set, get) => ({
   },
 
   /**
+   * 切换图层锁定状态
+   * 数据流向: 用户点击锁定图标 → 调用此方法 → 找到对应图层 → 切换locked属性
+   */
+  toggleLayerLock: (layerId: string) => {
+    const { layerGroups } = get();
+    const updatedGroups = layerGroups.map((group) => ({
+      ...group,
+      layers: group.layers.map((layer) =>
+        layer.id === layerId ? { ...layer, locked: !layer.locked } : layer
+      ),
+    }));
+    set({ layerGroups: updatedGroups });
+  },
+
+  /**
+   * 切换分组展开/折叠状态
+   * 数据流向: 用户点击分组标题 → 调用此方法 → 更新对应group的expanded属性
+   */
+  toggleGroupExpanded: (groupId: string) => {
+    const { layerGroups } = get();
+    const updatedGroups = layerGroups.map((group) =>
+      group.id === groupId ? { ...group, expanded: !group.expanded } : group
+    );
+    set({ layerGroups: updatedGroups });
+  },
+
+  /**
    * 更新图层属性
    * 数据流向: 用户在属性面板修改 → 调用此方法 → 找到对应图层合并更新 → 画布和图层面板重新渲染
    */
@@ -92,6 +119,70 @@ const useSketchStore = create<SketchStore>((set, get) => ({
     set({
       layerGroups: updatedGroups,
       selectedLayerId: selectedLayerId === layerId ? null : selectedLayerId,
+    });
+  },
+
+  /**
+   * 批量删除图层
+   */
+  deleteLayers: (layerIds: string[]) => {
+    const { layerGroups, selectedLayerId } = get();
+    const idSet = new Set(layerIds);
+    const updatedGroups = layerGroups.map((group) => ({
+      ...group,
+      layers: group.layers.filter((layer) => !idSet.has(layer.id)),
+    }));
+    set({
+      layerGroups: updatedGroups,
+      selectedLayerId: idSet.has(selectedLayerId!) ? null : selectedLayerId,
+    });
+  },
+
+  /**
+   * 合并选中图层
+   * 将多个图层合并为一个新图层，放入第一个选中图层所在的分组
+   */
+  mergeLayers: (layerIds: string[], newLayerId: string, newLayerName: string) => {
+    const { layerGroups, selectedLayerId } = get();
+    if (layerIds.length < 2) return;
+
+    const idSet = new Set(layerIds);
+    let mergedLayer: Layer | null = null;
+    let targetGroupId: string | null = null;
+    let targetIndex = 0;
+
+    const groupsAfterCollect = layerGroups.map((group) => {
+      const foundLayers = group.layers.filter((l) => idSet.has(l.id));
+      if (foundLayers.length > 0 && !mergedLayer) {
+        const firstLayer = foundLayers[0];
+        targetGroupId = group.id;
+        targetIndex = group.layers.findIndex((l) => l.id === firstLayer.id);
+        mergedLayer = {
+          ...firstLayer,
+          id: newLayerId,
+          name: newLayerName,
+        };
+      }
+      return {
+        ...group,
+        layers: group.layers.filter((l) => !idSet.has(l.id)),
+      };
+    });
+
+    if (!mergedLayer || !targetGroupId) return;
+
+    const updatedGroups = groupsAfterCollect.map((group) => {
+      if (group.id === targetGroupId) {
+        const newLayers = [...group.layers];
+        newLayers.splice(targetIndex, 0, mergedLayer!);
+        return { ...group, layers: newLayers };
+      }
+      return group;
+    });
+
+    set({
+      layerGroups: updatedGroups,
+      selectedLayerId: idSet.has(selectedLayerId!) ? newLayerId : selectedLayerId,
     });
   },
 

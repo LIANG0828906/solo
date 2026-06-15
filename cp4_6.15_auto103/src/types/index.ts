@@ -54,8 +54,12 @@ export interface SketchActions {
   addLayerGroups: (groups: LayerGroup[]) => void;
   selectLayer: (layerId: string | null) => void;
   toggleLayerVisibility: (layerId: string) => void;
+  toggleLayerLock: (layerId: string) => void;
+  toggleGroupExpanded: (groupId: string) => void;
   updateLayer: (layerId: string, updates: Partial<Layer>) => void;
   deleteLayer: (layerId: string) => void;
+  deleteLayers: (layerIds: string[]) => void;
+  mergeLayers: (layerIds: string[], newLayerId: string, newLayerName: string) => void;
   reorderLayer: (layerId: string, targetIndex: number, targetGroupId: string) => void;
   setProcessing: (isProcessing: boolean) => void;
   setExporting: (isExporting: boolean) => void;

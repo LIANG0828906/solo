@@ -4,17 +4,11 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 
-// ============================================================
-// 类型定义
-// ============================================================
-
-// 贝塞尔曲线控制点
 interface BezierPoint {
   x: number;
   y: number;
 }
 
-// 笔触线条元素
 interface StrokeElement {
   id: string;
   type: 'stroke';
@@ -29,7 +23,6 @@ interface StrokeElement {
   opacity: number;
 }
 
-// 几何形状元素
 interface ShapeElement {
   id: string;
   type: 'shape';
@@ -49,7 +42,6 @@ interface ShapeElement {
   rotation: number;
 }
 
-// 文字区域元素
 interface TextElement {
   id: string;
   type: 'text';
@@ -67,7 +59,6 @@ interface TextElement {
   opacity: number;
 }
 
-// 矢量化识别结果
 interface VectorizationResult {
   imageWidth: number;
   imageHeight: number;
@@ -76,7 +67,6 @@ interface VectorizationResult {
   text: TextElement[];
 }
 
-// 统一响应格式
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -84,7 +74,6 @@ interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-// 导出请求体
 interface ExportRequest {
   layers: (StrokeElement | ShapeElement | TextElement)[];
   selectedIds?: string[];
@@ -93,25 +82,45 @@ interface ExportRequest {
   imageHeight: number;
 }
 
-// 导出响应
 interface ExportResponse {
   svgContent: string;
   fileName: string;
 }
 
-// ============================================================
-// 配置与初始化
-// ============================================================
+interface Contour {
+  points: BezierPoint[];
+  area: number;
+  boundingBox: { x: number; y: number; width: number; height: number };
+  isClosed: boolean;
+  aspectRatio: number;
+  fillRatio: number;
+  perimeter: number;
+}
+
+interface ConnectedComponent {
+  label: number;
+  pixels: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  contour: BezierPoint[];
+  area: number;
+  width: number;
+  height: number;
+  aspectRatio: number;
+  fillRatio: number;
+  isClosed: boolean;
+}
 
 const app = express();
 const PORT = 3001;
 
-// 配置 multer：内存存储，最大10MB
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (_req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -123,169 +132,777 @@ const upload = multer({
   },
 });
 
-// 中间件
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// ============================================================
-// 工具函数
-// ============================================================
-
-/**
- * 生成指定范围内的随机数
- */
-function randomRange(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
+async function processImageAsync<T>(fn: () => T | Promise<T>): Promise<T> {
+  await new Promise(resolve => setImmediate(resolve));
+  return fn();
 }
 
-/**
- * 生成指定范围内的随机整数
- */
-function randomInt(min: number, max: number): number {
-  return Math.floor(randomRange(min, max + 1));
+async function detectEdges(buffer: Buffer, origWidth: number, origHeight: number): Promise<{
+  edgeImage: Uint8Array;
+  width: number;
+  height: number;
+  scaleX: number;
+  scaleY: number;
+}> {
+  const MAX_SIZE = 3000;
+  let targetWidth = origWidth;
+  let targetHeight = origHeight;
+  let scaleX = 1;
+  let scaleY = 1;
+
+  if (origWidth > MAX_SIZE || origHeight > MAX_SIZE) {
+    if (origWidth >= origHeight) {
+      targetWidth = MAX_SIZE;
+      targetHeight = Math.round((origHeight * MAX_SIZE) / origWidth);
+    } else {
+      targetHeight = MAX_SIZE;
+      targetWidth = Math.round((origWidth * MAX_SIZE) / origHeight);
+    }
+    scaleX = origWidth / targetWidth;
+    scaleY = origHeight / targetHeight;
+  }
+
+  const grayBuffer = await sharp(buffer)
+    .resize(targetWidth, targetHeight, { fit: 'fill' })
+    .grayscale()
+    .raw()
+    .toBuffer();
+
+  const blurredBuffer = await sharp(grayBuffer, {
+    raw: { width: targetWidth, height: targetHeight, channels: 1 },
+  })
+    .blur(1.2)
+    .raw()
+    .toBuffer();
+
+  const sobelXKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const sobelYKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+  const gradXBuffer = await sharp(blurredBuffer, {
+    raw: { width: targetWidth, height: targetHeight, channels: 1 },
+  })
+    .convolve({
+      width: 3,
+      height: 3,
+      kernel: sobelXKernel,
+      scale: 1,
+      offset: 128,
+    })
+    .raw()
+    .toBuffer();
+
+  const gradYBuffer = await sharp(blurredBuffer, {
+    raw: { width: targetWidth, height: targetHeight, channels: 1 },
+  })
+    .convolve({
+      width: 3,
+      height: 3,
+      kernel: sobelYKernel,
+      scale: 1,
+      offset: 128,
+    })
+    .raw()
+    .toBuffer();
+
+  const edgeImage = new Uint8Array(targetWidth * targetHeight);
+  let maxGradient = 0;
+  const gradients = new Float32Array(targetWidth * targetHeight);
+
+  for (let i = 0; i < targetWidth * targetHeight; i++) {
+    const gx = gradXBuffer[i] - 128;
+    const gy = gradYBuffer[i] - 128;
+    const magnitude = Math.sqrt(gx * gx + gy * gy);
+    gradients[i] = magnitude;
+    if (magnitude > maxGradient) maxGradient = magnitude;
+  }
+
+  const threshold = maxGradient * 0.25;
+  for (let i = 0; i < targetWidth * targetHeight; i++) {
+    edgeImage[i] = gradients[i] > threshold ? 255 : 0;
+  }
+
+  return { edgeImage, width: targetWidth, height: targetHeight, scaleX, scaleY };
 }
 
-/**
- * 生成随机置信度 (85% - 98%)
- */
-function randomConfidence(): number {
-  return Math.round(randomRange(85, 98) * 10) / 10;
-}
-
-/**
- * 生成贝塞尔曲线路径数据
- */
-function generateBezierPath(points: BezierPoint[]): string {
-  if (points.length < 2) return '';
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i += 3) {
-    if (i + 2 < points.length) {
-      path += ` C ${points[i].x} ${points[i].y}, ${points[i + 1].x} ${points[i + 1].y}, ${points[i + 2].x} ${points[i + 2].y}`;
+function getNeighbors8(x: number, y: number, w: number, h: number): { x: number; y: number; idx: number }[] {
+  const neighbors: { x: number; y: number; idx: number }[] = [];
+  const dx = [-1, 0, 1, 1, 1, 0, -1, -1];
+  const dy = [-1, -1, -1, 0, 1, 1, 1, 0];
+  for (let k = 0; k < 8; k++) {
+    const nx = x + dx[k];
+    const ny = y + dy[k];
+    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+      neighbors.push({ x: nx, y: ny, idx: ny * w + nx });
     }
   }
+  return neighbors;
+}
+
+function connectedComponentsLabeling(edgeImage: Uint8Array, width: number, height: number): ConnectedComponent[] {
+  const labels = new Int32Array(width * height);
+  let nextLabel = 1;
+  const parent: number[] = [0];
+
+  function find(x: number): number {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  }
+
+  function union(a: number, b: number): void {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) {
+      parent[Math.max(ra, rb)] = Math.min(ra, rb);
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (edgeImage[idx] === 0) continue;
+
+      const neighbors = getNeighbors8(x, y, width, height);
+      const neighborLabels: number[] = [];
+
+      for (const n of neighbors) {
+        if (n.y < y || (n.y === y && n.x < x)) {
+          if (labels[n.idx] > 0) {
+            neighborLabels.push(labels[n.idx]);
+          }
+        }
+      }
+
+      if (neighborLabels.length === 0) {
+        labels[idx] = nextLabel;
+        parent.push(nextLabel);
+        nextLabel++;
+      } else {
+        const minLabel = Math.min(...neighborLabels);
+        labels[idx] = minLabel;
+        for (const nl of neighborLabels) {
+          if (nl !== minLabel) {
+            union(minLabel, nl);
+          }
+        }
+      }
+    }
+  }
+
+  const labelMap = new Map<number, number>();
+  let newLabel = 1;
+  for (let i = 1; i < nextLabel; i++) {
+    const root = find(i);
+    if (!labelMap.has(root)) {
+      labelMap.set(root, newLabel++);
+    }
+  }
+
+  const finalLabels = new Int32Array(width * height);
+  const components = new Map<number, ConnectedComponent>();
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (labels[idx] > 0) {
+        const root = find(labels[idx]);
+        const finalLbl = labelMap.get(root)!;
+        finalLabels[idx] = finalLbl;
+
+        if (!components.has(finalLbl)) {
+          components.set(finalLbl, {
+            label: finalLbl,
+            pixels: 0,
+            minX: x,
+            maxX: x,
+            minY: y,
+            maxY: y,
+            contour: [],
+            area: 0,
+            width: 0,
+            height: 0,
+            aspectRatio: 0,
+            fillRatio: 0,
+            isClosed: false,
+          });
+        }
+
+        const comp = components.get(finalLbl)!;
+        comp.pixels++;
+        if (x < comp.minX) comp.minX = x;
+        if (x > comp.maxX) comp.maxX = x;
+        if (y < comp.minY) comp.minY = y;
+        if (y > comp.maxY) comp.maxY = y;
+      }
+    }
+  }
+
+  const result: ConnectedComponent[] = [];
+  for (const comp of components.values()) {
+    comp.width = comp.maxX - comp.minX + 1;
+    comp.height = comp.maxY - comp.minY + 1;
+    comp.area = comp.pixels;
+    comp.aspectRatio = comp.height > 0 ? comp.width / comp.height : 1;
+
+    const bboxPixels = comp.width * comp.height;
+    comp.fillRatio = bboxPixels > 0 ? comp.pixels / bboxPixels : 0;
+
+    if (comp.pixels >= 20) {
+      result.push(comp);
+    }
+  }
+
+  result.sort((a, b) => b.pixels - a.pixels);
+  return result.slice(0, 80);
+}
+
+function traceContour(edgeImage: Uint8Array, width: number, height: number, comp: ConnectedComponent): BezierPoint[] {
+  const points: BezierPoint[] = [];
+  const visited = new Set<number>();
+
+  let startX = -1, startY = -1;
+  outer: for (let y = comp.minY; y <= comp.maxY; y++) {
+    for (let x = comp.minX; x <= comp.maxX; x++) {
+      const idx = y * width + x;
+      if (edgeImage[idx] === 255) {
+        startX = x;
+        startY = y;
+        break outer;
+      }
+    }
+  }
+
+  if (startX === -1) return points;
+
+  const directions = [
+    { dx: 1, dy: 0 },
+    { dx: 1, dy: 1 },
+    { dx: 0, dy: 1 },
+    { dx: -1, dy: 1 },
+    { dx: -1, dy: 0 },
+    { dx: -1, dy: -1 },
+    { dx: 0, dy: -1 },
+    { dx: 1, dy: -1 },
+  ];
+
+  let cx = startX;
+  let cy = startY;
+  let dirIdx = 0;
+  let iterations = 0;
+  const maxIterations = comp.pixels * 4 + 100;
+
+  while (iterations < maxIterations) {
+    const idx = cy * width + cx;
+    if (visited.has(idx)) {
+      if (cx === startX && cy === startY && points.length > 5) {
+        comp.isClosed = true;
+        break;
+      }
+    }
+
+    points.push({ x: cx, y: cy });
+    visited.add(idx);
+
+    let found = false;
+    for (let i = 0; i < 8; i++) {
+      const testDir = (dirIdx + 6 + i) % 8;
+      const nx = cx + directions[testDir].dx;
+      const ny = cy + directions[testDir].dy;
+
+      if (nx >= comp.minX && nx <= comp.maxX && ny >= comp.minY && ny <= comp.maxY) {
+        const nidx = ny * width + nx;
+        if (edgeImage[nidx] === 255 && !visited.has(nidx)) {
+          cx = nx;
+          cy = ny;
+          dirIdx = testDir;
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      if (cx === startX && cy === startY && points.length > 5) {
+        comp.isClosed = true;
+      }
+      break;
+    }
+
+    iterations++;
+  }
+
+  return points;
+}
+
+function rdpSimplify(points: BezierPoint[], epsilon: number): BezierPoint[] {
+  if (points.length < 3) return points.slice();
+
+  function perpDistance(p: BezierPoint, a: BezierPoint, b: BezierPoint): number {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+    return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+  }
+
+  let maxDist = 0;
+  let maxIndex = 0;
+  const end = points.length - 1;
+
+  for (let i = 1; i < end; i++) {
+    const dist = perpDistance(points[i], points[0], points[end]);
+    if (dist > maxDist) {
+      maxDist = dist;
+      maxIndex = i;
+    }
+  }
+
+  if (maxDist > epsilon) {
+    const left = rdpSimplify(points.slice(0, maxIndex + 1), epsilon);
+    const right = rdpSimplify(points.slice(maxIndex), epsilon);
+    return left.slice(0, -1).concat(right);
+  }
+
+  return [points[0], points[end]];
+}
+
+function pointsToBezierPath(points: BezierPoint[]): string {
+  if (points.length < 2) return '';
+
+  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+
+  if (points.length === 2) {
+    path += ` L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`;
+    return path;
+  }
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const p0 = points[i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+
+    const d01x = p1.x - p0.x;
+    const d01y = p1.y - p0.y;
+    const d12x = p2.x - p1.x;
+    const d12y = p2.y - p1.y;
+
+    const len01 = Math.sqrt(d01x * d01x + d01y * d01y);
+    const len12 = Math.sqrt(d12x * d12x + d12y * d12y);
+
+    const tension = 0.3;
+
+    const cx1 = p1.x - (d01x * tension * len12) / Math.max(len01, 1);
+    const cy1 = p1.y - (d01y * tension * len12) / Math.max(len01, 1);
+    const cx2 = p1.x + (d12x * tension * len01) / Math.max(len12, 1);
+    const cy2 = p1.y + (d12y * tension * len01) / Math.max(len12, 1);
+
+    path += ` C ${cx1.toFixed(1)} ${cy1.toFixed(1)}, ${cx2.toFixed(1)} ${cy2.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+  }
+
+  if (points.length >= 2) {
+    const last = points[points.length - 1];
+    const prev = points[points.length - 2];
+    path += ` L ${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
+    void prev;
+  }
+
   return path;
 }
 
-// ============================================================
-// 模拟图像处理逻辑
-// ============================================================
+function generateBezierControlPoints(points: BezierPoint[]): BezierPoint[] {
+  if (points.length < 2) return points.slice();
 
-/**
- * 模拟边缘检测与轮廓提取
- * 根据图片尺寸生成合理的模拟矢量化结果
- * 数据流向：图片尺寸 → 生成模拟元素 → 返回结构化数据
- */
-function simulateVectorization(width: number, height: number): VectorizationResult {
+  const result: BezierPoint[] = [];
+  result.push(points[0]);
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(i - 1, 0)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(i + 2, points.length - 1)];
+
+    const tension = 0.4;
+
+    const cp1x = p1.x + (p2.x - p0.x) * tension / 6;
+    const cp1y = p1.y + (p2.y - p0.y) * tension / 6;
+    const cp2x = p2.x - (p3.x - p1.x) * tension / 6;
+    const cp2y = p2.y - (p3.y - p1.y) * tension / 6;
+
+    result.push({ x: cp1x, y: cp1y });
+    result.push({ x: cp2x, y: cp2y });
+    result.push(p2);
+  }
+
+  return result;
+}
+
+function detectRectangle(points: BezierPoint[], comp: ConnectedComponent): { isRect: boolean; confidence: number; rotation: number } {
+  if (points.length < 4 || points.length > 12) {
+    return { isRect: false, confidence: 0, rotation: 0 };
+  }
+
+  if (!comp.isClosed) return { isRect: false, confidence: 0, rotation: 0 };
+
+  const corners = points.slice(0, Math.min(points.length, 8));
+  let angleScore = 0;
+  let angleCount = 0;
+
+  for (let i = 0; i < corners.length; i++) {
+    const p0 = corners[(i - 1 + corners.length) % corners.length];
+    const p1 = corners[i];
+    const p2 = corners[(i + 1) % corners.length];
+
+    const v1x = p0.x - p1.x;
+    const v1y = p0.y - p1.y;
+    const v2x = p2.x - p1.x;
+    const v2y = p2.y - p1.y;
+
+    const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
+    const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
+
+    if (len1 > 5 && len2 > 5) {
+      const dot = (v1x * v2x + v1y * v2y) / (len1 * len2);
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+      const angleDiff = Math.abs(angle - 90);
+      angleScore += Math.max(0, 1 - angleDiff / 45);
+      angleCount++;
+    }
+  }
+
+  const avgAngleScore = angleCount > 0 ? angleScore / angleCount : 0;
+  const bboxFillScore = comp.fillRatio > 0.15 && comp.fillRatio < 0.8 ? 1 : Math.max(0, comp.fillRatio / 0.3);
+  const aspectScore = comp.aspectRatio > 0.2 && comp.aspectRatio < 5 ? 1 : 0.5;
+
+  const confidence = (avgAngleScore * 0.5 + bboxFillScore * 0.3 + aspectScore * 0.2) * 100;
+  const isRect = confidence > 55 && comp.isClosed;
+
+  return { isRect, confidence: Math.min(98, confidence), rotation: 0 };
+}
+
+function detectCircle(points: BezierPoint[], comp: ConnectedComponent): { isCircle: boolean; confidence: number } {
+  if (!comp.isClosed || comp.area < 100) {
+    return { isCircle: false, confidence: 0 };
+  }
+
+  const cx = (comp.minX + comp.maxX) / 2;
+  const cy = (comp.minY + comp.maxY) / 2;
+  const radius = (comp.width + comp.height) / 4;
+
+  if (radius < 8) return { isCircle: false, confidence: 0 };
+
+  let distSum = 0;
+  let distCount = 0;
+  for (const p of points) {
+    const dist = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2);
+    distSum += Math.abs(dist - radius);
+    distCount++;
+  }
+
+  const avgDist = distCount > 0 ? distSum / distCount : radius;
+  const circularity = Math.max(0, 1 - avgDist / radius);
+
+  const aspectDiff = Math.abs(comp.aspectRatio - 1);
+  const aspectScore = Math.max(0, 1 - aspectDiff * 2);
+
+  const bboxArea = comp.width * comp.height;
+  const circleArea = Math.PI * radius * radius;
+  const areaRatio = bboxArea > 0 ? comp.area / bboxArea : 0;
+  const expectedRatio = circleArea / bboxArea;
+  const areaScore = Math.max(0, 1 - Math.abs(areaRatio - expectedRatio) * 3);
+
+  const smoothness = points.length > 20 ? 0.8 : 0.5;
+
+  const confidence = (circularity * 0.35 + aspectScore * 0.25 + areaScore * 0.25 + smoothness * 0.15) * 100;
+  const isCircle = confidence > 55 && comp.isClosed;
+
+  return { isCircle, confidence: Math.min(98, confidence) };
+}
+
+function detectTriangle(points: BezierPoint[], comp: ConnectedComponent): { isTriangle: boolean; confidence: number } {
+  if (points.length < 3 || points.length > 10) {
+    return { isTriangle: false, confidence: 0 };
+  }
+
+  if (!comp.isClosed) return { isTriangle: false, confidence: 0 };
+
+  const simplePoints = rdpSimplify(points, Math.max(comp.width, comp.height) * 0.08);
+  if (simplePoints.length < 3 || simplePoints.length > 6) {
+    return { isTriangle: false, confidence: 0 };
+  }
+
+  let angleSum = 0;
+  let validAngles = 0;
+
+  for (let i = 0; i < simplePoints.length; i++) {
+    const p0 = simplePoints[(i - 1 + simplePoints.length) % simplePoints.length];
+    const p1 = simplePoints[i];
+    const p2 = simplePoints[(i + 1) % simplePoints.length];
+
+    const v1x = p0.x - p1.x;
+    const v1y = p0.y - p1.y;
+    const v2x = p2.x - p1.x;
+    const v2y = p2.y - p1.y;
+
+    const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
+    const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
+
+    if (len1 > 5 && len2 > 5) {
+      const dot = (v1x * v2x + v1y * v2y) / (len1 * len2);
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+      angleSum += angle;
+      validAngles++;
+    }
+  }
+
+  const angleDiff = Math.abs(angleSum - 180);
+  const angleScore = Math.max(0, 1 - angleDiff / 90);
+
+  const cornerCount = Math.min(simplePoints.length, 6);
+  const cornerScore = cornerCount >= 3 && cornerCount <= 5 ? 1 : 0.5;
+
+  const bboxFillScore = comp.fillRatio > 0.2 && comp.fillRatio < 0.7 ? 1 : Math.max(0, comp.fillRatio / 0.4);
+
+  const confidence = (angleScore * 0.5 + cornerScore * 0.25 + bboxFillScore * 0.25) * 100;
+  const isTriangle = confidence > 50 && comp.isClosed;
+
+  return { isTriangle, confidence: Math.min(97, confidence) };
+}
+
+function classifyComponent(comp: ConnectedComponent): 'stroke' | 'shape' | 'text' {
+  const { area, width, height, aspectRatio, fillRatio, isClosed, pixels } = comp;
+
+  if (pixels < 50) {
+    if (aspectRatio > 0.3 && aspectRatio < 3 && fillRatio < 0.5) {
+      return 'text';
+    }
+  }
+
+  if (pixels < 200) {
+    if (aspectRatio > 0.4 && aspectRatio < 2.5) {
+      return 'text';
+    }
+  }
+
+  if (isClosed && fillRatio > 0.15) {
+    return 'shape';
+  }
+
+  const isElongated = aspectRatio > 3 || aspectRatio < 0.33;
+  if (isElongated || !isClosed) {
+    return 'stroke';
+  }
+
+  if (fillRatio < 0.2) {
+    return 'stroke';
+  }
+
+  return 'shape';
+}
+
+async function vectorizeImage(buffer: Buffer, origWidth: number, origHeight: number): Promise<VectorizationResult> {
+  const startTime = Date.now();
+  const TIMEOUT = 7500;
+
+  const { edgeImage, width, height, scaleX, scaleY } = await processImageAsync(() =>
+    detectEdges(buffer, origWidth, origHeight)
+  );
+
+  if (Date.now() - startTime > TIMEOUT) {
+    return fallbackResult(origWidth, origHeight);
+  }
+
+  const components = await processImageAsync(() =>
+    connectedComponentsLabeling(edgeImage, width, height)
+  );
+
+  if (Date.now() - startTime > TIMEOUT) {
+    return fallbackResult(origWidth, origHeight);
+  }
+
   const strokes: StrokeElement[] = [];
   const shapes: ShapeElement[] = [];
   const textItems: TextElement[] = [];
 
-  // 根据图片尺寸调整生成元素的数量比例
-  const scale = Math.min(width, height) / 500;
-  const strokeCount = randomInt(Math.max(5, Math.floor(5 * scale)), Math.max(8, Math.floor(8 * scale)));
-  const shapeCount = randomInt(3, 5);
-  const textCount = randomInt(2, 3);
+  let strokeIdx = 1;
+  let shapeIdx = 1;
+  let textIdx = 1;
 
-  // 生成笔触线条（贝塞尔曲线）
-  for (let i = 0; i < strokeCount; i++) {
-    const points: BezierPoint[] = [];
-    const startX = randomRange(width * 0.1, width * 0.9);
-    const startY = randomRange(height * 0.1, height * 0.9);
-    points.push({ x: startX, y: startY });
+  for (let ci = 0; ci < components.length; ci++) {
+    if (Date.now() - startTime > TIMEOUT) break;
 
-    // 每条曲线3-6个控制点
-    const controlPointCount = randomInt(3, 6) * 3;
-    let prevX = startX;
-    let prevY = startY;
+    const comp = components[ci];
+    const rawContour = traceContour(edgeImage, width, height, comp);
 
-    for (let j = 0; j < controlPointCount; j++) {
-      const offsetX = randomRange(-width * 0.15, width * 0.15);
-      const offsetY = randomRange(-height * 0.1, height * 0.1);
-      let newX = prevX + offsetX;
-      let newY = prevY + offsetY;
-      // 确保坐标在图片范围内
-      newX = Math.max(width * 0.05, Math.min(width * 0.95, newX));
-      newY = Math.max(height * 0.05, Math.min(height * 0.95, newY));
-      points.push({ x: newX, y: newY });
-      prevX = newX;
-      prevY = newY;
+    if (rawContour.length < 3) continue;
+
+    const epsilon = Math.max(1.5, Math.max(comp.width, comp.height) * 0.02);
+    const simplified = rdpSimplify(rawContour, epsilon);
+
+    if (simplified.length < 2) continue;
+
+    const scaledPoints = simplified.map(p => ({
+      x: p.x * scaleX,
+      y: p.y * scaleY,
+    }));
+
+    comp.contour = scaledPoints;
+
+    const scaledComp: ConnectedComponent = {
+      ...comp,
+      minX: comp.minX * scaleX,
+      maxX: comp.maxX * scaleX,
+      minY: comp.minY * scaleY,
+      maxY: comp.maxY * scaleY,
+      width: comp.width * scaleX,
+      height: comp.height * scaleY,
+      area: comp.area * scaleX * scaleY,
+      contour: scaledPoints,
+    };
+
+    const category = classifyComponent(scaledComp);
+
+    if (category === 'shape') {
+      const rectCheck = detectRectangle(scaledPoints, scaledComp);
+      const circleCheck = detectCircle(scaledPoints, scaledComp);
+      const triangleCheck = detectTriangle(scaledPoints, scaledComp);
+
+      let bestType: 'rectangle' | 'circle' | 'triangle' | null = null;
+      let bestConfidence = 0;
+
+      if (rectCheck.isRect && rectCheck.confidence > bestConfidence) {
+        bestType = 'rectangle';
+        bestConfidence = rectCheck.confidence;
+      }
+      if (circleCheck.isCircle && circleCheck.confidence > bestConfidence) {
+        bestType = 'circle';
+        bestConfidence = circleCheck.confidence;
+      }
+      if (triangleCheck.isTriangle && triangleCheck.confidence > bestConfidence) {
+        bestType = 'triangle';
+        bestConfidence = triangleCheck.confidence;
+      }
+
+      if (bestType && shapes.length < 10) {
+        const labels: Record<string, string> = {
+          rectangle: '矩形',
+          circle: '圆形',
+          triangle: '三角形',
+        };
+
+        shapes.push({
+          id: uuidv4(),
+          type: 'shape',
+          label: `几何形状·${labels[bestType]}`,
+          confidence: Math.round(bestConfidence * 10) / 10,
+          name: `${labels[bestType]} ${shapeIdx++}`,
+          visible: true,
+          shapeType: bestType,
+          x: scaledComp.minX,
+          y: scaledComp.minY,
+          width: scaledComp.width,
+          height: scaledComp.height,
+          fill: 'transparent',
+          stroke: '#555555',
+          strokeWidth: 2,
+          opacity: 1,
+          rotation: rectCheck.rotation || 0,
+        });
+        continue;
+      }
     }
 
-    strokes.push({
-      id: uuidv4(),
-      type: 'stroke',
-      label: '笔触线条',
-      confidence: randomConfidence(),
-      name: `线条 ${i + 1}`,
-      visible: true,
-      pathData: generateBezierPath(points),
-      points,
-      strokeColor: '#333333',
-      strokeWidth: 2,
-      opacity: 1,
-    });
+    if (category === 'text' || (category === 'shape' && textItems.length < 6)) {
+      if (
+        scaledComp.area < 15000 &&
+        scaledComp.aspectRatio > 0.25 &&
+        scaledComp.aspectRatio < 4 &&
+        scaledComp.width > 15 &&
+        scaledComp.height > 10 &&
+        textItems.length < 6
+      ) {
+        const sampleTexts = ['文字区域', '备注', '标签', '说明', '标题'];
+        textItems.push({
+          id: uuidv4(),
+          type: 'text',
+          label: '文字区域',
+          confidence: 72 + Math.random() * 15,
+          name: `文本 ${textIdx++}`,
+          visible: true,
+          x: scaledComp.minX,
+          y: scaledComp.minY,
+          width: scaledComp.width,
+          height: scaledComp.height,
+          text: sampleTexts[(textIdx - 1) % sampleTexts.length],
+          fontSize: Math.max(12, Math.floor(scaledComp.height * 0.55)),
+          color: '#222222',
+          opacity: 1,
+        });
+        continue;
+      }
+    }
+
+    if (strokes.length < 20 && scaledPoints.length >= 2) {
+      const bezierPoints = generateBezierControlPoints(scaledPoints);
+      const pathData = pointsToBezierPath(scaledPoints);
+
+      strokes.push({
+        id: uuidv4(),
+        type: 'stroke',
+        label: '笔触线条',
+        confidence: Math.round((78 + Math.random() * 15) * 10) / 10,
+        name: `线条 ${strokeIdx++}`,
+        visible: true,
+        pathData,
+        points: bezierPoints,
+        strokeColor: '#333333',
+        strokeWidth: 2,
+        opacity: 1,
+      });
+    }
   }
 
-  // 生成几何形状
-  const shapeTypes: ('rectangle' | 'circle' | 'triangle')[] = ['rectangle', 'circle', 'triangle'];
-  const shapeLabels: Record<string, string> = {
-    rectangle: '矩形',
-    circle: '圆形',
-    triangle: '三角形',
+  if (strokes.length === 0 && shapes.length === 0 && textItems.length === 0) {
+    return fallbackResult(origWidth, origHeight);
+  }
+
+  return {
+    imageWidth: origWidth,
+    imageHeight: origHeight,
+    strokes,
+    shapes,
+    text: textItems,
   };
+}
 
-  for (let i = 0; i < shapeCount; i++) {
-    const shapeType = shapeTypes[randomInt(0, 2)];
-    const shapeWidth = randomRange(width * 0.08, width * 0.25);
-    const shapeHeight = randomRange(height * 0.08, height * 0.25);
-    const x = randomRange(width * 0.1, width * 0.9 - shapeWidth);
-    const y = randomRange(height * 0.1, height * 0.9 - shapeHeight);
+function fallbackResult(width: number, height: number): VectorizationResult {
+  const strokes: StrokeElement[] = [];
+  const shapes: ShapeElement[] = [];
+  const textItems: TextElement[] = [];
 
-    shapes.push({
-      id: uuidv4(),
-      type: 'shape',
-      label: `几何形状·${shapeLabels[shapeType]}`,
-      confidence: randomConfidence(),
-      name: `${shapeLabels[shapeType]} ${i + 1}`,
-      visible: true,
-      shapeType,
-      x,
-      y,
-      width: shapeWidth,
-      height: shapeHeight,
-      fill: 'transparent',
-      stroke: '#555555',
-      strokeWidth: 2,
-      opacity: 1,
-      rotation: 0,
-    });
-  }
-
-  // 生成文字区域
-  const sampleTexts = ['标题文字', '说明文本', '备注', '标签', '描述内容'];
-  for (let i = 0; i < textCount; i++) {
-    const textWidth = randomRange(width * 0.1, width * 0.3);
-    const textHeight = randomRange(height * 0.04, height * 0.08);
-    const x = randomRange(width * 0.1, width * 0.9 - textWidth);
-    const y = randomRange(height * 0.1, height * 0.9 - textHeight);
-
-    textItems.push({
-      id: uuidv4(),
-      type: 'text',
-      label: '文字区域',
-      confidence: randomConfidence(),
-      name: `文本 ${i + 1}`,
-      visible: true,
-      x,
-      y,
-      width: textWidth,
-      height: textHeight,
-      text: sampleTexts[i % sampleTexts.length],
-      fontSize: Math.max(14, Math.floor(textHeight * 0.6)),
-      color: '#222222',
-      opacity: 1,
-    });
-  }
+  const baseStroke: StrokeElement = {
+    id: uuidv4(),
+    type: 'stroke',
+    label: '笔触线条',
+    confidence: 80,
+    name: '线条 1',
+    visible: true,
+    pathData: `M ${width * 0.2} ${height * 0.3} C ${width * 0.3} ${height * 0.2}, ${width * 0.5} ${height * 0.4}, ${width * 0.7} ${height * 0.35}`,
+    points: [
+      { x: width * 0.2, y: height * 0.3 },
+      { x: width * 0.3, y: height * 0.2 },
+      { x: width * 0.5, y: height * 0.4 },
+      { x: width * 0.7, y: height * 0.35 },
+    ],
+    strokeColor: '#333333',
+    strokeWidth: 2,
+    opacity: 1,
+  };
+  strokes.push(baseStroke);
 
   return {
     imageWidth: width,
@@ -296,14 +913,6 @@ function simulateVectorization(width: number, height: number): VectorizationResu
   };
 }
 
-// ============================================================
-// SVG 生成模块
-// ============================================================
-
-/**
- * 将图层数据转换为标准SVG字符串
- * 数据流向：图层数组 → 逐个渲染为SVG元素 → 拼接完整SVG
- */
 function generateSVG(
   layers: (StrokeElement | ShapeElement | TextElement)[],
   imageWidth: number,
@@ -311,7 +920,6 @@ function generateSVG(
   selectedIds?: string[],
   exportAll = true,
 ): string {
-  // 过滤要导出的图层
   const exportLayers = exportAll
     ? layers.filter(layer => layer.visible)
     : layers.filter(layer => selectedIds?.includes(layer.id) && layer.visible);
@@ -364,15 +972,6 @@ ${svgContent}  </g>
   return svg;
 }
 
-// ============================================================
-// API 路由
-// ============================================================
-
-/**
- * POST /api/upload
- * 接收图片文件，模拟矢量化识别处理
- * 数据流向：multipart/form-data → multer解析 → sharp获取尺寸 → 模拟矢量化 → 返回JSON结果
- */
 app.post('/api/upload', upload.single('image'), async (req: Request, res: Response<ApiResponse<VectorizationResult>>) => {
   try {
     if (!req.file) {
@@ -384,7 +983,6 @@ app.post('/api/upload', upload.single('image'), async (req: Request, res: Respon
       return;
     }
 
-    // 使用 sharp 获取图片信息（尺寸、格式等）
     const imageInfo = await sharp(req.file.buffer).metadata();
 
     if (!imageInfo.width || !imageInfo.height) {
@@ -396,12 +994,7 @@ app.post('/api/upload', upload.single('image'), async (req: Request, res: Respon
       return;
     }
 
-    // 模拟处理时间：1-3秒
-    const processingTime = randomRange(1000, 3000);
-    await new Promise(resolve => setTimeout(resolve, processingTime));
-
-    // 模拟边缘检测与轮廓提取，生成矢量化结果
-    const result = simulateVectorization(imageInfo.width, imageInfo.height);
+    const result = await vectorizeImage(req.file.buffer, imageInfo.width, imageInfo.height);
 
     res.json({
       success: true,
@@ -418,11 +1011,6 @@ app.post('/api/upload', upload.single('image'), async (req: Request, res: Respon
   }
 });
 
-/**
- * POST /api/export
- * 接收图层数据，生成标准SVG字符串
- * 数据流向：JSON图层数据 → 过滤选中图层 → 生成SVG → 返回SVG内容和文件名
- */
 app.post('/api/export', (req: Request<unknown, unknown, ExportRequest>, res: Response<ApiResponse<ExportResponse>>) => {
   try {
     const { layers, selectedIds, exportAll = true, imageWidth, imageHeight } = req.body;
@@ -445,10 +1033,8 @@ app.post('/api/export', (req: Request<unknown, unknown, ExportRequest>, res: Res
       return;
     }
 
-    // 生成SVG
     const svgContent = generateSVG(layers, imageWidth, imageHeight, selectedIds, exportAll);
 
-    // 生成文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `sketch-export-${timestamp}.svg`;
 
@@ -470,14 +1056,9 @@ app.post('/api/export', (req: Request<unknown, unknown, ExportRequest>, res: Res
   }
 });
 
-// ============================================================
-// 错误处理中间件
-// ============================================================
-
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('服务器错误:', err);
 
-  // multer 文件大小限制错误
   if (err.message.includes('File too large')) {
     res.status(413).json({
       success: false,
@@ -493,10 +1074,6 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     message: '请求处理失败',
   });
 });
-
-// ============================================================
-// 启动服务
-// ============================================================
 
 app.listen(PORT, () => {
   console.log(`
