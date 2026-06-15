@@ -90,7 +90,9 @@ export class BattleScene extends Phaser.Scene {
 
   private gridSize: number = 60;
 
-  private particleTextureKey: string = 'arrow_particle';
+  private gameOverContainer!: Phaser.GameObjects.Container;
+  private blurFilter!: Phaser.Filters.Blur;
+  private renderTexture!: Phaser.GameObjects.RenderTexture;
 
   constructor() {
     super('BattleScene');
@@ -126,6 +128,9 @@ export class BattleScene extends Phaser.Scene {
     this.pathSegmentLengths = [];
     this.pathTotalLength = 0;
     if (!this.levelConfig) return;
+    if (!this.levelConfig.path || !Array.isArray(this.levelConfig.path) || this.levelConfig.path.length < 2) {
+      this.levelConfig.path = this.getDefaultLevelConfig().path;
+    }
     const path = this.levelConfig.path;
     for (let i = 0; i < path.length - 1; i++) {
       const len = Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y);
@@ -153,8 +158,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.createParticleTexture();
-
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
 
@@ -167,15 +170,6 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(2000, () => {
       this.startNextWave();
     });
-  }
-
-  private createParticleTexture(): void {
-    if (this.textures.exists(this.particleTextureKey)) return;
-    const g = this.make.graphics({});
-    g.fillStyle(0x4a9aff, 1);
-    g.fillRect(0, 0, 4, 4);
-    g.generateTexture(this.particleTextureKey, 4, 4);
-    g.destroy();
   }
 
   update(_time: number, delta: number): void {
@@ -543,7 +537,7 @@ export class BattleScene extends Phaser.Scene {
     const arrowGlow = this.add.rectangle(startX, startY, 18, 5, 0x4a9aff, 0.3).setDepth(49);
     const arrow = this.add.rectangle(startX, startY, 15, 3, 0x4a9aff).setDepth(50);
 
-    const trailEmitter = this.add.particles(startX, startY, this.particleTextureKey, {
+    const trailEmitter = this.add.particles(startX, startY, '', {
       lifespan: 300,
       speed: { min: 10, max: 30 },
       angle: { min: 160, max: 200 },
@@ -923,72 +917,179 @@ export class BattleScene extends Phaser.Scene {
     const existing = document.getElementById('game-over-panel');
     if (existing) existing.remove();
 
-    const w = window.innerWidth;
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
     const panelW = Math.min(500, w * 0.8);
-    const panelH = 400;
+    const panelH = Math.min(400, h * 0.6);
 
-    const panel = document.createElement('div');
-    panel.id = 'game-over-panel';
-    panel.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      transform: translateY(100vh) scale(1.2);
-      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    `;
+    this.renderTexture = this.add.renderTexture(0, 0, w, h);
+    this.renderTexture.setOrigin(0, 0);
+    this.renderTexture.fill(0x000000, 0.4);
+    this.renderTexture.draw(this.children, 0, 0);
+    this.renderTexture.setDepth(1000);
+
+    const blurFX = this.renderTexture.postFX.addBlur(1, 4, 4, 1, 0xffffff, 4);
+    blurFX.active = true;
+
+    const overlay = this.add.rectangle(0, 0, w * 2, h * 2, 0x000000, 0.5)
+      .setOrigin(0, 0).setDepth(1001);
+
+    this.gameOverContainer = this.add.container(w / 2, h + panelH);
+    this.gameOverContainer.setDepth(1002);
+
+    const panelShadow = this.add.graphics();
+    panelShadow.fillStyle(0x000000, 0.4);
+    panelShadow.fillRoundedRect(-panelW / 2 + 3, -panelH / 2 + 3, panelW, panelH, 8);
+    this.gameOverContainer.add(panelShadow);
+
+    const panelBg = this.add.graphics();
+    panelBg.fillStyle(0x1a0a2e, 0.92);
+    panelBg.lineStyle(2, 0x4a7acf, 0.9);
+    panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
+    panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
+    this.gameOverContainer.add(panelBg);
+
+    const panelGlow = this.add.graphics();
+    panelGlow.lineStyle(6, 0x4a7acf, 0.15);
+    panelGlow.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
+    this.gameOverContainer.add(panelGlow);
 
     const titleColor = victory ? '#44ff44' : '#ff4444';
     const titleText = victory ? '🎉 胜利!' : '💀 游戏结束';
 
-    panel.innerHTML = `
-      <div style="
-        width: ${panelW}px; height: ${panelH}px;
-        background: rgba(26, 10, 46, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-        border: 2px solid rgba(74, 122, 207, 0.8); border-radius: 8px;
-        box-shadow: 2px 2px 4px rgba(0,0,0,0.5), 0 0 30px rgba(74,122,207,0.2);
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        position: relative; overflow: hidden;
-      ">
-        <div style="
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(42, 74, 127, 0.08); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-        "></div>
-        <div style="position: relative; z-index: 1; text-align: center;">
-          <h1 style="font-size: 42px; color: ${titleColor}; margin: 0 0 10px; text-shadow: 0 4px 8px rgba(0,0,0,0.5);">
-            ${titleText}
-          </h1>
-          ${isNewHigh ? '<div style="font-size:24px;color:#ffd700;margin-bottom:10px;">🏆 新纪录!</div>' : ''}
-          <div style="font-size:20px;color:#a0c4ff;margin-bottom:5px;">本次得分</div>
-          <div style="font-size:48px;color:#ffd700;font-weight:bold;margin-bottom:15px;">${score.toLocaleString()}</div>
-          <div style="font-size:18px;color:#6a8abf;margin-bottom:5px;">最高纪录</div>
-          <div style="font-size:24px;color:#ffd700;font-weight:bold;margin-bottom:15px;">${highScore.toLocaleString()}</div>
-          <div style="font-size:16px;color:#a0c4ff;margin-bottom:20px;">击杀数: ${this.killCount} | 剩余生命: ${this.health}</div>
-          <button id="btn-back-menu" style="
-            width: 180px; height: 50px; background: #2a4a7f; color: white; border: 2px solid #4a7acf;
-            border-radius: 4px; font-size: 20px; font-weight: bold; cursor: pointer;
-            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            transition: background 0.2s ease;
-          ">返回菜单</button>
-        </div>
-      </div>
-    `;
+    const title = this.add.text(0, -panelH * 0.32, titleText, {
+      fontSize: `${Math.max(28, h * 0.04)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: titleColor, fontStyle: 'bold'
+    }).setOrigin(0.5);
+    title.setShadow(4, 4, '#000000', 0, true, true);
+    this.gameOverContainer.add(title);
 
-    document.body.appendChild(panel);
+    let yOffset = -panelH * 0.18;
 
-    requestAnimationFrame(() => {
-      panel.style.transform = 'translateY(0) scale(1)';
+    if (isNewHigh) {
+      const newHigh = this.add.text(0, yOffset, '🏆 新纪录!', {
+        fontSize: `${Math.max(18, h * 0.022)}px`,
+        fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+        color: '#ffd700', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      this.gameOverContainer.add(newHigh);
+      this.tweens.add({
+        targets: newHigh,
+        scale: { from: 1, to: 1.1 },
+        duration: 500, yoyo: true, repeat: -1
+      });
+      yOffset += panelH * 0.08;
+    }
+
+    const scoreLabel = this.add.text(0, yOffset, '本次得分', {
+      fontSize: `${Math.max(14, h * 0.018)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#a0c4ff'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(scoreLabel);
+    yOffset += panelH * 0.08;
+
+    const scoreValue = this.add.text(0, yOffset, score.toLocaleString(), {
+      fontSize: `${Math.max(32, h * 0.04)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#ffd700', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(scoreValue);
+    yOffset += panelH * 0.08;
+
+    const highLabel = this.add.text(0, yOffset, '最高纪录', {
+      fontSize: `${Math.max(14, h * 0.016)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#6a8abf'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(highLabel);
+    yOffset += panelH * 0.05;
+
+    const highValue = this.add.text(0, yOffset, highScore.toLocaleString(), {
+      fontSize: `${Math.max(18, h * 0.02)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#ffd700', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(highValue);
+    yOffset += panelH * 0.06;
+
+    const statsText = this.add.text(0, yOffset, `击杀数: ${this.killCount} | 剩余生命: ${this.health}`, {
+      fontSize: `${Math.max(12, h * 0.014)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#a0c4ff'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(statsText);
+    yOffset += panelH * 0.08;
+
+    const btnW = Math.max(160, w * 0.15);
+    const btnH = Math.max(40, h * 0.05);
+    const backButton = this.add.rectangle(0, yOffset, btnW, btnH, 0x2a4a7f)
+      .setStrokeStyle(2, 0x4a7acf).setInteractive({ useHandCursor: true });
+    this.gameOverContainer.add(backButton);
+
+    const backText = this.add.text(0, yOffset, '返回菜单', {
+      fontSize: `${Math.max(16, h * 0.018)}px`,
+      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+      color: '#ffffff', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.gameOverContainer.add(backText);
+
+    backButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: backButton,
+        fillColor: 0x3a5aaf,
+        duration: 200, ease: 'Power2.easeOut'
+      });
+    });
+    backButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: backButton,
+        fillColor: 0x2a4a7f,
+        duration: 200, ease: 'Power2.easeOut'
+      });
+    });
+    backButton.on('pointerdown', () => {
+      this.tweens.add({
+        targets: this.gameOverContainer,
+        y: h + panelH,
+        alpha: 0,
+        duration: 300,
+        ease: 'Elastic.easeIn',
+        onComplete: () => {
+          this.renderTexture.destroy();
+          overlay.destroy();
+          this.gameOverContainer.destroy();
+          this.scene.start('MenuScene');
+        }
+      });
     });
 
-    const btn = document.getElementById('btn-back-menu');
-    if (btn) {
-      btn.addEventListener('mouseenter', () => { btn.style.background = '#3a5aaf'; });
-      btn.addEventListener('mouseleave', () => { btn.style.background = '#2a4a7f'; });
-      btn.addEventListener('click', () => {
-        panel.remove();
-        this.scene.start('MenuScene');
-      });
-    }
+    this.gameOverContainer.setScale(1.2);
+    this.gameOverContainer.setAlpha(0);
+
+    this.tweens.add({
+      targets: this.gameOverContainer,
+      y: h / 2,
+      scale: 1,
+      alpha: 1,
+      duration: 400,
+      ease: 'Elastic.easeOut'
+    });
+
+    this.tweens.add({
+      targets: this.renderTexture,
+      alpha: { from: 0.6, to: 1 },
+      duration: 400,
+      ease: 'Power2.easeOut'
+    });
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: { from: 0.3, to: 0.5 },
+      duration: 400,
+      ease: 'Power2.easeOut'
+    });
   }
 
   private getDefaultLevelConfig(): LevelConfig {

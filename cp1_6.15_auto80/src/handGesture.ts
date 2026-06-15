@@ -11,17 +11,28 @@ export interface GestureData {
 
 type GestureCallback = (data: GestureData) => void;
 type Landmark = { x: number; y: number; z: number };
+type FingerKey = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
+
+interface FingerCache {
+  tipToMcp: number;
+  pipToMcp: number;
+  extended: boolean;
+}
 
 export class HandGestureRecognition {
   private videoElement: HTMLVideoElement;
   private callback: GestureCallback | null = null;
   private isRunning: boolean = false;
-  private lastFrameTime: number = 0;
+  private lastProcessTime: number = 0;
   private lastGesture: GestureType = 'none';
   private smoothedPalmX: number = 0;
   private smoothedPalmY: number = 0;
   private handsModule: any = null;
   private cameraModule: any = null;
+
+  private fingerCache: Map<FingerKey, FingerCache> = new Map();
+  private cacheLandmarkId: number = -1;
+  private readonly FRAME_INTERVAL: number = 1000 / 30;
 
   constructor() {
     this.videoElement = document.getElementById('video-feed') as HTMLVideoElement;
@@ -35,16 +46,14 @@ export class HandGestureRecognition {
   }
 
   async start(): Promise<void> {
-    if (this.isRunning) return;
+    if (this.isRunning) return Promise.resolve();
 
     try {
       const { Hands } = await import('@mediapipe/hands');
       const { Camera } = await import('@mediapipe/camera_utils');
 
       this.handsModule = new Hands({
-        locateFile: (file: string) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }
+        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
       });
 
       this.handsModule.setOptions({
@@ -54,15 +63,17 @@ export class HandGestureRecognition {
         minTrackingConfidence: 0.5
       });
 
-      this.handsModule.onResults((results: any) => this.onResults(results));
+      this.handsModule.onResults((results: any) => {
+        const now = performance.now();
+        if (now - this.lastProcessTime >= this.FRAME_INTERVAL) {
+          this.lastProcessTime = now;
+          this.processResults(results, now);
+        }
+      });
 
       this.cameraModule = new Camera(this.videoElement, {
         onFrame: async () => {
-          const now = performance.now();
-          if (now - this.lastFrameTime >= 33) {
-            this.lastFrameTime = now;
-            await this.handsModule.send({ image: this.videoElement });
-          }
+          await this.handsModule.send({ image: this.videoElement });
         },
         width: 640,
         height: 480
@@ -70,7 +81,7 @@ export class HandGestureRecognition {
 
       await this.cameraModule.start();
       this.isRunning = true;
-      console.log('Hand gesture recognition started (30+ FPS target)');
+      console.log('Hand gesture recognition started (30 FPS)');
     } catch (error) {
       console.error('Failed to initialize hand gesture recognition:', error);
       this.startFallback();
@@ -123,8 +134,7 @@ export class HandGestureRecognition {
     }
   }
 
-  private onResults(results: any): void {
-    const now = performance.now();
+  private processResults(results: any, now: number): void {
     let gesture: GestureType = 'none';
     let palmX = this.smoothedPalmX;
     let palmY = this.smoothedPalmY;
@@ -133,6 +143,12 @@ export class HandGestureRecognition {
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const lm: Landmark[] = results.multiHandLandmarks[0];
+      const cacheId = Math.floor(now / 16);
+
+      if (cacheId !== this.cacheLandmarkId) {
+        this.fingerCache.clear();
+        this.cacheLandmarkId = cacheId;
+      }
 
       const wrist = lm[0];
       const thumbTip = lm[4];
@@ -167,11 +183,11 @@ export class HandGestureRecognition {
       indexTipX = (1 - indexTip.x) * gw;
       indexTipY = indexTip.y * gh;
 
-      const thumbExtended = this.detectThumbExtended(thumbTip, thumbIp, indexMcp, wrist);
-      const indexExtended = this.detectFingerExtended(indexTip, indexDip, indexPip, indexMcp);
-      const middleExtended = this.detectFingerExtended(middleTip, middleDip, middlePip, middleMcp);
-      const ringExtended = this.detectFingerExtended(ringTip, ringDip, ringPip, ringMcp);
-      const pinkyExtended = this.detectFingerExtended(pinkyTip, pinkyDip, pinkyPip, pinkyMcp);
+      const thumbExtended = this.getThumbExtended(thumbTip, thumbIp, indexMcp, wrist);
+      const indexExtended = this.getFingerExtended('index', indexTip, indexDip, indexPip, indexMcp);
+      const middleExtended = this.getFingerExtended('middle', middleTip, middleDip, middlePip, middleMcp);
+      const ringExtended = this.getFingerExtended('ring', ringTip, ringDip, ringPip, ringMcp);
+      const pinkyExtended = this.getFingerExtended('pinky', pinkyTip, pinkyDip, pinkyPip, pinkyMcp);
 
       const extendedFingers = [indexExtended, middleExtended, ringExtended, pinkyExtended];
       const extendedCount = extendedFingers.filter(Boolean).length;
@@ -203,21 +219,26 @@ export class HandGestureRecognition {
     }
   }
 
-  private detectThumbExtended(
+  private getFingerExtended(
+    key: FingerKey, tip: Landmark, _dip: Landmark, pip: Landmark, mcp: Landmark
+  ): boolean {
+    const cached = this.fingerCache.get(key);
+    if (cached) return cached.extended;
+
+    const tipToMcp = Math.hypot(tip.x - mcp.x, tip.y - mcp.y);
+    const pipToMcp = Math.hypot(pip.x - mcp.x, pip.y - mcp.y);
+    const extended = tipToMcp > pipToMcp * 0.9 && tip.y < pip.y;
+
+    this.fingerCache.set(key, { tipToMcp, pipToMcp, extended });
+    return extended;
+  }
+
+  private getThumbExtended(
     thumbTip: Landmark, thumbIp: Landmark, indexMcp: Landmark, wrist: Landmark
   ): boolean {
     const tipDist = Math.hypot(thumbTip.x - wrist.x, thumbTip.y - wrist.y);
     const ipDist = Math.hypot(thumbIp.x - wrist.x, thumbIp.y - wrist.y);
     const lateralDist = Math.abs(thumbTip.x - indexMcp.x);
     return tipDist > ipDist && lateralDist > 0.04;
-  }
-
-  private detectFingerExtended(
-    tip: Landmark, _dip: Landmark, pip: Landmark, mcp: Landmark
-  ): boolean {
-    const tipToMcp = Math.hypot(tip.x - mcp.x, tip.y - mcp.y);
-    const pipToMcp = Math.hypot(pip.x - mcp.x, pip.y - mcp.y);
-    const tipYPivot = tip.y < pip.y;
-    return tipToMcp > pipToMcp * 0.9 && tipYPivot;
   }
 }
