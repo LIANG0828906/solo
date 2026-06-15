@@ -38,6 +38,11 @@ export class ControlPanel {
   private freqDebounceTimer: number | null = null;
   private touchStartY: number = 0;
 
+  private targetFrequency: number = 440;
+  private displayFrequency: number = 440;
+  private dampingTime: number = 0.1;
+  private lastFreqUpdateTime: number = 0;
+
   constructor(params: WaveformParams, callbacks: ControlPanelCallbacks) {
     this.params = params;
     this.callbacks = callbacks;
@@ -76,12 +81,12 @@ export class ControlPanel {
 
     this.frequencySlider.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
+      this.targetFrequency = value;
       this.updateFrequencyDisplay(value);
       if (this.freqDebounceTimer !== null) {
         clearTimeout(this.freqDebounceTimer);
       }
       this.freqDebounceTimer = window.setTimeout(() => {
-        this.callbacks.onFrequencyChange(value);
         this.freqDebounceTimer = null;
       }, 30);
     });
@@ -92,6 +97,8 @@ export class ControlPanel {
         clearTimeout(this.freqDebounceTimer);
         this.freqDebounceTimer = null;
       }
+      this.targetFrequency = value;
+      this.displayFrequency = value;
       this.callbacks.onFrequencyChange(value);
     });
 
@@ -192,7 +199,19 @@ export class ControlPanel {
     this.callbacks.onPlayToggle();
   }
 
-  public update(_deltaTime: number): void {}
+  public update(deltaTime: number): void {
+    if (Math.abs(this.targetFrequency - this.displayFrequency) > 0.5) {
+      const alpha = 1 - Math.exp(-deltaTime / this.dampingTime);
+      this.displayFrequency += (this.targetFrequency - this.displayFrequency) * alpha;
+
+      const now = performance.now();
+      if (now - this.lastFreqUpdateTime > 16) {
+        this.updateFrequencyDisplay(this.displayFrequency);
+        this.callbacks.onFrequencyChange(this.displayFrequency);
+        this.lastFreqUpdateTime = now;
+      }
+    }
+  }
 
   public setPlaying(playing: boolean): void {
     this.isPlaying = playing;

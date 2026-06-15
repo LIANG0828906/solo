@@ -175,10 +175,16 @@ export class SpectrumAnalyzer {
 
     for (let i = 0; i < this.barCount; i++) {
       const value = this.dataArray[i] / 255;
-      const targetHeight = value * this.maxBarHeight * (isPlaying ? 1 : 0.3);
+
+      // 独立周期性高度调制：每根柱子的目标高度叠加一个正弦偏移，
+      // i * 0.04 使相位沿频谱方向逐步偏移，形成从低频到高频的呼吸波浪
+      const heightModulation = Math.sin(this.pulsePhase + i * 0.04) * 0.08 * value;
+      const targetHeight = (value + heightModulation) * this.maxBarHeight * (isPlaying ? 1 : 0.3);
       const currentHeight = this.bars[i].scale.y;
       const newHeight = lerp(currentHeight, targetHeight, deltaTime * 8);
-      
+
+      // 柱子scale.y的独立脉冲：i * 0.08 相位偏移使相邻柱子脉冲错开，
+      // 避免所有柱子同步缩放，产生呼吸波浪感；振幅±5%保持微妙
       const barPulse = 1 + Math.sin(this.pulsePhase + i * 0.08) * 0.05;
       this.bars[i].scale.y = Math.max(0.01, newHeight * barPulse);
       this.bars[i].position.y = newHeight / 2;
@@ -188,6 +194,9 @@ export class SpectrumAnalyzer {
       
       if (value > 0.1 && isPlaying) {
         const haloScale = this.barWidth * (0.5 + value * 0.5);
+        // 光晕独立脉冲：pulsePhase * 1.3 使光晕脉动频率比柱子略快30%，
+        // i * 0.12 的空间偏移比柱子更密(0.12 vs 0.08)，形成视觉层次差异；
+        // 振幅±10%使光晕呼吸感更明显
         const haloPulse = 1 + Math.sin(this.pulsePhase * 1.3 + i * 0.12) * 0.1;
         this.halos[i].scale.set(haloScale * haloPulse, haloScale * haloPulse, 1);
         this.halos[i].position.y = newHeight;

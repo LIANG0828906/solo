@@ -340,8 +340,6 @@ class App {
   private startLoopPlayback(): void {
     if (!this.isPlaying) return;
 
-    const _totalDuration = this.params.attack + this.params.decay + 0.5 + this.params.release;
-
     this.loopTimeout = window.setTimeout(() => {
       if (this.isPlaying && this.oscillator && this.gainNode && this.audioContext) {
         const oldOsc = this.oscillator;
@@ -394,12 +392,12 @@ class App {
     }, (this.params.attack + this.params.decay + 0.3) * 1000);
   }
 
-  private updateEnvelope(deltaTime: number): void {
+  private updateEnvelope(_deltaTime: number): void {
     if (!this.isPlaying || !this.audioContext) {
       if (this.envelope.phase !== 'idle') {
         this.envelope.phase = 'idle';
       }
-      this.envelope.amplitude = lerp(this.envelope.amplitude, 0, deltaTime * 5);
+      this.envelope.amplitude = 0;
       this.envelope.progress = 0;
       return;
     }
@@ -410,7 +408,7 @@ class App {
     const sustain = this.params.sustain / 100;
     const release = this.params.release || 0.01;
 
-    if (this.envelope.phase === 'idle' || this.envelope.phase === 'release') {
+    if (this.envelope.phase === 'idle') {
       this.envelope.phase = 'attack';
       this.envelopeStartTime = this.audioContext.currentTime;
     }
@@ -418,8 +416,7 @@ class App {
     switch (this.envelope.phase) {
       case 'attack': {
         this.envelope.progress = Math.min(elapsed / attack, 1);
-        const targetAmplitude = this.envelope.progress;
-        this.envelope.amplitude = lerp(this.envelope.amplitude, targetAmplitude, deltaTime * 12);
+        this.envelope.amplitude = this.envelope.progress;
         if (this.envelope.progress >= 1) {
           this.envelope.phase = 'decay';
           this.envelopeStartTime = this.audioContext.currentTime;
@@ -428,8 +425,7 @@ class App {
       }
       case 'decay': {
         this.envelope.progress = Math.min(elapsed / decay, 1);
-        const targetAmplitude = 1 - (1 - sustain) * this.envelope.progress;
-        this.envelope.amplitude = lerp(this.envelope.amplitude, targetAmplitude, deltaTime * 12);
+        this.envelope.amplitude = 1 - (1 - sustain) * this.envelope.progress;
         if (this.envelope.progress >= 1) {
           this.envelope.phase = 'sustain';
         }
@@ -437,13 +433,12 @@ class App {
       }
       case 'sustain': {
         this.envelope.progress = 0;
-        this.envelope.amplitude = lerp(this.envelope.amplitude, sustain, deltaTime * 12);
+        this.envelope.amplitude = sustain;
         break;
       }
       case 'release': {
         this.envelope.progress = Math.min(elapsed / release, 1);
-        const targetAmplitude = sustain * (1 - this.envelope.progress);
-        this.envelope.amplitude = lerp(this.envelope.amplitude, targetAmplitude, deltaTime * 12);
+        this.envelope.amplitude = sustain * (1 - this.envelope.progress);
         if (this.envelope.progress >= 1) {
           this.envelope.phase = 'idle';
           this.envelope.amplitude = 0;
