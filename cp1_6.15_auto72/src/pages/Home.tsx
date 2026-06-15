@@ -1,81 +1,74 @@
 import { Link } from 'react-router-dom'
-import { Flower2, Truck, Sparkles } from 'lucide-react'
+import { Sparkles, Truck, Heart, ArrowRight, Calendar, Edit3 } from 'lucide-react'
 
 function Home() {
   return (
-    <div className="home-page">
-      <section className="hero">
-        <div className="container hero-content">
-          <div className="hero-text">
-            <h1 className="hero-title">
-              让每一束花都<br />
-              <span className="hero-title-accent">传递心意</span>
-            </h1>
-            <p className="hero-subtitle">
-              花语派FlowerPie · 专业鲜花订阅与定制配送服务
-            </p>
-            <div className="hero-buttons">
-              <Link to="/custom-order" className="btn btn-accent btn-lg">
-                <Sparkles size={20} />
-                开始定制花束
-              </Link>
-              <Link to="/subscriptions" className="btn btn-secondary btn-lg">
-                <Flower2 size={20} />
-                浏览订阅套餐
-              </Link>
-            </div>
+    <div className="container">
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1>用鲜花点缀生活<br/>让每一刻都充满芬芳</h1>
+          <p>花语派FlowerPie — 专业的在线鲜花订阅与定制配送平台。精选当季优质花材，由资深花艺师精心搭配，新鲜直达您家门口。</p>
+          <div className="hero-buttons">
+            <Link to="/custom-order" className="btn btn-accent">
+              <Edit3 size={18} />
+              立即定制花束
+            </Link>
+            <Link to="/subscriptions" className="btn btn-secondary">
+              <Calendar size={18} />
+              查看订阅套餐
+            </Link>
           </div>
-          <div className="hero-image">
-            <img 
-              src="https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=600&h=500&fit=crop" 
-              alt="精美花束"
-              className="hero-img"
-            />
+        </div>
+        <img
+          src="https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=600&h=400&fit=crop"
+          alt="精美花艺"
+          className="hero-image"
+        />
+      </section>
+
+      <section>
+        <div className="section-header">
+          <h2 className="section-title">为什么选择花语派</h2>
+        </div>
+        <div className="features-grid">
+          <div className="card feature-card">
+            <div className="feature-icon"><Sparkles size={40} color="#A68B6B" /></div>
+            <h3>精选优质花材</h3>
+            <p>每日从云南鲜花基地直采，确保每一枝花都新鲜饱满，花期更长，香气更持久。</p>
+          </div>
+          <div className="card feature-card">
+            <div className="feature-icon"><Heart size={40} color="#E8B4B8" /></div>
+            <h3>个性定制搭配</h3>
+            <p>根据您的喜好和场合需求，自由选择花材组合，打造独一无二的专属花束。</p>
+          </div>
+          <div className="card feature-card">
+            <div className="feature-icon"><Truck size={40} color="#7A8B7A" /></div>
+            <h3>专业冷链配送</h3>
+            <p>全程恒温冷链运输，专业包装保护，确保鲜花在配送途中不受损伤，完美送达。</p>
           </div>
         </div>
       </section>
 
-      <section className="features-section">
-        <div className="container">
-          <h2 className="section-title-center">为什么选择花语派</h2>
-          <div className="features-grid">
-            <div className="feature-card card">
-              <div className="feature-icon icon-pink">
-                <Flower2 size={32} />
-              </div>
-              <h3 className="feature-title">订阅便利</h3>
-              <p className="feature-desc">
-                每周/每月定期配送，新鲜花材直达家门，省去挑选烦恼
-              </p>
-            </div>
-            <div className="feature-card card">
-              <div className="feature-icon icon-green">
-                <Sparkles size={32} />
-              </div>
-              <h3 className="feature-title">定制自由</h3>
-              <p className="feature-desc">
-                上百种花材自由搭配，专属花束为你而生，每一束都是独一无二
-              </p>
-            </div>
-            <div className="feature-card card">
-              <div className="feature-icon icon-brown">
-                <Truck size={32} />
-              </div>
-              <h3 className="feature-title">配送保障</h3>
-              <p className="feature-desc">
-                专业保鲜包装，专人专车配送，确保鲜花完好无损送达
-              </p>
-            </div>
-          </div>
+      <section>
+        <div className="section-header">
+          <h2 className="section-title">快速开始</h2>
         </div>
-      </section>
-
-      <section className="cta-section">
-        <div className="container cta-content">
-          <h2 className="cta-title">准备好为TA定制一束专属花束了吗？</h2>
-          <p className="cta-desc">现在下单，享受首单9折优惠</p>
-          <Link to="/custom-order" className="btn btn-accent btn-lg">
-            立即定制
+        <div className="quick-links">
+          <Link to="/subscriptions" className="card quick-link-card">
+            <div className="quick-link-icon pink">🌸</div>
+            <div className="quick-link-content">
+              <h3>鲜花订阅服务</h3>
+              <p>每周/每月定期收到惊喜花束，省心又划算</p>
+            </div>
+            <ArrowRight size={20} color="#E8B4B8" />
+          </Link>
+          <Link to="/custom-order" className="card quick-link-card">
+            <div className="quick-link-icon green">💐</div>
+            <div className="quick-link-content">
+              <h3>定制专属花束</h3>
+              <p>亲手挑选每一朵花，定制贺卡和配送时间</p>
+            </div>
+            <ArrowRight size={20} color="#7A8B7A" />
           </Link>
         </div>
       </section>
