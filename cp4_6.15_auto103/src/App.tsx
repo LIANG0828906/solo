@@ -1,62 +1,74 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-
-interface Layer {
-  id: string;
-  name: string;
-  visible: boolean;
-  locked: boolean;
-  opacity: number;
-  type: 'vector' | 'image' | 'text';
-  color?: string;
-}
-
-interface UploadedImage {
-  id: string;
-  name: string;
-  url: string;
-  size: number;
-}
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import axios from 'axios';
+import ImageUploader from './modules/imageUploader/ImageUploader';
+import LayerManager from './modules/layerManager/LayerManager';
+import SvgCanvas from './modules/svgCanvas/SvgCanvas';
+import useSketchStore from './store/useSketchStore';
+import type { Layer } from './types';
 
 const App: React.FC = () => {
-  const [leftWidth, setLeftWidth] = useState<number>(280);
-  const [rightWidth, setRightWidth] = useState<number>(260);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const {
+    layerGroups,
+    selectedLayerId,
+    isProcessing,
+    isExporting,
+    setExporting,
+    zoom,
+    resetView,
+    originalImageUrl,
+  } = useSketchStore();
+
+  const [leftWidth, setLeftWidth] = useState<number>(320);
+  const [rightWidth, setRightWidth] = useState<number>(300);
   const [isResizingLeft, setIsResizingLeft] = useState<boolean>(false);
   const [isResizingRight, setIsResizingRight] = useState<boolean>(false);
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [svgContent, setSvgContent] = useState<string | null>(null);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showExportDialog, setShowExportDialog] = useState<boolean>(false);
+  const [exportMode, setExportMode] = useState<'all' | 'selected'>('all');
+  const [exportPreview, setExportPreview] = useState<string>('');
+  const [isGeneratingExport, setIsGeneratingExport] = useState<boolean>(false);
+  const [downloadComplete, setDownloadComplete] = useState<boolean>(false);
+  const [svgFileName, setSvgFileName] = useState<string>('');
 
-  const [layers, setLayers] = useState<Layer[]>([
-    { id: '1', name: '背景层', visible: true, locked: false, opacity: 100, type: 'vector', color: '#7BC67E' },
-    { id: '2', name: '主图形', visible: true, locked: false, opacity: 100, type: 'vector', color: '#5DA860' },
-    { id: '3', name: '细节装饰', visible: true, locked: true, opacity: 80, type: 'vector', color: '#A8D8AA' },
-    { id: '4', name: '文字标注', visible: false, locked: false, opacity: 100, type: 'text', color: '#2D3436' },
-  ]);
+  const allLayers = useMemo(() => {
+    const layers: Layer[] = [];
+    layerGroups.forEach((group) => {
+      group.layers.forEach((layer) => layers.push(layer));
+    });
+    return layers;
+  }, [layerGroups]);
 
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>('2');
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!containerRef.current) return;
-    const containerRect = containerRef.current.getBoundingClientRect();
-    
-    if (isResizingLeft) {
-      const newWidth = e.clientX - containerRect.left;
-      const minWidth = 200;
-      const maxWidth = containerRect.width * 0.4;
-      setLeftWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
+  const imageDimensions = useMemo(() => {
+    const firstLayer = allLayers[0];
+    if (firstLayer) {
+      if (firstLayer.width && firstLayer.height) {
+        return { width: firstLayer.width + 200, height: firstLayer.height + 200 };
+      }
     }
-    
-    if (isResizingRight) {
-      const newWidth = containerRect.right - e.clientX;
-      const minWidth = 200;
-      const maxWidth = containerRect.width * 0.35;
-      setRightWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
-    }
-  }, [isResizingLeft, isResizingRight]);
+    return { width: 1200, height: 900 };
+  }, [allLayers]);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      if (isResizingLeft) {
+        const newWidth = e.clientX - containerRect.left;
+        const minWidth = 240;
+        const maxWidth = containerRect.width * 0.4;
+        setLeftWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
+      }
+
+      if (isResizingRight) {
+        const newWidth = containerRect.right - e.clientX;
+        const minWidth = 240;
+        const maxWidth = containerRect.width * 0.35;
+        setRightWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
+      }
+    },
+    [isResizingLeft, isResizingRight]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsResizingLeft(false);
@@ -69,7 +81,7 @@ const App: React.FC = () => {
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
-      
+
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -79,83 +91,121 @@ const App: React.FC = () => {
     }
   }, [isResizingLeft, isResizingRight, handleMouseMove, handleMouseUp]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const handleRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const circle = document.createElement('span');
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
 
-    const newImages: UploadedImage[] = Array.from(files).map((file, index) => ({
-      id: `img-${Date.now()}-${index}`,
-      name: file.name,
-      url: URL.createObjectURL(file),
-      size: file.size,
-    }));
+    const rect = button.getBoundingClientRect();
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${e.clientX - rect.left - radius}px`;
+    circle.style.top = `${e.clientY - rect.top - radius}px`;
+    circle.style.position = 'absolute';
+    circle.style.borderRadius = '50%';
+    circle.style.background = 'rgba(255, 255, 255, 0.4)';
+    circle.style.transform = 'scale(0)';
+    circle.style.animation = 'ripple 600ms ease-out forwards';
+    circle.style.pointerEvents = 'none';
+    circle.style.zIndex = '1';
 
-    setUploadedImages(prev => [...prev, ...newImages]);
-    if (newImages.length > 0) {
-      setSelectedImage(newImages[0].id);
+    const existingRipple = button.querySelector('.ripple-effect');
+    if (existingRipple) {
+      existingRipple.remove();
+    }
+    circle.classList.add('ripple-effect');
+    button.appendChild(circle);
+
+    setTimeout(() => circle.remove(), 600);
+  };
+
+  const handleExportClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    handleRipple(e);
+    if (allLayers.length === 0) return;
+    setShowExportDialog(true);
+    setExportMode('all');
+    setDownloadComplete(false);
+    setExportPreview('');
+  };
+
+  const generateExportPreview = useCallback(async () => {
+    if (allLayers.length === 0) return;
+
+    setIsGeneratingExport(true);
+    const startTime = Date.now();
+
+    try {
+      const layersToExport =
+        exportMode === 'all'
+          ? allLayers
+          : allLayers.filter((l) => l.id === selectedLayerId);
+
+      const response = await axios.post('/api/export', {
+        layers: layersToExport,
+        selectedIds: exportMode === 'selected' && selectedLayerId ? [selectedLayerId] : undefined,
+        exportAll: exportMode === 'all',
+        imageWidth: imageDimensions.width,
+        imageHeight: imageDimensions.height,
+      });
+
+      if (response.data.success && response.data.data) {
+        setExportPreview(response.data.data.svgContent);
+        setSvgFileName(response.data.data.fileName);
+      }
+    } catch (error) {
+      console.error('导出预览失败:', error);
+    } finally {
+      setIsGeneratingExport(false);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 300) {
+        await new Promise((resolve) => setTimeout(resolve, 300 - elapsed));
+      }
+    }
+  }, [allLayers, exportMode, selectedLayerId, imageDimensions]);
+
+  useEffect(() => {
+    if (showExportDialog) {
+      generateExportPreview();
+    }
+  }, [showExportDialog, exportMode, generateExportPreview]);
+
+  const handleConfirmExport = async () => {
+    if (!exportPreview) return;
+
+    setExporting(true);
+
+    try {
+      const blob = new Blob([exportPreview], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = svgFileName || `sketch-export-${Date.now()}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setDownloadComplete(true);
+      setTimeout(() => {
+        setShowExportDialog(false);
+        setDownloadComplete(false);
+      }, 1500);
+    } catch (error) {
+      console.error('导出失败:', error);
+    } finally {
+      setExporting(false);
     }
   };
 
-  const handleProcess = () => {
-    if (!selectedImage) return;
-    setIsProcessing(true);
-    
-    setTimeout(() => {
-      const demoSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
-          <rect x="50" y="50" width="300" height="200" fill="none" stroke="#7BC67E" stroke-width="3" stroke-dasharray="5,5" rx="10"/>
-          <circle cx="150" cy="130" r="40" fill="none" stroke="#5DA860" stroke-width="2.5"/>
-          <path d="M220 90 Q280 90 280 150 Q280 210 220 210" fill="none" stroke="#7BC67E" stroke-width="2.5"/>
-          <line x1="80" y1="200" x2="320" y2="200" stroke="#A8D8AA" stroke-width="2" stroke-linecap="round"/>
-          <text x="200" y="260" text-anchor="middle" fill="#636E72" font-size="14" font-family="cursive">矢量化预览</text>
-        </svg>
-      `;
-      setSvgContent(demoSvg);
-      setIsProcessing(false);
-    }, 2000);
+  const handleResetView = (e: React.MouseEvent<HTMLButtonElement>) => {
+    handleRipple(e);
+    resetView();
   };
 
-  const toggleLayerVisibility = (id: string) => {
-    setLayers(prev => prev.map(layer => 
-      layer.id === id ? { ...layer, visible: !layer.visible } : layer
-    ));
-  };
-
-  const toggleLayerLock = (id: string) => {
-    setLayers(prev => prev.map(layer => 
-      layer.id === id ? { ...layer, locked: !layer.locked } : layer
-    ));
-  };
-
-  const addLayer = () => {
-    const newLayer: Layer = {
-      id: `layer-${Date.now()}`,
-      name: `图层 ${layers.length + 1}`,
-      visible: true,
-      locked: false,
-      opacity: 100,
-      type: 'vector',
-      color: '#7BC67E',
-    };
-    setLayers(prev => [newLayer, ...prev]);
-    setSelectedLayerId(newLayer.id);
-  };
-
-  const deleteLayer = (id: string) => {
-    setLayers(prev => prev.filter(layer => layer.id !== id));
-    if (selectedLayerId === id) {
-      setSelectedLayerId(null);
-    }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
+  const hasContent = allLayers.length > 0 || originalImageUrl;
 
   return (
-    <div 
+    <div
       ref={containerRef}
       style={{
         width: '100%',
@@ -163,53 +213,66 @@ const App: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
+        background: 'var(--color-warm-gray)',
       }}
     >
       <style>{`
+        @keyframes ripple {
+          to {
+            transform: scale(4);
+            opacity: 0;
+          }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(123, 198, 126, 0.5), 0 2px 8px rgba(123, 198, 126, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 0 12px rgba(123, 198, 126, 0), 0 2px 8px rgba(123, 198, 126, 0.3);
+          }
+        }
+        .pulse-glow {
+          animation: pulseGlow 1.5s ease-in-out infinite;
+        }
         .nav-item {
           padding: 8px 16px;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s ease;
           font-size: 14px;
+          color: var(--color-text);
         }
         .nav-item:hover {
           background: rgba(123, 198, 126, 0.15);
         }
-        .layer-item {
+        .toolbar-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          border: none;
+          background: transparent;
+          color: var(--color-text);
+          font-size: 18px;
+          cursor: pointer;
           transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .layer-item:hover {
-          background: rgba(123, 198, 126, 0.08);
-        }
-        .layer-item.selected {
-          background: rgba(123, 198, 126, 0.2);
-          border-left: 3px solid var(--color-primary);
-        }
-        .upload-zone {
-          border: 2px dashed var(--color-primary-light);
-          transition: all 0.3s ease;
-        }
-        .upload-zone:hover {
-          border-color: var(--color-primary);
-          background: rgba(123, 198, 126, 0.05);
-        }
-        .upload-zone.dragover {
-          border-color: var(--color-primary);
+        .toolbar-btn:hover {
           background: rgba(123, 198, 126, 0.1);
         }
-        .image-thumb {
-          transition: all 0.2s ease;
-        }
-        .image-thumb:hover {
-          transform: scale(1.02);
-        }
-        .image-thumb.selected {
-          box-shadow: 0 0 0 3px var(--color-primary);
+        .toolbar-btn.active {
+          background: var(--color-primary);
+          color: white;
         }
       `}</style>
 
-      {/* 顶部导航栏 */}
+      {/* 顶部导航栏 - 毛玻璃效果 */}
       <nav
         className="glass"
         style={{
@@ -228,17 +291,19 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)',
+              width: '38px',
+              height: '38px',
+              borderRadius: '12px',
+              background:
+                'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
               fontWeight: 'bold',
-              fontSize: '18px',
+              fontSize: '20px',
               fontFamily: 'var(--font-handwriting)',
+              boxShadow: '0 4px 12px rgba(123, 198, 126, 0.35)',
             }}
           >
             S
@@ -246,12 +311,25 @@ const App: React.FC = () => {
           <span
             className="handwriting"
             style={{
-              fontSize: '20px',
+              fontSize: '22px',
               fontWeight: 600,
               color: 'var(--color-text)',
+              letterSpacing: '0.5px',
             }}
           >
-            草图矢量化
+            草图智能矢量化
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              color: 'var(--color-text-light)',
+              background: 'rgba(123, 198, 126, 0.1)',
+              padding: '2px 8px',
+              borderRadius: '10px',
+              border: '1px solid rgba(123, 198, 126, 0.2)',
+            }}
+          >
+            v1.0
           </span>
         </div>
 
@@ -266,26 +344,86 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             className="btn-ripple"
+            onClick={handleResetView}
+            disabled={!hasContent}
             style={{
-              padding: '8px 20px',
+              padding: '8px 16px',
               borderRadius: '8px',
-              border: 'none',
-              background: 'var(--color-primary)',
-              color: 'white',
-              fontSize: '14px',
+              border: '1px solid var(--color-warm-gray-dark)',
+              background: 'white',
+              color: 'var(--color-text)',
+              fontSize: '13px',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: hasContent ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(123, 198, 126, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--color-primary-dark)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--color-primary)';
+              opacity: hasContent ? 1 : 0.5,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            导出 SVG
+            🔄 重置视图
+          </button>
+          <button
+            className={`btn-ripple ${downloadComplete ? 'pulse-glow' : ''}`}
+            onClick={handleExportClick}
+            disabled={!hasContent || isProcessing}
+            style={{
+              padding: '10px 22px',
+              borderRadius: '10px',
+              border: 'none',
+              background: downloadComplete
+                ? 'var(--color-primary-dark)'
+                : 'var(--color-primary)',
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: hasContent && !isProcessing ? 'pointer' : 'not-allowed',
+              transition: 'all 0.25s ease',
+              boxShadow: '0 4px 12px rgba(123, 198, 126, 0.35)',
+              position: 'relative',
+              overflow: 'hidden',
+              opacity: hasContent && !isProcessing ? 1 : 0.5,
+            }}
+            onMouseEnter={(e) => {
+              if (hasContent && !isProcessing) {
+                e.currentTarget.style.background = 'var(--color-primary-dark)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow =
+                  '0 6px 16px rgba(123, 198, 126, 0.45)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = downloadComplete
+                ? 'var(--color-primary-dark)'
+                : 'var(--color-primary)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(123, 198, 126, 0.35)';
+            }}
+          >
+            {isProcessing ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    display: 'inline-block',
+                  }}
+                />
+                处理中...
+              </span>
+            ) : downloadComplete ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ✓ 下载完成
+              </span>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📤 导出 SVG
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -310,198 +448,10 @@ const App: React.FC = () => {
             borderRight: '1px solid var(--color-warm-gray-dark)',
             position: 'relative',
             flexShrink: 0,
+            zIndex: 10,
           }}
         >
-          <div
-            style={{
-              padding: '16px',
-              borderBottom: '1px solid var(--color-warm-gray-dark)',
-            }}
-          >
-            <h3
-              className="handwriting"
-              style={{
-                fontSize: '16px',
-                color: 'var(--color-text)',
-                marginBottom: '12px',
-              }}
-            >
-              上传图片
-            </h3>
-            
-            <div
-              className="upload-zone"
-              style={{
-                padding: '24px 16px',
-                borderRadius: '12px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'var(--color-warm-gray)',
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('dragover');
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove('dragover');
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                  const newImages: UploadedImage[] = Array.from(files).map((file, index) => ({
-                    id: `img-${Date.now()}-${index}`,
-                    name: file.name,
-                    url: URL.createObjectURL(file),
-                    size: file.size,
-                  }));
-                  setUploadedImages(prev => [...prev, ...newImages]);
-                }
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '32px',
-                  marginBottom: '8px',
-                }}
-              >
-                📤
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--color-text-light)' }}>
-                点击或拖拽上传
-              </p>
-              <p style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '4px' }}>
-                支持 PNG、JPG、JPEG
-              </p>
-            </div>
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              multiple
-              style={{ display: 'none' }}
-              onChange={handleFileUpload}
-            />
-          </div>
-
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '12px',
-            }}
-          >
-            {uploadedImages.length === 0 ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '40px 16px',
-                  color: 'var(--color-text-light)',
-                  fontSize: '13px',
-                }}
-              >
-                <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.3 }}>
-                  🖼️
-                </div>
-                暂无上传图片
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {uploadedImages.map((image, index) => (
-                  <div
-                    key={image.id}
-                    className={`image-thumb ${selectedImage === image.id ? 'selected' : ''}`}
-                    style={{
-                      padding: '8px',
-                      borderRadius: '8px',
-                      background: 'var(--color-warm-gray)',
-                      cursor: 'pointer',
-                      border: selectedImage === image.id ? '2px solid var(--color-primary)' : '2px solid transparent',
-                      animation: `flyIn 0.3s ease ${index * 0.05}s both`,
-                    }}
-                    onClick={() => setSelectedImage(image.id)}
-                  >
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '80px',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        marginBottom: '6px',
-                        background: 'white',
-                      }}
-                    >
-                      <img
-                        src={image.url}
-                        alt={image.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                        }}
-                      />
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--color-text)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {image.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--color-text-light)',
-                      }}
-                    >
-                      {formatFileSize(image.size)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div
-            style={{
-              padding: '12px 16px',
-              borderTop: '1px solid var(--color-warm-gray-dark)',
-            }}
-          >
-            <button
-              className="btn-ripple"
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: selectedImage ? 'var(--color-primary)' : 'var(--color-warm-gray-dark)',
-                color: selectedImage ? 'white' : 'var(--color-text-light)',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: selectedImage ? 'pointer' : 'not-allowed',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={handleProcess}
-              disabled={!selectedImage || isProcessing}
-            >
-              {isProcessing ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <span className="animate-spin" style={{ fontSize: '16px' }}>⚙️</span>
-                  矢量化中...
-                </span>
-              ) : (
-                '开始矢量化'
-              )}
-            </button>
-          </div>
+          <ImageUploader />
 
           {/* 左侧拖拽调整手柄 */}
           <div
@@ -522,6 +472,7 @@ const App: React.FC = () => {
             flexDirection: 'column',
             overflow: 'hidden',
             position: 'relative',
+            background: '#FAFAFA',
           }}
         >
           {/* 工具栏 */}
@@ -533,46 +484,41 @@ const App: React.FC = () => {
               alignItems: 'center',
               gap: '8px',
               borderBottom: '1px solid rgba(123, 198, 126, 0.1)',
+              zIndex: 20,
             }}
           >
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '2px' }}>
               {['🖱️', '✏️', '🔍', '🖌️', '🧹'].map((icon, i) => (
                 <button
                   key={i}
-                  className="btn-ripple"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: i === 0 ? 'var(--color-primary)' : 'transparent',
-                    color: i === 0 ? 'white' : 'var(--color-text)',
-                    fontSize: '16px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
+                  className={`btn-ripple toolbar-btn ${i === 0 ? 'active' : ''}`}
+                  style={{ position: 'relative', overflow: 'hidden' }}
                 >
                   {icon}
                 </button>
               ))}
             </div>
-            
-            <div style={{ width: '1px', height: '24px', background: 'var(--color-warm-gray-dark)' }} />
-            
-            <div style={{ display: 'flex', gap: '4px' }}>
+
+            <div
+              style={{
+                width: '1px',
+                height: '24px',
+                background: 'var(--color-warm-gray-dark)',
+                margin: '0 4px',
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '2px' }}>
               {['撤销', '重做'].map((label, i) => (
                 <button
                   key={label}
-                  className="btn-ripple"
+                  className="btn-ripple toolbar-btn"
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--color-text-light)',
+                    width: 'auto',
+                    padding: '0 14px',
                     fontSize: '13px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
                   {label}
@@ -584,31 +530,38 @@ const App: React.FC = () => {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
-                className="btn-ripple"
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-warm-gray-dark)',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontSize: '12px',
+                className="btn-ripple toolbar-btn"
+                onClick={(e) => {
+                  handleRipple(e);
+                  const { zoom, setZoom, panX, panY, setPan } = useSketchStore.getState();
+                  const newZoom = Math.max(0.1, zoom * 0.9);
+                  setZoom(newZoom);
                 }}
+                style={{ position: 'relative', overflow: 'hidden' }}
               >
                 ➖
               </button>
-              <span style={{ fontSize: '13px', color: 'var(--color-text)', minWidth: '50px', textAlign: 'center' }}>
-                100%
+              <span
+                style={{
+                  fontSize: '13px',
+                  color: 'var(--color-text)',
+                  minWidth: '55px',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontWeight: 500,
+                }}
+              >
+                {Math.round(zoom * 100)}%
               </span>
               <button
-                className="btn-ripple"
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-warm-gray-dark)',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontSize: '12px',
+                className="btn-ripple toolbar-btn"
+                onClick={(e) => {
+                  handleRipple(e);
+                  const { zoom, setZoom } = useSketchStore.getState();
+                  const newZoom = Math.min(20, zoom * 1.1);
+                  setZoom(newZoom);
                 }}
+                style={{ position: 'relative', overflow: 'hidden' }}
               >
                 ➕
               </button>
@@ -619,102 +572,11 @@ const App: React.FC = () => {
           <div
             style={{
               flex: 1,
-              overflow: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '32px',
+              overflow: 'hidden',
               position: 'relative',
             }}
           >
-            {isProcessing ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '16px',
-                }}
-              >
-                <div
-                  className="animate-spin"
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    border: '3px solid var(--color-primary-light)',
-                    borderTopColor: 'var(--color-primary)',
-                    borderRadius: '50%',
-                  }}
-                />
-                <p style={{ color: 'var(--color-text-light)', fontSize: '14px' }}>
-                  正在智能矢量化...
-                </p>
-              </div>
-            ) : svgContent ? (
-              <div
-                className="animate-elastic"
-                style={{
-                  width: '600px',
-                  height: '450px',
-                  background: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-                  padding: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                dangerouslySetInnerHTML={{ __html: svgContent }}
-              />
-            ) : selectedImage ? (
-              <div
-                className="animate-fly-in"
-                style={{
-                  maxWidth: '80%',
-                  maxHeight: '80%',
-                  background: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-                  padding: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <img
-                  src={uploadedImages.find(img => img.id === selectedImage)?.url}
-                  alt="预览"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '400px',
-                    objectFit: 'contain',
-                  }}
-                />
-              </div>
-            ) : (
-              <div
-                style={{
-                  textAlign: 'center',
-                  color: 'var(--color-text-light)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '64px',
-                    marginBottom: '16px',
-                    opacity: 0.3,
-                  }}
-                >
-                  🎨
-                </div>
-                <p className="handwriting" style={{ fontSize: '18px', marginBottom: '8px' }}>
-                  开始创作吧
-                </p>
-                <p style={{ fontSize: '13px' }}>
-                  上传一张手绘图，将其转换为矢量图形
-                </p>
-              </div>
-            )}
+            <SvgCanvas />
           </div>
         </main>
 
@@ -729,243 +591,10 @@ const App: React.FC = () => {
             borderLeft: '1px solid var(--color-warm-gray-dark)',
             position: 'relative',
             flexShrink: 0,
+            zIndex: 10,
           }}
         >
-          <div
-            style={{
-              padding: '16px',
-              borderBottom: '1px solid var(--color-warm-gray-dark)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h3
-              className="handwriting"
-              style={{
-                fontSize: '16px',
-                color: 'var(--color-text)',
-              }}
-            >
-              图层
-            </h3>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button
-                className="btn-ripple"
-                onClick={addLayer}
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'var(--color-primary)',
-                  color: 'white',
-                  fontSize: '16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* 图层列表 */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-            }}
-          >
-            {layers.map((layer, index) => (
-              <div
-                key={layer.id}
-                className={`layer-item ${selectedLayerId === layer.id ? 'selected' : ''}`}
-                style={{
-                  padding: '10px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  animation: `slideInRight 0.3s ease ${index * 0.05}s both`,
-                }}
-                onClick={() => setSelectedLayerId(layer.id)}
-              >
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '4px',
-                    background: layer.color || 'var(--color-primary)',
-                    flexShrink: 0,
-                  }}
-                />
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLayerVisibility(layer.id);
-                  }}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    opacity: layer.visible ? 1 : 0.4,
-                    flexShrink: 0,
-                  }}
-                >
-                  {layer.visible ? '👁️' : '👁️‍🗨️'}
-                </button>
-
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: '13px',
-                    color: layer.visible ? 'var(--color-text)' : 'var(--color-text-light)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {layer.name}
-                </span>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLayerLock(layer.id);
-                  }}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    flexShrink: 0,
-                  }}
-                >
-                  {layer.locked ? '🔒' : '🔓'}
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteLayer(layer.id);
-                  }}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    opacity: 0.6,
-                    flexShrink: 0,
-                  }}
-                >
-                  🗑️
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* 图层属性 */}
-          {selectedLayerId && (
-            <div
-              style={{
-                padding: '16px',
-                borderTop: '1px solid var(--color-warm-gray-dark)',
-                background: 'var(--color-warm-gray)',
-              }}
-            >
-              <h4
-                style={{
-                  fontSize: '13px',
-                  color: 'var(--color-text)',
-                  marginBottom: '12px',
-                  fontWeight: 500,
-                }}
-              >
-                图层属性
-              </h4>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <label
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--color-text-light)',
-                    display: 'block',
-                    marginBottom: '6px',
-                  }}
-                >
-                  不透明度
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={layers.find(l => l.id === selectedLayerId)?.opacity || 100}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    setLayers(prev => prev.map(layer =>
-                      layer.id === selectedLayerId ? { ...layer, opacity: value } : layer
-                    ));
-                  }}
-                  style={{
-                    width: '100%',
-                    accentColor: 'var(--color-primary)',
-                  }}
-                />
-                <div
-                  style={{
-                    textAlign: 'right',
-                    fontSize: '11px',
-                    color: 'var(--color-text-light)',
-                    marginTop: '2px',
-                  }}
-                >
-                  {layers.find(l => l.id === selectedLayerId)?.opacity}%
-                </div>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--color-text-light)',
-                    display: 'block',
-                    marginBottom: '6px',
-                  }}
-                >
-                  混合模式
-                </label>
-                <select
-                  style={{
-                    width: '100%',
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-warm-gray-dark)',
-                    background: 'white',
-                    fontSize: '12px',
-                    color: 'var(--color-text)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="normal">正常</option>
-                  <option value="multiply">正片叠底</option>
-                  <option value="screen">滤色</option>
-                  <option value="overlay">叠加</option>
-                </select>
-              </div>
-            </div>
-          )}
+          <LayerManager />
 
           {/* 右侧拖拽调整手柄 */}
           <div
@@ -978,6 +607,386 @@ const App: React.FC = () => {
           />
         </aside>
       </div>
+
+      {/* 导出对话框 */}
+      {showExportDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease',
+          }}
+          onClick={() => !isGeneratingExport && setShowExportDialog(false)}
+        >
+          <div
+            style={{
+              background: 'var(--color-white)',
+              borderRadius: '16px',
+              boxShadow: '0 16px 64px rgba(0, 0, 0, 0.25)',
+              width: '560px',
+              maxWidth: '90vw',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              animation: 'flyIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid var(--color-warm-gray-dark)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #7BC67E 0%, #A8D8AA 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '18px',
+                  }}
+                >
+                  📤
+                </div>
+                <div>
+                  <h3
+                    className="handwriting"
+                    style={{
+                      fontSize: '18px',
+                      color: 'var(--color-text)',
+                      fontWeight: 600,
+                      margin: 0,
+                    }}
+                  >
+                    导出 SVG
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-light)', margin: '2px 0 0 0' }}>
+                    生成可编辑的矢量图形文件
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExportDialog(false)}
+                disabled={isGeneratingExport}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--color-warm-gray)',
+                  color: 'var(--color-text-light)',
+                  fontSize: '18px',
+                  cursor: isGeneratingExport ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <label
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--color-text)',
+                    fontWeight: 500,
+                    display: 'block',
+                    marginBottom: '8px',
+                  }}
+                >
+                  导出范围
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    className="btn-ripple"
+                    onClick={() => setExportMode('all')}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: exportMode === 'all' ? '2px solid var(--color-primary)' : '2px solid var(--color-warm-gray-dark)',
+                      background: exportMode === 'all' ? 'rgba(123, 198, 126, 0.1)' : 'var(--color-warm-gray)',
+                      color: 'var(--color-text)',
+                      fontSize: '14px',
+                      fontWeight: exportMode === 'all' ? 600 : 400,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    📄 全部图层 ({allLayers.length})
+                  </button>
+                  <button
+                    className="btn-ripple"
+                    onClick={() => setExportMode('selected')}
+                    disabled={!selectedLayerId}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: exportMode === 'selected' ? '2px solid var(--color-primary)' : '2px solid var(--color-warm-gray-dark)',
+                      background:
+                        exportMode === 'selected'
+                          ? 'rgba(123, 198, 126, 0.1)'
+                          : 'var(--color-warm-gray)',
+                      color: selectedLayerId ? 'var(--color-text)' : 'var(--color-text-light)',
+                      fontSize: '14px',
+                      fontWeight: exportMode === 'selected' ? 600 : 400,
+                      cursor: selectedLayerId ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      opacity: selectedLayerId ? 1 : 0.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    🎯 仅选中图层
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  border: '1px solid var(--color-warm-gray-dark)',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background:
+                    'linear-gradient(45deg, #E8E0D8 25%, transparent 25%), linear-gradient(-45deg, #E8E0D8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #E8E0D8 75%), linear-gradient(-45deg, transparent 75%, #E8E0D8 75%)',
+                  backgroundSize: '10px 10px',
+                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
+                  backgroundColor: '#F5F0EB',
+                }}
+              >
+                <div
+                  style={{
+                    height: '240px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  {isGeneratingExport ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          border: '3px solid rgba(123, 198, 126, 0.2)',
+                          borderTopColor: 'var(--color-primary)',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                        }}
+                      />
+                      <p style={{ color: 'var(--color-text-light)', fontSize: '13px' }}>
+                        正在生成预览...
+                      </p>
+                    </div>
+                  ) : exportPreview ? (
+                    <div
+                      style={{
+                        width: '90%',
+                        height: '90%',
+                        background: 'white',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      dangerouslySetInnerHTML={{ __html: exportPreview }}
+                    />
+                  ) : (
+                    <p style={{ color: 'var(--color-text-light)', fontSize: '13px' }}>
+                      无法生成预览
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  background: 'rgba(123, 198, 126, 0.08)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(123, 198, 126, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>ℹ️</span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>
+                  SVG 文件可在 Adobe Illustrator、Figma、Sketch 等设计软件中继续编辑
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid var(--color-warm-gray-dark)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+              }}
+            >
+              <button
+                className="btn-ripple"
+                onClick={() => setShowExportDialog(false)}
+                disabled={isGeneratingExport}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--color-warm-gray-dark)',
+                  background: 'transparent',
+                  color: 'var(--color-text)',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: isGeneratingExport ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                取消
+              </button>
+              <button
+                className={`btn-ripple ${downloadComplete ? 'pulse-glow' : ''}`}
+                onClick={handleConfirmExport}
+                disabled={isGeneratingExport || !exportPreview || isExporting}
+                style={{
+                  padding: '10px 28px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: downloadComplete
+                    ? 'var(--color-primary-dark)'
+                    : 'var(--color-primary)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor:
+                    isGeneratingExport || !exportPreview || isExporting
+                      ? 'not-allowed'
+                      : 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 4px 12px rgba(123, 198, 126, 0.35)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: isGeneratingExport || !exportPreview || isExporting ? 0.6 : 1,
+                }}
+              >
+                {isExporting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        borderTopColor: 'white',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        display: 'inline-block',
+                      }}
+                    />
+                    生成中...
+                  </span>
+                ) : downloadComplete ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ✓ 下载完成
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    💾 确认下载
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 全局加载遮罩 */}
+      {isProcessing && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '20px',
+            animation: 'fadeIn 0.3s ease',
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              border: '4px solid rgba(123, 198, 126, 0.15)',
+              borderTopColor: 'var(--color-primary)',
+              borderRightColor: 'var(--color-primary-light)',
+              borderRadius: '50%',
+              animation: 'spin 1.2s linear infinite',
+            }}
+          />
+          <div style={{ textAlign: 'center' }}>
+            <p
+              className="handwriting"
+              style={{
+                fontSize: '18px',
+                color: 'var(--color-text)',
+                fontWeight: 600,
+                marginBottom: '4px',
+              }}
+            >
+              正在智能识别草图...
+            </p>
+            <p style={{ fontSize: '13px', color: 'var(--color-text-light)' }}>
+              边缘检测 · 轮廓提取 · 连通域分析
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

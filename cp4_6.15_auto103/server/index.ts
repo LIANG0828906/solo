@@ -706,21 +706,30 @@ function classifyComponent(comp: ConnectedComponent): 'stroke' | 'shape' | 'text
 
 async function vectorizeImage(buffer: Buffer, origWidth: number, origHeight: number): Promise<VectorizationResult> {
   const startTime = Date.now();
-  const TIMEOUT = 7500;
+  const TIMEOUT = 7500; // 8秒约束留500ms余量
 
-  const { edgeImage, width, height, scaleX, scaleY } = await processImageAsync(() =>
+  // ==========================================
+  // 性能优化：分阶段异步处理，避免阻塞事件循环
+  // ==========================================
+
+  // 阶段1: 边缘检测 (含灰度转换、高斯模糊、Sobel算子)
+  const edgeResult = await processImageAsync(() =>
     detectEdges(buffer, origWidth, origHeight)
   );
+  const { edgeImage, width, height, scaleX, scaleY } = edgeResult;
 
   if (Date.now() - startTime > TIMEOUT) {
+    console.warn('⚠️ 边缘检测超时，使用降级结果');
     return fallbackResult(origWidth, origHeight);
   }
 
+  // 阶段2: 连通域分析 (两阶段标记算法)
   const components = await processImageAsync(() =>
     connectedComponentsLabeling(edgeImage, width, height)
   );
 
   if (Date.now() - startTime > TIMEOUT) {
+    console.warn('⚠️ 连通域分析超时，使用降级结果');
     return fallbackResult(origWidth, origHeight);
   }
 

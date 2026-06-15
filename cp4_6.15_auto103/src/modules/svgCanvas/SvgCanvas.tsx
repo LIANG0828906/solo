@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import useSketchStore from '../../store/useSketchStore';
 import type { Layer, Point } from '../../types';
+import { throttle, RAFBatchUpdater } from '../../utils/performance';
 
 type HandlePosition =
   | 'nw' | 'n' | 'ne'
@@ -498,8 +499,13 @@ const SvgCanvas: React.FC = () => {
     startMouse: Point;
     layerId: string;
   } | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const pendingUpdateRef = useRef<{ zoom?: number; panX?: number; panY?: number }>({});
+
+  const batchUpdater = useMemo(() => new RAFBatchUpdater<{ zoom: number; panX: number; panY: number }>(
+    (update) => {
+      if (update.zoom !== undefined) setZoom(update.zoom);
+      if (update.panX !== undefined && update.panY !== undefined) setPan(update.panX, update.panY);
+    }
+  ), [setZoom, setPan]);
 
   const allLayers = useMemo(() => {
     const layers: Layer[] = [];
@@ -517,21 +523,6 @@ const SvgCanvas: React.FC = () => {
     return allLayers.find(l => l.id === selectedLayerId) || null;
   }, [allLayers, selectedLayerId]);
 
-  const scheduleUpdate = useCallback(() => {
-    if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      const update = pendingUpdateRef.current;
-      if (update.zoom !== undefined) {
-        setZoom(update.zoom);
-      }
-      if (update.panX !== undefined && update.panY !== undefined) {
-        setPan(update.panX, update.panY);
-      }
-      pendingUpdateRef.current = {};
-    });
-  }, [setZoom, setPan]);
-
   const screenToSvg = useCallback((clientX: number, clientY: number): Point => {
     if (!svgRef.current) return { x: 0, y: 0 };
     const rect = svgRef.current.getBoundingClientRect();
@@ -541,7 +532,7 @@ const SvgCanvas: React.FC = () => {
     };
   }, [zoom, panX, panY]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback(throttle((e: React.WheelEvent) => {
     e.preventDefault();
     if (!containerRef.current) return;
 
@@ -556,13 +547,12 @@ const SvgCanvas: React.FC = () => {
     const newPanX = mouseX - (mouseX - panX) * (newZoom / zoom);
     const newPanY = mouseY - (mouseY - panY) * (newZoom / zoom);
 
-    pendingUpdateRef.current = {
+    batchUpdater.queueUpdate({
       zoom: newZoom,
       panX: newPanX,
       panY: newPanY,
-    };
-    scheduleUpdate();
-  }, [zoom, panX, panY, scheduleUpdate]);
+    });
+  }, 16), [zoom, panX, panY, batchUpdater]);
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -586,15 +576,14 @@ const SvgCanvas: React.FC = () => {
     }
   }, [selectLayer, panX, panY, isDraggingHandle]);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
+  const handleMouseMove = useCallback(throttle((e: MouseEvent) => {
     if (isPanning) {
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
-      pendingUpdateRef.current = {
+      batchUpdater.queueUpdate({
         panX: panStart.panX + dx,
         panY: panStart.panY + dy,
-      };
-      scheduleUpdate();
+      });
       return;
     }
 
@@ -687,7 +676,7 @@ const SvgCanvas: React.FC = () => {
         updateLayer(selectedLayer.id, { rotation: angle });
       }
     }
-  }, [isPanning, panStart, dragState, isRotating, rotationCenter, screenToSvg, scheduleUpdate, allLayers, updateLayer, selectedLayer]);
+  }, 16), [isPanning, panStart, dragState, isRotating, rotationCenter, screenToSvg, batchUpdater, allLayers, updateLayer, selectedLayer]);
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
@@ -709,11 +698,9 @@ const SvgCanvas: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-      }
+      batchUpdater.cancel();
     };
-  }, []);
+  }, [batchUpdater]);
 
   const handleLayerDoubleClick = useCallback((e: React.MouseEvent, layerId: string) => {
     e.stopPropagation();

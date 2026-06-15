@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import useSketchStore from '../../store/useSketchStore';
 import type { Layer, LayerGroup, LayerType } from '../../types';
+import { debounce, calculateVirtualRange } from '../../utils/performance';
 
 interface ContextMenuState {
   visible: boolean;
@@ -683,9 +684,9 @@ const LayerManager: React.FC = () => {
   );
 
   const handleOpacityChange = useCallback(
-    (layerId: string, opacity: number) => {
+    debounce((layerId: string, opacity: number) => {
       updateLayer(layerId, { opacity });
-    },
+    }, 50),
     [updateLayer]
   );
 
