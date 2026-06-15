@@ -1,14 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
 
-app.use(cors());
-app.use(express.json());
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'events.json');
 
-let events = [
+const defaultEvents = [
   {
     id: uuidv4(),
     name: '2024社区技术分享会',
@@ -49,6 +55,48 @@ let events = [
   }
 ];
 
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function loadEvents() {
+  ensureDataDir();
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const data = fs.readFileSync(DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      return parsed.map(event => ({
+        ...event,
+        createdAt: new Date(event.createdAt),
+        participants: event.participants.map(p => ({
+          ...p,
+          enrolledAt: new Date(p.enrolledAt),
+          signedInAt: p.signedInAt ? new Date(p.signedInAt) : undefined
+        }))
+      }));
+    }
+  } catch (error) {
+    console.error('加载数据失败，使用默认数据:', error.message);
+  }
+  return defaultEvents;
+}
+
+function saveEvents() {
+  ensureDataDir();
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(events, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('保存数据失败:', error.message);
+  }
+}
+
+app.use(cors());
+app.use(express.json());
+
+let events = loadEvents();
+
 app.get('/api/events', (_req, res) => {
   res.json(events);
 });
@@ -84,6 +132,7 @@ app.post('/api/events', (req, res) => {
   };
 
   events.unshift(newEvent);
+  saveEvents();
   res.status(201).json(newEvent);
 });
 
@@ -116,6 +165,7 @@ app.post('/api/events/:id/enroll', (req, res) => {
   };
 
   event.participants.push(participant);
+  saveEvents();
   res.status(201).json({ event, participant });
 });
 
@@ -136,9 +186,16 @@ app.put('/api/events/:id/signin/:participantId', (req, res) => {
 
   participant.signedIn = true;
   participant.signedInAt = new Date();
+  saveEvents();
   res.json({ event, participant });
 });
 
+setInterval(() => {
+  saveEvents();
+  console.log('自动保存数据完成');
+}, 30000);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`数据存储路径: ${DATA_FILE}`);
 });

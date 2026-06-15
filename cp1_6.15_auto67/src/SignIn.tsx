@@ -19,7 +19,6 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
   const [foundParticipant, setFoundParticipant] = useState<any>(null);
   const [countdown, setCountdown] = useState<CountdownState | null>(null);
   const [error, setError] = useState('');
-  const [pulsingButtonId, setPulsingButtonId] = useState<string | null>(null);
 
   const enrolledEvents = events.filter(e => e.participants.length > 0);
 
@@ -67,7 +66,6 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
       count: 3,
       eventName: selectedEvent?.name || '',
     });
-    setPulsingButtonId(`${foundParticipant.eventId}-${foundParticipant.id}`);
   };
 
   useEffect(() => {
@@ -77,9 +75,9 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (countdown && countdown.count === 0) {
-      onSignIn(countdown.eventId, countdown.participantId);
+      const eventId = countdown.eventId;
+      const participantId = countdown.participantId;
       setCountdown(null);
-      setPulsingButtonId(null);
       setFoundParticipant(null);
       setParticipantPhone('');
       
@@ -89,6 +87,8 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
           setSelectedEvent(updatedEvent);
         }
       }
+      
+      onSignIn(eventId, participantId);
     }
   }, [countdown, onSignIn, selectedEvent, events]);
 
@@ -222,7 +222,7 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
                 
                 {!foundParticipant.signedIn && (
                   <button
-                    className={`btn btn-accent ${pulsingButtonId === `${foundParticipant.eventId}-${foundParticipant.id}` ? 'btn-pulse' : ''}`}
+                    className={`btn btn-accent ${countdown && countdown.count > 0 && countdown.eventId === foundParticipant.eventId ? 'btn-pulse' : ''}`}
                     onClick={handleSignInClick}
                     disabled={countdown !== null}
                   >

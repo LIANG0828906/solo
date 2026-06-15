@@ -1,116 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Event, Participant, TabType } from './types';
+import React from 'react';
+import { TabType } from './types';
 import EventList from './EventList';
 import SignIn from './SignIn';
 import CreateEvent from './CreateEvent';
 import ManageEvents from './ManageEvents';
 import EnrollModal from './EnrollModal';
+import { useEvent } from './context/EventContext';
 
 const App: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('list');
-  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [enrollModalEvent, setEnrollModalEvent] = useState<Event | null>(null);
-  const [newEventId, setNewEventId] = useState<string | null>(null);
+  const { state, dispatch, enroll, createEvent, signIn } = useEvent();
+  const { events, activeTab, alert, loading, enrollModalEvent, newEventId } = state;
 
-  const showAlert = useCallback((message: string, type: 'success' | 'error') => {
-    setAlert({ message, type });
-    setTimeout(() => setAlert(null), 3000);
-  }, []);
+  const handleEnroll = (event: typeof events[0]) => {
+    dispatch({ type: 'SET_ENROLL_MODAL', payload: event });
+  };
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/events');
-      const data = await response.json();
-      setEvents(data);
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
-      showAlert('无法加载活动数据，请确保后端服务已启动', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [showAlert]);
+  const handleCreateEvent = async (eventData: Parameters<typeof createEvent>[0]) => {
+    await createEvent(eventData);
+  };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const handleSignIn = async (eventId: string, participantId: string) => {
+    await signIn(eventId, participantId);
+  };
 
-  const handleEnroll = useCallback((event: Event) => {
-    setEnrollModalEvent(event);
-  }, []);
-
-  const confirmEnroll = useCallback(async (eventId: string, name: string, phone: string) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/events/${eventId}/enroll`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, phone }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '报名失败');
-      }
-
-      setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
-      showAlert('报名成功！', 'success');
-      setEnrollModalEvent(null);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '报名失败';
-      showAlert(errorMessage, 'error');
-    }
-  }, [showAlert]);
-
-  const handleCreateEvent = useCallback(async (eventData: Omit<Event, 'id' | 'participants' | 'createdAt'>) => {
-    try {
-      const response = await fetch('http://localhost:3001/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(eventData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '创建活动失败');
-      }
-
-      setEvents(prev => [data, ...prev]);
-      setNewEventId(data.id);
-      setTimeout(() => setNewEventId(null), 500);
-      showAlert('活动创建成功！', 'success');
-      setActiveTab('list');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '创建活动失败';
-      showAlert(errorMessage, 'error');
-    }
-  }, [showAlert]);
-
-  const handleSignIn = useCallback(async (eventId: string, participantId: string) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/events/${eventId}/signin/${participantId}`, {
-        method: 'PUT',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '签到失败');
-      }
-
-      setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
-      showAlert('签到成功！', 'success');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '签到失败';
-      showAlert(errorMessage, 'error');
-    }
-  }, [showAlert]);
+  const confirmEnroll = async (eventId: string, name: string, phone: string) => {
+    await enroll(eventId, name, phone);
+  };
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'list', label: '活动列表' },
@@ -147,7 +62,7 @@ const App: React.FC = () => {
           <button
             key={tab.key}
             className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
           >
             {tab.label}
           </button>
@@ -181,7 +96,7 @@ const App: React.FC = () => {
         <EnrollModal
           event={enrollModalEvent}
           onConfirm={confirmEnroll}
-          onCancel={() => setEnrollModalEvent(null)}
+          onCancel={() => dispatch({ type: 'SET_ENROLL_MODAL', payload: null })}
         />
       )}
     </div>
