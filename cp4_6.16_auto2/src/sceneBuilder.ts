@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import modelData from './modelData.json';
+import modelDataRaw from './modelData.json';
+
+const modelData = (modelDataRaw as any).buildings || modelDataRaw;
 
 export interface BuildingInfo {
   id: string;
@@ -15,9 +17,11 @@ export interface BuildingInfo {
   scale: number;
   rotation: number;
   fallbackStyle: string;
+  lodThresholds?: number[];
 }
 
 export interface BuildingEntry {
+  lod: THREE.LOD;
   mesh: THREE.Object3D;
   info: BuildingInfo;
   clickableMeshes: THREE.Mesh[];
@@ -66,6 +70,12 @@ export class SceneBuilder {
         onProgress?.(currentLoaded, total, `加载 ${info.name}`);
       });
       report(info.name);
+    }
+  }
+
+  updateLOD(camera: THREE.Camera): void {
+    for (const entry of this.buildings) {
+      entry.lod.update(camera);
     }
   }
 
@@ -127,6 +137,29 @@ export class SceneBuilder {
     centerMark.rotation.x = -Math.PI / 2;
     centerMark.position.set(-45, 0.05, 30);
     this.scene.add(centerMark);
+
+    const goalGeo = new THREE.BoxGeometry(0.2, 2.5, 8);
+    const goalMat = new THREE.MeshStandardMaterial({
+      color: 0xe0f7fa,
+      metalness: 0.8,
+      roughness: 0.25,
+      emissive: 0x4dd0e1,
+      emissiveIntensity: 0.15,
+    });
+    for (const side of [-1, 1]) {
+      const goal = new THREE.Mesh(goalGeo, goalMat);
+      goal.position.set(-45, 1.25, 30 + side * 20);
+      goal.castShadow = true;
+      this.scene.add(goal);
+
+      const postGeo = new THREE.CylinderGeometry(0.15, 0.18, 2.5, 8);
+      for (const px of [-3.5, 3.5]) {
+        const post = new THREE.Mesh(postGeo, goalMat);
+        post.position.set(-45 + px, 1.25, 30 + side * 20);
+        post.castShadow = true;
+        this.scene.add(post);
+      }
+    }
   }
 
   private setupPathways(): void {
@@ -150,6 +183,21 @@ export class SceneBuilder {
       mesh.position.set(p.x, 0.05, p.z);
       mesh.receiveShadow = true;
       this.scene.add(mesh);
+    }
+
+    const markerGeo = new THREE.SphereGeometry(0.18, 10, 10);
+    const markerMat = new THREE.MeshStandardMaterial({
+      color: 0x4dd0e1,
+      emissive: 0x4dd0e1,
+      emissiveIntensity: 0.8,
+    });
+    for (let i = -60; i <= 60; i += 10) {
+      const m1 = new THREE.Mesh(markerGeo, markerMat);
+      m1.position.set(i, 0.15, -2.8);
+      const m2 = new THREE.Mesh(markerGeo, markerMat);
+      m2.position.set(i, 0.15, 2.8);
+      this.scene.add(m1);
+      this.scene.add(m2);
     }
   }
 
@@ -178,6 +226,10 @@ export class SceneBuilder {
     fill.position.set(-40, 30, -50);
     this.scene.add(fill);
 
+    const rim = new THREE.DirectionalLight(0x00bcd4, 0.12);
+    rim.position.set(0, 40, -80);
+    this.scene.add(rim);
+
     this.scene.fog = new THREE.FogExp2(0x0a0e1a, 0.0045);
   }
 
@@ -186,8 +238,9 @@ export class SceneBuilder {
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x0a1628) },
-        bottomColor: { value: new THREE.Color(0x1a2a4a) },
+        topColor: { value: new THREE.Color(0x050a14) },
+        midColor: { value: new THREE.Color(0x0a1628) },
+        bottomColor: { value: new THREE.Color(0x152540) },
         offset: { value: 33 },
         exponent: { value: 0.7 },
       },
@@ -201,13 +254,24 @@ export class SceneBuilder {
       `,
       fragmentShader: `
         uniform vec3 topColor;
+        uniform vec3 midColor;
         uniform vec3 bottomColor;
         uniform float offset;
         uniform float exponent;
         varying vec3 vWorldPosition;
         void main() {
           float h = normalize(vWorldPosition + offset).y;
-          gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+          vec3 color;
+          if (h > 0.3) {
+            float t = (h - 0.3) / 0.7;
+            color = mix(midColor, topColor, pow(t, exponent));
+          } else if (h > -0.2) {
+            float t = (h + 0.2) / 0.5;
+            color = mix(bottomColor, midColor, t);
+          } else {
+            color = bottomColor;
+          }
+          gl_FragColor = vec4(color, 1.0);
         }
       `,
     });
@@ -215,26 +279,68 @@ export class SceneBuilder {
     this.scene.add(sky);
 
     const starGeo = new THREE.BufferGeometry();
-    const starCount = 1500;
+    const starCount = 2500;
     const positions = new Float32Array(starCount * 3);
+    const colors = new Float32Array(starCount * 3);
+    const sizes = new Float32Array(starCount);
     for (let i = 0; i < starCount; i++) {
       const r = 350 + Math.random() * 120;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.7 + 40;
+      positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.75 + 40;
       positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      const c = 0.7 + Math.random() * 0.3;
+      colors[i * 3] = 0.78 + Math.random() * 0.22;
+      colors[i * 3 + 1] = 0.9 + Math.random() * 0.1;
+      colors[i * 3 + 2] = c;
+      sizes[i] = 0.5 + Math.random() * 1.2;
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
     const starMat = new THREE.PointsMaterial({
-      color: 0xe0f7fa,
-      size: 0.9,
+      size: 1.1,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.92,
       sizeAttenuation: true,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     const stars = new THREE.Points(starGeo, starMat);
+    stars.name = 'stars';
     this.scene.add(stars);
+
+    const nebulaGeo = new THREE.BufferGeometry();
+    const nebulaCount = 600;
+    const nebulaPos = new Float32Array(nebulaCount * 3);
+    const nebulaCol = new Float32Array(nebulaCount * 3);
+    for (let i = 0; i < nebulaCount; i++) {
+      const r = 150 + Math.random() * 200;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      nebulaPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      nebulaPos[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.6 + 30;
+      nebulaPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      const isCyan = Math.random() > 0.5;
+      nebulaCol[i * 3] = isCyan ? 0.1 : 0.4;
+      nebulaCol[i * 3 + 1] = isCyan ? 0.75 : 0.3;
+      nebulaCol[i * 3 + 2] = isCyan ? 0.95 : 0.8;
+    }
+    nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nebulaPos, 3));
+    nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nebulaCol, 3));
+    const nebulaMat = new THREE.PointsMaterial({
+      size: 2.5,
+      transparent: true,
+      opacity: 0.12,
+      sizeAttenuation: true,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const nebula = new THREE.Points(nebulaGeo, nebulaMat);
+    this.scene.add(nebula);
 
     this.setupTrees();
     this.setupLampPosts();
@@ -246,6 +352,7 @@ export class SceneBuilder {
       [65, 0], [55, 55], [15, 60], [-20, 55], [-60, 50],
       [-35, -5], [-5, 12], [30, 45], [-50, 15], [-35, 45],
       [40, -40], [10, -35], [-10, -15], [20, 5], [-45, -40],
+      [-70, -40], [-70, 15], [-70, 45], [70, -30], [70, 25], [70, 55],
     ];
 
     for (const [x, z] of positions) {
@@ -294,6 +401,7 @@ export class SceneBuilder {
     const positions = [
       [-55, 0], [-25, 0], [10, 0], [45, 0],
       [0, -35], [0, -5], [0, 30],
+      [-30, -20], [20, 15], [-40, 25],
     ];
 
     for (const [x, z] of positions) {
@@ -336,6 +444,16 @@ export class SceneBuilder {
     pl.position.set(1.4, 5, 0);
     group.add(pl);
 
+    const glowGeo = new THREE.SphereGeometry(0.6, 12, 12);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x4dd0e1,
+      transparent: true,
+      opacity: 0.15,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.set(1.4, 5.2, 0);
+    group.add(glow);
+
     return group;
   }
 
@@ -355,15 +473,115 @@ export class SceneBuilder {
           }
         },
         () => {
-          const fallback = this.createFallbackBuilding(info);
-          this.scene.add(fallback);
-          const clickable = this.collectClickableMeshes(fallback, info.id);
-          this.buildings.push({ mesh: fallback, info, clickableMeshes: clickable });
+          const lod = this.createBuildingLOD(info);
+          const rootGroup = new THREE.Group();
+          rootGroup.add(lod);
+          rootGroup.position.set(info.position.x, info.position.y, info.position.z);
+          rootGroup.rotation.y = info.rotation;
+          rootGroup.scale.setScalar(info.scale);
+          this.scene.add(rootGroup);
+
+          const clickable = this.collectClickableMeshes(lod, info.id);
+          this.buildings.push({
+            lod,
+            mesh: rootGroup,
+            info,
+            clickableMeshes: clickable,
+          });
+
+          const neon = this.createBuildingNeon(info);
+          neon.position.set(info.position.x, info.position.y, info.position.z);
+          neon.rotation.y = info.rotation;
+          this.scene.add(neon);
+
           onProgress?.(1);
           resolve();
         }
       );
     });
+  }
+
+  private createBuildingLOD(info: BuildingInfo): THREE.LOD {
+    const lod = new THREE.LOD();
+    const thresholds = info.lodThresholds || [45, 90, 150];
+
+    const lod0 = this.createFallbackBuilding(info, 0);
+    lod.addLevel(lod0, 0);
+
+    const lod1 = this.createFallbackBuilding(info, 1);
+    lod.addLevel(lod1, thresholds[0]);
+
+    const lod2 = this.createFallbackBuilding(info, 2);
+    lod.addLevel(lod2, thresholds[1]);
+
+    const lod3 = this.createSimplifiedBuilding(info);
+    lod.addLevel(lod3, thresholds[2]);
+
+    return lod;
+  }
+
+  private createBuildingNeon(info: BuildingInfo): THREE.Group {
+    const group = new THREE.Group();
+
+    const neonColors: Record<string, number> = {
+      modern: 0x00bcd4,
+      classic: 0x4dd0e1,
+      tech: 0x80deea,
+      sport: 0x26c6da,
+    };
+    const color = neonColors[info.fallbackStyle] || 0x4dd0e1;
+
+    const h = info.floors * 3.6 + 4;
+    const w = info.fallbackStyle === 'sport' ? 34 : info.fallbackStyle === 'classic' ? 20 : 18;
+    const d = info.fallbackStyle === 'sport' ? 24 : info.fallbackStyle === 'tech' ? 16 : 11;
+
+    const points: THREE.Vector3[] = [
+      new THREE.Vector3(-w / 2 - 0.3, 0.5, -d / 2 - 0.3),
+      new THREE.Vector3(w / 2 + 0.3, 0.5, -d / 2 - 0.3),
+      new THREE.Vector3(w / 2 + 0.3, 0.5, d / 2 + 0.3),
+      new THREE.Vector3(-w / 2 - 0.3, 0.5, d / 2 + 0.3),
+      new THREE.Vector3(-w / 2 - 0.3, 0.5, -d / 2 - 0.3),
+    ];
+
+    const tubeGeo = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(points),
+      64, 0.04, 6, false
+    );
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.65,
+    });
+    const tube = new THREE.Mesh(tubeGeo, tubeMat);
+    group.add(tube);
+
+    const topPoints = points.map((p) => p.clone().setY(h + 0.3));
+    const topTubeGeo = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(topPoints),
+      64, 0.04, 6, false
+    );
+    const topTube = new THREE.Mesh(topTubeGeo, tubeMat);
+    group.add(topTube);
+
+    const cornerIdx = [0, 1, 2, 3];
+    for (const idx of cornerIdx) {
+      const pillarGeo = new THREE.CylinderGeometry(0.03, 0.03, h, 6);
+      const pillarMat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.45,
+      });
+      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+      pillar.position.copy(points[idx]);
+      pillar.position.y = h / 2 + 0.4;
+      group.add(pillar);
+    }
+
+    const light = new THREE.PointLight(color, 0.18, 25, 2);
+    light.position.set(0, h / 2, 0);
+    group.add(light);
+
+    return group;
   }
 
   private processLoadedModel(group: THREE.Group, info: BuildingInfo): void {
@@ -380,9 +598,25 @@ export class SceneBuilder {
       }
     });
 
-    this.scene.add(group);
-    const clickable = this.collectClickableMeshes(group, info.id);
-    this.buildings.push({ mesh: group, info, clickableMeshes: clickable });
+    const lod = new THREE.LOD();
+    lod.addLevel(group, 0);
+    const rootGroup = new THREE.Group();
+    rootGroup.add(lod);
+    rootGroup.position.set(info.position.x, info.position.y, info.position.z);
+    this.scene.add(rootGroup);
+
+    const clickable = this.collectClickableMeshes(lod, info.id);
+    this.buildings.push({
+      lod,
+      mesh: rootGroup,
+      info,
+      clickableMeshes: clickable,
+    });
+
+    const neon = this.createBuildingNeon(info);
+    neon.position.set(info.position.x, info.position.y, info.position.z);
+    neon.rotation.y = info.rotation;
+    this.scene.add(neon);
   }
 
   private collectClickableMeshes(root: THREE.Object3D, buildingId: string): THREE.Mesh[] {
@@ -397,43 +631,77 @@ export class SceneBuilder {
     return result;
   }
 
-  private createFallbackBuilding(info: BuildingInfo): THREE.Group {
+  private createFallbackBuilding(info: BuildingInfo, lodLevel: number): THREE.Group {
     const group = new THREE.Group();
-    group.position.set(info.position.x, info.position.y, info.position.z);
-    group.rotation.y = info.rotation;
-    group.scale.setScalar(info.scale);
-
     const style = info.fallbackStyle;
     let building: THREE.Group;
 
+    const qualityMap: Record<string, { segments: number; win: boolean; det: boolean }> = {
+      '0': { segments: 12, win: true, det: true },
+      '1': { segments: 8, win: true, det: true },
+      '2': { segments: 5, win: false, det: false },
+    };
+    const q = qualityMap[String(lodLevel)] || { segments: 4, win: false, det: false };
+
     switch (style) {
       case 'modern':
-        building = this.createModernBuilding(info);
+        building = this.createModernBuilding(info, q);
         break;
       case 'classic':
-        building = this.createClassicBuilding(info);
+        building = this.createClassicBuilding(info, q);
         break;
       case 'tech':
-        building = this.createTechBuilding(info);
+        building = this.createTechBuilding(info, q);
         break;
       case 'sport':
-        building = this.createSportBuilding(info);
+        building = this.createSportBuilding(info, q);
         break;
       default:
-        building = this.createModernBuilding(info);
+        building = this.createModernBuilding(info, q);
     }
 
     group.add(building);
-    this.setupClickableTag(group, info);
     return group;
   }
 
-  private createModernBuilding(info: BuildingInfo): THREE.Group {
+  private createSimplifiedBuilding(info: BuildingInfo): THREE.Group {
+    const group = new THREE.Group();
+    const floors = info.floors;
+    const h = floors * 3.6 + 2;
+    const w = info.fallbackStyle === 'sport' ? 34 : info.fallbackStyle === 'classic' ? 20 : 18;
+    const d = info.fallbackStyle === 'sport' ? 24 : info.fallbackStyle === 'tech' ? 16 : 11;
+
+    const colors: Record<string, number> = {
+      modern: 0x1a3045,
+      classic: 0x1f3548,
+      tech: 0x152838,
+      sport: 0x1e3345,
+    };
+
+    const geo = info.fallbackStyle === 'sport'
+      ? new THREE.SphereGeometry(Math.max(w, d) * 0.45, 8, 6)
+      : new THREE.BoxGeometry(w, h, d);
+    const mat = new THREE.MeshStandardMaterial({
+      color: colors[info.fallbackStyle] || 0x1a3045,
+      roughness: 0.8,
+      metalness: 0.2,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = h / 2;
+    mesh.castShadow = true;
+    mesh.userData.buildingId = info.id;
+    group.add(mesh);
+
+    return group;
+  }
+
+  private createModernBuilding(info: BuildingInfo, q: { segments: number; win: boolean; det: boolean }): THREE.Group {
     const group = new THREE.Group();
     const floors = info.floors;
     const floorH = 3.6;
     const width = 18;
     const depth = 11;
+    const seg = q.segments;
 
     const baseGeo = new THREE.BoxGeometry(width + 2, 1.2, depth + 2);
     const baseMat = new THREE.MeshStandardMaterial({
@@ -462,69 +730,89 @@ export class SceneBuilder {
       floor.userData.buildingId = info.id;
       group.add(floor);
 
-      this.addWindows(floor, width, floorH, depth, f, info.id, 'modern');
+      if (q.win) {
+        this.addWindows(floor, width, floorH, depth, f, info.id, 'modern', seg);
+      }
     }
 
-    const roofGeo = new THREE.BoxGeometry(width - 2, 0.6, depth - 2);
-    const roofMat = new THREE.MeshStandardMaterial({
-      color: 0x142233,
-      roughness: 0.8,
-      metalness: 0.3,
-    });
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 1.2 + floors * floorH + 0.3;
-    roof.castShadow = true;
-    roof.userData.buildingId = info.id;
-    group.add(roof);
+    if (q.det) {
+      const roofGeo = new THREE.BoxGeometry(width - 2, 0.6, depth - 2);
+      const roofMat = new THREE.MeshStandardMaterial({
+        color: 0x142233,
+        roughness: 0.8,
+        metalness: 0.3,
+      });
+      const roof = new THREE.Mesh(roofGeo, roofMat);
+      roof.position.y = 1.2 + floors * floorH + 0.3;
+      roof.castShadow = true;
+      roof.userData.buildingId = info.id;
+      group.add(roof);
 
-    const entrance = this.createEntrance(info.id);
-    entrance.position.set(0, 0, depth / 2 + 0.6);
-    group.add(entrance);
+      const antennaGeo = new THREE.CylinderGeometry(0.08, 0.12, 4, seg);
+      const antennaMat = new THREE.MeshStandardMaterial({
+        color: 0x80deea,
+        metalness: 0.9,
+        roughness: 0.2,
+        emissive: 0x4dd0e1,
+        emissiveIntensity: 0.35,
+      });
+      const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+      antenna.position.set(width * 0.3, 1.2 + floors * floorH + 2.6, 0);
+      antenna.userData.buildingId = info.id;
+      group.add(antenna);
+
+      const entrance = this.createEntrance(info.id, seg);
+      entrance.position.set(0, 0, depth / 2 + 0.6);
+      group.add(entrance);
+    }
 
     return group;
   }
 
-  private createClassicBuilding(info: BuildingInfo): THREE.Group {
+  private createClassicBuilding(info: BuildingInfo, q: { segments: number; win: boolean; det: boolean }): THREE.Group {
     const group = new THREE.Group();
     const floors = info.floors;
     const floorH = 3.9;
     const width = 20;
     const depth = 14;
+    const seg = q.segments;
 
-    const steps = new THREE.Group();
-    for (let s = 0; s < 4; s++) {
-      const stepGeo = new THREE.BoxGeometry(width + 4 - s * 0.8, 0.28, 1.4);
-      const stepMat = new THREE.MeshStandardMaterial({
-        color: 0x2a3a4a,
-        roughness: 0.85,
+    if (q.det) {
+      const steps = new THREE.Group();
+      for (let s = 0; s < 4; s++) {
+        const stepGeo = new THREE.BoxGeometry(width + 4 - s * 0.8, 0.28, 1.4);
+        const stepMat = new THREE.MeshStandardMaterial({
+          color: 0x2a3a4a,
+          roughness: 0.85,
+        });
+        const step = new THREE.Mesh(stepGeo, stepMat);
+        step.position.y = 0.14 + s * 0.28;
+        step.position.z = depth / 2 + 0.8 + s * 0.5;
+        step.castShadow = true;
+        step.receiveShadow = true;
+        step.userData.buildingId = info.id;
+        steps.add(step);
+      }
+      group.add(steps);
+
+      const columns = new THREE.Group();
+      const colMat = new THREE.MeshStandardMaterial({
+        color: 0x3a4a5a,
+        roughness: 0.7,
+        metalness: 0.15,
       });
-      const step = new THREE.Mesh(stepGeo, stepMat);
-      step.position.y = 0.14 + s * 0.28;
-      step.position.z = depth / 2 + 0.8 + s * 0.5;
-      step.castShadow = true;
-      step.receiveShadow = true;
-      step.userData.buildingId = info.id;
-      steps.add(step);
+      const colCount = 6;
+      for (let c = 0; c < colCount; c++) {
+        const colGeo = new THREE.CylinderGeometry(0.45, 0.55, floors * floorH, seg);
+        const col = new THREE.Mesh(colGeo, colMat);
+        col.position.set(-width / 2 + 1.5 + (c * (width - 3)) / (colCount - 1), 1.2 + (floors * floorH) / 2, depth / 2 + 0.2);
+        col.castShadow = true;
+        col.receiveShadow = true;
+        col.userData.buildingId = info.id;
+        columns.add(col);
+      }
+      group.add(columns);
     }
-    group.add(steps);
-
-    const columns = new THREE.Group();
-    const colMat = new THREE.MeshStandardMaterial({
-      color: 0x3a4a5a,
-      roughness: 0.7,
-      metalness: 0.15,
-    });
-    const colCount = 6;
-    for (let c = 0; c < colCount; c++) {
-      const colGeo = new THREE.CylinderGeometry(0.45, 0.55, floors * floorH, 12);
-      const col = new THREE.Mesh(colGeo, colMat);
-      col.position.set(-width / 2 + 1.5 + (c * (width - 3)) / (colCount - 1), 1.2 + (floors * floorH) / 2, depth / 2 + 0.2);
-      col.castShadow = true;
-      col.receiveShadow = true;
-      col.userData.buildingId = info.id;
-      columns.add(col);
-    }
-    group.add(columns);
 
     for (let f = 0; f < floors; f++) {
       const floorGeo = new THREE.BoxGeometry(width, floorH - 0.25, depth);
@@ -540,41 +828,57 @@ export class SceneBuilder {
       floor.userData.buildingId = info.id;
       group.add(floor);
 
-      this.addWindows(floor, width, floorH, depth, f, info.id, 'classic');
+      if (q.win) {
+        this.addWindows(floor, width, floorH, depth, f, info.id, 'classic', seg);
+      }
     }
 
-    const entGeo = new THREE.BoxGeometry(width + 0.5, 1.1, depth + 0.5);
-    const entMat = new THREE.MeshStandardMaterial({
-      color: 0x1e2f3f,
-      roughness: 0.8,
-    });
-    const entablature = new THREE.Mesh(entGeo, entMat);
-    entablature.position.y = 1.2 + floors * floorH + 0.55;
-    entablature.castShadow = true;
-    entablature.userData.buildingId = info.id;
-    group.add(entablature);
+    if (q.det) {
+      const entGeo = new THREE.BoxGeometry(width + 0.5, 1.1, depth + 0.5);
+      const entMat = new THREE.MeshStandardMaterial({
+        color: 0x1e2f3f,
+        roughness: 0.8,
+      });
+      const entablature = new THREE.Mesh(entGeo, entMat);
+      entablature.position.y = 1.2 + floors * floorH + 0.55;
+      entablature.castShadow = true;
+      entablature.userData.buildingId = info.id;
+      group.add(entablature);
 
-    const pedimentGeo = new THREE.ConeGeometry(width * 0.75, 4.5, 4);
-    const pedimentMat = new THREE.MeshStandardMaterial({
-      color: 0x1a2a3a,
-      roughness: 0.75,
-    });
-    const pediment = new THREE.Mesh(pedimentGeo, pedimentMat);
-    pediment.position.y = 1.2 + floors * floorH + 1.1 + 2.25;
-    pediment.rotation.y = Math.PI / 4;
-    pediment.castShadow = true;
-    pediment.userData.buildingId = info.id;
-    group.add(pediment);
+      const pedimentGeo = new THREE.ConeGeometry(width * 0.75, 4.5, 4);
+      const pedimentMat = new THREE.MeshStandardMaterial({
+        color: 0x1a2a3a,
+        roughness: 0.75,
+      });
+      const pediment = new THREE.Mesh(pedimentGeo, pedimentMat);
+      pediment.position.y = 1.2 + floors * floorH + 1.1 + 2.25;
+      pediment.rotation.y = Math.PI / 4;
+      pediment.castShadow = true;
+      pediment.userData.buildingId = info.id;
+      group.add(pediment);
+
+      const clockGeo = new THREE.CircleGeometry(0.8, seg * 2);
+      const clockMat = new THREE.MeshStandardMaterial({
+        color: 0x1a3040,
+        emissive: 0x4dd0e1,
+        emissiveIntensity: 0.25,
+      });
+      const clock = new THREE.Mesh(clockGeo, clockMat);
+      clock.position.set(0, 1.2 + floors * floorH * 0.55, depth / 2 + 0.1);
+      clock.userData.buildingId = info.id;
+      group.add(clock);
+    }
 
     return group;
   }
 
-  private createTechBuilding(info: BuildingInfo): THREE.Group {
+  private createTechBuilding(info: BuildingInfo, q: { segments: number; win: boolean; det: boolean }): THREE.Group {
     const group = new THREE.Group();
     const floors = info.floors;
     const floorH = 3.7;
     const width = 16;
     const depth = 16;
+    const seg = q.segments;
 
     const podiumGeo = new THREE.BoxGeometry(width + 6, 1.8, depth + 6);
     const podiumMat = new THREE.MeshStandardMaterial({
@@ -621,69 +925,74 @@ export class SceneBuilder {
       frame.userData.buildingId = info.id;
       group.add(frame);
 
-      const slabGeo = new THREE.BoxGeometry(width + 0.4, 0.3, depth + 0.4);
-      const slabMat = new THREE.MeshStandardMaterial({
-        color: 0x0f2030,
-        roughness: 0.6,
-        metalness: 0.5,
-      });
-      const slab = new THREE.Mesh(slabGeo, slabMat);
-      slab.position.y = 1.8 + (f + 1) * floorH - 0.15;
-      slab.castShadow = true;
-      slab.userData.buildingId = info.id;
-      group.add(slab);
+      if (q.det) {
+        const slabGeo = new THREE.BoxGeometry(width + 0.4, 0.3, depth + 0.4);
+        const slabMat = new THREE.MeshStandardMaterial({
+          color: 0x0f2030,
+          roughness: 0.6,
+          metalness: 0.5,
+        });
+        const slab = new THREE.Mesh(slabGeo, slabMat);
+        slab.position.y = 1.8 + (f + 1) * floorH - 0.15;
+        slab.castShadow = true;
+        slab.userData.buildingId = info.id;
+        group.add(slab);
+      }
     }
 
-    const helipadGeo = new THREE.CylinderGeometry(4.5, 4.5, 0.2, 32);
-    const helipadMat = new THREE.MeshStandardMaterial({
-      color: 0x1a3040,
-      roughness: 0.8,
-    });
-    const helipad = new THREE.Mesh(helipadGeo, helipadMat);
-    helipad.position.y = 1.8 + floors * floorH + 0.25;
-    helipad.userData.buildingId = info.id;
-    group.add(helipad);
+    if (q.det) {
+      const helipadGeo = new THREE.CylinderGeometry(4.5, 4.5, 0.2, seg * 2);
+      const helipadMat = new THREE.MeshStandardMaterial({
+        color: 0x1a3040,
+        roughness: 0.8,
+      });
+      const helipad = new THREE.Mesh(helipadGeo, helipadMat);
+      helipad.position.y = 1.8 + floors * floorH + 0.25;
+      helipad.userData.buildingId = info.id;
+      group.add(helipad);
 
-    const hGeo = new THREE.BoxGeometry(5, 0.08, 0.25);
-    const vGeo = new THREE.BoxGeometry(0.25, 0.08, 5);
-    const hvMat = new THREE.MeshStandardMaterial({
-      color: 0x4dd0e1,
-      emissive: 0x4dd0e1,
-      emissiveIntensity: 0.6,
-    });
-    const hMark = new THREE.Mesh(hGeo, hvMat);
-    hMark.position.y = 1.8 + floors * floorH + 0.4;
-    hMark.userData.buildingId = info.id;
-    group.add(hMark);
-    const vMark = new THREE.Mesh(vGeo, hvMat);
-    vMark.position.y = 1.8 + floors * floorH + 0.4;
-    vMark.userData.buildingId = info.id;
-    group.add(vMark);
+      const hGeo = new THREE.BoxGeometry(5, 0.08, 0.25);
+      const vGeo = new THREE.BoxGeometry(0.25, 0.08, 5);
+      const hvMat = new THREE.MeshStandardMaterial({
+        color: 0x4dd0e1,
+        emissive: 0x4dd0e1,
+        emissiveIntensity: 0.6,
+      });
+      const hMark = new THREE.Mesh(hGeo, hvMat);
+      hMark.position.y = 1.8 + floors * floorH + 0.4;
+      hMark.userData.buildingId = info.id;
+      group.add(hMark);
+      const vMark = new THREE.Mesh(vGeo, hvMat);
+      vMark.position.y = 1.8 + floors * floorH + 0.4;
+      vMark.userData.buildingId = info.id;
+      group.add(vMark);
 
-    const antennaGeo = new THREE.CylinderGeometry(0.08, 0.1, 5, 6);
-    const antennaMat = new THREE.MeshStandardMaterial({
-      color: 0x80deea,
-      metalness: 0.9,
-      roughness: 0.2,
-      emissive: 0x4dd0e1,
-      emissiveIntensity: 0.3,
-    });
-    const antenna = new THREE.Mesh(antennaGeo, antennaMat);
-    antenna.position.set(0, 1.8 + floors * floorH + 2.8, 0);
-    antenna.userData.buildingId = info.id;
-    group.add(antenna);
+      const antennaGeo = new THREE.CylinderGeometry(0.08, 0.1, 5, seg);
+      const antennaMat = new THREE.MeshStandardMaterial({
+        color: 0x80deea,
+        metalness: 0.9,
+        roughness: 0.2,
+        emissive: 0x4dd0e1,
+        emissiveIntensity: 0.4,
+      });
+      const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+      antenna.position.set(0, 1.8 + floors * floorH + 2.8, 0);
+      antenna.userData.buildingId = info.id;
+      group.add(antenna);
 
-    const entrance = this.createEntrance(info.id);
-    entrance.position.set(0, 1.8, depth / 2 + 3.3);
-    group.add(entrance);
+      const entrance = this.createEntrance(info.id, seg);
+      entrance.position.set(0, 1.8, depth / 2 + 3.3);
+      group.add(entrance);
+    }
 
     return group;
   }
 
-  private createSportBuilding(info: BuildingInfo): THREE.Group {
+  private createSportBuilding(info: BuildingInfo, q: { segments: number; win: boolean; det: boolean }): THREE.Group {
     const group = new THREE.Group();
     const width = 34;
     const depth = 24;
+    const seg = q.segments;
 
     const baseGeo = new THREE.BoxGeometry(width + 2, 0.8, depth + 2);
     const baseMat = new THREE.MeshStandardMaterial({
@@ -711,24 +1020,28 @@ export class SceneBuilder {
     walls.userData.buildingId = info.id;
     group.add(walls);
 
-    const bandMat = new THREE.MeshStandardMaterial({
-      color: 0x0f3040,
-      roughness: 0.35,
-      metalness: 0.6,
-      emissive: 0x1a5565,
-      emissiveIntensity: 0.1,
-    });
-    for (let s = 0; s < 4; s++) {
-      const bandGeo = new THREE.BoxGeometry(width + 0.5, 0.5, depth + 0.5);
-      const band = new THREE.Mesh(bandGeo, bandMat);
-      band.position.y = 0.8 + 1.8 + s * 1.6;
-      band.userData.buildingId = info.id;
-      group.add(band);
+    if (q.det) {
+      const bandMat = new THREE.MeshStandardMaterial({
+        color: 0x0f3040,
+        roughness: 0.35,
+        metalness: 0.6,
+        emissive: 0x1a5565,
+        emissiveIntensity: 0.18,
+      });
+      for (let s = 0; s < 4; s++) {
+        const bandGeo = new THREE.BoxGeometry(width + 0.5, 0.5, depth + 0.5);
+        const band = new THREE.Mesh(bandGeo, bandMat);
+        band.position.y = 0.8 + 1.8 + s * 1.6;
+        band.userData.buildingId = info.id;
+        group.add(band);
+      }
     }
 
-    this.addWindows(walls, width, wallH, depth, 0, info.id, 'sport');
+    if (q.win) {
+      this.addWindows(walls, width, wallH, depth, 0, info.id, 'sport', seg);
+    }
 
-    const roofGeo = new THREE.SphereGeometry(width * 0.55, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2.4);
+    const roofGeo = new THREE.SphereGeometry(width * 0.55, seg * 2, seg, 0, Math.PI * 2, 0, Math.PI / 2.4);
     const roofMat = new THREE.MeshStandardMaterial({
       color: 0x2a4558,
       roughness: 0.4,
@@ -741,55 +1054,68 @@ export class SceneBuilder {
     roof.userData.buildingId = info.id;
     group.add(roof);
 
-    const ringGeo = new THREE.TorusGeometry(width * 0.52, 0.35, 10, 60);
-    const ringMat = new THREE.MeshStandardMaterial({
-      color: 0x1a3545,
-      roughness: 0.5,
-      metalness: 0.6,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.y = 0.8 + wallH + 0.5;
-    ring.rotation.x = Math.PI / 2;
-    ring.userData.buildingId = info.id;
-    group.add(ring);
-
-    const entranceGeo = new THREE.BoxGeometry(8, 4.5, 2.5);
-    const entranceMat = new THREE.MeshStandardMaterial({
-      color: 0x0d2030,
-      roughness: 0.25,
-      metalness: 0.7,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const entrance = new THREE.Mesh(entranceGeo, entranceMat);
-    entrance.position.set(0, 0.8 + 2.25, depth / 2 + 1.2);
-    entrance.userData.buildingId = info.id;
-    group.add(entrance);
-
-    const canopyGeo = new THREE.BoxGeometry(12, 0.3, 5);
-    const canopyMat = new THREE.MeshStandardMaterial({
-      color: 0x1a3040,
-      roughness: 0.6,
-      metalness: 0.4,
-    });
-    const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-    canopy.position.set(0, 0.8 + 5, depth / 2 + 2.5);
-    canopy.castShadow = true;
-    canopy.userData.buildingId = info.id;
-    group.add(canopy);
-
-    for (let s = 0; s < 2; s++) {
-      const pillarGeo = new THREE.CylinderGeometry(0.25, 0.3, 5, 8);
-      const pillarMat = new THREE.MeshStandardMaterial({
-        color: 0x2a4055,
-        metalness: 0.7,
-        roughness: 0.35,
+    if (q.det) {
+      const ringGeo = new THREE.TorusGeometry(width * 0.52, 0.35, seg, seg * 3);
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0x1a3545,
+        roughness: 0.5,
+        metalness: 0.6,
       });
-      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(s === 0 ? -4.5 : 4.5, 0.8 + 2.5, depth / 2 + 4.5);
-      pillar.castShadow = true;
-      pillar.userData.buildingId = info.id;
-      group.add(pillar);
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.y = 0.8 + wallH + 0.5;
+      ring.rotation.x = Math.PI / 2;
+      ring.userData.buildingId = info.id;
+      group.add(ring);
+
+      const scoreGeo = new THREE.BoxGeometry(8, 3, 0.4);
+      const scoreMat = new THREE.MeshStandardMaterial({
+        color: 0x0a1a2a,
+        emissive: 0x4dd0e1,
+        emissiveIntensity: 0.2,
+      });
+      const score = new THREE.Mesh(scoreGeo, scoreMat);
+      score.position.set(0, 0.8 + wallH - 1, -depth / 2 - 0.3);
+      score.userData.buildingId = info.id;
+      group.add(score);
+
+      const entranceGeo = new THREE.BoxGeometry(8, 4.5, 2.5);
+      const entranceMat = new THREE.MeshStandardMaterial({
+        color: 0x0d2030,
+        roughness: 0.25,
+        metalness: 0.7,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const entrance = new THREE.Mesh(entranceGeo, entranceMat);
+      entrance.position.set(0, 0.8 + 2.25, depth / 2 + 1.2);
+      entrance.userData.buildingId = info.id;
+      group.add(entrance);
+
+      const canopyGeo = new THREE.BoxGeometry(12, 0.3, 5);
+      const canopyMat = new THREE.MeshStandardMaterial({
+        color: 0x1a3040,
+        roughness: 0.6,
+        metalness: 0.4,
+      });
+      const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+      canopy.position.set(0, 0.8 + 5, depth / 2 + 2.5);
+      canopy.castShadow = true;
+      canopy.userData.buildingId = info.id;
+      group.add(canopy);
+
+      for (let s = 0; s < 2; s++) {
+        const pillarGeo = new THREE.CylinderGeometry(0.25, 0.3, 5, seg);
+        const pillarMat = new THREE.MeshStandardMaterial({
+          color: 0x2a4055,
+          metalness: 0.7,
+          roughness: 0.35,
+        });
+        const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+        pillar.position.set(s === 0 ? -4.5 : 4.5, 0.8 + 2.5, depth / 2 + 4.5);
+        pillar.castShadow = true;
+        pillar.userData.buildingId = info.id;
+        group.add(pillar);
+      }
     }
 
     return group;
@@ -802,7 +1128,8 @@ export class SceneBuilder {
     depth: number,
     floorIdx: number,
     buildingId: string,
-    style: string
+    style: string,
+    segments: number
   ): void {
     const group = parent.parent;
     if (!group) return;
@@ -877,7 +1204,7 @@ export class SceneBuilder {
     placeWindows(sideCount, 'z', -1, depth);
   }
 
-  private createEntrance(buildingId: string): THREE.Group {
+  private createEntrance(buildingId: string, segments: number): THREE.Group {
     const group = new THREE.Group();
 
     const doorGeo = new THREE.BoxGeometry(3.2, 3.4, 0.18);
@@ -918,20 +1245,10 @@ export class SceneBuilder {
     topLight.userData.buildingId = buildingId;
     group.add(topLight);
 
-    return group;
-  }
+    const doorLight = new THREE.PointLight(0x80deea, 0.3, 10, 2);
+    doorLight.position.set(0, 2.5, 1.5);
+    group.add(doorLight);
 
-  private setupClickableTag(group: THREE.Group, info: BuildingInfo): void {
-    const clickable: THREE.Mesh[] = [];
-    group.traverse((obj) => {
-      if ((obj as THREE.Mesh).isMesh) {
-        const m = obj as THREE.Mesh;
-        if (!m.userData.buildingId) {
-          m.userData.buildingId = info.id;
-        }
-        clickable.push(m);
-      }
-    });
-    this.buildings.push({ mesh: group, info, clickableMeshes: clickable });
+    return group;
   }
 }

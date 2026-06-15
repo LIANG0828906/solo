@@ -1,58 +1,65 @@
-[
-  {
-    "id": "teaching-a",
-    "name": "主教学楼",
-    "type": "教学楼",
-    "tag": "TEACHING BUILDING",
-    "floors": 8,
-    "icon": "🏛️",
-    "description": "主教学楼是学校的核心教学建筑，设有多媒体教室、阶梯教室、教研室和多功能报告厅。配备现代化的教学设备，支持智慧课堂教学模式。楼内设有教师办公室、学生自习室和小型会议室，是师生日常教学活动的主要场所。",
-    "modelUrl": "/models/teaching-a.glb",
-    "position": { "x": -30, "y": 0, "z": -20 },
-    "scale": 1.0,
-    "rotation": 0,
-    "fallbackStyle": "modern"
-  },
-  {
-    "id": "library",
-    "name": "信息图书馆",
-    "type": "图书馆",
-    "tag": "LIBRARY",
-    "floors": 5,
-    "icon": "📚",
-    "description": "信息图书馆是学校的知识资源中心，馆藏图书超过100万册，涵盖各学科领域。设有电子阅览室、期刊阅览区、研究小间、学术讨论室和24小时自习区。馆内配备智能化图书检索系统，提供数字资源访问服务，是学生自主学习和学术研究的重要空间。",
-    "modelUrl": "/models/library.glb",
-    "position": { "x": 25, "y": 0, "z": -15 },
-    "scale": 1.0,
-    "rotation": -0.2,
-    "fallbackStyle": "classic"
-  },
-  {
-    "id": "science-center",
-    "name": "科学实验中心",
-    "type": "实验楼",
-    "tag": "SCIENCE CENTER",
-    "floors": 6,
-    "icon": "🔬",
-    "description": "科学实验中心是理工科教学与科研的重要基地，配备物理、化学、生物、计算机等各类专业实验室。拥有先进的精密仪器设备，支持本科实验教学和科研项目开发。中心还设有创新实验室，为学生科创活动和学科竞赛提供专业的实践平台。",
-    "modelUrl": "/models/science-center.glb",
-    "position": { "x": 0, "y": 0, "z": 25 },
-    "scale": 1.0,
-    "rotation": 0.3,
-    "fallbackStyle": "tech"
-  },
-  {
-    "id": "stadium",
-    "name": "综合体育馆",
-    "type": "体育馆",
-    "tag": "GYMNASIUM",
-    "floors": 3,
-    "icon": "🏀",
-    "description": "综合体育馆是学校体育教学和文体活动的中心场馆。内设标准篮球场、排球场、羽毛球场、乒乓球室、健身房和游泳馆。可容纳3000名观众，承办各类体育赛事和文艺演出。馆外配套标准田径场、足球场和网球场，为师生提供全面的体育运动设施。",
-    "modelUrl": "/models/stadium.glb",
-    "position": { "x": 45, "y": 0, "z": 30 },
-    "scale": 1.0,
-    "rotation": -0.1,
-    "fallbackStyle": "sport"
-  }
-]
+{
+  "_comment": "模型文件存放路径说明：将 .gltf / .glb 模型文件放置在项目根目录下的 public/models/ 文件夹中。Vite 会将 public 目录下的文件原样复制到构建产物根目录。若模型文件不存在，系统会自动使用程序化生成的后备建筑（fallbackStyle 字段指定风格），确保场景可正常渲染。",
+  "buildings": [
+    {
+      "id": "teaching-a",
+      "name": "主教学楼",
+      "type": "教学楼",
+      "tag": "TEACHING BUILDING",
+      "floors": 8,
+      "icon": "🏛️",
+      "description": "主教学楼是学校的核心教学建筑，设有多媒体教室、阶梯教室、教研室和多功能报告厅。配备现代化的教学设备，支持智慧课堂教学模式。楼内设有教师办公室、学生自习室和小型会议室，是师生日常教学活动的主要场所。",
+      "modelUrl": "/models/teaching-a.glb",
+      "position": { "x": -30, "y": 0, "z": -20 },
+      "scale": 1.0,
+      "rotation": 0,
+      "fallbackStyle": "modern",
+      "lodThresholds": [45, 90, 150]
+    },
+    {
+      "id": "library",
+      "name": "信息图书馆",
+      "type": "图书馆",
+      "tag": "LIBRARY",
+      "floors": 5,
+      "icon": "📚",
+      "description": "信息图书馆是学校的知识资源中心，馆藏图书超过100万册，涵盖各学科领域。设有电子阅览室、期刊阅览区、研究小间、学术讨论室和24小时自习区。馆内配备智能化图书检索系统，提供数字资源访问服务，是学生自主学习和学术研究的重要空间。",
+      "modelUrl": "/models/library.glb",
+      "position": { "x": 25, "y": 0, "z": -15 },
+      "scale": 1.0,
+      "rotation": -0.2,
+      "fallbackStyle": "classic",
+      "lodThresholds": [40, 80, 140]
+    },
+    {
+      "id": "science-center",
+      "name": "科学实验中心",
+      "type": "实验楼",
+      "tag": "SCIENCE CENTER",
+      "floors": 6,
+      "icon": "🔬",
+      "description": "科学实验中心是理工科教学与科研的重要基地，配备物理、化学、生物、计算机等各类专业实验室。拥有先进的精密仪器设备，支持本科实验教学和科研项目开发。中心还设有创新实验室，为学生科创活动和学科竞赛提供专业的实践平台。",
+      "modelUrl": "/models/science-center.glb",
+      "position": { "x": 0, "y": 0, "z": 25 },
+      "scale": 1.0,
+      "rotation": 0.3,
+      "fallbackStyle": "tech",
+      "lodThresholds": [42, 85, 145]
+    },
+    {
+      "id": "stadium",
+      "name": "综合体育馆",
+      "type": "体育馆",
+      "tag": "GYMNASIUM",
+      "floors": 3,
+      "icon": "🏀",
+      "description": "综合体育馆是学校体育教学和文体活动的中心场馆。内设标准篮球场、排球场、羽毛球场、乒乓球室、健身房和游泳馆。可容纳3000名观众，承办各类体育赛事和文艺演出。馆外配套标准田径场、足球场和网球场，为师生提供全面的体育运动设施。",
+      "modelUrl": "/models/stadium.glb",
+      "position": { "x": 45, "y": 0, "z": 30 },
+      "scale": 1.0,
+      "rotation": -0.1,
+      "fallbackStyle": "sport",
+      "lodThresholds": [50, 100, 160]
+    }
+  ]
+}

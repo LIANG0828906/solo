@@ -16,10 +16,16 @@ class CampusWalkthrough {
   private buildings: BuildingEntry[] = [];
 
   private lastTime = 0;
+  private accumulator = 0;
+  private fixedTimeStep = 1 / 60;
   private frameCount = 0;
   private fpsAccumulator = 0;
   private hoveredBuildingId: string | null = null;
   private originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+
+  private readonly targetFPS = 60;
+  private readonly maxFrameTime = 1 / 30;
+  private frameThrottleTimer = 0;
 
   constructor() {
     this.container = document.getElementById('canvas-container')!;
@@ -36,6 +42,7 @@ class CampusWalkthrough {
       antialias: true,
       powerPreference: 'high-performance',
       alpha: false,
+      failIfMajorPerformanceCaveat: false,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(w, h);
@@ -45,9 +52,12 @@ class CampusWalkthrough {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    this.renderer.info.autoReset = true;
+
     this.container.appendChild(this.renderer.domElement);
 
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.far = 250;
     this.mouse = new THREE.Vector2();
 
     this.ui = new UIManager();
@@ -62,8 +72,34 @@ class CampusWalkthrough {
 
     this.bindInteractionEvents();
     this.bindResizeEvent();
+    this.setupPerformanceHints();
 
     void this.initialize();
+  }
+
+  private setupPerformanceHints(): void {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      this.fixedTimeStep = 1 / 30;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    }
+
+    let hidden = false;
+    document.addEventListener('visibilitychange', () => {
+      hidden = document.hidden;
+      if (hidden) {
+        this.renderer.setAnimationLoop(null);
+      } else {
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+      }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        document.exitPointerLock?.();
+      }
+    });
   }
 
   private async initialize(): Promise<void> {
@@ -73,6 +109,7 @@ class CampusWalkthrough {
       });
       this.buildings = this.sceneBuilder.getBuildings();
       this.ui.hideLoading(500);
+      this.lastTime = performance.now();
       requestAnimationFrame((t) => this.loop(t));
     } catch (err) {
       console.error('场景初始化失败:', err);
@@ -97,23 +134,71 @@ class CampusWalkthrough {
       this.handleClick();
     });
 
+    dom.addEventListener('dblclick', () => {
+      if (this.cameraCtrl.getMode() === 'firstPerson') {
+        dom.requestPointerLock?.();
+      } else if (!document.fullscreenElement) {
+        dom.requestFullscreen?.().catch(() => {});
+      }
+    });
+
+    dom.addEventListener('pointerleave', () => {
+      this.clearHoverHighlight();
+    });
+
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       if (!target.closest('#info-card') && !target.closest('canvas')) {
         this.ui.hideCard();
       }
     });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyR') {
+        this.resetCamera();
+      }
+      if (e.code === 'KeyF') {
+        this.toggleFullscreen();
+      }
+    });
   }
 
   private bindResizeEvent(): void {
+    let resizeTimeout: number | null = null;
     window.addEventListener('resize', () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      this.camera.aspect = w / h;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(w, h);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      if (resizeTimeout) {
+        window.clearTimeout(resizeTimeout);
+      }
+      resizeTimeout = window.setTimeout(() => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      }, 100);
     });
+  }
+
+  private resetCamera(): void {
+    if (this.cameraCtrl.getMode() === 'firstPerson') {
+      this.cameraCtrl['firstPersonPos'].set(0, 1.75, 45);
+      this.cameraCtrl['firstPersonYaw'] = Math.PI;
+      this.cameraCtrl['firstPersonPitch'] = -0.08;
+    } else {
+      this.cameraCtrl['overheadTarget'].set(0, 0, 0);
+      this.cameraCtrl['overheadDistance'] = 95;
+      this.cameraCtrl['overheadYaw'] = -0.55;
+      this.cameraCtrl['overheadPitch'] = 0.95;
+    }
+  }
+
+  private toggleFullscreen(): void {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
   }
 
   private handleHover(): void {
@@ -134,8 +219,9 @@ class CampusWalkthrough {
         this.applyHoverHighlight(bid);
       }
       if (bid) {
+        const isDragging = (this.cameraCtrl as any).isDragging;
         this.renderer.domElement.style.cursor =
-          this.cameraCtrl.getMode() === 'overhead' && this.cameraCtrl['isDragging']
+          this.cameraCtrl.getMode() === 'overhead' && isDragging
             ? 'grabbing'
             : 'pointer';
       }
@@ -211,7 +297,7 @@ class CampusWalkthrough {
       return;
     }
 
-    if (this.cameraCtrl['isDragging']) return;
+    if ((this.cameraCtrl as any).isDragging) return;
 
     const meshes = this.buildings.flatMap((b) => b.clickableMeshes);
     const intersects = this.raycaster.intersectObjects(meshes, false);
@@ -231,8 +317,27 @@ class CampusWalkthrough {
   }
 
   private loop(time: number): void {
-    const dt = Math.min((time - this.lastTime) / 1000, 0.1);
+    if (document.hidden) return;
+
+    const rawDt = (time - this.lastTime) / 1000;
     this.lastTime = time;
+
+    const dt = Math.min(rawDt, this.maxFrameTime);
+    this.accumulator += dt;
+
+    while (this.accumulator >= this.fixedTimeStep) {
+      this.cameraCtrl.update(this.fixedTimeStep);
+      this.accumulator -= this.fixedTimeStep;
+    }
+
+    this.sceneBuilder.updateLOD(this.camera);
+
+    const stars = this.scene.getObjectByName('stars');
+    if (stars) {
+      stars.rotation.y += dt * 0.008;
+    }
+
+    this.renderer.render(this.scene, this.camera);
 
     this.frameCount++;
     this.fpsAccumulator += dt;
@@ -241,10 +346,12 @@ class CampusWalkthrough {
       this.ui.updateFPS(fps);
       this.frameCount = 0;
       this.fpsAccumulator = 0;
+
+      if (fps < 25 && this.renderer.getPixelRatio() > 1.25) {
+        this.renderer.setPixelRatio(1.25);
+      }
     }
 
-    this.cameraCtrl.update(dt);
-    this.renderer.render(this.scene, this.camera);
     requestAnimationFrame((t) => this.loop(t));
   }
 }
