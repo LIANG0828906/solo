@@ -27,4 +27,10 @@ export default defineConfig({
     }), 
     tsconfigPaths()
   ],
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    exclude: ['three'],
+  },
 })

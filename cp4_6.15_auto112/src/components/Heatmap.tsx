@@ -146,6 +146,7 @@ export default function Heatmap({
       <instancedMesh
         ref={meshRef}
         args={[undefined, undefined, instanceCount]}
+        raycast={THREE.InstancedMesh.prototype.raycast}
         onClick={handleClick}
         receiveShadow
       >
@@ -161,6 +162,7 @@ export default function Heatmap({
       <instancedMesh
         ref={borderMeshRef}
         args={[undefined, undefined, instanceCount]}
+        raycast={() => null}
       >
         <boxGeometry args={[1, 0.002, 1]} />
         <meshBasicMaterial

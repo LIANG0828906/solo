@@ -15,6 +15,15 @@ export interface BuildingModel {
   isSelected: boolean;
 }
 
+export interface AnalysisParams {
+  buildings: BuildingModel[];
+  dayOfYear: number;
+  latitude: number;
+  longitude: number;
+  gridSize: number;
+  sampleResolution: number;
+}
+
 export interface SunPosition {
   azimuth: number;
   altitude: number;
@@ -64,7 +73,7 @@ export interface AppState {
 
 export interface AppActions {
   setConfig: (config: Partial<SceneConfig>) => void;
-  addBuilding: (building: BuildingModel) => void;
+  addBuilding: (building: Omit<BuildingModel, 'id' | 'isSelected' | 'shadowColor'>) => void;
   removeBuilding: (id: string) => void;
   updateBuilding: (id: string, updates: Partial<BuildingModel>) => void;
   selectBuilding: (id: string | null) => void;

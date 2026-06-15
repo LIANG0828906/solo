@@ -1,6 +1,7 @@
-import { useRef, useMemo, useState, useEffect } from 'react'
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react'
 import { useFrame, ThreeEvent } from '@react-three/fiber'
 import { TransformControls } from '@react-three/drei'
+import type { TransformControls as TransformControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import type { BuildingModel } from '../types'
 
@@ -22,6 +23,7 @@ export default function BuildingModelComponent({
   showControls = true,
 }: BuildingModelProps) {
   const groupRef = useRef<THREE.Group>(null)
+  const controlsRef = useRef<TransformControlsImpl>(null)
   const [animY, setAnimY] = useState(20)
   const [animStarted, setAnimStarted] = useState(false)
 
@@ -49,13 +51,39 @@ export default function BuildingModelComponent({
     onSelect(model.id)
   }
 
-  const handleTransformChange = () => {
+  const handleTransformChange = useCallback(() => {
     if (groupRef.current) {
       const pos = groupRef.current.position
       const rot = groupRef.current.rotation
       onTransform(model.id, [pos.x, pos.y, pos.z], [rot.x, rot.y, rot.z])
     }
-  }
+  }, [model.id, onTransform])
+
+  useEffect(() => {
+    if (isSelected && showControls && controlsRef.current) {
+      const controls = controlsRef.current as unknown as { domElement: HTMLElement }
+      const domElement = controls.domElement
+      if (domElement) {
+        domElement.style.touchAction = 'none'
+        domElement.style.userSelect = 'none'
+        
+        const handleTouchEnd = (e: TouchEvent) => {
+          e.stopPropagation()
+          handleTransformChange()
+        }
+        
+        domElement.addEventListener('touchend', handleTouchEnd)
+        domElement.addEventListener('touchcancel', handleTouchEnd)
+        
+        return () => {
+          domElement.removeEventListener('touchend', handleTouchEnd)
+          domElement.removeEventListener('touchcancel', handleTouchEnd)
+          domElement.style.touchAction = ''
+          domElement.style.userSelect = ''
+        }
+      }
+    }
+  }, [isSelected, showControls, handleTransformChange])
 
   const building = useMemo(() => {
     switch (model.modelType) {
@@ -75,12 +103,13 @@ export default function BuildingModelComponent({
       ref={groupRef}
       position={[model.position[0], animY, model.position[2]]}
       rotation={model.rotation}
-      scale={model.scale}
+      scale={isSelected ? [model.scale[0] * 1.02, model.scale[1] * 1.02, model.scale[2] * 1.02] : model.scale}
       onPointerDown={handlePointerDown}
     >
       {building}
       {isSelected && showControls && (
         <TransformControls
+          ref={controlsRef}
           object={groupRef}
           mode="translate"
           onMouseUp={handleTransformChange}

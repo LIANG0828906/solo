@@ -6,7 +6,9 @@ import {
   ShadowAnalysisResult,
   AppState,
   AppActions,
+  AnalysisParams,
 } from '../types';
+import { shadowAnalysisWorker } from '../utils/shadowWorkerClient';
 
 const SHADOW_COLORS = ['#ff4444', '#4488ff', '#44ff44'];
 
@@ -46,7 +48,7 @@ export const useAppStore = create<Store>((set, get) => ({
     }));
   },
 
-  addBuilding: (building: Omit<BuildingModel, 'id' | 'isSelected'>) => {
+  addBuilding: (building: Omit<BuildingModel, 'id' | 'isSelected' | 'shadowColor'>) => {
     const { buildings } = get();
     if (buildings.length >= 3) return;
 
@@ -128,7 +130,63 @@ export const useAppStore = create<Store>((set, get) => ({
     }));
   },
 
-  runAnalysis: () => {
-    // 预留方法，后面由 SceneViewer 实现
+  runAnalysis: async () => {
+    const { buildings, config, analysisResult } = get();
+
+    if (buildings.length === 0) {
+      return;
+    }
+
+    if (analysisResult?.isComputing) {
+      shadowAnalysisWorker.cancel();
+    }
+
+    set({
+      analysisResult: {
+        samples: [],
+        totalSamplePoints: 0,
+        avgSunlightHours: 0,
+        shadowCoveragePercent: 0,
+        maxSunlightHours: 0,
+        minSunlightHours: 0,
+        isComputing: true,
+        progress: 0,
+      },
+    });
+
+    const params: AnalysisParams = {
+      buildings,
+      dayOfYear: config.date,
+      latitude: config.location.latitude,
+      longitude: config.location.longitude,
+      gridSize: config.gridSize,
+      sampleResolution: config.sampleResolution,
+    };
+
+    try {
+      const result = await shadowAnalysisWorker.analyze(
+        params,
+        (progress: number) => {
+          get().setAnalysisProgress(progress);
+        }
+      );
+
+      set({
+        analysisResult: result,
+        config: {
+          ...get().config,
+          showHeatmap: true,
+        },
+      });
+    } catch (error) {
+      if (error !== 'Cancelled') {
+        console.error('Analysis failed:', error);
+      }
+      set((state) => ({
+        analysisResult: state.analysisResult
+          ? { ...state.analysisResult, isComputing: false }
+          : null,
+      }));
+    }
   },
 }));
