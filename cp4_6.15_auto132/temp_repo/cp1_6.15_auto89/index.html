@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电影台词卡生成器</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #000;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.03 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      background-repeat: repeat;
+      opacity: 0.6;
+    }
+
+    .app-container {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 80px;
+    }
+
+    .header {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      margin-bottom: 30px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #fff;
+      text-shadow:
+        0 0 20px rgba(255, 200, 100, 0.4),
+        0 0 60px rgba(255, 180, 80, 0.2),
+        2px 2px 4px rgba(0, 0, 0, 0.8);
+      position: relative;
+      display: inline-block;
+    }
+
+    .header h1::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -100%;
+      width: 60%;
+      height: 200%;
+      background: linear-gradient(
+        110deg,
+        transparent 0%,
+        transparent 40%,
+        rgba(255, 220, 150, 0.35) 50%,
+        transparent 60%,
+        transparent 100%
+      );
+      animation: lightSweep 10s infinite;
+    }
+
+    @keyframes lightSweep {
+      0%, 70%, 100% { left: -100%; }
+      30% { left: 200%; }
+    }
+
+    .header .subtitle {
+      margin-top: 12px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 2px;
+    }
+
+    .card-wrapper {
+      width: 100%;
+      max-width: 800px;
+      position: relative;
+    }
+
+    @media (max-width: 840px) {
+      .card-wrapper {
+        max-width: 95%;
+      }
+    }
+
+    .upload-area {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .upload-area:hover {
+      border-color: rgba(255, 200, 100, 0.5);
+      background-color: rgba(255, 200, 100, 0.05);
+    }
+
+    .upload-area.dragover {
+      border-color: rgba(255, 200, 100, 0.8);
+      background-color: rgba(255, 200, 100, 0.1);
+      transform: scale(1.01);
+    }
+
+    .upload-icon {
+      font-size: 64px;
+      opacity: 0.4;
+      margin-bottom: 16px;
+    }
+
+    .upload-text {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 8px;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .preview-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+      box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.15),
+        inset 0 0 10px rgba(255, 255, 255, 0.1),
+        0 20px 60px rgba(0, 0, 0, 0.6);
+      animation: borderGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes borderGlow {
+      0%, 100% { box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.15), inset 0 0 10px rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.6); }
+      50% { box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25), inset 0 0 15px rgba(255, 255, 255, 0.15), 0 20px 60px rgba(0, 0, 0, 0.6); }
+    }
+
+    .preview-container.show {
+      display: block;
+    }
+
+    .preview-container.enter .preview-image {
+      animation: scaleIn 0.5s ease-out;
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(1.2); opacity: 0.7; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .preview-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: filter 0.4s ease;
+      display: block;
+    }
+
+    .subtitle-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8%;
+      padding: 0 8%;
+      text-align: center;
+      pointer-events: none;
+      min-height: 40px;
+    }
+
+    .subtitle-text {
+      font-family: Impact, "Arial Black", "微软雅黑", sans-serif;
+      color: #fff;
+      -webkit-text-stroke: 2px #000;
+      paint-order: stroke fill;
+      line-height: 1.6;
+      font-weight: normal;
+      text-shadow:
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        2px 2px 0 #000,
+        0 4px 8px rgba(0, 0, 0, 0.8);
+      overflow-wrap: break-word;
+      word-break: normal;
+      hyphens: none;
+    }
+
+    .subtitle-text .char {
+      opacity: 0;
+      display: inline-block;
+    }
+
+    .subtitle-text .char.show {
+      opacity: 1;
+      animation: charPop 0.1s ease-out;
+    }
+
+    @keyframes charPop {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .input-container {
+      margin-top: 24px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .input-container.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .quote-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #fff;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .quote-input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .quote-input:focus {
+      border-color: rgba(255, 200, 100, 0.5);
+      box-shadow: 0 0 0 3px rgba(255, 200, 100, 0.1);
+    }
+
+    .toolbar {
+      margin-top: 24px;
+      padding: 20px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .toolbar.show {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.3s ease 0.1s, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+    }
+
+    .filter-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .filter-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .filter-selector {
+      display: flex;
+      gap: 10px;
+    }
+
+    .filter-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+
+    .filter-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .filter-btn.active {
+      border-color: rgba(255, 200, 100, 0.8);
+      animation: bounceActive 0.2s ease-out;
+      box-shadow: 0 0 0 4px rgba(255, 200, 100, 0.2);
+    }
+
+    @keyframes bounceActive {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1.1); }
+    }
+
+    .filter-btn[data-filter="warm"] {
+      background: linear-gradient(135deg, #f5c56c, #d4872c);
+    }
+
+    .filter-btn[data-filter="cool"] {
+      background: linear-gradient(135deg, #6cc5f5, #2c6bd4);
+    }
+
+    .filter-btn[data-filter="bw"] {
+      background: linear-gradient(135deg, #e0e0e0, #606060);
+    }
+
+    .filter-btn[data-filter="cyber"] {
+      background: linear-gradient(135deg, #ff2d95, #2d95ff, #95ff2d);
+      background-size: 200% 200%;
+      animation: cyberShift 3s ease infinite;
+    }
+
+    @keyframes cyberShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .filter-btn::after {
+      content: attr(data-name);
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .filter-btn:hover::after {
+      opacity: 1;
+    }
+
+    .slider-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .slider-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .font-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(to right, rgba(255, 255, 255, 0.1), rgba(255, 200, 100, 0.4));
+      outline: none;
+    }
+
+    .font-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffcc66, #ff9933);
+      cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 8px rgba(255, 153, 51, 0.4);
+      transition: transform 0.15s ease;
+    }
+
+    .font-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .font-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffcc66, #ff9933);
+      cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 8px rgba(255, 153, 51, 0.4);
+    }
+
+    .font-value {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      min-width: 36px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .export-btn {
+      padding: 12px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #ffcc66, #ff9933);
+      border: none;
+      border-radius: 10px;
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(255, 153, 51, 0.25);
+    }
+
+    .export-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(255, 153, 51, 0.4);
+    }
+
+    .export-btn:active {
+      transform: translateY(0);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .fullscreen-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .fullscreen-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .fullscreen-content {
+      width: min(90vw, 160vh);
+      aspect-ratio: 16 / 9;
+      transform: scale(0.8);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.15), inset 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+
+    .fullscreen-overlay.active .fullscreen-content {
+      transform: scale(1);
+    }
+
+    .fullscreen-content img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 0.4s ease;
+    }
+
+    .loading-text {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #ffcc66;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1>CINE QUOTE</h1>
+      <p class="subtitle">定格经典 · 光影台词</p>
+    </header>
+
+    <div class="card-wrapper">
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">🎬</div>
+        <div class="upload-text">点击或拖拽上传电影截图</div>
+        <div class="upload-hint">支持 JPG / PNG / WEBP 格式</div>
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+
+      <div class="preview-container" id="previewContainer">
+        <img class="preview-image" id="previewImage" alt="电影截图预览" />
+        <div class="subtitle-overlay" id="subtitleOverlay">
+          <div class="subtitle-text" id="subtitleText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-container" id="inputContainer">
+      <textarea
+        class="quote-input"
+        id="quoteInput"
+        placeholder="在此输入电影台词..."
+        rows="2"
+      ></textarea>
+    </div>
+
+    <div class="toolbar" id="toolbar" style="width: 100%; max-width: 800px;">
+      <div class="filter-section">
+        <span class="filter-label">滤镜</span>
+        <div class="filter-selector">
+          <button class="filter-btn" data-filter="warm" data-name="复古暖黄" title="复古暖黄"></button>
+          <button class="filter-btn" data-filter="cool" data-name="冷峻青蓝" title="冷峻青蓝"></button>
+          <button class="filter-btn" data-filter="bw" data-name="黑白文艺" title="黑白文艺"></button>
+          <button class="filter-btn" data-filter="cyber" data-name="赛博朋克" title="赛博朋克霓虹"></button>
+        </div>
+      </div>
+      <div class="slider-section">
+        <span class="slider-label">字号</span>
+        <input
+          type="range"
+          class="font-slider"
+          id="fontSlider"
+          min="16"
+          max="48"
+          value="28"
+        />
+        <span class="font-value" id="fontValue">28px</span>
+      </div>
+      <button class="export-btn" id="exportBtn">导出图片</button>
+    </div>
+  </div>
+
+  <div class="fullscreen-overlay" id="fullscreenOverlay">
+    <div class="fullscreen-content" id="fullscreenContent">
+      <img id="fullscreenImage" alt="" />
+      <div class="subtitle-overlay" id="fullscreenSubtitle">
+        <div class="subtitle-text" id="fullscreenSubtitleText"></div>
+      </div>
+      <div class="loading-container" id="loadingContainer" style="display:none;">
+        <div class="spinner"></div>
+        <div class="loading-text">正在合成中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

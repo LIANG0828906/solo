@@ -1,0 +1,240 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: #0d0a2e;
+  color: #ffffff;
+}
+
+#canvas-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.glass-panel {
+  position: fixed;
+  z-index: 10;
+  background: rgba(13, 10, 46, 0.7);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+#control-panel {
+  left: 20px;
+  bottom: 20px;
+  width: 280px;
+}
+
+#log-panel {
+  right: 20px;
+  bottom: 20px;
+  width: 320px;
+  max-height: 400px;
+}
+
+.panel-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffd700;
+  margin-bottom: 16px;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  letter-spacing: 2px;
+}
+
+.control-btn {
+  width: 100%;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4fc3f7 0%, #2196f3 100%);
+  color: white;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+}
+
+.control-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79, 195, 247, 0.6);
+}
+
+.control-btn:active {
+  transform: translateY(0);
+}
+
+.control-btn.secondary {
+  background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
+  box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4);
+}
+
+.control-btn.secondary:hover {
+  box-shadow: 0 6px 20px rgba(233, 30, 99, 0.6);
+}
+
+.control-group {
+  margin-bottom: 16px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #b39ddb;
+}
+
+#speed-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, #4fc3f7, #e91e63);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+#speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffd700;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  transition: all 0.2s ease;
+}
+
+#speed-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 1);
+}
+
+#speed-value {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #ffd700;
+  font-weight: 600;
+}
+
+#log-list {
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.3) transparent;
+}
+
+#log-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#log-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#log-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.3);
+  border-radius: 3px;
+}
+
+.log-item {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(79, 195, 247, 0.1);
+  border-left: 3px solid #4fc3f7;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: fadeIn 0.5s ease;
+  transition: all 0.3s ease;
+}
+
+.log-item:nth-child(2) {
+  border-left-color: #e91e63;
+  background: rgba(233, 30, 99, 0.1);
+}
+
+.log-item:nth-child(3) {
+  border-left-color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.log-item:nth-child(4) {
+  border-left-color: #9c27b0;
+  background: rgba(156, 39, 176, 0.1);
+}
+
+.log-item:nth-child(5) {
+  border-left-color: #00bcd4;
+  background: rgba(0, 188, 212, 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bubble-text {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffd700;
+  text-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.8),
+    0 0 20px rgba(255, 215, 0, 0.4);
+  padding: 8px 16px;
+  background: rgba(13, 10, 46, 0.8);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  border-radius: 20px;
+  animation: floatUp 3s ease-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -20px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -60px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -100px) scale(0.9);
+  }
+}

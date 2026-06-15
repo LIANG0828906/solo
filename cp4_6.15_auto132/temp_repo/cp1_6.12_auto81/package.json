@@ -1,0 +1,18 @@
+{
+  "name": "procedural-dungeon",
+  "version": "1.0.0",
+  "description": "Procedural generated 2D dungeon exploration game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4"
+  }
+}

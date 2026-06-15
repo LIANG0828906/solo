@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D分子结构查看器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(to bottom, #0f172a, #1e3a8a);
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      cursor: grab;
+    }
+
+    #canvas-container canvas:active {
+      cursor: grabbing;
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background-color: #1e293b;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    #molecule-select {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background-color: #334155;
+      color: #ffffff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      outline: none;
+    }
+
+    #molecule-select:hover {
+      background-color: #475569;
+      transform: scale(1.02);
+    }
+
+    #molecule-select:focus {
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #speed-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 4px;
+      background: #475569;
+      border-radius: 2px;
+      outline: none;
+      transition: all 0.3s ease-in-out;
+    }
+
+    #speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #ffffff;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease-in-out;
+    }
+
+    #speed-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    #speed-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #ffffff;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease-in-out;
+    }
+
+    #speed-slider::-moz-range-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    #speed-value {
+      color: #94a3b8;
+      font-size: 12px;
+      min-width: 30px;
+      text-align: right;
+    }
+
+    #reset-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background-color: #3b82f6;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+    }
+
+    #reset-btn:hover {
+      background-color: #60a5fa;
+      transform: scale(1.05);
+    }
+
+    #reset-btn:active {
+      transform: scale(0.98);
+    }
+
+    #info-panel {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background-color: #00000080;
+      color: #ffffff;
+      padding: 16px 20px;
+      border-radius: 8px;
+      min-width: 200px;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+      transform: translateX(calc(100% + 40px));
+      transition: transform 0.3s ease-in-out;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    #info-panel.visible {
+      transform: translateX(0);
+    }
+
+    #info-panel h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #60a5fa;
+    }
+
+    #info-panel .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    #info-panel .info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    #info-panel .info-label {
+      color: #94a3b8;
+    }
+
+    #info-panel .info-value {
+      color: #ffffff;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #info-panel .color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .molecule-scale {
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="control-panel">
+    <div class="control-group">
+      <label for="molecule-select">分子:</label>
+      <select id="molecule-select">
+        <option value="water">水 (H₂O)</option>
+        <option value="methane">甲烷 (CH₄)</option>
+        <option value="glucose">葡萄糖 (C₆H₁₂O₆)</option>
+      </select>
+    </div>
+
+    <div class="control-group slider-container">
+      <label for="speed-slider">旋转速度:</label>
+      <input type="range" id="speed-slider" min="0" max="100" step="1" value="50">
+      <span id="speed-value">50</span>
+    </div>
+
+    <button id="reset-btn">重置视图</button>
+  </div>
+
+  <div id="info-panel">
+    <h3>原子信息</h3>
+    <div class="info-row">
+      <span class="info-label">名称:</span>
+      <span class="info-value" id="atom-name">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">颜色:</span>
+      <span class="info-value" id="atom-color">
+        <span class="color-dot" id="atom-color-dot"></span>
+        <span id="atom-color-hex">-</span>
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">半径:</span>
+      <span class="info-value" id="atom-radius">-</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

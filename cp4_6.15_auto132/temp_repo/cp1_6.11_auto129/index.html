@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>地壳板块运动与古大陆重建可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      min-width: 800px;
+      min-height: 600px;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .control-panel {
+      position: fixed;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 300px;
+      background: rgba(44, 62, 80, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 24px;
+      color: #ffffff;
+      z-index: 100;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-panel h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #ecf0f1;
+      letter-spacing: 0.5px;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .time-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #27AE60;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-unit {
+      font-size: 14px;
+      color: #bdc3c7;
+    }
+
+    .geological-period {
+      font-size: 16px;
+      color: #F39C12;
+      font-weight: 500;
+      margin-bottom: 24px;
+      padding: 6px 12px;
+      background: rgba(243, 156, 18, 0.15);
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .slider-container {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #95a5a6;
+      margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #27AE60 0%, #27AE60 66.67%, #34495e 66.67%, #34495e 100%);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(0.95);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s ease;
+    }
+
+    .play-button {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 100;
+      padding: 12px 24px;
+      background: #2980B9;
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 16px rgba(41, 128, 185, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .play-button:hover {
+      background: #3498DB;
+      box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+    }
+
+    .play-button:active {
+      transform: scale(0.96);
+    }
+
+    .play-button.playing {
+      background: #E74C3C;
+    }
+
+    .play-button.playing:hover {
+      background: #C0392B;
+      box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+    }
+
+    .play-icon {
+      width: 0;
+      height: 0;
+      border-left: 10px solid #ffffff;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      transition: border 0.2s ease;
+    }
+
+    .play-button.playing .play-icon {
+      width: 10px;
+      height: 12px;
+      border: none;
+      background: repeating-linear-gradient(
+        to right,
+        #ffffff,
+        #ffffff 3px,
+        transparent 3px,
+        transparent 6px
+      );
+    }
+
+    .info-card {
+      position: fixed;
+      z-index: 200;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      min-width: 220px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+
+    .info-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .info-card h3 {
+      font-size: 18px;
+      color: #2C3E50;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .info-card .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #ecf0f1;
+      font-size: 13px;
+    }
+
+    .info-card .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-card .info-label {
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+
+    .info-card .info-value {
+      color: #2C3E50;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .direction-arrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #ecf0f1;
+    }
+
+    .direction-arrow-label {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+
+    .arrow-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .arrow-line {
+      width: 15px;
+      height: 2px;
+      background: #E74C3C;
+    }
+
+    .arrow-head {
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid #E74C3C;
+    }
+
+    .legend {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 24px;
+      background: rgba(44, 62, 80, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 12px;
+      z-index: 100;
+      transition: opacity 0.3s ease;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 1200px) {
+      .control-panel {
+        width: 250px;
+        padding: 20px;
+      }
+
+      .time-value {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="control-panel" id="control-panel">
+    <h2>🌍 地质时间轴</h2>
+    <div class="time-display">
+      <span class="time-value" id="time-value">2.0</span>
+      <span class="time-unit">亿年前</span>
+    </div>
+    <div class="geological-period" id="geological-period">侏罗纪</div>
+    <div class="slider-container">
+      <div class="slider-label">
+        <span>3亿年前</span>
+        <span>今天</span>
+      </div>
+      <input type="range" id="time-slider" min="-300" max="0" step="1" value="-200">
+    </div>
+  </div>
+
+  <button class="play-button" id="play-button">
+    <span class="play-icon"></span>
+    <span class="play-text">播放板块动画</span>
+  </button>
+
+  <div class="info-card" id="info-card">
+    <h3 id="plate-name">北美板块</h3>
+    <div class="info-row">
+      <span class="info-label">面积</span>
+      <span class="info-value" id="plate-area">75.9 百万 km²</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">漂移速度</span>
+      <span class="info-value" id="plate-speed">2.3 厘米/年</span>
+    </div>
+    <div class="direction-arrow">
+      <span class="direction-arrow-label">移动方向</span>
+      <div class="arrow-container" id="direction-arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend">
+    <div class="legend-item">
+      <div class="legend-color" style="background: #8B9A6E;"></div>
+      <span>古大陆</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #1A3A5C;"></div>
+      <span>海洋</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #F39C12;"></div>
+      <span>漂移轨迹</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

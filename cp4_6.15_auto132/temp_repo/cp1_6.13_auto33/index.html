@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelSculpt — 语音驱动三维雕塑</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a1a;
+      --cyan: #00ffff;
+      --magenta: #ff00ff;
+      --text: #e0e0ff;
+      --panel-bg: rgba(0, 0, 0, 0.6);
+      --panel-radius: 12px;
+      --transition-fast: 0.2s;
+      --transition-med: 0.5s;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    #app {
+      display: flex;
+      width: 100%; height: 100%;
+    }
+
+    #sidebar {
+      width: 10%;
+      min-width: 180px;
+      max-width: 260px;
+      height: 100%;
+      background: var(--panel-bg);
+      border-right: 2px solid transparent;
+      border-image: linear-gradient(180deg, var(--cyan), var(--magenta)) 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 14px;
+      gap: 16px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    #sidebar h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .ctrl-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ctrl-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .ctrl-btn {
+      width: 100%;
+      padding: 10px 0;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: var(--panel-radius);
+      background: var(--panel-bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(0, 255, 255, 0.1);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+    }
+
+    .ctrl-btn:active, .ctrl-btn.active {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+
+    .ctrl-btn.recording {
+      border-color: var(--magenta);
+      background: rgba(255, 0, 255, 0.15);
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+      animation: pulse-magenta 1.5s ease-in-out infinite;
+    }
+
+    .ctrl-btn.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .ctrl-btn.loading::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 18px; height: 18px;
+      margin: -9px 0 0 -9px;
+      border: 2px solid transparent;
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes pulse-magenta {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(255, 0, 255, 0.7); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-header span:first-child {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .slider-header span:last-child {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--magenta);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--magenta);
+      box-shadow: 0 0 8px rgba(255, 0, 255, 0.6);
+      cursor: pointer;
+      transition: transform var(--transition-fast);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--magenta);
+      box-shadow: 0 0 8px rgba(255, 0, 255, 0.6);
+      border: none;
+      cursor: pointer;
+    }
+
+    .preset-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: 1px solid rgba(255, 0, 255, 0.3);
+      border-radius: var(--panel-radius);
+      background: var(--panel-bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 0, 255, 0.1);
+      box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+    }
+
+    .preset-btn:active {
+      transform: scale(1.05);
+    }
+
+    .preset-btn.active {
+      border-color: var(--magenta);
+      background: rgba(255, 0, 255, 0.2);
+      box-shadow: 0 0 16px rgba(255, 0, 255, 0.4);
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #canvas-container::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      box-shadow: inset 0 0 80px 40px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    #params-overlay {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      padding: 10px 16px;
+      background: var(--panel-bg);
+      border-radius: var(--panel-radius);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      line-height: 1.6;
+      color: var(--text);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    #reset-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 20;
+    }
+
+    #reset-overlay.active {
+      opacity: 1;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <h1>VoxelSculpt</h1>
+      <div class="divider"></div>
+
+      <div class="ctrl-section">
+        <span class="ctrl-label">录音控制</span>
+        <button id="btn-record" class="ctrl-btn">开始录音</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="ctrl-section">
+        <span class="ctrl-label">参数调节</span>
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>偏移系数</span>
+            <span id="val-displacement">2.00</span>
+          </div>
+          <input type="range" id="slider-displacement" min="0.5" max="4.0" step="0.05" value="2.0" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>旋转速度</span>
+            <span id="val-rotation">0.50</span>
+          </div>
+          <input type="range" id="slider-rotation" min="0" max="2" step="0.05" value="0.5" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>拖尾长度</span>
+            <span id="val-trail">30</span>
+          </div>
+          <input type="range" id="slider-trail" min="10" max="60" step="1" value="30" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="ctrl-section">
+        <span class="ctrl-label">视觉预设</span>
+        <div class="preset-group">
+          <button class="preset-btn active" data-preset="crystal">水晶</button>
+          <button class="preset-btn" data-preset="lava">熔岩</button>
+          <button class="preset-btn" data-preset="ocean">海洋</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="ctrl-section">
+        <button id="btn-snapshot" class="ctrl-btn">快照</button>
+        <button id="btn-reset" class="ctrl-btn">重置</button>
+      </div>
+    </aside>
+
+    <div id="canvas-container">
+      <div id="params-overlay">
+        偏移: <span id="overlay-displacement">2.00</span> | 
+        旋转: <span id="overlay-rotation">0.50</span>/s | 
+        拖尾: <span id="overlay-trail">30</span>帧
+      </div>
+      <div id="reset-overlay"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "announcements": [
+    {
+      "id": "1",
+      "title": "欢迎使用团队公告与投票系统",
+      "content": "这是一个轻量级的内部公告与投票系统，用于快速发布团队消息、发起决策投票并统计结果。\n\n主要功能：\n1. 发布团队公告\n2. 发起投票决策\n3. 实时统计投票结果\n4. 数据持久化存储\n\n欢迎大家使用！",
+      "author": "系统管理员",
+      "createdAt": 1718000000000,
+      "votes": [
+        {
+          "id": "vote1",
+          "announcementId": "1",
+          "title": "你觉得这个系统怎么样？",
+          "options": [
+            {
+              "id": "opt1",
+              "text": "非常好用",
+              "votes": 5
+            },
+            {
+              "id": "opt2",
+              "text": "还不错",
+              "votes": 3
+            },
+            {
+              "id": "opt3",
+              "text": "需要改进",
+              "votes": 1
+            }
+          ],
+          "createdAt": 1718000000000
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "本周五团建活动通知",
+      "content": "各位同事，本周五下午3点将在公司会议室举行团建活动，请大家准时参加。\n\n活动内容：\n- 团队游戏\n- 下午茶\n- 经验分享\n\n请大家提前安排好工作，积极参与！",
+      "author": "人事部",
+      "createdAt": 1717900000000,
+      "votes": []
+    },
+    {
+      "id": "3",
+      "title": "新项目技术选型讨论",
+      "content": "我们即将启动一个新项目，关于技术选型想听听大家的意见。目前有几个候选方案：\n\n1. React + Node.js\n2. Vue + Python\n3. Angular + Java\n\n欢迎大家在投票中表达自己的看法！",
+      "author": "技术负责人",
+      "createdAt": 1717800000000,
+      "votes": [
+        {
+          "id": "vote2",
+          "announcementId": "3",
+          "title": "你更倾向于哪种技术栈？",
+          "options": [
+            {
+              "id": "opt4",
+              "text": "React + Node.js",
+              "votes": 8
+            },
+            {
+              "id": "opt5",
+              "text": "Vue + Python",
+              "votes": 4
+            },
+            {
+              "id": "opt6",
+              "text": "Angular + Java",
+              "votes": 2
+            }
+          ],
+          "createdAt": 1717800000000
+        }
+      ]
+    }
+  ]
+}

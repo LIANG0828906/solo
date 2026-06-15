@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>光影流沙画</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1A1A2E 0%, #2D2D3F 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #e0e0e0;
+      user-select: none;
+    }
+
+    .app-container {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+    }
+
+    .title {
+      position: absolute;
+      top: -48px;
+      left: 0;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 6px;
+      color: #d4a373;
+      text-shadow: 0 0 20px rgba(212, 163, 115, 0.3);
+    }
+
+    #sandCanvas {
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px rgba(212, 163, 115, 0.1);
+      cursor: crosshair;
+    }
+
+    .clear-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #E63946;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease-in-out;
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    .clear-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .clear-btn:active {
+      transform: scale(0.95);
+    }
+
+    .clear-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: white;
+      pointer-events: none;
+    }
+
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      animation: rippleAnim 0.6s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes rippleAnim {
+      0% {
+        width: 0;
+        height: 0;
+        opacity: 1;
+      }
+      100% {
+        width: 80px;
+        height: 80px;
+        opacity: 0;
+        margin-top: -40px;
+        margin-left: -40px;
+      }
+    }
+
+    .color-picker {
+      position: absolute;
+      top: 12px;
+      left: 74px;
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      background: rgba(45, 45, 63, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 24px;
+      z-index: 10;
+    }
+
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+
+    .color-swatch.active {
+      border: 2px solid #FFD700;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    }
+
+    .control-panel {
+      width: 240px;
+      padding: 20px;
+      background: rgba(45, 45, 63, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-panel h3 {
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      color: #b0a090;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #a0a0b0;
+    }
+
+    .control-value {
+      font-size: 12px;
+      color: #d4a373;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].light-angle {
+      background: linear-gradient(to right, #2A9D8F, #F4A261, #E76F51, #6A4C93, #2A9D8F);
+    }
+
+    input[type="range"].light-intensity {
+      background: linear-gradient(to right, #1A1A2E, #EDC9AF);
+    }
+
+    input[type="range"].flow-speed {
+      background: linear-gradient(to right, #264653, #8ECAE6, #FFB703);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transition: transform 0.2s ease-in-out;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+      border: none;
+      cursor: pointer;
+    }
+
+    .export-btn {
+      width: 120px;
+      height: 40px;
+      background: #457B9D;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
+      align-self: center;
+    }
+
+    .export-btn:hover {
+      background: #5A9EC4;
+    }
+
+    .export-btn:active {
+      transform: scale(0.96);
+    }
+
+    .fps-display {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="canvas-wrapper">
+      <div class="title">光 影 流 沙 画</div>
+      <canvas id="sandCanvas" width="800" height="600"></canvas>
+      <button class="clear-btn" id="clearBtn">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <div class="color-picker" id="colorPicker"></div>
+      <div class="fps-display" id="fpsDisplay">60 FPS</div>
+    </div>
+    <div class="control-panel">
+      <h3>控 制 面 板</h3>
+      <div class="control-group">
+        <div class="control-label">
+          <span>光源角度</span>
+          <span class="control-value" id="angleValue">45°</span>
+        </div>
+        <input type="range" class="light-angle" id="lightAngle" min="0" max="360" value="45" />
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>光源强度</span>
+          <span class="control-value" id="intensityValue">60</span>
+        </div>
+        <input type="range" class="light-intensity" id="lightIntensity" min="0" max="100" value="60" />
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>沙粒流速</span>
+          <span class="control-value" id="speedValue">中</span>
+        </div>
+        <input type="range" class="flow-speed" id="flowSpeed" min="1" max="3" value="2" step="1" />
+      </div>
+      <button class="export-btn" id="exportBtn">导出 PNG</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

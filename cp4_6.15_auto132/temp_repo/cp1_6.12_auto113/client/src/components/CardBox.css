@@ -1,0 +1,82 @@
+.card-box {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.card-box-title {
+  font-size: 22px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.card-count {
+  font-size: 14px;
+  color: var(--primary);
+  opacity: 0.6;
+}
+
+.card-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+.card-grid-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.card-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 4px;
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  opacity: 0.5;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .card-box {
+    height: auto;
+    min-height: 400px;
+  }
+
+  .card-grid-container {
+    max-height: 60vh;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}

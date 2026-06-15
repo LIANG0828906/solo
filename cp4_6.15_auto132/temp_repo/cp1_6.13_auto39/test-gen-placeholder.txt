@@ -1,0 +1,7 @@
+// Generate a test WebM-like blob via browser API (no ffmpeg needed)
+// This is run as a scriptlet from the browser. Since we can't run a test file easily,
+// let's instead create a tiny valid animated GIF/WebM as a test fixture by using
+// Python PIL or minimal raw data.
+
+// Alternative: use HTML Canvas MediaRecorder in the browser test directly.
+// We'll instruct the browser to do this.

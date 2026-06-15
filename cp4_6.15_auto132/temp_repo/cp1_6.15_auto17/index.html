@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分子3D可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #side-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 260px;
+      height: 100%;
+      background: linear-gradient(180deg, 
+                  rgba(20, 20, 40, 0.95) 0%, 
+                  rgba(26, 26, 46, 0.92) 50%,
+                  rgba(15, 15, 35, 0.95) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid rgba(0, 212, 255, 0.4);
+      box-shadow: 4px 0 30px rgba(0, 212, 255, 0.15),
+                  inset -2px 0 0 rgba(0, 212, 255, 0.1);
+      padding: 24px 20px;
+      overflow-y: auto;
+      z-index: 10;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.3s ease;
+      overflow: hidden;
+    }
+
+    #side-panel.collapsed {
+      width: 0;
+      padding: 20px 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #panel-toggle {
+      position: absolute;
+      top: 20px;
+      left: 260px;
+      width: 32px;
+      height: 48px;
+      background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+      border: none;
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      z-index: 11;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+      transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.3s ease,
+                  transform 0.2s ease;
+    }
+
+    #panel-toggle:hover {
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.7),
+                  0 0 30px rgba(0, 212, 255, 0.3);
+      transform: scaleX(1.05);
+    }
+
+    #panel-toggle.collapsed {
+      left: 0;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #00d4ff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+      animation: shimmer 3s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .section-label {
+      font-size: 11px;
+      color: rgba(0, 212, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 11px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-box:focus {
+      border-color: #00d4ff;
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15),
+                  0 0 20px rgba(0, 212, 255, 0.3),
+                  inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      background: rgba(0, 20, 40, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .search-box::placeholder {
+      color: rgba(224, 224, 224, 0.4);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: #e0e0e0;
+    }
+
+    .switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .switch:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .switch.active {
+      background: linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #0066ff 100%);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.6),
+                  0 0 30px rgba(0, 102, 255, 0.3),
+                  inset 0 1px 2px rgba(255, 255, 255, 0.3);
+      border-color: rgba(0, 212, 255, 0.5);
+    }
+
+    .switch-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+      border-radius: 50%;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    }
+
+    .switch.active .switch-knob {
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5),
+                  0 0 12px rgba(0, 212, 255, 0.3),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    }
+
+    .switch.active .switch-knob {
+      left: 24px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 8px;
+      color: rgba(224, 224, 224, 0.7);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn:hover {
+      border-color: #00d4ff;
+      color: #e0e0e0;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4),
+                  inset 0 0 10px rgba(0, 212, 255, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn.active {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 102, 255, 0.2) 50%, rgba(0, 212, 255, 0.15) 100%);
+      border-color: #00d4ff;
+      color: #00d4ff;
+      font-weight: 600;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.5),
+                  0 0 40px rgba(0, 212, 255, 0.2),
+                  inset 0 0 15px rgba(0, 212, 255, 0.15);
+    }
+
+    .atom-detail {
+      margin-top: 20px;
+      padding: 18px 16px;
+      background: linear-gradient(145deg, 
+                  rgba(0, 30, 60, 0.4) 0%, 
+                  rgba(0, 20, 40, 0.5) 100%);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 12px;
+      min-height: 120px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
+                  inset 0 1px 0 rgba(0, 212, 255, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .atom-detail::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent);
+    }
+
+    .atom-detail-empty {
+      font-size: 12px;
+      color: rgba(224, 224, 224, 0.4);
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .atom-sphere {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .detail-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .detail-id {
+      font-size: 12px;
+      color: rgba(0, 212, 255, 0.7);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-key {
+      color: rgba(224, 224, 224, 0.5);
+    }
+
+    .detail-value {
+      color: #e0e0e0;
+      font-family: 'Consolas', monospace;
+    }
+
+    #hover-tooltip {
+      position: absolute;
+      pointer-events: none;
+      padding: 10px 14px;
+      background: rgba(26, 26, 46, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      border-radius: 8px;
+      font-size: 12px;
+      color: #e0e0e0;
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      min-width: 160px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    #hover-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    .tooltip-key {
+      color: rgba(0, 212, 255, 0.8);
+    }
+
+    .tooltip-value {
+      font-family: 'Consolas', monospace;
+    }
+
+    .legend {
+      margin-top: 24px;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      border: 1px solid rgba(0, 212, 255, 0.15);
+    }
+
+    .legend-title {
+      font-size: 11px;
+      color: rgba(0, 212, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 12px;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    #fps-counter {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 11px;
+      color: rgba(0, 212, 255, 0.6);
+      font-family: 'Consolas', monospace;
+      background: rgba(26, 26, 46, 0.6);
+      backdrop-filter: blur(6px);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <aside id="side-panel">
+      <div class="panel-title">◈ 分子可视化</div>
+
+      <div class="section-label">搜索原子</div>
+      <input type="text" class="search-box" id="search-input" placeholder="输入编号或元素（如 3 或 C）" />
+
+      <div class="section-label">显示模式</div>
+      <div class="btn-group" id="model-buttons">
+        <button class="btn active" data-model="ball-stick">球棍模型</button>
+        <button class="btn" data-model="space-filling">空间填充</button>
+      </div>
+
+      <div class="section-label">视角控制</div>
+      <div class="toggle-row">
+        <span class="toggle-label">自动旋转</span>
+        <div class="switch" id="auto-rotate-switch">
+          <div class="switch-knob"></div>
+        </div>
+      </div>
+
+      <div class="section-label">原子详情</div>
+      <div class="atom-detail" id="atom-detail">
+        <div class="atom-detail-empty">点击原子查看详情</div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-title">元素图例</div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#808080;color:#808080"></span>
+          <span>碳 (C)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#ff0000;color:#ff0000"></span>
+          <span>氧 (O)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#ffffff;color:#ffffff"></span>
+          <span>氢 (H)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#3050f8;color:#3050f8"></span>
+          <span>氮 (N)</span>
+        </div>
+      </div>
+    </aside>
+
+    <button id="panel-toggle" title="收起/展开面板">◀</button>
+
+    <div id="hover-tooltip"></div>
+
+    <div id="fps-counter">FPS: --</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

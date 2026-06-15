@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>歌词接龙演唱会</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body, #root { width: 100%; height: 100%; min-height: 100vh; }
+      body {
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background: linear-gradient(135deg, #1a0533 0%, #2d1b69 35%, #6a1b9a 65%, #f06292 100%);
+        background-attachment: fixed;
+        overflow-x: hidden;
+        color: #fff;
+      }
+      .loader {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a0533 0%, #2d1b69 35%, #6a1b9a 65%, #f06292 100%);
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      .loader.hide { opacity: 0; pointer-events: none; }
+      .mic {
+        width: 80px; height: 80px;
+        border: 5px solid #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: spin 1.2s linear infinite;
+        box-shadow: 0 0 30px rgba(255, 64, 129, 0.8), 0 0 60px rgba(156, 39, 176, 0.5);
+      }
+      .mic::before {
+        content: '🎤';
+        font-size: 36px;
+        display: block;
+      }
+      .loader-text {
+        margin-top: 24px;
+        font-size: 18px;
+        letter-spacing: 2px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader" id="loader">
+      <div class="mic"></div>
+      <div class="loader-text">正在加载演唱会...</div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/client/src/main.tsx"></script>
+    <script>
+      window.addEventListener('load', () => {
+        const loader = document.getElementById('loader');
+        setTimeout(() => loader && loader.classList.add('hide'), 800);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,279 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700&family=Pacifico&family=Dancing+Script:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Noto+Sans+SC:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: '"Noto Sans SC"', '"Segoe UI"', system-ui, sans-serif;
+    background-color: #F5E6C8;
+    color: #333333;
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background-color: rgba(255, 248, 231, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(139, 69, 19, 0.15);
+  }
+
+  .paper-texture {
+    background-color: #F5E6C8;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-blend-mode: multiply;
+  }
+
+  .paper-texture-light {
+    background-color: #FFF8E7;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-blend-mode: multiply;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold text-cream bg-vintage-red border-2 border-vintage-red shadow-vintage-shadow transition-all duration-300 hover:bg-transparent hover:text-vintage-red hover:shadow-gold-glow active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold text-vintage-red bg-transparent border-2 border-vintage-red/40 transition-all duration-300 hover:bg-vintage-red/10 hover:border-vintage-red active:scale-95;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold text-ink bg-gold border-2 border-gold shadow-gold-glow transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-95;
+  }
+
+  .card-vintage {
+    @apply relative bg-cream rounded-xl border border-vintage-red/20 shadow-paper-shadow overflow-hidden;
+  }
+
+  .input-vintage {
+    @apply w-full px-4 py-3 rounded-lg border-2 border-vintage-red/20 bg-white/60 text-ink placeholder:text-ink/40 font-sans transition-all duration-200 focus:outline-none focus:border-vintage-red focus:bg-white focus:ring-2 focus:ring-gold/30;
+  }
+
+  .section-title {
+    @apply font-display text-2xl sm:text-3xl font-bold text-ink relative inline-block pb-2;
+  }
+
+  .section-title::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-16 h-1 bg-gradient-to-r from-vintage-red via-gold to-transparent rounded-full;
+  }
+
+  .divider-vintage {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-vintage-red/30 to-transparent my-6;
+  }
+
+  .tag-vintage {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-vintage-red/10 text-vintage-red border border-vintage-red/20;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes bubbleFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-30px) scale(1.1);
+  }
+}
+
+@keyframes pageCurl {
+  0% {
+    transform: rotate(0deg) translate(0, 0);
+    transform-origin: top right;
+  }
+  50% {
+    transform: rotate(-15deg) translate(-5px, 5px);
+    transform-origin: top right;
+  }
+  100% {
+    transform: rotate(0deg) translate(0, 0);
+    transform-origin: top right;
+  }
+}
+
+@keyframes printerRoller {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes flipOut {
+  0% {
+    transform: perspective(400px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(400px) rotateY(-90deg) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes highlightFlash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(255, 215, 0, 0.4);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulseGold {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(255, 215, 0, 0);
+  }
+}
+
+@keyframes typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #8B4513;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.6s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 215, 0, 0.4) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-bubbleFloat {
+  animation: bubbleFloat 4s ease-in-out infinite;
+}
+
+.animate-pageCurl {
+  animation: pageCurl 2s ease-in-out infinite;
+}
+
+.animate-printerRoller {
+  animation: printerRoller 2s linear infinite;
+}
+
+.animate-flipOut {
+  animation: flipOut 0.5s ease-in forwards;
+}
+
+.animate-highlightFlash {
+  animation: highlightFlash 1.5s ease-in-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulseGold {
+  animation: pulseGold 2s ease-in-out infinite;
+}
+
+.animate-typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 3px solid #8B4513;
+  animation: typewriter 3s steps(40, end), blink 0.75s step-end infinite;
+}
+
+.animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animation-delay-500 {
+  animation-delay: 500ms;
+}
+
+.animation-delay-700 {
+  animation-delay: 700ms;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1000ms;
+}

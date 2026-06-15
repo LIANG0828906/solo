@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>水墨星系生成器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      min-width: 800px;
+      min-height: 600px;
+      cursor: grab;
+    }
+
+    #canvas:active {
+      cursor: grabbing;
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(10, 10, 14, 0.8);
+      border: 1px solid #2A283A;
+      border-radius: 12px;
+      padding: 20px;
+      color: #E8D5B7;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      font-size: 14px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      min-width: 220px;
+      transition: all 0.3s ease;
+    }
+
+    #control-panel h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #F0E6D3;
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      color: #B0BEC5;
+      font-size: 13px;
+    }
+
+    .control-group label span {
+      color: #D4A76A;
+      font-weight: 500;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #2A283A;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #D4A76A;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 6px rgba(212, 167, 106, 0.5);
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 10px rgba(212, 167, 106, 0.8);
+    }
+
+    .control-group input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #D4A76A;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 6px rgba(212, 167, 106, 0.5);
+    }
+
+    .control-group input[type="range"]::-moz-range-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 10px rgba(212, 167, 106, 0.8);
+    }
+
+    #reset-btn {
+      width: 100%;
+      padding: 10px 20px;
+      background: #8B2252;
+      color: #F0E6D3;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      letter-spacing: 1px;
+    }
+
+    #reset-btn:hover {
+      background: #A32D6A;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(139, 34, 82, 0.4);
+    }
+
+    #reset-btn:active {
+      animation: buttonPulse 0.5s ease;
+    }
+
+    @keyframes buttonPulse {
+      0% {
+        transform: scale(1);
+      }
+      30% {
+        transform: scale(0.92);
+      }
+      60% {
+        transform: scale(1.05);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (max-width: 768px) {
+      #control-panel {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 12px 12px 0 0;
+        min-width: auto;
+        padding: 15px 20px;
+      }
+
+      #control-panel h3 {
+        display: none;
+      }
+
+      .control-group {
+        display: inline-block;
+        width: 30%;
+        margin-right: 3%;
+        margin-bottom: 10px;
+        vertical-align: top;
+      }
+
+      .control-group:last-of-type {
+        margin-right: 0;
+      }
+
+      #reset-btn {
+        width: auto;
+        padding: 8px 16px;
+        font-size: 12px;
+      }
+
+      #canvas {
+        min-width: auto;
+        min-height: calc(100vh - 100px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <div id="control-panel">
+    <h3>星系控制台</h3>
+    <div class="control-group">
+      <label>星点密度 <span id="density-value">20</span></label>
+      <input type="range" id="density-slider" min="10" max="100" value="20">
+    </div>
+    <div class="control-group">
+      <label>星轨长度 <span id="trail-value">100</span>px</label>
+      <input type="range" id="trail-slider" min="50" max="200" value="100">
+    </div>
+    <div class="control-group">
+      <label>晕染强度 <span id="halo-value">5</span></label>
+      <input type="range" id="halo-slider" min="1" max="10" value="5">
+    </div>
+    <button id="reset-btn">重置星系</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

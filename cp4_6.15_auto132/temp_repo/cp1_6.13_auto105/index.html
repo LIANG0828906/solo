@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelBloom - 交互式体素粒子雕塑工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0B0C10;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #C5C6C7;
+    }
+
+    #app {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    /* ===== 控制面板 ===== */
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 320px;
+      background: rgba(11, 12, 16, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(69, 162, 158, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      z-index: 100;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #45A29E;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: rgba(197, 198, 199, 0.6);
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #45A29E;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+      margin-top: 16px;
+    }
+
+    .section-label:first-of-type {
+      margin-top: 0;
+    }
+
+    /* 颜色网格 */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .color-swatch {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.1);
+      border-color: rgba(197, 198, 199, 0.5);
+    }
+
+    .color-swatch.selected {
+      border-color: #45A29E;
+      box-shadow: 0 0 0 2px rgba(69, 162, 158, 0.3);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 2px rgba(69, 162, 158, 0.3), 0 0 8px rgba(69, 162, 158, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 0 2px rgba(69, 162, 158, 0.6), 0 0 20px rgba(69, 162, 158, 0.5);
+      }
+    }
+
+    /* 拾色器 */
+    .color-picker-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .color-picker-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      border: 2px solid #45A29E;
+      cursor: pointer;
+      padding: 0;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .color-picker-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    .color-picker-btn input[type="color"] {
+      width: 200%;
+      height: 200%;
+      border: none;
+      cursor: pointer;
+      transform: translate(-25%, -25%);
+      background: none;
+    }
+
+    .color-picker-label {
+      font-size: 12px;
+      color: rgba(197, 198, 199, 0.7);
+    }
+
+    /* 发光强度滑块 */
+    .slider-container {
+      width: 100%;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .slider-label {
+      font-size: 12px;
+      color: rgba(197, 198, 199, 0.8);
+    }
+
+    .slider-value {
+      font-size: 12px;
+      color: #45A29E;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(69, 162, 158, 0.15);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #45A29E;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(69, 162, 158, 0.5);
+      transition: all 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 16px rgba(69, 162, 158, 0.8);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #45A29E;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px rgba(69, 162, 158, 0.5);
+    }
+
+    /* 预设按钮 */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .preset-btn {
+      padding: 8px 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(69, 162, 158, 0.3);
+      background: rgba(69, 162, 158, 0.08);
+      color: #C5C6C7;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .preset-btn:hover {
+      background: rgba(69, 162, 158, 0.2);
+      border-color: #45A29E;
+      transform: translateY(-1px);
+    }
+
+    .preset-btn:active {
+      transform: translateY(0);
+    }
+
+    /* 汉堡菜单按钮 */
+    .hamburger-btn {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: rgba(11, 12, 16, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(69, 162, 158, 0.3);
+      cursor: pointer;
+      z-index: 101;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .hamburger-btn span {
+      width: 20px;
+      height: 2px;
+      background: #45A29E;
+      border-radius: 1px;
+      transition: all 0.2s ease;
+    }
+
+    .hamburger-btn.active span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-btn.active span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-btn.active span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* ===== 图例面板 ===== */
+    .legend-panel {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      transform: translate(calc(100% - 6px), -50%);
+      width: 240px;
+      background: rgba(11, 12, 16, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(69, 162, 158, 0.3);
+      border-right: none;
+      border-radius: 12px 0 0 12px;
+      padding: 20px;
+      z-index: 100;
+      transition: transform 200ms ease;
+    }
+
+    .legend-panel:hover {
+      transform: translate(0, -50%);
+    }
+
+    .legend-panel::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 6px;
+      height: 100%;
+      background: linear-gradient(to right, rgba(69, 162, 158, 0.4), transparent);
+      border-radius: 12px 0 0 12px;
+    }
+
+    .legend-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #45A29E;
+      margin-bottom: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .legend-key {
+      flex-shrink: 0;
+      padding: 3px 8px;
+      background: rgba(69, 162, 158, 0.15);
+      border: 1px solid rgba(69, 162, 158, 0.4);
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #45A29E;
+      white-space: nowrap;
+      min-width: 48px;
+      text-align: center;
+    }
+
+    .legend-desc {
+      font-size: 11px;
+      color: rgba(197, 198, 199, 0.7);
+      line-height: 1.5;
+      padding-top: 2px;
+    }
+
+    /* 状态信息 */
+    .status-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      background: rgba(11, 12, 16, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(69, 162, 158, 0.2);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 11px;
+      z-index: 100;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-label {
+      color: rgba(197, 198, 199, 0.5);
+    }
+
+    .status-value {
+      color: #45A29E;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 1440px) {
+      .hamburger-btn {
+        display: flex;
+      }
+
+      .control-panel {
+        transform: translateX(calc(-100% - 40px));
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .control-panel.open {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .control-panel {
+        width: 280px;
+        padding: 16px;
+      }
+
+      .legend-panel {
+        width: 200px;
+        padding: 16px;
+      }
+
+      .panel-title {
+        font-size: 16px;
+      }
+
+      .preset-btn {
+        font-size: 10px;
+        padding: 6px 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <!-- 汉堡菜单按钮 -->
+    <button class="hamburger-btn" id="hamburgerBtn" aria-label="切换控制面板">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <!-- 控制面板 -->
+    <div class="control-panel" id="controlPanel">
+      <div class="panel-title">VOXEL BLOOM</div>
+      <div class="panel-subtitle">交互式体素粒子雕塑</div>
+
+      <div class="section-label">色彩选择</div>
+      <div class="color-grid" id="colorGrid"></div>
+      <div class="color-picker-row">
+        <button class="color-picker-btn" id="colorPickerBtn">
+          <input type="color" id="colorPicker" value="#FF3D3D" />
+        </button>
+        <span class="color-picker-label">自定义拾色器</span>
+      </div>
+
+      <div class="section-label">发光强度</div>
+      <div class="slider-container">
+        <div class="slider-header">
+          <span class="slider-label">Emissive Intensity</span>
+          <span class="slider-value" id="intensityValue">1.00</span>
+        </div>
+        <input type="range" id="intensitySlider" min="0.5" max="2.0" step="0.05" value="1.0" />
+      </div>
+
+      <div class="section-label">预设布局</div>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset-btn" data-preset="sphere">球体</button>
+        <button class="preset-btn" data-preset="spiral">螺旋</button>
+        <button class="preset-btn" data-preset="heart">心形</button>
+        <button class="preset-btn" data-preset="nebula">星云</button>
+        <button class="preset-btn" data-preset="cloud">随机</button>
+      </div>
+    </div>
+
+    <!-- 图例面板 -->
+    <div class="legend-panel">
+      <div class="legend-title">操作指南</div>
+      <div class="legend-item">
+        <span class="legend-key">左键</span>
+        <span class="legend-desc">点击放置发光体素</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-key">右键</span>
+        <span class="legend-desc">点击移除体素（碎裂效果）</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-key">拖拽</span>
+        <span class="legend-desc">旋转3D场景视角</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-key">滚轮</span>
+        <span class="legend-desc">缩放场景远近</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-key">中键</span>
+        <span class="legend-desc">平移整个场景</span>
+      </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <div class="status-item">
+        <span class="status-label">体素数:</span>
+        <span class="status-value" id="voxelCount">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">FPS:</span>
+        <span class="status-value" id="fpsValue">60</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">网格:</span>
+        <span class="status-value">30 × 30 × 30</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

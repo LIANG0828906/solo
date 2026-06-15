@@ -1,0 +1,232 @@
+{
+  "gigs": [
+    {
+      "id": "gig-1",
+      "date": "2025-07-15",
+      "venue": "MAO Livehouse",
+      "city": "北京",
+      "schedule": {
+        "meetingTime": "16:00",
+        "soundcheck": "17:00",
+        "warmup": "19:00",
+        "performance": "20:00",
+        "endTime": "22:00"
+      },
+      "members": [
+        { "id": "m1", "name": "李明", "status": "confirmed" },
+        { "id": "m2", "name": "王华", "status": "confirmed" },
+        { "id": "m3", "name": "张伟", "status": "pending" },
+        { "id": "m4", "name": "刘洋", "status": "leave" }
+      ],
+      "order": 0
+    },
+    {
+      "id": "gig-2",
+      "date": "2025-08-05",
+      "venue": "育音堂",
+      "city": "上海",
+      "schedule": {
+        "meetingTime": "15:30",
+        "soundcheck": "16:30",
+        "warmup": "18:30",
+        "performance": "19:30",
+        "endTime": "21:30"
+      },
+      "members": [
+        { "id": "m1", "name": "李明", "status": "confirmed" },
+        { "id": "m2", "name": "王华", "status": "confirmed" },
+        { "id": "m3", "name": "张伟", "status": "confirmed" },
+        { "id": "m4", "name": "刘洋", "status": "pending" }
+      ],
+      "order": 1
+    },
+    {
+      "id": "gig-3",
+      "date": "2025-08-20",
+      "venue": "红糖罐",
+      "city": "深圳",
+      "schedule": {
+        "meetingTime": "17:00",
+        "soundcheck": "18:00",
+        "warmup": "20:00",
+        "performance": "21:00",
+        "endTime": "23:00"
+      },
+      "members": [
+        { "id": "m1", "name": "李明", "status": "pending" },
+        { "id": "m2", "name": "王华", "status": "confirmed" },
+        { "id": "m3", "name": "张伟", "status": "confirmed" },
+        { "id": "m4", "name": "刘洋", "status": "confirmed" }
+      ],
+      "order": 2
+    },
+    {
+      "id": "gig-4",
+      "date": "2025-09-10",
+      "venue": "小酒馆",
+      "city": "成都",
+      "schedule": {
+        "meetingTime": "16:00",
+        "soundcheck": "17:00",
+        "warmup": "19:00",
+        "performance": "20:00",
+        "endTime": "22:30"
+      },
+      "members": [
+        { "id": "m1", "name": "李明", "status": "confirmed" },
+        { "id": "m2", "name": "王华", "status": "leave" },
+        { "id": "m3", "name": "张伟", "status": "pending" },
+        { "id": "m4", "name": "刘洋", "status": "confirmed" }
+      ],
+      "order": 3
+    }
+  ],
+  "equipment": [
+    {
+      "id": "eq-1",
+      "name": "Fender Stratocaster",
+      "type": "guitar",
+      "purchaseYear": 2020,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1564186763535-ebb21ef5277f?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [
+        { "date": "2024-03-15", "description": "更换品丝" }
+      ],
+      "borrowRecords": []
+    },
+    {
+      "id": "eq-2",
+      "name": "Music Man StingRay",
+      "type": "bass",
+      "purchaseYear": 2019,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [],
+      "borrowRecords": [
+        { "date": "2024-01-10", "borrower": "隔壁乐队", "returnDate": "2024-01-20" }
+      ]
+    },
+    {
+      "id": "eq-3",
+      "name": "Pearl Export 套鼓",
+      "type": "drums",
+      "purchaseYear": 2018,
+      "status": "repair",
+      "photo": "https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [
+        { "date": "2025-06-01", "description": "军鼓换皮" }
+      ],
+      "borrowRecords": []
+    },
+    {
+      "id": "eq-4",
+      "name": "Roland Juno-106",
+      "type": "keyboard",
+      "purchaseYear": 2021,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [],
+      "borrowRecords": []
+    },
+    {
+      "id": "eq-5",
+      "name": "Marshall JCM800",
+      "type": "amplifier",
+      "purchaseYear": 2017,
+      "status": "borrowed",
+      "photo": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [
+        { "date": "2023-11-20", "description": "更换电子管" }
+      ],
+      "borrowRecords": [
+        { "date": "2025-06-10", "borrower": "回声公园乐队", "returnDate": null }
+      ]
+    },
+    {
+      "id": "eq-6",
+      "name": "Gibson Les Paul",
+      "type": "guitar",
+      "purchaseYear": 2022,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [],
+      "borrowRecords": []
+    },
+    {
+      "id": "eq-7",
+      "name": "Shure SM58 麦克风",
+      "type": "other",
+      "purchaseYear": 2020,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [],
+      "borrowRecords": []
+    },
+    {
+      "id": "eq-8",
+      "name": "Line 6 Helix 效果器",
+      "type": "other",
+      "purchaseYear": 2023,
+      "status": "normal",
+      "photo": "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop",
+      "purchaseReceiptUrl": "#",
+      "repairRecords": [],
+      "borrowRecords": []
+    }
+  ],
+  "rehearsals": [
+    {
+      "id": "reh-1",
+      "name": "夜空中最亮的星",
+      "stage": "mature",
+      "startDate": "2025-06-01",
+      "endDate": "2025-07-01",
+      "relatedGigId": "gig-1"
+    },
+    {
+      "id": "reh-2",
+      "name": "追梦赤子心",
+      "stage": "polishing",
+      "startDate": "2025-06-15",
+      "endDate": "2025-07-20",
+      "relatedGigId": "gig-1"
+    },
+    {
+      "id": "reh-3",
+      "name": "海阔天空",
+      "stage": "first-ensemble",
+      "startDate": "2025-07-01",
+      "endDate": "2025-08-01",
+      "relatedGigId": "gig-2"
+    },
+    {
+      "id": "reh-4",
+      "name": "光辉岁月",
+      "stage": "not-started",
+      "startDate": "2025-07-15",
+      "endDate": "2025-08-15",
+      "relatedGigId": "gig-2"
+    },
+    {
+      "id": "reh-5",
+      "name": "不再犹豫",
+      "stage": "polishing",
+      "startDate": "2025-07-10",
+      "endDate": "2025-09-01",
+      "relatedGigId": "gig-3"
+    }
+  ],
+  "members": [
+    { "id": "m1", "name": "李明", "role": "主唱/吉他" },
+    { "id": "m2", "name": "王华", "role": "贝斯" },
+    { "id": "m3", "name": "张伟", "role": "鼓手" },
+    { "id": "m4", "name": "刘洋", "role": "键盘" }
+  ]
+}

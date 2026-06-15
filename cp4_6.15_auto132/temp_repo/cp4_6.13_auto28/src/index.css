@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f0ebe3;
+  color: #2c3e50;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark-glass-panel {
+  background: rgba(20, 20, 25, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.style-card {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.style-card:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 32px rgba(44, 62, 80, 0.25);
+}
+
+.material-card {
+  transition: all 0.25s ease;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.material-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.material-card.selected {
+  border: 2px solid #d4af37 !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
+}
+
+.view-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #2c3e50;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.view-btn:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.2);
+}
+
+.view-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.status-bar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(44, 62, 80, 0.85);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  transition: background-color 0.3s ease;
+}
+
+.status-bar.warn {
+  background: rgba(220, 38, 38, 0.9);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.panel-left {
+  width: 18vw;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.panel-right {
+  width: 14vw;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+@media (max-width: 1366px) {
+  .panel-left { width: 220px; }
+  .panel-right { width: 200px; }
+}

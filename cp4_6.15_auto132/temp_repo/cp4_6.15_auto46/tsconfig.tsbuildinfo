@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/fireworks.tsx","./src/components/progresstracker.tsx","./src/components/skillroadmap.tsx","./src/components/stagecard.tsx","./src/components/subtaskitem.tsx","./src/types/index.ts","./src/utils/datahelpers.ts"],"version":"5.8.3"}

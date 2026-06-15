@@ -1,0 +1,151 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: serif, 'Microsoft YaHei', sans-serif;
+  overflow: hidden;
+  background-color: #e8dcc3;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #e8dcc3;
+  position: relative;
+}
+
+.status-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: rgba(93, 58, 26, 0.95);
+  border-bottom: 3px solid #3a2010;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  z-index: 1000;
+  font-family: serif;
+}
+
+.scroll-container {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.scroll-container:active {
+  cursor: grabbing;
+}
+
+.map-container {
+  width: 1200px;
+  height: 100%;
+  position: relative;
+  background-color: #e8dcc3;
+}
+
+.station {
+  position: absolute;
+  cursor: pointer;
+}
+
+.station-panel {
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  background-color: #f5deb3;
+  border: 3px solid #5d3a1a;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.in-transit-document {
+  position: absolute;
+  z-index: 50;
+  cursor: pointer;
+}
+
+button {
+  transition: all 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(2px);
+}
+
+@keyframes smoke {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-40px) scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes gallop {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes legMove1 {
+  0%, 100% {
+    height: 10px;
+    transform: translateY(0);
+  }
+  50% {
+    height: 6px;
+    transform: translateY(2px);
+  }
+}
+
+@keyframes legMove2 {
+  0%, 100% {
+    height: 6px;
+    transform: translateY(2px);
+  }
+  50% {
+    height: 10px;
+    transform: translateY(0);
+  }
+}

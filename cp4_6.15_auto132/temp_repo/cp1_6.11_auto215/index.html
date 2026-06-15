@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素昼夜与天气模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #2d2d2d;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #canvas-wrapper {
+      width: 80%;
+      max-width: 1200px;
+      max-height: 80vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    #scene-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    #control-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background-color: #1a1a1a80;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      color: #e0e0e0;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      user-select: none;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      font-size: 14px;
+      color: #e0e0e0;
+    }
+
+    .time-display {
+      font-size: 14px;
+      color: #ffd700;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    #time-slider {
+      width: 200px;
+      cursor: pointer;
+      accent-color: #ffd700;
+    }
+
+    .weather-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .weather-btn {
+      padding: 8px 16px;
+      background-color: #555;
+      color: #e0e0e0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      transition: background-color 0.2s, transform 0.2s;
+    }
+
+    .weather-btn:hover {
+      background-color: #666;
+    }
+
+    .weather-btn.active {
+      background-color: #ffd700;
+      color: #1a1a1a;
+    }
+
+    .weather-btn:active {
+      transform: scale(0.95);
+    }
+
+    .weather-btn.animating {
+      animation: buttonPulse 0.2s ease-out;
+    }
+
+    @keyframes buttonPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @media (max-width: 768px) {
+      #canvas-wrapper {
+        width: 80%;
+      }
+
+      #control-panel {
+        position: fixed;
+        bottom: 10px;
+        right: 50%;
+        transform: translateX(50%);
+        flex-direction: column;
+        width: 80%;
+        max-width: 300px;
+      }
+
+      #time-slider {
+        width: 100%;
+      }
+
+      .weather-buttons {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-wrapper">
+      <canvas id="scene-canvas"></canvas>
+    </div>
+    <div id="control-panel">
+      <div class="control-group">
+        <span class="control-label">时间</span>
+        <input type="range" id="time-slider" min="0" max="23" step="0.5" value="12">
+        <div class="time-display" id="time-display">12.0 - 正午</div>
+      </div>
+      <div class="control-group">
+        <span class="control-label">天气</span>
+        <div class="weather-buttons">
+          <button class="weather-btn active" data-weather="sunny">晴天</button>
+          <button class="weather-btn" data-weather="rainy">雨天</button>
+          <button class="weather-btn" data-weather="foggy">雾天</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

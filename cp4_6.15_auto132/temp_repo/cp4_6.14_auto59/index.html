@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>物理弹射沙盒</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1e293b;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #f1f5f9;
+      user-select: none;
+    }
+    #app {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    #tool-panel {
+      width: 200px;
+      min-width: 200px;
+      height: 100%;
+      background: #334155;
+      border-right: 1px solid #475569;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      overflow-y: auto;
+    }
+    #tool-panel h3 {
+      font-size: 14px;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .tool-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      background: #1e293b;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .tool-item:hover {
+      border-color: #64748b;
+    }
+    .tool-item.selected {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .tool-item canvas {
+      width: 48px;
+      height: 48px;
+    }
+    .tool-item span {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .tool-item.selected span {
+      color: #f1f5f9;
+    }
+    #game-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #launch-btn {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      box-shadow: inset 0 0 0 3px rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      z-index: 10;
+    }
+    #launch-btn:hover {
+      transform: scale(1.1);
+      box-shadow: inset 0 0 0 3px rgba(255,255,255,0.5), 0 4px 20px rgba(249,115,22,0.4);
+    }
+    #launch-btn:active {
+      transform: scale(0.95);
+    }
+    #launch-btn svg {
+      width: 28px;
+      height: 28px;
+      fill: white;
+    }
+    #launch-btn.launching {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    #power-bar-container {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 16px;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #475569;
+      display: none;
+      z-index: 10;
+    }
+    #power-bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 8px;
+      background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+      transition: width 0.05s;
+    }
+    #level-info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      z-index: 10;
+    }
+    .level-badge {
+      background: rgba(51,65,85,0.9);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      backdrop-filter: blur(4px);
+    }
+    .ball-count {
+      color: #f97316;
+      font-weight: bold;
+    }
+    #context-menu {
+      position: absolute;
+      display: none;
+      background: rgba(30,41,59,0.95);
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 4px 0;
+      z-index: 100;
+      min-width: 120px;
+      backdrop-filter: blur(4px);
+    }
+    #context-menu .menu-item {
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    #context-menu .menu-item:hover {
+      background: #e5e7eb;
+      color: #1e293b;
+    }
+    #result-panel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(30,41,59,0.92);
+      backdrop-filter: blur(4px);
+      padding: 32px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 50;
+      transform: translateY(100%);
+      transition: transform 400ms ease-out;
+    }
+    #result-panel.show {
+      display: flex;
+      transform: translateY(0);
+    }
+    #result-stars {
+      font-size: 36px;
+      letter-spacing: 8px;
+    }
+    #result-stars .star-on {
+      color: #fbbf24;
+    }
+    #result-stars .star-off {
+      color: #475569;
+    }
+    #result-score {
+      font-size: 20px;
+      color: #94a3b8;
+    }
+    #result-score span {
+      color: #f1f5f9;
+      font-weight: bold;
+      font-size: 28px;
+    }
+    #next-level-btn {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    #next-level-btn:hover {
+      filter: brightness(1.15);
+    }
+    #restart-btn {
+      background: #475569;
+      color: #f1f5f9;
+      border: none;
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    #restart-btn:hover {
+      filter: brightness(1.15);
+    }
+    #hint-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 16px;
+      color: #64748b;
+      pointer-events: none;
+      z-index: 5;
+      text-align: center;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="tool-panel">
+      <h3>🧱 障碍物</h3>
+      <div class="tool-grid" id="tool-grid"></div>
+      <div style="margin-top: 20px; border-top: 1px solid #475569; padding-top: 12px;">
+        <h3>🎯 目标物</h3>
+        <div style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 8px;">
+          目标会随关卡<br/>自动生成
+        </div>
+      </div>
+    </div>
+    <div id="game-area">
+      <canvas id="game-canvas"></canvas>
+      <div id="level-info">
+        <div class="level-badge" id="level-name">第 1 关</div>
+        <div class="level-badge">剩余球数: <span class="ball-count" id="ball-count">3</span></div>
+        <div class="level-badge" id="targets-info">目标: 0/0</div>
+      </div>
+      <div id="hint-text">从左侧选择障碍物<br/>拖拽到画布上放置</div>
+      <button id="launch-btn" title="弹射">
+        <svg viewBox="0 0 24 24"><path d="M12 2L4 12h5v10h6V12h5L12 2z"/></svg>
+      </button>
+      <div id="power-bar-container">
+        <div id="power-bar-fill"></div>
+      </div>
+      <div id="context-menu">
+        <div class="menu-item" id="menu-delete">🗑️ 删除</div>
+        <div class="menu-item" id="menu-rotate-cw">↻ 顺时针旋转</div>
+        <div class="menu-item" id="menu-rotate-ccw">↺ 逆时针旋转</div>
+      </div>
+      <div id="result-panel">
+        <div id="result-stars"></div>
+        <div id="result-score">得分: <span>0</span></div>
+        <button id="next-level-btn">下一关 →</button>
+        <button id="restart-btn">重新挑战</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+import type { TourWaypoint } from '@/types'
+
+export const tourPath: TourWaypoint[] = [
+  {
+    id: 'waypoint-1',
+    exhibitId: 'exhibit-1',
+    position: [-6, 2, 0],
+    targetPosition: [-4, 0, -2],
+    pauseDuration: 5000,
+    description: '欢迎来到虚拟博物馆！我们的第一站是青铜鼎，这是商代晚期的青铜礼器。',
+  },
+  {
+    id: 'waypoint-2',
+    exhibitId: 'exhibit-2',
+    position: [-3, 2, -6],
+    targetPosition: [-1.5, 0, -4],
+    pauseDuration: 5000,
+    description: '现在您看到的是战国时期的玉璧，它象征着古人天圆地方的宇宙观。',
+  },
+  {
+    id: 'waypoint-3',
+    exhibitId: 'exhibit-3',
+    position: [0, 2, -6],
+    targetPosition: [1.5, 0, -4],
+    pauseDuration: 5000,
+    description: '接下来是世界第八大奇迹——秦始皇陵兵马俑，每一尊都神态各异。',
+  },
+  {
+    id: 'waypoint-4',
+    exhibitId: 'exhibit-4',
+    position: [6, 2, 0],
+    targetPosition: [4, 0, -2],
+    pauseDuration: 5000,
+    description: '这件青花瓷瓶是明代永乐年间的珍品，代表了中国瓷器的最高水平。',
+  },
+  {
+    id: 'waypoint-5',
+    exhibitId: 'exhibit-5',
+    position: [6, 2, 4],
+    targetPosition: [4, 0, 2],
+    pauseDuration: 5000,
+    description: '现在我们欣赏的是王羲之的《兰亭序》摹本，被誉为天下第一行书。',
+  },
+  {
+    id: 'waypoint-6',
+    exhibitId: 'exhibit-6',
+    position: [-6, 2, 4],
+    targetPosition: [-4, 0, 2],
+    pauseDuration: 5000,
+    description: '最后一件展品是西汉的金缕玉衣，由2000多片玉片编织而成。',
+  },
+  {
+    id: 'waypoint-7',
+    exhibitId: null,
+    position: [0, 3, 6],
+    targetPosition: [0, 0, 0],
+    pauseDuration: 5000,
+    description: '感谢您参观虚拟博物馆！希望您有一个愉快的体验。',
+  },
+]

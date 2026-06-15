@@ -1,0 +1,39 @@
+{
+  "name": "autolab-grading-app",
+  "version": "1.0.0",
+  "description": "AutoLab 实验报告智能批改与评分应用",
+  "scripts": {
+    "dev:frontend": "vite",
+    "dev:backend": "ts-node server/src/app.ts",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "node server/dist/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jspdf": "^2.5.1",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.11",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "@types/uuid": "^9.0.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.10.0"
+  }
+}

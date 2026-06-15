@@ -1,0 +1,445 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   CSS 变量与全局配置
+   ============================================================ */
+:root {
+  --color-gold: #D4AF37;
+  --color-gold-light: #E5C158;
+  --color-bg-dark: #1a1a2e;
+  --color-bg-mid: #16213e;
+  --color-bg-light: #0f3460;
+  --color-glass: rgba(255, 255, 255, 0.1);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  --color-error: #ef4444;
+  --color-error-light: #fca5a5;
+  
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-mid) 50%, var(--color-bg-light) 100%);
+  background-attachment: fixed;
+  color: white;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================================
+   组件样式层
+   ============================================================ */
+@layer components {
+  /* 毛玻璃卡片 - 用于生日卡片、弹窗、横幅 */
+  .glass-card {
+    background: var(--color-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-glass-border);
+    border-radius: 16px;
+    box-shadow: 
+      0 4px 30px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* 暖金色主按钮 */
+  .btn-gold {
+    background: var(--color-gold);
+    color: #1a1a2e;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .btn-gold:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+  }
+
+  /* 次要按钮 */
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s ease-out, background 0.2s ease-out;
+  }
+
+  .btn-secondary:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* 危险按钮（删除等） */
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.8);
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease-out, background 0.2s ease-out;
+  }
+
+  .btn-danger:hover {
+    transform: scale(1.05);
+    background: rgba(239, 68, 68, 1);
+  }
+
+  /* 输入框基础样式 */
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  }
+
+  .input-field::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* 输入框错误状态 - 红色边框和光晕 */
+  .input-field-error {
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+    background: rgba(239, 68, 68, 0.05);
+  }
+
+  .input-field-error:focus {
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3) !important;
+  }
+
+  /* 兴趣标签按钮 */
+  .interest-tag {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+    font-size: 0.875rem;
+  }
+
+  .interest-tag:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .interest-tag.selected {
+    background: var(--color-gold);
+    color: #1a1a2e;
+    border-color: var(--color-gold);
+    font-weight: 600;
+  }
+
+  /* 兴趣标签错误状态 */
+  .interest-tag-group-error .interest-tag {
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  /* 错误提示文字 */
+  .error-text {
+    color: var(--color-error-light);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* 头像圆形占位 - 姓名首字母彩色圆块 */
+  .avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 30天内生日卡片的脉动红色圆点 */
+  .pulse-dot {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-error);
+    animation: pulse 1.5s ease-in-out infinite;
+    z-index: 10;
+  }
+
+  /* 生日卡片容器 */
+  .birthday-card {
+    position: relative;
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+    will-change: transform, box-shadow;
+    contain: layout style;
+    height: 100%;
+  }
+
+  .birthday-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 新添加卡片的滑入动画 */
+  .birthday-card.new-card {
+    animation: slideDown 0.6s ease-out forwards;
+  }
+
+  /* 翻转卡片容器 - 用于礼物卡片 */
+  .flip-card {
+    perspective: 1200px;
+    cursor: pointer;
+  }
+
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .flip-card.flipped .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-card-front,
+  .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .flip-card-back {
+    transform: rotateY(180deg);
+  }
+
+  /* 礼物卡片 - 从左到右依次旋转飞入动画 */
+  .gift-card {
+    opacity: 0;
+    transform: translateX(-200px) rotateY(-90deg) scale(0.7);
+    animation: giftFlyIn 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    transform-origin: left center;
+  }
+
+  .gift-card:nth-child(1) {
+    animation-delay: 0.15s;
+  }
+
+  .gift-card:nth-child(2) {
+    animation-delay: 0.35s;
+  }
+
+  .gift-card:nth-child(3) {
+    animation-delay: 0.55s;
+  }
+
+  /* 即将到来的生日横幅 - 横向滚动 */
+  .banner-container {
+    overflow: hidden;
+    position: relative;
+    mask-image: linear-gradient(90deg, transparent 0%, black 3%, black 97%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 3%, black 97%, transparent 100%);
+  }
+
+  .banner-track {
+    display: flex;
+    gap: 1rem;
+    animation: scroll 30s linear infinite;
+    width: max-content;
+  }
+
+  .banner-container:hover .banner-track {
+    animation-play-state: paused;
+  }
+
+  /* 弹窗遮罩层 */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    opacity: 0;
+    animation: fadeIn 0.3s ease-out forwards;
+    padding: 1rem;
+  }
+
+  /* 弹窗内容 */
+  .modal-content {
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  /* 即将到来横幅中的卡片宽度 */
+  .upcoming-card {
+    flex-shrink: 0;
+    width: 180px;
+  }
+
+  /* 倒计时颜色类 */
+  .countdown-orange {
+    color: #fb923c;
+  }
+
+  .countdown-blue {
+    color: #60a5fa;
+  }
+
+  .countdown-gray {
+    color: #9ca3af;
+  }
+}
+
+/* ============================================================
+   动画关键帧
+   ============================================================ */
+
+/* 红色脉动圆点 - 30天内生日标识 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+/* 新卡片从上往下滑入 */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 礼物卡片从左到右旋转飞入 - 增强版 */
+@keyframes giftFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-200px) rotateY(-90deg) scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(10px) rotateY(10deg) scale(1.02);
+  }
+  80% {
+    transform: translateX(-5px) rotateY(-5deg) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotateY(0deg) scale(1);
+  }
+}
+
+/* 横幅横向无限滚动 */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* 弹窗淡入 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 弹窗内容缩放进入 */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================
+   响应式适配
+   ============================================================ */
+@media (max-width: 768px) {
+  .upcoming-card {
+    width: 150px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+}

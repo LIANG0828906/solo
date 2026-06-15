@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --color-cyan: #00d4ff;
+  --color-magenta: #ff00ff;
+  --color-gold: #ffd700;
+  --color-red: #ff3366;
+  --color-green: #00ff88;
+  --color-dark-purple: #1a0a2e;
+  --color-dark-blue: #0a0a1f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0a1f 50%, #050510 100%);
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.font-display {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.font-body {
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.neon-text {
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-magenta));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.5));
+}
+
+.neon-text-cyan {
+  color: var(--color-cyan);
+  text-shadow: 0 0 10px var(--color-cyan), 0 0 20px var(--color-cyan), 0 0 40px var(--color-cyan);
+}
+
+.neon-text-magenta {
+  color: var(--color-magenta);
+  text-shadow: 0 0 10px var(--color-magenta), 0 0 20px var(--color-magenta), 0 0 40px var(--color-magenta);
+}
+
+.neon-text-gold {
+  color: var(--color-gold);
+  text-shadow: 0 0 10px var(--color-gold), 0 0 20px var(--color-gold), 0 0 4

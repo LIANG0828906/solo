@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>迷宫生成器 - Maze Generator</title>
+</head>
+<body>
+  <div id="root">
+    <div id="game-container">
+      <div id="top-bar">
+        <div id="stats">
+          <span id="timer-wrapper">⏱ <span id="timer">00:00</span></span>
+          <span id="steps-wrapper">👣 <span id="steps">0</span></span>
+        </div>
+      </div>
+      
+      <div id="canvas-wrapper">
+        <canvas id="maze-canvas"></canvas>
+      </div>
+
+      <div id="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      
+      <div id="control-panel">
+        <div id="control-group-1" class="control-group-element">
+          <label id="difficulty-label">难度:</label>
+          <button id="diff-easy" class="difficulty-btn-element" data-size="5">简单 5×5</button>
+          <button id="diff-medium" class="difficulty-btn-element" data-size="10">中等 10×10</button>
+          <button id="diff-hard" class="difficulty-btn-element" data-size="15">困难 15×15</button>
+        </div>
+        
+        <div id="control-group-2" class="control-group-element">
+          <label id="size-label">自定义尺寸:</label>
+          <input type="range" id="size-slider" min="5" max="20" value="10">
+          <span id="size-value">10×10</span>
+        </div>
+        
+        <div id="control-group-3" class="control-group-element">
+          <button id="generate-btn">🎲 生成迷宫</button>
+          <button id="pause-btn" disabled>⏸ 暂停</button>
+          <button id="reset-btn">🔄 重置玩家</button>
+        </div>
+        
+        <div id="control-group-4" class="control-group-element">
+          <button id="save-btn">💾 保存迷宫</button>
+          <button id="load-btn">📂 加载迷宫</button>
+        </div>
+      </div>
+
+      <div id="load-modal" style="display: none;">
+        <div id="modal-content">
+          <div id="modal-header">
+            <h3 id="modal-title">已保存的迷宫</h3>
+            <button id="close-modal">×</button>
+          </div>
+          <div id="maze-list"></div>
+        </div>
+      </div>
+
+      <div id="victory-modal" style="display: none;">
+        <div id="victory-content">
+          <h2 id="victory-title">🎉 恭喜通关！</h2>
+          <div id="victory-stats">
+            <p id="victory-time-row">用时: <span id="victory-time">00:00</span></p>
+            <p id="victory-steps-row">步数: <span id="victory-steps">0</span></p>
+          </div>
+          <button id="play-again-btn">再玩一次</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+{
+  "cats": [
+    {
+      "id": "0643ad6d-f348-4898-9dea-7d5043165eac",
+      "name": "糖糖",
+      "breed": "英短蓝猫",
+      "color": "纯白",
+      "healthStatus": "healthy",
+      "story": "在高速公路旁被好心人救下，当时已经奄奄一息，经过救治终于恢复了活力。",
+      "metrics": {
+        "appetite": 82,
+        "energy": 81,
+        "friendliness": 81,
+        "cleanliness": 83,
+        "health": 81
+      },
+      "behaviorRecords": [
+        "睡觉喜欢窝在柔软的毛毯上",
+        "偶尔会调皮，但大多数时间很安静",
+        "喜欢被撸肚子，会开心地呼噜呼噜",
+        "食量正常，不挑食"
+      ],
+      "avatar": "😺",
+      "arrivalDate": "2026-06-14T05:49:34.207Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "5e56e98b-0467-4bbb-b509-e04c572ea804",
+      "name": "果果",
+      "breed": "英短蓝猫",
+      "color": "玳瑁",
+      "healthStatus": "mild",
+      "story": "从非法繁殖场解救出来的猫咪，之前的生活条件很差，但依然对人类充满善意。",
+      "metrics": {
+        "appetite": 62,
+        "energy": 63,
+        "friendliness": 63,
+        "cleanliness": 68,
+        "health": 63
+      },
+      "behaviorRecords": [
+        "睡觉喜欢窝在柔软的毛毯上",
+        "偶尔会调皮，但大多数时间很安静",
+        "听到罐头的声音会立刻跑过来",
+        "喜欢在阳光下发呆，一晒就是一下午"
+      ],
+      "avatar": "🐱",
+      "arrivalDate": "2026-06-14T05:49:34.208Z",
+      "area": "reception",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "9ed3f6d6-e1fd-4fd1-8e82-637e88819d28",
+      "name": "果果",
+      "breed": "苏格兰折耳",
+      "color": "烟灰色",
+      "healthStatus": "healthy",
+      "story": "原主人因过敏不得不放弃它。从小家养，非常亲人，会主动蹭人的腿。",
+      "metrics": {
+        "appetite": 79,
+        "energy": 78,
+        "friendliness": 81,
+        "cleanliness": 86,
+        "health": 86
+      },
+      "behaviorRecords": [
+        "喜欢追逐逗猫棒，能玩很久不觉得累",
+        "食量正常，不挑食"
+      ],
+      "avatar": "🐱",
+      "arrivalDate": "2026-06-14T05:49:34.208Z",
+      "area": "shelter",
+      "isExamining": false,
+      "examProgress": 0
+    },
+    {
+      "id": "b4457a60-4ec4-4c83-979d-8475cad79870",
+      "name": "小橘",
+      "breed": "无毛猫",
+      "color": "纯黑",
+      "healthStatus": "mild",
+      "story": "在建筑工地的废墟中被发现，身上有些伤口，但精神状态还不错。",
+      "metrics": {
+        "appetite": 65,
+        "energy": 61,
+        "friendliness": 57,
+        "cleanliness": 51,
+        "health": 60
+      },
+      "behaviorRecords": [
+        "喜欢追逐逗猫棒，能玩很久不觉得累",
+        "会使用猫砂盆，卫生习惯良好"
+      ],
+      "avatar": "🙀",
+      "arrivalDate": "2026-06-14T05:49:34.208Z",
+      "area": "shelter",
+      "isExamining": false,
+      "examProgress": 0
+    }
+  ],
+  "users": []
+}

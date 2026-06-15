@@ -1,0 +1,23 @@
+{
+  "template": "minimal",
+  "cards": [
+    {
+      "name": "新项目",
+      "description": "点击编辑按钮添加项目描述",
+      "thumbnailUrl": "",
+      "tags": [
+        "前端"
+      ],
+      "link": "",
+      "id": "card-1781467555802-8vtocdm12",
+      "x": 40,
+      "y": 80
+    }
+  ],
+  "settings": {
+    "backgroundColor": "#1a1a2e",
+    "fontFamily": "system-ui, sans-serif",
+    "borderRadius": 12,
+    "spacing": 16
+  }
+}

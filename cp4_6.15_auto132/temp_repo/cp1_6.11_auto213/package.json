@@ -1,0 +1,18 @@
+{
+  "name": "ancient-waterwheel-irrigation",
+  "version": "1.0.0",
+  "description": "Interactive 3D ancient waterwheel irrigation system simulation",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古籍书斋 - 典籍整理系统</title>
+  <style>
+    @font-face {
+      font-family: 'KaiTi';
+      src: local('KaiTi'), local('楷体');
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #F5E6C8;
+      font-family: 'KaiTi', '楷体', 'STKaiti', serif;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    h1 {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 32px;
+      color: #2F2F2F;
+      z-index: 10;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    #main-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: default;
+    }
+    
+    #search-container {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 320px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+    
+    #search-container:hover {
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    #search-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      color: #5C3A21;
+      flex-shrink: 0;
+    }
+    
+    #search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 16px;
+      color: #2F2F2F;
+      font-family: 'KaiTi', '楷体', serif;
+    }
+    
+    #search-input::placeholder {
+      color: #999;
+    }
+    
+    #sidebar {
+      position: absolute;
+      top: 120px;
+      right: 20px;
+      width: 280px;
+      max-height: calc(100% - 140px);
+      background: rgba(245, 230, 200, 0.95);
+      border: 2px solid #5C3A21;
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 10;
+      overflow-y: auto;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    #sidebar h2 {
+      font-size: 20px;
+      color: #5C3A21;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #C4A882;
+      letter-spacing: 2px;
+    }
+    
+    .annotation-item {
+      padding: 10px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+    }
+    
+    .annotation-item:hover {
+      background: rgba(255, 250, 240, 0.9);
+      border-left-color: #C04000;
+      transform: translateX(-2px);
+    }
+    
+    .annotation-book {
+      font-size: 14px;
+      color: #5C3A21;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    
+    .annotation-preview {
+      font-size: 13px;
+      color: #666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .no-annotations {
+      color: #999;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px 0;
+    }
+    
+    #annotation-modal {
+      position: absolute;
+      display: none;
+      background: #FFFACD;
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 100;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      min-width: 300px;
+      animation: bounceIn 0.3s ease;
+    }
+    
+    #annotation-modal::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 10px solid #FFFACD;
+    }
+    
+    #annotation-modal textarea {
+      width: 100%;
+      height: 100px;
+      border: 1px solid #C4A882;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      font-family: 'KaiTi', '楷体', serif;
+      background: rgba(255, 255, 255, 0.8);
+      margin-bottom: 10px;
+    }
+    
+    #annotation-modal textarea:focus {
+      border-color: #C04000;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    
+    .modal-btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 4px;
+      font-family: 'KaiTi', '楷体', serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-btn-submit {
+      background: #C04000;
+      color: white;
+    }
+    
+    .modal-btn-submit:hover {
+      background: #D05000;
+    }
+    
+    .modal-btn-cancel {
+      background: #C4A882;
+      color: #2F2F2F;
+    }
+    
+    .modal-btn-cancel:hover {
+      background: #D4B892;
+    }
+    
+    .char-count {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+      text-align: right;
+    }
+    
+    #tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(47, 47, 47, 0.9);
+      color: #F5E6C8;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 200;
+      max-width: 250px;
+      pointer-events: none;
+      word-wrap: break-word;
+    }
+    
+    #back-btn {
+      position: absolute;
+      top: 70px;
+      left: 30px;
+      padding: 8px 20px;
+      background: #5C3A21;
+      color: #F5E6C8;
+      border: none;
+      border-radius: 4px;
+      font-family: 'KaiTi', '楷体', serif;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 10;
+      display: none;
+      transition: all 0.2s ease;
+    }
+    
+    #back-btn:hover {
+      background: #6C4A31;
+      transform: translateY(-1px);
+    }
+    
+    #sidebar-toggle {
+      position: absolute;
+      top: 120px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: #5C3A21;
+      color: #F5E6C8;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 11;
+      display: none;
+      font-size: 20px;
+    }
+    
+    @keyframes bounceIn {
+      0% { opacity: 0.4; transform: scale(0.8); }
+      60% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    @media (max-width: 1200px) {
+      #sidebar {
+        width: 240px;
+      }
+      
+      h1 {
+        font-size: 26px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #sidebar {
+        display: none;
+        right: 10px;
+        width: calc(100% - 20px);
+        max-height: 50vh;
+        top: auto;
+        bottom: 20px;
+      }
+      
+      #sidebar.open {
+        display: block;
+      }
+      
+      #sidebar-toggle {
+        display: block;
+      }
+      
+      h1 {
+        font-size: 22px;
+        letter-spacing: 4px;
+      }
+      
+      #search-container {
+        width: 280px;
+      }
+      
+      #back-btn {
+        left: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>古 籍 書 齋</h1>
+    
+    <div id="search-container">
+      <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="search-input" placeholder="搜索书名或批注..." />
+    </div>
+    
+    <button id="sidebar-toggle">☰</button>
+    
+    <div id="sidebar">
+      <h2>批 注 列 表</h2>
+      <div id="annotation-list"></div>
+    </div>
+    
+    <button id="back-btn">← 返回书架</button>
+    
+    <canvas id="main-canvas"></canvas>
+    
+    <div id="annotation-modal">
+      <textarea id="annotation-text" maxlength="200" placeholder="请输入批注内容..."></textarea>
+      <div class="char-count"><span id="char-current">0</span>/200</div>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" id="cancel-annotation">取消</button>
+        <button class="modal-btn modal-btn-submit" id="submit-annotation">确定</button>
+      </div>
+    </div>
+    
+    <div id="tooltip"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

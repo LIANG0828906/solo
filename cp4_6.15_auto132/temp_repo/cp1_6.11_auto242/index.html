@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>曲水流觞 - 古诗联句雅集</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --celadon: #C9DFC3;
+      --cream: #F5E6C8;
+      --rouge: #FF4D4D;
+      --gold: #FFD700;
+      --ink: #3E2723;
+      --water-light: #87CEEB;
+      --water-deep: #B0E0E6;
+      --bamboo: #D4B896;
+      --paper: #FFFFF0;
+      --wood: #5C3A21;
+      --petal-light: #FFB7C5;
+      --petal-deep: #FF69B4;
+    }
+
+    body {
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      background: linear-gradient(135deg, var(--celadon) 0%, var(--cream) 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--ink);
+    }
+
+    .ink-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .horizontal-plaque {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: linear-gradient(180deg, var(--wood) 0%, #3E2723 100%);
+      border-bottom: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .plaque-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      color: var(--gold);
+      font-size: 2rem;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .lobby {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+      padding: 40px;
+      background: rgba(255, 255, 240, 0.9);
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      border: 2px solid var(--wood);
+    }
+
+    .lobby-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 3rem;
+      color: var(--ink);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .lobby-subtitle {
+      font-size: 1.2rem;
+      color: var(--wood);
+      margin-bottom: 10px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 300px;
+    }
+
+    .input-label {
+      font-size: 1rem;
+      color: var(--ink);
+    }
+
+    .text-input {
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      border: 2px solid var(--wood);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      transition: all 0.3s ease;
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .text-input.error {
+      border-color: var(--rouge);
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold) 0%, #FFA500 100%);
+      color: var(--ink);
+      font-weight: bold;
+    }
+
+    .btn-secondary {
+      background: var(--wood);
+      color: var(--gold);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .room-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 15px;
+      background: var(--paper);
+      border-radius: 8px;
+      border: 1px solid var(--wood);
+    }
+
+    .room-code {
+      font-family: 'Courier New', monospace;
+      font-size: 1.2rem;
+      color: var(--rouge);
+      letter-spacing: 3px;
+    }
+
+    .copy-btn {
+      padding: 5px 10px;
+      font-size: 0.9rem;
+      background: var(--wood);
+      color: var(--gold);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .copy-btn:hover {
+      background: var(--ink);
+    }
+
+    .game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      padding-top: 60px;
+    }
+
+    .stream-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 1200px;
+      height: 300px;
+    }
+
+    .stream {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 80px;
+      transform: translateY(-50%);
+      background: radial-gradient(ellipse at center, var(--water-light) 0%, var(--water-deep) 70%, rgba(135, 206, 235, 0.6) 100%);
+      border-radius: 50%;
+      filter: blur(2px);
+      overflow: hidden;
+    }
+
+    .stream::before,
+    .stream::after {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 20px,
+        rgba(255, 255, 255, 0.3) 20px,
+        rgba(255, 255, 255, 0.3) 40px
+      );
+      animation: wave 2s linear infinite;
+    }
+
+    .stream::after {
+      animation-delay: -1s;
+      opacity: 0.5;
+    }
+
+    @keyframes wave {
+      0% { transform: translateX(-50%); }
+      100% { transform: translateX(0); }
+    }
+
+    .stream-path {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .seats-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 350px;
+    }
+
+    .seat {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: repeating-linear-gradient(
+        45deg,
+        var(--bamboo),
+        var(--bamboo) 5px,
+        #C4A882 5px,
+        #C4A882 10px
+      );
+      border: 3px solid var(--wood);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 10;
+    }
+
+    .seat.empty {
+      opacity: 0.4;
+    }
+
+    .seat.current-turn {
+      box-shadow: 0 0 15px var(--gold), 0 0 30px rgba(255, 215, 0, 0.5);
+      animation: glow 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { box-shadow: 0 0 15px var(--gold), 0 0 30px rgba(255, 215, 0, 0.5); }
+      to { box-shadow: 0 0 25px var(--gold), 0 0 50px rgba(255, 215, 0, 0.8); }
+    }
+
+    .seat-number {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.5rem;
+      color: var(--ink);
+      font-weight: bold;
+    }
+
+    .seat-player-name {
+      position: absolute;
+      bottom: -25px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      color: var(--ink);
+      font-weight: bold;
+    }
+
+    .seat-status {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--paper);
+    }
+
+    .seat-status.online {
+      background: #4CAF50;
+    }
+
+    .seat-status.offline {
+      background: #9E9E9E;
+    }
+
+    .seat-score {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      background: var(--gold);
+      color: var(--ink);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      border: 2px solid var(--wood);
+    }
+
+    .fan-panel {
+      position: absolute;
+      width: 240px;
+      height: 120px;
+      background: linear-gradient(135deg, rgba(255, 255, 240, 0.95) 0%, rgba(245, 230, 200, 0.95) 100%);
+      border-radius: 0 0 240px 240px;
+      border: 2px solid var(--wood);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+      transform-origin: top center;
+      animation: fanUnfold 0.6s ease-out forwards;
+    }
+
+    @keyframes fanUnfold {
+      0% { transform: scaleY(0) rotateX(90deg); opacity: 0; }
+      100% { transform: scaleY(1) rotateX(0deg); opacity: 1; }
+    }
+
+    .fan-upper-line {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 24px;
+      color: var(--ink);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .fan-input-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .fan-input {
+      width: 200px;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 16px;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--ink);
+    }
+
+    .fan-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .rhyme-indicator {
+      font-size: 0.9rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .rhyme-indicator.match {
+      color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .rhyme-indicator.mismatch {
+      color: var(--rouge);
+      background: rgba(255, 77, 77, 0.1);
+    }
+
+    .match-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .match-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(0,0,0,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .match-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      transition: width 0.3s ease;
+    }
+
+    .match-percent {
+      font-size: 0.85rem;
+      color: var(--ink);
+      font-weight: bold;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .countdown {
+      position: absolute;
+      top: -35px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.2rem;
+      color: var(--rouge);
+      font-weight: bold;
+    }
+
+    .countdown.urgent {
+      animation: pulse 0.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: translateX(-50%) scale(1); }
+      to { transform: translateX(-50%) scale(1.1); }
+    }
+
+    .submit-btn {
+      margin-top: 10px;
+      padding: 6px 20px;
+      font-size: 0.95rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      background: var(--wood);
+      color: var(--gold);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover {
+      background: var(--ink);
+      transform: translateY(-2px);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.95);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .scroll-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .scroll-container {
+      width: 90%;
+      max-width: 500px;
+      background: var(--paper);
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: hidden;
+      transform-origin: top center;
+      animation: scrollUnfold 0.6s ease-out forwards;
+    }
+
+    @keyframes scrollUnfold {
+      0% { transform: scaleY(0); opacity: 0; }
+      100% { transform: scaleY(1); opacity: 1; }
+    }
+
+    .scroll-header {
+      background: var(--wood);
+      color: var(--gold);
+      padding: 15px 20px;
+      text-align: center;
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.3rem;
+    }
+
+    .scroll-body {
+      padding: 25px;
+    }
+
+    .poem-display {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(201, 223, 195, 0.3);
+      border-radius: 8px;
+    }
+
+    .poem-line {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.4rem;
+      color: var(--ink);
+      margin: 5px 0;
+    }
+
+    .score-section {
+      margin-bottom: 20px;
+    }
+
+    .score-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.3rem;
+      color: var(--wood);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .score-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+
+    .score-label {
+      width: 60px;
+      font-size: 0.95rem;
+      color: var(--ink);
+    }
+
+    .score-bar-container {
+      flex: 1;
+      height: 12px;
+      background: rgba(0,0,0,0.1);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .score-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      width: 0;
+      transition: width 1s ease-out;
+      border-radius: 6px;
+    }
+
+    .score-value {
+      width: 50px;
+      text-align: right;
+      font-weight: bold;
+      color: var(--ink);
+    }
+
+    .total-score {
+      text-align: center;
+      margin: 20px 0;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--gold) 0%, #FFA500 100%);
+      border-radius: 8px;
+    }
+
+    .total-score-label {
+      font-size: 0.95rem;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .total-score-value {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 2.5rem;
+      color: var(--ink);
+    }
+
+    .recommendations-section {
+      margin-top: 20px;
+    }
+
+    .recommendations-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.2rem;
+      color: var(--wood);
+      margin-bottom: 15px;
+    }
+
+    .recommendation-item {
+      padding: 12px;
+      background: rgba(245, 230, 200, 0.5);
+      border-radius: 6px;
+      margin-bottom: 10px;
+      border-left: 3px solid var(--wood);
+    }
+
+    .recommendation-poem {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.1rem;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .recommendation-meta {
+      font-size: 0.85rem;
+      color: var(--wood);
+      margin-bottom: 5px;
+    }
+
+    .recommendation-reason {
+      font-size: 0.9rem;
+      color: #666;
+      font-style: italic;
+    }
+
+    .scroll-close {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 15px;
+      background: var(--wood);
+      color: var(--gold);
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .scroll-close:hover {
+      background: var(--ink);
+    }
+
+    .player-panel {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      z-index: 150;
+    }
+
+    .player-toggle {
+      width: 28px;
+      height: 28px;
+      background: var(--wood);
+      border: none;
+      border-radius: 50%;
+      color: var(--gold);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      margin-left: auto;
+    }
+
+    .player-toggle:hover {
+      transform: rotate(90deg);
+      background: var(--ink);
+    }
+
+    .player-list {
+      background: rgba(255, 255, 240, 0.95);
+      border: 2px solid var(--wood);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 10px;
+      min-width: 200px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .player-list-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.2rem;
+      color: var(--wood);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .player-list-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      transition: background 0.3s ease;
+    }
+
+    .player-list-item:hover {
+      background: rgba(201, 223, 195, 0.3);
+    }
+
+    .player-list-item.current {
+      background: rgba(255, 215, 0, 0.2);
+    }
+
+    .player-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .player-status-dot.online {
+      background: #4CAF50;
+    }
+
+    .player-status-dot.offline {
+      background: #9E9E9E;
+    }
+
+    .player-list-name {
+      flex: 1;
+      font-size: 0.95rem;
+      color: var(--ink);
+    }
+
+    .player-list-name.host::after {
+      content: ' 👑';
+    }
+
+    .player-list-score {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: bold;
+      color: var(--wood);
+    }
+
+    .star-icon {
+      color: var(--gold);
+      font-size: 0.9rem;
+    }
+
+    .start-game-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      background: linear-gradient(135deg, var(--gold) 0%, #FFA500 100%);
+      color: var(--ink);
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .start-game-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .start-game-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .petal-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    .petal {
+      position: absolute;
+      opacity: 0.8;
+      transform-origin: center;
+    }
+
+    .petal-text {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 10px;
+      fill: var(--ink);
+    }
+
+    @keyframes floatUpDown {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .monument-container {
+      position: fixed;
+      bottom: 50px;
+      right: 50px;
+      width: 300px;
+      height: 350px;
+      z-index: 120;
+    }
+
+    .monument {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, #2E2E2E 0%, #1A1A1A 100%);
+      border-radius: 50%;
+      border: 8px solid var(--gold);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(255, 215, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      animation: monumentAppear 1s ease-out forwards;
+      opacity: 0;
+    }
+
+    @keyframes monumentAppear {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .monument-title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      color: var(--gold);
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+      letter-spacing: 4px;
+    }
+
+    .monument-poem {
+      text-align: center;
+      line-height: 2;
+    }
+
+    .monument-line {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      color: var(--paper);
+      font-size: 1.1rem;
+      opacity: 0;
+      letter-spacing: 4px;
+    }
+
+    .monument-line.show {
+      animation: characterReveal 0.3s ease-out forwards;
+    }
+
+    @keyframes characterReveal {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .restart-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 30px;
+      background: var(--wood);
+      color: var(--gold);
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-family: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', serif;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 130;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .restart-btn:hover {
+      background: var(--ink);
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    .turn-indicator {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 240, 0.95);
+      padding: 10px 25px;
+      border-radius: 20px;
+      border: 2px solid var(--gold);
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 1.2rem;
+      color: var(--ink);
+      z-index: 140;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .error-toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--rouge);
+      color: white;
+      padding: 12px 25px;
+      border-radius: 8px;
+      z-index: 300;
+      animation: toastIn 0.3s ease-out;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (min-width: 1024px) {
+      .stream-container {
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      .seat {
+        width: 72px;
+        height: 72px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .seat {
+        width: 45px;
+        height: 45px;
+      }
+      .seat-number {
+        font-size: 1.2rem;
+      }
+      .fan-panel {
+        width: 200px;
+        height: 100px;
+      }
+      .fan-upper-line {
+        font-size: 20px;
+      }
+      .fan-input {
+        width: 160px;
+      }
+      .scroll-container {
+        max-width: 90%;
+      }
+      .player-panel {
+        right: 10px;
+      }
+      .monument-container {
+        width: 250px;
+        height: 300px;
+        right: 20px;
+        bottom: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script type="module" src="/src/client.ts"></script>
+</body>
+</html>

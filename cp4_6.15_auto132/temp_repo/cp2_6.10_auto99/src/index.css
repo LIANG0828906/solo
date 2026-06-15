@@ -1,0 +1,38 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+:root {
+  --color-dark-gold: #b8860b;
+  --color-ink-black: #1a1a1a;
+  --color-stone-gray: #5a5a5a;
+  --color-tiger-red: #d4322f;
+  --color-leopard-blue: #3c3b6e;
+  --color-bronze-green: #4a7c59;
+  --color-bronze-yellow: #cda434;
+  --color-mercury-light: #c0c0c0;
+  --color-mercury-dark: #808080;
+  --color-gold: #ffd700;
+  --color-silver: #c0c0c0;
+}
+
+body {
+  font-family: "SimSun", "STSong", "Songti SC", serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+}

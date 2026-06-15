@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Questionnaire",
+  "description": "问卷JSON数据格式定义",
+  "type": "object",
+  "required": ["title", "questions"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "问卷标题",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "问卷描述（可选）"
+    },
+    "questions": {
+      "type": "array",
+      "description": "问题列表",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/Question"
+      }
+    }
+  },
+  "definitions": {
+    "Question": {
+      "type": "object",
+      "required": ["id", "type", "title"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "问题唯一标识",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "type": {
+          "type": "string",
+          "description": "问题类型",
+          "enum": ["single", "multiple", "text", "rating"]
+        },
+        "title": {
+          "type": "string",
+          "description": "问题标题",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "问题描述/提示（可选）"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "是否必填，默认为true",
+          "default": true
+        },
+        "options": {
+          "type": "array",
+          "description": "选项列表（single和multiple类型必填）",
+          "items": {
+            "$ref": "#/definitions/Option"
+          }
+        },
+        "skipLogic": {
+          "type": "array",
+          "description": "条件跳转逻辑（可选）",
+          "items": {
+            "$ref": "#/definitions/SkipLogic"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["single", "multiple"]
+              }
+            }
+          },
+          "then": {
+            "required": ["options"]
+          }
+        }
+      ]
+    },
+    "Option": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "选项值"
+        },
+        "label": {
+          "type": "string",
+          "description": "选项显示文本"
+        }
+      }
+    },
+    "SkipLogic": {
+      "type": "object",
+      "required": ["condition", "skip"],
+      "properties": {
+        "condition": {
+          "$ref": "#/definitions/Condition",
+          "description": "触发条件"
+        },
+        "skip": {
+          "type": "boolean",
+          "description": "条件满足时是否跳过当前问题：true=跳过，false=显示"
+        },
+        "skipToQuestionId": {
+          "type": "string",
+          "description": "跳转到指定问题ID（可选，跳过当前问题及中间所有问题直到该问题）"
+        }
+      }
+    },
+    "Condition": {
+      "type": "object",
+      "required": ["questionId", "operator", "value"],
+      "properties": {
+        "questionId": {
+          "type": "string",
+          "description": "依赖的前置问题ID"
+        },
+        "operator": {
+          "type": "string",
+          "description": "比较运算符",
+          "enum": ["equals", "not_equals", "contains", "greater_than", "less_than"]
+        },
+        "value": {
+          "description": "比较值，可以是字符串、数字或字符串数组",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

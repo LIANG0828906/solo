@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简牍编连</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #EDE4D4;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: '隶书', 'LiSu', 'STLiti', serif;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      cursor: default;
+    }
+    .title {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: '隶书', 'LiSu', 'STLiti', serif;
+      color: #4A2C1A;
+      font-size: 30px;
+      letter-spacing: 8px;
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="title">简牍编连</div>
+    <canvas id="canvas"></canvas>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>魔兽战棋 - 单位部署与自动战斗模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #2D1B0E;
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      color: #F5E6CA;
+    }
+    
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .unit-library {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 240px;
+      background: rgba(26, 15, 8, 0.9);
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 10;
+      border: 1px solid #5C4A3E;
+    }
+    
+    .unit-library h3 {
+      font-size: 14px;
+      color: #DAA520;
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    
+    .unit-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .unit-card {
+      width: 100px;
+      height: 130px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px;
+      border: 2px solid transparent;
+      position: relative;
+    }
+    
+    .unit-card:hover {
+      box-shadow: 0 0 12px 2px #C8A96E;
+      transform: translateY(-2px);
+    }
+    
+    .unit-card.selected {
+      border-color: #DAA520;
+      box-shadow: 0 0 12px 2px #DAA520;
+    }
+    
+    .unit-card.human {
+      background: #4A6741;
+    }
+    
+    .unit-card.elf {
+      background: #3B5A40;
+    }
+    
+    .unit-card.orc {
+      background: #5A3A2A;
+    }
+    
+    .unit-card-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #D0D0D0;
+      margin-top: 8px;
+    }
+    
+    .unit-card.human .unit-card-avatar {
+      background: #6B8E5A;
+    }
+    
+    .unit-card.elf .unit-card-avatar {
+      background: #5A8A5A;
+    }
+    
+    .unit-card.orc .unit-card-avatar {
+      background: #8B5A3A;
+    }
+    
+    .unit-card-name {
+      font-size: 12px;
+      color: #F5E6CA;
+      text-align: center;
+      line-height: 1.2;
+    }
+    
+    .unit-card-stats {
+      font-size: 10px;
+      color: #C8A96E;
+      text-align: center;
+      opacity: 0.9;
+    }
+    
+    .strategy-panel {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      background: rgba(26, 15, 8, 0.95);
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 10;
+      border: 1px solid #5C4A3E;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+      }
+    }
+    
+    .strategy-panel h3 {
+      font-size: 13px;
+      color: #DAA520;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    
+    .strategy-slot {
+      margin-bottom: 10px;
+    }
+    
+    .strategy-slot label {
+      display: block;
+      font-size: 11px;
+      color: #C8A96E;
+      margin-bottom: 4px;
+    }
+    
+    .strategy-slot select {
+      width: 100%;
+      padding: 6px 8px;
+      background: #2D1B0E;
+      color: #F5E6CA;
+      border: 1px solid #5C4A3E;
+      border-radius: 4px;
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .strategy-slot select:focus {
+      outline: none;
+      border-color: #DAA520;
+    }
+    
+    .battle-controls {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    
+    .battle-btn {
+      width: 120px;
+      height: 40px;
+      background: linear-gradient(180deg, #8B4513 0%, #5A3A1A 100%);
+      color: #F5E6CA;
+      border: 1px solid #A0522D;
+      border-radius: 8px;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+      letter-spacing: 2px;
+    }
+    
+    .battle-btn:hover {
+      box-shadow: 0 0 10px rgba(218, 165, 32, 0.5);
+    }
+    
+    .battle-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .battle-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .battle-report {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 300px;
+      background: rgba(26, 15, 8, 0.95);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 20;
+      border: 1px solid #DAA520;
+      animation: slideInRight 0.4s ease;
+    }
+    
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+      }
+    }
+    
+    .battle-report h2 {
+      font-size: 18px;
+      color: #DAA520;
+      text-align: center;
+      margin-bottom: 16px;
+      letter-spacing: 3px;
+    }
+    
+    .report-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .report-stat {
+      background: rgba(74, 59, 50, 0.5);
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    
+    .report-stat-label {
+      font-size: 11px;
+      color: #C8A96E;
+      margin-bottom: 4px;
+    }
+    
+    .report-stat-value {
+      font-size: 18px;
+      color: #F5E6CA;
+      font-weight: bold;
+    }
+    
+    .report-mvp {
+      background: rgba(218, 165, 32, 0.15);
+      border: 1px solid #DAA520;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    
+    .report-mvp-title {
+      font-size: 12px;
+      color: #DAA520;
+      margin-bottom: 8px;
+    }
+    
+    .report-mvp-unit {
+      font-size: 16px;
+      color: #FFD700;
+      margin-bottom: 6px;
+    }
+    
+    .report-mvp-stats {
+      font-size: 11px;
+      color: #C8A96E;
+    }
+    
+    .report-close-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: transparent;
+      border: 2px solid #DAA520;
+      color: #DAA520;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .report-close-btn:hover {
+      transform: rotate(360deg);
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .strategy-icon-tooltip {
+      position: absolute;
+      pointer-events: none;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div class="unit-library" id="unit-library">
+      <h3>单位库</h3>
+      <div class="unit-cards" id="unit-cards">
+      </div>
+    </div>
+    
+    <div class="strategy-panel hidden" id="strategy-panel">
+      <h3>战斗策略</h3>
+      <div class="strategy-slot">
+        <label>策略 1</label>
+        <select id="strategy-1">
+          <option value="attack_low_hp">优先攻击低血量敌军</option>
+          <option value="attack_closest">攻击最近敌军</option>
+          <option value="attack_ranged">优先攻击远程单位</option>
+          <option value="defend_ally">向友军靠拢</option>
+          <option value="capture_point">夺取最近资源点</option>
+          <option value="heal_ally">治疗友军</option>
+        </select>
+      </div>
+      <div class="strategy-slot">
+        <label>策略 2</label>
+        <select id="strategy-2">
+          <option value="none">无</option>
+          <option value="attack_low_hp">优先攻击低血量敌军</option>
+          <option value="attack_closest">攻击最近敌军</option>
+          <option value="attack_ranged">优先攻击远程单位</option>
+          <option value="defend_ally">向友军靠拢</option>
+          <option value="capture_point">夺取最近资源点</option>
+          <option value="heal_ally">治疗友军</option>
+        </select>
+      </div>
+      <div class="strategy-slot">
+        <label>策略 3</label>
+        <select id="strategy-3">
+          <option value="none">无</option>
+          <option value="attack_low_hp">优先攻击低血量敌军</option>
+          <option value="attack_closest">攻击最近敌军</option>
+          <option value="attack_ranged">优先攻击远程单位</option>
+          <option value="defend_ally">向友军靠拢</option>
+          <option value="capture_point">夺取最近资源点</option>
+          <option value="heal_ally">治疗友军</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="battle-controls">
+      <button class="battle-btn" id="start-battle-btn">开始战斗</button>
+      <button class="battle-btn" id="reset-btn" style="display: none;">重新部署</button>
+    </div>
+    
+    <div class="battle-report hidden" id="battle-report">
+      <button class="report-close-btn" id="report-close">↻</button>
+      <h2>战报</h2>
+      <div class="report-stats">
+        <div class="report-stat">
+          <div class="report-stat-label">己方存活</div>
+          <div class="report-stat-value" id="report-ally-alive">0</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-label">敌方存活</div>
+          <div class="report-stat-value" id="report-enemy-alive">0</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-label">总伤害</div>
+          <div class="report-stat-value" id="report-total-damage">0</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-label">最长连杀</div>
+          <div class="report-stat-value" id="report-kill-streak">0</div>
+        </div>
+      </div>
+      <div class="report-mvp">
+        <div class="report-mvp-title">★ MVP 单位 ★</div>
+        <div class="report-mvp-unit" id="report-mvp-name">-</div>
+        <div class="report-mvp-stats" id="report-mvp-stats">-</div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

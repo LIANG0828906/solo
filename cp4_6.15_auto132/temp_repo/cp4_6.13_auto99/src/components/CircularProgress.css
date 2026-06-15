@@ -1,0 +1,20 @@
+.circular-progress {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-bg {
+  stroke: rgba(0, 0, 0, 0.08);
+}
+
+.progress-fill {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.progress-text {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+}

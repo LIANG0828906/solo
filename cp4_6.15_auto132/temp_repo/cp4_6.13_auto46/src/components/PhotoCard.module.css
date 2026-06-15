@@ -1,0 +1,144 @@
+.card {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: 16px;
+  animation: fadeInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-skeleton-to);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  will-change: transform;
+  aspect-ratio: 1 / 1;
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover .imageWrap {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-card-hover);
+  z-index: 2;
+}
+
+.skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  z-index: 1;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  z-index: 2;
+}
+
+.image.visible {
+  opacity: 1;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(45, 45, 45, 0.82) 0%, rgba(45, 45, 45, 0.2) 45%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.card:hover .overlay {
+  opacity: 1;
+}
+
+.meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 18px 16px;
+  color: #fff;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  margin-bottom: 6px;
+  color: #fff;
+}
+
+.date {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tags .tag {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2D2D2D;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.25s ease;
+  z-index: 5;
+}
+
+.card:hover .deleteBtn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.deleteBtn:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    opacity: 1;
+    background: linear-gradient(to top, rgba(45, 45, 45, 0.75) 0%, transparent 55%);
+  }
+  .meta {
+    padding: 12px 12px 10px;
+  }
+  .title {
+    font-size: 0.92rem;
+  }
+  .deleteBtn {
+    opacity: 1;
+  }
+}

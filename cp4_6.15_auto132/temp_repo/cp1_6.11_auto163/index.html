@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>折纸工艺模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      background: linear-gradient(180deg, #F5E6D3 0%, #E8D5B7 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #paperCanvas {
+      display: block;
+      cursor: grab;
+    }
+
+    #paperCanvas:active {
+      cursor: grabbing;
+    }
+
+    .start-btn {
+      margin-top: 40px;
+      padding: 14px 48px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, #D4A574 0%, #C4956A 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(139, 111, 71, 0.3);
+    }
+
+    .start-btn:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 16px rgba(139, 111, 71, 0.4);
+    }
+
+    .start-btn:active {
+      transform: scale(0.95);
+    }
+
+    .start-btn.folding {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .step-counter {
+      position: fixed;
+      left: 30px;
+      bottom: 30px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #8B6F47;
+      color: #FFFFFF;
+      font-size: 24px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(212, 165, 116, 0.3);
+    }
+
+    .reset-btn {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .reset-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: #6B5030;
+      transition: stroke 0.2s ease;
+    }
+
+    .reset-btn:hover svg {
+      stroke: #D4A574;
+    }
+
+    .slider-container {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-label {
+      color: #6B5030;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 200px;
+      height: 6px;
+      background: #C4A882;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #8B6F47;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 10px #D4A574;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #8B6F47;
+      cursor: pointer;
+      border: none;
+    }
+
+    input[type="range"]::-moz-range-thumb:hover {
+      box-shadow: 0 0 10px #D4A574;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <canvas id="paperCanvas" width="600" height="600"></canvas>
+    <button class="start-btn" id="startBtn">开始折叠</button>
+    <div class="slider-container">
+      <div class="step-label" id="stepLabel">平铺状态</div>
+      <input type="range" id="progressSlider" min="0" max="8" step="0.01" value="0">
+    </div>
+  </div>
+
+  <div class="step-counter" id="stepCounter">0</div>
+  
+  <button class="reset-btn" id="resetBtn" title="复位">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+      <path d="M3 3v5h5"></path>
+    </svg>
+  </button>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

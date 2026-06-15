@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>六边形魔法方块 - 元素对战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #2C1A4D 0%, #1A0D36 100%);
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      color: #ffffff;
+      user-select: none;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .player-panel {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 10;
+    }
+
+    .player-panel.left {
+      left: 40px;
+    }
+
+    .player-panel.right {
+      right: 40px;
+    }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+
+    .player-panel.left .player-name {
+      color: #FF6B6B;
+    }
+
+    .player-panel.right .player-name {
+      color: #4ECDC4;
+    }
+
+    .stat-row {
+      margin-bottom: 10px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .energy-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .energy-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .player-panel.left .energy-fill {
+      background: linear-gradient(90deg, #FF6B6B, #FFD93D);
+    }
+
+    .player-panel.right .energy-fill {
+      background: linear-gradient(90deg, #4ECDC4, #A8E6CF);
+    }
+
+    .energy-fill.glow {
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .health-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .health-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FF4757, #FF6B81);
+      transition: width 0.3s ease;
+    }
+
+    .element-selector {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .element-btn {
+      width: 100%;
+      height: 40px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .element-btn:hover {
+      transform: scale(1.05);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .element-btn.selected {
+      transform: scale(1.1);
+      border-color: #ffffff;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    }
+
+    .element-btn.fire {
+      background: linear-gradient(135deg, #FF4500, #FFD700);
+    }
+
+    .element-btn.water {
+      background: linear-gradient(135deg, #0000CD, #00BFFF);
+    }
+
+    .element-btn.earth {
+      background: linear-gradient(135deg, #8B4513, #6B8E23);
+    }
+
+    .element-btn.wind {
+      background: linear-gradient(135deg, #C0C0C0, #E0F7FA);
+      color: #333;
+      text-shadow: none;
+    }
+
+    #game-canvas {
+      display: block;
+      cursor: pointer;
+    }
+
+    .turn-indicator {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      z-index: 10;
+    }
+
+    .turn-indicator.player1 {
+      color: #FF6B6B;
+    }
+
+    .turn-indicator.player2 {
+      color: #4ECDC4;
+    }
+
+    .energy-ring-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #energy-ring-canvas {
+      display: block;
+    }
+
+    @media (max-width: 1280px) {
+      .player-panel {
+        width: 160px;
+        padding: 15px;
+      }
+
+      .player-panel.left {
+        left: 20px;
+      }
+
+      .player-panel.right {
+        right: 20px;
+      }
+
+      .player-name {
+        font-size: 16px;
+      }
+
+      .element-btn {
+        height: 35px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div class="turn-indicator player1" id="turn-indicator">玩家 1 回合</div>
+
+    <div class="player-panel left" id="player1-panel">
+      <div class="player-name">玩家 1</div>
+      <div class="stat-row">
+        <div class="stat-label">分数</div>
+        <div class="stat-value" id="player1-score">0</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">能量</div>
+        <div class="energy-bar">
+          <div class="energy-fill" id="player1-energy" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">行动力: <span id="player1-action">5</span></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">生命值</div>
+        <div class="health-bar">
+          <div class="health-fill" id="player1-health" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="element-selector" id="player1-elements">
+        <div class="element-btn fire selected" data-element="fire">火</div>
+        <div class="element-btn water" data-element="water">水</div>
+        <div class="element-btn earth" data-element="earth">土</div>
+        <div class="element-btn wind" data-element="wind">风</div>
+      </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+    <div class="energy-ring-container">
+      <canvas id="energy-ring-canvas"></canvas>
+    </div>
+
+    <div class="player-panel right" id="player2-panel">
+      <div class="player-name">玩家 2</div>
+      <div class="stat-row">
+        <div class="stat-label">分数</div>
+        <div class="stat-value" id="player2-score">0</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">能量</div>
+        <div class="energy-bar">
+          <div class="energy-fill" id="player2-energy" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">行动力: <span id="player2-action">5</span></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">生命值</div>
+        <div class="health-bar">
+          <div class="health-fill" id="player2-health" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="element-selector" id="player2-elements">
+        <div class="element-btn fire selected" data-element="fire">火</div>
+        <div class="element-btn water" data-element="water">水</div>
+        <div class="element-btn earth" data-element="earth">土</div>
+        <div class="element-btn wind" data-element="wind">风</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

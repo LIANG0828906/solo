@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Music Light Show</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000000;
+        font-family: monospace;
+        color: #94a3b8;
+      }
+      #canvas-container {
+        position: fixed;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+      }
+      .ui-layer {
+        position: fixed;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .ui-layer > * {
+        pointer-events: auto;
+      }
+      #upload-area {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 360px;
+        padding: 32px;
+        border: 2px dashed #94a3b8;
+        border-radius: 12px;
+        text-align: center;
+        transition: all 0.2s ease;
+        background: rgba(30, 41, 59, 0.6);
+        backdrop-filter: blur(8px);
+      }
+      #upload-area.dragover {
+        border-color: #6366f1;
+        border-style: solid;
+        background: rgba(99, 102, 241, 0.1);
+      }
+      #upload-area.hidden {
+        display: none;
+      }
+      #upload-area p {
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: #94a3b8;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 40px;
+        border: none;
+        border-radius: 6px;
+        background: #6366f1;
+        color: white;
+        font-size: 14px;
+        font-family: monospace;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      .btn:hover {
+        background: #4f46e5;
+      }
+      .btn-secondary {
+        background: #1e293b;
+      }
+      .btn-secondary:hover {
+        background: #334155;
+      }
+      .btn-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        padding: 0;
+        font-size: 18px;
+      }
+      #controls-bar {
+        position: fixed;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(30, 41, 59, 0.6);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+      }
+      #controls-bar.hidden {
+        display: none;
+      }
+      .slider-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .slider-wrap label {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      input[type="range"] {
+        width: 140px;
+        height: 4px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #334155;
+        border-radius: 2px;
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #6366f1;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        background: #4f46e5;
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #6366f1;
+        cursor: pointer;
+        border: none;
+        transition: background 0.2s ease;
+      }
+      input[type="range"]::-moz-range-thumb:hover {
+        background: #4f46e5;
+      }
+      #info-panel {
+        position: fixed;
+        left: 8px;
+        bottom: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-family: monospace;
+        color: #94a3b8;
+        background: rgba(30, 41, 59, 0.6);
+        backdrop-filter: blur(8px);
+        border-radius: 8px;
+        line-height: 1.6;
+      }
+      #info-panel.hidden {
+        display: none;
+      }
+      #reset-btn {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+      }
+      #file-input {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <div id="upload-area">
+      <p>拖拽音频文件到此处，或点击按钮上传</p>
+      <p style="font-size: 12px; color: #64748b;">支持 MP3 / WAV 格式</p>
+      <button id="upload-btn" class="btn">选择文件</button>
+      <input id="file-input" type="file" accept="audio/mpeg,audio/wav,audio/x-wav" />
+    </div>
+
+    <button id="reset-btn" class="btn btn-secondary btn-icon hidden" title="重置场景">↺</button>
+
+    <div id="info-panel" class="hidden">
+      <div id="info-time">时间: 00:00 / 00:00</div>
+      <div id="info-bpm">BPM: 120</div>
+      <div id="info-fps">FPS: 60</div>
+    </div>
+
+    <div id="controls-bar" class="hidden">
+      <button id="play-btn" class="btn btn-secondary btn-icon" title="播放/暂停">⏸</button>
+      <div class="slider-wrap">
+        <label>灵敏度</label>
+        <input id="sensitivity-slider" type="range" min="0.002" max="0.02" step="0.001" value="0.01" />
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

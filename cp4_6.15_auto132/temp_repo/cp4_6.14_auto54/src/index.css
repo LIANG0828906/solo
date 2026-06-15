@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ocean-blue: #0c4a6e;
+  --deep-blue: #1e3a8a;
+  --warm-orange: #f97316;
+  --text-dark: #1e293b;
+  --text-white: #ffffff;
+  --bg-light: #f1f5f9;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --radius-card: 12px;
+  --radius-btn: 8px;
+}
+
+body {
+  background: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(249, 115, 22, 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes blink-green {
+  0% {
+    background-color: rgba(16, 185, 129, 0);
+  }
+  25% {
+    background-color: rgba(16, 185, 129, 1);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0);
+  }
+  75% {
+    background-color: rgba(16, 185, 129, 1);
+  }
+  100% {
+    background-color: rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes glow-red {
+  0% {
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes progress-bar-fill {
+  from {
+    width: 0%;
+  }
+}
+
+.slide-up {
+  animation: slide-up 350ms ease-out both;
+}
+
+.highlight-pulse {
+  animation: highlight-pulse 1s ease-out;
+}
+
+.blink-green-dot {
+  animation: blink-green 1s ease-out;
+}
+
+.glow-red {
+  animation: glow-red 500ms ease-in-out 3;
+}
+
+.drag-active {
+  opacity: 0.8 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+  transform: scale(1.02);
+}
+
+.card-base {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.card-base:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #64748b;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}

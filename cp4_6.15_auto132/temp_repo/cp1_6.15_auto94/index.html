@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>3D蕨类植物演化与成长模拟器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #2A5240 0%, #1B3A2D 50%, #0F2419 100%);
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #A3D9A5;
+      -webkit-font-smoothing: antialiased;
+    }
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+    canvas {
+      display: block;
+      outline: none;
+    }
+    .ui-panel {
+      position: absolute;
+      z-index: 10;
+      background: rgba(107, 76, 59, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 8px;
+      border: 1px solid rgba(163, 217, 165, 0.12);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    .glass-green {
+      background: rgba(27, 58, 45, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(163, 217, 165, 0.18);
+    }
+    .btn-hover {
+      transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-hover:hover {
+      transform: scale(1.05);
+      background-color: rgba(232, 197, 71, 0.15) !important;
+    }
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 36, 25, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      pointer-events: auto;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .loading-icon {
+      width: 24px;
+      height: 24px;
+      animation: fern-spin 1.5s linear infinite;
+      transform-origin: center;
+    }
+    @keyframes fern-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .title-font {
+      font-family: 'Noto Serif SC', serif;
+      font-weight: 700;
+    }
+    .serif {
+      font-family: 'Noto Serif SC', serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div id="evolution-panel" class="ui-panel" style="display:none;">
+      <div class="evo-header">
+        <div class="evo-title">🌿 演化树</div>
+        <div class="evo-subtitle">蕨类植物演化谱系</div>
+      </div>
+      <svg id="evolution-svg" viewBox="0 0 200 480" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <button id="sidebar-toggle" class="btn-hover sidebar-toggle" aria-label="展开面板" style="display:none;">
+      🌿
+    </button>
+
+    <div id="light-controller" class="light-controller" style="display:none;" aria-label="拖拽调整光源">
+      <div class="light-halo"></div>
+      <div class="light-core"></div>
+      <div class="light-glow"></div>
+    </div>
+
+    <div id="stage-control" class="glass-green stage-control" style="display:none;">
+      <div class="stage-title" class="serif">成长阶段</div>
+      <div class="stage-track">
+        <input type="range" id="stage-slider" min="0" max="3" step="1" value="2" list="stage-markers" />
+        <datalist id="stage-markers">
+          <option value="0" label="幼芽期"></option>
+          <option value="1" label="展开期"></option>
+          <option value="2" label="成熟期"></option>
+          <option value="3" label="孢子期"></option>
+        </datalist>
+      </div>
+      <div class="stage-labels">
+        <div class="stage-label" data-stage="0">幼芽期</div>
+        <div class="stage-label" data-stage="1">展开期</div>
+        <div class="stage-label" data-stage="2">成熟期</div>
+        <div class="stage-label" data-stage="3">孢子期</div>
+      </div>
+    </div>
+
+    <div id="info-card" class="info-card glass-green" style="display:none;">
+      <button class="info-close" id="info-close" aria-label="关闭">&times;</button>
+      <div class="info-scientific serif" id="info-scientific"></div>
+      <div class="info-common" id="info-common"></div>
+      <div class="info-divider"></div>
+      <div class="info-section">
+        <div class="info-label">🌡️ 生长温度</div>
+        <div class="info-value" id="info-temp"></div>
+      </div>
+      <div class="info-section">
+        <div class="info-label">💧 湿度要求</div>
+        <div class="info-value" id="info-humidity"></div>
+      </div>
+      <div class="info-section">
+        <div class="info-label">🏞️ 典型生境</div>
+        <div class="info-value" id="info-environment"></div>
+      </div>
+      <div class="info-section">
+        <div class="info-label">🌱 演化说明</div>
+        <div class="info-value" id="info-evolution"></div>
+      </div>
+      <div class="info-section">
+        <div class="info-label">✨ 趣味知识</div>
+        <ul class="info-facts" id="info-facts"></ul>
+      </div>
+    </div>
+
+    <div id="loading" class="loading-overlay">
+      <svg class="loading-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C12 2 6 6 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 6 12 2 12 2Z" stroke="#E8C547" stroke-width="1.5"/>
+        <path d="M12 5C12 5 8.5 7.5 8.5 12C8.5 13.933 10.067 15.5 12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 7.5 12 5 12 5Z" stroke="#A3D9A5" stroke-width="1.2"/>
+        <path d="M12 8C12 8 10 9.5 10 12C10 13.1046 10.8954 14 12 14C13.1046 14 14 13.1046 14 12C14 9.5 12 8 12 8Z" fill="#E8C547"/>
+      </svg>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

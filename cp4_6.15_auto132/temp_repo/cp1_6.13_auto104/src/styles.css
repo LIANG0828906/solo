@@ -1,0 +1,225 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: #F5F6FA;
+  color: #1F2937;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  transition: all 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+input, textarea {
+  font-family: inherit;
+  outline: none;
+  border: 1px solid #E5E7EB;
+  transition: border-color 0.2s ease;
+}
+
+input:focus, textarea:focus {
+  border-color: #4A90D9;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0F0F5;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C9CED6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9EA3AA;
+}
+
+@keyframes shadow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 144, 217, 0.4); }
+  100% { box-shadow: 0 2px 8px rgba(74, 144, 217, 0.3); }
+}
+
+@keyframes slide-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tile-slide {
+  from {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.app-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #F5F6FA;
+  padding: 20px;
+  gap: 16px;
+}
+
+.tile-slide-animation > * {
+  animation: tile-slide 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.tile-slide-animation > *:nth-child(1) { animation-delay: 0ms; }
+.tile-slide-animation > *:nth-child(2) { animation-delay: 50ms; }
+.tile-slide-animation > *:nth-child(3) { animation-delay: 100ms; }
+.tile-slide-animation > *:nth-child(4) { animation-delay: 150ms; }
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  animation: toast-slide-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+             toast-slide-out 0.35s cubic-bezier(0.55, 0.06, 0.68, 0.19) 2.15s forwards;
+}
+
+.toast-success { background: linear-gradient(135deg, #52C41A, #389E0D); }
+.toast-error { background: linear-gradient(135deg, #FF4D4F, #CF1322); }
+.toast-info { background: linear-gradient(135deg, #4A90D9, #1D39C4); }
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}
+
+.user-editing-toast {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(74, 144, 217, 0.95);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(74, 144, 217, 0.3);
+  z-index: 9998;
+  animation: slide-down-fade 2s ease forwards;
+  backdrop-filter: blur(8px);
+}
+
+@keyframes slide-down-fade {
+  0% { transform: translate(-50%, -30px); opacity: 0; }
+  12% { transform: translate(-50%, 0); opacity: 1; }
+  88% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, -10px); opacity: 0; }
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9997;
+  backdrop-filter: blur(4px);
+  animation: tile-slide 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #E5E7EB;
+  border-top-color: #4A90D9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1200px) {
+  .app-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .app-container > .main-content {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,129 @@
+.canvasStage {
+  flex: 1;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.topBar {
+  padding: 22px 36px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  color: #fff;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.workTitle {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #fff;
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+
+.workMeta {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.renderBadge {
+  padding: 5px 12px;
+  border-radius: 100px;
+  background: rgba(74, 144, 217, 0.2);
+  color: #a7caf4;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.stageInner {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 36px 40px;
+}
+
+.canvasWrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 400px;
+  background: #242424;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewImg {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 220px);
+  object-fit: contain;
+  display: block;
+}
+
+.placeholder {
+  width: 100%;
+  min-height: 500px;
+  border-radius: 0;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.emptyInner {
+  text-align: center;
+  color: #fff;
+  max-width: 420px;
+}
+
+.emptyArt {
+  font-size: 4rem;
+  margin-bottom: 24px;
+  opacity: 0.5;
+}
+
+.empty h3 {
+  font-size: 1.4rem;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.empty p {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 900px) {
+  .topBar {
+    padding: 16px 20px 12px;
+  }
+  .stageInner {
+    padding: 4px 16px 24px;
+  }
+  .previewImg {
+    max-height: 50vh;
+  }
+}

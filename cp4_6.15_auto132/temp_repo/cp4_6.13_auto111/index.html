@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>实时摄像头滤镜</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .app-container {
+      position: relative;
+      width: 100%;
+      max-width: 1280px;
+      aspect-ratio: 16 / 9;
+      margin: 20px;
+    }
+
+    #video {
+      display: none;
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      background: #0f0f1a;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .flash-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      pointer-events: none;
+      transition: border-color 0.1s ease;
+    }
+
+    .flash-overlay.active {
+      border-color: white;
+    }
+
+    .fps-counter {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      color: #00ff88;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .fps-counter.visible {
+      opacity: 1;
+    }
+
+    .fps-counter.low {
+      color: #ff4444;
+      animation: blink 0.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .controls-right {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      min-width: 180px;
+    }
+
+    .controls-right.visible {
+      opacity: 1;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .control-value {
+      color: #e94560;
+      font-weight: bold;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.2);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e94560;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .bottom-toolbar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+    }
+
+    .filter-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 12px;
+    }
+
+    .filter-btn:hover {
+      color: #e94560;
+      transform: scale(1.1);
+    }
+
+    .filter-btn.active {
+      color: #e94560;
+      background: rgba(233, 69, 96, 0.15);
+    }
+
+    .filter-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .divider {
+      width: 1px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .capture-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #e94560;
+      border: 3px solid #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .capture-btn:hover {
+      transform: scale(1.1);
+      background: #ff5a75;
+    }
+
+    .capture-btn:active {
+      transform: scale(0.95);
+    }
+
+    .capture-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 16px;
+      z-index: 5;
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        margin: 10px;
+      }
+
+      .controls-right {
+        min-width: 140px;
+        padding: 12px;
+      }
+
+      .filter-btn {
+        padding: 8px 12px;
+        font-size: 11px;
+      }
+
+      .filter-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <video id="video" autoplay playsinline muted></video>
+    
+    <div class="canvas-wrapper">
+      <canvas id="canvas"></canvas>
+      <div class="flash-overlay" id="flashOverlay"></div>
+    </div>
+
+    <div class="fps-counter" id="fpsCounter">-- FPS</div>
+
+    <div class="controls-right" id="controlsRight">
+      <div class="control-group">
+        <div class="control-label">
+          <span>亮度</span>
+          <span class="control-value" id="brightnessValue">0</span>
+        </div>
+        <input type="range" class="slider" id="brightnessSlider" min="-100" max="100" value="0">
+      </div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>对比度</span>
+          <span class="control-value" id="contrastValue">1.0</span>
+        </div>
+        <input type="range" class="slider" id="contrastSlider" min="0.5" max="2" step="0.01" value="1">
+      </div>
+    </div>
+
+    <div class="bottom-toolbar">
+      <button class="filter-btn active" data-filter="original" title="原始">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+        <span>原始</span>
+      </button>
+      <button class="filter-btn" data-filter="pixelate" title="马赛克">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>马赛克</span>
+      </button>
+      <button class="filter-btn" data-filter="edge" title="边缘检测">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-5"/></svg>
+        <span>边缘</span>
+      </button>
+      <button class="filter-btn" data-filter="vintage" title="复古怀旧">
+        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M2 9h20"/></svg>
+        <span>复古</span>
+      </button>
+      <div class="divider"></div>
+      <button class="capture-btn" id="captureBtn" title="拍照">
+        <svg viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3v0a3 3 0 0 0 3-3v0a3 3 0 0 0-3-3zM9 9V6a3 3 0 0 1 6 0v3"/><circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="2"/></svg>
+      </button>
+    </div>
+
+    <div class="loading" id="loading">正在加载摄像头...</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

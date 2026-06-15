@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JewelFury - Match 3 Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    #game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    #timer-bar {
+      width: 400px;
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    
+    #timer-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #FF5722);
+      transition: width 0.1s linear;
+    }
+    
+    #game {
+      border-radius: 8px;
+      background: #16213e;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+    
+    #score-panel {
+      position: absolute;
+      top: 40px;
+      right: -120px;
+      color: white;
+      font-size: 18px;
+      text-align: right;
+    }
+    
+    #score-panel div {
+      margin-bottom: 5px;
+    }
+    
+    #combo {
+      color: #ffd700;
+      font-weight: bold;
+    }
+    
+    #notification {
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      font-size: 36px;
+      font-weight: bold;
+      color: #ffd700;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+      pointer-events: none;
+      z-index: 100;
+    }
+    
+    #notification.show {
+      animation: notificationAnim 2s ease-out forwards;
+    }
+    
+    @keyframes notificationAnim {
+      0% {
+        transform: translateX(-50%) scale(0);
+        opacity: 0;
+      }
+      20% {
+        transform: translateX(-50%) scale(1.3);
+        opacity: 1;
+      }
+      30% {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+      }
+      80% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+      }
+    }
+    
+    #game-over-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 200;
+    }
+    
+    #game-over-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    #game-over-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 30px 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+    
+    #game-over-overlay.show #game-over-modal {
+      transform: scale(1);
+    }
+    
+    #game-over-modal h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    
+    #game-over-modal ul {
+      list-style: none;
+      margin-bottom: 25px;
+      text-align: left;
+    }
+    
+    #game-over-modal li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    #game-over-modal li:last-child {
+      border-bottom: none;
+    }
+    
+    #game-over-modal button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    #game-over-modal button:hover {
+      transform: scale(1.05);
+    }
+    
+    #flash-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 300;
+    }
+    
+    #flash-effect.flash {
+      animation: flashAnim 0.1s ease-out;
+    }
+    
+    @keyframes flashAnim {
+      0% { opacity: 0; }
+      50% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+    
+    @media (max-width: 600px) {
+      #game-container {
+        transform: scale(0.85);
+      }
+      
+      #score-panel {
+        right: -100px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="timer-bar">
+      <div id="timer-fill"></div>
+    </div>
+    <canvas id="game" width="360" height="360"></canvas>
+    <div id="score-panel">
+      <div id="score">Score: 0</div>
+      <div id="combo">COMBO x1</div>
+    </div>
+  </div>
+  
+  <div id="notification"></div>
+  <div id="flash-effect"></div>
+  
+  <div id="game-over-overlay">
+    <div id="game-over-modal">
+      <h2>Game Over!</h2>
+      <ul id="stats-list"></ul>
+      <button id="restart-btn">Play Again</button>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

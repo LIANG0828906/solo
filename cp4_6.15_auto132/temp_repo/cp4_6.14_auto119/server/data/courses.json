@@ -1,0 +1,46 @@
+[
+  {
+    "id": "1",
+    "name": "React基础入门",
+    "instructor": "张明",
+    "date": "2025-06-20",
+    "startTime": "09:00",
+    "endTime": "11:00",
+    "maxStudents": 20,
+    "description": "从零开始学习React框架，掌握组件化开发思想",
+    "enrolledCount": 17
+  },
+  {
+    "id": "2",
+    "name": "TypeScript进阶",
+    "instructor": "李华",
+    "date": "2025-06-20",
+    "startTime": "14:00",
+    "endTime": "16:00",
+    "maxStudents": 15,
+    "description": "深入学习TypeScript类型系统和高级特性",
+    "enrolledCount": 10
+  },
+  {
+    "id": "3",
+    "name": "Node.js后端开发",
+    "instructor": "王芳",
+    "date": "2025-06-21",
+    "startTime": "10:00",
+    "endTime": "12:00",
+    "maxStudents": 25,
+    "description": "使用Express.js构建RESTful API服务",
+    "enrolledCount": 25
+  },
+  {
+    "id": "4",
+    "name": "前端工程化实践",
+    "instructor": "张明",
+    "date": "2025-06-22",
+    "startTime": "09:00",
+    "endTime": "11:30",
+    "maxStudents": 30,
+    "description": "Vite、Webpack构建工具与CI/CD流程",
+    "enrolledCount": 8
+  }
+]

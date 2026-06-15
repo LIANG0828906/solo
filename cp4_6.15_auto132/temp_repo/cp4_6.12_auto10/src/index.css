@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FFF3E0;
+    color: #4E342E;
+    font-family: "Noto Sans SC", system-ui, sans-serif;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    transition: all 0.2s ease;
+    outline: none;
+    border-color: #80CBC4;
+    box-shadow: 0 0 0 3px rgba(128, 203, 196, 0.2);
+  }
+}
+
+@layer components {
+  .card-animate {
+    animation: fadeUp 0.4s ease-out both;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .card-animate:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(78, 52, 46, 0.16);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF3E0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D7CCC8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #BCAAA4;
+}
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

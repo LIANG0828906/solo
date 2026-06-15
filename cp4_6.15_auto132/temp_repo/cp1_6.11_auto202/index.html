@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古代烽火台通信模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #2D1B0E;
+      font-family: "KaiTi", "楷体", "STKaiti", serif;
+      color: #D4A843;
+      user-select: none;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+    #status-panel {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      background: rgba(26, 15, 8, 0.8);
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 180px;
+      backdrop-filter: blur(4px);
+    }
+    #status-panel h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #4A3B32;
+      padding-bottom: 6px;
+      letter-spacing: 2px;
+    }
+    #status-panel p {
+      font-size: 14px;
+      line-height: 1.8;
+      letter-spacing: 1px;
+    }
+    #status-panel .signal {
+      color: #FF6B35;
+      font-weight: bold;
+    }
+    #control-panel {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 200px;
+      background: rgba(26, 15, 8, 0.85);
+      border-radius: 6px;
+      border: 1px solid #4A3B32;
+      padding: 14px;
+      backdrop-filter: blur(4px);
+      transition: all 0.3s ease;
+    }
+    #control-panel h4 {
+      font-size: 15px;
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: 3px;
+      border-bottom: 1px solid #4A3B32;
+      padding-bottom: 8px;
+    }
+    .control-group {
+      margin-bottom: 14px;
+    }
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+    .control-group .value {
+      float: right;
+      color: #FFD700;
+      font-size: 11px;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #4A3B32;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #D4A843;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .control-group input[type="range"]::-webkit-slider-thumb:hover {
+      background: #FFD700;
+    }
+    .control-group input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #D4A843;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+    }
+    .checkbox-label {
+      display: flex !important;
+      align-items: center;
+      cursor: pointer;
+      gap: 8px;
+    }
+    .checkbox-label input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #4A3B32;
+      border: 1px solid #6B5447;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .checkbox-label input[type="checkbox"]:checked {
+      background: #8B6914;
+      border-color: #FFD700;
+    }
+    .checkbox-label input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #FFD700;
+      font-size: 11px;
+    }
+    .checkbox-label input[type="checkbox"]:hover {
+      border-color: #D4A843;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #4A3B32;
+      color: #D4A843;
+      border: 1px solid #6B5447;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      background: #6B5447;
+      color: #FFD700;
+      border-color: #D4A843;
+    }
+    .btn.active {
+      background: #8B6914;
+      color: #FFD700;
+      border-color: #FFD700;
+    }
+    #panel-toggle {
+      display: none;
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      width: 40px;
+      height: 40px;
+      background: rgba(26, 15, 8, 0.85);
+      border: 1px solid #4A3B32;
+      border-radius: 6px;
+      color: #D4A843;
+      font-size: 20px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    #panel-toggle:hover {
+      color: #FFD700;
+      border-color: #D4A843;
+    }
+    #instructions {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(26, 15, 8, 0.75);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      backdrop-filter: blur(4px);
+    }
+    @media (max-width: 768px) {
+      #panel-toggle {
+        display: flex;
+      }
+      #control-panel {
+        display: none;
+        right: 12px;
+        top: 60px;
+        transform: none;
+      }
+      #control-panel.show {
+        display: block;
+      }
+      #status-panel {
+        left: 8px;
+        bottom: 8px;
+        padding: 8px 10px;
+        min-width: 140px;
+      }
+      #status-panel h3 {
+        font-size: 14px;
+      }
+      #status-panel p {
+        font-size: 12px;
+      }
+      #instructions {
+        font-size: 10px;
+        padding: 6px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="instructions">鼠标拖拽旋转视角 · 滚轮缩放 · 点击地形放置烽火台 · 点击插槽点燃烽火</div>
+    <button id="panel-toggle">☰</button>
+    <div id="control-panel">
+      <h4>军 情 控 制</h4>
+      <div class="control-group">
+        <label>风速 <span class="value" id="wind-speed-val">0.30</span></label>
+        <input type="range" id="wind-speed" min="-2" max="2" step="0.1" value="0.3" />
+      </div>
+      <div class="control-group">
+        <label>风向角度 <span class="value" id="wind-angle-val">0°</span></label>
+        <input type="range" id="wind-angle" min="0" max="360" step="1" value="0" />
+      </div>
+      <div class="control-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="auto-rotate" />
+          <span>自动环绕视角</span>
+        </label>
+      </div>
+      <button class="btn" id="btn-reset">重置所有烽火台</button>
+      <button class="btn" id="btn-clear">清空地形</button>
+    </div>
+    <div id="status-panel">
+      <h3>烽 火 状 态</h3>
+      <p>烽火台数量：<span id="beacon-count">0</span> 座</p>
+      <p>点燃烽火数：<span id="lit-count">0</span> 烽</p>
+      <p>军情信号：<span id="signal-text" class="signal">平安无事</span></p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+{
+  "tasks": [
+    {
+      "id": "def1415e-23ef-4883-93a8-25ba93f40731",
+      "title": "完成项目需求文档",
+      "priority": "high",
+      "dueDate": "2026-06-14",
+      "completed": false,
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "192d1f12-2fe7-45f3-96af-36f6174343b8",
+      "title": "代码审查",
+      "priority": "medium",
+      "dueDate": "2026-06-14",
+      "completed": false,
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "c2431726-d0fc-4803-b982-74ea2cfbfb01",
+      "title": "整理工作笔记",
+      "priority": "low",
+      "dueDate": "2026-06-15",
+      "completed": true,
+      "createdAt": "2026-06-13T08:41:08.314Z"
+    }
+  ],
+  "habits": [
+    {
+      "id": "1531fbbf-c720-462f-ab03-07371871b368",
+      "name": "晨跑",
+      "icon": "dumbbell",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "0bad4fd7-c4f4-4a88-93d5-8ed9d8428a9d",
+      "name": "阅读",
+      "icon": "book-open",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "854d3b90-f34d-440e-943d-c8434beb5cfe",
+      "name": "冥想",
+      "icon": "brain",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "75539086-0618-4e6e-8feb-576219207332",
+      "name": "喝水",
+      "icon": "droplets",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "96476762-212a-47b6-836a-c38573060296",
+      "name": "早睡",
+      "icon": "moon",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    },
+    {
+      "id": "10b920c6-90e0-42b8-9838-2432792f2e47",
+      "name": "记账",
+      "icon": "wallet",
+      "createdAt": "2026-06-14T08:41:08.314Z"
+    }
+  ],
+  "habitChecks": [],
+  "timerSessions": [],
+  "settings": {
+    "focusDuration": 25,
+    "shortBreakDuration": 5,
+    "longBreakDuration": 15,
+    "dailyGoal": 8
+  }
+}

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>开元星占 · 观星台</title>
+  <style>
+    @font-face {
+      font-family: 'KaiTi';
+      src: local('KaiTi'), local('楷体'), local('STKaiti'), local('SimKai');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0B0C10;
+      font-family: 'KaiTi', '楷体', 'STKaiti', serif;
+    }
+
+    .observatory {
+      display: flex;
+      width: 100%;
+      height: calc(100vh - 80px);
+      background: linear-gradient(180deg, #0B0C10 0%, #1a1a2e 50%, #0B0C10 100%);
+      position: relative;
+    }
+
+    .sky-section {
+      width: 60%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .sky-section canvas {
+      width: 100%;
+      height: 600px;
+      display: block;
+    }
+
+    .divider {
+      width: 3px;
+      height: 100%;
+      background: #8B2500;
+      box-shadow: 0 0 8px rgba(139, 37, 0, 0.6), 0 0 20px rgba(139, 37, 0, 0.3);
+      flex-shrink: 0;
+    }
+
+    .divination-section {
+      width: 35%;
+      height: 100%;
+      background: linear-gradient(135deg, #2F4F4F 0%, #1a2f2f 100%);
+      padding: 30px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .divination-section::-webkit-scrollbar {
+      width: 4px;
+    }
+    .divination-section::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .divination-section::-webkit-scrollbar-thumb {
+      background: #8B7355;
+      border-radius: 2px;
+    }
+
+    .turtle-shell {
+      width: 80px;
+      height: 60px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at 40% 35%, #8B7355 0%, #5C4A32 40%, #3E2F1E 100%);
+      position: relative;
+      margin-bottom: 20px;
+      border: 2px solid #A08060;
+      box-shadow: 0 0 12px rgba(139, 115, 85, 0.4);
+      flex-shrink: 0;
+    }
+
+    .turtle-shell.cracking {
+      animation: turtleShake 0.3s ease-out;
+    }
+
+    @keyframes turtleShake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-2px, -1px) rotate(-1deg); }
+      30% { transform: translate(2px, 0px) rotate(1deg); }
+      45% { transform: translate(-1px, 1px) rotate(-0.5deg); }
+      60% { transform: translate(1px, -1px) rotate(0.5deg); }
+      75% { transform: translate(-1px, 0px) rotate(0deg); }
+    }
+
+    .crack-line {
+      position: absolute;
+      background: #1A1A1A;
+      border-radius: 1px;
+    }
+
+    .fortune-sign {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 4px;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      margin-bottom: 16px;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+
+    .fortune-sign.supreme {
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      color: #4A2800;
+      border-color: #FFD700;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .fortune-sign.neutral {
+      background: linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%);
+      color: #333;
+      border-color: #C0C0C0;
+      box-shadow: 0 0 10px rgba(192, 192, 192, 0.4);
+    }
+
+    .fortune-sign.dire {
+      background: linear-gradient(135deg, #CD7F32 0%, #8B5A2B 100%);
+      color: #FFF8DC;
+      border-color: #CD7F32;
+      box-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+    }
+
+    .reading-area {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-family: 'KaiTi', '楷体', 'STKaiti', serif;
+      font-size: 16px;
+      color: #1A1A1A;
+      line-height: 2;
+      letter-spacing: 2px;
+      min-height: 200px;
+      padding: 10px;
+      background: rgba(210, 195, 170, 0.9);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      width: 100%;
+      text-indent: 2em;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+
+    .reading-area .char {
+      opacity: 0;
+      display: inline;
+      transition: opacity 0.3s ease;
+    }
+
+    .reading-area .char.visible {
+      opacity: 1;
+    }
+
+    .slider-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      background: #333333EE;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 20px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .slider-label {
+      color: #C4A882;
+      font-size: 12px;
+      font-family: 'KaiTi', '楷体', 'STKaiti', serif;
+      white-space: nowrap;
+    }
+
+    .slider-value {
+      color: #FFD700;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100px;
+      height: 4px;
+      background: #C4A882;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #C9A96E, #8B7355);
+      border: 2px solid #D4AF77;
+      box-shadow: 0 0 6px rgba(139, 115, 85, 0.6);
+      cursor: grab;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #C9A96E, #8B7355);
+      border: 2px solid #D4AF77;
+      box-shadow: 0 0 6px rgba(139, 115, 85, 0.6);
+      cursor: grab;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: #C4A882;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 768px) {
+      .observatory {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 80px);
+      }
+
+      .sky-section {
+        width: 100%;
+        height: auto;
+      }
+
+      .sky-section canvas {
+        height: 400px;
+      }
+
+      .divider {
+        width: 100%;
+        height: 3px;
+      }
+
+      .divination-section {
+        width: 100%;
+        min-height: 300px;
+        flex-grow: 1;
+      }
+
+      .slider-panel {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 80px;
+        padding: 8px 10px;
+        gap: 4px;
+      }
+
+      .slider-group {
+        flex: 0 0 auto;
+      }
+
+      input[type="range"] {
+        width: 70px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="observatory">
+    <div class="sky-section">
+      <canvas id="skyCanvas"></canvas>
+    </div>
+    <div class="divider"></div>
+    <div class="divination-section">
+      <div class="turtle-shell" id="turtleShell">
+        <div class="crack-line" style="top:15px;left:30px;width:20px;height:2px;transform:rotate(25deg)"></div>
+        <div class="crack-line" style="top:25px;left:35px;width:15px;height:2px;transform:rotate(-15deg)"></div>
+        <div class="crack-line" style="top:20px;left:20px;width:18px;height:2px;transform:rotate(40deg)"></div>
+        <div class="crack-line" style="top:35px;left:28px;width:22px;height:2px;transform:rotate(-30deg)"></div>
+        <div class="crack-line" style="top:28px;left:45px;width:12px;height:2px;transform:rotate(10deg)"></div>
+      </div>
+      <div class="fortune-sign neutral" id="fortuneSign">中平签</div>
+      <div class="reading-area" id="readingArea"></div>
+    </div>
+  </div>
+
+  <div class="slider-panel">
+    <div class="slider-group">
+      <span class="slider-label">太阳</span>
+      <input type="range" id="slider-sun" min="0" max="360" value="90" />
+      <span class="slider-value" id="val-sun">90°</span>
+    </div>
+    <div class="slider-group">
+      <span class="slider-label">月亮</span>
+      <input type="range" id="slider-moon" min="0" max="360" value="180" />
+      <span class="slider-value" id="val-moon">180°</span>
+    </div>
+    <div class="slider-group">
+      <span class="slider-label">火星</span>
+      <input type="range" id="slider-mars" min="0" max="360" value="45" />
+      <span class="slider-value" id="val-mars">45°</span>
+    </div>
+    <div class="slider-group">
+      <span class="slider-label">金星</span>
+      <input type="range" id="slider-venus" min="0" max="360" value="270" />
+      <span class="slider-value" id="val-venus">270°</span>
+    </div>
+    <div class="slider-group">
+      <span class="slider-label">木星</span>
+      <input type="range" id="slider-jupiter" min="0" max="360" value="120" />
+      <span class="slider-value" id="val-jupiter">120°</span>
+    </div>
+    <div class="slider-group">
+      <span class="slider-label">土星</span>
+      <input type="range" id="slider-saturn" min="0" max="360" value="300" />
+      <span class="slider-value" id="val-saturn">300°</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

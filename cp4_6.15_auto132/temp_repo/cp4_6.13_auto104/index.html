@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>创意灵感瀑布流</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    #app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #4A90D9, #7b68ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #888;
+      font-size: 1rem;
+    }
+
+    .filter-bar {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      margin-bottom: 30px;
+      transition: all 0.3s ease;
+    }
+
+    .filter-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .filter-header-title {
+      font-weight: 600;
+      color: #4A90D9;
+    }
+
+    .filter-header-icon {
+      font-size: 1.2rem;
+      transition: transform 0.3s ease;
+    }
+
+    .filter-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag-btn {
+      padding: 8px 20px;
+      border: 2px solid #e0e0e0;
+      background: #fff;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #666;
+      transition: all 0.2s ease;
+    }
+
+    .tag-btn:hover {
+      background: #f0f7ff;
+      border-color: #4A90D9;
+      color: #4A90D9;
+    }
+
+    .tag-btn.active {
+      background: #4A90D9;
+      border-color: #4A90D9;
+      color: #fff;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: border-color 0.2s ease;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #4A90D9;
+    }
+
+    .waterfall-container {
+      position: relative;
+      min-height: 400px;
+    }
+
+    .card {
+      position: absolute;
+      width: 100%;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      transform: translateY(-4px);
+    }
+
+    .card-image-placeholder {
+      width: 100%;
+      height: 160px;
+      background: linear-gradient(135deg, #e0e7ff 0%, #f0f9ff 50%, #fce7f3 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .card-tag {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #f0f7ff;
+      color: #4A90D9;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .card-desc {
+      font-size: 0.9rem;
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .like-count {
+      font-size: 0.85rem;
+      color: #999;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .like-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.2s ease;
+    }
+
+    .like-btn:hover {
+      background: #fff5f5;
+    }
+
+    .like-btn svg {
+      width: 22px;
+      height: 22px;
+      transition: all 0.3s ease-out;
+    }
+
+    .like-btn svg path {
+      fill: none;
+      stroke: #bbb;
+      stroke-width: 2;
+      transition: all 0.3s ease-out;
+    }
+
+    .like-btn.liked svg path {
+      fill: #ff4757;
+      stroke: #ff4757;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: #999;
+      font-size: 0.9rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #4A90D9;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .no-more {
+      text-align: center;
+      padding: 30px;
+      color: #bbb;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      #app {
+        padding: 12px;
+      }
+
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .filter-header {
+        display: flex;
+      }
+
+      .filter-bar.collapsed .filter-header-icon {
+        transform: rotate(180deg);
+      }
+
+      .filter-content {
+        padding-top: 16px;
+        border-top: 1px solid #f0f0f0;
+        margin-top: 16px;
+      }
+
+      .filter-bar.collapsed .filter-content {
+        display: none;
+      }
+
+      .filter-bar:not(.collapsed) .filter-content {
+        display: flex;
+      }
+
+      .tag-btn {
+        padding: 6px 14px;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>✨ 创意灵感瀑布流</h1>
+      <p>发现精彩创意，激发无限灵感</p>
+    </div>
+
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-header" id="filterHeader">
+        <span class="filter-header-title">🏷️ 筛选与搜索</span>
+        <span class="filter-header-icon">▼</span>
+      </div>
+      <div class="filter-content">
+        <div class="tag-list" id="tagList">
+          <button class="tag-btn active" data-tag="all">全部</button>
+          <button class="tag-btn" data-tag="设计">🎨 设计</button>
+          <button class="tag-btn" data-tag="科技">💻 科技</button>
+          <button class="tag-btn" data-tag="艺术">🖼️ 艺术</button>
+          <button class="tag-btn" data-tag="生活方式">🌿 生活方式</button>
+          <button class="tag-btn" data-tag="教育">📚 教育</button>
+          <button class="tag-btn" data-tag="娱乐">🎮 娱乐</button>
+        </div>
+        <div class="search-box">
+          <input
+            type="text"
+            class="search-input"
+            id="searchInput"
+            placeholder="🔍 搜索创意灵感..."
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="waterfall-container" id="waterfallContainer"></div>
+    <div class="loading" id="loading" style="display: none;">
+      <span class="loading-spinner"></span>
+      加载中...
+    </div>
+    <div class="no-more" id="noMore" style="display: none;">
+      — 没有更多了 —
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

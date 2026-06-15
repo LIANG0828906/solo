@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古代套色印花工坊</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: "KaiTi", "楷体", "STKaiti", "华文楷体", Georgia, serif;
+      background-color: #E8DCC4;
+      color: #4A3520;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .app-header {
+      height: 56px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #8B5A2B 0%, #6B4226 100%);
+      color: #F5EDE0;
+      border-bottom: 3px solid #4A3520;
+      box-shadow: 0 2px 8px rgba(74, 53, 32, 0.3);
+      z-index: 10;
+    }
+
+    .app-header h1 {
+      font-size: 26px;
+      font-weight: bold;
+      letter-spacing: 6px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    .app-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* 左侧工具栏 */
+    .toolbar-left {
+      width: 15%;
+      min-width: 180px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #D9C6A3 0%, #C8B088 100%);
+      border-right: 2px solid #8B5A2B;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      box-shadow: inset -2px 0 6px rgba(139, 90, 43, 0.15);
+    }
+
+    .toolbar-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #4A3520;
+      text-align: center;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed #8B5A2B;
+      letter-spacing: 2px;
+    }
+
+    .block-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .block-slot {
+      width: 80px;
+      height: 120px;
+      border: 3px solid #6B4226;
+      border-radius: 4px;
+      background-color: #E8DCC4;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      box-shadow: 2px 2px 6px rgba(107, 66, 38, 0.35),
+                  inset 1px 1px 3px rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .block-slot:hover {
+      border-color: #DAA520;
+      box-shadow: 0 0 12px rgba(218, 165, 32, 0.4),
+                  2px 2px 6px rgba(107, 66, 38, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .block-slot.dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+
+    .block-slot.drag-over {
+      border-color: #5B8C5A;
+      box-shadow: 0 0 14px rgba(91, 140, 90, 0.6);
+    }
+
+    .block-slot.active {
+      border-color: #D4322E;
+      box-shadow: 0 0 10px rgba(212, 50, 46, 0.5);
+    }
+
+    .slot-index {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 11px;
+      color: #6B4226;
+      font-weight: bold;
+      z-index: 2;
+    }
+
+    .slot-thumb {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .slot-empty {
+      font-size: 12px;
+      color: #A89070;
+      letter-spacing: 1px;
+    }
+
+    .slot-order-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background-color: #5B8C5A;
+      color: #fff;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-picker-section {
+      margin-top: 6px;
+      padding-top: 10px;
+      border-top: 1px dashed #8B5A2B;
+    }
+
+    .color-picker-title {
+      font-size: 14px;
+      color: #4A3520;
+      margin-bottom: 8px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .color-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .color-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .color-option:hover {
+      background-color: rgba(139, 90, 43, 0.1);
+    }
+
+    .color-option.selected {
+      background-color: rgba(139, 90, 43, 0.18);
+      border-color: #8B5A2B;
+    }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #4A3520;
+      flex-shrink: 0;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .color-name {
+      font-size: 13px;
+      color: #4A3520;
+      flex: 1;
+    }
+
+    /* 中央画布区域 */
+    .canvas-area {
+      flex: 1;
+      background-color: #DDCBA3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: auto;
+      position: relative;
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(139, 90, 43, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(139, 90, 43, 0.05) 0%, transparent 50%);
+    }
+
+    .canvas-frame {
+      position: relative;
+      border: 6px solid #8B5A2B;
+      border-radius: 4px;
+      box-shadow:
+        0 0 0 2px #6B4226,
+        0 8px 28px rgba(74, 53, 32, 0.4),
+        inset 0 0 20px rgba(139, 90, 43, 0.1);
+      background-color: #8B5A2B;
+    }
+
+    #mainCanvas {
+      display: block;
+      background-color: #F5EDE0;
+    }
+
+    /* 右侧信息面板 */
+    .panel-right {
+      width: 15%;
+      min-width: 180px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #D9C6A3 0%, #C8B088 100%);
+      border-left: 2px solid #8B5A2B;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      box-shadow: inset 2px 0 6px rgba(139, 90, 43, 0.15);
+    }
+
+    .info-section {
+      background-color: rgba(245, 237, 224, 0.6);
+      border: 1px solid #B09065;
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #8B5A2B;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .info-value {
+      font-size: 15px;
+      color: #4A3520;
+      font-weight: bold;
+      min-height: 20px;
+      line-height: 1.4;
+    }
+
+    .slider-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-label {
+      font-size: 13px;
+      color: #4A3520;
+    }
+
+    .slider-value {
+      font-size: 13px;
+      color: #6B4226;
+      font-weight: bold;
+      background-color: rgba(255, 255, 255, 0.4);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .opacity-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, #C8B088, #6B4226);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .opacity-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background-color: #5B8C5A;
+      border: 2px solid #3E6B3E;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .opacity-slider::-webkit-slider-thumb:hover {
+      background-color: #3E6B3E;
+      transform: scale(1.1);
+    }
+
+    .opacity-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background-color: #5B8C5A;
+      border: 2px solid #3E6B3E;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .btn {
+      padding: 11px 16px;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      background-color: #5B8C5A;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 0 #3E6B3E, 0 4px 8px rgba(0, 0, 0, 0.2);
+      position: relative;
+      top: 0;
+    }
+
+    .btn:hover {
+      background-color: #3E6B3E;
+      box-shadow: 0 3px 0 #2A502A, 0 4px 10px rgba(0, 0, 0, 0.25);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 1px 0 #2A502A, 0 2px 4px rgba(0, 0, 0, 0.2);
+      top: 2px;
+    }
+
+    .btn:disabled {
+      background-color: #A89070;
+      cursor: not-allowed;
+      box-shadow: 0 3px 0 #8A7555;
+      opacity: 0.7;
+    }
+
+    .btn-warning {
+      background-color: #C25B56;
+      box-shadow: 0 3px 0 #96423E, 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-warning:hover {
+      background-color: #96423E;
+      box-shadow: 0 3px 0 #703030, 0 4px 10px rgba(0, 0, 0, 0.25);
+    }
+
+    /* 版设计界面 */
+    .design-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(74, 53, 32, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+
+    .design-overlay.visible {
+      display: flex;
+    }
+
+    .design-panel {
+      background: linear-gradient(180deg, #E8DCC4 0%, #D9C6A3 100%);
+      border: 5px solid #8B5A2B;
+      border-radius: 6px;
+      padding: 24px 28px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 95vw;
+      max-height: 95vh;
+      overflow: auto;
+    }
+
+    .design-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 2px dashed #8B5A2B;
+    }
+
+    .design-title {
+      font-size: 22px;
+      color: #4A3520;
+      font-weight: bold;
+      letter-spacing: 3px;
+    }
+
+    .design-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #8B5A2B;
+      background-color: #F5EDE0;
+      cursor: pointer;
+      font-size: 18px;
+      color: #6B4226;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .design-close:hover {
+      background-color: #C25B56;
+      color: #fff;
+      border-color: #96423E;
+    }
+
+    .design-body {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .design-canvas-wrap {
+      border: 4px solid #6B4226;
+      border-radius: 4px;
+      background-color: #F5EDE0;
+      box-shadow: inset 0 0 10px rgba(139, 90, 43, 0.2);
+      position: relative;
+    }
+
+    #designCanvas {
+      display: block;
+      cursor: crosshair;
+      background-color: #F5EDE0;
+    }
+
+    .design-tools {
+      width: 140px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 12px;
+      background-color: rgba(245, 237, 224, 0.6);
+      border: 1px solid #B09065;
+      border-radius: 4px;
+    }
+
+    .tools-section-title {
+      font-size: 14px;
+      color: #6B4226;
+      font-weight: bold;
+      text-align: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #B09065;
+      letter-spacing: 1px;
+    }
+
+    .brush-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .brush-btn {
+      padding: 9px 10px;
+      border: 2px solid #8B5A2B;
+      border-radius: 4px;
+      background-color: #F5EDE0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      color: #4A3520;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .brush-btn:hover {
+      background-color: #E8DCC4;
+    }
+
+    .brush-btn.active {
+      background-color: #5B8C5A;
+      color: #fff;
+      border-color: #3E6B3E;
+    }
+
+    .brush-preview {
+      border-radius: 50%;
+      background-color: currentColor;
+      flex-shrink: 0;
+    }
+
+    .design-tip {
+      font-size: 12px;
+      color: #8B5A2B;
+      line-height: 1.6;
+      padding: 8px;
+      background-color: rgba(218, 165, 32, 0.12);
+      border-radius: 4px;
+      border-left: 3px solid #DAA520;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.75;
+      width: 80px;
+      height: 120px;
+      border: 3px solid #6B4226;
+      border-radius: 4px;
+      background-color: #E8DCC4;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 响应式适配 */
+    @media (max-width: 900px) {
+      .app-body {
+        flex-direction: column;
+      }
+
+      .toolbar-left {
+        width: 100%;
+        min-width: auto;
+        height: 80px;
+        flex-direction: row;
+        border-right: none;
+        border-bottom: 2px solid #8B5A2B;
+        padding: 8px 12px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .toolbar-title {
+        padding-bottom: 0;
+        padding-right: 10px;
+        border-bottom: none;
+        border-right: 1px dashed #8B5A2B;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .block-slots {
+        flex-direction: row;
+        flex-shrink: 0;
+      }
+
+      .color-picker-section {
+        margin-top: 0;
+        padding-top: 0;
+        padding-left: 10px;
+        border-top: none;
+        border-left: 1px dashed #8B5A2B;
+        flex-shrink: 0;
+      }
+
+      .color-options {
+        flex-direction: row;
+        gap: 4px;
+      }
+
+      .color-option {
+        padding: 4px;
+        flex-direction: column;
+        gap: 2px;
+        width: 46px;
+      }
+
+      .color-name {
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+      }
+
+      .canvas-area {
+        padding: 12px;
+      }
+
+      .canvas-frame {
+        max-width: 100%;
+      }
+
+      #mainCanvas {
+        max-width: 100%;
+        height: auto !important;
+      }
+
+      .panel-right {
+        width: 100%;
+        min-width: auto;
+        max-height: 35%;
+        flex-direction: row;
+        border-left: none;
+        border-top: 2px solid #8B5A2B;
+        padding: 10px 14px;
+        gap: 14px;
+        overflow-x: auto;
+        flex-wrap: wrap;
+      }
+
+      .info-section {
+        flex: 1;
+        min-width: 150px;
+      }
+
+      .action-buttons {
+        flex-direction: row;
+        margin-top: 0;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 9px 14px;
+        font-size: 13px;
+      }
+
+      .design-body {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .design-tools {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tools-section-title {
+        width: 100%;
+      }
+
+      .brush-options {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+    }
+
+    /* 卷轴动画样式 */
+    .scroll-progress {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(74, 53, 32, 0.85);
+      color: #F5EDE0;
+      padding: 6px 18px;
+      border-radius: 4px;
+      font-size: 14px;
+      letter-spacing: 2px;
+      z-index: 5;
+      display: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .scroll-progress.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>✦ 古代套色印花工坊 ✦</h1>
+    </header>
+
+    <div class="app-body">
+      <!-- 左侧工具栏 -->
+      <aside class="toolbar-left" id="toolbarLeft">
+        <div class="toolbar-title">雕版槽位</div>
+        <div class="block-slots" id="blockSlots">
+          <div class="block-slot" draggable="true" data-slot-index="0">
+            <span class="slot-index">壹</span>
+            <span class="slot-empty">空白</span>
+          </div>
+          <div class="block-slot" draggable="true" data-slot-index="1">
+            <span class="slot-index">贰</span>
+            <span class="slot-empty">空白</span>
+          </div>
+          <div class="block-slot" draggable="true" data-slot-index="2">
+            <span class="slot-index">叁</span>
+            <span class="slot-empty">空白</span>
+          </div>
+          <div class="block-slot" draggable="true" data-slot-index="3">
+            <span class="slot-index">肆</span>
+            <span class="slot-empty">空白</span>
+          </div>
+        </div>
+
+        <div class="color-picker-section">
+          <div class="color-picker-title" id="colorPickerTitle">颜料选择</div>
+          <div class="color-options" id="colorOptions">
+            <div class="color-option" data-color="#D4322E" data-color-name="朱砂红">
+              <div class="color-swatch" style="background-color:#D4322E"></div>
+              <span class="color-name">朱砂红</span>
+            </div>
+            <div class="color-option" data-color="#2E8B57" data-color-name="石绿">
+              <div class="color-swatch" style="background-color:#2E8B57"></div>
+              <span class="color-name">石绿</span>
+            </div>
+            <div class="color-option" data-color="#4169E1" data-color-name="靛蓝">
+              <div class="color-swatch" style="background-color:#4169E1"></div>
+              <span class="color-name">靛蓝</span>
+            </div>
+            <div class="color-option" data-color="#DAA520" data-color-name="藤黄">
+              <div class="color-swatch" style="background-color:#DAA520"></div>
+              <span class="color-name">藤黄</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 中央画布 -->
+      <main class="canvas-area">
+        <div class="canvas-frame">
+          <div class="scroll-progress" id="scrollProgress">准备开始...</div>
+          <canvas id="mainCanvas" width="1200" height="800"></canvas>
+        </div>
+      </main>
+
+      <!-- 右侧信息面板 -->
+      <aside class="panel-right">
+        <div class="info-section">
+          <div class="info-label">当前操作</div>
+          <div class="info-value" id="statusText">等待操作...</div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-label">颜料信息</div>
+          <div class="info-value" id="colorInfo">未选择</div>
+        </div>
+
+        <div class="info-section slider-section">
+          <div class="slider-header">
+            <span class="slider-label">版印透明度</span>
+            <span class="slider-value" id="opacityValue">80%</span>
+          </div>
+          <input type="range" id="opacitySlider" class="opacity-slider" min="0" max="100" value="80" />
+        </div>
+
+        <div class="info-section slider-section">
+          <div class="slider-header">
+            <span class="slider-label">印刷顺序</span>
+            <span class="slider-value" id="orderValue">壹→贰→叁→肆</span>
+          </div>
+          <div style="font-size:12px;color:#8B5A2B;line-height:1.5;">
+            拖拽左侧槽位可调整印刷顺序，先印颜色会被后印覆盖
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn" id="simulateBtn">开始模拟印花</button>
+          <button class="btn btn-warning" id="resetBtn">重置全部</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 版设计界面 -->
+  <div class="design-overlay" id="designOverlay">
+    <div class="design-panel">
+      <div class="design-header">
+        <div class="design-title" id="designTitle">雕版设计 - 第壹版</div>
+        <button class="design-close" id="designClose" title="完成并返回">✕</button>
+      </div>
+      <div class="design-body">
+        <div class="design-canvas-wrap">
+          <canvas id="designCanvas" width="400" height="600"></canvas>
+        </div>
+        <div class="design-tools">
+          <div class="tools-section-title">刻刀笔刷</div>
+          <div class="brush-options">
+            <button class="brush-btn" data-brush="2">
+              <span class="brush-preview" style="width:2px;height:2px;"></span>
+              <span>细线 (2px)</span>
+            </button>
+            <button class="brush-btn active" data-brush="5">
+              <span class="brush-preview" style="width:5px;height:5px;"></span>
+              <span>标准 (5px)</span>
+            </button>
+            <button class="brush-btn" data-brush="8">
+              <span class="brush-preview" style="width:8px;height:8px;"></span>
+              <span>粗刀 (8px)</span>
+            </button>
+          </div>
+          <div class="design-tip">
+            提示：在版面上绘制黑色刻痕，绘制后不可删除，只能覆盖重绘。线条越密集，印花颜色越深。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

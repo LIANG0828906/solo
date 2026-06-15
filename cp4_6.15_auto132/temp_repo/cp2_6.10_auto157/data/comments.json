@@ -1,0 +1,80 @@
+{
+  "good": [
+    {
+      "scholarName": "文徵明",
+      "comment": "兄台此作，笔意精微，深得古法，令人叹服。"
+    },
+    {
+      "scholarName": "唐伯虎",
+      "comment": "妙哉！此画意境高远，大有超尘脱俗之趣。"
+    },
+    {
+      "scholarName": "祝允明",
+      "comment": "书法遒劲，如锥画沙，真是入木三分啊！"
+    },
+    {
+      "scholarName": "徐渭",
+      "comment": "诗文俱佳，笔走龙蛇，真乃旷世之才也。"
+    },
+    {
+      "scholarName": "董其昌",
+      "comment": "用墨精妙，浓淡相宜，深得米芾之神韵。"
+    },
+    {
+      "scholarName": "杨慎",
+      "comment": "才思敏捷，出口成章，真不愧是当今才子。"
+    }
+  ],
+  "normal": [
+    {
+      "scholarName": "文徵明",
+      "comment": "此作尚可，然笔法稍显拘谨，还需多加练习。"
+    },
+    {
+      "scholarName": "唐伯虎",
+      "comment": "立意不错，只是构图略欠章法，再斟酌一二。"
+    },
+    {
+      "scholarName": "祝允明",
+      "comment": "字体端正，但行气不足，需注意字间呼应。"
+    },
+    {
+      "scholarName": "徐渭",
+      "comment": "文辞通顺，然气势稍弱，还望再加磨砺。"
+    },
+    {
+      "scholarName": "董其昌",
+      "comment": "用色尚可，只是层次不够分明，尚需推敲。"
+    },
+    {
+      "scholarName": "杨慎",
+      "comment": "学问尚可，然见识稍浅，需多读书游历。"
+    }
+  ],
+  "bad": [
+    {
+      "scholarName": "文徵明",
+      "comment": "此作太过潦草，笔力全无，还需从头学起。"
+    },
+    {
+      "scholarName": "唐伯虎",
+      "comment": "庸俗不堪，毫无意境可言，实在令人失望。"
+    },
+    {
+      "scholarName": "祝允明",
+      "comment": "笔画软弱，如绵里藏针，全无骨力可言。"
+    },
+    {
+      "scholarName": "徐渭",
+      "comment": "文理不通，东拼西凑，简直是贻笑大方。"
+    },
+    {
+      "scholarName": "董其昌",
+      "comment": "墨法混乱，污浊不堪，实在不堪入目。"
+    },
+    {
+      "scholarName": "杨慎",
+      "comment": "才疏学浅，偏要卖弄，真是不知天高地厚。"
+    }
+  ]
+}

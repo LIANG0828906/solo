@@ -1,0 +1,28 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Noto Serif SC', serif;
+  background-color: #fef9ef;
+  color: #5a4a3a;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+:root {
+  --color-bg: #fef9ef;
+  --color-brown: #8b6f47;
+  --color-gold: #d4a96e;
+  --color-gold-light: #e8c38a;
+  --color-timeline: #e0b88a;
+  --color-card-shadow: rgba(180, 140, 100, 0.15);
+  --color-text: #5a4a3a;
+  --color-text-light: #a08868;
+}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 堆叠柱状图可视化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="scene-container"></div>
+
+  <div id="hover-label" class="hover-label hidden">
+    <span id="hover-label-text"></span>
+  </div>
+
+  <div id="right-panel" class="right-panel">
+    <div class="panel-header">
+      <h2>控制面板</h2>
+    </div>
+    <div class="panel-content">
+      <div class="control-group">
+        <label for="group-mode">数据分组</label>
+        <div class="custom-select-wrapper">
+          <select id="group-mode">
+            <option value="category">按类别分组</option>
+            <option value="layer">按层分组</option>
+          </select>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>网格辅助线</label>
+        <div class="toggle-wrapper">
+          <input type="checkbox" id="grid-toggle" />
+          <label for="grid-toggle" class="toggle-label">
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="right-panel-toggle" class="right-panel-toggle hidden">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  </div>
+
+  <div id="left-panel" class="left-panel">
+    <div class="panel-header">
+      <h2>数据详情</h2>
+      <button id="left-panel-close" class="panel-close-btn">&times;</button>
+    </div>
+    <div id="left-panel-content" class="panel-content">
+    </div>
+  </div>
+
+  <div id="bottom-sheet" class="bottom-sheet hidden">
+    <div class="bottom-sheet-header">
+      <h2>数据详情</h2>
+      <button id="bottom-sheet-close" class="panel-close-btn">&times;</button>
+    </div>
+    <div id="bottom-sheet-content" class="bottom-sheet-body">
+    </div>
+  </div>
+
+  <div id="legend" class="legend">
+    <div class="legend-item" data-layer="0">
+      <div class="legend-color" style="background: #6366f1;"></div>
+      <span class="legend-text">研发</span>
+    </div>
+    <div class="legend-item" data-layer="1">
+      <div class="legend-color" style="background: #06b6d4;"></div>
+      <span class="legend-text">市场</span>
+    </div>
+    <div class="legend-item" data-layer="2">
+      <div class="legend-color" style="background: #f59e0b;"></div>
+      <span class="legend-text">运营</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

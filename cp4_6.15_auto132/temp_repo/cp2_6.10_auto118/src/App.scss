@@ -1,0 +1,90 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #faf8f5;
+  overflow: hidden;
+  font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app-header {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f5e6c8 0%, #e8d4a8 100%);
+  border-bottom: 1px solid #d4c4a0;
+  box-shadow: 0 2px 8px rgba(139, 119, 87, 0.1);
+  z-index: 10;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #4a3728;
+  margin: 0;
+  letter-spacing: 4px;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+.app-subtitle {
+  font-size: 13px;
+  color: #7a6550;
+  margin: 4px 0 0 0;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  padding: 16px;
+  overflow: hidden;
+  display: flex;
+}
+
+.app-footer {
+  padding: 8px 24px;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: #999;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 10px 16px;
+  }
+  
+  .app-title {
+    font-size: 20px;
+    letter-spacing: 2px;
+  }
+  
+  .app-subtitle {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  
+  .canvas-wrapper {
+    padding: 8px;
+  }
+  
+  .app-footer {
+    padding: 6px 12px;
+    
+    p {
+      font-size: 10px;
+    }
+  }
+}

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>幻光积木·构筑之诗</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0a1f;
+    }
+
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, #1a1a3f 0%, #0a0a1f 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+
+    #loading-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-logo {
+      width: 120px;
+      height: 120px;
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .loading-logo .cube {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      animation: float 2s ease-in-out infinite;
+    }
+
+    .loading-logo .cube:nth-child(1) {
+      top: 0;
+      left: 40px;
+      background: linear-gradient(135deg, #00bfff, #0080ff);
+      box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+      animation-delay: 0s;
+    }
+
+    .loading-logo .cube:nth-child(2) {
+      top: 40px;
+      left: 0;
+      background: linear-gradient(135deg, #ff6eb4, #ff4081);
+      box-shadow: 0 0 30px rgba(255, 110, 180, 0.6);
+      animation-delay: 0.3s;
+    }
+
+    .loading-logo .cube:nth-child(3) {
+      top: 40px;
+      left: 80px;
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+      animation-delay: 0.6s;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-15px) rotate(180deg);
+      }
+    }
+
+    .loading-text {
+      color: #fff;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 8px;
+      margin-bottom: 30px;
+      background: linear-gradient(90deg, #00bfff, #ff6eb4, #00bfff);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shine 3s linear infinite;
+    }
+
+    @keyframes shine {
+      to {
+        background-position: 200% center;
+      }
+    }
+
+    .loading-bar {
+      width: 300px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loading-progress {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00bfff, #ff6eb4);
+      border-radius: 2px;
+      animation: load 2s ease-out forwards;
+      box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+    }
+
+    @keyframes load {
+      to {
+        width: 100%;
+      }
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .control-panel {
+      position: absolute;
+      left: 24px;
+      bottom: 24px;
+      width: 280px;
+      background: rgba(20, 20, 50, 0.5);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-title {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title::before {
+      content: '';
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, #00bfff, #ff6eb4);
+      border-radius: 2px;
+    }
+
+    .block-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .block-btn {
+      height: 56px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .block-btn:hover {
+      transform: translateY(-3px) scale(1.05);
+      border-color: rgba(0, 191, 255, 0.5);
+      background: rgba(0, 191, 255, 0.1);
+      box-shadow: 0 5px 20px rgba(0, 191, 255, 0.2);
+    }
+
+    .block-btn.active {
+      border-color: #00bfff;
+      background: rgba(0, 191, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 191, 255, 0.4), inset 0 0 20px rgba(0, 191, 255, 0.1);
+    }
+
+    .block-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: #fff;
+      opacity: 0.9;
+    }
+
+    .block-btn span {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+    }
+
+    .slider-container {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .slider-value {
+      color: #00bfff;
+      font-weight: 600;
+    }
+
+    .slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00bfff, #ff6eb4);
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 191, 255, 0.6);
+      transition: transform 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action-btn {
+      height: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 110, 180, 0.5);
+      background: rgba(255, 110, 180, 0.15);
+      box-shadow: 0 5px 15px rgba(255, 110, 180, 0.2);
+    }
+
+    .log-panel {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      width: 300px;
+      background: rgba(20, 20, 50, 0.5);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-height: 300px;
+      overflow: hidden;
+    }
+
+    .log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .log-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .log-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+    }
+
+    .log-list::-webkit-scrollbar-thumb {
+      background: rgba(0, 191, 255, 0.5);
+      border-radius: 2px;
+    }
+
+    .log-item {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      border-left: 3px solid #00bfff;
+      animation: fadeIn 0.4s ease;
+      transition: all 0.3s ease;
+    }
+
+    .log-item.latest {
+      background: rgba(0, 191, 255, 0.1);
+      border-left-color: #ff6eb4;
+      color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 15px rgba(255, 110, 180, 0.2);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .log-type {
+      color: #00bfff;
+      font-weight: 600;
+    }
+
+    .log-pos {
+      color: #ff6eb4;
+      font-family: 'Consolas', monospace;
+    }
+
+    .log-flow {
+      color: #a855f7;
+    }
+
+    .hint-text {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 12px;
+      letter-spacing: 2px;
+      pointer-events: none;
+    }
+
+    .count-badge {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(20, 20, 50, 0.5);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      pointer-events: none;
+    }
+
+    .count-badge .current {
+      color: #00bfff;
+      font-weight: 600;
+    }
+
+    .count-badge .max {
+      color: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loading-logo">
+      <div class="cube"></div>
+      <div class="cube"></div>
+      <div class="cube"></div>
+    </div>
+    <div class="loading-text">幻光积木</div>
+    <div class="loading-bar">
+      <div class="loading-progress"></div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="ui-container">
+      <div class="hint-text">左键拖拽旋转 · 滚轮缩放 · 点击放置积木 · 点击积木触发脉冲</div>
+      <div class="count-badge">
+        积木 <span class="current" id="block-count">0</span> / <span class="max">60</span>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel-title">积木工坊</div>
+        <div class="block-buttons">
+          <button class="block-btn active" data-type="cube">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 013 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9z"/>
+            </svg>
+            <span>立方体</span>
+          </button>
+          <button class="block-btn" data-type="sphere">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+            <span>球体</span>
+          </button>
+          <button class="block-btn" data-type="tetrahedron">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2L2 20h20L12 2z"/>
+            </svg>
+            <span>四面体</span>
+          </button>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-label">
+            <span>光流强度</span>
+            <span class="slider-value" id="flow-value">50%</span>
+          </div>
+          <input type="range" class="slider" id="flow-slider" min="0" max="100" value="50" />
+        </div>
+
+        <div class="action-buttons">
+          <button class="action-btn" id="reset-camera">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+            </svg>
+            重置视角
+          </button>
+          <button class="action-btn" id="toggle-fullscreen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+            全屏
+          </button>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <div class="panel-title">建筑日志</div>
+        <div class="log-list" id="log-list">
+          <div class="log-item" style="border-left-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.3); text-align: center;">
+            暂无操作记录
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

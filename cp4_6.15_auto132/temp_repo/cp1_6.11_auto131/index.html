@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>赛博朋克城市生成器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #000000;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      gap: 30px;
+      padding: 30px;
+      align-items: flex-start;
+    }
+
+    .control-panel {
+      width: 220px;
+      background-color: rgba(26, 26, 46, 0.9);
+      border-radius: 10px;
+      padding: 20px;
+      position: fixed;
+      left: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+      border: 1px solid rgba(255, 0, 255, 0.5);
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: block;
+      color: #00FFFF;
+      font-size: 13px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .control-value {
+      float: right;
+      color: #FF00FF;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #000000;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      border: 1px solid rgba(255, 0, 255, 0.5);
+      box-shadow: 0 0 8px rgba(255, 0, 255, 0.3);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #FF00FF;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px #FF00FF, 0 0 20px rgba(255, 0, 255, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 15px #FF00FF, 0 0 30px rgba(255, 0, 255, 0.8);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #FF00FF;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px #FF00FF, 0 0 20px rgba(255, 0, 255, 0.5);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-regenerate {
+      background-color: #FF00FF;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+    }
+
+    .btn-regenerate:hover {
+      box-shadow: 0 0 25px #00FFFF, 0 0 50px rgba(0, 255, 255, 0.5);
+      background-color: #FF33FF;
+    }
+
+    .btn-export {
+      background-color: #00FFFF;
+      color: #000000;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+    }
+
+    .btn-export:hover {
+      box-shadow: 0 0 25px #00FFFF, 0 0 50px rgba(0, 255, 255, 0.8);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .canvas-wrapper {
+      margin-left: 280px;
+      padding: 30px;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.4), 0 0 60px rgba(0, 255, 255, 0.2);
+      border: 2px solid rgba(255, 0, 255, 0.6);
+      border-radius: 4px;
+      cursor: crosshair;
+    }
+
+    .fps-counter {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      color: #00FF00;
+      font-family: monospace;
+      font-size: 12px;
+      text-shadow: 0 0 5px #00FF00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="control-panel">
+      <div class="control-group">
+        <label class="control-label">
+          城市密度
+          <span class="control-value" id="densityValue">50</span>
+        </label>
+        <input type="range" id="density" min="0" max="100" value="50">
+      </div>
+      <div class="control-group">
+        <label class="control-label">
+          霓虹灯亮度
+          <span class="control-value" id="neonBrightnessValue">70</span>
+        </label>
+        <input type="range" id="neonBrightness" min="0" max="100" value="70">
+      </div>
+      <div class="control-group">
+        <label class="control-label">
+          天空色调
+          <span class="control-value" id="skyHueValue">280</span>
+        </label>
+        <input type="range" id="skyHue" min="0" max="360" value="280">
+      </div>
+      <div class="control-group">
+        <label class="control-label">
+          建筑高度偏移
+          <span class="control-value" id="heightOffsetValue">0</span>
+        </label>
+        <input type="range" id="heightOffset" min="-5" max="5" value="0">
+      </div>
+      <div class="control-group">
+        <label class="control-label">
+          道路亮度
+          <span class="control-value" id="roadBrightnessValue">50</span>
+        </label>
+        <input type="range" id="roadBrightness" min="0" max="100" value="50">
+      </div>
+      <div class="control-group">
+        <label class="control-label">
+          雾效强度
+          <span class="control-value" id="fogIntensityValue">40</span>
+        </label>
+        <input type="range" id="fogIntensity" min="0" max="100" value="40">
+      </div>
+      <div class="control-group">
+        <button class="btn btn-regenerate" id="regenerateBtn">重新生成</button>
+        <button class="btn btn-export" id="exportBtn">导出PNG</button>
+      </div>
+    </div>
+    <div class="canvas-wrapper">
+      <canvas id="cityCanvas" width="640" height="480"></canvas>
+    </div>
+  </div>
+  <div class="fps-counter" id="fpsCounter">FPS: 60</div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

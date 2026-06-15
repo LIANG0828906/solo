@@ -1,0 +1,66 @@
+:root {
+  --color-ink: #1a1a1a;
+  --color-paper: #f5f0e8;
+  --color-cinnabar: #c8102e;
+  --color-teal: #008b8b;
+  --color-gray: #666;
+  --color-light-gray: #e0d8cc;
+  --font-brush: 'Ma Shan Zheng', cursive;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: linear-gradient(
+      135deg,
+      rgba(245, 240, 232, 0.9) 0%,
+      rgba(232, 221, 208, 0.8) 100%
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  color: var(--color-ink);
+  overflow: hidden;
+}
+
+#root {
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+input,
+select {
+  font-family: inherit;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(0, 139, 139, 0.2);
+  color: var(--color-ink);
+}

@@ -1,0 +1,72 @@
+{
+  "rooms": [
+    {
+      "code": "F8C35C",
+      "name": "神秘密室",
+      "maxPlayers": 4,
+      "players": [
+        {
+          "id": "52c92012-ee24-487b-a6a6-995227097c16",
+          "name": "Player943",
+          "color": "#e74c3c",
+          "completedTasks": []
+        },
+        {
+          "id": "3c65c748-d545-425c-81aa-6eb68d0c459c",
+          "name": "Player322",
+          "color": "#3498db",
+          "completedTasks": []
+        },
+        {
+          "id": "2b9847c3-d19d-404e-b98a-6c1da9d88893",
+          "name": "Player977",
+          "color": "#2ecc71",
+          "completedTasks": []
+        },
+        {
+          "id": "d68ebfe0-f015-4e02-b48c-2ac388e56fcf",
+          "name": "Player598",
+          "color": "#f39c12",
+          "completedTasks": []
+        }
+      ],
+      "createdAt": "2026-06-14T09:29:27.659Z",
+      "puzzleState": {
+        "codebox1": false,
+        "painting1": false,
+        "book1": false,
+        "coop_buttons": false
+      },
+      "gameStarted": false,
+      "gameWon": false
+    },
+    {
+      "code": "1B268B",
+      "name": "测试房间",
+      "maxPlayers": 4,
+      "players": [
+        {
+          "id": "bc701707-e20d-4190-b794-16b24c0e47c6",
+          "name": "Player201",
+          "color": "#e74c3c",
+          "completedTasks": []
+        },
+        {
+          "id": "ee5db923-ae61-41df-a658-5e50e55fc741",
+          "name": "Player433",
+          "color": "#3498db",
+          "completedTasks": []
+        }
+      ],
+      "createdAt": "2026-06-14T09:44:52.798Z",
+      "puzzleState": {
+        "codebox1": false,
+        "painting1": false,
+        "book1": false,
+        "coop_buttons": false
+      },
+      "gameStarted": false,
+      "gameWon": false
+    }
+  ]
+}

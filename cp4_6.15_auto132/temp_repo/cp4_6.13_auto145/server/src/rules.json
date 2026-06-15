@@ -1,0 +1,66 @@
+[
+  {
+    "id": "rule-001",
+    "name": "包含实验目的",
+    "type": "keyword",
+    "pattern": "实验目的|purpose|objective|目的",
+    "weight": 10,
+    "suggestion": "请明确说明本次实验的目的和预期目标"
+  },
+  {
+    "id": "rule-002",
+    "name": "数据表格存在",
+    "type": "format",
+    "pattern": "table|表格|Tab\\.\\d+",
+    "weight": 15,
+    "suggestion": "建议使用表格形式整理和展示实验数据"
+  },
+  {
+    "id": "rule-003",
+    "name": "用到平均值公式",
+    "type": "formula",
+    "pattern": "mean|average|avg|Σ|sum\\s*/\\s*n|平均值|\\=\\s*.*\\s*\\/\\s*\\d+",
+    "weight": 15,
+    "suggestion": "建议在数据处理中使用平均值等统计方法进行分析"
+  },
+  {
+    "id": "rule-004",
+    "name": "变量定义清晰",
+    "type": "keyword",
+    "pattern": "变量|variable|自变量|因变量|参数|parameter",
+    "weight": 10,
+    "suggestion": "请清晰定义实验中的各个变量及其含义"
+  },
+  {
+    "id": "rule-005",
+    "name": "结论部分齐全",
+    "type": "keyword",
+    "pattern": "结论|conclusion|总结|summary|实验结果",
+    "weight": 15,
+    "suggestion": "请完善结论部分，总结实验发现并讨论其意义"
+  },
+  {
+    "id": "rule-006",
+    "name": "引用了至少2篇文献",
+    "type": "format",
+    "pattern": "引用|参考文献|\\[\\d+\\]|\\(.*\\d{4}\\)",
+    "weight": 15,
+    "suggestion": "建议引用至少2篇相关文献以支持实验论述"
+  },
+  {
+    "id": "rule-007",
+    "name": "字数超过500",
+    "type": "format",
+    "pattern": "",
+    "weight": 10,
+    "suggestion": "报告内容建议超过500字，论述应更加详尽"
+  },
+  {
+    "id": "rule-008",
+    "name": "包含图表",
+    "type": "format",
+    "pattern": "图|表|figure|chart|Fig\\.\\d+|图\\d+",
+    "weight": 10,
+    "suggestion": "建议添加图表以更直观地展示实验数据和结果"
+  }
+]

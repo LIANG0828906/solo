@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>样式滴管 & CSS变量生成工具</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a2e;
+      }
+      #loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e0e0e0;
+        font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+        font-size: 14px;
+        letter-spacing: 2px;
+      }
+      #loading::after {
+        content: '';
+        width: 12px;
+        height: 12px;
+        margin-left: 12px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0f3460, #533483);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="loading">加载中...</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

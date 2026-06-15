@@ -1,0 +1,36 @@
+{
+  "name": "glass-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "vite",
+    "server": "node server/index.js",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "axios": "^1.6.7",
+    "zustand": "^4.5.2",
+    "three": "^0.162.0",
+    "@react-three/fiber": "^8.15.19",
+    "recharts": "^2.12.2",
+    "express": "^4.18.3",
+    "cors": "^2.8.5",
+    "better-sqlite3": "^9.4.3",
+    "lucide-react": "^0.359.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@types/three": "^0.162.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.2",
+    "vite": "^5.1.6",
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星际舰队战术指挥模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1a1a1a;
+      font-family: 'Courier New', 'Consolas', monospace;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      gap: 16px;
+      padding: 20px;
+      background: #1a1a1a;
+    }
+
+    .info-panel {
+      width: 200px;
+      background: rgba(42, 42, 42, 0.85);
+      border: 1px solid #3a3a3a;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .info-panel h2 {
+      font-size: 14px;
+      color: #ffd700;
+      border-bottom: 1px solid #3a3a3a;
+      padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .info-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      font-size: 16px;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .formation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .formation-hint {
+      font-size: 10px;
+      color: #666;
+      line-height: 1.5;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+    }
+
+    .game-wrapper {
+      position: relative;
+    }
+
+    #game {
+      display: block;
+      border: 2px solid #3a3a3a;
+      border-radius: 12px;
+      background: #0a0e27;
+      cursor: crosshair;
+    }
+
+    .minimap {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(42, 42, 42, 0.9);
+      border: 2px solid #3a3a3a;
+      overflow: hidden;
+    }
+
+    #minimap-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="info-panel">
+      <h2>战术数据面板</h2>
+      
+      <div class="info-item">
+        <span class="info-label">旗舰坐标 X</span>
+        <span class="info-value" id="flagship-x">0</span>
+      </div>
+      
+      <div class="info-item">
+        <span class="info-label">旗舰坐标 Y</span>
+        <span class="info-value" id="flagship-y">0</span>
+      </div>
+      
+      <div class="info-item">
+        <span class="info-label">当前阵型</span>
+        <span class="info-value" id="formation-name">V字形</span>
+      </div>
+      
+      <div class="info-item">
+        <span class="info-label">编队速度</span>
+        <span class="info-value" id="speed-percent">0%</span>
+      </div>
+
+      <div class="info-item">
+        <span class="info-label">操作指南</span>
+        <div class="formation-hint">
+          左键：下达移动指令<br/>
+          右键：标记敌舰位置<br/>
+          空格：切换阵型
+        </div>
+      </div>
+    </div>
+
+    <div class="game-wrapper">
+      <canvas id="game" width="640" height="480"></canvas>
+      <div class="minimap">
+        <canvas id="minimap-canvas" width="120" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/game.ts"></script>
+</body>
+</html>

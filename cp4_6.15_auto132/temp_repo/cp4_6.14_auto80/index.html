@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>脑波同步训练 · Brainwave Sync Trainer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a1a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      color: #e2e8f0;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+        #0a0a1a;
+    }
+
+    .game-wrapper {
+      position: relative;
+      width: min(100vw, calc(100vh * 4 / 3));
+      height: min(100vh, calc(100vw * 3 / 4));
+      min-width: 320px;
+      max-width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (min-width: 1024px) {
+      .game-wrapper {
+        min-width: 1024px;
+        min-height: 768px;
+      }
+    }
+
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #uiContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .ui-element {
+      pointer-events: auto;
+    }
+
+    .score-panel {
+      position: absolute;
+      top: 3%;
+      left: 3%;
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .score-label {
+      font-size: 12px;
+      color: #94a3b8;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .score-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-block;
+    }
+
+    .score-value.bump {
+      transform: scale(1.25);
+    }
+
+    .combo-panel {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #fbbf24;
+      font-weight: 600;
+      min-height: 18px;
+    }
+
+    .timer-panel {
+      position: absolute;
+      top: 3%;
+      right: 3%;
+      padding: 10px 22px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .timer-label {
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .timer-value {
+      font-size: 48px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: #f87171;
+      transition: color 0.5s ease;
+    }
+
+    .progress-panel {
+      position: absolute;
+      bottom: 3%;
+      left: 3%;
+      width: 200px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .progress-label {
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-label span:last-child {
+      color: #a855f7;
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #1e293b;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #a855f7 0%, #6366f1 100%);
+      border-radius: 6px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.25),
+        transparent
+      );
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .controls-panel {
+      position: absolute;
+      bottom: 3%;
+      right: 3%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .game-btn {
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .game-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35),
+        0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .game-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.08s ease;
+    }
+
+    .game-btn.primary {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(168, 85, 247, 0.35) 100%);
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    .game-btn.primary:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.5) 0%, rgba(168, 85, 247, 0.5) 100%);
+    }
+
+    .key-hint-panel {
+      position: absolute;
+      bottom: 25%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .key-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 34px;
+    }
+
+    .key-hint .key {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+      background: rgba(30, 27, 75, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      transition: all 0.12s ease;
+    }
+
+    .key-hint .key.active {
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      color: #fff;
+      border-color: transparent;
+      transform: scale(1.1);
+      box-shadow: 0 0 16px rgba(168, 85, 247, 0.6);
+    }
+
+    .key-hint .angle {
+      font-size: 9px;
+      color: #64748b;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 26, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      pointer-events: auto;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .overlay-title {
+      font-size: 42px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #fbbf24 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 14px;
+      letter-spacing: 4px;
+      text-align: center;
+    }
+
+    .overlay-subtitle {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-bottom: 36px;
+      letter-spacing: 2px;
+      text-align: center;
+      max-width: 480px;
+      line-height: 1.7;
+    }
+
+    .overlay-stats {
+      display: flex;
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 18px 28px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+    }
+
+    .stat-value {
+      font-size: 34px;
+      font-weight: 800;
+      color: #fbbf24;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .fragment-display {
+      position: absolute;
+      top: 18%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+    }
+
+    .fragment-slot {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fragment-slot.filled {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(99, 102, 241, 0.4) 100%);
+      border-color: rgba(168, 85, 247, 0.5);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+
+    .fragment-slot.filled::before {
+      content: '✦';
+      color: #fbbf24;
+      font-size: 14px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="game-wrapper">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      <div id="uiContainer">
+        <div id="startOverlay" class="overlay">
+          <div class="overlay-title">脑波同步训练</div>
+          <div class="overlay-subtitle">
+            在星形标记与顶部指针重合的瞬间<br>
+            按下对应方向键，收集精灵碎片，唤醒完整精灵<br>
+            <span style="color: #6366f1; font-size: 13px;">键位：W E D C X Z A Q</span>
+          </div>
+          <button id="startBtn" class="game-btn primary ui-element">开 始 训 练</button>
+        </div>
+
+        <div id="endOverlay" class="overlay hidden">
+          <div class="overlay-title" id="endTitle">训练完成</div>
+          <div class="overlay-subtitle" id="endSubtitle">结果分析</div>
+          <div class="overlay-stats">
+            <div class="stat-card">
+              <div class="stat-value" id="finalScore">0</div>
+              <div class="stat-label">最终得分</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="finalAccuracy">0%</div>
+              <div class="stat-label">命中率</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="finalMaxCombo">0</div>
+              <div class="stat-label">最高连击</div>
+            </div>
+          </div>
+          <button id="restartBtn" class="game-btn primary ui-element">再 来 一 次</button>
+        </div>
+
+        <div class="score-panel ui-element">
+          <div class="score-label">SCORE</div>
+          <div>
+            <span id="scoreValue" class="score-value">0</span>
+          </div>
+          <div id="comboDisplay" class="combo-panel"></div>
+        </div>
+
+        <div class="timer-panel ui-element">
+          <div class="timer-label">TIME</div>
+          <div id="timerValue" class="timer-value">60</div>
+        </div>
+
+        <div class="fragment-display ui-element" id="fragmentDisplay"></div>
+
+        <div class="progress-panel ui-element">
+          <div class="progress-label">
+            <span>SPRITE SYNC</span>
+            <span id="fragmentText">0 / 5</span>
+          </div>
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="key-hint-panel ui-element">
+          <div class="key-hint"><div class="key" data-key="W">W</div><div class="angle">0°</div></div>
+          <div class="key-hint"><div class="key" data-key="E">E</div><div class="angle">45°</div></div>
+          <div class="key-hint"><div class="key" data-key="D">D</div><div class="angle">90°</div></div>
+          <div class="key-hint"><div class="key" data-key="C">C</div><div class="angle">135°</div></div>
+          <div class="key-hint"><div class="key" data-key="X">X</div><div class="angle">180°</div></div>
+          <div class="key-hint"><div class="key" data-key="Z">Z</div><div class="angle">225°</div></div>
+          <div class="key-hint"><div class="key" data-key="A">A</div><div class="angle">270°</div></div>
+          <div class="key-hint"><div class="key" data-key="Q">Q</div><div class="angle">315°</div></div>
+        </div>
+
+        <div class="controls-panel ui-element">
+          <button id="pauseBtn" class="game-btn">暂 停</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

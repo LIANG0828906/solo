@@ -1,0 +1,357 @@
+.review-view {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.review-header h2 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  text-align: center;
+}
+
+.review-header .back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+  transition: all 0.2s;
+}
+
+.review-header .back-btn:hover {
+  background: #f0f0f0;
+}
+
+.review-progress-bar {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.review-progress-fill {
+  height: 100%;
+  background: #2c3e50;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.review-card-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.flip-card {
+  width: 100%;
+  min-height: 400px;
+  perspective: 1000px;
+  position: relative;
+}
+
+.flip-card-front,
+.flip-card-back {
+  width: 100%;
+  min-height: 400px;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.4s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.flip-card-front {
+  background: #fff;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.flip-card-back {
+  background: #f8f9fa;
+  transform: rotateY(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flip-card.flipped .flip-card-front {
+  transform: rotateY(-180deg);
+}
+
+.flip-card.flipped .flip-card-back {
+  transform: rotateY(0deg);
+  z-index: 3;
+}
+
+.card-category-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  align-self: flex-start;
+}
+
+.review-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 16px;
+}
+
+.review-card-content {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #444;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.review-card-content :is(ul, ol) {
+  padding-left: 20px;
+}
+
+.review-card-content pre {
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+.review-card-content code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.flip-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  transition: all 0.2s;
+  align-self: center;
+}
+
+.flip-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.back-prompt {
+  text-align: center;
+  color: #666;
+}
+
+.back-prompt p {
+  font-size: 18px;
+  margin: 8px 0;
+}
+
+.back-hint {
+  font-size: 14px;
+  color: #999;
+}
+
+.memory-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.memory-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--btn-color);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.memory-btn:hover {
+  background: var(--btn-color);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.memory-btn:hover .memory-icon {
+  filter: brightness(2);
+}
+
+.memory-icon {
+  font-size: 24px;
+  transition: all 0.2s;
+}
+
+.memory-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--btn-color);
+  transition: color 0.2s;
+}
+
+.memory-btn:hover .memory-label {
+  color: #fff;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(0.9); }
+  60% { transform: scale(1.05); }
+}
+
+@keyframes smooth-grow {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes glow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 var(--btn-color); }
+  50% { transform: scale(1.08); box-shadow: 0 0 20px 4px var(--btn-color); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 var(--btn-color); }
+}
+
+.btn-animate-forgot {
+  animation: shake 0.5s ease-in-out !important;
+  background: #e74c3c !important;
+  color: #fff !important;
+}
+
+.btn-animate-forgot .memory-label {
+  color: #fff !important;
+}
+
+.btn-animate-hard {
+  animation: bounce 0.4s ease !important;
+  background: #f39c12 !important;
+  color: #fff !important;
+}
+
+.btn-animate-hard .memory-label {
+  color: #fff !important;
+}
+
+.btn-animate-normal {
+  animation: smooth-grow 0.4s ease !important;
+  background: #27ae60 !important;
+  color: #fff !important;
+}
+
+.btn-animate-normal .memory-label {
+  color: #fff !important;
+}
+
+.btn-animate-easy {
+  animation: glow 0.5s ease !important;
+  background: #3498db !important;
+  color: #fff !important;
+}
+
+.btn-animate-easy .memory-label {
+  color: #fff !important;
+}
+
+.review-empty,
+.review-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 8px;
+  color: #666;
+}
+
+.complete-emoji {
+  font-size: 64px;
+  margin: 0;
+}
+
+.complete-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.complete-count {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+}
+
+.back-home-btn {
+  margin-top: 12px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background: #2c3e50;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.back-home-btn:hover {
+  background: #34495e;
+}
+
+@media (max-width: 480px) {
+  .memory-buttons {
+    gap: 8px;
+  }
+  .memory-btn {
+    padding: 10px 14px;
+    min-width: 70px;
+  }
+}

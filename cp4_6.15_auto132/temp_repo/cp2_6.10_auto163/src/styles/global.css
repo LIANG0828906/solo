@@ -1,0 +1,186 @@
+@import './variables.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background-color: var(--color-dark-red-dark);
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 4px
+    );
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 粗麻布纹理背景 */
+.burlap-bg {
+  background-color: var(--color-dark-red);
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 1px,
+      rgba(139, 58, 58, 0.1) 1px,
+      rgba(139, 58, 58, 0.1) 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 1px,
+      rgba(139, 58, 58, 0.1) 1px,
+      rgba(139, 58, 58, 0.1) 3px
+    );
+}
+
+/* 竹编纹理 */
+.bamboo-texture {
+  background-color: #8b7355;
+  background-image: 
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.1) 50%,
+      transparent 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(139, 115, 85, 0.8) 0px,
+      rgba(139, 115, 85, 0.8) 8px,
+      rgba(101, 83, 61, 0.9) 8px,
+      rgba(101, 83, 61, 0.9) 10px
+    );
+}
+
+/* 赌桌布纹理 */
+.table-felt {
+  background: radial-gradient(ellipse at center, #9c3d3d 0%, #7a2d2d 50%, #5a1d1d 100%);
+  position: relative;
+}
+
+.table-felt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(0, 0, 0, 0.05) 4px,
+      rgba(0, 0, 0, 0.05) 8px
+    );
+  pointer-events: none;
+}
+
+/* 木纹按钮 */
+.wood-button {
+  background: linear-gradient(180deg, #8b6914 0%, #6b4f0f 50%, #5a420d 100%);
+  border: 2px solid #4a350a;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 215, 0, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  color: var(--color-ivory);
+  font-family: var(--font-display);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.wood-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #a07a18 0%, #7b5c12 50%, #6b4f0f 100%);
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 215, 0, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 6px 12px rgba(0, 0, 0, 0.35);
+}
+
+.wood-button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-bronze);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bronze-light);
+}
+
+/* 数字滚动容器 */
+.number-roll-container {
+  display: inline-flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 粒子效果容器 */
+.particle-container {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* 响应式布局 */
+@media (max-width: 1024px) {
+  html, body, #root {
+    overflow: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}

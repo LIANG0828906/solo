@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>丝竹和鸣 — 宫廷雅乐</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1A0A00;
+      font-family: '楷体', 'KaiTi', 'STKaiti', serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #lamp {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .lamp-body {
+      width: 60px;
+      height: 70px;
+      background: linear-gradient(135deg, #C8963E, #A07828);
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+      position: relative;
+      animation: lampSway 3s ease-in-out infinite;
+      transform-origin: top center;
+    }
+    .lamp-chain {
+      width: 2px;
+      height: 30px;
+      background: #8B7355;
+      margin: 0 auto;
+    }
+    .lamp-tassel {
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(to bottom, #CC3333, #FFD700);
+      margin: 0 auto;
+      border-radius: 0 0 2px 2px;
+      animation: tasselSway 2s ease-in-out infinite;
+      transform-origin: top center;
+    }
+    .lamp-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle, rgba(255,200,80,0.3) 0%, rgba(255,200,80,0) 70%);
+      pointer-events: none;
+    }
+    @keyframes lampSway {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(1.5deg); }
+      75% { transform: rotate(-1.5deg); }
+    }
+    @keyframes tasselSway {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(3deg); }
+      75% { transform: rotate(-3deg); }
+    }
+    #plaque {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: linear-gradient(135deg, #B8860B, #DAA520, #B8860B);
+      color: #4A0000;
+      font-size: 28px;
+      font-weight: bold;
+      padding: 8px 32px;
+      border: 3px solid #8B6914;
+      border-radius: 6px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      letter-spacing: 8px;
+    }
+    #controls {
+      position: absolute;
+      top: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    #scoreSelect {
+      background: #3E2215;
+      color: #F5DEB3;
+      border: 2px solid #8B6914;
+      padding: 6px 16px;
+      font-family: '楷体', 'KaiTi', 'STKaiti', serif;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      outline: none;
+    }
+    #scoreSelect:hover {
+      border-color: #DAA520;
+    }
+    #playBtn {
+      background: linear-gradient(to bottom, #B8860B, #8B6914);
+      color: #FFF8DC;
+      border: 2px solid #DAA520;
+      padding: 6px 24px;
+      font-family: '楷体', 'KaiTi', 'STKaiti', serif;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 4px;
+      transition: all 0.2s;
+    }
+    #playBtn:hover {
+      background: linear-gradient(to bottom, #DAA520, #B8860B);
+      box-shadow: 0 0 12px rgba(218,165,32,0.5);
+    }
+    #playBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #scoreScroll {
+      position: absolute;
+      top: 220px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: none;
+      background: #F5DEB3;
+      border: 3px solid #8B6914;
+      border-radius: 4px;
+      padding: 8px 16px;
+      color: #3E2723;
+      font-size: 14px;
+      max-width: 50vw;
+      min-height: 50px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+    #resultPanel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      display: none;
+      background: linear-gradient(135deg, #2A1506, #3E2215);
+      border: 3px solid #DAA520;
+      border-radius: 8px;
+      padding: 24px 32px;
+      color: #F5DEB3;
+      min-width: 400px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+    }
+    #resultPanel h2 {
+      text-align: center;
+      color: #FFD700;
+      font-size: 24px;
+      margin-bottom: 12px;
+      letter-spacing: 6px;
+    }
+    #resultPanel .score-line {
+      font-size: 16px;
+      margin: 6px 0;
+    }
+    #resultPanel .review-text {
+      font-size: 18px;
+      text-align: center;
+      color: #DAA520;
+      margin: 12px 0;
+      letter-spacing: 2px;
+    }
+    #resultPanel .close-btn {
+      display: block;
+      margin: 16px auto 0;
+      background: linear-gradient(to bottom, #B8860B, #8B6914);
+      color: #FFF8DC;
+      border: 2px solid #DAA520;
+      padding: 6px 24px;
+      font-family: '楷体', 'KaiTi', 'STKaiti', serif;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #volumePanel {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .vol-slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .vol-slider-group label {
+      color: #F5DEB3;
+      font-size: 11px;
+    }
+    .vol-slider-group input[type="range"] {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 20px;
+      height: 80px;
+      accent-color: #DAA520;
+    }
+    #pitchIndicator {
+      position: absolute;
+      right: 12px;
+      bottom: 130px;
+      z-index: 10;
+      width: 24px;
+      height: 120px;
+      background: #2A1506;
+      border: 2px solid #8B6914;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #pitchBar {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 50%;
+      background: linear-gradient(to top, #00CC44, #FFCC00, #CC0000);
+      transition: height 0.15s, background 0.15s;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="lamp">
+    <div class="lamp-chain"></div>
+    <div class="lamp-body">
+      <div class="lamp-glow"></div>
+    </div>
+    <div class="lamp-tassel"></div>
+  </div>
+
+  <div id="plaque">丝竹和鸣</div>
+
+  <div id="controls">
+    <select id="scoreSelect">
+      <option value="">—— 选曲 ——</option>
+      <option value="luming">《鹿鸣》</option>
+      <option value="guanju">《关雎》</option>
+      <option value="fatan">《伐檀》</option>
+    </select>
+    <button id="playBtn" disabled>奏乐</button>
+  </div>
+
+  <div id="scoreScroll"></div>
+
+  <div id="resultPanel"></div>
+
+  <div id="volumePanel">
+    <div class="vol-slider-group">
+      <label>钟</label>
+      <input type="range" id="volBianzhong" min="0" max="200" value="100" />
+    </div>
+    <div class="vol-slider-group">
+      <label>磬</label>
+      <input type="range" id="volBianqing" min="0" max="200" value="100" />
+    </div>
+    <div class="vol-slider-group">
+      <label>琴</label>
+      <input type="range" id="volGuqin" min="0" max="200" value="100" />
+    </div>
+    <div class="vol-slider-group">
+      <label>箫</label>
+      <input type="range" id="volXiao" min="0" max="200" value="100" />
+    </div>
+  </div>
+
+  <div id="pitchIndicator">
+    <div id="pitchBar"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

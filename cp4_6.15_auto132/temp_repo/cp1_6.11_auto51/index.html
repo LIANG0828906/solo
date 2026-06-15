@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>函数图像观察器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary: #1a237e;
+      --primary-light: #3949ab;
+      --bg: #fafafa;
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --panel-border: #ddd;
+      --text: #212121;
+      --text-secondary: #666;
+      --error: #e53935;
+      --success: #43a047;
+      --increase: #43a047;
+      --decrease: #e53935;
+      --convex: #1e88e5;
+      --concave: #fb8c00;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      --shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.12);
+      --radius: 8px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      overflow-x: hidden;
+    }
+
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .app-header {
+      text-align: center;
+      width: 100%;
+    }
+
+    .app-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .app-subtitle {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .input-panel {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    .func-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 16px 0 44px;
+      font-size: 16px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      color: var(--text);
+      background: white;
+      border: 2px solid var(--panel-border);
+      border-radius: var(--radius);
+      outline: none;
+      transition: all var(--transition);
+    }
+
+    .func-input:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow);
+    }
+
+    .func-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.12);
+    }
+
+    .func-input.error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.12);
+    }
+
+    .func-prefix {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-style: italic;
+      color: var(--primary);
+      font-weight: 600;
+      pointer-events: none;
+    }
+
+    .error-msg {
+      color: var(--error);
+      font-size: 12px;
+      min-height: 16px;
+      padding-left: 4px;
+      line-height: 16px;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: all var(--transition);
+    }
+
+    .error-msg.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      height: 48px;
+      padding: 0 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-light);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(26, 35, 126, 0.04);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-ghost {
+      background: white;
+      color: var(--text);
+      border: 2px solid var(--panel-border);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    .btn:active {
+      animation: btnClick 0.25s ease;
+    }
+
+    @keyframes btnClick {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .main-area {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 80%;
+      min-width: 600px;
+      max-width: 1200px;
+      aspect-ratio: 1 / 0.6;
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    #mainCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #mainCanvas:active {
+      cursor: grabbing;
+    }
+
+    #markerCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #markerCanvas.visible {
+      opacity: 1;
+    }
+
+    .control-panel {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .gear-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all var(--transition);
+    }
+
+    .gear-btn:hover {
+      background: white;
+      box-shadow: var(--shadow-hover);
+      transform: rotate(45deg);
+    }
+
+    .gear-btn svg {
+      width: 20px;
+      height: 20px;
+      color: var(--primary);
+    }
+
+    .panel-body {
+      margin-top: 8px;
+      padding: 16px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-hover);
+      width: 300px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      pointer-events: none;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+    }
+
+    .panel-body.open {
+      max-height: 600px;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .panel-section {
+      margin-bottom: 16px;
+    }
+
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .field input[type="number"] {
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      background: white;
+      transition: all var(--transition);
+      color: var(--text);
+    }
+
+    .field input[type="number"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.1);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    .toggle-row span {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .toggle {
+      width: 36px;
+      height: 20px;
+      background: #ccc;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle.on {
+      background: var(--primary);
+    }
+
+    .toggle.on::after {
+      transform: translateX(16px);
+    }
+
+    .color-presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .color-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all var(--transition);
+    }
+
+    .color-dot:hover {
+      transform: scale(1.15);
+    }
+
+    .color-dot.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.2);
+    }
+
+    .color-dot.custom {
+      background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    }
+
+    input[type="color"] {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border-radius: 50%;
+      border: 2px solid var(--panel-border);
+    }
+
+    .reset-btn {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--panel-border);
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+
+    .reset-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .analysis-result {
+      width: 80%;
+      min-width: 600px;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.4s ease;
+      pointer-events: none;
+    }
+
+    .analysis-result.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .interval-block {
+      padding: 12px 16px;
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .interval-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .interval-legend {
+      display: flex;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 400;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    .interval-bar {
+      display: flex;
+      height: 22px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      position: relative;
+    }
+
+    .interval-segment {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scaleX(0);
+      transform-origin: left center;
+    }
+
+    .interval-segment.show {
+      animation: segmentIn 0.4s ease forwards;
+    }
+
+    @keyframes segmentIn {
+      to {
+        opacity: 1;
+        transform: scaleX(1);
+      }
+    }
+
+    .segment-label {
+      font-size: 10px;
+      color: white;
+      font-weight: 500;
+      padding: 0 4px;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    @media (max-width: 768px) {
+      .app {
+        padding: 16px 12px 32px;
+        gap: 16px;
+      }
+
+      .app-title {
+        font-size: 24px;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+
+      .btn-group {
+        width: 100%;
+      }
+
+      .btn {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .canvas-wrapper {
+        width: 100%;
+        min-width: auto;
+        aspect-ratio: 1 / 0.7;
+      }
+
+      .control-panel {
+        left: 8px;
+        top: 8px;
+      }
+
+      .panel-body {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        margin-top: 0;
+        border-radius: 0 0 var(--radius) var(--radius);
+        border-left: none;
+        border-right: none;
+        border-top: none;
+      }
+
+      .analysis-result {
+        width: 100%;
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1 class="app-title">Function Visualizer</h1>
+      <p class="app-subtitle">输入函数表达式，探索数学之美 · 支持分析极值、拐点、单调性与凹凸性</p>
+    </header>
+
+    <section class="input-panel">
+      <div class="input-row">
+        <div class="input-wrapper">
+          <span class="func-prefix">f(x) =</span>
+          <input type="text" class="func-input" id="funcInput" placeholder="例如: x^3 - 3*x^2 + 1" value="x^3 - 3*x^2 + 1" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="drawBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 12l3-3 3 3 4-4"/></svg>
+            绘制
+          </button>
+          <button class="btn btn-secondary" id="analyzeBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            分析
+          </button>
+          <button class="btn btn-ghost" id="exportBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出PNG
+          </button>
+        </div>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </section>
+
+    <section class="main-area">
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="mainCanvas"></canvas>
+        <canvas id="markerCanvas"></canvas>
+
+        <div class="control-panel">
+          <button class="gear-btn" id="gearBtn" title="设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
+
+          <div class="panel-body" id="panelBody">
+            <div class="panel-section">
+              <div class="panel-title">X 轴范围</div>
+              <div class="grid-2">
+                <div class="field">
+                  <label>最小值</label>
+                  <input type="number" id="xMinInput" value="-10" step="0.5"/>
+                </div>
+                <div class="field">
+                  <label>最大值</label>
+                  <input type="number" id="xMaxInput" value="10" step="0.5"/>
+                </div>
+                <div class="field">
+                  <label>刻度步长</label>
+                  <input type="number" id="xTickInput" value="1" step="0.5" min="0.1"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-title">Y 轴范围</div>
+              <div class="grid-2">
+                <div class="field">
+                  <label>最小值</label>
+                  <input type="number" id="yMinInput" value="-10" step="0.5"/>
+                </div>
+                <div class="field">
+                  <label>最大值</label>
+                  <input type="number" id="yMaxInput" value="10" step="0.5"/>
+                </div>
+                <div class="field">
+                  <label>刻度步长</label>
+                  <input type="number" id="yTickInput" value="1" step="0.5" min="0.1"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-title">显示选项</div>
+              <div class="toggle-row">
+                <span>显示网格线</span>
+                <div class="toggle on" id="gridToggle"></div>
+              </div>
+              <div class="toggle-row">
+                <span>显示坐标轴标签</span>
+                <div class="toggle on" id="labelToggle"></div>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-title">曲线颜色</div>
+              <div class="color-presets" id="colorPresets">
+                <div class="color-dot active" data-color="#1a237e" style="background:#1a237e"></div>
+                <div class="color-dot" data-color="#e53935" style="background:#e53935"></div>
+                <div class="color-dot" data-color="#43a047" style="background:#43a047"></div>
+                <div class="color-dot" data-color="#fb8c00" style="background:#fb8c00"></div>
+                <div class="color-dot" data-color="#8e24aa" style="background:#8e24aa"></div>
+                <div class="color-dot" data-color="#00838f" style="background:#00838f"></div>
+                <input type="color" id="customColor" value="#1a237e" title="自定义颜色"/>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <button class="reset-btn" id="resetBtn">
+                ↺ 重置为默认范围 [-10, 10]
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="analysis-result" id="analysisResult">
+        <div class="interval-block">
+          <div class="interval-label">
+            单调性区间
+            <div class="interval-legend">
+              <div class="legend-item"><span class="legend-color" style="background:#43a047"></span>单调递增</div>
+              <div class="legend-item"><span class="legend-color" style="background:#e53935"></span>单调递减</div>
+            </div>
+          </div>
+          <div class="interval-bar" id="monoBar"></div>
+        </div>
+
+        <div class="interval-block">
+          <div class="interval-label">
+            凹凸性区间
+            <div class="interval-legend">
+              <div class="legend-item"><span class="legend-color" style="background:#1e88e5"></span>凸函数</div>
+              <div class="legend-item"><span class="legend-color" style="background:#fb8c00"></span>凹函数</div>
+            </div>
+          </div>
+          <div class="interval-bar" id="concBar"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/src/MainPanel.ts"></script>
+</body>
+</html>

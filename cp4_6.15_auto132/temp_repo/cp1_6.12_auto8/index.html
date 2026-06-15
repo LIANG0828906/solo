@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>世界历史年表 - 交互式可视化</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>世界历史年表</h1>
+      <p class="subtitle">公元 1000 年 — 2023 年</p>
+    </header>
+
+    <div class="main-layout">
+      <aside class="filter-panel" id="filterPanel">
+        <div class="panel-header">
+          <h2>筛选条件</h2>
+          <button class="collapse-btn" id="collapseBtn" title="折叠面板">«</button>
+        </div>
+
+        <div class="panel-content">
+          <div class="filter-section">
+            <h3>事件类别</h3>
+            <div class="category-list" id="categoryList"></div>
+          </div>
+
+          <div class="filter-section">
+            <h3>影响力范围</h3>
+            <div class="range-display">
+              <span id="influenceMin">1</span>
+              <span>—</span>
+              <span id="influenceMax">10</span>
+            </div>
+            <div class="range-slider">
+              <input type="range" id="influenceMinSlider" min="1" max="10" value="1" />
+              <input type="range" id="influenceMaxSlider" min="1" max="10" value="10" />
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <h3>关键词搜索</h3>
+            <input type="text" id="searchInput" class="search-input" placeholder="搜索事件名称或描述..." />
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-primary" id="resetBtn">重置筛选</button>
+          </div>
+
+          <div class="stats-section">
+            <div class="stat-item">
+              <span class="stat-label">显示事件</span>
+              <span class="stat-value" id="visibleCount">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">总事件数</span>
+              <span class="stat-value" id="totalCount">0</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <button class="expand-btn" id="expandBtn" title="展开面板" style="display:none">»</button>
+
+      <main class="timeline-area">
+        <div class="timeline-controls">
+          <button class="zoom-btn" id="zoomOut" title="缩小">−</button>
+          <button class="zoom-btn" id="zoomReset" title="重置缩放">⟲</button>
+          <button class="zoom-btn" id="zoomIn" title="放大">+</button>
+          <div class="zoom-info" id="zoomInfo">跨度：1023 年</div>
+        </div>
+        <div class="svg-container" id="svgContainer">
+          <svg id="timelineSvg"></svg>
+          <div class="tooltip" id="tooltip" style="display:none"></div>
+        </div>
+      </main>
+
+      <aside class="detail-panel" id="detailPanel">
+        <div class="detail-content" id="detailContent">
+          <div class="detail-placeholder">
+            <p>选择左侧时间轴上的事件圆点</p>
+            <p>查看详细信息</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

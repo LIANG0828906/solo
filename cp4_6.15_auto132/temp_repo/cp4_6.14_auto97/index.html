@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星舰导航模拟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f172a;
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      min-width: 500px;
+      cursor: crosshair;
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(59, 130, 246, 0.15);
+    }
+
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .hud-panel {
+      position: absolute;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #e2e8f0;
+      pointer-events: auto;
+    }
+
+    #resources-panel {
+      top: 16px;
+      left: 16px;
+      min-width: 140px;
+    }
+
+    #fuel-panel {
+      bottom: 16px;
+      left: 16px;
+      min-width: 220px;
+    }
+
+    #target-panel {
+      top: 16px;
+      right: 16px;
+      min-width: 240px;
+      text-align: right;
+    }
+
+    #edit-mode-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-shadow: 0 0 20px rgba(251, 191, 36, 0.6);
+      letter-spacing: 4px;
+      opacity: 0;
+      transition: opacity 1s ease;
+      pointer-events: none;
+    }
+
+    #edit-mode-banner.visible {
+      opacity: 1;
+    }
+
+    .resource-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .resource-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .resource-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .resource-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      color: #94a3b8;
+      font-weight: 500;
+      transition: transform 0.2s ease;
+    }
+
+    .resource-value.updated {
+      transform: scale(1.1);
+    }
+
+    .fuel-bar-container {
+      width: 200px;
+      height: 16px;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      margin-bottom: 6px;
+    }
+
+    .fuel-bar {
+      height: 100%;
+      background: #3b82f6;
+      border-radius: 8px;
+      transition: width 0.1s linear, background-color 0.3s ease;
+    }
+
+    .fuel-bar.low {
+      background: #ef4444;
+    }
+
+    .fuel-bar.critical {
+      animation: blink 0.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .speed-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .speed-value {
+      transition: transform 0.2s ease;
+    }
+
+    .speed-value.updated {
+      transform: scale(1.1);
+    }
+
+    .target-info {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .collect-progress {
+      position: absolute;
+      width: 120px;
+      height: 8px;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+    }
+
+    .collect-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+      transition: width 0.1s linear;
+    }
+
+    .waypoint-label {
+      position: absolute;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      color: #a78bfa;
+      background: rgba(30, 41, 59, 0.9);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #a78bfa;
+      pointer-events: none;
+      transform: translate(-50%, -120%);
+      white-space: nowrap;
+    }
+
+    #instructions {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 11px;
+      color: #64748b;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 8px 12px;
+      border-radius: 6px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="1000" height="800"></canvas>
+    <div id="ui-layer">
+      <div id="resources-panel" class="hud-panel"></div>
+      <div id="fuel-panel" class="hud-panel">
+        <div class="fuel-bar-container">
+          <div id="fuel-bar" class="fuel-bar" style="width: 100%"></div>
+        </div>
+        <div class="speed-display">
+          速度: <span id="speed-value" class="speed-value">0</span> px/s
+        </div>
+      </div>
+      <div id="target-panel" class="hud-panel">
+        <div id="target-info" class="target-info">无目标</div>
+      </div>
+      <div id="edit-mode-banner">编辑模式</div>
+      <div id="instructions">
+        右键点击: 设置目标点<br/>
+        E键: 航线编辑模式<br/>
+        Enter: 确认航线
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

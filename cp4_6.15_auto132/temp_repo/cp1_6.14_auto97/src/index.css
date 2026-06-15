@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'katex/dist/katex.min.css';
+
+:root {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.mono-font {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-top {
+  animation: slideInFromTop 0.4s ease-out forwards;
+}
+
+@keyframes elasticExpand {
+  0% {
+    max-height: 0;
+    opacity: 0;
+  }
+  70% {
+    max-height: 500px;
+  }
+  100% {
+    max-height: 1000px;
+    opacity: 1;
+  }
+}
+
+.animate-elastic-expand {
+  animation: elasticExpand 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+.katex {
+  font-size: 1.1em;
+}
+
+.preview-area .katex {
+  color: #1e7fd9;
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神经突触模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0B0B1A 0%, #1A1A3A 100%);
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+        }
+        #fps-counter {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: #00FF88;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            z-index: 100;
+            transition: color 0.3s;
+        }
+        #fps-counter.warning {
+            color: #FF4444;
+            animation: blink 0.5s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        #info-label {
+            position: fixed;
+            background: rgba(44, 44, 44, 0.9);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #info-label.visible {
+            opacity: 1;
+        }
+        #info-label .neuron-id {
+            color: #9B59B6;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        #info-label .connection-count {
+            color: #4A90D9;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="fps-counter">FPS: --</div>
+    <div id="info-label">
+        <div class="neuron-id">神经元 #0</div>
+        <div class="connection-count">连接数: 0</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

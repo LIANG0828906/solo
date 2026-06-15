@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>堪輿真訣</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Noto Serif SC', '楷体', 'KaiTi', serif;
+      background-color: #EDE4D4;
+      background-image: 
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(139, 90, 43, 0.03) 2px,
+          rgba(139, 90, 43, 0.03) 4px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 2px,
+          rgba(139, 90, 43, 0.02) 2px,
+          rgba(139, 90, 43, 0.02) 4px
+        );
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .header-banner {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      height: 80px;
+      background: linear-gradient(180deg, #FFF8DC 0%, #F5E6B8 100%);
+      border: 6px solid #6B4226;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        inset 0 2px 6px rgba(255, 255, 255, 0.3),
+        inset 0 -2px 6px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+    }
+    
+    .header-banner::before,
+    .header-banner::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #6B4226;
+      border-radius: 50%;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    
+    .header-banner::before {
+      left: -12px;
+    }
+    
+    .header-banner::after {
+      right: -12px;
+    }
+    
+    .header-banner h1 {
+      font-size: 40px;
+      font-weight: 900;
+      color: #D4AF37;
+      letter-spacing: 20px;
+      text-shadow: 
+        1px 1px 0 #8B6914,
+        2px 2px 4px rgba(0, 0, 0, 0.2);
+      margin-left: 20px;
+    }
+    
+    .control-panel {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 100;
+    }
+    
+    .wood-button {
+      padding: 14px 36px;
+      background: linear-gradient(180deg, #D4B896 0%, #C4A882 50%, #B8956E 100%);
+      border: 3px solid #4A2C1A;
+      border-radius: 10px;
+      font-family: 'Noto Serif SC', '楷体', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #2C1810;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.15);
+      user-select: none;
+      position: relative;
+    }
+    
+    .wood-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 
+        0 7px 15px rgba(0, 0, 0, 0.35),
+        inset 0 2px 4px rgba(255, 255, 255, 0.4),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.15);
+    }
+    
+    .wood-button:active {
+      transform: translateY(2px);
+      transition-duration: 0.2s;
+      box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 3px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .report-container {
+      position: absolute;
+      top: 110px;
+      right: -500px;
+      width: 420px;
+      max-height: calc(100vh - 180px);
+      z-index: 200;
+      transition: right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #8B6914 #F5E6B8;
+    }
+    
+    .report-container.open {
+      right: 30px;
+    }
+    
+    .report-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .report-container::-webkit-scrollbar-track {
+      background: #F5E6B8;
+      border-radius: 4px;
+    }
+    
+    .report-container::-webkit-scrollbar-thumb {
+      background: #8B6914;
+      border-radius: 4px;
+    }
+    
+    #report-canvas {
+      width: 100%;
+      display: block;
+    }
+    
+    .compass-info {
+      position: absolute;
+      top: 110px;
+      left: 30px;
+      background: linear-gradient(180deg, #FFF8DC 0%, #F5E6B8 100%);
+      border: 4px solid #6B4226;
+      border-radius: 8px;
+      padding: 16px 24px;
+      z-index: 100;
+      box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.25),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    }
+    
+    .compass-info h3 {
+      font-size: 18px;
+      color: #6B4226;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #D4AF37;
+      padding-bottom: 6px;
+    }
+    
+    .compass-info p {
+      font-size: 16px;
+      color: #2C1810;
+      margin: 6px 0;
+      line-height: 1.6;
+    }
+    
+    .compass-info .angle {
+      font-size: 28px;
+      font-weight: 900;
+      color: #8B0000;
+    }
+    
+    .compass-info .direction {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2E8B57;
+    }
+    
+    .floorplan-container {
+      position: absolute;
+      bottom: 100px;
+      left: 30px;
+      width: 280px;
+      height: 280px;
+      z-index: 100;
+    }
+    
+    #floorplan-canvas {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #FFF8DC 0%, #F5E6B8 100%);
+      border: 5px solid #6B4226;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div class="header-banner">
+      <h1>堪輿真訣</h1>
+    </div>
+    
+    <div class="compass-info">
+      <h3>現方位</h3>
+      <p>角度: <span class="angle" id="angle-display">180°</span></p>
+      <p>山向: <span class="direction" id="direction-display">子午向</span></p>
+      <p>卦位: <span id="gua-display">離</span></p>
+    </div>
+    
+    <div class="floorplan-container">
+      <canvas id="floorplan-canvas" width="270" height="270"></canvas>
+    </div>
+    
+    <div class="report-container" id="report-container">
+      <canvas id="report-canvas" width="420" height="1200"></canvas>
+    </div>
+    
+    <div class="control-panel">
+      <button class="wood-button" id="btn-survey">勘 宅</button>
+      <button class="wood-button" id="btn-reset">復 位</button>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

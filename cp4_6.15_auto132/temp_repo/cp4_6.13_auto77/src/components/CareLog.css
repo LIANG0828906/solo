@@ -1,0 +1,162 @@
+.care-log {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+}
+
+.log-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  color: #5a4a3a;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(139, 90, 43, 0.15);
+  transition: all 0.2s ease;
+}
+
+.log-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.log-icon {
+  font-size: 18px;
+}
+
+.log-arrow {
+  font-size: 10px;
+  transition: transform 0.3s ease;
+  color: #8b5a2b;
+}
+
+.log-arrow.down {
+  transform: rotate(180deg);
+}
+
+.log-panel {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 12px;
+  width: 320px;
+  max-height: 400px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(139, 90, 43, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: springIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.log-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(139, 90, 43, 0.1);
+}
+
+.log-action-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(126, 200, 80, 0.15);
+  color: #5a7a3a;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.log-action-btn:hover {
+  background: rgba(126, 200, 80, 0.25);
+}
+
+.log-action-btn.danger {
+  background: rgba(255, 100, 100, 0.1);
+  color: #c85a5a;
+}
+
+.log-action-btn.danger:hover {
+  background: rgba(255, 100, 100, 0.2);
+}
+
+.log-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  transition: background 0.2s ease;
+}
+
+.log-entry:hover {
+  background: rgba(139, 90, 43, 0.05);
+}
+
+.log-entry-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.log-entry-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.log-entry-message {
+  font-size: 13px;
+  color: #4a3a28;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.log-entry-time {
+  font-size: 11px;
+  color: #8b7a6a;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-log {
+  padding: 40px 20px;
+  text-align: center;
+  color: #aaa;
+  font-size: 13px;
+}
+
+.log-footer {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(139, 90, 43, 0.1);
+  text-align: center;
+  font-size: 12px;
+  color: #8b7a6a;
+}
+
+@media (max-width: 768px) {
+  .care-log {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .log-panel {
+    width: 280px;
+  }
+}

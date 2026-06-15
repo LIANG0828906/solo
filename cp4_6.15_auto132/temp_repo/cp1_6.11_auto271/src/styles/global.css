@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'KaiTi', 'STKaiti', '楷体', serif;
+  background-color: #F5F0E1;
+  color: #3C3C3C;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'LiSu', 'STLiti', '隶书', serif;
+  font-weight: normal;
+}
+
+button {
+  font-family: 'KaiTi', 'STKaiti', '楷体', serif;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: opacity 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+button:active {
+  opacity: 0.6;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  min-height: 100vh;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.bamboo-loading {
+  display: flex;
+  gap: 4px;
+}
+
+.bamboo-slip {
+  width: 12px;
+  height: 80px;
+  background-color: #90EE90;
+  border-radius: 2px;
+  animation: bambooUnroll 1.2s ease-in-out infinite;
+}
+
+.bamboo-slip:nth-child(1) { animation-delay: 0s; }
+.bamboo-slip:nth-child(2) { animation-delay: 0.1s; }
+.bamboo-slip:nth-child(3) { animation-delay: 0.2s; }
+.bamboo-slip:nth-child(4) { animation-delay: 0.3s; }
+.bamboo-slip:nth-child(5) { animation-delay: 0.4s; }
+.bamboo-slip:nth-child(6) { animation-delay: 0.5s; }
+.bamboo-slip:nth-child(7) { animation-delay: 0.6s; }
+.bamboo-slip:nth-child(8) { animation-delay: 0.7s; }
+
+@keyframes bambooUnroll {
+  0%, 100% {
+    transform: scaleY(0.3);
+    background-color: #90EE90;
+  }
+  50% {
+    transform: scaleY(1);
+    background-color: #228B22;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 10px;
+  }
+}

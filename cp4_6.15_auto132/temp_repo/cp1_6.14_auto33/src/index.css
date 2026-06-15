@@ -1,0 +1,323 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a1a;
+  color: #e0e0ff;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(10, 10, 26, 0.65);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid rgba(83, 52, 131, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-icon {
+  font-size: 20px;
+}
+
+.nav-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #e0e0ff 0%, #533483 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-subtitle {
+  font-size: 12px;
+  color: rgba(224, 224, 255, 0.5);
+  letter-spacing: 2px;
+}
+
+.main-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding-top: 48px;
+}
+
+.scene-viewport {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  cursor: grab;
+}
+
+.scene-viewport:active {
+  cursor: grabbing;
+}
+
+.scene-viewport canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+
+.panel-sidebar {
+  width: 320px;
+  min-width: 320px;
+  height: 100%;
+  background: #1a1a2e;
+  border-left: 1px solid rgba(83, 52, 131, 0.15);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+}
+
+.panel-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-sidebar::-webkit-scrollbar-track {
+  background: #16213e;
+}
+
+.panel-sidebar::-webkit-scrollbar-thumb {
+  background: #533483;
+  border-radius: 2px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(83, 52, 131, 0.2);
+}
+
+.panel-header-icon {
+  font-size: 16px;
+}
+
+.panel-header-text {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #e0e0ff;
+}
+
+.param-panel-load-section {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.share-code-display {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-code-label {
+  font-size: 11px;
+  color: rgba(224, 224, 255, 0.5);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.share-code-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 4px;
+  color: #e0e0ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(83, 52, 131, 0.3);
+}
+
+.share-code-value:hover {
+  box-shadow: 0 4px 20px rgba(83, 52, 131, 0.5);
+  transform: translateY(-1px);
+}
+
+.share-code-value:active {
+  transform: translateY(0);
+}
+
+.copy-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(224, 224, 255, 0.4);
+  letter-spacing: 0;
+}
+
+.load-config-row {
+  display: flex;
+  gap: 8px;
+}
+
+.load-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid rgba(83, 52, 131, 0.3);
+  border-radius: 8px;
+  color: #e0e0ff;
+  font-size: 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.load-input:focus {
+  border-color: #533483;
+  box-shadow: 0 0 12px rgba(83, 52, 131, 0.3);
+}
+
+.load-input::placeholder {
+  color: rgba(224, 224, 255, 0.25);
+  letter-spacing: 1px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+}
+
+.load-btn {
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #533483 0%, #0f3460 100%);
+  border: none;
+  border-radius: 8px;
+  color: #e0e0ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(83, 52, 131, 0.3);
+}
+
+.load-btn:hover {
+  box-shadow: 0 4px 16px rgba(83, 52, 131, 0.5);
+  transform: translateY(-1px);
+}
+
+.load-btn:active {
+  transform: translateY(0);
+}
+
+.load-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.status-msg {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  transition: all 0.3s ease;
+}
+
+.status-msg.success {
+  background: rgba(30, 86, 49, 0.3);
+  color: #6fda8a;
+  border: 1px solid rgba(30, 86, 49, 0.4);
+}
+
+.status-msg.error {
+  background: rgba(139, 30, 30, 0.3);
+  color: #ff6b6b;
+  border: 1px solid rgba(139, 30, 30, 0.4);
+}
+
+.controls-hint {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: rgba(22, 33, 62, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(83, 52, 131, 0.1);
+}
+
+.hint-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(224, 224, 255, 0.5);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.hint-item {
+  font-size: 12px;
+  color: rgba(224, 224, 255, 0.6);
+  padding: 2px 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.hint-item::before {
+  content: '›';
+  margin-right: 6px;
+  color: #533483;
+}
+
+div[class*="leva-"] {
+  --leva-colors-accent1: #533483;
+  --leva-colors-accent2: #0f3460;
+  --leva-colors-accent3: #533483;
+  --leva-colors-highlight1: #533483;
+  --leva-colors-highlight2: #7b4bbd;
+  --leva-colors-highlight3: #16213e;
+}
+
+.panel-sidebar .leva-Root {
+  background: transparent !important;
+}
+
+.panel-sidebar div[class*="leva-"] {
+  background: transparent !important;
+}

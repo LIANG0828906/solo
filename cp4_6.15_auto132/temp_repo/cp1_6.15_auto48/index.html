@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="渐变色彩搭配方案生成与分享工具 - 实时创建、预览、收藏和导出个性化渐变方案" />
+    <meta name="keywords" content="渐变,配色,CSS,颜色,设计,gradient,color,palette" />
+    <meta name="author" content="GradientCraft" />
+    <meta property="og:title" content="GradientCraft - 渐变色彩搭配工具" />
+    <meta property="og:description" content="实时创建、预览、收藏和导出个性化渐变方案" />
+    <meta property="og:type" content="website" />
+    <title>GradientCraft - 渐变色彩搭配工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script type="module">
+      if (import.meta.hot?.on) {
+        import.meta.hot.on('vite:error', (error) => {
+          if (error.err) {
+            console.error(
+              [error.err.message, error.err.frame].filter(Boolean).join('\n'),
+            )
+          }
+        })
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

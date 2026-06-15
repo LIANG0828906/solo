@@ -1,0 +1,47 @@
+.photo-timeline {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 4px 20px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.timeline-track {
+  display: flex;
+  gap: 20px;
+  padding: 10px 10px 0;
+  min-width: min-content;
+}
+
+.photo-card-wrapper {
+  flex-shrink: 0;
+  width: 240px;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.photo-card-placeholder {
+  flex-shrink: 0;
+  height: 1px;
+}
+
+@media (max-width: 768px) {
+  .photo-card-wrapper {
+    width: 200px;
+  }
+  
+  .timeline-track {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .photo-card-wrapper {
+    width: 160px;
+  }
+  
+  .timeline-track {
+    gap: 12px;
+  }
+}

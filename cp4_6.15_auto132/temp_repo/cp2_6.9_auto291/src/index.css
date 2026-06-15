@@ -1,0 +1,391 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+:root {
+  --wood-deep: #3e2723;
+  --wood-light: #8d6e63;
+  --wood-medium: #5D4037;
+  --paper: #F5DEB3;
+  --paper-dark: #E8D4A0;
+  --gold: #FFD700;
+  --gold-dark: #FF8C00;
+  --cart-single: #8B4513;
+  --cart-double: #A0522D;
+  --node-bg: #F5F5DC;
+  --route-color: #4E342E;
+  --bandit-red: #B71C1C;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Serif SC', serif;
+  background-color: var(--wood-deep);
+  color: #fff;
+  min-height: 100vh;
+}
+
+.font-chinese-title {
+  font-family: 'Ma Shan Zheng', cursive;
+}
+
+.paper-texture {
+  background-image: url('/assets/paper-texture.svg');
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.paper-bg {
+  background-color: var(--paper);
+  background-image: url('/assets/paper-texture.svg');
+  background-blend-mode: multiply;
+}
+
+.btn-ancient {
+  @apply px-6 py-3 rounded-ancient font-chinese-body text-lg transition-all duration-300;
+  @apply hover:shadow-lg active:scale-95;
+  background-color: var(--wood-light);
+  color: var(--paper);
+  border: 2px solid var(--wood-medium);
+}
+
+.btn-ancient:hover {
+  background-color: var(--wood-medium);
+  transform: translateY(-2px);
+}
+
+.btn-ancient:active {
+  transform: scale(0.95);
+}
+
+.btn-gold {
+  @apply px-6 py-3 rounded-ancient font-chinese-title text-xl transition-all duration-300;
+  @apply hover:shadow-xl active:scale-95;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: var(--wood-deep);
+  border: 2px solid var(--gold-dark);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+}
+
+.btn-gold:hover {
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.6);
+  transform: translateY(-3px);
+}
+
+.btn-gold:active {
+  transform: scale(0.95);
+}
+
+.card-ancient {
+  @apply rounded-ancient p-4 transition-all duration-300;
+  background-color: var(--paper);
+  border: 2px solid var(--wood-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.card-ancient:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.scroll-card {
+  width: 300px;
+  height: 120px;
+  background: linear-gradient(135deg, var(--paper) 0%, var(--paper-dark) 100%);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.scroll-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 20% 20%, transparent 0%, rgba(93, 64, 55, 0.1) 50%, rgba(93, 64, 55, 0.3) 100%);
+  pointer-events: none;
+}
+
+.scroll-card::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(139, 69, 19, 0.4) 100%);
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+.scroll-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 15px 35px rgba(93, 64, 55, 0.6);
+}
+
+.lantern {
+  width: 40px;
+  height: 50px;
+  background: radial-gradient(circle at 50% 40%, #ff6b6b 0%, #c0392b 50%, #8b0000 100%);
+  border-radius: 50% 50% 45% 45%;
+  position: relative;
+  transform-origin: top center;
+  animation: lanternSwing 3s ease-in-out infinite;
+}
+
+.lantern::before {
+  content: '镖';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffd700;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+.lantern::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 8px;
+  background: linear-gradient(90deg, #8B4513, #A0522D, #8B4513);
+  border-radius: 4px;
+}
+
+@keyframes lanternSwing {
+  0%, 100% {
+    transform: rotate(-5deg) translateX(-10px);
+  }
+  50% {
+    transform: rotate(5deg) translateX(10px);
+  }
+}
+
+.eaves {
+  position: relative;
+  height: 80px;
+  background: linear-gradient(180deg, var(--wood-medium) 0%, var(--wood-deep) 100%);
+}
+
+.eaves::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -20px;
+  right: -20px;
+  height: 30px;
+  background: linear-gradient(180deg, #4a3728 0%, var(--wood-medium) 100%);
+  clip-path: polygon(
+    0% 100%,
+    5% 60%,
+    10% 80%,
+    15% 40%,
+    20% 70%,
+    25% 30%,
+    30% 65%,
+    35% 25%,
+    40% 60%,
+    45% 20%,
+    50% 55%,
+    55% 20%,
+    60% 60%,
+    65% 25%,
+    70% 65%,
+    75% 30%,
+    80% 70%,
+    85% 40%,
+    90% 80%,
+    95% 60%,
+    100% 100%
+  );
+}
+
+.escort-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #E8D4A0 0%, #C4A574 50%, #8B7355 100%);
+  border: 3px solid var(--wood-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 32px;
+  color: var(--wood-deep);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.escort-avatar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.escort-avatar:hover {
+  transform: scale(1.1);
+  animation: avatarShake 0.3s ease-in-out;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.escort-avatar.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.7);
+}
+
+@keyframes avatarShake {
+  0%, 100% { transform: scale(1.1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-3deg); }
+  75% { transform: scale(1.1) rotate(3deg); }
+}
+
+.map-node {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: var(--node-bg);
+  border: 3px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 14px;
+  color: var(--wood-deep);
+  position: absolute;
+  transition: all 0.3s ease;
+}
+
+.map-node:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.bandit-flag {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  animation: banditFlash 0.8s ease-in-out infinite;
+  z-index: 100;
+}
+
+@keyframes banditFlash {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.sword-swing {
+  animation: swordSlash 1s ease-in-out;
+}
+
+@keyframes swordSlash {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-45deg); }
+  50% { transform: rotate(90deg); }
+  75% { transform: rotate(-15deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.cart-icon {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.cart-icon:hover {
+  transform: translateY(-3px);
+}
+
+.cart-icon.selected {
+  animation: cartBounce 0.4s ease-out;
+}
+
+@keyframes cartBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.85); }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.caravan-icon {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  transition: left 0.05s linear, top 0.05s linear;
+  will-change: left, top;
+  z-index: 50;
+}
+
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 32px;
+  background-color: var(--wood-light);
+  color: var(--paper);
+  border-radius: 12px;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 20px;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -60%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@media (min-width: 768px) {
+  .scroll-container {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 1366px) {
+  .scroll-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--wood-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--wood-medium);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--wood-light);
+}

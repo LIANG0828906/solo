@@ -1,0 +1,17 @@
+[
+  {
+    "id": "uncategorized",
+    "name": "未分类",
+    "color": "#6366f1"
+  },
+  {
+    "id": "favorites",
+    "name": "喜欢的",
+    "color": "#ec4899"
+  },
+  {
+    "id": "reading",
+    "name": "待读",
+    "color": "#10b981"
+  }
+]

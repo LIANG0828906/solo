@@ -1,0 +1,14 @@
+{
+  "name": "dream-bubble-pop",
+  "version": "1.0.0",
+  "description": "A dreamy bubble popping game",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

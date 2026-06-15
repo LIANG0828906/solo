@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>街头风味 · 美食导航</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <button id="locate-btn" class="locate-btn" aria-label="定位到当前位置">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <line x1="12" y1="2" x2="12" y2="6"/>
+        <line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="6" y2="12"/>
+        <line x1="18" y1="12" x2="22" y2="12"/>
+      </svg>
+    </button>
+
+    <button id="panel-toggle" class="panel-toggle" aria-label="打开筛选面板">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="18" x2="20" y2="18"/>
+        <circle cx="8" cy="6" r="2" fill="white"/>
+        <circle cx="16" cy="12" r="2" fill="white"/>
+        <circle cx="10" cy="18" r="2" fill="white"/>
+      </svg>
+    </button>
+
+    <div id="filter-panel" class="filter-panel">
+      <div class="panel-header">
+        <h2>筛选美食</h2>
+        <button id="panel-close" class="panel-close" aria-label="关闭面板">✕</button>
+      </div>
+      <div class="panel-body">
+        <div class="filter-section">
+          <h3 class="filter-section-title">美食类别</h3>
+          <div id="category-tags" class="category-tags"></div>
+        </div>
+        <div class="filter-section">
+          <h3 class="filter-section-title">价格区间</h3>
+          <div class="price-range-wrapper">
+            <div class="price-labels">
+              <span id="price-min-label">¥5</span>
+              <span id="price-max-label">¥50</span>
+            </div>
+            <div class="range-slider" id="price-slider">
+              <div class="range-track" id="range-track"></div>
+              <div class="range-thumb range-thumb-left" id="thumb-left" data-value="5"></div>
+              <div class="range-thumb range-thumb-right" id="thumb-right" data-value="50"></div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-section">
+          <h3 class="filter-section-title queue-section-title" id="queue-toggle">
+            排队时长
+            <span class="collapse-icon" id="queue-collapse-icon">▾</span>
+          </h3>
+          <div id="queue-options" class="queue-options">
+            <label class="queue-option">
+              <input type="checkbox" value="short" checked />
+              <span class="queue-checkmark queue-short"></span>
+              <span class="queue-text">小于10分钟</span>
+            </label>
+            <label class="queue-option">
+              <input type="checkbox" value="medium" checked />
+              <span class="queue-checkmark queue-medium"></span>
+              <span class="queue-text">10-20分钟</span>
+            </label>
+            <label class="queue-option">
+              <input type="checkbox" value="long" checked />
+              <span class="queue-checkmark queue-long"></span>
+              <span class="queue-text">大于20分钟</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+
+    <div id="stall-card" class="stall-card">
+      <button class="card-close" id="card-close">✕</button>
+      <div class="card-image" id="card-image"></div>
+      <div class="card-body">
+        <h3 class="card-title" id="card-title"></h3>
+        <div class="card-rating" id="card-rating"></div>
+        <div class="card-queue" id="card-queue"></div>
+        <p class="card-desc" id="card-desc"></p>
+        <div class="card-price" id="card-price"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
