@@ -34,53 +34,66 @@ export default function TutorialStep({
   const [isRunning, setIsRunning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const intervalRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number>(0);
-  const accumulatedRef = useRef<number>(0);
+
+  const syncStateFromService = useCallback(() => {
+    const running = timingService.isStepRunning(step.id);
+    const elapsed = timingService.getElapsedSeconds(step.id);
+    const saved = timingService.getStepTiming(step.id);
+    setIsRunning(running);
+    setElapsedSeconds(elapsed);
+    setCompleted(saved?.completed ?? false);
+  }, [step.id]);
 
   useEffect(() => {
-    setElapsedSeconds(0);
-    setIsRunning(false);
-    setCompleted(false);
-    accumulatedRef.current = 0;
-    startTimeRef.current = 0;
-
-    const saved = timingService.getStepTiming(step.id);
-    if (saved) {
-      setElapsedSeconds(saved.elapsedSeconds);
-      setCompleted(saved.completed);
-      accumulatedRef.current = saved.elapsedSeconds;
-    }
+    syncStateFromService();
 
     return () => {
       if (intervalRef.current) {
         window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [step.id]);
+  }, [step.id, syncStateFromService]);
 
-  const tick = useCallback(() => {
-    const now = Date.now();
-    const sessionTime = Math.floor((now - startTimeRef.current) / 1000);
-    setElapsedSeconds(accumulatedRef.current + sessionTime);
-  }, []);
+  useEffect(() => {
+    if (isRunning && !intervalRef.current) {
+      intervalRef.current = window.setInterval(() => {
+        setElapsedSeconds(timingService.getElapsedSeconds(step.id));
+      }, 1000);
+    }
+    if (!isRunning && intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    return () => {
+      if (intervalRef.current && !isRunning) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning, step.id]);
+
+  useEffect(() => {
+    const activeId = timingService.getActiveStepId();
+    if (activeId !== null && activeId !== step.id) {
+      if (timingService.isStepRunning(step.id)) {
+        timingService.pauseStep(step.id);
+        syncStateFromService();
+      }
+    }
+  }, [step.id, syncStateFromService]);
 
   const handleStart = () => {
     if (isRunning) return;
+    timingService.startStep(step.id);
     setIsRunning(true);
-    startTimeRef.current = Date.now();
-    intervalRef.current = window.setInterval(tick, 1000);
   };
 
   const handlePause = () => {
     if (!isRunning) return;
+    const total = timingService.pauseStep(step.id);
     setIsRunning(false);
-    if (intervalRef.current) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    const now = Date.now();
-    accumulatedRef.current += Math.floor((now - startTimeRef.current) / 1000);
-    setElapsedSeconds(accumulatedRef.current);
+    setElapsedSeconds(total);
   };
 
   const handleReset = () => {
@@ -88,27 +101,29 @@ export default function TutorialStep({
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    timingService.resetStep(step.id);
     setIsRunning(false);
     setElapsedSeconds(0);
     setCompleted(false);
-    accumulatedRef.current = 0;
-    startTimeRef.current = 0;
   };
 
   const handleComplete = () => {
     if (isRunning) {
       handlePause();
     }
-    const finalTime = elapsedSeconds;
+    const finalTime = timingService.completeStep(step.id);
     setCompleted(true);
-    timingService.recordStep(step.id, finalTime, true);
-    timingService.saveToStorage();
+    setElapsedSeconds(finalTime);
     onStepComplete?.(step.id, finalTime);
   };
 
   const handleNext = () => {
-    if (!completed && elapsedSeconds > 0) {
+    if (isRunning) {
       handleComplete();
+    } else if (!completed && elapsedSeconds > 0) {
+      timingService.completeStep(step.id);
+      setCompleted(true);
+      onStepComplete?.(step.id, elapsedSeconds);
     }
     onNext?.();
   };
@@ -146,9 +161,15 @@ export default function TutorialStep({
 
         <div className={`timer-panel ${isRunning ? 'timer-running' : ''}`}>
           <span className="timer-label">
-            {completed ? '✅ 本步已完成' : step.estimatedTime ? `⏱ 预计用时 ${formatEstimated(step.estimatedTime)}` : '⏱ 本步用时'}
+            {completed
+              ? '✅ 本步已完成'
+              : step.estimatedTime
+              ? `⏱ 预计用时 ${formatEstimated(step.estimatedTime)}`
+              : '⏱ 本步用时'}
           </span>
-          <div className="timer-display">{timingService.formatTimer(elapsedSeconds)}</div>
+          <div className="timer-display">
+            {timingService.formatTimer(elapsedSeconds)}
+          </div>
           <div className="timer-buttons">
             {!isRunning ? (
               <button className="timer-btn" onClick={handleStart}>
@@ -163,7 +184,11 @@ export default function TutorialStep({
               ↺ 重置
             </button>
             {!completed && (
-              <button className="timer-btn" onClick={handleComplete} disabled={elapsedSeconds === 0}>
+              <button
+                className="timer-btn"
+                onClick={handleComplete}
+                disabled={elapsedSeconds === 0}
+              >
                 ✓ 标记完成
               </button>
             )}

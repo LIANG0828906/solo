@@ -76,7 +76,6 @@ export default function CommunityPage({ user }: CommunityPageProps) {
       }
     }
 
-    const allPhotoIds = [...userPhotos, ...defaultPhotos].map((p) => p.id);
     const uniqueIds = new Set<number>();
     const allPhotos: PhotoData[] = [];
 
@@ -99,7 +98,6 @@ export default function CommunityPage({ user }: CommunityPageProps) {
     if (stored) {
       try {
         const userPhotos: PhotoData[] = JSON.parse(stored);
-        const allPhotoIds = [...userPhotos, ...defaultPhotos].map((p) => p.id);
         const uniqueIds = new Set<number>();
         const allPhotos: PhotoData[] = [];
 

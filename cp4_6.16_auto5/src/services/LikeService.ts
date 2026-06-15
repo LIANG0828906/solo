@@ -39,12 +39,28 @@ export class LikeService {
     localStorage.setItem(LIKE_COUNT_KEY, JSON.stringify(counts));
   }
 
+  private getAuthHeaders() {
+    const token = localStorage.getItem('leather_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async getLikeStatus(photoId: number, userId: string): Promise<LikeData> {
     try {
-      const response = await axios.get<LikeData>(
-        `/api/photos/${photoId}/like?userId=${encodeURIComponent(userId)}`
+      const response = await axios.get<{
+        photoId: number;
+        userId: string;
+        liked: boolean;
+        likeCount: number;
+      }>('/api/likes', {
+        params: { photoId, userId },
+        headers: this.getAuthHeaders(),
+      });
+      this.syncLocal(
+        response.data.photoId,
+        response.data.userId,
+        response.data.liked,
+        response.data.likeCount
       );
-      this.syncLocal(photoId, userId, response.data.liked, response.data.likeCount);
       return response.data;
     } catch {
       return this.getLocalLikeStatus(photoId, userId);
@@ -53,10 +69,27 @@ export class LikeService {
 
   async toggleLike(photoId: number, userId: string): Promise<LikeData> {
     try {
-      const response = await axios.post<LikeData>(`/api/photos/${photoId}/like`, {
-        userId,
-      });
-      this.syncLocal(photoId, userId, response.data.liked, response.data.likeCount);
+      const response = await axios.post<{
+        photoId: number;
+        userId: string;
+        liked: boolean;
+        likeCount: number;
+      }>(
+        '/api/like',
+        {
+          photoId,
+          userId,
+        },
+        {
+          headers: this.getAuthHeaders(),
+        }
+      );
+      this.syncLocal(
+        response.data.photoId,
+        response.data.userId,
+        response.data.liked,
+        response.data.likeCount
+      );
       return response.data;
     } catch {
       return this.toggleLocalLike(photoId, userId);
@@ -65,11 +98,17 @@ export class LikeService {
 
   async getLikeCount(photoId: number): Promise<number> {
     try {
-      const response = await axios.get<{ count: number }>(`/api/photos/${photoId}/likes`);
+      const response = await axios.get<{
+        photoId: number;
+        likeCount: number;
+      }>('/api/likes', {
+        params: { photoId },
+        headers: this.getAuthHeaders(),
+      });
       const counts = this.getStoredCounts();
-      counts[photoId] = response.data.count;
+      counts[photoId] = response.data.likeCount;
       this.setStoredCounts(counts);
-      return response.data.count;
+      return response.data.likeCount;
     } catch {
       return this.getStoredCounts()[photoId] || 0;
     }

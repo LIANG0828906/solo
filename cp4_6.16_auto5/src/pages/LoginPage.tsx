@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 
 interface LoginPageProps {
   onLogin: (username: string) => void;
@@ -10,9 +11,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -33,8 +35,41 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       return;
     }
 
+    setLoading(true);
+
+    try {
+      const endpoint = mode === 'login' ? '/api/login' : '/api/register';
+      const response = await axios.post(endpoint, {
+        username: username.trim(),
+        password,
+      });
+
+      if (mode === 'login' && response.data.token) {
+        localStorage.setItem('leather_token', response.data.token);
+      }
+
+      onLogin(username.trim());
+      navigate('/tutorial');
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.error ||
+        (mode === 'login' ? '登录失败，请重试' : '注册失败，请重试');
+
+      if (err?.code === 'ERR_NETWORK') {
+        fallbackLocalAuth();
+        return;
+      }
+
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fallbackLocalAuth = () => {
+    const users = JSON.parse(localStorage.getItem('leather_users') || '{}');
+
     if (mode === 'register') {
-      const users = JSON.parse(localStorage.getItem('leather_users') || '{}');
       if (users[username]) {
         setError('该用户名已被注册');
         return;
@@ -44,13 +79,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     if (mode === 'login') {
-      const users = JSON.parse(localStorage.getItem('leather_users') || '{}');
-      if (users[username] && users[username] !== password) {
-        setError('密码错误');
-        return;
-      }
       if (!users[username]) {
         setError('用户不存在，请先注册');
+        return;
+      }
+      if (users[username] !== password) {
+        setError('密码错误');
         return;
       }
     }
@@ -85,6 +119,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              disabled={loading}
             />
           </div>
 
@@ -97,6 +132,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              disabled={loading}
             />
           </div>
 
@@ -115,8 +151,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
           )}
 
-          <button type="submit" className="leather-btn" style={{ width: '100%' }}>
-            {mode === 'login' ? '登 录' : '注 册'}
+          <button
+            type="submit"
+            className="leather-btn"
+            style={{ width: '100%' }}
+            disabled={loading}
+          >
+            {loading ? '处理中...' : mode === 'login' ? '登 录' : '注 册'}
           </button>
         </form>
 
@@ -126,6 +167,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           className="leather-btn"
           style={{ width: '100%', background: 'linear-gradient(145deg, #C9A961, #A67C52)' }}
           onClick={handleGuestLogin}
+          disabled={loading}
         >
           🎭 游客体验
         </button>
@@ -147,6 +189,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   setMode('register');
                   setError('');
                 }}
+                disabled={loading}
               >
                 立即注册
               </button>
@@ -167,6 +210,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   setMode('login');
                   setError('');
                 }}
+                disabled={loading}
               >
                 去登录
               </button>

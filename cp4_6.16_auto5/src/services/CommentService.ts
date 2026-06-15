@@ -27,14 +27,55 @@ export class CommentService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(comments));
   }
 
+  private getAuthHeaders() {
+    const token = localStorage.getItem('leather_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async getComments(photoId: number): Promise<Comment[]> {
     try {
-      const response = await axios.get<Comment[]>(`/api/photos/${photoId}/comments`);
-      const sorted = this.sortByTimeDesc(response.data);
+      const response = await axios.get<{
+        photoId: number;
+        total: number;
+        comments: Comment[];
+      }>('/api/comments', {
+        params: { photoId },
+        headers: this.getAuthHeaders(),
+      });
+      const sorted = this.sortByTimeDesc(response.data.comments);
       this.cacheComments(photoId, sorted);
       return sorted;
     } catch {
       return this.getLocalComments(photoId);
+    }
+  }
+
+  async submitComment(
+    photoId: number,
+    userId: string,
+    username: string,
+    content: string
+  ): Promise<Comment> {
+    try {
+      const response = await axios.post<{
+        message: string;
+        comment: Comment;
+      }>(
+        '/api/comment',
+        {
+          photoId,
+          userId,
+          username,
+          content,
+        },
+        {
+          headers: this.getAuthHeaders(),
+        }
+      );
+      await this.getComments(photoId);
+      return response.data.comment;
+    } catch {
+      return this.addLocalComment(photoId, userId, username, content);
     }
   }
 
@@ -44,22 +85,14 @@ export class CommentService {
     username: string,
     content: string
   ): Promise<Comment> {
-    try {
-      const response = await axios.post<Comment>(`/api/photos/${photoId}/comments`, {
-        userId,
-        username,
-        content,
-      });
-      await this.getComments(photoId);
-      return response.data;
-    } catch {
-      return this.addLocalComment(photoId, userId, username, content);
-    }
+    return this.submitComment(photoId, userId, username, content);
   }
 
   async deleteComment(photoId: number, commentId: number): Promise<void> {
     try {
-      await axios.delete(`/api/photos/${photoId}/comments/${commentId}`);
+      await axios.delete(`/api/comments/${commentId}`, {
+        headers: this.getAuthHeaders(),
+      });
     } catch {
       // ignore
     }
