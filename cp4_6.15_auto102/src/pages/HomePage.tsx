@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { Coins, Tag, User } from 'lucide-react';
+import { Coins, Tag, Loader2 } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -16,6 +16,14 @@ interface Item {
   stock: number;
   status: 'pending' | 'approved' | 'exchanged';
   createdAt: string;
+}
+
+interface ItemsResponse {
+  items: Item[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 const AVATAR_COLORS = [
@@ -48,63 +56,119 @@ function SkeletonCard() {
 
 export default function HomePage() {
   const [items, setItems] = useState<Item[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+
+  const loadItems = useCallback(async (pageNum: number, isInitial: boolean = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    if (isInitial) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      const res = await axios.get<{ success: boolean; data: ItemsResponse }>('/api/items', {
+        params: { page: pageNum, limit: 8 },
+      });
+      const data = res.data.data;
+      setItems(prev => isInitial ? data.items : [...prev, ...data.items]);
+      setHasMore(data.hasMore);
+      setPage(pageNum);
+    } catch {
+      if (isInitial) setItems([]);
+    } finally {
+      if (isInitial) setLoading(false);
+      else setLoadingMore(false);
+      loadingRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
-    axios.get<Item[]>('/api/items')
-      .then(res => setItems(res.data.items || res.data))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, []);
+    loadItems(1, true);
+  }, [loadItems]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadItems(page + 1);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    const target = observerRef.current;
+    if (target) observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [hasMore, loading, loadingMore, page, loadItems]);
 
   if (loading) {
     return (
-      <div className="masonry-grid p-4 max-w-6xl mx-auto">
-        {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
+      <div className="masonry-grid p-4 md:p-6 max-w-6xl mx-auto">
+        {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
       </div>
     );
   }
 
   return (
-    <div className="masonry-grid p-4 max-w-6xl mx-auto">
-      {items.map((item, index) => (
-        <div
-          key={item.id}
-          className="masonry-item opacity-0 animate-slideInUp"
-          style={{ animationDelay: `${index * 60}ms` }}
-        >
-          <Link to={`/item/${item.id}`}>
-            <div className="card-hover bg-card rounded-card overflow-hidden">
-              <div className="relative w-full overflow-hidden">
-                <img
-                  src={item.images[0] || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=a+plain+light+gray+placeholder+square+image&image_size=square_hd'}
-                  alt={item.title}
-                  className="w-full h-auto object-cover"
-                />
-                <span className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-xs font-medium text-gray-600 px-2 py-1 rounded-full">
-                  <Tag size={12} />{item.category}
-                </span>
-                <span className="absolute top-2 right-2 flex items-center gap-1 gradient-primary text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-                  <Coins size={12} />{item.points}
-                </span>
-              </div>
-              <div className="p-3">
-                <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">
-                  {item.title}
-                </h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`${getAvatarColor(item.publisherName)} w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                    {item.publisherName.charAt(0).toUpperCase()}
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="masonry-grid">
+        {items.map((item, index) => (
+          <div
+            key={item.id}
+            className="masonry-item opacity-0 animate-slideInUp"
+            style={{ animationDelay: `${index * 60}ms` }}
+          >
+            <Link to={`/item/${item.id}`} className="block">
+              <div className="bg-card rounded-card overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 ease-out active:scale-[0.98]">
+                <div className="relative w-full overflow-hidden">
+                  <img
+                    src={item.images[0] || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=a+plain+light+gray+placeholder+square+image&image_size=square_hd'}
+                    alt={item.title}
+                    className="w-full h-auto object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-xs font-medium text-gray-600 px-2 py-1 rounded-full shadow-sm">
+                    <Tag size={12} />{item.category}
                   </span>
-                  <span className="text-xs text-gray-500 truncate flex items-center gap-1">
-                    <User size={10} />{item.publisherName}
+                  <span className="absolute top-2 right-2 flex items-center gap-1 gradient-primary text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                    <Coins size={12} />{item.points}
                   </span>
                 </div>
+                <div className="p-3">
+                  <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">
+                    {item.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`${getAvatarColor(item.publisherName)} w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                      {item.publisherName.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-500 truncate">
+                      {item.publisherName}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </Link>
-        </div>
-      ))}
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      <div ref={observerRef} className="flex justify-center py-6">
+        {loadingMore && (
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        )}
+        {!hasMore && items.length > 0 && (
+          <p className="text-sm text-gray-400">— 已经到底啦 —</p>
+        )}
+      </div>
     </div>
   );
 }

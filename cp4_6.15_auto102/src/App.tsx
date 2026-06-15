@@ -4,6 +4,7 @@ import HomePage from '@/pages/HomePage';
 import AddItemPage from '@/pages/AddItemPage';
 import ItemDetailPage from '@/pages/ItemDetailPage';
 import WalletPage from '@/pages/WalletPage';
+import Sidebar from '@/components/Sidebar';
 import { useStore } from '@/store';
 
 function Navbar() {
@@ -103,16 +104,19 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-surface font-body">
-        <Navbar />
-        <main className="pb-16 sm:pb-0">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/add" element={<AddItemPage />} />
-            <Route path="/item/:id" element={<ItemDetailPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-          </Routes>
-        </main>
-        <BottomNav />
+        <Sidebar />
+        <div className="md:ml-52">
+          <Navbar />
+          <main className="pb-16 sm:pb-0">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/add" element={<AddItemPage />} />
+              <Route path="/item/:id" element={<ItemDetailPage />} />
+              <Route path="/wallet" element={<WalletPage />} />
+            </Routes>
+          </main>
+          <BottomNav />
+        </div>
       </div>
     </Router>
   );

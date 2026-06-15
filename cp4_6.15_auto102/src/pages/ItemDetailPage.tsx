@@ -27,6 +27,17 @@ const categoryColors: Record<string, string> = {
   '其他': 'bg-gray-100 text-gray-700',
 };
 
+const AVATAR_COLORS = [
+  'bg-primary', 'bg-green-400', 'bg-orange-400',
+  'bg-purple-400', 'bg-pink-400', 'bg-teal-400',
+];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 export default function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -34,15 +45,14 @@ export default function ItemDetailPage() {
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const [scale, setScale] = useState(1);
-  const touchRef = useRef<{ startX: number; startY: number; dist: number; initialDist: number }>({
-    startX: 0, startY: 0, dist: 0, initialDist: 0,
-  });
+  const touchRef = useRef({ startX: 0, startY: 0, dist: 0, initialDist: 0 });
 
   useEffect(() => {
     if (!id) return;
     axios.get(`/api/items/${id}`).then((res) => {
-      setItem(res.data.item || res.data);
+      setItem(res.data.data?.item || res.data.item || res.data);
       setCurrent(0);
+      setScale(1);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -178,8 +188,8 @@ export default function ItemDetailPage() {
             {item.publisherAvatar ? (
               <img src={item.publisherAvatar} alt="" className="w-10 h-10 rounded-full object-cover" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                {item.publisherName.charAt(0)}
+              <div className={`w-10 h-10 rounded-full ${getAvatarColor(item.publisherName)} flex items-center justify-center text-white font-bold`}>
+                {item.publisherName.charAt(0).toUpperCase()}
               </div>
             )}
             <div>

@@ -23,24 +23,25 @@ const PLATFORMS = [
   { name: '微博', Icon: AtSign, color: '#E6162D' },
 ];
 
-function lerpColor(a: number[], b: number[], t: number) {
+function lerpColor(a: number[], b: number[], t: number): number[] {
   return a.map((v, i) => Math.round(v + (b[i] - v) * t));
 }
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
-    axios.get('/api/wallet/currentUser').then(res => setWallet(res.data.wallet || res.data));
+    axios.get('/api/wallet/currentUser').then(res => {
+      setWallet(res.data.data.wallet);
+      setLoading(false);
+    });
   }, []);
-
-  const maxAbs = wallet
-    ? Math.max(...wallet.weeklyChanges.map(d => Math.abs(d.change)), 1)
-    : 1;
 
   const blue = [107, 183, 240];
   const orange = [249, 115, 22];
+  const maxAbs = wallet ? Math.max(...wallet.weeklyChanges.map(d => Math.abs(d.change)), 1) : 1;
 
   return (
     <div className="min-h-screen bg-surface p-4 pb-24 font-body">
@@ -50,20 +51,31 @@ export default function WalletPage() {
       >
         <p className="text-sm opacity-90">我的积分</p>
         <p className="font-display font-bold text-4xl mt-2">
-          {wallet?.balance ?? '—'}
+          {loading ? '—' : wallet?.balance}
         </p>
       </div>
 
       <div className="mt-6 rounded-card bg-card p-4 shadow-sm">
         <h2 className="font-display font-semibold text-base mb-4">近7天积分变化</h2>
         <div className="flex items-end justify-between gap-2" style={{ height: 140 }}>
-          {wallet?.weeklyChanges.map((d, i) => {
+          {loading ? [...Array(7)].map((_, i) => (
+            <div key={i} className="flex flex-col items-center flex-1 gap-1">
+              <div className="w-8 h-3 bg-gray-100 rounded animate-pulse" />
+              <div className="w-full flex-1 flex items-end">
+                <div className="w-full bg-gray-100 rounded-sm animate-pulse" style={{ height: `${40 + Math.random() * 60}%` }} />
+              </div>
+              <div className="w-6 h-2 bg-gray-100 rounded animate-pulse" />
+            </div>
+          )) : wallet?.weeklyChanges.map((d, i) => {
             const t = i / 6;
             const [r, g, b] = lerpColor(blue, orange, t);
             const pct = Math.abs(d.change) / maxAbs * 100;
             return (
-              <div key={d.date} className="flex flex-col items-center flex-1" style={{ height: '100%' }}>
-                <div className="relative w-full flex-1 flex flex-col justify-center">
+              <div key={d.date} className="flex flex-col items-center flex-1 h-full">
+                <p className="text-[11px] font-medium mb-1" style={{ color: `rgb(${r},${g},${b})` }}>
+                  {d.change > 0 ? '+' : ''}{d.change}
+                </p>
+                <div className="w-full flex-1 flex items-end">
                   <div
                     className="w-full rounded-sm animate-growUp"
                     style={{
@@ -71,26 +83,31 @@ export default function WalletPage() {
                       height: `${pct}%`,
                       minHeight: d.change !== 0 ? 4 : 0,
                       animationDelay: `${i * 0.1}s`,
-                      transformOrigin: d.change >= 0 ? 'bottom' : 'top',
-                      alignSelf: d.change >= 0 ? 'flex-end' : 'flex-start',
+                      transformOrigin: 'bottom',
                     }}
                   />
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">
                   {d.date.slice(5)}
                 </p>
-                <p className="text-[11px] font-medium" style={{ color: `rgb(${r},${g},${b})` }}>
-                  {d.change > 0 ? '+' : ''}{d.change}
-                </p>
               </div>
             );
-          )}
+          })}
         </div>
       </div>
 
       <div className="mt-6 rounded-card bg-card p-4 shadow-sm">
         <h2 className="font-display font-semibold text-base mb-3">积分流水</h2>
-        {wallet?.transactions.map((tx, idx) => (
+        {loading ? [...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3">
+            <div className="w-5 h-5 rounded-full bg-gray-100 animate-pulse shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+              <div className="h-2 w-16 bg-gray-100 rounded animate-pulse" />
+            </div>
+            <div className="h-3 w-10 bg-gray-100 rounded animate-pulse shrink-0" />
+          </div>
+        )) : wallet?.transactions.map((tx, idx) => (
           <div key={tx.id}>
             <div className="flex items-center gap-3 py-3">
               {tx.type === 'income' ? (
@@ -143,10 +160,10 @@ export default function WalletPage() {
                   className="flex flex-col items-center gap-2 group"
                 >
                   <span
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white transition-transform duration-200 group-hover:scale-[1.15]"
-                    style={{ background: color, boxShadow: `0 0 0 0 ${color}` }}
-                    onMouseEnter={e => (e.currentTarget.style.boxShadow = `0 0 12px ${color}`)}
-                    onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 0 0 0 ${color}`)}
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 group-hover:scale-[1.15]"
+                    style={{ background: color }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 0 16px ${color}`; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
                   >
                     <Icon className="w-6 h-6" />
                   </span>
