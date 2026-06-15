@@ -109,14 +109,40 @@ app.get('/api/ideas', (req, res) => {
 });
 
 app.get('/api/matrix', (req, res) => {
-  const matrixData = ideas.map(idea => ({
-    id: idea.id,
-    title: idea.title,
-    group: idea.group,
-    color: groupColors[idea.group] || '#999',
-    ...idea.matrixScore
-  }));
+  const matrixData = ideas.map(idea => {
+    const score = calculateMatrixScore(idea);
+    return {
+      id: idea.id,
+      title: idea.title,
+      group: idea.group,
+      color: groupColors[idea.group] || '#999',
+      feasibility: idea.matrixScore.feasibility || score.feasibility,
+      influence: idea.matrixScore.influence || score.influence
+    };
+  });
+  matrixData.sort((a, b) => (b.feasibility + b.influence) - (a.feasibility + a.influence));
   res.json(matrixData);
+});
+
+app.get('/api/matrix-scores', (req, res) => {
+  const scores = ideas.map(idea => {
+    const baseScore = calculateMatrixScore(idea);
+    const finalFeasibility = idea.matrixScore.feasibility > 0 ? idea.matrixScore.feasibility : baseScore.feasibility;
+    const finalInfluence = idea.matrixScore.influence > 0 ? idea.matrixScore.influence : baseScore.influence;
+    return {
+      id: idea.id,
+      title: idea.title,
+      likes: idea.likes,
+      commentsCount: idea.comments.length,
+      group: idea.group,
+      color: groupColors[idea.group] || '#999',
+      feasibility: finalFeasibility,
+      influence: finalInfluence,
+      totalScore: finalFeasibility + finalInfluence
+    };
+  });
+  scores.sort((a, b) => b.totalScore - a.totalScore);
+  res.json(scores);
 });
 
 const PORT = process.env.PORT || 3001;
