@@ -518,40 +518,57 @@ body {
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
-.lightness-slider {
-  width: 180px;
-  height: 16px;
+.sat-light-container {
   position: relative;
-  cursor: pointer;
+  width: 160px;
 }
 
-.lightness-track {
-  width: 100%;
-  height: 100%;
+.sat-light-canvas {
+  width: 160px;
+  height: 100px;
   border-radius: 8px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  cursor: crosshair;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: block;
 }
 
-.lightness-thumb {
-  position: absolute;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 0.2s ease;
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 0 2px;
 }
 
-.lightness-thumb:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+.slider-label-min {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.slider-label-vert {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .color-preview {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.color-info-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.color-info-item {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .color-preview-box {

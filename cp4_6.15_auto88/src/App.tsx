@@ -40,8 +40,10 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const animationFrameRef = useRef<number | null>(null);
+  const particleAnimationRef = useRef<number | null>(null);
+  const scanAnimationRef = useRef<number | null>(null);
   const isColorBackgroundRef = useRef(false);
+  const scanProgressRef = useRef(0);
 
   const templates = backgroundGenerator.getPresetTemplates();
 
@@ -50,10 +52,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     imageProcessor.loadModel();
+    return () => {
+      imageProcessor.dispose();
+      if (particleAnimationRef.current) {
+        cancelAnimationFrame(particleAnimationRef.current);
+      }
+      if (scanAnimationRef.current) {
+        cancelAnimationFrame(scanAnimationRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (uploadedImage && segmentation && backgroundImage) {
+    if (uploadedImage && segmentation && backgroundImage && !isScanning) {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -69,10 +80,10 @@ const App: React.FC = () => {
         options
       );
     }
-  }, [uploadedImage, segmentation, backgroundImage, options]);
+  }, [uploadedImage, segmentation, backgroundImage, options, isScanning]);
 
   useEffect(() => {
-    if (isColorBackgroundRef.current && uploadedImage && segmentation) {
+    if (isColorBackgroundRef.current && uploadedImage && segmentation && backgroundImage) {
       const animateParticles = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -119,14 +130,15 @@ const App: React.FC = () => {
           ctx.fill();
         });
 
-        animationFrameRef.current = requestAnimationFrame(animateParticles);
+        particleAnimationRef.current = requestAnimationFrame(animateParticles);
       };
 
-      animationFrameRef.current = requestAnimationFrame(animateParticles);
+      particleAnimationRef.current = requestAnimationFrame(animateParticles);
 
       return () => {
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
+        if (particleAnimationRef.current) {
+          cancelAnimationFrame(particleAnimationRef.current);
+          particleAnimationRef.current = null;
         }
       };
     }
@@ -166,9 +178,15 @@ const App: React.FC = () => {
         setUploadedImage(img);
         setIsUploading(false);
         setIsProcessing(true);
+        setOptions(prev => ({
+          ...prev,
+          personOffset: { x: 0, y: 0 }
+        }));
 
         try {
-          const segResult = await imageProcessor.segmentPerson(img);
+          const segResult = await imageProcessor.segmentPerson(img, {
+            segmentationThreshold: 0.5
+          });
           setSegmentation(segResult);
           setIsProcessing(false);
 
@@ -195,12 +213,16 @@ const App: React.FC = () => {
     setSelectedTemplateId(template.id);
     isColorBackgroundRef.current = false;
     particlesRef.current = [];
+    if (particleAnimationRef.current) {
+      cancelAnimationFrame(particleAnimationRef.current);
+      particleAnimationRef.current = null;
+    }
 
     setBackgroundImage(null);
-    setTimeout(async () => {
+    requestAnimationFrame(async () => {
       const bg = await backgroundGenerator.generateByStyle(template.style, CANVAS_WIDTH, CANVAS_HEIGHT);
       setBackgroundImage(bg);
-    }, 50);
+    });
   }, []);
 
   const handleSelectColor = useCallback(async (color: string) => {
@@ -210,16 +232,20 @@ const App: React.FC = () => {
     particlesRef.current = [];
 
     setBackgroundImage(null);
-    setTimeout(async () => {
+    requestAnimationFrame(async () => {
       const bg = await backgroundGenerator.generateFromColor(color, CANVAS_WIDTH, CANVAS_HEIGHT);
       setBackgroundImage(bg);
-    }, 50);
+    });
   }, []);
 
   const handleUploadBackground = useCallback(async (file: File) => {
     setSelectedTemplateId(null);
     isColorBackgroundRef.current = false;
     particlesRef.current = [];
+    if (particleAnimationRef.current) {
+      cancelAnimationFrame(particleAnimationRef.current);
+      particleAnimationRef.current = null;
+    }
 
     try {
       const bg = await backgroundGenerator.generateFromUpload(file);
@@ -238,26 +264,65 @@ const App: React.FC = () => {
     }
 
     setIsScanning(true);
+    scanProgressRef.current = 0;
 
-    setTimeout(async () => {
-      try {
-        const blob = await imageProcessor.exportToPNG(canvas, { width: 1920, height: 1080 });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `virtual-background-${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error('导出失败:', err);
-        alert('导出失败，请重试');
-      } finally {
-        setTimeout(() => setIsScanning(false), 500);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const scanStartTime = performance.now();
+    const scanDuration = 1500;
+
+    const animateScan = async () => {
+      const elapsed = performance.now() - scanStartTime;
+      scanProgressRef.current = Math.min(1, elapsed / scanDuration);
+
+      if (uploadedImage && segmentation && backgroundImage) {
+        await imageProcessor.compositeImage(
+          ctx,
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT,
+          uploadedImage,
+          backgroundImage,
+          segmentation,
+          options
+        );
       }
-    }, 1500);
-  }, [uploadedImage, segmentation]);
+
+      imageProcessor.drawScanLine(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, scanProgressRef.current);
+
+      if (scanProgressRef.current < 1) {
+        scanAnimationRef.current = requestAnimationFrame(animateScan);
+      } else {
+        setTimeout(async () => {
+          try {
+            const blob = await imageProcessor.exportToPNG(canvas, {
+              maxWidth: 1920,
+              maxHeight: 1080,
+              maintainAspectRatio: true
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `virtual-background-${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error('导出失败:', err);
+            alert('导出失败，请重试');
+          } finally {
+            setTimeout(() => {
+              setIsScanning(false);
+              scanAnimationRef.current = null;
+            }, 300);
+          }
+        }, 200);
+      }
+    };
+
+    scanAnimationRef.current = requestAnimationFrame(animateScan);
+  }, [uploadedImage, segmentation, backgroundImage, options]);
 
   const handleApplyToMeeting = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -304,20 +369,33 @@ const App: React.FC = () => {
 
   const handlePersonDragStart = useCallback((e: React.MouseEvent) => {
     if (!uploadedImage || !segmentation) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     setIsDraggingPerson(true);
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / rect.width;
+    const mouseY = (e.clientY - rect.top) / rect.height;
     setDragStart({
-      x: e.clientX - options.personOffset.x,
-      y: e.clientY - options.personOffset.y
+      x: mouseX - options.personOffset.x,
+      y: mouseY - options.personOffset.y
     });
   }, [uploadedImage, segmentation, options.personOffset]);
 
   const handlePersonDragMove = useCallback((e: React.MouseEvent) => {
     if (!isDraggingPerson) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / rect.width;
+    const mouseY = (e.clientY - rect.top) / rect.height;
+
     setOptions(prev => ({
       ...prev,
       personOffset: {
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        x: mouseX - dragStart.x,
+        y: mouseY - dragStart.y
       }
     }));
   }, [isDraggingPerson, dragStart]);
@@ -342,6 +420,9 @@ const App: React.FC = () => {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
   }, []);
+
+  const offsetXPercent = Math.round(options.personOffset.x * 100);
+  const offsetYPercent = Math.round(options.personOffset.y * 100);
 
   return (
     <div className="app-container">
@@ -434,14 +515,13 @@ const App: React.FC = () => {
                 ref={canvasRef}
                 width={CANVAS_WIDTH}
                 height={CANVAS_HEIGHT}
-                className={`main-canvas ${isScanning ? 'scanning' : ''}`}
+                className="main-canvas"
                 onMouseDown={handlePersonDragStart}
                 onMouseMove={handlePersonDragMove}
                 onMouseUp={handlePersonDragEnd}
                 onMouseLeave={handlePersonDragEnd}
                 style={{ cursor: isDraggingPerson ? 'grabbing' : 'grab' }}
               />
-              {isScanning && <div className="scan-line" />}
               {showCopied && <div className="copied-toast">✅ 已复制到剪贴板</div>}
             </div>
           )}
@@ -456,13 +536,13 @@ const App: React.FC = () => {
                 </svg>
                 重新上传
               </button>
-              <button className="btn-primary" onClick={handleExport}>
+              <button className="btn-primary" onClick={handleExport} disabled={isScanning}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                导出图片 (1920×1080)
+                {isScanning ? '导出中...' : '导出图片 (自适应分辨率)'}
               </button>
               <button className="btn-secondary" onClick={handleApplyToMeeting}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -574,7 +654,7 @@ const App: React.FC = () => {
                       <span className="offset-hint">（拖拽画布调整）</span>
                     </label>
                     <span className="slider-value">
-                      X: {Math.round(options.personOffset.x)} Y: {Math.round(options.personOffset.y)}
+                      X: {offsetXPercent}% Y: {offsetYPercent}%
                     </span>
                   </div>
                   <div className="offset-control">
@@ -584,7 +664,7 @@ const App: React.FC = () => {
                       <div
                         className="crosshair-dot"
                         style={{
-                          transform: `translate(${Math.max(-50, Math.min(50, options.personOffset.x / 2))}px, ${Math.max(-50, Math.min(50, options.personOffset.y / 2))}px)`
+                          transform: `translate(${Math.max(-50, Math.min(50, options.personOffset.x * 100))}px, ${Math.max(-50, Math.min(50, options.personOffset.y * 100))}px)`
                         }}
                       />
                     </div>

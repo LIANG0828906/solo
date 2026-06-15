@@ -19,13 +19,27 @@ const BgSelector: React.FC<BgSelectorProps> = ({
   selectedColor
 }) => {
   const [hue, setHue] = useState(0);
+  const [saturation, setSaturation] = useState(80);
   const [lightness, setLightness] = useState(50);
   const colorPickerRef = useRef<HTMLCanvasElement>(null);
+  const satLightRef = useRef<HTMLCanvasElement>(null);
   const [isDraggingHue, setIsDraggingHue] = useState(false);
-  const [isDraggingLightness, setIsDraggingLightness] = useState(false);
+  const [isDraggingSatLight, setIsDraggingSatLight] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentColor = `hsl(${hue}, 80%, ${lightness}%)`;
+  const currentColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+  const hslToHex = useCallback((h: number, s: number, l: number): string => {
+    s /= 100;
+    l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }, []);
 
   const hexToHsl = useCallback((hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -57,6 +71,7 @@ const BgSelector: React.FC<BgSelectorProps> = ({
     if (selectedColor.startsWith('#')) {
       const hsl = hexToHsl(selectedColor);
       setHue(hsl.h);
+      setSaturation(hsl.s);
       setLightness(hsl.l);
     }
   }, [selectedColor, hexToHsl]);
@@ -83,7 +98,7 @@ const BgSelector: React.FC<BgSelectorProps> = ({
       ctx.arc(centerX, centerY, outerRadius, startAngle, endAngle);
       ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
       ctx.closePath();
-      ctx.fillStyle = `hsl(${angle}, 80%, 50%)`;
+      ctx.fillStyle = `hsl(${angle}, 100%, 50%)`;
       ctx.fill();
     }
 
@@ -100,14 +115,43 @@ const BgSelector: React.FC<BgSelectorProps> = ({
     ctx.stroke();
   }, [hue]);
 
+  useEffect(() => {
+    const canvas = satLightRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d')!;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    for (let x = 0; x < width; x++) {
+      const sat = (x / width) * 100;
+      for (let y = 0; y < height; y++) {
+        const light = 100 - (y / height) * 100;
+        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+
+    const indicatorX = (saturation / 100) * width;
+    const indicatorY = (1 - lightness / 100) * height;
+
+    ctx.beginPath();
+    ctx.arc(indicatorX, indicatorY, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }, [hue, saturation, lightness]);
+
   const handleColorPickerMouseDown = (e: React.MouseEvent) => {
     setIsDraggingHue(true);
     updateHueFromMouse(e.nativeEvent);
   };
 
-  const handleLightnessMouseDown = (e: React.MouseEvent) => {
-    setIsDraggingLightness(true);
-    updateLightnessFromMouse(e.nativeEvent);
+  const handleSatLightMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingSatLight(true);
+    updateSatLightFromMouse(e.nativeEvent);
   };
 
   const updateHueFromMouse = useCallback((e: MouseEvent) => {
@@ -123,14 +167,16 @@ const BgSelector: React.FC<BgSelectorProps> = ({
     setHue(Math.round(angle));
   }, []);
 
-  const updateLightnessFromMouse = useCallback((e: MouseEvent) => {
-    const slider = document.getElementById('lightness-slider');
-    if (!slider) return;
+  const updateSatLightFromMouse = useCallback((e: MouseEvent) => {
+    const canvas = satLightRef.current;
+    if (!canvas) return;
 
-    const rect = slider.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setLightness(Math.round(percentage));
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(canvas.width, e.clientX - rect.left));
+    const y = Math.max(0, Math.min(canvas.height, e.clientY - rect.top));
+
+    setSaturation(Math.round((x / canvas.width) * 100));
+    setLightness(Math.round((1 - y / canvas.height) * 100));
   }, []);
 
   useEffect(() => {
@@ -138,20 +184,20 @@ const BgSelector: React.FC<BgSelectorProps> = ({
       if (isDraggingHue) {
         updateHueFromMouse(e);
       }
-      if (isDraggingLightness) {
-        updateLightnessFromMouse(e);
+      if (isDraggingSatLight) {
+        updateSatLightFromMouse(e);
       }
     };
 
     const handleMouseUp = () => {
-      if (isDraggingHue || isDraggingLightness) {
-        onSelectColor(currentColor);
+      if (isDraggingHue || isDraggingSatLight) {
+        onSelectColor(hslToHex(hue, saturation, lightness));
       }
       setIsDraggingHue(false);
-      setIsDraggingLightness(false);
+      setIsDraggingSatLight(false);
     };
 
-    if (isDraggingHue || isDraggingLightness) {
+    if (isDraggingHue || isDraggingSatLight) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -160,7 +206,7 @@ const BgSelector: React.FC<BgSelectorProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDraggingHue, isDraggingLightness, updateHueFromMouse, updateLightnessFromMouse, currentColor, onSelectColor]);
+  }, [isDraggingHue, isDraggingSatLight, updateHueFromMouse, updateSatLightFromMouse, hue, saturation, lightness, hslToHex, onSelectColor]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -204,28 +250,36 @@ const BgSelector: React.FC<BgSelectorProps> = ({
           className="color-wheel"
           onMouseDown={handleColorPickerMouseDown}
         />
-        <div
-          id="lightness-slider"
-          className="lightness-slider"
-          onMouseDown={handleLightnessMouseDown}
-        >
-          <div
-            className="lightness-track"
-            style={{
-              background: `linear-gradient(to right, hsl(${hue}, 80%, 0%), hsl(${hue}, 80%, 50%), hsl(${hue}, 80%, 100%))`
-            }}
+        <div className="sat-light-container">
+          <canvas
+            ref={satLightRef}
+            width={160}
+            height={100}
+            className="sat-light-canvas"
+            onMouseDown={handleSatLightMouseDown}
           />
-          <div
-            className="lightness-thumb"
-            style={{ left: `${lightness}%` }}
-          />
+          <div className="slider-labels">
+            <span className="slider-label-min">饱和度 →</span>
+            <span className="slider-label-vert">亮 ↑</span>
+          </div>
         </div>
         <div className="color-preview">
           <div
             className="color-preview-box"
             style={{ backgroundColor: currentColor }}
           />
-          <span className="color-value">{currentColor}</span>
+          <span className="color-value">{hslToHex(hue, saturation, lightness)}</span>
+        </div>
+        <div className="color-info-row">
+          <span className="color-info-item">
+            H: {hue}°
+          </span>
+          <span className="color-info-item">
+            S: {saturation}%
+          </span>
+          <span className="color-info-item">
+            L: {lightness}%
+          </span>
         </div>
       </div>
 

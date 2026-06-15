@@ -14,11 +14,18 @@ export interface ProcessOptions {
   personOffset: { x: number; y: number };
 }
 
+export interface ExportOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  maintainAspectRatio?: boolean;
+}
+
 class ImageProcessor {
   private model: bodyPix.BodyPix | null = null;
   private modelLoadingPromise: Promise<void> | null = null;
   private animationFrameId: number | null = null;
   private pendingComposite: boolean = false;
+  private isGPUBackend: boolean = false;
 
   async loadModel(): Promise<void> {
     if (this.model) return;
@@ -26,38 +33,83 @@ class ImageProcessor {
 
     this.modelLoadingPromise = (async () => {
       await tf.ready();
-      if (tf.getBackend() !== 'webgl') {
-        try {
+      
+      try {
+        if (tf.getBackend() !== 'webgl') {
           await tf.setBackend('webgl');
-        } catch {
-          console.warn('WebGL not available, using CPU backend');
+          await tf.ready();
+        }
+        this.isGPUBackend = tf.getBackend() === 'webgl';
+        console.log(`使用 ${this.isGPUBackend ? 'GPU (WebGL)' : 'CPU'} 后端进行推理`);
+      } catch {
+        console.warn('WebGL GPU 不可用，回退到 CPU 后端');
+        this.isGPUBackend = false;
+        try {
+          await tf.setBackend('cpu');
+          await tf.ready();
+        } catch (cpuError) {
+          console.error('CPU 后端也不可用:', cpuError);
+          throw new Error('无法初始化 TensorFlow.js 后端');
         }
       }
       
-      this.model = await bodyPix.load({
-        architecture: 'ResNet50',
-        outputStride: 16,
-        quantBytes: 2
-      });
+      try {
+        if (this.isGPUBackend) {
+          this.model = await bodyPix.load({
+            architecture: 'ResNet50',
+            outputStride: 16,
+            quantBytes: 2
+          });
+        } else {
+          this.model = await bodyPix.load({
+            architecture: 'MobileNetV1',
+            outputStride: 16,
+            multiplier: 0.75,
+            quantBytes: 2
+          });
+        }
+      } catch (loadError) {
+        console.warn('主模型加载失败，尝试加载轻量模型:', loadError);
+        this.model = await bodyPix.load({
+          architecture: 'MobileNetV1',
+          outputStride: 16,
+          multiplier: 0.5,
+          quantBytes: 2
+        });
+      }
     })();
 
     return this.modelLoadingPromise;
   }
 
-  async segmentPerson(image: HTMLImageElement): Promise<SegmentationResult> {
+  private async ensureModel(): Promise<bodyPix.BodyPix> {
     if (!this.model) {
       await this.loadModel();
     }
+    if (!this.model) {
+      throw new Error('模型加载失败');
+    }
+    return this.model;
+  }
+
+  async segmentPerson(
+    image: HTMLImageElement,
+    options: { segmentationThreshold?: number } = {}
+  ): Promise<SegmentationResult> {
+    const model = await this.ensureModel();
+
+    const segmentationThreshold = options.segmentationThreshold ?? 0.5;
 
     const startTime = performance.now();
-    const segmentation = await this.model!.segmentPerson(image, {
+    
+    const segmentation = await model.segmentPerson(image, {
       flipHorizontal: false,
-      internalResolution: 'medium',
-      segmentationThreshold: 0.5
+      internalResolution: this.isGPUBackend ? 'medium' : 'low',
+      segmentationThreshold
     });
     
     const inferenceTime = performance.now() - startTime;
-    console.log(`人像分割推理时间: ${inferenceTime.toFixed(2)}ms`);
+    console.log(`人像分割推理时间: ${inferenceTime.toFixed(2)}ms (${this.isGPUBackend ? 'GPU' : 'CPU'})`);
 
     const { width, height } = image;
     const mask = new Uint8ClampedArray(width * height * 4);
@@ -77,7 +129,12 @@ class ImageProcessor {
     return { mask, width, height, data };
   }
 
-  private applyGaussianBlur(data: Float32Array, width: number, height: number, radius: number): Float32Array {
+  private applyGaussianBlur(
+    data: Float32Array,
+    width: number,
+    height: number,
+    radius: number
+  ): Float32Array {
     if (radius <= 0) return data;
     
     const result = new Float32Array(data.length);
@@ -155,15 +212,48 @@ class ImageProcessor {
           ctx.fillStyle = background;
           ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         } else {
-          ctx.drawImage(background, 0, 0, canvasWidth, canvasHeight);
+          const bgRatio = background.width / background.height;
+          const canvasRatio = canvasWidth / canvasHeight;
+          let bgDrawWidth: number;
+          let bgDrawHeight: number;
+          let bgDrawX: number;
+          let bgDrawY: number;
+
+          if (bgRatio > canvasRatio) {
+            bgDrawHeight = canvasHeight;
+            bgDrawWidth = canvasHeight * bgRatio;
+            bgDrawX = (canvasWidth - bgDrawWidth) / 2;
+            bgDrawY = 0;
+          } else {
+            bgDrawWidth = canvasWidth;
+            bgDrawHeight = canvasWidth / bgRatio;
+            bgDrawX = 0;
+            bgDrawY = (canvasHeight - bgDrawHeight) / 2;
+          }
+
+          ctx.drawImage(background, bgDrawX, bgDrawY, bgDrawWidth, bgDrawHeight);
         }
 
-        const scale = options.personScale;
-        const offsetX = options.personOffset.x;
-        const offsetY = options.personOffset.y;
+        const personRatio = segmentation.width / segmentation.height;
+        const canvasRatio = canvasWidth / canvasHeight;
 
-        const scaledWidth = segmentation.width * scale;
-        const scaledHeight = segmentation.height * scale;
+        let baseWidth: number;
+        let baseHeight: number;
+
+        if (personRatio > canvasRatio) {
+          baseWidth = canvasWidth * 0.6;
+          baseHeight = baseWidth / personRatio;
+        } else {
+          baseHeight = canvasHeight * 0.7;
+          baseWidth = baseHeight * personRatio;
+        }
+
+        const scaledWidth = baseWidth * options.personScale;
+        const scaledHeight = baseHeight * options.personScale;
+
+        const offsetX = options.personOffset.x * canvasWidth;
+        const offsetY = options.personOffset.y * canvasHeight;
+
         const drawX = (canvasWidth - scaledWidth) / 2 + offsetX;
         const drawY = (canvasHeight - scaledHeight) / 2 + offsetY;
 
@@ -202,16 +292,70 @@ class ImageProcessor {
     requestAnimationFrame(renderFrame);
   }
 
+  drawScanLine(
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number,
+    progress: number
+  ): void {
+    const scanY = progress * canvasHeight;
+    
+    const gradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
+    gradient.addColorStop(0, 'rgba(233, 69, 96, 0)');
+    gradient.addColorStop(0.3, 'rgba(233, 69, 96, 0.6)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
+    gradient.addColorStop(0.7, 'rgba(233, 69, 96, 0.6)');
+    gradient.addColorStop(1, 'rgba(233, 69, 96, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, scanY - 20, canvasWidth, 40);
+    
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(233, 69, 96, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, scanY);
+    ctx.lineTo(canvasWidth, scanY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   async exportToPNG(
     canvas: HTMLCanvasElement,
-    resolution: { width: number; height: number }
+    options: ExportOptions = {}
   ): Promise<Blob> {
+    const { maxWidth = 1920, maxHeight = 1080, maintainAspectRatio = true } = options;
+    
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = resolution.width;
-    exportCanvas.height = resolution.height;
+    
+    if (maintainAspectRatio) {
+      const originalRatio = canvas.width / canvas.height;
+      const targetRatio = maxWidth / maxHeight;
+      
+      let exportWidth: number;
+      let exportHeight: number;
+      
+      if (originalRatio > targetRatio) {
+        exportWidth = maxWidth;
+        exportHeight = Math.round(maxWidth / originalRatio);
+      } else {
+        exportHeight = maxHeight;
+        exportWidth = Math.round(maxHeight * originalRatio);
+      }
+      
+      exportCanvas.width = exportWidth;
+      exportCanvas.height = exportHeight;
+    } else {
+      exportCanvas.width = maxWidth;
+      exportCanvas.height = maxHeight;
+    }
+    
     const exportCtx = exportCanvas.getContext('2d')!;
-
-    exportCtx.drawImage(canvas, 0, 0, resolution.width, resolution.height);
+    exportCtx.imageSmoothingEnabled = true;
+    exportCtx.imageSmoothingQuality = 'high';
+    
+    exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
 
     return new Promise((resolve, reject) => {
       exportCanvas.toBlob((blob) => {
