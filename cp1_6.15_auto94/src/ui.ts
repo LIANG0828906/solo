@@ -142,13 +142,14 @@ export class UIManager {
       const circle = document.createElementNS(SVG_NS, 'circle');
       circle.setAttribute('cx', String(nx));
       circle.setAttribute('cy', String(ny));
+      circle.setAttribute('r', '15');
       circle.setAttribute('class', 'evo-node');
       circle.setAttribute('data-plant-id', plant.id);
       g.appendChild(circle);
 
       const text = document.createElementNS(SVG_NS, 'text');
       text.setAttribute('x', String(nx));
-      text.setAttribute('y', String(ny + 26));
+      text.setAttribute('y', String(ny + 22));
       text.setAttribute('class', 'evo-label');
       text.textContent = plant.commonName;
       g.appendChild(text);
@@ -229,8 +230,8 @@ export class UIManager {
     const controller = document.getElementById('light-controller');
     if (!controller) return;
 
-    const CTRL_SIZE = 20;
-    const MAX_RADIUS = 60;
+    const CTRL_SIZE = 60;
+    const MAX_RADIUS = 20;
 
     controller.style.width = `${CTRL_SIZE}px`;
     controller.style.height = `${CTRL_SIZE}px`;
@@ -247,10 +248,16 @@ export class UIManager {
     const computeAngles = (dx: number, dy: number) => {
       const dist = Math.sqrt(dx * dx + dy * dy);
       let azimuth = Math.atan2(dx, -dy) * (180 / Math.PI);
-      if (azimuth < 0) azimuth += 360;
+      azimuth = (azimuth % 360 + 360) % 360;
       const normDist = Math.min(1, dist / MAX_RADIUS);
-      const elevation = (1 - normDist) * 90;
+      let elevation = (1 - normDist) * 90;
+      elevation = Math.max(5, Math.min(90, elevation));
       return { azimuth, elevation };
+    };
+
+    const updateCorePosition = (offsetX: number, offsetY: number) => {
+      controller.style.left = `calc(50% + ${offsetX}px - ${CTRL_SIZE / 2}px)`;
+      controller.style.top = `calc(50% + ${offsetY}px - ${CTRL_SIZE / 2}px)`;
     };
 
     const updatePositionFromAngles = (azimuth: number, elevation: number) => {
@@ -259,8 +266,7 @@ export class UIManager {
       const dist = elNorm * MAX_RADIUS;
       const offsetX = Math.sin(azRad) * dist;
       const offsetY = -Math.cos(azRad) * dist;
-      controller.style.left = `calc(50% + ${offsetX}px - ${CTRL_SIZE / 2}px)`;
-      controller.style.top = `calc(50% + ${offsetY}px - ${CTRL_SIZE / 2}px)`;
+      updateCorePosition(offsetX, offsetY);
     };
 
     const updateAnglesFromOffset = (offsetX: number, offsetY: number) => {
@@ -272,8 +278,7 @@ export class UIManager {
         clampedX = offsetX * ratio;
         clampedY = offsetY * ratio;
       }
-      controller.style.left = `calc(50% + ${clampedX}px - ${CTRL_SIZE / 2}px)`;
-      controller.style.top = `calc(50% + ${clampedY}px - ${CTRL_SIZE / 2}px)`;
+      updateCorePosition(clampedX, clampedY);
       const { azimuth, elevation } = computeAngles(clampedX, clampedY);
       this.currentLightAngle = { azimuth, elevation };
       if (this.onLightAngleChanged) {
@@ -448,15 +453,11 @@ export class UIManager {
       card.style.left = `${left}px`;
       card.style.top = `${top}px`;
       card.classList.remove('active');
-      card.style.display = 'block';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(20px) scale(0.95)';
-      card.style.transition = 'opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
 
       requestAnimationFrame(() => {
-        card.classList.add('active');
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0) scale(1)';
+        requestAnimationFrame(() => {
+          card.classList.add('active');
+        });
       });
     } catch (error) {
       console.error('[UIManager] showInfoCard failed:', error);
@@ -473,7 +474,6 @@ export class UIManager {
       clearTimeout(this.infoCardTimeout);
     }
     this.infoCardTimeout = window.setTimeout(() => {
-      card.style.display = 'none';
       this.infoCardTimeout = null;
     }, 400);
   }

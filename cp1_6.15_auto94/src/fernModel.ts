@@ -50,6 +50,8 @@ export class FernModel extends THREE.Group {
   private transitionIn: boolean;
   private transitionProgress: number;
   private animState: AnimationState;
+  private morphDuration: number;
+  private plantTransitionDuration: number;
 
   constructor(config: PlantConfig) {
     super();
@@ -75,6 +77,8 @@ export class FernModel extends THREE.Group {
       startFrondScale: 0.2,
       startSporangiaVisible: false
     };
+    this.morphDuration = 0.5;
+    this.plantTransitionDuration = 0.6;
 
     this.build();
     this.applyMorphology(this.currentMorphology, 1);
@@ -131,7 +135,7 @@ export class FernModel extends THREE.Group {
       colorsAttr[i * 3 + 1] = c.g;
       colorsAttr[i * 3 + 2] = c.b;
     }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colorsAttr, 3));
+    (geometry as any).setAttribute('color', new THREE.BufferAttribute(colorsAttr, 3));
 
     const material = new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -215,9 +219,7 @@ export class FernModel extends THREE.Group {
     const baseAttr = geometry.getAttribute('basePosition') as THREE.BufferAttribute;
     if (!baseAttr) return;
 
-    const curlAmount = 1 - unfurl;
-    const maxCurlRadius = length * 0.08;
-    const totalTurns = 2.5;
+    const curlT = 1 - unfurl;
 
     for (let i = 0; i < positions.count; i++) {
       const bx = baseAttr.getX(i);
@@ -225,26 +227,22 @@ export class FernModel extends THREE.Group {
       const bz = baseAttr.getZ(i);
 
       const zNorm = Math.max(0, Math.min(1, bz / length));
-      const curlAngle = curlAmount * zNorm * Math.PI * 2 * totalTurns;
+      const rollAngle = curlT * zNorm * zNorm * Math.PI * 0.9;
 
-      const radius = maxCurlRadius * curlAmount * zNorm;
-      const radialOffset = bx;
+      const dz = bz - length;
+      const dy = by;
+      const cosR = Math.cos(rollAngle);
+      const sinR = Math.sin(rollAngle);
+      const newDy = dy * cosR - dz * sinR;
+      const newDz = dy * sinR + dz * cosR;
 
-      const cosA = Math.cos(curlAngle);
-      const sinA = Math.sin(curlAngle);
+      const x = bx * (1 - curlT * 0.4 * zNorm);
+      const y = newDy;
+      const z = newDz + length;
 
-      const helixX = (radius + radialOffset) * sinA;
-      const helixZ = length * (1 - zNorm) + (radius + radialOffset) * (1 - cosA);
-      const helixY = by + radialOffset * cosA * 0.3;
-
-      const lerpT = easeOutCubic(curlAmount);
-      const finalX = bx + (helixX - bx) * lerpT;
-      const finalY = by + (helixY - by) * lerpT;
-      const finalZ = bz + (helixZ - bz) * lerpT;
-
-      positions.setX(i, finalX);
-      positions.setY(i, finalY);
-      positions.setZ(i, finalZ);
+      positions.setX(i, x);
+      positions.setY(i, y);
+      positions.setZ(i, z);
     }
     positions.needsUpdate = true;
     geometry.computeVertexNormals();
@@ -348,7 +346,7 @@ export class FernModel extends THREE.Group {
       baseArr[i * 3 + 1] = positions.getY(i);
       baseArr[i * 3 + 2] = positions.getZ(i);
     }
-    geometry.setAttribute('basePosition', new THREE.BufferAttribute(baseArr, 3));
+    (geometry as any).setAttribute('basePosition', new THREE.BufferAttribute(baseArr, 3));
 
     const material = new THREE.MeshStandardMaterial({
       color: color.clone(),
@@ -380,16 +378,16 @@ export class FernModel extends THREE.Group {
     ) => {
       if (level > levels) return;
 
-      const { mesh, basePositions } = this.createLeafletMesh(
+      const leafletData = this.createLeafletMesh(
         currentWidth,
         currentLength,
         shape.curvature,
         shape.segmentation,
         color
       );
-      mesh.rotation.z = angleOffset;
-      parent.add(mesh);
-      leaflets.push({ mesh, basePositions });
+      leafletData.mesh.rotation.z = angleOffset;
+      parent.add(leafletData.mesh);
+      leaflets.push(leafletData);
 
       if (level < levels) {
         const childLen = currentLength * 0.55;
@@ -399,13 +397,13 @@ export class FernModel extends THREE.Group {
         const leftGroup = new THREE.Group();
         leftGroup.position.y = currentLength * 0.6;
         leftGroup.rotation.z = -branchAngle;
-        mesh.add(leftGroup);
+        leafletData.mesh.add(leftGroup);
         buildLevel(leftGroup, level + 1, childLen, childW, 0);
 
         const rightGroup = new THREE.Group();
         rightGroup.position.y = currentLength * 0.6;
         rightGroup.rotation.z = branchAngle;
-        mesh.add(rightGroup);
+        leafletData.mesh.add(rightGroup);
         buildLevel(rightGroup, level + 1, childLen, childW, 0);
       }
     };
@@ -430,15 +428,15 @@ export class FernModel extends THREE.Group {
     const pairs = 7;
     const mainGroup = this.fronds[this.fronds.length - 1].group;
 
-    const { mesh: rachis, basePositions: rbp } = this.createLeafletMesh(
+    const rachisData = this.createLeafletMesh(
       shape.width * 0.15,
       shape.length,
       shape.curvature,
       shape.segmentation,
       color
     );
-    mainGroup.add(rachis);
-    leaflets.push({ mesh: rachis, basePositions: rbp });
+    mainGroup.add(rachisData.mesh);
+    leaflets.push(rachisData);
 
     for (let i = 0; i < pairs; i++) {
       const t = (i + 1) / (pairs + 1);
@@ -452,14 +450,14 @@ export class FernModel extends THREE.Group {
       leftData.mesh.position.z = z;
       leftData.mesh.rotation.y = -tilt;
       leftData.mesh.rotation.x = -0.1;
-      rachis.add(leftData.mesh);
+      rachisData.mesh.add(leftData.mesh);
       leaflets.push(leftData);
 
       const rightData = this.createLeafletMesh(leafW, leafLen, shape.curvature * 0.6, shape.segmentation, color);
       rightData.mesh.position.z = z;
       rightData.mesh.rotation.y = tilt;
       rightData.mesh.rotation.x = 0.1;
-      rachis.add(rightData.mesh);
+      rachisData.mesh.add(rightData.mesh);
       leaflets.push(rightData);
     }
   }
@@ -473,15 +471,15 @@ export class FernModel extends THREE.Group {
     const pairs = 5;
     const mainGroup = this.fronds[this.fronds.length - 1].group;
 
-    const { mesh: rachis, basePositions: rbp } = this.createLeafletMesh(
+    const rachisData = this.createLeafletMesh(
       shape.width * 0.1,
       shape.length,
       shape.curvature,
       shape.segmentation,
       color
     );
-    mainGroup.add(rachis);
-    leaflets.push({ mesh: rachis, basePositions: rbp });
+    mainGroup.add(rachisData.mesh);
+    leaflets.push(rachisData);
 
     for (let i = 0; i < pairs; i++) {
       const t = (i + 1) / (pairs + 1);
@@ -495,7 +493,7 @@ export class FernModel extends THREE.Group {
         const pinnaGroup = new THREE.Group();
         pinnaGroup.position.z = z;
         pinnaGroup.rotation.y = side * tilt;
-        rachis.add(pinnaGroup);
+        rachisData.mesh.add(pinnaGroup);
 
         const subPairs = 4;
         for (let j = 0; j < subPairs; j++) {
@@ -588,7 +586,9 @@ export class FernModel extends THREE.Group {
     }
   }
 
-  updateMorphology(newMorphology: StageMorphology, animate: boolean = true): void {
+  updateMorphology(newMorphology: StageMorphology, animate: boolean = true, duration: number = 0.5): void {
+    this.morphDuration = Math.max(0.05, duration);
+
     this.animState = {
       startStemScale: this.currentMorphology.stemScale,
       startFrondUnfurl: this.currentMorphology.frondUnfurl,
@@ -675,7 +675,7 @@ export class FernModel extends THREE.Group {
 
   tick(deltaTime: number): void {
     if (this.animationProgress < 1) {
-      this.animationProgress = Math.min(1, this.animationProgress + deltaTime / 0.5);
+      this.animationProgress = Math.min(1, this.animationProgress + deltaTime / this.morphDuration);
       this.applyMorphology(this.targetMorphology, this.animationProgress);
 
       if (this.animationProgress >= 1) {
@@ -687,7 +687,7 @@ export class FernModel extends THREE.Group {
     }
 
     if (this.transitionIn) {
-      this.transitionProgress = Math.min(1, this.transitionProgress + deltaTime / 0.6);
+      this.transitionProgress = Math.min(1, this.transitionProgress + deltaTime / this.plantTransitionDuration);
       const t = easeOutCubic(this.transitionProgress);
       this.scale.setScalar(t);
       if (this.transitionProgress >= 1) {

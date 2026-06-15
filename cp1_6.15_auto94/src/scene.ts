@@ -40,6 +40,8 @@ export class SceneManager {
   private onLoadProgress: ProgressCallback | null;
   private disposed: boolean;
   private transition: PlantTransition | null;
+  private targetLightPos: THREE.Vector3;
+  private currentLightPos: THREE.Vector3;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -63,6 +65,8 @@ export class SceneManager {
     this.onLoadProgress = null;
     this.disposed = false;
     this.transition = null;
+    this.targetLightPos = new THREE.Vector3(5, 8, 5);
+    this.currentLightPos = new THREE.Vector3(5, 8, 5);
   }
 
   init(
@@ -130,7 +134,7 @@ export class SceneManager {
   private setupLights(): void {
     this.scene.add(this.hemisphereLight);
 
-    this.directionalLight.position.set(5, 8, 5);
+    this.directionalLight.position.copy(this.currentLightPos);
     this.directionalLight.castShadow = true;
     this.directionalLight.shadow.mapSize.set(2048, 2048);
     this.directionalLight.shadow.camera.left = -8;
@@ -277,7 +281,7 @@ export class SceneManager {
     const y = r * Math.cos(elevationRad);
     const z = r * Math.sin(elevationRad) * Math.sin(azimuthRad);
 
-    this.directionalLight.position.set(x, y, z);
+    this.targetLightPos.set(x, y, z);
     this.directionalLight.target.position.set(0, 1, 0);
   }
 
@@ -295,6 +299,10 @@ export class SceneManager {
 
   tick(): void {
     const delta = this.clock.getDelta();
+
+    const lerpFactor = Math.min(1, delta * 6);
+    this.currentLightPos.lerp(this.targetLightPos, lerpFactor);
+    this.directionalLight.position.copy(this.currentLightPos);
 
     this.controls.update();
 
