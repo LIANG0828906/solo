@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,8 +13,11 @@ import {
   EyeOff,
   ListOrdered,
   Utensils,
+  Upload,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
-import { useRecipeStore } from '@/modules/recipes/RecipeStore';
+import { useRecipeStore, uploadRecipeImage, resolveImage } from '@/modules/recipes/RecipeStore';
 import type { Ingredient } from '@/types';
 
 const PRESET_TAGS = [
@@ -40,6 +43,9 @@ const CreateRecipePage: React.FC = () => {
 
   const [title, setTitle] = useState('');
   const [image, setImage] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [imageUploadStatus, setImageUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [imageError, setImageError] = useState('');
   const [ingredients, setIngredients] = useState<Ingredient[]>([
     { name: '', amount: '' },
   ]);
@@ -53,6 +59,30 @@ const CreateRecipePage: React.FC = () => {
   useEffect(() => {
     init();
   }, [init]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!image) {
+      setImagePreview('');
+      return;
+    }
+    if (image.startsWith('http') || image.startsWith('data:')) {
+      setImagePreview(image);
+    } else if (image.startsWith('img_')) {
+      setImageUploadStatus('uploading');
+      resolveImage(image).then((url) => {
+        if (cancelled) return;
+        if (url) {
+          setImagePreview(url);
+          setImageUploadStatus('success');
+        } else {
+          setImageUploadStatus('error');
+          setImageError('图片加载失败');
+        }
+      });
+    }
+    return () => { cancelled = true; };
+  }, [image]);
 
   useEffect(() => {
     if (editId) {
@@ -71,11 +101,25 @@ const CreateRecipePage: React.FC = () => {
     }
   }, [editId, getRecipeById]);
 
-  const fileToImage = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result as string);
-    reader.readAsDataURL(file);
-  };
+  const handleImageUpload = useCallback(async (file: File) => {
+    setImageUploadStatus('uploading');
+    setImageError('');
+    try {
+      const previewReader = new FileReader();
+      previewReader.onload = () => setImagePreview(previewReader.result as string);
+      previewReader.readAsDataURL(file);
+
+      const imgId = await uploadRecipeImage(file);
+      setImage(imgId);
+      setImageUploadStatus('success');
+      console.info(`[CreateRecipe] 图片上传成功: ${imgId} (${(file.size / 1024).toFixed(0)}KB)`);
+    } catch (err) {
+      const msg = (err as Error).message || '上传失败';
+      setImageError(msg);
+      setImageUploadStatus('error');
+      setImagePreview('');
+    }
+  }, []);
 
   const addIng = () => setIngredients((arr) => [...arr, { name: '', amount: '' }]);
   const removeIng = (i: number) =>
@@ -176,34 +220,70 @@ const CreateRecipePage: React.FC = () => {
             <span className="text-sm font-medium text-cocoa-400 flex items-center gap-1.5 mb-2">
               <ImagePlus size={15} className="text-warm-400" />
               成品照片
+              <span className="text-[10px] text-cocoa-200 font-normal ml-1">
+                （支持本地图片上传，自动保存到 IndexedDB，≤10MB）
+              </span>
             </span>
             <div className="grid grid-cols-4 gap-3">
-              <div className="col-span-4 sm:col-span-2">
+              <div className="col-span-4 sm:col-span-2 space-y-2">
                 <label className="block aspect-square rounded-xl border-2 border-dashed border-warm-200 bg-cream-50 hover:border-warm-400 hover:bg-warm-50 transition cursor-pointer overflow-hidden relative group">
-                  {image ? (
+                  {imagePreview ? (
                     <>
-                      <img src={image} alt="预览" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-sm gap-1">
-                        <ImagePlus size={16} />
-                        点击更换
+                      <img src={imagePreview} alt="预览" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-white text-sm gap-1">
+                        <div className="flex items-center gap-1">
+                          <Upload size={16} />
+                          点击更换
+                        </div>
+                        {image.startsWith('img_') && (
+                          <span className="text-[10px] opacity-80 font-mono">{image.slice(0, 14)}...</span>
+                        )}
                       </div>
                     </>
+                  ) : imageUploadStatus === 'uploading' ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-cream-100">
+                      <div className="w-10 h-10 rounded-full border-2 border-warm-200 border-t-warm-400 animate-spin" />
+                      <span className="text-xs text-cocoa-300">正在上传并压缩...</span>
+                    </div>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-cocoa-200 gap-2 p-4 text-center">
                       <ImagePlus size={32} className="text-warm-300" />
-                      <span className="text-xs">点击上传或选择右侧示例</span>
+                      <span className="text-xs font-medium">
+                        点击上传私房菜实拍照片
+                      </span>
+                      <span className="text-[10px] opacity-70">
+                        或选择右侧示例图
+                      </span>
                     </div>
                   )}
                   <input
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) fileToImage(f);
+                      if (f) handleImageUpload(f);
+                      e.target.value = '';
                     }}
                   />
                 </label>
+
+                {imageUploadStatus === 'success' && image.startsWith('img_') && (
+                  <div
+                    className="inline-flex items-center gap-1.5 text-[11px] text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full"
+                    style={{ animation: 'fadeInUp 200ms ease' }}
+                  >
+                    <CheckCircle size={12} />
+                    已保存到本地 IndexedDB，刷新不丢失
+                  </div>
+                )}
+                {imageUploadStatus === 'error' && imageError && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                    <AlertCircle size={12} />
+                    {imageError}
+                  </div>
+                )}
               </div>
               <div className="col-span-4 sm:col-span-2 space-y-2">
                 <p className="text-xs text-cocoa-200 mb-1">或选择示例图：</p>
@@ -212,16 +292,27 @@ const CreateRecipePage: React.FC = () => {
                     <button
                       key={i}
                       type="button"
-                      onClick={() => setImage(src)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition ${
+                      onClick={() => {
+                        setImageUploadStatus('idle');
+                        setImageError('');
+                        setImage(src);
+                      }}
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition relative ${
                         image === src
                           ? 'border-warm-400 shadow-card ring-2 ring-warm-200'
                           : 'border-transparent hover:border-warm-200'
                       }`}
+                      title={`示例图 ${i + 1}`}
                     >
                       <img src={src} alt="" className="w-full h-full object-cover" />
                     </button>
                   ))}
+                </div>
+                <div className="text-[10px] text-cocoa-200 pt-1 flex items-start gap-1">
+                  <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />
+                  <span>
+                    示例图为网络图片，上传本地照片可长期保存在你的浏览器中
+                  </span>
                 </div>
               </div>
             </div>

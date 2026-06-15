@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Recipe, Ingredient, RecipeFilters, TimeFilter } from '@/types';
 
 const DB_NAME = 'FamilyRecipesDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_RECIPES = 'recipes';
+const STORE_IMAGES = 'images';
 const CURRENT_USER_ID = 'user_local_001';
 const CURRENT_USER_NAME = '我';
 
@@ -24,12 +25,21 @@ const openDB = (): Promise<IDBDatabase> => {
     };
     req.onupgradeneeded = (e) => {
       const db = (e.target as IDBOpenDBRequest).result;
+      const oldV = (e as IDBVersionChangeEvent).oldVersion || 0;
 
-      if (!db.objectStoreNames.contains(STORE_RECIPES)) {
-        const store = db.createObjectStore(STORE_RECIPES, { keyPath: 'id' });
-        store.createIndex('byAuthor', 'authorId', { unique: false });
-        store.createIndex('byPublic', 'isPublic', { unique: false });
-        store.createIndex('byCookTime', 'cookTime', { unique: false });
+      if (oldV < 1) {
+        if (!db.objectStoreNames.contains(STORE_RECIPES)) {
+          const store = db.createObjectStore(STORE_RECIPES, { keyPath: 'id' });
+          store.createIndex('byAuthor', 'authorId', { unique: false });
+          store.createIndex('byPublic', 'isPublic', { unique: false });
+          store.createIndex('byCookTime', 'cookTime', { unique: false });
+        }
+      }
+      if (oldV < 2) {
+        if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+          const imgStore = db.createObjectStore(STORE_IMAGES, { keyPath: 'id' });
+          imgStore.createIndex('byCreatedAt', 'createdAt', { unique: false });
+        }
       }
     };
   });
@@ -58,7 +68,7 @@ const putRecipe = async (recipe: Recipe): Promise<void> => {
   });
 };
 
-const deleteRecipe = async (id: string): Promise<void> => {
+const deleteRecipeFromDB = async (id: string): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_RECIPES, 'readwrite');
@@ -67,6 +77,110 @@ const deleteRecipe = async (id: string): Promise<void> => {
     req.onerror = () => reject(req.error);
     req.onsuccess = () => resolve();
   });
+};
+
+export interface ImageRecord {
+  id: string;
+  dataUrl: string;
+  blob?: Blob;
+  size: number;
+  createdAt: number;
+}
+
+const saveImage = async (fileOrBlob: Blob | File): Promise<string> => {
+  const db = await openDB();
+  const id = `img_${uuidv4()}`;
+
+  const toDataUrl = (b: Blob): Promise<string> =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onerror = () => rej(r.error);
+      r.onload = () => res(r.result as string);
+      r.readAsDataURL(b);
+    });
+
+  const compressIfNeeded = async (blob: Blob): Promise<{ dataUrl: string; size: number }> => {
+    let current = blob;
+    if (blob.size > 2 * 1024 * 1024 && blob.type.startsWith('image/')) {
+      current = await new Promise<Blob>((res) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = () => {
+          img.onload = () => {
+            const max = 1280;
+            let w = img.width;
+            let h = img.height;
+            if (w > max || h > max) {
+              if (w > h) { h = Math.round((h * max) / w); w = max; }
+              else { w = Math.round((w * max) / h); h = max; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(
+              (b) => res(b || blob),
+              'image/jpeg',
+              0.85,
+            );
+          };
+          img.src = reader.result as string;
+        };
+        reader.readAsDataURL(blob);
+      });
+    }
+    const dataUrl = await toDataUrl(current);
+    return { dataUrl, size: current.size };
+  };
+
+  const { dataUrl, size } = await compressIfNeeded(fileOrBlob);
+  const record: ImageRecord = {
+    id,
+    dataUrl,
+    size,
+    createdAt: Date.now(),
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_IMAGES, 'readwrite');
+    const store = tx.objectStore(STORE_IMAGES);
+    const req = store.put(record);
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve();
+  });
+
+  console.debug(`[RecipeStore] saved image ${id} size=${(size / 1024).toFixed(0)}KB`);
+  return id;
+};
+
+const getImageDataUrl = async (id: string): Promise<string | null> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_IMAGES, 'readonly');
+    const store = tx.objectStore(STORE_IMAGES);
+    const req = store.get(id);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const r = req.result as ImageRecord | undefined;
+      resolve(r?.dataUrl ?? null);
+    };
+  });
+};
+
+export const resolveImage = async (src: string): Promise<string> => {
+  if (!src) return '';
+  if (src.startsWith('http') || src.startsWith('data:')) return src;
+  if (src.startsWith('img_')) {
+    const url = await getImageDataUrl(src);
+    return url ?? src;
+  }
+  return src;
+};
+
+export const uploadRecipeImage = async (file: File): Promise<string> => {
+  if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
+  if (file.size > 10 * 1024 * 1024) throw new Error('图片大小不能超过10MB');
+  return saveImage(file);
 };
 
 const SEED_RECIPES: Recipe[] = [
@@ -297,6 +411,7 @@ interface RecipeStoreState {
   recipes: Recipe[];
   loading: boolean;
   filters: RecipeFilters;
+  imageLoadingMap: Record<string, boolean>;
   init: () => Promise<void>;
   addRecipe: (data: Omit<Recipe, 'id' | 'createdAt' | 'favorites' | 'authorId' | 'authorName'>) => Promise<Recipe>;
   updateRecipe: (id: string, data: Partial<Recipe>) => Promise<void>;
@@ -310,6 +425,7 @@ interface RecipeStoreState {
   getPublicRecipes: () => Recipe[];
   getRecipeById: (id: string) => Recipe | undefined;
   getAllTags: () => string[];
+  resolveAllImages: () => Promise<void>;
 }
 
 const matchTimeFilter = (t: TimeFilter, cookTime: number) => {
@@ -329,6 +445,7 @@ export const useRecipeStore = create<RecipeStoreState>((set, get) => ({
     timeRange: 'all',
     keyword: '',
   },
+  imageLoadingMap: {},
 
   init: async () => {
     set({ loading: true });
@@ -367,7 +484,7 @@ export const useRecipeStore = create<RecipeStoreState>((set, get) => ({
   },
 
   removeRecipe: async (id) => {
-    await deleteRecipe(id);
+    await deleteRecipeFromDB(id);
     set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) }));
   },
 
@@ -417,6 +534,18 @@ export const useRecipeStore = create<RecipeStoreState>((set, get) => ({
     const set = new Set<string>();
     get().recipes.forEach((r) => r.tags.forEach((t) => set.add(t)));
     return Array.from(set);
+  },
+
+  resolveAllImages: async () => {
+    const { recipes } = get();
+    const needResolve = recipes.filter((r) => r.image && r.image.startsWith('img_'));
+    if (needResolve.length === 0) return;
+    for (const r of needResolve) {
+      const url = await resolveImage(r.image);
+      if (url && url !== r.image) {
+        get().updateRecipe(r.id, { image: url });
+      }
+    }
   },
 }));
 

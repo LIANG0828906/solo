@@ -12,8 +12,9 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  Loader2,
 } from 'lucide-react';
-import { useRecipeStore, CURRENT_USER } from '@/modules/recipes/RecipeStore';
+import { useRecipeStore, CURRENT_USER, resolveImage } from '@/modules/recipes/RecipeStore';
 import { usePostStore } from '@/modules/community/PostStore';
 import CommentWidget from '@/modules/community/CommentWidget';
 
@@ -24,6 +25,7 @@ const RecipeDetailPage: React.FC = () => {
   const getRecipeById = useRecipeStore((s) => s.getRecipeById);
   const removeRecipe = useRecipeStore((s) => s.removeRecipe);
   const togglePublic = useRecipeStore((s) => s.togglePublic);
+  const updateRecipe = useRecipeStore((s) => s.updateRecipe);
   const isFav = usePostStore((s) => s.isFavorite(id));
   const toggleFav = usePostStore((s) => s.toggleFavorite);
   const initPost = usePostStore((s) => s.init);
@@ -31,6 +33,8 @@ const RecipeDetailPage: React.FC = () => {
   const recipe = getRecipeById(id);
   const isMine = recipe?.authorId === CURRENT_USER.id;
   const [toast, setToast] = useState<string | null>(null);
+  const [resolvedImage, setResolvedImage] = useState<string>('');
+  const [imgLoading, setImgLoading] = useState(false);
 
   useEffect(() => {
     init();
@@ -42,6 +46,35 @@ const RecipeDetailPage: React.FC = () => {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!recipe) {
+      setResolvedImage('');
+      return;
+    }
+    if (recipe.image.startsWith('http') || recipe.image.startsWith('data:')) {
+      setResolvedImage(recipe.image);
+      return;
+    }
+    if (recipe.image.startsWith('img_')) {
+      setImgLoading(true);
+      resolveImage(recipe.image)
+        .then((url) => {
+          if (cancelled) return;
+          if (url) {
+            setResolvedImage(url);
+            if (url !== recipe.image) updateRecipe(recipe.id, { image: url });
+          } else {
+            setResolvedImage(recipe.image);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setImgLoading(false);
+        });
+    }
+    return () => { cancelled = true; };
+  }, [recipe, updateRecipe]);
 
   if (!recipe) {
     return (
@@ -82,11 +115,17 @@ const RecipeDetailPage: React.FC = () => {
         className="container max-w-4xl"
         style={{ animation: 'fadeInUp 400ms ease' }}
       >
-        <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-card overflow-hidden shadow-card mb-6">
+        <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-card overflow-hidden shadow-card mb-6 bg-cream-100">
+          {imgLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-cream-50">
+              <Loader2 size={32} className="animate-spin text-warm-400" />
+            </div>
+          )}
           <img
-            src={recipe.image}
+            src={resolvedImage || recipe.image}
             alt={recipe.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-opacity duration-300"
+            style={{ opacity: imgLoading ? 0 : 1 }}
             onError={(e) => {
               (e.target as HTMLImageElement).src =
                 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><rect width="800" height="400" fill="%23FFE2CC"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="%23FF8C42">🍽️</text></svg>';

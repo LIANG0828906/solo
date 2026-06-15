@@ -1,10 +1,21 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { io, type Socket } from 'socket.io-client';
 import type { Comment } from '@/types';
 import { CURRENT_USER } from '../recipes/RecipeStore';
 
 const FAV_KEY = 'family_recipes_favorites';
 const COMMENTS_KEY = 'family_recipes_comments';
+const SOCKET_URL =
+  (import.meta.env.VITE_SOCKET_URL as string) ||
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+
+export type ConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error'
+  | 'degraded-fallback';
 
 const loadFavorites = (): Set<string> => {
   try {
@@ -84,41 +95,116 @@ const saveComments = (list: Comment[]) => {
   localStorage.setItem(COMMENTS_KEY, JSON.stringify(list));
 };
 
-type SocketLike = {
+interface FallbackChannel {
   on: (evt: string, cb: (...args: unknown[]) => void) => void;
   emit: (evt: string, data: unknown) => void;
   disconnect: () => void;
-};
-
-class MockSocketServer {
-  private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  private delayMs = 300;
-
-  connect(): SocketLike {
-    const self = this;
-    return {
-      on(evt, cb) {
-        if (!self.listeners.has(evt)) self.listeners.set(evt, new Set());
-        self.listeners.get(evt)!.add(cb);
-      },
-      emit(evt, data) {
-        setTimeout(() => {
-          self.listeners.get(evt)?.forEach((cb) => cb(data));
-        }, self.delayMs);
-      },
-      disconnect() {
-        self.listeners.clear();
-      },
-    };
-  }
 }
 
-const mockServer = new MockSocketServer();
+const createFallbackChannel = (): FallbackChannel => {
+  const CH_NAME = 'family-recipes-comments-fallback';
+  let channel: BroadcastChannel | null = null;
+  try {
+    channel = new BroadcastChannel(CH_NAME);
+  } catch {
+    channel = null;
+  }
+
+  type Listener = (...args: unknown[]) => void;
+  const listeners = new Map<string, Set<Listener>>();
+
+  const storageHandler = (e: StorageEvent) => {
+    if (e.key !== COMMENTS_KEY || !e.newValue) return;
+    try {
+      const next: Comment[] = JSON.parse(e.newValue);
+      const prev: Comment[] = e.oldValue ? JSON.parse(e.oldValue) : [];
+      const prevIds = new Set(prev.map((c) => c.id));
+      const added = next.filter((c) => !prevIds.has(c.id));
+      const removedIds = new Set(prev.map((c) => c.id));
+      const removed = prev.filter((c) => !next.find((n) => n.id === c.id));
+      added.forEach((c) => {
+        listeners.get('comment:new')?.forEach((cb) => cb(c));
+      });
+      removed.forEach((c) => {
+        listeners.get('comment:delete')?.forEach((cb) => cb(c.id));
+        next.filter((x) => x.parentId === c.id).forEach((x) => {
+          if (!removedIds.has(x.id)) {
+            listeners.get('comment:delete')?.forEach((cb) => cb(x.id));
+          }
+        });
+      });
+    } catch {}
+  };
+  window.addEventListener('storage', storageHandler);
+
+  if (channel) {
+    channel.onmessage = (e) => {
+      const { event, data } = e.data || {};
+      if (event) listeners.get(event)?.forEach((cb) => cb(data));
+    };
+  }
+
+  return {
+    on(evt, cb) {
+      if (!listeners.has(evt)) listeners.set(evt, new Set());
+      listeners.get(evt)!.add(cb as Listener);
+    },
+    emit(evt, data) {
+      setTimeout(() => {
+        listeners.get(evt)?.forEach((cb) => cb(data));
+      }, 150);
+      try {
+        channel?.postMessage({ event: evt, data, _from: uuidv4() });
+      } catch {}
+    },
+    disconnect() {
+      window.removeEventListener('storage', storageHandler);
+      channel?.close();
+      listeners.clear();
+    },
+  };
+};
+
+const connectRealSocket = (): Promise<Socket> =>
+  new Promise((resolve, reject) => {
+    console.info(`[PostStore] 尝试连接 Socket.io 服务器: ${SOCKET_URL}`);
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 3,
+      timeout: 4000,
+      autoConnect: true,
+    });
+    let resolved = false;
+    const failTimer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error('连接超时'));
+        socket.close();
+      }
+    }, 5000);
+
+    socket.once('connect', () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(failTimer);
+      console.info(`[PostStore] Socket.io 连接成功，id=${socket.id}`);
+      resolve(socket);
+    });
+    socket.once('connect_error', (err) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(failTimer);
+      socket.close();
+      reject(err);
+    });
+  });
 
 interface PostStoreState {
   favorites: Set<string>;
   comments: Comment[];
-  socket: SocketLike | null;
+  socket: Socket | FallbackChannel | null;
+  connectionStatus: ConnectionStatus;
+  connectionError: string | null;
   init: () => void;
   disconnect: () => void;
   isFavorite: (recipeId: string) => boolean;
@@ -138,36 +224,81 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
   favorites: new Set(),
   comments: [],
   socket: null,
+  connectionStatus: 'disconnected',
+  connectionError: null,
 
   init: () => {
     const favs = loadFavorites();
     const cmts = loadComments();
-    const socket = mockServer.connect();
-
-    socket.on('comment:new', (data) => {
-      const c = data as Comment;
-      set((s) => {
-        if (s.comments.some((x) => x.id === c.id)) return s;
-        const updated = [...s.comments, c];
-        saveComments(updated);
-        return { comments: updated };
-      });
+    set({
+      favorites: favs,
+      comments: cmts,
+      connectionStatus: 'connecting',
+      connectionError: null,
     });
 
-    socket.on('comment:delete', (data) => {
-      const id = data as string;
-      set((s) => {
-        const updated = s.comments.filter((c) => c.id !== id && c.parentId !== id);
-        saveComments(updated);
-        return { comments: updated };
+    const attachListeners = (
+      s: Socket | FallbackChannel,
+    ) => {
+      s.on('comment:new', (data) => {
+        const c = data as Comment;
+        set((state) => {
+          if (state.comments.some((x) => x.id === c.id)) return state;
+          const updated = [...state.comments, c];
+          saveComments(updated);
+          return { comments: updated };
+        });
       });
-    });
 
-    set({ favorites: favs, comments: cmts, socket });
+      s.on('comment:delete', (data) => {
+        const id = data as string;
+        set((state) => {
+          const updated = state.comments.filter(
+            (c) => c.id !== id && c.parentId !== id,
+          );
+          saveComments(updated);
+          return { comments: updated };
+        });
+      });
+    };
+
+    connectRealSocket()
+      .then((socket) => {
+        attachListeners(socket);
+        socket.on('disconnect', () => {
+          set({ connectionStatus: 'disconnected' });
+        });
+        socket.on('connect', () => {
+          set({ connectionStatus: 'connected', connectionError: null });
+        });
+        socket.on('connect_error', (err) => {
+          set({ connectionStatus: 'error', connectionError: err.message });
+        });
+        set({ socket, connectionStatus: 'connected', connectionError: null });
+      })
+      .catch((err) => {
+        console.warn(
+          `[PostStore] Socket.io 连接失败（${err.message}），降级为 BroadcastChannel + localStorage 模式`,
+        );
+        const fallback = createFallbackChannel();
+        attachListeners(fallback);
+        set({
+          socket: fallback,
+          connectionStatus: 'degraded-fallback',
+          connectionError: `服务器不可达：${err.message}。当前使用同设备多标签页同步模式。`,
+        });
+      });
   },
 
   disconnect: () => {
-    get().socket?.disconnect();
+    const s = get().socket;
+    if (!s) return;
+    if ('close' in s && typeof s.close === 'function') {
+      (s as Socket).close();
+    } else {
+      s.disconnect();
+    }
+    set({ socket: null, connectionStatus: 'disconnected' });
   },
 
   isFavorite: (id) => get().favorites.has(id),
@@ -205,7 +336,16 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
       saveComments(updated);
       return { comments: updated };
     });
-    get().socket?.emit('comment:new', c);
+    const s = get().socket;
+    try {
+      if (s && 'emitWithAck' in s && typeof (s as Socket).emitWithAck === 'function') {
+        await (s as Socket).emitWithAck('comment:new', c).catch(() => s.emit('comment:new', c));
+      } else {
+        s?.emit('comment:new', c);
+      }
+    } catch {
+      s?.emit('comment:new', c);
+    }
     return c;
   },
 
@@ -218,3 +358,5 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
     get().socket?.emit('comment:delete', id);
   },
 }));
+
+export { SOCKET_URL };

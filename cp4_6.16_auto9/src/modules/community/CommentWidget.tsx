@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Send, Smile, Trash2, Reply, X, MessageCircle } from 'lucide-react';
-import { usePostStore } from './PostStore';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Send, Smile, Trash2, Reply, X, MessageCircle, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { usePostStore, type ConnectionStatus } from './PostStore';
 import type { Comment } from '@/types';
 
 interface Props {
@@ -8,6 +8,16 @@ interface Props {
 }
 
 const EMOJIS = ['😀', '😂', '😍', '🤤', '😋', '🤔', '👍', '❤️', '🔥', '✨', '🎉', '💯', '🍳', '🥘', '🍲', '🥗'];
+
+const MAX_REPLY_DEPTH = 2;
+
+const statusInfo: Record<ConnectionStatus, { label: string; color: string; icon: React.ReactNode }> = {
+  connecting: { label: '连接中...', color: 'text-yellow-500', icon: <Wifi size={13} /> },
+  connected: { label: '实时连接正常', color: 'text-green-500', icon: <Wifi size={13} /> },
+  disconnected: { label: '连接已断开', color: 'text-cocoa-200', icon: <WifiOff size={13} /> },
+  error: { label: '连接出错', color: 'text-red-500', icon: <WifiOff size={13} /> },
+  'degraded-fallback': { label: '本机多标签页同步模式', color: 'text-yellow-600', icon: <AlertTriangle size={13} /> },
+};
 
 interface EmojiPickerProps {
   onPick: (emoji: string) => void;
@@ -72,6 +82,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
   const [showEmoji, setShowEmoji] = useState(false);
   const addComment = usePostStore((s) => s.addComment);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (compact) inputRef.current?.focus();
@@ -79,16 +90,21 @@ const CommentForm: React.FC<CommentFormProps> = ({
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!text.trim()) return;
-    await addComment({
-      recipeId,
-      content: text.trim(),
-      parentId,
-      replyToUser,
-      replyToUserId,
-    });
-    setText('');
-    onCancel?.();
+    if (!text.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await addComment({
+        recipeId,
+        content: text.trim(),
+        parentId,
+        replyToUser,
+        replyToUserId,
+      });
+      setText('');
+      onCancel?.();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -111,6 +127,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
             onChange={(e) => setText(e.target.value)}
             placeholder={replyToUser ? '写下你的回复...' : '分享你的烹饪心得...'}
             className="input-base pr-12 py-2.5 text-sm"
+            disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -131,7 +148,8 @@ const CommentForm: React.FC<CommentFormProps> = ({
             <button
               type="button"
               onClick={() => setShowEmoji((s) => !s)}
-              className={`p-1.5 rounded-lg transition-colors ${
+              disabled={submitting}
+              className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
                 showEmoji ? 'bg-warm-50 text-warm-500' : 'text-cocoa-200 hover:text-warm-400'
               }`}
             >
@@ -141,11 +159,11 @@ const CommentForm: React.FC<CommentFormProps> = ({
         </div>
         <button
           type="submit"
-          disabled={!text.trim()}
+          disabled={!text.trim() || submitting}
           className="btn-primary !px-4 !py-2.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           <Send size={16} />
-          {!compact && <span className="hidden sm:inline">发送</span>}
+          {!compact && <span className="hidden sm:inline">{submitting ? '发送中' : '发送'}</span>}
         </button>
       </div>
     </form>
@@ -178,6 +196,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
     .getHours()
     .toString()
     .padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
+
+  const reachMaxDepth = depth >= MAX_REPLY_DEPTH;
 
   return (
     <div
@@ -222,13 +242,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
               {comment.content}
             </p>
           </div>
-          {depth < 2 && (
+          {reachMaxDepth ? (
+            <div className="flex items-center gap-1.5 mt-1.5 pl-1 text-[11px] text-cocoa-200 cursor-not-allowed"
+              title={`为保持界面整洁，回复最多嵌套${MAX_REPLY_DEPTH}层`}>
+              <Reply size={12} className="opacity-50" />
+              <span className="opacity-70">
+                回复层数已达上限，请直接回复原评论
+              </span>
+            </div>
+          ) : (
             <button
               onClick={() => setShowReply((s) => !s)}
-              className="btn-ghost mt-1.5 !py-1 text-xs"
+              className="btn-ghost mt-1.5 !py-1 text-xs group/btn"
+              title={`${depth === 0 ? '第1层' : depth === 1 ? '第2层（最深）' : ''}，共支持${MAX_REPLY_DEPTH}层嵌套`}
             >
               <Reply size={13} />
               回复
+              {depth === MAX_REPLY_DEPTH - 1 && (
+                <span className="text-[10px] ml-1 text-cocoa-100 group-hover/btn:text-warm-300 transition-colors">
+                  （最后一层）
+                </span>
+              )}
             </button>
           )}
           {showReply && (
@@ -265,9 +299,15 @@ const CommentItem: React.FC<CommentItemProps> = ({
 const CommentWidget: React.FC<Props> = ({ recipeId }) => {
   const init = usePostStore((s) => s.init);
   const disconnect = usePostStore((s) => s.disconnect);
-  const getCommentsByRecipe = usePostStore((s) => s.getCommentsByRecipe);
-  const comments = getCommentsByRecipe(recipeId);
-  const roots = comments.filter((c) => !c.parentId);
+  const connectionStatus = usePostStore((s) => s.connectionStatus);
+  const connectionError = usePostStore((s) => s.connectionError);
+  const allComments = usePostStore((s) => s.comments);
+  const comments = useMemo(
+    () => allComments.filter((c) => c.recipeId === recipeId).sort((a, b) => a.createdAt - b.createdAt),
+    [allComments, recipeId],
+  );
+  const roots = useMemo(() => comments.filter((c) => !c.parentId), [comments]);
+  const status = statusInfo[connectionStatus];
 
   useEffect(() => {
     init();
@@ -276,12 +316,39 @@ const CommentWidget: React.FC<Props> = ({ recipeId }) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-serif text-xl text-cocoa-400 flex items-center gap-2">
           <MessageCircle className="text-warm-400" size={22} />
           大家的讨论
           <span className="text-sm font-sans text-cocoa-200">({comments.length})</span>
         </h3>
+        <div
+          className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-cream-50 border border-cream-200 ${status.color}`}
+          title={connectionError || status.label}
+        >
+          {status.icon}
+          <span>{status.label}</span>
+        </div>
+      </div>
+
+      {connectionError && connectionStatus === 'degraded-fallback' && (
+        <div
+          className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2"
+          style={{ animation: 'fadeInUp 300ms ease' }}
+        >
+          <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-medium mb-0.5">实时服务暂不可用</div>
+            <div className="opacity-90">{connectionError}</div>
+            <div className="opacity-80 mt-1">
+              💡 提示：在同浏览器的多个标签页之间，评论依然可以实时同步。后端上线后设置 <code className="px-1 bg-white rounded">VITE_SOCKET_URL</code> 环境变量即可启用跨设备推送。
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-[11px] text-cocoa-200 flex items-center gap-1.5 -mt-1">
+        <span>💬 回复支持最多 {MAX_REPLY_DEPTH} 层嵌套 + emoji表情</span>
       </div>
 
       <CommentForm recipeId={recipeId} />

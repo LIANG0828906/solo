@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Clock, PlusCircle, Tag, Search as SearchIcon, Sparkles, Filter } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Clock, PlusCircle, Tag, Search as SearchIcon, Sparkles, Filter, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useRecipeStore } from '@/modules/recipes/RecipeStore';
-import { searchByIngredients } from '@/modules/recipes/SearchEngine';
+import { useRecipeStore, resolveImage } from '@/modules/recipes/RecipeStore';
+import { searchByIngredients, runSearchTests } from '@/modules/recipes/SearchEngine';
 import type { TimeFilter } from '@/types';
 import SearchBar from '@/components/SearchBar';
 import RecipeCard from '@/components/RecipeCard';
@@ -24,6 +24,7 @@ const HomePage: React.FC = () => {
   const init = useRecipeStore((s) => s.init);
   const loading = useRecipeStore((s) => s.loading);
   const recipes = useRecipeStore((s) => s.recipes);
+  const updateRecipe = useRecipeStore((s) => s.updateRecipe);
   const filters = useRecipeStore((s) => s.filters);
   const setTimeFilter = useRecipeStore((s) => s.setTimeFilter);
   const toggleTagFilter = useRecipeStore((s) => s.toggleTagFilter);
@@ -33,12 +34,46 @@ const HomePage: React.FC = () => {
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [searchTouched, setSearchTouched] = useState(false);
   const [perfTime, setPerfTime] = useState<number | null>(null);
+  const testsRanRef = useRef(false);
+  const imagesResolvedRef = useRef(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    init();
-  }, [init]);
+    let cancelled = false;
+    init().then(() => {
+      if (cancelled) return;
+      if (!testsRanRef.current) {
+        testsRanRef.current = true;
+        try {
+          setTimeout(() => {
+            const rs = useRecipeStore.getState().recipes;
+            const reports = runSearchTests(rs);
+            const failed = reports.filter((r) => !r.passed);
+            if (failed.length > 0) {
+              console.warn(`[SearchEngine] ⚠️ ${failed.length} 项边界测试未通过:`, failed);
+            } else {
+              console.info(`[SearchEngine] ✅ 全部 ${reports.length} 项边界测试通过！`);
+            }
+          }, 50);
+        } catch (e) {
+          console.warn('[SearchEngine] 边界测试执行出错', e);
+        }
+      }
+      if (!imagesResolvedRef.current) {
+        imagesResolvedRef.current = true;
+        const current = useRecipeStore.getState().recipes;
+        current.forEach((r) => {
+          if (r.image.startsWith('img_')) {
+            resolveImage(r.image).then((url) => {
+              if (url && url !== r.image) updateRecipe(r.id, { image: url });
+            });
+          }
+        });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [init, updateRecipe]);
 
   const searchResults = useMemo(() => {
     if (ingredients.length === 0 || !searchTouched) return [];

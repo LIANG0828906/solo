@@ -12,29 +12,58 @@ const cache: CacheEntry[] = [];
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
-const buildIngredientIndex = (recipes: Recipe[]): Map<string, Set<string>> => {
-  const idx = new Map<string, Set<string>>();
+const QUANTITY_PATTERNS = [
+  { re: /^(\d+(?:\.\d+)?)\s*(克|g|公斤|kg|斤|两)$/i, score: 2.0, label: 'weight' },
+  { re: /^(\d+(?:\.\d+)?)\s*(毫升|ml|升|l)$/i, score: 1.8, label: 'volume' },
+  { re: /^(\d+(?:\.\d+)?)\s*(个|只|颗|根|块|片|条|把)$/i, score: 1.6, label: 'count' },
+  { re: /^(\d+(?:\.\d+)?)\s*(勺|汤匙|茶匙|杯|碗|盒|包)$/i, score: 1.2, label: 'approx' },
+  { re: /^(适量|少许|若干|少量|一点|一些)$/i, score: 0.5, label: 'seasoning' },
+  { re: /^(\d+(?:\.\d+)?)~(\d+(?:\.\d+)?)\s*(.*)$/, score: 1.4, label: 'range' },
+];
+
+export const calcIngredientWeight = (amount: string): number => {
+  if (!amount) return 1.0;
+  const a = amount.trim();
+  for (const p of QUANTITY_PATTERNS) {
+    if (p.re.test(a)) {
+      return p.score;
+    }
+  }
+  return 1.0;
+};
+
+const buildIngredientIndex = (
+  recipes: Recipe[],
+): Map<string, { recipeId: string; displayName: string; weight: number }[]> => {
+  const idx = new Map<string, { recipeId: string; displayName: string; weight: number }[]>();
   for (const r of recipes) {
     for (const ing of r.ingredients) {
       const key = normalize(ing.name);
-      if (!idx.has(key)) idx.set(key, new Set());
-      idx.get(key)!.add(r.id);
+      const weight = calcIngredientWeight(ing.amount);
+      if (!idx.has(key)) idx.set(key, []);
+      idx.get(key)!.push({ recipeId: r.id, displayName: ing.name, weight });
     }
   }
   return idx;
 };
 
-const calcMatchScore = (
-  matched: number,
-  totalQuery: number,
-  totalRecipe: number,
+const calcWeightedMatchScore = (
+  matchedWeight: number,
+  queryWeight: number,
+  recipeWeight: number,
+  matchedCount: number,
+  queryCount: number,
 ): number => {
-  if (totalQuery === 0 || totalRecipe === 0) return 0;
-  const recall = matched / totalQuery;
-  const precision = matched / totalRecipe;
-  const f1 = (2 * recall * precision) / (recall + precision);
-  const bonus = matched === totalQuery ? 0.1 : 0;
-  return Math.min(1, f1 + bonus);
+  if (queryCount === 0 || recipeWeight === 0) return 0;
+  const safeQueryWeight = queryWeight > 0 ? queryWeight : queryCount;
+  const safeRecipeWeight = recipeWeight > 0 ? recipeWeight : 1;
+  const recall = matchedWeight / safeQueryWeight;
+  const precision = matchedWeight / safeRecipeWeight;
+  const denom = recall + precision;
+  const f1 = denom > 0 ? (2 * recall * precision) / denom : 0;
+  const completeBonus = matchedCount === queryCount ? 0.12 : 0;
+  const skewBoost = matchedCount > 0 && matchedWeight / matchedCount > 1.3 ? 0.08 : 0;
+  return Math.min(1, f1 + completeBonus + skewBoost);
 };
 
 const cacheKey = (inputs: string[]) =>
@@ -65,9 +94,13 @@ export const searchByIngredients = (
   limit: number = 20,
 ): SearchResult[] => {
   const start = performance.now();
-  const normalized = inputIngredients.map(normalize).filter(Boolean);
+  const normalizedWithDup = inputIngredients.map(normalize).filter(Boolean);
+  const normalized = Array.from(new Set(normalizedWithDup));
 
-  if (normalized.length === 0) return [];
+  if (normalized.length === 0) {
+    console.debug('[SearchEngine] 空食材列表，返回空结果');
+    return [];
+  }
   const key = cacheKey(inputIngredients);
   const cached = readCache(key);
   if (cached) {
@@ -75,22 +108,30 @@ export const searchByIngredients = (
     return cached.slice(0, limit);
   }
 
+  if (normalized.length !== normalizedWithDup.length) {
+    console.debug(
+      `[SearchEngine] 去除重复食材 ${normalizedWithDup.length - normalized.length} 项`,
+    );
+  }
+
   const querySet = new Set(normalized);
+  const queryDefaultWeight = 1.0;
+  const totalQueryWeight = querySet.size * queryDefaultWeight;
+
   const idx = buildIngredientIndex(recipes);
   const candidateIds = new Set<string>();
 
   for (const q of querySet) {
     let found = false;
-    for (const [ingName, recipeIds] of idx) {
+    for (const [ingName, entries] of idx) {
       if (ingName === q || ingName.includes(q) || q.includes(ingName)) {
-        recipeIds.forEach((id) => candidateIds.add(id));
+        entries.forEach((e) => candidateIds.add(e.recipeId));
         found = true;
       }
     }
     if (!found) {
-      for (const r of recipes) {
-        candidateIds.add(r.id);
-      }
+      for (const r of recipes) candidateIds.add(r.id);
+      console.debug(`[SearchEngine] 食材「${q}」无精确匹配，退化为全量扫描`);
       break;
     }
   }
@@ -98,46 +139,62 @@ export const searchByIngredients = (
   const results: SearchResult[] = [];
   for (const id of candidateIds) {
     const recipe = recipes.find((r) => r.id === id)!;
-    const recipeIngredientNames = recipe.ingredients.map((i) => normalize(i.name));
-    const recipeSet = new Set(recipeIngredientNames);
+    const recipeIngredients = recipe.ingredients;
+    const recipeSet = new Map<string, { displayName: string; weight: number }>();
+    let totalRecipeWeight = 0;
+    for (const ing of recipeIngredients) {
+      const k = normalize(ing.name);
+      const w = calcIngredientWeight(ing.amount);
+      recipeSet.set(k, { displayName: ing.name, weight: w });
+      totalRecipeWeight += w;
+    }
 
-    const matched: string[] = [];
+    const matchedDisplay: string[] = [];
+    let matchedWeight = 0;
     for (const q of querySet) {
-      for (const rn of recipeSet) {
+      for (const [rn, info] of recipeSet) {
         if (rn === q || rn.includes(q) || q.includes(rn)) {
-          matched.push(recipe.ingredients.find((i) => normalize(i.name) === rn)!.name);
+          if (!matchedDisplay.includes(info.displayName)) {
+            matchedDisplay.push(info.displayName);
+            matchedWeight += Math.min(info.weight, queryDefaultWeight * 1.5);
+          }
           break;
         }
       }
     }
 
-    const uniqueMatched = Array.from(new Set(matched));
-    const missing = recipe.ingredients
-      .filter((i) => !uniqueMatched.includes(i.name))
+    if (matchedDisplay.length === 0) continue;
+
+    const missing = recipeIngredients
+      .filter((i) => !matchedDisplay.includes(i.name))
       .map((i) => i.name);
 
-    if (uniqueMatched.length === 0) continue;
-
-    const score = calcMatchScore(
-      uniqueMatched.length,
+    const score = calcWeightedMatchScore(
+      matchedWeight,
+      totalQueryWeight,
+      totalRecipeWeight,
+      matchedDisplay.length,
       querySet.size,
-      recipeSet.size,
     );
 
     results.push({
       recipe,
       matchScore: score,
-      matchedIngredients: uniqueMatched,
+      matchedIngredients: matchedDisplay,
       missingIngredients: missing,
     });
   }
 
   results.sort((a, b) => {
-    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+    if (Math.abs(b.matchScore - a.matchScore) > 0.001) return b.matchScore - a.matchScore;
     if (b.matchedIngredients.length !== a.matchedIngredients.length)
       return b.matchedIngredients.length - a.matchedIngredients.length;
     return a.recipe.cookTime - b.recipe.cookTime;
   });
+
+  if (results.length === 0) {
+    console.debug(`[SearchEngine] 无匹配结果，query=[${normalized.join(',')}]`);
+  }
 
   const final = results.slice(0, limit);
   writeCache(key, final);
@@ -145,9 +202,125 @@ export const searchByIngredients = (
   console.debug(
     `[SearchEngine] query=[${normalized.join(',')}] candidates=${candidateIds.size} results=${final.length} took=${took.toFixed(1)}ms`,
   );
+  if (took > 200) {
+    console.warn(`[SearchEngine] 警告：搜索耗时超过200ms阈值: ${took.toFixed(1)}ms`);
+  }
   return final;
 };
 
 export const clearSearchCache = () => {
   cache.length = 0;
+  console.debug('[SearchEngine] 缓存已清空');
+};
+
+export interface SearchTestReport {
+  name: string;
+  passed: boolean;
+  durationMs: number;
+  message: string;
+}
+
+export const runSearchTests = (recipes: Recipe[]): SearchTestReport[] => {
+  const reports: SearchTestReport[] = [];
+
+  const run = (name: string, fn: () => { ok: boolean; msg: string }) => {
+    const t0 = performance.now();
+    try {
+      const { ok, msg } = fn();
+      reports.push({
+        name,
+        passed: ok,
+        durationMs: performance.now() - t0,
+        message: msg,
+      });
+    } catch (err) {
+      reports.push({
+        name,
+        passed: false,
+        durationMs: performance.now() - t0,
+        message: `异常: ${(err as Error).message}`,
+      });
+    }
+  };
+
+  run('空食材列表应返回空', () => {
+    const r = searchByIngredients([], recipes);
+    return { ok: r.length === 0, msg: `返回 ${r.length} 条结果` };
+  });
+
+  run('重复食材应去重', () => {
+    const r1 = searchByIngredients(['鸡蛋', '鸡蛋', '鸡蛋'], recipes, 5);
+    const r2 = searchByIngredients(['鸡蛋'], recipes, 5);
+    const ids1 = r1.map((x) => x.recipe.id).join(',');
+    const ids2 = r2.map((x) => x.recipe.id).join(',');
+    return {
+      ok: ids1 === ids2,
+      msg: `重复食材结果与单次匹配：${ids1 === ids2 ? '一致' : `不一致 [${ids1}] vs [${ids2}]`}`,
+    };
+  });
+
+  run('无匹配食材应返回空', () => {
+    const r = searchByIngredients(['不存在的食材9999', '奇异水果xyz'], recipes);
+    return { ok: r.length === 0, msg: `返回 ${r.length} 条结果` };
+  });
+
+  run('性能测试：10次重复搜索平均耗时', () => {
+    const queries = [['鸡蛋', '番茄'], ['猪肉', '姜'], ['牛肉', '洋葱', '青椒'], ['面粉', '鸡蛋']];
+    let total = 0;
+    let count = 0;
+    for (let i = 0; i < 3; i++) {
+      for (const q of queries) {
+        const t0 = performance.now();
+        searchByIngredients(q, recipes);
+        total += performance.now() - t0;
+        count++;
+      }
+    }
+    const avg = total / count;
+    return {
+      ok: avg < 200,
+      msg: `${count} 次搜索平均 ${avg.toFixed(1)}ms (< 200ms)`,
+    };
+  });
+
+  run('主料 vs 辅料：匹配鸡蛋时高用量优先', () => {
+    const res = searchByIngredients(['鸡蛋'], recipes, 10);
+    if (res.length < 2) return { ok: true, msg: `结果不足（${res.length}），跳过` };
+    let sortedCorrectly = true;
+    for (let i = 0; i < res.length - 1; i++) {
+      const a = res[i], b = res[i + 1];
+      const aEgg = a.recipe.ingredients.find((x) => normalize(x.name) === '鸡蛋');
+      const bEgg = b.recipe.ingredients.find((x) => normalize(x.name) === '鸡蛋');
+      const wA = aEgg ? calcIngredientWeight(aEgg.amount) : 0;
+      const wB = bEgg ? calcIngredientWeight(bEgg.amount) : 0;
+      if (a.matchScore === b.matchScore && wA < wB) {
+        sortedCorrectly = false;
+        break;
+      }
+    }
+    return {
+      ok: sortedCorrectly,
+      msg: `匹配 ${res.length} 条，主料权重排序：${sortedCorrectly ? '正确' : '有问题'}`,
+    };
+  });
+
+  run('匹配度应在 [0, 1] 区间', () => {
+    const res = searchByIngredients(['鸡蛋', '番茄', '葱', '盐'], recipes, 20);
+    const bad = res.filter((r) => r.matchScore < 0 || r.matchScore > 1.001);
+    return {
+      ok: bad.length === 0,
+      msg: bad.length === 0 ? `全部 ${res.length} 条匹配度合法` : `${bad.length} 条越界`,
+    };
+  });
+
+  console.groupCollapsed('[SearchEngine] 边界测试报告');
+  reports.forEach((r) => {
+    const icon = r.passed ? '✅' : '❌';
+    console.log(
+      `${icon} ${r.name} | ${r.durationMs.toFixed(1)}ms | ${r.message}`,
+    );
+  });
+  console.groupEnd();
+
+  return reports;
 };

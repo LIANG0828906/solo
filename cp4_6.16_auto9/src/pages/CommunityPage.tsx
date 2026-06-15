@@ -1,8 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Users, TrendingUp, Search } from 'lucide-react';
 import { useRecipeStore } from '@/modules/recipes/RecipeStore';
 import RecipeCard from '@/components/RecipeCard';
 import { CardSkeleton } from '@/components/Skeleton';
+
+function debounce<T extends (...args: unknown[]) => void>(fn: T, wait: number): T {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return function (this: unknown, ...args: unknown[]) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), wait);
+  } as T;
+}
 
 const CommunityPage: React.FC = () => {
   const init = useRecipeStore((s) => s.init);
@@ -11,9 +19,11 @@ const CommunityPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [sort, setSort] = useState<'new' | 'hot'>('new');
   const [visibleCount, setVisibleCount] = useState(12);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(performance.now());
   const [loadTime, setLoadTime] = useState<number | null>(null);
+  const loadingLockRef = useRef(false);
 
   useEffect(() => {
     startTimeRef.current = performance.now();
@@ -43,20 +53,46 @@ const CommunityPage: React.FC = () => {
 
   const visible = useMemo(() => allPublic.slice(0, visibleCount), [allPublic, visibleCount]);
 
+  const loadMore = useCallback(() => {
+    if (loadingLockRef.current) return;
+    setVisibleCount((cur) => {
+      const next = Math.min(cur + 8, allPublic.length);
+      if (next === cur) {
+        loadingLockRef.current = false;
+        return cur;
+      }
+      setIsLoadingMore(true);
+      loadingLockRef.current = true;
+      setTimeout(() => {
+        setIsLoadingMore(false);
+        loadingLockRef.current = false;
+      }, 250);
+      console.debug(`[Community] 加载更多: ${cur} → ${next}/${allPublic.length}`);
+      return next;
+    });
+  }, [allPublic.length]);
+
+  const debouncedLoadMore = useMemo(() => debounce(loadMore, 150), [loadMore]);
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
+
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && visibleCount < allPublic.length) {
-          setVisibleCount((c) => Math.min(c + 8, allPublic.length));
+        const entry = entries[0];
+        if (entry.isIntersecting && visibleCount < allPublic.length && !loadingLockRef.current) {
+          debouncedLoadMore();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '250px', threshold: 0.05 },
     );
+
     io.observe(el);
-    return () => io.disconnect();
-  }, [visibleCount, allPublic.length]);
+    return () => {
+      io.disconnect();
+    };
+  }, [debouncedLoadMore, visibleCount, allPublic.length]);
 
   return (
     <div className="container py-6 md:py-8 max-w-7xl">
@@ -73,8 +109,13 @@ const CommunityPage: React.FC = () => {
         </p>
         {loadTime !== null && (
           <p className="text-xs text-cocoa-200 mt-2 flex items-center justify-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                loadTime < 500 ? 'bg-green-400' : 'bg-yellow-400'
+              } animate-pulse`}
+            />
             卡片加载耗时 {Math.min(loadTime, 500).toFixed(0)}ms
+            {loadTime >= 500 && <span className="text-yellow-500">（接近500ms阈值）</span>}
           </p>
         )}
       </div>
@@ -152,8 +193,16 @@ const CommunityPage: React.FC = () => {
           {visibleCount < allPublic.length && (
             <div className="text-center py-6">
               <div className="inline-flex items-center gap-2 text-xs text-cocoa-200">
-                <div className="w-4 h-4 rounded-full border-2 border-warm-200 border-t-warm-400 animate-spin" />
-                正在加载更多 ({visibleCount}/{allPublic.length})
+                <div
+                  className={`w-4 h-4 rounded-full border-2 border-warm-200 ${
+                    isLoadingMore ? 'border-t-warm-400 animate-spin' : ''
+                  }`}
+                />
+                {isLoadingMore ? (
+                  <span>加载中...</span>
+                ) : (
+                  <span>下拉加载更多 ({visibleCount}/{allPublic.length})</span>
+                )}
               </div>
             </div>
           )}
