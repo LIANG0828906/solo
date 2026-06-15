@@ -34,44 +34,43 @@ const GameUI: React.FC<GameUIProps> = ({
   const renderHearts = () => {
     const hearts = [];
     for (let i = 0; i < 3; i++) {
+      const isActive = i < lives;
       hearts.push(
-        <span
-          key={i}
-          style={{
-            display: 'inline-block',
-            width: '20px',
-            height: '20px',
-            marginLeft: '4px',
-            position: 'relative',
-            transform: 'rotate(-45deg)',
-            backgroundColor: i < lives ? '#e74c3c' : '#444',
-          }}
-        >
-          <span
+        <div key={i} style={{ position: 'relative', width: '24px', height: '22px', marginLeft: '4px' }}>
+          <div
             style={{
-              content: '',
               position: 'absolute',
-              width: '20px',
-              height: '20px',
-              backgroundColor: i < lives ? '#e74c3c' : '#444',
-              borderRadius: '50%',
-              top: '-10px',
-              left: '0',
+              left: '0px',
+              top: '8px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: isActive ? '#e74c3c' : '#444',
+              transform: 'rotate(-45deg)',
             }}
           />
-          <span
+          <div
             style={{
-              content: '',
               position: 'absolute',
-              width: '20px',
-              height: '20px',
-              backgroundColor: i < lives ? '#e74c3c' : '#444',
+              left: '6px',
+              top: '2px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: isActive ? '#e74c3c' : '#444',
               borderRadius: '50%',
-              top: '0',
-              left: '10px',
             }}
           />
-        </span>
+          <div
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '8px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: isActive ? '#e74c3c' : '#444',
+              borderRadius: '50%',
+            }}
+          />
+        </div>
       );
     }
     return hearts;
@@ -102,6 +101,7 @@ const GameUI: React.FC<GameUIProps> = ({
             color: '#ff6b35',
             marginBottom: '40px',
             textShadow: '3px 3px 0px #000',
+            fontFamily: "'Press Start 2P', cursive",
           }}
         >
           平台跳跃
@@ -178,6 +178,7 @@ const GameUI: React.FC<GameUIProps> = ({
             marginTop: '30px',
             fontSize: '8px',
             color: '#888',
+            fontFamily: "'Press Start 2P', cursive",
           }}
         >
           A/D 移动 | 空格 跳跃
@@ -336,6 +337,16 @@ const GameUI: React.FC<GameUIProps> = ({
               清空
             </button>
           </div>
+
+          <p
+            style={{
+              fontSize: '7px',
+              color: '#aaa',
+              marginTop: '4px',
+            }}
+          >
+            左键放置/拖动 | 右键删除元素 | 拖平台右下角可调整大小
+          </p>
         </div>
 
         <button
@@ -369,6 +380,7 @@ const GameUI: React.FC<GameUIProps> = ({
           color: '#fff',
           fontSize: '12px',
           textShadow: '2px 2px 0px #000',
+          pointerEvents: 'none',
         }}
       >
         得分: {score}
@@ -377,11 +389,11 @@ const GameUI: React.FC<GameUIProps> = ({
       <div
         style={{
           position: 'absolute',
-          top: '15px',
+          top: '12px',
           right: '20px',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
+          pointerEvents: 'none',
         }}
       >
         {renderHearts()}
@@ -397,6 +409,7 @@ const GameUI: React.FC<GameUIProps> = ({
           color: '#fff',
           fontSize: '10px',
           textShadow: '2px 2px 0px #000',
+          pointerEvents: 'none',
         }}
       >
         关卡 {level + 1}
@@ -416,6 +429,7 @@ const GameUI: React.FC<GameUIProps> = ({
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
+          zIndex: 10,
         }}
       >
         菜单
@@ -436,6 +450,7 @@ const GameUI: React.FC<GameUIProps> = ({
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             borderRadius: '8px',
             fontFamily: "'Press Start 2P', cursive",
+            zIndex: 20,
           }}
         >
           <div
@@ -452,6 +467,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 color: '#2ecc71',
                 fontSize: '20px',
                 marginBottom: '20px',
+                fontFamily: "'Press Start 2P', cursive",
                 animation: 'blink 0.5s infinite alternate',
               }}
             >
@@ -462,6 +478,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 color: '#333',
                 fontSize: '12px',
                 marginBottom: '25px',
+                fontFamily: "'Press Start 2P', cursive",
               }}
             >
               得分: {score}
@@ -480,6 +497,19 @@ const GameUI: React.FC<GameUIProps> = ({
                     borderRadius: '6px',
                     cursor: 'pointer',
                     boxShadow: '0 3px 0 #27ae60',
+                    transition: 'all 0.1s',
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'translateY(2px)';
+                    e.currentTarget.style.boxShadow = '0 1px 0 #27ae60';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 #27ae60';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 #27ae60';
                   }}
                 >
                   下一关
@@ -497,6 +527,19 @@ const GameUI: React.FC<GameUIProps> = ({
                   borderRadius: '6px',
                   cursor: 'pointer',
                   boxShadow: '0 3px 0 #2980b9',
+                  transition: 'all 0.1s',
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(2px)';
+                  e.currentTarget.style.boxShadow = '0 1px 0 #2980b9';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #2980b9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #2980b9';
                 }}
               >
                 重玩
@@ -513,6 +556,19 @@ const GameUI: React.FC<GameUIProps> = ({
                   borderRadius: '6px',
                   cursor: 'pointer',
                   boxShadow: '0 3px 0 #7f8c8d',
+                  transition: 'all 0.1s',
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(2px)';
+                  e.currentTarget.style.boxShadow = '0 1px 0 #7f8c8d';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #7f8c8d';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #7f8c8d';
                 }}
               >
                 菜单
@@ -537,6 +593,7 @@ const GameUI: React.FC<GameUIProps> = ({
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             borderRadius: '8px',
             fontFamily: "'Press Start 2P', cursive",
+            zIndex: 20,
           }}
         >
           <div
@@ -553,6 +610,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 color: '#e74c3c',
                 fontSize: '20px',
                 marginBottom: '20px',
+                fontFamily: "'Press Start 2P', cursive",
               }}
             >
               游戏结束
@@ -562,6 +620,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 color: '#333',
                 fontSize: '12px',
                 marginBottom: '25px',
+                fontFamily: "'Press Start 2P', cursive",
               }}
             >
               最终得分: {score}
@@ -579,6 +638,19 @@ const GameUI: React.FC<GameUIProps> = ({
                   borderRadius: '6px',
                   cursor: 'pointer',
                   boxShadow: '0 3px 0 #27ae60',
+                  transition: 'all 0.1s',
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(2px)';
+                  e.currentTarget.style.boxShadow = '0 1px 0 #27ae60';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #27ae60';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #27ae60';
                 }}
               >
                 再试一次
@@ -595,6 +667,19 @@ const GameUI: React.FC<GameUIProps> = ({
                   borderRadius: '6px',
                   cursor: 'pointer',
                   boxShadow: '0 3px 0 #7f8c8d',
+                  transition: 'all 0.1s',
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(2px)';
+                  e.currentTarget.style.boxShadow = '0 1px 0 #7f8c8d';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #7f8c8d';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 #7f8c8d';
                 }}
               >
                 返回菜单
@@ -606,8 +691,8 @@ const GameUI: React.FC<GameUIProps> = ({
 
       <style>{`
         @keyframes blink {
-          0% { opacity: 1; }
-          100% { opacity: 0.3; }
+          0% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0.4; transform: scale(1.05); }
         }
       `}</style>
     </>

@@ -16,14 +16,12 @@ import {
   INITIAL_LIVES,
   CANVAS_HEIGHT,
   levels,
-  COIN_RADIUS,
   PLATFORM_HEIGHT,
 } from './levels';
 
 export interface InputState {
   left: boolean;
   right: boolean;
-  jump: boolean;
   jumpPressed: boolean;
 }
 
@@ -71,10 +69,12 @@ export function loadLevel(state: GameState, levelIndex: number): GameState {
     goal: { ...levelData.goal },
     level: levelIndex,
     gameStatus: 'playing',
+    score: 0,
+    lives: INITIAL_LIVES,
   };
 }
 
-export function resetPlayer(state: GameState): GameState {
+export function respawnPlayer(state: GameState): GameState {
   const levelData = state.customLevel || levels[state.level];
   if (!levelData) return state;
 
@@ -101,7 +101,6 @@ export function updateGame(
   let score = state.score;
   let lives = state.lives;
   let gameStatus: GameState['gameStatus'] = state.gameStatus;
-  const wasGrounded = player.isGrounded;
 
   player.vx = 0;
   if (input.left) {
@@ -144,7 +143,8 @@ export function updateGame(
     player.x = 800 - player.width;
   }
 
-  if (input.jumpPressed && player.isGrounded) {
+  const canJump = player.isGrounded && !player.isJumping && input.jumpPressed;
+  if (canJump) {
     player.vy = JUMP_FORCE;
     player.isGrounded = false;
     player.isJumping = true;

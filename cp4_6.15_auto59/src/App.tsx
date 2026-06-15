@@ -24,14 +24,20 @@ import {
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(createInitialState());
-  const inputRef = useRef<InputState>({
+
+  const keysRef = useRef({
     left: false,
     right: false,
-    jump: false,
-    jumpPressed: false,
+    jumpHeld: false,
   });
-  const animationFrameRef = useRef<number>(0);
+  const jumpPressedThisFrameRef = useRef(false);
+  const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+  const gameStateRef = useRef<GameState>(gameState);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   const [editingLevel, setEditingLevel] = useState<LevelData | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -46,46 +52,53 @@ const App: React.FC = () => {
     const deltaTime = Math.min((timestamp - lastTimeRef.current) / 16.67, 2);
     lastTimeRef.current = timestamp;
 
-    setGameState((prevState) => {
-      const input = { ...inputRef.current };
-      const newState = updateGame(prevState, input, deltaTime);
-      inputRef.current.jumpPressed = false;
-      return newState;
-    });
+    const input: InputState = {
+      left: keysRef.current.left,
+      right: keysRef.current.right,
+      jumpPressed: jumpPressedThisFrameRef.current,
+    };
 
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
+    jumpPressedThisFrameRef.current = false;
+
+    const currentState = gameStateRef.current;
+    const newState = updateGame(currentState, input, deltaTime);
+
+    setGameState(newState);
+
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, []);
 
   useEffect(() => {
     if (gameState.gameStatus === 'playing') {
       lastTimeRef.current = 0;
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
     }
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = null;
       }
     };
   }, [gameState.gameStatus, gameLoop]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState.gameStatus !== 'playing') return;
+      if (gameStateRef.current.gameStatus !== 'playing') return;
 
       switch (e.key.toLowerCase()) {
         case 'a':
         case 'arrowleft':
-          inputRef.current.left = true;
+          keysRef.current.left = true;
           break;
         case 'd':
         case 'arrowright':
-          inputRef.current.right = true;
+          keysRef.current.right = true;
           break;
         case ' ':
           e.preventDefault();
-          if (!inputRef.current.jump) {
-            inputRef.current.jump = true;
-            inputRef.current.jumpPressed = true;
+          if (!keysRef.current.jumpHeld) {
+            keysRef.current.jumpHeld = true;
+            jumpPressedThisFrameRef.current = true;
           }
           break;
       }
@@ -95,14 +108,14 @@ const App: React.FC = () => {
       switch (e.key.toLowerCase()) {
         case 'a':
         case 'arrowleft':
-          inputRef.current.left = false;
+          keysRef.current.left = false;
           break;
         case 'd':
         case 'arrowright':
-          inputRef.current.right = false;
+          keysRef.current.right = false;
           break;
         case ' ':
-          inputRef.current.jump = false;
+          keysRef.current.jumpHeld = false;
           break;
       }
     };
@@ -114,19 +127,23 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState.gameStatus]);
+  }, []);
 
   const handleStartGame = (levelIndex: number) => {
+    keysRef.current = { left: false, right: false, jumpHeld: false };
+    jumpPressedThisFrameRef.current = false;
     setGameState((prev) => {
       const newState = loadLevel({ ...prev, customLevel: null }, levelIndex);
-      return { ...newState, score: 0, lives: INITIAL_LIVES };
+      return newState;
     });
   };
 
   const handleRestart = () => {
+    keysRef.current = { left: false, right: false, jumpHeld: false };
+    jumpPressedThisFrameRef.current = false;
     setGameState((prev) => {
       const newState = loadLevel(prev, prev.level);
-      return { ...newState, score: 0, lives: INITIAL_LIVES };
+      return newState;
     });
   };
 
@@ -142,6 +159,8 @@ const App: React.FC = () => {
   };
 
   const handleBackToMenu = () => {
+    keysRef.current = { left: false, right: false, jumpHeld: false };
+    jumpPressedThisFrameRef.current = false;
     setGameState(createInitialState());
     setEditingLevel(null);
   };
@@ -166,7 +185,7 @@ const App: React.FC = () => {
   const handleSaveLevel = () => {
     if (editingLevel) {
       saveCustomLevel(editingLevel);
-      alert('关卡已保存！');
+      alert('关卡已保存到localStorage！');
     }
   };
 
@@ -181,6 +200,7 @@ const App: React.FC = () => {
         spikes: saved.spikes,
         goal: saved.goal,
       }));
+      alert('关卡加载成功！');
     } else {
       alert('没有找到保存的关卡！');
     }
@@ -188,12 +208,14 @@ const App: React.FC = () => {
 
   const handlePlayCustomLevel = () => {
     if (editingLevel) {
+      keysRef.current = { left: false, right: false, jumpHeld: false };
+      jumpPressedThisFrameRef.current = false;
       setGameState((prev) => {
         const newState = loadLevel(
           { ...prev, customLevel: editingLevel },
           prev.level
         );
-        return { ...newState, score: 0, lives: INITIAL_LIVES };
+        return newState;
       });
     }
   };
@@ -479,7 +501,7 @@ const App: React.FC = () => {
           marginTop: '20px',
         }}
       >
-        提示: A/D 或 ←/→ 移动, 空格键跳跃
+        提示: A/D 或 ←/→ 移动, 空格键跳跃 | 编辑器: 左键放置/拖动, 右键删除
       </p>
     </div>
   );
