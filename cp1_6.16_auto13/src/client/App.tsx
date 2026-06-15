@@ -18,8 +18,10 @@ function App() {
   const [maxStreak, setMaxStreak] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const reminderTimersRef = useRef<number[]>([])
 
   useEffect(() => {
     loadStats()
@@ -122,14 +124,45 @@ function App() {
     e.target.value = ''
   }
 
-  const setupReminders = useCallback(async () => {
-    if (!('Notification' in window)) return
+  const clearReminders = useCallback(() => {
+    reminderTimersRef.current.forEach(timerId => {
+      clearTimeout(timerId)
+    })
+    reminderTimersRef.current = []
+  }, [])
 
-    if (Notification.permission === 'default') {
-      await Notification.requestPermission()
+  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
+    if (!('Notification' in window)) {
+      setNotificationPermission('denied')
+      return false
     }
 
+    if (Notification.permission === 'granted') {
+      setNotificationPermission('granted')
+      return true
+    }
+
+    if (Notification.permission === 'default') {
+      const result = await Notification.requestPermission()
+      setNotificationPermission(result)
+      return result === 'granted'
+    }
+
+    setNotificationPermission(Notification.permission)
+    return false
+  }, [])
+
+  const setupReminders = useCallback(async () => {
+    if (!('Notification' in window)) {
+      setNotificationPermission('denied')
+      return
+    }
+
+    setNotificationPermission(Notification.permission)
+
     if (Notification.permission !== 'granted') return
+
+    clearReminders()
 
     const tasks = await taskDB.getAll()
     const now = Date.now()
@@ -142,7 +175,7 @@ function App() {
 
       if (remindTime > now) {
         const delay = remindTime - now
-        setTimeout(() => {
+        const timerId = window.setTimeout(() => {
           if (Notification.permission === 'granted') {
             new Notification('任务提醒', {
               body: `任务「${task.title}」将在 ${task.remindMinutes} 分钟后到期`,
@@ -150,12 +183,33 @@ function App() {
             })
           }
         }, delay)
+        reminderTimersRef.current.push(timerId)
       }
     })
-  }, [])
+  }, [clearReminders])
 
   useEffect(() => {
     setupReminders()
+    return () => {
+      clearReminders()
+    }
+  }, [setupReminders, clearReminders])
+
+  const handleSetReminder = useCallback(async () => {
+    const granted = await requestNotificationPermission()
+    if (granted) {
+      setupReminders()
+    }
+    return granted
+  }, [requestNotificationPermission, setupReminders])
+
+  const testReminder = useCallback(() => {
+    if (Notification.permission === 'granted') {
+      new Notification('测试提醒', {
+        body: '这是一条测试通知，提醒功能正常工作！',
+        icon: '/favicon.svg'
+      })
+    }
   }, [])
 
   return (
@@ -205,6 +259,9 @@ function App() {
         onClose={() => setTaskModalOpen(false)}
         task={editingTask}
         onSaved={handleTaskSaved}
+        notificationPermission={notificationPermission}
+        onRequestPermission={handleSetReminder}
+        onTestReminder={testReminder}
       />
 
       <HabitFormModal

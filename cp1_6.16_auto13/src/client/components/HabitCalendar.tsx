@@ -93,8 +93,7 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
     })
   }
 
-  const streak = useMemo(() => {
-    if (!selectedHabit) return 0
+  const calculateHabitStreak = (habitId: string): number => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     let count = 0
@@ -103,7 +102,7 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
     while (true) {
       const dateStr = current.toISOString().split('T')[0]
       const check = habitChecks.find(
-        hc => hc.habitId === selectedHabit && hc.date === dateStr && hc.completed
+        hc => hc.habitId === habitId && hc.date === dateStr && hc.completed
       )
       if (check) {
         count++
@@ -114,7 +113,20 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
     }
 
     return count
+  }
+
+  const streak = useMemo(() => {
+    if (!selectedHabit) return 0
+    return calculateHabitStreak(selectedHabit)
   }, [selectedHabit, habitChecks])
+
+  const habitStreaks = useMemo(() => {
+    const streaks: Record<string, number> = {}
+    habits.forEach(habit => {
+      streaks[habit.id] = calculateHabitStreak(habit.id)
+    })
+    return streaks
+  }, [habits, habitChecks])
 
   const currentHabit = habits.find(h => h.id === selectedHabit)
 
@@ -148,6 +160,12 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
             >
               {habit.icon && <span>{habit.icon}</span>}
               <span className="truncate max-w-20">{habit.name}</span>
+              {habitStreaks[habit.id] >= 7 && (
+                <Trophy 
+                  size={14} 
+                  className={selectedHabit === habit.id ? 'text-yellow-300' : 'text-amber-500'} 
+                />
+              )}
             </button>
           ))}
         </div>
@@ -155,6 +173,13 @@ export default function HabitCalendar({ onAddHabit }: HabitCalendarProps) {
 
       {currentHabit && (
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-xl mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            {currentHabit.icon && <span className="text-xl">{currentHabit.icon}</span>}
+            <h4 className="font-bold text-lg">{currentHabit.name}</h4>
+            {streak >= 7 && (
+              <Trophy size={16} className="text-yellow-300" />
+            )}
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">连续打卡</p>

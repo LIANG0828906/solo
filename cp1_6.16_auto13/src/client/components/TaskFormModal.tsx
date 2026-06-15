@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Bell, BellRing, AlertCircle } from 'lucide-react'
 import Modal from './Modal'
 import { taskDB } from '../services/dbService'
 import type { Task, Priority, Category } from '../types'
@@ -9,14 +10,26 @@ interface TaskFormModalProps {
   onClose: () => void
   task?: Task | null
   onSaved?: () => void
+  notificationPermission?: NotificationPermission
+  onRequestPermission?: () => Promise<boolean>
+  onTestReminder?: () => void
 }
 
-export default function TaskFormModal({ isOpen, onClose, task, onSaved }: TaskFormModalProps) {
+export default function TaskFormModal({ 
+  isOpen, 
+  onClose, 
+  task, 
+  onSaved,
+  notificationPermission = 'default',
+  onRequestPermission,
+  onTestReminder
+}: TaskFormModalProps) {
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState<Priority>('medium')
   const [category, setCategory] = useState<Category>('work')
   const [remindMinutes, setRemindMinutes] = useState(0)
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false)
 
   const isEditing = !!task
 
@@ -43,6 +56,15 @@ export default function TaskFormModal({ isOpen, onClose, task, onSaved }: TaskFo
     e.preventDefault()
     if (!title.trim()) return
 
+    if (remindMinutes > 0 && notificationPermission !== 'granted' && onRequestPermission) {
+      setIsRequestingPermission(true)
+      const granted = await onRequestPermission()
+      setIsRequestingPermission(false)
+      if (!granted) {
+        setRemindMinutes(0)
+      }
+    }
+
     const taskData = {
       title: title.trim(),
       dueDate: new Date(dueDate).toISOString(),
@@ -60,6 +82,14 @@ export default function TaskFormModal({ isOpen, onClose, task, onSaved }: TaskFo
 
     onSaved?.()
     onClose()
+  }
+
+  const handleRequestPermission = async () => {
+    if (onRequestPermission) {
+      setIsRequestingPermission(true)
+      await onRequestPermission()
+      setIsRequestingPermission(false)
+    }
   }
 
   return (
@@ -152,6 +182,65 @@ export default function TaskFormModal({ isOpen, onClose, task, onSaved }: TaskFo
               </option>
             ))}
           </select>
+
+          {remindMinutes > 0 && notificationPermission !== 'granted' && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={18} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-amber-700">
+                    通知权限未开启，无法接收提醒
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleRequestPermission}
+                    disabled={isRequestingPermission || notificationPermission === 'denied'}
+                    className="mt-2 text-sm font-medium text-amber-700 hover:text-amber-800 
+                      underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed
+                      transition-all duration-300"
+                  >
+                    {isRequestingPermission ? '请求中...' : notificationPermission === 'denied' ? '已被拒绝，请在浏览器设置中开启' : '申请通知权限'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {notificationPermission === 'granted' && remindMinutes > 0 && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BellRing size={18} className="text-green-500" />
+                  <p className="text-sm text-green-700">
+                    提醒功能已开启
+                  </p>
+                </div>
+                {onTestReminder && (
+                  <button
+                    type="button"
+                    onClick={onTestReminder}
+                    className="text-sm font-medium text-green-700 hover:text-green-800 
+                      underline underline-offset-2 transition-all duration-300"
+                  >
+                    测试提醒
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {notificationPermission === 'default' && remindMinutes === 0 && (
+            <button
+              type="button"
+              onClick={handleRequestPermission}
+              disabled={isRequestingPermission}
+              className="mt-2 text-sm text-gray-500 hover:text-gray-700 
+                flex items-center gap-1.5 transition-all duration-300"
+            >
+              <Bell size={14} />
+              <span>{isRequestingPermission ? '请求中...' : '预先开启通知权限'}</span>
+            </button>
+          )}
         </div>
 
         <div className="flex gap-3 pt-2">

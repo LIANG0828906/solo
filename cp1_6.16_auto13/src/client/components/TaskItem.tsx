@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Trash2, Clock, Bell } from 'lucide-react'
 import type { Task } from '../types'
 import { PRIORITY_LABELS, CATEGORY_LABELS } from '../types'
@@ -15,7 +16,7 @@ const priorityColors = {
   low: 'bg-green-500 text-white'
 }
 
-export default function TaskItem({ task, onToggle, onDelete, onEdit }: TaskItemProps) {
+const TaskItem = memo(function TaskItem({ task, onToggle, onDelete, onEdit }: TaskItemProps) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
     const now = new Date()
@@ -91,4 +92,6 @@ export default function TaskItem({ task, onToggle, onDelete, onEdit }: TaskItemP
       </button>
     </div>
   )
-}
+})
+
+export default TaskItem

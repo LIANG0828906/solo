@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Filter } from 'lucide-react'
 import TaskItem from './TaskItem'
 import { taskDB } from '../services/dbService'
@@ -31,26 +31,30 @@ export default function TaskBoard({ selectedCategory, onAddTask, onEditTask }: T
     if (selectedCategory !== 'all') {
       filtered = allTasks.filter(t => t.category === selectedCategory)
     }
-    setTasks(sortTasks(filtered))
+    setTasks(filtered)
   }
 
-  const sortTasks = (taskList: Task[]): Task[] => {
-    return [...taskList].sort((a, b) => {
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1
       if (sortBy === 'priority') {
         const priorityDiff = priorityWeight[b.priority] - priorityWeight[a.priority]
         if (priorityDiff !== 0) return priorityDiff
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      } else {
+        const dateDiff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        if (dateDiff !== 0) return dateDiff
+        return priorityWeight[b.priority] - priorityWeight[a.priority]
       }
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     })
-  }
+  }, [tasks, sortBy])
 
   const toggleTask = async (id: string) => {
     const task = tasks.find(t => t.id === id)
     if (!task) return
     const updated = await taskDB.update(id, { completed: !task.completed })
     if (updated) {
-      setTasks(sortTasks(tasks.map(t => (t.id === id ? updated : t))))
+      setTasks(tasks.map(t => (t.id === id ? updated : t)))
     }
   }
 
@@ -95,14 +99,14 @@ export default function TaskBoard({ selectedCategory, onAddTask, onEditTask }: T
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-        {tasks.length === 0 ? (
+        {sortedTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400">
             <div className="text-6xl mb-4">📝</div>
             <p className="text-lg">暂无任务</p>
             <p className="text-sm mt-1">点击上方按钮添加新任务</p>
           </div>
         ) : (
-          tasks.map(task => (
+          sortedTasks.map(task => (
             <TaskItem
               key={task.id}
               task={task}
