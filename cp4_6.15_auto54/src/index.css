@@ -423,8 +423,8 @@ body {
 }
 
 .task-card.dragging {
-  opacity: 0.45;
-  transform: scale(1.05) rotate(-1.5deg);
+  opacity: 0.5;
+  transform: scale(0.95);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   background: #F0F8F0;
   z-index: 1000;
@@ -452,11 +452,17 @@ body {
 }
 
 .task-card.sliding-out {
-  animation: slide-left-out 0.38s cubic-bezier(0.55, 0, 0.7, 0.2) forwards;
+  transform: translateX(-100%) !important;
+  opacity: 0 !important;
+  margin-right: -100%;
   pointer-events: none;
   z-index: 10;
   border: none;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.4s cubic-bezier(0.55, 0, 0.7, 0.2),
+    opacity 0.4s cubic-bezier(0.55, 0, 0.7, 0.2),
+    margin 0.4s cubic-bezier(0.55, 0, 0.7, 0.2) !important;
 }
 
 .task-drag-handle {
