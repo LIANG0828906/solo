@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { set, get, keys } from 'idb-keyval';
+import { set, get, keys, del } from 'idb-keyval';
 import {
   Resources,
   Ship,
@@ -9,24 +9,25 @@ import {
   BattleLogEntry,
   SaveSlot,
   MAX_FORMATION_SLOTS,
-  BattleStats
+  BattleStats,
+  BuildResultCode
 } from '../engine/types';
 import {
   buildShip as buildShipLogic,
   addShipToFormation as addShipToFormationLogic,
-  removeShipFromFormation as removeShipFromFormationLogic,
+  removeShipFromFormation as removeShipToFormationLogic,
   reorderFormation as reorderFormationLogic,
   getActiveFormationShips,
   restoreEnergyByPercent,
-  regenerateResources
+  regenerateResources,
+  canAfford
 } from '../engine/fleetManager';
 import {
   setupBattleGrid,
   generateEnemyWave,
   performAttack,
   executeAITurn,
-  isBattleEnded,
-  calculateBattleStats
+  isBattleEnded
 } from '../engine/battleEngine';
 
 interface GameState {
@@ -36,10 +37,13 @@ interface GameState {
   battleState: BattleState | null;
   battleStats: BattleStats | null;
   waveNumber: number;
+  totalDamageDealt: number;
+  totalDamageTaken: number;
   saveSlots: SaveSlot[];
   currentMessage: string | null;
 
   setMessage: (msg: string | null) => void;
+  canBuildShip: (type: ShipType) => BuildResultCode;
   buildShip: (type: ShipType) => void;
   addShipToFormation: (shipId: string, slotIndex?: number) => void;
   removeShipFromFormation: (slotIndex: number) => void;
@@ -59,10 +63,7 @@ interface GameState {
 }
 
 const INITIAL_RESOURCES: Resources = { iron: 100, crystal: 100, energy: 100 };
-
 const INITIAL_FORMATION: (Ship | null)[] = Array(MAX_FORMATION_SLOTS).fill(null);
-
-const createEmptyBattleState = (): BattleState | null => null;
 
 export const useGameStore = create<GameState>((set, get) => ({
   resources: INITIAL_RESOURCES,
@@ -71,14 +72,28 @@ export const useGameStore = create<GameState>((set, get) => ({
   battleState: null,
   battleStats: null,
   waveNumber: 1,
+  totalDamageDealt: 0,
+  totalDamageTaken: 0,
   saveSlots: [],
   currentMessage: null,
 
   setMessage: (msg) => set({ currentMessage: msg }),
 
+  canBuildShip: (type) => {
+    const state = get();
+    const config = {
+      fighter: { cost: { iron: 15, crystal: 10, energy: 5 } },
+      corvette: { cost: { iron: 30, crystal: 20, energy: 15 } },
+      destroyer: { cost: { iron: 50, crystal: 35, energy: 25 } },
+      cruiser: { cost: { iron: 80, crystal: 60, energy: 45 } }
+    }[type];
+    if (!config) return 'ERR_INSUFFICIENT_RESOURCES' as BuildResultCode;
+    return canAfford(state.resources, config.cost).code;
+  },
+
   buildShip: (type) => {
     const state = get();
-    const result = buildShipLogic(type, state.resources, state.availableShips);
+    const result = buildShipLogic(type, state.resources);
     if (result.success && result.newShip) {
       set({
         resources: result.newResources,
@@ -142,7 +157,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const battleState = setupBattleGrid(playerShips, enemyShips, state.waveNumber);
     set({
       battleState,
-      battleStats: { enemiesDestroyed: 0, shipsLost: 0, duration: 0, startTimestamp: Date.now() }
+      battleStats: {
+        enemiesDestroyed: 0,
+        shipsLost: 0,
+        totalDamageDealt: 0,
+        totalDamageTaken: 0,
+        duration: 0,
+        startTimestamp: Date.now()
+      },
+      totalDamageDealt: 0,
+      totalDamageTaken: 0
     });
   },
 
@@ -169,9 +193,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!attacker || !target || attacker.stats.hp <= 0 || target.stats.hp <= 0) return;
     if (attacker.hasActed) return;
 
-    const { log, targetKilled } = performAttack(attacker, target, newBattleState.currentTurn);
+    const { log, targetKilled, animation } = performAttack(attacker, target, newBattleState.currentTurn);
     attacker.hasActed = true;
     newBattleState.log.push(log);
+    newBattleState.attackAnimations = [...(newBattleState.attackAnimations || []), animation];
 
     if (targetKilled) {
       const { x, y } = target.position;
@@ -186,6 +211,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     newBattleState.selectedShipId = null;
     newBattleState.turnPhase = 'select';
 
+    const newTotalDamageDealt = state.totalDamageDealt + log.damage;
+
     const winner = isBattleEnded(newBattleState);
     if (winner === 'player') {
       newBattleState.phase = 'ended';
@@ -197,11 +224,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const stats = state.battleStats;
     const newStats = stats ? {
       ...stats,
-      enemiesDestroyed: targetKilled ? stats.enemiesDestroyed + 1 : stats.enemiesDestroyed,
+      enemiesDestroyed: stats.enemiesDestroyed + (targetKilled ? 1 : 0),
+      totalDamageDealt: stats.totalDamageDealt + log.damage,
       duration: Math.floor((Date.now() - stats.startTimestamp) / 1000)
     } : null;
 
-    set({ battleState: newBattleState, battleStats: newStats });
+    set({
+      battleState: newBattleState,
+      battleStats: newStats,
+      totalDamageDealt: newTotalDamageDealt
+    });
   },
 
   endPlayerTurn: () => {
@@ -220,12 +252,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentState = get();
       if (!currentState.battleState) return;
 
-      const { newState, logs, playerKilledIds } = executeAITurn(currentState.battleState);
+      const { newState, logs, animations, playerKilledIds, totalDamage } = executeAITurn(currentState.battleState);
       newState.log.push(...logs);
+      newState.attackAnimations = [...(newState.attackAnimations || []), ...animations];
       newState.currentTurn += 1;
       newState.phase = 'player';
       newState.turnPhase = 'select';
       newState.playerShips.forEach(s => s.hasActed = false);
+
+      const newTotalDamageTaken = currentState.totalDamageTaken + totalDamage;
 
       const winner = isBattleEnded(newState);
       if (winner === 'player') {
@@ -239,10 +274,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       const newStats = stats ? {
         ...stats,
         shipsLost: stats.shipsLost + playerKilledIds.length,
+        totalDamageTaken: stats.totalDamageTaken + totalDamage,
         duration: Math.floor((Date.now() - stats.startTimestamp) / 1000)
       } : null;
 
-      set({ battleState: newState, battleStats: newStats });
+      set({
+        battleState: newState,
+        battleStats: newStats,
+        totalDamageTaken: newTotalDamageTaken
+      });
     }, 800);
   },
 
@@ -252,6 +292,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newWave = state.waveNumber + 1;
 
     const playerShips = state.battleState?.playerShips.filter(s => s.stats.hp > 0) || [];
+    playerShips.forEach(s => {
+      s.stats.shield.value = s.stats.shield.maxValue;
+    });
+
     const newFormation: (Ship | null)[] = Array(MAX_FORMATION_SLOTS).fill(null);
     playerShips.forEach((ship, i) => {
       if (i < MAX_FORMATION_SLOTS) newFormation[i] = ship;
@@ -289,22 +333,39 @@ export const useGameStore = create<GameState>((set, get) => ({
       battleState: state.battleState,
       battleStats: state.battleStats,
       waveNumber: state.waveNumber,
-      saveInfo: { id: saveId, timestamp, waveNumber: state.waveNumber, playerName: '指挥官' }
+      totalDamageDealt: state.totalDamageDealt,
+      totalDamageTaken: state.totalDamageTaken,
+      saveInfo: {
+        id: saveId,
+        timestamp,
+        waveNumber: state.waveNumber,
+        playerName: '指挥官'
+      }
     };
 
     await set(saveId, saveData);
+
     const allKeys = await keys();
     const maxSlots = 3;
-    if (allKeys.length > maxSlots) {
-      const sorted = allKeys.sort();
-      const toDelete = sorted.slice(0, allKeys.length - maxSlots);
-      for (const k of toDelete) {
-        const existing = await get<string, any>(k);
-        if (existing?.saveInfo) {
-          await IDBKeyValDelete(k);
-        }
+    const saveKeys: IDBValidKey[] = [];
+    for (const k of allKeys) {
+      const data = await get<string, any>(k);
+      if (data?.saveInfo) {
+        saveKeys.push(k);
       }
     }
+    if (saveKeys.length > maxSlots) {
+      saveKeys.sort((a, b) => {
+        const da = saveKeys.indexOf(a);
+        const db = saveKeys.indexOf(b);
+        return da - db;
+      });
+      const toDelete = saveKeys.slice(0, saveKeys.length - maxSlots);
+      for (const k of toDelete) {
+        await del(k);
+      }
+    }
+
     await get().loadSaveSlots();
     set({ currentMessage: '游戏已保存！' });
   },
@@ -314,11 +375,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (saveData) {
       set({
         resources: saveData.resources,
-        availableShips: saveData.availableShips,
-        formationSlots: saveData.formationSlots,
-        battleState: saveData.battleState,
-        battleStats: saveData.battleStats,
-        waveNumber: saveData.waveNumber,
+        availableShips: saveData.availableShips || [],
+        formationSlots: saveData.formationSlots || Array(MAX_FORMATION_SLOTS).fill(null),
+        battleState: saveData.battleState || null,
+        battleStats: saveData.battleStats || null,
+        waveNumber: saveData.waveNumber || 1,
+        totalDamageDealt: saveData.totalDamageDealt || 0,
+        totalDamageTaken: saveData.totalDamageTaken || 0,
         currentMessage: '游戏已加载！'
       });
     }
@@ -337,8 +400,3 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ saveSlots: slots.slice(0, 3) });
   }
 }));
-
-async function IDBKeyValDelete(key: IDBValidKey): Promise<void> {
-  const { del } = await import('idb-keyval');
-  await del(key);
-}
