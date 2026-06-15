@@ -175,21 +175,38 @@ export class PreviewSimulator {
     if (this.character.isJumping) return;
 
     const charRect = this.getCharacterRect();
-    const footX = charRect.x + charRect.width / 2;
-    const footY = charRect.y + charRect.height + 5;
 
-    const groundCheck: Rect = {
-      x: footX - 2,
+    const footY = charRect.y + charRect.height;
+    const onGroundCheck: Rect = {
+      x: charRect.x + 4,
       y: footY,
-      width: 4,
-      height: 10,
+      width: charRect.width - 8,
+      height: 6,
     };
 
-    const hasGround = this.collisionPolygons.some(polygon =>
-      CollisionEngine.rectIntersectsPolygon(groundCheck, polygon.vertices)
+    const isOnGround = this.collisionPolygons.some(polygon =>
+      CollisionEngine.rectIntersectsPolygon(onGroundCheck, polygon.vertices)
     );
 
-    if (!hasGround) {
+    if (!isOnGround) return;
+
+    const lookAhead = this.characterWidth + 12;
+    const frontFootX = this.character.facingRight
+      ? charRect.x + charRect.width + lookAhead / 2
+      : charRect.x - lookAhead / 2;
+
+    const frontGroundCheck: Rect = {
+      x: frontFootX - lookAhead / 2,
+      y: footY + 2,
+      width: lookAhead,
+      height: 14,
+    };
+
+    const hasFrontGround = this.collisionPolygons.some(polygon =>
+      CollisionEngine.rectIntersectsPolygon(frontGroundCheck, polygon.vertices)
+    );
+
+    if (!hasFrontGround) {
       this.jump();
     }
   }

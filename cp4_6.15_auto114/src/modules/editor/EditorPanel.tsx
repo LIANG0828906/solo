@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, GripVertical, X } from 'lucide-react';
 import { useMapStore, type Material, type TileType } from '@/store/mapStore';
 
@@ -54,16 +54,64 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ zoom, onDragStart, onDragEnd 
     }));
   }, []);
 
+  const [draggingMaterialId, setDraggingMaterialId] = useState<string | null>(null);
+  const dragAnimRef = useRef<number | null>(null);
+  const animScaleRef = useRef<number>(1);
+
+  const startDragAnim = useCallback(() => {
+    const startTime = performance.now();
+    const animate = () => {
+      const elapsed = (performance.now() - startTime) / 600;
+      const t = elapsed % 1;
+      let scale = 1;
+      if (t < 0.3) {
+        const p = t / 0.3;
+        scale = 0.8 + 0.3 * Math.sin(p * Math.PI / 2);
+      } else if (t < 0.5) {
+        const p = (t - 0.3) / 0.2;
+        scale = 1.1 - 0.1 * Math.sin(p * Math.PI / 2);
+      } else if (t < 0.7) {
+        const p = (t - 0.5) / 0.2;
+        scale = 1.0 + 0.05 * Math.sin(p * Math.PI);
+      } else {
+        scale = 1.0;
+      }
+      animScaleRef.current = scale;
+      dragAnimRef.current = requestAnimationFrame(animate);
+    };
+    dragAnimRef.current = requestAnimationFrame(animate);
+  }, []);
+
+  const stopDragAnim = useCallback(() => {
+    if (dragAnimRef.current) {
+      cancelAnimationFrame(dragAnimRef.current);
+      dragAnimRef.current = null;
+    }
+    animScaleRef.current = 1;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dragAnimRef.current) {
+        cancelAnimationFrame(dragAnimRef.current);
+      }
+    };
+  }, []);
+
   const handleDragStart = useCallback((material: Material, e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('text/plain', material.id);
     setSelectedMaterial(material);
+    setDraggingMaterialId(material.id);
+    startDragAnim();
     onDragStart(material, e);
-  }, [setSelectedMaterial, onDragStart]);
+  }, [setSelectedMaterial, startDragAnim, onDragStart]);
 
   const handleDragEnd = useCallback(() => {
+    setDraggingMaterialId(null);
+    stopDragAnim();
     onDragEnd();
-  }, [onDragEnd]);
+  }, [stopDragAnim, onDragEnd]);
 
   const handleMaterialClick = useCallback((material: Material) => {
     setSelectedMaterial(selectedMaterial?.id === material.id ? null : material);

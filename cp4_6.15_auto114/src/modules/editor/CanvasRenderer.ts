@@ -106,6 +106,8 @@ export class CanvasRenderer {
 
   private hoveredMaterial: Material | null = null;
   private dragPosition: Point | null = null;
+  private dragAnimStartTime: number = 0;
+  private dragAnimFrameId: number | null = null;
 
   constructor(options: RendererOptions) {
     this.canvas = options.canvas;
@@ -189,6 +191,47 @@ export class CanvasRenderer {
 
   setDragPosition(pos: Point | null): void {
     this.dragPosition = pos;
+    if (pos && !this.dragAnimFrameId) {
+      this.dragAnimStartTime = performance.now();
+      this.startDragAnimationLoop();
+    } else if (!pos && this.dragAnimFrameId) {
+      cancelAnimationFrame(this.dragAnimFrameId);
+      this.dragAnimFrameId = null;
+    }
+  }
+
+  private startDragAnimationLoop(): void {
+    const animate = () => {
+      if (!this.dragPosition) {
+        this.dragAnimFrameId = null;
+        return;
+      } else {
+        this.dragAnimFrameId = requestAnimationFrame(animate);
+      }
+    };
+    this.dragAnimFrameId = requestAnimationFrame(animate);
+  }
+
+  private getDragElasticScale(): number {
+    if (!this.dragPosition) return 1;
+    const elapsed = (performance.now() - this.dragAnimStartTime) / 600;
+    const t = elapsed % 1;
+    return this.elasticBounceSequence(t);
+  }
+
+  private elasticBounceSequence(t: number): number {
+    if (t < 0.3) {
+      const p = t / 0.3;
+      return 0.8 + 0.3 * Math.sin(p * Math.PI / 2);
+    } else if (t < 0.5) {
+      const p = (t - 0.3) / 0.2;
+      return 1.1 - 0.1 * Math.sin(p * Math.PI / 2);
+    } else if (t < 0.7) {
+      const p = (t - 0.5) / 0.2;
+      return 1.0 + 0.05 * Math.sin(p * Math.PI);
+    } else {
+      return 1.0;
+    }
   }
 
   private setupEventListeners(): void {
@@ -218,13 +261,14 @@ export class CanvasRenderer {
     this.dragStartX = x;
     this.dragStartY = y;
 
-    if (this.appMode === 'editor' && this.lightSource) {
+    if (this.lightSource) {
       const lightScreenPos = this.worldToScreen(this.lightSource.x, this.lightSource.y);
       const dist = Math.sqrt(
         Math.pow(x - lightScreenPos.x, 2) + Math.pow(y - lightScreenPos.y, 2)
       );
-      if (dist < 20) {
+      if (dist < 28) {
         this.isDraggingLight = true;
+        this.canvas.style.cursor = 'grab';
         return;
       }
     }
@@ -282,6 +326,7 @@ export class CanvasRenderer {
 
     if (this.isDraggingLight && this.lightSource && this.options.onLightDrag) {
       this.options.onLightDrag(worldPos.x, worldPos.y);
+      this.canvas.style.cursor = 'grabbing';
       return;
     }
 
@@ -294,6 +339,7 @@ export class CanvasRenderer {
           worldPos.y
         );
       }
+      this.canvas.style.cursor = 'move';
       return;
     }
 
@@ -355,7 +401,7 @@ export class CanvasRenderer {
   }
 
   private hitTestVertex(screenX: number, screenY: number): { polygonId: string; vertexIndex: number } | null {
-    const vertexRadius = 8;
+    const vertexRadius = 14;
 
     for (const polygon of this.collisionPolygons) {
       for (let i = 0; i < polygon.vertices.length; i++) {
@@ -468,14 +514,20 @@ export class CanvasRenderer {
     this.ctx.scale(this.zoom, this.zoom);
     this.ctx.translate(this.panX, this.panY);
 
-    if (this.tilesDirty) {
+    if (this.tilesDirty || this.offscreenCanvas.width === 0 || this.offscreenCanvas.height === 0) {
+      if (this.width > 0 && this.height > 0) {
+        this.offscreenCanvas.width = this.width;
+        this.offscreenCanvas.height = this.height;
+      }
       this.renderTilesToOffscreen();
       this.tilesDirty = false;
     }
 
     this.ctx.save();
     this.ctx.translate(-this.width / 2 / this.zoom - this.panX, -this.height / 2 / this.zoom - this.panY);
-    this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+    if (this.offscreenCanvas.width > 0 && this.offscreenCanvas.height > 0) {
+      this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+    }
     this.ctx.restore();
 
     if (this.appMode === 'editor') {
@@ -521,11 +573,39 @@ export class CanvasRenderer {
     this.offscreenCtx.scale(this.zoom, this.zoom);
     this.offscreenCtx.translate(this.panX, this.panY);
 
+    const viewport = this.getViewportBounds();
     for (const tile of this.tiles) {
-      this.drawTile(tile, this.offscreenCtx);
+      if (this.isTileInViewport(tile, viewport)) {
+        this.drawTile(tile, this.offscreenCtx);
+      }
     }
 
     this.offscreenCtx.restore();
+  }
+
+  private getViewportBounds(): { minX: number; minY: number; maxX: number; maxY: number } {
+    const halfWidth = this.width / 2 / this.zoom;
+    const halfHeight = this.height / 2 / this.zoom;
+    return {
+      minX: -this.panX - halfWidth - this.gridSize,
+      minY: -this.panY - halfHeight - this.gridSize,
+      maxX: -this.panX + halfWidth + this.gridSize,
+      maxY: -this.panY + halfHeight + this.gridSize,
+    };
+  }
+
+  private isTileInViewport(
+    tile: Tile,
+    viewport: { minX: number; minY: number; maxX: number; maxY: number }
+  ): boolean {
+    const tileX = tile.x * this.gridSize;
+    const tileY = tile.y * this.gridSize;
+    return (
+      tileX + this.gridSize >= viewport.minX &&
+      tileX <= viewport.maxX &&
+      tileY + this.gridSize >= viewport.minY &&
+      tileY <= viewport.maxY
+    );
   }
 
   private drawGrid(): void {
@@ -657,7 +737,7 @@ export class CanvasRenderer {
     for (const polygon of this.collisionPolygons) {
       if (polygon.vertices.length < 2) continue;
 
-      this.ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+      this.ctx.fillStyle = 'rgba(59, 130, 246, 0.35)';
       this.ctx.beginPath();
       this.ctx.moveTo(polygon.vertices[0].x, polygon.vertices[0].y);
       for (let i = 1; i < polygon.vertices.length; i++) {
@@ -841,20 +921,37 @@ export class CanvasRenderer {
     const gridPos = this.worldToGrid(worldPos.x, worldPos.y);
     const x = gridPos.x * this.gridSize;
     const y = gridPos.y * this.gridSize;
-    const size = this.gridSize;
+    const size = this.gridSize - 2;
 
     const colors = tileColorMap[this.hoveredMaterial.type];
+    const scale = this.getDragElasticScale();
 
-    this.ctx.globalAlpha = 0.6;
+    const centerX = x + this.gridSize / 2;
+    const centerY = y + this.gridSize / 2;
+    const drawSize = size * scale;
+    const drawX = centerX - drawSize / 2;
+    const drawY = centerY - drawSize / 2;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.7;
+
+    this.ctx.fillStyle = colors.shadow;
+    this.ctx.fillRect(drawX + 2, drawY + 2, drawSize, drawSize);
+
     this.ctx.fillStyle = colors.base;
-    this.ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+    this.ctx.fillRect(drawX, drawY, drawSize, drawSize);
+
+    this.ctx.fillStyle = colors.highlight;
+    this.ctx.fillRect(drawX, drawY, drawSize, drawSize * 0.3);
+
+    this.ctx.globalAlpha = 1;
 
     this.ctx.strokeStyle = '#00ff88';
     this.ctx.lineWidth = 2 / this.zoom;
     this.ctx.setLineDash([4 / this.zoom, 4 / this.zoom]);
-    this.ctx.strokeRect(x, y, size, size);
+    this.ctx.strokeRect(x, y, this.gridSize, this.gridSize);
     this.ctx.setLineDash([]);
-    this.ctx.globalAlpha = 1;
+    this.ctx.restore();
   }
 
   private drawFPS(): void {
