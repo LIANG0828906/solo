@@ -18,8 +18,19 @@ class Requirement:
     owner_id: str
     owner_name: str
     status: str = "open"
+    breed: str = ""
+    age: int = 0
+    personality_tags: List[str] = field(default_factory=list)
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     applications: List[dict] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.breed:
+            self.breed = self.pet_breed
+        if not self.age:
+            self.age = self.pet_age
+        if not self.personality_tags:
+            self.personality_tags = self.pet_personality
 
     @classmethod
     def create(cls, pet_name: str, pet_breed: str, pet_age: int,
@@ -37,7 +48,10 @@ class Requirement:
             end_date=end_date,
             daily_budget=daily_budget,
             owner_id=owner_id,
-            owner_name=owner_name
+            owner_name=owner_name,
+            breed=pet_breed,
+            age=pet_age,
+            personality_tags=pet_personality
         )
 
     def add_application(self, foster_id: str, foster_name: str,
@@ -82,6 +96,7 @@ class Order:
     daily_fee: float
     total_fee: float
     status: str = "pending_payment"
+    foster_family_id: str = ""
     contract_confirmed: bool = False
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     daily_logs: List[dict] = field(default_factory=list)
@@ -91,6 +106,10 @@ class Order:
         "寄养期间如遇宠物健康问题需及时联系主人",
         "寄养期满后需确保宠物安全归还"
     ])
+
+    def __post_init__(self):
+        if not self.foster_family_id:
+            self.foster_family_id = self.foster_id
 
     @classmethod
     def create(cls, requirement: Requirement, application: dict) -> "Order":
@@ -107,6 +126,7 @@ class Order:
             foster_id=application["foster_id"],
             foster_name=application["foster_name"],
             foster_avatar=application["foster_avatar"],
+            foster_family_id=application["foster_id"],
             pet_name=requirement.pet_name,
             pet_avatar=requirement.pet_avatar,
             start_date=requirement.start_date,

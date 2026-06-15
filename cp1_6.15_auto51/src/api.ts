@@ -5,6 +5,9 @@ export interface Requirement {
   pet_age: number;
   pet_personality: string[];
   pet_avatar: string;
+  breed: string;
+  age: number;
+  personality_tags: string[];
   start_date: string;
   end_date: string;
   daily_budget: number;
@@ -35,6 +38,7 @@ export interface Order {
   foster_id: string;
   foster_name: string;
   foster_avatar: string;
+  foster_family_id: string;
   pet_name: string;
   pet_avatar: string;
   start_date: string;
@@ -105,15 +109,34 @@ interface ApiState {
 
 class ApiClient {
   private baseUrl = '/api';
+  private abortControllers: Map<string, AbortController> = new Map();
+
+  private cancelRequest(requestKey: string) {
+    const existing = this.abortControllers.get(requestKey);
+    if (existing) {
+      existing.abort();
+      this.abortControllers.delete(requestKey);
+    }
+  }
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    requestKey?: string
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const defaultHeaders = {
       'Content-Type': 'application/json',
     };
+
+    if (requestKey) {
+      this.cancelRequest(requestKey);
+    }
+
+    const controller = new AbortController();
+    if (requestKey) {
+      this.abortControllers.set(requestKey, controller);
+    }
 
     try {
       const response = await fetch(url, {
@@ -122,7 +145,12 @@ class ApiClient {
           ...defaultHeaders,
           ...options.headers,
         },
+        signal: controller.signal,
       });
+
+      if (requestKey) {
+        this.abortControllers.delete(requestKey);
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -133,11 +161,22 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
+      if (requestKey) {
+        this.abortControllers.delete(requestKey);
+      }
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error;
+      }
       if (error instanceof Error) {
         throw error;
       }
       throw new Error('网络请求失败，请检查网络连接');
     }
+  }
+
+  cancelAllRequests() {
+    this.abortControllers.forEach((controller) => controller.abort());
+    this.abortControllers.clear();
   }
 
   async getRequirements(
@@ -161,7 +200,9 @@ class ApiClient {
       params.append('max_budget', String(filters.max_budget));
 
     return this.request<PaginatedResponse<Requirement>>(
-      `/requirements?${params.toString()}`
+      `/requirements?${params.toString()}`,
+      {},
+      `requirements_${page}_${filters?.pet_type || 'all'}_${filters?.min_budget || 0}_${filters?.max_budget || 999}`
     );
   }
 

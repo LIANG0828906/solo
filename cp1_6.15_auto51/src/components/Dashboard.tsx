@@ -13,6 +13,7 @@ const Dashboard: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const [petType, setPetType] = useState('all');
   const [minBudget, setMinBudget] = useState(0);
@@ -26,18 +27,57 @@ const Dashboard: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const activeTabRef = useRef<TabType>('plaza');
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      api.cancelAllRequests();
+    };
+  }, []);
+
   const lastRequirementRef = useCallback(
     (node: HTMLDivElement | null) => {
-      if (loading) return;
-      if (observerRef.current) observerRef.current.disconnect();
-      observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore && activeTab === 'plaza') {
-          setPage((prev) => prev + 1);
-        }
-      });
-      if (node) observerRef.current.observe(node);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+      if (!node) return;
+
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          if (
+            entry.isIntersecting &&
+            !loadingRef.current &&
+            hasMoreRef.current &&
+            activeTabRef.current === 'plaza'
+          ) {
+            loadingRef.current = true;
+            setPage((prev) => prev + 1);
+          }
+        },
+        { threshold: 0.1, rootMargin: '100px' }
+      );
+      observerRef.current.observe(node);
     },
-    [loading, hasMore, activeTab]
+    []
   );
 
   const showNotification = useCallback((msg: string) => {
@@ -46,6 +86,7 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const loadRequirements = async () => {
       setLoading(true);
       try {
@@ -54,19 +95,31 @@ const Dashboard: React.FC = () => {
           min_budget: minBudget,
           max_budget: maxBudget,
         });
-        if (page === 1) {
-          setRequirements(response.data);
-        } else {
-          setRequirements((prev) => [...prev, ...response.data]);
+        if (!cancelled) {
+          if (page === 1) {
+            setRequirements(response.data);
+          } else {
+            setRequirements((prev) => [...prev, ...response.data]);
+          }
+          setHasMore(page * response.per_page < response.total);
         }
-        setHasMore(page * response.per_page < response.total);
       } catch (error) {
-        console.error('Failed to load requirements:', error);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!cancelled) {
+          console.error('Failed to load requirements:', error);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     loadRequirements();
+    return () => {
+      cancelled = true;
+    };
   }, [page, petType, minBudget, maxBudget]);
 
   useEffect(() => {
@@ -212,7 +265,15 @@ const Dashboard: React.FC = () => {
       <main className="main-content">
         {activeTab === 'plaza' && (
           <>
-            <div className="filter-bar">
+            <div className="mobile-filter-header mobile-only">
+              <button
+                className="filter-toggle-btn"
+                onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
+              >
+                🔍 筛选 {mobileFilterOpen ? '▲' : '▼'}
+              </button>
+            </div>
+            <div className={`filter-bar ${mobileFilterOpen ? 'mobile-open' : ''}`}>
               <div className="filter-item">
                 <label>宠物类型</label>
                 <select value={petType} onChange={(e) => setPetType(e.target.value)}>
@@ -482,7 +543,7 @@ const Dashboard: React.FC = () => {
             <div className="order-progress-section">
               <div className="progress-bar large">
                 <div
-                  className="progress-fill"
+                  className="progress-fill animated"
                   style={{
                     width: `${getStatusInfo(selectedOrder.status).progress}%`,
                     backgroundColor: getStatusInfo(selectedOrder.status).color,
@@ -491,63 +552,67 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="detail-content">
-              <section className="detail-section">
-                <h3>寄养合同摘要</h3>
-                <div className="contract-summary">
-                  <ul className="contract-terms">
-                    {selectedOrder.contract_terms.map((term, i) => (
-                      <li key={i}>{term}</li>
-                    ))}
-                  </ul>
-                  <div className="contract-status">
-                    {selectedOrder.contract_confirmed ? (
-                      <span className="confirmed">✓ 双方已确认</span>
-                    ) : (
-                      <span className="pending">待确认</span>
-                    )}
+            <div className="order-detail-body">
+              <div className="order-detail-top">
+                <section className="detail-section contract-section">
+                  <h3>寄养合同摘要</h3>
+                  <div className="contract-summary">
+                    <ul className="contract-terms">
+                      {selectedOrder.contract_terms.map((term, i) => (
+                        <li key={i}>{term}</li>
+                      ))}
+                    </ul>
+                    <div className="contract-status">
+                      {selectedOrder.contract_confirmed ? (
+                        <span className="confirmed">✓ 双方已确认</span>
+                      ) : (
+                        <span className="pending">待确认</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {selectedOrder.status === 'pending_payment' && (
-                  <button
-                    className="pay-btn"
-                    onClick={() => handleConfirmPayment(selectedOrder.id)}
-                  >
-                    确认付款 ¥{selectedOrder.total_fee.toFixed(2)}
-                  </button>
-                )}
-              </section>
+                  {selectedOrder.status === 'pending_payment' && (
+                    <button
+                      className="pay-btn"
+                      onClick={() => handleConfirmPayment(selectedOrder.id)}
+                    >
+                      确认付款 ¥{selectedOrder.total_fee.toFixed(2)}
+                    </button>
+                  )}
+                </section>
+              </div>
 
-              <section className="detail-section">
-                <h3>日常日志</h3>
-                <div className="timeline">
-                  {selectedOrder.daily_logs.map((log, index) => (
-                    <div key={log.id} className="timeline-item" style={{ animationDelay: `${index * 0.1}s` }}>
-                      <div className="timeline-dot" />
-                      <div className="timeline-content">
-                        <div className="log-date">{formatDate(log.date)}</div>
-                        <div className="log-photos">
-                          {log.photos.map((photo, i) => (
-                            <img key={i} src={photo} alt="" className="log-photo" />
-                          ))}
-                        </div>
-                        <p className="log-content">{log.content}</p>
-                        <div className="log-comments">
-                          {log.comments.map((comment) => (
-                            <div key={comment.id} className="comment-item">
-                              <strong>{comment.user_name}：</strong>
-                              {comment.content}
-                            </div>
-                          ))}
+              <div className="order-detail-bottom">
+                <section className="detail-section logs-section">
+                  <h3>日常日志</h3>
+                  <div className="timeline">
+                    {selectedOrder.daily_logs.map((log, index) => (
+                      <div key={log.id} className="timeline-item" style={{ animationDelay: `${index * 0.1}s` }}>
+                        <div className="timeline-dot" />
+                        <div className="timeline-content">
+                          <div className="log-date">{formatDate(log.date)}</div>
+                          <div className="log-photos">
+                            {log.photos.map((photo, i) => (
+                              <img key={i} src={photo} alt="" className="log-photo" />
+                            ))}
+                          </div>
+                          <p className="log-content">{log.content}</p>
+                          <div className="log-comments">
+                            {log.comments.map((comment) => (
+                              <div key={comment.id} className="comment-item">
+                                <strong>{comment.user_name}：</strong>
+                                {comment.content}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {selectedOrder.daily_logs.length === 0 && (
-                    <div className="empty-state">暂无日志记录</div>
-                  )}
-                </div>
-              </section>
+                    ))}
+                    {selectedOrder.daily_logs.length === 0 && (
+                      <div className="empty-state">暂无日志记录</div>
+                    )}
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
         </div>
