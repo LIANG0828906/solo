@@ -12,6 +12,7 @@ const GradientPreview: React.FC<GradientPreviewProps> = ({ colorId }) => {
   const [palette, setPalette] = useState<Palette | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   useEffect(() => {
     const loadPalette = async () => {
@@ -50,12 +51,56 @@ const GradientPreview: React.FC<GradientPreviewProps> = ({ colorId }) => {
   }, [palette, gradientCSS]);
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(cssCode);
+    setCopyError(false);
+
+    const copyWithExecCommand = (text: string): boolean => {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return success;
+      } catch (err) {
+        document.body.removeChild(textarea);
+        return false;
+      }
+    };
+
+    const showSuccess = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    };
+
+    const showError = () => {
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 2000);
+    };
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(cssCode);
+        showSuccess();
+      } else {
+        const success = copyWithExecCommand(cssCode);
+        if (success) {
+          showSuccess();
+        } else {
+          showError();
+        }
+      }
     } catch (error) {
-      console.error('复制失败:', error);
+      const fallbackSuccess = copyWithExecCommand(cssCode);
+      if (fallbackSuccess) {
+        showSuccess();
+      } else {
+        console.error('复制失败:', error);
+        showError();
+      }
     }
   }, [cssCode]);
 
@@ -84,11 +129,21 @@ const GradientPreview: React.FC<GradientPreviewProps> = ({ colorId }) => {
           <span className="code-label">CSS 代码</span>
           <button
             type="button"
-            className="copy-btn"
+            className={`copy-btn ${copyError ? 'copy-error-btn' : ''}`}
             onClick={handleCopy}
             aria-label="复制CSS代码"
+            disabled={copied}
           >
-            {copied ? (
+            {copyError ? (
+              <span className="copy-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                复制失败
+              </span>
+            ) : copied ? (
               <span className="copy-success">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />

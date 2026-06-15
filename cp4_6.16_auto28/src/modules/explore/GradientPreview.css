@@ -112,6 +112,37 @@
   animation: fadeInOut 2000ms ease forwards;
 }
 
+.copy-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--error);
+  animation: fadeInOut 2000ms ease forwards;
+}
+
+.copy-error-btn {
+  border-color: var(--error);
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
 .code-block {
   background: var(--bg-primary);
   border-radius: var(--radius-md);
