@@ -160,6 +160,8 @@ export default function WorksGrid({ works, onWorkClick, filterKey }: WorksGridPr
                     }`}
                     onLoad={() => handleImageLoad(work.id)}
                     draggable={false}
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
                 <div className="p-4">

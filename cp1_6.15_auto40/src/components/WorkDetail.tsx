@@ -201,6 +201,8 @@ export default function WorkDetail({ work, isOpen, onClose }: WorkDetailProps) {
                 }`}
                 onLoad={() => setImageLoaded(true)}
                 draggable={false}
+                loading="eager"
+                decoding="async"
               />
               <div
                 className="absolute bottom-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100"
@@ -348,6 +350,8 @@ export default function WorkDetail({ work, isOpen, onClose }: WorkDetailProps) {
                 transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
               }}
               draggable={false}
+              loading="eager"
+              decoding="async"
             />
           </div>
         </div>
