@@ -1,11 +1,12 @@
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { differenceInDays, parseISO } from 'date-fns';
-import { ArrowLeft, Leaf, MapPin, Calendar, Activity, Trash2, Edit3 } from 'lucide-react';
+import { ArrowLeft, Leaf, MapPin, Calendar, Activity, Trash2, Edit3, Crop, RotateCw, X } from 'lucide-react';
 import { usePlantStore } from '@/store/usePlantStore';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import DiagnosisTimeline from '@/components/DiagnosisTimeline';
 import RippleButton from '@/components/RippleButton';
+import CropEditor, { rotateImageDataUrl, readFileWithProgress } from '@/components/ImageEditor';
 
 export default function PlantDetail() {
   const { plantId } = useParams<{ plantId: string }>();
@@ -15,6 +16,11 @@ export default function PlantDetail() {
   const updatePlant = usePlantStore((s) => s.updatePlant);
   const deletePlant = usePlantStore((s) => s.deletePlant);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [croppingPhoto, setCroppingPhoto] = useState<string | null>(null);
+  const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
 
   const plant = plants.find((p) => p.id === plantId);
 
@@ -36,16 +42,64 @@ export default function PlantDetail() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      updatePlant(plant.id, { photos: [...plant.photos, dataUrl] });
-    };
-    reader.readAsDataURL(file);
+    if (plant.photos.length >= 3) {
+      alert('最多只能上传3张照片');
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const dataUrl = await readFileWithProgress(file, setUploadProgress);
+      setTimeout(() => {
+        setCroppingPhoto(dataUrl);
+        setUploading(false);
+        setUploadProgress(0);
+      }, 300);
+    } catch {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+
     e.target.value = '';
+  };
+
+  const handleCropConfirm = (croppedUrl: string) => {
+    if (croppingIndex !== null) {
+      const newPhotos = [...plant.photos];
+      newPhotos[croppingIndex] = croppedUrl;
+      updatePlant(plant.id, { photos: newPhotos });
+    } else {
+      updatePlant(plant.id, { photos: [...plant.photos, croppedUrl] });
+    }
+    setCroppingPhoto(null);
+    setCroppingIndex(null);
+  };
+
+  const handleRotatePhoto = async (index: number) => {
+    const rotated = await rotateImageDataUrl(plant.photos[index], 90);
+    const newPhotos = [...plant.photos];
+    newPhotos[index] = rotated;
+    updatePlant(plant.id, { photos: newPhotos });
+  };
+
+  const handleCropPhoto = (index: number) => {
+    setCroppingPhoto(plant.photos[index]);
+    setCroppingIndex(index);
+  };
+
+  const handleDeletePhoto = (index: number) => {
+    if (plant.photos.length <= 1) {
+      alert('至少保留一张照片');
+      return;
+    }
+    const newPhotos = plant.photos.filter((_, i) => i !== index);
+    updatePlant(plant.id, { photos: newPhotos });
   };
 
   const handleDelete = () => {

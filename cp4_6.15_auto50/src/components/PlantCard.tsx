@@ -1,5 +1,5 @@
 import { Leaf, MapPin, Stethoscope, Clock, Camera, Calendar } from 'lucide-react';
-import { formatDistanceToNow, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { Plant } from '@/utils/db';
 import { theme } from '@/styles/theme';
@@ -23,10 +23,7 @@ export default function PlantCard({
 }: PlantCardProps) {
   const gradient = theme.cardGradients[gradientIndex % theme.cardGradients.length];
   const formattedLastDiagnosis = plant.lastDiagnosisDate
-    ? formatDistanceToNow(parseISO(plant.lastDiagnosisDate), {
-        addSuffix: true,
-        locale: zhCN,
-      })
+    ? format(parseISO(plant.lastDiagnosisDate), 'yyyy-MM-dd 诊断', { locale: zhCN })
     : null;
 
   return (
@@ -35,8 +32,8 @@ export default function PlantCard({
       style={{ background: gradient }}
       onClick={onClick}
     >
-      <div className="flex justify-between items-start z-10 relative">
-        <div className="flex items-center gap-1.5">
+      <div className="flex justify-between items-start z-10 relative mt-1">
+        <div className="flex items-center gap-1.5 -ml-0.5">
           {formattedLastDiagnosis ? (
             <span className="inline-flex items-center gap-1 bg-white/25 backdrop-blur text-white text-[11px] font-body rounded-full px-2.5 py-1 shadow-sm border border-white/20">
               <Calendar size={11} />

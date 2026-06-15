@@ -12,6 +12,7 @@ interface DiagnosisTimelineProps {
 }
 
 function getWorstSeverity(causes: DiagnosisResult['causes']): SeverityLevel {
+  if (!causes || causes.length === 0) return 'mild';
   const order: SeverityLevel[] = ['severe', 'moderate', 'mild'];
   for (const level of order) {
     if (causes.some((c) => c.severity === level)) return level;
@@ -19,47 +20,55 @@ function getWorstSeverity(causes: DiagnosisResult['causes']): SeverityLevel {
   return 'mild';
 }
 
-function getSeverityLabel(level: SeverityLevel): string {
+function getSeverityLabel(level: SeverityLevel | undefined): string {
   switch (level) {
     case 'mild':
-      return '轻微';
+      return '健康检查';
     case 'moderate':
-      return '中等';
+      return '轻微问题';
     case 'severe':
-      return '严重';
+      return '严重问题';
+    default:
+      return '健康检查';
   }
 }
 
-function getTimelineDotColor(level: SeverityLevel): string {
+function getTimelineDotColor(level: SeverityLevel | undefined): string {
   switch (level) {
     case 'mild':
       return '#22C55E';
     case 'moderate':
-      return '#F59E0B';
+      return '#F97316';
     case 'severe':
       return '#EF4444';
+    default:
+      return '#22C55E';
   }
 }
 
-function getTimelineDotRing(level: SeverityLevel): string {
+function getTimelineDotRing(level: SeverityLevel | undefined): string {
   switch (level) {
     case 'mild':
       return 'rgb(34 197 94 / 0.35)';
     case 'moderate':
-      return 'rgb(245 158 11 / 0.35)';
+      return 'rgb(249 115 22 / 0.35)';
     case 'severe':
       return 'rgb(239 68 68 / 0.35)';
+    default:
+      return 'rgb(34 197 94 / 0.35)';
   }
 }
 
-function getSeverityGradient(level: SeverityLevel): string {
+function getSeverityGradient(level: SeverityLevel | undefined): string {
   switch (level) {
     case 'mild':
-      return 'linear-gradient(to right, #FEF3C7 0%, #FDE68A 30%, #F59E0B 100%)';
+      return 'linear-gradient(to right, #BBF7D0 0%, #4ADE80 50%, #22C55E 100%)';
     case 'moderate':
-      return 'linear-gradient(to right, #FEF3C7 0%, #FCD34D 30%, #F97316 100%)';
+      return 'linear-gradient(to right, #FDE68A 0%, #FB923C 50%, #F97316 100%)';
     case 'severe':
-      return 'linear-gradient(to right, #FED7AA 0%, #FB923C 30%, #EF4444 100%)';
+      return 'linear-gradient(to right, #FECACA 0%, #F87171 50%, #EF4444 100%)';
+    default:
+      return 'linear-gradient(to right, #BBF7D0 0%, #4ADE80 50%, #22C55E 100%)';
   }
 }
 
@@ -194,14 +203,14 @@ export default function DiagnosisTimeline({
                   }}
                 >
                   <div
-                    className="px-4 pb-4 transition-all duration-500"
+                    className="px-4 pb-4 transition-all duration-500 ease-out"
                     style={{
                       opacity: isExpanded ? 1 : 0,
                       transform: isExpanded
                         ? 'translateX(0) scaleX(1)'
                         : isEven
-                        ? 'translateX(16px) scaleX(0.92)'
-                        : 'translateX(-16px) scaleX(0.92)',
+                        ? 'translateX(40px) scaleX(0.8)'
+                        : 'translateX(-40px) scaleX(0.8)',
                       transformOrigin: isEven ? 'right center' : 'left center',
                     }}
                   >

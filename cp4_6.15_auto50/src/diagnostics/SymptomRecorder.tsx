@@ -195,7 +195,7 @@ function DiagnosisPanel({
               </div>
 
               <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <AlertTriangle
                       size={12}
@@ -209,28 +209,35 @@ function DiagnosisPanel({
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-display text-olive-400">
-                    <span>警告</span>
-                    <span className="w-20 h-1.5 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-red-500 mx-1 relative overflow-hidden">
-                      <span
-                        className="absolute inset-y-0 left-0 border-r-2 border-white/70"
-                        style={{
-                          width: `${probPercent}%`,
-                          background: getSeverityGradient(cause.severity),
-                        }}
-                      />
-                    </span>
-                    <span>危险</span>
+                    <span>轻微</span>
+                    <span>→</span>
+                    <span>严重</span>
                   </div>
                 </div>
-                <div className="h-3 rounded-full bg-white/70 overflow-hidden border border-olive-100 shadow-inner">
+                <div className="relative h-3 rounded-full overflow-hidden border border-olive-100 shadow-inner">
                   <div
-                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    className="absolute inset-0"
                     style={{
-                      width: `${probPercent}%`,
-                      background: getSeverityGradient(cause.severity),
-                      boxShadow: '0 0 8px rgba(0,0,0,0.1) inset',
+                      background:
+                        'linear-gradient(to right, #FDE68A 0%, #FCD34D 20%, #FB923C 50%, #F87171 80%, #EF4444 100%)',
                     }}
                   />
+                  <div
+                    className="absolute inset-y-0 right-0 bg-white/50 backdrop-blur-[1px] transition-all duration-1000 ease-out"
+                    style={{ width: `${100 - probPercent}%` }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white shadow-md border-2 transition-all duration-1000 ease-out"
+                    style={{
+                      left: `calc(${probPercent}% - 10px)`,
+                      borderColor: getSeverityColor(cause.severity),
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] font-display text-olive-400 mt-1">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
                 </div>
               </div>
 
@@ -309,6 +316,33 @@ export default function SymptomRecorder() {
     setSelectedSymptoms((prev) =>
       prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom]
     );
+  };
+
+  const toggleWatering = () => {
+    if (wateringOn) {
+      setWateringLevel(0);
+    } else if (wateringLevel === 0) {
+      setWateringLevel(50);
+    }
+    setWateringOn(!wateringOn);
+  };
+
+  const toggleFertilizing = () => {
+    if (fertilizingOn) {
+      setFertilizingLevel(0);
+    } else if (fertilizingLevel === 0) {
+      setFertilizingLevel(30);
+    }
+    setFertilizingOn(!fertilizingOn);
+  };
+
+  const toggleLight = () => {
+    if (lightOn) {
+      setLightLevel(0);
+    } else if (lightLevel === 0) {
+      setLightLevel(60);
+    }
+    setLightOn(!lightOn);
   };
 
   const handleSubmit = async () => {
@@ -462,7 +496,7 @@ export default function SymptomRecorder() {
               </div>
               <Toggle
                 on={wateringOn}
-                onToggle={() => setWateringOn(!wateringOn)}
+                onToggle={toggleWatering}
                 label={wateringOn ? '已记录' : '跳过'}
                 icon={<Droplets size={12} />}
               />
@@ -488,7 +522,7 @@ export default function SymptomRecorder() {
               </div>
               <Toggle
                 on={fertilizingOn}
-                onToggle={() => setFertilizingOn(!fertilizingOn)}
+                onToggle={toggleFertilizing}
                 label={fertilizingOn ? '已记录' : '跳过'}
                 icon={<Flower2 size={12} />}
               />
@@ -514,7 +548,7 @@ export default function SymptomRecorder() {
               </div>
               <Toggle
                 on={lightOn}
-                onToggle={() => setLightOn(!lightOn)}
+                onToggle={toggleLight}
                 label={lightOn ? '已记录' : '跳过'}
                 icon={<Sun size={12} />}
               />
