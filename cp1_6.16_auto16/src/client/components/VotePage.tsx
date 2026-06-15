@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Activity, Option } from '../../shared/types';
 
 interface VotePageProps {
@@ -8,14 +8,12 @@ interface VotePageProps {
 }
 
 const VotePage: React.FC<VotePageProps> = ({ activity, activityId, userId }) => {
-  const [votedOptions, setVotedOptions] = useState<string[]>([]);
   const [voting, setVoting] = useState(false);
   const [animatingCard, setAnimatingCard] = useState<string | null>(null);
 
-  useEffect(() => {
-    const userVotes = activity.votedUsers[userId] || [];
-    setVotedOptions(userVotes);
-  }, [activity, userId]);
+  const votedOptions = useMemo(() => {
+    return activity.votedUsers[userId] || [];
+  }, [activity.votedUsers, userId]);
 
   const handleVote = async (optionId: string) => {
     if (activity.ended || voting) return;

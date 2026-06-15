@@ -22,5 +22,7 @@ export interface Activity {
 export interface VoteMessage {
   type: 'vote' | 'activity_ended' | 'activity_created';
   activityId: string;
+  voterId?: string;
   data?: Activity;
+  serverTime?: number;
 }

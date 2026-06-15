@@ -4,17 +4,18 @@ import { Activity } from '../../shared/types';
 interface AdminPageProps {
   activity: Activity;
   activityId: string;
+  getServerTime: () => number;
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ activity, activityId }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ activity, activityId, getServerTime }) => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (activity.ended) return;
 
-    const timer = setInterval(() => {
-      const now = Date.now();
+    const updateTimer = () => {
+      const now = getServerTime();
       const elapsed = now - activity.createdAt;
       
       const hours = Math.floor(elapsed / 3600000);
@@ -24,10 +25,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ activity, activityId }) => {
       setElapsedTime(
         `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
       );
-    }, 1000);
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
 
     return () => clearInterval(timer);
-  }, [activity.createdAt, activity.ended]);
+  }, [activity.createdAt, activity.ended, getServerTime]);
 
   const handleEndVoting = async () => {
     if (!confirm('确定要结束投票吗？结束后将无法继续投票。')) return;
@@ -90,11 +94,25 @@ const AdminPage: React.FC<AdminPageProps> = ({ activity, activityId }) => {
   const copyShareLink = async () => {
     const shareLink = `${window.location.origin}/#/vote/${activityId}`;
     try {
-      await navigator.clipboard.writeText(shareLink);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareLink);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
+      alert('复制失败，请手动复制链接');
     }
   };
 

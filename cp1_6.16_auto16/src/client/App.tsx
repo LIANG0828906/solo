@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CreateActivity from './components/CreateActivity';
 import VotePage from './components/VotePage';
 import AdminPage from './components/AdminPage';
@@ -9,7 +9,7 @@ type Page = 'home' | 'create' | 'vote' | 'admin';
 const getUserId = () => {
   let userId = localStorage.getItem('party_voter_id');
   if (!userId) {
-    userId = 'user_' + Math.random().toString(36).substr(2, 9);
+    userId = 'user_' + crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 12);
     localStorage.setItem('party_voter_id', userId);
   }
   return userId;
@@ -19,40 +19,108 @@ const App: React.FC = () => {
   const [page, setPage] = useState<Page>('home');
   const [activityId, setActivityId] = useState<string | null>(null);
   const [activity, setActivity] = useState<Activity | null>(null);
-  const [ws, setWs] = useState<WebSocket | null>(null);
   const [userId] = useState(getUserId);
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
+  const connectWebSocket = useCallback(() => {
+    if (!mountedRef.current) return;
+    
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const websocket = new WebSocket(wsUrl);
     
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-    };
-    
-    websocket.onmessage = (event) => {
-      try {
-        const message: VoteMessage = JSON.parse(event.data);
-        
-        if (message.activityId === activityId && message.data) {
-          setActivity(message.data);
+    try {
+      const websocket = new WebSocket(wsUrl);
+      wsRef.current = websocket;
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected');
+      };
+      
+      websocket.onmessage = (event) => {
+        try {
+          if (typeof event.data !== 'string') return;
+          
+          const message: VoteMessage = JSON.parse(event.data);
+          
+          if (!message || typeof message.type !== 'string' || typeof message.activityId !== 'string') {
+            console.warn('Received malformed WebSocket message');
+            return;
+          }
+          
+          if (message.serverTime && typeof message.serverTime === 'number') {
+            const offset = message.serverTime - Date.now();
+            setServerTimeOffset(prev => prev === 0 ? offset : prev * 0.8 + offset * 0.2);
+          }
+          
+          if (message.activityId === activityId && message.data) {
+            setActivity(message.data);
+          }
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
         }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+      };
+      
+      websocket.onclose = () => {
+        console.log('WebSocket disconnected, will retry in 3s...');
+        wsRef.current = null;
+        
+        if (mountedRef.current) {
+          if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current);
+          }
+          reconnectTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              connectWebSocket();
+            }
+          }, 3000);
+        }
+      };
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      if (mountedRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            connectWebSocket();
+          }
+        }, 3000);
       }
-    };
+    }
+  }, [activityId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
     
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
-    };
-    
-    setWs(websocket);
+    fetch('/api/server-time')
+      .then(res => res.json())
+      .then(data => {
+        if (data.serverTime && typeof data.serverTime === 'number') {
+          setServerTimeOffset(data.serverTime - Date.now());
+        }
+      })
+      .catch(() => {});
+
+    connectWebSocket();
     
     return () => {
-      websocket.close();
+      mountedRef.current = false;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-  }, [activityId]);
+  }, [connectWebSocket]);
 
   const fetchActivity = useCallback(async (id: string) => {
     try {
@@ -103,6 +171,10 @@ const App: React.FC = () => {
     window.location.hash = `#/admin/${id}`;
   };
 
+  const getServerTime = useCallback(() => {
+    return Date.now() + serverTimeOffset;
+  }, [serverTimeOffset]);
+
   if (page === 'home') {
     return (
       <div style={styles.container}>
@@ -146,7 +218,7 @@ const App: React.FC = () => {
   }
 
   if (page === 'admin' && activityId && activity) {
-    return <AdminPage activity={activity} activityId={activityId} />;
+    return <AdminPage activity={activity} activityId={activityId} getServerTime={getServerTime} />;
   }
 
   return (

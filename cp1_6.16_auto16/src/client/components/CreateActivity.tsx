@@ -79,14 +79,27 @@ const CreateActivity: React.FC<CreateActivityProps> = ({ onActivityCreated }) =>
   };
 
   const copyToClipboard = async () => {
-    if (shareLink) {
-      try {
+    if (!shareLink) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error('Failed to copy:', error);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
       }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      alert('复制失败，请手动复制链接');
     }
   };
 
