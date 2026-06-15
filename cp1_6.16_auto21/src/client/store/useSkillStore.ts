@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SkillNode, PathStage, LearningResource, StageStatus, PlanResponse } from '../types';
+import type { SkillNode, PathStage, SkillResource, PlanResponse, StageStatus } from '../types';
 import { generatePlan as generatePlanApi } from '../utils/api';
 
 interface SkillStoreState {
@@ -16,6 +16,8 @@ interface SkillStoreState {
   jobTitle: string;
   totalEstimatedHours: number;
   missingSkills: string[];
+  draggingNodeId: string | null;
+  selectedResourceId: string | null;
 }
 
 interface SkillStoreActions {
@@ -28,10 +30,10 @@ interface SkillStoreActions {
   setTargetJob: (jobId: string | null) => void;
   generateLearningPath: (targetJobId: string) => Promise<void>;
   setSelectedSkill: (skill: SkillNode | null) => void;
-  setError: (error: string | null) => void;
+  setDraggingNode: (nodeId: string | null) => void;
+  setSelectedResourceId: (id: string | null) => void;
   resetStore: () => void;
-  setIsLoading: (loading: boolean) => void;
-  updateSkillResources: (skillId: string, resources: LearningResource[]) => void;
+  fetchSkills: () => Promise<void>;
 }
 
 const initialState: SkillStoreState = {
@@ -48,74 +50,64 @@ const initialState: SkillStoreState = {
   jobTitle: '',
   totalEstimatedHours: 0,
   missingSkills: [],
+  draggingNodeId: null,
+  selectedResourceId: null,
 };
 
 export const useSkillStore = create<SkillStoreState & SkillStoreActions>((set, get) => ({
   ...initialState,
 
-  setSkills: (skills: SkillNode[]) => {
-    set({ skills });
-  },
+  setSkills: (skills) => set({ skills }),
 
-  updateProficiency: (skillId: string, proficiency: number) => {
-    const clampedProficiency = Math.max(0, Math.min(100, proficiency));
+  updateProficiency: (skillId, proficiency) => {
+    const clamped = Math.max(0, Math.min(100, proficiency));
     set((state) => ({
-      skills: state.skills.map((skill) =>
-        skill.id === skillId
-          ? { ...skill, proficiency: clampedProficiency }
-          : skill
+      skills: state.skills.map((s) =>
+        s.id === skillId ? { ...s, proficiency: clamped } : s
       ),
+      selectedSkill:
+        state.selectedSkill?.id === skillId
+          ? { ...state.selectedSkill, proficiency: clamped }
+          : state.selectedSkill,
     }));
-
-    const currentTargetJob = get().targetJobId;
-    if (currentTargetJob) {
-      void get().generateLearningPath(currentTargetJob);
+    const target = get().targetJobId;
+    if (target) {
+      void get().generateLearningPath(target);
     }
   },
 
-  toggleFavorite: (resourceId: string) => {
+  toggleFavorite: (resourceId) =>
     set((state) => ({
       favorites: state.favorites.includes(resourceId)
         ? state.favorites.filter((id) => id !== resourceId)
         : [...state.favorites, resourceId],
-    }));
-  },
+    })),
 
-  updateStageStatus: (stageId: string, status: StageStatus) => {
+  updateStageStatus: (stageId, status) =>
     set((state) => ({
-      learningPath: state.learningPath.map((stage) =>
-        stage.id === stageId ? { ...stage, status } : stage
+      learningPath: state.learningPath.map((s) =>
+        s.id === stageId ? { ...s, status } : s
       ),
-    }));
-  },
+    })),
 
-  setSearchQuery: (query: string) => {
-    set({ searchQuery: query });
-  },
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
-  setHighlightedSkill: (skillId: string | null) => {
-    set({ highlightedSkillId: skillId });
-  },
+  setHighlightedSkill: (skillId) => set({ highlightedSkillId: skillId }),
 
-  setTargetJob: (jobId: string | null) => {
-    set({ targetJobId: jobId });
-  },
+  setTargetJob: (jobId) => set({ targetJobId: jobId }),
 
-  generateLearningPath: async (targetJobId: string) => {
+  generateLearningPath: async (targetJobId) => {
     set({ isPathGenerating: true, error: null });
-
     try {
       const { skills } = get();
-      const currentSkills = skills.map((skill) => ({
-        skillId: skill.id,
-        proficiency: skill.proficiency,
+      const currentProficiencies = skills.map((s) => ({
+        skillId: s.id,
+        proficiency: s.proficiency,
       }));
-
       const response: PlanResponse = await generatePlanApi({
         targetJobId,
-        currentSkills,
+        currentProficiencies,
       });
-
       set({
         learningPath: response.stages,
         jobTitle: response.jobTitle,
@@ -123,36 +115,33 @@ export const useSkillStore = create<SkillStoreState & SkillStoreActions>((set, g
         missingSkills: response.missingSkills,
         targetJobId,
       });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate learning path';
-      set({ error: errorMessage });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate path';
+      set({ error: msg });
     } finally {
       set({ isPathGenerating: false });
     }
   },
 
-  setSelectedSkill: (skill: SkillNode | null) => {
-    set({ selectedSkill: skill });
-  },
+  setSelectedSkill: (skill) => set({ selectedSkill: skill }),
 
-  setError: (error: string | null) => {
-    set({ error });
-  },
+  setDraggingNode: (nodeId) => set({ draggingNodeId: nodeId }),
 
-  resetStore: () => {
-    set(initialState);
-  },
+  setSelectedResourceId: (id) => set({ selectedResourceId: id }),
 
-  setIsLoading: (loading: boolean) => {
-    set({ isLoading: loading });
-  },
+  resetStore: () => set(initialState),
 
-  updateSkillResources: (skillId: string, resources: LearningResource[]) => {
-    set((state) => ({
-      learningPath: state.learningPath.map((stage) =>
-        stage.skillId === skillId ? { ...stage, resources } : stage
-      ),
-    }));
+  fetchSkills: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await fetch('/api/skills');
+      const data = await res.json();
+      set({ skills: data.skills || [] });
+    } catch (err) {
+      console.error('Failed to fetch skills:', err);
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));
 

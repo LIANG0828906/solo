@@ -1,6 +1,6 @@
 export type SkillDomain = 'frontend' | 'backend' | 'database' | 'devops';
 
-export interface LearningResource {
+export interface SkillResource {
   id: string;
   title: string;
   type: 'video' | 'article' | 'course' | 'book';
@@ -19,48 +19,38 @@ export interface SkillNode {
   proficiencyThreshold: number;
   description: string;
   color: string;
-  resources: LearningResource[];
+  resources: SkillResource[];
 }
 
 export interface JobRequirement {
   id: string;
   title: string;
   description: string;
-  requiredSkills: {
-    skillId: string;
-    minProficiency: number;
-  }[];
+  requiredSkills: { skillId: string; minProficiency: number }[];
   preferredSkills?: string[];
   salaryRange: string;
 }
 
+export type StageStatus = 'not-started' | 'in-progress' | 'completed';
+
 export interface PathStage {
-  stage: number;
-  title: string;
-  skillIds: string[];
-  estimatedHours: number;
-  description: string;
+  id: string;
+  skillId: string;
+  skillName: string;
+  estimatedDuration: number;
+  resources: SkillResource[];
+  status: StageStatus;
+  order: number;
 }
 
 export interface PlanRequest {
-  currentProficiencies: {
-    skillId: string;
-    proficiency: number;
-  }[];
   targetJobId: string;
-  maxHoursPerWeek?: number;
+  currentProficiencies: { skillId: string; proficiency: number }[];
 }
 
 export interface PlanResponse {
   jobTitle: string;
-  missingSkills: {
-    skill: SkillNode;
-    currentProficiency: number;
-    requiredProficiency: number;
-    gap: number;
-  }[];
-  learningPath: PathStage[];
   totalEstimatedHours: number;
-  estimatedWeeks: number;
-  recommendations: string[];
+  stages: PathStage[];
+  missingSkills: string[];
 }
