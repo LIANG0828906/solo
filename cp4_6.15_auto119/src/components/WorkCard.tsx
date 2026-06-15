@@ -34,18 +34,25 @@ export default function WorkCard({ work, index }: WorkCardProps) {
       onClick={() => navigate(`/work/${work.id}`)}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-cream">
+        <div
+          className={`
+            absolute inset-0 bg-cream animate-pulse
+            transition-opacity duration-500
+            ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+          `}
+        />
         <img
           src={work.images[0]}
           alt={work.name}
           onLoad={() => setLoaded(true)}
-          className={`
-            w-full h-full object-cover transition-all duration-700
-            ${loaded ? 'blur-0 opacity-100' : 'blur-[10px] opacity-0'}
-          `}
+          style={{
+            filter: loaded ? 'blur(0px)' : 'blur(12px)',
+            opacity: loaded ? 1 : 0,
+            transition: 'filter 900ms cubic-bezier(0.4, 0, 0.2, 1), opacity 900ms cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: loaded ? 'scale(1)' : 'scale(1.05)',
+          }}
+          className="w-full h-full object-cover"
         />
-        {!loaded && (
-          <div className="absolute inset-0 bg-cream animate-pulse" />
-        )}
       </div>
 
       <div className="p-4">
