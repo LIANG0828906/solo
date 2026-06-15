@@ -454,15 +454,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSliderFromPointer(pointer: Phaser.Input.Pointer, type: 'temperature' | 'humidity' | 'light'): void {
-    const localPoint = new Phaser.Geom.Point(0, 0);
-    this.controlPanelContainer.getLocalPoint(pointer.x, pointer.y, localPoint);
+    const panelX = this.scale.width - 120;
+    const relX = pointer.x - panelX;
 
     let sliderY: number;
     if (type === 'temperature') sliderY = -80;
     else if (type === 'humidity') sliderY = 20;
     else sliderY = 120;
 
-    const relX = localPoint.x;
     let value = (relX + this.sliderWidth / 2) / this.sliderWidth * 100;
     value = Phaser.Math.Clamp(value, 0, 100);
 

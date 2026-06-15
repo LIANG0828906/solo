@@ -91,9 +91,31 @@ export class Plant extends Phaser.GameObjects.Container {
   }
 
   public setEnvironment(params: Partial<EnvironmentParams>): void {
+    const oldTemp = this.targetEnvironment.temperature;
     this.targetEnvironment = { ...this.targetEnvironment, ...params };
     this.envTransitionActive = true;
     this.envTransitionProgress = 0;
+
+    if (this.stage === 'mature' && this.action === 'idle' && params.temperature !== undefined && params.temperature !== oldTemp) {
+      this.recalculateNextActionTime(params.temperature);
+    }
+  }
+
+  private recalculateNextActionTime(newTemp: number): void {
+    const now = this.scene.time.now;
+    const oldMin = Phaser.Math.Linear(8000, 3000, this.environment.temperature / 100);
+    const oldMax = Phaser.Math.Linear(12000, 5000, this.environment.temperature / 100);
+    const oldInterval = Phaser.Math.Linear(oldMin, oldMax, 0.5);
+
+    const elapsed = oldInterval - (this.nextActionTime - now);
+    const progress = Math.max(0, Math.min(1, elapsed / oldInterval));
+
+    const newMin = Phaser.Math.Linear(8000, 3000, newTemp / 100);
+    const newMax = Phaser.Math.Linear(12000, 5000, newTemp / 100);
+    const newInterval = Phaser.Math.Linear(newMin, newMax, 0.5);
+
+    const newRemaining = newInterval * (1 - progress);
+    this.nextActionTime = now + Math.max(500, newRemaining);
   }
 
   public update(deltaTime: number): void {
