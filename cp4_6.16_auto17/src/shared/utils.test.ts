@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   haversineDistance,
   calculateTotalDistance,
@@ -7,6 +7,8 @@ import {
   formatDuration,
   exportToGPX,
   getBounds,
+  simplifyTrackPoints,
+  downloadFile,
 } from './utils';
 import { TrackPoint } from './types';
 
@@ -50,6 +52,14 @@ describe('calculateTotalDistance', () => {
     const seg2 = haversineDistance(39.9052, 116.4084, 39.9062, 116.4094);
     expect(total).toBeCloseTo(seg1 + seg2, 3);
   });
+
+  it('两个相同的点距离应为0', () => {
+    const points: TrackPoint[] = [
+      { id: '1', trailId: 't1', lat: 39.9042, lng: 116.4074, elevation: 0, timestamp: new Date() },
+      { id: '2', trailId: 't1', lat: 39.9042, lng: 116.4074, elevation: 0, timestamp: new Date() },
+    ];
+    expect(calculateTotalDistance(points)).toBeCloseTo(0, 5);
+  });
 });
 
 describe('calculateAvgElevation', () => {
@@ -84,6 +94,13 @@ describe('calculateAvgElevation', () => {
     ];
     expect(calculateAvgElevation(points)).toBe(20);
   });
+
+  it('只有一个点时应返回该点海拔', () => {
+    const points: TrackPoint[] = [
+      { id: '1', trailId: 't1', lat: 0, lng: 0, elevation: 150, timestamp: new Date() },
+    ];
+    expect(calculateAvgElevation(points)).toBe(150);
+  });
 });
 
 describe('formatDistance', () => {
@@ -97,6 +114,10 @@ describe('formatDistance', () => {
     expect(formatDistance(1000)).toBe('1.00 km');
     expect(formatDistance(1500)).toBe('1.50 km');
     expect(formatDistance(2345.6)).toBe('2.35 km');
+  });
+
+  it('0值应正确显示', () => {
+    expect(formatDistance(0)).toBe('0 m');
   });
 });
 
@@ -118,6 +139,121 @@ describe('formatDuration', () => {
     expect(formatDuration(3661)).toBe('1小时1分');
     expect(formatDuration(7200)).toBe('2小时0分');
   });
+
+  it('0值应正确显示', () => {
+    expect(formatDuration(0)).toBe('0秒');
+  });
+});
+
+describe('simplifyTrackPoints', () => {
+  const createPoint = (lat: number, lng: number, idx: number = 0): TrackPoint => ({
+    id: `p${idx}`,
+    trailId: 't1',
+    lat,
+    lng,
+    elevation: 100,
+    timestamp: new Date(),
+  });
+
+  it('少于2个点直接返回', () => {
+    const empty: TrackPoint[] = [];
+    const single = [createPoint(39.9, 116.4, 0)];
+    expect(simplifyTrackPoints(empty)).toEqual(empty);
+    expect(simplifyTrackPoints(single)).toEqual(single);
+  });
+
+  it('2个点不简化', () => {
+    const points = [
+      createPoint(39.9000, 116.4000, 0),
+      createPoint(39.9100, 116.4100, 1),
+    ];
+    const result = simplifyTrackPoints(points);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe(points[0]);
+    expect(result[1]).toBe(points[1]);
+  });
+
+  it('间隔密集的点被合并', () => {
+    const points: TrackPoint[] = [];
+    for (let i = 0; i < 20; i++) {
+      points.push(createPoint(39.9000 + i * 0.0001, 116.4000 + i * 0.0001, i));
+    }
+    const result = simplifyTrackPoints(points, 50);
+    expect(result.length).toBeLessThan(points.length);
+    expect(result.length).toBeGreaterThan(2);
+  });
+
+  it('保留首尾点', () => {
+    const points: TrackPoint[] = [];
+    for (let i = 0; i < 10; i++) {
+      points.push(createPoint(39.9000 + i * 0.001, 116.4000 + i * 0.001, i));
+    }
+    const result = simplifyTrackPoints(points, 100);
+    expect(result[0]).toBe(points[0]);
+    expect(result[result.length - 1]).toBe(points[points.length - 1]);
+  });
+
+  it('tolerance参数有效', () => {
+    const points: TrackPoint[] = [];
+    for (let i = 0; i < 30; i++) {
+      points.push(createPoint(39.9000 + i * 0.0005, 116.4000 + i * 0.0005, i));
+    }
+    const resultLarge = simplifyTrackPoints(points, 200);
+    const resultSmall = simplifyTrackPoints(points, 20);
+    expect(resultLarge.length).toBeLessThan(resultSmall.length);
+  });
+});
+
+describe('downloadFile', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:mock-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    const mockAnchor = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+
+    const mockBody = {
+      appendChild: vi.fn(),
+      removeChild: vi.fn(),
+    };
+
+    vi.stubGlobal('document', {
+      createElement: vi.fn(() => mockAnchor),
+      body: mockBody,
+    });
+  });
+
+  it('应创建Blob并生成下载链接', () => {
+    downloadFile('test.txt', 'hello world', 'text/plain');
+
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(document.createElement).toHaveBeenCalledWith('a');
+    expect(document.body.appendChild).toHaveBeenCalled();
+    expect(document.body.removeChild).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+  });
+
+  it('应正确设置文件名和MIME类型', () => {
+    downloadFile('trail.gpx', '<xml></xml>', 'text/xml');
+
+    const mockAnchor = (document.createElement as any).mock.results[0].value;
+    expect(mockAnchor.download).toBe('trail.gpx');
+    expect(mockAnchor.href).toBe('blob:mock-url');
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+  });
+
+  it('点击下载后应清理DOM和URL', () => {
+    downloadFile('test.txt', 'test');
+
+    const mockAnchor = (document.createElement as any).mock.results[0].value;
+    expect(mockAnchor.click).toHaveBeenCalled();
+    expect(document.body.removeChild).toHaveBeenCalledWith(mockAnchor);
+  });
 });
 
 describe('exportToGPX', () => {
@@ -138,7 +274,7 @@ describe('exportToGPX', () => {
 
   it('应包含正确数量的轨迹点', () => {
     const points: TrackPoint[] = [
-      { id: '1', trailId: 't1', lat: 39.9042, lng: 116.4074, elevation: 50, timestamp: new Date() },
+      { id: '1', trailId: 't1', lat: 39.9042, lng: 116.4074, elevation: 60, timestamp: new Date() },
       { id: '2', trailId: 't1', lat: 39.9052, lng: 116.4084, elevation: 60, timestamp: new Date() },
       { id: '3', trailId: 't1', lat: 39.9062, lng: 116.4094, elevation: 70, timestamp: new Date() },
     ];
@@ -173,6 +309,15 @@ describe('exportToGPX', () => {
     ];
     const gpx = exportToGPX('测试&轨迹<特殊>字符"引用\'撇号', points);
     expect(gpx).toContain('测试&amp;轨迹&lt;特殊&gt;字符&quot;引用&apos;撇号');
+  });
+
+  it('轨迹名称中的特殊字符应被转义 - 补充测试', () => {
+    const points: TrackPoint[] = [
+      { id: '1', trailId: 't1', lat: 0, lng: 0, elevation: 0, timestamp: new Date() },
+    ];
+    const gpx = exportToGPX('<>&"\'', points);
+    expect(gpx).toContain('&lt;&gt;&amp;&quot;&apos;');
+    expect(gpx).not.toContain('<name><>&"\'</name>');
   });
 });
 

@@ -1045,9 +1045,11 @@ textarea {
 @keyframes buttonPulse {
   0%, 100% {
     box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.6);
+    box-shadow: 0 6px 24px rgba(255, 152, 0, 0.7);
+    opacity: 0.85;
   }
 }
 
@@ -1145,6 +1147,8 @@ textarea {
   position: relative;
   width: 32px;
   height: 40px;
+  transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+  transform-origin: bottom center;
 }
 
 .poi-pin-head {
@@ -1170,6 +1174,36 @@ textarea {
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
   border-top: 12px solid var(--accent-red);
+}
+
+.poi-pin-icon.poi-pin-long-pressing .poi-pin {
+  transform: scale(1.15);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+}
+
+.poi-pin-icon.poi-pin-dragging .poi-pin {
+  transform: scale(1.3);
+  opacity: 0.9;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+}
+
+.poi-pin-icon.poi-pin-bounce .poi-pin {
+  animation: pinBounce 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes pinBounce {
+  0% {
+    transform: scale(1.3);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .poi-popup .leaflet-popup-content-wrapper {
@@ -1293,7 +1327,7 @@ textarea {
   z-index: 1000;
   max-height: calc(100% - 32px);
   overflow-y: auto;
-  animation: slideInRight 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation: slideInRight 300ms ease;
 }
 
 @keyframes slideInRight {

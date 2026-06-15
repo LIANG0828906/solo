@@ -13,31 +13,26 @@ interface POIMarkerProps {
   draggable?: boolean;
 }
 
-const createPinIcon = (size: number = 40, opacity: number = 1) => {
-  const width = Math.round(size * 0.8);
-  const height = size;
-  const anchorX = Math.round(width / 2);
-  const anchorY = height;
-  const popupY = -height;
+type DragState = 'idle' | 'longPressing' | 'dragging';
 
+const createPinIcon = () => {
+  const width = 32;
+  const height = 40;
   return L.divIcon({
     className: 'poi-pin-icon',
     html: `
-      <div class="poi-pin" style="width:${width}px;height:${height}px;opacity:${opacity};transition:all 0.2s ease-in-out;">
+      <div class="poi-pin">
         <div class="poi-pin-head"></div>
         <div class="poi-pin-body"></div>
       </div>
     `,
     iconSize: [width, height],
-    iconAnchor: [anchorX, anchorY],
-    popupAnchor: [0, popupY],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height],
   });
 };
 
 const baseIcon = createPinIcon();
-const draggingIcon = createPinIcon(52, 0.85);
-const dragStartIcon = createPinIcon(48, 0.9);
-const dragEndIcon = createPinIcon(44, 1);
 
 export const POIMarker = memo(function POIMarker({
   poi,
@@ -48,16 +43,18 @@ export const POIMarker = memo(function POIMarker({
 }: POIMarkerProps) {
   const markerRef = useRef<L.Marker>(null);
   const map = useMap();
-  const [isDragging, setIsDragging] = useState(false);
-  const [isLongPressing, setIsLongPressing] = useState(false);
+  const [dragState, setDragState] = useState<DragState>('idle');
+  const dragStateRef = useRef<DragState>('idle');
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragEnabledRef = useRef(false);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isTouchRef = useRef(false);
+  const isBouncingRef = useRef(false);
 
-  useEffect(() => {
-    if (isSelected && markerRef.current) {
-      markerRef.current.openPopup();
-    }
-  }, [isSelected]);
+  const setDragStateSync = useCallback((state: DragState) => {
+    dragStateRef.current = state;
+    setDragState(state);
+  }, []);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -66,111 +63,195 @@ export const POIMarker = memo(function POIMarker({
     }
   }, []);
 
-  const handleLongPressStart = useCallback(() => {
-    if (!draggable) return;
+  const addMarkerClass = useCallback((className: string) => {
+    const marker = markerRef.current;
+    if (!marker) return;
+    const el = marker.getElement();
+    if (!el) return;
+    el.classList.add(className);
+  }, []);
+
+  const removeMarkerClass = useCallback((className: string) => {
+    const marker = markerRef.current;
+    if (!marker) return;
+    const el = marker.getElement();
+    if (!el) return;
+    el.classList.remove(className);
+  }, []);
+
+  const handlePressStart = useCallback((clientX: number, clientY: number, isTouch: boolean) => {
+    if (!draggable || dragStateRef.current !== 'idle' || isBouncingRef.current) return;
+
     clearLongPressTimer();
-    setIsLongPressing(true);
+    startPosRef.current = { x: clientX, y: clientY };
+    isTouchRef.current = isTouch;
+    setDragStateSync('longPressing');
+    addMarkerClass('poi-pin-long-pressing');
+
+    const delay = isTouch ? 600 : 500;
     longPressTimerRef.current = setTimeout(() => {
       dragEnabledRef.current = true;
-      setIsLongPressing(false);
-      if (markerRef.current) {
-        markerRef.current.setIcon(dragStartIcon);
+      setDragStateSync('dragging');
+      removeMarkerClass('poi-pin-long-pressing');
+      addMarkerClass('poi-pin-dragging');
+      if (map) {
+        map.dragging.disable();
       }
-    }, 500);
-  }, [draggable, clearLongPressTimer]);
+    }, delay);
+  }, [draggable, clearLongPressTimer, setDragStateSync, addMarkerClass, removeMarkerClass, map]);
 
-  const handleLongPressCancel = useCallback(() => {
+  const handleMove = useCallback((clientX: number, clientY: number) => {
+    if (dragStateRef.current !== 'longPressing' || !startPosRef.current) return;
+
+    const dx = clientX - startPosRef.current.x;
+    const dy = clientY - startPosRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const threshold = isTouchRef.current ? 10 : 5;
+
+    if (distance > threshold) {
+      clearLongPressTimer();
+      setDragStateSync('idle');
+      removeMarkerClass('poi-pin-long-pressing');
+      startPosRef.current = null;
+    }
+  }, [clearLongPressTimer, setDragStateSync, removeMarkerClass]);
+
+  const handlePressEnd = useCallback(() => {
+    const currentState = dragStateRef.current;
+    if (currentState === 'idle') return;
+
     clearLongPressTimer();
-    setIsLongPressing(false);
-  }, [clearLongPressTimer]);
-
-  const handleDragStart = useCallback(() => {
-    if (!dragEnabledRef.current) return;
-    setIsDragging(true);
-    if (markerRef.current) {
-      markerRef.current.setIcon(draggingIcon);
-    }
-    if (map) {
-      map.dragging.disable();
-    }
-  }, [map]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    setIsLongPressing(false);
     dragEnabledRef.current = false;
-    clearLongPressTimer();
+    startPosRef.current = null;
 
-    if (markerRef.current) {
-      markerRef.current.setIcon(dragEndIcon);
-      const pos = markerRef.current.getLatLng();
-      if (onDragEnd) {
-        onDragEnd(pos.lat, pos.lng);
+    if (currentState === 'longPressing') {
+      removeMarkerClass('poi-pin-long-pressing');
+    } else if (currentState === 'dragging') {
+      if (!isBouncingRef.current) {
+        isBouncingRef.current = true;
+        removeMarkerClass('poi-pin-dragging');
+        addMarkerClass('poi-pin-bounce');
+
+        setTimeout(() => {
+          removeMarkerClass('poi-pin-bounce');
+          isBouncingRef.current = false;
+        }, 400);
       }
-      setTimeout(() => {
-        if (markerRef.current) {
-          markerRef.current.setIcon(baseIcon);
-        }
-      }, 200);
     }
 
-    if (map) {
+    setDragStateSync('idle');
+
+    if (currentState === 'dragging' && map) {
       map.dragging.enable();
     }
-  }, [onDragEnd, map, clearLongPressTimer]);
+  }, [clearLongPressTimer, setDragStateSync, addMarkerClass, removeMarkerClass, map]);
 
   const handleClick = useCallback(() => {
-    if (dragEnabledRef.current || isDragging) return;
+    if (dragEnabledRef.current || dragStateRef.current !== 'idle' || isBouncingRef.current) return;
     clearLongPressTimer();
     if (onClick) {
       onClick();
     }
-  }, [onClick, isDragging, clearLongPressTimer]);
+  }, [onClick, clearLongPressTimer]);
 
-  const handleMouseDown = useCallback(() => {
-    handleLongPressStart();
-  }, [handleLongPressStart]);
+  const handleDragEnd = useCallback(() => {
+    handlePressEnd();
 
-  const handleMouseUp = useCallback(() => {
-    handleLongPressCancel();
-  }, [handleLongPressCancel]);
-
-  const handleMouseOut = useCallback(() => {
-    handleLongPressCancel();
-  }, [handleLongPressCancel]);
+    if (markerRef.current && onDragEnd) {
+      const pos = markerRef.current.getLatLng();
+      onDragEnd(pos.lat, pos.lng);
+    }
+  }, [onDragEnd, handlePressEnd]);
 
   useEffect(() => {
     const marker = markerRef.current;
     if (!marker) return;
 
-    marker.on('mousedown', handleMouseDown);
-    marker.on('mouseup', handleMouseUp);
-    marker.on('mouseout', handleMouseOut);
-    marker.on('touchstart', handleMouseDown);
-    marker.on('touchend', handleMouseUp);
-    marker.on('touchcancel', handleMouseOut);
+    const onMouseDown = (e: L.LeafletMouseEvent) => {
+      handlePressStart(e.originalEvent.clientX, e.originalEvent.clientY, false);
+    };
+
+    const onMouseUp = () => {
+      handlePressEnd();
+    };
+
+    const onMouseOut = () => {
+      if (dragStateRef.current === 'longPressing') {
+        handlePressEnd();
+      }
+    };
+
+    const onTouchStart = (e: L.LeafletEvent) => {
+      const touch = (e.originalEvent as TouchEvent).touches[0];
+      if (touch) {
+        handlePressStart(touch.clientX, touch.clientY, true);
+      }
+    };
+
+    const onTouchEnd = () => {
+      handlePressEnd();
+    };
+
+    const onTouchCancel = () => {
+      handlePressEnd();
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      handleMove(e.clientX, e.clientY);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        handleMove(touch.clientX, touch.clientY);
+      }
+    };
+
+    marker.on('mousedown', onMouseDown);
+    marker.on('mouseup', onMouseUp);
+    marker.on('mouseout', onMouseOut);
+    marker.on('touchstart', onTouchStart);
+    marker.on('touchend', onTouchEnd);
+    marker.on('touchcancel', onTouchCancel);
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('touchmove', onTouchMove, { passive: true });
 
     return () => {
-      marker.off('mousedown', handleMouseDown);
-      marker.off('mouseup', handleMouseUp);
-      marker.off('mouseout', handleMouseOut);
-      marker.off('touchstart', handleMouseDown);
-      marker.off('touchend', handleMouseUp);
-      marker.off('touchcancel', handleMouseOut);
+      marker.off('mousedown', onMouseDown);
+      marker.off('mouseup', onMouseUp);
+      marker.off('mouseout', onMouseOut);
+      marker.off('touchstart', onTouchStart);
+      marker.off('touchend', onTouchEnd);
+      marker.off('touchcancel', onTouchCancel);
+
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('touchmove', onTouchMove);
+
       clearLongPressTimer();
+      if (map && dragEnabledRef.current) {
+        map.dragging.enable();
+      }
     };
-  }, [handleMouseDown, handleMouseUp, handleMouseOut, clearLongPressTimer]);
+  }, [handlePressStart, handlePressEnd, handleMove, clearLongPressTimer, map]);
+
+  useEffect(() => {
+    if (isSelected && markerRef.current) {
+      markerRef.current.openPopup();
+    }
+  }, [isSelected]);
+
+  const zIndexOffset = dragState === 'dragging' ? 1000 : isSelected ? 100 : 0;
 
   return (
     <Marker
       ref={markerRef}
       position={[poi.lat, poi.lng]}
-      icon={isDragging ? draggingIcon : isLongPressing ? createPinIcon(44, 0.92) : baseIcon}
-      draggable={draggable && dragEnabledRef.current}
-      zIndexOffset={isDragging ? 1000 : isSelected ? 100 : 0}
+      icon={baseIcon}
+      draggable={draggable && dragEnabledRef.current && dragState === 'dragging'}
+      zIndexOffset={zIndexOffset}
       eventHandlers={{
         click: handleClick,
-        dragstart: handleDragStart,
         dragend: handleDragEnd,
       }}
     >

@@ -45,6 +45,41 @@ describe('Record Store', () => {
       expect(state.currentTrailName).toBe('第二条轨迹');
       expect(state.points).toEqual([]);
     });
+
+    it('重复调用startRecording应重置点数', async () => {
+      const store = useRecordStore.getState();
+      await store.startRecording('轨迹1');
+      const trailId1 = useRecordStore.getState().currentTrailId;
+
+      for (let i = 0; i < 5; i++) {
+        store.addPoint({
+          trailId: trailId1!,
+          lat: 39.9 + i * 0.001,
+          lng: 116.4 + i * 0.001,
+          elevation: i * 10,
+          timestamp: new Date(),
+        });
+      }
+      expect(useRecordStore.getState().points).toHaveLength(5);
+
+      await store.startRecording('轨迹2');
+      const state = useRecordStore.getState();
+      expect(state.points).toEqual([]);
+      expect(state.points).toHaveLength(0);
+    });
+
+    it('每次生成不同的trailId', async () => {
+      const store = useRecordStore.getState();
+      await store.startRecording('轨迹1');
+      const trailId1 = useRecordStore.getState().currentTrailId;
+
+      await store.startRecording('轨迹2');
+      const trailId2 = useRecordStore.getState().currentTrailId;
+
+      expect(trailId1).not.toEqual(trailId2);
+      expect(trailId1).toBeDefined();
+      expect(trailId2).toBeDefined();
+    });
   });
 
   describe('stopRecording', () => {
@@ -160,6 +195,83 @@ describe('Record Store', () => {
       const ids = useRecordStore.getState().points.map(p => p.id);
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(5);
+    });
+  });
+
+  describe('setCurrentPosition', () => {
+    it('设置当前位置后状态正确', () => {
+      const store = useRecordStore.getState();
+      const position = {
+        lat: 39.9042,
+        lng: 116.4074,
+        accuracy: 10,
+      };
+      store.setCurrentPosition(position);
+      const state = useRecordStore.getState();
+      expect(state.currentPosition).toEqual(position);
+      expect(state.currentPosition?.lat).toBe(39.9042);
+      expect(state.currentPosition?.lng).toBe(116.4074);
+    });
+
+    it('null值也能正确设置', () => {
+      const store = useRecordStore.getState();
+      store.setCurrentPosition({ lat: 0, lng: 0, accuracy: 0 });
+      expect(useRecordStore.getState().currentPosition).not.toBeNull();
+
+      store.setCurrentPosition(null);
+      const state = useRecordStore.getState();
+      expect(state.currentPosition).toBeNull();
+    });
+  });
+
+  describe('setError', () => {
+    it('设置错误信息', () => {
+      const store = useRecordStore.getState();
+      store.setError('测试错误信息');
+      const state = useRecordStore.getState();
+      expect(state.error).toBe('测试错误信息');
+    });
+
+    it('清除错误信息', () => {
+      const store = useRecordStore.getState();
+      store.setError('测试错误');
+      expect(useRecordStore.getState().error).toBe('测试错误');
+
+      store.setError(null);
+      const state = useRecordStore.getState();
+      expect(state.error).toBeNull();
+    });
+  });
+
+  describe('resetRecording', () => {
+    it('重置后所有状态回到初始值', async () => {
+      const store = useRecordStore.getState();
+      await store.startRecording('测试轨迹');
+      const trailId = useRecordStore.getState().currentTrailId!;
+
+      store.addPoint({
+        trailId,
+        lat: 39.9042,
+        lng: 116.4074,
+        elevation: 50,
+        timestamp: new Date(),
+      });
+      store.setCurrentPosition({ lat: 39.9042, lng: 116.4074, accuracy: 5 });
+      store.setError('测试错误');
+
+      expect(useRecordStore.getState().isRecording).toBe(true);
+      expect(useRecordStore.getState().points.length).toBeGreaterThan(0);
+
+      store.resetRecording();
+      const state = useRecordStore.getState();
+
+      expect(state.isRecording).toBe(false);
+      expect(state.currentTrailId).toBeNull();
+      expect(state.currentTrailName).toBe('');
+      expect(state.points).toEqual([]);
+      expect(state.startTime).toBeNull();
+      expect(state.currentPosition).toBeNull();
+      expect(state.error).toBeNull();
     });
   });
 
