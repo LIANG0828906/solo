@@ -220,12 +220,20 @@ body {
 }
 
 .btn-flash {
+  background-color: #DAA520 !important;
   animation: flashGold 0.5s ease-in-out 6;
+  pointer-events: none;
 }
 
 @keyframes flashGold {
-  0%, 100% { background-color: #DAA520; }
-  50% { background-color: #f5d55a; }
+  0%, 100% { 
+    background-color: #DAA520;
+    box-shadow: 0 0 0 0 rgba(218, 165, 32, 0.7);
+  }
+  50% { 
+    background-color: #f5d55a;
+    box-shadow: 0 0 20px 4px rgba(218, 165, 32, 0.4);
+  }
 }
 
 .progress-ring {

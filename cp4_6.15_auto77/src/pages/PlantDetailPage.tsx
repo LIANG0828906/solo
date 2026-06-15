@@ -136,11 +136,16 @@ export default function PlantDetailPage() {
     setButtonState('flashing');
     addAdoptionRequest(plant.id);
 
-    setTimeout(() => {
-      setButtonState('applied');
-      setToastMessage('领养申请已提交');
-      setToastVisible(true);
-    }, 3000);
+    const startTime = Date.now();
+    const flashInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= 3000) {
+        clearInterval(flashInterval);
+        setButtonState('applied');
+        setToastMessage('领养申请已提交');
+        setToastVisible(true);
+      }
+    }, 100);
   };
 
   const lightInfo = lightLabels[plant.lightRequirement];

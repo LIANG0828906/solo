@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import Navbar from '../components/Navbar';
 import PlantCard from '../components/PlantCard';
 import Modal from '../components/Modal';
@@ -11,6 +12,8 @@ import type {
   WaterFrequency,
   RequestStatus,
   AdoptionRequest,
+  Plant,
+  User,
 } from '../types';
 
 function formatRelativeTime(isoString: string): string {
@@ -69,12 +72,34 @@ function UploadProgress({ progress }: { progress: number }) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const currentUser = useStore((s) => s.currentUser);
-  const userPlants = useStore((s) => s.getUserPlants(s.currentUser.id));
-  const adoptionRequests = useStore((s) => s.getRequestsForUserPlants(s.currentUser.id));
-  const addPlant = useStore((s) => s.addPlant);
-  const removePlant = useStore((s) => s.removePlant);
-  const updateRequestStatus = useStore((s) => s.updateRequestStatus);
+  const {
+    currentUser,
+    plants,
+    adoptionRequests: allRequests,
+    addPlant,
+    removePlant,
+    updateRequestStatus,
+  } = useStore(
+    useShallow((s) => ({
+      currentUser: s.currentUser as User,
+      plants: s.plants as Plant[],
+      adoptionRequests: s.adoptionRequests as AdoptionRequest[],
+      addPlant: s.addPlant,
+      removePlant: s.removePlant,
+      updateRequestStatus: s.updateRequestStatus,
+    }))
+  );
+
+  const userPlants = useMemo(
+    () => plants.filter((p) => p.ownerId === currentUser.id),
+    [plants, currentUser.id]
+  );
+  const adoptionRequests = useMemo(() => {
+    const userPlantIds = userPlants.map((p) => p.id);
+    return allRequests
+      .filter((r) => userPlantIds.includes(r.plantId))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [allRequests, userPlants]);
 
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [removingPlantId, setRemovingPlantId] = useState<string | null>(null);

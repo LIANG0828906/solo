@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import Navbar from '../components/Navbar';
 import PlantCard from '../components/PlantCard';
 import { useStore } from '../store';
-import type { DifficultyFilter } from '../types';
+import type { DifficultyFilter, Plant } from '../types';
 
 const filterOptions: { key: DifficultyFilter; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -28,8 +29,9 @@ export default function HomePage() {
   const [searchValue, setSearchValue] = useState('');
   const [activeFilter, setActiveFilter] = useState<DifficultyFilter>('all');
   const [searchKey, setSearchKey] = useState(0);
-  const plants = useStore((s) => s.plants);
-  const newPlantIds = useStore((s) => s.newPlantIds);
+  const { plants, newPlantIds } = useStore(
+    useShallow((s) => ({ plants: s.plants as Plant[], newPlantIds: s.newPlantIds }))
+  );
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);

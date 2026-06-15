@@ -88,10 +88,16 @@ export default function PlantCard({ plant, onClick, isNew, isSearchResult }: Pla
             className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
               plant.status === 'available'
                 ? 'bg-olive-600 text-white'
+                : plant.status === 'adopted'
+                ? 'bg-gray-400 text-white'
                 : 'bg-gray-400 text-white'
             }`}
           >
-            {plant.status === 'available' ? '待领养' : '已领养'}
+            {plant.status === 'available'
+              ? '待领养'
+              : plant.status === 'adopted'
+              ? '已领养'
+              : '待领养'}
           </span>
           {onClick && (
             <button
