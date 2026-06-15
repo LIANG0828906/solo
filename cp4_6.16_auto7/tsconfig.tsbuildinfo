@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/dependencygraph.tsx","./src/components/taskcard.tsx","./src/hooks/usetaskstore.ts"],"errors":true,"version":"5.8.3"}
