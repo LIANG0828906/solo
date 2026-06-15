@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { BaseType, BasePair } from './sequenceParser';
-import { calculateBasePairPosition } from './sequenceParser';
+import { calculateBasePairPosition, getDynamicHelixParams } from './sequenceParser';
 
 export type MutationType = 'point' | 'insertion' | 'deletion';
 
@@ -40,8 +40,15 @@ export function calculateTwistOffset(
 
 function recalculatePositions(basePairs: BasePair[]): BasePair[] {
   const totalBases = basePairs.length;
+  const { radius, basePairHeight, basesPerTurn } = getDynamicHelixParams(totalBases);
   return basePairs.map((bp, index) => {
-    const { position, rotation, helixAngle } = calculateBasePairPosition(index, totalBases);
+    const { position, rotation, helixAngle } = calculateBasePairPosition(
+      index,
+      totalBases,
+      radius,
+      basePairHeight,
+      basesPerTurn
+    );
     return {
       ...bp,
       index,
