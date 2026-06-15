@@ -120,3 +120,54 @@
     transform: translateX(-50%) translateY(0);
   }
 }
+
+.map-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  text-align: center;
+  color: #ffffff;
+  background: rgba(26, 35, 50, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 30px 50px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loading-spinner {
+  font-size: 48px;
+  animation: spin 2s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.map-loading p {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.country-interactive {
+  cursor: pointer;
+  transition: fill-opacity 300ms ease-out, opacity 300ms ease-out, stroke-width 300ms ease-out;
+}
+
+.country-interactive:hover {
+  fill-opacity: 0.7 !important;
+}
+
+.country-disabled {
+  cursor: default;
+  pointer-events: none;
+}

@@ -2,7 +2,7 @@ import type { QuizQuestion, QuizResult } from '@/types';
 import { getRandomQuestion } from '@/data/quiz-questions';
 
 const BASE_SCORE = 10;
-const STREAK_BONUS = [0, 0, 2, 4, 6, 8, 10];
+const STREAK_BONUS = [0, 2, 4, 6, 8, 10, 12];
 
 export const calculateScore = (streak: number): number => {
   const bonusIndex = Math.min(streak, STREAK_BONUS.length - 1);
