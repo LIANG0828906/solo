@@ -10,6 +10,7 @@ import type {
   SurveyUpdateInput,
   SubmissionCreateInput,
   ExportData,
+  CsvRow,
 } from '../shared/types';
 
 const surveys = new Map<string, Survey>();
@@ -192,6 +193,56 @@ export function getExportData(): ExportData {
   };
 }
 
+export function getCsvExportData(
+  surveyId: string,
+  startTime?: Date,
+  endTime?: Date
+): CsvRow[] | undefined {
+  const survey = surveys.get(surveyId);
+  if (!survey) return undefined;
+
+  const allSubmissions = submissionsBySurvey.get(surveyId) || [];
+
+  const filteredSubmissions = startTime || endTime
+    ? allSubmissions.filter((s) => {
+        const t = s.submittedAt.getTime();
+        const afterStart = !startTime || t >= startTime.getTime();
+        const beforeEnd = !endTime || t <= endTime.getTime();
+        return afterStart && beforeEnd;
+      })
+    : allSubmissions;
+
+  const rows: CsvRow[] = [];
+
+  for (const submission of filteredSubmissions) {
+    for (const question of survey.questions) {
+      const answer = submission.answers.find((a) => a.questionId === question.id);
+      let answerValue = '';
+
+      if (answer) {
+        if (Array.isArray(answer.value)) {
+          answerValue = answer.value.join('; ');
+        } else if (typeof answer.value === 'number') {
+          answerValue = String(answer.value);
+        } else {
+          answerValue = answer.value;
+        }
+      }
+
+      rows.push({
+        submissionId: submission.id,
+        submittedAt: submission.submittedAt.toISOString(),
+        questionId: question.id,
+        questionTitle: question.title,
+        questionType: question.type,
+        answer: answerValue,
+      });
+    }
+  }
+
+  return rows;
+}
+
 function generateSampleSubmissions(survey: Survey, count: number): void {
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -226,6 +277,9 @@ function generateSampleSubmissions(survey: Survey, count: number): void {
           '推荐给朋友',
           '性价比很高',
           '使用便捷',
+          '回答中包含,逗号的测试',
+          '回答中包含"引号"的测试',
+          '回答中包含\n换行符的测试',
         ];
         value = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
       }
