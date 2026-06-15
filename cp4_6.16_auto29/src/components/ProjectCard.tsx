@@ -41,7 +41,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
       <div className="project-card__info">
         <span className="project-card__info-item">
-          {project.stitchCount} 针 × {project.rowCount} 行
+          {project.stitchCount > 0 ? project.stitchCount : 0} 针 × {project.rowCount > 0 ? project.rowCount : 0} 行
         </span>
       </div>
 
@@ -49,10 +49,11 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
         <div className="project-card__progress-text">
           <span>进度</span>
           <span>
-            {project.currentRow} / {project.rowCount} 行
+            {project.currentRow} / {project.rowCount > 0 ? project.rowCount : 0} 行
+            {project.rowCount > 0 && project.currentRow >= project.rowCount && ' ✓'}
           </span>
         </div>
-        <ProgressBar current={project.currentRow} total={project.rowCount} />
+        <ProgressBar current={project.currentRow} total={project.rowCount > 0 ? project.rowCount : 1} />
       </div>
 
       {project.referenceImage && (

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getPatternRowCount } from '@/utils/pattern';
+import { useState, useMemo } from 'react';
+import { validatePattern } from '@/utils/pattern';
 import './CreateModal.css';
 
 interface CreateModalProps {
@@ -23,6 +23,8 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
   const [patternText, setPatternText] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | undefined>();
 
+  const validation = useMemo(() => validatePattern(patternText.trim()), [patternText]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -36,13 +38,9 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
 
   const handlePatternChange = (text: string) => {
     setPatternText(text);
-    const rows = getPatternRowCount(text);
-    if (rows > 0) {
-      setRowCount(rows);
-      const firstLineLength = text.split('\n').find((l) => l.trim())?.length || 0;
-      if (firstLineLength > 0) {
-        setStitchCount(firstLineLength);
-      }
+    if (validation.valid) {
+      setRowCount(validation.rowCount);
+      setStitchCount(validation.stitchCount);
     }
   };
 
@@ -56,11 +54,15 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
       alert('请输入图案内容');
       return;
     }
+    if (!validation.valid) {
+      alert(`图案格式错误：${validation.error}`);
+      return;
+    }
     onSubmit({
       name: name.trim(),
       yarnColor,
-      stitchCount,
-      rowCount,
+      stitchCount: validation.stitchCount,
+      rowCount: validation.rowCount,
       patternText: patternText.trim(),
       referenceImage,
     });
@@ -161,9 +163,19 @@ export function CreateModal({ isOpen, onClose, onSubmit }: CreateModalProps) {
               value={patternText}
               onChange={(e) => handlePatternChange(e.target.value)}
               placeholder={`例如：\n｜｜｜O｜｜｜/｜｜\n｜/｜｜O｜｜｜｜｜\n...`}
-              className="form-textarea"
+              className={`form-textarea ${
+                patternText.trim() && !validation.valid ? 'form-textarea--error' : ''
+              }`}
               rows={8}
             />
+            {patternText.trim() && !validation.valid && (
+              <div className="form-error">⚠️ {validation.error}</div>
+            )}
+            {validation.valid && patternText.trim() && (
+              <div className="form-success">
+                ✓ 图案格式正确：{validation.rowCount} 行 × {validation.stitchCount} 针
+              </div>
+            )}
             <div className="pattern-legend">
               <span className="legend-item"><code>｜</code> 下针</span>
               <span className="legend-item"><code>O</code> 空针</span>

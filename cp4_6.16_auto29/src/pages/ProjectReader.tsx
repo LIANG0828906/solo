@@ -3,68 +3,104 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ProgressPanel } from '@/components/ProgressPanel';
 import { PatternGrid } from '@/components/PatternGrid';
 import { useProjectStore } from '@/store/projectStore';
+import { calculateActiveSeconds } from '@/utils/time';
 import './ProjectReader.css';
 
 export function ProjectReader() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProject, loadProjects, advanceRow, undoRow, startReading, updateElapsedTime } =
-    useProjectStore();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
+  const {
+    loadProjects,
+    advanceRow,
+    undo,
+    startActiveSession,
+    endActiveSession,
+  } = useProjectStore();
+  const projects = useProjectStore((state) => {
+    console.log('[Reader] selector called, projects.length:', state.projects.length);
+    return state.projects;
+  });
+  const project = id ? projects.find((p) => p.id === id) : undefined;
+  console.log('[Reader] render, project?.currentRow:', project?.currentRow, 'undoStack size:', project?.undoStack?.length);
 
-  const project = id ? getProject(id) : undefined;
+  const [activeSeconds, setActiveSeconds] = useState(0);
+  const timerRef = useRef<number | null>(null);
+  const isLeavingRef = useRef(false);
 
   useEffect(() => {
+    console.log('[Reader] loadProjects useEffect');
     loadProjects();
   }, [loadProjects]);
+
+  const updateActiveSeconds = useCallback(() => {
+    if (project) {
+      setActiveSeconds(calculateActiveSeconds(project.activeSegments, Date.now()));
+    }
+  }, [project]);
 
   useEffect(() => {
     if (!project) return;
 
-    setElapsedSeconds(project.elapsedSeconds);
+    updateActiveSeconds();
 
     if (project.currentRow < project.rowCount) {
-      startReading(project.id);
-      startTimeRef.current = Date.now() - project.elapsedSeconds * 1000;
+      startActiveSession(project.id);
 
       timerRef.current = window.setInterval(() => {
-        if (startTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-          setElapsedSeconds(elapsed);
-        }
+        updateActiveSeconds();
       }, 1000);
     }
 
+    isLeavingRef.current = false;
+
     return () => {
+      if (isLeavingRef.current) return;
+      isLeavingRef.current = true;
+
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      if (project.elapsedSeconds !== elapsedSeconds) {
-        updateElapsedTime(project.id, elapsedSeconds);
+      endActiveSession(project.id);
+    };
+  }, [project?.id, project?.currentRow, startActiveSession, endActiveSession, updateActiveSeconds]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!project) return;
+      if (document.hidden) {
+        endActiveSession(project.id);
+      } else {
+        startActiveSession(project.id);
       }
     };
-  }, [project?.id]);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [project, startActiveSession, endActiveSession]);
 
   const handleAdvanceRow = useCallback(() => {
     if (!project || project.currentRow >= project.rowCount) return;
     advanceRow(project.id);
   }, [project, advanceRow]);
 
-  const handleUndoRow = useCallback(() => {
+  const handleUndo = useCallback(() => {
     if (!project || project.undoStack.length === 0) return;
-    undoRow(project.id);
-  }, [project, undoRow]);
+    undo(project.id);
+  }, [project, undo]);
 
-  const handleBack = useCallback(() => {
-    if (project && timerRef.current) {
-      clearInterval(timerRef.current);
-      updateElapsedTime(project.id, elapsedSeconds);
+  const handleBack = useCallback(async () => {
+    if (!project) {
+      navigate('/');
+      return;
     }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    await endActiveSession(project.id);
     navigate('/');
-  }, [project, elapsedSeconds, navigate, updateElapsedTime]);
+  }, [project, navigate, endActiveSession]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -73,18 +109,28 @@ export function ProjectReader() {
         handleAdvanceRow();
       } else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        handleUndoRow();
+        handleUndo();
       } else if (e.code === 'Escape') {
         handleBack();
       }
     },
-    [handleAdvanceRow, handleUndoRow, handleBack]
+    [handleAdvanceRow, handleUndo, handleBack]
   );
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    const beforeUnload = () => {
+      if (project && !isLeavingRef.current) {
+        endActiveSession(project.id);
+      }
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [project, endActiveSession]);
 
   if (!project) {
     return (
@@ -116,7 +162,7 @@ export function ProjectReader() {
         <ProgressPanel
           currentRow={project.currentRow}
           totalRows={project.rowCount}
-          elapsedSeconds={elapsedSeconds}
+          elapsedSeconds={activeSeconds}
         />
       </div>
 
@@ -135,7 +181,7 @@ export function ProjectReader() {
           className={`btn reader-footer__btn reader-footer__undo ${
             project.undoStack.length === 0 ? 'is-disabled' : ''
           }`}
-          onClick={handleUndoRow}
+          onClick={handleUndo}
           disabled={project.undoStack.length === 0}
         >
           ↶ 撤销

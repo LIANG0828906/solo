@@ -132,6 +132,29 @@
   border-color: var(--color-accent);
 }
 
+.form-textarea--error {
+  border-color: #e74c3c;
+  background-color: #fdf5f5;
+}
+
+.form-error {
+  font-size: 13px;
+  color: #e74c3c;
+  padding: 6px 8px;
+  background-color: #fdf5f5;
+  border-radius: 6px;
+  border: 1px solid #f5c6cb;
+}
+
+.form-success {
+  font-size: 13px;
+  color: #2e7d32;
+  padding: 6px 8px;
+  background-color: #e8f5e9;
+  border-radius: 6px;
+  border: 1px solid #a5d6a7;
+}
+
 .color-picker-wrapper {
   display: flex;
   align-items: center;
