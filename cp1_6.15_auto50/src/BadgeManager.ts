@@ -35,12 +35,16 @@ export const BADGE_DEFS: BadgeData[] = [
 export class BadgeManager {
   private unlocked: Set<BadgeTier> = new Set();
   private listeners: Set<(badges: BadgeTier[]) => void> = new Set();
+  private lastScore = 0;
 
   reset(): void {
     this.unlocked.clear();
+    this.lastScore = 0;
+    this.emit();
   }
 
   updateScore(score: number): BadgeTier[] {
+    this.lastScore = score;
     const newlyUnlocked: BadgeTier[] = [];
     for (const def of BADGE_DEFS) {
       if (score >= def.threshold && !this.unlocked.has(def.id)) {

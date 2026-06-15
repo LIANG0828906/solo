@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { badgeManager } from './BadgeManager';
+import { badgeManager, BadgeTier } from './BadgeManager';
 
 export interface HitResult {
   type: 'perfect' | 'good' | 'miss';
@@ -9,15 +9,20 @@ export interface HitResult {
 interface BeatNote {
   sprite: Phaser.GameObjects.Arc;
   targetTime: number;
+  spawnTime: number;
+  musicProgress: number;
   hit: boolean;
   missed: boolean;
-  baseColor: number;
+  moveTween: Phaser.Tweens.Tween | null;
 }
 
 export const BPM = 120;
 export const BEAT_INTERVAL = 60000 / BPM;
 export const NOTE_TRAVEL_MS = 2400;
 export const SONG_DURATION = 30000;
+export const PERFECT_WINDOW = 50;
+export const GOOD_WINDOW = 100;
+export const MISS_WINDOW = 150;
 
 export class BeatScene extends Phaser.Scene {
   private notes: BeatNote[] = [];
@@ -26,9 +31,10 @@ export class BeatScene extends Phaser.Scene {
   private trackStartX = 0;
   private trackEndX = 0;
   private startTime = 0;
-  private nextBeatTime = 0;
+  private nextBeatTargetTime = 0;
   private audioCtx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private audioStartTime = 0;
   private score = 0;
   private combo = 0;
   private perfectCount = 0;
@@ -36,7 +42,7 @@ export class BeatScene extends Phaser.Scene {
   private missCount = 0;
   private songEnded = false;
   private noteRadius = 25;
-  private hitTweens: Phaser.Tweens.Tween[] = [];
+  private pendingNoteCount = 0;
 
   constructor() {
     super('BeatScene');
@@ -75,13 +81,18 @@ export class BeatScene extends Phaser.Scene {
     });
 
     this.startTime = this.time.now;
-    this.nextBeatTime = this.startTime + 800;
+    this.audioStartTime = this.startTime + 800;
+    this.nextBeatTargetTime = this.audioStartTime;
+
     this.setupAudio();
     this.scheduleMusic();
 
     this.input.on('pointerdown', this.handleTap, this);
 
     badgeManager.reset();
+    badgeManager.onUpdate((badges: BadgeTier[]) => {
+      this.events.emit('badgeUnlock', badges);
+    });
 
     this.events.emit('scoreUpdate', {
       score: 0,
@@ -101,7 +112,8 @@ export class BeatScene extends Phaser.Scene {
   private scheduleMusic(): void {
     if (!this.audioCtx || !this.masterGain) return;
     const ctx = this.audioCtx;
-    const startAt = ctx.currentTime + 0.1;
+    const audioStartDelay = (this.audioStartTime - this.startTime) / 1000;
+    const startAt = ctx.currentTime + audioStartDelay;
 
     const melody = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63, 293.66, 349.23,
                     440.0, 523.25, 440.0, 349.23, 392.0, 493.88, 587.33, 493.88];
@@ -153,18 +165,61 @@ export class BeatScene extends Phaser.Scene {
         noise.start(t);
       }
     }
+
+    this.pendingNoteCount = totalBeats;
+  }
+
+  private getNoteColor(musicProgress: number): number {
+    const t = Phaser.Math.Clamp(musicProgress, 0, 1);
+    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.HexStringToColor('#00e5ff'),
+      Phaser.Display.Color.HexStringToColor('#ff4dd2'),
+      100,
+      Math.floor(t * 100)
+    );
+    return Phaser.Display.Color.GetColor(color.r, color.g, color.b);
+  }
+
+  private getBeatProgress(targetTime: number): number {
+    const total = targetTime - this.audioStartTime;
+    return Math.min(1, Math.max(0, total / SONG_DURATION));
+  }
+
+  private spawnNote(targetTime: number): void {
+    const musicProgress = this.getBeatProgress(targetTime);
+    const intColor = this.getNoteColor(musicProgress);
+
+    const sprite = this.add.circle(this.trackStartX, this.trackY, this.noteRadius, intColor, 1);
+    sprite.setStrokeStyle(3, 0xffffff, 0.35);
+
+    const moveTween = this.tweens.add({
+      targets: sprite,
+      x: this.trackEndX,
+      duration: NOTE_TRAVEL_MS,
+      ease: 'Linear',
+      persist: true
+    });
+
+    this.notes.push({
+      sprite,
+      targetTime,
+      spawnTime: this.time.now,
+      musicProgress,
+      hit: false,
+      missed: false,
+      moveTween
+    });
   }
 
   private handleTap(pointer: Phaser.Input.Pointer): void {
     if (this.songEnded) return;
     const now = this.time.now;
-    const elapsed = now - this.startTime;
-    const progress = Math.min(1, elapsed / SONG_DURATION);
 
     let closest: BeatNote | null = null;
     let closestDiff = Infinity;
     for (const note of this.notes) {
       if (note.hit || note.missed) continue;
+      if (!note.moveTween || !note.moveTween.isPlaying()) continue;
       const diff = Math.abs(now - note.targetTime);
       if (diff < closestDiff) {
         closestDiff = diff;
@@ -172,9 +227,13 @@ export class BeatScene extends Phaser.Scene {
       }
     }
 
-    if (closest && closestDiff <= 150) {
+    if (closest && closestDiff <= MISS_WINDOW) {
       const result = this.evaluateHit(closestDiff);
       closest.hit = true;
+      if (closest.moveTween) {
+        closest.moveTween.stop();
+        closest.moveTween = null;
+      }
       this.applyHitFeedback(closest, result);
       this.updateScore(result);
     } else {
@@ -183,8 +242,8 @@ export class BeatScene extends Phaser.Scene {
   }
 
   private evaluateHit(diffMs: number): HitResult {
-    if (diffMs <= 50) return { type: 'perfect', score: 100 };
-    if (diffMs <= 100) return { type: 'good', score: 50 };
+    if (diffMs <= PERFECT_WINDOW) return { type: 'perfect', score: 100 };
+    if (diffMs <= GOOD_WINDOW) return { type: 'good', score: 50 };
     return { type: 'miss', score: 0 };
   }
 
@@ -202,6 +261,14 @@ export class BeatScene extends Phaser.Scene {
         onComplete: () => glow.destroy()
       });
       this.spawnFeedbackAt(sprite.x, sprite.y, 'PERFECT', 0xffd700);
+      this.tweens.add({
+        targets: sprite,
+        scale: { from: 1, to: 0.3 },
+        alpha: { from: 1, to: 0 },
+        duration: 260,
+        ease: 'Cubic.easeIn',
+        onComplete: () => sprite.destroy()
+      });
     } else if (result.type === 'good') {
       sprite.setFillStyle(0x00e5ff, 0.9);
       this.tweens.add({
@@ -240,6 +307,10 @@ export class BeatScene extends Phaser.Scene {
 
   private missNote(note: BeatNote): void {
     note.missed = true;
+    if (note.moveTween) {
+      note.moveTween.stop();
+      note.moveTween = null;
+    }
     const { sprite } = note;
     sprite.setFillStyle(0x666666, 0.9);
     for (let i = 0; i < 6; i++) {
@@ -260,6 +331,7 @@ export class BeatScene extends Phaser.Scene {
     this.missCount++;
     this.combo = 0;
     this.spawnFeedbackAt(sprite.x, sprite.y, 'MISS', 0x888888);
+    badgeManager.updateScore(this.score);
     this.emitStatus();
   }
 
@@ -307,52 +379,35 @@ export class BeatScene extends Phaser.Scene {
   }
 
   private emitStatus(): void {
-    const elapsed = this.time.now - this.startTime;
+    const elapsed = this.time.now - this.audioStartTime;
     this.events.emit('scoreUpdate', {
       score: this.score,
       combo: this.combo,
-      progress: Math.min(1, elapsed / SONG_DURATION)
+      progress: Math.min(1, Math.max(0, elapsed / SONG_DURATION))
     });
-  }
-
-  private spawnNote(targetTime: number): void {
-    const elapsed = targetTime - this.startTime;
-    const progress = Math.min(1, elapsed / SONG_DURATION);
-    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
-      Phaser.Display.Color.HexStringToColor('#00e5ff'),
-      Phaser.Display.Color.HexStringToColor('#ff4dd2'),
-      100,
-      Math.floor(progress * 100)
-    );
-    const intColor = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
-
-    const sprite = this.add.circle(this.trackStartX, this.trackY, this.noteRadius, intColor, 1);
-    sprite.setStrokeStyle(3, 0xffffff, 0.35);
-
-    this.notes.push({ sprite, targetTime, hit: false, missed: false, baseColor: intColor });
   }
 
   update(_time: number, delta: number): void {
     if (this.songEnded) return;
     const now = this.time.now;
 
-    while (now >= this.nextBeatTime - NOTE_TRAVEL_MS && this.nextBeatTime < this.startTime + SONG_DURATION + NOTE_TRAVEL_MS) {
-      this.spawnNote(this.nextBeatTime);
-      this.nextBeatTime += BEAT_INTERVAL;
+    while (this.pendingNoteCount > 0 && now >= this.nextBeatTargetTime - NOTE_TRAVEL_MS) {
+      this.spawnNote(this.nextBeatTargetTime);
+      this.nextBeatTargetTime += BEAT_INTERVAL;
+      this.pendingNoteCount--;
     }
 
     for (const note of this.notes) {
       if (note.hit || note.missed) continue;
       const remain = note.targetTime - now;
-      const t = 1 - remain / NOTE_TRAVEL_MS;
-      note.sprite.x = this.trackStartX + (this.trackEndX - this.trackStartX) * Phaser.Math.Clamp(t, 0, 1);
-
-      if (remain < -150) {
+      if (remain < -MISS_WINDOW) {
         this.missNote(note);
       }
     }
 
-    if (now >= this.startTime + SONG_DURATION + 500 && !this.songEnded) {
+    this.notes = this.notes.filter(n => !n.hit && !n.missed);
+
+    if (now >= this.audioStartTime + SONG_DURATION + NOTE_TRAVEL_MS + 200 && !this.songEnded) {
       this.songEnded = true;
       this.endGame();
     }
@@ -366,6 +421,7 @@ export class BeatScene extends Phaser.Scene {
     if (this.audioCtx) {
       this.audioCtx.close().catch(() => {});
     }
+    badgeManager.updateScore(this.score);
     this.events.emit('gameEnd', {
       score: this.score,
       perfect: this.perfectCount,

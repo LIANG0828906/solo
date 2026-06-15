@@ -24,6 +24,7 @@ export class UIScene extends Phaser.Scene {
   private currentScore = 0;
   private targetScore = 0;
   private scoreTween: Phaser.Tweens.Tween | null = null;
+  private badgeUnlockListener: (() => void) | null = null;
 
   constructor() {
     super('UIScene');
@@ -55,11 +56,20 @@ export class UIScene extends Phaser.Scene {
     const beatScene = this.scene.get('BeatScene');
     beatScene.events.on('scoreUpdate', this.onScoreUpdate, this);
     beatScene.events.on('gameEnd', this.onGameEnd, this);
+    beatScene.events.on('badgeUnlock', this.onBadgeUnlock, this);
+
+    this.badgeUnlockListener = badgeManager.onUpdate(() => {
+      this.updateBadgeIcons();
+    });
 
     this.events.once('shutdown', () => {
       beatScene.events.off('scoreUpdate', this.onScoreUpdate, this);
       beatScene.events.off('gameEnd', this.onGameEnd, this);
+      beatScene.events.off('badgeUnlock', this.onBadgeUnlock, this);
+      if (this.badgeUnlockListener) this.badgeUnlockListener();
     });
+
+    this.updateBadgeIcons();
   }
 
   private createBadgeMiniIcons(): void {
@@ -171,6 +181,9 @@ export class UIScene extends Phaser.Scene {
     }
 
     this.drawProgress(data.progress);
+  }
+
+  private onBadgeUnlock(_badges: BadgeTier[]): void {
     this.updateBadgeIcons();
   }
 
@@ -188,6 +201,16 @@ export class UIScene extends Phaser.Scene {
           duration: 420,
           ease: 'Back.easeOut'
         });
+        if (isUnlocked) {
+          this.time.delayedCall(420, () => {
+            this.tweens.add({
+              targets: icon,
+              scale: 1,
+              duration: 180,
+              ease: 'Sine.easeInOut'
+            });
+          });
+        }
       }
     }
   }

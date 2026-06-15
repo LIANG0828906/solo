@@ -57,7 +57,7 @@ function createModal(): { mask: HTMLElement; show: (tier: BadgeTier) => void } {
   return { mask, show };
 }
 
-function generateShareImage(name: string, score: number, badges: BadgeTier[]): void {
+async function generateShareImage(name: string, score: number, badges: BadgeTier[]): Promise<void> {
   const W = 720;
   const H = 1080;
   const canvas = document.createElement('canvas');
@@ -112,38 +112,53 @@ function generateShareImage(name: string, score: number, badges: BadgeTier[]): v
   const badgeSize = 160;
   const gap = 30;
   const totalW = badges.length * badgeSize + (badges.length - 1) * gap;
-  let x = (W - totalW) / 2;
+  let startX = (W - totalW) / 2;
   const y = 640;
 
   if (badges.length === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = '22px "Segoe UI", "PingFang SC", sans-serif';
     ctx.fillText('本次未解锁任何徽章，继续努力！', W / 2, y + 80);
+  } else {
+    const loadPromises: Promise<void>[] = badges.map((tier, i) => {
+      return new Promise((resolve, reject) => {
+        const svg = badgeManager.renderBadgeSVG(tier, badgeSize);
+        const img = new Image();
+        const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const bx = startX + i * (badgeSize + gap);
+        img.onload = () => {
+          ctx.shadowColor = BADGE_DEFS.find(d => d.id === tier)!.color;
+          ctx.shadowBlur = 25;
+          ctx.drawImage(img, bx, y, badgeSize, badgeSize);
+          ctx.shadowBlur = 0;
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error(`Failed to load badge image: ${tier}`));
+        };
+        img.src = url;
+      });
+    });
+    try {
+      await Promise.all(loadPromises);
+    } catch (err) {
+      console.error('Failed to load badge images:', err);
+    }
   }
-
-  badges.forEach((tier, i) => {
-    const svg = badgeManager.renderBadgeSVG(tier, badgeSize);
-    const img = new Image();
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    const bx = x + i * (badgeSize + gap);
-    img.onload = () => {
-      ctx.shadowColor = BADGE_DEFS.find(d => d.id === tier)!.color;
-      ctx.shadowBlur = 25;
-      ctx.drawImage(img, bx, y, badgeSize, badgeSize);
-      ctx.shadowBlur = 0;
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  });
 
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
   ctx.fillText('© 2026 节奏徽章 · 音乐节限定版', W / 2, H - 70);
 
-  setTimeout(() => {
+  return new Promise((resolve, reject) => {
     canvas.toBlob(blob => {
-      if (!blob) return;
+      if (!blob) {
+        reject(new Error('Failed to generate image blob'));
+        return;
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `rhythm-badge-${Date.now()}.png`;
@@ -151,8 +166,9 @@ function generateShareImage(name: string, score: number, badges: BadgeTier[]): v
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    }, 'image/png');
-  }, 400);
+      resolve();
+    }, 'image/png', 0.95);
+  });
 }
 
 function showResultPanel(data: GameEndData): void {
@@ -221,10 +237,18 @@ function showResultPanel(data: GameEndData): void {
     }, 450);
   });
 
-  saveBtn.addEventListener('click', () => {
-    generateShareImage(nameInput.value.trim(), data.score, data.badges);
-    saveBtn.textContent = '已保存 ✓';
-    setTimeout(() => { saveBtn.textContent = '保存徽章'; }, 1800);
+  saveBtn.addEventListener('click', async () => {
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = '生成中...';
+    try {
+      await generateShareImage(nameInput.value.trim(), data.score, data.badges);
+      saveBtn.textContent = '已保存 ✓';
+      setTimeout(() => { saveBtn.textContent = originalText; }, 1800);
+    } catch (err) {
+      console.error('Save failed:', err);
+      saveBtn.textContent = '保存失败';
+      setTimeout(() => { saveBtn.textContent = originalText; }, 1800);
+    }
   });
 
   overlay.appendChild(panel);
