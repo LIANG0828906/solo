@@ -41,10 +41,17 @@ const placeholderMaterial = new THREE.MeshStandardMaterial({
 
 const textureLoader = new THREE.TextureLoader();
 
+let maxAnisotropy: number = 1;
+
+export function setMaxAnisotropy(value: number): void {
+  maxAnisotropy = Math.max(1, value);
+}
+
 export class Artwork extends THREE.Group {
   private data: ArtworkData;
   private frameMesh: THREE.Mesh;
   private canvasMesh: THREE.Mesh;
+  private hitboxMesh: THREE.Mesh;
   private originalPosition: THREE.Vector3;
   private isFloating: boolean = false;
   private floatProgress: number = 0;
@@ -68,9 +75,21 @@ export class Artwork extends THREE.Group {
     this.canvasMesh = new THREE.Mesh(canvasGeometry, placeholderMaterial);
     this.canvasMesh.position.z = FRAME_DEPTH / 2 + 0.01;
     this.canvasMesh.receiveShadow = true;
+    this.canvasMesh.castShadow = false;
     this.add(this.canvasMesh);
 
-    this.raycastTargets = [this.frameMesh, this.canvasMesh];
+    const hitboxGeometry = new THREE.PlaneGeometry(FRAME_WIDTH * 1.05, FRAME_HEIGHT * 1.05);
+    const hitboxMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    this.hitboxMesh = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
+    this.hitboxMesh.position.z = FRAME_DEPTH / 2 + 0.02;
+    this.add(this.hitboxMesh);
+
+    this.raycastTargets = [this.hitboxMesh, this.frameMesh, this.canvasMesh];
 
     this.loadTexture();
   }
@@ -92,6 +111,10 @@ export class Artwork extends THREE.Group {
           }
         }
         texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = true;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = maxAnisotropy;
         texture.needsUpdate = true;
 
         const material = new THREE.MeshStandardMaterial({
@@ -135,17 +158,28 @@ export class Artwork extends THREE.Group {
     const startProgress = this.floatProgress;
     const targetProgress = direction === 'out' ? 1 : 0;
 
-    const easeOutBack = (t: number): number => {
-      const c1 = 1.70158;
-      const c3 = c1 + 1;
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    const easeOutElastic = (t: number): number => {
+      if (t === 0) return 0;
+      if (t === 1) return 1;
+      const period = 0.5;
+      const overshoot = 1.15;
+      const s = period / 4;
+      const shifted = t - 1;
+      const power = Math.pow(2, -10 * shifted);
+      const wave = Math.sin((shifted - s) * (2 * Math.PI) / period);
+      return (power * wave + 1) * overshoot - (overshoot - 1);
     };
 
     const animate = () => {
       const elapsed = (performance.now() - startTime) / 1000;
       let t = Math.min(elapsed / duration, 1);
 
-      const easedT = direction === 'out' ? easeOutBack(t) : t;
+      let easedT: number;
+      if (direction === 'out') {
+        easedT = easeOutElastic(t);
+      } else {
+        easedT = t * t * (3 - 2 * t);
+      }
       this.floatProgress = startProgress + (targetProgress - startProgress) * easedT;
 
       const offset = this.normal.clone().multiplyScalar(this.targetZOffset * this.floatProgress);
@@ -154,6 +188,9 @@ export class Artwork extends THREE.Group {
       if (t < 1) {
         this.animationId = requestAnimationFrame(animate);
       } else {
+        this.floatProgress = targetProgress;
+        const finalOffset = this.normal.clone().multiplyScalar(this.targetZOffset * this.floatProgress);
+        this.position.copy(this.originalPosition).add(finalOffset);
         this.animationId = null;
       }
     };

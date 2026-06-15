@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createGallery } from './gallery';
-import { Artwork, ArtworkData, ArtworkClickEvent } from './artwork';
+import { Artwork, ArtworkData, ArtworkClickEvent, setMaxAnisotropy } from './artwork';
 
 const artworksData: ArtworkData[] = [
   {
@@ -63,7 +63,9 @@ let targetDistance = 17;
 let currentDistance = 17;
 const minDistance = 5;
 const maxDistance = 30;
-const dampingFactor = 0.2;
+const thetaDamping = 0.12;
+const distanceDamping = 0.10;
+const wheelSensitivity = 0.006;
 
 let currentFloatingArtwork: Artwork | null = null;
 let isFullscreen = false;
@@ -95,12 +97,16 @@ function init(): void {
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
+
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  setMaxAnisotropy(maxAniso);
 
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2();
@@ -111,41 +117,63 @@ function init(): void {
   animate();
 }
 
+function configureSpotLightShadow(light: THREE.SpotLight): void {
+  light.castShadow = true;
+  light.shadow.mapSize.width = 2048;
+  light.shadow.mapSize.height = 2048;
+  light.shadow.camera.near = 0.5;
+  light.shadow.camera.far = 30;
+  light.shadow.camera.fov = 45;
+  light.shadow.bias = -0.0005;
+  light.shadow.normalBias = 0.02;
+  light.shadow.radius = 4;
+}
+
 function setupLighting(): void {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
   scene.add(ambientLight);
 
-  const spotLight1 = new THREE.SpotLight(warmLightColor, 1.5, 30, Math.PI / 6, 0.4, 1);
-  spotLight1.position.set(-5, 4.5, -4);
-  spotLight1.target.position.set(-5, 2.5, -5);
-  spotLight1.castShadow = true;
-  spotLight1.shadow.mapSize.width = 1024;
-  spotLight1.shadow.mapSize.height = 1024;
+  const spotLight1 = new THREE.SpotLight(warmLightColor, 1.6, 35, Math.PI / 5.5, 0.45, 1);
+  spotLight1.position.set(-4.5, 4.6, -3.5);
+  spotLight1.target.position.set(-4.5, 2.5, -4.95);
+  configureSpotLightShadow(spotLight1);
   scene.add(spotLight1);
   scene.add(spotLight1.target);
 
-  const spotLight2 = new THREE.SpotLight(warmLightColor, 1.5, 30, Math.PI / 6, 0.4, 1);
-  spotLight2.position.set(5, 4.5, -4);
-  spotLight2.target.position.set(5, 2.5, -5);
-  spotLight2.castShadow = true;
-  spotLight2.shadow.mapSize.width = 1024;
-  spotLight2.shadow.mapSize.height = 1024;
+  const spotLight2 = new THREE.SpotLight(warmLightColor, 1.6, 35, Math.PI / 5.5, 0.45, 1);
+  spotLight2.position.set(4.5, 4.6, -3.5);
+  spotLight2.target.position.set(4.5, 2.5, -4.95);
+  configureSpotLightShadow(spotLight2);
   scene.add(spotLight2);
   scene.add(spotLight2.target);
 
-  const spotLight3 = new THREE.SpotLight(warmLightColor, 1.2, 30, Math.PI / 6, 0.4, 1);
-  spotLight3.position.set(-5, 4.5, 4);
-  spotLight3.target.position.set(-5, 2.5, 5);
-  spotLight3.castShadow = true;
+  const spotLight3 = new THREE.SpotLight(warmLightColor, 1.3, 35, Math.PI / 5.5, 0.45, 1);
+  spotLight3.position.set(-4.5, 4.6, 3.5);
+  spotLight3.target.position.set(-4.5, 2.5, 4.95);
+  configureSpotLightShadow(spotLight3);
   scene.add(spotLight3);
   scene.add(spotLight3.target);
 
-  const spotLight4 = new THREE.SpotLight(warmLightColor, 1.2, 30, Math.PI / 6, 0.4, 1);
-  spotLight4.position.set(5, 4.5, 4);
-  spotLight4.target.position.set(5, 2.5, 5);
-  spotLight4.castShadow = true;
+  const spotLight4 = new THREE.SpotLight(warmLightColor, 1.3, 35, Math.PI / 5.5, 0.45, 1);
+  spotLight4.position.set(4.5, 4.6, 3.5);
+  spotLight4.target.position.set(4.5, 2.5, 4.95);
+  configureSpotLightShadow(spotLight4);
   scene.add(spotLight4);
   scene.add(spotLight4.target);
+
+  const spotLight5 = new THREE.SpotLight(warmLightColor, 0.9, 30, Math.PI / 5, 0.5, 1);
+  spotLight5.position.set(-6.9, 4.5, 0);
+  spotLight5.target.position.set(-6.98, 2.5, 0);
+  configureSpotLightShadow(spotLight5);
+  scene.add(spotLight5);
+  scene.add(spotLight5.target);
+
+  const spotLight6 = new THREE.SpotLight(warmLightColor, 0.9, 30, Math.PI / 5, 0.5, 1);
+  spotLight6.position.set(6.9, 4.5, 0);
+  spotLight6.target.position.set(6.98, 2.5, 0);
+  configureSpotLightShadow(spotLight6);
+  scene.add(spotLight6);
+  scene.add(spotLight6.target);
 }
 
 function setupGallery(): void {
@@ -195,7 +223,8 @@ function onMouseMove(event: MouseEvent): void {
 function onWheel(event: WheelEvent): void {
   if (isFullscreen) return;
   event.preventDefault();
-  targetDistance += event.deltaY * 0.01;
+  const normalizedDelta = Math.sign(event.deltaY) * Math.min(Math.abs(event.deltaY), 100);
+  targetDistance += normalizedDelta * wheelSensitivity;
   targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
 }
 
@@ -271,6 +300,15 @@ function retractCurrentArtwork(): void {
   hideArtworkInfo();
 }
 
+function getHighResImageUrl(baseUrl: string): string {
+  const maxDim = Math.max(window.innerWidth, window.innerHeight);
+  const targetSize = Math.min(Math.ceil(maxDim * Math.max(window.devicePixelRatio, 1.5)), 4096);
+  if (baseUrl.includes('unsplash.com')) {
+    return baseUrl.replace(/w=\d+/, `w=${targetSize}`);
+  }
+  return baseUrl;
+}
+
 function showArtworkInfo(data: ArtworkData): void {
   artworkTitle.textContent = data.title;
   artworkAuthor.textContent = data.author;
@@ -279,7 +317,8 @@ function showArtworkInfo(data: ArtworkData): void {
   overlay.classList.add('active');
   artworkInfo.classList.add('active');
   fullscreenBtn.classList.add('active');
-  fullscreenImage.src = data.imageUrl;
+  fullscreenImage.src = getHighResImageUrl(data.imageUrl);
+  fullscreenImage.srcset = `${getHighResImageUrl(data.imageUrl)} ${window.devicePixelRatio}x`;
 }
 
 function hideArtworkInfo(): void {
@@ -316,10 +355,12 @@ function animate(): void {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
-  const lerpFactor = 1 - Math.exp(-delta / dampingFactor);
 
-  currentTheta += (targetTheta - currentTheta) * lerpFactor;
-  currentDistance += (targetDistance - currentDistance) * lerpFactor;
+  const thetaLerp = 1 - Math.exp(-delta / thetaDamping);
+  const distLerp = 1 - Math.exp(-delta / distanceDamping);
+
+  currentTheta += (targetTheta - currentTheta) * thetaLerp;
+  currentDistance += (targetDistance - currentDistance) * distLerp;
 
   const centerX = 0;
   const centerY = 2.5;
