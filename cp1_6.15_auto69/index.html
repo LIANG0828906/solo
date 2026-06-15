@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>城市热岛效应可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #ffffff;
+    }
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #scene-container {
+      position: absolute;
+      left: 30%;
+      top: 0;
+      width: 70%;
+      height: 100%;
+      background: #1a1a2e;
+    }
+    #scene-container canvas {
+      display: block;
+    }
+    #sidebar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 30%;
+      height: 100%;
+      background: #16162a;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    #sidebar h1 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #00d4ff;
+      letter-spacing: 1px;
+    }
+    .filter-container {
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .filter-label {
+      font-size: 14px;
+      color: #e0e0ff;
+      margin-bottom: 8px;
+    }
+    .filter-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: #1a1a2e;
+      border: 1px solid #00b4d8;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300b4d8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color 0.3s ease;
+    }
+    .filter-select:hover,
+    .filter-select:focus {
+      border-color: #00d4ff;
+    }
+    .info-panel {
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(0, 180, 216, 0.3);
+      min-height: 200px;
+    }
+    .info-panel h2 {
+      font-size: 16px;
+      color: #00d4ff;
+      margin-bottom: 12px;
+    }
+    .info-empty {
+      color: #8888aa;
+      font-size: 14px;
+      font-style: italic;
+      padding: 20px 0;
+      text-align: center;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-key {
+      color: #e0e0ff;
+      font-size: 13px;
+    }
+    .info-value {
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .heat-level {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .heat-level.low {
+      background: rgba(0, 180, 216, 0.2);
+      color: #00d4ff;
+    }
+    .heat-level.medium {
+      background: rgba(255, 200, 0, 0.2);
+      color: #ffc800;
+    }
+    .heat-level.high {
+      background: rgba(255, 80, 80, 0.2);
+      color: #ff5050;
+    }
+    .chart-container {
+      margin-top: 12px;
+      width: 100%;
+      height: 180px;
+      border-radius: 6px;
+      background: rgba(26, 26, 46, 0.6);
+      padding: 8px;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+    #timeline-container {
+      position: absolute;
+      left: 30%;
+      bottom: 20px;
+      width: calc(70% - 40px);
+      margin: 0 20px;
+      padding: 16px 24px;
+      background: rgba(22, 22, 42, 0.9);
+      border-radius: 10px;
+      border: 1px solid rgba(0, 180, 216, 0.3);
+      backdrop-filter: blur(10px);
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .timeline-title {
+      font-size: 13px;
+      color: #e0e0ff;
+    }
+    .timeline-time {
+      font-size: 18px;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+    .timeline-slider {
+      position: relative;
+      width: 100%;
+      height: 6px;
+    }
+    .timeline-slider input[type="range"] {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .timeline-slider input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 3px;
+      background: transparent;
+    }
+    .timeline-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #00d4ff;
+      border: 3px solid #00b4d8;
+      margin-top: -6px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      transition: transform 0.15s ease;
+    }
+    .timeline-slider input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    .timeline-slider input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #00d4ff;
+      border: 3px solid #00b4d8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    }
+    .slider-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: #2a2a4a;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .slider-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: linear-gradient(90deg, #00b4d8, #00d4ff);
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #8888aa;
+    }
+    .legend {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .legend-title {
+      font-size: 13px;
+      color: #e0e0ff;
+      margin-bottom: 10px;
+    }
+    .legend-gradient {
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #001a66, #00b4d8, #ffc800, #ff6b00, #cc0000);
+      margin-bottom: 6px;
+    }
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #8888aa;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container"></div>
+    <div id="sidebar">
+      <h1>🏙️ 城市热岛效应可视化</h1>
+      <div class="filter-container">
+        <div class="filter-label">热岛等级筛选</div>
+        <select id="heat-filter" class="filter-select">
+          <option value="all">全部等级</option>
+          <option value="low">低 (＜25°C)</option>
+          <option value="medium">中 (25-32°C)</option>
+          <option value="high">高 (＞32°C)</option>
+        </select>
+      </div>
+      <div class="info-panel" id="info-panel">
+        <h2>建筑信息</h2>
+        <div class="info-empty">点击场景中的建筑查看详细信息</div>
+      </div>
+      <div class="legend">
+        <div class="legend-title">温度色带</div>
+        <div class="legend-gradient"></div>
+        <div class="legend-labels">
+          <span>＜20°C</span>
+          <span>25°C</span>
+          <span>30°C</span>
+          <span>35°C</span>
+          <span>＞40°C</span>
+        </div>
+      </div>
+    </div>
+    <div id="timeline-container">
+      <div class="timeline-header">
+        <span class="timeline-title">时间轴（拖动查看不同时段温度）</span>
+        <span class="timeline-time" id="current-time">14:00</span>
+      </div>
+      <div class="timeline-slider">
+        <div class="slider-track">
+          <div class="slider-fill" id="slider-fill" style="width: 50%"></div>
+        </div>
+        <input type="range" id="time-slider" min="8" max="20" step="0.1" value="14" />
+      </div>
+      <div class="timeline-labels">
+        <span>08:00</span>
+        <span>10:00</span>
+        <span>12:00</span>
+        <span>14:00</span>
+        <span>16:00</span>
+        <span>18:00</span>
+        <span>20:00</span>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
