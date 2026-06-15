@@ -108,8 +108,8 @@ function EquipmentDetailPanel({ equipment, onClose }: EquipmentDetailPanelProps)
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md bg-[#16213e] border-r border-white/10 h-full overflow-y-auto animate-slide-in-left">
-        <div className="sticky top-0 bg-[#16213e] z-10 p-6 border-b border-white/10 flex items-center justify-between">
+      <div className="relative w-full max-w-md bg-card border-r border-white/10 h-full overflow-y-auto animate-slide-in-left">
+        <div className="sticky top-0 bg-card z-10 p-6 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">设备详情</h2>
           <button
             onClick={onClose}
@@ -159,7 +159,7 @@ function EquipmentDetailPanel({ equipment, onClose }: EquipmentDetailPanelProps)
               {equipment.purchaseReceiptUrl ? (
                 <a
                   href={equipment.purchaseReceiptUrl}
-                  className="text-lg font-semibold text-[#e94560] hover:underline"
+                  className="text-lg font-semibold text-accent hover:underline"
                 >
                   查看
                 </a>
@@ -342,7 +342,7 @@ export default function EquipmentList() {
             className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#e94560]/50 transition-colors appearance-none cursor-pointer"
           >
             {Object.entries(equipmentTypeLabels).map(([value, label]) => (
-              <option key={value} value={value} className="bg-[#16213e]">
+              <option key={value} value={value} className="bg-card">
                 {label}
               </option>
             ))}

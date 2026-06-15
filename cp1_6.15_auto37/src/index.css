@@ -4,10 +4,14 @@
 
 :root {
   --bg-primary: #1a1a2e;
+  --bg-dark: #1a1a2e;
   --bg-secondary: #16213e;
+  --bg-card: #16213e;
   --bg-tertiary: #0f3460;
+  --accent: #e94560;
   --accent-primary: #e94560;
   --accent-secondary: #0f3460;
+  --accent-gradient: linear-gradient(135deg, #e94560, #0f3460);
   --text-primary: #ffffff;
   --text-secondary: #a0aec0;
   --text-muted: #718096;
@@ -206,4 +210,96 @@ body {
 .status-leave {
   background-color: var(--error);
   box-shadow: 0 0 8px var(--error);
+}
+
+.bg-dark {
+  background-color: var(--bg-dark);
+}
+
+.bg-card {
+  background-color: var(--bg-card);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.border-theme {
+  border-color: var(--border-color);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.bg-accent-gradient {
+  background: var(--accent-gradient);
+}
+
+.text-accent-gradient {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.status-success-bg {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+.status-warning-bg {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+.status-error-bg {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.status-success-text {
+  color: var(--success);
+}
+
+.status-warning-text {
+  color: var(--warning);
+}
+
+.status-error-text {
+  color: var(--error);
+}
+
+.bg-white-5 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.bg-white-10 {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.border-accent {
+  border-color: var(--accent);
+}
+
+.nav-active {
+  background: linear-gradient(90deg, rgba(233, 69, 96, 0.2), rgba(15, 52, 96, 0.2));
+  border-left: 2px solid var(--accent);
+}
+
+.header-bg {
+  background-color: rgba(22, 33, 62, 0.5);
+}
+
+.gig-date {
+  color: var(--accent);
+}
+
+.schedule-dot {
+  background-color: var(--accent);
 }

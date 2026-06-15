@@ -76,7 +76,7 @@ function GigCard({ gig, onClick, delay }: GigCardProps) {
     >
       <div className="flex justify-between items-start mb-4">
         <div>
-          <p className="text-sm text-[#e94560] font-medium">
+          <p className="text-sm text-accent font-medium">
             {format(parseISO(gig.date), 'yyyy年M月d日', { locale: zhCN })}
           </p>
           <p className="text-sm text-gray-400">
@@ -106,12 +106,12 @@ function GigCard({ gig, onClick, delay }: GigCardProps) {
         <span>{gig.city}</span>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-white/10">
+      <div className="flex items-center justify-between pt-3 border-t border-theme">
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Users size={14} />
           <span>{confirmedCount}/{totalMembers} 已确认</span>
         </div>
-        <div className="text-xs text-[#e94560] font-medium">
+        <div className="text-xs text-accent font-medium">
           {gig.schedule.performance} 开演
         </div>
       </div>
@@ -136,8 +136,8 @@ function ScheduleItem({ label, time, isEditing, onEdit, onSave, onCancel }: Sche
   }, [time]);
 
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-white/10 last:border-0">
-      <div className="w-2 h-2 rounded-full bg-[#e94560] flex-shrink-0" />
+    <div className="flex items-center gap-4 py-3 border-b border-theme last:border-0">
+      <div className="w-2 h-2 rounded-full schedule-dot flex-shrink-0" />
       <div className="flex-1">
         <p className="text-sm text-gray-400">{label}</p>
         {isEditing ? (
@@ -232,8 +232,8 @@ function GigDetailPanel({ gig, onClose, onUpdate }: GigDetailPanelProps) {
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md bg-[#16213e] border-l border-white/10 h-full overflow-y-auto animate-slide-in-right">
-        <div className="sticky top-0 bg-[#16213e] z-10 p-6 border-b border-white/10 flex items-center justify-between">
+      <div className="relative w-full max-w-md bg-card border-l border-theme h-full overflow-y-auto animate-slide-in-right">
+        <div className="sticky top-0 bg-card z-10 p-6 border-b border-theme flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">演出详情</h2>
           <button
             onClick={onClose}
@@ -245,7 +245,7 @@ function GigDetailPanel({ gig, onClose, onUpdate }: GigDetailPanelProps) {
 
         <div className="p-6">
           <div className="mb-6">
-            <p className="text-[#e94560] font-medium mb-1">
+            <p className="text-accent font-medium mb-1">
               {format(parseISO(gig.date), 'yyyy年M月d日 EEEE', { locale: zhCN })}
             </p>
             <h3 className="text-2xl font-bold text-white">{gig.venue}</h3>
@@ -420,7 +420,7 @@ export default function GigBoard() {
             <div className="card-glass rounded-2xl p-5 opacity-80 scale-105 shadow-2xl">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="text-sm text-[#e94560] font-medium">
+                  <p className="text-sm text-accent font-medium">
                     {format(parseISO(activeGig.date), 'yyyy年M月d日', { locale: zhCN })}
                   </p>
                 </div>

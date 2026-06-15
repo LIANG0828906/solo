@@ -36,13 +36,13 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 
       <aside
         className={cn(
-          'fixed lg:static inset-y-0 left-0 z-50 w-[260px] bg-[#16213e] border-r border-white/10',
+          'fixed lg:static inset-y-0 left-0 z-50 w-[260px] bg-card border-r border-theme',
           'transform transition-transform duration-300 ease-in-out',
           'lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-white/10">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-theme">
           <h1 className="text-xl font-bold gradient-text">Band Manager</h1>
           <button
             onClick={onClose}
@@ -65,7 +65,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
                   'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
                   'hover:bg-white/5',
                   isActive
-                    ? 'bg-gradient-to-r from-[#e94560]/20 to-[#0f3460]/20 text-white border-l-2 border-[#e94560]'
+                    ? 'nav-active text-white'
                     : 'text-gray-400'
                 )}
               >
@@ -76,7 +76,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-theme">
           <div className="text-xs text-gray-500 text-center">
             乐队管理助手 v1.0
           </div>
@@ -90,7 +90,7 @@ function MobileNav() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#16213e] border-t border-white/10 lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-theme lg:hidden">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -101,7 +101,7 @@ function MobileNav() {
               to={item.path}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 px-4 py-2 transition-colors',
-                isActive ? 'text-[#e94560]' : 'text-gray-400'
+                isActive ? 'text-accent' : 'text-gray-400'
               )}
             >
               <Icon size={22} />
@@ -146,11 +146,11 @@ function App() {
 
   return (
     <BandProvider>
-      <div className="flex h-screen bg-[#1a1a2e]">
+      <div className="flex h-screen bg-dark">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="h-16 flex items-center px-4 lg:px-6 border-b border-white/10 bg-[#16213e]/50">
+          <header className="h-16 flex items-center px-4 lg:px-6 border-b border-theme header-bg">
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
