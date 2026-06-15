@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "title": "准备材料与工具",
+    "description": "开始制作之前，请准备好以下材料：\n\n• 植鞣革皮料 30cm × 20cm（约1.5mm厚度）\n• 蜡线（亚麻线）2米\n• 菱斩（4mm间距）\n• 裁皮刀、剪刀\n• 锤子、木砧板\n• 边线器、水银笔\n• 砂纸（400#、800#）\n• 床面处理剂或CMC\n• 封边液\n\n建议在通风良好、光线充足的工作台进行。",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=leathercraft%20tools%20arranged%20on%20wooden%20workbench%2C%20leather%20material%2C%20stitching%20tools%2C%20warm%20lighting%2C%20craftsmanship&image_size=landscape_4_3",
+    "estimatedTime": 300
+  },
+  {
+    "id": 2,
+    "title": "裁剪皮料",
+    "description": "1. 将图纸模板放在皮料背面，用水银笔轻轻勾勒出钱包的轮廓。\n\n2. 用裁皮刀沿着线条切割皮料，保持刀刃垂直，用力均匀。\n\n3. 切割时建议使用钢尺辅助，确保边缘平直。\n\n4. 裁好后，用砂纸轻轻打磨切口，去除毛边。\n\n⚠️ 注意：裁皮刀非常锋利，小心手指！",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hands%20cutting%20vegetable%20tanned%20leather%20with%20sharp%20knife%20and%20steel%20ruler%20on%20cutting%20mat%2C%20craftsmanship%2C%20close%20up%20view&image_size=landscape_4_3",
+    "estimatedTime": 600
+  },
+  {
+    "id": 3,
+    "title": "床面处理与封边（内侧）",
+    "description": "1. 在皮料背面（肉面）均匀涂抹一层床面处理剂。\n\n2. 用打磨棒或光滑的牛角片快速摩擦，直到表面光滑有光泽。\n\n3. 待完全干燥后，同样处理皮料的边缘截面。\n\n4. 先用400#砂纸打磨边缘，再用800#砂纸细磨。\n\n5. 反复涂抹封边液并打磨，直到边缘光滑温润。\n\n💡 技巧：封边需要耐心，反复3-5次效果最佳。",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=leather%20edge%20burnishing%20process%2C%20sanding%20and%20polishing%20leather%20edges%2C%20craftsman%20hands%2C%20workshop%20setting&image_size=landscape_4_3",
+    "estimatedTime": 900
+  },
+  {
+    "id": 4,
+    "title": "打斩孔（缝线准备）",
+    "description": "1. 用水银笔在需要缝合的位置画出缝线参考线。\n\n2. 使用边线器在皮料边缘压出均匀的边线。\n\n3. 将菱斩对准参考线，保持垂直，用锤子敲击。\n\n4. 力度要适中：太浅缝起来困难，太深会损坏皮面。\n\n5. 转角处要特别注意，保持孔间距一致。\n\n💡 建议：先在废皮上练习几次打斩的力度。",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=craftsman%20punching%20stitching%20holes%20in%20leather%20with%20pricking%20iron%20chisel%20and%20mallet%20on%20wooden%20block&image_size=landscape_4_3",
+    "estimatedTime": 900
+  },
+  {
+    "id": 5,
+    "title": "手工马鞍针法缝合",
+    "description": "1. 截取约4倍缝合长度的蜡线，两端穿针。\n\n2. 从第一个孔开始，两根针分别从两面穿过。\n\n3. 左右交替穿线，每次拉紧时保持力度均匀。\n\n4. 缝线要平直整齐，不要过松或过紧。\n\n5. 收尾时回缝2-3针，剪断线头用打火机烧结固定。\n\n💡 经典马鞍针法：即使一处断线，整条线也不会散开。",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hand%20stitching%20leather%20with%20saddle%20stitch%20technique%2C%20two%20needles%20waxed%20thread%2C%20leather%20craft%2C%20close%20up&image_size=landscape_4_3",
+    "estimatedTime": 1800
+  },
+  {
+    "id": 6,
+    "title": "外侧封边与成品打磨",
+    "description": "1. 将钱包外侧边缘用砂纸打磨平整。\n\n2. 涂抹封边液，用打磨棒快速摩擦发热。\n\n3. 重复封边3次以上，直到边缘圆润有光泽。\n\n4. 用干净的软布擦拭整个钱包，抛光皮面。\n\n5. 检查所有缝线，确保没有松动。\n\n6. 装入卡片和现金，测试卡位和钞位。\n\n🎉 恭喜！你的手工钱包完成了！",
+    "image": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=finished%20handmade%20leather%20wallet%2C%20beautifully%20crafted%2C%20polished%20edges%2C%20warm%20tan%20color%2C%20elegant%20display&image_size=landscape_4_3",
+    "estimatedTime": 600
+  }
+]
