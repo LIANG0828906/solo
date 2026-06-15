@@ -25,6 +25,138 @@ interface CanvasOverlayProps {
   isPlayback?: boolean;
 }
 
+const TEXT_FONT_SIZE = 20;
+
+function getTextBoundingBox(
+  text: string,
+  position: Point,
+  fontSize: number,
+  ctx: CanvasRenderingContext2D
+): Region {
+  ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const textHeight = fontSize * 1.2;
+  return {
+    x: position.x,
+    y: position.y - textHeight,
+    width: textWidth + 10,
+    height: textHeight + 6,
+  };
+}
+
+function checkCollision(rect1: Region, rect2: Region, padding: number = 15): boolean {
+  return !(
+    rect1.x + rect1.width + padding < rect2.x ||
+    rect2.x + rect2.width + padding < rect1.x ||
+    rect1.y + rect1.height + padding < rect2.y ||
+    rect2.y + rect2.height + padding < rect1.y
+  );
+}
+
+function getAnnotationBoundingBox(ann: Annotation): Region | null {
+  switch (ann.type) {
+    case 'brush': {
+      if (ann.points.length < 2) return null;
+      const xs = ann.points.map((p) => p.x);
+      const ys = ann.points.map((p) => p.y);
+      return {
+        x: Math.min(...xs) - 10,
+        y: Math.min(...ys) - 10,
+        width: Math.max(...xs) - Math.min(...xs) + 20,
+        height: Math.max(...ys) - Math.min(...ys) + 20,
+      };
+    }
+    case 'highlight':
+      return {
+        x: ann.rect.x - 5,
+        y: ann.rect.y - 5,
+        width: ann.rect.width + 10,
+        height: ann.rect.height + 10,
+      };
+    case 'text': {
+      return {
+        x: ann.position.x - 5,
+        y: ann.position.y - ann.fontSize - 5,
+        width: 120,
+        height: ann.fontSize + 10,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function calculateOptimalTextPosition(
+  text: string,
+  clickPos: Point,
+  fontSize: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  existingAnnotations: Annotation[],
+  ctx: CanvasRenderingContext2D
+): Point {
+  if (!text.trim()) return clickPos;
+
+  const candidatePositions: Point[] = [
+    { x: clickPos.x, y: clickPos.y },
+    { x: clickPos.x + 40, y: clickPos.y },
+    { x: clickPos.x - 40, y: clickPos.y },
+    { x: clickPos.x, y: clickPos.y + 40 },
+    { x: clickPos.x, y: clickPos.y - 40 },
+    { x: clickPos.x + 40, y: clickPos.y + 40 },
+    { x: clickPos.x - 40, y: clickPos.y - 40 },
+    { x: clickPos.x + 40, y: clickPos.y - 40 },
+    { x: clickPos.x - 40, y: clickPos.y + 40 },
+    { x: clickPos.x + 80, y: clickPos.y },
+    { x: clickPos.x - 80, y: clickPos.y },
+    { x: clickPos.x, y: clickPos.y + 80 },
+    { x: clickPos.x, y: clickPos.y - 80 },
+    { x: clickPos.x + 80, y: clickPos.y + 80 },
+    { x: clickPos.x - 80, y: clickPos.y - 80 },
+    { x: clickPos.x + 120, y: clickPos.y },
+    { x: clickPos.x - 120, y: clickPos.y },
+    { x: clickPos.x, y: clickPos.y + 120 },
+    { x: clickPos.x, y: clickPos.y - 120 },
+  ];
+
+  const existingBBoxes = existingAnnotations
+    .map((ann) => getAnnotationBoundingBox(ann))
+    .filter((bbox): bbox is Region => bbox !== null);
+
+  let bestPosition = clickPos;
+  let minPenalty = Infinity;
+
+  for (const pos of candidatePositions) {
+    const candidateBBox = getTextBoundingBox(text, pos, fontSize, ctx);
+
+    if (
+      candidateBBox.x < 10 ||
+      candidateBBox.y < 10 ||
+      candidateBBox.x + candidateBBox.width > canvasWidth - 10 ||
+      candidateBBox.y + candidateBBox.height > canvasHeight - 10
+    ) {
+      continue;
+    }
+
+    let penalty = 0;
+    penalty += Math.abs(pos.x - clickPos.x) + Math.abs(pos.y - clickPos.y);
+
+    for (const bbox of existingBBoxes) {
+      if (checkCollision(candidateBBox, bbox)) {
+        penalty += 10000;
+      }
+    }
+
+    if (penalty < minPenalty) {
+      minPenalty = penalty;
+      bestPosition = pos;
+    }
+  }
+
+  return bestPosition;
+}
+
 const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
   width,
   height,
@@ -44,7 +176,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
   const currentPointsRef = useRef<Point[]>([]);
   const currentStartPosRef = useRef<Point | null>(null);
   const annotationStartTimeRef = useRef<number>(0);
-  const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
+  const [textInput, setTextInput] = useState<{ x: number; y: number; canvasX: number; canvasY: number; value: string } | null>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
 
   const redraw = useCallback(() => {
@@ -146,32 +278,38 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     };
   }, []);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!isRecording && !isPlayback) return;
-    if (isPlayback) return;
-    if (currentTool === 'none') return;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isRecording && !isPlayback) return;
+      if (isPlayback) return;
+      if (currentTool === 'none') return;
 
-    const point = getCanvasPoint(e);
+      const point = getCanvasPoint(e);
 
-    if (currentTool === 'text') {
-      setTextInput({ x: e.clientX, y: e.clientY, value: '' });
+      if (currentTool === 'text') {
+        setTextInput({ x: e.clientX, y: e.clientY, canvasX: point.x, canvasY: point.y, value: '' });
+        annotationStartTimeRef.current = getCurrentTime();
+        currentStartPosRef.current = point;
+        return;
+      }
+
+      isDrawingRef.current = true;
       annotationStartTimeRef.current = getCurrentTime();
       currentStartPosRef.current = point;
-      return;
-    }
+      currentPointsRef.current = [point];
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [isRecording, isPlayback, currentTool, getCanvasPoint, getCurrentTime]
+  );
 
-    isDrawingRef.current = true;
-    annotationStartTimeRef.current = getCurrentTime();
-    currentStartPosRef.current = point;
-    currentPointsRef.current = [point];
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [isRecording, isPlayback, currentTool, getCanvasPoint, getCurrentTime]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDrawingRef.current) return;
-    const point = getCanvasPoint(e);
-    currentPointsRef.current.push(point);
-  }, [getCanvasPoint]);
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDrawingRef.current) return;
+      const point = getCanvasPoint(e);
+      currentPointsRef.current.push(point);
+    },
+    [getCanvasPoint]
+  );
 
   const handlePointerUp = useCallback(() => {
     if (!isDrawingRef.current) return;
@@ -222,6 +360,22 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     if (!textInput || !currentStartPosRef.current) return;
     const value = textInput.value.trim();
     if (value) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      let optimalPos: Point = { x: textInput.canvasX, y: textInput.canvasY };
+
+      if (ctx) {
+        optimalPos = calculateOptimalTextPosition(
+          value,
+          { x: textInput.canvasX, y: textInput.canvasY },
+          TEXT_FONT_SIZE,
+          width,
+          height,
+          annotations,
+          ctx
+        );
+      }
+
       const endTime = getCurrentTime() + 5000;
       const annotation: TextAnnotation = {
         id: uuidv4(),
@@ -230,14 +384,14 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         endTime,
         color,
         content: value,
-        position: currentStartPosRef.current,
-        fontSize: 20,
+        position: optimalPos,
+        fontSize: TEXT_FONT_SIZE,
       };
       onAnnotationAdd(annotation);
     }
     setTextInput(null);
     currentStartPosRef.current = null;
-  }, [textInput, color, getCurrentTime, onAnnotationAdd]);
+  }, [textInput, color, getCurrentTime, onAnnotationAdd, width, height, annotations]);
 
   useEffect(() => {
     if (textInput && textInputRef.current) {
@@ -268,7 +422,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           onBlur={handleTextSubmit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleTextSubmit();
-            if (e.key === 'Escape') setTextInput(null);
+            if (e.key === 'Escape') {
+              setTextInput(null);
+              currentStartPosRef.current = null;
+            }
           }}
           placeholder="输入文本..."
           autoFocus

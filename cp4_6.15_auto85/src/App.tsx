@@ -35,7 +35,9 @@ const App: React.FC = () => {
   const [showColorPanel, setShowColorPanel] = useState(false);
 
   const [previewZoom, setPreviewZoom] = useLocalStorage<number>('previewZoom', 100);
-  const [previewPosition] = useLocalStorage<{ x: number; y: number }>('previewPosition', { x: 0, y: 0 });
+  const [previewPosition, setPreviewPosition] = useLocalStorage<{ x: number; y: number }>('previewPosition', { x: 0, y: 0 });
+  const [isDraggingPreview, setIsDraggingPreview] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
 
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -44,6 +46,42 @@ const App: React.FC = () => {
 
   const CANVAS_WIDTH = 1280;
   const CANVAS_HEIGHT = 720;
+
+  const handlePreviewDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingPreview(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: previewPosition.x,
+      posY: previewPosition.y,
+    };
+  }, [previewPosition]);
+
+  const handlePreviewDragMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingPreview) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPreviewPosition({
+      x: dragStartRef.current.posX + dx,
+      y: dragStartRef.current.posY + dy,
+    });
+  }, [isDraggingPreview, setPreviewPosition]);
+
+  const handlePreviewDragEnd = useCallback(() => {
+    setIsDraggingPreview(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDraggingPreview) {
+      window.addEventListener('mousemove', handlePreviewDragMove);
+      window.addEventListener('mouseup', handlePreviewDragEnd);
+      return () => {
+        window.removeEventListener('mousemove', handlePreviewDragMove);
+        window.removeEventListener('mouseup', handlePreviewDragEnd);
+      };
+    }
+  }, [isDraggingPreview, handlePreviewDragMove, handlePreviewDragEnd]);
 
   const getCurrentTime = useCallback(() => {
     if (!isRecordingRef.current) return 0;
@@ -254,8 +292,12 @@ const App: React.FC = () => {
             />
 
             <div className="preview-panel" style={{ transform: `translate(${previewPosition.x}px, ${previewPosition.y}px)` }}>
-              <div className="preview-window">
-                <div className="preview-header">
+              <div className={`preview-window ${isDraggingPreview ? 'dragging' : ''}`}>
+                <div
+                  className="preview-header"
+                  onMouseDown={handlePreviewDragStart}
+                  style={{ cursor: isDraggingPreview ? 'grabbing' : 'grab' }}
+                >
                   <span className="preview-title">实时预览</span>
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                     {mode === 'recording' ? '🔴 录制中' : '⏸️ 准备中'}
@@ -381,25 +423,34 @@ const App: React.FC = () => {
 
         {mode === 'idle' && (
           <>
-            <select
-              className="fps-select"
-              value={captureType}
-              onChange={(e) => setCaptureType(e.target.value as 'screen' | 'window' | 'region')}
-            >
-              <option value="screen">🖥️ 整个屏幕</option>
-              <option value="window">🪟 应用窗口</option>
-              <option value="region">⬛ 自定义区域</option>
-            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>捕获:</span>
+              <select
+                className="fps-select"
+                value={captureType}
+                onChange={(e) => setCaptureType(e.target.value as 'screen' | 'window' | 'region')}
+              >
+                <option value="screen">🖥️ 整个屏幕</option>
+                <option value="window">🪟 应用窗口</option>
+                <option value="region">⬛ 自定义区域</option>
+              </select>
+            </div>
 
-            <select
-              className="fps-select"
-              value={fps}
-              onChange={(e) => setFps(parseInt(e.target.value) as 15 | 30 | 60)}
-            >
-              {FPS_OPTIONS.map((f) => (
-                <option key={f} value={f}>{f} fps</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>帧率:</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {FPS_OPTIONS.map((f) => (
+                  <button
+                    key={f}
+                    className={`size-btn ${fps === f ? 'active' : ''}`}
+                    onClick={() => setFps(f)}
+                    style={{ minWidth: 50, padding: '8px 12px' }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <button className="btn btn-primary" onClick={startCapture}>
               ● 开始录制
