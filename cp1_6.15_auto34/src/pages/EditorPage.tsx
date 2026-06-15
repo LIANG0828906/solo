@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save, Check, Loader2 } from 'lucide-react';
 import { ImageCarousel } from '@/components/ImageCarousel';
@@ -40,6 +40,9 @@ export const EditorPage: React.FC = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  const navigateTimerRef = useRef<number | null>(null);
+  const loadingTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (existingDiary) {
       setTitle(existingDiary.title);
@@ -72,6 +75,26 @@ export const EditorPage: React.FC = () => {
     }
   }, [existingDiary, prefillData]);
 
+  const pathname = location.pathname;
+  useEffect(() => {
+    setIsSaved(false);
+    setIsSaving(false);
+    setToast(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      if (navigateTimerRef.current !== null) {
+        clearTimeout(navigateTimerRef.current);
+        navigateTimerRef.current = null;
+      }
+      if (loadingTimerRef.current !== null) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleAddImage = () => {
     const prompts = [
       'beautiful travel landscape photography warm golden hour',
@@ -90,6 +113,8 @@ export const EditorPage: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+
     if (!title.trim()) {
       setToast({ message: '请输入日记标题', type: 'error' });
       return;
@@ -103,7 +128,9 @@ export const EditorPage: React.FC = () => {
     setIsSaving(true);
     setIsSaved(false);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise<void>((resolve) => {
+      loadingTimerRef.current = window.setTimeout(resolve, 800);
+    });
 
     try {
       const diaryData = {
@@ -127,7 +154,8 @@ export const EditorPage: React.FC = () => {
       setIsSaved(true);
       setToast({ message: '日记保存成功！', type: 'success' });
 
-      setTimeout(() => {
+      navigateTimerRef.current = window.setTimeout(() => {
+        navigateTimerRef.current = null;
         navigate(`/location/${locationId}`);
       }, 1000);
     } catch (error) {
@@ -141,7 +169,7 @@ export const EditorPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-sand-50 page-enter">
+    <div className="min-h-screen bg-sand-50">
       <header className="sticky top-0 z-30 glass-card border-b border-sand-200/50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">

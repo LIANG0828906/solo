@@ -44,7 +44,7 @@ export const MapPage: React.FC = () => {
   }
 
   return (
-    <div className="h-screen relative overflow-hidden page-enter">
+    <div className="h-screen relative overflow-hidden">
       <header className="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between">
         <div className="glass-card rounded-2xl px-5 py-3 shadow-lg">
           <h1 className="font-display text-2xl font-bold text-sand-800">

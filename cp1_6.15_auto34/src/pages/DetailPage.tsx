@@ -86,21 +86,15 @@ export const DetailPage: React.FC = () => {
     containerRef,
   });
 
-  const visibleDiariesWindow = useMemo(
-    () => displayedDiaries.slice(startIndex, endIndex),
-    [displayedDiaries, startIndex, endIndex]
+  const fullLayout = useMemo(
+    () => computeWaterfallLayout(displayedDiaries, 0),
+    [displayedDiaries]
   );
 
-  const waterfallItems = useMemo(() => {
-    const prefixItems = displayedDiaries.slice(0, startIndex);
-    const { columnsHeight: prefixHeight } = computeWaterfallLayout(prefixItems, 0);
-    const { items } = computeWaterfallLayout(visibleDiariesWindow, startIndex);
-
-    return items.map((it) => ({
-      ...it,
-      top: it.top + prefixHeight[it.column],
-    }));
-  }, [visibleDiariesWindow, displayedDiaries, startIndex]);
+  const waterfallItems = useMemo(
+    () => fullLayout.items.slice(startIndex, endIndex),
+    [fullLayout.items, startIndex, endIndex]
+  );
 
   const leftItems = useMemo(
     () => waterfallItems.filter((it) => it.column === 0),
@@ -112,12 +106,13 @@ export const DetailPage: React.FC = () => {
     [waterfallItems]
   );
 
-  const actualTotalHeight = useMemo(() => {
-    const { columnsHeight } = computeWaterfallLayout(displayedDiaries, 0);
-    return Math.max(columnsHeight[0], columnsHeight[1]);
-  }, [displayedDiaries]);
+  const actualTotalHeight = useMemo(
+    () => Math.max(fullLayout.columnsHeight[0], fullLayout.columnsHeight[1]),
+    [fullLayout.columnsHeight]
+  );
 
   const rafRef = useRef<number | null>(null);
+  const loadTimerRef = useRef<number | null>(null);
 
   const handleScroll = useCallback(() => {
     if (rafRef.current !== null) return;
@@ -131,7 +126,11 @@ export const DetailPage: React.FC = () => {
 
       if (isNearBottom && displayCount < allDiaries.length) {
         setIsLoading(true);
-        setTimeout(() => {
+        if (loadTimerRef.current !== null) {
+          clearTimeout(loadTimerRef.current);
+        }
+        loadTimerRef.current = window.setTimeout(() => {
+          loadTimerRef.current = null;
           setDisplayCount((prev) => Math.min(prev + 8, allDiaries.length));
           setIsLoading(false);
         }, 400);
@@ -148,9 +147,22 @@ export const DetailPage: React.FC = () => {
         if (rafRef.current !== null) {
           cancelAnimationFrame(rafRef.current);
         }
+        if (loadTimerRef.current !== null) {
+          clearTimeout(loadTimerRef.current);
+          loadTimerRef.current = null;
+        }
       };
     }
   }, [handleScroll]);
+
+  useEffect(() => {
+    return () => {
+      if (loadTimerRef.current !== null) {
+        clearTimeout(loadTimerRef.current);
+        loadTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleDiaryClick = (diary: Diary) => {
     navigate(`/diary/${diary.id}`);
@@ -190,7 +202,7 @@ export const DetailPage: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-sand-50 page-enter">
+    <div className="h-screen flex flex-col bg-sand-50">
       <header className="flex-shrink-0 glass-card border-b border-sand-200/50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Search, Calendar, Smile, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Search, Calendar, Smile, MapPin, RotateCcw } from 'lucide-react';
 import type { Diary, SearchFilters } from '@/types';
 import { MOOD_OPTIONS } from '@/types';
 import { useDiaryStore } from '@/data/DiaryStore';
@@ -25,6 +25,16 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
   const [startDate, setStartDate] = useState(searchFilters.startDate || '');
   const [endDate, setEndDate] = useState(searchFilters.endDate || '');
   const [selectedMood, setSelectedMood] = useState(searchFilters.mood || '');
+
+  useEffect(() => {
+    if (isOpen) {
+      const f = searchFilters;
+      setKeyword(f.keyword || '');
+      setStartDate(f.startDate || '');
+      setEndDate(f.endDate || '');
+      setSelectedMood(f.mood || '');
+    }
+  }, [isOpen, searchFilters]);
 
   const handleSearch = () => {
     const filters: SearchFilters = {};
@@ -165,9 +175,10 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
                   </span>
                   <button
                     onClick={handleClear}
-                    className="text-xs text-earth-500 hover:text-earth-600"
+                    className="px-3 py-1.5 rounded-lg bg-white/80 border border-sand-200 text-xs text-sand-600 hover:bg-sand-100 transition-colors flex items-center gap-1"
                   >
-                    清空结果
+                    重置筛选条件
+                    <RotateCcw className="w-3 h-3" />
                   </button>
                 </div>
                 
