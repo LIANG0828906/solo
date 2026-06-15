@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Event } from './types';
 
 interface SignInProps {
   events: Event[];
-  onSignIn: (eventId: string, participantId: string) => void;
+  onSignIn: (eventId: string, participantId: string) => Promise<boolean>;
 }
 
 interface CountdownState {
@@ -11,6 +11,7 @@ interface CountdownState {
   participantId: string;
   count: number;
   eventName: string;
+  phase: 'counting' | 'signing';
 }
 
 const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
@@ -19,6 +20,7 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
   const [foundParticipant, setFoundParticipant] = useState<any>(null);
   const [countdown, setCountdown] = useState<CountdownState | null>(null);
   const [error, setError] = useState('');
+  const signInAttemptedRef = useRef(false);
 
   const enrolledEvents = events.filter(e => e.participants.length > 0);
 
@@ -59,36 +61,51 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
 
   const handleSignInClick = () => {
     if (!foundParticipant) return;
-    
+    if (countdown) return;
+
+    signInAttemptedRef.current = false;
     setCountdown({
       eventId: foundParticipant.eventId,
       participantId: foundParticipant.id,
       count: 3,
       eventName: selectedEvent?.name || '',
+      phase: 'counting',
     });
   };
 
   useEffect(() => {
-    if (countdown && countdown.count > 0) {
+    if (!countdown) return;
+
+    if (countdown.phase === 'counting' && countdown.count > 0) {
       const timer = setTimeout(() => {
-        setCountdown(prev => prev ? { ...prev, count: prev.count - 1 } : null);
+        setCountdown(prev => {
+          if (!prev) return null;
+          const nextCount = prev.count - 1;
+          if (nextCount > 0) {
+            return { ...prev, count: nextCount };
+          } else {
+            return { ...prev, count: 0, phase: 'signing' };
+          }
+        });
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (countdown && countdown.count === 0) {
-      const eventId = countdown.eventId;
-      const participantId = countdown.participantId;
-      setCountdown(null);
-      setFoundParticipant(null);
-      setParticipantPhone('');
+    }
+
+    if (countdown.phase === 'signing' && !signInAttemptedRef.current) {
+      signInAttemptedRef.current = true;
       
-      if (selectedEvent) {
-        const updatedEvent = events.find(e => e.id === selectedEvent.id);
-        if (updatedEvent) {
+      const { eventId, participantId } = countdown;
+      
+      onSignIn(eventId, participantId).then(() => {
+        setCountdown(null);
+        setFoundParticipant(null);
+        setParticipantPhone('');
+        
+        const updatedEvent = events.find(e => e.id === eventId);
+        if (updatedEvent && selectedEvent?.id === eventId) {
           setSelectedEvent(updatedEvent);
         }
-      }
-      
-      onSignIn(eventId, participantId);
+      });
     }
   }, [countdown, onSignIn, selectedEvent, events]);
 
@@ -111,6 +128,8 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
     today.setHours(0, 0, 0, 0);
     return eventDate < today;
   };
+
+  const isPulsing = countdown && countdown.eventId === foundParticipant?.eventId;
 
   return (
     <div>
@@ -222,12 +241,14 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
                 
                 {!foundParticipant.signedIn && (
                   <button
-                    className={`btn btn-accent ${countdown && countdown.count > 0 && countdown.eventId === foundParticipant.eventId ? 'btn-pulse' : ''}`}
+                    className={`btn btn-accent ${isPulsing ? 'btn-pulse' : ''}`}
                     onClick={handleSignInClick}
                     disabled={countdown !== null}
                   >
                     {countdown && countdown.eventId === foundParticipant.eventId
-                      ? `签到确认中... (${countdown.count})`
+                      ? countdown.phase === 'signing'
+                        ? '签到中...'
+                        : `签到确认中... (${countdown.count})`
                       : '确认签到'}
                   </button>
                 )}
@@ -250,12 +271,17 @@ const SignIn: React.FC<SignInProps> = ({ events, onSignIn }) => {
               正在为 <strong>{countdown.eventName}</strong> 签到
             </p>
             <div
-              key={countdown.count}
+              key={countdown.phase === 'counting' ? countdown.count : 'signing'}
               className="countdown-number"
+              style={{
+                fontSize: countdown.phase === 'signing' ? '2rem' : '4rem',
+              }}
             >
-              {countdown.count}
+              {countdown.phase === 'counting' ? countdown.count : '签到中...'}
             </div>
-            <p style={{ marginTop: '16px', color: '#888' }}>请稍候...</p>
+            <p style={{ marginTop: '16px', color: '#888' }}>
+              {countdown.phase === 'counting' ? '请稍候...' : '正在处理...'}
+            </p>
           </div>
         </div>
       )}

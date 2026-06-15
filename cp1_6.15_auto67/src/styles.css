@@ -257,6 +257,23 @@ body {
   animation: slideDown 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
 }
 
+.modal-alert-error {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e74c3c;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+  animation: slideDown 0.3s ease;
+}
+
 .manage-header {
   display: flex;
   justify-content: space-between;

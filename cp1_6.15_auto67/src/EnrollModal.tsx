@@ -3,7 +3,7 @@ import { Event } from './types';
 
 interface EnrollModalProps {
   event: Event;
-  onConfirm: (eventId: string, name: string, phone: string) => void;
+  onConfirm: (eventId: string, name: string, phone: string) => Promise<boolean>;
   onCancel: () => void;
 }
 
@@ -11,6 +11,8 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -29,12 +31,24 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) return;
 
-    onConfirm(event.id, name.trim(), phone.trim());
+    setServerError(null);
+    setSubmitting(true);
+
+    try {
+      const success = await onConfirm(event.id, name.trim(), phone.trim());
+      if (!success) {
+        setServerError('报名失败，请稍后重试');
+      }
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : '报名失败');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -56,8 +70,15 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
         onClick={(e) => e.stopPropagation()}
         style={{
           animation: 'newCardScale 0.3s ease',
+          position: 'relative',
         }}
       >
+        {serverError && (
+          <div className="modal-alert-error">
+            {serverError}
+          </div>
+        )}
+
         <h2 style={{ color: '#3B4A6B', marginBottom: '8px', textAlign: 'center' }}>
           活动报名
         </h2>
@@ -81,6 +102,7 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
               onChange={(e) => {
                 setName(e.target.value);
                 if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                if (serverError) setServerError(null);
               }}
             />
             {errors.name && (
@@ -100,6 +122,7 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
               onChange={(e) => {
                 setPhone(e.target.value);
                 if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
+                if (serverError) setServerError(null);
               }}
             />
             {errors.phone && (
@@ -115,14 +138,16 @@ const EnrollModal: React.FC<EnrollModalProps> = ({ event, onConfirm, onCancel })
               className="btn"
               onClick={onCancel}
               style={{ background: '#eee', color: '#666' }}
+              disabled={submitting}
             >
               取消
             </button>
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={submitting}
             >
-              确认报名
+              {submitting ? '提交中...' : '确认报名'}
             </button>
           </div>
         </form>

@@ -15,16 +15,16 @@ const App: React.FC = () => {
     dispatch({ type: 'SET_ENROLL_MODAL', payload: event });
   };
 
-  const handleCreateEvent = async (eventData: Parameters<typeof createEvent>[0]) => {
-    await createEvent(eventData);
+  const handleCreateEvent = async (eventData: Parameters<typeof createEvent>[0]): Promise<boolean> => {
+    return await createEvent(eventData);
   };
 
-  const handleSignIn = async (eventId: string, participantId: string) => {
-    await signIn(eventId, participantId);
+  const handleSignIn = async (eventId: string, participantId: string): Promise<boolean> => {
+    return await signIn(eventId, participantId);
   };
 
-  const confirmEnroll = async (eventId: string, name: string, phone: string) => {
-    await enroll(eventId, name, phone);
+  const confirmEnroll = async (eventId: string, name: string, phone: string): Promise<boolean> => {
+    return await enroll(eventId, name, phone);
   };
 
   const tabs: { key: TabType; label: string }[] = [
