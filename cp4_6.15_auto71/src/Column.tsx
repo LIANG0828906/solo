@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Droppable } from 'react-beautiful-dnd';
+import { Droppable, Draggable } from 'react-beautiful-dnd';
 import Card from './Card';
 import { useBoard } from './App';
 import type { Column as ColumnType } from './types';
@@ -16,8 +16,10 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
   const [isFlashing, setIsFlashing] = useState(false);
+  const [showLongPressHint, setShowLongPressHint] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const longPressTimer = useRef<number | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
 
   const isCardFiltered = (cardId: string) => {
     const card = cards[cardId];
@@ -40,7 +42,8 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
     return false;
   };
 
-  const visibleCount = column.cardIds.filter(id => !isCardFiltered(id)).length;
+  const visibleCardIds = column.cardIds.filter(id => !isCardFiltered(id));
+  const visibleCount = visibleCardIds.length;
 
   useEffect(() => {
     if (isEditing && titleInputRef.current) {
@@ -62,6 +65,7 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleTitleSubmit();
     } else if (e.key === 'Escape') {
       setEditTitle(column.title);
@@ -69,36 +73,41 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
     }
   };
 
-  const handleMouseDown = () => {
-    longPressTimer.current = window.setTimeout(() => {
-      setIsEditing(true);
-    }, 500);
-  };
-
-  const handleMouseUp = () => {
+  const clearLongPressTimer = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
   };
 
-  const handleMouseLeave = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  const startLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    if (isEditing) return;
+    longPressTriggered.current = false;
+    setShowLongPressHint(true);
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      setShowLongPressHint(false);
+      setIsEditing(true);
+    }, 600);
+  };
+
+  const cancelLongPress = () => {
+    clearLongPressTimer();
+    if (showLongPressHint) {
+      setShowLongPressHint(false);
     }
   };
 
-  const handleTouchStart = () => {
-    longPressTimer.current = window.setTimeout(() => {
-      setIsEditing(true);
-    }, 500);
+  const handleTitleClick = (e: React.MouseEvent) => {
+    if (longPressTriggered.current) {
+      e.preventDefault();
+      longPressTriggered.current = false;
+    }
   };
 
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  const handleTitleDoubleClick = () => {
+    if (!isEditing) {
+      setIsEditing(true);
     }
   };
 
@@ -111,12 +120,16 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
     <div className={`column-wrapper ${isFlashing ? 'flashing' : ''}`}>
       <div className="column-header">
         <div
-          className="column-title-wrapper"
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          className={`column-title-wrapper ${showLongPressHint ? 'long-press-active' : ''}`}
+          onMouseDown={startLongPress}
+          onMouseUp={cancelLongPress}
+          onMouseLeave={cancelLongPress}
+          onTouchStart={startLongPress}
+          onTouchEnd={cancelLongPress}
+          onTouchCancel={cancelLongPress}
+          onClick={handleTitleClick}
+          onDoubleClick={handleTitleDoubleClick}
+          title="长按或双击编辑列名"
         >
           {isEditing ? (
             <input
@@ -127,9 +140,18 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
               onChange={(e) => setEditTitle(e.target.value)}
               onBlur={handleTitleSubmit}
               onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <h3 className="column-title">{column.title}</h3>
+          )}
+          {!isEditing && (
+            <span className="column-edit-hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
+            </span>
           )}
         </div>
         <div className="column-badge">{visibleCount}</div>
@@ -151,20 +173,43 @@ const Column: React.FC<ColumnProps> = ({ column, onAddCard }) => {
             {...provided.droppableProps}
             className={`column-content ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
           >
-            {column.cardIds.map((cardId, index) => {
+            {column.cardIds.map((cardId, originalIndex) => {
               const card = cards[cardId];
               if (!card) return null;
 
               const filtered = isCardFiltered(cardId);
+              const draggableIndex = visibleCardIds.indexOf(cardId);
 
               return (
-                <Card
+                <div
                   key={cardId}
-                  card={card}
-                  index={index}
-                  isFiltered={filtered}
-                  labelColors={card.labels.map(getCardLabelColor)}
-                />
+                  style={{ display: 'contents' }}
+                >
+                  <Draggable
+                    draggableId={cardId}
+                    index={originalIndex}
+                    isDragDisabled={filtered}
+                  >
+                    {(dragProvided, dragSnapshot) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        style={{
+                          ...dragProvided.draggableProps.style,
+                        }}
+                      >
+                        <Card
+                          card={card}
+                          index={originalIndex}
+                          isFiltered={filtered}
+                          isDragging={dragSnapshot.isDragging}
+                          labelColors={card.labels.map(getCardLabelColor)}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                </div>
               );
             })}
             {provided.placeholder}

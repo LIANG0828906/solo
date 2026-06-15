@@ -6,10 +6,16 @@
   padding: 14px 14px 14px 10px;
   margin-bottom: 10px;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: opacity 0.3s ease-out,
+              transform 0.3s ease-out,
+              filter 0.3s ease-out,
+              background-color 0.3s ease-out,
+              border-color 0.3s ease-out,
+              box-shadow 0.3s ease-out;
   animation: dropIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  will-change: transform, opacity;
 }
 
 .card-item:hover {
@@ -31,8 +37,9 @@
 
 .card-item.filtered {
   opacity: 0.3;
-  filter: blur(2px);
-  transform: scale(0.98);
+  filter: blur(1.5px);
+  transform: scale(0.96);
+  cursor: default;
   pointer-events: none;
 }
 
