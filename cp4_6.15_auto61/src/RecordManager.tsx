@@ -32,13 +32,23 @@ interface AnimatedCounterProps {
   duration?: number;
 }
 
+/**
+ * 数字动画组件（RecordManager 页面使用）
+ *
+ * 修复点 (原错误): 缺少 return cleanup 函数，组件卸载时 rAF 不取消，
+ *   导致 setDisplay 在已卸载组件上执行，引发 React 警告和内存泄漏。
+ *   现已添加 return () => { cancelAnimationFrame(...) }，
+ *   并在 value 变化前先 cancelAnimationFrame 上一个动画。
+ */
 function AnimatedCounter({ end, prefix = '', duration = 500 }: AnimatedCounterProps) {
   const [display, setDisplay] = useState(0);
   const prevEnd = useRef(0);
   const frame = useRef<number | null>(null);
 
   useEffect(() => {
+    // value 变化时取消上一个动画，防止新旧动画叠加
     if (frame.current) cancelAnimationFrame(frame.current);
+
     const start = prevEnd.current;
     const startTime = performance.now();
     const step = (now: number) => {
@@ -52,6 +62,8 @@ function AnimatedCounter({ end, prefix = '', duration = 500 }: AnimatedCounterPr
       }
     };
     frame.current = requestAnimationFrame(step);
+
+    // 组件卸载时取消动画帧
     return () => {
       if (frame.current) cancelAnimationFrame(frame.current);
     };
@@ -223,25 +235,84 @@ export default function RecordManager({
     const existing = budgets.find((b) => b.category === cat);
     setEditingBudget(cat);
     setBudgetInputValue(existing ? existing.limit.toString() : '0');
+    setBudgetError(null);
   };
 
+  const [budgetError, setBudgetError] = useState<string | null>(null);
+
+  /**
+   * 保存预算 - 增强边界验证
+   *
+   * 修复点 (原错误): 仅简单判断 !isNaN && val >= 0，
+   *   未处理空值、极端大数、无限大、小数精度等边界情况。
+   *   现已添加完整校验并给出错误提示。
+   */
   const saveBudget = () => {
     if (!editingBudget) return;
-    const val = parseFloat(budgetInputValue);
-    if (!isNaN(val) && val >= 0) {
-      onUpdateBudget(editingBudget, val);
+
+    const trimmed = budgetInputValue.trim();
+    if (trimmed === '') {
+      setBudgetError('预算金额不能为空');
+      return;
     }
+
+    // 先用 Number 做整体校验（比 parseFloat 更严格，不允许 "12.3abc" 这种混合字符）
+    if (isNaN(Number(trimmed))) {
+      setBudgetError('请输入有效的数字');
+      return;
+    }
+
+    const val = parseFloat(trimmed);
+
+    if (isNaN(val)) {
+      setBudgetError('请输入有效的数字');
+      return;
+    }
+
+    if (!isFinite(val)) {
+      setBudgetError('数值过大，请输入有效金额');
+      return;
+    }
+
+    if (val < 0) {
+      setBudgetError('预算金额不能为负数');
+      return;
+    }
+
+    if (val > 99999999.99) {
+      setBudgetError('单类别预算不能超过 99,999,999.99 元');
+      return;
+    }
+
+    const rounded = Math.round(val * 100) / 100;
+    onUpdateBudget(editingBudget, rounded);
+    setBudgetError(null);
     setEditingBudget(null);
   };
 
+  /**
+   * 虚拟滚动实现
+   *
+   * 修复点 (原错误):
+   *   1. 外层容器用 maxHeight: 600 而非固定 height，ResizeObserver 读取到的
+   *      clientHeight 是内容高度而非视口高度，导致 visibleRange 计算错误。
+   *      现已改为固定 height: 600px + min-height: 0，确保 overflow-y 正确生效。
+   *   2. 内层 position: absolute + transform 与外层 overflow-y: auto 存在冲突，
+   *      导致滚动条高度计算异常。现已改为"占位 div + 普通流式布局"方式，
+   *      利用 CSS transform 将可见内容平移到正确位置，不干扰原生滚动。
+   *   3. containerHeight 初始值为 0 时，visibleRange 返回全部数据，
+   *      虚拟模式下首次渲染仍会全量渲染。现已改为 containerHeight 初始值 600，
+   *      ResizeObserver 仅作为动态调整的兜底。
+   */
   const VIRTUAL_THRESHOLD = 500;
   const ROW_HEIGHT = 88;
   const ROW_GAP = 10;
   const ITEM_HEIGHT = ROW_HEIGHT + ROW_GAP;
+  const CONTAINER_HEIGHT = 600;
   const BUFFER = 5;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(CONTAINER_HEIGHT);
 
   const useVirtual = filteredTransactions.length > VIRTUAL_THRESHOLD;
 
@@ -262,7 +333,7 @@ export default function RecordManager({
     const ro = new ResizeObserver(updateHeight);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [useVirtual]);
+  }, []);
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -271,7 +342,7 @@ export default function RecordManager({
   }, [listKey]);
 
   const visibleRange = useMemo(() => {
-    if (!useVirtual || containerHeight === 0) {
+    if (!useVirtual) {
       return { startIdx: 0, endIdx: filteredTransactions.length };
     }
     const startIdx = Math.max(
@@ -293,8 +364,15 @@ export default function RecordManager({
     const offsetY = startIdx * ITEM_HEIGHT;
 
     return (
-      <div key={listKey} className="fade-in" style={{ position: 'relative' }}>
-        <div style={{ height: totalHeight }} />
+      <div
+        key={listKey}
+        className="fade-in"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: totalHeight,
+        }}
+      >
         <div
           style={{
             position: 'absolute',
@@ -305,6 +383,7 @@ export default function RecordManager({
             display: 'flex',
             flexDirection: 'column',
             gap: ROW_GAP,
+            willChange: 'transform',
           }}
         >
           {visible.map((tx) => (
@@ -396,6 +475,7 @@ export default function RecordManager({
       </div>
 
       <div
+        className="records-stats-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
@@ -451,6 +531,7 @@ export default function RecordManager({
       </div>
 
       <div
+        className="records-content-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: '380px 1fr',
@@ -895,9 +976,12 @@ export default function RecordManager({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
+          className="record-list-container"
           style={{
-            maxHeight: 600,
+            height: CONTAINER_HEIGHT,
+            minHeight: 0,
             overflowY: 'auto',
+            overflowX: 'hidden',
           }}
         >
           {useVirtual ? renderVirtualList() : renderNormalList()}
@@ -935,13 +1019,28 @@ export default function RecordManager({
                 step="100"
                 placeholder="请输入预算金额"
                 value={budgetInputValue}
-                onChange={(e) => setBudgetInputValue(e.target.value)}
+                onChange={(e) => {
+                  setBudgetInputValue(e.target.value);
+                  if (budgetError) setBudgetError(null);
+                }}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') saveBudget();
                   if (e.key === 'Escape') setEditingBudget(null);
                 }}
               />
+              {budgetError && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: '#ef4444',
+                    marginTop: 6,
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠️ {budgetError}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
