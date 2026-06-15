@@ -1,0 +1,26 @@
+{
+  "name": "fantasy-farm-simulator",
+  "version": "1.0.0",
+  "description": "奇幻农场经营模拟器 - 种植魔法作物、养殖神奇生物、应对随机事件",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "server": "node server/server.js"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1",
+    "axios": "^1.7.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.12.12"
+  }
+}
