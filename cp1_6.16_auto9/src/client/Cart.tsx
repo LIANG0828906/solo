@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Dish {
   id: string;
@@ -23,82 +23,103 @@ interface CartProps {
 function Cart({ items, totalPrice, onUpdateQuantity, onRemove, onSubmit, onClose }: CartProps) {
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [displayItems, setDisplayItems] = useState<CartItem[]>(items);
-  const prevItemsRef = useRef<Map<string, number>>(new Map());
+  const pendingRemoveRef = useRef<Set<string>>(new Set());
+  const removeTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  useEffect(() => {
-    const toRemove: string[] = [];
-    const newItemsMap = new Map(items.map(i => [i.id, i.quantity]));
+  const triggerRemoveAnimation = useCallback((dishId: string) => {
+    if (removingIds.has(dishId) || pendingRemoveRef.current.has(dishId)) {
+      return;
+    }
     
-    displayItems.forEach(item => {
-      const newQty = newItemsMap.get(item.id);
-      if (newQty === undefined || newQty === 0) {
-        if (item.quantity > 0 || newQty === 0) {
-          toRemove.push(item.id);
-        }
-      }
-    });
-
-    if (toRemove.length > 0) {
+    pendingRemoveRef.current.add(dishId);
+    setRemovingIds(prev => new Set(prev).add(dishId));
+    
+    if (removeTimersRef.current.has(dishId)) {
+      clearTimeout(removeTimersRef.current.get(dishId)!);
+    }
+    
+    const timer = setTimeout(() => {
+      setDisplayItems(prev => prev.filter(i => i.id !== dishId));
       setRemovingIds(prev => {
         const next = new Set(prev);
-        toRemove.forEach(id => next.add(id));
+        next.delete(dishId);
         return next;
       });
-      setTimeout(() => {
-        const filteredItems = items.filter(i => i.quantity > 0);
-        setDisplayItems(filteredItems);
-        setRemovingIds(prev => {
-          const next = new Set(prev);
-          toRemove.forEach(id => next.delete(id));
-          return next;
+      pendingRemoveRef.current.delete(dishId);
+      removeTimersRef.current.delete(dishId);
+      onRemove(dishId);
+    }, 300);
+    
+    removeTimersRef.current.set(dishId, timer);
+  }, [removingIds, onRemove]);
+
+  useEffect(() => {
+    const validItems = items.filter(i => i.quantity > 0);
+    const displayIds = new Set(displayItems.map(i => i.id));
+    const validIds = new Set(validItems.map(i => i.id));
+    
+    const toAdd: CartItem[] = [];
+    const toRemoveIds: string[] = [];
+    
+    validItems.forEach(item => {
+      if (!displayIds.has(item.id) && !pendingRemoveRef.current.has(item.id)) {
+        toAdd.push(item);
+      }
+    });
+    
+    displayItems.forEach(item => {
+      if (!validIds.has(item.id) && !removingIds.has(item.id)) {
+        toRemoveIds.push(item.id);
+      }
+    });
+    
+    if (toAdd.length > 0 || toRemoveIds.length > 0) {
+      if (toRemoveIds.length > 0) {
+        toRemoveIds.forEach(id => triggerRemoveAnimation(id));
+      }
+      if (toAdd.length > 0) {
+        setDisplayItems(prev => {
+          const existingIds = new Set(prev.map(i => i.id));
+          const newItems = [...prev];
+          toAdd.forEach(item => {
+            if (!existingIds.has(item.id)) {
+              newItems.push(item);
+            }
+          });
+          return newItems;
         });
-        toRemove.forEach(id => {
-          if (items.find(i => i.id === id)) {
-            onRemove(id);
-          }
-        });
-      }, 300);
-    } else {
-      const displayItemsMap = new Map(displayItems.map(i => [i.id, i.quantity]));
-      const updatedItems = items.map(item => {
-        const prevQty = displayItemsMap.get(item.id);
-        if (prevQty !== undefined && prevQty !== item.quantity) {
-          return item;
+      }
+    }
+    
+    setDisplayItems(prev => {
+      const itemMap = new Map(validItems.map(i => [i.id, i]));
+      return prev.map(item => {
+        const updated = itemMap.get(item.id);
+        if (updated && !removingIds.has(item.id)) {
+          return updated;
         }
         return item;
       });
-      setDisplayItems(items.filter(i => i.quantity > 0));
-    }
-    
-    prevItemsRef.current = new Map(items.map(i => [i.id, i.quantity]));
-  }, [items]);
+    });
+  }, [items, triggerRemoveAnimation]);
+
+  useEffect(() => {
+    return () => {
+      removeTimersRef.current.forEach(timer => clearTimeout(timer));
+      removeTimersRef.current.clear();
+    };
+  }, []);
 
   const handleQuantityChange = (dishId: string, delta: number, currentQuantity: number) => {
     if (currentQuantity + delta <= 0) {
-      setRemovingIds(prev => new Set(prev).add(dishId));
-      setTimeout(() => {
-        onRemove(dishId);
-        setRemovingIds(prev => {
-          const next = new Set(prev);
-          next.delete(dishId);
-          return next;
-        });
-      }, 300);
+      triggerRemoveAnimation(dishId);
     } else {
       onUpdateQuantity(dishId, delta);
     }
   };
 
   const handleRemoveClick = (dishId: string) => {
-    setRemovingIds(prev => new Set(prev).add(dishId));
-    setTimeout(() => {
-      onRemove(dishId);
-      setRemovingIds(prev => {
-        const next = new Set(prev);
-        next.delete(dishId);
-        return next;
-      });
-    }, 300);
+    triggerRemoveAnimation(dishId);
   };
 
   return (

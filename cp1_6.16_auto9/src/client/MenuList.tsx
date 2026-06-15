@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 
 interface Dish {
   id: string;
@@ -38,43 +38,35 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+function HeartIcon({ isFavorite, animating }: { isFavorite: boolean; animating: boolean }) {
+  return (
+    <span className={`heart-icon ${animating ? 'bounce' : ''}`}>
+      {isFavorite ? '❤️' : '🤍'}
+    </span>
+  );
+}
+
 function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading }: MenuListProps) {
-  const [displayedDishes, setDisplayedDishes] = useState<Dish[]>(dishes);
-  const [animating, setAnimating] = useState(false);
-  const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
-  const prevDishesIds = useRef<string>(dishes.map(d => d.id).sort().join(','));
+  const [heartAnimKey, setHeartAnimKey] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    const currentIds = dishes.map(d => d.id).sort().join(',');
-    
-    if (currentIds !== prevDishesIds.current) {
-      setAnimating(true);
-      const timer = setTimeout(() => {
-        setDisplayedDishes(dishes);
-        setAnimating(false);
-        prevDishesIds.current = currentIds;
-      }, 150);
-      return () => clearTimeout(timer);
-    } else {
-      setDisplayedDishes(dishes);
-    }
-  }, [dishes]);
-
-  const handleFavoriteClick = (dishId: string) => {
-    setAnimatingHearts(prev => new Set(prev).add(dishId));
+  const handleFavoriteClick = useCallback((dishId: string) => {
+    setHeartAnimKey(prev => ({
+      ...prev,
+      [dishId]: (prev[dishId] || 0) + 1
+    }));
     setTimeout(() => {
-      setAnimatingHearts(prev => {
-        const next = new Set(prev);
-        next.delete(dishId);
+      setHeartAnimKey(prev => {
+        const next = { ...prev };
+        delete next[dishId];
         return next;
       });
     }, 200);
     onToggleFavorite(dishId);
-  };
+  }, [onToggleFavorite]);
 
   if (isLoading) {
     return (
-      <div className="menu-grid fade-in">
+      <div className="menu-grid">
         {[1, 2, 3, 4, 5, 6].map(i => (
           <div key={i} className="dish-card skeleton">
             <div className="skeleton-image" />
@@ -87,9 +79,9 @@ function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading 
     );
   }
 
-  if (displayedDishes.length === 0) {
+  if (dishes.length === 0) {
     return (
-      <div className="empty-state fade-in">
+      <div className="empty-state">
         <span className="empty-icon">🍽️</span>
         <p>暂无匹配的菜品</p>
         <p className="empty-hint">试试其他关键词吧</p>
@@ -98,21 +90,25 @@ function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading 
   }
 
   return (
-    <div className={`menu-grid ${animating ? 'fade-out' : 'fade-in'}`}>
-      {displayedDishes.map(dish => {
+    <div className="menu-grid">
+      {dishes.map(dish => {
         const isFavorite = favorites.has(dish.id);
-        const isHeartAnimating = animatingHearts.has(dish.id);
+        const isHeartAnimating = !!heartAnimKey[dish.id];
 
         return (
           <div key={dish.id} className="dish-card">
             <div className="dish-image-container">
               <img src={dish.image} alt={dish.name} className="dish-image" />
               <button
-                className={`favorite-btn ${isFavorite ? 'active' : ''} ${isHeartAnimating ? 'bounce' : ''}`}
+                className={`favorite-btn ${isFavorite ? 'active' : ''}`}
                 onClick={() => handleFavoriteClick(dish.id)}
                 aria-label={isFavorite ? '取消收藏' : '收藏'}
               >
-                <span className="heart-icon">{isFavorite ? '❤️' : '🤍'}</span>
+                <HeartIcon
+                  key={heartAnimKey[dish.id] || 0}
+                  isFavorite={isFavorite}
+                  animating={isHeartAnimating}
+                />
               </button>
               {dish.isRecommended && (
                 <span className="recommended-badge">推荐</span>

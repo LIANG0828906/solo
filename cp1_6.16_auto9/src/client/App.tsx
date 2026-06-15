@@ -42,8 +42,12 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [menuAnimating, setMenuAnimating] = useState<boolean>(false);
+  const [displayedDishes, setDisplayedDishes] = useState<Dish[]>([]);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hideToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const prevDishIds = useRef<string>('');
+  const fadeOutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -51,6 +55,8 @@ function App() {
       setIsMobile(mobile);
       if (!mobile) {
         setCartOpen(true);
+      } else {
+        setCartOpen(false);
       }
     };
     checkMobile();
@@ -90,26 +96,80 @@ function App() {
     loadCategories();
   }, []);
 
+  const animateToDishes = useCallback((newDishes: Dish[]) => {
+    const newIds = newDishes.map(d => d.id).sort().join(',');
+    if (newIds === prevDishIds.current) {
+      return;
+    }
+    
+    if (fadeOutTimeoutRef.current) {
+      clearTimeout(fadeOutTimeoutRef.current);
+    }
+    
+    const hasCurrentItems = displayedDishes.length > 0;
+    
+    if (hasCurrentItems) {
+      setMenuAnimating(true);
+      
+      fadeOutTimeoutRef.current = setTimeout(() => {
+        setDisplayedDishes(newDishes);
+        prevDishIds.current = newIds;
+        requestAnimationFrame(() => {
+          setMenuAnimating(false);
+        });
+        fadeOutTimeoutRef.current = null;
+      }, 200);
+    } else {
+      setDisplayedDishes(newDishes);
+      prevDishIds.current = newIds;
+      setMenuAnimating(false);
+    }
+  }, [displayedDishes.length]);
+
   useEffect(() => {
     const loadDishes = async () => {
-      setMenuAnimating(true);
       setIsLoading(true);
       try {
         const res = await fetch(`/api/dishes?categoryId=${activeCategory}`);
         const data = await res.json();
-        setTimeout(() => {
-          setDishes(data);
-          setIsLoading(false);
-          setTimeout(() => setMenuAnimating(false), 50);
-        }, 150);
+        setDishes(data);
+        setIsLoading(false);
       } catch (error) {
         console.error('Failed to load dishes:', error);
         setIsLoading(false);
-        setMenuAnimating(false);
       }
     };
     loadDishes();
   }, [activeCategory]);
+
+  const filteredDishes = searchTerm.trim()
+    ? dishes.filter(
+        d =>
+          d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          d.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : dishes;
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    
+    const debounceTime = displayedDishes.length > 0 ? 120 : 0;
+    searchDebounceRef.current = setTimeout(() => {
+      animateToDishes(filteredDishes);
+    }, debounceTime);
+    
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [filteredDishes, isLoading, animateToDishes, displayedDishes.length]);
 
   const handleToggleFavorite = useCallback((dishId: string) => {
     setFavorites(prev => {
@@ -183,14 +243,6 @@ function App() {
     }
   }, [cart, showToast]);
 
-  const filteredDishes = searchTerm.trim()
-    ? dishes.filter(
-        d =>
-          d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          d.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : dishes;
-
   const validCartItems = cart.filter(item => item.quantity > 0);
   const totalPrice = validCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalCount = validCartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -246,7 +298,7 @@ function App() {
 
           <div className={`menu-list-wrapper ${menuAnimating ? 'fade-out' : 'fade-in'}`}>
             <MenuList
-              dishes={filteredDishes}
+              dishes={displayedDishes}
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
               onAddToCart={handleAddToCart}
