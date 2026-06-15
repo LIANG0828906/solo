@@ -70,6 +70,9 @@ export const spellTemplates: Record<ElementType, SpellTemplate> = {
   },
 };
 
+const MAX_POINT_DISTANCE = Math.sqrt(2);
+const RESAMPLE_COUNT = 32;
+
 /**
  * 计算两点之间的欧氏距离
  * @param p1 点1
@@ -83,7 +86,72 @@ export function euclideanDistance(p1: Point, p2: Point): number {
 }
 
 /**
+ * 轨迹重采样
+ * 使用线性插值将轨迹重采样到固定点数
+ * @param trajectory 原始轨迹
+ * @param targetCount 目标点数
+ * @returns 重采样后的轨迹
+ */
+export function resampleTrajectory(trajectory: Point[], targetCount: number): Point[] {
+  if (trajectory.length < 2) {
+    return trajectory.slice();
+  }
+
+  const result: Point[] = [];
+  const totalSegments = targetCount - 1;
+
+  let totalLength = 0;
+  const segmentLengths: number[] = [];
+  for (let i = 1; i < trajectory.length; i++) {
+    const len = euclideanDistance(trajectory[i - 1], trajectory[i]);
+    segmentLengths.push(len);
+    totalLength += len;
+  }
+
+  if (totalLength === 0) {
+    for (let i = 0; i < targetCount; i++) {
+      result.push({ ...trajectory[0], timestamp: trajectory[0].timestamp + i });
+    }
+    return result;
+  }
+
+  const interval = totalLength / totalSegments;
+  let currentDistance = 0;
+  let segmentIndex = 0;
+  let accumulatedLength = 0;
+
+  result.push({ ...trajectory[0] });
+
+  for (let i = 1; i < targetCount - 1; i++) {
+    const targetDistance = i * interval;
+
+    while (segmentIndex < segmentLengths.length - 1 && accumulatedLength + segmentLengths[segmentIndex] < targetDistance) {
+      accumulatedLength += segmentLengths[segmentIndex];
+      segmentIndex++;
+    }
+
+    const segmentStart = accumulatedLength;
+    const segmentLen = segmentLengths[segmentIndex] || 1;
+    const t = (targetDistance - segmentStart) / segmentLen;
+
+    const p1 = trajectory[segmentIndex];
+    const p2 = trajectory[Math.min(segmentIndex + 1, trajectory.length - 1)];
+
+    result.push({
+      x: p1.x + (p2.x - p1.x) * t,
+      y: p1.y + (p2.y - p1.y) * t,
+      timestamp: p1.timestamp + (p2.timestamp - p1.timestamp) * t,
+    });
+  }
+
+  result.push({ ...trajectory[trajectory.length - 1] });
+
+  return result;
+}
+
+/**
  * 归一化轨迹
+ * - 先重采样到固定点数
  * - 坐标缩放到 0-1 范围
  * - 时间戳相对化（从0开始）
  * @param trajectory 原始轨迹
@@ -94,13 +162,15 @@ export function normalizeTrajectory(trajectory: Point[]): Point[] {
     return [];
   }
 
+  const resampled = resampleTrajectory(trajectory, RESAMPLE_COUNT);
+
   let minX = Infinity,
     maxX = -Infinity;
   let minY = Infinity,
     maxY = -Infinity;
-  const minTimestamp = trajectory[0].timestamp;
+  const minTimestamp = resampled[0].timestamp;
 
-  for (const point of trajectory) {
+  for (const point of resampled) {
     if (point.x < minX) minX = point.x;
     if (point.x > maxX) maxX = point.x;
     if (point.y < minY) minY = point.y;
@@ -111,7 +181,7 @@ export function normalizeTrajectory(trajectory: Point[]): Point[] {
   const rangeY = maxY - minY || 1;
   const scale = Math.max(rangeX, rangeY);
 
-  return trajectory.map((point) => ({
+  return resampled.map((point) => ({
     x: (point.x - minX) / scale,
     y: (point.y - minY) / scale,
     timestamp: point.timestamp - minTimestamp,
@@ -121,7 +191,8 @@ export function normalizeTrajectory(trajectory: Point[]): Point[] {
 /**
  * 动态时间规整（DTW）算法
  * 计算两个轨迹之间的距离，支持不同长度序列的匹配
- * 使用动态规划优化，时间复杂度 O(n*m)，空间复杂度 O(n*m)
+ * 使用 Sakoe-Chiba band 路径约束减少计算量
+ * 时间复杂度 O(n*w)，空间复杂度 O(n*m)，w 为窗口大小
  * @param seq1 轨迹1
  * @param seq2 轨迹2
  * @returns DTW 距离
@@ -134,13 +205,18 @@ export function dtwDistance(seq1: Point[], seq2: Point[]): number {
     return Infinity;
   }
 
+  const band = Math.max(Math.abs(n - m), Math.floor(Math.max(n, m) * 0.1));
+
   const dp: number[][] = Array(n + 1)
     .fill(0)
     .map(() => Array(m + 1).fill(Infinity));
   dp[0][0] = 0;
 
   for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
+    const jStart = Math.max(1, i - band);
+    const jEnd = Math.min(m, i + band);
+
+    for (let j = jStart; j <= jEnd; j++) {
       const cost = euclideanDistance(seq1[i - 1], seq2[j - 1]);
       dp[i][j] = cost + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
     }
@@ -152,23 +228,21 @@ export function dtwDistance(seq1: Point[], seq2: Point[]): number {
 /**
  * 根据 DTW 距离转换为 0-100 分
  * 距离越小，分数越高
- * @param dtwDistance DTW 距离
+ * 使用指数衰减映射，添加随机噪声让分数更自然
+ * @param distance DTW 距离
  * @param templateLength 模板点数量（用于归一化距离）
  * @returns 0-100 的分数
  */
-export function calculateScore(dtwDistance: number, templateLength: number): number {
-  if (dtwDistance === Infinity) {
+export function calculateScore(distance: number, templateLength: number): number {
+  if (distance === Infinity) {
     return 0;
   }
 
-  const normalizedDistance = dtwDistance / templateLength;
-  const maxAcceptableDistance = 0.5;
+  const normalizedDistance = distance / (templateLength * MAX_POINT_DISTANCE);
+  const baseScore = 100 * Math.exp(-normalizedDistance * 6);
+  const noise = (Math.random() - 0.5) * 4;
+  const score = Math.round(baseScore + noise);
 
-  if (normalizedDistance >= maxAcceptableDistance) {
-    return 0;
-  }
-
-  const score = Math.round((1 - normalizedDistance / maxAcceptableDistance) * 100);
   return Math.max(0, Math.min(100, score));
 }
 

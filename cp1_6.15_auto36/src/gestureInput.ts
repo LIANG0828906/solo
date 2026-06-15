@@ -18,8 +18,14 @@ export class GestureInput {
   private onTrajectoryComplete?: TrajectoryCallback
   private onDrawingUpdate?: DrawingUpdateCallback
   private lastPoint: Point | null = null
+  private lastSmoothedPoint: Point | null = null
   private trailCanvas: HTMLCanvasElement | null = null
   private trailCtx: CanvasRenderingContext2D | null = null
+
+  private readonly minTrajectoryLength: number = 30
+  private readonly minPointCount: number = 5
+  private readonly minPointDistance: number = 4
+  private readonly smoothingAlpha: number = 0.3
 
   constructor(options: GestureInputOptions) {
     this.canvas = options.canvas
@@ -72,6 +78,7 @@ export class GestureInput {
   }
 
   private handleMouseDown(e: MouseEvent): void {
+    e.preventDefault()
     if (e.button !== 0) return
     this.startDrawing(e.clientX, e.clientY)
   }
@@ -88,7 +95,7 @@ export class GestureInput {
 
   private handleTouchStart(e: TouchEvent): void {
     e.preventDefault()
-    if (e.touches.length === 0) return
+    if (e.touches.length !== 1) return
     const touch = e.touches[0]
     this.startDrawing(touch.clientX, touch.clientY)
   }
@@ -100,7 +107,8 @@ export class GestureInput {
     this.addPoint(touch.clientX, touch.clientY)
   }
 
-  private handleTouchEnd(_e: TouchEvent): void {
+  private handleTouchEnd(e: TouchEvent): void {
+    e.preventDefault()
     if (!this.isDrawing) return
     this.endDrawing()
   }
@@ -110,11 +118,13 @@ export class GestureInput {
     this.startTime = Date.now()
     this.trajectory = []
     this.lastPoint = null
+    this.lastSmoothedPoint = null
     this.clearTrail()
 
     const point = this.getCanvasPoint(clientX, clientY)
     this.trajectory.push(point)
     this.lastPoint = point
+    this.lastSmoothedPoint = point
 
     this.onDrawingUpdate?.(this.trajectory, false)
   }
@@ -126,18 +136,42 @@ export class GestureInput {
       const dx = point.x - this.lastPoint.x
       const dy = point.y - this.lastPoint.y
       const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 3) return
+      if (dist < this.minPointDistance) return
     }
 
-    this.trajectory.push(point)
+    let smoothedPoint = point
+    if (this.lastSmoothedPoint) {
+      const smoothedX = this.smoothingAlpha * point.x + (1 - this.smoothingAlpha) * this.lastSmoothedPoint.x
+      const smoothedY = this.smoothingAlpha * point.y + (1 - this.smoothingAlpha) * this.lastSmoothedPoint.y
+      smoothedPoint = { ...point, x: smoothedX, y: smoothedY }
+    }
+
+    this.trajectory.push(smoothedPoint)
     this.lastPoint = point
+    this.lastSmoothedPoint = smoothedPoint
 
     this.onDrawingUpdate?.(this.trajectory, false)
+  }
+
+  private getTrajectoryLength(points: Point[]): number {
+    let length = 0
+    for (let i = 1; i < points.length; i++) {
+      const dx = points[i].x - points[i - 1].x
+      const dy = points[i].y - points[i - 1].y
+      length += Math.sqrt(dx * dx + dy * dy)
+    }
+    return length
   }
 
   private endDrawing(): void {
     this.isDrawing = false
     this.onDrawingUpdate?.(this.trajectory, true)
+
+    const trajectoryLength = this.getTrajectoryLength(this.trajectory)
+    if (trajectoryLength < this.minTrajectoryLength || this.trajectory.length < this.minPointCount) {
+      return
+    }
+
     this.onTrajectoryComplete?.([...this.trajectory])
   }
 
