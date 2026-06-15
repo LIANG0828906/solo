@@ -5,22 +5,28 @@ import { formatRelative } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { getRoomById, getStoryById, addBranchNode } from '@/DataService';
-import { createLayoutSimulation } from '@/utils/graphLayout';
+import { createLayoutSimulation, buildVinePath } from '@/utils/graphLayout';
 import { cn } from '@/lib/utils';
-import type { RoomMeta, StoryNode, RenderNode, Author } from '@/types';
+import type { RoomMeta, StoryNode, RenderNode, Author, SentimentType } from '@/types';
 
-const NODE_COLORS: Record<string, { fill: string; stroke: string; glow: string }> = {
-  root: { fill: '#1E3A5F', stroke: '#0F2744', glow: 'node-glow' },
+const NODE_COLORS: Record<SentimentType, { fill: string; stroke: string; glow: string }> = {
   neutral: { fill: '#1E3A5F', stroke: '#0F2744', glow: 'node-glow' },
   positive: { fill: '#2D6A4F', stroke: '#1B4332', glow: 'node-glow-green' },
   conflict: { fill: '#9B2335', stroke: '#6B1824', glow: 'node-glow-red' },
 };
 
-const LINK_COLORS: Record<string, string> = {
+const LINK_COLORS: Record<SentimentType, string> = {
   positive: '#2D6A4F',
   conflict: '#9B2335',
   neutral: '#1E3A5F',
 };
+
+function getNodeColors(node: RenderNode): { fill: string; stroke: string; glow: string } {
+  if (node.parentId === null) {
+    return { fill: '#1E3A5F', stroke: '#0F2744', glow: 'node-glow' };
+  }
+  return NODE_COLORS[node.sentiment];
+}
 
 const NODE_RADIUS = 36;
 const SELECTED_RADIUS = 44;
@@ -101,18 +107,7 @@ export default function StoryLinePage() {
 
       const nodeMap = new Map(renderNodes.map(n => [n.id, n]));
       d3Svg.selectAll<SVGPathElement, { source: RenderNode; target: RenderNode; sentiment: string }>('path.vine-link')
-        .attr('d', d => {
-          const sx = d.source.x;
-          const sy = d.source.y;
-          const tx = d.target.x;
-          const ty = d.target.y;
-          const midX = (sx + tx) / 2;
-          const controlY = sy + (ty - sy) * 0.3;
-          const path = d3.path();
-          path.moveTo(sx, sy);
-          path.quadraticCurveTo(midX, controlY, tx, ty);
-          return path.toString();
-        });
+        .attr('d', d => buildVinePath(d.source.x, d.source.y, d.target.x, d.target.y));
     });
 
     return () => {
@@ -172,15 +167,15 @@ export default function StoryLinePage() {
     const merged = nodeEnter.merge(nodeSel);
 
     merged
-      .attr('fill', d => NODE_COLORS[d.side === 'root' ? 'root' : d.sentiment].fill)
-      .attr('stroke', d => NODE_COLORS[d.side === 'root' ? 'root' : d.sentiment].stroke)
+      .attr('fill', d => getNodeColors(d).fill)
+      .attr('stroke', d => getNodeColors(d).stroke)
       .attr('stroke-width', 2.5)
       .style('animation-delay', d => `${d.depth * 100}ms`)
       .style('opacity', null)
       .attr('r', d => selectedNode?.id === d.id ? SELECTED_RADIUS : NODE_RADIUS)
       .attr('class', d => cn(
         'story-node cursor-pointer',
-        selectedNode?.id === d.id ? NODE_COLORS[d.side === 'root' ? 'root' : d.sentiment].glow : ''
+        selectedNode?.id === d.id ? getNodeColors(d).glow : ''
       ));
 
     merged.on('mouseenter', function(event, d) {

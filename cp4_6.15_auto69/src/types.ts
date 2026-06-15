@@ -1,6 +1,8 @@
-export type SentimentType = 'positive' | 'conflict' | 'neutral';
-
 import type { ThemeColors } from '@/utils/themes';
+
+export type SentimentType = 'positive' | 'neutral' | 'conflict';
+
+export type StoryNodeSide = 'root' | 'left' | 'right';
 
 export interface Author {
   id: string;
@@ -31,8 +33,8 @@ export interface StoryNode {
   author: Author;
   createdAt: number;
   depth: number;
-  side: 'root' | 'left' | 'right';
-  sentiment: 'positive' | 'conflict' | 'neutral';
+  side: StoryNodeSide;
+  sentiment: SentimentType;
   childrenIds: string[];
 }
 
@@ -41,8 +43,8 @@ export interface RenderNode extends StoryNode {
   y: number;
   vx: number;
   vy: number;
-  fx?: number;
-  fy?: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 export interface GraphLink {

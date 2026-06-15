@@ -5,10 +5,52 @@ import {
   forceCollide,
   forceX,
   forceY,
-  Simulation,
-  SimulationLinkDatum
+  type Simulation,
+  type SimulationLinkDatum,
 } from 'd3';
-import type { RenderNode, StoryNode, GraphLink } from '@/types';
+import type { RenderNode, StoryNode, GraphLink, SentimentType } from '@/types';
+
+export const SENTIMENT_NODE_COLORS: Record<SentimentType, { fill: string; stroke: string }> = {
+  neutral: { fill: '#1E3A5F', stroke: '#0F2744' },
+  positive: { fill: '#2D6A4F', stroke: '#1B4332' },
+  conflict: { fill: '#9B2335', stroke: '#6B1824' },
+};
+
+export const SENTIMENT_LINK_COLORS: Record<SentimentType, string> = {
+  neutral: '#1E3A5F',
+  positive: '#2D6A4F',
+  conflict: '#9B2335',
+};
+
+export function getNodeColor(node: StoryNode): { fill: string; stroke: string } {
+  if (node.parentId === null) {
+    return { fill: '#1E3A5F', stroke: '#0F2744' };
+  }
+  return SENTIMENT_NODE_COLORS[node.sentiment];
+}
+
+export function getLinkColor(childNode: StoryNode): string {
+  return SENTIMENT_LINK_COLORS[childNode.sentiment];
+}
+
+export function buildVinePath(
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number
+): string {
+  const midX = (sx + tx) / 2;
+  const dy = ty - sy;
+  const cp1Y = sy + dy * 0.35;
+  const cp2Y = sy + dy * 0.65;
+  const horizontalOffset = (tx - sx) * 0.15;
+  return [
+    `M${sx},${sy}`,
+    `C${sx + horizontalOffset},${cp1Y}`,
+    `${tx - horizontalOffset},${cp2Y}`,
+    `${tx},${ty}`,
+  ].join(' ');
+}
 
 interface SimulationContext {
   simulation: Simulation<RenderNode, SimulationLinkDatum<RenderNode>>;
@@ -38,12 +80,12 @@ export function createLayoutSimulation(
       .velocityDecay(0.4)
       .force('link', linkForce)
       .force('charge', forceManyBody().strength(-200))
-      .force('collide', forceCollide().radius(42).strength(0.8))
+      .force('collide', forceCollide<RenderNode>().radius(42).strength(0.8))
       .force('x', forceX(centerX).strength(0.04))
       .force('y', forceY(centerY).strength(0.04)),
     linkForce,
     containerWidth,
-    containerHeight
+    containerHeight,
   };
 
   function updateNodes(storyNodes: StoryNode[]): RenderNode[] {
@@ -51,19 +93,20 @@ export function createLayoutSimulation(
     const adjustedCharge = nodeCount >= 50 ? -150 : -200;
     context.simulation.force('charge', forceManyBody().strength(adjustedCharge));
 
+    const existingNodes = context.simulation.nodes();
+    const existingMap = new Map(existingNodes.map(n => [n.id, n]));
+
     const renderNodes: RenderNode[] = storyNodes.map(node => {
-      const existing = context.simulation.nodes().find(n => n.id === node.id);
-      const baseX = existing?.x ?? centerX;
-      const baseY = existing?.y ?? node.depth * 120 + 80;
-      const sideOffset = node.side === 'root' ? 0 : node.side === 'left' ? -60 : 60;
+      const existing = existingMap.get(node.id);
+      const sideOffset = node.side === 'root' ? 0 : node.side === 'left' ? -80 : 80;
       return {
         ...node,
-        x: existing?.x ?? baseX + sideOffset,
-        y: existing?.y ?? baseY,
+        x: existing?.x ?? centerX + sideOffset,
+        y: existing?.y ?? node.depth * 120 + 80,
         vx: existing?.vx ?? 0,
         vy: existing?.vy ?? 0,
         fx: existing?.fx,
-        fy: existing?.fy
+        fy: existing?.fy,
       };
     });
 
@@ -72,7 +115,7 @@ export function createLayoutSimulation(
       if (node.parentId) {
         links.push({
           source: node.parentId,
-          target: node.id
+          target: node.id,
         });
       }
     }
@@ -86,6 +129,6 @@ export function createLayoutSimulation(
 
   return {
     simulation: context.simulation,
-    updateNodes
+    updateNodes,
   };
 }

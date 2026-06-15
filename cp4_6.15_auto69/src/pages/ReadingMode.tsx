@@ -3,14 +3,18 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { getRoomById, getStoryById } from '@/DataService';
 import { cn } from '@/lib/utils';
-import type { RoomMeta, StoryNode } from '@/types';
+import type { RoomMeta, StoryNode, SentimentType } from '@/types';
 
-const NODE_COLORS: Record<string, string> = {
-  root: '#1E3A5F',
+const NODE_COLORS: Record<SentimentType, string> = {
   neutral: '#1E3A5F',
   positive: '#2D6A4F',
   conflict: '#9B2335',
 };
+
+function getNodeColor(node: StoryNode): string {
+  if (node.parentId === null) return '#1E3A5F';
+  return NODE_COLORS[node.sentiment];
+}
 
 function collectPaths(nodes: StoryNode[], root: StoryNode): string[][] {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -224,7 +228,7 @@ export default function ReadingMode() {
                             key={nid}
                             className="w-2.5 h-2.5 rounded-full"
                             style={{
-                              backgroundColor: NODE_COLORS[n.sentiment],
+                              backgroundColor: getNodeColor(n),
                               opacity: 0.4 + (i / Math.max(path.length, 1)) * 0.6,
                             }}
                           />
@@ -252,7 +256,7 @@ export default function ReadingMode() {
               <div className="absolute left-4 md:left-6 top-8 flex flex-col items-center gap-3">
                 <div
                   className="w-12 h-12 rounded-full border-4 border-white shadow-md flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: NODE_COLORS[currentNode.sentiment] }}
+                  style={{ backgroundColor: getNodeColor(currentNode) }}
                 >
                   {currentNode.depth + 1}
                 </div>
@@ -300,7 +304,7 @@ export default function ReadingMode() {
                       <div className="flex items-center gap-2 mb-1.5">
                         <div
                           className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: NODE_COLORS[child.sentiment] }}
+                          style={{ backgroundColor: getNodeColor(child) }}
                         />
                         <span className="text-xs font-medium text-gray-700">
                           {idx === 0 ? '分支 A · 左' : '分支 B · 右'}
@@ -383,9 +387,9 @@ export default function ReadingMode() {
                       )}
                       style={{
                         backgroundColor: isActive
-                          ? NODE_COLORS[n?.sentiment ?? 'neutral']
+                          ? (n ? getNodeColor(n) : '#1E3A5F')
                           : isPassed
-                            ? NODE_COLORS[n?.sentiment ?? 'neutral']
+                            ? (n ? getNodeColor(n) : '#1E3A5F')
                             : '#D1D5DB',
                         opacity: isActive ? 1 : isPassed ? 0.55 : 1,
                       }}
