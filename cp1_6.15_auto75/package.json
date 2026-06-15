@@ -10,16 +10,19 @@
     "build": "tsc && vite build"
   },
   "dependencies": {
-    "phaser": "3.80.2",
+    "phaser": "^3.88.2",
     "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
     "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "codemirror": "^5.65.18"
   },
   "devDependencies": {
     "typescript": "^5.5.3",
     "vite": "^5.4.0",
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/codemirror": "^5.60.15",
     "tsx": "^4.16.2",
     "concurrently": "^8.2.2"
   }

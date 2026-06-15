@@ -209,16 +209,59 @@
     #code-editor {
       flex: 1;
       width: 100%;
-      background: #0d1117;
-      color: #c9d1d9;
+      overflow: hidden;
+    }
+
+    #code-editor .CodeMirror {
+      height: 100%;
       font-family: 'JetBrains Mono', monospace;
       font-size: 14px;
       line-height: 1.6;
-      padding: 16px;
-      border: none;
-      outline: none;
-      resize: none;
-      tab-size: 2;
+      background: #0d1117;
+    }
+
+    #code-editor .CodeMirror-gutters {
+      background: #0d1117;
+      border-right: 1px solid #1a1a4e;
+    }
+
+    #code-editor .CodeMirror-linenumber {
+      color: #4a5568;
+    }
+
+    #code-editor .CodeMirror-cursor {
+      border-left-color: #00d4ff;
+    }
+
+    #code-editor .CodeMirror-selected {
+      background: rgba(0, 212, 255, 0.15) !important;
+    }
+
+    #code-editor .cm-s-monokai .cm-keyword { color: #ff6b35; }
+    #code-editor .cm-s-monokai .cm-string { color: #4ade80; }
+    #code-editor .cm-s-monokai .cm-number { color: #00d4ff; }
+    #code-editor .cm-s-monokai .cm-comment { color: #6a737d; }
+    #code-editor .cm-s-monokai .cm-def { color: #c9d1d9; }
+    #code-editor .cm-s-monokai .cm-variable { color: #c9d1d9; }
+    #code-editor .cm-s-monokai .cm-property { color: #79c0ff; }
+
+    #perf-overlay {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 999;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #4ade80;
+      background: rgba(26, 26, 46, 0.8);
+      padding: 6px 10px;
+      border-radius: 4px;
+      pointer-events: none;
+      display: none;
+    }
+
+    #perf-overlay.active {
+      display: block;
     }
 
     .editor-footer {
@@ -447,7 +490,7 @@
         <div class="challenge-label">CHALLENGE</div>
         <div id="challenge-text">等待题目下发...</div>
       </div>
-      <textarea id="code-editor" spellcheck="false" placeholder="// 在这里编写你的代码..."></textarea>
+      <div id="code-editor"></div>
       <div class="editor-footer">
         <div class="countdown-display" id="countdown-display">--</div>
         <button class="btn-submit" id="btn-submit">提交代码</button>
@@ -457,6 +500,11 @@
     <div id="battle-panel" class="hidden">
       <div id="game-container"></div>
     </div>
+  </div>
+
+  <div id="perf-overlay">
+    <div id="perf-fps">FPS: --</div>
+    <div id="perf-latency">Latency: --</div>
   </div>
 
   <div id="result-overlay">
