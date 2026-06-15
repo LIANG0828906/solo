@@ -22,10 +22,11 @@ function EventCreate({ onEventCreated }: EventCreateProps) {
     setError('');
 
     try {
+      const origin = window.location.origin;
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, origin })
       });
 
       if (!response.ok) {

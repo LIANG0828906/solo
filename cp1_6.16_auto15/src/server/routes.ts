@@ -14,17 +14,19 @@ import {
 
 const router = Router();
 
-router.post('/events', async (req: Request<{}, {}, CreateEventRequest>, res: Response) => {
+router.post('/events', async (req: Request<{}, {}, CreateEventRequest & { origin?: string }>, res: Response) => {
   try {
-    const { name, location, time, description, expectedCount } = req.body;
+    const { name, location, time, description, expectedCount, origin } = req.body;
 
     if (!name || !location || !time) {
       return res.status(400).json({ message: '缺少必填字段' });
     }
 
+    if (!origin) {
+      return res.status(400).json({ message: '缺少 origin 参数，无法生成签到链接' });
+    }
+
     const eventId = uuidv4();
-    const host = req.get('host') || 'localhost:5173';
-    const origin = `${req.protocol}://${host}`;
     const checkInUrl = `${origin}/attendance/${eventId}`;
     
     const qrCodeDataUrl = await QRCode.toDataURL(checkInUrl, {

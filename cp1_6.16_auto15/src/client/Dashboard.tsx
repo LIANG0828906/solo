@@ -37,16 +37,52 @@ function Dashboard({ eventId }: DashboardProps) {
   const [onlineCount, setOnlineCount] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  const fetchData = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const [statsRes, attendanceRes, eventRes] = await Promise.all([
+        fetch(`/api/events/${eventId}/stats`, { signal: controller.signal }),
+        fetch(`/api/events/${eventId}/attendance?limit=50`, { signal: controller.signal }),
+        fetch(`/api/events/${eventId}`, { signal: controller.signal })
+      ]);
+
+      const statsData = await statsRes.json();
+      const attendanceData = await attendanceRes.json();
+      const eventData = await eventRes.json();
+
+      if (!mountedRef.current) return;
+
+      setStats(statsData);
+      setRecentAttendance(attendanceData);
+      setEvent(eventData);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (!mountedRef.current) return;
+      console.error('Failed to fetch data:', error);
+    }
+  };
 
   useEffect(() => {
+    mountedRef.current = true;
+
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    intervalRef.current = setInterval(fetchData, 5000);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws?eventId=${eventId}`;
     const websocket = new WebSocket(wsUrl);
 
     websocket.onmessage = (e) => {
+      if (!mountedRef.current) return;
       try {
         const data = JSON.parse(e.data);
         if (data.type === 'onlineCount') {
@@ -65,36 +101,19 @@ function Dashboard({ eventId }: DashboardProps) {
     wsRef.current = websocket;
 
     return () => {
-      clearInterval(interval);
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      websocket.onclose = null;
       websocket.close();
+      wsRef.current = null;
     };
   }, [eventId]);
-
-  useEffect(() => {
-    if (listRef.current && recentAttendance.length > 20) {
-      listRef.current.scrollTop = 0;
-    }
-  }, [recentAttendance]);
-
-  const fetchData = async () => {
-    try {
-      const [statsRes, attendanceRes, eventRes] = await Promise.all([
-        fetch(`/api/events/${eventId}/stats`),
-        fetch(`/api/events/${eventId}/attendance?limit=50`),
-        fetch(`/api/events/${eventId}`)
-      ]);
-
-      const statsData = await statsRes.json();
-      const attendanceData = await attendanceRes.json();
-      const eventData = await eventRes.json();
-
-      setStats(statsData);
-      setRecentAttendance(attendanceData);
-      setEvent(eventData);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    }
-  };
 
   const formatTime = (timeStr: string) => {
     return new Date(timeStr).toLocaleTimeString('zh-CN', {

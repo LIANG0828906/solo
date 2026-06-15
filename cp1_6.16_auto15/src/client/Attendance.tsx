@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Event } from './types';
 
 interface AttendanceProps {
@@ -17,6 +17,14 @@ function Attendance({ eventId }: AttendanceProps) {
     serialNumber?: number;
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [animPhase, setAnimPhase] = useState<'idle' | 'bounce' | 'pulse'>('idle');
+  const confettiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     fetchEvent();
@@ -26,46 +34,68 @@ function Attendance({ eventId }: AttendanceProps) {
     try {
       const response = await fetch(`/api/events/${eventId}`);
       const eventData = await response.json();
-      setEvent(eventData);
+      if (mountedRef.current) setEvent(eventData);
     } catch (error) {
       console.error('Failed to fetch event:', error);
     }
   };
 
-  const createConfetti = () => {
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fdcb6e', '#e17055', '#00b894', '#74b9ff', '#ff7675'];
+  const createConfetti = useCallback(() => {
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fdcb6e'];
     const confettiPieces: JSX.Element[] = [];
+    const PARTICLE_COUNT = 40;
     
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
       const left = Math.random() * 100;
-      const delay = Math.random() * 1.5;
+      const delay = Math.random() * 0.8;
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = Math.random() * 12 + 4;
-      const duration = 2 + Math.random() * 2;
-      const rotate = Math.random() * 360;
+      const size = Math.random() * 8 + 5;
+      const duration = 2 + Math.random() * 1.5;
       
       confettiPieces.push(
         <div
           key={i}
-          className="confetti-piece"
           style={{
+            position: 'fixed',
             left: `${left}%`,
             top: '-20px',
             backgroundColor: color,
             width: `${size}px`,
             height: `${size}px`,
-            borderRadius: Math.random() > 0.5 ? '50%' : '0',
+            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
             animationDelay: `${delay}s`,
             animationDuration: `${duration}s`,
-            transform: `rotate(${rotate}deg)`,
-            boxShadow: `0 0 ${size / 2}px ${color}40`
+            animationTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            animationFillMode: 'forwards',
+            animationName: 'confettiFall',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            willChange: 'transform, opacity'
           }}
         />
       );
     }
     
     return confettiPieces;
-  };
+  }, []);
+
+  const triggerSuccessAnimation = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!mountedRef.current) return;
+      setShowConfetti(true);
+      setAnimPhase('bounce');
+
+      setTimeout(() => {
+        if (!mountedRef.current) return;
+        setAnimPhase('pulse');
+      }, 800);
+
+      confettiTimerRef.current = setTimeout(() => {
+        if (!mountedRef.current) return;
+        setShowConfetti(false);
+      }, 3000);
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,8 +124,7 @@ function Attendance({ eventId }: AttendanceProps) {
           message: '签到成功！',
           serialNumber: data.serialNumber
         });
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 3000);
+        triggerSuccessAnimation();
       } else {
         setResult({
           success: false,
@@ -134,7 +163,13 @@ function Attendance({ eventId }: AttendanceProps) {
           <div style={{
             ...styles.result,
             backgroundColor: result.success ? '#d4edda' : '#f8d7da',
-            animation: result.success ? 'successPulse 0.6s ease-in-out infinite, successBounce 0.8s ease-out' : 'none'
+            animation: result.success
+              ? animPhase === 'bounce'
+                ? 'successBounce 0.8s ease-out'
+                : animPhase === 'pulse'
+                  ? 'successPulse 1.2s ease-in-out infinite'
+                  : 'none'
+              : 'none'
           }}>
             <div style={{
               fontSize: '64px',
@@ -157,21 +192,25 @@ function Attendance({ eventId }: AttendanceProps) {
             )}
             {!result.success && (
               <button
-                onClick={() => setResult(null)}
+                onClick={() => { setResult(null); setAnimPhase('idle'); }}
                 style={styles.retryBtn}
               >
                 重新签到
               </button>
             )}
             <style>{`
+              @keyframes confettiFall {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+              }
               @keyframes successPulse {
                 0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
-                50% { box-shadow: 0 0 0 15px rgba(40, 167, 69, 0); }
+                50% { box-shadow: 0 0 0 12px rgba(40, 167, 69, 0); }
               }
               @keyframes successBounce {
                 0% { transform: scale(0.3); opacity: 0; }
                 50% { transform: scale(1.05); }
-                70% { transform: scale(0.9); }
+                70% { transform: scale(0.95); }
                 100% { transform: scale(1); opacity: 1; }
               }
               @keyframes emojiBounce {
@@ -244,7 +283,6 @@ function Attendance({ eventId }: AttendanceProps) {
                 ...styles.button,
                 ...(loading ? styles.buttonDisabled : {})
               }}
-              className={result?.success ? 'pulse-animation' : ''}
             >
               {loading ? '签到中...' : '立即签到'}
             </button>

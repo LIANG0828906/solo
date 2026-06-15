@@ -14,35 +14,36 @@ interface DanmakuItem extends BarrageMessage {
 function Barrage({ eventId }: BarrageProps) {
   const [messages, setMessages] = useState<DanmakuItem[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const messageIdCounter = useRef(0);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 10;
+    mountedRef.current = true;
 
     const connect = () => {
+      if (!mountedRef.current) return;
+
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws?eventId=${eventId}`;
       const websocket = new WebSocket(wsUrl);
+      wsRef.current = websocket;
 
       websocket.onopen = () => {
+        if (!mountedRef.current) return;
         console.log('弹幕 WebSocket 已连接');
-        reconnectAttempts = 0;
+        reconnectAttemptsRef.current = 0;
       };
 
       websocket.onmessage = (event) => {
+        if (!mountedRef.current) return;
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'barrage') {
-            const startTime = performance.now();
             addDanmaku(data.message);
-            const duration = performance.now() - startTime;
-            if (duration > 16) {
-              console.warn(`弹幕渲染延迟: ${duration.toFixed(2)}ms`);
-            }
           }
         } catch (error) {
           console.error('解析弹幕消息失败:', error);
@@ -50,13 +51,17 @@ function Barrage({ eventId }: BarrageProps) {
       };
 
       websocket.onclose = () => {
+        if (!mountedRef.current) return;
         console.log('弹幕 WebSocket 已断开');
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
-          console.log(`尝试重连 (${reconnectAttempts + 1}/${maxReconnectAttempts})，延迟 ${delay}ms...`);
-          reconnectTimer = setTimeout(() => {
-            reconnectAttempts++;
-            connect();
+        const attempts = reconnectAttemptsRef.current;
+        if (attempts < 10) {
+          const delay = Math.min(1000 * Math.pow(2, attempts), 10000);
+          console.log(`尝试重连 (${attempts + 1}/10)，延迟 ${delay}ms...`);
+          reconnectTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              reconnectAttemptsRef.current++;
+              connect();
+            }
           }, delay);
         }
       };
@@ -64,18 +69,20 @@ function Barrage({ eventId }: BarrageProps) {
       websocket.onerror = (error) => {
         console.error('弹幕 WebSocket 错误:', error);
       };
-
-      setWs(websocket);
     };
 
     connect();
 
     return () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
+      mountedRef.current = false;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
-      if (ws) {
-        ws.close();
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
       }
     };
   }, [eventId]);
@@ -109,7 +116,7 @@ function Barrage({ eventId }: BarrageProps) {
   };
 
   const sendMessage = () => {
-    if (!inputValue.trim() || !ws) return;
+    if (!inputValue.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (inputValue.length > 20) {
       alert('弹幕内容不能超过20个字');
       return;
@@ -123,7 +130,7 @@ function Barrage({ eventId }: BarrageProps) {
       color: getRandomColor()
     };
 
-    ws.send(JSON.stringify({
+    wsRef.current.send(JSON.stringify({
       type: 'barrage',
       eventId,
       message
