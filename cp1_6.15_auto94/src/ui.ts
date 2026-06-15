@@ -106,15 +106,23 @@ export class UIManager {
     const nodeMap = new Map<string, EvolutionNode>();
     nodes.forEach(n => nodeMap.set(n.plantId, n));
 
+    const VIEW_W = 200;
+    const VIEW_H = 480;
+
     links.forEach(link => {
       const from = nodeMap.get(link.from);
       const to = nodeMap.get(link.to);
       if (!from || !to) return;
 
+      const fx = from.position.x * VIEW_W;
+      const fy = from.position.y * VIEW_H;
+      const tx = to.position.x * VIEW_W;
+      const ty = to.position.y * VIEW_H;
+
       const path = document.createElementNS(SVG_NS, 'path');
-      const midY = (from.position.y + to.position.y) / 2;
-      const ctrlX = (from.position.x + to.position.x) / 2;
-      const d = `M ${from.position.x} ${from.position.y} C ${ctrlX} ${midY}, ${ctrlX} ${midY}, ${to.position.x} ${to.position.y}`;
+      const midY = (fy + ty) / 2;
+      const ctrlX = (fx + tx) / 2;
+      const d = `M ${fx} ${fy} C ${ctrlX} ${midY}, ${ctrlX} ${midY}, ${tx} ${ty}`;
       path.setAttribute('d', d);
       path.setAttribute('class', 'evo-link');
       svg.appendChild(path);
@@ -124,20 +132,23 @@ export class UIManager {
       const plant = this.plantsList.find(p => p.id === node.plantId);
       if (!plant) return;
 
+      const nx = node.position.x * VIEW_W;
+      const ny = node.position.y * VIEW_H;
+
       const g = document.createElementNS(SVG_NS, 'g');
       g.setAttribute('data-plant-id', plant.id);
       g.style.cursor = 'pointer';
 
       const circle = document.createElementNS(SVG_NS, 'circle');
-      circle.setAttribute('cx', String(node.position.x));
-      circle.setAttribute('cy', String(node.position.y));
+      circle.setAttribute('cx', String(nx));
+      circle.setAttribute('cy', String(ny));
       circle.setAttribute('class', 'evo-node');
       circle.setAttribute('data-plant-id', plant.id);
       g.appendChild(circle);
 
       const text = document.createElementNS(SVG_NS, 'text');
-      text.setAttribute('x', String(node.position.x));
-      text.setAttribute('y', String(node.position.y + 26));
+      text.setAttribute('x', String(nx));
+      text.setAttribute('y', String(ny + 26));
       text.setAttribute('class', 'evo-label');
       text.textContent = plant.commonName;
       g.appendChild(text);
@@ -216,84 +227,127 @@ export class UIManager {
 
   initLightController(): void {
     const controller = document.getElementById('light-controller');
-    const core = controller?.querySelector('.light-core');
-    if (!controller || !core) return;
+    if (!controller) return;
 
-    const getCenter = () => {
-      const rect = controller.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      };
+    const CTRL_SIZE = 20;
+    const MAX_RADIUS = 60;
+
+    controller.style.width = `${CTRL_SIZE}px`;
+    controller.style.height = `${CTRL_SIZE}px`;
+    controller.style.borderRadius = '50%';
+    controller.style.position = 'absolute';
+    controller.style.cursor = 'grab';
+    controller.style.touchAction = 'none';
+
+    let centerClientX = 0;
+    let centerClientY = 0;
+    let offsetStartX = 0;
+    let offsetStartY = 0;
+
+    const computeAngles = (dx: number, dy: number) => {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      let azimuth = Math.atan2(dx, -dy) * (180 / Math.PI);
+      if (azimuth < 0) azimuth += 360;
+      const normDist = Math.min(1, dist / MAX_RADIUS);
+      const elevation = (1 - normDist) * 90;
+      return { azimuth, elevation };
     };
 
-    const updateCorePosition = (azimuth: number, elevation: number) => {
-      const rect = controller.getBoundingClientRect();
-      const radius = rect.width * 0.28;
+    const updatePositionFromAngles = (azimuth: number, elevation: number) => {
       const azRad = (azimuth * Math.PI) / 180;
       const elNorm = (90 - elevation) / 90;
-      const offsetX = Math.sin(azRad) * radius * elNorm;
-      const offsetY = -Math.cos(azRad) * radius * elNorm;
-      (core as HTMLElement).style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+      const dist = elNorm * MAX_RADIUS;
+      const offsetX = Math.sin(azRad) * dist;
+      const offsetY = -Math.cos(azRad) * dist;
+      controller.style.left = `calc(50% + ${offsetX}px - ${CTRL_SIZE / 2}px)`;
+      controller.style.top = `calc(50% + ${offsetY}px - ${CTRL_SIZE / 2}px)`;
     };
 
-    updateCorePosition(this.currentLightAngle.azimuth, this.currentLightAngle.elevation);
-
-    const onMouseDown = (e: MouseEvent) => {
-      this.isDraggingLight = true;
-      this.lightStartPos = { x: e.clientX, y: e.clientY };
-      e.preventDefault();
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!this.isDraggingLight) return;
-
-      const center = getCenter();
-      const dx = e.clientX - center.x;
-      const dy = e.clientY - center.y;
-
-      const azimuth = Math.atan2(dx, -dy) * (180 / Math.PI);
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const maxDist = 30;
-      const normDist = Math.min(1, dist / maxDist);
-      const elevation = Math.max(5, Math.min(90, 90 - normDist * 85));
-
+    const updateAnglesFromOffset = (offsetX: number, offsetY: number) => {
+      const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+      let clampedX = offsetX;
+      let clampedY = offsetY;
+      if (dist > MAX_RADIUS) {
+        const ratio = MAX_RADIUS / dist;
+        clampedX = offsetX * ratio;
+        clampedY = offsetY * ratio;
+      }
+      controller.style.left = `calc(50% + ${clampedX}px - ${CTRL_SIZE / 2}px)`;
+      controller.style.top = `calc(50% + ${clampedY}px - ${CTRL_SIZE / 2}px)`;
+      const { azimuth, elevation } = computeAngles(clampedX, clampedY);
       this.currentLightAngle = { azimuth, elevation };
-      updateCorePosition(azimuth, elevation);
-
       if (this.onLightAngleChanged) {
         this.onLightAngleChanged(azimuth, elevation);
       }
     };
 
+    const refreshCenter = () => {
+      const parent = controller.parentElement;
+      if (!parent) return;
+      const parentRect = parent.getBoundingClientRect();
+      centerClientX = parentRect.left + parentRect.width / 2;
+      centerClientY = parentRect.top + parentRect.height / 2;
+    };
+
+    updatePositionFromAngles(this.currentLightAngle.azimuth, this.currentLightAngle.elevation);
+
+    const onMouseDown = (e: MouseEvent) => {
+      refreshCenter();
+      this.isDraggingLight = true;
+      const ctrlRect = controller.getBoundingClientRect();
+      const ctrlCenterX = ctrlRect.left + CTRL_SIZE / 2;
+      const ctrlCenterY = ctrlRect.top + CTRL_SIZE / 2;
+      offsetStartX = ctrlCenterX - centerClientX;
+      offsetStartY = ctrlCenterY - centerClientY;
+      this.lightStartPos = { x: e.clientX, y: e.clientY };
+      controller.style.cursor = 'grabbing';
+      e.preventDefault();
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!this.isDraggingLight) return;
+      const dx = e.clientX - this.lightStartPos.x;
+      const dy = e.clientY - this.lightStartPos.y;
+      updateAnglesFromOffset(offsetStartX + dx, offsetStartY + dy);
+    };
+
     const onMouseUp = () => {
       this.isDraggingLight = false;
+      controller.style.cursor = 'grab';
     };
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 0) return;
-      const t = e.touches[0];
+      refreshCenter();
       this.isDraggingLight = true;
+      const t = e.touches[0];
+      const ctrlRect = controller.getBoundingClientRect();
+      const ctrlCenterX = ctrlRect.left + CTRL_SIZE / 2;
+      const ctrlCenterY = ctrlRect.top + CTRL_SIZE / 2;
+      offsetStartX = ctrlCenterX - centerClientX;
+      offsetStartY = ctrlCenterY - centerClientY;
       this.lightStartPos = { x: t.clientX, y: t.clientY };
+      controller.style.cursor = 'grabbing';
     };
 
     const onTouchMove = (e: TouchEvent) => {
       if (!this.isDraggingLight || e.touches.length === 0) return;
       const t = e.touches[0];
-      onMouseMove({ clientX: t.clientX, clientY: t.clientY } as MouseEvent);
+      const dx = t.clientX - this.lightStartPos.x;
+      const dy = t.clientY - this.lightStartPos.y;
+      updateAnglesFromOffset(offsetStartX + dx, offsetStartY + dy);
       e.preventDefault();
     };
 
     const onTouchEnd = () => {
       this.isDraggingLight = false;
+      controller.style.cursor = 'grab';
     };
 
-    core.addEventListener('mousedown', onMouseDown);
     controller.addEventListener('mousedown', onMouseDown);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
 
-    core.addEventListener('touchstart', onTouchStart, { passive: true });
     controller.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchmove', onTouchMove, { passive: false });
     document.addEventListener('touchend', onTouchEnd);
@@ -395,11 +449,14 @@ export class UIManager {
       card.style.top = `${top}px`;
       card.classList.remove('active');
       card.style.display = 'block';
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(20px) scale(0.95)';
+      card.style.transition = 'opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
 
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          card.classList.add('active');
-        });
+        card.classList.add('active');
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0) scale(1)';
       });
     } catch (error) {
       console.error('[UIManager] showInfoCard failed:', error);

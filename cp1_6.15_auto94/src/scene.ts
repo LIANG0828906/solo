@@ -7,6 +7,17 @@ import type { PlantConfig, StageMorphology, GrowthStage, LightAngle } from './ty
 type DoubleClickCallback = (plantId: string | null, worldPoint: THREE.Vector3, screenX: number, screenY: number) => void;
 type ProgressCallback = (progress: number) => void;
 
+interface PlantTransition {
+  oldFern: FernModel | null;
+  newFern: FernModel | null;
+  progress: number;
+  duration: number;
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 export class SceneManager {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
@@ -28,6 +39,7 @@ export class SceneManager {
   private onDoubleClick: DoubleClickCallback | null;
   private onLoadProgress: ProgressCallback | null;
   private disposed: boolean;
+  private transition: PlantTransition | null;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -50,6 +62,7 @@ export class SceneManager {
     this.onDoubleClick = null;
     this.onLoadProgress = null;
     this.disposed = false;
+    this.transition = null;
   }
 
   init(
@@ -200,23 +213,23 @@ export class SceneManager {
 
       if (this.onLoadProgress) this.onLoadProgress(0.6);
 
-      if (this.currentFern) {
-        this.scene.remove(this.currentFern);
-        this.disposeFern(this.currentFern);
-        this.currentFern = null;
-      }
+      const oldFern = this.currentFern;
+      const newFern = new FernModel(config);
+
+      newFern.buildAllSporangia();
+      newFern.updateMorphology(morphology, false);
+      newFern.scale.setScalar(0);
+      this.scene.add(newFern);
+
+      this.transition = {
+        oldFern: oldFern,
+        newFern: newFern,
+        progress: 0,
+        duration: 0.6
+      };
 
       this.currentPlantId = id;
-      this.currentFern = new FernModel(config);
-      this.scene.add(this.currentFern);
-
-      for (let i = 0; i < Math.min(3, this.currentFern.fronds.length); i++) {
-        const count = 10 + Math.floor(Math.random() * 6);
-        this.currentFern.buildSporangia(i, count, morphology.sporangiaDensity);
-      }
-
-      this.currentFern.updateMorphology(morphology, false);
-      this.currentFern.updateMorphology(morphology, true);
+      this.currentFern = newFern;
 
       if (this.onLoadProgress) this.onLoadProgress(1.0);
     } catch (error) {
@@ -284,6 +297,39 @@ export class SceneManager {
     const delta = this.clock.getDelta();
 
     this.controls.update();
+
+    if (this.transition) {
+      this.transition.progress = Math.min(1, this.transition.progress + delta / this.transition.duration);
+      const t = this.transition.progress;
+      const totalT = this.transition.progress * this.transition.duration;
+
+      const fadeOutT = Math.min(1, totalT / 0.3);
+      const fadeInStart = 0.15;
+      const fadeInT = Math.max(0, Math.min(1, (totalT - fadeInStart) / 0.3));
+
+      if (this.transition.oldFern) {
+        const scaleT = easeOutCubic(fadeOutT);
+        const scale = 1 - scaleT;
+        this.transition.oldFern.scale.setScalar(Math.max(0, scale));
+      }
+
+      if (this.transition.newFern) {
+        const scaleT = easeOutCubic(fadeInT);
+        const scale = scaleT;
+        this.transition.newFern.scale.setScalar(scale);
+      }
+
+      if (this.transition.progress >= 1) {
+        if (this.transition.oldFern) {
+          this.scene.remove(this.transition.oldFern);
+          this.disposeFern(this.transition.oldFern);
+        }
+        if (this.transition.newFern) {
+          this.transition.newFern.scale.setScalar(1);
+        }
+        this.transition = null;
+      }
+    }
 
     if (this.currentFern) {
       this.currentFern.tick(delta);

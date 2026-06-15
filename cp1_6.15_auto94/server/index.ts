@@ -146,6 +146,62 @@ app.get('/api/plants/:id/info', (req: Request<{ id: string }>, res: Response<Api
   }
 });
 
+app.get('/api/plants/:id/config', (req: Request<{ id: string }>, res: Response<ApiResponse<PlantConfig | null>>) => {
+  try {
+    const { id } = req.params;
+    const config = queryPlantConfig(id);
+    if (!config) {
+      res.status(404).json(wrapError(`未找到植物: ${id}`));
+      return;
+    }
+    res.json(wrapResponse(config));
+  } catch (e) {
+    const err = e instanceof Error ? e.message : '未知错误';
+    res.status(500).json(wrapError(`获取植物配置失败: ${err}`));
+  }
+});
+
+app.get('/api/evolution/graph', (_req: Request, res: Response<ApiResponse<EvolutionGraph>>) => {
+  try {
+    const graph = queryEvolutionGraph();
+    res.json(wrapResponse(graph));
+  } catch (e) {
+    const err = e instanceof Error ? e.message : '未知错误';
+    res.status(500).json(wrapError(`获取演化图失败: ${err}`));
+  }
+});
+
+app.post(
+  '/api/growth/action',
+  (req: Request<Record<string, never>, ApiResponse<GrowthActionResponse | null>, GrowthActionRequest>, res: Response) => {
+    try {
+      const { plantId, fromStage, action } = req.body;
+      if (!plantId || !fromStage || !action) {
+        res.status(400).json(wrapError('缺少必要参数: plantId, fromStage, action'));
+        return;
+      }
+      const validStages: GrowthStage[] = ['sprout', 'unfolding', 'mature', 'spore'];
+      if (!validStages.includes(fromStage)) {
+        res.status(400).json(wrapError(`无效的成长阶段: ${fromStage}`));
+        return;
+      }
+      if (action !== 'grow' && action !== 'reset') {
+        res.status(400).json(wrapError(`无效的操作: ${action}，应为 'grow' 或 'reset'`));
+        return;
+      }
+      const result = simulateGrowth({ plantId, fromStage, action });
+      if (!result) {
+        res.status(404).json(wrapError(`未找到植物: ${plantId}`));
+        return;
+      }
+      res.json(wrapResponse(result));
+    } catch (e) {
+      const err = e instanceof Error ? e.message : '未知错误';
+      res.status(500).json(wrapError(`模拟成长失败: ${err}`));
+    }
+  }
+);
+
 app.listen(PORT, () => {
   console.log(`蕨类植物演化模拟器后端服务已启动: http://localhost:${PORT}`);
 });

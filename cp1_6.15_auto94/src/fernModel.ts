@@ -15,12 +15,28 @@ function hexToColor(hex: string): THREE.Color {
   return new THREE.Color(hex);
 }
 
+interface LeafletData {
+  mesh: THREE.Mesh;
+  basePositions: Float32Array;
+  sporangia: THREE.Mesh[];
+  length: number;
+}
+
 interface FrondData {
   group: THREE.Group;
   baseScale: number;
   baseColor: THREE.Color;
-  leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[];
+  currentColor: THREE.Color;
+  targetColor: THREE.Color;
+  leaflets: LeafletData[];
   sporangia: THREE.Mesh[];
+}
+
+interface AnimationState {
+  startStemScale: number;
+  startFrondUnfurl: number;
+  startFrondScale: number;
+  startSporangiaVisible: boolean;
 }
 
 export class FernModel extends THREE.Group {
@@ -33,6 +49,7 @@ export class FernModel extends THREE.Group {
   sporangia: THREE.Mesh[];
   private transitionIn: boolean;
   private transitionProgress: number;
+  private animState: AnimationState;
 
   constructor(config: PlantConfig) {
     super();
@@ -52,6 +69,12 @@ export class FernModel extends THREE.Group {
     this.sporangia = [];
     this.transitionIn = false;
     this.transitionProgress = 1;
+    this.animState = {
+      startStemScale: 0.2,
+      startFrondUnfurl: 0.1,
+      startFrondScale: 0.2,
+      startSporangiaVisible: false
+    };
 
     this.build();
     this.applyMorphology(this.currentMorphology, 1);
@@ -192,7 +215,9 @@ export class FernModel extends THREE.Group {
     const baseAttr = geometry.getAttribute('basePosition') as THREE.BufferAttribute;
     if (!baseAttr) return;
 
-    const curlT = 1 - unfurl;
+    const curlAmount = 1 - unfurl;
+    const maxCurlRadius = length * 0.08;
+    const totalTurns = 2.5;
 
     for (let i = 0; i < positions.count; i++) {
       const bx = baseAttr.getX(i);
@@ -200,14 +225,26 @@ export class FernModel extends THREE.Group {
       const bz = baseAttr.getZ(i);
 
       const zNorm = Math.max(0, Math.min(1, bz / length));
-      const curlAngle = curlT * zNorm * Math.PI * 2.2;
+      const curlAngle = curlAmount * zNorm * Math.PI * 2 * totalTurns;
 
-      const cos = Math.cos(curlAngle);
-      const sin = Math.sin(curlAngle);
+      const radius = maxCurlRadius * curlAmount * zNorm;
+      const radialOffset = bx;
 
-      positions.setX(i, bx * cos - bz * sin * 0.6);
-      positions.setY(i, by + sin * length * 0.25);
-      positions.setZ(i, bx * sin * 0.6 + bz * cos);
+      const cosA = Math.cos(curlAngle);
+      const sinA = Math.sin(curlAngle);
+
+      const helixX = (radius + radialOffset) * sinA;
+      const helixZ = length * (1 - zNorm) + (radius + radialOffset) * (1 - cosA);
+      const helixY = by + radialOffset * cosA * 0.3;
+
+      const lerpT = easeOutCubic(curlAmount);
+      const finalX = bx + (helixX - bx) * lerpT;
+      const finalY = by + (helixY - by) * lerpT;
+      const finalZ = bz + (helixZ - bz) * lerpT;
+
+      positions.setX(i, finalX);
+      positions.setY(i, finalY);
+      positions.setZ(i, finalZ);
     }
     positions.needsUpdate = true;
     geometry.computeVertexNormals();
@@ -216,13 +253,14 @@ export class FernModel extends THREE.Group {
   buildFronds(): void {
     const { frondShape, stem, colors } = this.plantConfig;
     const baseColor = hexToColor(colors.mature);
+    const initialColor = hexToColor(this.currentMorphology.colorBlend);
 
     const frondCount = this.getFrondCountForShape(frondShape.type);
     const radialSpread = Math.PI * 2 / frondCount;
 
     for (let f = 0; f < frondCount; f++) {
       const frondGroup = new THREE.Group();
-      const leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[] = [];
+      const leaflets: LeafletData[] = [];
       const sporangia: THREE.Mesh[] = [];
 
       const angle = f * radialSpread + (f % 2) * (radialSpread * 0.3);
@@ -245,6 +283,8 @@ export class FernModel extends THREE.Group {
         group: frondGroup,
         baseScale: scaleVar,
         baseColor: baseColor.clone(),
+        currentColor: initialColor.clone(),
+        targetColor: initialColor.clone(),
         leaflets,
         sporangia
       });
@@ -273,7 +313,7 @@ export class FernModel extends THREE.Group {
   private buildFrondByType(
     type: FrondShapeType,
     shape: { length: number; width: number; curvature: number; segmentation: number },
-    leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[],
+    leaflets: LeafletData[],
     color: THREE.Color,
     scaleVar: number
   ): void {
@@ -299,7 +339,7 @@ export class FernModel extends THREE.Group {
     curvature: number,
     segmentation: number,
     color: THREE.Color
-  ): { mesh: THREE.Mesh; basePositions: Float32Array } {
+  ): LeafletData {
     const geometry = this.createLeafletGeometry(width, length, curvature, segmentation);
     const positions = geometry.attributes.position;
     const baseArr = new Float32Array(positions.count * 3);
@@ -321,12 +361,12 @@ export class FernModel extends THREE.Group {
     const mesh = new THREE.Mesh(geometry, material);
     this.applyCurlToLeaflet(mesh, 0.1, length);
 
-    return { mesh, basePositions: baseArr };
+    return { mesh, basePositions: baseArr, sporangia: [], length };
   }
 
   private buildDichotomousFrond(
     shape: { length: number; width: number; curvature: number; segmentation: number },
-    leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[],
+    leaflets: LeafletData[],
     color: THREE.Color,
     _scaleVar: number
   ): void {
@@ -383,7 +423,7 @@ export class FernModel extends THREE.Group {
 
   private buildPinnateFrond(
     shape: { length: number; width: number; curvature: number; segmentation: number },
-    leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[],
+    leaflets: LeafletData[],
     color: THREE.Color,
     _scaleVar: number
   ): void {
@@ -426,7 +466,7 @@ export class FernModel extends THREE.Group {
 
   private buildBipinnateFrond(
     shape: { length: number; width: number; curvature: number; segmentation: number },
-    leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[],
+    leaflets: LeafletData[],
     color: THREE.Color,
     _scaleVar: number
   ): void {
@@ -483,7 +523,7 @@ export class FernModel extends THREE.Group {
 
   private buildPalmateFrond(
     shape: { length: number; width: number; curvature: number; segmentation: number },
-    leaflets: { mesh: THREE.Mesh; basePositions: Float32Array }[],
+    leaflets: LeafletData[],
     color: THREE.Color,
     _scaleVar: number
   ): void {
@@ -506,43 +546,71 @@ export class FernModel extends THREE.Group {
     }
   }
 
-  buildSporangia(frondIndex: number, count: number, _density: number): void {
+  buildSporangia(frondIndex: number, _count: number, _density: number): void {
     if (frondIndex < 0 || frondIndex >= this.fronds.length) return;
 
     const frond = this.fronds[frondIndex];
     const sporangiumColor = hexToColor(this.plantConfig.colors.sporangium);
 
-    for (let i = 0; i < count; i++) {
-      const geometry = new THREE.IcosahedronGeometry(0.05, 0);
-      const material = new THREE.MeshStandardMaterial({
-        color: sporangiumColor,
-        roughness: 0.45,
-        metalness: 0.4
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
+    for (const leaflet of frond.leaflets) {
+      const sporangiaCount = 10 + Math.floor(Math.random() * 6);
+      const leafletLength = leaflet.length;
 
-      const target = frond.group;
-      mesh.position.set(
-        (Math.random() - 0.5) * this.plantConfig.frondShape.width * 0.5,
-        -0.02,
-        this.plantConfig.frondShape.length * (0.3 + Math.random() * 0.6)
-      );
-      target.add(mesh);
+      for (let i = 0; i < sporangiaCount; i++) {
+        const geometry = new THREE.IcosahedronGeometry(0.05, 0);
+        const material = new THREE.MeshStandardMaterial({
+          color: sporangiumColor,
+          roughness: 0.45,
+          metalness: 0.4
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = true;
 
-      frond.sporangia.push(mesh);
-      this.sporangia.push(mesh);
-      mesh.visible = false;
+        const t = 0.2 + Math.random() * 0.7;
+        const zPos = leafletLength * t;
+        const xOffset = (Math.random() - 0.5) * 0.3;
+        const yOffset = -0.015 - 0.005 * Math.random();
+
+        mesh.position.set(xOffset, yOffset, zPos);
+        leaflet.mesh.add(mesh);
+
+        leaflet.sporangia.push(mesh);
+        frond.sporangia.push(mesh);
+        this.sporangia.push(mesh);
+        mesh.visible = false;
+      }
+    }
+  }
+
+  buildAllSporangia(): void {
+    for (let f = 0; f < this.fronds.length; f++) {
+      this.buildSporangia(f, 0, 0);
     }
   }
 
   updateMorphology(newMorphology: StageMorphology, animate: boolean = true): void {
+    this.animState = {
+      startStemScale: this.currentMorphology.stemScale,
+      startFrondUnfurl: this.currentMorphology.frondUnfurl,
+      startFrondScale: this.currentMorphology.frondScale,
+      startSporangiaVisible: this.currentMorphology.hasSporangia
+    };
+
+    for (const frond of this.fronds) {
+      frond.currentColor = frond.targetColor.clone();
+      frond.targetColor = hexToColor(newMorphology.colorBlend);
+    }
+
     this.targetMorphology = { ...newMorphology };
     if (animate) {
       this.animationProgress = 0;
     } else {
       this.animationProgress = 1;
       this.applyMorphology(this.targetMorphology, 1);
+      this.currentMorphology = { ...this.targetMorphology };
+      for (const frond of this.fronds) {
+        frond.currentColor = frond.targetColor.clone();
+      }
     }
   }
 
@@ -550,43 +618,49 @@ export class FernModel extends THREE.Group {
     const eased = easeOutCubic(t);
 
     if (this.stemMesh) {
-      const targetScaleY = morph.stemScale;
-      const curScale = this.currentMorphology.stemScale;
-      const s = curScale + (targetScaleY - curScale) * eased;
+      const s = this.animState.startStemScale + (morph.stemScale - this.animState.startStemScale) * eased;
       this.stemMesh.scale.y = s;
-      this.stemMesh.scale.x = 0.8 + 0.2 * eased;
-      this.stemMesh.scale.z = 0.8 + 0.2 * eased;
+      const radialScale = 0.8 + 0.2 * s;
+      this.stemMesh.scale.x = radialScale;
+      this.stemMesh.scale.z = radialScale;
     }
-
-    const targetColor = hexToColor(morph.colorBlend);
 
     for (const frond of this.fronds) {
       const targetScale = morph.frondScale * frond.baseScale;
-      const curScale = this.currentMorphology.frondScale * frond.baseScale;
-      const s = curScale + (targetScale - curScale) * eased;
+      const startScale = this.animState.startFrondScale * frond.baseScale;
+      const s = startScale + (targetScale - startScale) * eased;
       frond.group.scale.setScalar(s);
 
-      for (const { mesh } of frond.leaflets) {
-        const mat = mesh.material as THREE.MeshStandardMaterial;
+      const interpColor = frond.currentColor.clone().lerp(frond.targetColor, eased);
+
+      const unfurl = this.animState.startFrondUnfurl +
+        (morph.frondUnfurl - this.animState.startFrondUnfurl) * eased;
+
+      for (const leaflet of frond.leaflets) {
+        const mat = leaflet.mesh.material as THREE.MeshStandardMaterial;
         if (mat.color) {
-          const curColor = frond.baseColor.clone();
-          mat.color.copy(curColor.lerp(targetColor, eased));
+          mat.color.copy(interpColor);
         }
         this.applyCurlToLeaflet(
-          mesh,
-          this.currentMorphology.frondUnfurl +
-          (morph.frondUnfurl - this.currentMorphology.frondUnfurl) * eased,
-          this.plantConfig.frondShape.length
+          leaflet.mesh,
+          unfurl,
+          leaflet.length
         );
       }
 
+      const startVisible = this.animState.startSporangiaVisible;
+      const targetVisible = morph.hasSporangia;
+
       for (const sp of frond.sporangia) {
-        if (morph.hasSporangia) {
+        if (startVisible || targetVisible) {
           sp.visible = true;
-          sp.scale.setScalar(eased);
-        } else {
-          sp.scale.setScalar(1 - eased);
-          if (eased >= 0.98) sp.visible = false;
+        }
+        const startVisNum = startVisible ? 1 : 0;
+        const targetVisNum = targetVisible ? 1 : 0;
+        const visScale = startVisNum + (targetVisNum - startVisNum) * eased;
+        sp.scale.setScalar(visScale);
+        if (visScale <= 0.01) {
+          sp.visible = false;
         }
       }
     }
@@ -606,6 +680,9 @@ export class FernModel extends THREE.Group {
 
       if (this.animationProgress >= 1) {
         this.currentMorphology = { ...this.targetMorphology };
+        for (const frond of this.fronds) {
+          frond.currentColor = frond.targetColor.clone();
+        }
       }
     }
 
