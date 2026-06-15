@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Send, CheckCircle, Music, Users, Mail, Tag, FileText } from 'lucide-react';
 import { bandsApi } from '../services/api';
 import { useStore } from '../store/useStore';
@@ -23,6 +23,11 @@ export default function ApplyForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const requestIdRef = useRef<string>('');
+
+  const generateRequestId = (): string => {
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -75,13 +80,18 @@ export default function ApplyForm() {
 
     setSubmitting(true);
 
+    if (!requestIdRef.current) {
+      requestIdRef.current = generateRequestId();
+    }
+
     try {
       const result = await bandsApi.createBand({
         name: formData.name.trim(),
         description: formData.description.trim(),
         genres: formData.genres,
         memberCount: parseInt(formData.memberCount),
-        contact: formData.contact.trim()
+        contact: formData.contact.trim(),
+        requestId: requestIdRef.current
       });
 
       setSubmitted(true);
@@ -96,6 +106,7 @@ export default function ApplyForm() {
       });
     } finally {
       setSubmitting(false);
+      requestIdRef.current = '';
     }
   };
 

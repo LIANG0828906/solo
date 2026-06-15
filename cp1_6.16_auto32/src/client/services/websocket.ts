@@ -1,4 +1,4 @@
-import { Schedule, WSMessage } from '../types';
+import { WSMessage } from '../types';
 
 type MessageHandler = (message: WSMessage) => void;
 
@@ -7,6 +7,7 @@ class WebSocketService {
   private handlers: Set<MessageHandler> = new Set();
   private reconnectTimer: number | null = null;
   private url: string = '';
+  private pendingSubscribe: string[] = [];
 
   connect(url: string): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -21,6 +22,10 @@ class WebSocketService {
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
+      }
+      if (this.pendingSubscribe.length > 0) {
+        this.sendSubscribe(this.pendingSubscribe);
+        this.pendingSubscribe = [];
       }
     };
 
@@ -57,6 +62,14 @@ class WebSocketService {
     return () => {
       this.handlers.delete(handler);
     };
+  }
+
+  sendSubscribe(bandIds: string[]): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'subscribe', bandIds }));
+    } else {
+      this.pendingSubscribe = bandIds;
+    }
   }
 
   send(data: any): void {

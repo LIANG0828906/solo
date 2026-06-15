@@ -31,48 +31,46 @@ export default function LineupPage() {
   }, [setSchedules, setBands, addNotification]);
 
   useEffect(() => {
+    wsService.sendSubscribe(favorites);
+  }, [favorites]);
+
+  useEffect(() => {
     const wsUrl = window.location.protocol === 'https:'
       ? `wss://${window.location.host}/ws`
       : `ws://${window.location.host}/ws`;
 
     wsService.connect(wsUrl);
+    wsService.sendSubscribe(favorites);
 
     const unsubscribe = wsService.subscribe((message: WSMessage) => {
       if (message.type === 'schedule_create') {
         const schedule = message.data as Schedule;
         addSchedule(schedule);
-        if (favorites.includes(schedule.bandId)) {
-          addNotification({
-            message: `${schedule.bandName} 新增演出安排`,
-            type: 'info'
-          });
-        }
+        addNotification({
+          message: `${schedule.bandName} 新增演出安排`,
+          type: 'info'
+        });
       } else if (message.type === 'schedule_update') {
         const schedule = message.data as Schedule;
         updateSchedule(schedule);
-        if (favorites.includes(schedule.bandId)) {
-          addNotification({
-            message: `${schedule.bandName} 的演出时间有调整`,
-            type: 'warning'
-          });
-        }
+        addNotification({
+          message: `${schedule.bandName} 的演出时间有调整`,
+          type: 'warning'
+        });
       } else if (message.type === 'schedule_delete') {
-        const { id } = message.data as { id: string };
-        const deletedSchedule = schedules.find(s => s.id === id);
-        removeSchedule(id);
-        if (deletedSchedule && favorites.includes(deletedSchedule.bandId)) {
-          addNotification({
-            message: `${deletedSchedule.bandName} 的演出已取消`,
-            type: 'error'
-          });
-        }
+        const data = message.data as { id: string; bandId?: string };
+        removeSchedule(data.id);
+        addNotification({
+          message: '演出安排已取消',
+          type: 'error'
+        });
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [addSchedule, updateSchedule, removeSchedule, addNotification, favorites, schedules]);
+  }, [addSchedule, updateSchedule, removeSchedule, addNotification, favorites]);
 
   if (loading) {
     return (

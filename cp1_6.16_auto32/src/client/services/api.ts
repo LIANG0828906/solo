@@ -36,6 +36,7 @@ export const bandsApi = {
     genres: string[];
     memberCount: number;
     contact: string;
+    requestId?: string;
   }): Promise<{ id: string; status: string; message: string }> => {
     return request('/bands', {
       method: 'POST',

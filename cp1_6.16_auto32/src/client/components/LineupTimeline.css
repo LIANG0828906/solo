@@ -56,122 +56,149 @@
   border-color: var(--primary);
 }
 
-.timeline-container {
+.timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 8px;
 }
 
-.timeline-container::-webkit-scrollbar {
+.timeline-scroll::-webkit-scrollbar {
   height: 8px;
 }
 
-.timeline-container::-webkit-scrollbar-track {
+.timeline-scroll::-webkit-scrollbar-track {
   background: var(--bg-secondary);
   border-radius: 4px;
 }
 
-.timeline-container::-webkit-scrollbar-thumb {
+.timeline-scroll::-webkit-scrollbar-thumb {
   background: var(--primary);
   border-radius: 4px;
 }
 
-.timeline-grid {
-  min-width: 800px;
+.timeline-canvas {
+  position: relative;
+  min-width: fit-content;
 }
 
-.timeline-time-axis {
+.timeline-ruler {
   display: flex;
-  margin-bottom: 8px;
+  align-items: flex-end;
+  margin-bottom: 4px;
+  height: 32px;
 }
 
-.time-axis-spacer {
-  width: 100px;
+.ruler-spacer {
+  width: 120px;
   flex-shrink: 0;
 }
 
-.time-marker {
-  flex: 1;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-align: center;
+.ruler-cell {
   position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
 }
 
-.timeline-row {
+.ruler-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ruler-tick {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 8px;
+  background: var(--border);
+}
+
+.timeline-lane {
   display: flex;
   align-items: stretch;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  min-height: 56px;
 }
 
-.stage-label {
-  width: 100px;
+.lane-label {
+  width: 120px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-secondary);
-  padding-right: 12px;
+  padding-right: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.stage-timeline {
+.lane-track {
   flex: 1;
   position: relative;
-  height: 60px;
+  display: flex;
   background: var(--bg-secondary);
   border-radius: 8px;
   overflow: hidden;
+  min-height: 56px;
 }
 
-.timeline-grid-lines {
+.lane-cell {
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.cell-border {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
+  width: 1px;
+  height: 100%;
+  background: var(--border);
+  opacity: 0.4;
 }
 
-.grid-line {
-  flex: 1;
-  border-left: 1px dashed var(--border);
-}
-
-.grid-line:first-child {
-  border-left: none;
-}
-
-.schedule-block {
+.gantt-bar {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 6px;
+  bottom: 6px;
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 80px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  min-width: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+  overflow: hidden;
 }
 
-.schedule-block:hover {
+.gantt-bar:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   z-index: 10;
 }
 
-.schedule-info {
+.bar-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
+  min-width: 0;
+  flex: 1;
 }
 
-.schedule-band {
-  font-size: 0.85rem;
+.bar-name {
+  font-size: 0.8rem;
   font-weight: 600;
   color: white;
   white-space: nowrap;
@@ -179,34 +206,38 @@
   text-overflow: ellipsis;
 }
 
-.schedule-time {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.8);
+.bar-time {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
 }
 
-.favorite-btn {
+.bar-fav {
   flex-shrink: 0;
   padding: 4px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 6px;
   color: white;
+  border: none;
+  cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: 4px;
 }
 
-.favorite-btn:hover {
+.bar-fav:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: scale(1.1);
 }
 
-.favorite-btn.favorited {
+.bar-fav.active {
   color: #f9a826;
   background: rgba(249, 168, 38, 0.2);
 }
 
-.schedule-tooltip {
+.gantt-tooltip {
   position: fixed;
   z-index: 1000;
   background: var(--bg-card);
@@ -220,14 +251,14 @@
   pointer-events: auto;
 }
 
-.tooltip-header {
+.tooltip-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.tooltip-header h4 {
+.tooltip-head h4 {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -240,7 +271,7 @@
   margin-bottom: 12px;
 }
 
-.genre-tag {
+.genre-pill {
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -298,24 +329,35 @@
     width: 100%;
   }
 
-  .stage-label {
+  .ruler-spacer {
+    width: 80px;
+  }
+
+  .lane-label {
     width: 80px;
     font-size: 0.8rem;
+    padding-right: 8px;
   }
 
-  .time-axis-spacer {
-    width: 80px;
+  .lane-track {
+    min-height: 48px;
   }
 
-  .stage-timeline {
-    height: 50px;
+  .gantt-bar {
+    padding: 4px 6px;
+    top: 4px;
+    bottom: 4px;
   }
 
-  .schedule-block {
-    padding: 6px 8px;
+  .bar-name {
+    font-size: 0.7rem;
   }
 
-  .schedule-band {
-    font-size: 0.75rem;
+  .bar-time {
+    font-size: 0.6rem;
+  }
+
+  .bar-fav {
+    padding: 2px;
   }
 }

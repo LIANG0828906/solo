@@ -1,23 +1,34 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { store } from '../data/store.js';
+import { store, persistStore } from '../data/store.js';
 import { Schedule } from '../types/index.js';
-import { checkTimeConflict, formatConflictMessage } from '../utils/conflict.js';
+import { checkTimeConflict, formatConflictMessage, validateTimeGranularity } from '../utils/conflict.js';
+
+interface ClientInfo {
+  ws: any;
+  subscribedBandIds: Set<string>;
+}
 
 let wss: any;
+const clients: Map<any, ClientInfo> = new Map();
 
 export function setWebSocketServer(wsServer: any) {
   wss = wsServer;
 }
 
-function broadcastSchedule(message: any) {
-  if (wss && wss.clients) {
-    wss.clients.forEach((client: any) => {
-      if (client.readyState === 1) {
-        client.send(JSON.stringify(message));
-      }
-    });
-  }
+function notifySubscribers(message: { type: string; data: any }, relatedBandId?: string) {
+  if (!wss || !wss.clients) return;
+
+  wss.clients.forEach((client: any) => {
+    if (client.readyState !== 1) return;
+
+    const clientInfo = clients.get(client);
+    if (!clientInfo) return;
+
+    if (!relatedBandId || clientInfo.subscribedBandIds.has(relatedBandId)) {
+      client.send(JSON.stringify(message));
+    }
+  });
 }
 
 const router = Router();
@@ -49,6 +60,11 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ message: '请填写完整信息' });
   }
 
+  const granularityError = validateTimeGranularity(startTime, endTime);
+  if (granularityError) {
+    return res.status(400).json({ message: granularityError });
+  }
+
   const band = store.bands.find(b => b.id === bandId);
   if (!band) {
     return res.status(404).json({ message: '乐队不存在' });
@@ -62,7 +78,13 @@ router.post('/', (req: Request, res: Response) => {
   const end = new Date(endTime).getTime();
 
   if (start >= end) {
-    return res.status(400).json({ message: '结束时间必须晚于开始时间' });
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    const nextDayEnd = new Date(endDate);
+    nextDayEnd.setDate(nextDayEnd.getDate() + 1);
+    if (nextDayEnd.getTime() <= start) {
+      return res.status(400).json({ message: '结束时间必须晚于开始时间' });
+    }
   }
 
   const conflict = checkTimeConflict(store.schedules, stage, startTime, endTime);
@@ -84,11 +106,12 @@ router.post('/', (req: Request, res: Response) => {
   };
 
   store.schedules.push(newSchedule);
+  persistStore();
 
-  broadcastSchedule({
-    type: 'schedule_create',
-    data: newSchedule
-  });
+  notifySubscribers(
+    { type: 'schedule_create', data: newSchedule },
+    bandId
+  );
 
   res.status(201).json(newSchedule);
 });
@@ -105,6 +128,13 @@ router.put('/:id', (req: Request, res: Response) => {
   const checkStage = stage || schedule.stage;
   const checkStart = startTime || schedule.startTime;
   const checkEnd = endTime || schedule.endTime;
+
+  if (startTime || endTime) {
+    const granularityError = validateTimeGranularity(checkStart, checkEnd);
+    if (granularityError) {
+      return res.status(400).json({ message: granularityError });
+    }
+  }
 
   const conflict = checkTimeConflict(
     store.schedules,
@@ -125,10 +155,12 @@ router.put('/:id', (req: Request, res: Response) => {
   if (startTime) schedule.startTime = startTime;
   if (endTime) schedule.endTime = endTime;
 
-  broadcastSchedule({
-    type: 'schedule_update',
-    data: schedule
-  });
+  persistStore();
+
+  notifySubscribers(
+    { type: 'schedule_update', data: schedule },
+    schedule.bandId
+  );
 
   res.json(schedule);
 });
@@ -139,15 +171,33 @@ router.delete('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ message: '排期不存在' });
   }
 
-  const deletedId = store.schedules[scheduleIndex].id;
+  const deletedSchedule = store.schedules[scheduleIndex];
+  const deletedBandId = deletedSchedule.bandId;
+  const deletedId = deletedSchedule.id;
   store.schedules.splice(scheduleIndex, 1);
+  persistStore();
 
-  broadcastSchedule({
-    type: 'schedule_delete',
-    data: { id: deletedId }
-  });
+  notifySubscribers(
+    { type: 'schedule_delete', data: { id: deletedId, bandId: deletedBandId } },
+    deletedBandId
+  );
 
   res.json({ message: '排期已删除' });
 });
+
+export function registerClient(ws: any) {
+  clients.set(ws, { ws, subscribedBandIds: new Set() });
+}
+
+export function unregisterClient(ws: any) {
+  clients.delete(ws);
+}
+
+export function updateClientSubscriptions(ws: any, bandIds: string[]) {
+  const clientInfo = clients.get(ws);
+  if (clientInfo) {
+    clientInfo.subscribedBandIds = new Set(bandIds);
+  }
+}
 
 export default router;

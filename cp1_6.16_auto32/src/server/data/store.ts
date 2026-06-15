@@ -1,4 +1,11 @@
-import { DataStore, Band, Schedule } from '../types/index.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { DataStore, Band, Schedule, Admin } from '../types/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DATA_FILE = path.join(__dirname, 'festival-data.json');
 
 const initialBands: Band[] = [
   {
@@ -24,7 +31,7 @@ const initialBands: Band[] = [
   {
     id: 'band-3',
     name: '霓虹梦境',
-    description: ' synth-pop 风格的电子乐队，女主唱嗓音梦幻，编曲复古时髦。',
+    description: 'synth-pop 风格的电子乐队，女主唱嗓音梦幻，编曲复古时髦。',
     genres: ['电子', '流行', '合成器'],
     memberCount: 3,
     contact: 'neon@example.com',
@@ -83,14 +90,45 @@ const initialSchedules: Schedule[] = [
   }
 ];
 
-export const store: DataStore = {
+const initialAdmins: Admin[] = [
+  {
+    id: 'admin-1',
+    username: 'admin',
+    passwordHash: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
+  }
+];
+
+const defaultData: DataStore = {
   bands: [...initialBands],
   schedules: [...initialSchedules],
-  admins: [
-    {
-      id: 'admin-1',
-      username: 'admin',
-      passwordHash: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
-    }
-  ]
+  admins: [...initialAdmins]
 };
+
+function loadData(): DataStore {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const data = JSON.parse(raw) as DataStore;
+      if (data.bands && data.schedules && data.admins) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.error('读取数据文件失败，使用初始数据:', e);
+  }
+  return JSON.parse(JSON.stringify(defaultData));
+}
+
+function saveData(data: DataStore): void {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('写入数据文件失败:', e);
+  }
+}
+
+export const store: DataStore = loadData();
+
+export function persistStore(): void {
+  saveData(store);
+}

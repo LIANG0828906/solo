@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Heart, Users } from 'lucide-react';
 import { Schedule, Band } from '../types';
 import { useStore } from '../store/useStore';
-import { formatTime, formatDate, getTimePosition, getTimeRangeWidth } from '../utils/time';
+import { formatTime, formatDate } from '../utils/time';
 import './LineupTimeline.css';
 
 interface LineupTimelineProps {
@@ -11,8 +11,10 @@ interface LineupTimelineProps {
 }
 
 const STAGES = ['主舞台', '副舞台', '电音舞台'];
-const DAY_START_HOUR = 12;
-const DAY_END_HOUR = 24;
+const HOUR_START = 12;
+const HOUR_END = 24;
+const TOTAL_HOURS = HOUR_END - HOUR_START;
+const HOUR_WIDTH = 120;
 
 const genreColors: Record<string, string> = {
   '摇滚': '#6c63ff',
@@ -32,22 +34,33 @@ function getGenreColor(genres: string[]): string {
   return genreColors[genres[0]] || '#6c63ff';
 }
 
+function timeToPercent(isoTime: string): number {
+  const date = new Date(isoTime);
+  const hours = date.getHours() + date.getMinutes() / 60;
+  if (hours < HOUR_START) return 0;
+  if (hours >= HOUR_END) return 100;
+  return ((hours - HOUR_START) / TOTAL_HOURS) * 100;
+}
+
+function timeRangeWidth(startIso: string, endIso: string): number {
+  return timeToPercent(endIso) - timeToPercent(startIso);
+}
+
 export default function LineupTimeline({ schedules, bands }: LineupTimelineProps) {
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<string>('');
-  const [hoveredSchedule, setHoveredSchedule] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const [timelineWidth, setTimelineWidth] = useState(800);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { favorites, toggleFavorite, isFavorite } = useStore();
+  const { toggleFavorite, isFavorite } = useStore();
 
   const days = useMemo(() => {
     const daySet = new Set<string>();
     schedules.forEach(s => {
-      const date = new Date(s.startTime);
-      date.setHours(0, 0, 0, 0);
-      daySet.add(date.toISOString());
+      const d = new Date(s.startTime);
+      d.setHours(0, 0, 0, 0);
+      daySet.add(d.toISOString());
     });
     return Array.from(daySet).sort();
   }, [schedules]);
@@ -58,71 +71,47 @@ export default function LineupTimeline({ schedules, bands }: LineupTimelineProps
     }
   }, [days, selectedDay]);
 
-  useEffect(() => {
-    const updateWidth = () => {
-      if (timelineRef.current) {
-        setTimelineWidth(timelineRef.current.clientWidth);
-      }
-    };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
-
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => {
-      const scheduleDay = new Date(s.startTime);
-      scheduleDay.setHours(0, 0, 0, 0);
-      const dayMatch = scheduleDay.toISOString() === selectedDay;
-      const stageMatch = selectedStage === 'all' || s.stage === selectedStage;
-      return dayMatch && stageMatch;
+      const d = new Date(s.startTime);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString() === selectedDay
+        && (selectedStage === 'all' || s.stage === selectedStage);
     });
   }, [schedules, selectedDay, selectedStage]);
 
   const displayStages = useMemo(() => {
-    if (selectedStage !== 'all') {
-      return [selectedStage];
-    }
-    const stageSet = new Set<string>();
-    filteredSchedules.forEach(s => stageSet.add(s.stage));
-    return STAGES.filter(s => stageSet.has(s));
+    if (selectedStage !== 'all') return [selectedStage];
+    const used = new Set<string>();
+    filteredSchedules.forEach(s => used.add(s.stage));
+    return STAGES.filter(s => used.has(s));
   }, [selectedStage, filteredSchedules]);
 
-  const getDayStart = (day: string) => {
-    const date = new Date(day);
-    date.setHours(DAY_START_HOUR, 0, 0, 0);
-    return date.toISOString();
-  };
-
-  const getDayEnd = (day: string) => {
-    const date = new Date(day);
-    date.setHours(DAY_END_HOUR, 0, 0, 0);
-    return date.toISOString();
-  };
-
-  const timeMarkers = useMemo(() => {
-    const markers = [];
-    for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h += 2) {
-      markers.push(`${String(h).padStart(2, '0')}:00`);
+  const hours = useMemo(() => {
+    const h = [];
+    for (let i = HOUR_START; i < HOUR_END; i++) {
+      h.push(i);
     }
-    return markers;
+    return h;
   }, []);
 
-  const handleMouseEnter = (scheduleId: string, e: React.MouseEvent) => {
-    setHoveredSchedule(scheduleId);
+  const totalWidth = TOTAL_HOURS * HOUR_WIDTH;
+
+  const handleMouseEnter = useCallback((id: string, e: React.MouseEvent) => {
+    setHoveredId(id);
     setTooltipPos({ x: e.clientX, y: e.clientY });
-  };
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     setTooltipPos({ x: e.clientX, y: e.clientY });
-  };
+  }, []);
 
-  const handleMouseLeave = () => {
-    setHoveredSchedule(null);
-  };
+  const handleMouseLeave = useCallback(() => {
+    setHoveredId(null);
+  }, []);
 
-  const hoveredScheduleData = schedules.find(s => s.id === hoveredSchedule);
-  const hoveredBand = bands.find(b => b.id === hoveredScheduleData?.bandId);
+  const hoveredSchedule = schedules.find(s => s.id === hoveredId);
+  const hoveredBand = bands.find(b => b.id === hoveredSchedule?.bandId);
 
   return (
     <div className="lineup-timeline">
@@ -158,64 +147,62 @@ export default function LineupTimeline({ schedules, bands }: LineupTimelineProps
       </div>
 
       {selectedDay && (
-        <div className="timeline-container" ref={timelineRef}>
-          <div className="timeline-grid">
-            <div className="timeline-time-axis">
-              <div className="time-axis-spacer"></div>
-              {timeMarkers.map(time => (
-                <div key={time} className="time-marker">{time}</div>
+        <div className="timeline-scroll" ref={scrollRef}>
+          <div className="timeline-canvas" style={{ width: totalWidth + 120 }}>
+            <div className="timeline-ruler">
+              <div className="ruler-spacer"></div>
+              {hours.map(h => (
+                <div key={h} className="ruler-cell" style={{ width: HOUR_WIDTH }}>
+                  <span className="ruler-label">{String(h).padStart(2, '0')}:00</span>
+                  <div className="ruler-tick"></div>
+                </div>
               ))}
             </div>
 
-            {displayStages.map((stage, stageIndex) => (
-              <div key={stage} className="timeline-row">
-                <div className="stage-label">
-                  <span>{stage}</span>
-                </div>
-                <div className="stage-timeline">
-                  <div className="timeline-grid-lines">
-                    {timeMarkers.map((_, i) => (
-                      <div key={i} className="grid-line"></div>
-                    ))}
-                  </div>
+            {displayStages.map(stage => (
+              <div key={stage} className="timeline-lane">
+                <div className="lane-label">{stage}</div>
+                <div className="lane-track">
+                  {hours.map(h => (
+                    <div key={h} className="lane-cell" style={{ width: HOUR_WIDTH }}>
+                      <div className="cell-border"></div>
+                    </div>
+                  ))}
                   {filteredSchedules
                     .filter(s => s.stage === stage)
-                    .map((schedule) => {
-                      const dayStart = getDayStart(selectedDay);
-                      const dayEnd = getDayEnd(selectedDay);
-                      const left = getTimePosition(schedule.startTime, dayStart, dayEnd, 100);
-                      const width = getTimeRangeWidth(schedule.startTime, schedule.endTime, dayStart, dayEnd, 100);
+                    .map(schedule => {
+                      const left = timeToPercent(schedule.startTime);
+                      const width = timeRangeWidth(schedule.startTime, schedule.endTime);
                       const color = getGenreColor(schedule.genres);
-                      const favorited = isFavorite(schedule.bandId);
+                      const fav = isFavorite(schedule.bandId);
 
                       return (
                         <div
                           key={schedule.id}
-                          className="schedule-block fade-in"
+                          className="gantt-bar fade-in"
                           style={{
                             left: `${left}%`,
-                            width: `${width}%`,
-                            background: `linear-gradient(135deg, ${color}, ${color}99)`,
-                            animationDelay: `${stageIndex * 0.05}s`
+                            width: `${Math.max(width, 2)}%`,
+                            background: `linear-gradient(135deg, ${color}, ${color}aa)`,
                           }}
                           onMouseEnter={(e) => handleMouseEnter(schedule.id, e)}
                           onMouseMove={handleMouseMove}
                           onMouseLeave={handleMouseLeave}
                         >
-                          <div className="schedule-info">
-                            <span className="schedule-band">{schedule.bandName}</span>
-                            <span className="schedule-time">
-                              {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
+                          <div className="bar-content">
+                            <span className="bar-name">{schedule.bandName}</span>
+                            <span className="bar-time">
+                              {formatTime(schedule.startTime)}-{formatTime(schedule.endTime)}
                             </span>
                           </div>
                           <button
-                            className={`favorite-btn ${favorited ? 'favorited' : ''}`}
+                            className={`bar-fav ${fav ? 'active' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleFavorite(schedule.bandId);
                             }}
                           >
-                            <Heart size={14} fill={favorited ? 'currentColor' : 'none'} />
+                            <Heart size={12} fill={fav ? 'currentColor' : 'none'} />
                           </button>
                         </div>
                       );
@@ -227,32 +214,29 @@ export default function LineupTimeline({ schedules, bands }: LineupTimelineProps
         </div>
       )}
 
-      {hoveredScheduleData && hoveredBand && (
+      {hoveredSchedule && hoveredBand && (
         <div
-          className="schedule-tooltip"
-          style={{
-            left: tooltipPos.x + 15,
-            top: tooltipPos.y + 15
-          }}
+          className="gantt-tooltip"
+          style={{ left: tooltipPos.x + 16, top: tooltipPos.y + 16 }}
         >
-          <div className="tooltip-header">
-            <h4>{hoveredScheduleData.bandName}</h4>
+          <div className="tooltip-head">
+            <h4>{hoveredSchedule.bandName}</h4>
             <button
-              className={`favorite-btn ${isFavorite(hoveredScheduleData.bandId) ? 'favorited' : ''}`}
-              onClick={() => toggleFavorite(hoveredScheduleData.bandId)}
+              className={`bar-fav ${isFavorite(hoveredSchedule.bandId) ? 'active' : ''}`}
+              onClick={() => toggleFavorite(hoveredSchedule.bandId)}
             >
-              <Heart size={16} fill={isFavorite(hoveredScheduleData.bandId) ? 'currentColor' : 'none'} />
+              <Heart size={14} fill={isFavorite(hoveredSchedule.bandId) ? 'currentColor' : 'none'} />
             </button>
           </div>
           <div className="tooltip-genres">
-            {hoveredScheduleData.genres.map(g => (
-              <span key={g} className="genre-tag" style={{ background: getGenreColor([g]) }}>{g}</span>
+            {hoveredSchedule.genres.map(g => (
+              <span key={g} className="genre-pill" style={{ background: getGenreColor([g]) }}>{g}</span>
             ))}
           </div>
           <p className="tooltip-desc">{hoveredBand.description}</p>
           <div className="tooltip-meta">
             <span><Users size={14} /> {hoveredBand.memberCount}人</span>
-            <span>{formatTime(hoveredScheduleData.startTime)} - {formatTime(hoveredScheduleData.endTime)}</span>
+            <span>{formatTime(hoveredSchedule.startTime)} - {formatTime(hoveredSchedule.endTime)}</span>
           </div>
         </div>
       )}

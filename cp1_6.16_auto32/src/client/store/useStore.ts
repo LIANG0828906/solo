@@ -82,9 +82,6 @@ export const useStore = create<AppState>((set, get) => ({
     set(state => ({
       notifications: [...state.notifications, { ...notification, id }]
     }));
-    setTimeout(() => {
-      get().removeNotification(id);
-    }, 5000);
   },
   removeNotification: (id) => set(state => ({
     notifications: state.notifications.filter(n => n.id !== id)

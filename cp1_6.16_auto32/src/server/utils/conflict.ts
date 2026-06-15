@@ -1,5 +1,39 @@
 import { Schedule, ConflictInfo } from '../types/index.js';
 
+function normalizeToTimestamp(time: string): number {
+  return new Date(time).getTime();
+}
+
+function isAlignedTo15Minutes(isoString: string): boolean {
+  const date = new Date(isoString);
+  const minutes = date.getMinutes();
+  return minutes % 15 === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
+}
+
+export function validateTimeGranularity(startTime: string, endTime: string): string | null {
+  if (!isAlignedTo15Minutes(startTime)) {
+    return '开始时间必须对齐到15分钟粒度（如 18:00、18:15、18:30、18:45）';
+  }
+  if (!isAlignedTo15Minutes(endTime)) {
+    return '结束时间必须对齐到15分钟粒度（如 18:00、18:15、18:30、18:45）';
+  }
+  return null;
+}
+
+function resolveTimestamps(startTime: string, endTime: string): { start: number; end: number } {
+  let start = normalizeToTimestamp(startTime);
+  let end = normalizeToTimestamp(endTime);
+
+  if (end <= start) {
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    endDate.setDate(endDate.getDate() + 1);
+    end = endDate.getTime();
+  }
+
+  return { start, end };
+}
+
 export function checkTimeConflict(
   schedules: Schedule[],
   stage: string,
@@ -7,17 +41,18 @@ export function checkTimeConflict(
   endTime: string,
   excludeId?: string
 ): ConflictInfo | null {
-  const start = new Date(startTime).getTime();
-  const end = new Date(endTime).getTime();
+  const { start: newStart, end: newEnd } = resolveTimestamps(startTime, endTime);
 
   for (const schedule of schedules) {
     if (schedule.stage !== stage) continue;
     if (excludeId && schedule.id === excludeId) continue;
 
-    const sStart = new Date(schedule.startTime).getTime();
-    const sEnd = new Date(schedule.endTime).getTime();
+    const { start: existStart, end: existEnd } = resolveTimestamps(
+      schedule.startTime,
+      schedule.endTime
+    );
 
-    if (start < sEnd && end > sStart) {
+    if (newStart < existEnd && newEnd > existStart) {
       return {
         stage: schedule.stage,
         startTime: schedule.startTime,
@@ -33,7 +68,11 @@ export function checkTimeConflict(
 export function formatConflictMessage(conflict: ConflictInfo): string {
   const formatTime = (iso: string) => {
     const date = new Date(iso);
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${month}月${day}日 ${hours}:${minutes}`;
   };
 
   return `${conflict.stage} ${formatTime(conflict.startTime)}-${formatTime(conflict.endTime)} 已被乐队${conflict.bandName}占用`;

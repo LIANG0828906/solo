@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { store } from '../data/store.js';
+import { store, persistStore } from '../data/store.js';
 import { Band } from '../types/index.js';
 
 const router = Router();
@@ -25,14 +25,31 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 router.post('/', (req: Request, res: Response) => {
-  const { name, description, genres, memberCount, contact } = req.body;
+  const { name, description, genres, memberCount, contact, requestId } = req.body;
 
   if (!name || !description || !genres || !memberCount || !contact) {
     return res.status(400).json({ message: '请填写完整信息' });
   }
 
+  if (requestId) {
+    const existing = store.bands.find(b => (b as any).requestId === requestId);
+    if (existing) {
+      return res.status(200).json({
+        id: existing.id,
+        status: existing.status,
+        message: '申请已提交，等待审核'
+      });
+    }
+  }
+
   if (store.bands.some(b => b.name === name)) {
     return res.status(400).json({ message: '该乐队名称已存在' });
+  }
+
+  const emailRegex = /^[\w.-]+@[\w.-]+\.\w{2,}$/;
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  if (!emailRegex.test(contact) && !phoneRegex.test(contact)) {
+    return res.status(400).json({ message: '联系方式格式不正确，请输入有效邮箱或手机号' });
   }
 
   const newBand: Band = {
@@ -44,9 +61,15 @@ router.post('/', (req: Request, res: Response) => {
     contact,
     status: 'pending',
     submittedAt: new Date().toISOString()
-  };
+  } as Band & { requestId?: string };
+
+  if (requestId) {
+    (newBand as any).requestId = requestId;
+  }
 
   store.bands.push(newBand);
+  persistStore();
+
   res.status(201).json({
     id: newBand.id,
     status: newBand.status,
@@ -69,6 +92,7 @@ router.put('/:id', (req: Request, res: Response) => {
   if (memberCount) band.memberCount = Number(memberCount);
   if (contact) band.contact = contact;
 
+  persistStore();
   res.json(band);
 });
 
@@ -85,6 +109,7 @@ router.post('/:id/review', (req: Request, res: Response) => {
   }
 
   store.bands[bandIndex].status = status;
+  persistStore();
 
   res.json({
     id: store.bands[bandIndex].id,
