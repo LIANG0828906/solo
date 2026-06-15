@@ -8,12 +8,12 @@ export const CARD_COLORS = [
 ];
 
 export const AVATAR_COLORS = [
-  '#C8102E',
-  '#008B8B',
-  '#2F4F4F',
-  '#8B4513',
-  '#4A4A4A',
-  '#6B4423'
+  '#FFB3BA',
+  '#BAFFC9',
+  '#BAE1FF',
+  '#FFFFBA',
+  '#FFDFBA',
+  '#E8BAFF'
 ];
 
 export function getAvatarColor(seed: string): string {

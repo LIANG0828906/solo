@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { ThemeType } from '../words';
 import { Player } from '../GameEngine';
 import ThemeBanner from './ThemeBanner';
@@ -26,7 +25,7 @@ interface GamePanelProps {
   onInputChange: (value: string) => void;
   onSubmit: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement>;
 }
 
 export default function GamePanel({

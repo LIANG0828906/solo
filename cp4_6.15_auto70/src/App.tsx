@@ -35,7 +35,7 @@ export default function App() {
   } | null>(null);
 
   const engineRef = useRef<GameEngine | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null!);
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastTickSecondRef = useRef<number>(-1);
 
