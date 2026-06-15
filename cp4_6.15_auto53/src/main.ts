@@ -211,13 +211,14 @@ class App {
   }
 
   private updateLOD(): void {
-    const distance = this.cameraDistance;
-    const checkLevel = Math.floor(distance / 10);
+    const actualDistance = this.camera.position.distanceTo(this.controls.target);
+    this.cameraDistance = actualDistance;
+    const checkLevel = Math.floor(actualDistance / 10);
     const lastLevel = Math.floor(this.lastLODDistance / 10);
 
     if (checkLevel !== lastLevel) {
-      this.strataManager.updateLOD(distance);
-      this.lastLODDistance = distance;
+      this.strataManager.updateLOD(actualDistance);
+      this.lastLODDistance = actualDistance;
     }
   }
 

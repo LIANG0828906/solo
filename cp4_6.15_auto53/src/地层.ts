@@ -249,10 +249,7 @@ export class StrataLayer {
   public resetDisplacement(): void {
     const positionAttr = this.baseGeometry.getAttribute('position') as THREE.BufferAttribute;
     const positions = positionAttr.array as Float32Array;
-
-    for (let i = 0; i < positions.length; i++) {
-      positions[i] = this.originalPositions[i];
-    }
+    positions.set(this.originalPositions);
 
     positionAttr.needsUpdate = true;
     this.baseGeometry.computeVertexNormals();

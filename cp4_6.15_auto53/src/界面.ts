@@ -463,10 +463,13 @@ export class UIManager {
         min-width: 48px;
         text-align: right;
         text-shadow: 0 0 8px rgba(100, 181, 246, 0.5);
-        background: rgba(100, 181, 246, 0.1);
+        background: rgba(30, 35, 50, 0.55);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
         padding: 2px 8px;
         border-radius: 6px;
-        border: 1px solid rgba(100, 181, 246, 0.2);
+        border: 1px solid rgba(100, 181, 246, 0.25);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
 
       .slider-wrapper {
@@ -635,6 +638,12 @@ export class UIManager {
         outline: none;
         transition: all 0.3s ease;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364b5f6' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
       }
 
       .fault-select:hover {
@@ -656,6 +665,9 @@ export class UIManager {
       .fault-select option {
         background: #1a2035;
         color: #ffffff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin: 4px 0;
       }
 
       .btn-container {

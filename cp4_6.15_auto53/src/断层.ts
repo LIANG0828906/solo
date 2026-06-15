@@ -258,6 +258,14 @@ export class FaultSystem {
         const m = oldest.mesh.material as THREE.MeshLambertMaterial;
         m.opacity = 0;
         this.activeParticles--;
+
+        oldest.mesh.position.set(0, 0, 0);
+        oldest.mesh.rotation.set(0, 0, 0);
+        oldest.mesh.scale.set(1, 1, 1);
+        oldest.velocity.set(0, 0, 0);
+        oldest.life = 0;
+        oldest.maxLife = 0;
+
         oldest.active = true;
         oldest.mesh.visible = true;
         this.activeParticles++;
