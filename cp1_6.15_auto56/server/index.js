@@ -16,14 +16,14 @@ let purchases = [];
 
 // 初始化一些示例数据
 const sampleImages = [
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20garden%20diorama%20miniature%20landscape%20model&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20street%20scene%20diorama%20model&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20building%20architecture%20model&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20forest%20scene%20diorama&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20city%20skyline%20model&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20village%20landscape%20diorama&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20castle%20model%20fantasy&image_size=square_hd',
-  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=miniature%20desert%20oasis%20diorama&image_size=square_hd',
+  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1566127992631-137a642a90f4?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=800&h=800&fit=crop',
+  'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=800&fit=crop',
 ];
 
 const sampleArtworks = [
@@ -33,13 +33,14 @@ const sampleArtworks = [
     description: '精心打造的微缩花园景观，包含数十种迷你植物和复古长椅，呈现出宁静优雅的英式花园风情。每一朵花都由手工捏制，细节栩栩如生。',
     dimensions: '30cm × 20cm × 15cm',
     material: '木质',
+    category: '木质',
     price: 1280,
     images: [sampleImages[0], sampleImages[1], sampleImages[2], sampleImages[3], sampleImages[4]],
     sellerId: 'user-1',
     sellerName: '模型匠人老王',
     likes: 156,
     createdAt: Date.now() - 86400000 * 2,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -47,13 +48,14 @@ const sampleArtworks = [
     description: '复刻上世纪80年代的中国老街场景，包括老式照相馆、粮油店、自行车修理铺等，充满时代记忆。',
     dimensions: '40cm × 30cm × 20cm',
     material: '树脂',
+    category: '树脂',
     price: 2580,
     images: [sampleImages[1], sampleImages[0], sampleImages[2], sampleImages[4], sampleImages[3]],
     sellerId: 'user-2',
     sellerName: '时光工坊',
     likes: 234,
     createdAt: Date.now() - 86400000 * 5,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -61,13 +63,14 @@ const sampleArtworks = [
     description: '精雕细琢的中世纪欧洲城堡模型，带有完整的城墙、塔楼、护城河和吊桥，可作为收藏或场景摆件。',
     dimensions: '50cm × 35cm × 25cm',
     material: '石膏',
+    category: '石膏',
     price: 3680,
     images: [sampleImages[6], sampleImages[2], sampleImages[4], sampleImages[1], sampleImages[3]],
     sellerId: 'user-3',
     sellerName: '奇幻模型室',
     likes: 312,
     createdAt: Date.now() - 86400000 * 1,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -75,13 +78,14 @@ const sampleArtworks = [
     description: '日式禅意庭院微缩景观，粉色樱花飘落于枯山水之间，茶室与石灯笼相映成趣。',
     dimensions: '25cm × 25cm × 18cm',
     material: '木质',
+    category: '木质',
     price: 1680,
     images: [sampleImages[3], sampleImages[0], sampleImages[5], sampleImages[2], sampleImages[1]],
     sellerId: 'user-1',
     sellerName: '模型匠人老王',
     likes: 198,
     createdAt: Date.now() - 86400000 * 3,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -89,13 +93,14 @@ const sampleArtworks = [
     description: '微型沙漠中的一片绿洲，棕榈树、骆驼商队和清澈的泉水构成了一幅壮美的西域画卷。',
     dimensions: '35cm × 25cm × 12cm',
     material: '其他',
+    category: '其他',
     price: 980,
     images: [sampleImages[7], sampleImages[4], sampleImages[0], sampleImages[2], sampleImages[5]],
     sellerId: 'user-2',
     sellerName: '时光工坊',
     likes: 87,
     createdAt: Date.now() - 86400000 * 7,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -103,13 +108,14 @@ const sampleArtworks = [
     description: '现代都市微缩天际线，包含摩天大楼、立交桥和行驶中的车辆，夜晚灯光效果璀璨夺目。',
     dimensions: '60cm × 40cm × 30cm',
     material: '树脂',
+    category: '树脂',
     price: 4580,
     images: [sampleImages[4], sampleImages[6], sampleImages[1], sampleImages[3], sampleImages[7]],
     sellerId: 'user-3',
     sellerName: '奇幻模型室',
     likes: 276,
     createdAt: Date.now() - 86400000 * 4,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -117,13 +123,14 @@ const sampleArtworks = [
     description: '中国风山村微缩景观，晨雾缭绕的山间小村，炊烟袅袅，展现世外桃源般的宁静。',
     dimensions: '45cm × 30cm × 22cm',
     material: '石膏',
+    category: '石膏',
     price: 2280,
     images: [sampleImages[5], sampleImages[3], sampleImages[0], sampleImages[6], sampleImages[2]],
     sellerId: 'user-1',
     sellerName: '模型匠人老王',
     likes: 145,
     createdAt: Date.now() - 86400000 * 6,
-    status: 'active'
+    status: '上架'
   },
   {
     id: uuidv4(),
@@ -131,13 +138,14 @@ const sampleArtworks = [
     description: '微缩海底景观，色彩斑斓的珊瑚礁、游动的热带鱼群和神秘的沉船残骸。',
     dimensions: '30cm × 20cm × 25cm',
     material: '树脂',
+    category: '树脂',
     price: 1880,
     images: [sampleImages[2], sampleImages[7], sampleImages[4], sampleImages[0], sampleImages[5]],
     sellerId: 'user-2',
     sellerName: '时光工坊',
     likes: 203,
     createdAt: Date.now() - 86400000 * 8,
-    status: 'active'
+    status: '上架'
   },
 ];
 
@@ -171,11 +179,15 @@ app.post('/api/auth/login', (req, res) => {
 
 // 获取作品列表（支持排序、筛选、分页）
 app.get('/api/artworks', (req, res) => {
-  const { sort = 'latest', material, minPrice, maxPrice, page = 1, limit = 20 } = req.query;
-  let filtered = artworks.filter(a => a.status === 'active');
+  const { sort = 'latest', material, category, minPrice, maxPrice, page = 1, limit = 20 } = req.query;
+  let filtered = artworks.filter(a => a.status === '上架');
 
   if (material && material !== 'all') {
     filtered = filtered.filter(a => a.material === material);
+  }
+
+  if (category && category !== 'all') {
+    filtered = filtered.filter(a => a.category === category);
   }
 
   if (minPrice) {

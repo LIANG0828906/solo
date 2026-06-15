@@ -163,9 +163,11 @@ function Detail() {
     setDragOffset(effectiveOffset);
     
     // 根据拖拽距离调整图片透明度，实现淡入淡出预览
+    // 透明度从1渐变到0.3
     const maxDrag = 150;
-    const opacityChange = Math.min(Math.abs(effectiveOffset) / maxDrag, 0.4);
-    setImageOpacity(1 - opacityChange * 0.5);
+    const dragProgress = Math.min(Math.abs(effectiveOffset) / maxDrag, 1);
+    const targetOpacity = 1 - dragProgress * 0.7; // 1 -> 0.3
+    setImageOpacity(targetOpacity);
   }, [isDragging, isTransitioning, startX, lastMoveTime, currentImage, artwork]);
 
   const handleMouseUp = useCallback(() => {
@@ -322,7 +324,7 @@ function Detail() {
             className="carousel-track"
             style={{ 
               transform: getImageTransform(),
-              transition: isTransitioning && !isDragging ? 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)' : 'none',
+              transition: isTransitioning && !isDragging ? 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
               cursor: isDragging ? 'grabbing' : 'grab'
             }}
           >

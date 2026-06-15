@@ -44,9 +44,10 @@ const initialState: State = {
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'SET_ARTWORKS':
-      return { ...state, artworks: action.payload };
+      return { ...state, artworks: Array.isArray(action.payload) ? action.payload : [] };
     case 'APPEND_ARTWORKS':
-      return { ...state, artworks: [...state.artworks, ...action.payload] };
+      const newItems = Array.isArray(action.payload) ? action.payload : [];
+      return { ...state, artworks: [...(state.artworks || []), ...newItems] };
     case 'SET_SORT':
       return { ...state, sort: action.payload as State['sort'], page: 1 };
     case 'SET_MATERIAL':
@@ -113,7 +114,7 @@ function Gallery() {
 
   useEffect(() => {
     updateOffset();
-  }, [state.artworks.length, updateOffset]);
+  }, [(state.artworks || []).length, updateOffset]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -199,8 +200,9 @@ function Gallery() {
   };
 
   const { visibleItems, paddingTop, totalHeight } = useMemo(() => {
-    const items = state.artworks;
-    const rowCount = Math.ceil(items.length / columns);
+    const items = state.artworks || [];
+    const safeColumns = Math.max(columns, 1);
+    const rowCount = items.length > 0 ? Math.ceil(items.length / safeColumns) : 0;
     const viewportHeight = window.innerHeight;
     const scrollOffset = Math.max(0, scrollTop - gridOffsetTop);
     
@@ -208,8 +210,8 @@ function Gallery() {
     const visibleRows = Math.ceil(viewportHeight / ESTIMATED_ROW_HEIGHT) + BUFFER_ROWS * 2;
     const endRow = Math.min(rowCount, startRow + visibleRows);
     
-    const startIndex = startRow * columns;
-    const endIndex = Math.min(items.length, endRow * columns);
+    const startIndex = startRow * safeColumns;
+    const endIndex = Math.min(items.length, endRow * safeColumns);
     
     const visible = items.slice(startIndex, endIndex).map((item, idx) => ({
       item,
