@@ -268,6 +268,7 @@ export class ArtifactManager {
     const snapped = dist <= SNAP_DISTANCE;
     const finalX = snapped ? correct.x : x;
     const finalY = snapped ? correct.y : y;
+    const wasPlaced = piece.placed;
 
     piece.placed = snapped;
     piece.workbenchOffset = { x: finalX, y: finalY };
@@ -280,15 +281,22 @@ export class ArtifactManager {
       success: true,
       snapped,
       finalPosition: { x: finalX, y: finalY },
-      sound: snapped ? '[咔嗒声] 咔哒！吸附成功' : '[轻放声] 嗒...'
+      sound: snapped ? (wasPlaced ? '[微调声] 咔~' : '[咔嗒声] 咔哒！吸附成功') : '[轻放声] 嗒...'
     };
-    if (snapped) result.message = '碎片已吸附到正确位置';
+    if (snapped && !wasPlaced) result.message = '碎片已吸附到正确位置';
+    else if (!snapped) result.message = '位置未对齐，继续调整...';
 
     this.onAssembleAttempt.forEach(cb => cb(result));
-    this.sounds.push(result.sound || '');
+    if (result.sound) this.sounds.push(result.sound);
 
-    if (this.checkArtifactComplete(piece.artifactId)) {
-      this.triggerRestoreAnimation(piece.artifactId);
+    if (snapped && !wasPlaced && this.checkArtifactComplete(piece.artifactId)) {
+      const artifactId = piece.artifactId;
+      this.triggerRestoreAnimation(artifactId);
+      const def = ARTIFACT_DEFINITIONS[artifactId];
+      this.sounds.push('[庆祝音效] ✨ 叮铃-铃-铃~ ✨ 文物复原成功！');
+      this.onArtifactRestored.forEach(cb => {
+        try { cb(artifactId, def!); } catch (_e) { /* ignore */ }
+      });
     }
 
     return result;

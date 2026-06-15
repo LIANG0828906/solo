@@ -245,27 +245,50 @@ export class TerrainEngine {
     };
   }
 
+  getHeightAt(worldX: number, worldZ: number): number {
+    const normX = (worldX + this.size / 2) / this.size;
+    const normZ = (worldZ + this.size / 2) / this.size;
+    if (normX < 0 || normX > 1 || normZ < 0 || normZ > 1) return -999;
+    const exactX = normX * this.resolution;
+    const exactZ = normZ * this.resolution;
+    const x0 = Math.floor(exactX);
+    const z0 = Math.floor(exactZ);
+    const tx = exactX - x0;
+    const tz = exactZ - z0;
+    const X0 = Math.max(0, Math.min(this.resolution, x0));
+    const Z0 = Math.max(0, Math.min(this.resolution, z0));
+    const X1 = Math.min(this.resolution, x0 + 1);
+    const Z1 = Math.min(this.resolution, z0 + 1);
+    const h00 = this.vertices[Z0][X0].currentHeight;
+    const h10 = this.vertices[Z0][X1].currentHeight;
+    const h01 = this.vertices[Z1][X0].currentHeight;
+    const h11 = this.vertices[Z1][X1].currentHeight;
+    const hTop = h00 * (1 - tx) + h10 * tx;
+    const hBot = h01 * (1 - tx) + h11 * tx;
+    return hTop * (1 - tz) + hBot * tz;
+  }
+
   sampleHeight(worldX: number, worldZ: number): HeightSample {
     const grid = this.worldToGrid(worldX, worldZ);
     if (!grid.inside) {
       return { height: -100, stratum: 0, stratumColor: STRATA_DEFINITIONS[0].baseColor, slope: 0, isInsideTerrain: false };
     }
-    const v = this.vertices[grid.i]?.[grid.j];
-    if (!v) return { height: 0, stratum: 0, stratumColor: STRATA_DEFINITIONS[0].baseColor, slope: 0, isInsideTerrain: false };
+    const h = this.getHeightAt(worldX, worldZ);
+    if (h < -500) return { height: 0, stratum: 0, stratumColor: STRATA_DEFINITIONS[0].baseColor, slope: 0, isInsideTerrain: false };
 
     const gi = Math.max(0, Math.min(this.resolution, grid.i));
     const gj = Math.max(0, Math.min(this.resolution, grid.j));
-    const depthBelow = v.originalHeight - v.currentHeight;
-    const stratum = this.getStratumByWorldDepth(gi, gj, Math.max(0, depthBelow));
+    const origV = this.vertices[gi][gj];
+    const depthBelow = Math.max(0, origV.originalHeight - h);
+    const stratum = this.getStratumByWorldDepth(gi, gj, depthBelow);
 
-    const vR = this.vertices[gi]?.[Math.min(gj + 1, this.resolution)];
-    const vD = this.vertices[Math.min(gi + 1, this.resolution)]?.[gj];
-    const dx = (vR ? vR.currentHeight - v.currentHeight : 0);
-    const dz = (vD ? vD.currentHeight - v.currentHeight : 0);
+    const eps = this.size / this.resolution * 0.5;
+    const dx = (this.getHeightAt(worldX + eps, worldZ) - h) / eps;
+    const dz = (this.getHeightAt(worldX, worldZ + eps) - h) / eps;
     const slope = Math.sqrt(dx * dx + dz * dz);
 
     return {
-      height: v.currentHeight,
+      height: h,
       stratum,
       stratumColor: STRATA_DEFINITIONS[stratum].baseColor,
       slope,
@@ -276,16 +299,20 @@ export class TerrainEngine {
   checkCollision(worldX: number, worldZ: number, radius: number = 0.5): CollisionResult {
     const sample = this.sampleHeight(worldX, worldZ);
     const grid = this.worldToGrid(worldX, worldZ);
-
+    const eps = 0.01;
+    const h = sample.height;
+    const nx = (this.getHeightAt(worldX + eps, worldZ) - this.getHeightAt(worldX - eps, worldZ)) / (2 * eps);
+    const nz = (this.getHeightAt(worldX, worldZ + eps) - this.getHeightAt(worldX, worldZ - eps)) / (2 * eps);
+    const nlen = Math.sqrt(nx * nx + nz * nz + 1);
     return {
       hit: sample.isInsideTerrain,
       worldX,
       worldZ,
-      height: sample.height,
+      height: h,
       stratum: sample.stratum,
       distanceToCenter: Math.sqrt(worldX * worldX + worldZ * worldZ),
-      normalX: grid.fi - Math.round(grid.fi),
-      normalZ: grid.fj - Math.round(grid.fj)
+      normalX: nlen > 0 ? -nx / nlen : 0,
+      normalZ: nlen > 0 ? -nz / nlen : 0
     };
   }
 
