@@ -1,4 +1,4 @@
-import React, { useState, useCallback, keyframes } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ShipType } from '../game/UnitData';
 
 interface FleetBuilderProps {
@@ -39,43 +39,6 @@ const SHIP_INFO: Record<ShipType, {
   },
 };
 
-const particleTrail = keyframes`
-  0% { transform: translateY(0) scale(1); opacity: 0.8; }
-  100% { transform: translateY(-30px) scale(0.2); opacity: 0; }
-`;
-
-const springIn = keyframes`
-  0% { transform: scale(0.5); opacity: 0; }
-  60% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-`;
-
-const rippleEffect = keyframes`
-  0% { transform: scale(0.3); opacity: 0.6; }
-  100% { transform: scale(2.5); opacity: 0; }
-`;
-
-const breathGlow = keyframes`
-  0%, 100% { box-shadow: 0 0 15px rgba(0,212,255,0.4), 0 0 30px rgba(0,212,255,0.2); }
-  50% { box-shadow: 0 0 25px rgba(0,212,255,0.7), 0 0 50px rgba(0,212,255,0.4); }
-`;
-
-const warpExpand = keyframes`
-  0% { transform: scale(0); opacity: 0; }
-  30% { opacity: 1; }
-  100% { transform: scale(4); opacity: 0; }
-`;
-
-const starStreak = keyframes`
-  0% { transform: translateX(0) translateY(0); opacity: 1; }
-  100% { transform: translateX(var(--streak-x)) translateY(var(--streak-y)); opacity: 0; }
-`;
-
-const titleGlow = keyframes`
-  0%, 100% { text-shadow: 0 0 10px rgba(0,212,255,0.6), 0 0 20px rgba(0,212,255,0.3); }
-  50% { text-shadow: 0 0 20px rgba(0,212,255,0.9), 0 0 40px rgba(0,212,255,0.5), 0 0 60px rgba(0,212,255,0.3); }
-`;
-
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
   @keyframes fbParticleTrail {
@@ -84,12 +47,21 @@ styleSheet.textContent = `
   }
   @keyframes fbSpringIn {
     0% { transform: scale(0.5); opacity: 0; }
-    60% { transform: scale(1.1); opacity: 1; }
+    45% { transform: scale(1.12); opacity: 1; }
+    70% { transform: scale(0.96); }
     100% { transform: scale(1); opacity: 1; }
   }
   @keyframes fbRippleEffect {
-    0% { transform: scale(0.3); opacity: 0.6; }
-    100% { transform: scale(2.5); opacity: 0; }
+    0% { transform: scale(0.3); opacity: 0.7; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+  @keyframes fbRippleEffect2 {
+    0% { transform: scale(0.2); opacity: 0.5; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  @keyframes fbRippleEffect3 {
+    0% { transform: scale(0.1); opacity: 0.3; }
+    100% { transform: scale(2); opacity: 0; }
   }
   @keyframes fbBreathGlow {
     0%, 100% { box-shadow: 0 0 15px rgba(0,212,255,0.4), 0 0 30px rgba(0,212,255,0.2); }
@@ -112,22 +84,53 @@ styleSheet.textContent = `
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+  @keyframes fbGhostPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 0.3; }
+  }
+  @keyframes fbGhostPulse2 {
+    0%, 100% { transform: scale(0.85); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 0.5; }
+  }
+  @keyframes fbTrailParticle {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0.1); opacity: 0; }
+  }
+  @keyframes fbBurstParticle {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--bx), var(--by)) scale(0); opacity: 0; }
+  }
+  @keyframes fbGlowFlash {
+    0% { opacity: 1; transform: scale(0.5); }
+    100% { opacity: 0; transform: scale(2); }
+  }
+  @keyframes fbCrosshairPulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+  @keyframes fbCellGlowPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.4), inset 0 0 20px rgba(0,212,255,0.15); }
+    50% { box-shadow: 0 0 40px rgba(0,212,255,0.7), inset 0 0 30px rgba(0,212,255,0.25); }
+  }
+  @keyframes fbEngineParticle {
+    0% { transform: translateY(0) scale(1); opacity: 0.7; }
+    100% { transform: translateY(20px) scale(0.2); opacity: 0; }
+  }
 `;
 document.head.appendChild(styleSheet);
 
 const ShipCard: React.FC<{
   type: ShipType;
-  onDragStart: (e: React.DragEvent) => void;
-}> = ({ type, onDragStart }) => {
+  onMouseDown: (e: React.MouseEvent, type: ShipType) => void;
+}> = ({ type, onMouseDown }) => {
   const info = SHIP_INFO[type];
   const [hovered, setHovered] = useState(false);
 
-  const particles = Array.from({ length: 5 }, (_, i) => i);
+  const particles = Array.from({ length: 6 }, (_, i) => i);
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      onMouseDown={(e) => onMouseDown(e, type)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -151,8 +154,8 @@ const ShipCard: React.FC<{
           key={i}
           style={{
             position: 'absolute',
-            bottom: 8 + i * 6,
-            left: 20 + i * 18,
+            bottom: 8 + i * 5,
+            left: 18 + i * 20,
             width: 3,
             height: 3,
             borderRadius: '50%',
@@ -195,40 +198,34 @@ const ShipCard: React.FC<{
   );
 };
 
-const FormationCell: React.FC<{
+interface FormationCellProps {
   slot: number;
   ship: ShipType | null;
-  onDrop: (slot: number, type: ShipType) => void;
   onRemove: (slot: number) => void;
   isDragOver: boolean;
-  onDragOverChange: (slot: number, over: boolean) => void;
-}> = ({ slot, ship, onDrop, onRemove, isDragOver, onDragOverChange }) => {
-  const [ripple, setRipple] = useState(false);
+  cellRef: (el: HTMLDivElement | null) => void;
+  dropKey: number;
+}
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      onDragOverChange(slot, false);
-      const type = e.dataTransfer.getData('ship-type') as ShipType;
-      if (type && !ship) {
-        setRipple(true);
-        setTimeout(() => setRipple(false), 600);
-        onDrop(slot, type);
-      }
-    },
-    [slot, ship, onDrop, onDragOverChange],
-  );
-
+const FormationCell: React.FC<FormationCellProps> = ({ slot, ship, onRemove, isDragOver, cellRef, dropKey }) => {
   const info = ship ? SHIP_INFO[ship] : null;
+  const engineParticles = Array.from({ length: 4 }, (_, i) => i);
+
+  const burstParticles = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i / 16) * Math.PI * 2;
+    const dist = 40 + Math.random() * 30;
+    return {
+      id: i,
+      bx: Math.cos(angle) * dist,
+      by: Math.sin(angle) * dist,
+      size: 2 + Math.random() * 3,
+      delay: Math.random() * 0.1,
+    };
+  });
 
   return (
     <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        onDragOverChange(slot, true);
-      }}
-      onDragLeave={() => onDragOverChange(slot, false)}
-      onDrop={handleDrop}
+      ref={cellRef}
       onContextMenu={(e) => {
         e.preventDefault();
         if (ship) onRemove(slot);
@@ -241,11 +238,11 @@ const FormationCell: React.FC<{
         width: 130,
         height: 130,
         background: isDragOver
-          ? 'rgba(0,212,255,0.08)'
+          ? 'rgba(0,212,255,0.1)'
           : ship
           ? 'rgba(10,14,23,0.7)'
           : 'rgba(10,14,23,0.4)',
-        border: `1.5px solid ${isDragOver ? 'rgba(0,212,255,0.7)' : ship ? 'rgba(0,212,255,0.35)' : 'rgba(0,212,255,0.12)'}`,
+        border: `1.5px solid ${isDragOver ? 'rgba(0,212,255,0.8)' : ship ? 'rgba(0,212,255,0.35)' : 'rgba(0,212,255,0.12)'}`,
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
@@ -253,27 +250,156 @@ const FormationCell: React.FC<{
         justifyContent: 'center',
         transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
         boxShadow: isDragOver
-          ? '0 0 20px rgba(0,212,255,0.3), inset 0 0 15px rgba(0,212,255,0.1)'
+          ? '0 0 30px rgba(0,212,255,0.5), inset 0 0 25px rgba(0,212,255,0.2)'
           : ship
           ? '0 0 8px rgba(0,212,255,0.15)'
           : 'none',
         cursor: ship ? 'pointer' : 'default',
         overflow: 'hidden',
+        animation: isDragOver ? 'fbCellGlowPulse 1s ease-in-out infinite' : 'none',
       }}
     >
-      {ripple && (
-        <div
-          style={{
-            position: 'absolute',
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            border: '2px solid rgba(0,212,255,0.6)',
-            animation: 'fbRippleEffect 0.6s ease-out forwards',
-            pointerEvents: 'none',
-          }}
-        />
+      {isDragOver && (
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 10,
+              border: '1px dashed rgba(0,212,255,0.5)',
+              borderRadius: 4,
+              animation: 'fbCrosshairPulse 1.2s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: 10,
+              right: 10,
+              height: 1,
+              background: 'rgba(0,212,255,0.4)',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 10,
+              bottom: 10,
+              width: 1,
+              background: 'rgba(0,212,255,0.4)',
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 20,
+              height: 20,
+              border: '1px solid rgba(0,212,255,0.6)',
+              borderRadius: '50%',
+              transform: 'translate(-50%, -50%)',
+              animation: 'fbCrosshairPulse 1s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}
+          />
+        </>
       )}
+
+      {dropKey > 0 && ship && (
+        <>
+          <div
+            key={`ripple1-${dropKey}`}
+            style={{
+              position: 'absolute',
+              width: 50,
+              height: 50,
+              borderRadius: '50%',
+              border: '2px solid rgba(0,212,255,0.8)',
+              animation: 'fbRippleEffect 0.7s ease-out forwards',
+              pointerEvents: 'none',
+              left: '50%',
+              top: '50%',
+              marginLeft: -25,
+              marginTop: -25,
+            }}
+          />
+          <div
+            key={`ripple2-${dropKey}`}
+            style={{
+              position: 'absolute',
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: '2px solid rgba(100,200,255,0.5)',
+              animation: 'fbRippleEffect2 0.7s ease-out 0.1s forwards',
+              pointerEvents: 'none',
+              left: '50%',
+              top: '50%',
+              marginLeft: -20,
+              marginTop: -20,
+            }}
+          />
+          <div
+            key={`ripple3-${dropKey}`}
+            style={{
+              position: 'absolute',
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+              border: '1px solid rgba(180,220,255,0.3)',
+              animation: 'fbRippleEffect3 0.7s ease-out 0.2s forwards',
+              pointerEvents: 'none',
+              left: '50%',
+              top: '50%',
+              marginLeft: -15,
+              marginTop: -15,
+            }}
+          />
+          <div
+            key={`flash-${dropKey}`}
+            style={{
+              position: 'absolute',
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(0,212,255,0.8) 0%, transparent 70%)',
+              animation: 'fbGlowFlash 0.5s ease-out forwards',
+              pointerEvents: 'none',
+              left: '50%',
+              top: '50%',
+              marginLeft: -30,
+              marginTop: -30,
+            }}
+          />
+          {burstParticles.map((p) => (
+            <div
+              key={`burst-${dropKey}-${p.id}`}
+              style={{
+                position: 'absolute',
+                width: p.size,
+                height: p.size,
+                borderRadius: '50%',
+                background: '#00d4ff',
+                left: '50%',
+                top: '50%',
+                '--bx': `${p.bx}px`,
+                '--by': `${p.by}px`,
+                animation: `fbBurstParticle 0.6s ease-out ${p.delay}s forwards`,
+                pointerEvents: 'none',
+                boxShadow: '0 0 6px rgba(0,212,255,0.8)',
+              } as React.CSSProperties}
+            />
+          ))}
+        </>
+      )}
+
       {!ship && (
         <span
           style={{
@@ -288,13 +414,34 @@ const FormationCell: React.FC<{
       )}
       {ship && info && (
         <div
+          key={`ship-${dropKey}`}
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            animation: 'fbSpringIn 0.4s ease-out',
+            animation: 'fbSpringIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            position: 'relative',
           }}
         >
+          {engineParticles.map((i) => (
+            <div
+              key={`eng-${i}`}
+              style={{
+                position: 'absolute',
+                bottom: -8 - i * 4,
+                left: '50%',
+                marginLeft: -2 + (i % 2 === 0 ? -4 : 4),
+                width: 2 + (i % 2),
+                height: 2 + (i % 2),
+                borderRadius: '50%',
+                background: i % 2 === 0 ? '#00d4ff' : '#ff6b35',
+                animation: `fbEngineParticle ${0.9 + i * 0.2}s ease-out infinite`,
+                animationDelay: `${i * 0.15}s`,
+                pointerEvents: 'none',
+                boxShadow: '0 0 4px rgba(0,212,255,0.6)',
+              }}
+            />
+          ))}
           <span
             style={{
               fontSize: ship === 'battleship' ? 34 : ship === 'cruiser' ? 28 : 22,
@@ -415,35 +562,232 @@ const WarpOverlay: React.FC = () => {
   );
 };
 
+const DragGhost: React.FC<{
+  type: ShipType;
+  x: number;
+  y: number;
+}> = ({ type, x, y }) => {
+  const info = SHIP_INFO[type];
+
+  const trailParticles = Array.from({ length: 18 }, (_, i) => {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 15 + Math.random() * 25;
+    return {
+      id: i,
+      size: 2 + Math.random() * 3,
+      tx: -Math.cos(angle) * dist - 20,
+      ty: -Math.sin(angle) * dist * 0.5 + 10,
+      delay: Math.random() * 0.3,
+      duration: 0.4 + Math.random() * 0.3,
+    };
+  });
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -50%) scale(0.8)',
+        pointerEvents: 'none',
+        zIndex: 10000,
+        userSelect: 'none',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: 120,
+          height: 120,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,212,255,0.3) 0%, transparent 70%)',
+          transform: 'translate(-50%, -50%)',
+          animation: 'fbGhostPulse 1.5s ease-in-out infinite',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: 90,
+          height: 90,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,212,255,0.5) 0%, transparent 60%)',
+          transform: 'translate(-50%, -50%)',
+          animation: 'fbGhostPulse2 1.2s ease-in-out infinite',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: 60,
+          height: 60,
+          borderRadius: '50%',
+          border: '1px solid rgba(0,212,255,0.6)',
+          transform: 'translate(-50%, -50%)',
+          animation: 'fbGhostPulse 2s ease-in-out infinite',
+          pointerEvents: 'none',
+        }}
+      />
+      {trailParticles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: p.size,
+            height: p.size,
+            borderRadius: '50%',
+            background: '#00d4ff',
+            boxShadow: '0 0 6px rgba(0,212,255,0.9)',
+            '--tx': `${p.tx}px`,
+            '--ty': `${p.ty}px`,
+            animation: `fbTrailParticle ${p.duration}s ease-out ${p.delay}s infinite`,
+            pointerEvents: 'none',
+          } as React.CSSProperties}
+        />
+      ))}
+      <div
+        style={{
+          position: 'relative',
+          background: 'rgba(10,14,23,0.95)',
+          border: '2px solid rgba(0,212,255,0.8)',
+          borderRadius: 10,
+          padding: '14px 18px',
+          minWidth: 140,
+          boxShadow: '0 0 30px rgba(0,212,255,0.6), 0 0 60px rgba(0,212,255,0.3), inset 0 0 20px rgba(0,212,255,0.1)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span
+            style={{
+              fontSize: type === 'battleship' ? 36 : type === 'cruiser' ? 30 : 26,
+              color: '#00d4ff',
+              filter: 'drop-shadow(0 0 10px rgba(0,212,255,0.8))',
+              lineHeight: 1,
+            }}
+          >
+            {info.icon}
+          </span>
+          <div>
+            <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 14, color: '#e0f0ff', fontWeight: 700 }}>
+              {info.label}
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(0,212,255,0.7)', fontFamily: "'Orbitron', sans-serif", marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {type}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
   const [formation, setFormation] = useState<(ShipType | null)[]>(Array(9).fill(null));
   const [isWarping, setIsWarping] = useState(false);
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+  const [hoverSlot, setHoverSlot] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragType, setDragType] = useState<ShipType | null>(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [dropKeys, setDropKeys] = useState<number[]>(Array(9).fill(0));
+
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragPosRef = useRef({ x: 0, y: 0 });
+  const dragTypeRef = useRef<ShipType | null>(null);
+  const isDraggingRef = useRef(false);
 
   const shipTypes: ShipType[] = ['frigate', 'cruiser', 'battleship'];
 
-  const handleDragStart = useCallback((type: ShipType) => (e: React.DragEvent) => {
-    e.dataTransfer.setData('ship-type', type);
-    e.dataTransfer.effectAllowed = 'copy';
-    if (e.currentTarget instanceof HTMLElement) {
-      const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
-      ghost.style.opacity = '0.7';
-      ghost.style.filter = 'drop-shadow(0 0 12px rgba(0,212,255,0.6))';
-      ghost.style.position = 'absolute';
-      ghost.style.top = '-9999px';
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 60, 40);
-      requestAnimationFrame(() => document.body.removeChild(ghost));
-    }
+  const handleMouseDown = useCallback((e: React.MouseEvent, type: ShipType) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragType(type);
+    setDragPos({ x: e.clientX, y: e.clientY });
+    dragPosRef.current = { x: e.clientX, y: e.clientY };
+    dragTypeRef.current = type;
+    isDraggingRef.current = true;
   }, []);
 
-  const handleDrop = useCallback((slot: number, type: ShipType) => {
-    setFormation((prev) => {
-      const next = [...prev];
-      next[slot] = type;
-      return next;
-    });
-  }, []);
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      dragPosRef.current = { x: e.clientX, y: e.clientY };
+      setDragPos({ x: e.clientX, y: e.clientY });
+
+      let foundSlot: number | null = null;
+      for (let i = 0; i < cellRefs.current.length; i++) {
+        const cell = cellRefs.current[i];
+        if (!cell) continue;
+        const rect = cell.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          foundSlot = i;
+          break;
+        }
+      }
+      setHoverSlot(foundSlot);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+
+      const type = dragTypeRef.current;
+      if (type) {
+        for (let i = 0; i < cellRefs.current.length; i++) {
+          const cell = cellRefs.current[i];
+          if (!cell) continue;
+          const rect = cell.getBoundingClientRect();
+          if (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+          ) {
+            if (!formation[i]) {
+              setFormation((prev) => {
+                const next = [...prev];
+                next[i] = type;
+                return next;
+              });
+              setDropKeys((prev) => {
+                const next = [...prev];
+                next[i] = next[i] + 1;
+                return next;
+              });
+            }
+            break;
+          }
+        }
+      }
+
+      setIsDragging(false);
+      setDragType(null);
+      setHoverSlot(null);
+      isDraggingRef.current = false;
+      dragTypeRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [formation]);
 
   const handleRemove = useCallback((slot: number) => {
     setFormation((prev) => {
@@ -453,8 +797,8 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
     });
   }, []);
 
-  const handleDragOverChange = useCallback((slot: number, over: boolean) => {
-    setDragOverSlot(over ? slot : null);
+  const setCellRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
+    cellRefs.current[index] = el;
   }, []);
 
   const hasShips = formation.some((s) => s !== null);
@@ -480,9 +824,14 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
         fontFamily: "'Orbitron', sans-serif",
         color: '#c0dff0',
         overflow: 'hidden',
+        cursor: isDragging ? 'grabbing' : 'default',
       }}
     >
       {isWarping && <WarpOverlay />}
+
+      {isDragging && dragType && (
+        <DragGhost type={dragType} x={dragPos.x} y={dragPos.y} />
+      )}
 
       <div
         style={{
@@ -514,7 +863,7 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
             <ShipCard
               key={type}
               type={type}
-              onDragStart={handleDragStart(type)}
+              onMouseDown={handleMouseDown}
             />
           ))}
         </div>
@@ -563,10 +912,10 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
               key={slot}
               slot={slot}
               ship={ship}
-              onDrop={handleDrop}
               onRemove={handleRemove}
-              isDragOver={dragOverSlot === slot}
-              onDragOverChange={handleDragOverChange}
+              isDragOver={hoverSlot === slot}
+              cellRef={setCellRef(slot)}
+              dropKey={dropKeys[slot]}
             />
           ))}
         </div>
