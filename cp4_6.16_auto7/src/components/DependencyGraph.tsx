@@ -180,8 +180,14 @@ export function DependencyGraph({ width, height }: DependencyGraphProps) {
         .style('transition', 'all 0.3s ease')
         .on('contextmenu', (event, d) => {
           event.preventDefault()
+          event.stopPropagation()
           if (confirm('确定要删除这条依赖关系吗？')) {
             removeDependency(d.id)
+            setTimeout(() => {
+              if (simulationRef.current) {
+                simulationRef.current.alpha(0.3).restart()
+              }
+            }, 50)
           }
         })
         .on('mouseenter', function () {
@@ -189,7 +195,7 @@ export function DependencyGraph({ width, height }: DependencyGraphProps) {
             .attr('stroke-width', 4)
             .attr('stroke-opacity', 1)
         })
-        .on('mouseleave', function (event, d) {
+        .on('mouseleave', function (_event, d) {
           const sourceId = typeof d.source === 'object' ? d.source.id : d.source
           const targetId = typeof d.target === 'object' ? d.target.id : d.target
           const isHighlighted =

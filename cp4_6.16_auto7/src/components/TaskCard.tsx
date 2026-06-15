@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useDraggable } from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { Task, TaskStatus, useTaskStore } from '../hooks/useTaskStore'
 
 interface TaskCardProps {
@@ -26,7 +26,7 @@ export function TaskCard({
   task,
   isHighlighted,
   highlightType,
-  onDrop,
+  onDrop: _onDrop,
   draggable = true,
 }: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -45,6 +45,11 @@ export function TaskCard({
       disabled: !draggable,
     }
   )
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: task.id,
+    data: { taskId: task.id, type: 'task-drop' },
+  })
 
   const handleSave = useCallback(() => {
     if (editName.trim()) {
@@ -67,31 +72,14 @@ export function TaskCard({
     updateTask(task.id, { status: e.target.value as TaskStatus })
   }
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!isDragging) {
       if (highlightedTaskId === task.id) {
         setHighlightedTask(null)
       } else {
         setHighlightedTask(task.id)
       }
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.currentTarget.classList.add('drag-over')
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('drag-over')
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.currentTarget.classList.remove('drag-over')
-    const sourceId = e.dataTransfer.getData('text/plain')
-    if (sourceId && sourceId !== task.id && onDrop) {
-      onDrop(task.id)
     }
   }
 
@@ -111,17 +99,22 @@ export function TaskCard({
     style.boxShadow = '0 0 20px rgba(249, 115, 22, 0.4)'
   }
 
+  const setRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node)
+      setDroppableRef(node)
+    },
+    [setNodeRef, setDroppableRef]
+  )
+
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       className={`task-card ${task.hasCycle ? 'cycle-warning' : ''} ${
         isHighlighted ? 'highlighted' : ''
-      }`}
+      } ${isOver ? 'drag-over' : ''}`}
       style={style}
       onClick={handleClick}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <div className="task-card-header">
         <div className="task-drag-handle" {...listeners} {...attributes}>

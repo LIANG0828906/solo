@@ -164,22 +164,9 @@ function App() {
     if (over && active.id !== over.id) {
       const sourceId = active.id as string
       const targetId = over.id as string
-
-      const overElement = document.querySelector(
-        `[data-task-id="${targetId}"]`
-      )
-      if (overElement && overElement.classList.contains('sidebar-card')) {
-        addDependency(sourceId, targetId)
-      }
+      addDependency(sourceId, targetId)
     }
   }
-
-  const handleDropOnSidebarCard = useCallback(
-    (sourceId: string, targetId: string) => {
-      addDependency(sourceId, targetId)
-    },
-    [addDependency]
-  )
 
   const handleAddTask = () => {
     const today = new Date().toISOString().split('T')[0]
@@ -249,35 +236,11 @@ function App() {
               <div className="task-list-container">
                 <div className="task-list">
                   {sortedTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      data-task-id={task.id}
-                      className="sidebar-card-wrapper"
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        e.currentTarget.classList.add('drag-over')
-                      }}
-                      onDragLeave={(e) => {
-                        e.currentTarget.classList.remove('drag-over')
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        e.currentTarget.classList.remove('drag-over')
-                        const sourceId = e.dataTransfer.getData('text/plain')
-                        if (sourceId && sourceId !== task.id) {
-                          handleDropOnSidebarCard(sourceId, task.id)
-                        }
-                      }}
-                    >
+                    <div key={task.id} className="sidebar-card-wrapper">
                       <TaskCard
                         task={task}
                         isHighlighted={highlightedTaskId === task.id}
                         highlightType={getHighlightType(task.id)}
-                        onDrop={(targetId) => {
-                          if (activeId) {
-                            addDependency(activeId, targetId)
-                          }
-                        }}
                         draggable={true}
                       />
                     </div>
