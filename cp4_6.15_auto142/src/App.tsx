@@ -174,7 +174,7 @@ export default function App() {
   }, [species, isPlanted, isAnimatingSpeciesChange, params, initPlant])
 
   const handleTakePhoto = useCallback(() => {
-    if (!sceneStateRef.current || !isPlanted) return
+    if (!sceneStateRef.current || !isPlantedRef.current) return
 
     const state = sceneStateRef.current
     const canvas = state.renderer.domElement
@@ -183,13 +183,17 @@ export default function App() {
     const dataUrl = canvas.toDataURL('image/png')
     setSnapshotImage(dataUrl)
     setShowSnapshotModal(true)
-  }, [isPlanted])
+  }, [])
 
   const handleSavePhoto = useCallback(() => {
     if (!sceneStateRef.current) return
     takePhoto(sceneStateRef.current)
     setShowSnapshotModal(false)
   }, [])
+
+  useEffect(() => {
+    handleTakePhotoRef.current = handleTakePhoto
+  }, [handleTakePhoto])
 
   useEffect(() => {
     if (!sceneContainerRef.current) return
@@ -309,15 +313,14 @@ export default function App() {
       if (plantDataRef.current && isPlantedRef.current) {
         const shouldAdvance = isGrowingRef.current && !isWiltingRef.current
         const currentPhase = plantDataRef.current.phase
-        const speed = growthSpeedRef.current
+        const speed = Math.max(0.1, growthSpeedRef.current)
         const newPhase = shouldAdvance 
-          ? currentPhase + deltaTime * speed * 20
+          ? currentPhase + deltaTime * speed * 15
           : currentPhase
 
         plantDataRef.current = updateGrowth(
           plantDataRef.current,
           newPhase,
-          speed,
           paramsRef.current
         )
 

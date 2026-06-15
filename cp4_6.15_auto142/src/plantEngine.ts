@@ -420,11 +420,13 @@ function generateRootStructure(
 export function updateGrowth(
   plantData: PlantData,
   phase: number,
-  speedMultiplier: number = 1,
   params: EnvironmentParams
 ): PlantData {
   const newNodes = new Map(plantData.nodes)
-  const health = 0.3 + 0.7 * ((params.light / 100) * 0.3 + (params.water / 100) * 0.3 + (params.fertility / 100) * 0.4)
+  const lightFactor = params.light / 100
+  const waterFactor = params.water / 100
+  const fertilityFactor = params.fertility / 100
+  const health = 0.3 + 0.7 * (lightFactor * 0.3 + waterFactor * 0.3 + fertilityFactor * 0.4)
 
   const sortedNodes = Array.from(newNodes.values()).sort((a, b) => {
     const aDepth = getNodeDepth(a, newNodes)
@@ -435,31 +437,57 @@ export function updateGrowth(
   for (const node of sortedNodes) {
     const updatedNode = { ...node }
     const depth = getNodeDepth(node, newNodes)
-    const delay = depth * 0.08
+    const delay = depth * 1.2
 
     const effectivePhase = Math.max(0, phase - delay)
-    const nodeProgress = Math.min(1, effectivePhase * SPECIES_CONFIG[plantData.species].growthRate * speedMultiplier / node.maxAge)
+    const growthRate = SPECIES_CONFIG[plantData.species].growthRate * health
+    const nodeProgress = Math.min(1, (effectivePhase * growthRate) / node.maxAge)
 
     if (plantData.isWilting) {
-      updatedNode.growthProgress = Math.max(0, node.growthProgress - 0.015 * speedMultiplier)
-      updatedNode.color = node.color.clone().lerp(new THREE.Color('#6d4c2b'), 0.02)
+      const wiltSpeed = 0.025
+      updatedNode.growthProgress = Math.max(0, node.growthProgress - wiltSpeed)
+      
+      const wiltColor = new THREE.Color('#6d4c2b')
+      updatedNode.color = node.color.clone().lerp(wiltColor, 0.03)
     } else {
-      const targetProgress = Math.min(1, nodeProgress * health)
+      const targetProgress = Math.min(1, nodeProgress)
       const diff = targetProgress - node.growthProgress
-      updatedNode.growthProgress = node.growthProgress + diff * 0.08
+      const springStrength = 0.12
+      updatedNode.growthProgress = node.growthProgress + diff * springStrength
 
       if (node.type === 'stem') {
         const config = SPECIES_CONFIG[plantData.species]
-        const ageProgress = updatedNode.growthProgress
-        const colorProgress = Math.min(1, ageProgress * 1.5)
-        updatedNode.color = new THREE.Color(config.stemColorStart).lerp(
-          new THREE.Color(config.stemColorEnd),
-          colorProgress * (depth / config.maxDepth)
-        )
+        const growthProgress = updatedNode.growthProgress
+        const depthRatio = depth / Math.max(1, config.maxDepth - 1)
+        const lignification = Math.min(1, growthProgress * (0.5 + depthRatio * 0.5))
+        
+        const startColor = new THREE.Color(config.stemColorStart)
+        const endColor = new THREE.Color(config.stemColorEnd)
+        updatedNode.color = startColor.clone().lerp(endColor, lignification)
+      }
+
+      if (node.type === 'leaf') {
+        const leafColor = new THREE.Color(SPECIES_CONFIG[plantData.species].leafColor)
+        
+        if (waterFactor > 0.85) {
+          leafColor.lerp(new THREE.Color('#cddc39'), 0.35)
+        } else if (waterFactor < 0.2) {
+          leafColor.lerp(new THREE.Color('#8d6e63'), 0.4)
+        }
+        if (lightFactor < 0.25) {
+          leafColor.lerp(new THREE.Color('#fff59d'), 0.3)
+        } else if (lightFactor > 0.9) {
+          leafColor.lerp(new THREE.Color('#2e7d32'), 0.2)
+        }
+        if (fertilityFactor < 0.3) {
+          leafColor.lerp(new THREE.Color('#9ccc65'), 0.2)
+        }
+        
+        updatedNode.color = leafColor
       }
     }
 
-    updatedNode.currentAge = effectivePhase * speedMultiplier
+    updatedNode.currentAge = effectivePhase
     newNodes.set(node.id, updatedNode)
   }
 
