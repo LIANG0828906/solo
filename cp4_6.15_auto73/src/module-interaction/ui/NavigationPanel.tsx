@@ -2,40 +2,47 @@ import { useState, useEffect, useMemo } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useGalleryStore } from '@/store/useGalleryStore';
 
-export default function NavigationPanel() {
-  const [isVisible, setIsVisible] = useState(false);
+interface NavigationPanelProps {
+  onFlyToArtwork?: (artworkId: string) => void;
+  thumbnails?: Map<string, string>;
+}
+
+export default function NavigationPanel({
+  onFlyToArtwork,
+  thumbnails,
+}: NavigationPanelProps = {}) {
   const { artworks, isNavigationOpen, setNavigationOpen, setSelectedArtwork } =
     useGalleryStore();
 
-  useEffect(() => {
-    if (isNavigationOpen) {
-      setIsVisible(true);
-    }
-  }, [isNavigationOpen]);
+  const isVisible = isNavigationOpen;
 
   const handleOpen = () => {
     setNavigationOpen(true);
   };
 
   const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(() => {
-      setNavigationOpen(false);
-    }, 300);
+    setNavigationOpen(false);
   };
 
   const handleThumbnailClick = (artworkId: string) => {
+    if (onFlyToArtwork) {
+      onFlyToArtwork(artworkId);
+    }
     setSelectedArtwork(artworkId);
     handleClose();
   };
 
-  const thumbnailGradients = useMemo(() => {
+  const thumbnailItems = useMemo(() => {
     return artworks.map((artwork) => {
       const colors = artwork.colorPalette;
       const gradient = `linear-gradient(135deg, ${colors.join(', ')})`;
-      return { id: artwork.id, gradient, name: artwork.name };
+      const thumbnailDataUrl = thumbnails?.get(artwork.id);
+      const background = thumbnailDataUrl
+        ? `url(${thumbnailDataUrl}) center/cover no-repeat`
+        : gradient;
+      return { id: artwork.id, background, name: artwork.name };
     });
-  }, [artworks]);
+  }, [artworks, thumbnails]);
 
   return (
     <>
@@ -68,16 +75,17 @@ export default function NavigationPanel() {
 
         <div className="nav-panel-content">
           <div className="thumbnail-grid">
-            {thumbnailGradients.map((item) => (
+            {thumbnailItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className="thumbnail-item"
                 onClick={() => handleThumbnailClick(item.id)}
+                title={item.name}
               >
                 <div
                   className="thumbnail-image"
-                  style={{ background: item.gradient }}
+                  style={{ background: item.background }}
                 />
                 <span className="thumbnail-name">{item.name}</span>
               </button>

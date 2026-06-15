@@ -1,12 +1,14 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
-import { useGalleryStore } from '@/store/useGalleryStore';
 
 interface UseArtInteractionOptions {
   scene: THREE.Scene | null;
   camera: THREE.PerspectiveCamera | null;
-  frameMeshes: THREE.Mesh[];
+  interactiveObjects: THREE.Object3D[];
   enabled?: boolean;
+  galleryBuilderRef?: React.MutableRefObject<any>;
+  onHover?: (artworkId: string | null) => void;
+  onSelect?: (artworkId: string | null) => void;
 }
 
 interface UseArtInteractionReturn {
@@ -17,31 +19,22 @@ interface UseArtInteractionReturn {
 export function useArtInteraction({
   scene,
   camera,
-  frameMeshes,
+  interactiveObjects,
   enabled = true,
+  galleryBuilderRef,
+  onHover,
+  onSelect,
 }: UseArtInteractionOptions): UseArtInteractionReturn {
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
-  const frameMeshesRef = useRef<THREE.Mesh[]>([]);
-  const originalMaterialsRef = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
+  const interactiveObjectsRef = useRef<THREE.Object3D[]>([]);
 
-  const {
-    selectedArtworkId,
-    hoveredArtworkId,
-    setSelectedArtwork,
-    setHoveredArtwork,
-  } = useGalleryStore();
+  const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(null);
+  const [hoveredArtworkId, setHoveredArtworkId] = useState<string | null>(null);
 
   useEffect(() => {
-    frameMeshesRef.current = frameMeshes;
-
-    frameMeshes.forEach((mesh) => {
-      const artworkId = mesh.userData.artworkId;
-      if (artworkId && !originalMaterialsRef.current.has(artworkId)) {
-        originalMaterialsRef.current.set(artworkId, mesh.material);
-      }
-    });
-  }, [frameMeshes]);
+    interactiveObjectsRef.current = interactiveObjects;
+  }, [interactiveObjects]);
 
   const getArtworkIdFromMesh = useCallback((mesh: THREE.Object3D): string | null => {
     let current: THREE.Object3D | null = mesh;
@@ -52,28 +45,6 @@ export function useArtInteraction({
       current = current.parent;
     }
     return null;
-  }, []);
-
-  const applyHoverEffect = useCallback((mesh: THREE.Mesh, isHovered: boolean) => {
-    const artworkId = mesh.userData.artworkId;
-    if (!artworkId) return;
-
-    const originalMaterial = originalMaterialsRef.current.get(artworkId);
-    if (!originalMaterial) return;
-
-    const materials = Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial];
-
-    materials.forEach((mat) => {
-      if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
-        if (isHovered) {
-          mat.emissive?.setHex(0x8b5cf6);
-          mat.emissiveIntensity = 0.4;
-        } else {
-          mat.emissive?.setHex(0x000000);
-          mat.emissiveIntensity = 0;
-        }
-      }
-    });
   }, []);
 
   const handleMouseMove = useCallback(
@@ -88,42 +59,24 @@ export function useArtInteraction({
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-      const intersects = raycasterRef.current.intersectObjects(frameMeshesRef.current, true);
+      const intersects = raycasterRef.current.intersectObjects(interactiveObjectsRef.current, true);
 
       if (intersects.length > 0) {
         const artworkId = getArtworkIdFromMesh(intersects[0].object);
         if (artworkId && artworkId !== hoveredArtworkId) {
-          if (hoveredArtworkId) {
-            const prevMesh = frameMeshesRef.current.find(
-              (m) => m.userData.artworkId === hoveredArtworkId
-            );
-            if (prevMesh) {
-              applyHoverEffect(prevMesh, false);
-            }
-          }
-
-          const currentMesh = frameMeshesRef.current.find(
-            (m) => m.userData.artworkId === artworkId
-          );
-          if (currentMesh) {
-            applyHoverEffect(currentMesh, true);
-          }
-
-          setHoveredArtwork(artworkId);
+          galleryBuilderRef?.current?.setHoveredArtwork(artworkId);
+          onHover?.(artworkId);
+          setHoveredArtworkId(artworkId);
           document.body.style.cursor = 'pointer';
         }
       } else if (hoveredArtworkId) {
-        const prevMesh = frameMeshesRef.current.find(
-          (m) => m.userData.artworkId === hoveredArtworkId
-        );
-        if (prevMesh) {
-          applyHoverEffect(prevMesh, false);
-        }
-        setHoveredArtwork(null);
+        galleryBuilderRef?.current?.setHoveredArtwork(null);
+        onHover?.(null);
+        setHoveredArtworkId(null);
         document.body.style.cursor = 'default';
       }
     },
-    [enabled, camera, scene, hoveredArtworkId, getArtworkIdFromMesh, applyHoverEffect, setHoveredArtwork]
+    [enabled, camera, scene, hoveredArtworkId, getArtworkIdFromMesh, galleryBuilderRef, onHover]
   );
 
   const handleClick = useCallback(
@@ -138,16 +91,19 @@ export function useArtInteraction({
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-      const intersects = raycasterRef.current.intersectObjects(frameMeshesRef.current, true);
+      const intersects = raycasterRef.current.intersectObjects(interactiveObjectsRef.current, true);
 
       if (intersects.length > 0) {
         const artworkId = getArtworkIdFromMesh(intersects[0].object);
         if (artworkId) {
-          setSelectedArtwork(selectedArtworkId === artworkId ? null : artworkId);
+          const newSelectedId = selectedArtworkId === artworkId ? null : artworkId;
+          galleryBuilderRef?.current?.setSelectedArtwork(newSelectedId);
+          onSelect?.(newSelectedId);
+          setSelectedArtworkId(newSelectedId);
         }
       }
     },
-    [enabled, camera, scene, selectedArtworkId, getArtworkIdFromMesh, setSelectedArtwork]
+    [enabled, camera, scene, selectedArtworkId, getArtworkIdFromMesh, galleryBuilderRef, onSelect]
   );
 
   useEffect(() => {
@@ -164,16 +120,12 @@ export function useArtInteraction({
       canvas.removeEventListener('click', handleClick);
 
       if (hoveredArtworkId) {
-        const prevMesh = frameMeshesRef.current.find(
-          (m) => m.userData.artworkId === hoveredArtworkId
-        );
-        if (prevMesh) {
-          applyHoverEffect(prevMesh, false);
-        }
+        galleryBuilderRef?.current?.setHoveredArtwork(null);
+        onHover?.(null);
       }
       document.body.style.cursor = 'default';
     };
-  }, [enabled, scene, handleMouseMove, handleClick, hoveredArtworkId, applyHoverEffect]);
+  }, [enabled, scene, handleMouseMove, handleClick, hoveredArtworkId, galleryBuilderRef, onHover]);
 
   return {
     selectedArtworkId,

@@ -7,8 +7,21 @@ export interface Particle {
   ay: number
   radius: number
   color: string
+  baseHue: number
   trail: { x: number; y: number }[]
   maxTrailLength: number
+}
+
+export interface DynamicArtConfig {
+  colors?: string[]
+  particleCount?: number
+  particleSpeed?: number
+  shapeCount?: number
+  backgroundColor?: string
+  trailLength?: number
+  fps?: number
+  seed?: number
+  connectionDistance?: number
 }
 
 export interface Shape {
@@ -25,15 +38,7 @@ export interface Shape {
   minSize: number
 }
 
-export interface DynamicArtConfig {
-  colors?: string[]
-  particleCount?: number
-  particleSpeed?: number
-  shapeCount?: number
-  backgroundColor?: string
-  trailLength?: number
-  fps?: number
-}
+
 
 const DEFAULT_COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
@@ -57,7 +62,20 @@ export class DynamicArt {
   private hueOffset: number = 0
   private backgroundColor: string
   private gradientPhase: number = 0
-  private uniqueSeed: number = Math.random()
+  private seed: number
+  private connectionDistance: number
+
+  private mulberry32(seed: number): () => number {
+    let t = seed >>> 0
+    return function(): number {
+      t = (t + 0x6D2B79F5) >>> 0
+      let r = Math.imul(t ^ (t >>> 15), 1 | t)
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
+  private seededRandom: () => number
 
   constructor(canvas: HTMLCanvasElement, config: DynamicArtConfig = {}) {
     this.canvas = canvas
@@ -67,11 +85,15 @@ export class DynamicArt {
     }
     this.ctx = ctx
 
+    this.seed = config.seed ?? Date.now()
+    this.seededRandom = this.mulberry32(this.seed)
+    this.connectionDistance = config.connectionDistance || 120
+
     this.colors = config.colors || this.generateUniqueColors()
-    this.particleCount = config.particleCount || this.randomInt(30, 50)
+    this.particleCount = config.particleCount || this.seededRandomInt(30, 45)
     this.particleSpeed = config.particleSpeed || 1
-    this.shapeCount = config.shapeCount || this.randomInt(3, 6)
-    this.trailLength = config.trailLength || 30
+    this.shapeCount = config.shapeCount || this.seededRandomInt(3, 5)
+    this.trailLength = config.trailLength || 25
     this.backgroundColor = config.backgroundColor || '#0a0a1a'
     this.frameInterval = 1000 / (config.fps || 60)
 
@@ -81,14 +103,14 @@ export class DynamicArt {
   }
 
   private generateUniqueColors(): string[] {
-    const baseHue = this.uniqueSeed * 360
-    const colorCount = this.randomInt(5, 8)
+    const baseHue = this.seededRandom() * 360
+    const colorCount = this.seededRandomInt(5, 8)
     const colors: string[] = []
     
     for (let i = 0; i < colorCount; i++) {
       const hue = (baseHue + (i * 360 / colorCount)) % 360
-      const saturation = this.randomInt(60, 90)
-      const lightness = this.randomInt(50, 70)
+      const saturation = this.seededRandomInt(60, 90)
+      const lightness = this.seededRandomInt(50, 70)
       colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`)
     }
     
@@ -103,8 +125,29 @@ export class DynamicArt {
     return Math.random() * (max - min) + min
   }
 
+  private seededRandomInt(min: number, max: number): number {
+    return Math.floor(this.seededRandom() * (max - min + 1)) + min
+  }
+
+  private seededRandomFloat(min: number, max: number): number {
+    return this.seededRandom() * (max - min) + min
+  }
+
   private getRandomColor(): string {
     return this.colors[Math.floor(Math.random() * this.colors.length)]
+  }
+
+  private getSeededRandomColor(): { color: string; hue: number } {
+    const index = Math.floor(this.seededRandom() * this.colors.length)
+    const color = this.colors[index]
+    let hue = 0
+    const hslMatch = color.match(/hsl\((\d+)/)
+    if (hslMatch) {
+      hue = parseInt(hslMatch[1], 10)
+    } else {
+      hue = (index * 360) / this.colors.length
+    }
+    return { color, hue }
   }
 
   resize(): void {
@@ -120,15 +163,17 @@ export class DynamicArt {
     const { width, height } = this.canvasDimensions
 
     for (let i = 0; i < this.particleCount; i++) {
+      const { color, hue } = this.getSeededRandomColor()
       const particle: Particle = {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: this.randomFloat(-1, 1) * this.particleSpeed,
-        vy: this.randomFloat(-1, 1) * this.particleSpeed,
-        ax: this.randomFloat(-0.02, 0.02),
-        ay: this.randomFloat(-0.02, 0.02),
-        radius: this.randomFloat(2, 5),
-        color: this.getRandomColor(),
+        x: this.seededRandom() * width,
+        y: this.seededRandom() * height,
+        vx: this.seededRandomFloat(-1, 1) * this.particleSpeed,
+        vy: this.seededRandomFloat(-1, 1) * this.particleSpeed,
+        ax: this.seededRandomFloat(-0.02, 0.02),
+        ay: this.seededRandomFloat(-0.02, 0.02),
+        radius: this.seededRandomFloat(2, 5),
+        color,
+        baseHue: hue,
         trail: [],
         maxTrailLength: this.trailLength
       }
@@ -142,17 +187,18 @@ export class DynamicArt {
     const shapeTypes: Shape['type'][] = ['circle', 'triangle', 'square', 'hexagon']
 
     for (let i = 0; i < this.shapeCount; i++) {
-      const size = this.randomFloat(30, 80)
+      const size = this.seededRandomFloat(30, 80)
+      const { color } = this.getSeededRandomColor()
       const shape: Shape = {
-        x: Math.random() * width,
-        y: Math.random() * height,
+        x: this.seededRandom() * width,
+        y: this.seededRandom() * height,
         size,
-        rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: this.randomFloat(-0.01, 0.01) * this.uniqueSeed * 2,
-        type: shapeTypes[Math.floor(Math.random() * shapeTypes.length)],
-        color: this.getRandomColor(),
-        alpha: this.randomFloat(0.1, 0.3),
-        growSpeed: this.randomFloat(0.1, 0.3),
+        rotation: this.seededRandom() * Math.PI * 2,
+        rotationSpeed: this.seededRandomFloat(-0.01, 0.01) * ((this.seed % 1000) / 500) * 2,
+        type: shapeTypes[Math.floor(this.seededRandom() * shapeTypes.length)],
+        color,
+        alpha: this.seededRandomFloat(0.1, 0.3),
+        growSpeed: this.seededRandomFloat(0.1, 0.3),
         maxSize: size * 1.5,
         minSize: size * 0.5
       }
@@ -169,6 +215,10 @@ export class DynamicArt {
     this.colors = colors
     this.particles.forEach(p => {
       p.color = this.getRandomColor()
+      const hslMatch = p.color.match(/hsl\((\d+)/)
+      if (hslMatch) {
+        p.baseHue = parseInt(hslMatch[1], 10)
+      }
     })
     this.shapes.forEach(s => {
       s.color = this.getRandomColor()
@@ -277,6 +327,7 @@ export class DynamicArt {
 
     this.drawBackground(width, height)
     this.drawShapes()
+    this.drawConnections()
     this.drawParticles()
   }
 
@@ -348,33 +399,90 @@ export class DynamicArt {
     this.ctx.stroke()
   }
 
+  private drawConnections(): void {
+    const particles = this.particles
+    const len = particles.length
+    const maxDist = this.connectionDistance
+    const maxDistSq = maxDist * maxDist
+
+    this.ctx.save()
+    this.ctx.lineCap = 'round'
+
+    for (let i = 0; i < len; i++) {
+      for (let j = i + 1; j < len; j++) {
+        const p1 = particles[i]
+        const p2 = particles[j]
+        const dx = p2.x - p1.x
+        const dy = p2.y - p1.y
+        const distSq = dx * dx + dy * dy
+
+        if (distSq < maxDistSq) {
+          const dist = Math.sqrt(distSq)
+          const alpha = (1 - dist / maxDist) * 0.35
+
+          const hue1 = p1.baseHue
+          const hue2 = p2.baseHue
+          const midHue = (hue1 + hue2) / 2
+
+          this.ctx.beginPath()
+          this.ctx.moveTo(p1.x, p1.y)
+          this.ctx.lineTo(p2.x, p2.y)
+          this.ctx.strokeStyle = `hsla(${midHue}, 70%, 65%, ${alpha})`
+          this.ctx.lineWidth = 1
+          this.ctx.stroke()
+        }
+      }
+    }
+
+    this.ctx.restore()
+  }
+
   private drawParticles(): void {
     this.particles.forEach(particle => {
-      if (particle.trail.length > 1) {
-        this.ctx.beginPath()
-        this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y)
+      if (particle.trail.length > 2) {
+        const trail = particle.trail
+        const segments = trail.length - 1
 
-        for (let i = 1; i < particle.trail.length; i++) {
-          this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y)
+        this.ctx.save()
+        this.ctx.shadowBlur = 15
+        this.ctx.shadowColor = particle.color
+        this.ctx.lineCap = 'round'
+        this.ctx.lineJoin = 'round'
+
+        for (let i = 0; i < segments; i++) {
+          const t = i / segments
+
+          const p0 = trail[Math.max(0, i - 1)]
+          const p1 = trail[i]
+          const p2 = trail[Math.min(segments, i + 1)]
+          const p3 = trail[Math.min(segments, i + 2)]
+
+          const alpha = 0.1 + t * 0.8
+          const width = (particle.radius * 0.2) + t * (particle.radius * 0.8)
+          const hueShift = Math.sin((t + this.gradientPhase * 5) * Math.PI * 2) * 15
+          const hue = (particle.baseHue + hueShift + 360) % 360
+
+          this.ctx.beginPath()
+          this.ctx.moveTo(p1.x, p1.y)
+
+          const cp1x = p1.x + (p2.x - p0.x) / 6
+          const cp1y = p1.y + (p2.y - p0.y) / 6
+          const cp2x = p2.x - (p3.x - p1.x) / 6
+          const cp2y = p2.y - (p3.y - p1.y) / 6
+
+          this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y)
+          this.ctx.strokeStyle = `hsla(${hue}, 75%, 65%, ${alpha})`
+          this.ctx.lineWidth = width
+          this.ctx.stroke()
         }
 
-        const gradient = this.ctx.createLinearGradient(
-          particle.trail[0].x, particle.trail[0].y,
-          particle.x, particle.y
-        )
-        gradient.addColorStop(0, 'transparent')
-        gradient.addColorStop(1, particle.color)
-
-        this.ctx.strokeStyle = gradient
-        this.ctx.lineWidth = particle.radius * 0.8
-        this.ctx.lineCap = 'round'
-        this.ctx.stroke()
+        this.ctx.restore()
       }
 
       this.ctx.beginPath()
       this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2)
       this.ctx.fillStyle = particle.color
-      this.ctx.shadowBlur = 10
+      this.ctx.shadowBlur = 15
       this.ctx.shadowColor = particle.color
       this.ctx.fill()
       this.ctx.shadowBlur = 0

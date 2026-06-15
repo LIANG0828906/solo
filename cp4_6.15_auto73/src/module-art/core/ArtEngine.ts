@@ -14,12 +14,23 @@ export class ArtEngine {
   private autoReturnDelay: number = 10000
   private isAutoReturning: boolean = false
   private autoReturnProgress: number = 0
-  private autoReturnDuration: number = 2000
+  private autoReturnDuration: number = 3000
 
   private defaultCameraPosition: THREE.Vector3 = new THREE.Vector3(0, 15, 20)
   private defaultTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
   private startCameraPosition: THREE.Vector3 = new THREE.Vector3()
   private startTarget: THREE.Vector3 = new THREE.Vector3()
+
+  private isFlying: boolean = false
+  private flyProgress: number = 0
+  private flyDuration: number = 1500
+  private flyStartPosition: THREE.Vector3 = new THREE.Vector3()
+  private flyStartTarget: THREE.Vector3 = new THREE.Vector3()
+  private flyEndPosition: THREE.Vector3 = new THREE.Vector3()
+  private flyEndTarget: THREE.Vector3 = new THREE.Vector3()
+
+  private controlsEnabledBeforeFly: boolean = true
+  private domElementKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -87,20 +98,33 @@ export class ArtEngine {
 
     this.controls.addEventListener('start', this.handleInteractionStart)
     this.controls.addEventListener('change', this.handleInteractionChange)
+
+    this.domElementKeyDownHandler = () => {
+      this.handleUserInterrupt()
+    }
+    this.renderer.domElement.addEventListener('keydown', this.domElementKeyDownHandler)
   }
 
   private handleInteractionStart = (): void => {
     this.lastInteractionTime = performance.now()
-    this.isAutoReturning = false
+    this.handleUserInterrupt()
   }
 
   private handleInteractionChange = (): void => {
     this.lastInteractionTime = performance.now()
+  }
+
+  private handleUserInterrupt = (): void => {
     this.isAutoReturning = false
+    if (this.isFlying) {
+      this.cancelFly()
+    }
   }
 
   private checkAutoReturn(deltaTime: number): void {
     if (!this.controls || !this.camera) return
+
+    if (this.isFlying) return
 
     const now = performance.now()
     const timeSinceInteraction = now - this.lastInteractionTime
@@ -151,6 +175,77 @@ export class ArtEngine {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
   }
 
+  setDefaultView(position: THREE.Vector3, target: THREE.Vector3): void {
+    this.defaultCameraPosition.copy(position)
+    this.defaultTarget.copy(target)
+  }
+
+  flyTo(targetPosition: THREE.Vector3, lookAtTarget: THREE.Vector3, duration: number = 1500): void {
+    if (!this.controls || !this.camera) return
+
+    this.isAutoReturning = false
+    this.isFlying = true
+    this.flyProgress = 0
+    this.flyDuration = duration
+    this.lastInteractionTime = performance.now()
+
+    this.flyStartPosition.copy(this.camera.position)
+    this.flyStartTarget.copy(this.controls.target)
+    this.flyEndPosition.copy(targetPosition)
+    this.flyEndTarget.copy(lookAtTarget)
+
+    this.controlsEnabledBeforeFly = this.controls.enabled
+    this.controls.enabled = false
+  }
+
+  private updateFly(deltaTime: number): void {
+    if (!this.controls || !this.camera) return
+
+    this.flyProgress += deltaTime
+
+    const t = Math.min(this.flyProgress / this.flyDuration, 1)
+    const easeT = this.easeInOutCubic(t)
+
+    this.camera.position.lerpVectors(
+      this.flyStartPosition,
+      this.flyEndPosition,
+      easeT
+    )
+    this.controls.target.lerpVectors(
+      this.flyStartTarget,
+      this.flyEndTarget,
+      easeT
+    )
+
+    if (t >= 1) {
+      this.finishFly()
+    }
+  }
+
+  private finishFly(): void {
+    this.isFlying = false
+    this.flyProgress = 0
+
+    if (this.controls) {
+      this.controls.enabled = this.controlsEnabledBeforeFly
+      this.defaultCameraPosition.copy(this.controls.object.position)
+      this.defaultTarget.copy(this.controls.target)
+    }
+  }
+
+  private cancelFly(): void {
+    this.isFlying = false
+    this.flyProgress = 0
+
+    if (this.controls) {
+      this.controls.enabled = this.controlsEnabledBeforeFly
+    }
+  }
+
+  isAnimating(): boolean {
+    return this.isAutoReturning || this.isFlying
+  }
+
   animate(): void {
     if (this.isRunning) return
     this.isRunning = true
@@ -164,6 +259,10 @@ export class ArtEngine {
     const deltaTime = 16
 
     this.checkAutoReturn(deltaTime)
+
+    if (this.isFlying) {
+      this.updateFly(deltaTime)
+    }
 
     if (this.controls) {
       this.controls.update()
@@ -232,6 +331,11 @@ export class ArtEngine {
       this.controls.removeEventListener('change', this.handleInteractionChange)
       this.controls.dispose()
       this.controls = null
+    }
+
+    if (this.renderer && this.domElementKeyDownHandler) {
+      this.renderer.domElement.removeEventListener('keydown', this.domElementKeyDownHandler)
+      this.domElementKeyDownHandler = null
     }
 
     if (this.renderer) {

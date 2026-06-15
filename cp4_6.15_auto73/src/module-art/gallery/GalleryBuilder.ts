@@ -5,6 +5,15 @@ export interface ArtworkPosition {
   position: THREE.Vector3
   rotation: THREE.Euler
   frameMesh: THREE.Mesh
+  frameGroup: THREE.Group
+}
+
+interface ArtworkAnimState {
+  hoverProgress: number
+  basePosition: THREE.Vector3
+  baseScale: THREE.Vector3
+  haloPoints: THREE.Mesh[]
+  haloAngle: number
 }
 
 export interface GalleryConfig {
@@ -48,10 +57,19 @@ export class GalleryBuilder {
   private artworkPositions: ArtworkPosition[] = []
   private frameMeshes: THREE.Mesh[] = []
   private glowMeshes: THREE.Mesh[] = []
+  private frameGroups: THREE.Group[] = []
+  private animStates: Map<string, ArtworkAnimState> = new Map()
+
+  private hoveredId: string | null = null
+  private selectedId: string | null = null
 
   private particleVelocities: THREE.Vector3[] = []
   private wallColorPhase: number = 0
   private wallColorCyclePeriod: number = 30
+
+  private readonly hoverDuration: number = 0.3
+  private readonly haloPointCount: number = 16
+  private readonly haloRotationSpeed: number = Math.PI * 2
 
   private isBuilt: boolean = false
 
@@ -333,9 +351,12 @@ export class GalleryBuilder {
         roughness: 0.3,
       })
 
+      const id = `artwork-${i}`
+
       const frameMesh = new THREE.Mesh(frameGeometry, frameMaterial)
       frameMesh.castShadow = true
       frameMesh.receiveShadow = true
+      frameMesh.userData.artworkId = id
       frameGroup.add(frameMesh)
       this.frameMeshes.push(frameMesh)
 
@@ -345,6 +366,9 @@ export class GalleryBuilder {
         side: THREE.DoubleSide,
       })
       const canvasMesh = new THREE.Mesh(canvasGeometry, canvasMaterial)
+      canvasMesh.name = 'artwork-canvas'
+      canvasMesh.userData.artworkId = id
+      canvasMesh.userData.type = 'canvas'
       canvasMesh.position.z = frameThickness / 2 + 0.001
       frameGroup.add(canvasMesh)
 
@@ -363,19 +387,91 @@ export class GalleryBuilder {
       frameGroup.add(glowMesh)
       this.glowMeshes.push(glowMesh)
 
+      const haloPoints = this.createHaloPoints(artworkWidth + frameBorder * 2, artworkHeight + frameBorder * 2, frameThickness)
+      haloPoints.forEach((p) => {
+        p.visible = false
+        frameGroup.add(p)
+      })
+
       frameGroup.position.set(x, y, z)
       frameGroup.rotation.y = angle
+      frameGroup.scale.set(1, 1, 1)
+      frameGroup.userData.artworkId = id
 
-      const id = `artwork-${i}`
+      this.frameGroups.push(frameGroup)
+      this.animStates.set(id, {
+        hoverProgress: 0,
+        basePosition: new THREE.Vector3(x, y, z),
+        baseScale: new THREE.Vector3(1, 1, 1),
+        haloPoints,
+        haloAngle: 0,
+      })
 
       this.artworkPositions.push({
         id,
         position: new THREE.Vector3(x, y, z),
         rotation: new THREE.Euler(0, angle, 0),
         frameMesh: frameMesh,
+        frameGroup: frameGroup,
       })
 
       this.scene.add(frameGroup)
+    }
+  }
+
+  private createHaloPoints(width: number, height: number, depth: number): THREE.Mesh[] {
+    const points: THREE.Mesh[] = []
+    const pointGeometry = new THREE.SphereGeometry(0.02, 8, 8)
+    const pointMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffd700,
+      transparent: true,
+      opacity: 0.9,
+    })
+
+    for (let i = 0; i < this.haloPointCount; i++) {
+      const mesh = new THREE.Mesh(pointGeometry, pointMaterial.clone())
+      points.push(mesh)
+    }
+
+    this.updateHaloPointPositions(points, width, height, depth, 0)
+
+    return points
+  }
+
+  private updateHaloPointPositions(
+    points: THREE.Mesh[],
+    width: number,
+    height: number,
+    depth: number,
+    startAngle: number
+  ): void {
+    const hw = width / 2
+    const hh = height / 2
+    const zd = depth / 2 + 0.02
+
+    const perimeter = 2 * (width + height)
+
+    for (let i = 0; i < points.length; i++) {
+      const distAlongPerimeter = ((i / points.length) * perimeter + startAngle * perimeter / (Math.PI * 2)) % perimeter
+
+      let px: number
+      let py: number
+
+      if (distAlongPerimeter < width) {
+        px = -hw + distAlongPerimeter
+        py = hh
+      } else if (distAlongPerimeter < width + height) {
+        px = hw
+        py = hh - (distAlongPerimeter - width)
+      } else if (distAlongPerimeter < 2 * width + height) {
+        px = hw - (distAlongPerimeter - width - height)
+        py = -hh
+      } else {
+        px = -hw
+        py = -hh + (distAlongPerimeter - 2 * width - height)
+      }
+
+      points[i].position.set(px, py, zd)
     }
   }
 
@@ -460,10 +556,68 @@ export class GalleryBuilder {
     }
 
     this.updateParticles(delta)
+    this.updateArtworkAnimations(delta)
 
     if (this.spotlight && camera) {
       this.updateSpotlightTarget(camera)
     }
+  }
+
+  private updateArtworkAnimations(delta: number): void {
+    const { artworkWidth, artworkHeight, artworkCount } = this.config
+    const frameBorder = 0.15
+    const frameThickness = 0.1
+    const fullWidth = artworkWidth + frameBorder * 2
+    const fullHeight = artworkHeight + frameBorder * 2
+
+    for (let i = 0; i < artworkCount; i++) {
+      const id = `artwork-${i}`
+      const state = this.animStates.get(id)
+      const frameGroup = this.frameGroups[i]
+      const glowMesh = this.glowMeshes[i]
+
+      if (!state || !frameGroup || !glowMesh) continue
+
+      const targetProgress = this.hoveredId === id ? 1 : 0
+      const progressDelta = (delta / this.hoverDuration) * (targetProgress > state.hoverProgress ? 1 : -1)
+      state.hoverProgress = Math.max(0, Math.min(1, state.hoverProgress + progressDelta))
+
+      const easedProgress = this.easeOutCubic(state.hoverProgress)
+
+      const scaleValue = 1 + 0.1 * easedProgress
+      frameGroup.scale.set(
+        state.baseScale.x * scaleValue,
+        state.baseScale.y * scaleValue,
+        state.baseScale.z * scaleValue
+      )
+
+      frameGroup.position.set(
+        state.basePosition.x,
+        state.basePosition.y + 0.01 * easedProgress,
+        state.basePosition.z
+      )
+
+      const glowMat = glowMesh.material as THREE.MeshBasicMaterial
+      const blueColor = new THREE.Color(0x4488ff)
+      const goldColor = new THREE.Color(0xffd700)
+      glowMat.color.copy(blueColor).lerp(goldColor, easedProgress)
+      glowMat.opacity = 0.3 + 0.3 * easedProgress
+
+      const isSelected = this.selectedId === id
+      state.haloPoints.forEach((p) => {
+        p.visible = isSelected
+      })
+
+      if (isSelected) {
+        state.haloAngle += this.haloRotationSpeed * delta
+        state.haloAngle = state.haloAngle % (Math.PI * 2)
+        this.updateHaloPointPositions(state.haloPoints, fullWidth, fullHeight, frameThickness, state.haloAngle)
+      }
+    }
+  }
+
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3)
   }
 
   private getGradientColor(phase: number): THREE.Color {
@@ -540,6 +694,18 @@ export class GalleryBuilder {
     this.spotlight.target.updateMatrixWorld()
   }
 
+  setHoveredArtwork(id: string | null): void {
+    this.hoveredId = id
+  }
+
+  setSelectedArtwork(id: string | null): void {
+    this.selectedId = id
+  }
+
+  getFrameGroups(): THREE.Group[] {
+    return this.frameGroups.slice()
+  }
+
   setWallColor(color: THREE.Color | string | number): void {
     if (this.wallMaterial) {
       this.wallMaterial.uniforms.uColor.value.set(color)
@@ -583,14 +749,26 @@ export class GalleryBuilder {
       this.floorMaterial = null
     }
 
-    this.frameMeshes.forEach((mesh) => {
-      this.scene.remove(mesh.parent as THREE.Object3D)
-      mesh.geometry.dispose()
-      ;(mesh.material as THREE.Material).dispose()
+    this.frameGroups.forEach((group) => {
+      this.scene.remove(group)
+      group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose()
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose())
+          } else {
+            obj.material.dispose()
+          }
+        }
+      })
     })
     this.frameMeshes = []
     this.glowMeshes = []
+    this.frameGroups = []
     this.artworkPositions = []
+    this.animStates.clear()
+    this.hoveredId = null
+    this.selectedId = null
 
     if (this.spotlight) {
       this.scene.remove(this.spotlight)
