@@ -14,14 +14,14 @@ export interface VoxelData {
   caveMap: boolean[][][];
 }
 
-class PerlinNoise {
-  private perm: number[];
+export class PerlinNoise {
+  perm: number[];
 
   constructor(seed: number = Math.random() * 10000) {
     this.perm = this.generatePermutation(seed);
   }
 
-  private generatePermutation(seed: number): number[] {
+  generatePermutation(seed: number): number[] {
     const p: number[] = [];
     for (let i = 0; i < 256; i++) p[i] = i;
     let s = seed;
@@ -33,15 +33,15 @@ class PerlinNoise {
     return [...p, ...p];
   }
 
-  private fade(t: number): number {
+  fade(t: number): number {
     return t * t * t * (t * (t * 6 - 15) + 10);
   }
 
-  private lerp(a: number, b: number, t: number): number {
+  lerp(a: number, b: number, t: number): number {
     return a + t * (b - a);
   }
 
-  private grad(hash: number, x: number, y: number, z: number): number {
+  grad(hash: number, x: number, y: number, z: number): number {
     const h = hash & 15;
     const u = h < 8 ? x : y;
     const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
@@ -206,7 +206,8 @@ export function generateTerrain(params: TerrainParams, size: number = 64): Voxel
                 if (
                   tx >= 0 && tx < size &&
                   tz >= 0 && tz < size &&
-                  ty >= 0 && ty < caveMap[0][0].length
+                  ty >= 0 && ty < caveMap[0][0].length &&
+                  ty < heights[tx][tz]
                 ) {
                   caveMap[tx][tz][ty] = true;
                 }
