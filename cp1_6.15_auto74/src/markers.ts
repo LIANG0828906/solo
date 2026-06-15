@@ -99,16 +99,6 @@ export function initMarkers(leafletMap: L.Map, clickHandler: (stall: FoodStall, 
     markers.set(stall.id, marker);
   });
 
-  map.on('zoomstart', () => {
-    const newZoom = map!.getZoom();
-    markers.forEach((marker) => updateMarkerScale(marker, newZoom));
-  });
-
-  map.on('zoomanim', (e: any) => {
-    const newZoom = e.zoom;
-    markers.forEach((marker) => updateMarkerScale(marker, newZoom));
-  });
-
   map.on('zoomend', () => {
     const newZoom = map!.getZoom();
     markers.forEach((marker) => updateMarkerScale(marker, newZoom));
@@ -134,18 +124,26 @@ export function updateMarkers(criteria: FilterCriteria): void {
         inner.style.opacity = '1';
         const currentScale = getScaleForZoom(map!.getZoom());
         inner.style.transform = `scale(${currentScale})`;
+        inner.addEventListener('transitionend', function noop() {});
       }
     } else {
       if (inner) {
         inner.style.opacity = '0';
         const currentScale = getScaleForZoom(map!.getZoom());
         inner.style.transform = `scale(${currentScale * 0.3})`;
+
+        const handleTransitionEnd = (e: TransitionEvent) => {
+          if (e.propertyName === 'opacity' || e.propertyName === 'transform') {
+            inner.removeEventListener('transitionend', handleTransitionEnd as EventListener);
+            if (!filteredIds.has(id) && isMarkerOnMap(marker)) {
+              marker.remove();
+            }
+          }
+        };
+        inner.addEventListener('transitionend', handleTransitionEnd as EventListener);
+      } else if (isMarkerOnMap(marker)) {
+        marker.remove();
       }
-      setTimeout(() => {
-        if (!filteredIds.has(id) && isMarkerOnMap(marker)) {
-          marker.remove();
-        }
-      }, 300);
     }
   });
 

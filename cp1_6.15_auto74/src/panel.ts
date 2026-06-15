@@ -46,19 +46,6 @@ function renderCategoryTags(): void {
       tag.classList.add('active');
       tag.style.background = cfg.color;
       tag.style.color = '#fff';
-      tag.style.borderRadius = '50%';
-      tag.style.padding = '10px';
-      tag.style.width = '44px';
-      tag.style.height = '44px';
-      tag.style.justifyContent = 'center';
-    } else {
-      tag.style.background = 'rgba(255, 255, 255, 0.06)';
-      tag.style.color = 'var(--text-secondary)';
-      tag.style.borderRadius = '20px';
-      tag.style.padding = '6px 12px';
-      tag.style.width = 'auto';
-      tag.style.height = 'auto';
-      tag.style.justifyContent = 'flex-start';
     }
 
     tag.addEventListener('click', () => {
@@ -66,23 +53,13 @@ function renderCategoryTags(): void {
       if (idx >= 0) {
         selectedCategories.splice(idx, 1);
         tag.classList.remove('active');
-        tag.style.background = 'rgba(255, 255, 255, 0.06)';
-        tag.style.color = 'var(--text-secondary)';
-        tag.style.borderRadius = '20px';
-        tag.style.padding = '6px 12px';
-        tag.style.width = 'auto';
-        tag.style.height = 'auto';
-        tag.style.justifyContent = 'flex-start';
+        tag.style.background = '';
+        tag.style.color = '';
       } else {
         selectedCategories.push(cat);
         tag.classList.add('active');
         tag.style.background = cfg.color;
         tag.style.color = '#fff';
-        tag.style.borderRadius = '50%';
-        tag.style.padding = '10px';
-        tag.style.width = '44px';
-        tag.style.height = '44px';
-        tag.style.justifyContent = 'center';
       }
       emitChange();
     });
@@ -110,6 +87,7 @@ function initPriceSlider(): void {
 
   const MIN = 5;
   const MAX = 50;
+  const MIN_GAP = 5;
   let dragging: 'left' | 'right' | null = null;
 
   function posFromValue(val: number): number {
@@ -145,9 +123,9 @@ function initPriceSlider(): void {
     const val = valueFromPos(pct);
 
     if (dragging === 'left') {
-      priceRange[0] = Math.min(val, priceRange[1] - 1);
+      priceRange[0] = Math.max(MIN, Math.min(val, priceRange[1] - MIN_GAP));
     } else {
-      priceRange[1] = Math.max(val, priceRange[0] + 1);
+      priceRange[1] = Math.min(MAX, Math.max(val, priceRange[0] + MIN_GAP));
     }
     updateTrack();
     emitChange();

@@ -60,26 +60,38 @@ function showStallCard(stall: FoodStall, clickPoint: L.Point): void {
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
   const isMobile = windowWidth <= 768;
-  const cardWidth = isMobile ? (windowWidth - 20) : 340;
+  const cardWidth = isMobile ? Math.min(windowWidth - 20, 340) : 340;
   const cardHeight = 340;
+  const margin = 16;
+  const topBarHeight = 80;
 
-  let cardLeft = Math.max(10, Math.min(windowWidth - cardWidth - 10, clickPoint.x - cardWidth / 2));
-  let cardTop = Math.max(20, Math.min(windowHeight - cardHeight - 20, clickPoint.y - cardHeight - 10));
+  let preferredTop = clickPoint.y - cardHeight - 20;
+  let cardTop: number;
 
-  if (cardTop < 60) {
-    cardTop = clickPoint.y + 30;
-    if (cardTop + cardHeight > windowHeight - 20) {
-      cardTop = windowHeight - cardHeight - 20;
+  if (preferredTop >= topBarHeight + margin) {
+    cardTop = preferredTop;
+  } else {
+    const bottomTop = clickPoint.y + 30;
+    if (bottomTop + cardHeight + margin <= windowHeight) {
+      cardTop = bottomTop;
+    } else {
+      cardTop = Math.max(topBarHeight + margin, windowHeight - cardHeight - margin);
     }
   }
 
+  let cardLeft = clickPoint.x - cardWidth / 2;
+  cardLeft = Math.max(margin, Math.min(windowWidth - cardWidth - margin, cardLeft));
+
+  cardTop = Math.max(topBarHeight + margin, Math.min(windowHeight - cardHeight - margin, cardTop));
+
   const offsetX = clickPoint.x - (cardLeft + cardWidth / 2);
-  const offsetY = clickPoint.y - cardTop;
+  const offsetY = clickPoint.y - (cardTop + cardHeight / 2);
 
   card.style.left = cardLeft + 'px';
   card.style.top = cardTop + 'px';
+  card.style.width = cardWidth + 'px';
   card.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(0.3)`;
-  card.style.transformOrigin = 'top center';
+  card.style.transformOrigin = 'center center';
   card.style.opacity = '0';
   card.style.pointerEvents = 'auto';
 
