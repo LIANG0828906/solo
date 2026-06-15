@@ -201,7 +201,8 @@ a:hover {
   align-items: flex-end;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn var(--transition-slow) ease-out;
+  opacity: 0;
+  animation: fadeIn var(--transition-slow) ease-out forwards;
 }
 
 .modal-content {
@@ -211,7 +212,6 @@ a:hover {
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  animation: slideUp var(--transition-slow) ease-out;
 }
 
 @keyframes fadeIn {

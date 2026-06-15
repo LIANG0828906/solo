@@ -170,6 +170,14 @@
   background-color: rgba(214, 69, 69, 0.1);
 }
 
+.audio-error {
+  color: #d64545;
+  font-size: 0.85rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(214, 69, 69, 0.1);
+  border-radius: var(--radius-sm);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;

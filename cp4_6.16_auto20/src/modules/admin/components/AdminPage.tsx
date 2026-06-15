@@ -21,6 +21,7 @@ export function AdminPage() {
     audioBase64: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [audioError, setAudioError] = useState('');
   const [selectedBlendId, setSelectedBlendId] = useState<string | null>(null);
   const [selectedBlendName, setSelectedBlendName] = useState('');
   const [viewNotes, setViewNotes] = useState<FlavorNote[]>([]);
@@ -41,9 +42,19 @@ export function AdminPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const MAX_AUDIO_SIZE = 5 * 1024 * 1024;
+
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setAudioError('');
+
+    if (file.size > MAX_AUDIO_SIZE) {
+      setAudioError(`音频文件不能超过 5MB，当前文件大小：${(file.size / 1024 / 1024).toFixed(1)}MB`);
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -55,6 +66,7 @@ export function AdminPage() {
 
   const handleRemoveAudio = () => {
     setFormData((prev) => ({ ...prev, audioBase64: '' }));
+    setAudioError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,7 +216,8 @@ export function AdminPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">介绍音频（可选）</label>
+                <label className="form-label">介绍音频（可选，最大5MB）</label>
+                {audioError && <div className="audio-error">{audioError}</div>}
                 {formData.audioBase64 ? (
                   <div className="audio-preview">
                     <audio controls src={formData.audioBase64} />

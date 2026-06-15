@@ -62,19 +62,22 @@ export const useVoteStore = create<VoteState>((set, get) => ({
   },
 
   vote: async (userId, blendId) => {
-    const currentVotes = get().userVotes;
-    if (currentVotes[blendId]) {
+    const alreadyVoted = get().userVotes[blendId];
+    if (alreadyVoted) {
       return false;
     }
 
-    set((state) => ({
-      userVotes: { ...state.userVotes, [blendId]: true },
-      voteCounts: {
-        ...state.voteCounts,
-        [blendId]: (state.voteCounts[blendId] || 0) + 1,
-      },
-      uniqueVoterCount: state.uniqueVoterCount + (Object.keys(currentVotes).length === 0 ? 1 : 0),
-    }));
+    set((state) => {
+      const hadNoVotes = Object.keys(state.userVotes).length === 0;
+      return {
+        userVotes: { ...state.userVotes, [blendId]: true },
+        voteCounts: {
+          ...state.voteCounts,
+          [blendId]: (state.voteCounts[blendId] || 0) + 1,
+        },
+        uniqueVoterCount: state.uniqueVoterCount + (hadNoVotes ? 1 : 0),
+      };
+    });
 
     try {
       await createVote({ userId, blendId });
@@ -87,10 +90,11 @@ export const useVoteStore = create<VoteState>((set, get) => ({
         if (newVoteCounts[blendId] && newVoteCounts[blendId] > 0) {
           newVoteCounts[blendId] -= 1;
         }
+        const hadOnlyThisVote = Object.keys(state.userVotes).length === 1 && state.userVotes[blendId];
         return {
           userVotes: newUserVotes,
           voteCounts: newVoteCounts,
-          uniqueVoterCount: state.uniqueVoterCount - (Object.keys(currentVotes).length === 0 ? 1 : 0),
+          uniqueVoterCount: state.uniqueVoterCount - (hadOnlyThisVote ? 1 : 0),
         };
       });
       throw error;

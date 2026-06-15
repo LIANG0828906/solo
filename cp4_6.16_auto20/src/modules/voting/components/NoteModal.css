@@ -3,6 +3,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  opacity: 0;
+  transform: translateY(100%);
+  animation: noteModalSlideIn var(--transition-slow) ease-out forwards;
 }
 
 .note-modal-header {
@@ -184,6 +187,17 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes noteModalSlideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 

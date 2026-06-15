@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Blends } from 'lucide-react';
+import { Coffee } from 'lucide-react';
 import { useAuthStore } from '@/modules/auth/store/authStore';
 import { useVoteStore } from '../store/voteStore';
 import { VoteChart } from './VoteChart';
@@ -101,7 +101,7 @@ export function VotingPage() {
       <div className="voting-container">
         <div className="voting-header">
           <div className="voting-title-section">
-            <Blends className="voting-title-icon" size={32} />
+            <Coffee className="voting-title-icon" size={32} />
             <div>
               <h1 className="voting-title">咖啡拼配共创</h1>
               <p className="voting-subtitle">参与投票，一起打造你最爱的风味</p>
@@ -123,7 +123,7 @@ export function VotingPage() {
               </div>
             ) : blends.length === 0 ? (
               <div className="empty-state card">
-                <Blends size={48} className="empty-state-icon" />
+                <Coffee size={48} className="empty-state-icon" />
                 <h3>暂无拼配方案</h3>
                 <p>店主正在准备中，敬请期待～</p>
               </div>
