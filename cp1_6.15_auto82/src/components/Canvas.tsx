@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { ToolType, Point, Shape, PenPath, Rectangle, Circle, StickyNote as StickyNoteType, User } from '../types';
+import { ToolType, Point, Shape, PenPath, Rectangle, Circle, StickyNote as StickyNoteType, User, ShapeAnimationState } from '../types';
 import StickyNote from './StickyNote';
 
 interface CanvasProps {
@@ -24,14 +24,6 @@ interface RemoteCursor {
   user: User;
   position: Point;
   lastUpdate: number;
-}
-
-interface ShapeAnimationState {
-  shape: Shape;
-  startTime: number;
-  duration: number;
-  type: 'draw' | 'undo';
-  processed: boolean;
 }
 
 const ANIMATION_DURATION_PER_POINT = 30;
@@ -71,8 +63,10 @@ const Canvas: React.FC<CanvasProps> = ({
   const panStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const [remoteCursors] = useState<Map<string, RemoteCursor>>(new Map());
   const [localCursor, setLocalCursor] = useState<Point>({ x: 0, y: 0 });
-  
+
   const shapesRef = useRef<Shape[]>([]);
+  const currentShapeRef = useRef<Shape | null>(null);
+  const undoAnimatingIdsRef = useRef<Set<string>>(new Set());
   const animationsRef = useRef<Map<string, ShapeAnimationState>>(new Map());
   const processedShapeIdsRef = useRef<Set<string>>(new Set());
   const rafRef = useRef<number | null>(null);
@@ -80,21 +74,15 @@ const Canvas: React.FC<CanvasProps> = ({
   const offsetXRef = useRef(offsetX);
   const offsetYRef = useRef(offsetY);
 
-  useEffect(() => {
-    scaleRef.current = scale;
-  }, [scale]);
-
-  useEffect(() => {
-    offsetXRef.current = offsetX;
-  }, [offsetX]);
-
-  useEffect(() => {
-    offsetYRef.current = offsetY;
-  }, [offsetY]);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { offsetXRef.current = offsetX; }, [offsetX]);
+  useEffect(() => { offsetYRef.current = offsetY; }, [offsetY]);
+  useEffect(() => { currentShapeRef.current = currentShape; }, [currentShape]);
+  useEffect(() => { undoAnimatingIdsRef.current = undoAnimatingIds; }, [undoAnimatingIds]);
 
   useEffect(() => {
     shapesRef.current = shapes;
-    
+
     for (const shape of shapes) {
       if (!processedShapeIdsRef.current.has(shape.id) && shape.type !== 'sticky') {
         const duration = calculateAnimationDuration(shape);
@@ -108,7 +96,7 @@ const Canvas: React.FC<CanvasProps> = ({
         processedShapeIdsRef.current.add(shape.id);
       }
     }
-    
+
     const currentIds = new Set(shapes.map(s => s.id));
     for (const id of processedShapeIdsRef.current) {
       if (!currentIds.has(id) && !animationsRef.current.has(id)) {
@@ -194,7 +182,7 @@ const Canvas: React.FC<CanvasProps> = ({
         const points = shape.points;
         const endIndex = Math.ceil(points.length * progress);
         if (endIndex < 2) break;
-        
+
         ctx.strokeStyle = shape.color;
         ctx.lineWidth = shape.thickness * s;
         ctx.lineCap = 'round';
@@ -245,68 +233,77 @@ const Canvas: React.FC<CanvasProps> = ({
     ctx.restore();
   }, []);
 
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  useEffect(() => {
+    let running = true;
 
-    drawGrid(ctx);
+    const render = () => {
+      if (!running) return;
 
-    const now = performance.now();
-    const animationsToRemove: string[] = [];
-
-    const currentShapes = shapesRef.current;
-
-    const drawableShapes: Exclude<Shape, StickyNoteType>[] = [];
-    for (const shape of currentShapes) {
-      if (shape.type !== 'sticky') {
-        drawableShapes.push(shape as Exclude<Shape, StickyNoteType>);
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        rafRef.current = requestAnimationFrame(render);
+        return;
       }
-    }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        rafRef.current = requestAnimationFrame(render);
+        return;
+      }
 
-    for (const shape of drawableShapes) {
-      const animState = animationsRef.current.get(shape.id);
-      
-      if (animState && !animState.processed) {
-        const elapsed = now - animState.startTime;
-        const progress = Math.min(1, elapsed / animState.duration);
-        
-        drawShape(ctx, animState.shape, progress, animState.type === 'undo');
-        
-        if (progress >= 1) {
-          animState.processed = true;
-          if (animState.type === 'draw') {
-            animationsToRemove.push(shape.id);
+      drawGrid(ctx);
+
+      const now = performance.now();
+      const animationsToRemove: string[] = [];
+
+      const currentShapes = shapesRef.current;
+      const currentUndoIds = undoAnimatingIdsRef.current;
+
+      for (const shape of currentShapes) {
+        if (shape.type === 'sticky') continue;
+
+        const animState = animationsRef.current.get(shape.id);
+
+        if (animState && !animState.processed) {
+          const elapsed = now - animState.startTime;
+          const progress = Math.min(1, elapsed / animState.duration);
+
+          drawShape(ctx, animState.shape, progress, animState.type === 'undo');
+
+          if (progress >= 1) {
+            animState.processed = true;
+            if (animState.type === 'draw') {
+              animationsToRemove.push(shape.id);
+            }
+          }
+        } else {
+          const isUndoAnimating = currentUndoIds.has(shape.id);
+          if (!isUndoAnimating) {
+            drawShape(ctx, shape, 1, false);
           }
         }
-      } else {
-        const isUndoAnimating = undoAnimatingIds.has(shape.id);
-        if (!isUndoAnimating) {
-          drawShape(ctx, shape, 1, false);
-        }
       }
-    }
 
-    if (currentShape && currentShape.type !== 'sticky') {
-      drawShape(ctx, currentShape, 1, false);
-    }
+      const currentDrawingShape = currentShapeRef.current;
+      if (currentDrawingShape && currentDrawingShape.type !== 'sticky') {
+        drawShape(ctx, currentDrawingShape, 1, false);
+      }
 
-    for (const id of animationsToRemove) {
-      animationsRef.current.delete(id);
-    }
+      for (const id of animationsToRemove) {
+        animationsRef.current.delete(id);
+      }
+
+      rafRef.current = requestAnimationFrame(render);
+    };
 
     rafRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawShape, currentShape, undoAnimatingIds]);
 
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(render);
     return () => {
+      running = false;
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [render]);
+  }, [drawGrid, drawShape]);
 
   const addShapeWithAnimation = useCallback((shape: Shape) => {
     if (shape.type !== 'sticky') {
@@ -553,11 +550,11 @@ const Canvas: React.FC<CanvasProps> = ({
   const stickyNotes = shapes.filter(s => s.type === 'sticky') as StickyNoteType[];
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
+      style={{
+        width: '100%',
+        height: '100%',
         position: 'relative',
         cursor: getCursorForTool(tool),
         overflow: 'hidden',

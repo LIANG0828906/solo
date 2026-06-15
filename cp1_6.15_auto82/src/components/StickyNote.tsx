@@ -23,7 +23,7 @@ const StickyNote: React.FC<StickyNoteProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [text, setText] = useState(note.text);
-  const [isComposing, setIsComposing] = useState(false);
+  const composingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const compositionTextRef = useRef('');
 
@@ -56,9 +56,11 @@ const StickyNote: React.FC<StickyNoteProps> = ({
   };
 
   const handleBlur = () => {
-    if (isComposing) {
-      setIsComposing(false);
-      setText(compositionTextRef.current);
+    if (composingRef.current) {
+      composingRef.current = false;
+      if (textareaRef.current) {
+        setText(textareaRef.current.value);
+      }
     }
     setIsEditing(false);
     handleCommitText();
@@ -68,39 +70,37 @@ const StickyNote: React.FC<StickyNoteProps> = ({
     if (e.key === 'Escape') {
       setText(note.text);
       setIsEditing(false);
-      setIsComposing(false);
+      composingRef.current = false;
     }
-    if (e.key === 'Enter' && e.ctrlKey && !isComposing) {
+    if (e.key === 'Enter' && e.ctrlKey && !composingRef.current) {
       handleBlur();
     }
   };
 
   const handleCompositionStart = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
-    setIsComposing(true);
+    composingRef.current = true;
     compositionTextRef.current = text;
   };
 
   const handleCompositionUpdate = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
-    if (isComposing) {
+    if (composingRef.current) {
       compositionTextRef.current = text + e.data;
     }
   };
 
   const handleCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
-    if (isComposing) {
-      setIsComposing(false);
-      const finalText = e.currentTarget.value;
-      setText(finalText);
-      compositionTextRef.current = finalText;
-    }
+    composingRef.current = false;
+    const finalText = e.currentTarget.value;
+    setText(finalText);
+    compositionTextRef.current = finalText;
   };
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
-    if (!isComposing) {
+    if (!composingRef.current) {
       setText(e.currentTarget.value);
     }
   };

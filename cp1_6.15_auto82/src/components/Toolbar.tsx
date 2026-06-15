@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { ToolType } from '../types';
 
 interface ToolbarProps {
@@ -65,24 +65,23 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const [animatingColor, setAnimatingColor] = useState<string | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showThicknessPicker, setShowThicknessPicker] = useState(false);
-  const animTimeoutRef = useRef<number | null>(null);
 
   const handleColorClick = (color: string) => {
     onPenColorChange(color);
-    
-    if (animTimeoutRef.current) {
-      clearTimeout(animTimeoutRef.current);
+
+    if (animatingColor === color) {
+      setAnimatingColor(null);
     }
-    setAnimatingColor(null);
-    
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setAnimatingColor(color);
-        animTimeoutRef.current = window.setTimeout(() => {
-          setAnimatingColor(null);
-        }, 200);
       });
     });
+  };
+
+  const handleAnimationEnd = (color: string) => {
+    setAnimatingColor(prev => prev === color ? null : prev);
   };
 
   const toolButtons: { tool: ToolType; icon: React.FC }[] = [
@@ -232,6 +231,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
               key={color}
               onClick={() => handleColorClick(color)}
               className={`color-swatch ${animatingColor === color ? 'color-swatch-active' : ''}`}
+              onAnimationEnd={() => handleAnimationEnd(color)}
               style={{
                 width: '32px',
                 height: '32px',

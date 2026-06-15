@@ -42,6 +42,14 @@ export interface StickyNote extends BaseShape {
 
 export type Shape = PenPath | Rectangle | Circle | StickyNote;
 
+export interface ShapeAnimationState {
+  shape: Shape;
+  startTime: number;
+  duration: number;
+  type: 'draw' | 'undo';
+  processed: boolean;
+}
+
 export interface User {
   id: string;
   nickname: string;
