@@ -564,10 +564,28 @@ const WarpOverlay: React.FC = () => {
 
 const DragGhost: React.FC<{
   type: ShipType;
-  x: number;
-  y: number;
-}> = ({ type, x, y }) => {
+  dragPosRef: React.MutableRefObject<{ x: number; y: number }>;
+  isDraggingRef: React.MutableRefObject<boolean>;
+}> = ({ type, dragPosRef, isDraggingRef }) => {
   const info = SHIP_INFO[type];
+  const ghostElRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const updatePosition = () => {
+      if (ghostElRef.current && isDraggingRef.current) {
+        ghostElRef.current.style.left = `${dragPosRef.current.x}px`;
+        ghostElRef.current.style.top = `${dragPosRef.current.y}px`;
+      }
+      if (isDraggingRef.current) {
+        rafRef.current = requestAnimationFrame(updatePosition);
+      }
+    };
+    rafRef.current = requestAnimationFrame(updatePosition);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [dragPosRef, isDraggingRef]);
 
   const trailParticles = Array.from({ length: 18 }, (_, i) => {
     const angle = Math.random() * Math.PI * 2;
@@ -584,10 +602,11 @@ const DragGhost: React.FC<{
 
   return (
     <div
+      ref={ghostElRef}
       style={{
         position: 'fixed',
-        left: x,
-        top: y,
+        left: dragPosRef.current.x,
+        top: dragPosRef.current.y,
         transform: 'translate(-50%, -50%) scale(0.8)',
         pointerEvents: 'none',
         zIndex: 10000,
@@ -694,16 +713,17 @@ const DragGhost: React.FC<{
 export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
   const [formation, setFormation] = useState<(ShipType | null)[]>(Array(9).fill(null));
   const [isWarping, setIsWarping] = useState(false);
-  const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragType, setDragType] = useState<ShipType | null>(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [dropKeys, setDropKeys] = useState<number[]>(Array(9).fill(0));
+  const [slotHoverStates, setSlotHoverStates] = useState<boolean[]>(Array(9).fill(false));
 
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragPosRef = useRef({ x: 0, y: 0 });
   const dragTypeRef = useRef<ShipType | null>(null);
   const isDraggingRef = useRef(false);
+  const hoverSlotRef = useRef<number | null>(null);
 
   const shipTypes: ShipType[] = ['frigate', 'cruiser', 'battleship'];
 
@@ -715,13 +735,13 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
     dragPosRef.current = { x: e.clientX, y: e.clientY };
     dragTypeRef.current = type;
     isDraggingRef.current = true;
+    hoverSlotRef.current = null;
   }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
       dragPosRef.current = { x: e.clientX, y: e.clientY };
-      setDragPos({ x: e.clientX, y: e.clientY });
 
       let foundSlot: number | null = null;
       for (let i = 0; i < cellRefs.current.length; i++) {
@@ -738,7 +758,17 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
           break;
         }
       }
-      setHoverSlot(foundSlot);
+
+      if (hoverSlotRef.current !== foundSlot) {
+        const prevSlot = hoverSlotRef.current;
+        hoverSlotRef.current = foundSlot;
+        setSlotHoverStates((prev) => {
+          const next = [...prev];
+          if (prevSlot !== null) next[prevSlot] = false;
+          if (foundSlot !== null) next[foundSlot] = true;
+          return next;
+        });
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -773,9 +803,18 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
         }
       }
 
+      const prevHoverSlot = hoverSlotRef.current;
+      hoverSlotRef.current = null;
+      if (prevHoverSlot !== null) {
+        setSlotHoverStates((prev) => {
+          const next = [...prev];
+          next[prevHoverSlot] = false;
+          return next;
+        });
+      }
+
       setIsDragging(false);
       setDragType(null);
-      setHoverSlot(null);
       isDraggingRef.current = false;
       dragTypeRef.current = null;
     };
@@ -830,7 +869,7 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
       {isWarping && <WarpOverlay />}
 
       {isDragging && dragType && (
-        <DragGhost type={dragType} x={dragPos.x} y={dragPos.y} />
+        <DragGhost type={dragType} dragPosRef={dragPosRef} isDraggingRef={isDraggingRef} />
       )}
 
       <div
@@ -913,7 +952,7 @@ export const FleetBuilder: React.FC<FleetBuilderProps> = ({ onWarp }) => {
               slot={slot}
               ship={ship}
               onRemove={handleRemove}
-              isDragOver={hoverSlot === slot}
+              isDragOver={slotHoverStates[slot]}
               cellRef={setCellRef(slot)}
               dropKey={dropKeys[slot]}
             />

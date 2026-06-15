@@ -6,7 +6,7 @@ import {
   createUnit,
   hexDistance,
   hexNeighbors,
-  axialToPixel,
+  ShipType,
 } from './UnitData';
 import { eventBus } from '../rendering/EventBus';
 
@@ -20,13 +20,13 @@ export interface GameEvents {
   'terrain-interacted': { unitId: string; terrain: TerrainType; effect: string };
   'move-range-calculated': { unitId: string; cells: HexCell[] };
   'attack-range-calculated': { unitId: string; cells: HexCell[] };
+  'fleet-status-tick': { timestamp: number };
 }
 
 type TypedEventBus = typeof eventBus & { emit<K extends keyof GameEvents>(event: K, payload: GameEvents[K]): void };
 
 const GRID_COLS = 10;
 const GRID_ROWS = 8;
-const HEX_SIZE = 40;
 
 export class GameEngine {
   grid: Map<string, HexCell> = new Map();
@@ -38,6 +38,7 @@ export class GameEngine {
   attackRangeCells: string[] = [];
   gameOver: boolean = false;
   winner: 'player' | 'enemy' | null = null;
+  private statusTimer: ReturnType<typeof setInterval> | null = null;
 
   private generateGrid(): void {
     this.grid.clear();
@@ -89,9 +90,14 @@ export class GameEngine {
   }
 
   init(
-    playerFleet: { type: keyof typeof SHIP_TEMPLATES; slot: number }[],
-    enemyFleet: { type: keyof typeof SHIP_TEMPLATES; slot: number }[],
+    playerFleet: { type: ShipType; slot: number }[],
+    enemyFleet: { type: ShipType; slot: number }[],
   ): void {
+    if (this.statusTimer) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
+    }
+
     this.grid.clear();
     this.units.clear();
     this.currentTurn = 1;
@@ -125,6 +131,8 @@ export class GameEngine {
       const cell = this.grid.get(this.getGridKey(q, r));
       if (cell) cell.occupant = unit.id;
     }
+
+    this.statusTimer = setInterval(() => this.calculateFleetStatus(), 1000);
   }
 
   private distributeRows(count: number, totalRows: number): number[] {
@@ -335,6 +343,19 @@ export class GameEngine {
     (eventBus as TypedEventBus).emit('unit-destroyed', { unitId });
   }
 
+  private calculateFleetStatus(): void {
+    for (const unit of this.units.values()) {
+      for (const skill of unit.skills) {
+        if (skill.currentCooldown > 0) {
+          skill.currentCooldown--;
+        }
+      }
+      unit.shield = Math.max(0, Math.min(unit.maxShield, unit.shield));
+      unit.armor = Math.max(0, Math.min(unit.maxArmor, unit.armor));
+    }
+    (eventBus as TypedEventBus).emit('fleet-status-tick', { timestamp: Date.now() });
+  }
+
   private checkWinCondition(): void {
     if (this.gameOver) return;
 
@@ -344,10 +365,18 @@ export class GameEngine {
     if (!playerAlive) {
       this.gameOver = true;
       this.winner = 'enemy';
+      if (this.statusTimer) {
+        clearInterval(this.statusTimer);
+        this.statusTimer = null;
+      }
       (eventBus as TypedEventBus).emit('game-over', { winner: 'enemy' });
     } else if (!enemyAlive) {
       this.gameOver = true;
       this.winner = 'player';
+      if (this.statusTimer) {
+        clearInterval(this.statusTimer);
+        this.statusTimer = null;
+      }
       (eventBus as TypedEventBus).emit('game-over', { winner: 'player' });
     }
   }
@@ -537,5 +566,12 @@ export class GameEngine {
       gameOver: this.gameOver,
       winner: this.winner,
     };
+  }
+
+  destroy(): void {
+    if (this.statusTimer) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
+    }
   }
 }

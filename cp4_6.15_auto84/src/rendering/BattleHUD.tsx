@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameEngine, GameEvents } from '../game/GameEngine';
 import { UnitData, Faction } from '../game/UnitData';
 import { eventBus } from './EventBus';
@@ -370,9 +370,11 @@ function SelectedUnitPanel({ unit }: { unit: UnitData | null }) {
 function TurnTransitionOverlay({
   faction,
   visible,
+  opacity,
 }: {
   faction: Faction;
   visible: boolean;
+  opacity: number;
 }) {
   if (!visible) return null;
   const isPlayer = faction === 'player';
@@ -388,7 +390,7 @@ function TurnTransitionOverlay({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0,0,0,0.5)',
+        background: `rgba(0,0,0,${0.5 * opacity})`,
         pointerEvents: 'none',
       }}
     >
@@ -400,6 +402,7 @@ function TurnTransitionOverlay({
           textShadow: `0 0 30px ${color}, 0 0 60px ${color}88`,
           animation: 'turnOverlayIn 1.5s ease-out forwards',
           letterSpacing: 6,
+          opacity,
         }}
       >
         {label}
@@ -516,9 +519,13 @@ export default function BattleHUD({ engine }: BattleHUDProps) {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(engine.selectedUnitId);
   const [showTurnTransition, setShowTurnTransition] = useState(false);
   const [transitionFaction, setTransitionFaction] = useState<Faction>('player');
+  const [turnTextOpacity, setTurnTextOpacity] = useState(0);
   const [showVictoryPanel, setShowVictoryPanel] = useState(false);
   const [winner, setWinner] = useState<'player' | 'enemy'>('player');
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
+
+  const rafRef = useRef<number | null>(null);
+  const turnStartRef = useRef<number>(0);
 
   const refreshUnits = useCallback(() => {
     setUnits(Array.from(engine.units.values()));
@@ -534,12 +541,45 @@ export default function BattleHUD({ engine }: BattleHUDProps) {
   }, []);
 
   useEffect(() => {
+    const initial = engine.getState();
+    setTurn(initial.currentTurn);
+    setFaction(initial.currentFaction);
+    setUnits(initial.units);
+    setSelectedUnitId(initial.selectedUnitId);
+
     const onTurnChanged = (payload: GameEvents['turn-changed']) => {
       setTurn(payload.turn);
       setFaction(payload.faction);
       setTransitionFaction(payload.faction);
       setShowTurnTransition(true);
-      setTimeout(() => setShowTurnTransition(false), 1500);
+      turnStartRef.current = performance.now();
+
+      const tick = () => {
+        const elapsed = performance.now() - turnStartRef.current;
+        let opacity = 0;
+        if (elapsed < 400) {
+          opacity = elapsed / 400;
+        } else if (elapsed < 900) {
+          opacity = 1;
+        } else if (elapsed < 1500) {
+          opacity = 1 - (elapsed - 900) / 600;
+        } else {
+          opacity = 0;
+        }
+        setTurnTextOpacity(Math.max(0, Math.min(1, opacity)));
+        if (elapsed < 1500) {
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      };
+      rafRef.current = requestAnimationFrame(tick);
+
+      setTimeout(() => {
+        setShowTurnTransition(false);
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      }, 1500);
       refreshUnits();
     };
 
@@ -584,6 +624,9 @@ export default function BattleHUD({ engine }: BattleHUDProps) {
     eventBus.on('game-over', onGameOver);
 
     return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
       eventBus.off('turn-changed', onTurnChanged);
       eventBus.off('unit-selected', onUnitSelected);
       eventBus.off('unit-attacked', onUnitAttacked);
@@ -591,7 +634,7 @@ export default function BattleHUD({ engine }: BattleHUDProps) {
       eventBus.off('unit-moved', onUnitMoved);
       eventBus.off('game-over', onGameOver);
     };
-  }, [refreshUnits]);
+  }, [refreshUnits, engine]);
 
   const playerUnits = units.filter((u) => u.faction === 'player');
   const enemyUnits = units.filter((u) => u.faction === 'enemy');
@@ -722,6 +765,7 @@ export default function BattleHUD({ engine }: BattleHUDProps) {
       <TurnTransitionOverlay
         faction={transitionFaction}
         visible={showTurnTransition}
+        opacity={turnTextOpacity}
       />
 
       {showVictoryPanel && <VictoryPanel winner={winner} />}
