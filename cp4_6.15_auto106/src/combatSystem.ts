@@ -1,3 +1,50 @@
+/**
+ * ============================================================
+ * 文件: combatSystem.ts
+ * 职责: 管理回合制战斗逻辑（玩家移动、怪物AI、血量计算、技能系统）
+ * ============================================================
+ *
+ * 调用关系 & 数据流向:
+ *
+ *   ┌──────────────┐     事件触发      ┌──────────────────┐
+ *   │   App.tsx    │ ───────────────► │  combatSystem.ts  │
+ *   │  (主组件)    │                   │   (战斗系统)      │
+ *   └──────┬───────┘                   └─────────┬────────┘
+ *          │                                     │
+ *          │  1. 用户按WASD                      │
+ *          │  ─────────────────► moveMonsterTowardsPlayer()
+ *          │                                     │
+ *          │  2. 玩家/怪物相邻检测               │
+ *          │  ─────────────────► isAdjacent() / findAdjacentMonster()
+ *          │                                     │
+ *          │  3. 触发战斗                        │
+ *          │  ─────────────────► playerAttack() / monsterAttack()
+ *          │                                     │
+ *          │  4. 使用技能                        │
+ *          │  ─────────────────► useSkill()
+ *          │                                     │
+ *          │  5. 怪物回合                        │
+ *          │  ─────────────────► processMonsterTurn()
+ *          │                                     │
+ *          │  6. 回合结束冷却                    │
+ *          │  ─────────────────► decrementSkillCooldowns()
+ *          │                                     │
+ *          │◄──────── 返回状态变化 (Player/Monster[])
+ *          │                                     │
+ *          │◄──────── 返回战斗日志 LogEntry
+ *          │                                     │
+ *          └──── 渲染至:
+ *                - Canvas → 角色位置/HP条
+ *                - 状态面板 → HP/MP进度条
+ *                - 战斗日志 → 交替底色条目
+ *
+ * 初始化函数:
+ *   createPlayer(pos) → Player    供App初始化新游戏调用
+ *   createMonster(pos, idx) → Monster  供App生成怪物列表调用
+ *   createLogEntry(msg, type) → LogEntry  供App写入系统日志调用
+ * ============================================================
+ */
+
 import { v4 as uuidv4 } from 'uuid';
 import {
   Player,
@@ -9,6 +56,10 @@ import {
   Skill,
 } from './types';
 
+/**
+ * 创建战斗日志条目
+ * 数据流向: 所有战斗相关函数调用 → 返回LogEntry → App.tsx的addLog函数写入状态
+ */
 export function createLogEntry(
   message: string,
   type: 'player' | 'enemy' | 'system'
@@ -21,6 +72,10 @@ export function createLogEntry(
   };
 }
 
+/**
+ * 创建玩家初始数据
+ * 数据流向: App.tsx初始化地图后调用 → 返回Player → setPlayer存入状态
+ */
 export function createPlayer(position: Position): Player {
   return {
     x: position.x,
@@ -34,7 +89,7 @@ export function createPlayer(position: Position): Player {
       {
         id: 'fireball',
         name: '火球术',
-        description: '发射一枚灼热的火球，造成大量伤害',
+        description: '发射一枚灼热的火球，对相邻目标造成大量伤害',
         damage: 30,
         mpCost: 15,
         cooldown: 3,
@@ -44,7 +99,7 @@ export function createPlayer(position: Position): Player {
       {
         id: 'heal',
         name: '治疗术',
-        description: '恢复自身生命值',
+        description: '用神圣之力恢复自身生命值',
         damage: -35,
         mpCost: 20,
         cooldown: 4,
@@ -57,6 +112,10 @@ export function createPlayer(position: Position): Player {
 
 const MONSTER_NAMES = ['史莱姆', '哥布林', '骷髅兵', '蝙蝠', '巨鼠'];
 
+/**
+ * 创建怪物初始数据
+ * 数据流向: App.tsx初始化地图后遍历调用 → 返回Monster → 存入monsters数组
+ */
 export function createMonster(position: Position, index: number): Monster {
   const baseHp = 25 + Math.floor(Math.random() * 20);
   return {
@@ -70,11 +129,19 @@ export function createMonster(position: Position, index: number): Monster {
   };
 }
 
+/**
+ * 检测坐标是否可通行（非墙壁、在边界内）
+ * 数据流向: movePlayer / moveMonsterTowardsPlayer 内部调用
+ */
 export function isWalkable(map: DungeonMap, x: number, y: number): boolean {
   if (x < 0 || x >= map.width || y < 0 || y >= map.height) return false;
   return map.tiles[y][x] !== TileType.WALL;
 }
 
+/**
+ * 检测坐标是否被其他角色占据（玩家或存活怪物）
+ * 数据流向: movePlayer / moveMonsterTowardsPlayer 内部调用
+ */
 export function isPositionOccupied(
   x: number,
   y: number,
@@ -85,12 +152,20 @@ export function isPositionOccupied(
   return monsters.some((m) => m.hp > 0 && m.x === x && m.y === y);
 }
 
+/**
+ * 检测两个位置是否相邻（曼哈顿距离=1，即上下左右）
+ * 数据流向: movePlayer / processMonsterTurn 调用 → 判断是否触发攻击
+ */
 export function isAdjacent(a: Position, b: Position): boolean {
   const dx = Math.abs(a.x - b.x);
   const dy = Math.abs(a.y - b.y);
   return dx + dy === 1;
 }
 
+/**
+ * 在相邻格子中查找存活的怪物
+ * 数据流向: movePlayer / useSkill 调用 → 获取攻击目标
+ */
 export function findAdjacentMonster(
   player: Player,
   monsters: Monster[]
@@ -103,6 +178,10 @@ export function findAdjacentMonster(
   return null;
 }
 
+/**
+ * 玩家普通攻击
+ * 数据流向: App.tsx中移动后检测到相邻怪物 → 调用 → 修改Monster.hp → 返回日志
+ */
 export function playerAttack(
   player: Player,
   monster: Monster,
@@ -116,6 +195,10 @@ export function playerAttack(
   }
 }
 
+/**
+ * 玩家使用技能
+ * 数据流向: App.tsx技能按钮onClick → 调用 → 修改Player.hp/mp/cooldown + Monster.hp → 返回日志
+ */
 export function useSkill(
   player: Player,
   skill: Skill,
@@ -135,10 +218,12 @@ export function useSkill(
   skill.currentCooldown = skill.cooldown;
 
   if (skill.damage < 0) {
+    /** 治疗技能: damage为负数表示恢复量 */
     const healAmount = Math.abs(skill.damage);
     player.hp = Math.min(player.maxHp, player.hp + healAmount);
     addLog(createLogEntry(`你使用了${skill.name}，恢复了 ${healAmount} 点生命值！`, 'player'));
   } else {
+    /** 攻击技能: 需要相邻目标 */
     const target = findAdjacentMonster(player, monsters);
     if (target) {
       const damage = skill.damage + Math.floor(Math.random() * 10);
@@ -158,6 +243,10 @@ export function useSkill(
   return true;
 }
 
+/**
+ * 怪物普通攻击
+ * 数据流向: processMonsterTurn 检测相邻后调用 → 修改Player.hp → 返回日志
+ */
 export function monsterAttack(
   monster: Monster,
   player: Player,
@@ -171,6 +260,11 @@ export function monsterAttack(
   }
 }
 
+/**
+ * 怪物AI: 简单贪心追踪玩家
+ * 算法: 计算到玩家的dx/dy，优先移动距离更大的轴
+ * 数据流向: processMonsterTurn 遍历每个怪物调用 → 修改Monster.x/y
+ */
 export function moveMonsterTowardsPlayer(
   monster: Monster,
   player: Player,
@@ -185,6 +279,7 @@ export function moveMonsterTowardsPlayer(
 
   const tryMoves: Position[] = [];
 
+  /** 优先沿距离更远的轴移动，形成贪心追踪 */
   if (Math.abs(player.x - monster.x) > Math.abs(player.y - monster.y)) {
     if (dx !== 0) tryMoves.push({ x: monster.x + dx, y: monster.y });
     if (dy !== 0) tryMoves.push({ x: monster.x, y: monster.y + dy });
@@ -205,6 +300,10 @@ export function moveMonsterTowardsPlayer(
   }
 }
 
+/**
+ * 处理所有怪物的完整回合（移动+攻击）
+ * 数据流向: App.tsx玩家动作结束后调用 → 遍历修改所有Monster状态 + Player.hp → 返回日志
+ */
 export function processMonsterTurn(
   monsters: Monster[],
   player: Player,
@@ -222,6 +321,10 @@ export function processMonsterTurn(
   }
 }
 
+/**
+ * 回合结束时减少技能冷却
+ * 数据流向: App.tsx玩家/怪物回合完成后调用 → 修改所有Skill.currentCooldown
+ */
 export function decrementSkillCooldowns(player: Player): void {
   for (const skill of player.skills) {
     if (skill.currentCooldown > 0) {
