@@ -45,8 +45,9 @@ export default function App() {
   }
 
   // 导航菜单配置
+  // 数据流向：点击导航项 -> setCurrentRoute -> renderContent根据路由渲染对应组件
   const navItems = [
-    { id: 'dashboard', label: '个人中心', icon: '👤' },
+    { id: 'personal', label: '个人中心', icon: '👤' },
     { id: 'courses', label: '课程', icon: '📅' },
     { id: 'mybookings', label: '我的预约', icon: '📋' },
     { id: 'checkin', label: '签到', icon: '✅' },
@@ -54,19 +55,31 @@ export default function App() {
   ];
 
   // 路由渲染
+  // 数据流向：currentRoute状态变化 -> switch匹配 -> 返回对应组件
+  // 各组件从props接收token/user -> fetch调用后端API -> 展示数据
   const renderContent = () => {
     switch (currentRoute) {
       case 'login':
       case 'register':
+        // 登录/注册后自动跳转到个人中心
+        return <Dashboard user={user!} token={token} updateUser={updateUser} />;
+      case 'personal':
+        // 个人中心路由 - 导航栏"个人中心"链接映射到此
+        // 数据流向：Dashboard -> fetch(/api/bookings) -> 获取预约列表 -> 展示
+        //           -> 点击生成二维码 -> fetch(/api/qrcode) -> 返回Base64 -> 模态框展示
         return <Dashboard user={user!} token={token} updateUser={updateUser} />;
       case 'dashboard':
       case 'mybookings':
+        // 仪表盘和我的预约都使用Dashboard组件展示
         return <Dashboard user={user!} token={token} updateUser={updateUser} />;
       case 'courses':
+        // 课程列表路由 - 数据流向：Courses -> fetch(/api/courses) -> 展示课程卡片 -> 预约 -> fetch(POST /api/bookings)
         return <Courses token={token} user={user!} updateUser={updateUser} />;
       case 'schedule':
+        // 排班管理路由 - 数据流向：Schedule -> fetch(/api/coaches, /api/courses/admin) -> 增删改操作
         return <Schedule token={token} />;
       case 'checkin':
+        // 签到路由 - 数据流向：Checkin -> fetch(POST /api/checkin) -> 校验二维码 -> 更新状态
         return <Checkin token={token} />;
       default:
         return <Dashboard user={user!} token={token} updateUser={updateUser} />;

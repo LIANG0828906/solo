@@ -141,6 +141,7 @@ export const updateUser = (id: string, updates: Partial<User>) => {
 };
 
 // 教练操作
+// 数据流向：routes/courses.ts -> 调用这些函数 -> 修改内存中的coaches数组
 export const addCoach = (coach: Omit<Coach, 'id'>) => {
   const newCoach: Coach = { ...coach, id: uuidv4() };
   store.coaches.push(newCoach);
@@ -151,6 +152,28 @@ export const getAllCoaches = () => [...store.coaches];
 
 export const findCoachById = (id: string) => {
   return store.coaches.find((c) => c.id === id);
+};
+
+// 更新教练信息
+// 数据流向：PUT /api/coaches/:id -> updateCoach -> 返回更新后的教练
+export const updateCoach = (id: string, updates: Partial<Coach>) => {
+  const idx = store.coaches.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    store.coaches[idx] = { ...store.coaches[idx], ...updates };
+    return store.coaches[idx];
+  }
+  return null;
+};
+
+// 删除教练
+// 数据流向：DELETE /api/coaches/:id -> deleteCoach -> 返回是否成功
+export const deleteCoach = (id: string) => {
+  const idx = store.coaches.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    store.coaches.splice(idx, 1);
+    return true;
+  }
+  return false;
 };
 
 // 课程操作

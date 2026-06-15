@@ -3,9 +3,14 @@
 // 调用关系：index.ts -> authMiddleware -> routes/*
 
 import { Request, Response, NextFunction } from 'express';
-import jwt, { type Secret } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gym-secret-key-2024';
+
+// jwt类型断言工具函数 - 避免@types/jsonwebtoken重载匹配问题
+const jwtVerify = (token: string, secret: string): any => {
+  return (jwt as any).verify(token, secret);
+};
 
 export interface AuthRequest extends Request {
   user?: {
@@ -25,7 +30,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as Secret) as {
+    // 数据流向：Bearer token -> jwtVerify -> 解码出{id,email,level} -> 挂载到req.user
+    const decoded = jwtVerify(token, JWT_SECRET) as {
       id: string;
       email: string;
       level: 'normal' | 'vip';

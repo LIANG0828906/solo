@@ -7,7 +7,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { addUser, findUserByEmail } from '../data/store';
 import { JWT_CONFIG } from '../middleware/auth';
-import type { Secret } from 'jsonwebtoken';
+
+// jwt类型断言工具 - 解决@types/jsonwebtoken与实际库的重载匹配问题
+const jwtSign = (payload: any, secret: string, options: any): string => {
+  return (jwt as any).sign(payload, secret, options);
+};
 
 const router = express.Router();
 
@@ -46,13 +50,14 @@ router.post('/register', async (req, res) => {
     });
 
     // 签发JWT
-    const token = jwt.sign(
+    // 数据流向：{id,email,level} -> jwtSign(密钥) -> 7天有效期JWT字符串
+    const token = jwtSign(
       {
         id: newUser.id,
         email: newUser.email,
         level: newUser.level,
       },
-      JWT_CONFIG.secret as Secret,
+      JWT_CONFIG.secret,
       { expiresIn: JWT_CONFIG.expiresIn }
     );
 
@@ -97,13 +102,14 @@ router.post('/login', async (req, res) => {
     }
 
     // 签发JWT
-    const token = jwt.sign(
+    // 数据流向：{id,email,level} -> jwtSign(密钥) -> 7天有效期JWT字符串
+    const token = jwtSign(
       {
         id: user.id,
         email: user.email,
         level: user.level,
       },
-      JWT_CONFIG.secret as Secret,
+      JWT_CONFIG.secret,
       { expiresIn: JWT_CONFIG.expiresIn }
     );
 

@@ -22,6 +22,8 @@ import {
   findCoachById,
   getAllCoaches,
   addCoach,
+  updateCoach,
+  deleteCoach,
   checkCoachConflict,
   findBookingById,
   updateBooking,
@@ -57,6 +59,56 @@ router.post('/coaches', authMiddleware, (req, res) => {
     res.json({ coach, message: '教练添加成功' });
   } catch (_err) {
     res.status(500).json({ message: '添加教练失败' });
+  }
+});
+
+// 更新教练
+// 数据流向：PUT /api/coaches/:id -> updateCoach -> 返回更新后的教练
+router.put('/coaches/:id', authMiddleware, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, specialty } = req.body;
+
+    // 参数校验
+    if (!name || !specialty) {
+      return res.status(400).json({ message: '请填写教练姓名和专长' });
+    }
+
+    // 查找教练是否存在
+    const existingCoach = findCoachById(id);
+    if (!existingCoach) {
+      return res.status(404).json({ message: '教练不存在' });
+    }
+
+    // 调用store更新教练信息
+    const updatedCoach = updateCoach(id, { name, specialty });
+    res.json({ coach: updatedCoach, message: '教练更新成功' });
+  } catch (_err) {
+    res.status(500).json({ message: '更新教练失败' });
+  }
+});
+
+// 删除教练
+// 数据流向：DELETE /api/coaches/:id -> deleteCoach -> 返回成功/失败
+router.delete('/coaches/:id', authMiddleware, (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 查找教练是否存在
+    const existingCoach = findCoachById(id);
+    if (!existingCoach) {
+      return res.status(404).json({ message: '教练不存在' });
+    }
+
+    // 调用store删除教练
+    const deleted = deleteCoach(id);
+    if (!deleted) {
+      return res.status(500).json({ message: '删除教练失败' });
+    }
+
+    res.json({ message: '教练删除成功' });
+  } catch (_err) {
+    res.status(500).json({ message: '删除教练失败' });
   }
 });
 
@@ -158,7 +210,76 @@ router.post('/courses', authMiddleware, (req, res) => {
   }
 });
 
+// 更新课程（编辑课程）
+// 数据流向：PUT /api/courses/:id -> 校验参数 -> 检查教练时间冲突（排除自身） -> updateCourse -> 返回结果
+router.put('/courses/:id', authMiddleware, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, coachId, startTime, endTime, maxCapacity, description } = req.body;
+
+    // 参数校验
+    if (!name || !coachId || !startTime || !endTime || !maxCapacity) {
+      return res.status(400).json({ message: '请填写所有必填项' });
+    }
+
+    if (maxCapacity < 1 || maxCapacity > 20) {
+      return res.status(400).json({ message: '课程容量必须在1-20之间' });
+    }
+
+    // 1. 检查课程是否存在
+    const existingCourse = findCourseById(id);
+    if (!existingCourse) {
+      return res.status(404).json({ message: '课程不存在' });
+    }
+
+    // 2. 验证教练存在
+    const coach = findCoachById(coachId);
+    if (!coach) {
+      return res.status(400).json({ message: '教练不存在' });
+    }
+
+    // 3. 验证时间
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      return res.status(400).json({ message: '结束时间必须晚于开始时间' });
+    }
+
+    // 4. 关键：检查教练时间冲突 - 排除当前编辑的课程自身
+    const hasConflict = checkCoachConflict(coachId, startTime, endTime, id);
+    if (hasConflict) {
+      return res.status(400).json({
+        message: '该教练在此时间段已有课程安排，请选择其他时间',
+      });
+    }
+
+    // 5. 检查容量是否合法（不能小于当前已预约人数）
+    if (maxCapacity < existingCourse.currentBookings) {
+      return res.status(400).json({
+        message: `容量不能小于当前已预约人数(${existingCourse.currentBookings})`,
+      });
+    }
+
+    // 6. 更新课程
+    const updatedCourse = updateCourse(id, {
+      name,
+      coachId,
+      coachName: coach.name,
+      startTime,
+      endTime,
+      maxCapacity,
+      description: description || `${name}课程`,
+    });
+
+    res.json({ course: updatedCourse, message: '课程更新成功' });
+  } catch (err) {
+    console.error('更新课程错误:', err);
+    res.status(500).json({ message: '更新课程失败' });
+  }
+});
+
 // 删除课程
+// 数据流向：DELETE /api/courses/:id -> deleteCourse -> 返回成功/失败
 router.delete('/courses/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;

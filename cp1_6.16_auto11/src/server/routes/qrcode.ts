@@ -6,10 +6,18 @@
 // 性能约束：二维码生成应在200ms内返回
 
 import express from 'express';
-import jwt, { type Secret } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import { AuthRequest, authMiddleware, QR_JWT_CONFIG } from '../middleware/auth';
 import { findBookingById, updateBooking } from '../data/store';
+
+// jwt类型断言工具函数
+const jwtSign = (payload: any, secret: string, options: any): string => {
+  return (jwt as any).sign(payload, secret, options);
+};
+const jwtVerify = (token: string, secret: string): any => {
+  return (jwt as any).verify(token, secret);
+};
 
 const router = express.Router();
 
@@ -20,7 +28,7 @@ router.post('/qrcode', authMiddleware, async (req: AuthRequest, res) => {
   const startTime = Date.now();
 
   try {
-    const { bookingId, courseName } = req.body;
+    const { bookingId } = req.body;
     const userId = req.user!.id;
 
     if (!bookingId) {
@@ -68,7 +76,8 @@ router.post('/qrcode', authMiddleware, async (req: AuthRequest, res) => {
     };
 
     // 使用独立的密钥和短有效期签名
-    const qrToken = jwt.sign(qrPayload, QR_JWT_CONFIG.secret as Secret, {
+    // 数据流向：qrPayload -> jwtSign(独立密钥) -> 5分钟有效期的签到token
+    const qrToken = jwtSign(qrPayload, QR_JWT_CONFIG.secret, {
       expiresIn: QR_JWT_CONFIG.expiresIn,
     });
 
@@ -114,9 +123,10 @@ router.post('/checkin', authMiddleware, async (req, res) => {
     }
 
     // 1. 验证JWT签名（防篡改）
+    // 数据流向：前端传入的qrToken -> jwtVerify -> 校验5分钟有效期 -> 解码出预约信息
     let decoded;
     try {
-      decoded = jwt.verify(qrToken, QR_JWT_CONFIG.secret as Secret) as {
+      decoded = jwtVerify(qrToken, QR_JWT_CONFIG.secret) as {
         bookingId: string;
         userId: string;
         courseName: string;
