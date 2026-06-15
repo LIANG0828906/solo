@@ -1,7 +1,7 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecipeStore } from '../../stores/recipeStore';
-import type { Recipe, RecipeWithMatch } from '../../types';
+import type { Recipe } from '../../types';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -87,15 +87,6 @@ function RecipeCard({ recipe, matchPercentage, index }: RecipeCardProps) {
   );
 }
 
-interface MasonryItem {
-  recipe: Recipe;
-  matchPercentage?: number;
-  height: number;
-  top: number;
-  left: number;
-  column: number;
-}
-
 export default function RecipeList() {
   const {
     filters,
@@ -109,13 +100,7 @@ export default function RecipeList() {
   } = useRecipeStore();
 
   const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [columnCount, setColumnCount] = useState(4);
-  const [masonryItems, setMasonryItems] = useState<MasonryItem[]>([]);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const rafIdRef = useRef<number>();
-  const cardHeightsRef = useRef<Map<string, number>>(new Map());
 
   const filteredRecipes = useMemo(() => getFilteredRecipes(), [filters, getFilteredRecipes, isInitialized]);
   const recommendedRecipes = useMemo(() => getRecommendedRecipes(), [userProfile, getRecommendedRecipes, isInitialized]);
@@ -125,90 +110,6 @@ export default function RecipeList() {
   const cuisines = ['全部', '法式', '意式', '中式'];
   const difficulties = ['全部', '简单', '中等', '困难'];
   const cookTimeRanges = ['全部', '<=15min', '15-45min', '>45min'];
-
-  const getColumnCount = useCallback(() => {
-    const width = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    if (width < 480) return 1;
-    if (width < 768) return 2;
-    if (width < 1024) return 3;
-    return 4;
-  }, []);
-
-  const calculateMasonryLayout = useCallback(() => {
-    if (!containerRef.current || visibleRecipes.length === 0) return;
-
-    const columns = getColumnCount();
-    const containerWidth = containerRef.current.offsetWidth;
-    const gap = 20;
-    const cardWidth = (containerWidth - gap * (columns - 1)) / columns;
-    const columnHeights = new Array(columns).fill(0);
-    const items: MasonryItem[] = [];
-
-    visibleRecipes.forEach((recipe, index) => {
-      const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
-      const estimatedHeight = cardHeightsRef.current.get(recipe.id) || 320;
-      
-      const top = columnHeights[shortestColumn];
-      const left = shortestColumn * (cardWidth + gap);
-
-      items.push({
-        recipe,
-        height: estimatedHeight,
-        top,
-        left,
-        column: shortestColumn,
-        matchPercentage: undefined,
-      });
-
-      columnHeights[shortestColumn] += estimatedHeight + gap;
-    });
-
-    setMasonryItems(items);
-    setContainerHeight(Math.max(...columnHeights) - gap);
-    setColumnCount(columns);
-  }, [visibleRecipes, getColumnCount]);
-
-  const measureCardHeight = useCallback((recipeId: string, element: HTMLDivElement | null) => {
-    if (element) {
-      const height = element.offsetHeight;
-      cardHeightsRef.current.set(recipeId, height);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-      rafIdRef.current = requestAnimationFrame(() => {
-        calculateMasonryLayout();
-      });
-    };
-
-    window.addEventListener('resize', handleResize, { passive: true });
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, [calculateMasonryLayout]);
-
-  useEffect(() => {
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
-    }
-    rafIdRef.current = requestAnimationFrame(() => {
-      calculateMasonryLayout();
-    });
-  }, [calculateMasonryLayout]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      calculateMasonryLayout();
-    }, 100);
-    return () => clearTimeout(timeout);
-  }, [visibleRecipes.length, calculateMasonryLayout]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -227,22 +128,6 @@ export default function RecipeList() {
 
     return () => observer.disconnect();
   }, [hasMore, loadMore]);
-
-  const getCardStyle = (item: MasonryItem) => {
-    const columns = columnCount;
-    const containerWidth = containerRef.current?.offsetWidth || 0;
-    const gap = 20;
-    const cardWidth = columns > 0 ? (containerWidth - gap * (columns - 1)) / columns : 280;
-    
-    return {
-      position: 'absolute' as const,
-      top: item.top,
-      left: item.left,
-      width: cardWidth,
-      transform: `translate3d(0, 0, 0)`,
-      willChange: 'transform',
-    } as React.CSSProperties;
-  };
 
   if (!isInitialized) {
     return (
@@ -330,31 +215,15 @@ export default function RecipeList() {
       </div>
 
       {visibleRecipes.length > 0 ? (
-        <>
-          <div
-            ref={containerRef}
-            className="masonry-container-js"
-            style={{
-              position: 'relative',
-              height: containerHeight,
-              width: '100%',
-            }}
-          >
-            {masonryItems.map((item, index) => (
-              <div
-                key={item.recipe.id}
-                ref={(el) => measureCardHeight(item.recipe.id, el)}
-                style={getCardStyle(item)}
-              >
-                <RecipeCard
-                  recipe={item.recipe}
-                  matchPercentage={item.matchPercentage}
-                  index={index}
-                />
-              </div>
-            ))}
-          </div>
-        </>
+        <div className="masonry-container">
+          {visibleRecipes.map((recipe, index) => (
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              index={index}
+            />
+          ))}
+        </div>
       ) : (
         <div className="empty-state">
           <div className="empty-state-icon">🍽️</div>
