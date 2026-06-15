@@ -8,6 +8,7 @@ export interface CardType {
   rank: number;
   faceUp: boolean;
   playerId: number;
+  position?: Position;
 }
 
 export interface MoveResult {

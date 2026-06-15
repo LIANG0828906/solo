@@ -1,3 +1,7 @@
+html {
+  font-size: 16px;
+}
+
 :root {
   --color-felt-green: #0d5c33;
   --color-felt-green-dark: #0a4a29;
@@ -18,18 +22,19 @@
   --color-highlight: rgba(212, 175, 55, 0.3);
   --color-error: #ef4444;
 
-  --card-width: 80px;
-  --card-height: 112px;
-  --card-border-radius: 8px;
-  --card-offset-y: 32px;
-  --card-offset-y-small: 16px;
+  --card-width: 5rem;
+  --card-height: 7rem;
+  --card-border-radius: 0.5rem;
+  --card-offset-y: 2rem;
+  --card-offset-y-small: 1rem;
 
   --font-display: 'Playfair Display', serif;
   --font-body: 'Roboto', sans-serif;
 
-  --transition-fast: 100ms ease;
-  --transition-normal: 200ms ease;
-  --transition-slow: 300ms ease;
+  --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --shadow-card: 0 2px 8px var(--color-shadow), 0 1px 3px var(--color-shadow-light);
   --shadow-card-hover: 0 4px 16px var(--color-shadow), 0 2px 6px var(--color-shadow-light);
@@ -41,12 +46,33 @@
   --z-modal: 1000;
 }
 
+@media (min-width: 1920px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1919px) and (min-width: 1280px) {
+  html {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1279px) {
+  html {
+    font-size: 10px;
+  }
+}
+
 @media (max-width: 1919px) {
   :root {
-    --card-width: 54px;
-    --card-height: 76px;
-    --card-offset-y: 22px;
-    --card-offset-y-small: 11px;
-    --card-border-radius: 6px;
+    --card-offset-y: 1.833rem;
+    --card-offset-y-small: 0.917rem;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --card-offset-y: 2.5rem;
   }
 }

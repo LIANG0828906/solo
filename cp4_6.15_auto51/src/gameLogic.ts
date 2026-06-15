@@ -70,7 +70,8 @@ const createEmptyFoundation = (): CardType[][] => {
 };
 
 export const initGame = (mode: GameMode): GameState => {
-  const deck = shuffleDeck(createDeck());
+  const deckCount = mode === 'dual' ? [...createDeck(), ...createDeck()] : createDeck();
+  const deck = shuffleDeck(deckCount);
   const state: GameState = {
     mode,
     currentPlayer: 0,
@@ -218,7 +219,9 @@ export const validateMove = (
     }
 
     const topCard = targetPile[targetPile.length - 1];
-    if (topCard.rank === movingCard.rank - 1 && topCard.suit === movingCard.suit) {
+    const isSequential = topCard.rank === movingCard.rank - 1;
+    const isWrapAround = gameState.mode === 'dual' && topCard.rank === 13 && movingCard.rank === 1;
+    if ((isSequential || isWrapAround) && topCard.suit === movingCard.suit) {
       const isCombo = gameState.lastMoveToFoundation;
       const scoreGain = calculateScore(1, isCombo, gameState.comboCounts[playerId]);
       return { valid: true, scoreGain, isCombo };
@@ -372,8 +375,9 @@ export const autoFlipCard = (
 };
 
 export const checkWinCondition = (state: GameState): boolean => {
+  const cardsPerFoundation = state.mode === 'dual' ? 26 : 13;
   const checkFoundation = (foundation: CardType[][]): boolean => {
-    return foundation.every(pile => pile.length === 13);
+    return foundation.every(pile => pile.length === cardsPerFoundation);
   };
 
   if (state.mode === 'single') {
@@ -391,9 +395,10 @@ export const checkWinCondition = (state: GameState): boolean => {
 };
 
 export const determineWinner = (state: GameState): number | null => {
+  const totalCards = state.mode === 'dual' ? 104 : 52;
   if (state.mode === 'single') {
     const p1Total = state.foundation.reduce((sum, pile) => sum + pile.length, 0);
-    return p1Total === 52 ? 0 : null;
+    return p1Total === totalCards ? 0 : null;
   }
 
   const p1Score = state.scores[0] + state.foundation.reduce((sum, pile) => sum + pile.length, 0) * 10;

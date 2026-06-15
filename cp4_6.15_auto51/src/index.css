@@ -1,5 +1,336 @@
-@import './styles/variables.css';
-@import './styles/animations.css';
+html {
+  font-size: 16px;
+}
+
+:root {
+  --color-felt-green: #0d5c33;
+  --color-felt-green-dark: #0a4a29;
+  --color-felt-green-light: #147a45;
+  --color-card-back: #1a365d;
+  --color-card-back-light: #2c5282;
+  --color-gold: #d4af37;
+  --color-gold-dark: #b8941f;
+  --color-gold-light: #f0d060;
+  --color-red: #c41e3a;
+  --color-black: #1a1a1a;
+  --color-white: #ffffff;
+  --color-gray-dark: #2d3748;
+  --color-gray-medium: #4a5568;
+  --color-gray-light: #e2e8f0;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-light: rgba(0, 0, 0, 0.15);
+  --color-highlight: rgba(212, 175, 55, 0.3);
+  --color-error: #ef4444;
+
+  --card-width: 5rem;
+  --card-height: 7rem;
+  --card-border-radius: 0.5rem;
+  --card-offset-y: 2rem;
+  --card-offset-y-small: 1rem;
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Roboto', sans-serif;
+
+  --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --shadow-card: 0 2px 8px var(--color-shadow), 0 1px 3px var(--color-shadow-light);
+  --shadow-card-hover: 0 4px 16px var(--color-shadow), 0 2px 6px var(--color-shadow-light);
+  --shadow-card-dragging: 0 8px 32px var(--color-shadow), 0 4px 12px var(--color-shadow-light);
+
+  --z-board: 1;
+  --z-card: 10;
+  --z-card-dragging: 100;
+  --z-modal: 1000;
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1919px) and (min-width: 1280px) {
+  html {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1279px) {
+  html {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 1919px) {
+  :root {
+    --card-offset-y: 1.833rem;
+    --card-offset-y-small: 0.917rem;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --card-offset-y: 2.5rem;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes flash-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    border-color: transparent;
+  }
+  25%, 75% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.8), 0 0 16px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 1), 0 0 24px rgba(239, 68, 68, 0.7);
+  }
+}
+
+@keyframes glow-gold {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 35px rgba(212, 175, 55, 1), 0 0 60px rgba(212, 175, 55, 0.6);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+  }
+}
+
+@keyframes card-flip {
+  0% { transform: rotateY(0deg) scale(1); }
+  50% { transform: rotateY(90deg) scale(1.05); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flip-in {
+  from {
+    transform: rotateY(90deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spring-back {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.95); }
+  50% { transform: scale(1.02); }
+  70% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+}
+
+@keyframes drop-highlight-pulse {
+  0%, 100% {
+    border-color: var(--color-gold);
+    background: rgba(212, 175, 55, 0.2);
+  }
+  50% {
+    border-color: var(--color-gold-light);
+    background: rgba(212, 175, 55, 0.4);
+  }
+}
+
+@keyframes score-pop {
+  0% {
+    transform: scale(1);
+    color: var(--color-gold);
+  }
+  50% {
+    transform: scale(1.3);
+    color: var(--color-gold-light);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--color-gold);
+  }
+}
+
+@keyframes combo-flash {
+  0%, 100% {
+    text-shadow: 0 0 4px rgba(212, 175, 55, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 16px rgba(212, 175, 55, 1), 0 0 32px rgba(212, 175, 55, 0.7);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.animate-flash-red {
+  animation: flash-red 0.4s ease-in-out;
+}
+
+.animate-glow-gold {
+  animation: glow-gold 0.6s ease-in-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.animate-flip-in {
+  animation: flip-in 0.3s ease-out forwards;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.animate-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+}
+
+.animate-modal-fade-in {
+  animation: modal-fade-in 0.3s ease-out forwards;
+}
+
+.animate-modal-scale-in {
+  animation: modal-scale-in 0.3s ease-out forwards;
+}
+
+.animate-card-flip {
+  animation: card-flip 0.4s ease-in-out;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.animate-card-enter {
+  animation: card-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-card-fade-in {
+  animation: card-fade-in 0.25s ease-out forwards;
+}
+
+.animate-spring-back {
+  animation: spring-back 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-score-pop {
+  animation: score-pop 0.3s ease-out;
+}
+
+.animate-combo-flash {
+  animation: combo-flash 0.5s ease-in-out;
+}
+
+.perspective-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.will-change-all {
+  will-change: transform, opacity;
+}
+
+.hardware-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
 
 * {
   margin: 0;
@@ -293,7 +624,7 @@ body {
 
 .card:hover {
   box-shadow: var(--shadow-card-hover);
-  z-index: var(--z-card) + 1;
+  z-index: calc(var(--z-card) + 1);
 }
 
 .card--dragging {
@@ -584,7 +915,7 @@ body {
   background: var(--color-highlight);
   pointer-events: none;
   animation: pulse 0.8s ease-in-out infinite;
-  z-index: var(--z-card) - 1;
+  z-index: calc(var(--z-card) - 1);
 }
 
 .drag-preview {
