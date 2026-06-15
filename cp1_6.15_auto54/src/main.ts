@@ -65,7 +65,8 @@ const minDistance = 5;
 const maxDistance = 30;
 const thetaDamping = 0.12;
 const distanceDamping = 0.10;
-const wheelSensitivity = 0.006;
+const WHEEL_STEP = 0.45;
+const FIXED_DT = 1 / 60;
 
 let currentFloatingArtwork: Artwork | null = null;
 let isFullscreen = false;
@@ -94,6 +95,7 @@ function init(): void {
     100
   );
   camera.position.set(0, 2, targetDistance);
+  camera.layers.set(0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -109,6 +111,7 @@ function init(): void {
   setMaxAnisotropy(maxAniso);
 
   raycaster = new THREE.Raycaster();
+  raycaster.layers.set(0xffffff);
   mouse = new THREE.Vector2();
 
   setupLighting();
@@ -223,8 +226,9 @@ function onMouseMove(event: MouseEvent): void {
 function onWheel(event: WheelEvent): void {
   if (isFullscreen) return;
   event.preventDefault();
-  const normalizedDelta = Math.sign(event.deltaY) * Math.min(Math.abs(event.deltaY), 100);
-  targetDistance += normalizedDelta * wheelSensitivity;
+  const direction = Math.sign(event.deltaY);
+  if (direction === 0) return;
+  targetDistance += direction * WHEEL_STEP;
   targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
 }
 
@@ -354,13 +358,18 @@ const clock = new THREE.Clock();
 function animate(): void {
   requestAnimationFrame(animate);
 
-  const delta = clock.getDelta();
+  const rawDelta = clock.getDelta();
+  const fixedSteps = Math.max(0.001, Math.min(rawDelta, 0.1));
+  const stepCount = Math.ceil(fixedSteps / FIXED_DT);
+  const subStep = fixedSteps / stepCount;
 
-  const thetaLerp = 1 - Math.exp(-delta / thetaDamping);
-  const distLerp = 1 - Math.exp(-delta / distanceDamping);
+  const thetaLerpPerStep = 1 - Math.exp(-subStep / thetaDamping);
+  const distLerpPerStep = 1 - Math.exp(-subStep / distanceDamping);
 
-  currentTheta += (targetTheta - currentTheta) * thetaLerp;
-  currentDistance += (targetDistance - currentDistance) * distLerp;
+  for (let i = 0; i < stepCount; i++) {
+    currentTheta += (targetTheta - currentTheta) * thetaLerpPerStep;
+    currentDistance += (targetDistance - currentDistance) * distLerpPerStep;
+  }
 
   const centerX = 0;
   const centerY = 2.5;

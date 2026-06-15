@@ -41,6 +41,7 @@ export function createGallery(artworksData: ArtworkData[]): { group: THREE.Group
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0;
+  floor.castShadow = true;
   floor.receiveShadow = true;
   galleryGroup.add(floor);
 

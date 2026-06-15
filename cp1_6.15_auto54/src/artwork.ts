@@ -23,7 +23,21 @@ const FRAME_HEIGHT = 1.3;
 const FRAME_DEPTH = 0.12;
 const CANVAS_WIDTH = 1.5;
 const CANVAS_HEIGHT = 1.0;
-const MAX_TEXTURE_SIZE = 2048;
+const MAX_TEXTURE_SIZE = 4096;
+
+export function getTargetTextureSize(): number {
+  const maxDim = Math.max(window.innerWidth, window.innerHeight);
+  const dpr = Math.max(window.devicePixelRatio || 1, 1.5);
+  return Math.min(Math.ceil(maxDim * dpr), MAX_TEXTURE_SIZE);
+}
+
+function getHighResSourceUrl(baseUrl: string): string {
+  const targetSize = getTargetTextureSize();
+  if (baseUrl.includes('unsplash.com')) {
+    return baseUrl.replace(/w=\d+/, `w=${targetSize}`);
+  }
+  return baseUrl;
+}
 
 const frameGeometry = new THREE.BoxGeometry(FRAME_WIDTH, FRAME_HEIGHT, FRAME_DEPTH);
 const canvasGeometry = new THREE.PlaneGeometry(CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -78,15 +92,14 @@ export class Artwork extends THREE.Group {
     this.canvasMesh.castShadow = false;
     this.add(this.canvasMesh);
 
-    const hitboxGeometry = new THREE.PlaneGeometry(FRAME_WIDTH * 1.05, FRAME_HEIGHT * 1.05);
+    const hitboxGeometry = new THREE.PlaneGeometry(FRAME_WIDTH * 1.1, FRAME_HEIGHT * 1.1);
     const hitboxMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false
+      side: THREE.DoubleSide
     });
     this.hitboxMesh = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
     this.hitboxMesh.position.z = FRAME_DEPTH / 2 + 0.02;
+    this.hitboxMesh.layers.set(1);
     this.add(this.hitboxMesh);
 
     this.raycastTargets = [this.hitboxMesh, this.frameMesh, this.canvasMesh];
@@ -95,19 +108,25 @@ export class Artwork extends THREE.Group {
   }
 
   private loadTexture(): void {
+    const highResUrl = getHighResSourceUrl(this.data.imageUrl);
     textureLoader.load(
-      this.data.imageUrl,
+      highResUrl,
       (texture) => {
-        const maxSize = MAX_TEXTURE_SIZE;
-        if (texture.image.width > maxSize || texture.image.height > maxSize) {
-          const canvas = document.createElement('canvas');
-          const ratio = Math.min(maxSize / texture.image.width, maxSize / texture.image.height);
-          canvas.width = Math.floor(texture.image.width * ratio);
-          canvas.height = Math.floor(texture.image.height * ratio);
-          const ctx = canvas.getContext('2d');
+        const targetSize = getTargetTextureSize();
+        const imgW = texture.image.width;
+        const imgH = texture.image.height;
+
+        if (imgW > targetSize || imgH > targetSize) {
+          const offscreen = document.createElement('canvas');
+          const ratio = Math.min(targetSize / imgW, targetSize / imgH);
+          offscreen.width = Math.floor(imgW * ratio);
+          offscreen.height = Math.floor(imgH * ratio);
+          const ctx = offscreen.getContext('2d');
           if (ctx) {
-            ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-            texture.image = canvas;
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(texture.image, 0, 0, offscreen.width, offscreen.height);
+            texture.image = offscreen;
           }
         }
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -159,15 +178,16 @@ export class Artwork extends THREE.Group {
     const targetProgress = direction === 'out' ? 1 : 0;
 
     const easeOutElastic = (t: number): number => {
-      if (t === 0) return 0;
-      if (t === 1) return 1;
-      const period = 0.5;
-      const overshoot = 1.15;
-      const s = period / 4;
-      const shifted = t - 1;
-      const power = Math.pow(2, -10 * shifted);
-      const wave = Math.sin((shifted - s) * (2 * Math.PI) / period);
-      return (power * wave + 1) * overshoot - (overshoot - 1);
+      if (t <= 0) return 0;
+      if (t >= 1) return 1;
+      const frequency = 4;
+      const decay = 10;
+      const omega = frequency * Math.PI * 2;
+      const envelope = Math.exp(-decay * t);
+      const wave = Math.sin(omega * t - Math.PI / 2);
+      const overshoot = 1.4;
+      const spring = 1 - envelope * (wave * 0.5 + 0.5);
+      return spring + (overshoot - 1) * envelope * Math.sin(omega * t);
     };
 
     const animate = () => {
