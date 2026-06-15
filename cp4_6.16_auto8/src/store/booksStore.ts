@@ -105,7 +105,7 @@ export const useBooksStore = create<BooksStore>((set, get) => ({
     const trimmed = code.trim().toUpperCase();
     if (VALID_DISCOUNT_CODES[trimmed]) {
       set({ discount: { code: trimmed, rate: VALID_DISCOUNT_CODES[trimmed], applied: true } });
-      return { success: true, message: `已应用优惠码 ${trimmed}，享受${(10 - VALID_DISCOUNT_CODES[trimmed] * 10)}折优惠！` };
+      return { success: true, message: `已应用优惠码 ${trimmed}，享受${(VALID_DISCOUNT_CODES[trimmed] * 10).toFixed(0)}折优惠！` };
     }
     set({ discount: { code: '', rate: 1, applied: false } });
     return { success: false, message: '优惠码无效，请重新输入' };

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Minus, Plus, Trash2, ShoppingBag, Tag, Check } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingBag, Tag, Check, MinusCircle } from 'lucide-react';
 import { useBooksStore } from '@/store/booksStore';
 import styles from '@/styles/CartDrawer.module.css';
 
@@ -9,11 +9,16 @@ interface Props {
   onClose: () => void;
 }
 
+const ANIMATION_DURATION = 450;
+
 export function CartDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
   const [discountCode, setDiscountCode] = useState('');
   const [discountMsg, setDiscountMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [bounceMap, setBounceMap] = useState<Record<string, boolean>>({});
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cart = useBooksStore((s) => s.cart);
   const discount = useBooksStore((s) => s.discount);
@@ -27,23 +32,53 @@ export function CartDrawer({ open, onClose }: Props) {
   const getCartTotal = useBooksStore((s) => s.getCartTotal);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setMounted(true);
+      const t = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setVisible(true));
+      });
+      return () => cancelAnimationFrame(t);
+    } else if (mounted) {
+      setVisible(false);
+      closeTimerRef.current = setTimeout(() => {
+        setMounted(false);
+        closeTimerRef.current = null;
+      }, ANIMATION_DURATION);
+    }
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (open) {
       setDiscountMsg(null);
     }
   }, [open]);
 
   useEffect(() => {
-    setDiscountCode(discount.code);
-  }, [discount.code, open]);
+    if (mounted) {
+      setDiscountCode(discount.code);
+    }
+  }, [discount.code, mounted]);
 
   useEffect(() => {
-    if (open) {
+    if (visible) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [open]);
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [visible]);
 
   const handleApplyDiscount = () => {
     if (!discountCode.trim()) {
@@ -71,14 +106,21 @@ export function CartDrawer({ open, onClose }: Props) {
   const discountAmount = getCartDiscountAmount();
   const total = getCartTotal();
 
+  if (!mounted) return null;
+
   return (
     <>
       <div
-        className={`${styles.overlay} ${open ? styles.open : ''}`}
+        className={`${styles.overlay} ${visible ? styles.open : ''}`}
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className={`${styles.drawer} ${open ? styles.open : ''}`} role="dialog" aria-modal="true">
+      <aside
+        className={`${styles.drawer} ${visible ? styles.open : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="购物车"
+      >
         <header className={styles.header}>
           <div className={styles.headerInfo}>
             <ShoppingBag size={22} strokeWidth={1.8} />
@@ -87,7 +129,7 @@ export function CartDrawer({ open, onClose }: Props) {
               <span className={styles.itemCount}>{totalCount} 件商品</span>
             )}
           </div>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭">
+          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭购物车">
             <X size={20} strokeWidth={2} />
           </button>
         </header>
@@ -173,8 +215,12 @@ export function CartDrawer({ open, onClose }: Props) {
                     type="text"
                     placeholder="输入 BOOK10 享九折"
                     value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value)}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value);
+                      if (discountMsg) setDiscountMsg(null);
+                    }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleApplyDiscount(); }}
+                    autoComplete="off"
                   />
                   <button className={styles.applyBtn} onClick={handleApplyDiscount}>
                     应用
@@ -196,15 +242,25 @@ export function CartDrawer({ open, onClose }: Props) {
               <span>商品小计</span>
               <span className="value">¥{subtotal.toFixed(2)}</span>
             </div>
-            {discount.applied && discountAmount > 0 && (
-              <div className={`${styles.summaryRow} ${styles.discount}`}>
-                <span>优惠折扣 ({(discount.rate * 10).toFixed(0)}折)</span>
-                <span className="value">-¥{discountAmount.toFixed(2)}</span>
-              </div>
-            )}
+            <div className={`${styles.summaryRow} ${styles.discount}`}>
+              <span>
+                优惠折扣
+                {discount.applied && (
+                  <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--color-success)' }}>
+                    ({(discount.rate * 10).toFixed(0)}折)
+                  </span>
+                )}
+              </span>
+              <span className="value">
+                {discountAmount > 0 ? '-' : ''}¥{discountAmount.toFixed(2)}
+                {!discount.applied && discountAmount === 0 && (
+                  <MinusCircle size={12} style={{ marginLeft: 6, verticalAlign: -2, opacity: 0.5 }} />
+                )}
+              </span>
+            </div>
             <div className={`${styles.summaryRow} ${styles.total}`}>
               <span>应付金额</span>
-              <span className="value">{total.toFixed(2)}</span>
+              <span className={styles.totalValue}>¥{total.toFixed(2)}</span>
             </div>
             <button className={styles.checkoutBtn} disabled={cart.length === 0}>
               确认下单

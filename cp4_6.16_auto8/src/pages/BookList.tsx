@@ -1,12 +1,18 @@
-import { useState, useMemo } from 'react';
-import { LayoutGrid, Filter, ArrowUpDown, Library } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { LayoutGrid, Filter, ArrowUpDown, Library, X, ChevronDown } from 'lucide-react';
 import { useBooksStore } from '@/store/booksStore';
 import { CATEGORIES, type Category, type SortBy } from '@/types';
 import { BookCard } from '@/components/BookCard';
 import styles from '@/styles/BookList.module.css';
 
+const FILTER_ANIM_MS = 380;
+
 export function BookList() {
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMounted, setSidebarMounted] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const books = useBooksStore((s) => s.books);
   const filter = useBooksStore((s) => s.filter);
   const sortBy = useBooksStore((s) => s.sortBy);
@@ -24,31 +30,86 @@ export function BookList() {
     return counts;
   }, [books]);
 
+  useEffect(() => {
+    if (sidebarOpen) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setSidebarMounted(true);
+      const t = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setSidebarVisible(true));
+      });
+      return () => cancelAnimationFrame(t);
+    } else if (sidebarMounted) {
+      setSidebarVisible(false);
+      closeTimerRef.current = setTimeout(() => {
+        setSidebarMounted(false);
+        closeTimerRef.current = null;
+      }, FILTER_ANIM_MS);
+    }
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [sidebarOpen, sidebarMounted]);
+
+  useEffect(() => {
+    if (sidebarVisible) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarVisible]);
+
   const handleFilterChange = (cat: Category) => {
     setFilter(cat);
-    setMobileSidebarOpen(false);
+    setSidebarOpen(false);
   };
 
   return (
     <div className={styles.layout}>
       <button
         className={styles.mobileFilterBtn}
-        onClick={() => setMobileSidebarOpen(true)}
-        aria-label="筛选"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="打开筛选面板"
       >
-        <Filter size={20} />
+        <Filter size={18} />
+        <span className={styles.mobileFilterText}>筛选</span>
+        <ChevronDown size={14} className={`${styles.chevron} ${sidebarOpen ? styles.chevronUp : ''}`} />
       </button>
 
-      <div
-        className={`${styles.mobileSidebarOverlay} ${mobileSidebarOpen ? styles.show : ''}`}
-        onClick={() => setMobileSidebarOpen(false)}
-      />
+      {sidebarMounted && (
+        <>
+          <div
+            className={`${styles.mobileSidebarOverlay} ${sidebarVisible ? styles.show : ''}`}
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        </>
+      )}
 
-      <aside className={`${styles.sidebar} ${mobileSidebarOpen ? styles.open : ''}`}>
-        <h2 className={styles.sidebarTitle}>
-          <Filter size={18} />
-          图书筛选
-        </h2>
+      <aside
+        className={`${styles.sidebar} ${sidebarVisible ? styles.open : ''} ${!sidebarMounted ? styles.hidden : ''}`}
+      >
+        <div className={styles.sidebarHeader}>
+          <h2 className={styles.sidebarTitle}>
+            <Filter size={18} />
+            图书筛选
+          </h2>
+          <button
+            className={styles.sidebarCloseBtn}
+            onClick={() => setSidebarOpen(false)}
+            aria-label="关闭筛选"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         <div className={styles.filterGroup}>
           <label className={styles.filterLabel}>

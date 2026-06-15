@@ -383,19 +383,11 @@
   color: var(--color-text);
 }
 
-.summaryRow.total .value {
+.totalValue {
   font-family: var(--font-display);
   font-size: 28px;
   font-weight: 700;
   color: var(--color-bookmark);
-}
-
-.summaryRow.total .value::before {
-  content: '¥';
-  font-size: 16px;
-  font-weight: 500;
-  margin-right: 2px;
-  vertical-align: 3px;
 }
 
 .checkoutBtn {
