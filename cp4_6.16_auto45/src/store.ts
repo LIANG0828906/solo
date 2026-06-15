@@ -1,7 +1,109 @@
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
 import { Idea, Milestone, IdeaStatus, MAX_IDEAS, MAX_MILESTONES } from './types';
+
+const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = 'popupidea_schema_version';
+const IDEAS_KEY = 'popupidea_ideas';
+const LEGACY_KEYS = ['popupidea_ideas_v0', 'popupidea_state'];
+
+const VALID_STATUSES: IdeaStatus[] = ['fresh', 'hatching', 'launched', 'abandoned'];
+const VALID_PRIORITIES = ['high', 'medium', 'low'];
+
+function isValidIdea(obj: unknown): obj is Idea {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o.id === 'string' &&
+    typeof o.title === 'string' &&
+    typeof o.description === 'string' &&
+    typeof o.creativeScore === 'number' &&
+    typeof o.status === 'string' &&
+    VALID_STATUSES.includes(o.status as IdeaStatus) &&
+    Array.isArray(o.milestones) &&
+    typeof o.createdAt === 'string' &&
+    typeof o.updatedAt === 'string'
+  );
+}
+
+function isValidMilestone(obj: unknown): obj is Milestone {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    typeof o.description === 'string' &&
+    typeof o.startDate === 'string' &&
+    typeof o.endDate === 'string' &&
+    typeof o.progress === 'number' &&
+    typeof o.priority === 'string' &&
+    VALID_PRIORITIES.includes(o.priority as string) &&
+    typeof o.completed === 'boolean'
+  );
+}
+
+function migrateIdeas(rawIdeas: unknown[]): { validIdeas: Idea[]; migrated: boolean } {
+  let migrated = false;
+  const validIdeas: Idea[] = [];
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < rawIdeas.length; i++) {
+    const raw = rawIdeas[i];
+    if (!isValidIdea(raw)) {
+      migrated = true;
+      continue;
+    }
+
+    let idea = { ...raw };
+
+    const validMilestones: Milestone[] = [];
+    for (let j = 0; j < idea.milestones.length; j++) {
+      const m = idea.milestones[j];
+      if (isValidMilestone(m)) {
+        let milestone = { ...m };
+        if (milestone.progress < 0) {
+          milestone.progress = 0;
+          migrated = true;
+        }
+        if (milestone.progress > 100) {
+          milestone.progress = 100;
+          migrated = true;
+        }
+        if (milestone.completed && milestone.progress < 100) {
+          milestone.progress = 100;
+          migrated = true;
+        }
+        validMilestones.push(milestone);
+      } else {
+        migrated = true;
+      }
+    }
+    if (validMilestones.length !== idea.milestones.length) {
+      idea.milestones = validMilestones;
+    }
+
+    if (idea.creativeScore < 0) {
+      idea.creativeScore = 0;
+      migrated = true;
+    }
+    if (idea.creativeScore > 5) {
+      idea.creativeScore = 5;
+      migrated = true;
+    }
+
+    idea.milestones = idea.milestones.slice(0, MAX_MILESTONES);
+
+    if (!idea.updatedAt) {
+      idea.updatedAt = idea.createdAt || now;
+      migrated = true;
+    }
+
+    validIdeas.push(idea);
+  }
+
+  return { validIdeas: validIdeas.slice(0, MAX_IDEAS), migrated };
+}
 
 interface CelebrationState {
   show: boolean;
@@ -19,6 +121,7 @@ interface IdeaStore {
 
   loadIdeas: () => Promise<void>;
   persistIdeas: (ideas: Idea[]) => Promise<void>;
+  clearAllData: () => Promise<void>;
 
   addIdea: (title: string, description: string) => boolean;
   updateIdea: (id: string, updates: Partial<Idea>) => void;
@@ -51,26 +154,99 @@ export const useIdeaStore = create<IdeaStore>((set, get) => ({
 
   loadIdeas: async () => {
     try {
-      const storedIdeas = await idbGet<Idea[]>('popupidea_ideas');
+      for (const key of LEGACY_KEYS) {
+        try {
+          await idbDel(key);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const storedVersion = await idbGet<number>(SCHEMA_VERSION_KEY);
+      const storedIdeas = await idbGet<Idea[]>(IDEAS_KEY);
+
+      if (storedVersion === undefined || storedVersion !== SCHEMA_VERSION) {
+        console.log(
+          `[PopUpIdea] Schema version mismatch (stored: ${storedVersion}, current: ${SCHEMA_VERSION}), migrating...`
+        );
+        if (storedVersion === undefined) {
+          const allKeys = await idbKeys();
+          for (const k of allKeys) {
+            const keyStr = String(k);
+            if (
+              keyStr.startsWith('popupidea_') &&
+              keyStr !== IDEAS_KEY &&
+              keyStr !== SCHEMA_VERSION_KEY
+            ) {
+              try {
+                await idbDel(k);
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+        }
+        await idbSet(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
+      }
+
       if (Array.isArray(storedIdeas)) {
-        set({ ideas: storedIdeas, isLoaded: true });
+        const { validIdeas, migrated } = migrateIdeas(storedIdeas);
+        if (migrated) {
+          console.log(`[PopUpIdea] Migrated ${validIdeas.length} ideas to schema v${SCHEMA_VERSION}`);
+          set({ ideas: validIdeas, isLoaded: true });
+          get().persistIdeas(validIdeas);
+        } else {
+          set({ ideas: validIdeas, isLoaded: true });
+        }
       } else {
         if (storedIdeas !== undefined && storedIdeas !== null) {
-          console.warn('Invalid data in IndexedDB, resetting...');
+          console.warn('[PopUpIdea] Invalid data format in IndexedDB, resetting to empty array');
+          await idbDel(IDEAS_KEY);
         }
+        await idbSet(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
         set({ ideas: [], isLoaded: true });
       }
     } catch (e) {
-      console.error('Failed to load ideas from IndexedDB:', e);
+      console.error('[PopUpIdea] loadIdeas: FAILED with error:', e);
+      try {
+        await idbDel(IDEAS_KEY);
+        await idbSet(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
+      } catch {
+        /* ignore */
+      }
       set({ ideas: [], isLoaded: true });
     }
   },
 
   persistIdeas: async (ideas: Idea[]) => {
     try {
-      await idbSet('popupidea_ideas', ideas);
+      await idbSet(IDEAS_KEY, ideas);
+      await idbSet(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
     } catch (e) {
-      console.error('Failed to persist ideas to IndexedDB:', e);
+      console.error('[PopUpIdea] persistIdeas: write FAILED:', e);
+    }
+  },
+
+  clearAllData: async () => {
+    try {
+      const allKeys = await idbKeys();
+      for (const k of allKeys) {
+        if (String(k).startsWith('popupidea_')) {
+          await idbDel(k);
+        }
+      }
+      await idbSet(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
+      set({
+        ideas: [],
+        selectedIdeaId: null,
+        isGanttOpen: false,
+        isMobileDetailOpen: false,
+        isSidebarOpen: false,
+        isCelebrating: { show: false, milestoneName: '' },
+      });
+      console.log('[PopUpIdea] All data cleared successfully');
+    } catch (e) {
+      console.error('[PopUpIdea] Failed to clear data:', e);
     }
   },
 
