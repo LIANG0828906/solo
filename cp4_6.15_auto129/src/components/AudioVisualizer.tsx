@@ -22,6 +22,7 @@ interface AudioVisualizerProps {
   currentTime: number;
   duration: number;
   isPlaying: boolean;
+  isRecording: boolean;
   onSeek: (time: number) => void;
   flashMarkerId: string | null;
   editMode: boolean;
@@ -41,6 +42,7 @@ export default function AudioVisualizer({
   currentTime,
   duration,
   isPlaying,
+  isRecording,
   onSeek,
   flashMarkerId,
   editMode,
@@ -49,8 +51,10 @@ export default function AudioVisualizer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
   const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
+  const [hoverPointId, setHoverPointId] = useState<string | null>(null);
   const animTimeRef = useRef<number>(0);
   const stopLoopRef = useRef<(() => void) | null>(null);
+  const canvasSizeRef = useRef({ w: 0, h: 0 });
 
   const getCanvasCoords = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -72,11 +76,20 @@ export default function AudioVisualizer({
   );
 
   const findNearbyPoint = useCallback(
-    (normX: number, normY: number, threshold: number = 0.03): PitchPoint | null => {
+    (normX: number, normY: number, threshold: number = 0.035): PitchPoint | null => {
+      const { w, h } = canvasSizeRef.current;
+      if (w === 0 || h === 0) return null;
+
+      const pixelThresholdX = threshold;
+      const pixelThresholdY = threshold * (w / h) * 0.5;
+
       let closest: PitchPoint | null = null;
       let minDist = threshold;
+
       for (const p of pitchCurve) {
-        const dist = Math.sqrt((p.x - normX) ** 2 + (p.y - normY) ** 2);
+        const dx = (p.x - normX) / pixelThresholdX;
+        const dy = (p.y - normY) / pixelThresholdY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < minDist) {
           minDist = dist;
           closest = p;
@@ -88,7 +101,7 @@ export default function AudioVisualizer({
   );
 
   const findNearbyMarker = useCallback(
-    (normX: number, threshold: number = 0.02): Marker | null => {
+    (normX: number, threshold: number = 0.025): Marker | null => {
       if (duration <= 0) return null;
       const clickTime = normX * duration;
       let closest: Marker | null = null;
@@ -107,23 +120,28 @@ export default function AudioVisualizer({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (duration <= 0) return;
       const { normX, normY } = getCanvasCoords(e);
 
       if (editMode) {
         const nearby = findNearbyPoint(normX, normY);
         if (nearby) {
           setDraggingPointId(nearby.id);
+          setHoverPointId(nearby.id);
         } else {
-          const newPoint: PitchPoint = {
-            id: generateId(),
-            x: Math.max(0, Math.min(1, normX)),
-            y: Math.max(0, Math.min(1, normY)),
-          };
-          onPitchCurveChange([...pitchCurve, newPoint]);
-          setDraggingPointId(newPoint.id);
+          const waveH = canvasSizeRef.current.h * 0.5;
+          const canvasY = normY * canvasSizeRef.current.h;
+          if (canvasY <= waveH) {
+            const newPoint: PitchPoint = {
+              id: generateId(),
+              x: Math.max(0, Math.min(1, normX)),
+              y: Math.max(0, Math.min(1, normY / 0.5)),
+            };
+            onPitchCurveChange([...pitchCurve, newPoint]);
+            setDraggingPointId(newPoint.id);
+            setHoverPointId(newPoint.id);
+          }
         }
-      } else {
+      } else if (duration > 0) {
         const nearbyMarker = findNearbyMarker(normX);
         if (nearbyMarker) {
           setDraggingMarkerId(nearbyMarker.id);
@@ -147,21 +165,31 @@ export default function AudioVisualizer({
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const { normX, normY } = getCanvasCoords(e);
+
       if (draggingPointId) {
-        const { normX, normY } = getCanvasCoords(e);
+        const waveH = canvasSizeRef.current.h * 0.5;
+        const canvasY = normY * canvasSizeRef.current.h;
+        const clampedY = canvasY <= waveH ? normY / 0.5 : 0.5;
         onPitchCurveChange(
           pitchCurve.map((p) =>
             p.id === draggingPointId
-              ? { ...p, x: Math.max(0, Math.min(1, normX)), y: Math.max(0, Math.min(1, normY)) }
+              ? {
+                  ...p,
+                  x: Math.max(0, Math.min(1, normX)),
+                  y: Math.max(0, Math.min(1, clampedY)),
+                }
               : p
           )
         );
       } else if (draggingMarkerId && duration > 0) {
-        const { normX } = getCanvasCoords(e);
         const newTime = Math.max(0, Math.min(duration, normX * duration));
         onMarkersChange(
           markers.map((m) => (m.id === draggingMarkerId ? { ...m, time: newTime } : m))
         );
+      } else if (editMode) {
+        const nearby = findNearbyPoint(normX, normY);
+        setHoverPointId(nearby ? nearby.id : null);
       }
     },
     [
@@ -173,6 +201,8 @@ export default function AudioVisualizer({
       pitchCurve,
       onMarkersChange,
       markers,
+      editMode,
+      findNearbyPoint,
     ]
   );
 
@@ -181,16 +211,25 @@ export default function AudioVisualizer({
     setDraggingMarkerId(null);
   }, []);
 
+  const handleMouseLeave = useCallback(() => {
+    setDraggingPointId(null);
+    setDraggingMarkerId(null);
+    setHoverPointId(null);
+  }, []);
+
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!editMode || duration <= 0) return;
+      if (!editMode) return;
       const { normX, normY } = getCanvasCoords(e);
       const nearby = findNearbyPoint(normX, normY, 0.05);
       if (nearby) {
         onPitchCurveChange(pitchCurve.filter((p) => p.id !== nearby.id));
+        if (hoverPointId === nearby.id) {
+          setHoverPointId(null);
+        }
       }
     },
-    [editMode, duration, getCanvasCoords, findNearbyPoint, onPitchCurveChange, pitchCurve]
+    [editMode, getCanvasCoords, findNearbyPoint, onPitchCurveChange, pitchCurve, hoverPointId]
   );
 
   useEffect(() => {
@@ -203,12 +242,17 @@ export default function AudioVisualizer({
       const rect = container.getBoundingClientRect();
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
+      canvasSizeRef.current = { w: canvas.width, h: canvas.height };
     };
 
     resizeCanvas();
     const observer = new ResizeObserver(resizeCanvas);
     observer.observe(container);
-    return () => observer.disconnect();
+    window.addEventListener('resize', resizeCanvas);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, []);
 
   useEffect(() => {
@@ -224,6 +268,7 @@ export default function AudioVisualizer({
       const h = canvas.height;
       const waveH = h * 0.5;
       const specH = h * 0.5;
+      canvasSizeRef.current = { w, h };
 
       ctx.clearRect(0, 0, w, h);
 
@@ -234,21 +279,23 @@ export default function AudioVisualizer({
       ctx.translate(0, 0);
       drawGrid(ctx, w, waveH, 'rgba(74, 222, 128, 0.06)');
       drawWaveform(ctx, timeData, w, waveH);
+
       if (editMode) {
-        drawPitchCurve(ctx, pitchCurve, w, waveH);
-        drawControlHandles(ctx, pitchCurve, w, waveH, draggingPointId);
+        drawPitchCurve(ctx, pitchCurve, w, waveH, false);
+        drawControlHandles(ctx, pitchCurve, w, waveH, draggingPointId, hoverPointId);
       }
+
       drawPlayhead(ctx, currentTime, duration, w, waveH);
       ctx.restore();
 
       ctx.save();
       ctx.translate(0, waveH);
-      ctx.fillStyle = 'rgba(10, 10, 20, 0.3)';
+      ctx.fillStyle = 'rgba(10, 10, 20, 0.35)';
       ctx.fillRect(0, 0, w, specH);
       drawSpectrum(ctx, freqData, w, specH, animTimeRef.current);
       ctx.restore();
 
-      ctx.strokeStyle = 'rgba(0, 210, 255, 0.15)';
+      ctx.strokeStyle = 'rgba(0, 210, 255, 0.18)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, waveH);
@@ -257,6 +304,23 @@ export default function AudioVisualizer({
 
       if (markers.length > 0 && duration > 0) {
         drawMarkerDiamonds(ctx, markers, w, duration, flashMarkerId, currentTime);
+      }
+
+      if (isRecording) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
+        ctx.shadowColor = '#ff6b6b';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(w * 0.03, h * 0.05, Math.min(8, w * 0.015), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = '#ff6b6b';
+        ctx.font = `${Math.min(14, w * 0.018)}px system-ui, sans-serif`;
+        ctx.fillText('REC', w * 0.03 + 20, h * 0.055);
+        ctx.restore();
       }
     }, 30);
 
@@ -273,12 +337,15 @@ export default function AudioVisualizer({
     flashMarkerId,
     editMode,
     draggingPointId,
+    hoverPointId,
+    isRecording,
   ]);
 
   const getCursor = (): string => {
     if (draggingPointId || draggingMarkerId) return 'grabbing';
+    if (editMode && hoverPointId) return 'grab';
     if (editMode) return 'crosshair';
-    return 'default';
+    return 'pointer';
   };
 
   return (
@@ -288,7 +355,7 @@ export default function AudioVisualizer({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDoubleClick}
         style={{ cursor: getCursor() }}
       />

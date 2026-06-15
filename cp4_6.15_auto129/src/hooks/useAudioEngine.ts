@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { PitchPoint, interpolatePitch, encodeWav } from '../utils/drawHelpers';
+import { PitchPoint, interpolatePitch, encodeWav, applyPitchShiftToBuffer } from '../utils/drawHelpers';
 
 const FFT_SIZE = 2048;
 const MAX_RECORD_DURATION = 30;
@@ -113,12 +113,14 @@ export function useAudioEngine(): AudioEngineResult {
     if (!ctx || !analyser) return;
 
     const buffer = audioBufferRef.current;
+    let elapsed = 0;
     if (buffer) {
-      const elapsed = ctx.currentTime - startTimeRef.current + pauseOffsetRef.current;
+      elapsed = ctx.currentTime - startTimeRef.current + pauseOffsetRef.current;
       if (elapsed >= buffer.duration) {
         if (isLoopingRef.current) {
           pauseOffsetRef.current = 0;
           startTimeRef.current = ctx.currentTime;
+          elapsed = 0;
           setCurrentTime(0);
         } else {
           setIsPlaying(false);
@@ -138,8 +140,7 @@ export function useAudioEngine(): AudioEngineResult {
     setFreqData(fd);
 
     if (sourceRef.current && buffer) {
-      const elapsed2 = ctx.currentTime - startTimeRef.current + pauseOffsetRef.current;
-      const normalizedTime = elapsed2 / buffer.duration;
+      const normalizedTime = elapsed / buffer.duration;
       const semitones = interpolatePitch(pitchCurveRef.current, normalizedTime);
       const rate = Math.pow(2, semitones / 12);
       sourceRef.current.playbackRate.value = Math.max(0.25, Math.min(4, rate));
@@ -179,9 +180,19 @@ export function useAudioEngine(): AudioEngineResult {
     setIsPlaying(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
       recordStreamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm',
+      });
       recordedChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
@@ -192,12 +203,15 @@ export function useAudioEngine(): AudioEngineResult {
 
       mediaRecorder.onstop = async () => {
         if (micSourceRef.current) {
-          try { micSourceRef.current.disconnect(); } catch {}
+          try {
+            micSourceRef.current.disconnect();
+          } catch {}
           micSourceRef.current = null;
         }
         cancelAnimationFrame(recordRafRef.current);
         stream.getTracks().forEach((t) => t.stop());
         recordStreamRef.current = null;
+
         const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
         try {
           const arrayBuffer = await blob.arrayBuffer();
@@ -243,10 +257,10 @@ export function useAudioEngine(): AudioEngineResult {
 
       const updateProgress = () => {
         if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') return;
-        const elapsed = (Date.now() - recordStartRef.current) / 1000;
-        const progress = Math.min(100, (elapsed / MAX_RECORD_DURATION) * 100);
+        const elapsedSec = (Date.now() - recordStartRef.current) / 1000;
+        const progress = Math.min(100, (elapsedSec / MAX_RECORD_DURATION) * 100);
         setRecordingProgress(progress);
-        if (elapsed >= MAX_RECORD_DURATION) {
+        if (elapsedSec >= MAX_RECORD_DURATION) {
           stopRecording();
           return;
         }
@@ -266,7 +280,9 @@ export function useAudioEngine(): AudioEngineResult {
     clearTimeout(recordTimerRef.current);
     cancelAnimationFrame(recordRafRef.current);
     if (micSourceRef.current) {
-      try { micSourceRef.current.disconnect(); } catch {}
+      try {
+        micSourceRef.current.disconnect();
+      } catch {}
       micSourceRef.current = null;
     }
     if (recordStreamRef.current) {
@@ -342,31 +358,34 @@ export function useAudioEngine(): AudioEngineResult {
     });
   }, []);
 
-  const seek = useCallback((time: number) => {
-    const buffer = audioBufferRef.current;
-    if (!buffer) return;
-    const clamped = Math.max(0, Math.min(time, buffer.duration));
-    pauseOffsetRef.current = clamped;
+  const seek = useCallback(
+    (time: number) => {
+      const buffer = audioBufferRef.current;
+      if (!buffer) return;
+      const clamped = Math.max(0, Math.min(time, buffer.duration));
+      pauseOffsetRef.current = clamped;
 
-    if (isPlayingRef.current) {
-      stopSource();
-      const ctx = getAudioContext();
-      const analyser = getAnalyser();
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(analyser);
-      source.loop = isLoopingRef.current;
-      source.onended = () => {
-        if (isPlayingRef.current && !isLoopingRef.current) {
-          setIsPlaying(false);
-        }
-      };
-      startTimeRef.current = ctx.currentTime;
-      source.start(0, clamped);
-      sourceRef.current = source;
-    }
-    setCurrentTime(clamped);
-  }, [getAudioContext, getAnalyser, stopSource]);
+      if (isPlayingRef.current) {
+        stopSource();
+        const ctx = getAudioContext();
+        const analyser = getAnalyser();
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(analyser);
+        source.loop = isLoopingRef.current;
+        source.onended = () => {
+          if (isPlayingRef.current && !isLoopingRef.current) {
+            setIsPlaying(false);
+          }
+        };
+        startTimeRef.current = ctx.currentTime;
+        source.start(0, clamped);
+        sourceRef.current = source;
+      }
+      setCurrentTime(clamped);
+    },
+    [getAudioContext, getAnalyser, stopSource]
+  );
 
   const setPitchCurve = useCallback((points: PitchPoint[]) => {
     setPitchCurveState(points);
@@ -381,61 +400,11 @@ export function useAudioEngine(): AudioEngineResult {
     const numChannels = buffer.numberOfChannels;
     const totalSamples = buffer.length;
 
-    const offlineCtx = new OfflineAudioContext(
-      numChannels,
-      totalSamples,
-      sampleRate
-    );
+    const offlineCtx = new OfflineAudioContext(numChannels, totalSamples, sampleRate);
 
-    if (curve.length === 0) {
-      const source = offlineCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(offlineCtx.destination);
-      source.start(0);
-    } else {
-      const sorted = [...curve].sort((a, b) => a.x - b.x);
-      const segmentCount = Math.max(sorted.length + 1, 2);
-      const boundaries: number[] = [0];
-      for (const p of sorted) {
-        boundaries.push(p.x * buffer.duration);
-      }
-      boundaries.push(buffer.duration);
-
-      for (let i = 0; i < boundaries.length - 1; i++) {
-        const segStart = boundaries[i];
-        const segEnd = boundaries[i + 1];
-        if (segEnd <= segStart) continue;
-
-        const segMid = (segStart + segEnd) / 2;
-        const normalizedTime = segMid / buffer.duration;
-        const semitones = interpolatePitch(curve, normalizedTime);
-        const rate = Math.pow(2, semitones / 12);
-
-        const startSample = Math.floor(segStart * sampleRate);
-        const endSample = Math.min(Math.floor(segEnd * sampleRate), totalSamples);
-        const segLength = endSample - startSample;
-        if (segLength <= 0) continue;
-
-        const segBuffer = offlineCtx.createBuffer(
-          numChannels,
-          segLength,
-          sampleRate
-        );
-        for (let ch = 0; ch < numChannels; ch++) {
-          const sourceData = buffer.getChannelData(ch);
-          const segData = segBuffer.getChannelData(ch);
-          for (let s = 0; s < segLength; s++) {
-            segData[s] = sourceData[startSample + s];
-          }
-        }
-
-        const source = offlineCtx.createBufferSource();
-        source.buffer = segBuffer;
-        source.playbackRate.value = Math.max(0.25, Math.min(4, rate));
-        source.connect(offlineCtx.destination);
-        source.start(segStart);
-      }
-    }
+    const source = applyPitchShiftToBuffer(buffer, curve, offlineCtx);
+    source.connect(offlineCtx.destination);
+    source.start(0);
 
     const rendered = await offlineCtx.startRendering();
     const wavData = encodeWav(rendered);
@@ -445,8 +414,17 @@ export function useAudioEngine(): AudioEngineResult {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(recordRafRef.current);
       clearTimeout(recordTimerRef.current);
       stopSource();
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {}
+      }
+      if (recordStreamRef.current) {
+        recordStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close();
       }
