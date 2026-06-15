@@ -40,7 +40,11 @@ export interface Suggestion {
 export interface Achievement {
   id: string;
   suggestionId: string;
+  suggestionTemplateId: string;
   title: string;
+  description: string;
+  activityType: ActivityType;
+  relatedSubtype?: string;
   adoptedAt: string;
   potentialSaving: number;
 }

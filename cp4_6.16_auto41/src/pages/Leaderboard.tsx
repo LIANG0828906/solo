@@ -14,7 +14,6 @@ const Leaderboard = () => {
   const {
     leaderboard,
     activities,
-    totalEmission: _total,
     updateActivity,
     deleteActivity,
   } = useCarbonStore();

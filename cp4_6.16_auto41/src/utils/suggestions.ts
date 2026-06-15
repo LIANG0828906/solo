@@ -1,21 +1,40 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Activity, Suggestion, ActivityType } from '@/types';
-import { getFactor, calculateEmission } from '@/constants/emissionFactors';
+import { getFactor, TRANSPORT_FACTORS, DIET_FACTORS, ELECTRICITY_FACTORS } from '@/constants/emissionFactors';
 import { getRecentActivities, formatNumber } from './calculations';
 
 interface SubtypeStats {
   subtype: string;
   type: ActivityType;
+  label: string;
+  icon: string;
+  color: string;
   totalEmission: number;
   totalValue: number;
   count: number;
   avgValue: number;
+  factor: number;
+  unit: string;
+}
+
+interface SuggestionTemplate {
+  id: string;
+  type: ActivityType;
+  relatedSubtype?: string;
+  title: string;
+  buildDescription: (stats: SubtypeStats) => string;
+  calculateSaving: (stats: SubtypeStats) => number;
+  minSaving: number;
+  priority: number;
 }
 
 const getSubtypeStats = (activities: Activity[]): SubtypeStats[] => {
   const map = new Map<string, SubtypeStats>();
 
   activities.forEach((a) => {
+    const factor = getFactor(a.type, a.subtype);
+    if (!factor) return;
+
     const existing = map.get(a.subtype);
     if (existing) {
       existing.totalEmission += a.emission;
@@ -26,10 +45,15 @@ const getSubtypeStats = (activities: Activity[]): SubtypeStats[] => {
       map.set(a.subtype, {
         subtype: a.subtype,
         type: a.type,
+        label: factor.label,
+        icon: factor.icon,
+        color: factor.color,
         totalEmission: a.emission,
         totalValue: a.value,
         count: 1,
         avgValue: a.value,
+        factor: factor.factor,
+        unit: factor.unit,
       });
     }
   });
@@ -39,224 +63,264 @@ const getSubtypeStats = (activities: Activity[]): SubtypeStats[] => {
   );
 };
 
-const createTransportSuggestion = (
-  carStats: SubtypeStats,
-): Suggestion | null => {
-  const weeklyKm = carStats.avgValue * 5;
-  const subwayFactor = getFactor('transport', 'subway');
-  const carFactor = getFactor('transport', 'car');
-  if (!subwayFactor || !carFactor) return null;
-
-  const currentEmission = carStats.avgValue * carFactor.factor * 5;
-  const newEmission = carStats.avgValue * subwayFactor.factor * 5;
-  const saving = Math.round((currentEmission - newEmission) * 100) / 100;
-
-  if (saving <= 0) return null;
-
-  return {
-    id: uuidv4(),
-    title: '绿色通勤建议',
-    description: `您本周私家车出行约 ${formatNumber(weeklyKm)} 公里，排放 ${formatNumber(currentEmission)} kg CO₂。建议改为地铁出行，每周可减少约 ${formatNumber(saving)} kg 碳排放，相当于种植 ${Math.max(1, Math.round(saving / 2))} 棵树的年吸收量。`,
-    potentialSaving: saving,
-    activityType: 'transport',
+const TRANSPORT_SUGGESTION_TEMPLATES: SuggestionTemplate[] = [
+  {
+    id: 'car-to-subway',
+    type: 'transport',
     relatedSubtype: 'car',
-  };
-};
-
-const createDietSuggestion = (
-  meatStats: SubtypeStats,
-): Suggestion | null => {
-  const vegFactor = getFactor('diet', 'vegetarian');
-  if (!vegFactor) return null;
-
-  const weeklyMeals = Math.max(meatStats.count, 5);
-  const currentEmission = meatStats.totalEmission;
-  const newEmission = weeklyMeals * vegFactor.factor;
-  const saving = Math.max(0, Math.round((currentEmission - newEmission) * 100) / 100);
-
-  if (saving < 0.5) return null;
-
-  return {
-    id: uuidv4(),
-    title: '低碳饮食建议',
-    description: `您本周荤食餐数较多，共排放 ${formatNumber(currentEmission)} kg CO₂。尝试每周增加 ${Math.min(3, weeklyMeals)} 顿素食，可减少约 ${formatNumber(saving)} kg 碳排放，同时有益身体健康！`,
-    potentialSaving: saving,
-    activityType: 'diet',
-    relatedSubtype: 'meat',
-  };
-};
-
-const createElectricitySuggestion = (
-  acStats: SubtypeStats,
-): Suggestion | null => {
-  const lightFactor = getFactor('electricity', 'light');
-  if (!lightFactor) return null;
-
-  const weeklyHours = Math.max(acStats.avgValue * 5, 10);
-  const currentEmission = acStats.avgValue * 5 * (getFactor('electricity', 'ac')?.factor || 0.8);
-  const savingPct = 0.3;
-  const saving = Math.round(currentEmission * savingPct * 100) / 100;
-
-  if (saving < 0.3) return null;
-
-  return {
-    id: uuidv4(),
-    title: '节能用电建议',
-    description: `您本周空调使用时长较长，耗电排放 ${formatNumber(currentEmission)} kg CO₂。建议将温度调高 2℃ 或减少 ${Math.round(weeklyHours * savingPct)} 小时使用，每周可节省约 ${formatNumber(saving)} kg 碳排放。`,
-    potentialSaving: saving,
-    activityType: 'electricity',
-    relatedSubtype: 'ac',
-  };
-};
-
-const createBusWalkSuggestion = (
-  stats: SubtypeStats,
-): Suggestion | null => {
-  const walkFactor = getFactor('transport', 'walk');
-  if (!walkFactor) return null;
-
-  const dailyKm = stats.avgValue;
-  if (dailyKm > 5) return null;
-
-  const saving = Math.round(dailyKm * 5 * (getFactor('transport', 'bus')?.factor || 0.08) * 100) / 100;
-  if (saving < 0.2) return null;
-
-  return {
-    id: uuidv4(),
-    title: '短距离出行建议',
-    description: `您每次公交出行距离约 ${formatNumber(dailyKm)} 公里，建议尝试步行或骑行，既能锻炼身体，每周又可减少约 ${formatNumber(saving)} kg 碳排放。`,
-    potentialSaving: saving,
-    activityType: 'transport',
+    title: '试试地铁通勤',
+    buildDescription: (stats) =>
+      `您本周私家车出行约 ${formatNumber(stats.totalValue)} 公里，排放 ${formatNumber(stats.totalEmission)} kg CO₂。如果每周有 ${Math.min(3, stats.count)} 天改乘地铁，可减少约 ${formatNumber(stats.totalEmission * 0.4)} kg 碳排放。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.4 * 100) / 100,
+    minSaving: 0.5,
+    priority: 1,
+  },
+  {
+    id: 'car-carpool',
+    type: 'transport',
+    relatedSubtype: 'car',
+    title: '拼车出行更环保',
+    buildDescription: (stats) =>
+      `您本周私家车使用 ${stats.count} 次，排放 ${formatNumber(stats.totalEmission)} kg CO₂。尝试与同事或邻居拼车，每次可减少约 ${formatNumber(stats.avgValue * 0.2 * stats.factor)} kg 碳排放。`,
+    calculateSaving: (stats) => Math.round(stats.avgValue * stats.count * 0.2 * stats.factor * 100) / 100,
+    minSaving: 0.3,
+    priority: 2,
+  },
+  {
+    id: 'bus-to-walk',
+    type: 'transport',
     relatedSubtype: 'bus',
-  };
-};
-
-const createMixedDietSuggestion = (
-  stats: SubtypeStats,
-): Suggestion | null => {
-  const vegFactor = getFactor('diet', 'vegetarian');
-  const mixedFactor = getFactor('diet', 'mixed');
-  if (!vegFactor || !mixedFactor) return null;
-
-  const weeklyMeals = stats.count;
-  const saving = Math.round(weeklyMeals * (mixedFactor.factor - vegFactor.factor) * 100) / 100;
-  if (saving < 0.5) return null;
-
-  return {
-    id: uuidv4(),
-    title: '提升素食比例',
-    description: `您本周共吃了 ${weeklyMeals} 顿混合饮食，若将其中 3 顿改为纯素食，每周可减少约 ${formatNumber(saving)} kg 碳排放，推荐尝试周一无肉日！`,
-    potentialSaving: saving,
-    activityType: 'diet',
-    relatedSubtype: 'mixed',
-  };
-};
-
-const createComputerSuggestion = (
-  stats: SubtypeStats,
-): Suggestion | null => {
-  const savingPct = 0.2;
-  const saving = Math.round(stats.totalEmission * savingPct * 100) / 100;
-  if (saving < 0.2) return null;
-
-  return {
-    id: uuidv4(),
-    title: '电脑使用优化',
-    description: `您本周电脑使用累计 ${formatNumber(stats.totalValue)} 小时，建议设置休眠模式并及时关闭电源，可节省约 ${formatNumber(saving)} kg 碳排放。`,
-    potentialSaving: saving,
-    activityType: 'electricity',
-    relatedSubtype: 'computer',
-  };
-};
-
-const createGenericSuggestions = (): Suggestion[] => [
-  {
-    id: uuidv4(),
-    title: '随手关灯好习惯',
-    description: '离开房间时随手关灯、关闭待机电器，每年可减少约 50 kg 碳排放，从今天开始行动吧！',
-    potentialSaving: 1,
-    activityType: 'electricity',
-  },
-  {
-    id: uuidv4(),
-    title: '自带水杯购物袋',
-    description: '减少一次性塑料制品使用，自带水杯和购物袋，每人每年可减少约 30 kg 碳排放。',
-    potentialSaving: 0.6,
-    activityType: 'diet',
-  },
-  {
-    id: uuidv4(),
-    title: '理性消费减少浪费',
-    description: '按需购买食物和用品，减少食物浪费，支持本地农产品，都是践行低碳生活的好方式。',
-    potentialSaving: 0.8,
-    activityType: 'diet',
+    title: '短途改步行或骑行',
+    buildDescription: (stats) =>
+      `您每次公交出行平均 ${formatNumber(stats.avgValue)} 公里，短距离出行可尝试步行或骑行，既锻炼身体又零排放，每周可减少约 X kg CO₂。`,
+    calculateSaving: (stats) => {
+      if (stats.avgValue > 5) return 0;
+      return Math.round(stats.avgValue * stats.count * 0.3 * stats.factor * 100) / 100;
+    },
+    minSaving: 0.15,
+    priority: 3,
   },
 ];
 
+const DIET_SUGGESTION_TEMPLATES: SuggestionTemplate[] = [
+  {
+    id: 'meat-to-veg',
+    type: 'diet',
+    relatedSubtype: 'meat',
+    title: '增加素食比例',
+    buildDescription: (stats) =>
+      `您本周吃了 ${stats.count} 顿荤食，排放 ${formatNumber(stats.totalEmission)} kg CO₂。试试每周 ${Math.min(3, stats.count)} 顿换成素食，可减少约 ${formatNumber(stats.totalEmission * 0.5)} kg 碳排放。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.5 * 100) / 100,
+    minSaving: 0.5,
+    priority: 1,
+  },
+  {
+    id: 'mixed-to-veg',
+    type: 'diet',
+    relatedSubtype: 'mixed',
+    title: '尝试周一无肉日',
+    buildDescription: (stats) =>
+      `您本周有 ${stats.count} 顿混合饮食，每周安排 1-2 天纯素食，既能清肠排毒又能减少碳排放，预计可减少 ${formatNumber(stats.totalEmission * 0.2)} kg/周。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.2 * 100) / 100,
+    minSaving: 0.3,
+    priority: 2,
+  },
+  {
+    id: 'reduce-food-waste',
+    type: 'diet',
+    title: '减少食物浪费',
+    buildDescription: () =>
+      '按需购买食材，减少食物浪费。每减少 1kg 食物浪费，可减少约 2.5kg 碳排放，同时节省开支。',
+    calculateSaving: () => 1.2,
+    minSaving: 0.1,
+    priority: 4,
+  },
+];
+
+const ELECTRICITY_SUGGESTION_TEMPLATES: SuggestionTemplate[] = [
+  {
+    id: 'ac-temperature',
+    type: 'electricity',
+    relatedSubtype: 'ac',
+    title: '空调温度调高 2℃',
+    buildDescription: (stats) =>
+      `您本周空调使用 ${formatNumber(stats.totalValue)} 小时，排放 ${formatNumber(stats.totalEmission)} kg CO₂。将温度调高 2℃，可节省约 ${Math.round(stats.totalEmission * 0.2 * 100) / 100} kg 碳排放，体感几乎无差别。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.2 * 100) / 100,
+    minSaving: 0.3,
+    priority: 1,
+  },
+  {
+    id: 'computer-sleep',
+    type: 'electricity',
+    relatedSubtype: 'computer',
+    title: '电脑不用时及时休眠',
+    buildDescription: (stats) =>
+      `您本周电脑使用 ${formatNumber(stats.totalValue)} 小时，设置休眠模式、关闭屏幕保护可减少待机功耗，每周可节省约 ${formatNumber(stats.totalEmission * 0.15)} kg 碳排放。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.15 * 100) / 100,
+    minSaving: 0.1,
+    priority: 2,
+  },
+  {
+    id: 'led-bulbs',
+    type: 'electricity',
+    relatedSubtype: 'light',
+    title: '更换 LED 节能灯',
+    buildDescription: (stats) =>
+      `您本周照明使用 ${formatNumber(stats.totalValue)} 小时，将白炽灯换成 LED 灯可节电约 80%，长期使用既环保又省钱。`,
+    calculateSaving: (stats) => Math.round(stats.totalEmission * 0.5 * 100) / 100,
+    minSaving: 0.1,
+    priority: 3,
+  },
+  {
+    id: 'unplug-charger',
+    type: 'electricity',
+    title: '拔下不用的充电器',
+    buildDescription: () =>
+      '手机充电器、充电宝等设备即使未充电也会消耗少量电力，及时拔下既安全又节能。',
+    calculateSaving: () => 0.2,
+    minSaving: 0.05,
+    priority: 5,
+  },
+];
+
+const ALL_TEMPLATES = [
+  ...TRANSPORT_SUGGESTION_TEMPLATES,
+  ...DIET_SUGGESTION_TEMPLATES,
+  ...ELECTRICITY_SUGGESTION_TEMPLATES,
+];
+
+const GENERIC_SUGGESTIONS: SuggestionTemplate[] = [
+  {
+    id: 'reusable-bottle',
+    type: 'diet',
+    title: '自带水杯和购物袋',
+    buildDescription: () =>
+      '减少一次性塑料制品使用，自带水杯和购物袋，每人每年可减少约 30 kg 碳排放。',
+    calculateSaving: () => 0.6,
+    minSaving: 0.1,
+    priority: 10,
+  },
+  {
+    id: 'local-produce',
+    type: 'diet',
+    title: '选择本地农产品',
+    buildDescription: () =>
+      '购买本地生产的食物可减少运输过程中的碳排放，同时更新鲜更健康。',
+    calculateSaving: () => 0.5,
+    minSaving: 0.1,
+    priority: 10,
+  },
+  {
+    id: 'paperless',
+    type: 'electricity',
+    title: '无纸化办公',
+    buildDescription: () =>
+      '多用电子文档、电子发票，减少纸张使用，每节约 1 张 A4 纸约减少 0.01 kg 碳排放。',
+    calculateSaving: () => 0.3,
+    minSaving: 0.1,
+    priority: 10,
+  },
+];
+
+const buildSuggestion = (
+  template: SuggestionTemplate,
+  stats: SubtypeStats | null,
+): Suggestion => {
+  const description = stats ? template.buildDescription(stats) : template.buildDescription({} as SubtypeStats);
+  const potentialSaving = stats
+    ? template.calculateSaving(stats)
+    : template.calculateSaving({} as SubtypeStats);
+
+  return {
+    id: `${template.id}-${uuidv4().slice(0, 8)}`,
+    title: template.title,
+    description,
+    potentialSaving,
+    activityType: template.type,
+    relatedSubtype: template.relatedSubtype,
+  };
+};
+
 export const generateSuggestions = (
   activities: Activity[],
-  existingSuggestionIds: Set<string> = new Set(),
+  dismissedSuggestionIds: Set<string> = new Set(),
   count = 3,
 ): Suggestion[] => {
   const recent = getRecentActivities(activities, 7);
-  const stats = getSubtypeStats(recent);
-  const suggestions: Suggestion[] = [];
+  const subtypeStats = getSubtypeStats(recent);
 
-  const carStats = stats.find((s) => s.subtype === 'car');
-  if (carStats) {
-    const s = createTransportSuggestion(carStats);
-    if (s) suggestions.push(s);
+  const top3Subtypes = subtypeStats.slice(0, 3);
+
+  const results: Suggestion[] = [];
+  const usedTemplateIds = new Set<string>();
+
+  for (const stats of top3Subtypes) {
+    const templatesForSubtype = ALL_TEMPLATES.filter(
+      (t) =>
+        t.relatedSubtype === stats.subtype &&
+        !usedTemplateIds.has(t.id) &&
+        t.calculateSaving(stats) >= t.minSaving,
+    );
+
+    if (templatesForSubtype.length > 0) {
+      const best = templatesForSubtype.sort((a, b) => a.priority - b.priority)[0];
+      results.push(buildSuggestion(best, stats));
+      usedTemplateIds.add(best.id);
+    }
   }
 
-  const meatStats = stats.find((s) => s.subtype === 'meat');
-  if (meatStats) {
-    const s = createDietSuggestion(meatStats);
-    if (s) suggestions.push(s);
+  for (const stats of subtypeStats) {
+    if (results.length >= count) break;
+
+    const typeTemplates = ALL_TEMPLATES.filter(
+      (t) =>
+        t.type === stats.type &&
+        !usedTemplateIds.has(t.id) &&
+        t.relatedSubtype !== stats.subtype,
+    );
+
+    for (const tpl of typeTemplates.sort((a, b) => a.priority - b.priority)) {
+      if (results.length >= count) break;
+      if (usedTemplateIds.has(tpl.id)) continue;
+      const saving = tpl.calculateSaving(stats);
+      if (saving >= tpl.minSaving) {
+        results.push(buildSuggestion(tpl, stats));
+        usedTemplateIds.add(tpl.id);
+      }
+    }
   }
 
-  const acStats = stats.find((s) => s.subtype === 'ac');
-  if (acStats) {
-    const s = createElectricitySuggestion(acStats);
-    if (s) suggestions.push(s);
+  if (results.length < count) {
+    for (const tpl of GENERIC_SUGGESTIONS) {
+      if (results.length >= count) break;
+      if (usedTemplateIds.has(tpl.id)) continue;
+      const s = buildSuggestion(tpl, null);
+      const baseId = tpl.id;
+      const isDismissed = Array.from(dismissedSuggestionIds).some((d) =>
+        d.startsWith(baseId),
+      );
+      if (!isDismissed) {
+        results.push(s);
+        usedTemplateIds.add(tpl.id);
+      }
+    }
   }
 
-  const busStats = stats.find((s) => s.subtype === 'bus');
-  if (busStats && suggestions.length < count) {
-    const s = createBusWalkSuggestion(busStats);
-    if (s) suggestions.push(s);
-  }
-
-  const mixedStats = stats.find((s) => s.subtype === 'mixed');
-  if (mixedStats && suggestions.length < count) {
-    const s = createMixedDietSuggestion(mixedStats);
-    if (s) suggestions.push(s);
-  }
-
-  const computerStats = stats.find((s) => s.subtype === 'computer');
-  if (computerStats && suggestions.length < count) {
-    const s = createComputerSuggestion(computerStats);
-    if (s) suggestions.push(s);
-  }
-
-  const generic = createGenericSuggestions().filter(
-    (s) => !existingSuggestionIds.has(s.id),
+  const filtered = results.filter(
+    (s) => !dismissedSuggestionIds.has(s.id),
   );
-  for (const g of generic) {
-    if (suggestions.length >= count) break;
-    suggestions.push(g);
+
+  filtered.sort((a, b) => b.potentialSaving - a.potentialSaving);
+
+  if (filtered.length < count) {
+    const fallback = GENERIC_SUGGESTIONS
+      .map((t) => buildSuggestion(t, null))
+      .filter((s) => !filtered.some((f) => f.title === s.title))
+      .slice(0, count - filtered.length);
+    filtered.push(...fallback);
   }
 
-  const finalList = suggestions
-    .filter((s) => !existingSuggestionIds.has(s.id))
-    .sort((a, b) => b.potentialSaving - a.potentialSaving)
-    .slice(0, count);
-
-  if (finalList.length < count) {
-    const fallback = createGenericSuggestions()
-      .filter((s) => !finalList.some((f) => f.title === s.title))
-      .slice(0, count - finalList.length);
-    finalList.push(...fallback);
-  }
-
-  return finalList;
+  return filtered.slice(0, count);
 };
+
+export default generateSuggestions;

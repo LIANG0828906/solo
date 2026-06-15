@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { getProgressColor } from '@/utils/calculations';
 
 interface ProgressRingProps {
@@ -9,6 +9,7 @@ interface ProgressRingProps {
   label?: string;
   showValue?: boolean;
   fontSize?: number;
+  duration?: number;
 }
 
 const ProgressRing = ({
@@ -19,44 +20,83 @@ const ProgressRing = ({
   label,
   showValue = true,
   fontSize = 28,
+  duration = 1500,
 }: ProgressRingProps) => {
-  const [animatedProgress, setAnimatedProgress] = useState(0);
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const actualProgress = Math.max(0, Math.min(100, progress));
-  const offset = circumference - (animatedProgress / 100) * circumference;
-  const color = getProgressColor(actualProgress);
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const startValRef = useRef(0);
+  const startTimeRef = useRef<number | null>(null);
+
+  const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+
+  const radius = useMemo(() => (size - strokeWidth) / 2, [size, strokeWidth]);
+  const circumference = useMemo(() => 2 * Math.PI * radius, [radius]);
+
+  const strokeDasharray = useMemo(() => {
+    const offset = (displayProgress / 100) * circumference;
+    return `${offset} ${circumference}`;
+  }, [displayProgress, circumference]);
+
+  const color = getProgressColor(safeProgress);
 
   useEffect(() => {
     if (!animate) {
-      setAnimatedProgress(actualProgress);
+      setDisplayProgress(safeProgress);
       return;
     }
 
-    let raf: number;
-    const startTime = performance.now();
-    const startValue = 0;
-    const duration = 1500;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    startValRef.current = displayProgress;
+    startTimeRef.current = null;
 
     const easeOutCubic = (t: number): number => {
       return 1 - Math.pow(1 - t, 3);
     };
 
+    const easing = (t: number): number => {
+      return easeOutCubic(t);
+    };
+
     const tick = (now: number) => {
-      const elapsed = now - startTime;
+      if (startTimeRef.current === null) {
+        startTimeRef.current = now;
+      }
+      const elapsed = now - startTimeRef.current;
       const t = Math.min(1, elapsed / duration);
-      const eased = easeOutCubic(t);
-      const current = startValue + (actualProgress - startValue) * eased;
-      setAnimatedProgress(current);
+      const eased = easing(t);
+      const current = startValRef.current + (safeProgress - startValRef.current) * eased;
+
+      setDisplayProgress(current);
 
       if (t < 1) {
-        raf = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(tick);
       }
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [actualProgress, animate]);
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [safeProgress, animate, duration, displayProgress]);
+
+  if (safeProgress === 0 && !label) {
+    return (
+      <div
+        className="inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400"
+        style={{ width: size, height: size }}
+      >
+        <span className="text-sm font-medium">0%</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -65,6 +105,7 @@ const ProgressRing = ({
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         className="transform -rotate-90"
+        style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
       >
         <circle
           cx={size / 2}
@@ -81,25 +122,24 @@ const ProgressRing = ({
           fill="none"
           stroke={color}
           strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
+          strokeDasharray={strokeDasharray}
           strokeLinecap="round"
           style={{
-            transition: 'stroke 0.4s ease',
+            transition: 'stroke 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
         {showValue && (
           <span
-            className="font-bold leading-none"
+            className="font-bold leading-none tabular-nums"
             style={{ fontSize }}
           >
-            {animatedProgress.toFixed(0)}%
+            {displayProgress.toFixed(0)}%
           </span>
         )}
         {label && (
-          <span className="text-xs mt-1 opacity-90 font-medium">
+          <span className="text-xs mt-1 opacity-90 font-medium whitespace-nowrap">
             {label}
           </span>
         )}

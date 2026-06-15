@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Activity } from '@/types';
 import {
@@ -16,9 +16,10 @@ interface ActivityListProps {
   filterType?: string;
   filterSubtype?: string;
   compact?: boolean;
+  pageSize?: number;
 }
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 20;
 
 const ActivityList = ({
   activities,
@@ -27,22 +28,31 @@ const ActivityList = ({
   filterType,
   filterSubtype,
   compact = false,
+  pageSize = DEFAULT_PAGE_SIZE,
 }: ActivityListProps) => {
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filterType, filterSubtype]);
+
   const filtered = useMemo(() => {
-    return activities.filter((a) => {
+    const result = activities.filter((a) => {
       if (filterType && a.type !== filterType) return false;
       if (filterSubtype && a.subtype !== filterSubtype) return false;
       return true;
     });
+    result.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+    return result;
   }, [activities, filterType, filterSubtype]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(pageStart, pageStart + pageSize);
 
   const handleConfirmDelete = () => {
     if (deleteTarget) {
