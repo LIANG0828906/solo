@@ -153,22 +153,13 @@ async function generateShareImage(name: string, score: number, badges: BadgeTier
   ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
   ctx.fillText('© 2026 节奏徽章 · 音乐节限定版', W / 2, H - 70);
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (!blob) {
-        reject(new Error('Failed to generate image blob'));
-        return;
-      }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `rhythm-badge-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      resolve();
-    }, 'image/png', 0.95);
-  });
+  const dataUrl = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `rhythm-badge-${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function showResultPanel(data: GameEndData): void {
