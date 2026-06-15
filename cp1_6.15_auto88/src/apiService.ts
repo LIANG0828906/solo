@@ -1,45 +1,45 @@
 import type { Book, BorrowRecord, ApiResponse } from './types';
 
-const BASE_URL = 'http://localhost:3001/api';
+const API_BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
-  const data: ApiResponse<T> = await response.json();
-  if (!data.success) {
-    throw new Error(data.message || '请求失败');
+  const res = await fetch(`${API_BASE}${url}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  const json: ApiResponse<T> = await res.json();
+  if (!json.success) {
+    throw new Error(json.message || '请求失败');
   }
-  return data.data as T;
+  return json.data as T;
 }
 
 export const apiService = {
-  getBooks: (keyword?: string): Promise<Book[]> => {
-    const url = keyword
-      ? `${BASE_URL}/books?keyword=${encodeURIComponent(keyword)}`
-      : `${BASE_URL}/books`;
-    return request<Book[]>(url);
+  searchBooks(keyword = ''): Promise<Book[]> {
+    const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : '';
+    return request<Book[]>(`/books${query}`);
   },
 
-  getBook: (id: string): Promise<Book> => {
-    return request<Book>(`${BASE_URL}/books/${id}`);
+  getBookDetails(id: string): Promise<Book> {
+    return request<Book>(`/books/${id}`);
   },
 
-  borrowBook: (id: string, borrower: string): Promise<Book> => {
-    return request<Book>(`${BASE_URL}/books/${id}/borrow`, {
+  borrowBook(id: string, borrower: string): Promise<Book> {
+    return request<Book>(`/books/${id}/borrow`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ borrower }),
     });
   },
 
-  returnBook: (id: string): Promise<Book> => {
-    return request<Book>(`${BASE_URL}/books/${id}/return`, {
+  returnBook(id: string): Promise<Book> {
+    return request<Book>(`/books/${id}/return`, {
       method: 'POST',
     });
   },
 
-  getHistory: (bookId: string): Promise<BorrowRecord[]> => {
-    return request<BorrowRecord[]>(`${BASE_URL}/books/${bookId}/history`);
+  getHistory(bookId: string): Promise<BorrowRecord[]> {
+    return request<BorrowRecord[]>(`/books/${bookId}/history`);
   },
 };
+
+export default apiService;

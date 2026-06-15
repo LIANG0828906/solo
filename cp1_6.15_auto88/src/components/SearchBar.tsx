@@ -15,6 +15,14 @@ export default function SearchBar({ value, onChange, placeholder = '搜索书名
     setInputValue(value);
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInputValue(val);

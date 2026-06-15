@@ -6,10 +6,10 @@ interface BookCarouselProps {
   books: Book[];
   onBorrow: (bookId: string) => void;
   onReturn: (bookId: string) => void;
-  onViewHistory: (bookId: string) => void;
+  onViewHistory: (book: Book) => void;
 }
 
-const VISIBLE_COUNT = 5;
+const VISIBLE_COUNT = 1;
 
 export default function BookCarousel({ books, onBorrow, onReturn, onViewHistory }: BookCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -67,11 +67,11 @@ export default function BookCarousel({ books, onBorrow, onReturn, onViewHistory 
       )}
       <div
         className="carousel-track"
-        style={{ transform: `translateX(-${currentIndex * (100 / VISIBLE_COUNT)}%)` }}
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {books.map((book) => (
           <div className="carousel-slide" key={book.id}>
-            <div className="carousel-card" onClick={() => onViewHistory(book.id)}>
+            <div className="carousel-card" onClick={() => onViewHistory(book)}>
               <img className="carousel-card-cover" src={book.cover} alt={book.title} />
               <h4 className="carousel-card-title">{book.title}</h4>
               <p className="carousel-card-author">{book.author}</p>

@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { BorrowRecord } from '../types';
+import type { BorrowRecord, Book } from '../types';
 import { apiService } from '../apiService';
 
 interface HistoryModalProps {
-  bookId: string;
+  book: Book;
   onClose: () => void;
-  bookTitle?: string;
 }
 
-export default function HistoryModal({ bookId, onClose, bookTitle }: HistoryModalProps) {
+export default function HistoryModal({ book, onClose }: HistoryModalProps) {
   const [history, setHistory] = useState<BorrowRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +17,7 @@ export default function HistoryModal({ bookId, onClose, bookTitle }: HistoryModa
     let mounted = true;
     (async function () {
       try {
-        const recs = await apiService.getHistory(bookId);
+        const recs = await apiService.getHistory(book.id);
         if (mounted) {
           setHistory(recs);
           setLoading(false);
@@ -33,7 +32,7 @@ export default function HistoryModal({ bookId, onClose, bookTitle }: HistoryModa
     return () => {
       mounted = false;
     };
-  }, [bookId]);
+  }, [book.id]);
 
   const formatTime = (iso?: string) => {
     if (!iso) return '—';
@@ -50,7 +49,7 @@ export default function HistoryModal({ bookId, onClose, bookTitle }: HistoryModa
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{(bookTitle || '图书') + ' · 借阅历史'}</h3>
+          <h3 className="modal-title">{book.title + ' · 借阅历史'}</h3>
           <button className="modal-close" onClick={onClose} aria-label="关闭">
             <X size={20} />
           </button>

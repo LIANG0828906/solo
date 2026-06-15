@@ -12,7 +12,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const [historyModalBookId, setHistoryModalBookId] = useState<string | null>(null);
+  const [historyModalBook, setHistoryModalBook] = useState<Book | null>(null);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -55,12 +55,12 @@ export default function App() {
     }
   }, []);
 
-  const handleViewHistory = useCallback((bookId: string) => {
-    setHistoryModalBookId(bookId);
+  const handleViewHistory = useCallback((book: Book) => {
+    setHistoryModalBook(book);
   }, []);
 
   const closeHistoryModal = useCallback(() => {
-    setHistoryModalBookId(null);
+    setHistoryModalBook(null);
   }, []);
 
   const hotBooks = useMemo(() => {
@@ -116,8 +116,8 @@ export default function App() {
         )}
       </section>
 
-      {historyModalBookId && (
-        <HistoryModal bookId={historyModalBookId} onClose={closeHistoryModal} />
+      {historyModalBook && (
+        <HistoryModal book={historyModalBook} onClose={closeHistoryModal} />
       )}
     </div>
   );

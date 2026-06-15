@@ -5,7 +5,7 @@ interface BookCardProps {
   book: Book;
   onBorrow: (bookId: string) => void;
   onReturn: (bookId: string) => void;
-  onViewHistory: (bookId: string) => void;
+  onViewHistory: (book: Book) => void;
 }
 
 export default function BookCard({ book, onBorrow, onReturn, onViewHistory }: BookCardProps) {
@@ -43,11 +43,11 @@ export default function BookCard({ book, onBorrow, onReturn, onViewHistory }: Bo
         href="#"
         onClick={(e) => {
           e.preventDefault();
-          onViewHistory(book.id);
+          onViewHistory(book);
         }}
       >
         <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-        查看借阅历史
+        查看历史
       </a>
     </div>
   );

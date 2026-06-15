@@ -41,6 +41,7 @@ h4 {
   background: var(--primary);
   z-index: 100;
   padding: 16px 24px;
+  color: white;
 }
 
 .search-input-wrapper {
@@ -99,9 +100,9 @@ h4 {
 }
 
 .carousel-slide {
-  flex: 0 0 20%;
+  flex: 0 0 100%;
   box-sizing: border-box;
-  padding: 0 8px;
+  padding: 0 60px;
 }
 
 .carousel-arrow-btn {
@@ -323,17 +324,17 @@ h4 {
   max-height: 80vh;
   overflow: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
-  animation: modalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slideUp 0.3s ease-out;
 }
 
-@keyframes modalIn {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(20px);
+    transform: translateY(100%);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
   }
 }
 
@@ -433,7 +434,8 @@ h4 {
     grid-template-columns: repeat(2, 1fr);
   }
   .carousel-slide {
-    flex: 0 0 33.33%;
+    flex: 0 0 100%;
+    padding: 0 40px;
   }
 }
 
@@ -442,7 +444,8 @@ h4 {
     grid-template-columns: 1fr;
   }
   .carousel-slide {
-    flex: 0 0 50%;
+    flex: 0 0 100%;
+    padding: 0 24px;
   }
   .fixed-search-bar {
     padding: 12px 16px;
