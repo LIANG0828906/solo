@@ -15,6 +15,7 @@ export default function ShiftsPage() {
   const { workers, getWorker } = useWorkersStore();
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<{ date: string; shift: ShiftType } | null>(null);
+  const [droppedWorker, setDroppedWorker] = useState<{ workerId: string; date: string; shift: ShiftType } | null>(null);
 
   const weekDays = useMemo(() => getWeekDays(), [currentWeekStart, getWeekDays]);
   const shifts: ShiftType[] = ['morning', 'evening', 'night'];
@@ -72,6 +73,9 @@ export default function ShiftsPage() {
     if (result.conflict) {
       setConflict({ date: toDate, shift: toShift });
       setTimeout(() => setConflict(null), 600);
+    } else if (result.success) {
+      setDroppedWorker({ workerId: dragData.workerId, date: toDate, shift: toShift });
+      setTimeout(() => setDroppedWorker(null), 550);
     }
 
     setDragData(null);
@@ -96,6 +100,7 @@ export default function ShiftsPage() {
     if (!worker) return null;
 
     const isDragging = dragData?.workerId === workerId;
+    const justDropped = droppedWorker?.workerId === workerId && droppedWorker?.date === date && droppedWorker?.shift === shift;
 
     return (
       <div
@@ -103,7 +108,7 @@ export default function ShiftsPage() {
         draggable
         onDragStart={(e) => handleDragStart(e, workerId, date, shift)}
         onDragEnd={handleDragEnd}
-        className={`bounce-animation ${isDragging ? 'worker-card-dragging' : ''}`}
+        className={`bounce-animation ${isDragging ? 'worker-card-dragging' : ''} ${justDropped ? 'worker-card-drop' : ''}`}
         style={{
           padding: '6px 8px',
           borderRadius: '6px',
