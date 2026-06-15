@@ -23,7 +23,8 @@
     "zustand": "^4.5.0",
     "uuid": "^9.0.1",
     "date-fns": "^3.3.1",
-    "idb": "^8.0.0"
+    "idb": "^8.0.0",
+    "styled-components": "^6.1.8"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",

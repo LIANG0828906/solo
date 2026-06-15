@@ -20,12 +20,12 @@ export interface Plant {
   purchaseDate: number;
   photo: string;
   createdAt: number;
+  lastWaterAt: number;
+  lastFertilizeAt: number;
+  lastRepotAt: number;
 }
 
 export interface PlantWithStats extends Plant {
-  lastWaterAt: number | null;
-  lastFertilizeAt: number | null;
-  lastRepotAt: number | null;
   daysSinceLastWater: number | null;
   daysSinceLastFertilize: number | null;
   daysSinceLastRepot: number | null;
@@ -38,8 +38,20 @@ export const CARE_THRESHOLDS: Record<CareType, number> = {
   repot: 365,
 };
 
+export const CARE_TYPE_TO_FIELD: Record<CareType, 'lastWaterAt' | 'lastFertilizeAt' | 'lastRepotAt'> = {
+  water: 'lastWaterAt',
+  fertilize: 'lastFertilizeAt',
+  repot: 'lastRepotAt',
+};
+
+export interface PaginatedResult<T> {
+  items: T[];
+  cursor: number | null;
+  hasMore: boolean;
+}
+
 const DB_NAME = 'plant-care-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_PLANTS = 'plants';
 const STORE_RECORDS = 'records';
 
@@ -47,7 +59,10 @@ interface PlantDB {
   plants: {
     key: string;
     value: Plant;
-    indexes: { 'by-createdAt': number };
+    indexes: {
+      'by-createdAt': number;
+      'by-lastWaterAt': number;
+    };
   };
   records: {
     key: string;
@@ -65,16 +80,25 @@ let dbPromise: Promise<IDBPDatabase<PlantDB>> | null = null;
 function getDB(): Promise<IDBPDatabase<PlantDB>> {
   if (!dbPromise) {
     dbPromise = openDB<PlantDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_PLANTS)) {
-          const plantStore = db.createObjectStore(STORE_PLANTS, { keyPath: 'id' });
-          plantStore.createIndex('by-createdAt', 'createdAt');
+      upgrade(db, oldVersion, _newVersion, tx) {
+        if (oldVersion < 1) {
+          if (!db.objectStoreNames.contains(STORE_PLANTS)) {
+            const plantStore = db.createObjectStore(STORE_PLANTS, { keyPath: 'id' });
+            plantStore.createIndex('by-createdAt', 'createdAt');
+            plantStore.createIndex('by-lastWaterAt', 'lastWaterAt');
+          }
+          if (!db.objectStoreNames.contains(STORE_RECORDS)) {
+            const recordStore = db.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
+            recordStore.createIndex('by-plantId', 'plantId');
+            recordStore.createIndex('by-plantId-timestamp', ['plantId', 'timestamp']);
+            recordStore.createIndex('by-timestamp', 'timestamp');
+          }
         }
-        if (!db.objectStoreNames.contains(STORE_RECORDS)) {
-          const recordStore = db.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
-          recordStore.createIndex('by-plantId', 'plantId');
-          recordStore.createIndex('by-plantId-timestamp', ['plantId', 'timestamp']);
-          recordStore.createIndex('by-timestamp', 'timestamp');
+        if (oldVersion >= 1 && oldVersion < 2) {
+          const plantStore = tx.objectStore(STORE_PLANTS);
+          if (!plantStore.indexNames.contains('by-lastWaterAt')) {
+            plantStore.createIndex('by-lastWaterAt', 'lastWaterAt');
+          }
         }
       },
     });
@@ -82,8 +106,8 @@ function getDB(): Promise<IDBPDatabase<PlantDB>> {
   return dbPromise;
 }
 
-export function computeDaysSince(timestamp: number | null, now: number = Date.now()): number | null {
-  if (timestamp === null) return null;
+export function computeDaysSince(timestamp: number, now: number = Date.now()): number | null {
+  if (timestamp === 0) return null;
   return differenceInDays(now, timestamp);
 }
 
@@ -102,17 +126,60 @@ export async function fetchPlantById(id: string): Promise<Plant | undefined> {
   return db.get(STORE_PLANTS, id);
 }
 
+export async function fetchPlantsPaginated(
+  pageSize: number,
+  cursor?: number | null,
+): Promise<PaginatedResult<Plant>> {
+  const db = await getDB();
+  const tx = db.transaction(STORE_PLANTS, 'readonly');
+  const index = tx.store.index('by-lastWaterAt');
+
+  const items: Plant[] = [];
+  let hasMore = false;
+  let lastKey: number | null = null;
+
+  let cursorSource = await index.openCursor(
+    cursor != null ? IDBKeyRange.lowerBound(cursor, true) : undefined,
+    'next',
+  );
+
+  while (cursorSource) {
+    items.push(cursorSource.value);
+    lastKey = cursorSource.value.lastWaterAt;
+    if (items.length >= pageSize) {
+      const next = await cursorSource.continue();
+      hasMore = !!next;
+      break;
+    }
+    cursorSource = await cursorSource.continue();
+  }
+
+  return {
+    items,
+    cursor: hasMore ? lastKey : null,
+    hasMore,
+  };
+}
+
 export async function addPlant(
-  data: Omit<Plant, 'id' | 'createdAt'>,
+  data: Omit<Plant, 'id' | 'createdAt' | 'lastWaterAt' | 'lastFertilizeAt' | 'lastRepotAt'>,
 ): Promise<Plant> {
   const db = await getDB();
   const plant: Plant = {
     ...data,
     id: uuidv4(),
     createdAt: Date.now(),
+    lastWaterAt: 0,
+    lastFertilizeAt: 0,
+    lastRepotAt: 0,
   };
   await db.add(STORE_PLANTS, plant);
   return plant;
+}
+
+export async function updatePlant(plant: Plant): Promise<void> {
+  const db = await getDB();
+  await db.put(STORE_PLANTS, plant);
 }
 
 export async function deletePlant(id: string): Promise<void> {
@@ -128,34 +195,27 @@ export async function deletePlant(id: string): Promise<void> {
 
 export async function fetchRecordsByPlantId(plantId: string): Promise<CareRecord[]> {
   const db = await getDB();
-  return db.getAllFromIndex(STORE_RECORDS, 'by-plantId-timestamp', IDBKeyRange.bound(
-    [plantId, -Infinity],
-    [plantId, Infinity],
-  ));
+  return db.getAllFromIndex(
+    STORE_RECORDS,
+    'by-plantId-timestamp',
+    IDBKeyRange.bound([plantId, -Infinity], [plantId, Infinity]),
+  );
 }
 
-export async function fetchLatestRecordsByType(
-  plantIds: string[],
-): Promise<Map<string, Map<CareType, CareRecord>>> {
+async function recomputeLastCareDate(plantId: string, careType: CareType): Promise<number> {
   const db = await getDB();
-  const result = new Map<string, Map<CareType, CareRecord>>();
-
-  for (const plantId of plantIds) {
-    const records = await db.getAllFromIndex(
-      STORE_RECORDS,
-      'by-plantId-timestamp',
-      IDBKeyRange.bound([plantId, -Infinity], [plantId, Infinity]),
-    );
-    const typeMap = new Map<CareType, CareRecord>();
-    for (const record of records) {
-      const existing = typeMap.get(record.type);
-      if (!existing || record.timestamp > existing.timestamp) {
-        typeMap.set(record.type, record);
-      }
+  const allRecords = await db.getAllFromIndex(
+    STORE_RECORDS,
+    'by-plantId-timestamp',
+    IDBKeyRange.bound([plantId, -Infinity], [plantId, Infinity]),
+  );
+  let latest = 0;
+  for (const r of allRecords) {
+    if (r.type === careType && r.timestamp > latest) {
+      latest = r.timestamp;
     }
-    result.set(plantId, typeMap);
   }
-  return result;
+  return latest;
 }
 
 export async function addCareRecord(
@@ -168,43 +228,59 @@ export async function addCareRecord(
     timestamp: data.timestamp ?? Date.now(),
   };
   await db.add(STORE_RECORDS, record);
+
+  const plant = await db.get(STORE_PLANTS, record.plantId);
+  if (plant) {
+    const field = CARE_TYPE_TO_FIELD[record.type];
+    if (record.timestamp > plant[field]) {
+      plant[field] = record.timestamp;
+      await db.put(STORE_PLANTS, plant);
+    }
+  }
+
   return record;
 }
 
 export async function updateCareRecord(record: CareRecord): Promise<void> {
   const db = await getDB();
   await db.put(STORE_RECORDS, record);
+
+  const plant = await db.get(STORE_PLANTS, record.plantId);
+  if (plant) {
+    plant.lastWaterAt = await recomputeLastCareDate(record.plantId, 'water');
+    plant.lastFertilizeAt = await recomputeLastCareDate(record.plantId, 'fertilize');
+    plant.lastRepotAt = await recomputeLastCareDate(record.plantId, 'repot');
+    await db.put(STORE_PLANTS, plant);
+  }
 }
 
 export async function deleteCareRecord(id: string): Promise<void> {
   const db = await getDB();
+  const record = await db.get(STORE_RECORDS, id);
+  if (!record) return;
+
   await db.delete(STORE_RECORDS, id);
+
+  const plant = await db.get(STORE_PLANTS, record.plantId);
+  if (plant) {
+    plant.lastWaterAt = await recomputeLastCareDate(record.plantId, 'water');
+    plant.lastFertilizeAt = await recomputeLastCareDate(record.plantId, 'fertilize');
+    plant.lastRepotAt = await recomputeLastCareDate(record.plantId, 'repot');
+    await db.put(STORE_PLANTS, plant);
+  }
 }
 
 export function enrichPlantsWithStats(
   plants: Plant[],
-  latestRecords: Map<string, Map<CareType, CareRecord>>,
   now: number = Date.now(),
 ): PlantWithStats[] {
   return plants.map((plant) => {
-    const typeMap = latestRecords.get(plant.id) ?? new Map();
-    const lastWater = typeMap.get('water') ?? null;
-    const lastFertilize = typeMap.get('fertilize') ?? null;
-    const lastRepot = typeMap.get('repot') ?? null;
-
-    const lastWaterAt = lastWater?.timestamp ?? null;
-    const lastFertilizeAt = lastFertilize?.timestamp ?? null;
-    const lastRepotAt = lastRepot?.timestamp ?? null;
-
-    const daysSinceLastWater = computeDaysSince(lastWaterAt, now);
-    const daysSinceLastFertilize = computeDaysSince(lastFertilizeAt, now);
-    const daysSinceLastRepot = computeDaysSince(lastRepotAt, now);
+    const daysSinceLastWater = computeDaysSince(plant.lastWaterAt, now);
+    const daysSinceLastFertilize = computeDaysSince(plant.lastFertilizeAt, now);
+    const daysSinceLastRepot = computeDaysSince(plant.lastRepotAt, now);
 
     return {
       ...plant,
-      lastWaterAt,
-      lastFertilizeAt,
-      lastRepotAt,
       daysSinceLastWater,
       daysSinceLastFertilize,
       daysSinceLastRepot,
@@ -215,11 +291,13 @@ export function enrichPlantsWithStats(
 
 export function sortPlantsByCareUrgency(plants: PlantWithStats[]): PlantWithStats[] {
   return [...plants].sort((a, b) => {
-    const aDays = a.daysSinceLastWater ?? -1;
-    const bDays = b.daysSinceLastWater ?? -1;
-    if (aDays === -1 && bDays === -1) return b.createdAt - a.createdAt;
-    if (aDays === -1) return 1;
-    if (bDays === -1) return -1;
+    const aHasRecord = a.lastWaterAt > 0;
+    const bHasRecord = b.lastWaterAt > 0;
+    if (!aHasRecord && !bHasRecord) return b.createdAt - a.createdAt;
+    if (!aHasRecord) return -1;
+    if (!bHasRecord) return 1;
+    const aDays = a.daysSinceLastWater ?? 0;
+    const bDays = b.daysSinceLastWater ?? 0;
     return bDays - aDays;
   });
 }
@@ -230,7 +308,8 @@ interface PlantsState {
   error: string | null;
   hydrated: boolean;
   loadPlants: () => Promise<void>;
-  addPlant: (data: Omit<Plant, 'id' | 'createdAt'>) => Promise<Plant>;
+  loadPlantsPaginated: (pageSize: number, cursor?: number | null) => Promise<PaginatedResult<PlantWithStats>>;
+  addPlant: (data: Omit<Plant, 'id' | 'createdAt' | 'lastWaterAt' | 'lastFertilizeAt' | 'lastRepotAt'>) => Promise<Plant>;
   addCareRecord: (
     data: Omit<CareRecord, 'id' | 'timestamp'> & { timestamp?: number },
   ) => Promise<CareRecord>;
@@ -250,14 +329,22 @@ export const usePlantsStore = create<PlantsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const plants = await fetchAllPlants();
-      const plantIds = plants.map((p) => p.id);
-      const latestRecords = await fetchLatestRecordsByType(plantIds);
-      const enriched = enrichPlantsWithStats(plants, latestRecords);
+      const enriched = enrichPlantsWithStats(plants);
       const sorted = sortPlantsByCareUrgency(enriched);
       set({ plants: sorted, loading: false, hydrated: true });
     } catch (err) {
       set({ loading: false, error: (err as Error).message });
     }
+  },
+
+  async loadPlantsPaginated(pageSize, cursor) {
+    const result = await fetchPlantsPaginated(pageSize, cursor);
+    const enriched = enrichPlantsWithStats(result.items);
+    return {
+      items: sortPlantsByCareUrgency(enriched),
+      cursor: result.cursor,
+      hasMore: result.hasMore,
+    };
   },
 
   async addPlant(data) {
@@ -289,9 +376,7 @@ export const usePlantsStore = create<PlantsState>((set, get) => ({
 
   async refreshStats() {
     const plants = await fetchAllPlants();
-    const plantIds = plants.map((p) => p.id);
-    const latestRecords = await fetchLatestRecordsByType(plantIds);
-    const enriched = enrichPlantsWithStats(plants, latestRecords);
+    const enriched = enrichPlantsWithStats(plants);
     const sorted = sortPlantsByCareUrgency(enriched);
     set({ plants: sorted });
   },
