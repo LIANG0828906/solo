@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数字画廊 — 卷2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+    .gallery-title {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: 2px;
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0);
+      pointer-events: none;
+      z-index: 5;
+      transition: background 0.3s ease-out;
+    }
+    .overlay.active {
+      background: rgba(0, 0, 0, 0.7);
+      pointer-events: auto;
+    }
+    .artwork-info {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: Georgia, 'Times New Roman', serif;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease-out;
+    }
+    .artwork-info.active {
+      opacity: 1;
+    }
+    .artwork-info .title {
+      font-size: 32px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .artwork-info .author {
+      font-size: 18px;
+      margin-bottom: 8px;
+      opacity: 0.8;
+    }
+    .artwork-info .year {
+      font-size: 16px;
+      opacity: 0.6;
+    }
+    .fullscreen-btn {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.9);
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 25;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease-out;
+      backdrop-filter: blur(10px);
+    }
+    .fullscreen-btn.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .fullscreen-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .fullscreen-view {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease-out;
+    }
+    .fullscreen-view.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .fullscreen-view img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      box-shadow: 0 0 60px rgba(255, 255, 255, 0.1);
+    }
+    .fullscreen-view .hint {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <div class="gallery-title">数字画廊 — 卷2</div>
+    <div class="overlay" id="overlay"></div>
+    <div class="artwork-info" id="artwork-info">
+      <div class="title" id="artwork-title"></div>
+      <div class="author" id="artwork-author"></div>
+      <div class="year" id="artwork-year"></div>
+    </div>
+    <button class="fullscreen-btn" id="fullscreen-btn">全屏预览</button>
+    <div class="fullscreen-view" id="fullscreen-view">
+      <img id="fullscreen-image" src="" alt="">
+      <div class="hint">按 ESC 退出全屏</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
