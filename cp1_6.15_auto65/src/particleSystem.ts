@@ -10,14 +10,17 @@ export interface NebulaParams {
   colorStart: string;
   colorMid: string;
   colorEnd: string;
+  transitionDuration?: number;
 }
 
 export interface ParticleSystem {
   group: THREE.Group;
   update: (time: number, delta: number) => void;
-  updateParams: (params: Partial<NebulaParams>, animate?: boolean, transitionDuration?: number) => void;
+  updateParams: (params: Partial<NebulaParams>, animate?: boolean, customTransitionDuration?: number) => void;
   getParams: () => NebulaParams;
   transitionTo: (targetParams: NebulaParams, duration?: number) => void;
+  setDrawRange: (start: number, count: number) => void;
+  getParticleCount: () => number;
 }
 
 const easeOutElastic = (t: number): number => {
@@ -66,6 +69,7 @@ const getColorAtPosition = (
 };
 
 const MAX_PARTICLES = 50000;
+const DEFAULT_TRANSITION_DURATION = 0.6;
 
 const generateParticlePositions = (
   shape: 'sphere' | 'torus' | 'spiral',
@@ -124,6 +128,8 @@ const createCircleTexture = (): THREE.Texture => {
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.generateMipmaps = false;
   texture.needsUpdate = true;
   return texture;
@@ -149,8 +155,13 @@ const createBackgroundStars = (): THREE.Points => {
     colors[idx + 2] = brightness;
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const posAttr = new THREE.BufferAttribute(positions, 3);
+  const colAttr = new THREE.BufferAttribute(colors, 3);
+  posAttr.setUsage(THREE.StaticDrawUsage);
+  colAttr.setUsage(THREE.StaticDrawUsage);
+
+  geometry.setAttribute('position', posAttr);
+  geometry.setAttribute('color', colAttr);
   geometry.setDrawRange(0, count);
 
   const material = new THREE.PointsMaterial({
@@ -174,11 +185,11 @@ export const createParticleSystem = (
   const backgroundStars = createBackgroundStars();
   group.add(backgroundStars);
 
-  let currentParams = { ...initialParams };
+  let currentParams: NebulaParams = { ...initialParams, transitionDuration: initialParams.transitionDuration ?? DEFAULT_TRANSITION_DURATION };
   let targetPositions: Float32Array | null = null;
   let oldPositions: Float32Array | null = null;
   let transitionProgress = 1;
-  let transitionDuration = 0.6;
+  let transitionDuration = initialParams.transitionDuration ?? DEFAULT_TRANSITION_DURATION;
   let isTransitioning = false;
 
   let colorTarget: { start: string; mid: string; end: string } | null = null;
@@ -305,7 +316,7 @@ export const createParticleSystem = (
         const easedT = easeOutElastic(t);
 
         const positions = positionAttr.array as Float32Array;
-        const countToUpdate = Math.min(oldPositions.length, targetPositions.length, positions.length);
+        const countToUpdate = Math.min(oldPositions.length, targetPositions.length, positions.length, currentParticleCount * 3);
         for (let i = 0; i < countToUpdate; i++) {
           positions[i] = lerp(oldPositions[i], targetPositions[i], easedT);
         }
@@ -362,6 +373,11 @@ export const createParticleSystem = (
                                params.colorMid !== undefined ||
                                params.colorEnd !== undefined;
 
+      if (params.transitionDuration !== undefined) {
+        currentParams.transitionDuration = params.transitionDuration;
+        transitionDuration = params.transitionDuration;
+      }
+
       if (needsColorUpdate && animate) {
         colorOld = {
           start: currentParams.colorStart,
@@ -383,7 +399,7 @@ export const createParticleSystem = (
         const newShape = params.shape || currentParams.shape;
         targetPositions = generateParticlePositions(newShape, newCount);
         transitionProgress = 0;
-        transitionDuration = customTransitionDuration ?? 0.6;
+        transitionDuration = customTransitionDuration ?? currentParams.transitionDuration ?? DEFAULT_TRANSITION_DURATION;
         currentParticleCount = newCount;
         if (geometry) {
           geometry.setDrawRange(0, newCount);
@@ -423,13 +439,15 @@ export const createParticleSystem = (
 
     getParams: () => ({ ...currentParams }),
 
-    transitionTo: (targetParams: NebulaParams, duration = 1) => {
+    transitionTo: (targetParams: NebulaParams, duration?: number) => {
+      const actualDuration = duration ?? targetParams.transitionDuration ?? 1;
+
       if (positionAttr) {
         oldPositions = new Float32Array(positionAttr.array as Float32Array);
         const newCount = Math.min(targetParams.density, MAX_PARTICLES);
         targetPositions = generateParticlePositions(targetParams.shape, newCount);
         transitionProgress = 0;
-        transitionDuration = duration;
+        transitionDuration = actualDuration;
         currentParticleCount = newCount;
         if (geometry) {
           geometry.setDrawRange(0, newCount);
@@ -447,15 +465,25 @@ export const createParticleSystem = (
           end: targetParams.colorEnd
         };
         colorTransitionProgress = 0;
-        colorTransitionDuration = duration;
+        colorTransitionDuration = actualDuration;
         isColorTransitioning = true;
       }
 
-      currentParams = { ...targetParams };
+      currentParams = { ...targetParams, transitionDuration: actualDuration };
 
       if (material) {
         material.size = targetParams.particleSize;
       }
-    }
+    },
+
+    setDrawRange: (start: number, count: number) => {
+      if (geometry) {
+        const safeCount = Math.min(count, MAX_PARTICLES - start);
+        geometry.setDrawRange(start, safeCount);
+        currentParticleCount = safeCount;
+      }
+    },
+
+    getParticleCount: () => currentParticleCount
   };
 };

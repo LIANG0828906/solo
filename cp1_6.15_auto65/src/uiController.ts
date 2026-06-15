@@ -28,6 +28,7 @@ interface UIParams {
   colorStart: string;
   colorMid: string;
   colorEnd: string;
+  transitionDuration: number;
 }
 
 export interface UIController {
@@ -37,6 +38,18 @@ export interface UIController {
   onReset: (callback: () => void) => void;
   refreshSavedList: () => Promise<void>;
 }
+
+const isValidHexColor = (hex: string): boolean => {
+  return /^#?[0-9A-Fa-f]{6}$/.test(hex.trim());
+};
+
+const normalizeHexColor = (hex: string): string | null => {
+  let trimmed = hex.trim();
+  if (!trimmed.startsWith('#')) {
+    trimmed = '#' + trimmed;
+  }
+  return isValidHexColor(trimmed) ? trimmed.toUpperCase() : null;
+};
 
 const createSlider = (
   label: string,
@@ -162,13 +175,19 @@ const createColorPalettePicker = (
   previewRow.style.gap = '6px';
   previewRow.style.marginBottom = '4px';
 
-  const createColorDot = (color: string, label: string, onChange: (c: string) => void) => {
+  const createColorDot = (
+    color: string, 
+    label: string, 
+    onChange: (c: string) => void,
+    onError: (msg: string) => void
+  ) => {
     const wrapper = document.createElement('div');
     wrapper.style.display = 'flex';
     wrapper.style.flexDirection = 'column';
     wrapper.style.alignItems = 'center';
     wrapper.style.gap = '2px';
     wrapper.style.flex = '1';
+    wrapper.style.position = 'relative';
 
     const dot = document.createElement('div');
     dot.style.width = '100%';
@@ -195,6 +214,12 @@ const createColorPalettePicker = (
     pickerPopup.style.backdropFilter = 'blur(10px)';
     pickerPopup.style.display = 'none';
     pickerPopup.style.minWidth = '180px';
+
+    const quickLabel = document.createElement('div');
+    quickLabel.textContent = '快速选择:';
+    quickLabel.style.fontSize = '11px';
+    quickLabel.style.color = 'rgba(255,255,255,0.6)';
+    quickLabel.style.marginBottom = '6px';
 
     const paletteGrid = document.createElement('div');
     paletteGrid.style.display = 'grid';
@@ -226,6 +251,7 @@ const createColorPalettePicker = (
       });
       colorBtn.addEventListener('click', () => {
         dot.style.background = c;
+        dot.style.borderColor = 'rgba(255,255,255,0.3)';
         onChange(c);
         pickerPopup.style.display = 'none';
       });
@@ -233,10 +259,13 @@ const createColorPalettePicker = (
     });
 
     const hexLabel = document.createElement('div');
-    hexLabel.textContent = '自定义 HEX:';
+    hexLabel.textContent = '自定义 HEX (#RRGGBB):';
     hexLabel.style.fontSize = '11px';
     hexLabel.style.color = 'rgba(255,255,255,0.6)';
     hexLabel.style.marginBottom = '4px';
+
+    const hexInputWrapper = document.createElement('div');
+    hexInputWrapper.style.position = 'relative';
 
     const hexInput = document.createElement('input');
     hexInput.type = 'text';
@@ -251,20 +280,48 @@ const createColorPalettePicker = (
     hexInput.style.fontSize = '11px';
     hexInput.style.outline = 'none';
     hexInput.style.fontFamily = 'monospace';
+    hexInput.style.boxSizing = 'border-box';
 
-    hexInput.addEventListener('change', () => {
-      let c = hexInput.value.trim();
-      if (!c.startsWith('#')) c = '#' + c;
-      if (/^#[0-9A-Fa-f]{6}$/.test(c)) {
-        dot.style.background = c;
-        onChange(c);
+    const errorMsg = document.createElement('div');
+    errorMsg.textContent = '无效颜色格式!';
+    errorMsg.style.position = 'absolute';
+    errorMsg.style.bottom = '-18px';
+    errorMsg.style.left = '0';
+    errorMsg.style.fontSize = '10px';
+    errorMsg.style.color = '#ef4444';
+    errorMsg.style.display = 'none';
+
+    const validateAndApply = () => {
+      const normalized = normalizeHexColor(hexInput.value);
+      if (normalized) {
+        dot.style.background = normalized;
+        dot.style.borderColor = 'rgba(255,255,255,0.3)';
+        hexInput.value = normalized;
+        hexInput.style.borderColor = 'rgba(255,255,255,0.2)';
+        errorMsg.style.display = 'none';
+        onChange(normalized);
         pickerPopup.style.display = 'none';
+      } else {
+        hexInput.style.borderColor = 'rgba(239, 68, 68, 0.8)';
+        errorMsg.style.display = 'block';
+        onError('无效的十六进制颜色格式，请使用 #RRGGBB 格式');
+        setTimeout(() => {
+          hexInput.style.borderColor = 'rgba(255,255,255,0.2)';
+          errorMsg.style.display = 'none';
+        }, 2000);
+      }
+    };
+
+    hexInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        validateAndApply();
       }
     });
 
-    pickerPopup.appendChild(paletteGrid);
-    pickerPopup.appendChild(hexLabel);
-    pickerPopup.appendChild(hexInput);
+    hexInput.addEventListener('blur', validateAndApply);
+
+    hexInputWrapper.appendChild(hexInput);
+    hexInputWrapper.appendChild(errorMsg);
 
     dot.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -273,7 +330,7 @@ const createColorPalettePicker = (
       });
       const rect = dot.getBoundingClientRect();
       pickerPopup.style.top = `${rect.bottom + 8}px`;
-      pickerPopup.style.left = `${rect.left}px`;
+      pickerPopup.style.left = `${Math.min(rect.left, window.innerWidth - 200)}px`;
       pickerPopup.style.display = pickerPopup.style.display === 'none' ? 'block' : 'none';
       pickerPopup.classList.add('color-picker-popup');
       hexInput.value = dot.style.background.startsWith('#') 
@@ -287,6 +344,11 @@ const createColorPalettePicker = (
       }
     });
 
+    pickerPopup.appendChild(quickLabel);
+    pickerPopup.appendChild(paletteGrid);
+    pickerPopup.appendChild(hexLabel);
+    pickerPopup.appendChild(hexInputWrapper);
+
     document.body.appendChild(pickerPopup);
 
     wrapper.appendChild(dot);
@@ -297,18 +359,22 @@ const createColorPalettePicker = (
     }};
   };
 
+  const showValidationToast = (msg: string) => {
+    showToast(msg, 'error');
+  };
+
   const startColor = createColorDot(currentColors.start, '起始', (c) => {
     currentColors.start = c;
     onPaletteChange({ ...currentColors });
-  });
+  }, showValidationToast);
   const midColor = createColorDot(currentColors.mid, '中间', (c) => {
     currentColors.mid = c;
     onPaletteChange({ ...currentColors });
-  });
+  }, showValidationToast);
   const endColor = createColorDot(currentColors.end, '结束', (c) => {
     currentColors.end = c;
     onPaletteChange({ ...currentColors });
-  });
+  }, showValidationToast);
 
   previewRow.appendChild(startColor.wrapper);
   previewRow.appendChild(midColor.wrapper);
@@ -517,6 +583,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   toast.style.backdropFilter = 'blur(10px)';
   toast.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
   toast.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+  toast.style.whiteSpace = 'nowrap';
 
   document.body.appendChild(toast);
 
@@ -674,12 +741,24 @@ export const createUIController = (
       paramsChangeCallback?.({ pulseAmplitude: v });
     }
   );
+  const transitionSlider = createSlider(
+    '过渡时长(秒)',
+    0.1,
+    3,
+    params.transitionDuration,
+    0.05,
+    (v) => {
+      params.transitionDuration = v;
+      paramsChangeCallback?.({ transitionDuration: v });
+    }
+  );
 
   paramsSection.appendChild(densitySlider.container);
   paramsSection.appendChild(rotationSlider.container);
   paramsSection.appendChild(sizeSlider.container);
   paramsSection.appendChild(attenuationSlider.container);
   paramsSection.appendChild(pulseSlider.container);
+  paramsSection.appendChild(transitionSlider.container);
 
   const palettePicker = createColorPalettePicker(
     { start: params.colorStart, mid: params.colorMid, end: params.colorEnd },
@@ -778,13 +857,14 @@ export const createUIController = (
   };
 
   const updateUIFromParams = (newParams: NebulaParams) => {
-    params = { ...newParams };
+    params = { ...params, ...newParams, transitionDuration: newParams.transitionDuration ?? params.transitionDuration };
     shapeSelect.setValue(params.shape);
     densitySlider.setValue(params.density);
     rotationSlider.setValue(params.rotationSpeed);
     sizeSlider.setValue(params.particleSize);
     attenuationSlider.setValue(params.attenuation);
     pulseSlider.setValue(params.pulseAmplitude);
+    transitionSlider.setValue(params.transitionDuration);
     palettePicker.setColors({
       start: params.colorStart,
       mid: params.colorMid,
@@ -792,14 +872,17 @@ export const createUIController = (
     });
   };
 
-  const handleResize = () => {
-    if (window.innerWidth < 768) {
+  const handleLayoutChange = () => {
+    const isMobile = window.innerWidth < 768;
+    const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+
+    if (isMobile || isPortrait) {
       panel.style.left = '10px';
       panel.style.right = '10px';
       panel.style.top = 'auto';
       panel.style.bottom = '10px';
       panel.style.width = 'auto';
-      panel.style.maxHeight = '45vh';
+      panel.style.maxHeight = '50vh';
       panel.style.overflowY = 'auto';
       panel.style.overflowX = 'hidden';
       panel.style.flexDirection = 'row';
@@ -815,8 +898,23 @@ export const createUIController = (
     }
   };
 
-  window.addEventListener('resize', handleResize);
-  handleResize();
+  let resizeTimeout: ReturnType<typeof setTimeout>;
+  const debouncedResize = () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      handleLayoutChange();
+    }, 100);
+  };
+
+  window.addEventListener('resize', debouncedResize);
+  window.addEventListener('orientationchange', handleLayoutChange);
+  
+  if (window.matchMedia) {
+    const pixelRatioQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    pixelRatioQuery.addEventListener?.('change', handleLayoutChange);
+  }
+
+  handleLayoutChange();
 
   document.body.appendChild(panel);
 
@@ -853,7 +951,8 @@ export const createUIController = (
           pulseAmplitude: 0.2,
           colorStart: '#6a0dad',
           colorMid: '#1e90ff',
-          colorEnd: '#00ffff'
+          colorEnd: '#00ffff',
+          transitionDuration: 0.6
         };
         updateUIFromParams(defaultParams);
         callback();

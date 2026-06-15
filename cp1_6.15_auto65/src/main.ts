@@ -12,7 +12,13 @@ const defaultParams: NebulaParams = {
   pulseAmplitude: 0.2,
   colorStart: '#6a0dad',
   colorMid: '#1e90ff',
-  colorEnd: '#00ffff'
+  colorEnd: '#00ffff',
+  transitionDuration: 0.6
+};
+
+const initialUIParams = {
+  ...defaultParams,
+  transitionDuration: 0.6
 };
 
 const container = document.getElementById('canvas-container')!;
@@ -51,18 +57,18 @@ scene.add(particleSystem.group);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
-const ui = createUIController(defaultParams);
+const ui = createUIController(initialUIParams);
 
 ui.onParamsChange((params) => {
-  particleSystem.updateParams(params, true);
+  particleSystem.updateParams(params, true, params.transitionDuration);
 });
 
 ui.onTemplateLoad((params) => {
-  particleSystem.transitionTo(params, 1);
+  particleSystem.transitionTo(params, params.transitionDuration ?? 1);
 });
 
 ui.onReset(() => {
-  particleSystem.transitionTo(defaultParams, 0.8);
+  particleSystem.transitionTo(defaultParams, defaultParams.transitionDuration ?? 0.8);
 });
 
 const fpsDisplay = document.createElement('div');
@@ -93,7 +99,7 @@ const animate = () => {
   frameCount++;
   if (frameCount % 30 === 0) {
     fps = Math.round(1 / delta);
-    const particleCount = particleSystem.getParams().density.toLocaleString();
+    const particleCount = particleSystem.getParticleCount().toLocaleString();
     fpsDisplay.textContent = `${fps} FPS | ${particleCount} 粒子`;
   }
 
@@ -112,7 +118,21 @@ const handleResize = () => {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 };
 
-window.addEventListener('resize', handleResize);
+let resizeTimeout: ReturnType<typeof setTimeout>;
+const debouncedResize = () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    handleResize();
+  }, 100);
+};
+
+window.addEventListener('resize', debouncedResize);
+window.addEventListener('orientationchange', handleResize);
+
+if (window.matchMedia) {
+  const pixelRatioQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  pixelRatioQuery.addEventListener?.('change', handleResize);
+}
 
 animate();
 
