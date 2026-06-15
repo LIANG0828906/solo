@@ -24,9 +24,22 @@ function loadFromStorage(): { storyboards: Storyboard[]; materials: Material[] }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const data = JSON.parse(raw);
+      const storyboards = (data.storyboards || []).map((s: any) => ({
+        ...s,
+        authorNickname: s.authorNickname || '创作者',
+        shareCode: s.shareCode || (() => {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+          let code = '';
+          for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+          return code;
+        })(),
+        createdAt: s.createdAt || new Date().toISOString(),
+        updatedAt: s.updatedAt || new Date().toISOString(),
+      }));
+      return { storyboards, materials: data.materials || [] };
     }
-  } catch {}
+  } catch (_e) {}
   return { storyboards: [], materials: [] };
 }
 

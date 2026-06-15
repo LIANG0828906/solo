@@ -28,7 +28,17 @@ export default function TimelineView({ materials, onSelectMaterial, selectedId, 
   const dragStartPos = useRef(0);
 
   useEffect(() => {
-    const check = () => setIsVertical(window.innerWidth < 768);
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isTrueMobile = isTouchDevice && isMobileUA;
+
+    const check = () => {
+      if (isTrueMobile) {
+        setIsVertical(window.innerWidth < 1024);
+      } else {
+        setIsVertical(false);
+      }
+    };
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);

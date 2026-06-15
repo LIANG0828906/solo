@@ -42,7 +42,17 @@ export default function StoryboardDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isTrueMobile = isTouchDevice && isMobileUA;
+
+    const check = () => {
+      if (isTrueMobile) {
+        setIsMobile(window.innerWidth < 1024);
+      } else {
+        setIsMobile(false);
+      }
+    };
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
@@ -132,6 +142,12 @@ export default function StoryboardDetail() {
   const handleExport = async () => {
     setExporting(true);
     try {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      await new Promise((r) => setTimeout(r, 150));
       await exportAsImage('storyboard-export-area', `${storyboard.title}-storyboard`);
       showToast('导出成功！图片已下载');
     } catch (err: any) {
@@ -243,7 +259,7 @@ export default function StoryboardDetail() {
             <Droppable
               droppableId="materials-list"
               type="MATERIAL"
-              direction="horizontal"
+              direction="vertical"
               ignoreContainerClipping
             >
               {(provided, snapshot) => (
