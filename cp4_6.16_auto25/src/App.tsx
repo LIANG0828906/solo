@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from '@/pages/Home';
 import BookDetail from '@/pages/BookDetail';
-import { setupBookEventListeners } from '@/stores/driftStore';
+import { initBookStoreSubscription } from '@/stores/driftStore';
 
-setupBookEventListeners();
+initBookStoreSubscription();
 
 export default function App() {
   return (

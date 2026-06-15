@@ -6,6 +6,8 @@ import {
   saveRecords,
   getRecordsByBookId,
 } from '@/utils/idb';
+import { useBookStore } from './bookStore';
+import { diffBooks } from '@/utils/diffBooks';
 
 interface DriftStore {
   records: DriftRecord[];
@@ -126,37 +128,13 @@ export const useDriftStore = create<DriftStore>((set, get) => ({
   },
 }));
 
-export function setupBookEventListeners() {
-  window.addEventListener('book:created', ((e: CustomEvent) => {
-    const { book }: { book: Book } = e.detail;
-    void autoCreateInitialRecord(book);
-  }) as EventListener);
-
-  window.addEventListener('book:updated', ((e: CustomEvent) => {
-    const {
-      oldBook,
-      newBook,
-      statusChanged,
-      locationChanged,
-    }: {
-      oldBook: Book;
-      newBook: Book;
-      statusChanged: boolean;
-      locationChanged: boolean;
-    } = e.detail;
-
-    if (statusChanged || locationChanged) {
-      void autoCreateDriftRecord(oldBook, newBook);
-    }
-  }) as EventListener);
-
-  window.addEventListener('book:deleted', ((e: CustomEvent) => {
-    const { bookId }: { bookId: string } = e.detail;
-    void useDriftStore.getState().deleteRecordsForBook(bookId);
-  }) as EventListener);
-}
+const processedChangeKeys = new Set<string>();
 
 async function autoCreateInitialRecord(book: Book) {
+  const key = `${book.id}-${book.updatedAt}`;
+  if (processedChangeKeys.has(key)) return;
+  processedChangeKeys.add(key);
+
   const record = await useDriftStore.getState().addRecord({
     bookId: book.id,
     fromLocation: '',
@@ -174,6 +152,10 @@ async function autoCreateInitialRecord(book: Book) {
 }
 
 async function autoCreateDriftRecord(oldBook: Book, newBook: Book) {
+  const key = `${newBook.id}-${newBook.updatedAt}`;
+  if (processedChangeKeys.has(key)) return;
+  processedChangeKeys.add(key);
+
   const statusChange: BookStatus | null =
     oldBook.status !== newBook.status ? newBook.status : null;
 
@@ -195,4 +177,27 @@ async function autoCreateDriftRecord(oldBook: Book, newBook: Book) {
   });
 
   return record;
+}
+
+export function initBookStoreSubscription() {
+  let previousBooks = useBookStore.getState().books;
+
+  useBookStore.subscribe((state) => {
+    const currentBooks = state.books;
+    const diff = diffBooks(previousBooks, currentBooks);
+
+    for (const book of diff.createdBooks) {
+      void autoCreateInitialRecord(book);
+    }
+
+    for (const { oldBook, newBook } of diff.updatedBooks) {
+      void autoCreateDriftRecord(oldBook, newBook);
+    }
+
+    for (const bookId of diff.deletedBookIds) {
+      void useDriftStore.getState().deleteRecordsForBook(bookId);
+    }
+
+    previousBooks = currentBooks;
+  });
 }

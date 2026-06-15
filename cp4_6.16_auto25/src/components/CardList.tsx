@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, memo } from 'react';
 import { Loader2, BookOpen } from 'lucide-react';
 import { useBookStore } from '@/stores/bookStore';
 import BookCard from './BookCard';
@@ -8,9 +8,14 @@ interface CardListProps {
   className?: string;
 }
 
-export default function CardList({ className }: CardListProps) {
-  const { loading, initialized, getFilteredBooks, fetchBooks } = useBookStore();
+const INITIAL_VISIBLE_COUNT = 30;
+const LOAD_MORE_COUNT = 20;
+
+export function CardList({ className }: CardListProps) {
+  const { loading, initialized, getFilteredBooks, fetchBooks, filterStatus, searchKeyword, books } = useBookStore();
   const [isVisible, setIsVisible] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!initialized) {
@@ -23,7 +28,32 @@ export default function CardList({ className }: CardListProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  const books = getFilteredBooks();
+  const filteredBooks = useMemo(() => getFilteredBooks(), [books, filterStatus, searchKeyword, getFilteredBooks]);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+  }, [filterStatus, searchKeyword]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && visibleCount < filteredBooks.length) {
+          setVisibleCount((prev) => Math.min(prev + LOAD_MORE_COUNT, filteredBooks.length));
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleCount, filteredBooks.length]);
+
+  const visibleBooks = useMemo(() => filteredBooks.slice(0, visibleCount), [filteredBooks, visibleCount]);
+  const isLoadingMore = visibleCount < filteredBooks.length;
 
   if (loading && !initialized) {
     return (
@@ -34,7 +64,7 @@ export default function CardList({ className }: CardListProps) {
     );
   }
 
-  if (books.length === 0) {
+  if (filteredBooks.length === 0) {
     return (
       <div className={cn('flex flex-col items-center justify-center py-20', className)}>
         <div className="w-20 h-20 rounded-full bg-oak-100 flex items-center justify-center mb-4">
@@ -47,17 +77,28 @@ export default function CardList({ className }: CardListProps) {
   }
 
   return (
-    <div
-      className={cn(
-        'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5',
-        isVisible ? 'opacity-100' : 'opacity-0',
-        'transition-opacity duration-300',
-        className
+    <div>
+      <div
+        className={cn(
+          'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5',
+          isVisible ? 'opacity-100' : 'opacity-0',
+          'transition-opacity duration-300',
+          className
+        )}
+      >
+        {visibleBooks.map((book, index) => (
+          <BookCard key={book.id} book={book} index={index} />
+        ))}
+      </div>
+      {isLoadingMore && (
+        <div ref={sentinelRef} className="flex justify-center py-8">
+          <Loader2 size={24} className="text-oak-400 animate-spin" />
+        </div>
       )}
-    >
-      {books.map((book, index) => (
-        <BookCard key={book.id} book={book} index={index} />
-      ))}
     </div>
   );
 }
+
+export const MemoCardList = memo(CardList);
+
+export default MemoCardList;

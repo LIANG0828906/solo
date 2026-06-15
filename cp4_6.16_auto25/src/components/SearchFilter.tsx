@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef, memo } from 'react';
+import { Search, Plus, X } from 'lucide-react';
 import { useBookStore } from '@/stores/bookStore';
 import { FilterStatus, STATUS_LABELS } from '@/types';
-import { debounce } from '@/utils/debounce';
+import { debounce, type DebouncedFunction } from '@/utils/debounce';
 import { cn } from '@/lib/utils';
 
 interface SearchFilterProps {
@@ -16,24 +16,52 @@ const filterTabs: { key: FilterStatus; label: string }[] = [
   { key: 'arrived', label: STATUS_LABELS.arrived },
 ];
 
-export default function SearchFilter({ onAddBook }: SearchFilterProps) {
+export function SearchFilter({ onAddBook }: SearchFilterProps) {
   const { filterStatus, searchKeyword, setFilterStatus, setSearchKeyword } =
     useBookStore();
   const [inputValue, setInputValue] = useState(searchKeyword);
   const [isFocused, setIsFocused] = useState(false);
+  const debouncedFnRef = useRef<DebouncedFunction<(value: string) => void> | null>(null);
 
-  const debouncedSearch = useCallback(
-    debounce((value: unknown) => {
-      setSearchKeyword(value as string);
-    }, 300),
-    [setSearchKeyword]
-  );
+  const ensureDebounced = useCallback(() => {
+    if (!debouncedFnRef.current) {
+      debouncedFnRef.current = debounce((value: unknown) => {
+        setSearchKeyword(value as string);
+      }, 300);
+    }
+    return debouncedFnRef.current;
+  }, [setSearchKeyword]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const debouncedSearch = useCallback((value: string) => {
+    ensureDebounced()(value);
+  }, [ensureDebounced]);
+
+  const cancelDebounced = useCallback(() => {
+    if (debouncedFnRef.current) {
+      debouncedFnRef.current.cancel();
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelDebounced();
+    };
+  }, [cancelDebounced]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
     debouncedSearch(value);
-  };
+  }, [debouncedSearch]);
+
+  const handleClear = useCallback(() => {
+    setInputValue('');
+    cancelDebounced();
+    setSearchKeyword('');
+  }, [cancelDebounced, setSearchKeyword]);
+
+  const handleFocus = useCallback(() => setIsFocused(true), []);
+  const handleBlur = useCallback(() => setIsFocused(false), []);
 
   useEffect(() => {
     setInputValue(searchKeyword);
@@ -61,11 +89,20 @@ export default function SearchFilter({ onAddBook }: SearchFilterProps) {
             type="text"
             value={inputValue}
             onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             placeholder="搜索书名、作者、ISBN..."
             className="flex-1 bg-transparent text-sm text-oak-800 placeholder:text-oak-400 focus:outline-none"
           />
+          {inputValue && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="ml-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-oak-400 transition-colors hover:bg-oak-100 hover:text-oak-600"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         <button
@@ -104,3 +141,7 @@ export default function SearchFilter({ onAddBook }: SearchFilterProps) {
     </div>
   );
 }
+
+const MemoSearchFilter = memo(SearchFilter);
+
+export default MemoSearchFilter;

@@ -67,12 +67,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
     set({ books });
     await saveBooks(books);
 
-    window.dispatchEvent(
-      new CustomEvent('book:created', {
-        detail: { book: newBook },
-      })
-    );
-
     return newBook;
   },
 
@@ -93,25 +87,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
     set({ books: newBooks });
     await saveBooks(newBooks);
 
-    const statusChanged = oldBook.status !== updatedBook.status;
-    const locationChanged =
-      oldBook.currentLocation !== updatedBook.currentLocation ||
-      oldBook.currentLat !== updatedBook.currentLat ||
-      oldBook.currentLng !== updatedBook.currentLng;
-
-    if (statusChanged || locationChanged) {
-      window.dispatchEvent(
-        new CustomEvent('book:updated', {
-          detail: {
-            oldBook,
-            newBook: updatedBook,
-            statusChanged,
-            locationChanged,
-          },
-        })
-      );
-    }
-
     return updatedBook;
   },
 
@@ -131,12 +106,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
     const books = get().books.filter((b) => b.id !== id);
     set({ books });
     await saveBooks(books);
-
-    window.dispatchEvent(
-      new CustomEvent('book:deleted', {
-        detail: { bookId: id },
-      })
-    );
   },
 
   getBookById: (id) => {

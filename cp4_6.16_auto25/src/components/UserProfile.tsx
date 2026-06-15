@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BookOpen, Route, Pencil, X, Check } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useBookStore } from '@/stores/bookStore';
@@ -12,26 +12,58 @@ interface UserProfileProps {
 export default function UserProfile({ onClose }: UserProfileProps) {
   const { user, updateUserName } = useUserStore();
   const { books } = useBookStore();
-  const { getRecordCountByUser, getRecentBooksByUser } = useDriftStore();
+  const { records, getRecentBooksByUser } = useDriftStore();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user?.name || '');
+  const [editName, setEditName] = useState('');
+
+  const stats = useMemo(() => {
+    if (!user) {
+      return { userBookCount: 0, userRecordCount: 0 };
+    }
+    const operatorBookIds = new Set(
+      records
+        .filter((r) => r.operatorName === user.name)
+        .map((r) => r.bookId)
+    );
+    const creatorBookIds = new Set(
+      books.filter((b) => b.creatorName === user.name).map((b) => b.id)
+    );
+    const allBookIds = new Set([...operatorBookIds, ...creatorBookIds]);
+
+    const operatorRecords = records.filter(
+      (r) => r.operatorName === user.name
+    ).length;
+
+    return {
+      userBookCount: allBookIds.size,
+      userRecordCount: operatorRecords,
+    };
+  }, [user, records, books]);
+
+  const { userBookCount, userRecordCount } = stats;
+
+  const recentBooks = useMemo(() => {
+    if (!user) return [];
+    const recentBookIds = getRecentBooksByUser(
+      user.name,
+      books.map((b) => b.id),
+      5
+    );
+    return recentBookIds
+      .map((id) => books.find((b) => b.id === id))
+      .filter(Boolean)
+      .slice(0, 5);
+  }, [user, books, getRecentBooksByUser]);
+
+  useEffect(() => {
+    if (user && editName === '') {
+      setEditName(user.name);
+    }
+  }, [user, editName]);
 
   if (!user) return null;
-
-  const userBookCount = books.filter((b) => b.creatorName === user.name).length;
-  const userRecordCount = getRecordCountByUser(user.name);
-
-  const recentBookIds = getRecentBooksByUser(
-    user.name,
-    books.map((b) => b.id),
-    5
-  );
-  const recentBooks = recentBookIds
-    .map((id) => books.find((b) => b.id === id))
-    .filter(Boolean)
-    .slice(0, 5);
 
   const handleStartEdit = () => {
     setEditName(user.name);
@@ -68,8 +100,18 @@ export default function UserProfile({ onClose }: UserProfileProps) {
 
       <div className="flex items-center gap-4">
         <div
-          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white shadow-lg"
-          style={{ backgroundColor: user.avatarColor }}
+          className="group flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white transition-all duration-300"
+          style={{
+            backgroundColor: user.avatarColor,
+            boxShadow: `0 4px 12px rgba(0,0,0,0.15), inset 0 -3px 6px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.2)`,
+            border: '3px solid rgba(255,255,255,0.8)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = `0 6px 20px ${user.avatarColor}66, inset 0 -3px 6px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.2)`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.15), inset 0 -3px 6px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.2)`;
+          }}
         >
           {firstLetter}
         </div>
@@ -146,31 +188,40 @@ export default function UserProfile({ onClose }: UserProfileProps) {
             暂无漂流记录
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {recentBooks.map((book) => (
-              <div
-                key={book!.id}
-                onClick={() => navigate(`/book/${book!.id}`)}
-                className="group flex w-20 flex-shrink-0 cursor-pointer flex-col items-center"
-              >
-                <div className="h-28 w-20 overflow-hidden rounded-lg bg-oak-100 shadow-sm transition-all duration-200 group-hover:shadow-md">
-                  {book!.coverUrl ? (
-                    <img
-                      src={book!.coverUrl}
-                      alt={book!.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-oak-200 to-oak-300">
-                      <span className="text-2xl">📖</span>
-                    </div>
-                  )}
+          <div className="relative">
+            <div className="flex gap-3 overflow-x-auto pb-2 pr-4 scrollbar-hide">
+              {recentBooks.map((book) => (
+                <div
+                  key={book!.id}
+                  onClick={() => navigate(`/book/${book!.id}`)}
+                  className="group flex w-20 flex-shrink-0 cursor-pointer flex-col items-center"
+                >
+                  <div className="h-28 w-20 overflow-hidden rounded-lg bg-oak-100 shadow-sm transition-all duration-200 group-hover:shadow-md group-hover:-translate-y-0.5">
+                    {book!.coverUrl ? (
+                      <img
+                        src={book!.coverUrl}
+                        alt={book!.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-oak-200 to-oak-300">
+                        <span className="text-2xl">📖</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1.5 w-full truncate text-center text-xs text-oak-600">
+                    {book!.title}
+                  </p>
                 </div>
-                <p className="mt-1.5 w-full truncate text-center text-xs text-oak-600">
-                  {book!.title}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div
+              className="pointer-events-none absolute top-0 right-0 h-full w-8 rounded-r-lg"
+              style={{
+                background:
+                  'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 60%, rgba(255,255,255,0.95) 100%)',
+              }}
+            />
           </div>
         )}
       </div>
