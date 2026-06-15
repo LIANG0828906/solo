@@ -9,7 +9,7 @@ interface NodeCardProps {
   containerRef: React.RefObject<HTMLDivElement | null>
 }
 
-const NODE_WIDTH = 280
+const NODE_WIDTH = 260
 
 const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, containerRef }) => {
   const cardRef = useRef<HTMLDivElement>(null)
@@ -40,9 +40,9 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
   }, [isHighlighted])
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT' ||
-        (e.target as HTMLElement).tagName === 'TEXTAREA' ||
-        (e.target as HTMLElement).closest('[data-option-port]')) return
+    const target = e.target as HTMLElement
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+    if (target.closest('.option-area')) return
 
     e.preventDefault()
     e.stopPropagation()
@@ -85,8 +85,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
 
   const handleOptionPortMouseDown = (
     e: React.MouseEvent,
-    option: NodeOption,
-    optionIndex: number
+    option: NodeOption
   ) => {
     e.preventDefault()
     e.stopPropagation()
@@ -130,7 +129,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
               worldX >= n.x &&
               worldX <= n.x + NODE_WIDTH &&
               worldY >= n.y &&
-              worldY <= n.y + 250 &&
+              worldY <= n.y + 350 &&
               n.id !== currentConn.sourceNodeId
           )
 
@@ -163,44 +162,82 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
     return (
       <div
         key={option.id}
-        className="flex items-center gap-2 group relative"
+        className="option-area flex items-center gap-1.5 group"
+        style={{ marginBottom: idx < node.options.length - 1 ? 6 : 0 }}
       >
         <input
           type="text"
           value={option.text}
           onChange={(e) => updateOption(node.id, option.id, { text: e.target.value })}
           placeholder={`选项 ${idx + 1}`}
-          className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs
-                     focus:border-cyan-400 focus:outline-none focus:shadow-[0_0_8px_rgba(0,255,213,0.3)]
-                     text-gray-200 transition-all"
           onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 4,
+            padding: '5px 8px',
+            fontSize: 11,
+            color: '#e0e0e0',
+            outline: 'none',
+            transition: 'all 0.15s',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = '#00ffd5'
+            e.currentTarget.style.boxShadow = '0 0 8px rgba(0,255,213,0.3)'
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
         />
         <button
-          data-option-port
-          onMouseDown={(e) => handleOptionPortMouseDown(e, option, idx)}
-          className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center
-                      transition-all cursor-crosshair
-                      ${connected
-                        ? 'bg-cyan-400 border-cyan-400 shadow-[0_0_8px_rgba(0,255,213,0.6)]'
-                        : 'bg-transparent border-gray-500 hover:border-magenta hover:shadow-[0_0_8px_rgba(255,0,127,0.6)]'}
-                      ${isActiveSource
-                        ? 'ring-2 ring-magenta ring-offset-1 ring-offset-bg-primary scale-125'
-                        : ''}`}
-          style={connected ? { borderColor: '#00ffd5' } : undefined}
-          title={connected ? '点击连线重新连接' : '拖拽连线到目标节点'}
+          onMouseDown={(e) => handleOptionPortMouseDown(e, option)}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            border: `2px solid ${connected ? '#00ffd5' : isActiveSource ? '#ff007f' : '#555'}`,
+            background: connected ? '#00ffd5' : 'transparent',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'crosshair',
+            boxShadow: connected ? '0 0 8px rgba(0,255,213,0.6)' : isActiveSource ? '0 0 8px rgba(255,0,127,0.6)' : 'none',
+            transition: 'all 0.15s',
+            transform: isActiveSource ? 'scale(1.3)' : 'scale(1)',
+          }}
+          title={connected ? '重新连线' : '拖拽连线'}
         >
-          <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-bg-primary' : 'bg-transparent'}`} />
+          {connected && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a1a2e' }} />}
         </button>
         <button
           onClick={(e) => {
             e.stopPropagation()
             deleteOption(node.id, option.id)
           }}
-          className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 opacity-0 group-hover:opacity-100
-                     hover:bg-red-500/40 transition-all text-xs flex items-center justify-center
-                     disabled:opacity-20 disabled:cursor-not-allowed"
           disabled={node.options.length <= 2}
-          title="删除选项"
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: 'rgba(239,68,68,0.2)',
+            color: '#f87171',
+            border: 'none',
+            cursor: node.options.length <= 2 ? 'not-allowed' : 'pointer',
+            opacity: node.options.length <= 2 ? 0.3 : 0,
+            fontSize: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'opacity 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { if (node.options.length > 2) e.currentTarget.style.opacity = '1' }}
+          onMouseLeave={(e) => { if (node.options.length > 2) e.currentTarget.style.opacity = '0' }}
         >
           ×
         </button>
@@ -211,79 +248,148 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
   return (
     <div
       ref={cardRef}
-      className={`node-card absolute rounded-xl overflow-hidden transition-shadow
-                  ${isDragging ? 'cursor-grabbing z-50' : 'cursor-grab'}
-                  ${isSelected ? 'z-40' : 'z-10'}`}
+      className="node-card"
       style={{
+        position: 'absolute',
         left: node.x,
         top: node.y,
         width: NODE_WIDTH,
+        zIndex: isDragging ? 50 : isSelected ? 40 : 10,
+        cursor: isDragging ? 'grabbing' : 'grab',
       }}
       onMouseDown={handleMouseDown}
     >
       <div
-        className={`glass-panel rounded-xl transition-all duration-200
-                    ${isSelected
-                      ? 'border-cyan-400 shadow-[0_0_20px_rgba(0,255,213,0.4),0_0_40px_rgba(0,255,213,0.1)]'
-                      : 'hover:border-cyan-400/50 hover:shadow-[0_0_15px_rgba(0,255,213,0.2)]'}
-                    ${node.isStart ? 'border-l-4' : ''}
-                    ${node.isEnd ? 'border-r-4' : ''}`}
         style={{
-          borderLeftWidth: node.isStart ? '4px' : undefined,
-          borderLeftColor: node.isStart ? '#00ffd5' : undefined,
-          borderRightWidth: node.isEnd ? '4px' : undefined,
-          borderRightColor: node.isEnd ? '#ff007f' : undefined,
+          background: 'rgba(26, 26, 46, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: `1px solid ${
+            isSelected
+              ? '#00ffd5'
+              : node.isStart
+              ? 'rgba(0,255,213,0.4)'
+              : node.isEnd
+              ? 'rgba(255,0,127,0.4)'
+              : 'rgba(255,255,255,0.1)'
+          }`,
+          borderLeft: node.isStart ? '4px solid #00ffd5' : undefined,
+          borderRight: node.isEnd ? '4px solid #ff007f' : undefined,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: isSelected
+            ? '0 0 20px rgba(0,255,213,0.4), 0 0 40px rgba(0,255,213,0.1)'
+            : '0 4px 20px rgba(0,0,0,0.3)',
+          transition: 'box-shadow 0.2s, border-color 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.borderColor = 'rgba(0,255,213,0.5)'
+            e.currentTarget.style.boxShadow = '0 0 15px rgba(0,255,213,0.2), 0 4px 20px rgba(0,0,0,0.4)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.borderColor = node.isStart
+              ? 'rgba(0,255,213,0.4)'
+              : node.isEnd
+              ? 'rgba(255,0,127,0.4)'
+              : 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)'
+          }
         }}
       >
         <div
-          className={`px-4 py-2 flex items-center justify-between border-b border-white/5
-                      ${node.isStart ? 'bg-cyan-400/10' : ''}
-                      ${node.isEnd ? 'bg-magenta/10' : ''}`}
-          style={
-            node.isEnd
-              ? { backgroundColor: 'rgba(255, 0, 127, 0.1)' }
-              : undefined
-          }
+          style={{
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            background: node.isStart
+              ? 'rgba(0,255,213,0.08)'
+              : node.isEnd
+              ? 'rgba(255,0,127,0.08)'
+              : 'transparent',
+          }}
         >
           <input
             type="text"
             value={node.title}
             onChange={(e) => updateNode(node.id, { title: e.target.value })}
-            className="flex-1 bg-transparent text-sm font-semibold text-cyan-100
-                       focus:outline-none font-orbitron tracking-wider"
             onClick={(e) => e.stopPropagation()}
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#a5f3fc',
+              fontFamily: "'Orbitron', 'Noto Sans SC', sans-serif",
+              letterSpacing: '0.05em',
+            }}
           />
-          <div className="flex items-center gap-1">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {node.isStart && (
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                 style={{
-                  backgroundColor: 'rgba(0, 255, 213, 0.2)',
+                  fontSize: 9,
+                  padding: '2px 5px',
+                  borderRadius: 3,
+                  fontWeight: 700,
+                  background: 'rgba(0,255,213,0.2)',
                   color: '#00ffd5',
+                  fontFamily: "'Orbitron', sans-serif",
                 }}
               >
-                START
+                S
               </span>
             )}
             {node.isEnd && (
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                 style={{
-                  backgroundColor: 'rgba(255, 0, 127, 0.2)',
+                  fontSize: 9,
+                  padding: '2px 5px',
+                  borderRadius: 3,
+                  fontWeight: 700,
+                  background: 'rgba(255,0,127,0.2)',
                   color: '#ff007f',
+                  fontFamily: "'Orbitron', sans-serif",
                 }}
               >
-                END
+                E
               </span>
             )}
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                deleteNode(node.id)
+                if (confirm('确定删除这个节点？')) deleteNode(node.id)
               }}
-              className="w-6 h-6 rounded-md bg-red-500/20 text-red-400 opacity-0 group-hover:opacity-100
-                         hover:bg-red-500/40 transition-all text-xs flex items-center justify-center"
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 5,
+                background: 'transparent',
+                color: '#f87171',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '1'
+                e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '0'
+                e.currentTarget.style.background = 'transparent'
+              }}
               title="删除节点"
             >
               ×
@@ -291,55 +397,129 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
           </div>
         </div>
 
-        <div className="p-4">
-          <div className="mb-3">
-            <textarea
-              value={node.description}
-              onChange={(e) => updateNode(node.id, { description: e.target.value })}
-              placeholder="场景描述..."
-              rows={4}
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300
-                         focus:border-cyan-400 focus:outline-none focus:shadow-[0_0_8px_rgba(0,255,213,0.3)]
-                         resize-none transition-all leading-relaxed"
-              onClick={(e) => e.stopPropagation()}
-            />
+        <div style={{ padding: 12 }}>
+          <textarea
+            value={node.description}
+            onChange={(e) => updateNode(node.id, { description: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="在这里描述场景..."
+            rows={4}
+            style={{
+              width: '100%',
+              resize: 'none',
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6,
+              padding: '8px 10px',
+              fontSize: 11,
+              color: '#d1d5db',
+              outline: 'none',
+              lineHeight: 1.6,
+              marginBottom: 12,
+              transition: 'all 0.15s',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#00ffd5'
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(0,255,213,0.3)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          />
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                letterSpacing: '0.1em',
+                fontWeight: 700,
+                color: '#6b7280',
+                fontFamily: "'Orbitron', sans-serif",
+              }}
+            >
+              选项出口
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                addOption(node.id)
+              }}
+              disabled={node.options.length >= 4}
+              style={{
+                fontSize: 10,
+                padding: '3px 8px',
+                borderRadius: 5,
+                border: '1px solid rgba(0,255,213,0.4)',
+                color: '#00ffd5',
+                background: 'rgba(0,255,213,0.05)',
+                cursor: node.options.length >= 4 ? 'not-allowed' : 'pointer',
+                opacity: node.options.length >= 4 ? 0.4 : 1,
+                transition: 'all 0.15s',
+                fontWeight: 600,
+              }}
+              onMouseEnter={(e) => {
+                if (node.options.length < 4) {
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(0,255,213,0.4)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
+            >
+              + 添加
+            </button>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                选项出口
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  addOption(node.id)
-                }}
-                disabled={node.options.length >= 4}
-                className="text-[10px] px-2 py-1 rounded-md border transition-all
-                           hover:shadow-[0_0_8px_rgba(0,255,213,0.5)] hover:-translate-y-0.5
-                           disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-                style={{
-                  borderColor: 'rgba(0, 255, 213, 0.4)',
-                  color: '#00ffd5',
-                }}
-              >
-                + 添加
-              </button>
-            </div>
+          <div style={{ minHeight: 10 }}>
             {node.options.map((opt, idx) => renderOptionPort(opt, idx))}
-            {node.options.length === 0 && (
-              <div
-                className="text-[11px] text-center py-4 rounded-lg border border-dashed"
-                style={{ borderColor: 'rgba(255, 0, 127, 0.3)', color: '#ff007f' }}
-              >
-                结局节点 — 无选项出口
-              </div>
-            )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
-            <label className="flex items-center gap-1.5 cursor-pointer">
+          {node.options.length === 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '14px 8px',
+                borderRadius: 8,
+                border: '1px dashed rgba(255,0,127,0.3)',
+                color: '#ff007f',
+                fontSize: 11,
+              }}
+            >
+              结局节点 · 无选项
+            </div>
+          )}
+
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                cursor: 'pointer',
+                fontSize: 10,
+                color: '#9ca3af',
+              }}
+            >
               <input
                 type="checkbox"
                 checked={node.isStart || false}
@@ -354,12 +534,21 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
                   }
                   updateNode(node.id, { isStart: e.target.checked })
                 }}
-                className="w-3 h-3 accent-cyan-400"
                 onClick={(e) => e.stopPropagation()}
+                style={{ accentColor: '#00ffd5', width: 11, height: 11 }}
               />
-              <span className="text-[10px] text-gray-400">起始点</span>
+              起始
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                cursor: 'pointer',
+                fontSize: 10,
+                color: '#9ca3af',
+              }}
+            >
               <input
                 type="checkbox"
                 checked={node.isEnd || false}
@@ -367,11 +556,10 @@ const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, isHighlighted, co
                   e.stopPropagation()
                   updateNode(node.id, { isEnd: e.target.checked })
                 }}
-                className="w-3 h-3"
-                style={{ accentColor: '#ff007f' }}
                 onClick={(e) => e.stopPropagation()}
+                style={{ accentColor: '#ff007f', width: 11, height: 11 }}
               />
-              <span className="text-[10px] text-gray-400">结局</span>
+              结局
             </label>
           </div>
         </div>

@@ -464,10 +464,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
   persistToIdb: async () => {
     try {
-      const { nodes, connections, panState } = get()
+      const { nodes, connections, panState, visitedNodeIds } = get()
       await set('wordweaver_nodes', nodes)
       await set('wordweaver_connections', connections)
       await set('wordweaver_pan', panState)
+      await set('wordweaver_visited', Array.from(visitedNodeIds))
     } catch (e) {
       console.warn('IndexedDB persist failed:', e)
     }
@@ -478,11 +479,14 @@ export const useStore = create<StoreState>((set, get) => ({
       const nodes = await get<StoryNode[]>('wordweaver_nodes')
       const connections = await get<Connection[]>('wordweaver_connections')
       const panState = await get<PanState>('wordweaver_pan')
+      const visitedArr = await get<string[]>('wordweaver_visited')
 
       const updates: Partial<StoreState> = {}
       if (Array.isArray(nodes) && nodes.length > 0) updates.nodes = nodes
-      if (Array.isArray(connections)) updates.connections = connections
+      if (Array.isArray(connections) && connections.length > 0) updates.connections = connections
       if (panState && typeof panState === 'object' && 'scale' in panState) updates.panState = panState
+      if (Array.isArray(visitedArr)) updates.visitedNodeIds = new Set(visitedArr)
+      else updates.visitedNodeIds = new Set()
       updates.isHydrated = true
 
       set((state) => ({

@@ -7,35 +7,31 @@ interface CanvasProps {
   containerRef: React.RefObject<HTMLDivElement | null>
 }
 
-const NODE_WIDTH = 280
+const NODE_WIDTH = 260
 const NODE_HEADER_HEIGHT = 44
-const NODE_PADDING = 16
-const OPTION_HEIGHT = 34
+const NODE_DESC_HEIGHT = 96
+const NODE_PADDING = 12
+const OPTION_LABEL_HEIGHT = 24
+const OPTION_HEIGHT = 30
 const OPTION_SPACING = 8
 
 const getOptionPortPosition = (
   node: StoryNode,
   optionIndex: number
 ): { x: number; y: number } => {
-  const headerHeight = NODE_HEADER_HEIGHT
-  const descArea = 120
-  const optionsLabelHeight = 32
-  const baseY = node.y + headerHeight + NODE_PADDING + descArea + NODE_PADDING + optionsLabelHeight
-
-  let accumulatedSpacing = NODE_PADDING
+  let accumulatedY = NODE_HEADER_HEIGHT + NODE_PADDING + NODE_DESC_HEIGHT + NODE_PADDING + OPTION_LABEL_HEIGHT + 10
   for (let i = 0; i < optionIndex; i++) {
-    accumulatedSpacing += OPTION_HEIGHT + OPTION_SPACING
+    accumulatedY += OPTION_HEIGHT + OPTION_SPACING
   }
-
   return {
-    x: node.x + NODE_WIDTH - 12,
-    y: baseY + accumulatedSpacing + OPTION_HEIGHT / 2,
+    x: node.x + NODE_WIDTH - 21,
+    y: node.y + accumulatedY + OPTION_HEIGHT / 2,
   }
 }
 
 const getNodeTopCenter = (node: StoryNode): { x: number; y: number } => ({
   x: node.x + NODE_WIDTH / 2,
-  y: node.y,
+  y: node.y + 16,
 })
 
 const bezierPath = (
@@ -48,60 +44,18 @@ const bezierPath = (
   const minDx = 60
   const controlOffset = Math.max(dx, minDx)
 
-  let cp1x = x1 + controlOffset
-  let cp1y = y1
-  let cp2x = x2 - controlOffset
-  let cp2y = y2
+  const cp1x = x1 + controlOffset
+  const cp1y = y1
+  const cp2x = x2 - controlOffset
+  const cp2y = y2
 
-  if (x2 < x1) {
-    cp1x = x1 + controlOffset * 0.5
-    cp2x = x2 - controlOffset * 0.5
-    cp1y = y1 + 40
-    cp2y = y2 - 40
+  if (x2 < x1 - 50) {
+    const midY = (y1 + y2) / 2
+    return `M ${x1} ${y1} C ${x1 + 50} ${y1}, ${x1 + 100} ${midY - 30}, ${x1 + 150} ${midY} C ${x2 - 150} ${midY}, ${x2 - 100} ${midY + 30}, ${x2 - 50} ${y2}, ${x2} ${y2}`
   }
 
   return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`
 }
-
-const ArrowMarker: React.FC = () => (
-  <defs>
-    <marker
-      id="arrowhead"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
-      <polygon points="0 0, 10 3.5, 0 7" fill="#00ffd5" />
-    </marker>
-    <marker
-      id="arrowhead-hover"
-      markerWidth="12"
-      markerHeight="9"
-      refX="11"
-      refY="4.5"
-      orient="auto"
-    >
-      <polygon points="0 0, 12 4.5, 0 9" fill="#ff007f" />
-    </marker>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
-      <feMerge>
-        <feMergeNode in="coloredBlur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-    <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-      <feMerge>
-        <feMergeNode in="coloredBlur" />
-        <feMergeNode in="coloredBlur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-  </defs>
-)
 
 const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
   const {
@@ -118,70 +72,42 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
   } = useStore()
 
   const internalRef = useRef<HTMLDivElement>(null)
-  const svgLayerRef = useRef<SVGSVGElement>(null)
   const isPanning = useRef(false)
   const panStartPos = useRef({ x: 0, y: 0 })
   const panStartState = useRef({ x: 0, y: 0 })
-  const [tick, setTick] = useState(0)
-  const animFrame = useRef<number | null>(null)
   const [hoveredConnId, setHoveredConnId] = useState<string | null>(null)
-  const [viewportSize, setViewportSize] = useState({ w: 4000, h: 3000 })
-  const [isViewportReady, setIsViewportReady] = useState(false)
+  const [viewportSize] = useState({ w: 6000, h: 4500 })
 
   const actualContainerRef = (containerRef as React.RefObject<HTMLDivElement>) || internalRef
 
-  useEffect(() => {
-    const rafLoop = () => {
-      setTick((t) => (t + 1) % 1000000)
-      animFrame.current = requestAnimationFrame(rafLoop)
-    }
-    animFrame.current = requestAnimationFrame(rafLoop)
-    return () => {
-      if (animFrame.current) cancelAnimationFrame(animFrame.current)
-    }
-  }, [])
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault()
+      const rect = actualContainerRef.current?.getBoundingClientRect()
+      if (!rect) return
 
-  useEffect(() => {
-    if (nodes.length > 0) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      nodes.forEach((n) => {
-        minX = Math.min(minX, n.x)
-        minY = Math.min(minY, n.y)
-        maxX = Math.max(maxX, n.x + NODE_WIDTH)
-        maxY = Math.max(maxY, n.y + 400)
-      })
-      const padding = 500
-      const w = Math.max(maxX - minX + padding * 2, 4000)
-      const h = Math.max(maxY - minY + padding * 2, 3000)
-      setViewportSize({ w, h })
-    }
-    setIsViewportReady(true)
-  }, [nodes.length])
+      const delta = -e.deltaY * 0.0015
+      const newScale = Math.min(2, Math.max(0.2, panState.scale * (1 + delta)))
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const rect = actualContainerRef.current?.getBoundingClientRect()
-    if (!rect) return
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
 
-    const delta = -e.deltaY * 0.001
-    const newScale = Math.min(2, Math.max(0.2, panState.scale * (1 + delta)))
+      const worldX = mouseX / panState.scale - panState.x
+      const worldY = mouseY / panState.scale - panState.y
 
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
+      const newX = mouseX / newScale - worldX
+      const newY = mouseY / newScale - worldY
 
-    const worldX = (mouseX / panState.scale) - panState.x
-    const worldY = (mouseY / panState.scale) - panState.y
-
-    const newX = (mouseX / newScale) - worldX
-    const newY = (mouseY / newScale) - worldY
-
-    setPanState({ scale: newScale, x: newX, y: newY })
-  }, [panState, setPanState])
+      setPanState({ scale: newScale, x: newX, y: newY })
+    },
+    [panState, setPanState, actualContainerRef]
+  )
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.node-card')) return
-    if ((e.target as HTMLElement).tagName === 'INPUT' ||
-        (e.target as HTMLElement).tagName === 'TEXTAREA') return
+    const target = e.target as HTMLElement
+    if (target.closest('.node-card')) return
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+    if (target.closest('.zoom-controls') || target.closest('.stats-bar')) return
 
     e.preventDefault()
     isPanning.current = true
@@ -229,7 +155,7 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
         <path
           d={path}
           stroke="transparent"
-          strokeWidth={18}
+          strokeWidth={20}
           fill="none"
           style={{ cursor: 'pointer' }}
           onMouseEnter={() => setHoveredConnId(conn.id)}
@@ -283,58 +209,66 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
     )
   }
 
-  const nodeMap = useMemo(() => {
-    const map = new Map<string, StoryNode>()
-    nodes.forEach((n) => map.set(n.id, n))
-    return map
-  }, [nodes])
-
   const shouldRenderNode = (node: StoryNode): boolean => {
-    if (!actualContainerRef.current) return true
-    const rect = actualContainerRef.current.getBoundingClientRect()
-
-    const viewLeft = -panState.x * panState.scale - 500
-    const viewRight = viewLeft + rect.width / panState.scale + 500
-    const viewTop = -panState.y * panState.scale - 500
-    const viewBottom = viewTop + rect.height / panState.scale + 500
-
-    const nodeRight = node.x + NODE_WIDTH
-    const nodeBottom = node.y + 400
-
-    return !(nodeRight < viewLeft || node.x > viewRight || nodeBottom < viewTop || node.y > viewBottom)
+    return true
   }
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = actualContainerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const newScale = Math.min(2, panState.scale * 1.2)
+    const worldX = rect.width / 2 / panState.scale - panState.x
+    const worldY = rect.height / 2 / panState.scale - panState.y
+    setPanState({
+      scale: newScale,
+      x: rect.width / 2 / newScale - worldX,
+      y: rect.height / 2 / newScale - worldY,
+    })
+  }
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = actualContainerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const newScale = Math.max(0.2, panState.scale * 0.8)
+    const worldX = rect.width / 2 / panState.scale - panState.x
+    const worldY = rect.height / 2 / panState.scale - panState.y
+    setPanState({
+      scale: newScale,
+      x: rect.width / 2 / newScale - worldX,
+      y: rect.height / 2 / newScale - worldY,
+    })
+  }
+
+  const handleResetView = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setPanState({ x: 0, y: 0, scale: 1 })
+  }
+
+  const safeConnections = Array.isArray(connections) ? connections : []
 
   return (
     <div
       ref={actualContainerRef}
-      className="relative w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
       style={{
-        background: `
-          linear-gradient(180deg,
-            rgba(26, 26, 46, 1) 0%,
-            rgba(22, 33, 62, 0.98) 50%,
-            rgba(26, 26, 46, 1) 100%
-          )
-        `,
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        cursor: isPanning.current ? 'grabbing' : 'grab',
         backgroundColor: '#1a1a2e',
+        backgroundImage: `
+          radial-gradient(circle at 20% 20%, rgba(0, 255, 213, 0.03) 0%, transparent 40%),
+          radial-gradient(circle at 80% 80%, rgba(255, 0, 127, 0.03) 0%, transparent 40%)
+        `,
       }}
       onWheel={handleWheel}
       onMouseDown={handleCanvasMouseDown}
     >
       <div
-        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `
-            radial-gradient(circle at 20% 20%, rgba(0, 255, 213, 0.03) 0%, transparent 40%),
-            radial-gradient(circle at 80% 80%, rgba(255, 0, 127, 0.03) 0%, transparent 40%)
-          `,
-        }}
-      />
-
-      <div
-        ref={svgLayerRef}
-        className="absolute overflow-hidden"
-        style={{
+          position: 'absolute',
           left: 0,
           top: 0,
           width: '100%',
@@ -349,17 +283,16 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
           height={viewportSize.h}
           style={{
             position: 'absolute',
-            left: -viewportSize.w / 4,
-            top: -viewportSize.h / 4,
+            left: -viewportSize.w / 3,
+            top: -viewportSize.h / 3,
             pointerEvents: 'none',
-            overflow: 'visible',
           }}
         >
           <defs>
             <pattern
               id="grid-small"
-              x={viewportSize.w / 4}
-              y={viewportSize.h / 4}
+              x={viewportSize.w / 3}
+              y={viewportSize.h / 3}
               width="40"
               height="40"
               patternUnits="userSpaceOnUse"
@@ -373,8 +306,8 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
             </pattern>
             <pattern
               id="grid-large"
-              x={viewportSize.w / 4}
-              y={viewportSize.h / 4}
+              x={viewportSize.w / 3}
+              y={viewportSize.h / 3}
               width="200"
               height="200"
               patternUnits="userSpaceOnUse"
@@ -389,8 +322,8 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
             </pattern>
           </defs>
           <rect
-            x={-viewportSize.w / 4}
-            y={-viewportSize.h / 4}
+            x={-viewportSize.w / 3}
+            y={-viewportSize.h / 3}
             width={viewportSize.w}
             height={viewportSize.h}
             fill="url(#grid-large)"
@@ -402,15 +335,51 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
           height={viewportSize.h}
           style={{
             position: 'absolute',
-            left: -viewportSize.w / 4,
-            top: -viewportSize.h / 4,
+            left: -viewportSize.w / 3,
+            top: -viewportSize.h / 3,
             pointerEvents: 'auto',
             overflow: 'visible',
             zIndex: 5,
           }}
         >
-          <ArrowMarker />
-          {connections.map(renderConnection)}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#00ffd5" />
+            </marker>
+            <marker
+              id="arrowhead-hover"
+              markerWidth="12"
+              markerHeight="9"
+              refX="11"
+              refY="4.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 12 4.5, 0 9" fill="#ff007f" />
+            </marker>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          {safeConnections.map(renderConnection)}
           {renderConnectingLine()}
         </svg>
 
@@ -430,72 +399,120 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
       </div>
 
       <div
-        className="absolute bottom-4 right-4 z-30 glass-panel rounded-xl p-2 flex items-center gap-1"
+        className="zoom-controls"
+        style={{
+          position: 'absolute',
+          bottom: 16,
+          right: 16,
+          zIndex: 30,
+          background: 'rgba(26, 26, 46, 0.7)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12,
+          padding: 6,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+        }}
         onMouseDown={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
       >
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            const rect = actualContainerRef.current?.getBoundingClientRect()
-            if (!rect) return
-            const newScale = Math.min(2, panState.scale * 1.2)
-            const worldX = (rect.width / 2 / panState.scale) - panState.x
-            const worldY = (rect.height / 2 / panState.scale) - panState.y
-            setPanState({
-              scale: newScale,
-              x: rect.width / 2 / newScale - worldX,
-              y: rect.height / 2 / newScale - worldY,
-            })
+          onClick={handleZoomIn}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            color: '#9ca3af',
+            cursor: 'pointer',
+            fontSize: 18,
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.15s',
           }}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-lg
-                     hover:bg-cyan-400/20 hover:text-cyan-400 transition-all
-                     text-gray-400 font-bold"
-          style={{ transition: 'all 0.15s' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 255, 213, 0.15)'
+            e.currentTarget.style.color = '#00ffd5'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+            e.currentTarget.style.color = '#9ca3af'
+          }}
         >
           +
         </button>
         <div
-          className="px-3 h-8 flex items-center rounded-lg text-xs font-mono"
           style={{
-            minWidth: '56px',
-            justifyContent: 'center',
-            color: '#00ffd5',
+            padding: '0 10px',
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 8,
+            fontSize: 11,
             fontFamily: "'Orbitron', monospace",
+            color: '#00ffd5',
+            minWidth: 52,
+            justifyContent: 'center',
           }}
         >
           {Math.round(panState.scale * 100)}%
         </div>
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            const rect = actualContainerRef.current?.getBoundingClientRect()
-            if (!rect) return
-            const newScale = Math.max(0.2, panState.scale * 0.8)
-            const worldX = (rect.width / 2 / panState.scale) - panState.x
-            const worldY = (rect.height / 2 / panState.scale) - panState.y
-            setPanState({
-              scale: newScale,
-              x: rect.width / 2 / newScale - worldX,
-              y: rect.height / 2 / newScale - worldY,
-            })
+          onClick={handleZoomOut}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            color: '#9ca3af',
+            cursor: 'pointer',
+            fontSize: 20,
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.15s',
           }}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-lg
-                     hover:bg-cyan-400/20 hover:text-cyan-400 transition-all
-                     text-gray-400 font-bold"
-          style={{ transition: 'all 0.15s' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 255, 213, 0.15)'
+            e.currentTarget.style.color = '#00ffd5'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+            e.currentTarget.style.color = '#9ca3af'
+          }}
         >
           −
         </button>
-        <div className="w-px h-5 bg-white/10 mx-1" />
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setPanState({ x: 0, y: 0, scale: 1 })
-          }}
-          className="w-8 h-8 rounded-lg flex items-center justify-center
-                     hover:bg-magenta/20 transition-all text-gray-400"
+          onClick={handleResetView}
           title="重置视图"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            color: '#9ca3af',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 0, 127, 0.15)'
+            e.currentTarget.style.color = '#ff007f'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+            e.currentTarget.style.color = '#9ca3af'
+          }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -505,34 +522,57 @@ const Canvas: React.FC<CanvasProps> = ({ containerRef }) => {
       </div>
 
       <div
-        className="absolute top-4 right-4 z-30 glass-panel rounded-xl px-4 py-2 flex items-center gap-2"
+        className="stats-bar"
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 30,
+          background: 'rgba(26, 26, 46, 0.7)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12,
+          padding: '8px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div
-          className="w-2 h-2 rounded-full animate-pulse"
-          style={{
-            backgroundColor: '#00ffd5',
-            boxShadow: '0 0 8px rgba(0, 255, 213, 0.6)',
-          }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: '#00ffd5',
+              boxShadow: '0 0 8px rgba(0, 255, 213, 0.6)',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              fontFamily: "'Orbitron', sans-serif",
+              color: '#00ffd5',
+            }}
+          >
+            {nodes.length} NODES
+          </span>
+        </div>
+        <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />
         <span
-          className="text-[11px] font-bold tracking-wider"
           style={{
-            fontFamily: "'Orbitron', sans-serif",
-            color: '#00ffd5',
-          }}
-        >
-          {nodes.length} NODES
-        </span>
-        <div className="w-px h-4 bg-white/10" />
-        <span
-          className="text-[11px] font-bold tracking-wider"
-          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
             fontFamily: "'Orbitron', sans-serif",
             color: '#ff007f',
           }}
         >
-          {connections.length} CONN
+          {safeConnections.length} CONN
         </span>
       </div>
     </div>
