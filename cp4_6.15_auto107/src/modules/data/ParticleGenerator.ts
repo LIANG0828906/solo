@@ -47,7 +47,7 @@ const CLUSTER_NAMES = [
   'Corona Borealis Supercluster',
 ];
 
-function lerp(a: number, b: number, t: number): number {
+export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
@@ -55,13 +55,13 @@ function clamp01(t: number): number {
   return Math.max(0, Math.min(1, t));
 }
 
-function cosmologicalExpansion(t: number): number {
+export function cosmologicalExpansion(t: number): number {
   const earlyPhase = 1 - Math.exp(-4 * t);
   const darkEnergyPhase = 0.08 * Math.pow(t, 3);
   return clamp01(earlyPhase + darkEnergyPhase);
 }
 
-function redshiftToColor(redshift: number): { r: number; g: number; b: number } {
+export function redshiftToColor(redshift: number): { r: number; g: number; b: number } {
   if (redshift >= 0) {
     const t = Math.min(redshift, 1);
     return {
@@ -76,6 +76,23 @@ function redshiftToColor(redshift: number): { r: number; g: number; b: number } 
       g: lerp(0.85, 0.08, t),
       b: lerp(1.0, 0.85, t),
     };
+  }
+}
+
+export function redshiftToColorRef(
+  redshift: number,
+  out: { r: number; g: number; b: number }
+): void {
+  if (redshift >= 0) {
+    const t = Math.min(redshift, 1);
+    out.r = lerp(1.0, 1.0, t);
+    out.g = lerp(0.55, 0.1, t);
+    out.b = lerp(0.3, 0.0, t);
+  } else {
+    const t = Math.min(Math.abs(redshift), 1);
+    out.r = lerp(0.35, 0.5, t);
+    out.g = lerp(0.85, 0.08, t);
+    out.b = lerp(1.0, 0.85, t);
   }
 }
 
@@ -138,124 +155,149 @@ export function createUniverse(count: number): Particle[] {
     });
   }
 
+  console.log(`[Cosmos] Initial particles created: ${particles.length}`);
   return particles;
 }
 
-export function evolveUniverse(
-  particles: Particle[],
+const _tmpColor = { r: 0, g: 0, b: 0 };
+
+export function evolveParticleWriteBuffers(
+  particleIndex: number,
+  p: Particle,
   timeProgress: number,
   deltaTime: number,
-  animationPhase: 'idle' | 'explosion' | 'expanding' | 'stable'
-): Particle[] {
+  animationPhase: 'idle' | 'explosion' | 'expanding' | 'stable',
+  matchesFilter: boolean,
+  posBuffer: Float32Array,
+  colorBuffer: Float32Array,
+  sizeBuffer: Float32Array,
+  opacityBuffer: Float32Array,
+  linePosBuffer: Float32Array,
+  lineColorBuffer: Float32Array
+): void {
   const t = clamp01(timeProgress);
   const expandFactor = cosmologicalExpansion(t);
-
   const earlyBlueshiftBias = lerp(-0.5, 0, t);
   const sizeGrowthFactor = lerp(0.7, 1.0, clamp01(t * 1.5));
 
-  return particles.map((particle) => {
-    let newPosition: { x: number; y: number; z: number };
-    let newOpacity = particle.opacity;
-    const newTrajectory: TrajectoryPoint[] = [...particle.trajectory];
-    let recordTrajectory = false;
+  let px: number, py: number, pz: number;
+  let recordTrajectory = false;
 
-    if (animationPhase === 'explosion' || animationPhase === 'expanding') {
-      recordTrajectory = true;
-      const animT = t * 1.8;
+  if (animationPhase === 'explosion' || animationPhase === 'expanding') {
+    recordTrajectory = true;
+    const animT = t * 1.8;
 
-      if (animT <= 1) {
-        const explosionFactor = 1 - Math.exp(-5 * animT);
-        newPosition = {
-          x: particle.finalPosition.x * 0.35 * explosionFactor,
-          y: particle.finalPosition.y * 0.35 * explosionFactor,
-          z: particle.finalPosition.z * 0.35 * explosionFactor,
-        };
-      } else {
-        const subT = clamp01((animT - 1) * 0.7);
-        const phase2Factor = cosmologicalExpansion(subT);
-        newPosition = {
-          x: lerp(
-            particle.finalPosition.x * 0.35,
-            particle.finalPosition.x,
-            phase2Factor
-          ),
-          y: lerp(
-            particle.finalPosition.y * 0.35,
-            particle.finalPosition.y,
-            phase2Factor
-          ),
-          z: lerp(
-            particle.finalPosition.z * 0.35,
-            particle.finalPosition.z,
-            phase2Factor
-          ),
-        };
-      }
-
-      if (newTrajectory.length >= MAX_TRAJECTORY_LENGTH) {
-        newTrajectory.shift();
-      }
-      for (let i = 0; i < newTrajectory.length; i++) {
-        newTrajectory[i].alpha = Math.max(
-          0,
-          (i + 1) / MAX_TRAJECTORY_LENGTH - 0.1
-        );
-      }
-      newTrajectory.push({
-        x: newPosition.x,
-        y: newPosition.y,
-        z: newPosition.z,
-        alpha: 1.0,
-      });
+    if (animT <= 1) {
+      const explosionFactor = 1 - Math.exp(-5 * animT);
+      const f = 0.35 * explosionFactor;
+      px = p.finalPosition.x * f;
+      py = p.finalPosition.y * f;
+      pz = p.finalPosition.z * f;
     } else {
-      newPosition = {
-        x: particle.finalPosition.x * expandFactor,
-        y: particle.finalPosition.y * expandFactor,
-        z: particle.finalPosition.z * expandFactor,
-      };
-
-      if (recordTrajectory && newTrajectory.length >= MAX_TRAJECTORY_LENGTH) {
-        newTrajectory.shift();
-      }
-
-      if (newTrajectory.length > 0) {
-        const fadeCount = Math.max(1, Math.ceil(deltaTime * 8));
-        for (let i = 0; i < fadeCount && newTrajectory.length > 0; i++) {
-          newTrajectory.shift();
-        }
-        for (let i = 0; i < newTrajectory.length; i++) {
-          newTrajectory[i].alpha =
-            ((i + 1) / newTrajectory.length) * 0.7;
-        }
-      }
+      const subT = clamp01((animT - 1) * 0.7);
+      const phase2Factor = cosmologicalExpansion(subT);
+      px = lerp(p.finalPosition.x * 0.35, p.finalPosition.x, phase2Factor);
+      py = lerp(p.finalPosition.y * 0.35, p.finalPosition.y, phase2Factor);
+      pz = lerp(p.finalPosition.z * 0.35, p.finalPosition.z, phase2Factor);
     }
+  } else {
+    px = p.finalPosition.x * expandFactor;
+    py = p.finalPosition.y * expandFactor;
+    pz = p.finalPosition.z * expandFactor;
+  }
 
-    const redshiftNow =
-      particle.redshift * (0.3 + 0.7 * t) + earlyBlueshiftBias * (1 - t);
-    const newColor = redshiftToColor(
-      Math.max(-1, Math.min(1, redshiftNow))
-    );
-    const newSize = particle.baseSize * sizeGrowthFactor;
-
-    if (particle.opacity !== particle.targetOpacity) {
-      const diff = particle.targetOpacity - particle.opacity;
-      const step = DISSOLVE_SPEED * deltaTime;
-      if (Math.abs(diff) <= step) {
-        newOpacity = particle.targetOpacity;
-      } else {
-        newOpacity = particle.opacity + Math.sign(diff) * step;
-      }
+  if (recordTrajectory) {
+    if (p.trajectory.length >= MAX_TRAJECTORY_LENGTH) {
+      p.trajectory.shift();
     }
+    const len = p.trajectory.length;
+    for (let i = 0; i < len; i++) {
+      p.trajectory[i].alpha = Math.max(0, (i + 1) / MAX_TRAJECTORY_LENGTH - 0.1);
+    }
+    p.trajectory.push({ x: px, y: py, z: pz, alpha: 1 });
+  } else if (p.trajectory.length > 0) {
+    const fadeCount = Math.max(1, Math.ceil(deltaTime * 8));
+    for (let i = 0; i < fadeCount && p.trajectory.length > 0; i++) {
+      p.trajectory.shift();
+    }
+    const len = p.trajectory.length;
+    for (let i = 0; i < len; i++) {
+      p.trajectory[i].alpha = ((i + 1) / len) * 0.7;
+    }
+  }
 
-    return {
-      ...particle,
-      position: newPosition,
-      color: newColor,
-      size: newSize,
-      trajectory: newTrajectory,
-      opacity: newOpacity,
-    };
-  });
+  const redshiftNow =
+    p.redshift * (0.3 + 0.7 * t) + earlyBlueshiftBias * (1 - t);
+  redshiftToColorRef(Math.max(-1, Math.min(1, redshiftNow)), _tmpColor);
+
+  const targetOpacity = matchesFilter ? 1 : 0;
+  let curOpacity = p.opacity;
+  if (curOpacity !== targetOpacity) {
+    const diff = targetOpacity - curOpacity;
+    const step = DISSOLVE_SPEED * deltaTime;
+    curOpacity = Math.abs(diff) <= step ? targetOpacity : curOpacity + Math.sign(diff) * step;
+    p.opacity = curOpacity;
+  }
+
+  const finalSize = p.baseSize * sizeGrowthFactor;
+
+  const pIdx3 = particleIndex * 3;
+  posBuffer[pIdx3] = px;
+  posBuffer[pIdx3 + 1] = py;
+  posBuffer[pIdx3 + 2] = pz;
+
+  colorBuffer[pIdx3] = _tmpColor.r;
+  colorBuffer[pIdx3 + 1] = _tmpColor.g;
+  colorBuffer[pIdx3 + 2] = _tmpColor.b;
+
+  sizeBuffer[particleIndex] = finalSize;
+  opacityBuffer[particleIndex] = curOpacity;
+
+  const traj = p.trajectory;
+  const tlen = traj.length;
+  const lineSegsPerParticle = MAX_TRAJECTORY_LENGTH - 1;
+  const baseLineIdx = particleIndex * lineSegsPerParticle * 6;
+  const baseLineColorIdx = particleIndex * lineSegsPerParticle * 6;
+
+  for (let s = 0; s < lineSegsPerParticle; s++) {
+    const ia = s;
+    const ib = s + 1;
+    const segHasBoth = ia < tlen && ib < tlen;
+    const posAS = baseLineIdx + s * 6;
+    const colAS = baseLineColorIdx + s * 6;
+
+    if (segHasBoth) {
+      const a = traj[ia];
+      const b = traj[ib];
+      linePosBuffer[posAS] = a.x;
+      linePosBuffer[posAS + 1] = a.y;
+      linePosBuffer[posAS + 2] = a.z;
+      linePosBuffer[posAS + 3] = b.x;
+      linePosBuffer[posAS + 4] = b.y;
+      linePosBuffer[posAS + 5] = b.z;
+
+      const aAlpha = a.alpha * curOpacity;
+      const bAlpha = b.alpha * curOpacity;
+
+      lineColorBuffer[colAS] = _tmpColor.r;
+      lineColorBuffer[colAS + 1] = _tmpColor.g;
+      lineColorBuffer[colAS + 2] = _tmpColor.b;
+      lineColorBuffer[colAS + 3] = aAlpha;
+      lineColorBuffer[colAS + 4] = _tmpColor.r;
+      lineColorBuffer[colAS + 5] = _tmpColor.g;
+      lineColorBuffer[colAS + 6] = _tmpColor.b;
+      lineColorBuffer[colAS + 7] = bAlpha;
+    } else {
+      linePosBuffer[posAS] = 0;
+      linePosBuffer[posAS + 1] = 0;
+      linePosBuffer[posAS + 2] = 0;
+      linePosBuffer[posAS + 3] = 0;
+      linePosBuffer[posAS + 4] = 0;
+      linePosBuffer[posAS + 5] = 0;
+      lineColorBuffer[colAS + 3] = 0;
+      lineColorBuffer[colAS + 7] = 0;
+    }
+  }
 }
 
 export function getParticleById(
@@ -265,26 +307,19 @@ export function getParticleById(
   return particles.find((p) => p.id === id);
 }
 
-export function filterParticles(
-  particles: Particle[],
+export function particleMatchesFilter(
+  particle: Particle,
   filters: {
     redshiftMin: number;
     redshiftMax: number;
     massMin: number;
     massMax: number;
   }
-): Particle[] {
-  return particles.map((particle) => {
-    const matchesRedshift =
-      particle.redshift >= filters.redshiftMin &&
-      particle.redshift <= filters.redshiftMax;
-    const matchesMass =
-      particle.mass >= filters.massMin && particle.mass <= filters.massMax;
-    const shouldBeVisible = matchesRedshift && matchesMass;
-    return {
-      ...particle,
-      visible: shouldBeVisible,
-      targetOpacity: shouldBeVisible ? 1 : 0,
-    };
-  });
+): boolean {
+  return (
+    particle.redshift >= filters.redshiftMin &&
+    particle.redshift <= filters.redshiftMax &&
+    particle.mass >= filters.massMin &&
+    particle.mass <= filters.massMax
+  );
 }

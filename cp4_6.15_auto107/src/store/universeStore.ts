@@ -1,11 +1,10 @@
 import { create } from 'zustand';
 import type { Particle } from '../modules/data/ParticleGenerator';
-import { filterParticles } from '../modules/data/ParticleGenerator';
 
 export type AnimationPhase = 'idle' | 'explosion' | 'expanding' | 'stable';
 
 interface UniverseState {
-  particles: Particle[];
+  initialParticles: Particle[];
   timeProgress: number;
   animationPhase: AnimationPhase;
   animationTime: number;
@@ -26,8 +25,7 @@ interface UniverseState {
 }
 
 interface UniverseActions {
-  setParticles: (particles: Particle[]) => void;
-  updateParticles: (particles: Particle[]) => void;
+  setInitialParticles: (particles: Particle[]) => void;
   setTimeProgress: (progress: number) => void;
   setAnimationPhase: (phase: AnimationPhase) => void;
   setAnimationTime: (time: number) => void;
@@ -39,12 +37,12 @@ interface UniverseActions {
   setIsBoxSelecting: (selecting: boolean) => void;
   togglePanel: () => void;
   setPanelExpanded: (expanded: boolean) => void;
-  applyFilters: () => void;
   setIsMobile: (mobile: boolean) => void;
+  particleMatchesFilter: (particle: Particle) => boolean;
 }
 
 export const useUniverseStore = create<UniverseState & UniverseActions>((set, get) => ({
-  particles: [],
+  initialParticles: [],
   timeProgress: 0,
   animationPhase: 'idle',
   animationTime: 0,
@@ -63,9 +61,7 @@ export const useUniverseStore = create<UniverseState & UniverseActions>((set, ge
   panelExpanded: true,
   isMobile: false,
 
-  setParticles: (particles) => set({ particles }),
-  
-  updateParticles: (particles) => set({ particles }),
+  setInitialParticles: (particles) => set({ initialParticles: particles }),
 
   setTimeProgress: (progress) => set({ timeProgress: progress }),
 
@@ -74,10 +70,12 @@ export const useUniverseStore = create<UniverseState & UniverseActions>((set, ge
   setAnimationTime: (time) => set({ animationTime: time }),
 
   setFilters: (newFilters) => {
-    set((state) => ({
-      filters: { ...state.filters, ...newFilters },
-    }));
-    get().applyFilters();
+    const prev = get().filters;
+    const next = { ...prev, ...newFilters };
+    console.log(
+      `[Cosmos] Filter changed: z=[${next.redshiftMin.toFixed(2)},${next.redshiftMax.toFixed(2)}], m=[${next.massMin.toFixed(2)},${next.massMax.toFixed(2)}]`
+    );
+    set({ filters: next });
   },
 
   selectParticle: (id) => {
@@ -85,10 +83,17 @@ export const useUniverseStore = create<UniverseState & UniverseActions>((set, ge
       set({ selectedParticleIds: [] });
     } else {
       set({ selectedParticleIds: [id] });
+      const p = get().initialParticles.find((x) => x.id === id);
+      if (p) {
+        console.log(`[Cosmos] Selected particle: ${p.id.slice(0, 8)} z=${p.redshift.toFixed(3)}`);
+      }
     }
   },
 
-  selectParticlesInBox: (ids) => set({ selectedParticleIds: ids }),
+  selectParticlesInBox: (ids) => {
+    console.log(`[Cosmos] Box selected ${ids.length} particles`);
+    set({ selectedParticleIds: ids });
+  },
 
   clearSelection: () => set({ selectedParticleIds: [] }),
 
@@ -100,10 +105,14 @@ export const useUniverseStore = create<UniverseState & UniverseActions>((set, ge
 
   setPanelExpanded: (expanded) => set({ panelExpanded: expanded }),
 
-  applyFilters: () => {
-    const { particles, filters } = get();
-    const filtered = filterParticles(particles, filters);
-    set({ particles: filtered });
+  particleMatchesFilter: (particle) => {
+    const { filters } = get();
+    return (
+      particle.redshift >= filters.redshiftMin &&
+      particle.redshift <= filters.redshiftMax &&
+      particle.mass >= filters.massMin &&
+      particle.mass <= filters.massMax
+    );
   },
 
   setIsMobile: (mobile) => {
@@ -111,14 +120,13 @@ export const useUniverseStore = create<UniverseState & UniverseActions>((set, ge
   },
 }));
 
-export const useSelectedParticles = () => {
-  const { particles, selectedParticleIds } = useUniverseStore();
+export const useSelectedParticles = (): Particle[] => {
+  const { initialParticles, selectedParticleIds } = useUniverseStore();
   return selectedParticleIds
-    .map((id) => particles.find((p) => p.id === id))
+    .map((id) => initialParticles.find((p) => p.id === id))
     .filter((p): p is Particle => p !== undefined);
 };
 
-export const useVisibleParticles = () => {
-  const { particles } = useUniverseStore();
-  return particles.filter((p) => p.visible && p.opacity > 0);
+export const useInitialParticlesCount = () => {
+  return useUniverseStore((s) => s.initialParticles.length);
 };

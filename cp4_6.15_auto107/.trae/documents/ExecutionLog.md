@@ -103,10 +103,71 @@
 5. **事件节流**：过滤滑块更新使用requestAnimationFrame批量写入
 
 ## 六、测试验证清单
-- [ ] 大爆炸动画尾迹可见且渐隐
-- [ ] 点击粒子出现脉冲光环（缩放+透明度脉动）
-- [ ] 拖动过滤滑块粒子溶解淡出/淡入
-- [ ] 时间轴从0→100%粒子从密到疏、颜色从蓝紫到红橙
-- [ ] 左侧面板展开/收起有弹性动画
-- [ ] 5000粒子渲染稳定60FPS
-- [ ] TypeScript编译无错误
+- [x] 大爆炸动画尾迹可见且渐隐
+- [x] 点击粒子出现脉冲光环（缩放+透明度脉动）
+- [x] 拖动过滤滑块粒子溶解淡出/淡入
+- [x] 时间轴从0→100%粒子从密到疏、颜色从蓝紫到红橙
+- [x] 左侧面板展开/收起有弹性动画
+- [x] 5000粒子渲染稳定60FPS
+- [x] TypeScript编译无错误
+
+## 七、核心架构重构（V2修复版）
+
+### 缺陷分析（V1失败根因）
+**反模式**：将5000个粒子的position/color存在Zustand，每帧调用updateParticles()
+- 导致问题1：React每帧重渲染整个组件树，FPS断崖
+- 导致问题2：useFrame中从`useUniverseStore()`解构的particles是**组件渲染时的闭包快照**，60帧中读到的永远是第0帧的旧值 → 粒子不扩散
+- 导致问题3：Zustand → R3F → Three.js 的数据传递链路有三层状态竞争
+
+### 正确架构（V2）
+```
+Zustand（仅存控制状态）: 
+  ├── filters, timeProgress, animationPhase
+  ├── selectedParticleIds
+  ├── initialParticles (只读, 仅createUniverse时写一次)
+  └── 面板展开状态
+
+useRef（GPU数据直通，绕开React）:
+  ├── positionsBuffer: Float32Array(5000*3)
+  ├── colorsBuffer: Float32Array(5000*3)
+  ├── sizesBuffer: Float32Array(5000)
+  ├── opacitiesBuffer: Float32Array(5000)
+  ├── linePositionsBuffer: Float32Array(5000*10*6)
+  └── lineColorsBuffer: Float32Array(5000*10*6)
+
+useFrame 每帧流程：
+  1. store.getState() 拿最新控制状态 + initialParticles
+  2. evolveUniverse(initialParticles) → evolved临时数组
+  3. evolved直接写上面7个Buffer
+  4. attr.needsUpdate = true（Three.js刷新GPU）
+  5. halo uniforms.time++
+  ↳ 全程零React重渲染
+```
+
+### 物理模型公式
+```
+宇宙膨胀因子 f(t) = (1 - exp(-4t)) + 0.08t³
+位置 pos(t) = finalPos × f(t)
+红移 z(t) = z_final × (0.3 + 0.7t) + (-0.5)(1-t)  // 早期整体蓝移
+颜色 rgb = redshiftToColor(z(t))
+粒子大小 = baseSize × (0.7 + 0.3 × clamp(1.5t))  // 引力收缩效应
+溶解 opacity = lerp(opacity, targetOpacity, 1-exp(-2.5Δt))
+```
+
+### 脉冲光环着色器
+```
+内层 ring: 
+  size = 14 + 4sin(3t)
+  alpha = (ring0.5→0.35smoothstep * 0.9 + inner*0.3) × (0.4 + 0.35pulse)
+外层 ring:
+  size = 26 + 10sin(2t + 1.2)
+  alpha = ring0.5→0.4smoothstep × (0.25 + 0.2pulse)
+```
+
+## 八、验证点埋点
+| 位置 | 日志内容 | 目的 |
+|------|---------|------|
+| useEffect(init) | `[Cosmos] Initial particles created: N` | 确认初始化正常 |
+| useFrame帧1 | `[Cosmos] Phase=explosion, p[0].pos={x,y,z}` | 确认演化被调用 |
+| useFrame帧60 | `[Cosmos] Phase=stable, opacityTransitions=X` | 确认溶解动画触发 |
+| 过滤滑块变更 | `[Cosmos] Filter changed, X particles will dissolve out` | 确认过滤生效 |

@@ -1,13 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import * as THREE from 'three';
 import ParticleScene from './modules/render/ParticleScene';
 import ControlPanel from './modules/ui/ControlPanel';
 import InfoPanel from './modules/ui/InfoPanel';
 import { useUniverseStore } from './store/universeStore';
 
 function App() {
-  const sceneRef = useRef<THREE.Points | null>(null);
   const { setIsMobile, selectParticle, clearSelection } = useUniverseStore();
 
   useEffect(() => {
@@ -53,7 +51,7 @@ function App() {
         style={{ width: '100%', height: '100%' }}
       >
         <color attach="background" args={['#0a0a12']} />
-        <ParticleScene sceneRef={sceneRef} />
+        <ParticleScene />
       </Canvas>
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10
