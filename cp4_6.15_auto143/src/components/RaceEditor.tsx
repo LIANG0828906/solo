@@ -15,8 +15,15 @@ const AXES = [
   { key: 'attack' as AttrKey, label: ATTRIBUTE_RANGES.attack.label, max: ATTRIBUTE_RANGES.attack.max },
   { key: 'defense' as AttrKey, label: ATTRIBUTE_RANGES.defense.label, max: ATTRIBUTE_RANGES.defense.max },
   { key: 'speed' as AttrKey, label: ATTRIBUTE_RANGES.speed.label, max: ATTRIBUTE_RANGES.speed.max },
-  ...DERIVED_AXES.map((d) => ({ key: null, label: d.label, max: d.max, calc: d.calc })),
+  ...DERIVED_AXES.map((d) => ({ key: null as null, label: d.label, max: d.max, calc: d.calc })),
 ];
+
+const SLIDER_COLORS: Record<AttrKey, { start: string; end: string }> = {
+  hp: { start: '#7f1d1d', end: '#ef4444' },
+  attack: { start: '#78350f', end: '#f59e0b' },
+  defense: { start: '#1e3a5f', end: '#3b82f6' },
+  speed: { start: '#14532d', end: '#22c55e' },
+};
 
 function normalize(attr: RaceAttributes, i: number): number {
   const axis = AXES[i];
@@ -69,7 +76,7 @@ function drawRadar(
     const x = cx + Math.cos(a) * vr, y = cy + Math.sin(a) * vr;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
-  const grad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   grad.addColorStop(0, from);
   grad.addColorStop(1, to);
   ctx.fillStyle = grad;
@@ -116,7 +123,7 @@ export default function RaceEditor() {
 
     (Object.keys(attr) as AttrKey[]).forEach((k) => {
       const diff = attr[k] - displayed.current[k];
-      if (Math.abs(diff) > 0.5) {
+      if (Math.abs(diff) > 0.001) {
         displayed.current[k] += diff * 0.15;
         needsUpdate = true;
       } else {
@@ -126,7 +133,7 @@ export default function RaceEditor() {
 
     radarVals.current = radarVals.current.map((v, i) => {
       const diff = target[i] - v;
-      if (Math.abs(diff) > 0.002) {
+      if (Math.abs(diff) > 0.001) {
         needsUpdate = true;
         return v + diff * 0.12;
       }
@@ -165,17 +172,9 @@ export default function RaceEditor() {
     });
   }, [updateCurrentRaceSkills]);
 
-  const sliderClass: Record<AttrKey, string> = {
-    hp: 'slider-hp',
-    attack: 'slider-attack',
-    defense: 'slider-defense',
-    speed: 'slider-speed',
-  };
-
   return (
     <div className="glass-panel noise-overlay relative p-6 rounded-xl border border-yellow-900/50">
       <div className="flex gap-6">
-        {/* Left: race template dropdown */}
         <div className="w-64 shrink-0">
           <h3 className="text-yellow-400 font-bold mb-3 text-sm tracking-wider uppercase">种族模板</h3>
           <div className="relative">
@@ -205,17 +204,23 @@ export default function RaceEditor() {
           </div>
         </div>
 
-        {/* Right: attribute sliders + radar chart */}
         <div className="flex-1 flex gap-6">
           <div className="flex-1 space-y-4">
             {(Object.keys(ATTRIBUTE_RANGES) as AttrKey[]).map((key) => {
               const range = ATTRIBUTE_RANGES[key];
               const shown = Math.round(displayAttrs[key]);
+              const pct = ((currentRace.attributes[key] - range.min) / (range.max - range.min)) * 100;
+              const colors = SLIDER_COLORS[key];
               return (
                 <div key={key}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-medium" style={{ color: range.color }}>{range.label}</span>
-                    <span className="text-sm text-gray-300 tabular-nums font-mono">{shown}</span>
+                    <span
+                      className="text-sm text-gray-300 font-mono"
+                      style={{ fontVariantNumeric: 'tabular-nums', transition: 'all 0.15s ease-out' }}
+                    >
+                      {shown}
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -223,21 +228,22 @@ export default function RaceEditor() {
                     max={range.max}
                     value={currentRace.attributes[key]}
                     onChange={(e) => handleSlider(key, Number(e.target.value))}
-                    className={`w-full h-2 rounded-full appearance-none cursor-pointer ${sliderClass[key]}`}
+                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, ${colors.start} 0%, ${colors.end} ${pct}%, #1a1a2e ${pct}%, #1a1a2e 100%)`,
+                    }}
                   />
                 </div>
               );
             })}
           </div>
 
-          {/* Radar chart */}
           <div className="shrink-0">
             <canvas ref={canvasRef} width={220} height={220} className="rounded-lg" />
           </div>
         </div>
       </div>
 
-      {/* Skill selection area */}
       <div className="mt-6">
         <h3 className="text-yellow-400 font-bold mb-3 text-sm tracking-wider uppercase">技能选择</h3>
         <div className="grid grid-cols-5 gap-3">
@@ -283,7 +289,6 @@ export default function RaceEditor() {
         </div>
       </div>
 
-      {/* Save button */}
       <div className="mt-6 flex justify-end">
         <button onClick={saveCurrentRace} className="btn-gold px-8 py-2 rounded-lg font-bold text-sm tracking-wider">
           保存自定种族

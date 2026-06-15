@@ -99,7 +99,7 @@ function drawRadar(
   }
   ctx.closePath();
 
-  const grad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   grad.addColorStop(0, cs.gradientFrom);
   grad.addColorStop(1, cs.gradientTo);
   ctx.globalAlpha = 0.4;
@@ -154,7 +154,7 @@ export default function CardRenderer({
 
   const createParticles = useCallback((): Particle[] => {
     const count = window.innerWidth <= 768 ? 25 : 50;
-    const skill = race.skills.map(id => getSkillById(id)).find(Boolean);
+    const skill = [...race.skills].reverse().map(id => getSkillById(id)).find(Boolean);
     const pType = skill?.particleType || 'fire';
     const colors = PARTICLE_COLORS[pType] || PARTICLE_COLORS.fire;
     const midX = cardW / 2;
@@ -284,7 +284,9 @@ export default function CardRenderer({
         width: cardW,
         height: cardH,
         border: '2px solid var(--gold-dim)',
-        boxShadow: 'inset 0 0 12px rgba(139,112,50,0.4)',
+        boxShadow: isWarCry
+          ? `inset 0 0 12px rgba(139,112,50,0.4), 0 0 30px ${race.colorScheme.glow}, 0 0 60px ${race.colorScheme.glow}`
+          : 'inset 0 0 12px rgba(139,112,50,0.4)',
       }}
       onClick={handleClick}
       draggable={draggable}

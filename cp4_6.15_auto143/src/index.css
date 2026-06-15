@@ -128,11 +128,6 @@ input[type="range"]::-moz-range-track {
   border-radius: 4px;
 }
 
-.slider-hp { background: linear-gradient(to right, #7f1d1d, #ef4444, #fca5a5); }
-.slider-attack { background: linear-gradient(to right, #78350f, #f59e0b, #fde68a); }
-.slider-defense { background: linear-gradient(to right, #1e3a5f, #3b82f6, #93c5fd); }
-.slider-speed { background: linear-gradient(to right, #14532d, #22c55e, #86efac); }
-
 @keyframes pulse-gold {
   0%, 100% { box-shadow: 0 0 4px rgba(212, 168, 67, 0.4); }
   50% { box-shadow: 0 0 16px rgba(212, 168, 67, 0.8), 0 0 32px rgba(212, 168, 67, 0.3); }
