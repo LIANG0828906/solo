@@ -123,14 +123,21 @@ const BgSelector: React.FC<BgSelectorProps> = ({
     const width = canvas.width;
     const height = canvas.height;
 
-    for (let x = 0; x < width; x++) {
-      const sat = (x / width) * 100;
-      for (let y = 0; y < height; y++) {
-        const light = 100 - (y / height) * 100;
-        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
+    ctx.clearRect(0, 0, width, height);
+
+    const satGradient = ctx.createLinearGradient(0, 0, width, 0);
+    satGradient.addColorStop(0, `hsl(${hue}, 0%, 50%)`);
+    satGradient.addColorStop(1, `hsl(${hue}, 100%, 50%)`);
+    ctx.fillStyle = satGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const lightGradient = ctx.createLinearGradient(0, 0, 0, height);
+    lightGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    lightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+    lightGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+    lightGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+    ctx.fillStyle = lightGradient;
+    ctx.fillRect(0, 0, width, height);
 
     const indicatorX = (saturation / 100) * width;
     const indicatorY = (1 - lightness / 100) * height;

@@ -367,38 +367,53 @@ const App: React.FC = () => {
     }));
   }, []);
 
+  const getCanvasRelativePosition = useCallback((clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    const borderLeft = canvas.clientLeft || 0;
+    const borderTop = canvas.clientTop || 0;
+    
+    const contentX = clientX - rect.left - borderLeft;
+    const contentY = clientY - rect.top - borderTop;
+    const contentWidth = canvas.clientWidth;
+    const contentHeight = canvas.clientHeight;
+
+    return {
+      x: contentX / contentWidth,
+      y: contentY / contentHeight
+    };
+  }, []);
+
   const handlePersonDragStart = useCallback((e: React.MouseEvent) => {
     if (!uploadedImage || !segmentation) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     setIsDraggingPerson(true);
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) / rect.width;
-    const mouseY = (e.clientY - rect.top) / rect.height;
+    const pos = getCanvasRelativePosition(e.clientX, e.clientY);
     setDragStart({
-      x: mouseX - options.personOffset.x,
-      y: mouseY - options.personOffset.y
+      x: pos.x - options.personOffset.x,
+      y: pos.y - options.personOffset.y
     });
-  }, [uploadedImage, segmentation, options.personOffset]);
+  }, [uploadedImage, segmentation, options.personOffset, getCanvasRelativePosition]);
 
   const handlePersonDragMove = useCallback((e: React.MouseEvent) => {
     if (!isDraggingPerson) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) / rect.width;
-    const mouseY = (e.clientY - rect.top) / rect.height;
+    const pos = getCanvasRelativePosition(e.clientX, e.clientY);
 
     setOptions(prev => ({
       ...prev,
       personOffset: {
-        x: mouseX - dragStart.x,
-        y: mouseY - dragStart.y
+        x: pos.x - dragStart.x,
+        y: pos.y - dragStart.y
       }
     }));
-  }, [isDraggingPerson, dragStart]);
+  }, [isDraggingPerson, dragStart, getCanvasRelativePosition]);
 
   const handlePersonDragEnd = useCallback(() => {
     setIsDraggingPerson(false);

@@ -14,11 +14,24 @@ export interface ProcessOptions {
   personOffset: { x: number; y: number };
 }
 
+export type UpscaleStrategy = 'none' | 'max' | 'limited';
+
 export interface ExportOptions {
   maxWidth?: number;
   maxHeight?: number;
   maintainAspectRatio?: boolean;
+  upscaleStrategy?: UpscaleStrategy;
+  maxUpscaleRatio?: number;
 }
+
+const SOFTWARE_RENDERER_PATTERNS = [
+  /swiftshader/i,
+  /llvmpipe/i,
+  /software/i,
+  /mesa/i,
+  /virtual/i,
+  /paravirtual/i
+];
 
 class ImageProcessor {
   private model: bodyPix.BodyPix | null = null;
@@ -26,27 +39,87 @@ class ImageProcessor {
   private animationFrameId: number | null = null;
   private pendingComposite: boolean = false;
   private isGPUBackend: boolean = false;
+  private gpuInfo: { hasWebGPU?: boolean; webglRenderer?: string; isHardwareAccelerated?: boolean } = {};
+
+  private detectGPU(): boolean {
+    let hasHardwareGPU = false;
+
+    if ('gpu' in navigator && navigator.gpu) {
+      this.gpuInfo.hasWebGPU = true;
+      hasHardwareGPU = true;
+      console.log('检测到 WebGPU 支持');
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+          const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+          this.gpuInfo.webglRenderer = renderer;
+          console.log(`WebGL 渲染器: ${renderer} (${vendor})`);
+
+          const isSoftware = SOFTWARE_RENDERER_PATTERNS.some(pattern =>
+            pattern.test(renderer) || pattern.test(vendor)
+          );
+
+          this.gpuInfo.isHardwareAccelerated = !isSoftware;
+          if (!isSoftware) {
+            hasHardwareGPU = true;
+          } else {
+            console.warn('检测到软件渲染器，性能可能较差');
+          }
+        } else {
+          console.warn('无法获取 WebGL 渲染器信息，假设为硬件加速');
+          hasHardwareGPU = true;
+          this.gpuInfo.isHardwareAccelerated = true;
+        }
+      }
+    } catch (e) {
+      console.warn('WebGL 检测失败:', e);
+    }
+
+    return hasHardwareGPU;
+  }
 
   async loadModel(): Promise<void> {
     if (this.model) return;
     if (this.modelLoadingPromise) return this.modelLoadingPromise;
 
     this.modelLoadingPromise = (async () => {
+      const hasHardwareGPU = this.detectGPU();
+      this.isGPUBackend = hasHardwareGPU;
+
       await tf.ready();
       
-      try {
-        if (tf.getBackend() !== 'webgl') {
-          await tf.setBackend('webgl');
-          await tf.ready();
-        }
-        this.isGPUBackend = tf.getBackend() === 'webgl';
-        console.log(`使用 ${this.isGPUBackend ? 'GPU (WebGL)' : 'CPU'} 后端进行推理`);
-      } catch {
-        console.warn('WebGL GPU 不可用，回退到 CPU 后端');
-        this.isGPUBackend = false;
+      if (hasHardwareGPU) {
         try {
-          await tf.setBackend('cpu');
-          await tf.ready();
+          if (tf.getBackend() !== 'webgl') {
+            await tf.setBackend('webgl');
+            await tf.ready();
+          }
+          if (tf.getBackend() === 'webgl') {
+            console.log('成功启用 WebGL GPU 后端');
+          } else {
+            console.warn('WebGL 后端设置失败，回退到默认后端');
+            this.isGPUBackend = false;
+          }
+        } catch (webglError) {
+          console.warn('WebGL 后端初始化失败，回退到 CPU:', webglError);
+          this.isGPUBackend = false;
+        }
+      }
+
+      if (!this.isGPUBackend) {
+        try {
+          if (tf.getBackend() !== 'cpu') {
+            await tf.setBackend('cpu');
+            await tf.ready();
+          }
+          console.log('使用 CPU 后端进行推理');
         } catch (cpuError) {
           console.error('CPU 后端也不可用:', cpuError);
           throw new Error('无法初始化 TensorFlow.js 后端');
@@ -300,7 +373,10 @@ class ImageProcessor {
   ): void {
     const scanY = progress * canvasHeight;
     
-    const gradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
+    const glowSize = Math.max(20, canvasHeight * 0.025);
+    const lineWidth = Math.max(2, canvasHeight * 0.004);
+    
+    const gradient = ctx.createLinearGradient(0, scanY - glowSize, 0, scanY + glowSize);
     gradient.addColorStop(0, 'rgba(233, 69, 96, 0)');
     gradient.addColorStop(0.3, 'rgba(233, 69, 96, 0.6)');
     gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
@@ -308,12 +384,12 @@ class ImageProcessor {
     gradient.addColorStop(1, 'rgba(233, 69, 96, 0)');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, scanY - 20, canvasWidth, 40);
+    ctx.fillRect(0, scanY - glowSize, canvasWidth, glowSize * 2);
     
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = 'rgba(233, 69, 96, 0.8)';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = lineWidth;
     ctx.beginPath();
     ctx.moveTo(0, scanY);
     ctx.lineTo(canvasWidth, scanY);
@@ -325,37 +401,76 @@ class ImageProcessor {
     canvas: HTMLCanvasElement,
     options: ExportOptions = {}
   ): Promise<Blob> {
-    const { maxWidth = 1920, maxHeight = 1080, maintainAspectRatio = true } = options;
+    const {
+      maxWidth = 1920,
+      maxHeight = 1080,
+      maintainAspectRatio = true,
+      upscaleStrategy = 'limited',
+      maxUpscaleRatio = 2
+    } = options;
     
-    const exportCanvas = document.createElement('canvas');
+    const originalWidth = canvas.width;
+    const originalHeight = canvas.height;
+    const originalRatio = originalWidth / originalHeight;
+    
+    let targetWidth: number;
+    let targetHeight: number;
     
     if (maintainAspectRatio) {
-      const originalRatio = canvas.width / canvas.height;
       const targetRatio = maxWidth / maxHeight;
       
-      let exportWidth: number;
-      let exportHeight: number;
-      
       if (originalRatio > targetRatio) {
-        exportWidth = maxWidth;
-        exportHeight = Math.round(maxWidth / originalRatio);
+        targetWidth = maxWidth;
+        targetHeight = Math.round(maxWidth / originalRatio);
       } else {
-        exportHeight = maxHeight;
-        exportWidth = Math.round(maxHeight * originalRatio);
+        targetHeight = maxHeight;
+        targetWidth = Math.round(maxHeight * originalRatio);
+      }
+    } else {
+      targetWidth = maxWidth;
+      targetHeight = maxHeight;
+    }
+    
+    let exportWidth: number;
+    let exportHeight: number;
+    
+    const isUpscaling = targetWidth > originalWidth || targetHeight > originalHeight;
+    
+    if (isUpscaling) {
+      switch (upscaleStrategy) {
+        case 'none':
+          exportWidth = originalWidth;
+          exportHeight = originalHeight;
+          break;
+        case 'max':
+          exportWidth = targetWidth;
+          exportHeight = targetHeight;
+          break;
+        case 'limited':
+        default:
+          const scaleX = Math.min(targetWidth / originalWidth, maxUpscaleRatio);
+          const scaleY = Math.min(targetHeight / originalHeight, maxUpscaleRatio);
+          const scale = Math.min(scaleX, scaleY);
+          exportWidth = Math.round(originalWidth * scale);
+          exportHeight = Math.round(originalHeight * scale);
+          break;
       }
       
-      exportCanvas.width = exportWidth;
-      exportCanvas.height = exportHeight;
+      console.log(`图片尺寸 (${originalWidth}x${originalHeight}) 小于目标尺寸 (${targetWidth}x${targetHeight})，输出尺寸: ${exportWidth}x${exportHeight}`);
     } else {
-      exportCanvas.width = maxWidth;
-      exportCanvas.height = maxHeight;
+      exportWidth = targetWidth;
+      exportHeight = targetHeight;
     }
+    
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = exportWidth;
+    exportCanvas.height = exportHeight;
     
     const exportCtx = exportCanvas.getContext('2d')!;
     exportCtx.imageSmoothingEnabled = true;
-    exportCtx.imageSmoothingQuality = 'high';
+    exportCtx.imageSmoothingQuality = isUpscaling ? 'high' : 'medium';
     
-    exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    exportCtx.drawImage(canvas, 0, 0, exportWidth, exportHeight);
 
     return new Promise((resolve, reject) => {
       exportCanvas.toBlob((blob) => {
