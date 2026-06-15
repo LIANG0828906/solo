@@ -28,6 +28,8 @@ interface AnimatingArtifact {
   targetScale: number;
   progress: number;
   duration: number;
+  bubbleTimer: number;
+  bubbleInterval: number;
   onComplete?: () => void;
 }
 
@@ -61,6 +63,9 @@ export class ArtifactManager {
     colors: Float32Array;
     lives: Float32Array;
   };
+  private combiningGlow?: THREE.Mesh;
+  private combiningGlowScale = 0;
+  private combiningGlowAlpha = 0;
   private particleCount = 1500;
   private particleAttrs: {
     position: THREE.BufferAttribute;
@@ -114,6 +119,9 @@ export class ArtifactManager {
     this.particleGroup = this.createParticleSystem();
     this.scene.add(this.particleGroup);
 
+    this.combiningGlow = this.createCombiningGlow();
+    this.scene.add(this.combiningGlow);
+
     this.ui = this.createUI();
     this.bindCanvasEvents();
   }
@@ -166,18 +174,64 @@ export class ArtifactManager {
     return new THREE.Points(geo, mat);
   }
 
+  private createCombiningGlow(): THREE.Mesh {
+    const geo = new THREE.PlaneGeometry(8, 8, 1, 1);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uAlpha: { value: 0 },
+        uScale: { value: 1.0 },
+        uColor: { value: new THREE.Color(0xffd664) },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        uniform float uScale;
+        void main() {
+          vUv = uv;
+          vec3 pos = position * uScale;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uAlpha;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          vec2 center = vUv - 0.5;
+          float d = length(center) * 2.0;
+          float glow = pow(1.0 - d, 3.0);
+          float ring = smoothstep(0.55, 0.75, d) * smoothstep(1.0, 0.8, d) * 0.8;
+          float alpha = (glow + ring) * uAlpha;
+          vec3 col = uColor + vec3(1.0) * glow * 0.5;
+          gl_FragColor = vec4(col, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.visible = false;
+    return mesh;
+  }
+
   private createUI() {
     const inventoryPanel = document.createElement('div');
     inventoryPanel.style.cssText = `
       position: absolute;
       top: 0; left: 0; right: 0;
-      padding: 16px 24px;
-      background: linear-gradient(180deg, rgba(11,26,58,0.92) 0%, rgba(11,26,58,0.75) 70%, rgba(11,26,58,0) 100%);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-bottom: 1px solid rgba(138,196,255,0.18);
+      padding: 18px 28px 24px;
+      background: linear-gradient(180deg, 
+        rgba(10,22,50,0.85) 0%, 
+        rgba(12,28,60,0.72) 55%, 
+        rgba(14,34,70,0.45) 85%,
+        rgba(14,34,70,0) 100%);
+      backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      border-bottom: 1px solid rgba(138,196,255,0.22);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
       transform: translateY(-100%);
-      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.4s;
+      transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s;
       opacity: 0;
       pointer-events: none;
       z-index: 20;
@@ -236,20 +290,20 @@ export class ArtifactManager {
     inventoryToggle.style.cssText = `
       position: absolute;
       top: 18px; left: 18px;
-      padding: 10px 18px;
-      background: rgba(11,26,58,0.7);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(138,196,255,0.3);
+      padding: 10px 20px;
+      background: rgba(10,22,50,0.6);
+      backdrop-filter: blur(14px) saturate(130%);
+      -webkit-backdrop-filter: blur(14px) saturate(130%);
+      border: 1px solid rgba(138,196,255,0.28);
       color: #cfe4ff;
       border-radius: 12px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       z-index: 25;
-      transition: all 0.25s;
+      transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
       font-family: inherit;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
     `;
     inventoryToggle.onmouseenter = () => {
       inventoryToggle.style.background = 'rgba(11,26,58,0.88)';
@@ -268,16 +322,16 @@ export class ArtifactManager {
     progressPanel.style.cssText = `
       position: absolute;
       left: 18px; bottom: 18px;
-      background: rgba(11,26,58,0.72);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(138,196,255,0.22);
+      background: rgba(10,22,50,0.65);
+      backdrop-filter: blur(16px) saturate(130%);
+      -webkit-backdrop-filter: blur(16px) saturate(130%);
+      border: 1px solid rgba(138,196,255,0.2);
       border-radius: 14px;
       padding: 14px 16px;
       z-index: 20;
       min-width: 260px;
       transition: opacity 0.4s, transform 0.4s;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
     `;
     this.container.appendChild(progressPanel);
 
@@ -308,20 +362,20 @@ export class ArtifactManager {
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -20px);
-      background: rgba(11,26,58,0.92);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(138,196,255,0.4);
+      background: rgba(10,22,50,0.88);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border: 1px solid rgba(138,196,255,0.35);
       color: #cfe4ff;
-      padding: 12px 22px;
-      border-radius: 14px;
+      padding: 14px 26px;
+      border-radius: 16px;
       font-size: 15px;
       font-weight: 500;
       opacity: 0;
-      transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
       pointer-events: none;
       z-index: 35;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
     `;
     this.container.appendChild(toast);
 
@@ -459,19 +513,31 @@ export class ArtifactManager {
   public async collectArtifact(artifact: ArtifactMesh): Promise<void> {
     const data = artifact.userData.artifact;
 
-    this.wreckManager.spawnBubbles(artifact.position.clone(), 30);
+    this.wreckManager.spawnBubbles(artifact.position.clone(), 25);
+
+    const startPos = artifact.position.clone();
+    const startRot = artifact.rotation.clone();
+    const startScale = artifact.scale.x;
+    const baseScale = artifact.userData.baseScale;
+
+    const midPos = startPos.clone();
+    midPos.y += 4;
 
     const screenCenter = this.getScreenCenter();
+    screenCenter.y += 0.5;
+
     const anim: AnimatingArtifact = {
       group: artifact,
-      startPos: artifact.position.clone(),
+      startPos,
       targetPos: screenCenter,
-      startRot: artifact.rotation.clone(),
+      startRot,
       targetRot: new THREE.Euler(0, 0, 0),
-      startScale: artifact.scale.x,
-      targetScale: artifact.userData.baseScale * 2,
+      startScale,
+      targetScale: baseScale * 2.2,
       progress: 0,
-      duration: 0.85,
+      duration: 1.2,
+      bubbleTimer: 0,
+      bubbleInterval: 0.06,
     };
     this.animating.push(anim);
     this.wreckManager.artifacts = this.wreckManager.artifacts.filter(
@@ -503,9 +569,11 @@ export class ArtifactManager {
           this.wreckManager.removeArtifact(data.id);
           const typeProgress = this.progress.find((p) => p.type === data.type);
           if (typeProgress?.completed) {
-            this.startCombineAnimation(data.type);
+            setTimeout(() => {
+              this.startCombineAnimation(data.type);
+            }, 400);
           }
-        }, 900);
+        }, 1200);
       }
     } catch (err) {
       console.error('采集失败:', err);
@@ -750,6 +818,10 @@ export class ArtifactManager {
     }
   }
 
+  private combiningAnimTime = 0;
+  private combiningAnimDuration = 3.5;
+  private combiningActive = false;
+
   private startCombineAnimation(type: string): void {
     const typePieces = this.collected.filter((c) => c.type === type);
     if (typePieces.length === 0) return;
@@ -762,52 +834,71 @@ export class ArtifactManager {
       this.ui.combineName.textContent = `✨ ${typeName} 已复原 ✨`;
       this.ui.combineName.style.opacity = '1';
       this.ui.combineName.style.transform = 'scale(1)';
-    }, 400);
+    }, 600);
 
     const screenCenter = this.getScreenCenter();
-    screenCenter.y += 1;
+    screenCenter.y += 0.8;
+
+    if (this.combiningGlow) {
+      this.combiningGlow.position.copy(screenCenter);
+      this.combiningGlow.lookAt(this.camera.position);
+      this.combiningGlow.visible = true;
+      this.combiningGlowScale = 0.2;
+      this.combiningGlowAlpha = 0;
+    }
 
     const positions = this.getCombinePositions(typePieces.length);
     typePieces.forEach((piece, idx) => {
       const mockGroup = this.createMockPiece(piece.type, piece.pieceIndex);
       const start = this.getRandomStartPosition();
       mockGroup.position.copy(start);
-      mockGroup.scale.setScalar(0.3);
+      mockGroup.scale.setScalar(0.25);
       this.combiningGroup.add(mockGroup);
 
       this.combining.push({
         group: mockGroup,
         targetPos: screenCenter.clone().add(positions[idx]),
         targetRot: new THREE.Euler(
-          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.3,
           Math.random() * Math.PI * 2,
-          (Math.random() - 0.5) * 0.5
+          (Math.random() - 0.5) * 0.3
         ),
         progress: 0,
-        delay: idx * 0.08,
+        delay: idx * 0.12,
         type: piece.type,
         pieceIndex: piece.pieceIndex,
       });
     });
 
-    this.spawnExplosionParticles(screenCenter, 0);
+    this.combiningActive = true;
+    this.combiningAnimTime = 0;
+    this.combiningAnimDuration = 3.8;
 
     setTimeout(() => {
       this.spawnExplosionParticles(screenCenter, 1);
-    }, 600);
+      this.spawnExplosionParticles(screenCenter, 0);
+    }, 900);
     setTimeout(() => {
       this.spawnExplosionParticles(screenCenter, 1);
-    }, 800);
+    }, 1300);
+    setTimeout(() => {
+      this.spawnExplosionParticles(screenCenter, 0);
+      this.spawnExplosionParticles(screenCenter, 1);
+    }, 1700);
 
     setTimeout(() => {
       this.ui.combineName.style.opacity = '0';
-      this.ui.combineName.style.transform = 'scale(1.3)';
+      this.ui.combineName.style.transform = 'scale(1.4)';
       this.ui.combineOverlay.style.opacity = '0';
+      this.combiningActive = false;
       setTimeout(() => {
         this.combiningGroup.clear();
         this.combining = [];
-      }, 600);
-    }, 3200);
+        if (this.combiningGlow) {
+          this.combiningGlow.visible = false;
+        }
+      }, 900);
+    }, 3500);
   }
 
   private getCombinePositions(n: number): THREE.Vector3[] {
@@ -915,20 +1006,64 @@ export class ArtifactManager {
 
   public update(): void {
     const dt = 1 / 60;
+
+    if (this.combiningActive && this.combiningGlow) {
+      this.combiningAnimTime += dt;
+      const t = Math.min(this.combiningAnimTime / this.combiningAnimDuration, 1);
+
+      const glowPhase = Math.min(t * 2.5, 1);
+      const fadeOut = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
+      this.combiningGlowAlpha = glowPhase * fadeOut * 0.9;
+
+      const scaleIn = 1 - Math.pow(1 - Math.min(t * 3, 1), 3);
+      const pulse = 1 + Math.sin(t * Math.PI * 4) * 0.15;
+      this.combiningGlowScale = (0.2 + scaleIn * 4.5) * pulse;
+
+      const mat = this.combiningGlow.material as THREE.ShaderMaterial;
+      mat.uniforms.uAlpha.value = this.combiningGlowAlpha;
+      mat.uniforms.uScale.value = this.combiningGlowScale;
+
+      this.combiningGlow.lookAt(this.camera.position);
+    }
+
     for (let i = this.animating.length - 1; i >= 0; i--) {
       const a = this.animating[i];
       a.progress += dt / a.duration;
       const t = Math.min(a.progress, 1);
-      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      a.group.position.lerpVectors(a.startPos, a.targetPos, ease);
-      a.group.rotation.x = a.startRot.x + (a.targetRot.x - a.startRot.x) * ease;
-      a.group.rotation.y = a.startRot.y + (a.targetRot.y - a.startRot.y) * ease + t * Math.PI * 2;
-      a.group.rotation.z = a.startRot.z + (a.targetRot.z - a.startRot.z) * ease;
-      const s = a.startScale + (a.targetScale - a.startScale) * ease;
-      a.group.scale.setScalar(s * (1 + Math.sin(t * Math.PI) * 0.25));
+
+      const easeOutCubic = 1 - Math.pow(1 - t, 3);
+      const easeOutBack = t < 0.5
+        ? (Math.pow(2 * t, 2) * ((2.5 + 1) * 2 * t - 2.5)) / 2
+        : (Math.pow(2 * t - 2, 2) * ((2.5 + 1) * (t * 2 - 2) + 2.5) + 2) / 2;
+
+      const cp = a.startPos.clone().add(new THREE.Vector3(0, 5, 0));
+      cp.y += Math.sin(t * Math.PI) * 3;
+
+      const inv = 1 - t;
+      const pos = new THREE.Vector3();
+      pos.x = inv * inv * a.startPos.x + 2 * inv * t * cp.x + t * t * a.targetPos.x;
+      pos.y = inv * inv * a.startPos.y + 2 * inv * t * cp.y + t * t * a.targetPos.y;
+      pos.z = inv * inv * a.startPos.z + 2 * inv * t * cp.z + t * t * a.targetPos.z;
+
+      a.group.position.copy(pos);
+
+      a.group.rotation.x = a.startRot.x + (a.targetRot.x - a.startRot.x) * easeOutCubic;
+      a.group.rotation.y = a.startRot.y + t * Math.PI * 4 + (a.targetRot.y - a.startRot.y) * easeOutCubic * 0.3;
+      a.group.rotation.z = a.startRot.z + (a.targetRot.z - a.startRot.z) * easeOutCubic;
+
+      const scale = a.startScale + (a.targetScale - a.startScale) * easeOutBack;
+      a.group.scale.setScalar(scale * (1 + Math.sin(t * Math.PI) * 0.18));
+
+      a.bubbleTimer += dt;
+      if (a.bubbleTimer >= a.bubbleInterval && t < 0.95) {
+        a.bubbleTimer = 0;
+        this.wreckManager.spawnBubbles(a.group.position.clone(), 5);
+      }
+
       if (t >= 1) {
         if (a.onComplete) a.onComplete();
         this.animating.splice(i, 1);
+        this.spawnCollectBurst(a.group.position.clone());
       }
     }
 
@@ -936,37 +1071,81 @@ export class ArtifactManager {
       const c = this.combining[i];
       if (c.delay > 0) {
         c.delay -= dt;
-        c.group.rotation.y += 0.04;
-        c.group.rotation.x += 0.02;
-        c.group.scale.multiplyScalar(1.01);
+        c.group.rotation.y += 0.06;
+        c.group.rotation.x += 0.03;
+        c.group.scale.multiplyScalar(1 + dt * 0.3);
         continue;
       }
-      c.progress += dt * 0.9;
+      c.progress += dt * 0.7;
       const t = Math.min(c.progress, 1);
-      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      c.group.position.lerp(c.targetPos, ease);
-      c.group.rotation.x += (c.targetRot.x - c.group.rotation.x) * 0.08;
-      c.group.rotation.y += 0.05 + (c.targetRot.y - c.group.rotation.y) * 0.05;
-      c.group.rotation.z += (c.targetRot.z - c.group.rotation.z) * 0.08;
-      const sc = 0.8 + Math.sin(t * Math.PI) * 0.5;
+      const easeInOut = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const easeOut = 1 - Math.pow(1 - t, 4);
+
+      c.group.position.lerp(c.targetPos, easeInOut);
+      c.group.rotation.y += 0.08 + (c.targetRot.y - c.group.rotation.y) * 0.06;
+      c.group.rotation.x += (c.targetRot.x - c.group.rotation.x) * 0.06;
+      c.group.rotation.z += (c.targetRot.z - c.group.rotation.z) * 0.06;
+
+      const sc = 0.5 + Math.sin(t * Math.PI) * 0.6 + easeOut * 0.3;
       c.group.scale.setScalar(sc);
+
+      if (t > 0.75 && t < 0.9) {
+        if (Math.random() < 0.25) {
+          this.spawnExplosionParticles(c.group.position.clone(), 1);
+        }
+      }
+
       if (t >= 1) {
-        this.spawnExplosionParticles(c.targetPos, 1);
+        // 到达目标
       }
     }
 
     for (let i = 0; i < this.particleCount; i++) {
       if (this.particles.lives[i] <= 0) continue;
-      this.particles.lives[i] -= dt * 0.7;
+      this.particles.lives[i] -= dt * 0.6;
       this.particles.positions[i * 3] += this.particles.velocities[i * 3] * dt;
       this.particles.positions[i * 3 + 1] += this.particles.velocities[i * 3 + 1] * dt;
       this.particles.positions[i * 3 + 2] += this.particles.velocities[i * 3 + 2] * dt;
-      this.particles.velocities[i * 3] *= 0.98;
-      this.particles.velocities[i * 3 + 1] -= dt * 2;
-      this.particles.velocities[i * 3 + 2] *= 0.98;
+      this.particles.velocities[i * 3] *= 0.985;
+      this.particles.velocities[i * 3 + 1] -= dt * 1.5;
+      this.particles.velocities[i * 3 + 2] *= 0.985;
+      this.particles.velocities[i * 3 + 1] += Math.sin(i + this.particles.lives[i] * 10) * dt * 0.5;
     }
     if (this.particleAttrs) {
       this.particleAttrs.position.needsUpdate = true;
+      this.particleAttrs.life.needsUpdate = true;
+    }
+  }
+
+  private spawnCollectBurst(pos: THREE.Vector3): void {
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      let slot = -1;
+      for (let j = 0; j < this.particleCount; j++) {
+        if (this.particles.lives[j] <= 0) {
+          slot = j;
+          break;
+        }
+      }
+      if (slot < 0) break;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const speed = 1 + Math.random() * 2.5;
+      this.particles.positions[slot * 3] = pos.x;
+      this.particles.positions[slot * 3 + 1] = pos.y;
+      this.particles.positions[slot * 3 + 2] = pos.z;
+      this.particles.velocities[slot * 3] = Math.sin(phi) * Math.cos(theta) * speed;
+      this.particles.velocities[slot * 3 + 1] = Math.cos(phi) * speed + 1;
+      this.particles.velocities[slot * 3 + 2] = Math.sin(phi) * Math.sin(theta) * speed;
+      const c = new THREE.Color(0x8ac4ff);
+      this.particles.colors[slot * 3] = c.r;
+      this.particles.colors[slot * 3 + 1] = c.g;
+      this.particles.colors[slot * 3 + 2] = c.b;
+      this.particles.lives[slot] = 1;
+    }
+    if (this.particleAttrs) {
+      this.particleAttrs.position.needsUpdate = true;
+      this.particleAttrs.color.needsUpdate = true;
       this.particleAttrs.life.needsUpdate = true;
     }
   }

@@ -129,28 +129,32 @@ export class UnderwaterScene {
   }
 
   private createCaustics(): THREE.Mesh {
-    const geometry = new THREE.PlaneGeometry(150, 150, 1, 1);
+    const geometry = new THREE.PlaneGeometry(160, 160, 1, 1);
     const material = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uColorA: { value: new THREE.Color(0x7fbfff) },
-        uColorB: { value: new THREE.Color(0x1a3d6b) },
+        uColor: { value: new THREE.Color(0x8fc3ff) },
+        uIntensity: { value: 1.0 },
       },
       vertexShader: `
         varying vec2 vUv;
+        varying vec3 vWorldPos;
         void main() {
           vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPos = worldPos.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
         }
       `,
       fragmentShader: `
         uniform float uTime;
-        uniform vec3 uColorA;
-        uniform vec3 uColorB;
+        uniform vec3 uColor;
+        uniform float uIntensity;
         varying vec2 vUv;
+        varying vec3 vWorldPos;
 
         float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
         }
 
         float noise(vec2 p) {
@@ -164,26 +168,69 @@ export class UnderwaterScene {
           return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
         }
 
-        float fbm(vec2 p) {
+        float fbm(vec2 p, int octaves) {
           float v = 0.0;
           float a = 0.5;
-          for (int i = 0; i < 4; i++) {
-            v += a * noise(p);
-            p *= 2.1;
+          float freq = 1.0;
+          for (int i = 0; i < 8; i++) {
+            if (i >= octaves) break;
+            v += a * noise(p * freq);
+            freq *= 2.0;
             a *= 0.5;
           }
           return v;
         }
 
+        float caustic(vec2 uv, float t, float scale, float speed, float intensity) {
+          vec2 offset = vec2(cos(t * 0.3), sin(t * 0.25)) * 0.15;
+          vec2 p = uv * scale + offset;
+
+          vec2 wave1 = vec2(
+            sin(p.x * 2.3 + t * speed * 1.2) * cos(p.y * 1.7 - t * speed * 0.8),
+            cos(p.x * 1.9 - t * speed * 0.9) * sin(p.y * 2.1 + t * speed * 1.1)
+          );
+
+          vec2 wave2 = vec2(
+            sin(p.x * 3.7 + t * speed * 0.7) * cos(p.y * 2.9 + t * speed * 1.3),
+            cos(p.x * 3.1 + t * speed * 1.4) * sin(p.y * 3.3 - t * speed * 0.6)
+          );
+
+          vec2 distorted = uv * scale * 1.5 + wave1 * 0.3 + wave2 * 0.15 + offset * 2.0;
+
+          float n1 = fbm(distorted + t * 0.1, 5);
+          float n2 = fbm(distorted * 1.8 + vec2(t * 0.15, -t * 0.12), 4);
+
+          float combined = n1 * n2 * 2.5 + 0.25;
+
+          float causticPattern = pow(max(0.0, combined - 0.35), 2.2) * intensity;
+
+          float detail = fbm(distorted * 3.5 + t * 0.2, 3) * 0.25;
+          causticPattern += detail * max(0.0, combined - 0.4) * 1.5;
+
+          return causticPattern;
+        }
+
         void main() {
-          vec2 uv = vUv * 4.0;
-          vec2 dir = vec2(0.6, 0.8);
-          float t = uTime * 0.2;
-          float n1 = fbm(uv + dir * t);
-          float n2 = fbm(uv - dir * t + vec2(5.2, 3.1));
-          float light = smoothstep(0.45, 0.65, n1 * n2 + 0.3) * 0.45;
-          vec3 col = mix(uColorB, uColorA, light);
-          gl_FragColor = vec4(col, light * 0.35);
+          vec2 uv = vUv * 6.0;
+          float t = uTime * 0.35;
+
+          float c1 = caustic(uv, t, 1.0, 1.0, 1.0);
+          float c2 = caustic(uv + 5.5, t * 1.2, 0.7, 0.8, 0.6);
+          float c3 = caustic(uv - 3.3, t * 0.7, 1.6, 1.3, 0.4);
+
+          float totalCaustic = (c1 + c2 * 0.6 + c3 * 0.3) * 0.75;
+          totalCaustic = smoothstep(0.0, 0.9, totalCaustic);
+
+          vec3 brightColor = uColor * 1.5;
+          vec3 midColor = uColor * 0.7;
+
+          vec3 col = mix(vec3(0.0), midColor, smoothstep(0.0, 0.4, totalCaustic));
+          col = mix(col, brightColor, smoothstep(0.4, 0.85, totalCaustic));
+          col += vec3(1.0, 1.0, 1.0) * smoothstep(0.7, 1.0, totalCaustic) * 0.6;
+
+          float alpha = totalCaustic * 0.42 * uIntensity;
+
+          gl_FragColor = vec4(col, alpha);
         }
       `,
       transparent: true,
@@ -193,7 +240,7 @@ export class UnderwaterScene {
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0, 18, 0);
+    mesh.position.set(0, 16, 0);
     mesh.rotation.x = -Math.PI / 2;
     this.scene.add(mesh);
     return mesh;
@@ -420,16 +467,31 @@ export class UnderwaterScene {
     const velocities = this.particles.geometry.attributes.velocity as THREE.BufferAttribute;
     const posArr = positions.array as Float32Array;
     const velArr = velocities.array as Float32Array;
+    const bounds = { x: 70, y: 25, z: 70 };
+    const yMin = -35;
 
     for (let i = 0; i < positions.count; i++) {
-      posArr[i * 3] += velArr[i * 3] + Math.sin(time + i) * 0.005;
-      posArr[i * 3 + 1] += velArr[i * 3 + 1];
-      posArr[i * 3 + 2] += velArr[i * 3 + 2] + Math.cos(time * 0.8 + i) * 0.005;
+      const idx = i * 3;
+      posArr[idx] += velArr[idx] + Math.sin(time + i) * 0.005;
+      posArr[idx + 1] += velArr[idx + 1];
+      posArr[idx + 2] += velArr[idx + 2] + Math.cos(time * 0.8 + i) * 0.005;
 
-      if (posArr[i * 3 + 1] > 20) {
-        posArr[i * 3 + 1] = -40;
-        posArr[i * 3] = (Math.random() - 0.5) * 80;
-        posArr[i * 3 + 2] = (Math.random() - 0.5) * 80;
+      if (posArr[idx + 1] > bounds.y || posArr[idx + 1] < yMin) {
+        posArr[idx] = (Math.random() - 0.5) * bounds.x * 2;
+        posArr[idx + 1] = posArr[idx + 1] > bounds.y ? yMin : bounds.y;
+        posArr[idx + 2] = (Math.random() - 0.5) * bounds.z * 2;
+        velArr[idx] = (Math.random() - 0.5) * 0.02;
+        velArr[idx + 1] = 0.008 + Math.random() * 0.015;
+        velArr[idx + 2] = (Math.random() - 0.5) * 0.02;
+      }
+
+      if (Math.abs(posArr[idx]) > bounds.x) {
+        velArr[idx] *= -1;
+        posArr[idx] = Math.sign(posArr[idx]) * bounds.x;
+      }
+      if (Math.abs(posArr[idx + 2]) > bounds.z) {
+        velArr[idx + 2] *= -1;
+        posArr[idx + 2] = Math.sign(posArr[idx + 2]) * bounds.z;
       }
     }
     positions.needsUpdate = true;
