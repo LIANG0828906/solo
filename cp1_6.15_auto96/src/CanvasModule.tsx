@@ -60,13 +60,14 @@ const CanvasModule = forwardRef<CanvasModuleRef, CanvasModuleProps>(({ onLayersC
   }, [layers, onLayersChange]);
 
   useImperativeHandle(ref, () => ({
-    addLayer: (color: ColorItem, brandName: string, x: number, y: number) => {
+    addLayer: (color: ColorItem, brandName: string, x: number, y: number, customOpacity?: number) => {
+      const finalOpacity = customOpacity !== undefined ? customOpacity : 0.8;
       const newLayer: LayerData = {
         id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         brandName,
         colorName: color.name,
         colorHex: color.hex,
-        opacity: 0.8,
+        opacity: finalOpacity,
         x,
         y,
         brushType,
