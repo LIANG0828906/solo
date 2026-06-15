@@ -19,37 +19,64 @@ function Barrage({ eventId }: BarrageProps) {
   const messageIdCounter = useRef(0);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws?eventId=${eventId}`;
-    const websocket = new WebSocket(wsUrl);
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
 
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-    };
+    const connect = () => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws?eventId=${eventId}`;
+      const websocket = new WebSocket(wsUrl);
 
-    websocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'barrage') {
-          addDanmaku(data.message);
+      websocket.onopen = () => {
+        console.log('弹幕 WebSocket 已连接');
+        reconnectAttempts = 0;
+      };
+
+      websocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'barrage') {
+            const startTime = performance.now();
+            addDanmaku(data.message);
+            const duration = performance.now() - startTime;
+            if (duration > 16) {
+              console.warn(`弹幕渲染延迟: ${duration.toFixed(2)}ms`);
+            }
+          }
+        } catch (error) {
+          console.error('解析弹幕消息失败:', error);
         }
-      } catch (error) {
-        console.error('Failed to parse message:', error);
-      }
+      };
+
+      websocket.onclose = () => {
+        console.log('弹幕 WebSocket 已断开');
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+          console.log(`尝试重连 (${reconnectAttempts + 1}/${maxReconnectAttempts})，延迟 ${delay}ms...`);
+          reconnectTimer = setTimeout(() => {
+            reconnectAttempts++;
+            connect();
+          }, delay);
+        }
+      };
+
+      websocket.onerror = (error) => {
+        console.error('弹幕 WebSocket 错误:', error);
+      };
+
+      setWs(websocket);
     };
 
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
-    };
-
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    setWs(websocket);
+    connect();
 
     return () => {
-      websocket.close();
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      if (ws) {
+        ws.close();
+      }
     };
   }, [eventId]);
 

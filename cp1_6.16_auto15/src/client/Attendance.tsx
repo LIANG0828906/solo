@@ -33,14 +33,16 @@ function Attendance({ eventId }: AttendanceProps) {
   };
 
   const createConfetti = () => {
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'];
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fdcb6e', '#e17055', '#00b894', '#74b9ff', '#ff7675'];
     const confettiPieces: JSX.Element[] = [];
     
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
       const left = Math.random() * 100;
-      const delay = Math.random() * 0.5;
+      const delay = Math.random() * 1.5;
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = Math.random() * 10 + 5;
+      const size = Math.random() * 12 + 4;
+      const duration = 2 + Math.random() * 2;
+      const rotate = Math.random() * 360;
       
       confettiPieces.push(
         <div
@@ -53,7 +55,10 @@ function Attendance({ eventId }: AttendanceProps) {
             width: `${size}px`,
             height: `${size}px`,
             borderRadius: Math.random() > 0.5 ? '50%' : '0',
-            animationDelay: `${delay}s`
+            animationDelay: `${delay}s`,
+            animationDuration: `${duration}s`,
+            transform: `rotate(${rotate}deg)`,
+            boxShadow: `0 0 ${size / 2}px ${color}40`
           }}
         />
       );
@@ -128,17 +133,20 @@ function Attendance({ eventId }: AttendanceProps) {
         {result ? (
           <div style={{
             ...styles.result,
-            backgroundColor: result.success ? '#d4edda' : '#f8d7da'
+            backgroundColor: result.success ? '#d4edda' : '#f8d7da',
+            animation: result.success ? 'successPulse 0.6s ease-in-out infinite, successBounce 0.8s ease-out' : 'none'
           }}>
             <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
+              fontSize: '64px',
+              marginBottom: '16px',
+              animation: result.success ? 'emojiBounce 0.8s ease-out' : 'none'
             }}>
               {result.success ? '🎉' : '❌'}
             </div>
             <h2 style={{
               color: result.success ? '#155724' : '#721c24',
-              marginBottom: '8px'
+              marginBottom: '8px',
+              fontSize: result.success ? '28px' : '20px'
             }}>
               {result.message}
             </h2>
@@ -155,6 +163,24 @@ function Attendance({ eventId }: AttendanceProps) {
                 重新签到
               </button>
             )}
+            <style>{`
+              @keyframes successPulse {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+                50% { box-shadow: 0 0 0 15px rgba(40, 167, 69, 0); }
+              }
+              @keyframes successBounce {
+                0% { transform: scale(0.3); opacity: 0; }
+                50% { transform: scale(1.05); }
+                70% { transform: scale(0.9); }
+                100% { transform: scale(1); opacity: 1; }
+              }
+              @keyframes emojiBounce {
+                0% { transform: scale(0) rotate(0deg); }
+                50% { transform: scale(1.2) rotate(-10deg); }
+                70% { transform: scale(0.9) rotate(5deg); }
+                100% { transform: scale(1) rotate(0deg); }
+              }
+            `}</style>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>

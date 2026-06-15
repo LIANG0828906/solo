@@ -106,14 +106,14 @@ function EventDetail({ event, onBack }: EventDetailProps) {
 
         <div style={styles.links}>
           <a 
-            href={`?eventId=${event.id}&page=dashboard`} 
+            href={`/dashboard/${event.id}`} 
             target="_blank" 
             style={styles.linkBtn}
           >
             📊 查看数据大屏
           </a>
           <a 
-            href={`?eventId=${event.id}&page=attendance`} 
+            href={`/attendance/${event.id}`} 
             target="_blank" 
             style={styles.linkBtn}
           >

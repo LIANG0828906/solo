@@ -13,6 +13,23 @@ function App() {
   const [eventId, setEventId] = useState<string | null>(null);
 
   useEffect(() => {
+    const pathname = window.location.pathname;
+    const pathMatch = pathname.match(/\/(attendance|dashboard|event)\/([^/]+)/);
+    
+    if (pathMatch) {
+      const [, pageType, eid] = pathMatch;
+      setEventId(eid);
+      if (pageType === 'attendance') {
+        setCurrentPage('attendance');
+      } else if (pageType === 'dashboard') {
+        setCurrentPage('dashboard');
+      } else if (pageType === 'event') {
+        setCurrentPage('detail');
+        fetchEvent(eid);
+      }
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const eid = params.get('eventId');
     const page = params.get('page');
@@ -44,7 +61,7 @@ function App() {
     setCurrentEvent(event);
     setEventId(event.id);
     setCurrentPage('detail');
-    window.history.pushState({}, '', `?eventId=${event.id}`);
+    window.history.pushState({}, '', `/event/${event.id}`);
   };
 
   const goToCreate = () => {

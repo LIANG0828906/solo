@@ -287,19 +287,26 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
     padding: '20px',
-    color: 'white'
+    color: 'white',
+    position: 'relative',
+    overflowX: 'hidden'
   },
   header: {
     textAlign: 'center',
     marginBottom: '30px',
-    padding: '20px'
+    padding: '20px',
+    background: 'rgba(255, 255, 255, 0.03)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '16px'
   },
   title: {
     fontSize: '36px',
     fontWeight: 'bold',
     color: '#00d4ff',
     marginBottom: '8px',
-    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)'
+    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
+    letterSpacing: '2px'
   },
   subtitle: {
     fontSize: '14px',
@@ -314,10 +321,13 @@ const styles: Record<string, React.CSSProperties> = {
   statCard: {
     background: 'rgba(255, 255, 255, 0.05)',
     backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '16px',
-    padding: '24px',
-    textAlign: 'center'
+    WebkitBackdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '20px',
+    padding: '28px 20px',
+    textAlign: 'center',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease'
   },
   statLabel: {
     fontSize: '14px',
@@ -345,16 +355,21 @@ const styles: Record<string, React.CSSProperties> = {
   chartCard: {
     background: 'rgba(255, 255, 255, 0.05)',
     backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '16px',
-    padding: '20px',
-    minHeight: '300px'
+    WebkitBackdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '20px',
+    padding: '24px',
+    minHeight: '300px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
   },
   chartTitle: {
     fontSize: '16px',
     fontWeight: '600',
     color: '#00d4ff',
-    marginBottom: '16px'
+    marginBottom: '16px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
+    letterSpacing: '1px'
   },
   chartContainer: {
     height: '250px',
@@ -363,43 +378,54 @@ const styles: Record<string, React.CSSProperties> = {
   listCard: {
     background: 'rgba(255, 255, 255, 0.05)',
     backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '16px',
-    padding: '20px'
+    WebkitBackdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '20px',
+    padding: '24px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
   },
   listContainer: {
     maxHeight: '300px',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'rgba(0, 212, 255, 0.3) transparent'
   },
   listItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    padding: '12px 16px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+    padding: '14px 18px',
+    marginBottom: '8px',
+    background: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: '12px',
+    borderBottom: 'none',
+    transition: 'background 0.2s ease'
   },
   serialBadge: {
     background: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
     color: 'white',
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: 'bold'
+    padding: '6px 14px',
+    borderRadius: '14px',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    boxShadow: '0 2px 8px rgba(0, 212, 255, 0.3)'
   },
   listName: {
     flex: 1,
-    fontSize: '14px',
-    color: 'white'
+    fontSize: '15px',
+    color: 'white',
+    fontWeight: '500'
   },
   listTime: {
-    fontSize: '12px',
-    color: 'rgba(255, 255, 255, 0.5)'
+    fontSize: '13px',
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontVariantNumeric: 'tabular-nums'
   },
   emptyState: {
     textAlign: 'center',
-    padding: '40px',
+    padding: '60px 20px',
     color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: '14px'
+    fontSize: '15px'
   }
 };
 

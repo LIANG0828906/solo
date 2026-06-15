@@ -23,7 +23,9 @@ router.post('/events', async (req: Request<{}, {}, CreateEventRequest>, res: Res
     }
 
     const eventId = uuidv4();
-    const checkInUrl = `${req.protocol}://${req.get('host')}?eventId=${eventId}&page=attendance`;
+    const host = req.get('host') || 'localhost:5173';
+    const origin = `${req.protocol}://${host}`;
+    const checkInUrl = `${origin}/attendance/${eventId}`;
     
     const qrCodeDataUrl = await QRCode.toDataURL(checkInUrl, {
       width: 300,
