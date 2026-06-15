@@ -60,20 +60,3 @@ export type VersionSnapshot = {
   data: string;
 };
 
-export type EditorState = {
-  courseId: string | null;
-  pageId: string | null;
-  selectedBlockId: string | null;
-  isDragging: boolean;
-  isResizing: boolean;
-  zoom: number;
-  panX: number;
-  panY: number;
-  setCourseId: (id: string | null) => void;
-  setPageId: (id: string | null) => void;
-  setSelectedBlockId: (id: string | null) => void;
-  setIsDragging: (value: boolean) => void;
-  setIsResizing: (value: boolean) => void;
-  setZoom: (zoom: number) => void;
-  setPan: (x: number, y: number) => void;
-};

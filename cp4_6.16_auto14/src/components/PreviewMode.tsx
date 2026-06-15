@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react';
-import { useEditorStore } from '@/stores/editorStore';
+import useEditorStore from '@/stores/editorStore';
 import { cn } from '@/lib/utils';
 import type { TextBlock, ImageBlock, QuizBlock, QuizOption } from '@/types';
 

@@ -12,7 +12,7 @@ import type {
   BlockType,
   QuizOption,
 } from '@/types'
-import { idbKeyvalStorage, loadFromIDB, saveToIDB } from '@/utils/storage'
+import { idbKeyvalStorage, loadVersions, saveVersion, loadCourse, saveCourse } from '@/utils/storage'
 
 interface EditorState {
   courses: Course[]
@@ -35,16 +35,17 @@ interface EditorActions {
   undo: () => void
   redo: () => void
   createCourse: (title: string) => void
-  loadCourse: (courseId: string) => Promise<void>
+  loadCourseById: (courseId: string) => Promise<void>
   setCurrentCourse: (courseId: string) => void
   addPage: (title: string) => void
   deletePage: (pageId: string) => void
   reorderPages: (pageIds: string[]) => void
   setCurrentPage: (pageId: string) => void
   updatePage: (pageId: string, updates: Partial<Page>) => void
-  addBlock: (type: BlockType) => void
+  addBlock: (type: BlockType, x?: number, y?: number) => void
   updateBlock: (blockId: string, updates: Partial<AnyBlock>) => void
   moveBlock: (blockId: string, x: number, y: number) => void
+  moveBlockEnd: (blockId: string, x: number, y: number) => void
   resizeBlock: (blockId: string, width: number, height: number) => void
   deleteBlock: (blockId: string) => void
   selectBlock: (blockId: string | null) => void
@@ -55,6 +56,7 @@ interface EditorActions {
   rollbackVersion: (versionId: string) => void
   togglePreview: () => void
   toggleHistoryPanel: () => void
+  importCourse: (course: Course, pages: Page[], blocks: AnyBlock[]) => void
 }
 
 type EditorStore = EditorState & EditorActions
@@ -79,10 +81,11 @@ const useEditorStore = create<EditorStore>()(
       pushUndo: () => {
         const { pages, blocks, undoStack } = get()
         const snapshot = JSON.stringify({ pages, blocks })
+        const newUndoStack = [...undoStack, snapshot].slice(-50)
         set({
-          undoStack: [...undoStack, snapshot],
+          undoStack: newUndoStack,
           redoStack: [],
-          canUndo: true,
+          canUndo: newUndoStack.length > 0,
           canRedo: false,
         })
       },
@@ -94,13 +97,17 @@ const useEditorStore = create<EditorStore>()(
         const previousSnapshot = undoStack[undoStack.length - 1]
         const newUndoStack = undoStack.slice(0, -1)
         const restored = JSON.parse(previousSnapshot) as { pages: Page[]; blocks: AnyBlock[] }
+        const currentPageId = get().currentPageId
+        const pageExists = restored.pages.some((p) => p.id === currentPageId)
         set({
           pages: restored.pages,
           blocks: restored.blocks,
+          currentPageId: pageExists ? currentPageId : restored.pages[0]?.id ?? null,
           undoStack: newUndoStack,
           redoStack: [...redoStack, currentSnapshot],
           canUndo: newUndoStack.length > 0,
           canRedo: true,
+          selectedBlockId: null,
         })
       },
 
@@ -111,13 +118,17 @@ const useEditorStore = create<EditorStore>()(
         const nextSnapshot = redoStack[redoStack.length - 1]
         const newRedoStack = redoStack.slice(0, -1)
         const restored = JSON.parse(nextSnapshot) as { pages: Page[]; blocks: AnyBlock[] }
+        const currentPageId = get().currentPageId
+        const pageExists = restored.pages.some((p) => p.id === currentPageId)
         set({
           pages: restored.pages,
           blocks: restored.blocks,
+          currentPageId: pageExists ? currentPageId : restored.pages[0]?.id ?? null,
           undoStack: [...undoStack, currentSnapshot],
           redoStack: newRedoStack,
           canUndo: true,
           canRedo: newRedoStack.length > 0,
+          selectedBlockId: null,
         })
       },
 
@@ -134,7 +145,7 @@ const useEditorStore = create<EditorStore>()(
         const firstPage: Page = {
           id: pageId,
           courseId,
-          title: 'Page 1',
+          title: '第一页',
           backgroundColor: '#FFFFFF',
           order: 0,
         }
@@ -153,18 +164,15 @@ const useEditorStore = create<EditorStore>()(
         })
       },
 
-      loadCourse: async (courseId) => {
-        const pagesData = await loadFromIDB<Page[]>(`pages:${courseId}`)
-        const blocksData = await loadFromIDB<AnyBlock[]>(`blocks:${courseId}`)
-        const versionsData = await loadFromIDB<VersionSnapshot[]>(`versions:${courseId}`)
-        const pages = pagesData ?? []
-        const blocks = blocksData ?? []
-        const versions = versionsData ?? []
+      loadCourseById: async (courseId) => {
+        const data = await loadCourse(courseId)
+        const versions = await loadVersions(courseId)
+        if (!data) return
         set({
           currentCourseId: courseId,
-          pages,
-          currentPageId: pages.length > 0 ? pages[0].id : null,
-          blocks,
+          pages: data.pages,
+          currentPageId: data.pages.length > 0 ? data.pages[0].id : null,
+          blocks: data.blocks,
           selectedBlockId: null,
           versions,
           undoStack: [],
@@ -172,6 +180,10 @@ const useEditorStore = create<EditorStore>()(
           canUndo: false,
           canRedo: false,
         })
+        const courseExists = get().courses.some((c) => c.id === courseId)
+        if (!courseExists) {
+          set({ courses: [...get().courses, data.course] })
+        }
       },
 
       setCurrentCourse: (courseId) => {
@@ -201,8 +213,9 @@ const useEditorStore = create<EditorStore>()(
         const { pages, blocks, currentPageId } = get()
         const remainingPages = pages.filter((p) => p.id !== pageId)
         const remainingBlocks = blocks.filter((b) => b.pageId !== pageId)
+        const reorderedPages = remainingPages.map((p, idx) => ({ ...p, order: idx }))
         set({
-          pages: remainingPages,
+          pages: reorderedPages,
           blocks: remainingBlocks,
           currentPageId:
             currentPageId === pageId
@@ -238,7 +251,7 @@ const useEditorStore = create<EditorStore>()(
         })
       },
 
-      addBlock: (type) => {
+      addBlock: (type, x = 100, y = 100) => {
         get().pushUndo()
         const { currentPageId, blocks } = get()
         if (!currentPageId) return
@@ -246,8 +259,8 @@ const useEditorStore = create<EditorStore>()(
         const base = {
           id: blockId,
           pageId: currentPageId,
-          x: 100,
-          y: 100,
+          x,
+          y,
           width: 300,
           height: 200,
         }
@@ -263,19 +276,19 @@ const useEditorStore = create<EditorStore>()(
             newBlock = {
               ...base,
               type: 'quiz',
-              question: '',
+              question: '请输入问题',
               mode: 'single',
               options: [
-                { id: uuidv4(), text: '', isCorrect: false },
-                { id: uuidv4(), text: '', isCorrect: false },
+                { id: uuidv4(), text: '选项 A', isCorrect: false },
+                { id: uuidv4(), text: '选项 B', isCorrect: false },
               ],
-              score: 0,
+              score: 10,
             } satisfies QuizBlock
             break
           default:
             return
         }
-        set({ blocks: [...blocks, newBlock] })
+        set({ blocks: [...blocks, newBlock], selectedBlockId: blockId })
       },
 
       updateBlock: (blockId, updates) => {
@@ -288,6 +301,14 @@ const useEditorStore = create<EditorStore>()(
       },
 
       moveBlock: (blockId, x, y) => {
+        set({
+          blocks: get().blocks.map((b) =>
+            b.id === blockId ? { ...b, x, y } : b
+          ),
+        })
+      },
+
+      moveBlockEnd: (blockId, x, y) => {
         get().pushUndo()
         set({
           blocks: get().blocks.map((b) =>
@@ -328,7 +349,7 @@ const useEditorStore = create<EditorStore>()(
                 ...quiz,
                 options: [
                   ...quiz.options,
-                  { id: uuidv4(), text: '', isCorrect: false },
+                  { id: uuidv4(), text: '新选项', isCorrect: false },
                 ],
               } satisfies QuizBlock
             }
@@ -354,17 +375,22 @@ const useEditorStore = create<EditorStore>()(
       },
 
       updateQuizOption: (blockId, optionId, updates) => {
-        get().pushUndo()
         set({
           blocks: get().blocks.map((b) => {
             if (b.id === blockId && b.type === 'quiz') {
               const quiz = b as QuizBlock
-              return {
-                ...quiz,
-                options: quiz.options.map((o) =>
-                  o.id === optionId ? { ...o, ...updates } : o
-                ),
-              } satisfies QuizBlock
+              const newOptions = quiz.options.map((o) =>
+                o.id === optionId ? { ...o, ...updates } : o
+              )
+              if (updates.isCorrect === true && quiz.mode === 'single') {
+                return {
+                  ...quiz,
+                  options: newOptions.map((o) =>
+                    o.id === optionId ? o : { ...o, isCorrect: false }
+                  ),
+                } satisfies QuizBlock
+              }
+              return { ...quiz, options: newOptions } satisfies QuizBlock
             }
             return b
           }),
@@ -374,22 +400,24 @@ const useEditorStore = create<EditorStore>()(
       save: async () => {
         const { currentCourseId, pages, blocks, courses, versions } = get()
         if (!currentCourseId) return
-        await saveToIDB(`pages:${currentCourseId}`, pages)
-        await saveToIDB(`blocks:${currentCourseId}`, blocks)
+        const course = courses.find((c) => c.id === currentCourseId)
+        if (!course) return
         const now = new Date().toISOString()
+        const updatedCourse = { ...course, updatedAt: now }
+        await saveCourse(updatedCourse, pages, blocks)
         const version: VersionSnapshot = {
           id: uuidv4(),
           courseId: currentCourseId,
           timestamp: now,
-          note: `Saved at ${now}`,
+          note: `版本 - ${new Date(now).toLocaleString()}`,
           data: JSON.stringify({ pages, blocks }),
         }
+        await saveVersion(version)
         const newVersions = [...versions, version]
-        await saveToIDB(`versions:${currentCourseId}`, newVersions)
         set({
           versions: newVersions,
           courses: courses.map((c) =>
-            c.id === currentCourseId ? { ...c, updatedAt: now } : c
+            c.id === currentCourseId ? updatedCourse : c
           ),
         })
       },
@@ -402,22 +430,59 @@ const useEditorStore = create<EditorStore>()(
           pages: Page[]
           blocks: AnyBlock[]
         }
+        get().pushUndo()
+        const currentPageId = get().currentPageId
+        const pageExists = restored.pages.some((p) => p.id === currentPageId)
         set({
           pages: restored.pages,
           blocks: restored.blocks,
-          undoStack: [],
-          redoStack: [],
-          canUndo: false,
-          canRedo: false,
+          currentPageId: pageExists ? currentPageId : restored.pages[0]?.id ?? null,
+          selectedBlockId: null,
         })
       },
 
       togglePreview: () => {
-        set({ isPreviewMode: !get().isPreviewMode })
+        set({ isPreviewMode: !get().isPreviewMode, selectedBlockId: null })
       },
 
       toggleHistoryPanel: () => {
         set({ isHistoryPanelOpen: !get().isHistoryPanelOpen })
+      },
+
+      importCourse: (course, pages, blocks) => {
+        const now = new Date().toISOString()
+        const newCourse = { ...course, id: uuidv4(), createdAt: now, updatedAt: now }
+        const pageIdMap = new Map<string, string>()
+        const newPages = pages.map((p, idx) => {
+          const newId = uuidv4()
+          pageIdMap.set(p.id, newId)
+          return { ...p, id: newId, courseId: newCourse.id, order: idx }
+        })
+        const newBlocks = blocks.map((b) => {
+          const newId = uuidv4()
+          const newPageId = pageIdMap.get(b.pageId) ?? b.pageId
+          const base = { ...b, id: newId, pageId: newPageId }
+          if (b.type === 'quiz') {
+            return {
+              ...base,
+              options: b.options.map((o) => ({ ...o, id: uuidv4() })),
+            } as QuizBlock
+          }
+          return base as AnyBlock
+        })
+        set({
+          courses: [...get().courses, newCourse],
+          currentCourseId: newCourse.id,
+          pages: newPages,
+          currentPageId: newPages.length > 0 ? newPages[0].id : null,
+          blocks: newBlocks,
+          selectedBlockId: null,
+          undoStack: [],
+          redoStack: [],
+          canUndo: false,
+          canRedo: false,
+          versions: [],
+        })
       },
     }),
     {

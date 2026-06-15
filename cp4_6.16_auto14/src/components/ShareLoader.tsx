@@ -1,78 +1,101 @@
-import { useState, useEffect, memo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { loadCourse } from '@/utils/storage';
-import { useEditorStore } from '@/stores/editorStore';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, memo } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { loadCourse, saveCourse } from '@/utils/storage'
+import useEditorStore from '@/stores/editorStore'
+import { cn } from '@/lib/utils'
+import { AlertCircle, Loader2 } from 'lucide-react'
 
 const ShareLoader = memo(function ShareLoader() {
-  const { courseId } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
-  const loadCourseIntoStore = useEditorStore((s) => s.loadCourse);
+  const { courseId } = useParams<{ courseId: string }>()
+  const navigate = useNavigate()
+  const importCourse = useEditorStore((s) => s.importCourse)
+  const setCurrentCourse = useEditorStore((s) => s.setCurrentCourse)
+  const loadCourseById = useEditorStore((s) => s.loadCourseById)
 
-  const [status, setStatus] = useState<'loading' | 'found' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'found' | 'error'>('loading')
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     if (!courseId) {
-      setStatus('error');
-      return;
+      setStatus('error')
+      setErrorMsg('课件 ID 无效')
+      return
     }
-    let cancelled = false;
-    (async () => {
+    let cancelled = false
+    ;(async () => {
       try {
-        const result = await loadCourse(courseId);
-        if (cancelled) return;
+        const result = await loadCourse(courseId)
+        if (cancelled) return
         if (result) {
-          setStatus('found');
-          loadCourseIntoStore(result.course, result.pages, result.blocks);
-          navigate('/', { replace: true });
+          setStatus('found')
+          await loadCourseById(courseId)
+          setTimeout(() => {
+            navigate('/', { replace: true })
+          }, 500)
         } else {
-          setStatus('error');
+          setStatus('error')
+          setErrorMsg('未找到该课件，可能已被删除或链接无效')
         }
-      } catch {
-        if (!cancelled) setStatus('error');
+      } catch (err) {
+        if (!cancelled) {
+          setStatus('error')
+          setErrorMsg('加载课件时发生错误')
+        }
       }
-    })();
+    })()
     return () => {
-      cancelled = true;
-    };
-  }, [courseId, loadCourseIntoStore, navigate]);
-
-  if (status === 'found') {
-    return (
-      <div className="flex items-center justify-center h-screen bg-canvas">
-        <div className={cn('animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full')} />
-      </div>
-    );
-  }
+      cancelled = true
+    }
+  }, [courseId, importCourse, setCurrentCourse, navigate, loadCourseById])
 
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center h-screen bg-canvas">
         <div className="flex flex-col items-center gap-4">
-          <div className={cn('animate-spin h-10 w-10 border-3 border-primary border-t-transparent rounded-full')} />
-          <p className="text-sm text-gray-500">Loading course...</p>
+          <Loader2 className="animate-spin h-10 w-10 text-primary" />
+          <p className="text-sm text-gray-500">正在加载课件...</p>
         </div>
       </div>
-    );
+    )
+  }
+
+  if (status === 'found') {
+    return (
+      <div className="flex items-center justify-center h-screen bg-canvas">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+            <svg
+              className="w-6 h-6 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-600">课件加载成功，正在跳转...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex items-center justify-center h-screen bg-canvas">
-      <div className="flex flex-col items-center gap-4 text-center px-4">
-        <div className="text-5xl">😕</div>
-        <h2 className="text-xl font-semibold text-gray-800">Course Not Found</h2>
-        <p className="text-sm text-gray-500 max-w-sm">
-          The course you are looking for does not exist or has been removed.
-        </p>
+      <div className="flex flex-col items-center gap-4 text-center px-4 max-w-md">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+          <AlertCircle size={32} className="text-red-500" />
+        </div>
+        <h2 className="text-xl font-semibold text-gray-800">课件加载失败</h2>
+        <p className="text-sm text-gray-500">{errorMsg}</p>
         <Link
           to="/"
-          className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-800 transition-colors"
+          className="mt-2 px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-800 transition-colors"
         >
-          Back to Home
+          返回首页
         </Link>
       </div>
     </div>
-  );
-});
+  )
+})
 
-export default ShareLoader;
+export default ShareLoader
