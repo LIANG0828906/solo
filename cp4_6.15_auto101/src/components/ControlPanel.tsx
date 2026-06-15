@@ -142,13 +142,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   return (
     <>
       {countdownNumber !== null && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+        <div className="countdown-container" key={`countdown-wrapper-${countdownNumber}`}>
           <span
-            key={countdownNumber}
-            className="text-[120px] font-bold text-white animate-countdown"
-            style={{
-              textShadow: '0 0 40px rgba(15, 52, 96, 0.8), 0 0 80px rgba(83, 52, 131, 0.6)',
-            }}
+            key={`countdown-${countdownNumber}-${Date.now()}`}
+            className="countdown-number"
           >
             {countdownNumber}
           </span>

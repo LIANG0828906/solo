@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { SubtitleEntry } from '../types';
 
@@ -32,191 +32,241 @@ function formatVTTTime(ms: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
 }
 
-const mockSubtitles: string[] = [
-  '欢迎使用ScreenCap Studio，这是一款专业的屏幕录制工具。',
-  '首先，我们需要选择录制区域，可以是整个屏幕、应用窗口或指定区域。',
-  '点击开始录制按钮后，会有三秒的倒计时。',
-  '录制过程中，您可以使用快捷键来切换注释工具。',
-  '按 P 键可以激活画笔工具，选择不同颜色进行绘制。',
-  '按 H 键可以使用高亮工具，框选重要内容。',
-  '按 T 键可以添加文本注释，在屏幕上输入文字说明。',
-  '录制完成后，系统会自动识别音频并生成字幕。',
-  '您可以在右侧面板中编辑字幕内容和调整时间偏移。',
-  '最后，点击导出按钮，即可下载带字幕的视频文件。',
-  '感谢使用ScreenCap Studio，祝您录制愉快！',
+const fallbackSentences = [
+  '欢迎使用ScreenCap Studio屏幕录制工具。',
+  '首先，请选择您希望录制的屏幕区域。',
+  '您可以录制整个屏幕、特定窗口或自定义区域。',
+  '点击开始按钮后，会有三秒钟的准备时间。',
+  '录制过程中可以随时使用画笔工具标注重点。',
+  '按键盘上的P键可以快速切换到画笔模式。',
+  '按H键可以使用高亮工具框选重要内容。',
+  '按T键可以在屏幕上添加文本注释。',
+  '使用Ctrl+Z快捷键可以撤销上一步注释操作。',
+  '录制完成后系统会自动识别音频并生成字幕。',
+  '您可以在右侧面板中编辑字幕的时间和内容。',
+  '调整时间偏移可以让字幕与视频完美同步。',
+  '最后点击导出按钮，即可下载完整的教程视频。',
+  '感谢使用ScreenCap Studio，祝您录制顺利！',
 ];
 
 export function useSubtitles(): UseSubtitlesReturn {
   const [subtitles, setSubtitlesState] = useState<SubtitleEntry[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const recognitionRef = useRef<any>(null);
+
+  const generateFromFallback = useCallback((duration: number) => {
+    const totalDurationMs = duration * 1000;
+    if (totalDurationMs <= 0) {
+      setTimeout(() => {
+        setSubtitlesState([]);
+        setIsGenerating(false);
+      }, 500);
+      return;
+    }
+
+    const count = Math.min(fallbackSentences.length, Math.max(3, Math.floor(duration / 4)));
+    const perDuration = totalDurationMs / count;
+    const result: SubtitleEntry[] = [];
+
+    for (let i = 0; i < count; i++) {
+      result.push({
+        id: uuidv4(),
+        startTime: i * perDuration,
+        endTime: (i + 1) * perDuration,
+        text: fallbackSentences[i],
+        offset: 0,
+      });
+    }
+
+    setTimeout(() => {
+      setSubtitlesState(result);
+      setIsGenerating(false);
+    }, 800);
+  }, []);
 
   const generateSubtitles = useCallback(async (audioBlob: Blob | null, duration: number) => {
     setIsGenerating(true);
     setSubtitlesState([]);
 
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      console.warn('Web Speech API not supported, using fallback subtitles');
+      generateFromFallback(duration);
+      return;
+    }
+
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'zh-CN';
+      recognition.maxAlternatives = 1;
 
-      if (SpeechRecognition && audioBlob) {
-        try {
-          recognitionRef.current = new SpeechRecognition();
-          const recognition = recognitionRef.current;
-          
-          recognition.continuous = true;
-          recognition.interimResults = true;
-          recognition.lang = 'zh-CN';
+      const results: Array<{ text: string; startTime: number; endTime: number }> = [];
+      let sentenceStart = 0;
+      const recognitionStartTime = Date.now();
 
-          const generatedSubtitles: SubtitleEntry[] = [];
-          let currentStartTime = 0;
+      recognition.onresult = (event: any) => {
+        const now = Date.now();
+        const elapsed = now - recognitionStartTime;
+        let finalText = '';
 
-          recognition.onresult = (event: any) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-              const transcript = event.results[i][0].transcript;
-              if (event.results[i].isFinal) {
-                finalTranscript += transcript;
-              }
-            }
-
-            if (finalTranscript) {
-              const endTime = Math.min(currentStartTime + 5000, duration * 1000);
-              generatedSubtitles.push({
-                id: uuidv4(),
-                startTime: currentStartTime,
-                endTime: endTime,
-                text: finalTranscript,
-                offset: 0,
-              });
-              setSubtitlesState([...generatedSubtitles]);
-              currentStartTime = endTime;
-            }
-          };
-
-          recognition.onerror = (event: any) => {
-            console.warn('Speech recognition error:', event.error);
-            generateMockSubtitles(duration);
-          };
-
-          recognition.onend = () => {
-            setIsGenerating(false);
-          };
-
-          try {
-            recognition.start();
-            setTimeout(() => {
-              if (recognitionRef.current) {
-                recognitionRef.current.stop();
-              }
-              if (generatedSubtitles.length === 0) {
-                generateMockSubtitles(duration);
-              }
-            }, Math.min(duration * 1000, 30000));
-            return;
-          } catch (e) {
-            console.warn('Failed to start speech recognition:', e);
-            generateMockSubtitles(duration);
-            return;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += transcript;
           }
-        } catch (e) {
-          console.warn('Speech recognition setup failed:', e);
-          generateMockSubtitles(duration);
-          return;
         }
-      } else {
-        generateMockSubtitles(duration);
+
+        if (finalText.trim()) {
+          const sentences = finalText
+            .split(/[。！？.!?\n]+/)
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+
+          for (let i = 0; i < sentences.length; i++) {
+            const sentenceDuration = Math.max(2000, Math.min(6000, sentences[i].length * 250));
+            const start = sentenceStart;
+            const end = Math.min(elapsed, start + sentenceDuration);
+
+            if (end > start && sentences[i].length > 0) {
+              results.push({
+                text: sentences[i],
+                startTime: start,
+                endTime: end,
+              });
+            }
+            sentenceStart = end;
+          }
+
+          const subtitleEntries: SubtitleEntry[] = results.map((r) => ({
+            id: uuidv4(),
+            startTime: r.startTime,
+            endTime: r.endTime,
+            text: r.text,
+            offset: 0,
+          }));
+
+          setSubtitlesState(subtitleEntries);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        try {
+          recognition.stop();
+        } catch (e) {
+          // ignore
+        }
+        if (results.length === 0) {
+          generateFromFallback(duration);
+        } else {
+          setIsGenerating(false);
+        }
+      };
+
+      recognition.onend = () => {
+        if (results.length === 0) {
+          generateFromFallback(duration);
+        } else {
+          setIsGenerating(false);
+        }
+      };
+
+      try {
+        recognition.start();
+        const timeoutMs = Math.min(Math.max(duration * 1000, 3000), 20000);
+        setTimeout(() => {
+          try {
+            recognition.stop();
+          } catch (e) {
+            // ignore
+          }
+        }, timeoutMs);
+      } catch (startError) {
+        console.warn('Failed to start speech recognition:', startError);
+        generateFromFallback(duration);
       }
     } catch (error) {
-      console.error('Subtitle generation failed:', error);
-      generateMockSubtitles(duration);
+      console.error('Subtitle generation error:', error);
+      generateFromFallback(duration);
     }
-  }, []);
-
-  const generateMockSubtitles = useCallback((duration: number) => {
-    const totalDuration = duration * 1000;
-    const subtitleCount = Math.min(mockSubtitles.length, Math.max(5, Math.floor(duration / 5)));
-    const interval = totalDuration / subtitleCount;
-
-    const generatedSubtitles: SubtitleEntry[] = [];
-
-    for (let i = 0; i < subtitleCount; i++) {
-      generatedSubtitles.push({
-        id: uuidv4(),
-        startTime: i * interval,
-        endTime: (i + 1) * interval,
-        text: mockSubtitles[i % mockSubtitles.length],
-        offset: 0,
-      });
-    }
-
-    setSubtitlesState(generatedSubtitles);
-    setIsGenerating(false);
-  }, []);
+  }, [generateFromFallback]);
 
   const updateSubtitle = useCallback((id: string, updates: Partial<SubtitleEntry>) => {
-    setSubtitlesState(prev => prev.map(sub =>
-      sub.id === id ? { ...sub, ...updates } : sub
-    ));
+    setSubtitlesState((prev) =>
+      prev.map((sub) => (sub.id === id ? { ...sub, ...updates } : sub))
+    );
   }, []);
 
   const adjustOffset = useCallback((id: string, offsetMs: number) => {
-    setSubtitlesState(prev => prev.map(sub =>
-      sub.id === id ? {
-        ...sub,
-        offset: sub.offset + offsetMs,
-        startTime: sub.startTime + offsetMs,
-        endTime: sub.endTime + offsetMs,
-      } : sub
-    ));
+    setSubtitlesState((prev) =>
+      prev.map((sub) =>
+        sub.id === id
+          ? {
+              ...sub,
+              offset: sub.offset + offsetMs,
+              startTime: Math.max(0, sub.startTime + offsetMs),
+              endTime: Math.max(sub.startTime + offsetMs + 1, sub.endTime + offsetMs),
+            }
+          : sub
+      )
+    );
   }, []);
 
   const deleteSubtitle = useCallback((id: string) => {
-    setSubtitlesState(prev => prev.filter(sub => sub.id !== id));
+    setSubtitlesState((prev) => prev.filter((sub) => sub.id !== id));
   }, []);
 
   const addSubtitle = useCallback((entry: Omit<SubtitleEntry, 'id'>) => {
-    setSubtitlesState(prev => [...prev, { ...entry, id: uuidv4() }]
-      .sort((a, b) => a.startTime - b.startTime));
+    setSubtitlesState((prev) =>
+      [...prev, { ...entry, id: uuidv4() }].sort((a, b) => a.startTime - b.startTime)
+    );
   }, []);
 
   const exportSRT = useCallback(() => {
-    let srtContent = '';
-    const sortedSubtitles = [...subtitles].sort((a, b) => a.startTime - b.startTime);
+    const sorted = [...subtitles].sort((a, b) => a.startTime - b.startTime);
+    if (sorted.length === 0) return '';
 
-    sortedSubtitles.forEach((sub, index) => {
-      const adjustedStart = Math.max(0, sub.startTime + sub.offset);
-      const adjustedEnd = Math.max(adjustedStart + 1, sub.endTime + sub.offset);
-
-      srtContent += `${index + 1}\n`;
-      srtContent += `${formatSRTTime(adjustedStart)} --> ${formatSRTTime(adjustedEnd)}\n`;
-      srtContent += `${sub.text}\n\n`;
+    let content = '';
+    sorted.forEach((sub, idx) => {
+      const start = Math.max(0, sub.startTime + sub.offset);
+      const end = Math.max(start + 1, sub.endTime + sub.offset);
+      content += `${idx + 1}\n`;
+      content += `${formatSRTTime(start)} --> ${formatSRTTime(end)}\n`;
+      content += `${sub.text}\n\n`;
     });
-
-    return srtContent;
+    return content;
   }, [subtitles]);
 
   const exportVTT = useCallback(() => {
-    let vttContent = 'WEBVTT\n\n';
-    const sortedSubtitles = [...subtitles].sort((a, b) => a.startTime - b.startTime);
+    const sorted = [...subtitles].sort((a, b) => a.startTime - b.startTime);
+    if (sorted.length === 0) return 'WEBVTT\n\n';
 
-    sortedSubtitles.forEach((sub, index) => {
-      const adjustedStart = Math.max(0, sub.startTime + sub.offset);
-      const adjustedEnd = Math.max(adjustedStart + 1, sub.endTime + sub.offset);
-
-      vttContent += `${index + 1}\n`;
-      vttContent += `${formatVTTTime(adjustedStart)} --> ${formatVTTTime(adjustedEnd)}\n`;
-      vttContent += `${sub.text}\n\n`;
+    let content = 'WEBVTT\n\n';
+    sorted.forEach((sub, idx) => {
+      const start = Math.max(0, sub.startTime + sub.offset);
+      const end = Math.max(start + 1, sub.endTime + sub.offset);
+      content += `${idx + 1}\n`;
+      content += `${formatVTTTime(start)} --> ${formatVTTTime(end)}\n`;
+      content += `${sub.text}\n\n`;
     });
-
-    return vttContent;
+    return content;
   }, [subtitles]);
 
-  const getCurrentSubtitle = useCallback((time: number) => {
-    const timeMs = time * 1000;
-    return subtitles.find(sub =>
-      timeMs >= sub.startTime + sub.offset && timeMs <= sub.endTime + sub.offset
-    ) || null;
-  }, [subtitles]);
+  const getCurrentSubtitle = useCallback(
+    (time: number) => {
+      const timeMs = time * 1000;
+      return (
+        subtitles.find(
+          (sub) =>
+            timeMs >= sub.startTime + sub.offset && timeMs <= sub.endTime + sub.offset
+        ) || null
+      );
+    },
+    [subtitles]
+  );
 
   const setSubtitles = useCallback((newSubtitles: SubtitleEntry[]) => {
     setSubtitlesState(newSubtitles);
