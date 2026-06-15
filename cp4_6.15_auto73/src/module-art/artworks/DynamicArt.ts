@@ -10,6 +10,7 @@ export interface Particle {
   baseHue: number
   trail: { x: number; y: number }[]
   maxTrailLength: number
+  cachedPath: { path: Path2D; lastTrailHash: string } | null
 }
 
 export interface DynamicArtConfig {
@@ -90,7 +91,7 @@ export class DynamicArt {
     this.connectionDistance = config.connectionDistance || 120
 
     this.colors = config.colors || this.generateUniqueColors()
-    this.particleCount = config.particleCount || this.seededRandomInt(30, 45)
+    this.particleCount = Math.min(config.particleCount || this.seededRandomInt(30, 45), 45)
     this.particleSpeed = config.particleSpeed || 1
     this.shapeCount = config.shapeCount || this.seededRandomInt(3, 5)
     this.trailLength = config.trailLength || 25
@@ -156,6 +157,9 @@ export class DynamicArt {
     this.canvas.width = rect.width * dpr
     this.canvas.height = rect.height * dpr
     this.ctx.scale(dpr, dpr)
+    this.particles.forEach(p => {
+      p.cachedPath = null
+    })
   }
 
   private initParticles(): void {
@@ -175,7 +179,8 @@ export class DynamicArt {
         color,
         baseHue: hue,
         trail: [],
-        maxTrailLength: this.trailLength
+        maxTrailLength: this.seededRandomInt(Math.max(10, this.trailLength - 5), this.trailLength + 5),
+        cachedPath: null
       }
       this.particles.push(particle)
     }
@@ -211,6 +216,42 @@ export class DynamicArt {
     return { width: rect.width, height: rect.height }
   }
 
+  private getTrailHash(trail: { x: number; y: number }[]): string {
+    if (trail.length < 2) return ''
+    const step = Math.max(1, Math.floor(trail.length / 8))
+    let hash = `${trail.length}`
+    for (let i = 0; i < trail.length; i += step) {
+      hash += `_${trail[i].x.toFixed(1)}_${trail[i].y.toFixed(1)}`
+    }
+    return hash
+  }
+
+  private buildTrailPath(trail: { x: number; y: number }[]): Path2D {
+    const path = new Path2D()
+    if (trail.length < 2) return path
+
+    path.moveTo(trail[0].x, trail[0].y)
+
+    if (trail.length === 2) {
+      path.lineTo(trail[1].x, trail[1].y)
+      return path
+    }
+
+    for (let i = 1; i < trail.length - 1; i++) {
+      const p0 = trail[i - 1]
+      const p1 = trail[i]
+      const p2 = trail[i + 1]
+      const cpx = (p0.x + p2.x) / 2
+      const cpy = (p0.y + p2.y) / 2
+      path.quadraticCurveTo(p1.x, p1.y, cpx, cpy)
+    }
+
+    const lastIdx = trail.length - 1
+    path.lineTo(trail[lastIdx].x, trail[lastIdx].y)
+
+    return path
+  }
+
   updateColors(colors: string[]): void {
     this.colors = colors
     this.particles.forEach(p => {
@@ -219,6 +260,7 @@ export class DynamicArt {
       if (hslMatch) {
         p.baseHue = parseInt(hslMatch[1], 10)
       }
+      p.cachedPath = null
     })
     this.shapes.forEach(s => {
       s.color = this.getRandomColor()
@@ -231,6 +273,7 @@ export class DynamicArt {
     this.particles.forEach(p => {
       p.vx *= ratio
       p.vy *= ratio
+      p.cachedPath = null
     })
   }
 
@@ -441,7 +484,15 @@ export class DynamicArt {
     this.particles.forEach(particle => {
       if (particle.trail.length > 2) {
         const trail = particle.trail
-        const segments = trail.length - 1
+        const trailHash = this.getTrailHash(trail)
+
+        let path: Path2D
+        if (particle.cachedPath && particle.cachedPath.lastTrailHash === trailHash) {
+          path = particle.cachedPath.path
+        } else {
+          path = this.buildTrailPath(trail)
+          particle.cachedPath = { path, lastTrailHash: trailHash }
+        }
 
         this.ctx.save()
         this.ctx.shadowBlur = 15
@@ -449,31 +500,20 @@ export class DynamicArt {
         this.ctx.lineCap = 'round'
         this.ctx.lineJoin = 'round'
 
-        for (let i = 0; i < segments; i++) {
-          const t = i / segments
+        const drawSteps = 6
+        for (let step = 0; step < drawSteps; step++) {
+          const startT = step / drawSteps
+          const endT = (step + 1) / drawSteps
+          const t = (startT + endT) / 2
 
-          const p0 = trail[Math.max(0, i - 1)]
-          const p1 = trail[i]
-          const p2 = trail[Math.min(segments, i + 1)]
-          const p3 = trail[Math.min(segments, i + 2)]
-
-          const alpha = 0.1 + t * 0.8
+          const alpha = (0.1 + t * 0.8) * (1 / drawSteps) * 2.5
           const width = (particle.radius * 0.2) + t * (particle.radius * 0.8)
           const hueShift = Math.sin((t + this.gradientPhase * 5) * Math.PI * 2) * 15
           const hue = (particle.baseHue + hueShift + 360) % 360
 
-          this.ctx.beginPath()
-          this.ctx.moveTo(p1.x, p1.y)
-
-          const cp1x = p1.x + (p2.x - p0.x) / 6
-          const cp1y = p1.y + (p2.y - p0.y) / 6
-          const cp2x = p2.x - (p3.x - p1.x) / 6
-          const cp2y = p2.y - (p3.y - p1.y) / 6
-
-          this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y)
           this.ctx.strokeStyle = `hsla(${hue}, 75%, 65%, ${alpha})`
           this.ctx.lineWidth = width
-          this.ctx.stroke()
+          this.ctx.stroke(path)
         }
 
         this.ctx.restore()

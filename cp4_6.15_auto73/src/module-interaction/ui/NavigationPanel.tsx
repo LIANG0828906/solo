@@ -25,11 +25,10 @@ export default function NavigationPanel({
   };
 
   const handleThumbnailClick = (artworkId: string) => {
+    handleClose();
     if (onFlyToArtwork) {
       onFlyToArtwork(artworkId);
     }
-    setSelectedArtwork(artworkId);
-    handleClose();
   };
 
   const thumbnailItems = useMemo(() => {
@@ -268,7 +267,7 @@ export default function NavigationPanel({
             text-align: center;
             opacity: 0;
             transform: translateY(10px);
-            transition: all 0.3s ease-in-out;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
             letter-spacing: 0.5px;
           }
 

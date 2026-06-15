@@ -14,7 +14,7 @@ export class ArtEngine {
   private autoReturnDelay: number = 10000
   private isAutoReturning: boolean = false
   private autoReturnProgress: number = 0
-  private autoReturnDuration: number = 3000
+  private autoReturnDuration: number = 2000
 
   private defaultCameraPosition: THREE.Vector3 = new THREE.Vector3(0, 15, 20)
   private defaultTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
@@ -153,7 +153,7 @@ export class ArtEngine {
     this.autoReturnProgress += deltaTime
 
     const t = Math.min(this.autoReturnProgress / this.autoReturnDuration, 1)
-    const easeT = this.easeInOutCubic(t)
+    const easeT = this.easeInOutQuad(t)
 
     this.camera.position.lerpVectors(
       this.startCameraPosition,
@@ -169,6 +169,10 @@ export class ArtEngine {
     if (t >= 1) {
       this.isAutoReturning = false
     }
+  }
+
+  private easeInOutQuad(t: number): number {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
   private easeInOutCubic(t: number): number {
@@ -204,7 +208,7 @@ export class ArtEngine {
     this.flyProgress += deltaTime
 
     const t = Math.min(this.flyProgress / this.flyDuration, 1)
-    const easeT = this.easeInOutCubic(t)
+    const easeT = this.easeInOutQuad(t)
 
     this.camera.position.lerpVectors(
       this.flyStartPosition,

@@ -9,7 +9,7 @@ export interface ArtworkPosition {
 }
 
 interface ArtworkAnimState {
-  hoverProgress: number
+  hoverTime: number
   basePosition: THREE.Vector3
   baseScale: THREE.Vector3
   haloPoints: THREE.Mesh[]
@@ -70,6 +70,10 @@ export class GalleryBuilder {
   private readonly hoverDuration: number = 0.3
   private readonly haloPointCount: number = 16
   private readonly haloRotationSpeed: number = Math.PI * 2
+  private readonly hoverColorStart: THREE.Color = new THREE.Color(0x4488ff)
+  private readonly hoverColorEnd: THREE.Color = new THREE.Color(0xffd700)
+  private readonly emissiveIntensityStart: number = 0.3
+  private readonly emissiveIntensityEnd: number = 0.8
 
   private isBuilt: boolean = false
 
@@ -349,6 +353,8 @@ export class GalleryBuilder {
         color: 0x2a2a3a,
         metalness: 0.8,
         roughness: 0.3,
+        emissive: 0x4488ff,
+        emissiveIntensity: 0.3,
       })
 
       const id = `artwork-${i}`
@@ -400,7 +406,7 @@ export class GalleryBuilder {
 
       this.frameGroups.push(frameGroup)
       this.animStates.set(id, {
-        hoverProgress: 0,
+        hoverTime: 0,
         basePosition: new THREE.Vector3(x, y, z),
         baseScale: new THREE.Vector3(1, 1, 1),
         haloPoints,
@@ -575,16 +581,20 @@ export class GalleryBuilder {
       const state = this.animStates.get(id)
       const frameGroup = this.frameGroups[i]
       const glowMesh = this.glowMeshes[i]
+      const frameMesh = this.frameMeshes[i]
 
-      if (!state || !frameGroup || !glowMesh) continue
+      if (!state || !frameGroup || !glowMesh || !frameMesh) continue
 
-      const targetProgress = this.hoveredId === id ? 1 : 0
-      const progressDelta = (delta / this.hoverDuration) * (targetProgress > state.hoverProgress ? 1 : -1)
-      state.hoverProgress = Math.max(0, Math.min(1, state.hoverProgress + progressDelta))
+      if (this.hoveredId === id) {
+        state.hoverTime = Math.min(this.hoverDuration, state.hoverTime + delta)
+      } else {
+        state.hoverTime = Math.max(0, state.hoverTime - delta)
+      }
 
-      const easedProgress = this.easeOutCubic(state.hoverProgress)
+      const t = state.hoverTime / this.hoverDuration
+      const easeT = this.easeOutCubic(t)
 
-      const scaleValue = 1 + 0.1 * easedProgress
+      const scaleValue = 1 + 0.1 * easeT
       frameGroup.scale.set(
         state.baseScale.x * scaleValue,
         state.baseScale.y * scaleValue,
@@ -593,15 +603,17 @@ export class GalleryBuilder {
 
       frameGroup.position.set(
         state.basePosition.x,
-        state.basePosition.y + 0.01 * easedProgress,
+        state.basePosition.y + 0.01 * easeT,
         state.basePosition.z
       )
 
       const glowMat = glowMesh.material as THREE.MeshBasicMaterial
-      const blueColor = new THREE.Color(0x4488ff)
-      const goldColor = new THREE.Color(0xffd700)
-      glowMat.color.copy(blueColor).lerp(goldColor, easedProgress)
-      glowMat.opacity = 0.3 + 0.3 * easedProgress
+      glowMat.color.copy(this.hoverColorStart).lerp(this.hoverColorEnd, easeT)
+      glowMat.opacity = 0.3 + 0.3 * easeT
+
+      const frameMat = frameMesh.material as THREE.MeshStandardMaterial
+      frameMat.emissive.copy(this.hoverColorStart).lerp(this.hoverColorEnd, easeT)
+      frameMat.emissiveIntensity = this.emissiveIntensityStart + (this.emissiveIntensityEnd - this.emissiveIntensityStart) * easeT
 
       const isSelected = this.selectedId === id
       state.haloPoints.forEach((p) => {

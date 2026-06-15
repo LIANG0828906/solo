@@ -324,12 +324,14 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
   const colorStartRef = useRef<string[]>([]);
   const colorAnimStartRef = useRef<number>(0);
   const colorAnimFrameRef = useRef<number | null>(null);
+  const isColorAnimatingRef = useRef(false);
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
   const targetSpeedRef = useRef<number>(0);
   const speedStartRef = useRef<number>(0);
   const speedAnimStartRef = useRef<number>(0);
   const speedAnimFrameRef = useRef<number | null>(null);
+  const isSpeedAnimatingRef = useRef(false);
 
   const [selectedPrimaryColor, setSelectedPrimaryColor] = useState<string>('#9333ea');
 
@@ -341,12 +343,16 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
-      setCurrentColors([...artwork.colorPalette]);
-      targetColorsRef.current = [...artwork.colorPalette];
-      colorStartRef.current = [...artwork.colorPalette];
-      setCurrentSpeed(artwork.particleSpeed);
-      targetSpeedRef.current = artwork.particleSpeed;
-      speedStartRef.current = artwork.particleSpeed;
+      if (!isColorAnimatingRef.current) {
+        setCurrentColors([...artwork.colorPalette]);
+        targetColorsRef.current = [...artwork.colorPalette];
+        colorStartRef.current = [...artwork.colorPalette];
+      }
+      if (!isSpeedAnimatingRef.current) {
+        setCurrentSpeed(artwork.particleSpeed);
+        targetSpeedRef.current = artwork.particleSpeed;
+        speedStartRef.current = artwork.particleSpeed;
+      }
       setSelectedPrimaryColor(artwork.colorPalette[0] || '#9333ea');
     } else {
       setIsVisible(false);
@@ -362,6 +368,7 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
 
   const animateColors = useCallback(
     (artworkId: string) => {
+      isColorAnimatingRef.current = true;
       const now = performance.now();
       const elapsed = now - colorAnimStartRef.current;
       const t = Math.min(1, elapsed / COLOR_DURATION);
@@ -373,13 +380,16 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
         easeT
       );
 
-      setCurrentColors(interpolated);
-      updateArtworkColors(artworkId, interpolated);
+      const currentColors = t >= 1 ? [...targetColorsRef.current] : interpolated;
+
+      setCurrentColors(currentColors);
+      updateArtworkColors(artworkId, currentColors);
 
       if (t < 1) {
         colorAnimFrameRef.current = requestAnimationFrame(() => animateColors(artworkId));
       } else {
         colorAnimFrameRef.current = null;
+        isColorAnimatingRef.current = false;
       }
     },
     [updateArtworkColors]
@@ -398,19 +408,23 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
 
   const animateSpeed = useCallback(
     (artworkId: string) => {
+      isSpeedAnimatingRef.current = true;
       const now = performance.now();
       const elapsed = now - speedAnimStartRef.current;
       const t = Math.min(1, elapsed / SPEED_DURATION);
       const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
       const interpolated = speedStartRef.current + (targetSpeedRef.current - speedStartRef.current) * easeT;
-      setCurrentSpeed(interpolated);
-      updateArtworkSpeed(artworkId, interpolated);
+      const currentSpeed = t >= 1 ? targetSpeedRef.current : interpolated;
+
+      setCurrentSpeed(currentSpeed);
+      updateArtworkSpeed(artworkId, currentSpeed);
 
       if (t < 1) {
         speedAnimFrameRef.current = requestAnimationFrame(() => animateSpeed(artworkId));
       } else {
         speedAnimFrameRef.current = null;
+        isSpeedAnimatingRef.current = false;
       }
     },
     [updateArtworkSpeed]
@@ -465,12 +479,16 @@ export default function ArtDetailPanel({ artwork, onClose }: ArtDetailPanelProps
 
   useEffect(() => {
     if (artwork) {
-      setCurrentColors([...artwork.colorPalette]);
-      targetColorsRef.current = [...artwork.colorPalette];
-      colorStartRef.current = [...artwork.colorPalette];
-      setCurrentSpeed(artwork.particleSpeed);
-      targetSpeedRef.current = artwork.particleSpeed;
-      speedStartRef.current = artwork.particleSpeed;
+      if (!isColorAnimatingRef.current) {
+        setCurrentColors([...artwork.colorPalette]);
+        targetColorsRef.current = [...artwork.colorPalette];
+        colorStartRef.current = [...artwork.colorPalette];
+      }
+      if (!isSpeedAnimatingRef.current) {
+        setCurrentSpeed(artwork.particleSpeed);
+        targetSpeedRef.current = artwork.particleSpeed;
+        speedStartRef.current = artwork.particleSpeed;
+      }
       setSelectedPrimaryColor(artwork.colorPalette[0] || '#9333ea');
     }
   }, [artwork?.initialColorPalette, artwork?.initialParticleSpeed]);
