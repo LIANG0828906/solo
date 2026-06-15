@@ -48,9 +48,17 @@ export class UIManager {
   private cardWeight: HTMLElement;
   private cardAngles: HTMLElement;
 
+  private startWeight: number = 0;
   private animatedWeight: number = 0;
   private targetWeight: number = 0;
   private weightAnimTimer: number = 0;
+  private startAngle: number = 0;
+  private currentAngle: number = 0;
+  private targetAngle: number = 0;
+  private angleAnimTimer: number = 0;
+  private cardAnimState: 'idle' | 'sliding-out' | 'sliding-in' = 'idle';
+  private cardAnimTimer: number = 0;
+  private pendingInfo: { formula: string; weight: number; angle: number; angleStr: string } | null = null;
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -217,7 +225,16 @@ export class UIManager {
     requestAnimationFrame(() => {
       this.infoCard.classList.add('visible');
     });
-    this.updateInfoCard('h2o');
+    this.cardName.textContent = '水';
+    this.cardFormula.textContent = 'H₂O';
+    this.cardAngles.textContent = '104.5°';
+    this.cardWeight.textContent = '18.015';
+    this.startWeight = 18.015;
+    this.animatedWeight = 18.015;
+    this.targetWeight = 18.015;
+    this.startAngle = 104.5;
+    this.currentAngle = 104.5;
+    this.targetAngle = 104.5;
   }
 
   private startMoleculeTransition(key: string): void {
@@ -284,36 +301,92 @@ export class UIManager {
     const data = MOLECULES[key];
     if (!data) return;
 
-    this.cardName.textContent = data.name;
-    this.cardFormula.textContent = data.formula;
-    this.cardAngles.textContent = data.bondAngles.join(', ');
+    const angleStr = data.bondAngles[0] || '';
+    const angleNum = parseFloat(angleStr.replace('°', '')) || 0;
+    const currentWeightStr = this.cardWeight.textContent || '0';
+    const currentWeight = parseFloat(currentWeightStr);
+    const currentAngleStr = this.cardAngles.textContent || '';
+    const currentAngle = parseFloat(currentAngleStr.replace('°', '')) || 0;
 
-    this.targetWeight = data.molecularWeight;
-    this.weightAnimTimer = 0;
-    this.animatedWeight = parseFloat(this.cardWeight.textContent || '0');
+    this.pendingInfo = {
+      formula: data.formula,
+      weight: data.molecularWeight,
+      angle: angleNum,
+      angleStr: angleStr,
+    };
+
+    this.cardName.textContent = data.name;
+    this.startWeightAnimation(currentWeight, data.molecularWeight);
+    this.startAngleAnimation(currentAngle, angleNum);
+
+    this.infoCard.classList.remove('visible');
+    this.cardAnimState = 'sliding-out';
+    this.cardAnimTimer = 0;
+  }
+
+  updateCardAnimation(delta: number): void {
+    if (this.cardAnimState === 'idle') return;
+
+    this.cardAnimTimer += delta;
+
+    if (this.cardAnimState === 'sliding-out') {
+      if (this.cardAnimTimer >= 0.3) {
+        if (this.pendingInfo) {
+          this.cardFormula.textContent = this.pendingInfo.formula;
+        }
+        this.infoCard.classList.add('visible');
+        this.cardAnimState = 'sliding-in';
+        this.cardAnimTimer = 0;
+      }
+    } else if (this.cardAnimState === 'sliding-in') {
+      if (this.cardAnimTimer >= 0.3) {
+        this.cardAnimState = 'idle';
+        this.pendingInfo = null;
+      }
+    }
+  }
+
+  private startAngleAnimation(from: number, to: number): void {
+    this.startAngle = from;
+    this.currentAngle = from;
+    this.targetAngle = to;
+    this.angleAnimTimer = 0;
+  }
+
+  updateAngleAnimation(delta: number): void {
+    if (Math.abs(this.currentAngle - this.targetAngle) < 0.01) {
+      this.currentAngle = this.targetAngle;
+      this.cardAngles.textContent = this.currentAngle.toFixed(1) + '°';
+      return;
+    }
+
+    this.angleAnimTimer += delta;
+    const duration = 0.6;
+    const t = Math.min(1.0, this.angleAnimTimer / duration);
+    const eased = this.easeOutCubic(t);
+    const diff = this.targetAngle - this.startAngle;
+    this.currentAngle = this.startAngle + diff * eased;
+    this.cardAngles.textContent = this.currentAngle.toFixed(1) + '°';
   }
 
   updateWeightAnimation(delta: number): void {
-    if (Math.abs(this.animatedWeight - this.targetWeight) < 0.01) {
+    if (Math.abs(this.animatedWeight - this.targetWeight) < 0.001) {
       this.animatedWeight = this.targetWeight;
       this.cardWeight.textContent = this.animatedWeight.toFixed(3);
       return;
     }
 
     this.weightAnimTimer += delta;
-    const duration = 0.5;
+    const duration = 0.6;
     const t = Math.min(1.0, this.weightAnimTimer / duration);
     const eased = this.easeOutCubic(t);
-    const startWeight = this.animatedWeight;
-    const diff = this.targetWeight - startWeight;
-
-    if (t < 1.0) {
-      const current = startWeight + diff * eased;
-      this.cardWeight.textContent = current.toFixed(3);
-    }
+    const diff = this.targetWeight - this.startWeight;
+    this.animatedWeight = this.startWeight + diff * eased;
+    this.cardWeight.textContent = this.animatedWeight.toFixed(3);
   }
 
   startWeightAnimation(from: number, to: number): void {
+    this.startWeight = from;
     this.animatedWeight = from;
     this.targetWeight = to;
     this.weightAnimTimer = 0;
@@ -337,8 +410,8 @@ export class UIManager {
     const scaleFactor = Math.max(0.3, Math.min(2.0, distance / 5));
     const group = this.moleculeBuilder.getGroup();
     group.traverse((child) => {
-      if (child instanceof THREE.Sprite && child.userData.isLabel !== false) {
-        const baseScale = 0.5 * scaleFactor;
+      if (child instanceof THREE.Sprite && child.userData.isLabel === true) {
+        const baseScale = 0.5 * scaleFactor * this.moleculeBuilder['moleculeScale'];
         child.scale.set(baseScale, baseScale * 0.5, 1);
       }
     });

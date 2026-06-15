@@ -128,6 +128,8 @@ export class MoleculeBuilder {
   private transitionProgress: number = 1.0;
   private transitionDuration: number = 0.5;
   private currentMoleculeKey: string = 'h2o';
+  private moleculeScale: number = 1.0;
+  private moleculeOpacity: number = 1.0;
 
   constructor() {
     this.group = new THREE.Group();
@@ -208,6 +210,7 @@ export class MoleculeBuilder {
       sizeAttenuation: true,
     });
     const sprite = new THREE.Sprite(material);
+    sprite.userData.isLabel = true;
     sprite.scale.set(0.5, 0.25, 1);
     return sprite;
   }
@@ -267,14 +270,19 @@ export class MoleculeBuilder {
   private applyModeInstant(mode: DisplayMode): void {
     const params = MODE_PARAMS[mode];
     for (const atom of this.atomMeshes) {
-      atom.mesh.scale.setScalar(params.radiusScale);
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = params.opacity;
+      atom.mesh.scale.setScalar(params.radiusScale * this.moleculeScale);
+      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = params.opacity * this.moleculeOpacity;
     }
     for (const bond of this.bondMeshes) {
-      bond.mesh.scale.x = params.bondScale;
-      bond.mesh.scale.z = params.bondScale;
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = params.bondOpacity;
-      bond.mesh.visible = params.bondOpacity > 0.01;
+      bond.mesh.scale.x = params.bondScale * this.moleculeScale;
+      bond.mesh.scale.z = params.bondScale * this.moleculeScale;
+      bond.mesh.scale.y = this.moleculeScale;
+      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = params.bondOpacity * this.moleculeOpacity;
+      bond.mesh.visible = params.bondOpacity * this.moleculeOpacity > 0.01;
+    }
+    for (const label of this.labelSprites) {
+      label.sprite.material.opacity = this.moleculeOpacity;
+      label.sprite.scale.setScalar(0.5 * this.moleculeScale);
     }
     this.currentMode = mode;
     this.targetMode = mode;
@@ -292,18 +300,19 @@ export class MoleculeBuilder {
 
     for (const atom of this.atomMeshes) {
       const scale = fromParams.radiusScale + (toParams.radiusScale - fromParams.radiusScale) * t;
-      atom.mesh.scale.setScalar(scale);
+      atom.mesh.scale.setScalar(scale * this.moleculeScale);
       const opacity = fromParams.opacity + (toParams.opacity - fromParams.opacity) * t;
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = opacity;
+      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = opacity * this.moleculeOpacity;
     }
 
     for (const bond of this.bondMeshes) {
       const scaleXZ = fromParams.bondScale + (toParams.bondScale - fromParams.bondScale) * t;
-      bond.mesh.scale.x = scaleXZ;
-      bond.mesh.scale.z = scaleXZ;
+      bond.mesh.scale.x = scaleXZ * this.moleculeScale;
+      bond.mesh.scale.z = scaleXZ * this.moleculeScale;
+      bond.mesh.scale.y = this.moleculeScale;
       const opacity = fromParams.bondOpacity + (toParams.bondOpacity - fromParams.bondOpacity) * t;
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = opacity;
-      bond.mesh.visible = opacity > 0.01;
+      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = opacity * this.moleculeOpacity;
+      bond.mesh.visible = opacity * this.moleculeOpacity > 0.01;
     }
 
     if (this.transitionProgress >= 1.0) {
@@ -332,14 +341,16 @@ export class MoleculeBuilder {
   }
 
   setGroupOpacity(opacity: number): void {
-    this.group.visible = opacity > 0.01;
+    this.moleculeOpacity = opacity;
+    this.group.visible = opacity > 0.001;
+
+    const params = this.getEffectiveParams();
     for (const atom of this.atomMeshes) {
-      (atom.mesh.material as THREE.MeshPhongMaterial).opacity =
-        MODE_PARAMS[this.currentMode].opacity * opacity;
+      (atom.mesh.material as THREE.MeshPhongMaterial).opacity = params.atomOpacity * opacity;
     }
     for (const bond of this.bondMeshes) {
-      (bond.mesh.material as THREE.MeshPhongMaterial).opacity =
-        MODE_PARAMS[this.currentMode].bondOpacity * opacity;
+      (bond.mesh.material as THREE.MeshPhongMaterial).opacity = params.bondOpacity * opacity;
+      bond.mesh.visible = params.bondOpacity * opacity > 0.001;
     }
     for (const label of this.labelSprites) {
       (label.sprite.material as THREE.SpriteMaterial).opacity = opacity;
@@ -347,19 +358,36 @@ export class MoleculeBuilder {
   }
 
   setGroupScale(scale: number): void {
+    this.moleculeScale = scale;
+
+    const params = this.getEffectiveParams();
     for (const atom of this.atomMeshes) {
-      const modeScale = MODE_PARAMS[this.currentMode].radiusScale;
-      atom.mesh.scale.setScalar(modeScale * scale);
+      atom.mesh.scale.setScalar(params.atomScale * scale);
     }
     for (const bond of this.bondMeshes) {
-      const modeScale = MODE_PARAMS[this.currentMode].bondScale;
-      bond.mesh.scale.x = modeScale;
-      bond.mesh.scale.z = modeScale;
+      bond.mesh.scale.x = params.bondScaleXZ * scale;
+      bond.mesh.scale.z = params.bondScaleXZ * scale;
       bond.mesh.scale.y = scale;
     }
     for (const label of this.labelSprites) {
-      label.sprite.scale.setScalar(0.5 * scale);
+      label.sprite.scale.set(0.5 * scale, 0.25 * scale, 1);
     }
+  }
+
+  private getEffectiveParams(): { atomScale: number; atomOpacity: number; bondScaleXZ: number; bondOpacity: number } {
+    if (this.transitionProgress >= 1.0) {
+      const p = MODE_PARAMS[this.currentMode];
+      return { atomScale: p.radiusScale, atomOpacity: p.opacity, bondScaleXZ: p.bondScale, bondOpacity: p.bondOpacity };
+    }
+    const t = this.easeInOutCubic(this.transitionProgress);
+    const from = MODE_PARAMS[this.currentMode];
+    const to = MODE_PARAMS[this.targetMode];
+    return {
+      atomScale: from.radiusScale + (to.radiusScale - from.radiusScale) * t,
+      atomOpacity: from.opacity + (to.opacity - from.opacity) * t,
+      bondScaleXZ: from.bondScale + (to.bondScale - from.bondScale) * t,
+      bondOpacity: from.bondOpacity + (to.bondOpacity - from.bondOpacity) * t,
+    };
   }
 
   private easeInOutCubic(t: number): number {
