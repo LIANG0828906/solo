@@ -66,7 +66,7 @@ function ParticleSystem({
   const pointer = useMemo(() => new THREE.Vector2(), []);
   const draggingKnotRef = useRef<{ id: string; offset: THREE.Vector3; plane: THREE.Plane } | null>(null);
 
-  const trailCapacity = 220;
+  const trailCapacity = 360;
 
   useEffect(() => {
     if (onCaptureRefReady) {
@@ -451,7 +451,7 @@ function ParticleSystem({
               vColor = color;
               vec4 mv = modelViewMatrix * vec4(position, 1.0);
               gl_Position = projectionMatrix * mv;
-              gl_PointSize = aSize * 620.0 / max(0.1, -mv.z);
+              gl_PointSize = aSize * 780.0 / max(0.1, -mv.z);
             }
           `}
           fragmentShader={`
@@ -508,7 +508,7 @@ function ParticleSystem({
           visible={selectedKnotId === k.id}
           position={knotCenters[k.id] ?? k.center}
         >
-          <ringGeometry args={[1.45, 1.55, 64]} />
+          <ringGeometry args={[2.9, 3.1, 64]} />
           <meshBasicMaterial
             color={k.colorHex}
             transparent
@@ -541,23 +541,23 @@ function SceneContent({
         enableDamping
         dampingFactor={0.08}
         enablePan={false}
-        minDistance={3.5}
-        maxDistance={22}
+        minDistance={6}
+        maxDistance={40}
         autoRotate={autoRotate}
         autoRotateSpeed={0.5}
       />
-      <ambientLight intensity={0.55} color={0x404070} />
-      <pointLight position={[6, 4, 6]} intensity={1.1} color={0x00d4ff} distance={25} />
-      <pointLight position={[-6, 3, -4]} intensity={0.9} color={0xff2d95} distance={25} />
-      <pointLight position={[4, -5, -6]} intensity={0.8} color={0x3dffa2} distance={25} />
-      <pointLight position={[-4, -3, 5]} intensity={0.7} color={0xffb347} distance={25} />
+      <ambientLight intensity={0.6} color={0x404070} />
+      <pointLight position={[10, 6, 10]} intensity={1.3} color={0x00d4ff} distance={50} />
+      <pointLight position={[-10, 5, -8]} intensity={1.1} color={0xff2d95} distance={50} />
+      <pointLight position={[6, -8, -10]} intensity={1.0} color={0x3dffa2} distance={50} />
+      <pointLight position={[-6, -5, 8]} intensity={0.9} color={0xffb347} distance={50} />
 
       <Stars
-        radius={80}
-        depth={40}
-        count={2500}
-        factor={3}
-        saturation={0.2}
+        radius={160}
+        depth={80}
+        count={3500}
+        factor={4}
+        saturation={0.25}
         fade
         speed={0.3}
       />
@@ -613,7 +613,7 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(props, 
           preserveDrawingBuffer: true,
           powerPreference: 'high-performance',
         }}
-        camera={{ position: [0, 0, 9], fov: 55, near: 0.1, far: 200 }}
+        camera={{ position: [0, 0, 14], fov: 55, near: 0.1, far: 400 }}
         style={{ position: 'absolute', inset: 0 }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);

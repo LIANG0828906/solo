@@ -56,10 +56,10 @@ const KNOT_COLORS: Array<{ str: string; hex: number }> = [
 ];
 
 const DEFAULT_CENTERS: [number, number, number][] = [
-  [2.2, 0, 0],
-  [0, 0, 2.2],
-  [-2.2, 0, 0],
-  [0, 0, -2.2],
+  [4.0, 0, 0],
+  [0, 0, 4.0],
+  [-4.0, 0, 0],
+  [0, 0, -4.0],
 ];
 
 function hexToRgb(hex: number): [number, number, number] {
@@ -68,15 +68,16 @@ function hexToRgb(hex: number): [number, number, number] {
 
 function torusKnotPoint(theta: number, p: number, q: number, R: number, r: number): [number, number, number] {
   const cosQ = Math.cos(q * theta);
+  const SCALE = 1.8;
   return [
-    (R + r * cosQ) * Math.cos(p * theta),
-    (R + r * cosQ) * Math.sin(p * theta),
-    r * Math.sin(q * theta),
+    SCALE * (R + r * cosQ) * Math.cos(p * theta),
+    SCALE * (R + r * cosQ) * Math.sin(p * theta),
+    SCALE * r * Math.sin(q * theta),
   ];
 }
 
 function trefoilPoint(theta: number): [number, number, number] {
-  const s = 0.42;
+  const s = 0.95;
   return [
     s * (Math.sin(theta) + 2 * Math.sin(2 * theta)),
     s * (Math.cos(theta) - 2 * Math.cos(2 * theta)),
@@ -85,8 +86,8 @@ function trefoilPoint(theta: number): [number, number, number] {
 }
 
 function mobiusPoint(theta: number): [number, number, number] {
-  const R = 1.2;
-  const w = 0.35;
+  const R = 2.2;
+  const w = 1.0;
   const s = w * Math.sin(theta * 0.5);
   return [
     (R + s * Math.cos(theta * 0.5)) * Math.cos(theta),
@@ -228,7 +229,7 @@ export function calculateTopology(config: CalcConfig): TopologyResult {
         pathProgress: progress,
         color: color.str,
         colorHex: color.hex,
-        size: 0.085,
+        size: 0.12,
       });
     }
   }

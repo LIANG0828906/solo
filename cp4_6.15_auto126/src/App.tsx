@@ -11,10 +11,10 @@ import {
 import { exportPNG, exportJSON } from '@/utils/exportHelper';
 
 const DEFAULT_CENTERS: Record<string, [number, number, number]> = {
-  'knot-0': [2.2, 0, 0],
-  'knot-1': [0, 0, 2.2],
-  'knot-2': [-2.2, 0, 0],
-  'knot-3': [0, 0, -2.2],
+  'knot-0': [4.0, 0, 0],
+  'knot-1': [0, 0, 4.0],
+  'knot-2': [-4.0, 0, 0],
+  'knot-3': [0, 0, -4.0],
 };
 
 export default function App() {
