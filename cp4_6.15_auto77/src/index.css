@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-olive: #6B8E23;
+  --color-olive-dark: #536f1e;
+  --color-beige: #F5F5DC;
+  --color-gold: #DAA520;
+}
+
+* {
+  font-family: 'Merriweather', serif;
+}
+
+body {
+  background-color: var(--color-beige);
+  color: #2d3748;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1e6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b9c37d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-olive);
+}
+
+.route-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.route-exit {
+  animation: slideOutLeft 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.card-shadow {
+  box-shadow: 0 2px 8px rgba(107, 142, 35, 0.1);
+  transition: box-shadow 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.card-shadow:hover {
+  box-shadow: 0 8px 24px rgba(107, 142, 35, 0.18);
+  transform: translateY(-2px);
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #86943d 0%, #6B8E23 100%);
+  transition: all 0.3s ease-out;
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #6B8E23 0%, #44591e 100%);
+  transform: scale(1.02);
+}
+
+.btn-gradient:active {
+  transition: all 0.15s ease-in;
+  transform: scale(0.98);
+}
+
+.filter-pill {
+  transition: all 0.3s ease-out;
+}
+
+.filter-pill.active {
+  background: linear-gradient(135deg, #86943d 0%, #6B8E23 100%);
+  transform: scale(1.05);
+  color: white;
+  box-shadow: 0 4px 12px rgba(107, 142, 35, 0.3);
+}
+
+.navbar-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.3s ease-out, backdrop-filter 0.3s ease-out;
+}
+
+.navbar-solid {
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: scaleIn 0.25s ease-out;
+}
+
+.modal-close .modal-content {
+  animation: scaleOut 0.2s ease-in forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.card-remove {
+  animation: shrinkOut 0.3s ease-in forwards;
+}
+
+@keyframes shrinkOut {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+.new-plant-card {
+  animation: slideInBottom 0.5s ease-out;
+}
+
+@keyframes slideInBottom {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.search-result {
+  animation: scaleInCard 0.3s ease-out;
+}
+
+@keyframes scaleInCard {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.timeline-item:first-child {
+  box-shadow: 0 4px 20px rgba(218, 165, 32, 0.15);
+}
+
+.btn-flash {
+  animation: flashGold 0.5s ease-in-out 6;
+}
+
+@keyframes flashGold {
+  0%, 100% { background-color: #DAA520; }
+  50% { background-color: #f5d55a; }
+}
+
+.progress-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
