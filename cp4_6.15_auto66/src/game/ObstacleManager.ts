@@ -41,18 +41,26 @@ export class ObstacleManager {
 
     if (difficulty === 'hard') {
       const extraBeats: IBeatData[] = [];
-      const halfInterval = 30 / 140;
-      for (let i = 0; i < beats.length; i++) {
-        if (Math.random() < 0.4) {
-          const offset = halfInterval * (0.5 + Math.random() * 0.5);
-          extraBeats.push({
-            time: beats[i].time + offset,
-            intensity: beats[i].intensity * 0.7,
-            type: Math.random() < 0.3 ? 'wall' : 'spike',
-          });
+      if (beats.length > 1) {
+        const avgInterval = (beats[beats.length - 1].time - beats[0].time) / (beats.length - 1);
+        for (let i = 0; i < beats.length; i++) {
+          if (Math.random() < 0.4) {
+            const offset = avgInterval * 0.5 * (0.5 + Math.random() * 0.5);
+            extraBeats.push({
+              time: beats[i].time + offset,
+              intensity: beats[i].intensity * 0.7,
+              type: Math.random() < 0.3 ? 'wall' : 'spike',
+            });
+          }
         }
       }
       this.beats = [...beats, ...extraBeats].sort((a, b) => a.time - b.time);
+    }
+
+    if (this.beats.length > 2) {
+      const avgInterval = (this.beats[this.beats.length - 1].time - this.beats[0].time) / (this.beats.length - 1);
+      const avgBPM = 60 / Math.max(0.01, avgInterval);
+      console.log(`[ObstacleManager] 加载节拍:${this.beats.length}个 平均间隔:${avgInterval.toFixed(3)}s 约${avgBPM.toFixed(1)}BPM 校准偏移:BEAT_LOOKAHEAD=${BEAT_LOOKAHEAD}s`);
     }
   }
 
@@ -70,7 +78,12 @@ export class ObstacleManager {
 
     while (this.nextBeatIndex < this.beats.length && this.beats[this.nextBeatIndex].time <= spawnTime) {
       const beat = this.beats[this.nextBeatIndex];
-      this.spawnObstacle(beat);
+      const timeUntilBeat = beat.time - currentTime;
+      const spawnZ = -Math.max(3, scrollSpeed * Math.max(0.01, timeUntilBeat));
+      if (this.nextBeatIndex < 3) {
+        console.log(`[ObstacleManager] spawn beat#${this.nextBeatIndex} t=${beat.time.toFixed(3)}s now=${currentTime.toFixed(3)}s Δ=${timeUntilBeat.toFixed(3)}s z=${spawnZ.toFixed(1)} 强度=${beat.intensity.toFixed(2)} type=${beat.type}`);
+      }
+      this.spawnObstacle(beat, spawnZ);
       this.nextBeatIndex++;
     }
 
@@ -103,7 +116,7 @@ export class ObstacleManager {
     return passedBeats;
   }
 
-  private spawnObstacle(beat: IBeatData): void {
+  private spawnObstacle(beat: IBeatData, spawnZ: number): void {
     const lane = Math.floor(Math.random() * 3);
     let mesh: THREE.Group;
 
@@ -119,7 +132,6 @@ export class ObstacleManager {
         break;
     }
 
-    const spawnZ = -(BEAT_LOOKAHEAD * SCROLL_SPEED + 5);
     mesh.position.set(LANE_POSITIONS[lane], beat.type === 'bar' ? 2.5 : 0, spawnZ);
     mesh.visible = true;
     this.scene.add(mesh);

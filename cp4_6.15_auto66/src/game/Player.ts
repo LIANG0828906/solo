@@ -318,6 +318,14 @@ export class Player {
   private shatterIntoPixelChunks(scene: THREE.Scene): void {
     const partsToShatter = [...this.characterParts, this.board];
 
+    const bbox = new THREE.Box3().setFromObject(this.group);
+    const bboxSize = new THREE.Vector3();
+    bbox.getSize(bboxSize);
+    const bboxAvg = (bboxSize.x + bboxSize.y + bboxSize.z) / 3;
+    const CHUNK_DIVISOR = 12;
+    const chunkSize = Math.max(0.06, Math.min(0.25, bboxAvg / CHUNK_DIVISOR));
+    console.log(`[Player] 包围盒尺寸: ${bboxSize.x.toFixed(2)}×${bboxSize.y.toFixed(2)}×${bboxSize.z.toFixed(2)} 平均值:${bboxAvg.toFixed(2)} → chunkSize:${chunkSize.toFixed(3)}`);
+
     for (const part of partsToShatter) {
       const worldPos = new THREE.Vector3();
       part.getWorldPosition(worldPos);
@@ -333,7 +341,6 @@ export class Player {
       const h = params.height ?? 0.4;
       const d = params.depth ?? 0.4;
 
-      const chunkSize = 0.12;
       const nx = Math.max(2, Math.ceil(w / chunkSize));
       const ny = Math.max(2, Math.ceil(h / chunkSize));
       const nz = Math.max(2, Math.ceil(d / chunkSize));

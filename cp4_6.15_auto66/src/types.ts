@@ -1,3 +1,5 @@
+import type * as THREE from 'three';
+
 export interface IBeatData {
   time: number;
   intensity: number;

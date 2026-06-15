@@ -2,7 +2,7 @@ import { SONGS } from '../types';
 import type { ISongConfig } from '../types';
 
 interface VinylShard {
-  element: HTMLElement;
+  element: Element;
   vx: number;
   vy: number;
   vr: number;
@@ -271,9 +271,10 @@ export class MenuScene {
           s.y += s.vy;
           s.rotation += s.vr;
           s.element.style.transform = `translate(${s.x}px, ${s.y}px) rotate(${s.rotation}deg)`;
-          s.element.style.opacity = Math.max(0, parseFloat(s.element.style.opacity || '1') - 0.008);
+          const curOp = parseFloat((s.element as HTMLElement | SVGElement).style.opacity || '1');
+          (s.element as HTMLElement | SVGElement).style.opacity = String(Math.max(0, curOp - 0.008));
         }
-        this.shards = this.shards.filter(s => parseFloat(s.element.style.opacity || '0') > 0);
+        this.shards = this.shards.filter(s => parseFloat((s.element as HTMLElement | SVGElement).style.opacity || '0') > 0);
       }
 
       this.animationFrameId = requestAnimationFrame(tick);
@@ -305,7 +306,7 @@ export class MenuScene {
 
   private shatterVinyl(): void {
     const vinylContainer = document.getElementById('vinyl-container') as HTMLElement;
-    const vinylSvg = document.getElementById('vinyl-svg') as SVGSVGElement;
+    const vinylSvg = document.getElementById('vinyl-svg') as unknown as SVGSVGElement;
     const songCover = document.getElementById('song-cover') as HTMLElement;
     if (!vinylContainer || !vinylSvg) {
       this.fadeOutAndStart();
