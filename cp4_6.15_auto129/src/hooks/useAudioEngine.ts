@@ -56,6 +56,9 @@ export function useAudioEngine(): AudioEngineResult {
   const isPlayingRef = useRef(false);
   const isLoopingRef = useRef(false);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const recordStreamRef = useRef<MediaStream | null>(null);
+  const recordRafRef = useRef<number>(0);
 
   useEffect(() => {
     pitchCurveRef.current = pitchCurve;
@@ -177,6 +180,7 @@ export function useAudioEngine(): AudioEngineResult {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordStreamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       recordedChunksRef.current = [];
 
@@ -187,7 +191,13 @@ export function useAudioEngine(): AudioEngineResult {
       };
 
       mediaRecorder.onstop = async () => {
+        if (micSourceRef.current) {
+          try { micSourceRef.current.disconnect(); } catch {}
+          micSourceRef.current = null;
+        }
+        cancelAnimationFrame(recordRafRef.current);
         stream.getTracks().forEach((t) => t.stop());
+        recordStreamRef.current = null;
         const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
         try {
           const arrayBuffer = await blob.arrayBuffer();
@@ -200,7 +210,30 @@ export function useAudioEngine(): AudioEngineResult {
         }
         setIsRecording(false);
         setRecordingProgress(0);
+
+        const emptyTd = new Uint8Array(FFT_SIZE / 2);
+        const emptyFd = new Uint8Array(FFT_SIZE / 2);
+        setTimeData(emptyTd);
+        setFreqData(emptyFd);
       };
+
+      const micSource = ctx.createMediaStreamSource(stream);
+      const recordAnalyser = getAnalyser();
+      micSource.connect(recordAnalyser);
+      micSourceRef.current = micSource;
+
+      const recordUpdate = () => {
+        const analyser = analyserRef.current;
+        if (!analyser) return;
+        const td = new Uint8Array(analyser.frequencyBinCount);
+        const fd = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteTimeDomainData(td);
+        analyser.getByteFrequencyData(fd);
+        setTimeData(td);
+        setFreqData(fd);
+        recordRafRef.current = requestAnimationFrame(recordUpdate);
+      };
+      recordRafRef.current = requestAnimationFrame(recordUpdate);
 
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
@@ -217,20 +250,29 @@ export function useAudioEngine(): AudioEngineResult {
           stopRecording();
           return;
         }
-        recordTimerRef.current = window.setTimeout(updateProgress, 100);
+        recordTimerRef.current = window.setTimeout(updateProgress, 50);
       };
       updateProgress();
     } catch (err) {
       console.error('Microphone access denied:', err);
       setIsRecording(false);
     }
-  }, [getAudioContext, stopSource]);
+  }, [getAudioContext, getAnalyser, stopSource]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
     clearTimeout(recordTimerRef.current);
+    cancelAnimationFrame(recordRafRef.current);
+    if (micSourceRef.current) {
+      try { micSourceRef.current.disconnect(); } catch {}
+      micSourceRef.current = null;
+    }
+    if (recordStreamRef.current) {
+      recordStreamRef.current.getTracks().forEach((t) => t.stop());
+      recordStreamRef.current = null;
+    }
   }, []);
 
   const play = useCallback(() => {
