@@ -17,6 +17,7 @@ interface FlowerStore {
   setCurrentOrder: (order: Order | null) => void;
   getTotalPrice: () => number;
   getBouquetItem: (flowerId: string) => BouquetItem | undefined;
+  refreshBouquetStock: () => void;
 }
 
 export const useFlowerStore = create<FlowerStore>((set, get) => ({
@@ -26,35 +27,30 @@ export const useFlowerStore = create<FlowerStore>((set, get) => ({
   isLoading: false,
   error: null,
 
-  setFlowers: (flowers) => set({ flowers }),
+  setFlowers: (flowers) => {
+    set({ flowers });
+    get().refreshBouquetStock();
+  },
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 
   addBouquetItem: (flower) => {
-    const { bouquetItems, flowers } = get();
+    const { bouquetItems } = get();
     const existing = bouquetItems.find((item) => item.flowerId === flower.id);
     if (existing) {
       const newQuantity = existing.quantity + 1;
       if (newQuantity > flower.stock) return;
       set({
         bouquetItems: bouquetItems.map((item) =>
-          item.flowerId === flower.id ? { ...item, quantity: newQuantity } : item
+          item.flowerId === flower.id ? { ...item, quantity: newQuantity, flower: { ...flower } } : item
         ),
       });
     } else {
       if (flower.stock <= 0) return;
       set({
-        bouquetItems: [...bouquetItems, { flowerId: flower.id, quantity: 1, flower }],
+        bouquetItems: [...bouquetItems, { flowerId: flower.id, quantity: 1, flower: { ...flower } }],
       });
     }
-    const updatedFlowers = get().flowers.map((f) => {
-      if (f.id === flower.id) {
-        const item = get().bouquetItems.find((i) => i.flowerId === flower.id);
-        return { ...f, _selectedCount: item?.quantity || 0 };
-      }
-      return f;
-    });
-    set({ flowers: updatedFlowers });
   },
 
   removeBouquetItem: (flowerId) => {
@@ -71,7 +67,7 @@ export const useFlowerStore = create<FlowerStore>((set, get) => ({
     if (flower && quantity > flower.stock) return;
     set({
       bouquetItems: bouquetItems.map((item) =>
-        item.flowerId === flowerId ? { ...item, quantity } : item
+        item.flowerId === flowerId ? { ...item, quantity, flower: flower ? { ...flower } : item.flower } : item
       ),
     });
   },
@@ -85,5 +81,26 @@ export const useFlowerStore = create<FlowerStore>((set, get) => ({
 
   getBouquetItem: (flowerId) => {
     return get().bouquetItems.find((item) => item.flowerId === flowerId);
+  },
+
+  refreshBouquetStock: () => {
+    const { flowers, bouquetItems } = get();
+    if (bouquetItems.length === 0) return;
+
+    const updatedItems = bouquetItems
+      .map((item) => {
+        const latestFlower = flowers.find((f) => f.id === item.flowerId);
+        if (!latestFlower) return null;
+        if (latestFlower.stock <= 0) return null;
+        const newQuantity = Math.min(item.quantity, latestFlower.stock);
+        return {
+          ...item,
+          quantity: newQuantity,
+          flower: { ...latestFlower },
+        };
+      })
+      .filter((item): item is BouquetItem => item !== null && item.quantity > 0);
+
+    set({ bouquetItems: updatedItems });
   },
 }));

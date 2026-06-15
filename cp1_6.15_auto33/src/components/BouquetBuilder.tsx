@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Minus, X, ShoppingCart, AlertCircle } from 'lucide-react';
-import type { Flower, BouquetItem } from '@/types';
+import { Plus, Minus, X, ShoppingCart, AlertCircle, Ban } from 'lucide-react';
+import type { Flower } from '@/types';
 import { useFlowerStore } from '@/store/useFlowerStore';
 
 interface BouquetBuilderProps {
@@ -10,7 +10,10 @@ interface BouquetBuilderProps {
 
 export default function BouquetBuilder({ flowers }: BouquetBuilderProps) {
   const navigate = useNavigate();
-  const { bouquetItems, addBouquetItem, removeBouquetItem, updateBouquetQuantity, clearBouquet, getTotalPrice } = useFlowerStore();
+  const {
+    bouquetItems, addBouquetItem, removeBouquetItem,
+    updateBouquetQuantity, clearBouquet, getTotalPrice,
+  } = useFlowerStore();
   const [stockWarning, setStockWarning] = useState<string | null>(null);
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
@@ -22,13 +25,13 @@ export default function BouquetBuilder({ flowers }: BouquetBuilderProps) {
     const currentQty = existing?.quantity || 0;
 
     if (flower.stock <= 0) {
-      setStockWarning(`${flower.name} 已售罄`);
-      setTimeout(() => setStockWarning(null), 2000);
+      setStockWarning(`${flower.name} 已售罄，无法添加`);
+      setTimeout(() => setStockWarning(null), 2500);
       return;
     }
     if (currentQty >= flower.stock) {
-      setStockWarning(`${flower.name} 库存不足，当前仅剩 ${flower.stock} 朵`);
-      setTimeout(() => setStockWarning(null), 2000);
+      setStockWarning(`${flower.name} 已达库存上限，当前仅剩 ${flower.stock} 朵，已选 ${currentQty} 朵`);
+      setTimeout(() => setStockWarning(null), 2500);
       return;
     }
 
@@ -46,43 +49,88 @@ export default function BouquetBuilder({ flowers }: BouquetBuilderProps) {
       return;
     }
     if (newQty > item.flower.stock) {
-      setStockWarning(`${item.flower.name} 库存不足，当前仅剩 ${item.flower.stock} 朵`);
-      setTimeout(() => setStockWarning(null), 2000);
+      setStockWarning(`${item.flower.name} 库存上限 ${item.flower.stock} 朵，无法继续添加`);
+      setTimeout(() => setStockWarning(null), 2500);
       return;
     }
     updateBouquetQuantity(flowerId, newQty);
   }, [bouquetItems, removeBouquetItem, updateBouquetQuantity]);
-
-  const availableFlowers = flowers.filter((f) => f.stock > 0);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 min-h-[600px]">
       <div className="lg:w-[35%] space-y-3 overflow-y-auto max-h-[70vh] pr-2">
         <h3 className="font-display text-xl text-gray-800 sticky top-0 bg-cream-50 py-2 z-10">
           选择花材
+          <span className="text-sm font-body text-gray-400 ml-2">
+            {flowers.filter((f) => f.stock > 0).length} 种可选
+          </span>
         </h3>
-        {availableFlowers.map((flower) => {
+        {flowers.map((flower) => {
           const inBouquet = bouquetItems.find((i) => i.flowerId === flower.id);
+          const isSoldOut = flower.stock <= 0;
+          const isAtLimit = inBouquet ? inBouquet.quantity >= flower.stock : false;
+          const isDisabled = isSoldOut || isAtLimit;
+
           return (
             <div
               key={flower.id}
-              className={`flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm
-                         hover:shadow-flower transition-all duration-300 cursor-pointer
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300
+                         ${isSoldOut
+                           ? 'bg-gray-50 opacity-60 cursor-not-allowed'
+                           : isAtLimit
+                             ? 'bg-amber-50 cursor-not-allowed'
+                             : 'bg-white shadow-sm hover:shadow-flower cursor-pointer'
+                         }
                          ${animatingId === flower.id ? 'animate-bounce-soft' : ''}
-                         ${inBouquet ? 'ring-2 ring-rose-300' : ''}`}
-              onClick={() => handleAddFlower(flower)}
+                         ${inBouquet && !isAtLimit ? 'ring-2 ring-rose-300' : ''}
+                         ${isAtLimit ? 'ring-2 ring-amber-300' : ''}`}
+              onClick={() => !isDisabled && handleAddFlower(flower)}
             >
               <img
                 src={flower.image}
                 alt={flower.name}
-                className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                className={`w-14 h-14 rounded-lg object-cover flex-shrink-0 ${isSoldOut ? 'grayscale' : ''}`}
               />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 text-sm truncate">{flower.name}</p>
-                <p className="text-rose-500 text-sm font-semibold">¥{flower.price}/朵</p>
-                <p className="text-xs text-gray-400">库存 {flower.stock}</p>
+                <p className={`font-medium text-sm truncate ${isSoldOut ? 'text-gray-400' : 'text-gray-800'}`}>
+                  {flower.name}
+                </p>
+                <p className={`text-sm font-semibold ${isSoldOut ? 'text-gray-300' : 'text-rose-500'}`}>
+                  ¥{flower.price}/朵
+                </p>
+                <div className="flex items-center gap-1">
+                  {isSoldOut ? (
+                    <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                      <Ban size={10} /> 售罄
+                    </span>
+                  ) : flower.stock <= 5 ? (
+                    <span className="text-xs text-amber-500 font-medium">
+                      仅剩 {flower.stock} 朵
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      库存 {flower.stock}
+                    </span>
+                  )}
+                  {inBouquet && (
+                    <span className="text-xs text-rose-500 font-semibold ml-1">
+                      · 已选 {inBouquet.quantity}
+                    </span>
+                  )}
+                </div>
               </div>
-              <button className="p-1.5 bg-rose-50 rounded-full text-rose-500 hover:bg-rose-100 transition-colors flex-shrink-0">
+              <button
+                className={`p-1.5 rounded-full flex-shrink-0 transition-colors
+                  ${isDisabled
+                    ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                    : 'bg-rose-50 text-rose-500 hover:bg-rose-100'
+                  }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isDisabled) handleAddFlower(flower);
+                }}
+                disabled={isDisabled}
+              >
                 <Plus size={16} />
               </button>
             </div>
@@ -90,7 +138,7 @@ export default function BouquetBuilder({ flowers }: BouquetBuilderProps) {
         })}
       </div>
 
-      <div className="lg:w-[35%] bg-white rounded-2xl shadow-flower p-6">
+      <div className="lg:w-[35%] bg-white rounded-2xl shadow-flower p-6 overflow-y-auto max-h-[70vh]">
         <h3 className="font-display text-xl text-gray-800 mb-4">构建预览</h3>
         {bouquetItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-300">
@@ -100,45 +148,73 @@ export default function BouquetBuilder({ flowers }: BouquetBuilderProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            {bouquetItems.map((item) => (
-              <div
-                key={item.flowerId}
-                className="flex items-center gap-3 p-3 bg-cream-50 rounded-xl animate-fade-in-up"
-              >
-                <img
-                  src={item.flower.image}
-                  alt={item.flower.name}
-                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-800 truncate">{item.flower.name}</p>
-                  <p className="text-xs text-gray-400">¥{item.flower.price} × {item.quantity}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(item.flowerId, -1); }}
-                    className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-500 hover:text-rose-500 transition-colors"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="w-8 text-center text-sm font-semibold text-gray-700">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(item.flowerId, 1); }}
-                    className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-500 hover:text-rose-500 transition-colors"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeBouquetItem(item.flowerId); }}
-                  className="p-1 text-gray-300 hover:text-rose-500 transition-colors"
+            {bouquetItems.map((item) => {
+              const remaining = item.flower.stock - item.quantity;
+              const isAtMax = remaining === 0;
+              return (
+                <div
+                  key={item.flowerId}
+                  className={`p-3 rounded-xl animate-fade-in-up
+                    ${isAtMax ? 'bg-amber-50 border border-amber-200' : 'bg-cream-50'}`}
                 >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.flower.image}
+                      alt={item.flower.name}
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-gray-800 truncate">{item.flower.name}</p>
+                      <p className="text-xs text-gray-400">
+                        单价 ¥{item.flower.price} · 小计
+                        <span className="text-rose-500 font-semibold"> ¥{item.flower.price * item.quantity}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleQuantityChange(item.flowerId, -1)}
+                        className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center
+                                   text-gray-500 hover:text-rose-500 transition-colors"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="w-8 text-center text-sm font-semibold text-gray-700">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => handleQuantityChange(item.flowerId, 1)}
+                        disabled={isAtMax}
+                        className={`w-6 h-6 rounded-full shadow-sm flex items-center justify-center transition-colors
+                          ${isAtMax
+                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                            : 'bg-white text-gray-500 hover:text-rose-500'
+                          }`}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => removeBouquetItem(item.flowerId)}
+                      className="p-1 text-gray-300 hover:text-rose-500 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {isAtMax && (
+                    <div className="flex items-center gap-1 mt-1.5 ml-[52px]">
+                      <AlertCircle size={11} className="text-amber-500" />
+                      <span className="text-xs text-amber-600">已达库存上限</span>
+                    </div>
+                  )}
+                  {!isAtMax && remaining <= 3 && (
+                    <div className="flex items-center gap-1 mt-1.5 ml-[52px]">
+                      <AlertCircle size={11} className="text-amber-400" />
+                      <span className="text-xs text-amber-500">还可选 {remaining} 朵</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             <div className="border-t border-rose-100 pt-4 mt-4">
               <div className="flex items-center justify-between text-sm text-gray-500">

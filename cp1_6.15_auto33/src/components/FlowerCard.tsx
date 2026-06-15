@@ -1,4 +1,5 @@
 import type { Flower } from '@/types';
+import { useFlowerStore } from '@/store/useFlowerStore';
 
 interface FlowerCardProps {
   flower: Flower;
@@ -7,6 +8,7 @@ interface FlowerCardProps {
 }
 
 export default function FlowerCard({ flower, onSelect, index }: FlowerCardProps) {
+  const bouquetItem = useFlowerStore((s) => s.getBouquetItem(flower.id));
   const isSoldOut = flower.stock === 0;
   const isLowStock = flower.stock > 0 && flower.stock <= 5;
 
@@ -36,6 +38,13 @@ export default function FlowerCard({ flower, onSelect, index }: FlowerCardProps)
           <div className="absolute top-3 right-3">
             <span className="bg-amber-500 text-white text-xs px-2.5 py-1 rounded-full font-medium">
               仅剩{flower.stock}朵
+            </span>
+          </div>
+        )}
+        {bouquetItem && bouquetItem.quantity > 0 && (
+          <div className="absolute top-3 left-3">
+            <span className="bg-rose-500 text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+              已选 ×{bouquetItem.quantity}
             </span>
           </div>
         )}

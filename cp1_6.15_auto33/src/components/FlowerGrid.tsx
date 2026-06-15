@@ -15,35 +15,55 @@ const CATEGORIES: { label: string; value: FlowerCategory | 'all' }[] = [
   { label: '💐 混合', value: 'mixed' },
 ];
 
-const PRICE_RANGES = [
-  { label: '全部价格', min: 0, max: Infinity },
-  { label: '¥10以下', min: 0, max: 10 },
-  { label: '¥10-20', min: 10, max: 20 },
-  { label: '¥20-30', min: 20, max: 30 },
-  { label: '¥30以上', min: 30, max: Infinity },
-];
+function buildPriceRanges(flowers: Flower[]) {
+  if (flowers.length === 0) {
+    return [{ label: '全部价格', min: 0, max: Infinity }];
+  }
+  const prices = flowers.map((f) => f.price);
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const ranges = [{ label: '全部价格', min: 0, max: Infinity }];
+
+  if (maxP <= 15) {
+    ranges.push({ label: `¥${minP}-${maxP}`, min: minP, max: maxP });
+  } else if (maxP <= 30) {
+    ranges.push({ label: '¥15以下', min: 0, max: 15 });
+    ranges.push({ label: '¥15-25', min: 15, max: 25 });
+    ranges.push({ label: '¥25以上', min: 25, max: Infinity });
+  } else {
+    ranges.push({ label: '¥10以下', min: 0, max: 10 });
+    ranges.push({ label: '¥10-20', min: 10, max: 20 });
+    ranges.push({ label: '¥20-30', min: 20, max: 30 });
+    ranges.push({ label: `¥30以上`, min: 30, max: Infinity });
+  }
+
+  return ranges;
+}
 
 export default function FlowerGrid({ flowers, onSelectFlower }: FlowerGridProps) {
   const [category, setCategory] = useState<FlowerCategory | 'all'>('all');
-  const [priceRange, setPriceRange] = useState(0);
+  const [priceRangeIdx, setPriceRangeIdx] = useState(0);
   const [filterKey, setFilterKey] = useState(0);
 
+  const priceRanges = useMemo(() => buildPriceRanges(flowers), [flowers]);
+
   const filteredFlowers = useMemo(() => {
+    const range = priceRanges[priceRangeIdx];
     return flowers.filter((f) => {
       if (category !== 'all' && f.category !== category) return false;
-      const range = PRICE_RANGES[priceRange];
       if (f.price < range.min || f.price > range.max) return false;
       return true;
     });
-  }, [flowers, category, priceRange]);
+  }, [flowers, category, priceRangeIdx, priceRanges]);
 
   const handleCategoryChange = (value: FlowerCategory | 'all') => {
     setCategory(value);
+    setPriceRangeIdx(0);
     setFilterKey((k) => k + 1);
   };
 
   const handlePriceChange = (idx: number) => {
-    setPriceRange(idx);
+    setPriceRangeIdx(idx);
     setFilterKey((k) => k + 1);
   };
 
@@ -68,13 +88,13 @@ export default function FlowerGrid({ flowers, onSelectFlower }: FlowerGridProps)
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {PRICE_RANGES.map((range, idx) => (
+          {priceRanges.map((range, idx) => (
             <button
               key={idx}
               onClick={() => handlePriceChange(idx)}
               className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300
                 ${
-                  priceRange === idx
+                  priceRangeIdx === idx
                     ? 'bg-sage-300 text-gray-800 shadow-md'
                     : 'bg-white text-gray-500 hover:bg-sage-50 shadow-sm'
                 }`}
