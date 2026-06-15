@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MenuList from './MenuList';
 import Cart from './Cart';
 
@@ -27,6 +27,7 @@ interface Toast {
   id: number;
   message: string;
   visible: boolean;
+  hiding: boolean;
 }
 
 function App() {
@@ -39,13 +40,38 @@ function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [cartOpen, setCartOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [menuAnimating, setMenuAnimating] = useState<boolean>(false);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hideToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setCartOpen(true);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const showToast = useCallback((message: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    if (hideToastTimeoutRef.current) {
+      clearTimeout(hideToastTimeoutRef.current);
+    }
+    
     const id = Date.now();
-    setToast({ id, message, visible: true });
-    setTimeout(() => {
-      setToast(prev => (prev && prev.id === id ? { ...prev, visible: false } : prev));
-      setTimeout(() => {
+    setToast({ id, message, visible: true, hiding: false });
+    
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(prev => (prev && prev.id === id ? { ...prev, hiding: true } : prev));
+      hideToastTimeoutRef.current = setTimeout(() => {
         setToast(prev => (prev && prev.id === id ? null : prev));
       }, 300);
     }, 3000);
@@ -66,15 +92,20 @@ function App() {
 
   useEffect(() => {
     const loadDishes = async () => {
+      setMenuAnimating(true);
       setIsLoading(true);
       try {
         const res = await fetch(`/api/dishes?categoryId=${activeCategory}`);
         const data = await res.json();
-        setDishes(data);
+        setTimeout(() => {
+          setDishes(data);
+          setIsLoading(false);
+          setTimeout(() => setMenuAnimating(false), 50);
+        }, 150);
       } catch (error) {
         console.error('Failed to load dishes:', error);
-      } finally {
-        setTimeout(() => setIsLoading(false), 100);
+        setIsLoading(false);
+        setMenuAnimating(false);
       }
     };
     loadDishes();
@@ -107,11 +138,9 @@ function App() {
 
   const handleUpdateQuantity = useCallback((dishId: string, delta: number) => {
     setCart(prev => {
-      return prev
-        .map(item =>
-          item.id === dishId ? { ...item, quantity: item.quantity + delta } : item
-        )
-        .filter(item => item.quantity > 0);
+      return prev.map(item =>
+        item.id === dishId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item
+      );
     });
   }, []);
 
@@ -120,12 +149,13 @@ function App() {
   }, []);
 
   const handleSubmitOrder = useCallback(async () => {
-    if (cart.length === 0) {
+    const validItems = cart.filter(item => item.quantity > 0);
+    if (validItems.length === 0) {
       showToast('购物车为空，请先添加菜品');
       return;
     }
 
-    const items = cart.map(item => ({
+    const items = validItems.map(item => ({
       dishId: item.id,
       quantity: item.quantity
     }));
@@ -161,11 +191,18 @@ function App() {
       )
     : dishes;
 
-  const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const validCartItems = cart.filter(item => item.quantity > 0);
+  const totalPrice = validCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalCount = validCartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const handleCartSectionClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isMobile && e.target === e.currentTarget) {
+      setCartOpen(false);
+    }
+  };
 
   return (
-    <div className="app">
+    <div className={`app ${isMobile ? 'mobile' : 'desktop'}`}>
       <nav className="navbar">
         <div className="navbar-content">
           <div className="logo">
@@ -186,14 +223,14 @@ function App() {
             className="cart-toggle-btn"
             onClick={() => setCartOpen(!cartOpen)}
           >
-            🛒 购物车
+            🛒 {isMobile ? '购物车' : '购物车'}
             {totalCount > 0 && <span className="cart-badge">{totalCount}</span>}
           </button>
         </div>
       </nav>
 
       <div className="main-container">
-        <main className="menu-section">
+        <main className={`menu-section ${menuAnimating ? 'menu-animating' : ''}`}>
           <div className="category-tabs">
             {categories.map(cat => (
               <button
@@ -207,16 +244,21 @@ function App() {
             ))}
           </div>
 
-          <MenuList
-            dishes={filteredDishes}
-            favorites={favorites}
-            onToggleFavorite={handleToggleFavorite}
-            onAddToCart={handleAddToCart}
-            isLoading={isLoading}
-          />
+          <div className={`menu-list-wrapper ${menuAnimating ? 'fade-out' : 'fade-in'}`}>
+            <MenuList
+              dishes={filteredDishes}
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+              onAddToCart={handleAddToCart}
+              isLoading={isLoading}
+            />
+          </div>
         </main>
 
-        <aside className={`cart-section ${cartOpen ? 'open' : ''}`}>
+        <aside 
+          className={`cart-section ${cartOpen ? 'open' : ''} ${isMobile ? 'mobile-cart' : ''}`}
+          onClick={handleCartSectionClick}
+        >
           <Cart
             items={cart}
             totalPrice={totalPrice}
@@ -229,7 +271,7 @@ function App() {
       </div>
 
       {toast && (
-        <div className={`toast ${toast.visible ? 'visible' : ''}`}>
+        <div className={`toast ${toast.visible && !toast.hiding ? 'visible' : ''} ${toast.hiding ? 'hiding' : ''}`}>
           {toast.message}
         </div>
       )}

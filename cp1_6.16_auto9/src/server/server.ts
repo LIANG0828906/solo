@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getCategories, getDishesByCategory, getDishById, Order, OrderItem } from './data';
 
 const app = express();
-const PORT = 3001;
+const PORT = 4000;
 
 app.use(cors());
 app.use(express.json());

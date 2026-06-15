@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Dish {
   id: string;
@@ -41,17 +41,24 @@ function StarRating({ rating }: { rating: number }) {
 function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading }: MenuListProps) {
   const [displayedDishes, setDisplayedDishes] = useState<Dish[]>(dishes);
   const [animating, setAnimating] = useState(false);
+  const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
+  const prevDishesIds = useRef<string>(dishes.map(d => d.id).sort().join(','));
 
   useEffect(() => {
-    setAnimating(true);
-    const timer = setTimeout(() => {
+    const currentIds = dishes.map(d => d.id).sort().join(',');
+    
+    if (currentIds !== prevDishesIds.current) {
+      setAnimating(true);
+      const timer = setTimeout(() => {
+        setDisplayedDishes(dishes);
+        setAnimating(false);
+        prevDishesIds.current = currentIds;
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
       setDisplayedDishes(dishes);
-      setAnimating(false);
-    }, 150);
-    return () => clearTimeout(timer);
+    }
   }, [dishes]);
-
-  const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
 
   const handleFavoriteClick = (dishId: string) => {
     setAnimatingHearts(prev => new Set(prev).add(dishId));
@@ -67,7 +74,7 @@ function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading 
 
   if (isLoading) {
     return (
-      <div className="menu-grid">
+      <div className="menu-grid fade-in">
         {[1, 2, 3, 4, 5, 6].map(i => (
           <div key={i} className="dish-card skeleton">
             <div className="skeleton-image" />
@@ -82,7 +89,7 @@ function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading 
 
   if (displayedDishes.length === 0) {
     return (
-      <div className="empty-state">
+      <div className="empty-state fade-in">
         <span className="empty-icon">🍽️</span>
         <p>暂无匹配的菜品</p>
         <p className="empty-hint">试试其他关键词吧</p>
@@ -105,7 +112,7 @@ function MenuList({ dishes, favorites, onToggleFavorite, onAddToCart, isLoading 
                 onClick={() => handleFavoriteClick(dish.id)}
                 aria-label={isFavorite ? '取消收藏' : '收藏'}
               >
-                {isFavorite ? '❤️' : '🤍'}
+                <span className="heart-icon">{isFavorite ? '❤️' : '🤍'}</span>
               </button>
               {dish.isRecommended && (
                 <span className="recommended-badge">推荐</span>

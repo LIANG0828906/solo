@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Dish {
   id: string;
@@ -23,15 +23,18 @@ interface CartProps {
 function Cart({ items, totalPrice, onUpdateQuantity, onRemove, onSubmit, onClose }: CartProps) {
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [displayItems, setDisplayItems] = useState<CartItem[]>(items);
+  const prevItemsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    const currentIds = new Set(displayItems.map(i => i.id));
-    const newIds = new Set(items.map(i => i.id));
-    
     const toRemove: string[] = [];
-    currentIds.forEach(id => {
-      if (!newIds.has(id)) {
-        toRemove.push(id);
+    const newItemsMap = new Map(items.map(i => [i.id, i.quantity]));
+    
+    displayItems.forEach(item => {
+      const newQty = newItemsMap.get(item.id);
+      if (newQty === undefined || newQty === 0) {
+        if (item.quantity > 0 || newQty === 0) {
+          toRemove.push(item.id);
+        }
       }
     });
 
@@ -42,16 +45,32 @@ function Cart({ items, totalPrice, onUpdateQuantity, onRemove, onSubmit, onClose
         return next;
       });
       setTimeout(() => {
-        setDisplayItems(items);
+        const filteredItems = items.filter(i => i.quantity > 0);
+        setDisplayItems(filteredItems);
         setRemovingIds(prev => {
           const next = new Set(prev);
           toRemove.forEach(id => next.delete(id));
           return next;
         });
+        toRemove.forEach(id => {
+          if (items.find(i => i.id === id)) {
+            onRemove(id);
+          }
+        });
       }, 300);
     } else {
-      setDisplayItems(items);
+      const displayItemsMap = new Map(displayItems.map(i => [i.id, i.quantity]));
+      const updatedItems = items.map(item => {
+        const prevQty = displayItemsMap.get(item.id);
+        if (prevQty !== undefined && prevQty !== item.quantity) {
+          return item;
+        }
+        return item;
+      });
+      setDisplayItems(items.filter(i => i.quantity > 0));
     }
+    
+    prevItemsRef.current = new Map(items.map(i => [i.id, i.quantity]));
   }, [items]);
 
   const handleQuantityChange = (dishId: string, delta: number, currentQuantity: number) => {
@@ -145,7 +164,7 @@ function Cart({ items, totalPrice, onUpdateQuantity, onRemove, onSubmit, onClose
         <button
           className="btn-submit-order"
           onClick={onSubmit}
-          disabled={displayItems.length === 0}
+          disabled={displayItems.filter(i => i.quantity > 0 && !removingIds.has(i.id)).length === 0}
         >
           下单
         </button>

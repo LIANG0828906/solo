@@ -183,6 +183,24 @@ button:disabled {
   gap: 20px;
 }
 
+.menu-list-wrapper {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.menu-list-wrapper.fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.menu-list-wrapper.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.menu-section.menu-animating {
+  pointer-events: none;
+}
+
 .category-tabs {
   display: flex;
   gap: 12px;
@@ -227,8 +245,8 @@ button:disabled {
 }
 
 .menu-grid.fade-out {
-  opacity: 0.6;
-  transform: translateY(8px);
+  opacity: 0;
+  transform: translateY(12px);
 }
 
 .menu-grid.fade-in {
@@ -292,15 +310,21 @@ button:disabled {
   font-size: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 1;
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-.favorite-btn.bounce {
+.favorite-btn .heart-icon {
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.favorite-btn.bounce .heart-icon {
   animation: heartBounce 0.2s ease;
 }
 
 @keyframes heartBounce {
   0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+  50% { transform: scale(1.3); }
   100% { transform: scale(1); }
 }
 
@@ -492,6 +516,33 @@ button:disabled {
   align-self: flex-start;
   max-height: calc(100vh - 112px);
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.cart-section.mobile-cart {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 100vh;
+  z-index: 200;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.cart-section.mobile-cart.open {
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.cart-section.mobile-cart:not(.open) {
+  visibility: hidden;
+}
+
+.cart-section.mobile-cart.open {
+  visibility: visible;
 }
 
 .cart-panel {
@@ -577,7 +628,10 @@ button:disabled {
   gap: 12px;
   padding: 14px 12px;
   border-radius: 12px;
-  transition: background-color 0.2s ease, transform 0.3s ease, opacity 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.3s ease-out, opacity 0.3s ease-out;
+  transform: translateX(0);
+  opacity: 1;
+  overflow: hidden;
 }
 
 .cart-item:hover {
@@ -585,8 +639,10 @@ button:disabled {
 }
 
 .cart-item.slide-out {
-  transform: translateX(-120%);
+  transform: translateX(-150%);
   opacity: 0;
+  margin-left: -100%;
+  padding-left: 100%;
 }
 
 .cart-item-image {
@@ -732,7 +788,7 @@ button:disabled {
   position: fixed;
   top: 80px;
   left: 50%;
-  transform: translateX(-50%) translateY(-100px);
+  transform: translateX(-50%) translateY(-150px);
   padding: 14px 28px;
   background-color: var(--navbar-color);
   color: white;
@@ -742,14 +798,20 @@ button:disabled {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   opacity: 0;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
   max-width: 90vw;
   text-align: center;
+  pointer-events: none;
 }
 
 .toast.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+.toast.hiding {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-150px);
 }
 
 @media (max-width: 768px) {
@@ -782,7 +844,7 @@ button:disabled {
   }
 
   .menu-section {
-    width: 100%;
+    width: 100% !important;
   }
 
   .category-tabs {
@@ -808,12 +870,13 @@ button:disabled {
     gap: 16px;
   }
 
-  .cart-section {
+  .cart-section.mobile-cart {
     position: fixed;
     top: 0;
+    left: 0;
     right: 0;
     bottom: 0;
-    width: 100%;
+    width: 100% !important;
     height: 100vh;
     max-height: none;
     z-index: 200;
@@ -822,23 +885,26 @@ button:disabled {
     align-items: flex-end;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
   }
 
-  .cart-section.open {
+  .cart-section.mobile-cart.open {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
   }
 
-  .cart-panel {
+  .mobile-cart .cart-panel {
     width: 100%;
     max-height: 80vh;
     border-radius: 20px 20px 0 0;
     transform: translateY(100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease-out;
+    pointer-events: auto;
   }
 
-  .cart-section.open .cart-panel {
+  .cart-section.mobile-cart.open .cart-panel {
     transform: translateY(0);
   }
 
