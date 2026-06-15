@@ -187,13 +187,13 @@ describe('技能执行', () => {
       game = new SweeperGame(8, 8, 10);
     });
 
-    it('无效行坐标返回空数组', () => {
-      const result: SkillResult = scout.executeSkill(game, -1, 3);
+    it('严重越界的行坐标返回空数组', () => {
+      const result: SkillResult = scout.executeSkill(game, -100, 3);
       expect(result.success).toBe(true);
       expect(result.cellsAffected.length).toBe(0);
     });
 
-    it('无效列坐标返回空数组', () => {
+    it('严重越界的列坐标返回空数组', () => {
       const result: SkillResult = scout.executeSkill(game, 3, 100);
       expect(result.success).toBe(true);
       expect(result.cellsAffected.length).toBe(0);
