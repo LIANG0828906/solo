@@ -48,8 +48,14 @@ export const detectSilenceMock = (
   options?: SilenceDetectionOptions
 ): SilenceSegment[] => {
   const minSilenceDuration = options?.minSilenceDuration ?? 1.5;
+  const threshold = options?.silenceThreshold ?? 0.08;
   const seed = Math.floor(audioDuration * 1000);
   const rand = seededRandom(seed);
+
+  const clampedThreshold = Math.max(0, Math.min(1, threshold));
+  const silenceProbability = 0.5 + (0.5 - clampedThreshold) * 1.5;
+  const minSilenceLen = 0.3 + clampedThreshold * 1.7;
+  const silenceDurationRange = 2.0 - clampedThreshold * 1.5;
 
   const segments: SilenceSegment[] = [];
   let currentTime = 0;
@@ -67,7 +73,7 @@ export const detectSilenceMock = (
       });
       currentTime = end;
     } else {
-      const silenceDuration = 0.5 + rand() * 2.5;
+      const silenceDuration = minSilenceLen + rand() * silenceDurationRange;
       const end = Math.min(currentTime + silenceDuration, audioDuration);
       const actualDuration = end - currentTime;
       
@@ -81,7 +87,12 @@ export const detectSilenceMock = (
         currentTime = end;
       }
     }
-    isSpeech = !isSpeech;
+
+    if (isSpeech) {
+      isSpeech = rand() < silenceProbability ? !isSpeech : isSpeech;
+    } else {
+      isSpeech = true;
+    }
   }
 
   if (segments.length > 0 && segments[segments.length - 1].type === 'silence') {

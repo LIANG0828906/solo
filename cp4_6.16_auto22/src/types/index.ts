@@ -43,6 +43,7 @@ export type SilenceDetectionMode = 'silence' | 'interval' | 'hybrid';
 
 export interface SilenceDetectionOptions {
   minSilenceDuration?: number;
+  /** 静音灵敏度阈值 (0-1)，值越低检测越灵敏，产生更多更短的静音段；值越高只有更长静音才被检测到 */
   silenceThreshold?: number;
   mode?: SilenceDetectionMode;
   segmentCount?: number;
@@ -68,3 +69,30 @@ export const ROLE_COLORS: Record<RoleType, { bg: string; text: string; border: s
 };
 
 export const FILLER_WORDS = ['嗯', '那个', '就是', '然后', '其实', '所以', '但是', '对吧', '啊', '哦'];
+
+export interface ScriptCardProps {
+  segment: ScriptSegment;
+  index: number;
+  percentage: number;
+}
+
+export interface TimelineProps {
+  segments: TimelineSegment[];
+  totalDuration: number;
+}
+
+export interface DashboardProps {
+  metrics: RhythmMetrics | null;
+}
+
+export interface GaugeProps {
+  value: number;
+  min: number;
+  max: number;
+  recommendedRange: [number, number];
+  label: string;
+  unit: string;
+  icon: React.ReactNode;
+  gradientColors: [string, string];
+  description: string;
+}

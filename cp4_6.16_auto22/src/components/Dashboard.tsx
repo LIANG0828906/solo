@@ -1,22 +1,6 @@
 import { useEffect, useState, memo } from 'react';
 import { TrendingUp, Activity, MessageCircle, Info } from 'lucide-react';
-import { RhythmMetrics } from '@/types';
-
-interface DashboardProps {
-  metrics: RhythmMetrics | null;
-}
-
-interface GaugeProps {
-  value: number;
-  min: number;
-  max: number;
-  recommendedRange: [number, number];
-  label: string;
-  unit: string;
-  icon: React.ReactNode;
-  gradientColors: [string, string];
-  description: string;
-}
+import { RhythmMetrics, DashboardProps, GaugeProps } from '@/types';
 
 const Gauge = memo(function Gauge({
   value,
@@ -38,6 +22,15 @@ const Gauge = memo(function Gauge({
   const circumference = Math.PI * radius;
   const dashOffset = circumference * (1 - progress);
   const [c1, c2] = gradientColors;
+
+  const [currentDashOffset, setCurrentDashOffset] = useState(circumference);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentDashOffset(dashOffset);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [dashOffset]);
 
   const rangeStartX = 20 + (radius + 10) * (1 + Math.cos(Math.PI - (recommendedRange[0] - min) / (max - min) * Math.PI));
   const rangeEndX = 20 + (radius + 10) * (1 + Math.cos(Math.PI - (recommendedRange[1] - min) / (max - min) * Math.PI));
@@ -200,16 +193,9 @@ const Gauge = memo(function Gauge({
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
-            strokeDashoffset={circumference}
+            strokeDashoffset={currentDashOffset}
             style={{
               transition: 'stroke-dashoffset 500ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}
-            ref={(el) => {
-              if (el) {
-                requestAnimationFrame(() => {
-                  el.style.strokeDashoffset = dashOffset.toString();
-                });
-              }
             }}
           />
 

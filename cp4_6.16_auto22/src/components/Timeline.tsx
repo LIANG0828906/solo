@@ -1,21 +1,34 @@
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { Play, Pause, SkipBack, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { TimelineSegment } from '@/types';
+import { TimelineSegment, TimelineProps } from '@/types';
 import { formatDuration } from '@/utils/audioAnalyzer';
 
-interface TimelineProps {
-  segments: TimelineSegment[];
-  totalDuration: number;
-}
+const ROW_HEIGHT = 82;
+const VIRTUAL_BUFFER = 3;
 
 const Timeline = memo(function Timeline({ segments, totalDuration }: TimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualListRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [virtualScrollTop, setVirtualScrollTop] = useState(0);
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timelineWidth = Math.max(1200, segments.length * 180);
   const pxPerSec = timelineWidth / Math.max(totalDuration, 1);
+
+  const virtualListHeight = Math.min(segments.length * ROW_HEIGHT, 420);
+  const startIdx = Math.max(0, Math.floor(virtualScrollTop / ROW_HEIGHT) - VIRTUAL_BUFFER);
+  const endIdx = Math.min(
+    segments.length,
+    Math.ceil((virtualScrollTop + virtualListHeight) / ROW_HEIGHT) + VIRTUAL_BUFFER
+  );
+  const visibleSegments = segments.slice(startIdx, endIdx);
+  const offsetY = startIdx * ROW_HEIGHT;
+
+  const handleVirtualScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setVirtualScrollTop(e.currentTarget.scrollTop);
+  }, []);
 
   useEffect(() => {
     setCurrentTime(0);
@@ -328,7 +341,22 @@ const Timeline = memo(function Timeline({ segments, totalDuration }: TimelinePro
             </div>
           </div>
 
-          {segments.map((seg, idx) => {
+          <div
+            ref={virtualListRef}
+            onScroll={handleVirtualScroll}
+            style={{
+              maxHeight: virtualListHeight,
+              overflowY: 'auto',
+              contain: 'content',
+            }}
+          >
+            <div style={{
+              height: segments.length * ROW_HEIGHT,
+              position: 'relative',
+            }}>
+              <div style={{ transform: `translateY(${offsetY}px)` }}>
+          {visibleSegments.map((seg, i) => {
+            const idx = startIdx + i;
             const left = seg.startTime * pxPerSec;
             const expWidth = seg.expectedDuration * pxPerSec;
             const actWidth = seg.actualDuration * pxPerSec;
@@ -344,8 +372,10 @@ const Timeline = memo(function Timeline({ segments, totalDuration }: TimelinePro
                   gridTemplateColumns: '100px 1fr',
                   gap: 12,
                   position: 'relative',
-                  marginBottom: idx < segments.length - 1 ? 10 : 0,
+                  height: ROW_HEIGHT,
                   padding: '4px 0',
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: `0 ${ROW_HEIGHT}px`,
                 }}
               >
                 <div style={{
@@ -496,6 +526,9 @@ const Timeline = memo(function Timeline({ segments, totalDuration }: TimelinePro
               </div>
             );
           })}
+            </div>
+            </div>
+          </div>
 
           <div
             className="pulse-indicator"
@@ -505,11 +538,12 @@ const Timeline = memo(function Timeline({ segments, totalDuration }: TimelinePro
               top: 0,
               bottom: 0,
               width: 3,
-              background: 'var(--color-indicator)',
+              background: '#FFA500',
               borderRadius: 2,
               zIndex: 15,
               pointerEvents: 'none',
               transition: 'left 0.1s linear',
+              boxShadow: '0 0 12px rgba(255,165,0,0.8), 0 0 24px rgba(255,165,0,0.4), 0 0 48px rgba(255,165,0,0.2)',
             }}
           >
             <div style={{
@@ -517,11 +551,12 @@ const Timeline = memo(function Timeline({ segments, totalDuration }: TimelinePro
               top: -6,
               left: '50%',
               transform: 'translateX(-50%)',
-              width: 14,
-              height: 14,
+              width: 16,
+              height: 16,
               borderRadius: '50%',
-              background: 'var(--color-indicator)',
+              background: '#FFA500',
               border: '2px solid #fff',
+              boxShadow: '0 0 10px rgba(255,165,0,0.9), 0 0 20px rgba(255,165,0,0.5), 0 0 40px rgba(255,165,0,0.3)',
             }} />
           </div>
         </div>

@@ -1,7 +1,50 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { get, set } from 'idb-keyval';
 import { ScriptSegment, RoleType } from '@/types';
+
+const IDB_NAME = 'podcast-script-studio';
+const IDB_VERSION = 1;
+const IDB_STORE = 'keyval';
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function idbGet(key: string): Promise<string | undefined> {
+  return openDB().then(
+    db =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result as string | undefined);
+        req.onerror = () => reject(req.error);
+      }),
+  );
+}
+
+function idbSet(key: string, value: string): Promise<void> {
+  return openDB().then(
+    db =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      }),
+  );
+}
 
 interface ScriptState {
   segments: ScriptSegment[];
@@ -76,7 +119,7 @@ const createDefaultSegments = (): ScriptSegment[] => {
 const STORAGE_KEY = 'podcast_script_segments';
 
 const persist = (segments: ScriptSegment[]) => {
-  set(STORAGE_KEY, JSON.stringify(segments)).catch(() => {});
+  idbSet(STORAGE_KEY, JSON.stringify(segments)).catch(() => {});
 };
 
 export const useScriptStore = create<ScriptState>((set, get) => ({
@@ -152,7 +195,7 @@ export const useScriptStore = create<ScriptState>((set, get) => ({
   loadFromStorage: async () => {
     set({ isLoading: true });
     try {
-      const raw = await get(STORAGE_KEY);
+      const raw = await idbGet(STORAGE_KEY);
       if (typeof raw === 'string' && raw) {
         const parsed = JSON.parse(raw) as ScriptSegment[];
         set({ segments: parsed, isLoading: false, isInitialized: true });

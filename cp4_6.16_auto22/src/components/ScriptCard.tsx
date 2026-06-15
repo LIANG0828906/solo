@@ -2,15 +2,9 @@ import { useState, useRef, memo } from 'react';
 import { GripVertical, ChevronDown, ChevronUp, Trash2, Clock, Edit3, Check, X } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ScriptSegment, RoleType, ROLE_LABELS, ROLE_COLORS } from '@/types';
+import { ScriptSegment, RoleType, ROLE_LABELS, ROLE_COLORS, ScriptCardProps } from '@/types';
 import { useScriptStore } from '@/store/scriptStore';
 import { formatDuration } from '@/utils/audioAnalyzer';
-
-interface ScriptCardProps {
-  segment: ScriptSegment;
-  index: number;
-  percentage: number;
-}
 
 const ScriptCard = memo(function ScriptCard({
   segment,
@@ -71,7 +65,7 @@ const ScriptCard = memo(function ScriptCard({
   ];
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Translate.toString(transform) || 'translate3d(0, 0, 0)',
     transition: transition || 'transform 300ms ease',
     opacity: isDragging ? 0.5 : 1,
     transformOrigin: '50% 50%',
