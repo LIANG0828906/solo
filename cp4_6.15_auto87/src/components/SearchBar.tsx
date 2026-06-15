@@ -1,16 +1,29 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import useRecipeStore from '../store/recipeStore';
+import useDebounce from '../hooks/useDebounce';
 import type { Suggestion } from '../types';
 import './SearchBar.css';
 
 function SearchBar() {
-  const { searchKeyword, setSearchKeyword, getSuggestions } = useRecipeStore();
+  const initialKeyword = useRecipeStore.getState().searchKeyword;
+  const [localInput, setLocalInput] = useState(initialKeyword);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const suggestions: Suggestion[] = getSuggestions();
+  const debouncedInput = useDebounce(localInput, 300);
+
+  useEffect(() => {
+    const store = useRecipeStore.getState();
+    if (debouncedInput !== store.searchKeyword) {
+      store.setSearchKeyword(debouncedInput);
+    }
+  }, [debouncedInput]);
+
+  const suggestions: Suggestion[] = useMemo(() => {
+    return useRecipeStore.getState().getSuggestions();
+  }, [debouncedInput]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -28,13 +41,15 @@ function SearchBar() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchKeyword(e.target.value);
+    const value = e.target.value;
+    setLocalInput(value);
     setShowSuggestions(true);
     setHighlightedIndex(-1);
   };
 
   const handleSelect = (text: string) => {
-    setSearchKeyword(text);
+    setLocalInput(text);
+    useRecipeStore.getState().setSearchKeyword(text);
     setShowSuggestions(false);
     inputRef.current?.blur();
   };
@@ -56,6 +71,13 @@ function SearchBar() {
     }
   };
 
+  const handleClear = () => {
+    setLocalInput('');
+    useRecipeStore.getState().setSearchKeyword('');
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  };
+
   const highlightText = (text: string, keyword: string) => {
     if (!keyword.trim()) return text;
     const lowerText = text.toLowerCase();
@@ -65,7 +87,9 @@ function SearchBar() {
     return (
       <>
         {text.slice(0, index)}
-        <mark className="search-highlight">{text.slice(index, index + keyword.length)}</mark>
+        <mark className="search-highlight">
+          {text.slice(index, index + keyword.length)}
+        </mark>
         {text.slice(index + keyword.length)}
       </>
     );
@@ -80,19 +104,16 @@ function SearchBar() {
           type="text"
           className="search-bar-input"
           placeholder="搜索食材或菜名..."
-          value={searchKeyword}
+          value={localInput}
           onChange={handleChange}
-          onFocus={() => searchKeyword && setShowSuggestions(true)}
+          onFocus={() => localInput && setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
+          autoComplete="off"
         />
-        {searchKeyword && (
+        {localInput && (
           <button
             className="search-clear-btn"
-            onClick={() => {
-              setSearchKeyword('');
-              setShowSuggestions(false);
-              inputRef.current?.focus();
-            }}
+            onClick={handleClear}
             aria-label="清除搜索"
           >
             <i className="fa-solid fa-xmark"></i>
@@ -104,14 +125,20 @@ function SearchBar() {
           {suggestions.map((suggestion, index) => (
             <button
               key={`${suggestion.type}-${suggestion.text}`}
-              className={`search-suggestion-item ${index === highlightedIndex ? 'highlighted' : ''}`}
+              className={`search-suggestion-item ${
+                index === highlightedIndex ? 'highlighted' : ''
+              }`}
               onClick={() => handleSelect(suggestion.text)}
               onMouseEnter={() => setHighlightedIndex(index)}
             >
               <i
-                className={`fa-solid ${suggestion.type === 'recipe' ? 'fa-bowl-food' : 'fa-carrot'} suggestion-icon`}
+                className={`fa-solid ${
+                  suggestion.type === 'recipe' ? 'fa-bowl-food' : 'fa-carrot'
+                } suggestion-icon`}
               ></i>
-              <span className="suggestion-text">{highlightText(suggestion.text, searchKeyword)}</span>
+              <span className="suggestion-text">
+                {highlightText(suggestion.text, localInput)}
+              </span>
               <span className={`suggestion-type ${suggestion.type}`}>
                 {suggestion.type === 'recipe' ? '菜品' : '食材'}
               </span>

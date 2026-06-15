@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import useRecipeStore from '../store/recipeStore';
 import type { Recipe } from '../types';
 import RecipeCard from './RecipeCard';
@@ -7,10 +7,13 @@ import './RecipeDetail.css';
 
 function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { fetchRecipeById, fetchRecommendations, recommendations, loading } = useRecipeStore();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [animKey, setAnimKey] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -30,6 +33,19 @@ function RecipeDetail() {
       <i key={i} className={`fa-star ${i < difficulty ? 'fa-solid filled' : 'fa-regular'}`}></i>
     ));
   };
+
+  const handleRecommendationClick = useCallback((recipeId: string) => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setSlideDirection('left');
+    
+    setTimeout(() => {
+      navigate(`/recipe/${recipeId}`);
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 100);
+    }, 400);
+  }, [isTransitioning, navigate]);
 
   if (!recipe && loading) {
     return (
@@ -149,12 +165,25 @@ function RecipeDetail() {
         </h2>
         <p className="recommendations-subtitle">基于当前食谱的食材和口味，为你推荐以下相似食谱</p>
         {recommendations.length > 0 ? (
-          <div className="recommendations-grid" key={`rec-${animKey}`}>
-            {recommendations.map((rec, index) => (
-              <div key={rec.id} className="recommendation-item" style={{ animationDelay: `${index * 0.12}s` }}>
-                <RecipeCard recipe={rec} compact={true} index={index} />
-              </div>
-            ))}
+          <div
+            className={`recommendations-slider ${isTransitioning ? `slide-${slideDirection}` : ''}`}
+            key={`rec-${animKey}`}
+          >
+            <div className="recommendations-track">
+              {recommendations.map((rec, index) => (
+                <div
+                  key={rec.id}
+                  className={`recommendation-item ${isTransitioning ? 'fade-slide' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRecommendationClick(rec.id);
+                  }}
+                >
+                  <RecipeCard recipe={rec} compact={true} index={index} />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="no-recommendations">

@@ -72,6 +72,18 @@ input {
   padding-top: 80px;
 }
 
+@media (max-width: 768px) {
+  .page-container {
+    padding-top: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding-top: 60px;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

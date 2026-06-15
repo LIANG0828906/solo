@@ -50,11 +50,13 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--transition-normal);
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
 }
 
 .recipe-card:hover .card-overlay {
   opacity: 1;
+  visibility: visible;
 }
 
 .view-detail-btn {
@@ -67,11 +69,13 @@
   border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: 500;
-  transform: translateY(20px);
-  transition: all var(--transition-normal);
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all var(--transition-normal) 0.05s;
 }
 
 .recipe-card:hover .view-detail-btn {
+  opacity: 1;
   transform: translateY(0);
 }
 
