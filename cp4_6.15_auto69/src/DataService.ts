@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { RoomMeta, StoryNode, Author } from '@/types';
+import type { ThemeColors } from '@/utils/themes';
 import { getThemeColors } from '@/utils/themes';
 import { getRandomIllustration } from '@/utils/illustrations';
 import { analyzeSentiment } from '@/utils/sentiment';
@@ -399,4 +400,36 @@ export function ensureSeedData(): void {
 
   writeRooms(createdRooms);
   writeNodes(nodesByRoom);
+}
+
+export async function copyInviteLink(roomId: string): Promise<boolean> {
+  const rooms = readRooms();
+  const room = rooms.find(r => r.id === roomId);
+  if (!room) return false;
+
+  const inviteLink = `${window.location.origin}/story/${roomId}?invite=${room.inviteCode}`;
+  try {
+    await navigator.clipboard.writeText(inviteLink);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface CoverCardData {
+  bgGradient: string;
+  colors: ThemeColors;
+  illustration: string;
+  title: string;
+  theme: string;
+}
+
+export function generateCoverCard(room: RoomMeta): CoverCardData {
+  return {
+    bgGradient: `linear-gradient(135deg, ${room.themeColors[0]} 0%, ${room.themeColors[1]} 100%)`,
+    colors: room.themeColors,
+    illustration: room.coverIllustration,
+    title: room.title,
+    theme: room.theme
+  };
 }

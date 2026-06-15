@@ -1,4 +1,6 @@
-import type { ThemeColors } from './utils/themes';
+export type SentimentType = 'positive' | 'conflict' | 'neutral';
+
+import type { ThemeColors } from '@/utils/themes';
 
 export interface Author {
   id: string;

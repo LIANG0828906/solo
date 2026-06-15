@@ -1,5 +1,3 @@
-import type { SentimentType } from '@/types';
-
 const positiveWords: string[] = [
   '温暖', '希望', '勇敢', '幸福', '快乐', '光明', '成功', '胜利', '美好', '和平',
   '友爱', '善良', '真诚', '热情', '希望', '梦想', '坚定', '信心', '微笑', '喜悦',
@@ -14,7 +12,7 @@ const conflictWords: string[] = [
   'fight', 'danger', 'war', 'fear', 'hate', 'death', 'blood', 'pain', 'terror', 'crisis'
 ];
 
-export function analyzeSentiment(text: string): SentimentType {
+export function analyzeSentiment(text: string): 'positive' | 'conflict' | 'neutral' {
   let positiveScore = 0;
   let conflictScore = 0;
 
