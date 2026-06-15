@@ -49,6 +49,13 @@ type AddCommentInput = {
   text: string;
 };
 
+const STORAGE_QUOTA_WARNING_THRESHOLD = 4 * 1024 * 1024;
+
+interface StorageUsage {
+  used: number;
+  total: number;
+}
+
 class PresetManager {
   private static _instance: PresetManager | null = null;
   private static readonly STORAGE_KEY = 'audiomix_presets';
@@ -73,6 +80,18 @@ class PresetManager {
     } catch {
       return [];
     }
+  }
+
+  public estimateStorageUsage(): StorageUsage {
+    const presets = this.getAllPresets();
+    const used = JSON.stringify(presets).length;
+    const total = STORAGE_QUOTA_WARNING_THRESHOLD;
+    return { used, total };
+  }
+
+  public getPresetsSortedByDate(): Preset[] {
+    const presets = this.getAllPresets();
+    return [...presets].sort((a, b) => a.createdAt - b.createdAt);
   }
 
   private persistPresets(presets: Preset[]): boolean {
@@ -111,13 +130,7 @@ class PresetManager {
     presets.unshift(preset);
 
     if (!this.persistPresets(presets)) {
-      const oldestFirst = [...presets].sort((a, b) => a.createdAt - b.createdAt);
-      let success = false;
-      for (let i = 0; i < oldestFirst.length && !success; i++) {
-        const filtered = presets.filter((p) => p.id !== oldestFirst[i].id);
-        success = this.persistPresets(filtered);
-      }
-      if (!success) return null;
+      return null;
     }
 
     return preset;
@@ -232,5 +245,5 @@ class PresetManager {
   }
 }
 
-export { PresetManager };
-export type { Track, Preset, Comment, ShareMode, SavePresetState, AddCommentInput };
+export { PresetManager, STORAGE_QUOTA_WARNING_THRESHOLD };
+export type { Track, Preset, Comment, ShareMode, SavePresetState, AddCommentInput, StorageUsage };

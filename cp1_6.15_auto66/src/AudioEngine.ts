@@ -120,8 +120,8 @@ export class AudioEngine {
     this.splitter = ctx.createChannelSplitter(2);
     this.masterAnalyserL = ctx.createAnalyser();
     this.masterAnalyserR = ctx.createAnalyser();
-    this.masterAnalyserL.fftSize = 2048;
-    this.masterAnalyserR.fftSize = 2048;
+    this.masterAnalyserL.fftSize = 512;
+    this.masterAnalyserR.fftSize = 512;
     this.vuDataArrayL = new Uint8Array(this.masterAnalyserL.fftSize);
     this.vuDataArrayR = new Uint8Array(this.masterAnalyserR.fftSize);
 
@@ -196,7 +196,7 @@ export class AudioEngine {
     compressorSend.gain.value = track.compression / 100;
 
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
+    analyser.fftSize = 512;
 
     gain.connect(pan);
     pan.connect(this.masterGain!);
@@ -602,114 +602,137 @@ export class AudioEngine {
       throw new Error('没有可渲染的音频');
     }
 
+    const numChunks = 20;
+    const blockDuration = totalDuration / numChunks;
     const channels = 2;
-    const length = Math.ceil(totalDuration * SAMPLE_RATE);
-    const offlineCtx = new OfflineAudioContext(channels, length, SAMPLE_RATE);
 
-    const masterGain = offlineCtx.createGain();
-    masterGain.gain.value = this.masterVolumeValue / 100;
+    const renderedBuffers: AudioBuffer[] = [];
 
-    const reverbBus = offlineCtx.createGain();
-    const convolver = offlineCtx.createConvolver();
-    const impulseLen = SAMPLE_RATE * 2.5;
-    const impulse = offlineCtx.createBuffer(2, impulseLen, SAMPLE_RATE);
-    for (let ch = 0; ch < 2; ch++) {
-      const data = impulse.getChannelData(ch);
-      for (let i = 0; i < impulseLen; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / impulseLen, 2.5);
-      }
-    }
-    convolver.buffer = impulse;
-    reverbBus.connect(convolver);
-    convolver.connect(masterGain);
+    progressCallback?.(0);
 
-    const delayBus = offlineCtx.createGain();
-    const delayNode = offlineCtx.createDelay(5.0);
-    delayNode.delayTime.value = 0.35;
-    const delayFeedback = offlineCtx.createGain();
-    delayFeedback.gain.value = 0.4;
-    delayBus.connect(delayNode);
-    delayNode.connect(delayFeedback);
-    delayFeedback.connect(delayNode);
-    delayNode.connect(masterGain);
+    for (let i = 0; i < numChunks; i++) {
+      const chunkStartTime = i * blockDuration;
+      const chunkLength = Math.ceil(blockDuration * SAMPLE_RATE);
+      const offlineCtx = new OfflineAudioContext(channels, chunkLength, SAMPLE_RATE);
 
-    const compressorBus = offlineCtx.createGain();
-    const compressorNode = offlineCtx.createDynamicsCompressor();
-    compressorNode.threshold.value = -24;
-    compressorNode.knee.value = 30;
-    compressorNode.ratio.value = 4;
-    compressorNode.attack.value = 0.003;
-    compressorNode.release.value = 0.25;
-    compressorBus.connect(compressorNode);
-    compressorNode.connect(masterGain);
+      const masterGain = offlineCtx.createGain();
+      masterGain.gain.value = this.masterVolumeValue / 100;
 
-    const anySolo = this.hasAnySolo();
-
-    for (const track of this.tracks.values()) {
-      const buffer = this.audioBuffers.get(track.audioBufferId);
-      if (!buffer) continue;
-
-      const source = offlineCtx.createBufferSource();
-      source.buffer = buffer;
-
-      const trackGain = offlineCtx.createGain();
-      let gainValue = 0;
-      if (!track.muted) {
-        if (anySolo) {
-          if (track.soloed) gainValue = track.volume / 100;
-        } else {
-          gainValue = track.volume / 100;
+      const reverbBus = offlineCtx.createGain();
+      const convolver = offlineCtx.createConvolver();
+      const impulseLen = SAMPLE_RATE * 2.5;
+      const impulse = offlineCtx.createBuffer(2, impulseLen, SAMPLE_RATE);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let j = 0; j < impulseLen; j++) {
+          data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / impulseLen, 2.5);
         }
       }
-      trackGain.gain.value = gainValue;
+      convolver.buffer = impulse;
+      reverbBus.connect(convolver);
+      convolver.connect(masterGain);
 
-      const pan = offlineCtx.createStereoPanner();
-      pan.pan.value = track.pan;
+      const delayBus = offlineCtx.createGain();
+      const delayNode = offlineCtx.createDelay(5.0);
+      delayNode.delayTime.value = 0.35;
+      const delayFeedback = offlineCtx.createGain();
+      delayFeedback.gain.value = 0.4;
+      delayBus.connect(delayNode);
+      delayNode.connect(delayFeedback);
+      delayFeedback.connect(delayNode);
+      delayNode.connect(masterGain);
 
-      const reverbSend = offlineCtx.createGain();
-      reverbSend.gain.value = track.reverb / 100;
+      const compressorBus = offlineCtx.createGain();
+      const compressorNode = offlineCtx.createDynamicsCompressor();
+      compressorNode.threshold.value = -24;
+      compressorNode.knee.value = 30;
+      compressorNode.ratio.value = 4;
+      compressorNode.attack.value = 0.003;
+      compressorNode.release.value = 0.25;
+      compressorBus.connect(compressorNode);
+      compressorNode.connect(masterGain);
 
-      const delaySend = offlineCtx.createGain();
-      delaySend.gain.value = track.delay / 100;
+      const anySolo = this.hasAnySolo();
 
-      const compressorSend = offlineCtx.createGain();
-      compressorSend.gain.value = track.compression / 100;
+      for (const track of this.tracks.values()) {
+        const buffer = this.audioBuffers.get(track.audioBufferId);
+        if (!buffer) continue;
 
-      source.connect(trackGain);
-      trackGain.connect(pan);
-      pan.connect(masterGain);
-      pan.connect(reverbSend);
-      pan.connect(delaySend);
-      pan.connect(compressorSend);
-      reverbSend.connect(reverbBus);
-      delaySend.connect(delayBus);
-      compressorSend.connect(compressorBus);
+        const trackStart = track.startTime;
+        const trackEnd = track.startTime + track.duration;
+        const chunkEnd = chunkStartTime + blockDuration;
 
-      source.start(track.startTime);
-    }
-
-    masterGain.connect(offlineCtx.destination);
-
-    let progressInterval: number | null = null;
-    if (progressCallback) {
-      let progress = 0;
-      progressCallback(0);
-      progressInterval = window.setInterval(() => {
-        progress += 0.02;
-        if (progress < 0.9) {
-          progressCallback(Math.min(progress, 0.9));
+        if (trackEnd <= chunkStartTime || trackStart >= chunkEnd) {
+          continue;
         }
-      }, 100);
+
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+
+        const trackGain = offlineCtx.createGain();
+        let gainValue = 0;
+        if (!track.muted) {
+          if (anySolo) {
+            if (track.soloed) gainValue = track.volume / 100;
+          } else {
+            gainValue = track.volume / 100;
+          }
+        }
+        trackGain.gain.value = gainValue;
+
+        const pan = offlineCtx.createStereoPanner();
+        pan.pan.value = track.pan;
+
+        const reverbSend = offlineCtx.createGain();
+        reverbSend.gain.value = track.reverb / 100;
+
+        const delaySend = offlineCtx.createGain();
+        delaySend.gain.value = track.delay / 100;
+
+        const compressorSend = offlineCtx.createGain();
+        compressorSend.gain.value = track.compression / 100;
+
+        source.connect(trackGain);
+        trackGain.connect(pan);
+        pan.connect(masterGain);
+        pan.connect(reverbSend);
+        pan.connect(delaySend);
+        pan.connect(compressorSend);
+        reverbSend.connect(reverbBus);
+        delaySend.connect(delayBus);
+        compressorSend.connect(compressorBus);
+
+        const offsetInTrack = Math.max(0, chunkStartTime - trackStart);
+        const startInChunk = Math.max(0, trackStart - chunkStartTime);
+        const playDuration = Math.min(trackEnd, chunkEnd) - Math.max(trackStart, chunkStartTime);
+
+        source.start(startInChunk, offsetInTrack, playDuration);
+      }
+
+      masterGain.connect(offlineCtx.destination);
+
+      const chunkBuffer = await offlineCtx.startRendering();
+      renderedBuffers.push(chunkBuffer);
+
+      progressCallback?.((i + 1) / numChunks);
     }
 
-    const renderedBuffer = await offlineCtx.startRendering();
+    const totalLength = renderedBuffers.reduce((sum, buf) => sum + buf.length, 0);
+    const finalBuffer = new AudioBuffer({
+      numberOfChannels: channels,
+      length: totalLength,
+      sampleRate: SAMPLE_RATE,
+    });
 
-    if (progressInterval !== null) {
-      clearInterval(progressInterval);
-      progressCallback?.(1);
+    let offset = 0;
+    for (const buf of renderedBuffers) {
+      for (let ch = 0; ch < channels; ch++) {
+        finalBuffer.copyToChannel(buf.getChannelData(ch), ch, offset);
+      }
+      offset += buf.length;
     }
 
-    return this.encodeWAV(renderedBuffer);
+    return this.encodeWAV(finalBuffer);
   }
 
   private encodeWAV(buffer: AudioBuffer): Blob {
