@@ -3,19 +3,19 @@ import axios from 'axios';
 
 const API_BASE = 'http://localhost:3001/api';
 
-const colorPalettes = [
-  { name: '宇宙紫蓝', colors: ['#6a0dad', '#1e90ff', '#00ffff'] },
-  { name: '玫瑰红橙', colors: ['#ff1493', '#ff6347', '#ffa500'] },
-  { name: '极光青绿', colors: ['#00ff88', '#00bfff', '#4169e1'] },
-  { name: '火焰金白', colors: ['#ff4500', '#ffd700', '#ffffff'] },
-  { name: '深海蓝', colors: ['#000080', '#0000cd', '#4169e1'] },
-  { name: '薰衣草', colors: ['#9370db', '#ba55d3', '#ee82ee'] },
-  { name: '森林绿', colors: ['#006400', '#228b22', '#98fb98'] },
-  { name: '日落', colors: ['#ff4500', '#ff6b6b', '#ffd93d'] },
-  { name: '午夜', colors: ['#0c0c0c', '#1a1a2e', '#4a4a6a'] },
-  { name: '彩虹', colors: ['#ff0000', '#ffff00', '#00ffff'] },
-  { name: '星云粉', colors: ['#ff69b4', '#ff1493', '#c71585'] },
-  { name: '冰晶蓝', colors: ['#00bfff', '#87ceeb', '#e0ffff'] }
+const scientificPalettes = [
+  { name: '宇宙紫蓝', start: '#6a0dad', mid: '#1e90ff', end: '#00ffff' },
+  { name: '玫瑰红橙', start: '#ff1493', mid: '#ff6347', end: '#ffa500' },
+  { name: '极光青绿', start: '#00ff88', mid: '#00bfff', end: '#4169e1' },
+  { name: '火焰金白', start: '#ff4500', mid: '#ffd700', end: '#ffffff' },
+  { name: '深海蓝调', start: '#000080', mid: '#0000cd', end: '#4169e1' },
+  { name: '薰衣草紫', start: '#9370db', mid: '#ba55d3', end: '#ee82ee' },
+  { name: '森林翠绿', start: '#006400', mid: '#228b22', end: '#98fb98' },
+  { name: '日落余晖', start: '#ff4500', mid: '#ff6b6b', end: '#ffd93d' },
+  { name: '午夜深蓝', start: '#0c0c0c', mid: '#1a1a2e', end: '#4a4a6a' },
+  { name: '彩虹光谱', start: '#ff0000', mid: '#ffff00', end: '#00ffff' },
+  { name: '星云粉红', start: '#ff69b4', mid: '#ff1493', end: '#c71585' },
+  { name: '冰晶蓝白', start: '#00bfff', mid: '#87ceeb', end: '#e0ffff' }
 ];
 
 interface UIParams {
@@ -133,128 +133,273 @@ const createSlider = (
   };
 };
 
-const createColorPicker = (
-  label: string,
-  initialColor: string,
-  onChange: (color: string) => void
-): { container: HTMLDivElement; setColor: (c: string) => void } => {
+const createColorPalettePicker = (
+  initialColors: { start: string; mid: string; end: string },
+  onPaletteChange: (colors: { start: string; mid: string; end: string }) => void
+): { 
+  container: HTMLDivElement; 
+  setColors: (colors: { start: string; mid: string; end: string }) => void;
+  getColors: () => { start: string; mid: string; end: string };
+} => {
+  let currentColors = { ...initialColors };
+
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
-  container.style.gap = '6px';
-  container.style.position = 'relative';
+  container.style.gap = '8px';
 
-  const labelEl = document.createElement('label');
-  labelEl.textContent = label;
-  labelEl.style.color = '#ddd';
-  labelEl.style.fontSize = '12px';
+  const sectionTitle = document.createElement('div');
+  sectionTitle.textContent = '颜色调色板';
+  sectionTitle.style.fontSize = '11px';
+  sectionTitle.style.textTransform = 'uppercase';
+  sectionTitle.style.letterSpacing = '1px';
+  sectionTitle.style.color = 'rgba(255,255,255,0.5)';
+  sectionTitle.style.marginBottom = '4px';
+  container.appendChild(sectionTitle);
 
-  const colorPreview = document.createElement('div');
-  colorPreview.style.width = '100%';
-  colorPreview.style.height = '32px';
-  colorPreview.style.borderRadius = '8px';
-  colorPreview.style.background = initialColor;
-  colorPreview.style.cursor = 'pointer';
-  colorPreview.style.border = '2px solid rgba(255,255,255,0.2)';
-  colorPreview.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-  colorPreview.style.transition = 'all 0.3s';
-  colorPreview.textContent = initialColor;
-  colorPreview.style.color = '#fff';
-  colorPreview.style.fontSize = '11px';
-  colorPreview.style.display = 'flex';
-  colorPreview.style.alignItems = 'center';
-  colorPreview.style.justifyContent = 'center';
-  colorPreview.style.textShadow = '0 1px 2px rgba(0,0,0,0.5)';
-  colorPreview.style.fontWeight = 'bold';
+  const previewRow = document.createElement('div');
+  previewRow.style.display = 'flex';
+  previewRow.style.gap = '6px';
+  previewRow.style.marginBottom = '4px';
 
-  const popup = document.createElement('div');
-  popup.style.position = 'absolute';
-  popup.style.top = '100%';
-  popup.style.left = '0';
-  popup.style.zIndex = '1000';
-  popup.style.background = 'rgba(10,10,30,0.95)';
-  popup.style.border = '1px solid rgba(255,255,255,0.2)';
-  popup.style.borderRadius = '12px';
-  popup.style.padding = '12px';
-  popup.style.backdropFilter = 'blur(10px)';
-  popup.style.display = 'none';
-  popup.style.width = '220px';
-  popup.style.marginTop = '8px';
+  const createColorDot = (color: string, label: string, onChange: (c: string) => void) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.gap = '2px';
+    wrapper.style.flex = '1';
 
-  const paletteGrid = document.createElement('div');
-  paletteGrid.style.display = 'grid';
-  paletteGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-  paletteGrid.style.gap = '6px';
-  paletteGrid.style.marginBottom = '12px';
+    const dot = document.createElement('div');
+    dot.style.width = '100%';
+    dot.style.height = '28px';
+    dot.style.borderRadius = '6px';
+    dot.style.background = color;
+    dot.style.cursor = 'pointer';
+    dot.style.border = '2px solid rgba(255,255,255,0.3)';
+    dot.style.transition = 'all 0.2s';
+    dot.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
 
-  colorPalettes.forEach(palette => {
-    const paletteBtn = document.createElement('button');
-    paletteBtn.style.width = '100%';
-    paletteBtn.style.aspectRatio = '1';
-    paletteBtn.style.borderRadius = '6px';
-    paletteBtn.style.border = 'none';
-    paletteBtn.style.cursor = 'pointer';
-    paletteBtn.style.background = `linear-gradient(135deg, ${palette.colors[0]} 0%, ${palette.colors[1]} 50%, ${palette.colors[2]} 100%)`;
-    paletteBtn.title = palette.name;
-    paletteBtn.style.transition = 'transform 0.2s';
-    paletteBtn.addEventListener('mouseenter', () => {
-      paletteBtn.style.transform = 'scale(1.1)';
+    const labelEl = document.createElement('span');
+    labelEl.textContent = label;
+    labelEl.style.fontSize = '10px';
+    labelEl.style.color = 'rgba(255,255,255,0.6)';
+
+    const pickerPopup = document.createElement('div');
+    pickerPopup.style.position = 'absolute';
+    pickerPopup.style.zIndex = '1001';
+    pickerPopup.style.background = 'rgba(10,10,30,0.98)';
+    pickerPopup.style.border = '1px solid rgba(255,255,255,0.2)';
+    pickerPopup.style.borderRadius = '10px';
+    pickerPopup.style.padding = '12px';
+    pickerPopup.style.backdropFilter = 'blur(10px)';
+    pickerPopup.style.display = 'none';
+    pickerPopup.style.minWidth = '180px';
+
+    const paletteGrid = document.createElement('div');
+    paletteGrid.style.display = 'grid';
+    paletteGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+    paletteGrid.style.gap = '4px';
+    paletteGrid.style.marginBottom = '10px';
+
+    const quickColors = [
+      '#ff0000', '#ff4500', '#ff8c00', '#ffd700', '#ffff00', '#adff2f',
+      '#00ff00', '#00fa9a', '#00ffff', '#1e90ff', '#6a0dad', '#ff1493',
+      '#ffffff', '#c0c0c0', '#808080', '#404040', '#000000', '#8b4513'
+    ];
+
+    quickColors.forEach(c => {
+      const colorBtn = document.createElement('button');
+      colorBtn.style.width = '100%';
+      colorBtn.style.aspectRatio = '1';
+      colorBtn.style.borderRadius = '4px';
+      colorBtn.style.border = 'none';
+      colorBtn.style.background = c;
+      colorBtn.style.cursor = 'pointer';
+      colorBtn.style.transition = 'transform 0.15s';
+      colorBtn.title = c;
+      colorBtn.addEventListener('mouseenter', () => {
+        colorBtn.style.transform = 'scale(1.15)';
+      });
+      colorBtn.addEventListener('mouseleave', () => {
+        colorBtn.style.transform = 'scale(1)';
+      });
+      colorBtn.addEventListener('click', () => {
+        dot.style.background = c;
+        onChange(c);
+        pickerPopup.style.display = 'none';
+      });
+      paletteGrid.appendChild(colorBtn);
     });
-    paletteBtn.addEventListener('mouseleave', () => {
-      paletteBtn.style.transform = 'scale(1)';
+
+    const hexLabel = document.createElement('div');
+    hexLabel.textContent = '自定义 HEX:';
+    hexLabel.style.fontSize = '11px';
+    hexLabel.style.color = 'rgba(255,255,255,0.6)';
+    hexLabel.style.marginBottom = '4px';
+
+    const hexInput = document.createElement('input');
+    hexInput.type = 'text';
+    hexInput.value = color;
+    hexInput.placeholder = '#RRGGBB';
+    hexInput.style.width = '100%';
+    hexInput.style.padding = '6px 10px';
+    hexInput.style.borderRadius = '6px';
+    hexInput.style.border = '1px solid rgba(255,255,255,0.2)';
+    hexInput.style.background = 'rgba(255,255,255,0.1)';
+    hexInput.style.color = '#fff';
+    hexInput.style.fontSize = '11px';
+    hexInput.style.outline = 'none';
+    hexInput.style.fontFamily = 'monospace';
+
+    hexInput.addEventListener('change', () => {
+      let c = hexInput.value.trim();
+      if (!c.startsWith('#')) c = '#' + c;
+      if (/^#[0-9A-Fa-f]{6}$/.test(c)) {
+        dot.style.background = c;
+        onChange(c);
+        pickerPopup.style.display = 'none';
+      }
     });
-    paletteGrid.appendChild(paletteBtn);
+
+    pickerPopup.appendChild(paletteGrid);
+    pickerPopup.appendChild(hexLabel);
+    pickerPopup.appendChild(hexInput);
+
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.color-picker-popup').forEach(p => {
+        if (p !== pickerPopup) (p as HTMLElement).style.display = 'none';
+      });
+      const rect = dot.getBoundingClientRect();
+      pickerPopup.style.top = `${rect.bottom + 8}px`;
+      pickerPopup.style.left = `${rect.left}px`;
+      pickerPopup.style.display = pickerPopup.style.display === 'none' ? 'block' : 'none';
+      pickerPopup.classList.add('color-picker-popup');
+      hexInput.value = dot.style.background.startsWith('#') 
+        ? dot.style.background 
+        : color;
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!pickerPopup.contains(e.target as Node) && e.target !== dot) {
+        pickerPopup.style.display = 'none';
+      }
+    });
+
+    document.body.appendChild(pickerPopup);
+
+    wrapper.appendChild(dot);
+    wrapper.appendChild(labelEl);
+    return { wrapper, dot, setColor: (c: string) => {
+      dot.style.background = c;
+      hexInput.value = c;
+    }};
+  };
+
+  const startColor = createColorDot(currentColors.start, '起始', (c) => {
+    currentColors.start = c;
+    onPaletteChange({ ...currentColors });
+  });
+  const midColor = createColorDot(currentColors.mid, '中间', (c) => {
+    currentColors.mid = c;
+    onPaletteChange({ ...currentColors });
+  });
+  const endColor = createColorDot(currentColors.end, '结束', (c) => {
+    currentColors.end = c;
+    onPaletteChange({ ...currentColors });
   });
 
-  const hexInput = document.createElement('input');
-  hexInput.type = 'text';
-  hexInput.placeholder = '#RRGGBB';
-  hexInput.value = initialColor;
-  hexInput.style.width = '100%';
-  hexInput.style.padding = '8px 12px';
-  hexInput.style.borderRadius = '8px';
-  hexInput.style.border = '1px solid rgba(255,255,255,0.2)';
-  hexInput.style.background = 'rgba(255,255,255,0.1)';
-  hexInput.style.color = '#fff';
-  hexInput.style.fontSize = '12px';
-  hexInput.style.outline = 'none';
+  previewRow.appendChild(startColor.wrapper);
+  previewRow.appendChild(midColor.wrapper);
+  previewRow.appendChild(endColor.wrapper);
 
-  colorPreview.addEventListener('click', (e) => {
-    e.stopPropagation();
-    popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+  const gradientBar = document.createElement('div');
+  gradientBar.style.height = '20px';
+  gradientBar.style.borderRadius = '6px';
+  gradientBar.style.background = `linear-gradient(90deg, ${currentColors.start} 0%, ${currentColors.mid} 50%, ${currentColors.end} 100%)`;
+  gradientBar.style.marginBottom = '4px';
+  gradientBar.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+
+  const presetsLabel = document.createElement('div');
+  presetsLabel.textContent = '12种科学可视化配色方案';
+  presetsLabel.style.fontSize = '10px';
+  presetsLabel.style.color = 'rgba(255,255,255,0.5)';
+  presetsLabel.style.marginBottom = '4px';
+
+  const presetsGrid = document.createElement('div');
+  presetsGrid.style.display = 'grid';
+  presetsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  presetsGrid.style.gap = '6px';
+
+  scientificPalettes.forEach(palette => {
+    const presetBtn = document.createElement('button');
+    presetBtn.style.display = 'flex';
+    presetBtn.style.flexDirection = 'column';
+    presetBtn.style.gap = '2px';
+    presetBtn.style.padding = '4px';
+    presetBtn.style.borderRadius = '6px';
+    presetBtn.style.border = '1px solid rgba(255,255,255,0.15)';
+    presetBtn.style.background = 'rgba(255,255,255,0.05)';
+    presetBtn.style.cursor = 'pointer';
+    presetBtn.style.transition = 'all 0.2s';
+    presetBtn.title = palette.name;
+
+    const gradient = document.createElement('div');
+    gradient.style.height = '16px';
+    gradient.style.borderRadius = '4px';
+    gradient.style.background = `linear-gradient(90deg, ${palette.start} 0%, ${palette.mid} 50%, ${palette.end} 100%)`;
+
+    const name = document.createElement('span');
+    name.textContent = palette.name;
+    name.style.fontSize = '9px';
+    name.style.color = 'rgba(255,255,255,0.7)';
+    name.style.textAlign = 'center';
+    name.style.whiteSpace = 'nowrap';
+    name.style.overflow = 'hidden';
+    name.style.textOverflow = 'ellipsis';
+
+    presetBtn.appendChild(gradient);
+    presetBtn.appendChild(name);
+
+    presetBtn.addEventListener('mouseenter', () => {
+      presetBtn.style.transform = 'translateY(-2px)';
+      presetBtn.style.background = 'rgba(255,255,255,0.1)';
+      presetBtn.style.borderColor = 'rgba(102, 126, 234, 0.6)';
+    });
+    presetBtn.addEventListener('mouseleave', () => {
+      presetBtn.style.transform = 'translateY(0)';
+      presetBtn.style.background = 'rgba(255,255,255,0.05)';
+      presetBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+    });
+
+    presetBtn.addEventListener('click', () => {
+      currentColors = { start: palette.start, mid: palette.mid, end: palette.end };
+      startColor.setColor(palette.start);
+      midColor.setColor(palette.mid);
+      endColor.setColor(palette.end);
+      gradientBar.style.background = `linear-gradient(90deg, ${palette.start} 0%, ${palette.mid} 50%, ${palette.end} 100%)`;
+      onPaletteChange({ ...currentColors });
+    });
+
+    presetsGrid.appendChild(presetBtn);
   });
 
-  document.addEventListener('click', (e) => {
-    if (!container.contains(e.target as Node)) {
-      popup.style.display = 'none';
-    }
-  });
-
-  hexInput.addEventListener('change', () => {
-    let color = hexInput.value.trim();
-    if (!color.startsWith('#')) {
-      color = '#' + color;
-    }
-    if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-      colorPreview.style.background = color;
-      colorPreview.textContent = color;
-      onChange(color);
-    }
-  });
-
-  popup.appendChild(paletteGrid);
-  popup.appendChild(hexInput);
-  container.appendChild(labelEl);
-  container.appendChild(colorPreview);
-  container.appendChild(popup);
+  container.appendChild(previewRow);
+  container.appendChild(gradientBar);
+  container.appendChild(presetsLabel);
+  container.appendChild(presetsGrid);
 
   return {
     container,
-    setColor: (c: string) => {
-      colorPreview.style.background = c;
-      colorPreview.textContent = c;
-      hexInput.value = c;
-    }
+    setColors: (colors) => {
+      currentColors = { ...colors };
+      startColor.setColor(colors.start);
+      midColor.setColor(colors.mid);
+      endColor.setColor(colors.end);
+      gradientBar.style.background = `linear-gradient(90deg, ${colors.start} 0%, ${colors.mid} 50%, ${colors.end} 100%)`;
+    },
+    getColors: () => ({ ...currentColors })
   };
 };
 
@@ -300,7 +445,9 @@ const createSelect = (
   options: { value: string; label: string }[],
   value: string,
   onChange: (value: string) => void
-): { container: HTMLDivElement; setValue: (v: string) => void } => {
+): { container: HTMLDivElement; setValue: (v: string) => void; recreate: (opts: { value: string; label: string }[], val: string, cb: (v: string) => void) => void } => {
+  let currentOnChange = onChange;
+
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -320,17 +467,24 @@ const createSelect = (
   select.style.fontSize = '12px';
   select.style.outline = 'none';
   select.style.cursor = 'pointer';
+  select.style.width = '100%';
 
-  options.forEach(opt => {
-    const option = document.createElement('option');
-    option.value = opt.value;
-    option.textContent = opt.label;
-    option.style.background = '#1a1a2e';
-    select.appendChild(option);
-  });
+  const rebuild = (opts: { value: string; label: string }[], val: string, cb: (v: string) => void) => {
+    select.innerHTML = '';
+    opts.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      option.style.background = '#1a1a2e';
+      select.appendChild(option);
+    });
+    select.value = val;
+    currentOnChange = cb;
+  };
 
-  select.value = value;
-  select.addEventListener('change', () => onChange(select.value));
+  rebuild(options, value, onChange);
+
+  select.addEventListener('change', () => currentOnChange(select.value));
 
   container.appendChild(labelEl);
   container.appendChild(select);
@@ -339,7 +493,8 @@ const createSelect = (
     container,
     setValue: (v: string) => {
       select.value = v;
-    }
+    },
+    recreate: rebuild
   };
 };
 
@@ -410,7 +565,7 @@ export const createUIController = (
   title.style.webkitTextFillColor = 'transparent';
   title.style.backgroundClip = 'text';
 
-  const section = (name: string) => {
+  const createSection = (name: string) => {
     const div = document.createElement('div');
     div.style.marginBottom = '16px';
     div.style.display = 'flex';
@@ -429,7 +584,7 @@ export const createUIController = (
     return div;
   };
 
-  const shapeSection = section('分布形状');
+  const shapeSection = createSection('分布形状');
   const shapeSelect = createSelect(
     '',
     [
@@ -445,7 +600,7 @@ export const createUIController = (
   );
   shapeSection.appendChild(shapeSelect.container);
 
-  const templateSection = section('预设模板');
+  const templateSection = createSection('预设模板');
   const templateSelect = createSelect(
     '',
     [{ value: '', label: '选择模板...' }],
@@ -454,7 +609,7 @@ export const createUIController = (
   );
   templateSection.appendChild(templateSelect.container);
 
-  const savedSection = section('已保存');
+  const savedSection = createSection('已保存');
   const savedSelect = createSelect(
     '',
     [{ value: '', label: '加载已保存...' }],
@@ -463,7 +618,7 @@ export const createUIController = (
   );
   savedSection.appendChild(savedSelect.container);
 
-  const paramsSection = section('参数调节');
+  const paramsSection = createSection('参数调节');
   const densitySlider = createSlider(
     '粒子密度',
     1000,
@@ -526,39 +681,24 @@ export const createUIController = (
   paramsSection.appendChild(attenuationSlider.container);
   paramsSection.appendChild(pulseSlider.container);
 
-  const colorSection = section('颜色调色板');
-  const colorStartPicker = createColorPicker(
-    '起始颜色',
-    params.colorStart,
-    (c) => {
-      params.colorStart = c;
-      paramsChangeCallback?.({ colorStart: c });
-    }
-  );
-  const colorMidPicker = createColorPicker(
-    '中间颜色',
-    params.colorMid,
-    (c) => {
-      params.colorMid = c;
-      paramsChangeCallback?.({ colorMid: c });
-    }
-  );
-  const colorEndPicker = createColorPicker(
-    '结束颜色',
-    params.colorEnd,
-    (c) => {
-      params.colorEnd = c;
-      paramsChangeCallback?.({ colorEnd: c });
+  const palettePicker = createColorPalettePicker(
+    { start: params.colorStart, mid: params.colorMid, end: params.colorEnd },
+    (colors) => {
+      params.colorStart = colors.start;
+      params.colorMid = colors.mid;
+      params.colorEnd = colors.end;
+      paramsChangeCallback?.({
+        colorStart: colors.start,
+        colorMid: colors.mid,
+        colorEnd: colors.end
+      });
     }
   );
 
-  colorSection.appendChild(colorStartPicker.container);
-  colorSection.appendChild(colorMidPicker.container);
-  colorSection.appendChild(colorEndPicker.container);
-
-  const buttonsSection = section('操作');
+  const buttonsSection = createSection('操作');
   buttonsSection.style.flexDirection = 'row';
   buttonsSection.style.flexWrap = 'wrap';
+  buttonsSection.style.gap = '8px';
 
   const saveBtn = createButton('💾 保存', async () => {
     const name = prompt('输入预设名称:', `星云_${Date.now()}`);
@@ -588,7 +728,7 @@ export const createUIController = (
   panel.appendChild(templateSection);
   panel.appendChild(savedSection);
   panel.appendChild(paramsSection);
-  panel.appendChild(colorSection);
+  panel.appendChild(palettePicker.container);
   panel.appendChild(buttonsSection);
 
   const loadTemplates = async () => {
@@ -596,9 +736,7 @@ export const createUIController = (
       const res = await axios.get(`${API_BASE}/templates`);
       const templates = res.data as Array<NebulaParams & { id: string; name: string }>;
       
-      templateSelect.container.removeChild(templateSelect.container.querySelector('select')!);
-      const newSelect = createSelect(
-        '',
+      templateSelect.recreate(
         [
           { value: '', label: '选择模板...' },
           ...templates.map(t => ({ value: t.id, label: t.name }))
@@ -611,8 +749,6 @@ export const createUIController = (
           }
         }
       );
-      templateSelect.setValue = newSelect.setValue;
-      templateSection.appendChild(newSelect.container);
     } catch {
       console.warn('无法加载模板列表');
     }
@@ -623,13 +759,7 @@ export const createUIController = (
       const res = await axios.get(`${API_BASE}/saved`);
       const saved = res.data as Array<NebulaParams & { id: string; name: string }>;
       
-      const oldSelect = savedSection.querySelector('select');
-      if (oldSelect) {
-        savedSection.removeChild(oldSelect.parentElement!);
-      }
-      
-      const newSelect = createSelect(
-        '',
+      savedSelect.recreate(
         [
           { value: '', label: '加载已保存...' },
           ...saved.map(s => ({ value: s.id, label: s.name || `预设_${s.id.slice(0, 6)}` }))
@@ -642,8 +772,6 @@ export const createUIController = (
           }
         }
       );
-      savedSelect.setValue = newSelect.setValue;
-      savedSection.appendChild(newSelect.container);
     } catch {
       console.warn('无法加载已保存列表');
     }
@@ -657,9 +785,11 @@ export const createUIController = (
     sizeSlider.setValue(params.particleSize);
     attenuationSlider.setValue(params.attenuation);
     pulseSlider.setValue(params.pulseAmplitude);
-    colorStartPicker.setColor(params.colorStart);
-    colorMidPicker.setColor(params.colorMid);
-    colorEndPicker.setColor(params.colorEnd);
+    palettePicker.setColors({
+      start: params.colorStart,
+      mid: params.colorMid,
+      end: params.colorEnd
+    });
   };
 
   const handleResize = () => {
@@ -673,6 +803,7 @@ export const createUIController = (
       panel.style.overflowY = 'auto';
       panel.style.overflowX = 'hidden';
       panel.style.flexDirection = 'row';
+      panel.style.transform = 'translateY(120%)';
     } else {
       panel.style.left = '20px';
       panel.style.right = 'auto';
@@ -680,6 +811,7 @@ export const createUIController = (
       panel.style.bottom = 'auto';
       panel.style.width = '280px';
       panel.style.maxHeight = 'calc(100vh - 40px)';
+      panel.style.transform = 'translateX(0)';
     }
   };
 
@@ -689,7 +821,11 @@ export const createUIController = (
   document.body.appendChild(panel);
 
   requestAnimationFrame(() => {
-    panel.style.transform = 'translateX(0)';
+    if (window.innerWidth < 768) {
+      panel.style.transform = 'translateY(0)';
+    } else {
+      panel.style.transform = 'translateX(0)';
+    }
   });
 
   loadTemplates();

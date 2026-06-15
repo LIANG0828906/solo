@@ -15,13 +15,14 @@ export interface NebulaParams {
 export interface ParticleSystem {
   group: THREE.Group;
   update: (time: number, delta: number) => void;
-  updateParams: (params: Partial<NebulaParams>, animate?: boolean) => void;
+  updateParams: (params: Partial<NebulaParams>, animate?: boolean, transitionDuration?: number) => void;
   getParams: () => NebulaParams;
   transitionTo: (targetParams: NebulaParams, duration?: number) => void;
 }
 
 const easeOutElastic = (t: number): number => {
-  if (t === 0 || t === 1) return t;
+  if (t === 0) return 0;
+  if (t === 1) return 1;
   const p = 0.3;
   const s = p / 4;
   return Math.pow(2, -10 * t) * Math.sin((t - s) * (2 * Math.PI) / p) + 1;
@@ -64,11 +65,13 @@ const getColorAtPosition = (
   }
 };
 
+const MAX_PARTICLES = 50000;
+
 const generateParticlePositions = (
   shape: 'sphere' | 'torus' | 'spiral',
   count: number
 ): Float32Array => {
-  const positions = new Float32Array(count * 3);
+  const positions = new Float32Array(MAX_PARTICLES * 3);
   const radius = 50;
 
   for (let i = 0; i < count; i++) {
@@ -119,6 +122,9 @@ const createCircleTexture = (): THREE.Texture => {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 64, 64);
   const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
   texture.needsUpdate = true;
   return texture;
 };
@@ -145,6 +151,7 @@ const createBackgroundStars = (): THREE.Points => {
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setDrawRange(0, count);
 
   const material = new THREE.PointsMaterial({
     size: 0.3,
@@ -154,7 +161,9 @@ const createBackgroundStars = (): THREE.Points => {
     sizeAttenuation: true
   });
 
-  return new THREE.Points(geometry, material);
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  return points;
 };
 
 export const createParticleSystem = (
@@ -182,6 +191,15 @@ export const createParticleSystem = (
   let material: THREE.PointsMaterial | null = null;
   let points: THREE.Points | null = null;
   let baseSizes: Float32Array | null = null;
+  let currentParticleCount = Math.min(initialParams.density, MAX_PARTICLES);
+
+  let positionAttr: THREE.BufferAttribute | null = null;
+  let colorAttr: THREE.BufferAttribute | null = null;
+  let sizeAttr: THREE.BufferAttribute | null = null;
+
+  let needsPositionUpdate = false;
+  let needsColorUpdate = false;
+  let needsSizeUpdate = false;
 
   const rebuildGeometry = () => {
     if (points) {
@@ -190,14 +208,14 @@ export const createParticleSystem = (
       material?.dispose();
     }
 
-    const count = Math.min(currentParams.density, 50000);
+    currentParticleCount = Math.min(currentParams.density, MAX_PARTICLES);
     geometry = new THREE.BufferGeometry();
-    const positions = generateParticlePositions(currentParams.shape, count);
-    const colors = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    baseSizes = new Float32Array(count);
+    const positions = generateParticlePositions(currentParams.shape, currentParticleCount);
+    const colors = new Float32Array(MAX_PARTICLES * 3);
+    const sizes = new Float32Array(MAX_PARTICLES);
+    baseSizes = new Float32Array(MAX_PARTICLES);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < currentParticleCount; i++) {
       const idx = i * 3;
       const posIdx = i;
       const x = positions[idx];
@@ -217,9 +235,18 @@ export const createParticleSystem = (
       baseSizes[posIdx] = baseSize;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    positionAttr = new THREE.BufferAttribute(positions, 3);
+    colorAttr = new THREE.BufferAttribute(colors, 3);
+    sizeAttr = new THREE.BufferAttribute(sizes, 1);
+
+    positionAttr.setUsage(THREE.DynamicDrawUsage);
+    colorAttr.setUsage(THREE.DynamicDrawUsage);
+    sizeAttr.setUsage(THREE.DynamicDrawUsage);
+
+    geometry.setAttribute('position', positionAttr);
+    geometry.setAttribute('color', colorAttr);
+    geometry.setAttribute('size', sizeAttr);
+    geometry.setDrawRange(0, currentParticleCount);
 
     material = new THREE.PointsMaterial({
       size: currentParams.particleSize,
@@ -233,17 +260,17 @@ export const createParticleSystem = (
     });
 
     points = new THREE.Points(geometry, material);
+    points.frustumCulled = false;
     group.add(points);
   };
 
   const updateColors = (t: number) => {
-    if (!geometry || !colorOld || !colorTarget) return;
-    const colors = geometry.attributes.color.array as Float32Array;
-    const count = colors.length / 3;
+    if (!colorAttr || !baseSizes || !colorOld || !colorTarget) return;
+    const colors = colorAttr.array as Float32Array;
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < currentParticleCount; i++) {
       const idx = i * 3;
-      const positions = geometry.attributes.position.array as Float32Array;
+      const positions = positionAttr!.array as Float32Array;
       const x = positions[idx];
       const y = positions[idx + 1];
       const z = positions[idx + 2];
@@ -259,7 +286,7 @@ export const createParticleSystem = (
       colors[idx + 2] = lerp(oldColor.b, newColor.b, t);
     }
 
-    geometry.attributes.color.needsUpdate = true;
+    needsColorUpdate = true;
   };
 
   rebuildGeometry();
@@ -272,16 +299,17 @@ export const createParticleSystem = (
         points.rotation.y += currentParams.rotationSpeed * delta * 0.1;
       }
 
-      if (isTransitioning && geometry && targetPositions && oldPositions) {
+      if (isTransitioning && positionAttr && targetPositions && oldPositions) {
         transitionProgress += delta / transitionDuration;
         const t = Math.min(transitionProgress, 1);
         const easedT = easeOutElastic(t);
 
-        const positions = geometry.attributes.position.array as Float32Array;
-        for (let i = 0; i < positions.length; i++) {
+        const positions = positionAttr.array as Float32Array;
+        const countToUpdate = Math.min(oldPositions.length, targetPositions.length, positions.length);
+        for (let i = 0; i < countToUpdate; i++) {
           positions[i] = lerp(oldPositions[i], targetPositions[i], easedT);
         }
-        geometry.attributes.position.needsUpdate = true;
+        needsPositionUpdate = true;
 
         if (t >= 1) {
           isTransitioning = false;
@@ -300,22 +328,35 @@ export const createParticleSystem = (
         }
       }
 
-      if (geometry && baseSizes && currentParams.pulseAmplitude > 0) {
-        const sizes = geometry.attributes.size.array as Float32Array;
+      if (sizeAttr && baseSizes && currentParams.pulseAmplitude > 0) {
+        const sizes = sizeAttr.array as Float32Array;
         const pulse = Math.sin(time * 2) * currentParams.pulseAmplitude + 1;
 
-        for (let i = 0; i < sizes.length; i++) {
+        for (let i = 0; i < currentParticleCount; i++) {
           sizes[i] = baseSizes[i] * pulse;
         }
-        geometry.attributes.size.needsUpdate = true;
+        needsSizeUpdate = true;
+      }
+
+      if (needsPositionUpdate && positionAttr) {
+        positionAttr.needsUpdate = true;
+        needsPositionUpdate = false;
+      }
+      if (needsColorUpdate && colorAttr) {
+        colorAttr.needsUpdate = true;
+        needsColorUpdate = false;
+      }
+      if (needsSizeUpdate && sizeAttr) {
+        sizeAttr.needsUpdate = true;
+        needsSizeUpdate = false;
       }
 
       backgroundStars.rotation.y += delta * 0.005;
     },
 
-    updateParams: (params: Partial<NebulaParams>, animate = true) => {
-      const needsGeometryRebuild = params.shape !== undefined && params.shape !== currentParams.shape ||
-                                    params.density !== undefined && params.density !== currentParams.density;
+    updateParams: (params: Partial<NebulaParams>, animate = true, customTransitionDuration?: number) => {
+      const needsGeometryRebuild = (params.shape !== undefined && params.shape !== currentParams.shape) ||
+                                    (params.density !== undefined && params.density !== currentParams.density);
 
       const needsColorUpdate = params.colorStart !== undefined ||
                                params.colorMid !== undefined ||
@@ -336,13 +377,17 @@ export const createParticleSystem = (
         isColorTransitioning = true;
       }
 
-      if (needsGeometryRebuild && animate && geometry) {
-        oldPositions = new Float32Array(geometry.attributes.position.array as Float32Array);
-        const newCount = Math.min(params.density || currentParams.density, 50000);
+      if (needsGeometryRebuild && animate && positionAttr) {
+        oldPositions = new Float32Array(positionAttr.array as Float32Array);
+        const newCount = Math.min(params.density || currentParams.density, MAX_PARTICLES);
         const newShape = params.shape || currentParams.shape;
         targetPositions = generateParticlePositions(newShape, newCount);
         transitionProgress = 0;
-        transitionDuration = 0.6;
+        transitionDuration = customTransitionDuration ?? 0.6;
+        currentParticleCount = newCount;
+        if (geometry) {
+          geometry.setDrawRange(0, newCount);
+        }
         isTransitioning = true;
       }
 
@@ -352,22 +397,43 @@ export const createParticleSystem = (
         rebuildGeometry();
       }
 
-      if (material) {
-        if (params.particleSize !== undefined) {
-          material.size = params.particleSize;
+      if (params.particleSize !== undefined && material) {
+        material.size = params.particleSize;
+      }
+
+      if (needsColorUpdate && !animate && colorAttr) {
+        const colors = colorAttr.array as Float32Array;
+        for (let i = 0; i < currentParticleCount; i++) {
+          const idx = i * 3;
+          const positions = positionAttr!.array as Float32Array;
+          const x = positions[idx];
+          const y = positions[idx + 1];
+          const z = positions[idx + 2];
+          const dist = Math.sqrt(x * x + y * y + z * z);
+          const maxDist = 60;
+          const t = dist / maxDist;
+          const color = getColorAtPosition(t, currentParams.colorStart, currentParams.colorMid, currentParams.colorEnd);
+          colors[idx] = color.r;
+          colors[idx + 1] = color.g;
+          colors[idx + 2] = color.b;
         }
+        colorAttr.needsUpdate = true;
       }
     },
 
     getParams: () => ({ ...currentParams }),
 
     transitionTo: (targetParams: NebulaParams, duration = 1) => {
-      if (geometry) {
-        oldPositions = new Float32Array(geometry.attributes.position.array as Float32Array);
-        const newCount = Math.min(targetParams.density, 50000);
+      if (positionAttr) {
+        oldPositions = new Float32Array(positionAttr.array as Float32Array);
+        const newCount = Math.min(targetParams.density, MAX_PARTICLES);
         targetPositions = generateParticlePositions(targetParams.shape, newCount);
         transitionProgress = 0;
         transitionDuration = duration;
+        currentParticleCount = newCount;
+        if (geometry) {
+          geometry.setDrawRange(0, newCount);
+        }
         isTransitioning = true;
 
         colorOld = {
