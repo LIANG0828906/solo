@@ -200,6 +200,72 @@ export function getHeightAt(
   }
 }
 
+export function computeSlope(
+  heights: Float32Array,
+  gx: number,
+  gy: number,
+  resolution: number = GRID_RESOLUTION
+): number {
+  try {
+    if (!heights || heights.length === 0) return 0;
+    const safeRes = typeof resolution === 'number' && resolution > 1 ? resolution : GRID_RESOLUTION;
+    const ix = clamp(Math.floor(gx), 0, safeRes - 1);
+    const iy = clamp(Math.floor(gy), 0, safeRes - 1);
+
+    const hL = ix > 0 ? heights[iy * safeRes + (ix - 1)] : heights[iy * safeRes + ix];
+    const hR = ix < safeRes - 1 ? heights[iy * safeRes + (ix + 1)] : heights[iy * safeRes + ix];
+    const hU = iy > 0 ? heights[(iy - 1) * safeRes + ix] : heights[iy * safeRes + ix];
+    const hD = iy < safeRes - 1 ? heights[(iy + 1) * safeRes + ix] : heights[iy * safeRes + ix];
+
+    const dx = (hR - hL) * 0.5;
+    const dy = (hD - hU) * 0.5;
+    return Math.sqrt(dx * dx + dy * dy);
+  } catch {
+    return 0;
+  }
+}
+
+export function computeTerrainStats(heights: Float32Array): { min: number; max: number; mean: number; avgSlope: number } {
+  try {
+    if (!heights || heights.length === 0) {
+      return { min: 0, max: 0, mean: 0, avgSlope: 0 };
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    let sum = 0;
+    let slopeSum = 0;
+    const res = Math.floor(Math.sqrt(heights.length));
+
+    for (let i = 0; i < heights.length; i++) {
+      const v = heights[i];
+      if (typeof v === 'number' && isFinite(v)) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+        sum += v;
+      }
+    }
+
+    const step = Math.max(1, Math.floor(res / 40));
+    let slopeCount = 0;
+    for (let gy = 0; gy < res; gy += step) {
+      for (let gx = 0; gx < res; gx += step) {
+        slopeSum += computeSlope(heights, gx, gy, res);
+        slopeCount++;
+      }
+    }
+
+    return {
+      min: isFinite(min) ? min : 0,
+      max: isFinite(max) ? max : 0,
+      mean: heights.length > 0 ? sum / heights.length : 0,
+      avgSlope: slopeCount > 0 ? slopeSum / slopeCount : 0,
+    };
+  } catch (e) {
+    console.error('computeTerrainStats error:', e);
+    return { min: 0, max: 0, mean: 0, avgSlope: 0 };
+  }
+}
+
 export function gridToWorld(
   gridX: number,
   gridY: number,
@@ -313,7 +379,32 @@ export interface ContourLevel {
   color: string;
 }
 
-export function computeContourLevels(amplitude: number): ContourLevel[] {
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+}
+
+export function computeContourLevels(
+  amplitude: number,
+  heights?: Float32Array
+): ContourLevel[] {
   try {
     const safeAmp = clamp(
       typeof amplitude === 'number' && isFinite(amplitude) && amplitude > 0
@@ -323,51 +414,72 @@ export function computeContourLevels(amplitude: number): ContourLevel[] {
       10
     );
 
-    const targetCount = Math.round(clamp(safeAmp * 2 + 4, 8, 24));
-    const minH = -safeAmp - 2;
-    const maxH = safeAmp + 2;
-    const range = maxH - minH;
-    const step = range / (targetCount - 1);
+    let minH = -safeAmp - 2;
+    let maxH = safeAmp + 2;
+
+    if (heights && heights.length > 0) {
+      const stats = computeTerrainStats(heights);
+      if (isFinite(stats.min) && isFinite(stats.max)) {
+        const padding = (stats.max - stats.min) * 0.08 + 0.5;
+        minH = stats.min - padding;
+        maxH = stats.max + padding;
+      }
+    }
+
+    const range = Math.max(0.5, maxH - minH);
+
+    let baseCount = Math.round(clamp(safeAmp * 2 + 4, 8, 24));
+
+    if (heights && heights.length > 0) {
+      const stats = computeTerrainStats(heights);
+      const slopeFactor = clamp(stats.avgSlope / (safeAmp * 0.15), 0.5, 2);
+      baseCount = Math.round(clamp(baseCount / slopeFactor, 6, 30));
+    }
 
     const levels: ContourLevel[] = [];
 
-    for (let i = 0; i < targetCount; i++) {
-      const height = minH + i * step;
-      const ratio = i / (targetCount - 1);
+    const colorStops = [
+      { t: 0.0, h: 220, s: 0.6, l: 0.28 },
+      { t: 0.2, h: 200, s: 0.5, l: 0.42 },
+      { t: 0.4, h: 110, s: 0.35, l: 0.48 },
+      { t: 0.55, h: 60, s: 0.3, l: 0.52 },
+      { t: 0.7, h: 35, s: 0.45, l: 0.48 },
+      { t: 0.85, h: 25, s: 0.35, l: 0.55 },
+      { t: 1.0, h: 210, s: 0.08, l: 0.88 },
+    ];
 
-      const t = (height - minH) / range;
-
-      let r: number, g: number, b: number;
-      if (height < -safeAmp * 0.3) {
-        const deepT = clamp((height - minH) / (-safeAmp * 0.3 - minH), 0, 1);
-        r = Math.round(30 + deepT * 50);
-        g = Math.round(50 + deepT * 70);
-        b = Math.round(90 + deepT * 80);
-      } else if (height < safeAmp * 0.2) {
-        const midLowT = clamp((height - (-safeAmp * 0.3)) / (safeAmp * 0.5), 0, 1);
-        r = Math.round(80 + midLowT * 60);
-        g = Math.round(120 + midLowT * 50);
-        b = Math.round(170 - midLowT * 80);
-      } else if (height < safeAmp * 0.7) {
-        const midT = clamp((height - safeAmp * 0.2) / (safeAmp * 0.5), 0, 1);
-        r = Math.round(140 + midT * 40);
-        g = Math.round(170 - midT * 30);
-        b = Math.round(90 - midT * 30);
-      } else {
-        const highT = clamp((height - safeAmp * 0.7) / (maxH - safeAmp * 0.7), 0, 1);
-        r = Math.round(180 + highT * 60);
-        g = Math.round(140 + highT * 80);
-        b = Math.round(60 + highT * 140);
+    const getColorAtRatio = (ratio: number) => {
+      const r = clamp(ratio, 0, 1);
+      for (let i = 0; i < colorStops.length - 1; i++) {
+        const s1 = colorStops[i];
+        const s2 = colorStops[i + 1];
+        if (r >= s1.t && r <= s2.t) {
+          const localT = (r - s1.t) / (s2.t - s1.t);
+          const h = lerp(s1.h, s2.h, localT);
+          const s = lerp(s1.s, s2.s, localT);
+          const l = lerp(s1.l, s2.l, localT);
+          return hslToRgb(h / 360, s, l);
+        }
       }
+      return hslToRgb(colorStops[colorStops.length - 1].h / 360, colorStops[colorStops.length - 1].s, colorStops[colorStops.length - 1].l);
+    };
 
-      const grayBase = Math.round(60 + ratio * 130);
-      r = Math.round(r * 0.4 + grayBase * 0.6);
-      g = Math.round(g * 0.4 + grayBase * 0.6);
-      b = Math.round(b * 0.4 + (grayBase + 10) * 0.6);
+    const step = range / (baseCount - 1);
+
+    for (let i = 0; i < baseCount; i++) {
+      const height = minH + i * step;
+      const ratio = i / (baseCount - 1);
+      const rgb = getColorAtRatio(ratio);
+
+      const grayMix = 0.35;
+      const grayVal = Math.round(70 + ratio * 120);
+      const r = Math.round(rgb.r * (1 - grayMix) + grayVal * grayMix);
+      const g = Math.round(rgb.g * (1 - grayMix) + grayVal * grayMix);
+      const b = Math.round(rgb.b * (1 - grayMix) + (grayVal + 8) * grayMix);
 
       levels.push({
         height,
-        color: `rgb(${Math.max(40, Math.min(220, r))}, ${Math.max(40, Math.min(220, g))}, ${Math.max(45, Math.min(230, b))})`,
+        color: `rgb(${clamp(r, 40, 230)}, ${clamp(g, 40, 230)}, ${clamp(b, 45, 240)})`,
       });
     }
 
@@ -396,6 +508,17 @@ export function easeOutElastic(t: number): number {
       : safeT === 1
       ? 1
       : Math.pow(2, -10 * safeT) * Math.sin((safeT * 10 - 0.75) * c4) + 1;
+  } catch {
+    return clamp(t, 0, 1);
+  }
+}
+
+export function easeOutBack(t: number): number {
+  try {
+    const safeT = clamp(isFinite(t) ? t : 0, 0, 1);
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(safeT - 1, 3) + c1 * Math.pow(safeT - 1, 2);
   } catch {
     return clamp(t, 0, 1);
   }

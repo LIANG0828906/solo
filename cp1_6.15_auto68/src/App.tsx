@@ -25,6 +25,11 @@ interface Toast {
 
 const TRANSITION_MS = 300
 const ELASTIC = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+const VIEW_SCALE_MIN = 0.85
+const VIEW_OPACITY_DELAY = 80
+const TOAST_DURATION_SUCCESS = 4000
+const TOAST_DURATION_ERROR = 5500
+const TOAST_DURATION_INFO = 4000
 
 export default function App() {
   const [terrainParams, setTerrainParams] = useState<TerrainParams>({
@@ -85,9 +90,13 @@ export default function App() {
     try {
       const id = ++toastIdRef.current
       setToasts((prev) => [...prev, { id, message, type }])
+      const duration =
+        type === 'error' ? TOAST_DURATION_ERROR :
+        type === 'success' ? TOAST_DURATION_SUCCESS :
+        TOAST_DURATION_INFO
       const timer = window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id))
-      }, 2800)
+      }, duration)
       return () => window.clearTimeout(timer)
     } catch (_) { /* ignore */ }
   }, [])
@@ -363,7 +372,7 @@ export default function App() {
       animTimeoutRef.current = window.setTimeout(() => {
         setViewAnimating(false)
         animTimeoutRef.current = null
-      }, TRANSITION_MS + 50)
+      }, TRANSITION_MS + 80)
     } catch (e) {
       console.error('toggleView error:', e)
       setViewAnimating(false)
@@ -503,8 +512,16 @@ export default function App() {
     </div>
   )
 
-  const viewScale = viewAnimating ? 0.97 : 1
-  const viewOpacity = viewAnimating ? 0.7 : 1
+  const viewScale = viewAnimating ? VIEW_SCALE_MIN : 1
+  const viewOpacity = viewAnimating ? 0.5 : 1
+  const opacityDelay = `${VIEW_OPACITY_DELAY}ms`
+
+  const viewTransformStyle: React.CSSProperties = {
+    transform: `scale(${viewScale})`,
+    transformOrigin: 'center center',
+    opacity: viewOpacity,
+    transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${viewAnimating ? '0ms' : opacityDelay}`,
+  }
 
   return (
     <div style={mainContainerStyle}>
@@ -542,12 +559,12 @@ export default function App() {
         .btn-hover:hover:not(:disabled) { filter: brightness(1.15); transform: scale(1.02); }
         .btn-hover:active:not(:disabled) { transform: scale(0.97); transition: transform 0.1s ease; }
         @keyframes fadeInUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+          from { transform: translateY(24px) scale(0.92); opacity: 0; }
+          to { transform: translateY(0) scale(1); opacity: 1; }
         }
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
+        @keyframes fadeOutToast {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: 0; transform: translateY(-8px) scale(0.96); }
         }
         @keyframes pulseBorder {
           0%, 100% { box-shadow: 0 0 0 0 rgba(255,123,0,0.4); }
@@ -649,9 +666,7 @@ export default function App() {
                 flex: 1,
                 position: 'relative',
                 overflow: 'hidden',
-                transform: `scale(${viewScale})`,
-                opacity: viewOpacity,
-                transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                ...viewTransformStyle,
               }}
             >
               <TerrainGenerator heights={heights} pathPoints={pathPoints} />
@@ -664,9 +679,10 @@ export default function App() {
                     width: '200px',
                     height: '150px',
                     zIndex: 50,
-                    transform: viewAnimating ? 'scale(0.9)' : 'scale(1)',
-                    opacity: viewAnimating ? 0.7 : 1,
-                    transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                    transform: viewAnimating ? 'scale(0.82) translateY(-4px)' : 'scale(1) translateY(0)',
+                    transformOrigin: 'top left',
+                    opacity: viewAnimating ? 0.5 : 1,
+                    transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${viewAnimating ? '60ms' : '0ms'}`,
                     animation: 'fadeInUp 0.3s ease',
                   }}
                 >
@@ -689,9 +705,8 @@ export default function App() {
                   position: 'relative',
                   borderTop: '1px solid #2a3b4a',
                   overflow: 'hidden',
-                  transform: `scale(${viewScale})`,
-                  opacity: viewOpacity,
-                  transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease, flex ${TRANSITION_MS}ms ${ELASTIC}`,
+                  ...viewTransformStyle,
+                  transitionProperty: 'flex, transform, opacity',
                 }}
               >
                 <PathPlanner
@@ -742,11 +757,11 @@ export default function App() {
               right: 0,
               height: '50vh',
               ...glassPanelStyle,
-              transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(100%) scale(0.95)',
+              transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(100%) scale(0.9)',
               transformOrigin: 'bottom center',
               opacity: menuOpen ? 1 : 0,
               pointerEvents: menuOpen ? 'auto' : 'none',
-              transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+              transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${menuOpen ? '0ms' : '50ms'}`,
               zIndex: 150,
               overflowY: 'auto',
             }}
@@ -762,9 +777,8 @@ export default function App() {
               flex: viewMode === 'full3d' ? 1 : 1,
               position: 'relative',
               overflow: 'hidden',
-              transform: `scale(${viewScale})`,
-              opacity: viewOpacity,
-              transition: `flex ${TRANSITION_MS}ms ${ELASTIC}, transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+              ...viewTransformStyle,
+              transitionProperty: 'flex, transform, opacity',
               minWidth: 0,
             }}
           >
@@ -778,9 +792,10 @@ export default function App() {
                   width: '200px',
                   height: '150px',
                   zIndex: 50,
-                  transform: viewAnimating ? 'scale(0.85) translateY(-5px)' : 'scale(1) translateY(0)',
-                  opacity: viewAnimating ? 0.6 : 1,
-                  transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                  transform: viewAnimating ? 'scale(0.82) translateY(-8px)' : 'scale(1) translateY(0)',
+                  transformOrigin: 'top left',
+                  opacity: viewAnimating ? 0.45 : 1,
+                  transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${viewAnimating ? '40ms' : '0ms'}`,
                   animation: 'fadeInUp 0.3s ease',
                 }}
               >
@@ -805,9 +820,9 @@ export default function App() {
                 position: 'relative',
                 overflow: 'hidden',
                 borderLeft: '1px solid #2a3b4a',
-                transform: `scale(${viewScale}) translateX(${viewAnimating ? '10px' : '0'})`,
-                opacity: viewOpacity,
-                transition: `flex ${TRANSITION_MS}ms ${ELASTIC}, transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                ...viewTransformStyle,
+                transform: `scale(${viewScale}) translateX(${viewAnimating ? '14px' : '0'})`,
+                transitionProperty: 'flex, transform, opacity',
                 minWidth: 0,
               }}
             >
@@ -838,9 +853,10 @@ export default function App() {
                   borderRight: 'none',
                   flexShrink: 0,
                   overflowY: 'auto',
-                  transform: viewAnimating ? 'translateX(5px) scale(0.98)' : 'translateX(0) scale(1)',
-                  opacity: viewAnimating ? 0.85 : 1,
-                  transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                  transform: viewAnimating ? 'translateX(8px) scale(0.97)' : 'translateX(0) scale(1)',
+                  transformOrigin: 'right center',
+                  opacity: viewAnimating ? 0.75 : 1,
+                  transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${viewAnimating ? '100ms' : '0ms'}`,
                 }}
               >
                 <ControlPanel />
@@ -859,9 +875,10 @@ export default function App() {
                 zIndex: 50,
                 overflowY: 'auto',
                 maxHeight: 'calc(100vh - 100px)',
-                transform: viewAnimating ? 'translateX(20px) scale(0.95)' : 'translateX(0) scale(1)',
-                opacity: viewAnimating ? 0.7 : 1,
-                transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease`,
+                transform: viewAnimating ? 'translateX(28px) scale(0.92)' : 'translateX(0) scale(1)',
+                transformOrigin: 'top right',
+                opacity: viewAnimating ? 0.5 : 1,
+                transition: `transform ${TRANSITION_MS}ms ${ELASTIC}, opacity ${TRANSITION_MS}ms ease ${viewAnimating ? '80ms' : '0ms'}`,
                 animation: 'fadeInUp 0.3s ease',
               }}
             >
@@ -883,35 +900,41 @@ export default function App() {
           pointerEvents: 'none',
         }}
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            style={{
-              padding: '10px 16px',
-              borderRadius: '8px',
-              background:
-                toast.type === 'success'
-                  ? 'rgba(42, 150, 80, 0.92)'
-                  : toast.type === 'error'
-                  ? 'rgba(200, 60, 60, 0.92)'
-                  : 'rgba(60, 100, 150, 0.92)',
-              color: '#fff',
-              fontSize: '13px',
-              fontWeight: 500,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-              animation: `fadeInUp 0.28s ${ELASTIC}, fadeOut 0.3s ease 2.5s forwards`,
-              minWidth: '200px',
-              maxWidth: '320px',
-            }}
-          >
-            <span style={{ marginRight: '6px', fontWeight: 700 }}>
-              {toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}
-            </span>
-            {toast.message}
-          </div>
-        ))}
+        {toasts.map((toast) => {
+          const fadeDelayMs =
+            toast.type === 'error' ? TOAST_DURATION_ERROR - 350 :
+            toast.type === 'success' ? TOAST_DURATION_SUCCESS - 350 :
+            TOAST_DURATION_INFO - 350
+          return (
+            <div
+              key={toast.id}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '8px',
+                background:
+                  toast.type === 'success'
+                    ? 'rgba(42, 150, 80, 0.92)'
+                    : toast.type === 'error'
+                    ? 'rgba(200, 60, 60, 0.92)'
+                    : 'rgba(60, 100, 150, 0.92)',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 500,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                animation: `fadeInUp 0.32s ${ELASTIC} both, fadeOutToast 0.35s ease ${fadeDelayMs}ms both`,
+                minWidth: '200px',
+                maxWidth: '320px',
+              }}
+            >
+              <span style={{ marginRight: '6px', fontWeight: 700 }}>
+                {toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}
+              </span>
+              {toast.message}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

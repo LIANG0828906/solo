@@ -9,6 +9,7 @@ import {
   worldToGrid,
   gridToWorld,
   easeOutCubic,
+  easeOutBack,
   GRID_SIZE,
 } from './api'
 
@@ -26,13 +27,25 @@ interface DraggingState {
   index: number
   startX: number
   startY: number
+  velX: number
+  velY: number
+  lastMoveTime: number
+  lastMoveX: number
+  lastMoveY: number
 }
 
 interface AnimState {
   startPoints: { x: number; y: number }[]
   targetPoints: { x: number; y: number }[]
   startTime: number
-  duration: number
+  durationMs: number
+}
+
+interface DragEaseState {
+  index: number
+  startPos: { x: number; y: number }
+  targetPos: { x: number; y: number }
+  startTime: number
   durationMs: number
 }
 
@@ -55,6 +68,8 @@ export default function PathPlanner({
   const targetPointsRef = useRef<{ x: number; y: number }[]>([])
   const dragPendingRef = useRef<{ index: number; target: { x: number; y: number } } | null>(null)
   const dragRafRef = useRef<number>(0)
+  const dragEaseRef = useRef<DragEaseState | null>(null)
+  const dragEaseRafRef = useRef<number>(0)
   const renderedSizeRef = useRef({ w: 0, h: 0 })
 
   const getCanvasSize = useCallback(() => {
@@ -67,7 +82,7 @@ export default function PathPlanner({
   const drawContours = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number) => {
       try {
-        const levels: ContourLevel[] = computeContourLevels(amplitude)
+        const levels: ContourLevel[] = computeContourLevels(amplitude, heights)
         const safeHeights = heights && heights.length > 0 ? heights : new Float32Array(GRID_RESOLUTION * GRID_RESOLUTION)
         const safeRes = GRID_RESOLUTION
 
@@ -153,6 +168,13 @@ export default function PathPlanner({
           const isHovered = hoveredIndex === i
           const isDragging = dragging?.index === i
 
+          if (isDragging) {
+            ctx.beginPath()
+            ctx.arc(sp.x, sp.y, radius + 8, 0, Math.PI * 2)
+            ctx.fillStyle = 'rgba(255, 123, 0, 0.15)'
+            ctx.fill()
+          }
+
           ctx.beginPath()
           ctx.arc(sp.x, sp.y, radius + 1, 0, Math.PI * 2)
           ctx.fillStyle = '#ff7b00'
@@ -219,7 +241,7 @@ export default function PathPlanner({
     animRef.current = null
   }, [])
 
-  const startPointsAnim = useCallback((from: { x: number; y: number }[], to: { x: number; y: number }[], duration = 300) => {
+  const startPointsAnim = useCallback((from: { x: number; y: number }[], to: { x: number; y: number }[], duration = 350) => {
     try {
       cancelAnim()
 
@@ -234,7 +256,6 @@ export default function PathPlanner({
         startPoints: from.map(p => ({ ...p })),
         targetPoints: to.map(p => ({ ...p })),
         startTime: performance.now(),
-        duration,
         durationMs: duration,
       }
 
@@ -281,6 +302,71 @@ export default function PathPlanner({
     }
   }, [])
 
+  const cancelDragEaseAnim = useCallback(() => {
+    if (dragEaseRafRef.current) {
+      cancelAnimationFrame(dragEaseRafRef.current)
+      dragEaseRafRef.current = 0
+    }
+    dragEaseRef.current = null
+  }, [])
+
+  const startDragEaseAnim = useCallback((
+    index: number,
+    from: { x: number; y: number },
+    to: { x: number; y: number }
+  ) => {
+    try {
+      cancelDragEaseAnim()
+
+      if (index < 0 || index >= displayPointsRef.current.length) return
+
+      dragEaseRef.current = {
+        index,
+        startPos: { ...from },
+        targetPos: { ...to },
+        startTime: performance.now(),
+        durationMs: 280,
+      }
+
+      const step = () => {
+        const ease = dragEaseRef.current
+        if (!ease) return
+
+        const now = performance.now()
+        const t = Math.min(1, (now - ease.startTime) / ease.durationMs)
+        const eased = easeOutBack(t)
+
+        const pos = {
+          x: ease.startPos.x + (ease.targetPos.x - ease.startPos.x) * eased,
+          y: ease.startPos.y + (ease.targetPos.y - ease.startPos.y) * eased,
+        }
+
+        if (ease.index >= 0 && ease.index < displayPointsRef.current.length) {
+          displayPointsRef.current[ease.index] = pos
+        }
+        if (!animRef.current && ease.index >= 0 && ease.index < targetPointsRef.current.length) {
+          targetPointsRef.current[ease.index] = { ...ease.targetPos }
+        }
+
+        render()
+
+        if (t < 1) {
+          dragEaseRafRef.current = requestAnimationFrame(step)
+        } else {
+          if (ease.index >= 0 && ease.index < displayPointsRef.current.length) {
+            displayPointsRef.current[ease.index] = { ...ease.targetPos }
+          }
+          dragEaseRef.current = null
+          dragEaseRafRef.current = 0
+        }
+      }
+
+      dragEaseRafRef.current = requestAnimationFrame(step)
+    } catch (e) {
+      console.error('startDragEaseAnim error:', e)
+    }
+  }, [cancelDragEaseAnim, render])
+
   const applyPendingDrag = useCallback(() => {
     try {
       const pending = dragPendingRef.current
@@ -292,7 +378,7 @@ export default function PathPlanner({
 
       if (index >= 0 && index < targetPointsRef.current.length) {
         targetPointsRef.current[index] = { ...target }
-        if (!animRef.current) {
+        if (!animRef.current && !dragEaseRef.current) {
           displayPointsRef.current[index] = { ...target }
         }
       }
@@ -322,6 +408,7 @@ export default function PathPlanner({
 
       cancelAnim()
       cancelDragAnim()
+      cancelDragEaseAnim()
 
       const from = targetPointsRef.current.length > 0 && targetPointsRef.current.length === newTargets.length
         ? [...targetPointsRef.current]
@@ -332,7 +419,7 @@ export default function PathPlanner({
       targetPointsRef.current = newTargets.map(p => ({ ...p }))
 
       if (from.length > 0) {
-        startPointsAnim(from, newTargets, 250)
+        startPointsAnim(from, newTargets, 300)
       } else {
         displayPointsRef.current = [...newTargets]
         render()
@@ -340,7 +427,7 @@ export default function PathPlanner({
     } catch (e) {
       console.error('pathPoints effect error:', e)
     }
-  }, [pathPoints, cancelAnim, cancelDragAnim, startPointsAnim, render])
+  }, [pathPoints, cancelAnim, cancelDragAnim, cancelDragEaseAnim, startPointsAnim, render])
 
   useEffect(() => {
     try {
@@ -360,8 +447,9 @@ export default function PathPlanner({
     return () => {
       cancelAnim()
       cancelDragAnim()
+      cancelDragEaseAnim()
     }
-  }, [cancelAnim, cancelDragAnim])
+  }, [cancelAnim, cancelDragAnim, cancelDragEaseAnim])
 
   const findPointAt = useCallback(
     (clientX: number, clientY: number): number => {
@@ -399,6 +487,7 @@ export default function PathPlanner({
     (e: React.MouseEvent) => {
       if (compact) return
       if (dragging) return
+      if (dragEaseRef.current) return
       try {
         const canvas = canvasRef.current
         if (!canvas) return
@@ -426,12 +515,22 @@ export default function PathPlanner({
         if (e.button !== 0) return
         const idx = findPointAt(e.clientX, e.clientY)
         if (idx >= 0 && displayPointsRef.current[idx]) {
-          setDragging({ index: idx, startX: e.clientX, startY: e.clientY })
+          cancelDragEaseAnim()
+          setDragging({
+            index: idx,
+            startX: e.clientX,
+            startY: e.clientY,
+            velX: 0,
+            velY: 0,
+            lastMoveTime: performance.now(),
+            lastMoveX: e.clientX,
+            lastMoveY: e.clientY,
+          })
           e.preventDefault()
         }
       } catch (_) { /* ignore */ }
     },
-    [compact, findPointAt]
+    [compact, findPointAt, cancelDragEaseAnim]
   )
 
   const handleMouseMove = useCallback(
@@ -447,6 +546,16 @@ export default function PathPlanner({
           const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
           const { w, h } = renderedSizeRef.current
           const grid = screenToGrid(x, y, w, h)
+
+          const now = performance.now()
+          const dt = Math.max(1, now - dragging.lastMoveTime)
+          const vx = (e.clientX - dragging.lastMoveX) / dt
+          const vy = (e.clientY - dragging.lastMoveY) / dt
+
+          setDragging((prev) => prev && prev.index === dragging.index
+            ? { ...prev, velX: vx, velY: vy, lastMoveTime: now, lastMoveX: e.clientX, lastMoveY: e.clientY }
+            : prev
+          )
 
           dragPendingRef.current = {
             index: dragging.index,
@@ -474,18 +583,49 @@ export default function PathPlanner({
       if (!dragging) return
       try {
         const pending = dragPendingRef.current
-        const targetIdx = pending && pending.index === dragging.index
+        const currentPos = displayPointsRef.current[dragging.index]
+          ? { ...displayPointsRef.current[dragging.index] }
+          : null
+
+        let targetPos = pending && pending.index === dragging.index
           ? pending.target
           : targetPointsRef.current[dragging.index]
+            ? { ...targetPointsRef.current[dragging.index] }
+            : null
 
-        setDragging(null)
-        dragPendingRef.current = null
-
-        if (targetIdx && heights) {
-          const world = gridToWorld(targetIdx.x, targetIdx.y, heights)
-          if (world && typeof world.x === 'number' && isFinite(world.x)) {
-            onUpdatePoint(dragging.index, world)
+        const speed = Math.sqrt(dragging.velX * dragging.velX + dragging.velY * dragging.velY)
+        if (speed > 0.4 && currentPos && targetPos) {
+          const { w, h } = renderedSizeRef.current
+          if (w > 0 && h > 0) {
+            const inertia = Math.min(speed * 35, 80)
+            const dx = dragging.velX * inertia * (GRID_RESOLUTION / w)
+            const dy = dragging.velY * inertia * (GRID_RESOLUTION / h)
+            const inerTarget = {
+              x: Math.max(0, Math.min(GRID_RESOLUTION - 1, targetPos.x + dx)),
+              y: Math.max(0, Math.min(GRID_RESOLUTION - 1, targetPos.y + dy)),
+            }
+            targetPos = inerTarget
           }
+        }
+
+        dragPendingRef.current = null
+        setDragging(null)
+
+        if (targetPos && heights) {
+          if (currentPos) {
+            startDragEaseAnim(dragging.index, currentPos, targetPos)
+          }
+
+          setTimeout(() => {
+            try {
+              const world = gridToWorld(targetPos!.x, targetPos!.y, heights)
+              if (world && typeof world.x === 'number' && isFinite(world.x)) {
+                onUpdatePoint(dragging.index, world)
+              }
+            } catch (err) {
+              console.error('mouseup update error:', err)
+            }
+          }, 60)
         }
 
         if (hoveredIndex !== null) {
@@ -495,9 +635,10 @@ export default function PathPlanner({
       } catch (e) {
         console.error('handleMouseUp error:', e)
         setDragging(null)
+        dragPendingRef.current = null
       }
     },
-    [dragging, heights, hoveredIndex, findPointAt, onUpdatePoint]
+    [dragging, heights, hoveredIndex, findPointAt, onUpdatePoint, startDragEaseAnim]
   )
 
   const handleMouseLeave = useCallback(() => {

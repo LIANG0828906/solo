@@ -7,8 +7,14 @@ interface TerrainGeneratorProps {
   pathPoints: PathPoint[]
 }
 
-const CHUNK_SIZE = 5000
 const TRANSITION_DURATION = 1000
+const TARGET_FRAMES_PER_TRANSITION = 7
+const MIN_CHUNK_SIZE = 2000
+const MAX_CHUNK_SIZE = 10000
+const NORMALS_UPDATE_BASE = 80
+const NORMALS_UPDATE_MIN = 40
+const NORMALS_UPDATE_MAX = 200
+const FPS_SMOOTHING = 0.9
 
 export default function TerrainGenerator({ heights, pathPoints }: TerrainGeneratorProps) {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -26,6 +32,9 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
   const isAnimatingRef = useRef(false)
   const lastNormalsUpdateRef = useRef<number>(0)
   const renderIdRef = useRef<number>(0)
+  const chunkSizeRef = useRef<number>(5000)
+  const lastFrameTimeRef = useRef<number>(0)
+  const smoothedFpsRef = useRef<number>(60)
 
   const cameraStateRef = useRef({
     theta: Math.PI / 4,
@@ -78,6 +87,12 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
       geometry.rotateX(-Math.PI / 2)
 
       const positions = geometry.attributes.position as THREE.BufferAttribute
+      const vertexCount = positions.count
+      chunkSizeRef.current = Math.max(
+        MIN_CHUNK_SIZE,
+        Math.min(MAX_CHUNK_SIZE, Math.ceil(vertexCount / TARGET_FRAMES_PER_TRANSITION))
+      )
+
       for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i)
         const z = positions.getZ(i)
@@ -125,6 +140,17 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
         renderIdRef.current = animationId
 
         try {
+          const now = performance.now()
+          if (lastFrameTimeRef.current > 0) {
+            const delta = now - lastFrameTimeRef.current
+            if (delta > 0) {
+              const instantFps = 1000 / delta
+              smoothedFpsRef.current =
+                smoothedFpsRef.current * FPS_SMOOTHING + instantFps * (1 - FPS_SMOOTHING)
+            }
+          }
+          lastFrameTimeRef.current = now
+
           const cs = cameraStateRef.current
           const lerpFactor = 0.08
 
@@ -140,7 +166,7 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
           camera!.lookAt(0, 0, 0)
 
           if (isAnimatingRef.current && terrainRef.current && oldHeightsRef.current && targetHeightsRef.current) {
-            const elapsed = performance.now() - animStartRef.current
+            const elapsed = now - animStartRef.current
             const rawT = Math.min(1, elapsed / TRANSITION_DURATION)
             const eased = easeOutCubic(rawT)
             animProgressRef.current = eased
@@ -150,8 +176,9 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
             const oldH = oldHeightsRef.current
             const newH = targetHeightsRef.current
 
-            const chunkStart = Math.floor((eased * count) / CHUNK_SIZE) * CHUNK_SIZE
-            const chunkEnd = Math.min(count, chunkStart + CHUNK_SIZE)
+            const chunkSize = chunkSizeRef.current
+            const chunkStart = Math.floor((eased * count) / chunkSize) * chunkSize
+            const chunkEnd = Math.min(count, chunkStart + chunkSize)
 
             for (let i = chunkStart; i < chunkEnd; i++) {
               const oh = oldH[i] || 0
@@ -161,8 +188,14 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
 
             positions.needsUpdate = true
 
-            const now = performance.now()
-            if (now - lastNormalsUpdateRef.current > 80) {
+            const fps = Math.max(10, smoothedFpsRef.current)
+            const fpsRatio = 60 / fps
+            const normalsInterval = Math.max(
+              NORMALS_UPDATE_MIN,
+              Math.min(NORMALS_UPDATE_MAX, NORMALS_UPDATE_BASE * fpsRatio)
+            )
+
+            if (now - lastNormalsUpdateRef.current > normalsInterval) {
               terrainRef.current.geometry.computeVertexNormals()
               lastNormalsUpdateRef.current = now
             }
@@ -190,6 +223,7 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
           console.error('Terrain animate error:', e)
         }
       }
+      lastFrameTimeRef.current = performance.now()
       animate()
 
       const onMouseDown = (e: MouseEvent) => {
@@ -306,9 +340,13 @@ export default function TerrainGenerator({ heights, pathPoints }: TerrainGenerat
       const positions = terrainRef.current.geometry.attributes.position as THREE.BufferAttribute
       const count = positions.count
 
+      chunkSizeRef.current = Math.max(
+        MIN_CHUNK_SIZE,
+        Math.min(MAX_CHUNK_SIZE, Math.ceil(count / TARGET_FRAMES_PER_TRANSITION))
+      )
+
       if (isAnimatingRef.current && targetHeightsRef.current) {
         const partiallyInterpolated = new Float32Array(count)
-        const eased = animProgressRef.current
         for (let i = 0; i < count; i++) {
           partiallyInterpolated[i] = positions.getY(i)
         }
