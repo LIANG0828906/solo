@@ -1,18 +1,105 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Booking, BookingItem } from '../../types';
 import { useMenuStore } from '../store/menuStore';
-import { createBooking } from '../api/menuApi';
+import { createBooking, fetchBookings } from '../api/menuApi';
 
 interface BookingPageProps {
   onGoToMenu: () => void;
 }
 
-const TIME_SLOTS = [
+const ALL_TIME_SLOTS = [
   '11:30', '12:00', '12:30', '13:00', '13:30',
   '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
 ];
 
-const FULL_SLOTS = ['12:00', '19:00'];
+interface SlotAvailability {
+  slot: string;
+  available: boolean;
+  bookedCount: number;
+}
+
+function useTimeSlotAvailability(date: string) {
+  const [slots, setSlots] = useState<SlotAvailability[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const availability: SlotAvailability[] = ALL_TIME_SLOTS.map((slot) => ({
+        slot,
+        available: true,
+        bookedCount: 0,
+      }));
+
+      try {
+        const bookings = await fetchBookings(date);
+        const slotCounts = new Map<string, number>();
+        bookings.forEach((b) => {
+          slotCounts.set(b.timeSlot, (slotCounts.get(b.timeSlot) || 0) + 1);
+        });
+
+        slotCounts.forEach((count, slot) => {
+          if (count >= 3) {
+            const idx = availability.findIndex((s) => s.slot === slot);
+            if (idx >= 0) {
+              availability[idx] = { slot, available: false, bookedCount: count };
+            }
+          } else {
+            const idx = availability.findIndex((s) => s.slot === slot);
+            if (idx >= 0) {
+              availability[idx] = { slot, available: true, bookedCount: count };
+            }
+          }
+        });
+      } catch {
+        // fallback: all available
+      }
+
+      setSlots(availability);
+    };
+    load();
+  }, [date]);
+
+  return slots;
+}
+
+function TimeSlider({
+  slots,
+  selectedSlot,
+  onSelect,
+}: {
+  slots: SlotAvailability[];
+  selectedSlot: string;
+  onSelect: (slot: string) => void;
+}) {
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="time-slider-wrapper">
+      <div className="time-slider-track" ref={sliderRef}>
+        {slots.map((s) => {
+          const isSelected = selectedSlot === s.slot;
+          return (
+            <button
+              key={s.slot}
+              className={`time-slider-node ${
+                isSelected
+                  ? 'time-slider-node-selected'
+                  : s.available
+                  ? 'time-slider-node-available'
+                  : 'time-slider-node-full'
+              }`}
+              disabled={!s.available}
+              onClick={() => s.available && onSelect(s.slot)}
+            >
+              <span className="time-slider-time">{s.slot}</span>
+              <span className="time-slider-dot" />
+              {!s.available && <span className="time-slider-badge">已满</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function CircularProgress({ value }: { value: number }) {
   const radius = 52;
@@ -86,6 +173,8 @@ function BookingPage({ onGoToMenu }: BookingPageProps) {
   const [progress, setProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  const timeSlots = useTimeSlotAvailability(date);
 
   const getMenuItemPrice = (menuItemId: string) => {
     return menuItems.find((m) => m.id === menuItemId)?.price || 0;
@@ -258,7 +347,7 @@ function BookingPage({ onGoToMenu }: BookingPageProps) {
               type="date"
               className="form-input"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => { setDate(e.target.value); setTimeSlot(''); }}
               min={new Date().toISOString().split('T')[0]}
             />
           </div>
@@ -282,26 +371,13 @@ function BookingPage({ onGoToMenu }: BookingPageProps) {
           </div>
         </div>
 
-        <div className="form-group" style={{ marginTop: 16 }}>
+        <div className="form-group" style={{ marginTop: 20 }}>
           <label className="form-label">选择时间</label>
-          <div className="timeline-container">
-            {TIME_SLOTS.map((slot) => {
-              const isFull = FULL_SLOTS.includes(slot);
-              const isSelected = timeSlot === slot;
-              return (
-                <button
-                  key={slot}
-                  className={`timeline-slot ${
-                    isSelected ? 'selected' : isFull ? '' : 'available'
-                  }`}
-                  disabled={isFull}
-                  onClick={() => !isFull && setTimeSlot(slot)}
-                >
-                  {slot}
-                </button>
-              );
-            })}
-          </div>
+          <TimeSlider
+            slots={timeSlots}
+            selectedSlot={timeSlot}
+            onSelect={setTimeSlot}
+          />
         </div>
       </div>
 
@@ -332,16 +408,7 @@ function BookingPage({ onGoToMenu }: BookingPageProps) {
       </div>
 
       {submitError && (
-        <div
-          style={{
-            padding: 16,
-            background: 'rgba(214, 69, 69, 0.1)',
-            color: 'var(--color-red)',
-            borderRadius: 10,
-            marginBottom: 24,
-            textAlign: 'center',
-          }}
-        >
+        <div className="submit-error">
           {submitError}
         </div>
       )}

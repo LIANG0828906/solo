@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MenuItem, Booking, BookingStatus, MenuCategory, PurchaseList, Ingredient } from '../../types';
 import { useMenuStore } from '../store/menuStore';
 import {
@@ -7,6 +7,7 @@ import {
   updateBookingStatus as apiUpdateBookingStatus,
   generatePurchaseList as apiGeneratePurchaseList,
   fetchBookings as apiFetchBookings,
+  fetchMenuItems as apiFetchMenuItems,
 } from '../api/menuApi';
 
 const CATEGORY_LABELS: Record<MenuCategory, string> = {
@@ -26,6 +27,12 @@ const STATUS_FLOW: Record<BookingStatus, BookingStatus | null> = {
   pending: 'confirmed',
   confirmed: 'completed',
   completed: null,
+};
+
+const STATUS_COLORS: Record<BookingStatus, string> = {
+  pending: 'var(--color-blue)',
+  confirmed: 'var(--color-green)',
+  completed: 'var(--color-gray)',
 };
 
 interface NewMenuItemForm {
@@ -50,37 +57,107 @@ const INITIAL_FORM: NewMenuItemForm = {
   ingredients: [],
 };
 
-function AnimatedNumber({ value }: { value: number }) {
+const FORM_FIELDS = [
+  ['name'],
+  ['description', 'price', 'dailyLimit'],
+  ['category', 'imageUrl'],
+  ['optionalToppings', 'ingredients'],
+  ['submit'],
+];
+
+function AnimatedNumber({ value, duration = 300 }: { value: number; duration?: number }) {
   const [displayValue, setDisplayValue] = useState(0);
+  const prevValueRef = useRef(0);
+  const animRef = useRef<number>(0);
 
   useEffect(() => {
-    const start = displayValue;
+    const start = prevValueRef.current;
     const end = value;
-    const duration = 300;
+    if (start === end) return;
     const startTime = performance.now();
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(start + (end - start) * eased);
-      if (progress < 1) requestAnimationFrame(animate);
+      const current = start + (end - start) * eased;
+      setDisplayValue(current);
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(animate);
+      } else {
+        prevValueRef.current = end;
+      }
     };
 
-    requestAnimationFrame(animate);
-  }, [value]);
+    animRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [value, duration]);
 
   const formatted = Number.isInteger(displayValue)
     ? Math.round(displayValue)
     : displayValue.toFixed(1);
 
-  return <span>{formatted}</span>;
+  return <span className="animated-number">{formatted}</span>;
+}
+
+function BookingTimelineCard({
+  booking,
+  onStatusChange,
+  isFolding,
+}: {
+  booking: Booking;
+  onStatusChange: (id: string, status: BookingStatus) => void;
+  isFolding: boolean;
+}) {
+  const nextStatus = STATUS_FLOW[booking.status];
+
+  return (
+    <div
+      className={`booking-card status-${booking.status} ${isFolding ? 'booking-card-folding' : ''}`}
+    >
+      <div className="booking-card-status-indicator" style={{ backgroundColor: STATUS_COLORS[booking.status] }} />
+      <div className="booking-card-header">
+        <span className="booking-customer">{booking.customerName}</span>
+        <div className="booking-meta">
+          <span>👥 {booking.guestCount}人</span>
+          <span>📞 {booking.phone}</span>
+          <span className="booking-time-label">🕐 {booking.timeSlot}</span>
+        </div>
+      </div>
+      <div className="booking-items">
+        {booking.items.map((item, i) => (
+          <span key={i} className="booking-item-tag">
+            {item.menuItemName} ×{item.quantity}
+          </span>
+        ))}
+      </div>
+      <div className="booking-card-footer">
+        <span className="booking-submitted-time">
+          提交于 {new Date(booking.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        {nextStatus && (
+          <button
+            className={`status-btn status-btn-${booking.status}`}
+            onClick={() => onStatusChange(booking.id, booking.status)}
+          >
+            {STATUS_LABELS[booking.status]} → {STATUS_LABELS[nextStatus]}
+          </button>
+        )}
+        {!nextStatus && (
+          <span className={`status-btn status-btn-completed`}>
+            {STATUS_LABELS[booking.status]}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function ChefDashboard() {
   const menuItems = useMenuStore((state) => state.menuItems);
   const addMenuItem = useMenuStore((state) => state.addMenuItem);
   const removeMenuItem = useMenuStore((state) => state.removeMenuItem);
+  const setMenuItems = useMenuStore((state) => state.setMenuItems);
   const bookings = useMenuStore((state) => state.bookings);
   const setBookings = useMenuStore((state) => state.setBookings);
   const updateBooking = useMenuStore((state) => state.updateBooking);
@@ -90,12 +167,13 @@ function ChefDashboard() {
   const setError = useMenuStore((state) => state.setError);
 
   const [showForm, setShowForm] = useState(false);
-  const [formStep, setFormStep] = useState(0);
+  const [visibleSteps, setVisibleSteps] = useState(0);
   const [form, setForm] = useState<NewMenuItemForm>(INITIAL_FORM);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
   const [foldingId, setFoldingId] = useState<string | null>(null);
+  const [newMenuItemId, setNewMenuItemId] = useState<string | null>(null);
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     quantity: '',
@@ -116,18 +194,27 @@ function ChefDashboard() {
 
   useEffect(() => {
     if (showForm) {
-      const steps = 5;
-      let current = 0;
-      const timer = setInterval(() => {
-        current++;
-        setFormStep(current);
-        if (current >= steps) clearInterval(timer);
-      }, 50);
-      return () => clearInterval(timer);
+      setVisibleSteps(0);
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      FORM_FIELDS.forEach((_, i) => {
+        timers.push(setTimeout(() => {
+          setVisibleSteps(i + 1);
+        }, i * 120));
+      });
+      return () => timers.forEach(clearTimeout);
     } else {
-      setFormStep(0);
+      setVisibleSteps(0);
     }
   }, [showForm]);
+
+  const refreshMenu = useCallback(async () => {
+    try {
+      const items = await apiFetchMenuItems();
+      setMenuItems(items);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }, [setMenuItems, setError]);
 
   const handleCreateMenuItem = async () => {
     if (!form.name || !form.description || !form.price) return;
@@ -152,8 +239,11 @@ function ChefDashboard() {
       });
 
       addMenuItem(newItem);
+      setNewMenuItemId(newItem.id);
+      setTimeout(() => setNewMenuItemId(null), 600);
       setForm(INITIAL_FORM);
       setShowForm(false);
+      await refreshMenu();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -179,16 +269,16 @@ function ChefDashboard() {
     if (!nextStatus) return;
 
     setFoldingId(id);
-    setTimeout(async () => {
-      try {
-        const updated = await apiUpdateBookingStatus(id, nextStatus);
-        updateBooking(id, updated);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setTimeout(() => setFoldingId(null), 200);
-      }
-    }, 100);
+    await new Promise((r) => setTimeout(r, 150));
+    try {
+      const updated = await apiUpdateBookingStatus(id, nextStatus);
+      updateBooking(id, updated);
+      await new Promise((r) => setTimeout(r, 100));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setFoldingId(null);
+    }
   };
 
   const handleGeneratePurchaseList = async () => {
@@ -230,6 +320,12 @@ function ChefDashboard() {
     a.timeSlot.localeCompare(b.timeSlot)
   );
 
+  const bookingsByTime = sortedBookings.reduce<Record<string, Booking[]>>((acc, b) => {
+    if (!acc[b.timeSlot]) acc[b.timeSlot] = [];
+    acc[b.timeSlot].push(b);
+    return acc;
+  }, {});
+
   return (
     <div className="chef-dashboard">
       <div className="dashboard-section">
@@ -245,8 +341,8 @@ function ChefDashboard() {
 
         {showForm && (
           <div className="menu-form">
-            {formStep >= 1 && (
-              <div className="form-field">
+            {visibleSteps >= 1 && (
+              <div className="form-field form-field-slide" style={{ animationDelay: '0ms' }}>
                 <label className="form-label">菜品名称 *</label>
                 <input
                   type="text"
@@ -258,164 +354,167 @@ function ChefDashboard() {
               </div>
             )}
 
-            {formStep >= 2 && (
-              <div className="form-field">
-                <label className="form-label">菜品描述 *</label>
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder="描述菜品的特色和食材"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                />
-              </div>
-            )}
-
-            {formStep >= 2 && (
-              <div className="form-row" style={{ marginBottom: 0 }}>
-                <div className="form-field">
-                  <label className="form-label">价格 (¥) *</label>
-                  <input
-                    type="number"
+            {visibleSteps >= 2 && (
+              <>
+                <div className="form-field form-field-slide" style={{ animationDelay: '40ms' }}>
+                  <label className="form-label">菜品描述 *</label>
+                  <textarea
                     className="form-input"
-                    placeholder="68"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  />
-                </div>
-                <div className="form-field">
-                  <label className="form-label">每日限量</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    placeholder="20"
-                    value={form.dailyLimit}
+                    rows={2}
+                    placeholder="描述菜品的特色和食材"
+                    value={form.description}
                     onChange={(e) =>
-                      setForm({ ...form, dailyLimit: e.target.value })
+                      setForm({ ...form, description: e.target.value })
                     }
                   />
                 </div>
-              </div>
-            )}
-
-            {formStep >= 3 && (
-              <div className="form-field">
-                <label className="form-label">分类</label>
-                <select
-                  className="form-input"
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value as MenuCategory })
-                  }
-                >
-                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {formStep >= 3 && (
-              <div className="form-field">
-                <label className="form-label">图片 URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://..."
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                />
-              </div>
-            )}
-
-            {formStep >= 4 && (
-              <div className="form-field">
-                <label className="form-label">可选配料（用逗号分隔，最多3种）</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="帕玛森芝士, 松露油, 香草碎"
-                  value={form.optionalToppings}
-                  onChange={(e) =>
-                    setForm({ ...form, optionalToppings: e.target.value })
-                  }
-                />
-              </div>
-            )}
-
-            {formStep >= 4 && (
-              <div className="form-field">
-                <label className="form-label">配料清单</label>
-                {form.ingredients.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                    {form.ingredients.map((ing, i) => (
-                      <span
-                        key={i}
-                        className="topping-tag selected"
-                        onClick={() => removeIngredient(i)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {ing.name} {ing.quantity}{ing.unit} ✕
-                      </span>
-                    ))}
+                <div className="form-row form-field-slide" style={{ marginBottom: 0, animationDelay: '80ms' }}>
+                  <div className="form-field">
+                    <label className="form-label">价格 (¥) *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="68"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    />
                   </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
+                  <div className="form-field">
+                    <label className="form-label">每日限量</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="20"
+                      value={form.dailyLimit}
+                      onChange={(e) =>
+                        setForm({ ...form, dailyLimit: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {visibleSteps >= 3 && (
+              <>
+                <div className="form-field form-field-slide" style={{ animationDelay: '0ms' }}>
+                  <label className="form-label">分类</label>
+                  <select
+                    className="form-input"
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value as MenuCategory })
+                    }
+                  >
+                    {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field form-field-slide" style={{ animationDelay: '40ms' }}>
+                  <label className="form-label">图片 URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://..."
+                    value={form.imageUrl}
+                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
+            {visibleSteps >= 4 && (
+              <>
+                <div className="form-field form-field-slide" style={{ animationDelay: '0ms' }}>
+                  <label className="form-label">可选配料（用逗号分隔，最多3种）</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="食材名称"
-                    value={newIngredient.name}
+                    placeholder="帕玛森芝士, 松露油, 香草碎"
+                    value={form.optionalToppings}
                     onChange={(e) =>
-                      setNewIngredient({ ...newIngredient, name: e.target.value })
+                      setForm({ ...form, optionalToppings: e.target.value })
                     }
                   />
-                  <input
-                    type="number"
-                    className="form-input"
-                    placeholder="数量"
-                    value={newIngredient.quantity}
-                    onChange={(e) =>
-                      setNewIngredient({ ...newIngredient, quantity: e.target.value })
-                    }
-                  />
-                  <select
-                    className="form-input"
-                    value={newIngredient.unit}
-                    onChange={(e) =>
-                      setNewIngredient({ ...newIngredient, unit: e.target.value })
-                    }
-                  >
-                    <option value="克">克</option>
-                    <option value="毫升">毫升</option>
-                    <option value="个">个</option>
-                  </select>
-                  <button className="btn btn-secondary" onClick={addIngredient}>
-                    添加
-                  </button>
                 </div>
-              </div>
+                <div className="form-field form-field-slide" style={{ animationDelay: '40ms' }}>
+                  <label className="form-label">配料清单</label>
+                  {form.ingredients.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {form.ingredients.map((ing, i) => (
+                        <span
+                          key={i}
+                          className="topping-tag selected"
+                          onClick={() => removeIngredient(i)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {ing.name} {ing.quantity}{ing.unit} ✕
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="食材名称"
+                      value={newIngredient.name}
+                      onChange={(e) =>
+                        setNewIngredient({ ...newIngredient, name: e.target.value })
+                      }
+                    />
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="数量"
+                      value={newIngredient.quantity}
+                      onChange={(e) =>
+                        setNewIngredient({ ...newIngredient, quantity: e.target.value })
+                      }
+                    />
+                    <select
+                      className="form-input"
+                      value={newIngredient.unit}
+                      onChange={(e) =>
+                        setNewIngredient({ ...newIngredient, unit: e.target.value })
+                      }
+                    >
+                      <option value="克">克</option>
+                      <option value="毫升">毫升</option>
+                      <option value="个">个</option>
+                    </select>
+                    <button className="btn btn-secondary" onClick={addIngredient}>
+                      添加
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
 
-            {formStep >= 5 && (
-              <button
-                className="btn btn-primary"
-                onClick={handleCreateMenuItem}
-                disabled={!form.name || !form.description || !form.price}
-              >
-                提交
-              </button>
+            {visibleSteps >= 5 && (
+              <div className="form-field-slide" style={{ animationDelay: '0ms' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCreateMenuItem}
+                  disabled={!form.name || !form.description || !form.price}
+                  style={{ width: '100%' }}
+                >
+                  提交
+                </button>
+              </div>
             )}
           </div>
         )}
 
         <div className="menu-list" style={{ marginTop: 20 }}>
           {menuItems.map((item) => (
-            <div key={item.id} className="menu-list-item">
+            <div
+              key={item.id}
+              className={`menu-list-item ${newMenuItemId === item.id ? 'menu-list-item-new' : ''}`}
+            >
               <img
                 src={item.imageUrl}
                 alt={item.name}
@@ -466,42 +565,18 @@ function ChefDashboard() {
         </div>
 
         <div className="timeline-view">
-          {sortedBookings.map((booking) => (
-            <div key={booking.id} className="timeline-node">
-              <div className="timeline-time">{booking.timeSlot}</div>
-              <div
-                className={`booking-card ${booking.status} ${
-                  foldingId === booking.id ? 'folding' : ''
-                }`}
-              >
-                <div className="booking-card-header">
-                  <span className="booking-customer">{booking.customerName}</span>
-                  <div className="booking-meta">
-                    <span>👥 {booking.guestCount}人</span>
-                    <span>📞 {booking.phone}</span>
-                  </div>
-                </div>
-                <div className="booking-items">
-                  {booking.items.map((item, i) => (
-                    <span key={i} className="booking-item-tag">
-                      {item.menuItemName} ×{item.quantity}
-                    </span>
-                  ))}
-                </div>
-                <div className="booking-actions">
-                  <button
-                    className={`status-btn ${booking.status}`}
-                    disabled={booking.status === 'completed'}
-                    onClick={() =>
-                      handleUpdateBookingStatus(booking.id, booking.status)
-                    }
-                  >
-                    {STATUS_LABELS[booking.status]}
-                    {STATUS_FLOW[booking.status] && (
-                      <span> → {STATUS_LABELS[STATUS_FLOW[booking.status]!]}</span>
-                    )}
-                  </button>
-                </div>
+          {Object.entries(bookingsByTime).map(([timeSlot, timeBookings]) => (
+            <div key={timeSlot} className="timeline-node">
+              <div className="timeline-time">{timeSlot}</div>
+              <div className="timeline-bookings">
+                {timeBookings.map((booking) => (
+                  <BookingTimelineCard
+                    key={booking.id}
+                    booking={booking}
+                    onStatusChange={handleUpdateBookingStatus}
+                    isFolding={foldingId === booking.id}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -532,7 +607,7 @@ function ChefDashboard() {
                 <div
                   key={item.name}
                   className="purchase-item"
-                  style={{ animationDelay: `${index * 60}ms` }}
+                  style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <span className="purchase-item-name">{item.name}</span>
                   <span className="purchase-item-quantity">

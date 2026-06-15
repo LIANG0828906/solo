@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MenuItem, MenuCategory, BookingItem } from '../../types';
 import { useMenuStore } from '../store/menuStore';
+import { fetchMenuItems } from '../api/menuApi';
 
 interface MenuPageProps {
   onGoToBooking: () => void;
@@ -15,38 +16,103 @@ const CATEGORY_INFO: Record<MenuCategory, { label: string; emoji: string }> = {
 
 const CATEGORY_ORDER: MenuCategory[] = ['appetizer', 'main', 'dessert', 'drink'];
 
+function useCountUp(target: number, duration: number = 600) {
+  const [current, setCurrent] = useState(0);
+  const prevRef = useRef(0);
+
+  useEffect(() => {
+    const start = prevRef.current;
+    const end = target;
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCurrent(start + (end - start) * eased);
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        prevRef.current = end;
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [target, duration]);
+
+  return Math.round(current);
+}
+
+function RemainingBar({ remaining, dailyLimit }: { remaining: number; dailyLimit: number }) {
+  const percentage = dailyLimit > 0 ? Math.round((remaining / dailyLimit) * 100) : 0;
+  const isLow = remaining < 5;
+  const animatedPercent = useCountUp(percentage, 500);
+
+  return (
+    <div className="progress-container">
+      <div className="progress-label">
+        <span>剩余份数</span>
+        <span className={isLow ? 'progress-low-text' : ''}>
+          {remaining}/{dailyLimit} 份 ({animatedPercent}%)
+        </span>
+      </div>
+      <div className="progress-bar">
+        <div
+          className={`progress-fill ${isLow ? 'low' : ''}`}
+          style={{ width: `${animatedPercent}%` }}
+        />
+      </div>
+      {isLow && (
+        <div className="progress-warning">
+          ⚠️ 份数紧张，建议尽快预订
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DishCard({
   item,
   onSelect,
+  index,
 }: {
   item: MenuItem;
   onSelect: (item: MenuItem) => void;
+  index: number;
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const percentage = Math.round((item.remaining / item.dailyLimit) * 100);
-  const isLow = item.remaining < 5;
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), index * 60);
+    return () => clearTimeout(timer);
+  }, [index]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && imgRef.current) {
+        if (entry.isIntersecting && imgRef.current && !imgRef.current.src) {
           imgRef.current.src = item.imageUrl;
           observer.disconnect();
         }
       },
-      { rootMargin: '100px' }
+      { rootMargin: '200px' }
     );
     if (imgRef.current) observer.observe(imgRef.current);
     return () => observer.disconnect();
   }, [item.imageUrl]);
 
   return (
-    <div className="dish-card" onClick={() => onSelect(item)}>
+    <div
+      className={`dish-card ${visible ? 'dish-card-visible' : 'dish-card-hidden'}`}
+      onClick={() => onSelect(item)}
+    >
       <img
         ref={imgRef}
         className="dish-image"
         alt={item.name}
+        data-src={item.imageUrl}
         onLoad={() => setLoaded(true)}
         style={{ opacity: loaded ? 1 : 0, transition: 'opacity 300ms ease' }}
         loading="lazy"
@@ -57,20 +123,7 @@ function DishCard({
           <span className="dish-price">¥{item.price}</span>
         </div>
         <p className="dish-desc">{item.description}</p>
-        <div className="progress-container">
-          <div className="progress-label">
-            <span>今日剩余</span>
-            <span>
-              {item.remaining}/{item.dailyLimit} 份
-            </span>
-          </div>
-          <div className="progress-bar">
-            <div
-              className={`progress-fill ${isLow ? 'low' : ''}`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-        </div>
+        <RemainingBar remaining={item.remaining} dailyLimit={item.dailyLimit} />
       </div>
     </div>
   );
@@ -108,6 +161,9 @@ function DishModal({
     onClose();
   };
 
+  const percentage = item.dailyLimit > 0 ? Math.round((item.remaining / item.dailyLimit) * 100) : 0;
+  const isLow = item.remaining < 5;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -121,6 +177,11 @@ function DishModal({
           <h2 className="modal-title">{item.name}</h2>
           <div className="modal-price">¥{item.price}</div>
           <p className="modal-description">{item.description}</p>
+
+          <div className="modal-section">
+            <div className="modal-section-title">剩余份数</div>
+            <RemainingBar remaining={item.remaining} dailyLimit={item.dailyLimit} />
+          </div>
 
           {item.optionalToppings.length > 0 && (
             <div className="modal-section">
@@ -221,9 +282,14 @@ function CategorySection({
         style={{ maxHeight }}
       >
         <div ref={contentRef}>
-          <div className="menu-grid" style={{ paddingTop: collapsed ? 0 : 0 }}>
-            {items.map((item) => (
-              <DishCard key={item.id} item={item} onSelect={onSelectDish} />
+          <div className="menu-grid">
+            {items.map((item, index) => (
+              <DishCard
+                key={item.id}
+                item={item}
+                onSelect={onSelectDish}
+                index={index}
+              />
             ))}
           </div>
         </div>
@@ -234,8 +300,23 @@ function CategorySection({
 
 function MenuPage({ onGoToBooking }: MenuPageProps) {
   const menuItems = useMenuStore((state) => state.menuItems);
+  const selectedBookingItems = useMenuStore((state) => state.selectedBookingItems);
   const addBookingItem = useMenuStore((state) => state.addBookingItem);
+  const setMenuItems = useMenuStore((state) => state.setMenuItems);
   const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
+
+  const loadMenu = useCallback(async () => {
+    try {
+      const items = await fetchMenuItems();
+      setMenuItems(items);
+    } catch (err) {
+      console.error('刷新菜单失败:', err);
+    }
+  }, [setMenuItems]);
+
+  useEffect(() => {
+    loadMenu();
+  }, [loadMenu]);
 
   const groupedItems = CATEGORY_ORDER.reduce((acc, cat) => {
     acc[cat] = menuItems.filter((item) => item.category === cat);
@@ -246,21 +327,18 @@ function MenuPage({ onGoToBooking }: MenuPageProps) {
     addBookingItem(bookingItem);
   };
 
+  const cartCount = selectedBookingItems.reduce((sum, i) => sum + i.quantity, 0);
+
   return (
     <div className="menu-page">
-      <div
-        style={{
-          textAlign: 'center',
-          marginBottom: 48,
-          padding: '32px 0',
-        }}
-      >
-        <h1 style={{ fontSize: 42, marginBottom: 8, color: 'var(--color-terracotta)' }}>
-          今日菜单
-        </h1>
-        <p style={{ color: 'var(--color-gray)', fontSize: 16 }}>
-          新鲜食材 · 当日现做 · 限量供应
-        </p>
+      <div className="menu-hero">
+        <h1 className="menu-hero-title">今日菜单</h1>
+        <p className="menu-hero-subtitle">新鲜食材 · 当日现做 · 限量供应</p>
+        {cartCount > 0 && (
+          <button className="btn btn-primary menu-hero-cart" onClick={onGoToBooking}>
+            查看预订 ({cartCount} 件)
+          </button>
+        )}
       </div>
 
       {CATEGORY_ORDER.map(

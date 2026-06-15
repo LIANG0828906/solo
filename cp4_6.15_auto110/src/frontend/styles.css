@@ -68,17 +68,39 @@ input, select, textarea {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pulseBar {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(214, 69, 69, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 8px 2px rgba(214, 69, 69, 0.3); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(100%); }
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInField {
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes countUp {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes foldCard {
+  0% { transform: perspective(600px) rotateX(0deg); opacity: 1; }
+  40% { transform: perspective(600px) rotateX(8deg); opacity: 0.9; }
+  70% { transform: perspective(600px) rotateX(-2deg); opacity: 1; }
+  100% { transform: perspective(600px) rotateX(0deg); opacity: 1; }
+}
+
+@keyframes newItemGlow {
+  0% { background: rgba(201, 123, 90, 0.15); }
+  100% { background: var(--color-cream); }
 }
 
 .app-container {
@@ -135,6 +157,29 @@ input, select, textarea {
 
 .menu-page {
   max-width: 100%;
+}
+
+.menu-hero {
+  text-align: center;
+  margin-bottom: 48px;
+  padding: 32px 0;
+}
+
+.menu-hero-title {
+  font-size: 42px !important;
+  margin-bottom: 8px !important;
+  color: var(--color-terracotta) !important;
+}
+
+.menu-hero-subtitle {
+  color: var(--color-gray);
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.menu-hero-cart {
+  margin-top: 12px;
+  animation: fadeIn 300ms var(--ease);
 }
 
 .category-section {
@@ -209,13 +254,23 @@ input, select, textarea {
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  animation: fadeIn 400ms var(--ease);
   transition: all var(--transition);
 }
 
 .dish-card:hover {
   box-shadow: var(--shadow-lg);
   transform: translateY(-3px);
+}
+
+.dish-card-hidden {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.dish-card-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 400ms var(--ease), transform 400ms var(--ease), box-shadow var(--transition);
 }
 
 .dish-image {
@@ -269,11 +324,17 @@ input, select, textarea {
   margin-bottom: 6px;
 }
 
+.progress-low-text {
+  color: var(--color-red);
+  font-weight: 700;
+}
+
 .progress-bar {
   height: 8px;
   background: var(--color-cream-dark);
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
 }
 
 .progress-fill {
@@ -281,11 +342,20 @@ input, select, textarea {
   background: var(--color-olive);
   border-radius: 4px;
   transition: width 500ms var(--ease);
+  position: relative;
 }
 
 .progress-fill.low {
   background: var(--color-red);
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulseBar 2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.progress-warning {
+  font-size: 11px;
+  color: var(--color-red);
+  margin-top: 6px;
+  animation: pulse 2.5s ease-in-out infinite;
 }
 
 .modal-overlay {
@@ -519,38 +589,104 @@ input, select, textarea {
   box-shadow: 0 0 0 3px rgba(201, 123, 90, 0.1);
 }
 
-.timeline-container {
-  display: flex;
-  gap: 8px;
-  padding: 8px 0;
-  overflow-x: auto;
+.time-slider-wrapper {
+  position: relative;
+  padding: 12px 0;
 }
 
-.timeline-slot {
+.time-slider-track {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  scrollbar-width: thin;
+}
+
+.time-slider-track::-webkit-scrollbar {
+  height: 4px;
+}
+
+.time-slider-track::-webkit-scrollbar-thumb {
+  background: var(--color-cream-dark);
+  border-radius: 2px;
+}
+
+.time-slider-node {
   flex-shrink: 0;
-  padding: 10px 18px;
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  min-width: 72px;
+  position: relative;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.time-slider-time {
   font-size: 13px;
   font-weight: 600;
-  background: var(--color-gray-light);
-  color: var(--color-gray);
-  cursor: not-allowed;
 }
 
-.timeline-slot.available {
-  background: rgba(90, 158, 111, 0.15);
+.time-slider-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.time-slider-node-available {
+  background: rgba(90, 158, 111, 0.1);
+  border: 2px solid rgba(90, 158, 111, 0.3);
   color: var(--color-green);
   cursor: pointer;
 }
 
-.timeline-slot.available:hover {
+.time-slider-node-available .time-slider-dot {
   background: var(--color-green);
-  color: white;
 }
 
-.timeline-slot.selected {
+.time-slider-node-available:hover {
+  background: rgba(90, 158, 111, 0.2);
+  border-color: var(--color-green);
+  transform: translateY(-2px);
+}
+
+.time-slider-node-selected {
   background: var(--color-green);
+  border: 2px solid var(--color-green);
   color: white;
+  box-shadow: 0 4px 12px rgba(90, 158, 111, 0.3);
+  transform: translateY(-2px);
+}
+
+.time-slider-node-selected .time-slider-dot {
+  background: white;
+}
+
+.time-slider-node-full {
+  background: var(--color-gray-light);
+  border: 2px solid transparent;
+  color: var(--color-gray);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.time-slider-node-full .time-slider-dot {
+  background: var(--color-gray);
+}
+
+.time-slider-badge {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  background: var(--color-red);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .guest-selector {
@@ -637,6 +773,15 @@ input, select, textarea {
   padding: 16px;
   font-size: 16px;
   margin-top: 16px;
+}
+
+.submit-error {
+  padding: 16px;
+  background: rgba(214, 69, 69, 0.1);
+  color: var(--color-red);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
 .loading-overlay {
@@ -771,7 +916,10 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  animation: fadeIn 300ms var(--ease);
+}
+
+.form-field-slide {
+  animation: slideInField 300ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 .menu-list {
@@ -787,7 +935,11 @@ input, select, textarea {
   padding: 16px;
   border-radius: 10px;
   background: var(--color-cream);
-  animation: fadeIn 300ms var(--ease);
+  transition: all var(--transition);
+}
+
+.menu-list-item-new {
+  animation: newItemGlow 600ms var(--ease);
 }
 
 .menu-list-image {
@@ -840,7 +992,7 @@ input, select, textarea {
 
 .timeline-view {
   position: relative;
-  padding-left: 24px;
+  padding-left: 28px;
 }
 
 .timeline-view::before {
@@ -850,32 +1002,39 @@ input, select, textarea {
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: var(--color-cream-dark);
+  background: linear-gradient(to bottom, var(--color-terracotta), var(--color-olive));
 }
 
 .timeline-node {
   position: relative;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .timeline-node::before {
   content: '';
   position: absolute;
-  left: -20px;
-  top: 20px;
+  left: -24px;
+  top: 8px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: var(--color-terracotta);
-  border: 2px solid white;
-  box-shadow: var(--shadow-sm);
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px var(--color-terracotta);
+  z-index: 1;
 }
 
 .timeline-time {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--color-terracotta);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.timeline-bookings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .booking-card {
@@ -887,25 +1046,39 @@ input, select, textarea {
   transition: all var(--transition);
   overflow: hidden;
   position: relative;
+  transform-origin: top center;
 }
 
-.booking-card.confirmed {
+.booking-card.status-pending {
+  border-left-color: var(--color-blue);
+}
+
+.booking-card.status-confirmed {
   border-left-color: var(--color-green);
 }
 
-.booking-card.completed {
+.booking-card.status-completed {
   border-left-color: var(--color-gray);
 }
 
-.booking-card.folding {
-  animation: scaleIn 200ms var(--ease);
+.booking-card-status-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transition: background-color 300ms var(--ease);
+}
+
+.booking-card-folding {
+  animation: foldCard 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .booking-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .booking-customer {
@@ -916,9 +1089,14 @@ input, select, textarea {
 .booking-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 13px;
   color: var(--color-gray);
+  flex-wrap: wrap;
+}
+
+.booking-time-label {
+  font-weight: 500;
 }
 
 .booking-items {
@@ -936,9 +1114,15 @@ input, select, textarea {
   font-weight: 500;
 }
 
-.booking-actions {
+.booking-card-footer {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.booking-submitted-time {
+  font-size: 11px;
+  color: var(--color-gray);
 }
 
 .status-btn {
@@ -946,19 +1130,28 @@ input, select, textarea {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
+  transition: all var(--transition);
 }
 
-.status-btn.pending {
+.status-btn-pending {
   background: rgba(74, 127, 168, 0.15);
   color: var(--color-blue);
 }
 
-.status-btn.confirmed {
+.status-btn-pending:hover {
+  background: rgba(74, 127, 168, 0.25);
+}
+
+.status-btn-confirmed {
   background: rgba(90, 158, 111, 0.15);
   color: var(--color-green);
 }
 
-.status-btn.completed {
+.status-btn-confirmed:hover {
+  background: rgba(90, 158, 111, 0.25);
+}
+
+.status-btn-completed {
   background: rgba(122, 122, 122, 0.15);
   color: var(--color-gray);
 }
@@ -976,7 +1169,7 @@ input, select, textarea {
   padding: 14px 16px;
   background: var(--color-cream);
   border-radius: 8px;
-  animation: fadeIn 300ms var(--ease) backwards;
+  animation: fadeIn 300ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 .purchase-item-name {
@@ -986,7 +1179,11 @@ input, select, textarea {
 .purchase-item-quantity {
   font-weight: 700;
   color: var(--color-olive);
-  animation: countUp 300ms var(--ease);
+}
+
+.animated-number {
+  display: inline-block;
+  transition: transform 100ms ease;
 }
 
 .purchase-total {
