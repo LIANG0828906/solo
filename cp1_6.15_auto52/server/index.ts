@@ -120,24 +120,49 @@ app.get('/api/artifacts', (_req, res) => {
 
 app.post('/api/collect', (req, res) => {
   const { id } = req.body;
-  if (!id) {
-    return res.status(400).json({ error: '缺少碎片ID' });
+
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return res.status(400).json({ error: '缺少有效的碎片ID', code: 'INVALID_ID' });
   }
 
   const artifact = gameData.artifacts.find((a) => a.id === id);
   if (!artifact) {
-    return res.status(404).json({ error: '碎片不存在' });
+    return res.status(404).json({ error: '碎片不存在', code: 'NOT_FOUND', requestedId: id });
   }
 
   if (artifact.collected) {
-    return res.status(400).json({ error: '该碎片已被采集' });
+    return res.status(400).json({
+      error: '该碎片已被采集',
+      code: 'ALREADY_COLLECTED',
+      artifact: {
+        id: artifact.id,
+        type: artifact.type,
+        pieceIndex: artifact.pieceIndex,
+        totalPieces: artifact.totalPieces,
+        collected: true,
+        name: artifact.name,
+      },
+    });
   }
 
   artifact.collected = true;
   saveGameData(gameData);
 
   const progress = calculateProgress();
-  res.json({ success: true, artifact, progress });
+  res.json({
+    success: true,
+    artifact: {
+      id: artifact.id,
+      type: artifact.type,
+      pieceIndex: artifact.pieceIndex,
+      totalPieces: artifact.totalPieces,
+      collected: artifact.collected,
+      position: artifact.position,
+      rotation: artifact.rotation,
+      name: artifact.name,
+    },
+    progress,
+  });
 });
 
 function calculateProgress(): ProgressItem[] {

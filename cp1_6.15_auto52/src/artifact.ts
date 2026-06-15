@@ -520,11 +520,12 @@ export class ArtifactManager {
     const startScale = artifact.scale.x;
     const baseScale = artifact.userData.baseScale;
 
-    const midPos = startPos.clone();
-    midPos.y += 4;
-
     const screenCenter = this.getScreenCenter();
     screenCenter.y += 0.5;
+
+    const controlPoint = startPos.clone();
+    controlPoint.y += 5 + Math.abs(screenCenter.y - startPos.y) * 0.3;
+    controlPoint.x += (screenCenter.x - startPos.x) * 0.3;
 
     const anim: AnimatingArtifact = {
       group: artifact,
@@ -539,6 +540,10 @@ export class ArtifactManager {
       bubbleTimer: 0,
       bubbleInterval: 0.06,
     };
+    anim.onComplete = () => {
+      this.wreckManager.spawnBubbles(anim.group.position.clone(), 18);
+      this.spawnCollectBurst(anim.group.position.clone());
+    };
     this.animating.push(anim);
     this.wreckManager.artifacts = this.wreckManager.artifacts.filter(
       (a) => a !== artifact
@@ -552,6 +557,19 @@ export class ArtifactManager {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: data.id }),
       });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 404) {
+          this.showToast('⚠ 碎片不存在，可能已被其他方式采集');
+        } else if (res.status === 400 && errData.code === 'ALREADY_COLLECTED') {
+          this.showToast('⚠ 该碎片已被采集');
+        } else {
+          this.showToast(`⚠ 采集失败: ${errData.error || '未知错误'}`);
+        }
+        return;
+      }
+
       const json = await res.json();
       if (json.success) {
         this.collected.push({
@@ -573,7 +591,7 @@ export class ArtifactManager {
               this.startCombineAnimation(data.type);
             }, 400);
           }
-        }, 1200);
+        }, 1400);
       }
     } catch (err) {
       console.error('采集失败:', err);
@@ -803,18 +821,24 @@ export class ArtifactManager {
     const open = force !== undefined ? force : !this.inventoryOpen;
     this.inventoryOpen = open;
     if (open) {
-      this.ui.inventoryPanel.style.transform = 'translateY(0)';
-      this.ui.inventoryPanel.style.opacity = '1';
       this.ui.inventoryPanel.style.pointerEvents = 'auto';
+      requestAnimationFrame(() => {
+        this.ui.inventoryPanel.style.transform = 'translateY(0)';
+        this.ui.inventoryPanel.style.opacity = '1';
+      });
       this.ui.inventoryToggle.style.opacity = '0';
       this.ui.inventoryToggle.style.pointerEvents = 'none';
       this.updateInventoryUI();
     } else {
       this.ui.inventoryPanel.style.transform = 'translateY(-100%)';
       this.ui.inventoryPanel.style.opacity = '0';
-      this.ui.inventoryPanel.style.pointerEvents = 'none';
       this.ui.inventoryToggle.style.opacity = '1';
       this.ui.inventoryToggle.style.pointerEvents = 'auto';
+      setTimeout(() => {
+        if (!this.inventoryOpen) {
+          this.ui.inventoryPanel.style.pointerEvents = 'none';
+        }
+      }, 500);
     }
   }
 
@@ -1007,23 +1031,29 @@ export class ArtifactManager {
   public update(): void {
     const dt = 1 / 60;
 
-    if (this.combiningActive && this.combiningGlow) {
+    if (this.combiningActive && this.combiningGlow && this.combiningGlow.visible) {
       this.combiningAnimTime += dt;
       const t = Math.min(this.combiningAnimTime / this.combiningAnimDuration, 1);
 
       const glowPhase = Math.min(t * 2.5, 1);
-      const fadeOut = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
-      this.combiningGlowAlpha = glowPhase * fadeOut * 0.9;
+      const fadeOut = t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 1;
+      this.combiningGlowAlpha = glowPhase * fadeOut * 0.85;
 
       const scaleIn = 1 - Math.pow(1 - Math.min(t * 3, 1), 3);
-      const pulse = 1 + Math.sin(t * Math.PI * 4) * 0.15;
-      this.combiningGlowScale = (0.2 + scaleIn * 4.5) * pulse;
+      const pulse = 1 + Math.sin(t * Math.PI * 4) * 0.12;
+      this.combiningGlowScale = Math.max(0.1, (0.2 + scaleIn * 4.5) * pulse);
 
       const mat = this.combiningGlow.material as THREE.ShaderMaterial;
       mat.uniforms.uAlpha.value = this.combiningGlowAlpha;
       mat.uniforms.uScale.value = this.combiningGlowScale;
 
       this.combiningGlow.lookAt(this.camera.position);
+
+      if (t >= 1 || !this.combiningActive) {
+        this.combiningGlow.visible = false;
+        this.combiningGlowAlpha = 0;
+        mat.uniforms.uAlpha.value = 0;
+      }
     }
 
     for (let i = this.animating.length - 1; i >= 0; i--) {
@@ -1031,13 +1061,12 @@ export class ArtifactManager {
       a.progress += dt / a.duration;
       const t = Math.min(a.progress, 1);
 
-      const easeOutCubic = 1 - Math.pow(1 - t, 3);
-      const easeOutBack = t < 0.5
-        ? (Math.pow(2 * t, 2) * ((2.5 + 1) * 2 * t - 2.5)) / 2
-        : (Math.pow(2 * t - 2, 2) * ((2.5 + 1) * (t * 2 - 2) + 2.5) + 2) / 2;
+      const easeOutQuart = 1 - Math.pow(1 - t, 4);
+      const easeOutBack = 1 + 2.5 * Math.pow(t - 1, 3) + 1.5 * Math.pow(t - 1, 2);
 
-      const cp = a.startPos.clone().add(new THREE.Vector3(0, 5, 0));
-      cp.y += Math.sin(t * Math.PI) * 3;
+      const cp = a.startPos.clone();
+      cp.y += 5 + Math.abs(a.targetPos.y - a.startPos.y) * 0.3;
+      cp.x += (a.targetPos.x - a.startPos.x) * 0.3;
 
       const inv = 1 - t;
       const pos = new THREE.Vector3();
@@ -1047,23 +1076,23 @@ export class ArtifactManager {
 
       a.group.position.copy(pos);
 
-      a.group.rotation.x = a.startRot.x + (a.targetRot.x - a.startRot.x) * easeOutCubic;
-      a.group.rotation.y = a.startRot.y + t * Math.PI * 4 + (a.targetRot.y - a.startRot.y) * easeOutCubic * 0.3;
-      a.group.rotation.z = a.startRot.z + (a.targetRot.z - a.startRot.z) * easeOutCubic;
+      const rotEase = easeOutQuart;
+      a.group.rotation.x = a.startRot.x * (1 - rotEase) + a.targetRot.x * rotEase;
+      a.group.rotation.y = a.startRot.y * (1 - rotEase) + a.targetRot.y * rotEase + t * Math.PI * 3;
+      a.group.rotation.z = a.startRot.z * (1 - rotEase) + a.targetRot.z * rotEase;
 
       const scale = a.startScale + (a.targetScale - a.startScale) * easeOutBack;
-      a.group.scale.setScalar(scale * (1 + Math.sin(t * Math.PI) * 0.18));
+      a.group.scale.setScalar(Math.max(0.01, scale * (1 + Math.sin(t * Math.PI) * 0.15)));
 
       a.bubbleTimer += dt;
-      if (a.bubbleTimer >= a.bubbleInterval && t < 0.95) {
+      if (a.bubbleTimer >= a.bubbleInterval && t < 0.92) {
         a.bubbleTimer = 0;
-        this.wreckManager.spawnBubbles(a.group.position.clone(), 5);
+        this.wreckManager.spawnBubbles(a.group.position.clone(), 4);
       }
 
       if (t >= 1) {
         if (a.onComplete) a.onComplete();
         this.animating.splice(i, 1);
-        this.spawnCollectBurst(a.group.position.clone());
       }
     }
 

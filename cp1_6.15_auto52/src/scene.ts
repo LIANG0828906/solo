@@ -476,22 +476,25 @@ export class UnderwaterScene {
       posArr[idx + 1] += velArr[idx + 1];
       posArr[idx + 2] += velArr[idx + 2] + Math.cos(time * 0.8 + i) * 0.005;
 
-      if (posArr[idx + 1] > bounds.y || posArr[idx + 1] < yMin) {
+      if (posArr[idx + 1] > bounds.y) {
         posArr[idx] = (Math.random() - 0.5) * bounds.x * 2;
-        posArr[idx + 1] = posArr[idx + 1] > bounds.y ? yMin : bounds.y;
+        posArr[idx + 1] = yMin + Math.random() * 5;
         posArr[idx + 2] = (Math.random() - 0.5) * bounds.z * 2;
         velArr[idx] = (Math.random() - 0.5) * 0.02;
-        velArr[idx + 1] = 0.008 + Math.random() * 0.015;
+        velArr[idx + 1] = Math.abs(velArr[idx + 1]) * 0.5 + 0.008 + Math.random() * 0.01;
         velArr[idx + 2] = (Math.random() - 0.5) * 0.02;
+      } else if (posArr[idx + 1] < yMin) {
+        posArr[idx + 1] = yMin;
+        velArr[idx + 1] = Math.abs(velArr[idx + 1]) + 0.005;
       }
 
       if (Math.abs(posArr[idx]) > bounds.x) {
-        velArr[idx] *= -1;
-        posArr[idx] = Math.sign(posArr[idx]) * bounds.x;
+        velArr[idx] = -velArr[idx] * 0.6 + (Math.random() - 0.5) * 0.01;
+        posArr[idx] = Math.sign(posArr[idx]) * (bounds.x - 0.5);
       }
       if (Math.abs(posArr[idx + 2]) > bounds.z) {
-        velArr[idx + 2] *= -1;
-        posArr[idx + 2] = Math.sign(posArr[idx + 2]) * bounds.z;
+        velArr[idx + 2] = -velArr[idx + 2] * 0.6 + (Math.random() - 0.5) * 0.01;
+        posArr[idx + 2] = Math.sign(posArr[idx + 2]) * (bounds.z - 0.5);
       }
     }
     positions.needsUpdate = true;
