@@ -258,15 +258,28 @@ const App: React.FC = () => {
                 className={`character-card card-${index}`}
                 onClick={() => handleCharacterSelect(char)}
               >
-                <div className="card-avatar">{char.avatar}</div>
-                <div className="card-info">
-                  <h3 className="card-name">{char.name}</h3>
-                  <p className="card-skill-name">{char.skillName}</p>
-                  <p className="card-description">{char.description}</p>
-                  <p className="card-cooldown">
+                <div className="card-header">
+                  <div className="pixel-avatar">{char.avatar}</div>
+                  <div className="card-title-group">
+                    <h3 className="card-name">{char.name}</h3>
+                    <p className="card-skill-name">{char.skillName}</p>
+                  </div>
+                </div>
+                <div className="card-float-info">
+                  <p className="float-description">{char.description}</p>
+                  <p className="float-cooldown">
                     {char.isPassive ? '被动技能' : `冷却: ${char.cooldown} 回合`}
                   </p>
-                  <p className="card-health">❤️ 生命: {char.maxHealth}</p>
+                  <p className="float-health">❤️ 生命: {char.maxHealth}</p>
+                </div>
+                <div className="card-info-mobile">
+                  <p className="card-description-mobile">{char.description}</p>
+                  <div className="card-stats-mobile">
+                    <span className="card-cooldown-mobile">
+                      {char.isPassive ? '被动' : `冷却: ${char.cooldown}`}
+                    </span>
+                    <span className="card-health-mobile">❤️ {char.maxHealth}</span>
+                  </div>
                 </div>
               </div>
             ))}

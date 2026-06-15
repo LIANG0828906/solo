@@ -64,19 +64,22 @@ const CellComponent: React.FC<{
     return classes;
   };
 
+  const getNumberClass = (num: number): string => {
+    if (num === 1) return 'num-1';
+    if (num === 2) return 'num-2';
+    if (num === 3) return 'num-3';
+    return '';
+  };
+
   const renderCellContent = () => {
     if (cell.isRevealed) {
       if (cell.isMine) {
-        return <span className="mine-icon">💀</span>;
+        return <span className="mine-icon">☠️</span>;
       }
       if (cell.adjacentMines > 0) {
         return (
           <span
-            className="cell-number"
-            style={{
-              color: getNumberColor(cell.adjacentMines),
-              textShadow: getNumberGlow(cell.adjacentMines),
-            }}
+            className={`cell-number ${getNumberClass(cell.adjacentMines)}`}
           >
             {cell.adjacentMines}
           </span>
