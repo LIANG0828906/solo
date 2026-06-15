@@ -36,7 +36,7 @@ export class InteractionModule {
     if (history) {
       chartHTML = `
         <div class="chart-container">
-          <canvas id="temp-chart" width="500" height="200"></canvas>
+          <canvas id="temp-chart" width="600" height="250"></canvas>
         </div>
       `;
     }
@@ -75,25 +75,34 @@ export class InteractionModule {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const container = canvas.parentElement;
+    if (!container) return;
+
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
     const w = rect.width;
     const h = rect.height;
-    const padding = { top: 15, right: 15, bottom: 25, left: 35 };
+    const padding = { top: 18, right: 12, bottom: 28, left: 38 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
 
     ctx.clearRect(0, 0, w, h);
 
+    ctx.fillStyle = 'rgba(26, 26, 46, 0.4)';
+    ctx.fillRect(padding.left, padding.top, chartW, chartH);
+
     const temps = history.temperatures;
     const minT = Math.min(...temps) - 2;
     const maxT = Math.max(...temps) + 2;
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = padding.top + (chartH * i) / 4;
@@ -103,19 +112,19 @@ export class InteractionModule {
       ctx.stroke();
 
       const t = maxT - ((maxT - minT) * i) / 4;
-      ctx.fillStyle = '#8888aa';
-      ctx.font = '10px sans-serif';
+      ctx.fillStyle = '#9999bb';
+      ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`${t.toFixed(0)}°`, padding.left - 5, y + 3);
+      ctx.fillText(`${t.toFixed(0)}°`, padding.left - 6, y + 4);
     }
 
     const hours = [0, 4, 8, 12, 16, 20, 23];
-    ctx.fillStyle = '#8888aa';
-    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#9999bb';
+    ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
     for (const hh of hours) {
       const x = padding.left + (chartW * hh) / 23;
-      ctx.fillText(`${hh.toString().padStart(2, '0')}:00`, x, h - 8);
+      ctx.fillText(`${hh.toString().padStart(2, '0')}:00`, x, h - 10);
     }
 
     const points: { x: number; y: number; t: number }[] = [];

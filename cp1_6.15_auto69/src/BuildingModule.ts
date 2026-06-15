@@ -36,28 +36,39 @@ export function getHeatLevel(temperature: number): HeatLevel {
 
 export function temperatureToColor(temperature: number): THREE.Color {
   const t = Math.max(15, Math.min(42, temperature));
-  const color = new THREE.Color();
+  const normalized = (t - 15) / 27;
 
-  if (t <= 20) {
-    const f = (t - 15) / 5;
-    color.setRGB(0.02 + 0.02 * f, 0.08 + 0.18 * f, 0.35 + 0.25 * f);
-  } else if (t <= 25) {
-    const f = (t - 20) / 5;
-    color.setRGB(0.04 + 0.06 * f, 0.26 + 0.34 * f, 0.6 + 0.2 * f);
-  } else if (t <= 29) {
-    const f = (t - 25) / 4;
-    color.setRGB(0.1 + 0.5 * f, 0.6 + 0.25 * f, 0.8 - 0.2 * f);
-  } else if (t <= 33) {
-    const f = (t - 29) / 4;
-    color.setRGB(0.6 + 0.35 * f, 0.85 - 0.25 * f, 0.6 - 0.45 * f);
-  } else if (t <= 38) {
-    const f = (t - 33) / 5;
-    color.setRGB(0.95 + 0.05 * f, 0.6 - 0.4 * f, 0.15 * (1 - f));
-  } else {
-    const f = Math.min(1, (t - 38) / 4);
-    color.setRGB(0.9 + 0.1 * f, 0.1 + 0.1 * f, 0.05 + 0.05 * f);
+  const colorStops: Array<{ pos: number; r: number; g: number; b: number }> = [
+    { pos: 0.00, r: 0.02, g: 0.08, b: 0.35 },
+    { pos: 0.18, r: 0.08, g: 0.28, b: 0.60 },
+    { pos: 0.37, r: 0.00, g: 0.60, b: 0.80 },
+    { pos: 0.52, r: 0.70, g: 0.85, b: 0.35 },
+    { pos: 0.67, r: 1.00, g: 0.75, b: 0.00 },
+    { pos: 0.81, r: 1.00, g: 0.40, b: 0.00 },
+    { pos: 0.92, r: 0.90, g: 0.10, b: 0.05 },
+    { pos: 1.00, r: 0.70, g: 0.00, b: 0.00 },
+  ];
+
+  let lower = colorStops[0];
+  let upper = colorStops[colorStops.length - 1];
+
+  for (let i = 0; i < colorStops.length - 1; i++) {
+    if (normalized >= colorStops[i].pos && normalized <= colorStops[i + 1].pos) {
+      lower = colorStops[i];
+      upper = colorStops[i + 1];
+      break;
+    }
   }
-  return color;
+
+  const range = upper.pos - lower.pos;
+  const tween = range > 0 ? (normalized - lower.pos) / range : 0;
+  const smoothTween = tween * tween * (3 - 2 * tween);
+
+  const r = lower.r + (upper.r - lower.r) * smoothTween;
+  const g = lower.g + (upper.g - lower.g) * smoothTween;
+  const b = lower.b + (upper.b - lower.b) * smoothTween;
+
+  return new THREE.Color(r, g, b);
 }
 
 export class BuildingModule implements BuildingModuleType {

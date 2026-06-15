@@ -89,9 +89,46 @@ function setupLights(): void {
 function setupInteraction(container: HTMLElement): void {
   let pointerDownPos: { x: number; y: number } | null = null;
   let pointerDownTime = 0;
+  let hitMarker: HTMLElement | null = null;
+
+  function showClickMarker(x: number, y: number, hit: boolean): void {
+    if (hitMarker) {
+      document.body.removeChild(hitMarker);
+    }
+    hitMarker = document.createElement('div');
+    hitMarker.style.cssText = `
+      position: fixed;
+      left: ${x - 12}px;
+      top: ${y - 12}px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid ${hit ? '#00d4ff' : '#ff5555'};
+      background: ${hit ? 'rgba(0, 212, 255, 0.3)' : 'rgba(255, 85, 85, 0.3)'};
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      transform: scale(1);
+      opacity: 1;
+    `;
+    document.body.appendChild(hitMarker);
+    requestAnimationFrame(() => {
+      if (hitMarker) {
+        hitMarker.style.transform = 'scale(2)';
+        hitMarker.style.opacity = '0';
+      }
+    });
+    setTimeout(() => {
+      if (hitMarker && hitMarker.parentNode) {
+        document.body.removeChild(hitMarker);
+        hitMarker = null;
+      }
+    }, 350);
+  }
 
   container.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0) return;
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
     pointerDownPos = { x: e.clientX, y: e.clientY };
     pointerDownTime = Date.now();
   });
@@ -101,9 +138,16 @@ function setupInteraction(container: HTMLElement): void {
     const dx = e.clientX - pointerDownPos.x;
     const dy = e.clientY - pointerDownPos.y;
     const dt = Date.now() - pointerDownTime;
+
     if (dx * dx + dy * dy < 25 && dt < 500) {
       const rect = container.getBoundingClientRect();
-      buildingModule.handleClick(e.clientX, e.clientY, rect);
+      const hit = buildingModule.handleClick(e.clientX, e.clientY, rect);
+      showClickMarker(e.clientX, e.clientY, hit);
+      if (hit) {
+        console.log(`✅ 射线命中建筑 @ (${e.clientX}, ${e.clientY})`);
+      } else {
+        console.log(`❌ 射线未命中建筑 @ (${e.clientX}, ${e.clientY})`);
+      }
     }
     pointerDownPos = null;
   });
@@ -158,6 +202,7 @@ async function updateTemperatures(): Promise<void> {
     const currentTime = uiModule.getCurrentTime();
     const tempData = await InteractionModule.fetchTemperatures(currentTime);
     buildingModule.updateTemperatures(tempData.buildings);
+    interactionModule.refreshChart();
   } catch (err) {
     console.error('Periodic temperature update failed:', err);
   }
