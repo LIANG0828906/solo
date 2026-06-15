@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/gameengine.ts","./src/levels.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/gamecanvas.tsx","./src/components/gameui.tsx"],"version":"5.8.3"}
