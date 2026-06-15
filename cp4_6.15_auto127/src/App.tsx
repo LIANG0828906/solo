@@ -61,6 +61,9 @@ const App: React.FC = () => {
     setActiveAnnotationId(prev => prev === id ? null : id);
   }, []);
 
+  const handleAnnotationHover = useCallback((id: string | null) => {
+  }, []);
+
   const handleStartCompare = useCallback(() => {
     setIsCompareMode(true);
     setSelectedArtifactId(null);
@@ -129,6 +132,7 @@ const App: React.FC = () => {
         onArtifactClick={handleArtifactClick}
         onArtifactHover={handleArtifactHover}
         onAnnotationClick={handleAnnotationClick}
+        onAnnotationHover={handleAnnotationHover}
       />
 
       <div

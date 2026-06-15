@@ -1,7 +1,8 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Html, useProgress, SpotLight, useGLTF, Detailed, Edges } from '@react-three/drei';
+import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
+import { OrbitControls, Html, useProgress, SpotLight, Detailed, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   Artifact,
   LightingPreset,
@@ -26,6 +27,7 @@ interface SceneProps {
   onArtifactClick: (id: string) => void;
   onArtifactHover: (id: string | null) => void;
   onAnnotationClick: (id: string) => void;
+  onAnnotationHover: (id: string | null) => void;
 }
 
 function easeInOutCubic(t: number): number {
@@ -77,32 +79,170 @@ function createNoiseTexture(size: number = 512): THREE.Texture {
   return texture;
 }
 
-function createWeatheringMaterial(
+function createNormalMap(size: number = 512): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const noise = (Math.random() - 0.5) * 0.3;
+      imageData.data[i] = 128 + noise * 255;
+      imageData.data[i + 1] = 128 + noise * 255;
+      imageData.data[i + 2] = 255;
+      imageData.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+function createRustTexture(size: number = 512): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  
+  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  gradient.addColorStop(0, '#8B4513');
+  gradient.addColorStop(0.5, '#A0522D');
+  gradient.addColorStop(1, '#654321');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  
+  for (let i = 0; i < 2000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * 8 + 1;
+    ctx.fillStyle = `rgba(${139 + Math.random() * 40}, ${69 + Math.random() * 30}, ${19 + Math.random() * 20}, ${0.3 + Math.random() * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+function createWeatheringShaderMaterial(
   baseColor: string,
   category: ArtifactCategory,
   weathering: number,
+  baseTexture: THREE.Texture,
+  rustTexture: THREE.Texture,
+  normalTexture: THREE.Texture,
   noiseTexture: THREE.Texture
-): THREE.MeshPhysicalMaterial {
-  const color = new THREE.Color(baseColor);
-  const agedColor = mixColors(baseColor, '#3a2f20', weathering * 0.6);
+): THREE.ShaderMaterial {
+  const base = new THREE.Color(baseColor);
+  const aged = mixColors(baseColor, '#4a3520', 0.7);
   
-  const roughness = lerp(0.18, 0.85, weathering);
-  const metalness = category === ArtifactCategory.BRONZE 
-    ? lerp(0.85, 0.35, weathering * 0.7)
-    : lerp(0.1, 0.25, weathering);
-  
-  return new THREE.MeshPhysicalMaterial({
-    color: agedColor,
-    roughness,
-    metalness,
-    clearcoat: lerp(0.6, 0, weathering * 0.8),
-    clearcoatRoughness: lerp(0.15, 0.7, weathering),
-    bumpMap: noiseTexture,
-    bumpScale: lerp(0.001, 0.04, weathering),
-    displacementMap: noiseTexture,
-    displacementScale: lerp(0, 0.035, weathering),
-    aoMap: noiseTexture,
-    aoMapIntensity: lerp(0.1, 0.7, weathering),
+  const uniforms = {
+    uBaseColor: { value: new THREE.Color(base.r, base.g, base.b) },
+    uAgedColor: { value: new THREE.Color(aged.r, aged.g, aged.b) },
+    uWeathering: { value: weathering },
+    uBaseTexture: { value: baseTexture },
+    uRustTexture: { value: rustTexture },
+    uNormalTexture: { value: normalTexture },
+    uNoiseTexture: { value: noiseTexture },
+    uRoughnessNew: { value: 0.15 },
+    uRoughnessOld: { value: 0.9 },
+    uMetalnessNew: { value: category === ArtifactCategory.BRONZE ? 0.9 : 0.1 },
+    uMetalnessOld: { value: category === ArtifactCategory.BRONZE ? 0.25 : 0.15 },
+  };
+
+  return new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vViewPosition;
+      
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = position;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vViewPosition = -mvPosition.xyz;
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uBaseColor;
+      uniform vec3 uAgedColor;
+      uniform float uWeathering;
+      uniform sampler2D uBaseTexture;
+      uniform sampler2D uRustTexture;
+      uniform sampler2D uNormalTexture;
+      uniform sampler2D uNoiseTexture;
+      uniform float uRoughnessNew;
+      uniform float uRoughnessOld;
+      uniform float uMetalnessNew;
+      uniform float uMetalnessOld;
+      
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vViewPosition;
+      
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+      }
+      
+      void main() {
+        vec2 uv = vUv;
+        
+        float noiseVal = texture2D(uNoiseTexture, uv * 4.0).r;
+        float rustFactor = texture2D(uRustTexture, uv * 2.5).r;
+        
+        float weatherFactor = uWeathering * (0.7 + noiseVal * 0.6);
+        weatherFactor = clamp(weatherFactor, 0.0, 1.0);
+        
+        float rustAmount = smoothstep(0.2, 0.8, weatherFactor * (0.5 + rustFactor * 0.5));
+        
+        vec3 baseCol = mix(uBaseColor, uAgedColor, weatherFactor * 0.6);
+        vec3 rustCol = texture2D(uRustTexture, uv * 3.0).rgb;
+        vec3 finalColor = mix(baseCol, rustCol * 0.85, rustAmount * 0.7);
+        
+        float roughness = mix(uRoughnessNew, uRoughnessOld, weatherFactor);
+        
+        vec3 normal = vNormal;
+        float normalMix = weatherFactor * 0.6;
+        vec3 normalMap = texture2D(uNormalTexture, uv * 6.0).rgb * 2.0 - 1.0;
+        normal = mix(normal, normalize(normal + normalMap * 0.3), normalMix);
+        
+        vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+        float diff = max(dot(normal, lightDir), 0.0);
+        
+        float spec = 0.0;
+        if (diff > 0.0) {
+          vec3 viewDir = normalize(vViewPosition);
+          vec3 reflectDir = reflect(-lightDir, normal);
+          float specStrength = mix(0.8, 0.1, roughness);
+          float shininess = mix(64.0, 4.0, roughness);
+          spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess) * specStrength;
+        }
+        
+        vec3 ambient = finalColor * 0.35;
+        vec3 diffuse = finalColor * diff * 0.7;
+        vec3 specular = vec3(1.0, 0.95, 0.85) * spec;
+        
+        vec3 color = ambient + diffuse + specular;
+        
+        float edgeFactor = 1.0 - abs(dot(normal, normalize(vViewPosition)));
+        edgeFactor = pow(edgeFactor, 2.0);
+        color += vec3(0.9, 0.75, 0.45) * edgeFactor * weatherFactor * 0.15;
+        
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
   });
 }
 
@@ -112,20 +252,20 @@ function Loader() {
     <Html center style={{ pointerEvents: 'none' }}>
       <div
         style={{
-          background: 'rgba(26, 26, 46, 0.92)',
-          padding: '24px 40px',
-          borderRadius: 16,
-          border: '1px solid rgba(212, 175, 55, 0.4)',
+          background: 'rgba(26, 26, 46, 0.95)',
+          padding: '28px 48px',
+          borderRadius: 18,
+          border: '1px solid rgba(212, 175, 55, 0.5)',
           color: '#d4af37',
           textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 60px rgba(212,175,55,0.1)',
         }}
       >
-        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>文物加载中...</div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 14, letterSpacing: 1 }}>文物加载中...</div>
         <div
           style={{
-            width: 240, height: 5,
-            background: 'rgba(255,255,255,0.1)',
+            width: 260, height: 5,
+            background: 'rgba(255,255,255,0.08)',
             borderRadius: 3,
             overflow: 'hidden',
           }}
@@ -139,8 +279,8 @@ function Loader() {
             }}
           />
         </div>
-        <div style={{ fontSize: 11, marginTop: 10, color: 'rgba(255,255,255,0.5)' }}>
-          {progress.toFixed(0)}%
+        <div style={{ fontSize: 11, marginTop: 12, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
+          {progress.toFixed(0)}% · 正在加载古文明珍宝
         </div>
       </div>
     </Html>
@@ -152,15 +292,15 @@ function BreathingLight({ position, intensity = 1 }: { position: [number, number
   useFrame((state) => {
     if (lightRef.current) {
       const t = state.clock.elapsedTime;
-      lightRef.current.intensity = (0.6 + Math.sin(t * 1.5) * 0.4) * intensity;
+      lightRef.current.intensity = (0.5 + Math.sin(t * 1.4) * 0.5) * intensity;
     }
   });
   return (
     <pointLight
       ref={lightRef}
-      position={[position[0], position[1] + 1.2, position[2]]}
+      position={[position[0], position[1] + 1.3, position[2]]}
       color="#d4af37"
-      distance={6}
+      distance={7}
       decay={2}
     />
   );
@@ -176,100 +316,110 @@ function Pedestal({ position, children, spotIntensity }: PedestalProps) {
   return (
     <group position={position}>
       <mesh position={[0, 0.5, 0]} receiveShadow>
-        <cylinderGeometry args={[1.6, 1.8, 1, 48]} />
+        <cylinderGeometry args={[1.7, 1.9, 1.1, 64]} />
         <meshPhysicalMaterial
-          color="#1a1a2e"
+          color="#16162a"
           transparent
-          opacity={0.85}
-          roughness={0.15}
-          metalness={0.3}
+          opacity={0.88}
+          roughness={0.12}
+          metalness={0.35}
+          clearcoat={1}
+          clearcoatRoughness={0.1}
+        />
+      </mesh>
+
+      <mesh position={[0, 1.05, 0]}>
+        <cylinderGeometry args={[1.65, 1.65, 0.03, 64]} />
+        <meshPhysicalMaterial
+          color="#2a2a4e"
+          transparent
+          opacity={0.92}
+          roughness={0.08}
+          metalness={0.92}
           clearcoat={1}
         />
       </mesh>
 
-      <mesh position={[0, 1.01, 0]}>
-        <cylinderGeometry args={[1.58, 1.58, 0.02, 48]} />
-        <meshPhysicalMaterial
-          color="#2a2a4e"
-          transparent
-          opacity={0.9}
-          roughness={0.1}
-          metalness={0.9}
-        />
-      </mesh>
-
-      <mesh position={[0, 1.02, 0]}>
-        <ringGeometry args={[1.5, 1.58, 64]} />
+      <mesh position={[0, 1.07, 0]}>
+        <ringGeometry args={[1.55, 1.63, 80]} />
         <meshBasicMaterial
           color="#d4af37"
           transparent
-          opacity={0.7}
+          opacity={0.75}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      <BreathingLight position={[0, 0, 0]} intensity={spotIntensity * 0.8} />
+      <mesh position={[0, 1.06, 0]}>
+        <ringGeometry args={[1.45, 1.5, 80]} />
+        <meshBasicMaterial
+          color="#d4af37"
+          transparent
+          opacity={0.35}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      <BreathingLight position={[0, 0, 0]} intensity={spotIntensity * 0.9} />
 
       {children}
     </group>
   );
 }
 
-interface HighlightBorderProps {
-  geometry: THREE.BufferGeometry;
-  visible: boolean;
-}
-
-function HighlightBorder({ geometry, visible }: HighlightBorderProps) {
-  if (!visible) return null;
-  return (
-    <lineSegments geometry={geometry}>
-      <lineBasicMaterial
-        color="#d4af37"
-        transparent
-        opacity={0.95}
-        linewidth={3}
-      />
-    </lineSegments>
-  );
-}
-
 interface ArtifactTooltipProps {
   artifact: Artifact;
   visible: boolean;
+  position: [number, number, number];
 }
 
-function ArtifactTooltip({ artifact, visible }: ArtifactTooltipProps) {
+function ArtifactTooltip({ artifact, visible, position }: ArtifactTooltipProps) {
   if (!visible) return null;
   
   return (
     <Html
-      position={[0, 1.5, 0]}
+      position={position}
       center
-      zIndexRange={[100, 0]}
+      zIndexRange={[200, 0]}
       style={{ pointerEvents: 'none' }}
     >
       <div
         style={{
-          background: 'rgba(26, 26, 46, 0.95)',
-          backdropFilter: 'blur(20px)',
+          background: 'rgba(26, 26, 46, 0.97)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid rgba(212, 175, 55, 0.7)',
-          borderRadius: 12,
-          padding: '14px 18px',
-          minWidth: 220,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 40px rgba(212,175,55,0.15)',
-          animation: 'tooltipFadeIn 300ms cubic-bezier(0.645, 0.045, 0.355, 1)',
+          borderRadius: 14,
+          padding: '16px 20px',
+          minWidth: 230,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.65), 0 0 50px rgba(212,175,55,0.12)',
+          animation: 'tooltipFadeIn 350ms cubic-bezier(0.645, 0.045, 0.355, 1)',
+          position: 'relative',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -8,
+            left: '50%',
+            transform: 'translateX(-50%) rotate(45deg)',
+            width: 16,
+            height: 16,
+            background: 'rgba(26,26,46,0.97)',
+            borderRight: '1px solid rgba(212,175,55,0.7)',
+            borderBottom: '1px solid rgba(212,175,55,0.7)',
+          }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span
             style={{
               fontSize: 9,
-              padding: '2px 8px',
-              borderRadius: 4,
-              background: 'rgba(212, 175, 55, 0.15)',
+              padding: '3px 10px',
+              borderRadius: 5,
+              background: 'rgba(212, 175, 55, 0.18)',
               color: '#d4af37',
               letterSpacing: 0.5,
+              fontWeight: 600,
             }}
           >
             {artifact.category === 'bronze' ? '商周青铜器' : artifact.category === 'pottery' ? '古希腊陶瓶' : '玛雅玉器'}
@@ -277,11 +427,12 @@ function ArtifactTooltip({ artifact, visible }: ArtifactTooltipProps) {
         </div>
         <div
           style={{
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: 700,
             color: '#d4af37',
-            marginBottom: 6,
+            marginBottom: 8,
             letterSpacing: 0.5,
+            textShadow: '0 2px 12px rgba(212,175,55,0.2)',
           }}
         >
           {artifact.name}
@@ -290,186 +441,110 @@ function ArtifactTooltip({ artifact, visible }: ArtifactTooltipProps) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
-            fontSize: 11,
-            color: 'rgba(255,255,255,0.65)',
+            gap: 16,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.72)',
           }}
         >
           <span>📅 {artifact.era}</span>
           <span>📦 {artifact.material}</span>
         </div>
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <span style={{ fontSize: 9, color: 'rgba(212,175,55,0.6)' }}>点击查看详情 · 拖拽旋转 · 滚轮缩放</span>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <span style={{ fontSize: 9.5, color: 'rgba(212,175,55,0.6)', letterSpacing: 0.3 }}>
+            点击查看详情 · 拖拽旋转观察 · 滚轮缩放
+          </span>
         </div>
       </div>
     </Html>
   );
 }
 
-function createDetailedArtifactGeometry(artifact: Artifact): THREE.BufferGeometry {
+function createPlaceholderGeometry(artifact: Artifact): THREE.BufferGeometry {
   const { geometryType, category } = artifact;
   
   switch (geometryType) {
     case 'ding': {
-      const group = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.65, 1.1));
-      body.position.y = 0.32;
-      group.add(body);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.07, 16, 64));
-      rim.position.y = 0.68;
-      rim.rotation.x = Math.PI / 2;
-      group.add(rim);
-      const legGeo = new THREE.CylinderGeometry(0.07, 0.11, 0.45, 12);
-      [[0.42, -0.22, 0.42], [-0.42, -0.22, 0.42], [0.42, -0.22, -0.42], [-0.42, -0.22, -0.42]].forEach(p => {
-        const leg = new THREE.Mesh(legGeo);
-        leg.position.set(p[0], p[1], p[2]);
-        group.add(leg);
-      });
-      const handleGeo = new THREE.TorusGeometry(0.16, 0.035, 8, 32, Math.PI);
-      const h1 = new THREE.Mesh(handleGeo);
-      h1.position.set(0.8, 0.55, 0);
-      h1.rotation.z = Math.PI / 2;
-      group.add(h1);
-      const h2 = h1.clone();
-      h2.position.x = -0.8;
-      group.add(h2);
-      
-      const merged = mergeGroupMeshes(group);
-      if (merged) return merged;
-      return new THREE.CylinderGeometry(0.85, 0.95, 0.9, 8, 1);
+      const body = new THREE.CylinderGeometry(0.85, 0.95, 0.7, 8, 1);
+      body.translate(0, 0.35, 0);
+      return body;
     }
     case 'zun': {
       const pts: THREE.Vector2[] = [];
-      for (let i = 0; i <= 24; i++) {
-        const t = i / 23;
+      for (let i = 0; i <= 28; i++) {
+        const t = i / 27;
         let r;
-        if (t < 0.18) r = 0.22 + t * 2.1;
-        else if (t < 0.35) r = 0.6 + (t - 0.18) * 0.4;
-        else if (t < 0.75) r = 0.68 - (t - 0.35) * 0.35;
-        else r = 0.52 - (t - 0.75) * 0.95;
-        pts.push(new THREE.Vector2(r * 0.7, t * 1.25 - 0.1));
+        if (t < 0.2) r = 0.2 + t * 2.3;
+        else if (t < 0.4) r = 0.66 + (t - 0.2) * 0.3;
+        else if (t < 0.75) r = 0.72 - (t - 0.4) * 0.4;
+        else r = 0.58 - (t - 0.75) * 1.1;
+        pts.push(new THREE.Vector2(r * 0.72, t * 1.3 - 0.05));
       }
-      return new THREE.LatheGeometry(pts, 64);
+      return new THREE.LatheGeometry(pts, 72);
     }
     case 'hu': {
       const pts: THREE.Vector2[] = [];
-      for (let i = 0; i <= 28; i++) {
-        const t = i / 27;
-        const r = Math.sin(t * Math.PI) * 0.62 + 0.2;
-        pts.push(new THREE.Vector2(r * 0.78, t * 1.1 + 0.02));
+      for (let i = 0; i <= 32; i++) {
+        const t = i / 31;
+        const r = Math.sin(t * Math.PI) * 0.65 + 0.22;
+        pts.push(new THREE.Vector2(r * 0.8, t * 1.15 + 0.02));
       }
-      return new THREE.LatheGeometry(pts, 64);
+      return new THREE.LatheGeometry(pts, 72);
     }
     case 'amphora': {
       const pts: THREE.Vector2[] = [];
-      for (let i = 0; i <= 32; i++) {
-        const t = i / 31;
+      for (let i = 0; i <= 36; i++) {
+        const t = i / 35;
         let r;
-        if (t < 0.14) r = 0.13 + t * 1.65;
-        else if (t < 0.72) r = 0.58 + Math.sin((t - 0.14) / 0.58 * Math.PI) * 0.42;
-        else r = 0.58 - (t - 0.72) * 1.9;
-        pts.push(new THREE.Vector2(r * 0.72, t * 1.45));
+        if (t < 0.15) r = 0.12 + t * 1.8;
+        else if (t < 0.7) r = 0.6 + Math.sin((t - 0.15) / 0.55 * Math.PI) * 0.45;
+        else r = 0.6 - (t - 0.7) * 2.1;
+        pts.push(new THREE.Vector2(r * 0.75, t * 1.5));
       }
-      return new THREE.LatheGeometry(pts, 64);
+      return new THREE.LatheGeometry(pts, 72);
     }
     case 'kylix': {
-      return new THREE.CylinderGeometry(0.88, 0.32, 0.38, 48);
+      return new THREE.CylinderGeometry(0.92, 0.3, 0.4, 48);
     }
     case 'hydria': {
       const pts: THREE.Vector2[] = [];
-      for (let i = 0; i <= 30; i++) {
-        const t = i / 29;
+      for (let i = 0; i <= 34; i++) {
+        const t = i / 33;
         let r;
-        if (t < 0.1) r = 0.18 + t * 3.1;
-        else if (t < 0.68) r = 0.68 + Math.sin((t - 0.1) / 0.58 * Math.PI) * 0.38;
-        else r = 0.68 - (t - 0.68) * 2.1;
-        pts.push(new THREE.Vector2(r * 0.82, t * 1.35 + 0.02));
+        if (t < 0.1) r = 0.16 + t * 3.3;
+        else if (t < 0.65) r = 0.72 + Math.sin((t - 0.1) / 0.55 * Math.PI) * 0.4;
+        else r = 0.72 - (t - 0.65) * 2.3;
+        pts.push(new THREE.Vector2(r * 0.85, t * 1.4 + 0.02));
       }
-      return new THREE.LatheGeometry(pts, 64);
+      return new THREE.LatheGeometry(pts, 72);
     }
     case 'mask': {
-      const geo = new THREE.SphereGeometry(0.58, 56, 56, 0, Math.PI * 2, 0, Math.PI * 0.88);
+      const geo = new THREE.SphereGeometry(0.62, 64, 64, 0, Math.PI * 2, 0, Math.PI * 0.9);
       const positions = geo.attributes.position;
       for (let i = 0; i < positions.count; i++) {
         const y = positions.getY(i);
         const z = positions.getZ(i);
-        if (y > 0.1 && Math.abs(z) < 0.3) {
-          positions.setZ(i, z - 0.12);
+        const x = positions.getX(i);
+        if (y > 0.15 && Math.abs(z) < 0.35) {
+          positions.setZ(i, z - 0.15);
+        }
+        if (y < -0.05 && Math.abs(x) < 0.2) {
+          positions.setZ(i, z - 0.08);
         }
       }
       geo.computeVertexNormals();
       return geo;
     }
     case 'pendant': {
-      return new THREE.TorusGeometry(0.58, 0.19, 36, 72);
+      return new THREE.TorusGeometry(0.62, 0.21, 40, 80);
     }
     case 'figure': {
-      return new THREE.CapsuleGeometry(0.2, 0.75, 18, 36);
+      return new THREE.CapsuleGeometry(0.22, 0.8, 20, 40);
     }
     case 'jue':
     default: {
-      return new THREE.CylinderGeometry(0.38, 0.48, 0.95, 32);
+      return new THREE.CylinderGeometry(0.36, 0.5, 1.0, 36);
     }
   }
-}
-
-function mergeGroupMeshes(group: THREE.Group): THREE.BufferGeometry | null {
-  const geometries: THREE.BufferGeometry[] = [];
-  group.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.updateMatrix();
-      const geo = child.geometry.clone();
-      geo.applyMatrix4(child.matrix);
-      geometries.push(geo);
-    }
-  });
-  if (geometries.length === 0) return null;
-  return mergeGeometries(geometries);
-}
-
-function mergeGeometries(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  let vertexCount = 0;
-  geometries.forEach(geo => { vertexCount += geo.attributes.position.count; });
-  
-  const positions = new Float32Array(vertexCount * 3);
-  const normals = new Float32Array(vertexCount * 3);
-  const uvs = new Float32Array(vertexCount * 2);
-  const indices: number[] = [];
-  
-  let vertexOffset = 0;
-  let indexOffset = 0;
-  
-  geometries.forEach(geo => {
-    const pos = geo.attributes.position.array as Float32Array;
-    const nor = geo.attributes.normal.array as Float32Array;
-    const uv = geo.attributes.uv ? geo.attributes.uv.array as Float32Array : new Float32Array(pos.length / 3 * 2);
-    
-    positions.set(pos, vertexOffset * 3);
-    normals.set(nor, vertexOffset * 3);
-    uvs.set(uv, vertexOffset * 2);
-    
-    if (geo.index) {
-      const idx = geo.index.array;
-      for (let i = 0; i < idx.length; i++) {
-        indices.push(idx[i] + vertexOffset);
-      }
-    } else {
-      for (let i = 0; i < pos.length / 3; i++) {
-        indices.push(i + vertexOffset);
-      }
-    }
-    
-    vertexOffset += pos.length / 3;
-    indexOffset += indices.length;
-  });
-  
-  const mergedGeo = new THREE.BufferGeometry();
-  mergedGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  mergedGeo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-  mergedGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  mergedGeo.setIndex(indices);
-  
-  return mergedGeo;
 }
 
 interface GLTFArtifactProps {
@@ -482,6 +557,7 @@ interface GLTFArtifactProps {
   onClick: () => void;
   onHover: (hovered: boolean) => void;
   onAnnotationClick: (id: string) => void;
+  onAnnotationHover: (id: string | null) => void;
   activeAnnotationId: string | null;
   showAnnotations: boolean;
   overridePosition?: [number, number, number];
@@ -498,6 +574,7 @@ function GLTFArtifact({
   onClick,
   onHover,
   onAnnotationClick,
+  onAnnotationHover,
   activeAnnotationId,
   showAnnotations,
   overridePosition,
@@ -506,51 +583,102 @@ function GLTFArtifact({
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const edgesRef = useRef<THREE.LineSegments>(null);
-  
-  const noiseTexture = useMemo(() => createNoiseTexture(512), []);
-  noiseTexture.repeat.set(4, 4);
-  
-  const material = useMemo(() => {
-    return createWeatheringMaterial(artifact.baseColor, artifact.category, weathering, noiseTexture);
-  }, [artifact.baseColor, artifact.category, noiseTexture]);
+  const outlineRef = useRef<THREE.Mesh>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const noiseTexture = useMemo(() => {
+    const tex = createNoiseTexture(512);
+    tex.repeat.set(4, 4);
+    return tex;
+  }, []);
+
+  const rustTexture = useMemo(() => {
+    const tex = createRustTexture(512);
+    tex.repeat.set(3, 3);
+    return tex;
+  }, []);
+
+  const normalTexture = useMemo(() => {
+    const tex = createNormalMap(512);
+    tex.repeat.set(6, 6);
+    return tex;
+  }, []);
+
+  const baseColorTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    const c = hexToRgb(artifact.baseColor);
+    const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+    gradient.addColorStop(0, `rgb(${Math.floor(c.r * 255 * 1.2)}, ${Math.floor(c.g * 255 * 1.1)}, ${Math.floor(c.b * 255 * 1.05)})`);
+    gradient.addColorStop(0.5, artifact.baseColor);
+    gradient.addColorStop(1, `rgb(${Math.floor(c.r * 255 * 0.75)}, ${Math.floor(c.g * 255 * 0.7)}, ${Math.floor(c.b * 255 * 0.65)})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const a = Math.random() * 0.15 + 0.05;
+      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+      ctx.fillRect(x, y, Math.random() * 3 + 1, Math.random() * 3 + 1);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }, [artifact.baseColor]);
+
+  const shaderMaterial = useMemo(() => {
+    return createWeatheringShaderMaterial(
+      artifact.baseColor,
+      artifact.category,
+      weathering,
+      baseColorTexture,
+      rustTexture,
+      normalTexture,
+      noiseTexture
+    );
+  }, [artifact.baseColor, artifact.category, baseColorTexture, rustTexture, normalTexture, noiseTexture]);
 
   useEffect(() => {
-    if (meshRef.current) {
-      const m = meshRef.current.material as THREE.MeshPhysicalMaterial;
-      const agedColor = mixColors(artifact.baseColor, '#3a2f20', weathering * 0.6);
-      m.color.copy(agedColor);
-      m.roughness = lerp(0.18, 0.85, weathering);
-      m.metalness = artifact.category === ArtifactCategory.BRONZE
-        ? lerp(0.85, 0.35, weathering * 0.7)
-        : lerp(0.1, 0.25, weathering);
-      m.clearcoat = lerp(0.6, 0, weathering * 0.8);
-      m.clearcoatRoughness = lerp(0.15, 0.7, weathering);
-      if (m.bumpMap) m.bumpScale = lerp(0.001, 0.04, weathering);
-      if (m.displacementMap) m.displacementScale = lerp(0, 0.035, weathering);
-      m.needsUpdate = true;
+    if (shaderMaterial.uniforms) {
+      shaderMaterial.uniforms.uWeathering.value = weathering;
     }
-    if (edgesRef.current) {
-      const edgeMat = edgesRef.current.material as THREE.LineBasicMaterial;
-      edgeMat.opacity = (isHovered || isCompareSelected) && !isInspecting ? 0.95 : 0;
-      edgeMat.needsUpdate = true;
-    }
-  }, [weathering, artifact.baseColor, artifact.category, isHovered, isCompareSelected, isInspecting]);
+  }, [weathering, shaderMaterial]);
+
+  const [placeholderGeometry, edgeGeometry, outlineGeometry] = useMemo(() => {
+    const geo = createPlaceholderGeometry(artifact);
+    const edgeGeo = new THREE.EdgesGeometry(geo, 20);
+    const outlineGeo = geo.clone();
+    return [geo, edgeGeo, outlineGeo];
+  }, [artifact]);
 
   useFrame((state, delta) => {
     if (groupRef.current && !stopAutoRotate && !isInspecting && !isSelected) {
       groupRef.current.rotation.y += delta * 0.05;
     }
-  });
+    
+    if (edgesRef.current && edgesRef.current.material) {
+      const mat = edgesRef.current.material as THREE.LineBasicMaterial;
+      const targetOpacity = (isHovered || isCompareSelected) && !isInspecting ? 1 : 0;
+      mat.opacity += (targetOpacity - mat.opacity) * 0.15;
+      mat.needsUpdate = true;
+    }
 
-  const [geometry, edgeGeometry] = useMemo(() => {
-    const geo = createDetailedArtifactGeometry(artifact);
-    const edgeGeo = new THREE.EdgesGeometry(geo, 25);
-    return [geo, edgeGeo];
-  }, [artifact]);
+    if (outlineRef.current && outlineRef.current.material) {
+      const mat = outlineRef.current.material as THREE.MeshBasicMaterial;
+      const targetOpacity = (isHovered || isCompareSelected) && !isInspecting ? 0.5 : 0;
+      mat.opacity += (targetOpacity - mat.opacity) * 0.12;
+      mat.needsUpdate = true;
+    }
+  });
 
   const showBorder = (isHovered || isCompareSelected) && !isInspecting;
   const showTooltip = isHovered && !isInspecting && !isSelected;
   const worldPos = overridePosition || artifact.position;
+  const tooltipPos: [number, number, number] = [worldPos[0], worldPos[1] + 1.6, worldPos[2]];
 
   return (
     <group
@@ -572,28 +700,54 @@ function GLTFArtifact({
         document.body.style.cursor = 'default';
       }}
     >
-      <Detailed distances={[0, 3, 8]}>
-        <mesh ref={meshRef} geometry={geometry} material={material} castShadow receiveShadow />
-        <mesh geometry={geometry} material={material} castShadow />
-        <mesh geometry={geometry} material={material} castShadow />
+      <Detailed distances={[0, 2.5, 7]}>
+        <mesh ref={meshRef} geometry={placeholderGeometry} material={shaderMaterial} castShadow receiveShadow />
+        <mesh geometry={placeholderGeometry} material={shaderMaterial} castShadow />
+        <mesh geometry={placeholderGeometry} material={shaderMaterial} castShadow />
       </Detailed>
 
+      <lineSegments ref={edgesRef} geometry={edgeGeometry} position={[0, 0, 0.001]}>
+        <lineBasicMaterial
+          color="#d4af37"
+          transparent
+          opacity={0}
+          linewidth={2}
+        />
+      </lineSegments>
+
       {showBorder && (
-        <lineSegments ref={edgesRef} geometry={edgeGeometry}>
-          <lineBasicMaterial
+        <mesh ref={outlineRef} geometry={outlineGeometry} scale={1.08} position={[0, 0, -0.01]}>
+          <meshBasicMaterial
             color="#d4af37"
             transparent
-            opacity={0.95}
-            linewidth={3}
+            opacity={0}
+            side={THREE.BackSide}
+            depthWrite={false}
           />
-        </lineSegments>
+        </mesh>
       )}
 
       {isHovered && !isInspecting && !isSelected && (
-        <pointLight position={[0, 0.9, 0]} color="#d4af37" intensity={2} distance={4} />
+        <pointLight position={[0, 0.9, 0]} color="#d4af37" intensity={2.5} distance={5} />
       )}
 
-      <ArtifactTooltip artifact={artifact} visible={showTooltip} />
+      {loadError && (
+        <Html center position={[0, 0.5, 0]}>
+          <div style={{
+            background: 'rgba(231, 76, 60, 0.9)',
+            color: 'white',
+            padding: '8px 14px',
+            borderRadius: 8,
+            fontSize: 11,
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+          }}>
+            ⚠️ 模型加载失败
+          </div>
+        </Html>
+      )}
+
+      <ArtifactTooltip artifact={artifact} visible={showTooltip} position={tooltipPos} />
 
       {showAnnotations && artifact.annotations.map((ann) => (
         <AnnotationMarker
@@ -601,6 +755,7 @@ function GLTFArtifact({
           annotation={ann}
           isActive={activeAnnotationId === ann.id}
           onClick={() => onAnnotationClick(ann.id)}
+          onHover={(h) => onAnnotationHover(h ? ann.id : null)}
         />
       ))}
     </group>
@@ -611,24 +766,33 @@ interface AnnotationMarkerProps {
   annotation: AnnotationPoint;
   isActive: boolean;
   onClick: () => void;
+  onHover: (hovered: boolean) => void;
 }
 
-function AnnotationMarker({ annotation, isActive, onClick }: AnnotationMarkerProps) {
+function AnnotationMarker({ annotation, isActive, onClick, onHover }: AnnotationMarkerProps) {
   const markerRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
+  const pulseRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (markerRef.current) {
       const t = state.clock.elapsedTime;
-      const scale = 1 + Math.sin(t * 3) * 0.25;
-      markerRef.current.scale.setScalar(isActive ? scale * 1.5 : scale);
+      const scale = 1 + Math.sin(t * 3) * 0.28;
+      markerRef.current.scale.setScalar(isActive ? scale * 1.6 : scale);
     }
     if (ringRef.current) {
       const t = state.clock.elapsedTime;
-      const scale = 1.5 + Math.sin(t * 2.5) * 0.5;
-      ringRef.current.scale.setScalar(isActive ? scale * 1.4 : scale);
+      const scale = 1.6 + Math.sin(t * 2.5) * 0.6;
+      ringRef.current.scale.setScalar(isActive ? scale * 1.5 : scale * 0.8);
       const mat = ringRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = isActive ? 0.45 : 0.25;
+      mat.opacity = isActive ? 0.5 : 0.3;
+    }
+    if (pulseRef.current) {
+      const t = state.clock.elapsedTime * 1.5;
+      const s = 1 + (t % 1) * 2;
+      pulseRef.current.scale.setScalar(s);
+      const mat = pulseRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.max(0, 0.6 - (t % 1) * 0.6);
     }
   });
 
@@ -640,9 +804,36 @@ function AnnotationMarker({ annotation, isActive, onClick }: AnnotationMarkerPro
   };
 
   const color = colorMap[annotation.type];
+  const typeLabelMap: Record<string, string> = {
+    inscription: '铭文',
+    repair: '修复',
+    crack: '痕迹',
+    texture: '纹理',
+  };
 
   return (
     <group position={annotation.position}>
+      <mesh
+        ref={pulseRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          onHover(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          onHover(false);
+          document.body.style.cursor = 'default';
+        }}
+      >
+        <ringGeometry args={[0.03, 0.05, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.5} side={THREE.DoubleSide} />
+      </mesh>
+
       <mesh
         ref={ringRef}
         onClick={(e) => {
@@ -651,14 +842,15 @@ function AnnotationMarker({ annotation, isActive, onClick }: AnnotationMarkerPro
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
-          document.body.style.cursor = 'pointer';
+          onHover(true);
         }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'default';
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          onHover(false);
         }}
       >
-        <ringGeometry args={[0.06, 0.09, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+        <ringGeometry args={[0.07, 0.1, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.3} side={THREE.DoubleSide} />
       </mesh>
 
       <mesh
@@ -669,38 +861,43 @@ function AnnotationMarker({ annotation, isActive, onClick }: AnnotationMarkerPro
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
-          document.body.style.cursor = 'pointer';
+          onHover(true);
         }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'default';
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          onHover(false);
         }}
       >
-        <sphereGeometry args={[0.045, 24, 24]} />
+        <sphereGeometry args={[0.055, 28, 28]} />
         <meshBasicMaterial color={color} transparent opacity={0.95} />
       </mesh>
 
-      <pointLight color={color} intensity={isActive ? 1.5 : 0.8} distance={1.2} />
+      <pointLight color={color} intensity={isActive ? 2 : 1} distance={1.5} />
 
       {isActive && (
         <Html
-          position={[0, 0.15, 0]}
+          position={[0, 0.22, 0]}
           center
-          zIndexRange={[200, 100]}
+          zIndexRange={[250, 150]}
+          style={{ pointerEvents: 'none' }}
         >
           <div
             style={{
-              background: 'rgba(26,26,46,0.95)',
-              border: `1px solid ${color}88`,
-              borderRadius: 8,
-              padding: '6px 12px',
-              fontSize: 10,
+              background: `linear-gradient(135deg, ${color}22, ${color}08)`,
+              border: `1px solid ${color}99`,
+              borderRadius: 10,
+              padding: '7px 14px',
+              fontSize: 10.5,
               color: color,
-              fontWeight: 600,
+              fontWeight: 700,
               whiteSpace: 'nowrap',
-              boxShadow: `0 4px 16px ${color}33`,
-              pointerEvents: 'none',
+              boxShadow: `0 4px 20px ${color}44`,
+              letterSpacing: 0.3,
             }}
           >
+            <span style={{ fontSize: 9, opacity: 0.8, marginRight: 4 }}>
+              {typeLabelMap[annotation.type]}
+            </span>
             {annotation.title}
           </div>
         </Html>
@@ -755,11 +952,11 @@ function CameraRig({
         const worldX = basePos[0] + artPos[0];
         const worldY = basePos[1] + artPos[1];
         const worldZ = basePos[2] + artPos[2];
-        targetPosition.current.set(worldX + 0.4, worldY + 1.1, worldZ + 2.2);
-        targetLookAt.current.set(worldX, worldY + 0.3, worldZ);
+        targetPosition.current.set(worldX + 0.35, worldY + 1.0, worldZ + 2.0);
+        targetLookAt.current.set(worldX, worldY + 0.25, worldZ);
       } else if (isCompareMode && compareArtifacts.length === 2) {
-        targetPosition.current.set(0, 2.5, 6);
-        targetLookAt.current.set(0, 1.5, 0);
+        targetPosition.current.set(0, 2.6, 6.5);
+        targetLookAt.current.set(0, 1.6, 0);
       } else {
         targetPosition.current.set(0, 4, 13);
         targetLookAt.current.set(0, 1.5, 0);
@@ -792,7 +989,7 @@ function CameraRig({
         controlsRef.current.update();
       }
     } else if (isAnimatingRef.current) {
-      animProgress.current = Math.min(animProgress.current + delta * 1.3, 1);
+      animProgress.current = Math.min(animProgress.current + delta * 1.4, 1);
       const t = easeInOutCubic(animProgress.current);
       camera.position.lerpVectors(startPosition.current, targetPosition.current, t);
       if (controlsRef.current) {
@@ -816,10 +1013,10 @@ function CameraRig({
       enableDamping
       dampingFactor={0.08}
       enablePan={false}
-      minDistance={isInspecting ? 0.6 : 4}
-      maxDistance={isInspecting ? 4 : 25}
-      maxPolarAngle={isInspecting ? Math.PI * 0.88 : Math.PI * 0.52}
-      minPolarAngle={isInspecting ? 0.1 : Math.PI * 0.18}
+      minDistance={isInspecting ? 0.5 : 4}
+      maxDistance={isInspecting ? 4.5 : 25}
+      maxPolarAngle={isInspecting ? Math.PI * 0.9 : Math.PI * 0.52}
+      minPolarAngle={isInspecting ? 0.08 : Math.PI * 0.18}
       enabled={displayMode !== DisplayMode.ROAMING || !!selectedArtifact || isCompareMode}
     />
   );
@@ -850,7 +1047,7 @@ function LightingManager({ preset, pedestalPositions }: LightingManagerProps) {
 
   useFrame((_, delta) => {
     if (transitionProgress.current < 1) {
-      transitionProgress.current = Math.min(transitionProgress.current + delta, 1);
+      transitionProgress.current = Math.min(transitionProgress.current + delta * 0.9, 1);
     }
     const t = easeInOutCubic(transitionProgress.current);
     const prev = prevPresetRef.current;
@@ -888,7 +1085,7 @@ function LightingManager({ preset, pedestalPositions }: LightingManagerProps) {
       <ambientLight ref={ambientRef} intensity={preset.ambientIntensity} color={preset.ambientColor} />
       <hemisphereLight
         ref={hemiRef}
-        args={[preset.ambientColor, '#1a1a2e', 0.4]}
+        args={[preset.ambientColor, '#1a1a2e', 0.35]}
       />
       <directionalLight
         ref={directionalRef}
@@ -898,22 +1095,23 @@ function LightingManager({ preset, pedestalPositions }: LightingManagerProps) {
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-camera-left={-16}
+        shadow-camera-right={16}
+        shadow-camera-top={16}
+        shadow-camera-bottom={-16}
+        shadow-bias={-0.0001}
       />
       {pedestalPositions.map((pos, i) => (
         <SpotLight
           key={i}
-          position={[pos[0], 5, pos[2] - 0.5]}
+          position={[pos[0], 5.5, pos[2] - 0.5]}
           angle={0.55}
-          penumbra={0.65}
+          penumbra={0.7}
           intensity={preset.spotIntensity}
           castShadow
-          distance={12}
+          distance={14}
           color="#fff5dd"
-          target-position={[pos[0], 1, pos[2]]}
+          target-position={[pos[0], 1.2, pos[2]]}
         />
       ))}
     </>
@@ -924,26 +1122,33 @@ function GalleryRoom({ fogColor }: { fogColor: string }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[50, 50]} />
-        <meshStandardMaterial color="#16162a" roughness={0.85} metalness={0.1} />
+        <planeGeometry args={[60, 60]} />
+        <meshStandardMaterial color="#141428" roughness={0.9} metalness={0.08} />
       </mesh>
 
       {[-18, -12, -6, 0, 6, 12, 18].map((x, i) => (
-        <mesh key={`column-${i}`} position={[x, 3, -12]}>
-          <boxGeometry args={[0.15, 6, 0.15]} />
-          <meshStandardMaterial color="#252545" metalness={0.4} roughness={0.5} />
+        <mesh key={`column-${i}`} position={[x, 3, -13]}>
+          <boxGeometry args={[0.18, 6, 0.18]} />
+          <meshStandardMaterial color="#202040" metalness={0.45} roughness={0.55} />
         </mesh>
       ))}
 
-      <mesh position={[0, 6, -12]}>
-        <boxGeometry args={[40, 0.2, 0.4]} />
-        <meshStandardMaterial color="#2a2a50" metalness={0.5} roughness={0.3} />
+      <mesh position={[0, 6, -13]}>
+        <boxGeometry args={[42, 0.25, 0.5]} />
+        <meshStandardMaterial color="#25254a" metalness={0.55} roughness={0.35} />
       </mesh>
 
       {[-8, 0, 8].map((x, i) => (
-        <mesh key={`plinth-${i}`} position={[x, 0.05, -9]} receiveShadow>
-          <boxGeometry args={[5, 0.1, 0.8]} />
-          <meshStandardMaterial color="#1f1f3e" metalness={0.2} roughness={0.8} />
+        <mesh key={`plinth-${i}`} position={[x, 0.08, -9.5]} receiveShadow>
+          <boxGeometry args={[5.5, 0.15, 1.0]} />
+          <meshStandardMaterial color="#1c1c3a" metalness={0.25} roughness={0.82} />
+        </mesh>
+      ))}
+
+      {[-12, -4, 4, 12].map((x, i) => (
+        <mesh key={`wall-deco-${i}`} position={[x, 4.5, -12.7]}>
+          <planeGeometry args={[1.8, 0.8]} />
+          <meshBasicMaterial color="#d4af37" transparent opacity={0.15} />
         </mesh>
       ))}
     </group>
@@ -955,6 +1160,7 @@ interface CompareViewProps {
   weathering: number;
   activeAnnotationId: string | null;
   onAnnotationClick: (id: string) => void;
+  onAnnotationHover: (id: string | null) => void;
 }
 
 function CompareView({
@@ -962,72 +1168,87 @@ function CompareView({
   weathering,
   activeAnnotationId,
   onAnnotationClick,
+  onAnnotationHover,
 }: CompareViewProps) {
   const groupARef = useRef<THREE.Group>(null);
   const groupBRef = useRef<THREE.Group>(null);
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setEntered(true), 50);
+    const timer = setTimeout(() => setEntered(true), 80);
     return () => clearTimeout(timer);
   }, []);
 
   useFrame((state, delta) => {
     if (groupARef.current) {
-      const targetX = entered ? -2.2 : -7;
-      groupARef.current.position.x += (targetX - groupARef.current.position.x) * Math.min(delta * 3, 1);
+      const targetX = entered ? -2.5 : -8;
+      groupARef.current.position.x += (targetX - groupARef.current.position.x) * Math.min(delta * 2.8, 1);
     }
     if (groupBRef.current) {
-      const targetX = entered ? 2.2 : 7;
-      groupBRef.current.position.x += (targetX - groupBRef.current.position.x) * Math.min(delta * 3, 1);
+      const targetX = entered ? 2.5 : 8;
+      groupBRef.current.position.x += (targetX - groupBRef.current.position.x) * Math.min(delta * 2.8, 1);
     }
   });
 
   if (compareArtifacts.length < 2) return null;
 
+  const earlierIdx = compareArtifacts[0].year <= compareArtifacts[1].year ? 0 : 1;
+  const laterIdx = earlierIdx === 0 ? 1 : 0;
+
   return (
     <group>
-      <group ref={groupARef} position={[-7, 1.8, 0]}>
+      <group ref={groupARef} position={[-8, 2.0, 0]}>
         <GLTFArtifact
-          artifact={compareArtifacts[0]}
+          artifact={compareArtifacts[earlierIdx]}
           isHovered={false}
           isSelected={false}
           isCompareSelected={false}
           isInspecting={true}
-          weathering={weathering}
+          weathering={weathering * 0.3}
           onClick={() => {}}
           onHover={() => {}}
           onAnnotationClick={onAnnotationClick}
+          onAnnotationHover={onAnnotationHover}
           activeAnnotationId={activeAnnotationId}
           showAnnotations={false}
           overridePosition={[0, 0, 0]}
           stopAutoRotate
         />
-        <Html center position={[0, -1.5, 0]}>
+        <Html center position={[0, -1.6, 0]} zIndexRange={[150, 50]}>
           <div
             style={{
-              background: 'rgba(26,26,46,0.95)',
-              padding: '12px 20px',
-              borderRadius: 10,
-              border: '1px solid rgba(212,175,55,0.4)',
+              background: 'rgba(22,22,40,0.96)',
+              padding: '14px 22px',
+              borderRadius: 14,
+              border: '1px solid rgba(212,175,55,0.5)',
               textAlign: 'center',
-              minWidth: 200,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              minWidth: 210,
+              boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+              position: 'relative',
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#d4af37', marginBottom: 4 }}>
-              {compareArtifacts[0].name}
+            <div style={{
+              fontSize: 10,
+              color: '#58d68d',
+              marginBottom: 6,
+              fontWeight: 700,
+              letterSpacing: 1,
+            }}>
+              ◀ 更早时期
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
-              {compareArtifacts[0].era} · {compareArtifacts[0].material}
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#d4af37', marginBottom: 5 }}>
+              {compareArtifacts[earlierIdx].name}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+              {compareArtifacts[earlierIdx].era} · {compareArtifacts[earlierIdx].material}
             </div>
           </div>
         </Html>
       </group>
 
-      <group ref={groupBRef} position={[7, 1.8, 0]}>
+      <group ref={groupBRef} position={[8, 2.0, 0]}>
         <GLTFArtifact
-          artifact={compareArtifacts[1]}
+          artifact={compareArtifacts[laterIdx]}
           isHovered={false}
           isSelected={false}
           isCompareSelected={false}
@@ -1036,28 +1257,39 @@ function CompareView({
           onClick={() => {}}
           onHover={() => {}}
           onAnnotationClick={onAnnotationClick}
+          onAnnotationHover={onAnnotationHover}
           activeAnnotationId={activeAnnotationId}
           showAnnotations={false}
           overridePosition={[0, 0, 0]}
           stopAutoRotate
         />
-        <Html center position={[0, -1.5, 0]}>
+        <Html center position={[0, -1.6, 0]} zIndexRange={[150, 50]}>
           <div
             style={{
-              background: 'rgba(26,26,46,0.95)',
-              padding: '12px 20px',
-              borderRadius: 10,
-              border: '1px solid rgba(212,175,55,0.4)',
+              background: 'rgba(22,22,40,0.96)',
+              padding: '14px 22px',
+              borderRadius: 14,
+              border: '1px solid rgba(212,175,55,0.5)',
               textAlign: 'center',
-              minWidth: 200,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              minWidth: 210,
+              boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+              position: 'relative',
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#d4af37', marginBottom: 4 }}>
-              {compareArtifacts[1].name}
+            <div style={{
+              fontSize: 10,
+              color: '#e74c3c',
+              marginBottom: 6,
+              fontWeight: 700,
+              letterSpacing: 1,
+            }}>
+              更晚时期 ▶
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
-              {compareArtifacts[1].era} · {compareArtifacts[1].material}
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#d4af37', marginBottom: 5 }}>
+              {compareArtifacts[laterIdx].name}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+              {compareArtifacts[laterIdx].era} · {compareArtifacts[laterIdx].material}
             </div>
           </div>
         </Html>
@@ -1082,6 +1314,7 @@ const Scene: React.FC<SceneProps> = ({
   onArtifactClick,
   onArtifactHover,
   onAnnotationClick,
+  onAnnotationHover,
 }) => {
   const selectedArtifact = artifacts.find(a => a.id === selectedArtifactId) || null;
   const compareArtifacts = selectedForCompare.map(id => artifacts.find(a => a.id === id)!).filter(Boolean);
@@ -1091,7 +1324,7 @@ const Scene: React.FC<SceneProps> = ({
       shadows
       dpr={[1, 2]}
       camera={{ position: [0, 4, 13], fov: 50, near: 0.1, far: 100 }}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
       style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
       onCreated={({ scene }) => {
         scene.fog = new THREE.FogExp2(lightingPreset.fogColor, lightingPreset.fogDensity);
@@ -1122,6 +1355,7 @@ const Scene: React.FC<SceneProps> = ({
                   onClick={() => onArtifactClick(artifact.id)}
                   onHover={(h) => onArtifactHover(h ? artifact.id : null)}
                   onAnnotationClick={onAnnotationClick}
+                  onAnnotationHover={onAnnotationHover}
                   activeAnnotationId={activeAnnotationId}
                   showAnnotations={!!isSelected}
                 />
@@ -1136,6 +1370,7 @@ const Scene: React.FC<SceneProps> = ({
             weathering={weatheringSlider}
             activeAnnotationId={activeAnnotationId}
             onAnnotationClick={onAnnotationClick}
+            onAnnotationHover={onAnnotationHover}
           />
         )}
 
@@ -1151,8 +1386,12 @@ const Scene: React.FC<SceneProps> = ({
 
       <style>{`
         @keyframes tooltipFadeIn {
-          from { opacity: 0; transform: translateY(6px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); opacity: 0.6; }
+          100% { transform: scale(3); opacity: 0; }
         }
       `}</style>
     </Canvas>
