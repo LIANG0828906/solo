@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { eventBus, type LightData } from './eventBus'
 
+const LIGHT_COUNT = 12
+const RING_RADIUS_RATIO = 0.3
+const LIGHT_BASE_RADIUS = 25
+
 export default function Stage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -9,6 +13,7 @@ export default function Stage() {
   const velocityRef = useRef({ x: 0, y: 0 })
   const isDraggingRef = useRef(false)
   const lastPosRef = useRef({ x: 0, y: 0 })
+  const lastTimeRef = useRef(0)
   const animationFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -37,18 +42,22 @@ export default function Stage() {
     const handleMouseDown = (e: MouseEvent) => {
       isDraggingRef.current = true
       lastPosRef.current = { x: e.clientX, y: e.clientY }
+      lastTimeRef.current = performance.now()
       velocityRef.current = { x: 0, y: 0 }
     }
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return
+      const now = performance.now()
+      const dt = Math.max(1, now - lastTimeRef.current)
       const dx = e.clientX - lastPosRef.current.x
       const dy = e.clientY - lastPosRef.current.y
       rotationRef.current.y += dx * 0.5
       rotationRef.current.x += dy * 0.5
       rotationRef.current.x = Math.max(-80, Math.min(80, rotationRef.current.x))
-      velocityRef.current = { x: dy * 0.5, y: dx * 0.5 }
+      velocityRef.current = { x: (dy * 0.5) / dt * 16, y: (dx * 0.5) / dt * 16 }
       lastPosRef.current = { x: e.clientX, y: e.clientY }
+      lastTimeRef.current = now
     }
 
     const handleMouseUp = () => {
@@ -59,19 +68,23 @@ export default function Stage() {
       if (e.touches.length === 1) {
         isDraggingRef.current = true
         lastPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        lastTimeRef.current = performance.now()
         velocityRef.current = { x: 0, y: 0 }
       }
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current || e.touches.length !== 1) return
+      const now = performance.now()
+      const dt = Math.max(1, now - lastTimeRef.current)
       const dx = e.touches[0].clientX - lastPosRef.current.x
       const dy = e.touches[0].clientY - lastPosRef.current.y
       rotationRef.current.y += dx * 0.5
       rotationRef.current.x += dy * 0.5
       rotationRef.current.x = Math.max(-80, Math.min(80, rotationRef.current.x))
-      velocityRef.current = { x: dy * 0.5, y: dx * 0.5 }
+      velocityRef.current = { x: (dy * 0.5) / dt * 16, y: (dx * 0.5) / dt * 16 }
       lastPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      lastTimeRef.current = now
       e.preventDefault()
     }
 
@@ -86,7 +99,25 @@ export default function Stage() {
     container.addEventListener('touchmove', handleTouchMove, { passive: false })
     container.addEventListener('touchend', handleTouchEnd)
 
+    let lastFrameTime = performance.now()
+    let frameCount = 0
+    let fpsUpdateTime = lastFrameTime
+
     const render = () => {
+      const now = performance.now()
+      const frameTime = now - lastFrameTime
+      lastFrameTime = now
+
+      if (import.meta.env.DEV) {
+        frameCount++
+        if (now - fpsUpdateTime >= 1000) {
+          const fps = Math.round(frameCount * 1000 / (now - fpsUpdateTime))
+          console.debug(`[Stage] FPS: ${fps}, Frame time: ${frameTime.toFixed(2)}ms`)
+          frameCount = 0
+          fpsUpdateTime = now
+        }
+      }
+
       if (!isDraggingRef.current) {
         rotationRef.current.y += velocityRef.current.y
         rotationRef.current.x += velocityRef.current.x
@@ -94,7 +125,12 @@ export default function Stage() {
         velocityRef.current.x *= 0.95
         velocityRef.current.y *= 0.95
       }
+
+      performance.mark('draw-start')
       draw()
+      performance.mark('draw-end')
+      performance.measure('stageDraw', 'draw-start', 'draw-end')
+
       animationFrameRef.current = requestAnimationFrame(render)
     }
     animationFrameRef.current = requestAnimationFrame(render)
@@ -131,29 +167,36 @@ export default function Stage() {
 
     const centerX = w / 2
     const centerY = h / 2
-    const radius = Math.min(w, h) * 0.3
-    const lightRadius = 25 * dpr
+    const ringRadius = Math.min(w, h) * RING_RADIUS_RATIO
+    const lightRadius = LIGHT_BASE_RADIUS * dpr
 
     const rotX = (rotationRef.current.x * Math.PI) / 180
     const rotY = (rotationRef.current.y * Math.PI) / 180
 
     const positions: { x: number; y: number; z: number; screenX: number; screenY: number; scale: number }[] = []
 
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2 - Math.PI / 2
-      const x = Math.cos(angle) * radius
-      const y = 0
-      const z = Math.sin(angle) * radius
+    const calculateRingPosition = (index: number, total: number, radius: number) => {
+      const angle = (index / total) * Math.PI * 2 - Math.PI / 2
+      return {
+        x: Math.cos(angle) * radius,
+        y: 0,
+        z: Math.sin(angle) * radius,
+      }
+    }
+
+    const lightCount = Math.max(LIGHT_COUNT, lightsRef.current.length)
+    for (let i = 0; i < lightCount; i++) {
+      const pos3d = calculateRingPosition(i, lightCount, ringRadius)
 
       const cosY = Math.cos(rotY)
       const sinY = Math.sin(rotY)
-      const x1 = x * cosY - z * sinY
-      const z1 = x * sinY + z * cosY
+      const x1 = pos3d.x * cosY - pos3d.z * sinY
+      const z1 = pos3d.x * sinY + pos3d.z * cosY
 
       const cosX = Math.cos(rotX)
       const sinX = Math.sin(rotX)
-      const y1 = y * cosX - z1 * sinX
-      const z2 = y * sinX + z1 * cosX
+      const y1 = pos3d.y * cosX - z1 * sinX
+      const z2 = pos3d.y * sinX + z1 * cosX
 
       const perspective = 800 * dpr
       const scale = perspective / (perspective + z2)
@@ -174,7 +217,7 @@ export default function Stage() {
       if (!light) continue
 
       const brightness = light.brightness / 100
-      const glowSize = lightRadius * 3 * pos.scale * (0.5 + brightness * 0.5)
+      const glowSize = lightRadius * 4 * pos.scale * (0.3 + brightness * 0.7)
 
       const glowGradient = ctx.createRadialGradient(
         pos.screenX, pos.screenY, 0,
@@ -187,9 +230,10 @@ export default function Stage() {
         const g = parseInt(colorMatch[2])
         const b = parseInt(colorMatch[3])
         
-        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.6 * brightness})`)
-        glowGradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${0.3 * brightness})`)
-        glowGradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${0.1 * brightness})`)
+        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.8 * brightness})`)
+        glowGradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, ${0.5 * brightness})`)
+        glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${0.2 * brightness})`)
+        glowGradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, ${0.05 * brightness})`)
         glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
       }
 
@@ -211,20 +255,29 @@ export default function Stage() {
         const r = parseInt(colorMatch[1])
         const g = parseInt(colorMatch[2])
         const b = parseInt(colorMatch[3])
-        const brightR = Math.min(255, r + 100 * brightness)
-        const brightG = Math.min(255, g + 100 * brightness)
-        const brightB = Math.min(255, b + 100 * brightness)
+        const brightR = Math.min(255, r + 80 * brightness)
+        const brightG = Math.min(255, g + 80 * brightness)
+        const brightB = Math.min(255, b + 80 * brightness)
+        const dimR = Math.max(0, r * 0.4)
+        const dimG = Math.max(0, g * 0.4)
+        const dimB = Math.max(0, b * 0.4)
         
-        coreGradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * brightness})`)
-        coreGradient.addColorStop(0.3, `rgba(${brightR}, ${brightG}, ${brightB}, ${brightness})`)
-        coreGradient.addColorStop(0.7, light.color)
-        coreGradient.addColorStop(1, `rgba(${r * 0.5}, ${g * 0.5}, ${b * 0.5}, ${brightness})`)
+        coreGradient.addColorStop(0, `rgba(255, 255, 255, ${0.95 * brightness})`)
+        coreGradient.addColorStop(0.25, `rgba(${brightR}, ${brightG}, ${brightB}, ${brightness})`)
+        coreGradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${brightness})`)
+        coreGradient.addColorStop(1, `rgba(${dimR}, ${dimG}, ${dimB}, ${brightness * 0.7})`)
       }
 
       ctx.fillStyle = coreGradient
       ctx.beginPath()
       ctx.arc(pos.screenX, pos.screenY, lightRadius * pos.scale, 0, Math.PI * 2)
       ctx.fill()
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 * brightness})`
+      ctx.lineWidth = 2 * dpr * pos.scale
+      ctx.beginPath()
+      ctx.arc(pos.screenX, pos.screenY, lightRadius * pos.scale * 0.9, 0, Math.PI * 2)
+      ctx.stroke()
     }
   }
 

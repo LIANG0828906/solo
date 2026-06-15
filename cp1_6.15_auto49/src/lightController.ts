@@ -7,8 +7,10 @@ interface LightState {
   id: number
   currentColor: { r: number; g: number; b: number }
   targetColor: { r: number; g: number; b: number }
+  startColor: { r: number; g: number; b: number }
   currentBrightness: number
   targetBrightness: number
+  startBrightness: number
   colorStartTime: number
   brightnessStartTime: number
 }
@@ -33,8 +35,10 @@ class LightController {
         id: i,
         currentColor: { ...this.baseColor },
         targetColor: { ...this.baseColor },
+        startColor: { ...this.baseColor },
         currentBrightness: this.baseBrightness,
         targetBrightness: this.baseBrightness,
+        startBrightness: this.baseBrightness,
         colorStartTime: 0,
         brightnessStartTime: 0,
       })
@@ -42,11 +46,32 @@ class LightController {
   }
 
   private startAnimationLoop(): void {
+    let lastFrameTime = performance.now()
+    let frameCount = 0
+    let fpsUpdateTime = lastFrameTime
+
     const loop = () => {
       const now = performance.now()
+      const frameTime = now - lastFrameTime
+      lastFrameTime = now
+      
+      if (import.meta.env.DEV) {
+        frameCount++
+        if (now - fpsUpdateTime >= 1000) {
+          const fps = Math.round(frameCount * 1000 / (now - fpsUpdateTime))
+          console.debug(`[LightController] FPS: ${fps}, Frame time: ${frameTime.toFixed(2)}ms`)
+          frameCount = 0
+          fpsUpdateTime = now
+        }
+      }
+
+      performance.mark('lightUpdate-start')
       this.updateTransitions(now)
       this.updateAnimations(now)
       this.emitLightData()
+      performance.mark('lightUpdate-end')
+      performance.measure('lightUpdate', 'lightUpdate-start', 'lightUpdate-end')
+
       this.animationFrame = requestAnimationFrame(loop)
     }
     this.animationFrame = requestAnimationFrame(loop)
@@ -56,13 +81,13 @@ class LightController {
     this.lights.forEach(light => {
       const colorProgress = Math.min(1, (now - light.colorStartTime) / TRANSITION_DURATION)
       const easeColor = this.easeInOutCubic(colorProgress)
-      light.currentColor.r = light.currentColor.r + (light.targetColor.r - light.currentColor.r) * easeColor
-      light.currentColor.g = light.currentColor.g + (light.targetColor.g - light.currentColor.g) * easeColor
-      light.currentColor.b = light.currentColor.b + (light.targetColor.b - light.currentColor.b) * easeColor
+      light.currentColor.r = light.startColor.r + (light.targetColor.r - light.startColor.r) * easeColor
+      light.currentColor.g = light.startColor.g + (light.targetColor.g - light.startColor.g) * easeColor
+      light.currentColor.b = light.startColor.b + (light.targetColor.b - light.startColor.b) * easeColor
 
       const brightnessProgress = Math.min(1, (now - light.brightnessStartTime) / TRANSITION_DURATION)
       const easeBrightness = this.easeInOutCubic(brightnessProgress)
-      light.currentBrightness = light.currentBrightness + (light.targetBrightness - light.currentBrightness) * easeBrightness
+      light.currentBrightness = light.startBrightness + (light.targetBrightness - light.startBrightness) * easeBrightness
     })
   }
 
@@ -155,12 +180,14 @@ class LightController {
     if (this.selectedLightId === null) {
       this.baseBrightness = value
       this.lights.forEach(light => {
+        light.startBrightness = light.currentBrightness
         light.targetBrightness = value
         light.brightnessStartTime = now
       })
     } else {
       const light = this.lights[this.selectedLightId]
       if (light) {
+        light.startBrightness = light.currentBrightness
         light.targetBrightness = value
         light.brightnessStartTime = now
       }
@@ -175,12 +202,14 @@ class LightController {
     if (this.selectedLightId === null) {
       this.baseColor = rgb
       this.lights.forEach(light => {
+        light.startColor = { ...light.currentColor }
         light.targetColor = { ...rgb }
         light.colorStartTime = now
       })
     } else {
       const light = this.lights[this.selectedLightId]
       if (light) {
+        light.startColor = { ...light.currentColor }
         light.targetColor = { ...rgb }
         light.colorStartTime = now
       }
@@ -188,18 +217,27 @@ class LightController {
   }
 
   setAnimationMode(mode: AnimationMode): void {
+    if (this.animationFrame !== null) {
+      cancelAnimationFrame(this.animationFrame)
+      this.animationFrame = null
+    }
+    
     this.animationMode = mode
     this.startTime = performance.now()
     
     if (mode === 'static') {
       const now = performance.now()
       this.lights.forEach(light => {
+        light.startBrightness = light.currentBrightness
         light.targetBrightness = this.baseBrightness
         light.brightnessStartTime = now
+        light.startColor = { ...light.currentColor }
         light.targetColor = { ...this.baseColor }
         light.colorStartTime = now
       })
     }
+    
+    this.startAnimationLoop()
   }
 
   selectAll(): void {
