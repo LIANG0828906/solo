@@ -25,39 +25,59 @@ export const calculateSolarPosition = (
 ): SolarResult => {
   const latRad = degToRad(latitude)
 
-  const declination = degToRad(23.45 * Math.sin(degToRad((360 / 365) * (dayOfYear - 81))))
+  const gamma = (2 * Math.PI / 365) * (dayOfYear - 1)
 
-  const standardMeridian = 15 * Math.round(longitude / 15)
-  const solarNoon = 12 + (standardMeridian - longitude) / 15
+  const declination = degToRad(
+    0.006918
+    - 0.399912 * Math.cos(gamma)
+    + 0.070257 * Math.sin(gamma)
+    - 0.006758 * Math.cos(2 * gamma)
+    + 0.000907 * Math.sin(2 * gamma)
+    - 0.002697 * Math.cos(3 * gamma)
+    + 0.00148 * Math.sin(3 * gamma),
+  )
 
-  const hourAngle = degToRad(15 * (timeHours - solarNoon))
+  const eqTime =
+    229.18
+    * (0.000075
+      + 0.001868 * Math.cos(gamma)
+      - 0.032077 * Math.sin(gamma)
+      - 0.014615 * Math.cos(2 * gamma)
+      - 0.040849 * Math.sin(2 * gamma))
+
+  const timeOffset = eqTime + 4 * longitude - 60 * 8
+
+  const trueSolarTime = (timeHours * 60 + timeOffset) % 1440
+
+  const hourAngle = degToRad(trueSolarTime / 4 - 180)
 
   const sinElevation =
-    Math.sin(latRad) * Math.sin(declination) +
-    Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle)
+    Math.sin(latRad) * Math.sin(declination)
+    + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle)
 
   const elevation = Math.asin(Math.max(-1, Math.min(1, sinElevation)))
 
   let azimuth: number
 
-  if (Math.cos(elevation) < 0.001) {
+  if (Math.cos(elevation) < 0.0001) {
     azimuth = Math.PI
   } else {
-    const sinAzimuth = -Math.cos(declination) * Math.sin(hourAngle) / Math.cos(elevation)
     const cosAzimuth =
-      (Math.sin(declination) - Math.sin(latRad) * Math.sin(elevation)) /
-      (Math.cos(latRad) * Math.cos(elevation))
+      (Math.sin(declination) - Math.sin(latRad) * Math.sin(elevation))
+      / (Math.cos(latRad) * Math.cos(elevation))
 
-    azimuth = Math.atan2(sinAzimuth, cosAzimuth)
+    const clampedCos = Math.max(-1, Math.min(1, cosAzimuth))
+    azimuth = Math.acos(clampedCos)
 
-    if (azimuth < 0) {
-      azimuth += 2 * Math.PI
+    if (hourAngle > 0) {
+      azimuth = 2 * Math.PI - azimuth
     }
   }
 
-  const x = Math.cos(elevation) * Math.sin(azimuth)
+  const threeAzimuth = Math.PI / 2 - azimuth
+  const x = Math.cos(elevation) * Math.cos(threeAzimuth)
   const y = Math.sin(elevation)
-  const z = Math.cos(elevation) * Math.cos(azimuth)
+  const z = -Math.cos(elevation) * Math.sin(threeAzimuth)
 
   const cosHourAngleSunrise = -Math.tan(latRad) * Math.tan(declination)
   let sunriseHours: number
@@ -70,9 +90,10 @@ export const calculateSolarPosition = (
     sunriseHours = 0
     sunsetHours = 24
   } else {
-    const hourAngleSunrise = Math.acos(cosHourAngleSunrise)
-    sunriseHours = solarNoon - radToDeg(hourAngleSunrise) / 15
-    sunsetHours = solarNoon + radToDeg(hourAngleSunrise) / 15
+    const hourAngleSunriseDeg = radToDeg(Math.acos(cosHourAngleSunrise))
+    const solarNoonHours = 12 - (4 * longitude + eqTime) / 60 + 8
+    sunriseHours = solarNoonHours - hourAngleSunriseDeg / 15
+    sunsetHours = solarNoonHours + hourAngleSunriseDeg / 15
     sunriseHours = Math.max(0, Math.min(24, sunriseHours))
     sunsetHours = Math.max(0, Math.min(24, sunsetHours))
   }
