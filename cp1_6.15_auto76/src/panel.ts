@@ -10,6 +10,40 @@ type DataCallback = (
 
 type ResetViewCallback = () => void;
 
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle = false;
+  let lastArgs: Parameters<T> | null = null;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+        if (lastArgs) {
+          func(...lastArgs);
+          lastArgs = null;
+        }
+      }, limit);
+    } else {
+      lastArgs = args;
+    }
+  };
+}
+
 export class UIController {
   private container: HTMLElement;
   private oceanFlow: OceanFlowRenderer;
@@ -20,11 +54,12 @@ export class UIController {
   private infoCard: HTMLElement | null = null;
   private controlPanel: HTMLElement;
   private timelineContainer: HTMLElement;
-  private lastFetchTime: number = 0;
   private cachedCurrents: OceanCurrent[] | null = null;
   private cachedTempGrid: TemperatureGrid | null = null;
   private fetchInterval: number = 10000;
   private floatingBtn: HTMLElement | null = null;
+  private cardStyleInjected: boolean = false;
+  private throttledTimelineFetch: (offset: number) => void;
 
   constructor(
     container: HTMLElement,
@@ -38,11 +73,65 @@ export class UIController {
     this.heatmap = heatmap;
     this.onDataUpdate = onDataUpdate;
     this.onResetView = onResetView;
+    
+    this.throttledTimelineFetch = throttle(
+      (offset: number) => this.fetchHistoricalData(offset),
+      300
+    );
+    
+    this.ensureCardAnimations();
     this.controlPanel = this.createControlPanel();
     this.timelineContainer = this.createTimeline();
     this.setupResponsiveLayout();
     this.startDataPolling();
     this.fetchInitialData();
+  }
+
+  private ensureCardAnimations(): void {
+    if (this.cardStyleInjected) return;
+    
+    const style = document.createElement('style');
+    style.id = 'info-card-animations';
+    style.textContent = `
+      @keyframes oceanCardIn {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -100%) scale(0.5);
+        }
+        60% {
+          opacity: 1;
+          transform: translate(-50%, calc(-100% - 14px)) scale(1.04);
+        }
+        80% {
+          transform: translate(-50%, calc(-100% - 9px)) scale(0.98);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(-50%, calc(-100% - 10px)) scale(1);
+        }
+      }
+      @keyframes oceanCardOut {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, calc(-100% - 10px)) scale(1);
+        }
+        30% {
+          transform: translate(-50%, calc(-100% - 6px)) scale(1.02);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -100%) scale(0.7);
+        }
+      }
+      .info-card-enter {
+        animation: oceanCardIn 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+      }
+      .info-card-leave {
+        animation: oceanCardOut 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+      }
+    `;
+    document.head.appendChild(style);
+    this.cardStyleInjected = true;
   }
 
   private createControlPanel(): HTMLElement {
@@ -146,10 +235,14 @@ export class UIController {
     `;
     document.head.appendChild(sliderStyle);
     
+    const throttledOpacity = throttle((value: number) => {
+      this.heatmap.setOpacity(value);
+    }, 16);
+    
     opacitySlider.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
-      this.heatmap.setOpacity(value);
       opacityValue.textContent = `${Math.round(value * 100)}%`;
+      throttledOpacity(value);
     });
     opacitySection.appendChild(opacitySlider);
     panel.appendChild(opacitySection);
@@ -161,24 +254,30 @@ export class UIController {
       <span>显示洋流</span>
       <div class="switch-indicator"></div>
     `;
+    
+    let currentsVisible = true;
+    const toggleCurrents = debounce((visible: boolean) => {
+      this.oceanFlow.setVisible(visible);
+    }, 50);
+    
     currentToggle.addEventListener('click', () => {
-      const isActive = currentToggle.classList.contains('active');
-      if (isActive) {
-        currentToggle.classList.remove('active');
-        this.oceanFlow.setVisible(false);
-      } else {
+      currentsVisible = !currentsVisible;
+      if (currentsVisible) {
         currentToggle.classList.add('active');
-        this.oceanFlow.setVisible(true);
+      } else {
+        currentToggle.classList.remove('active');
       }
+      toggleCurrents(currentsVisible);
     });
     panel.appendChild(currentToggle);
 
     const resetBtn = document.createElement('button');
     resetBtn.className = 'control-btn';
     resetBtn.textContent = '重置视角';
-    resetBtn.addEventListener('click', () => {
+    const debouncedReset = debounce(() => {
       this.onResetView();
-    });
+    }, 100);
+    resetBtn.addEventListener('click', debouncedReset);
     panel.appendChild(resetBtn);
 
     this.container.appendChild(panel);
@@ -212,7 +311,7 @@ export class UIController {
     
     const currentLabel = document.createElement('span');
     currentLabel.id = 'current-month-label';
-    currentLabel.style.cssText = 'font-weight: 600; color: #E0E0FF;';
+    currentLabel.style.cssText = 'font-weight: 600; color: #E0E0FF; min-width: 120px; text-align: center;';
     currentLabel.textContent = `${now.getFullYear()}年${months[now.getMonth()]}（当前）`;
     
     const endLabel = document.createElement('span');
@@ -256,18 +355,23 @@ export class UIController {
     `;
     document.head.appendChild(timelineStyle);
 
-    let isDragging = false;
-    slider.addEventListener('mousedown', () => { isDragging = true; });
-    slider.addEventListener('mouseup', () => { isDragging = false; });
+    const updateMonthLabel = (value: number) => {
+      const offset = 12 - value;
+      const targetDate = new Date(now);
+      targetDate.setMonth(targetDate.getMonth() - offset);
+      const suffix = offset === 0 ? '（当前）' : '';
+      currentLabel.textContent = `${targetDate.getFullYear()}年${months[targetDate.getMonth()]}${suffix}`;
+    };
+
+    let lastValue = 12;
     slider.addEventListener('input', (e) => {
       const value = parseInt((e.target as HTMLInputElement).value);
+      if (value === lastValue) return;
+      lastValue = value;
+      
       this.currentMonthOffset = 12 - value;
-      
-      const targetDate = new Date(now);
-      targetDate.setMonth(targetDate.getMonth() - this.currentMonthOffset);
-      currentLabel.textContent = `${targetDate.getFullYear()}年${months[targetDate.getMonth()]}`;
-      
-      this.fetchHistoricalData(this.currentMonthOffset);
+      updateMonthLabel(value);
+      this.throttledTimelineFetch(this.currentMonthOffset);
     });
     
     sliderWrap.appendChild(slider);
@@ -354,21 +458,21 @@ export class UIController {
     };
     
     checkWidth();
-    window.addEventListener('resize', checkWidth);
+    window.addEventListener('resize', debounce(checkWidth, 100));
   }
 
   private async fetchInitialData(): Promise<void> {
     try {
       const [currentsRes, tempRes] = await Promise.all([
-        axios.get<OceanCurrentData>('/api/ocean-currents'),
-        axios.get<TemperatureGrid>('/api/temperature-grid')
+        axios.get<OceanCurrentData>('/api/ocean-currents', { timeout: 5000 }),
+        axios.get<TemperatureGrid>('/api/temperature-grid', { timeout: 5000 })
       ]);
       
       this.cachedCurrents = currentsRes.data.currents;
       this.cachedTempGrid = tempRes.data;
       this.onDataUpdate(currentsRes.data.currents, tempRes.data);
     } catch (err) {
-      console.error('Failed to fetch initial data:', err);
+      console.warn('API不可用，使用内置模拟数据:', (err as Error).message);
       this.useMockData();
     }
   }
@@ -376,14 +480,51 @@ export class UIController {
   private async fetchHistoricalData(monthOffset: number): Promise<void> {
     try {
       const [currentsRes, tempRes] = await Promise.all([
-        axios.get<OceanCurrentData>('/api/ocean-currents', { params: { monthOffset } }),
-        axios.get<TemperatureGrid>('/api/temperature-grid', { params: { monthOffset } })
+        axios.get<OceanCurrentData>('/api/ocean-currents', { 
+          params: { monthOffset },
+          timeout: 8000 
+        }),
+        axios.get<TemperatureGrid>('/api/temperature-grid', { 
+          params: { monthOffset },
+          timeout: 8000 
+        })
       ]);
       
       this.onDataUpdate(currentsRes.data.currents, tempRes.data);
     } catch (err) {
-      console.error('Failed to fetch historical data:', err);
+      console.warn('历史数据获取失败:', (err as Error).message);
+      this.useMockHistoricalData(monthOffset);
     }
+  }
+
+  private useMockHistoricalData(monthOffset: number): void {
+    if (!this.cachedCurrents || !this.cachedTempGrid) {
+      this.useMockData();
+      return;
+    }
+    
+    const seasonalFactor = Math.sin((monthOffset / 12) * Math.PI * 2) * 0.4;
+    const tempShift = seasonalFactor * 5;
+    
+    const adjustedCurrents = this.cachedCurrents.map(c => ({
+      ...c,
+      speed: Math.max(0.3, c.speed * (1 + seasonalFactor * 0.2)),
+      temperature: Math.max(-2, Math.min(32, c.temperature + (c.isWarm ? tempShift : -tempShift * 0.5)))
+    }));
+    
+    const adjustedData = this.cachedTempGrid.data.map(p => ({
+      ...p,
+      temperature: Math.max(0, Math.min(34, p.temperature + tempShift * (1 - Math.abs(p.lat) / 90) + (Math.random() - 0.5)))
+    }));
+    
+    const adjustedGrid: TemperatureGrid = {
+      data: adjustedData,
+      timestamp: Date.now(),
+      month: this.cachedTempGrid.month,
+      year: this.cachedTempGrid.year
+    };
+    
+    this.onDataUpdate(adjustedCurrents, adjustedGrid);
   }
 
   private startDataPolling(): void {
@@ -392,15 +533,15 @@ export class UIController {
       
       try {
         const [currentsRes, tempRes] = await Promise.all([
-          axios.get<OceanCurrentData>('/api/ocean-currents'),
-          axios.get<TemperatureGrid>('/api/temperature-grid')
+          axios.get<OceanCurrentData>('/api/ocean-currents', { timeout: 5000 }),
+          axios.get<TemperatureGrid>('/api/temperature-grid', { timeout: 5000 })
         ]);
         
         this.cachedCurrents = currentsRes.data.currents;
         this.cachedTempGrid = tempRes.data;
         this.onDataUpdate(currentsRes.data.currents, tempRes.data);
       } catch (err) {
-        console.error('Polling failed:', err);
+        // Silent fail for polling
       }
     }, this.fetchInterval);
   }
@@ -439,12 +580,14 @@ export class UIController {
       { id: '30', name: '西格陵兰暖流', nameEn: 'West Greenland Current', start: { lat: 60, lng: -50 }, end: { lat: 78, lng: -60 }, speed: 0.7, temperature: 3, isWarm: true }
     ];
 
-    const mockPoints: { lat: number; lng: number; temperature: number }[] = [];
+    const mockPoints: TemperatureGrid['data'] = [];
     for (let lat = -88; lat <= 88; lat += 2) {
       for (let lng = -178; lng <= 178; lng += 2) {
         const baseTemp = 32 - Math.abs(lat) * 0.55;
-        const variation = Math.sin(lng * Math.PI / 180) * 3 + Math.cos(lat * 2 * Math.PI / 180) * 2;
-        const temp = Math.max(0, Math.min(32, baseTemp + variation + (Math.random() - 0.5) * 2));
+        const variation = Math.sin(lng * Math.PI / 90) * 2.5 + Math.cos(lat * Math.PI / 45) * 2;
+        const gulfStream = Math.exp(-Math.pow((lng + 60) / 25, 2) - Math.pow((lat - 40) / 20, 2)) * 5;
+        const kuroshio = Math.exp(-Math.pow((lng - 145) / 25, 2) - Math.pow((lat - 35) / 18, 2)) * 4.5;
+        const temp = Math.max(0, Math.min(32, baseTemp + variation + gulfStream + kuroshio + (Math.random() - 0.5) * 1.5));
         mockPoints.push({ lat, lng, temperature: Math.round(temp * 10) / 10, timestamp: Date.now() });
       }
     }
@@ -468,43 +611,30 @@ export class UIController {
     screenY: number,
     info: LocationInfo
   ): void {
-    this.hideInfoCard();
+    this.hideInfoCard(true);
+    this.ensureCardAnimations();
 
     this.infoCard = document.createElement('div');
-    this.infoCard.className = 'info-card glass-panel';
+    this.infoCard.className = 'info-card glass-panel info-card-enter';
     this.infoCard.style.cssText = `
       position: absolute;
       left: ${screenX}px;
       top: ${screenY}px;
-      transform: translate(-50%, -100%) scale(0.5);
       transform-origin: bottom center;
       width: 280px;
       padding: 18px;
+      padding-top: 16px;
       z-index: 150;
-      opacity: 0;
-      margin-bottom: 20px;
-      animation: cardIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+      pointer-events: auto;
     `;
-
-    const keyframes = document.createElement('style');
-    keyframes.textContent = `
-      @keyframes cardIn {
-        0% { opacity: 0; transform: translate(-50%, -100%) scale(0.5); }
-        100% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); }
-      }
-      @keyframes cardOut {
-        0% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); }
-        100% { opacity: 0; transform: translate(-50%, -100%) scale(0.7); }
-      }
-    `;
-    document.head.appendChild(keyframes);
 
     const closeBtn = document.createElement('div');
     closeBtn.style.cssText = `
-      position: absolute; top: 8px; right: 12px; cursor: pointer;
-      width: 24px; height: 24px; border-radius: 50%;
+      position: absolute; top: 6px; right: 8px; cursor: pointer;
+      width: 26px; height: 26px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: #B0B0CC; transition: all 0.2s;
+      font-size: 14px; color: #8080A0; transition: all 0.2s ease;
+      user-select: none;
     `;
     closeBtn.innerHTML = '✕';
     closeBtn.addEventListener('click', (e) => {
@@ -512,22 +642,22 @@ export class UIController {
       this.hideInfoCard();
     });
     closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.background = 'rgba(255, 100, 100, 0.3)';
+      closeBtn.style.background = 'rgba(255, 100, 100, 0.25)';
       closeBtn.style.color = '#FF6B6B';
     });
     closeBtn.addEventListener('mouseleave', () => {
       closeBtn.style.background = 'transparent';
-      closeBtn.style.color = '#B0B0CC';
+      closeBtn.style.color = '#8080A0';
     });
     this.infoCard.appendChild(closeBtn);
 
     const coordRow = document.createElement('div');
     coordRow.style.cssText = 'margin-bottom: 14px;';
     const coordLabel = document.createElement('div');
-    coordLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 4px;';
-    coordLabel.textContent = '坐标';
+    coordLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 4px; letter-spacing: 0.5px;';
+    coordLabel.textContent = '地理坐标';
     const coordValue = document.createElement('div');
-    coordValue.style.cssText = 'font-size: 14px; color: #E0E0FF; font-weight: 500;';
+    coordValue.style.cssText = 'font-size: 14px; color: #E0E0FF; font-weight: 500; font-family: "SF Mono", Consolas, monospace;';
     const latDir = lat >= 0 ? 'N' : 'S';
     const lngDir = lng >= 0 ? 'E' : 'W';
     coordValue.textContent = `${Math.abs(lat).toFixed(2)}°${latDir}, ${Math.abs(lng).toFixed(2)}°${lngDir}`;
@@ -538,11 +668,11 @@ export class UIController {
     const tempRow = document.createElement('div');
     tempRow.style.cssText = 'margin-bottom: 14px;';
     const tempLabel = document.createElement('div');
-    tempLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 4px;';
+    tempLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 6px; letter-spacing: 0.5px;';
     tempLabel.textContent = '海面温度';
     const tempValue = document.createElement('div');
-    const tempColor = info.temperature > 20 ? '#FF8C42' : info.temperature > 10 ? '#FFD93D' : '#4ECDC4';
-    tempValue.style.cssText = `font-size: 22px; font-weight: 700; color: ${tempColor};`;
+    const tempColor = info.temperature > 22 ? '#FF8C42' : info.temperature > 12 ? '#FFD93D' : '#4ECDC4';
+    tempValue.style.cssText = `font-size: 26px; font-weight: 700; color: ${tempColor}; letter-spacing: -0.5px; text-shadow: 0 0 20px ${tempColor}40;`;
     tempValue.textContent = `${info.temperature.toFixed(1)}°C`;
     tempRow.appendChild(tempLabel);
     tempRow.appendChild(tempValue);
@@ -552,19 +682,24 @@ export class UIController {
       const currentRow = document.createElement('div');
       currentRow.style.cssText = 'margin-bottom: 14px;';
       const currentLabel = document.createElement('div');
-      currentLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 8px;';
+      currentLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 8px; letter-spacing: 0.5px;';
       currentLabel.textContent = '附近洋流';
       currentRow.appendChild(currentLabel);
       
       for (const cur of info.nearbyCurrents) {
         const curItem = document.createElement('div');
-        curItem.style.cssText = 'display: flex; justify-content: space-between; padding: 6px 10px; background: rgba(100, 200, 255, 0.1); border-radius: 6px; margin-bottom: 6px; font-size: 12px;';
+        curItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: rgba(100, 200, 255, 0.08); border-radius: 6px; margin-bottom: 6px; font-size: 12px; border: 1px solid rgba(100, 200, 255, 0.1);';
         const curName = document.createElement('span');
         curName.textContent = cur.name;
         curName.style.color = '#B0D4FF';
+        curName.style.fontWeight = '500';
         const curDir = document.createElement('span');
         curDir.textContent = cur.direction;
         curDir.style.color = '#80CBC4';
+        curDir.style.fontWeight = '600';
+        curDir.style.padding = '2px 8px';
+        curDir.style.borderRadius = '10px';
+        curDir.style.background = 'rgba(128, 203, 196, 0.15)';
         curItem.appendChild(curName);
         curItem.appendChild(curDir);
         currentRow.appendChild(curItem);
@@ -575,36 +710,57 @@ export class UIController {
     const trendRow = document.createElement('div');
     trendRow.style.marginBottom = '0';
     const trendLabel = document.createElement('div');
-    trendLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 10px;';
-    trendLabel.textContent = '5天温度趋势';
+    trendLabel.style.cssText = 'font-size: 11px; color: #8080A0; margin-bottom: 10px; letter-spacing: 0.5px; display: flex; justify-content: space-between;';
+    const trendTitle = document.createElement('span');
+    trendTitle.textContent = '5天温度趋势';
+    const trendDays = document.createElement('span');
+    trendDays.style.cssText = 'color: #606080;';
+    trendDays.textContent = '←冷  暖→';
+    trendLabel.appendChild(trendTitle);
+    trendLabel.appendChild(trendDays);
     trendRow.appendChild(trendLabel);
 
     const chart = document.createElement('div');
-    chart.style.cssText = 'display: flex; align-items: flex-end; gap: 6px; height: 50px; padding: 0 4px;';
+    chart.style.cssText = 'display: flex; align-items: flex-end; gap: 6px; height: 52px; padding: 0 4px 2px 4px; border-bottom: 1px solid rgba(100, 200, 255, 0.1);';
     
     const minT = Math.min(...info.trend);
     const maxT = Math.max(...info.trend);
     const range = maxT - minT || 1;
 
     for (let i = 0; i < info.trend.length; i++) {
-      const bar = document.createElement('div');
       const t = info.trend[i];
-      const normalizedH = 0.3 + ((t - minT) / range) * 0.7;
-      const hue = 210 - ((t - 0) / 32) * 210;
+      const normalizedH = 0.28 + ((t - minT) / range) * 0.72;
+      const hue = 215 - ((t - 0) / 32) * 200;
+      
+      const barWrap = document.createElement('div');
+      barWrap.style.cssText = 'flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end;';
+      
+      const bar = document.createElement('div');
       bar.style.cssText = `
-        flex: 1; height: ${normalizedH * 100}%;
-        background: linear-gradient(180deg, hsl(${hue}, 80%, 65%), hsl(${hue}, 80%, 45%));
+        width: 100%; height: ${normalizedH * 100}%;
+        background: linear-gradient(180deg, hsla(${hue}, 85%, 68%, 0.95), hsla(${hue}, 85%, 48%, 0.95));
         border-radius: 3px 3px 0 0; position: relative;
-        transition: all 0.3s ease; min-height: 10px;
+        transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+        min-height: 12px;
+        box-shadow: 0 -1px 6px hsla(${hue}, 85%, 60%, 0.4);
       `;
       bar.title = `第${i + 1}天: ${t.toFixed(1)}°C`;
       bar.addEventListener('mouseenter', () => {
-        bar.style.transform = 'scaleY(1.05)';
+        bar.style.transform = 'scaleY(1.08) scaleX(1.05)';
+        bar.style.filter = 'brightness(1.15)';
       });
       bar.addEventListener('mouseleave', () => {
-        bar.style.transform = 'scaleY(1)';
+        bar.style.transform = '';
+        bar.style.filter = '';
       });
-      chart.appendChild(bar);
+      
+      const dayLabel = document.createElement('div');
+      dayLabel.style.cssText = 'font-size: 9px; color: #707090; margin-top: 3px;';
+      dayLabel.textContent = `D${i + 1}`;
+      
+      barWrap.appendChild(bar);
+      barWrap.appendChild(dayLabel);
+      chart.appendChild(barWrap);
     }
     trendRow.appendChild(chart);
     this.infoCard.appendChild(trendRow);
@@ -619,25 +775,34 @@ export class UIController {
       if (!this.infoCard) return;
       const target = e.target as Node;
       if (this.infoCard.contains(target)) return;
+      if (e.target === closeBtn) return;
       this.hideInfoCard();
       document.removeEventListener('click', closeHandler, true);
     };
     setTimeout(() => {
       document.addEventListener('click', closeHandler, true);
-    }, 100);
+    }, 450);
   }
 
-  hideInfoCard(): void {
-    if (this.infoCard) {
-      this.infoCard.style.animation = 'cardOut 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards';
-      const card = this.infoCard;
-      setTimeout(() => {
-        if (card.parentNode) {
-          card.parentNode.removeChild(card);
-        }
-      }, 300);
-      this.infoCard = null;
+  hideInfoCard(immediate: boolean = false): void {
+    if (!this.infoCard) return;
+    
+    const card = this.infoCard;
+    this.infoCard = null;
+    
+    if (immediate) {
+      if (card.parentNode) card.parentNode.removeChild(card);
+      return;
     }
+    
+    card.classList.remove('info-card-enter');
+    card.classList.add('info-card-leave');
+    
+    setTimeout(() => {
+      if (card.parentNode) {
+        card.parentNode.removeChild(card);
+      }
+    }, 320);
   }
 
   getLocationInfo(lat: number, lng: number): LocationInfo {
@@ -645,8 +810,9 @@ export class UIController {
     const nearbyCurrents = this.oceanFlow.getNearbyCurrents(lat, lng, 20);
     
     const trend: number[] = [];
+    const baseTrend = Math.sin(Date.now() / 86400000) * 1.2;
     for (let i = 0; i < 5; i++) {
-      const dayVariation = Math.sin(i * 0.8) * 1.5 + (Math.random() - 0.5) * 1;
+      const dayVariation = Math.sin(i * 0.9 + baseTrend) * 1.3 + (Math.random() - 0.5) * 0.8;
       trend.push(Math.round((temperature + dayVariation) * 10) / 10);
     }
 
