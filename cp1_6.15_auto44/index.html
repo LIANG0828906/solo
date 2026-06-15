@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="description" content="全球三维云层分布与流动状态可视化系统" />
+  <title>Global Cloud 3D Visualizer</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <canvas id="app-canvas"></canvas>
+
+  <div id="info-panel" class="info-panel">
+    <div class="info-row">
+      <span class="info-dot"></span>
+      <span class="info-label">云层高度</span>
+      <span id="cloud-height-text" class="info-value">中云</span>
+    </div>
+    <div class="info-row">
+      <span class="info-dot info-dot-alt"></span>
+      <span class="info-label">气象数据</span>
+      <span id="weather-type-text" class="info-value">温度</span>
+    </div>
+    <div class="info-row">
+      <span class="info-dot info-dot-time"></span>
+      <span class="info-label">时间轴</span>
+      <span id="time-text" class="info-value">第 0 小时</span>
+    </div>
+  </div>
+
+  <div id="data-buttons" class="data-buttons">
+    <button class="data-btn active" data-type="temperature">温度</button>
+    <button class="data-btn" data-type="humidity">湿度</button>
+    <button class="data-btn" data-type="windSpeed">风速</button>
+  </div>
+
+  <div id="height-control" class="height-control">
+    <div class="height-ticks">
+      <span>低云</span>
+      <span>较低云</span>
+      <span>中云</span>
+      <span>较高云</span>
+      <span>高云</span>
+    </div>
+    <div class="slider-wrapper">
+      <input id="height-slider" type="range" min="0" max="100" value="50" step="25" />
+    </div>
+  </div>
+
+  <div id="timeline-control" class="timeline-control">
+    <button id="play-btn" class="play-btn" aria-label="播放">
+      <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+      </svg>
+    </button>
+    <div class="timeline-slider-wrapper">
+      <div id="timeline-ticks" class="timeline-ticks"></div>
+      <input id="time-slider" type="range" min="0" max="71" value="0" step="1" />
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
