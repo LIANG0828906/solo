@@ -15,9 +15,9 @@ export interface SurveyPoint {
 
 export const TAG_OPTIONS: { value: TagType; label: string; color: string }[] = [
   { value: 'soil', label: '土壤', color: '#8B4513' },
-  { value: 'vegetation', label: '植被', color: '#228B22' },
-  { value: 'water', label: '水体', color: '#1E90FF' },
-  { value: 'building', label: '建筑', color: '#708090' }
+  { value: 'vegetation', label: '植被', color: '#6B8E23' },
+  { value: 'water', label: '水体', color: '#4682B4' },
+  { value: 'building', label: '建筑', color: '#808080' }
 ];
 
 export const getTagColor = (tag: TagType): string => {
@@ -31,8 +31,28 @@ export const getTagLabel = (tag: TagType): string => {
 };
 
 const DB_NAME = 'FieldSurveyDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'survey_points';
+
+type MigrationFn = (db: IDBDatabase, transaction: IDBTransaction | null) => void;
+
+const DB_MIGRATIONS: Record<number, MigrationFn> = {
+  1: (db: IDBDatabase) => {
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      store.createIndex('createdAt', 'createdAt', { unique: false });
+      store.createIndex('tag', 'tag', { unique: false });
+    }
+  },
+  2: (db: IDBDatabase, transaction: IDBTransaction | null) => {
+    if (db.objectStoreNames.contains(STORE_NAME) && transaction) {
+      const store = transaction.objectStore(STORE_NAME);
+      if (!store.indexNames.contains('name')) {
+        store.createIndex('name', 'name', { unique: false });
+      }
+    }
+  }
+};
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -46,17 +66,37 @@ export const openDB = (): Promise<IDBDatabase> => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
+
+    request.onblocked = () => {
+      reject(new Error('数据库被阻塞，请关闭其他标签页后重试'));
+    };
+
     request.onsuccess = () => {
       dbInstance = request.result;
+      dbInstance.onversionchange = () => {
+        if (dbInstance) {
+          dbInstance.close();
+          dbInstance = null;
+        }
+      };
       resolve(dbInstance);
     };
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
-        store.createIndex('tag', 'tag', { unique: false });
+      const transaction = (event.target as IDBOpenDBRequest).transaction || null;
+      const oldVersion = (event as IDBVersionChangeEvent).oldVersion || 0;
+      const newVersion = DB_VERSION;
+
+      for (let v = oldVersion + 1; v <= newVersion; v++) {
+        const migration = DB_MIGRATIONS[v];
+        if (migration) {
+          try {
+            migration(db, transaction);
+          } catch (err) {
+            console.error(`数据库迁移 v${v} 失败:`, err);
+          }
+        }
       }
     };
   });

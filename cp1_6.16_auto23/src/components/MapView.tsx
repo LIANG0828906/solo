@@ -66,10 +66,13 @@ const createCurrentLocationIcon = (): L.DivIcon => {
 const MapView = forwardRef<MapViewRef, MapViewProps>(
   ({ points, currentPosition, onAddMarkerClick, highlightPointId }, ref) => {
     const mapRef = useRef<L.Map | null>(null);
+    const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const markersLayerRef = useRef<L.MarkerClusterGroup | null>(null);
     const currentLocationMarkerRef = useRef<L.Marker | null>(null);
     const markersMapRef = useRef<Map<string, L.Marker>>(new Map());
     const mapInitializedRef = useRef(false);
+    const resizeObserverRef = useRef<ResizeObserver | null>(null);
+    const invalidateSizeTimerRef = useRef<number | null>(null);
 
     useImperativeHandle(ref, () => ({
       focusOnPoint: (point: SurveyPoint) => {
@@ -116,13 +119,19 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
       const initialLat = currentPosition?.lat ?? 39.9042;
       const initialLng = currentPosition?.lng ?? 116.4074;
 
-      const map = L.map('map', {
+      const container = document.getElementById('map');
+      if (!container) return;
+
+      const map = L.map(container, {
         center: [initialLat, initialLng],
         zoom: 13,
         zoomControl: true,
         attributionControl: true,
         preferCanvas: true,
-        worldCopyJump: true
+        worldCopyJump: true,
+        fadeAnimation: true,
+        zoomAnimation: true,
+        markerZoomAnimation: true
       });
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -154,7 +163,39 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
         currentLocationMarkerRef.current = locationMarker;
       }
 
+      const handleResize = () => {
+        if (invalidateSizeTimerRef.current) {
+          window.clearTimeout(invalidateSizeTimerRef.current);
+        }
+        invalidateSizeTimerRef.current = window.setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.invalidateSize({ animate: false, pan: false });
+          }
+          invalidateSizeTimerRef.current = null;
+        }, 100);
+      };
+
+      if (container && 'ResizeObserver' in window) {
+        resizeObserverRef.current = new ResizeObserver(handleResize);
+        resizeObserverRef.current.observe(container);
+      } else {
+        window.addEventListener('resize', handleResize);
+      }
+
+      map.whenReady(() => {
+        handleResize();
+      });
+
       return () => {
+        if (resizeObserverRef.current) {
+          resizeObserverRef.current.disconnect();
+          resizeObserverRef.current = null;
+        } else {
+          window.removeEventListener('resize', handleResize);
+        }
+        if (invalidateSizeTimerRef.current) {
+          window.clearTimeout(invalidateSizeTimerRef.current);
+        }
         map.remove();
         mapRef.current = null;
         markersLayerRef.current = null;
