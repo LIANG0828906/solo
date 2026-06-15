@@ -285,11 +285,14 @@ html, body {
 
 .bar {
   width: 30px;
+  height: 100%;
   background: var(--gradient-primary);
   border-radius: 4px 4px 0 0;
-  transition: var(--transition);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  min-height: 4px;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  will-change: transform;
 }
 
 .bar::after {
@@ -305,7 +308,7 @@ html, body {
 
 .bar:hover {
   filter: brightness(1.2);
-  transform: scaleX(1.1);
+  opacity: 0.9;
 }
 
 .bar-label {
@@ -997,6 +1000,20 @@ html, body {
   padding: 24px;
 }
 
+.form-errors {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.error-message {
+  color: #f87171;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
 .form-group {
   margin-bottom: 20px;
 }
@@ -1029,6 +1046,13 @@ html, body {
 }
 
 .form-group input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
   color: var(--color-text-secondary);
 }
 
@@ -1081,6 +1105,47 @@ html, body {
   border: 1px solid var(--color-border);
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  position: relative;
+  transition: var(--transition);
+}
+
+.discovery-card.virtual-album {
+  border: 2px dashed var(--color-gold);
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.1) 0%, var(--color-card-bg) 100%);
+}
+
+.discovery-card.virtual-album::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(245, 166, 35, 0.05) 10px,
+    rgba(245, 166, 35, 0.05) 20px
+  );
+  pointer-events: none;
+}
+
+.virtual-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  background: linear-gradient(135deg, var(--color-gold) 0%, #fbbf24 100%);
+  color: var(--color-primary);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(245, 166, 35, 0.4);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .discovery-card.sliding-in {

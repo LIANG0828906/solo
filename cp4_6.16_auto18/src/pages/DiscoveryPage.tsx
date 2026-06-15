@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useMusicStore } from '../store/musicStore';
 import type { Album } from '../store/musicStore';
 
@@ -84,6 +84,7 @@ export default function DiscoveryPage() {
   }
 
   const isPlaying = currentPlaying === discoveryAlbum.id;
+  const isVirtual = discoveryAlbum.isVirtual;
 
   return (
     <div className="page discovery-page">
@@ -95,8 +96,13 @@ export default function DiscoveryPage() {
       <div className="discovery-content">
         <div
           key={cardKey}
-          className={`discovery-card ${isAnimating ? 'sliding-out' : 'sliding-in'}`}
+          className={`discovery-card ${isAnimating ? 'sliding-out' : 'sliding-in'} ${isVirtual ? 'virtual-album' : ''}`}
         >
+          {isVirtual && (
+            <div className="virtual-badge">
+              <span>🎪 虚拟推荐</span>
+            </div>
+          )}
           <div className="discovery-cover">
             {discoveryAlbum.coverUrl ? (
               <img src={discoveryAlbum.coverUrl} alt={discoveryAlbum.name} />

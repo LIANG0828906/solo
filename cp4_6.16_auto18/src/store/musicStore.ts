@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../utils/localStorage';
+import type { LikeRecord } from '../utils/localStorage';
 import { format, isSameMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -13,6 +14,7 @@ export interface Album {
   genre: string;
   createdAt: string;
   likes: number;
+  isVirtual?: boolean;
 }
 
 export const GENRES = ['流行', '摇滚', '电子', '爵士', '古典', '嘻哈', '民谣', 'R&B', '金属', '朋克'];
@@ -35,6 +37,7 @@ const VIRTUAL_ALBUMS: Omit<Album, 'id' | 'createdAt' | 'likes'>[] = [
 interface MusicState {
   albums: Album[];
   likes: Record<string, number>;
+  likeTimes: LikeRecord[];
   isInitialized: boolean;
   currentPlaying: string | null;
   searchQuery: string;
@@ -72,11 +75,13 @@ interface MusicState {
     totalArtists: number;
     genreDistribution: Record<string, number>;
   };
+  validateAlbum: (album: Omit<Album, 'id' | 'createdAt' | 'likes'>) => { valid: boolean; errors: string[] };
 }
 
 export const useMusicStore = create<MusicState>((set, get) => ({
   albums: [],
   likes: {},
+  likeTimes: [],
   isInitialized: false,
   currentPlaying: null,
   searchQuery: '',
@@ -86,15 +91,38 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   sortBy: 'date',
   sortOrder: 'desc',
 
+  validateAlbum: (albumData) => {
+    const errors: string[] = [];
+    const currentYear = new Date().getFullYear();
+
+    if (!albumData.name.trim()) {
+      errors.push('专辑名不能为空');
+    }
+    if (!albumData.artist.trim()) {
+      errors.push('歌手不能为空');
+    }
+    if (albumData.year < 1900 || albumData.year > currentYear) {
+      errors.push(`发行年份必须在1900到${currentYear}之间`);
+    }
+
+    return { valid: errors.length === 0, errors };
+  },
+
   init: async () => {
-    const [albums, likes] = await Promise.all([
+    const [albums, likes, likeTimes] = await Promise.all([
       storage.getAlbums(),
-      storage.getLikes()
+      storage.getLikes(),
+      storage.getLikeTimes()
     ]);
-    set({ albums, likes, isInitialized: true });
+    set({ albums, likes, likeTimes, isInitialized: true });
   },
 
   addAlbum: async (albumData) => {
+    const validation = get().validateAlbum(albumData);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join('\n'));
+    }
+
     const newAlbum: Album = {
       ...albumData,
       id: uuidv4(),
@@ -110,10 +138,12 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const albums = get().albums.filter(a => a.id !== id);
     const likes = { ...get().likes };
     delete likes[id];
-    set({ albums, likes });
+    const likeTimes = get().likeTimes.filter(l => l.albumId !== id);
+    set({ albums, likes, likeTimes });
     await Promise.all([
       storage.saveAlbums(albums),
-      storage.saveLikes(likes)
+      storage.saveLikes(likes),
+      storage.saveLikeTimes(likeTimes)
     ]);
   },
 
@@ -131,10 +161,12 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const albums = get().albums.map(a =>
       a.id === id ? { ...a, likes: a.likes + 1 } : a
     );
-    set({ likes, albums });
+    const likeTimes = [...get().likeTimes, { albumId: id, timestamp: new Date().toISOString() }];
+    set({ likes, albums, likeTimes });
     await Promise.all([
       storage.saveLikes(likes),
-      storage.saveAlbums(albums)
+      storage.saveAlbums(albums),
+      storage.saveLikeTimes(likeTimes)
     ]);
   },
 
@@ -158,7 +190,8 @@ export const useMusicStore = create<MusicState>((set, get) => ({
           ...shuffled[i],
           id: uuidv4(),
           createdAt: new Date().toISOString(),
-          likes: 0
+          likes: 0,
+          isVirtual: true
         });
       }
     }
@@ -167,7 +200,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   getMonthlyReport: () => {
-    const { albums, likes } = get();
+    const { albums, likeTimes } = get();
     const now = new Date();
     const monthStr = format(now, 'yyyy年MM月', { locale: zhCN });
 
@@ -189,12 +222,24 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       }
     });
 
-    const albumsWithLikes = monthAlbums.map(a => ({
+    const monthLikes = likeTimes.filter(l => isSameMonth(new Date(l.timestamp), now));
+    const albumMonthLikes: Record<string, number> = {};
+    monthLikes.forEach(l => {
+      albumMonthLikes[l.albumId] = (albumMonthLikes[l.albumId] || 0) + 1;
+    });
+
+    const albumIdsWithMonthLikes = Object.keys(albumMonthLikes);
+    const allRelevantAlbums = albums.filter(a => 
+      monthAlbums.some(ma => ma.id === a.id) || albumIdsWithMonthLikes.includes(a.id)
+    );
+
+    const albumsWithLikes = allRelevantAlbums.map(a => ({
       ...a,
-      likes: likes[a.id] || a.likes
+      likes: albumMonthLikes[a.id] || 0
     }));
 
     const topAlbums = albumsWithLikes
+      .filter(a => a.likes > 0)
       .sort((a, b) => b.likes - a.likes)
       .slice(0, 3);
 

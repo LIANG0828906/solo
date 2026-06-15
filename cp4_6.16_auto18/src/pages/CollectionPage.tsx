@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useMusicStore, GENRES } from '../store/musicStore';
 import type { Album } from '../store/musicStore';
 
@@ -113,11 +113,13 @@ function AlbumCard({
 function AddAlbumModal({
   isOpen,
   onClose,
-  onAdd
+  onAdd,
+  validateAlbum
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (album: Omit<Album, 'id' | 'createdAt' | 'likes'>) => void;
+  onAdd: (album: Omit<Album, 'id' | 'createdAt' | 'likes'>) => Promise<void>;
+  validateAlbum: (album: Omit<Album, 'id' | 'createdAt' | 'likes'>) => { valid: boolean; errors: string[] };
 }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -126,22 +128,43 @@ function AddAlbumModal({
     coverUrl: '',
     genre: GENRES[0]
   });
+  const [errors, setErrors] = useState<string[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const currentYear = new Date().getFullYear();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.artist.trim()) {
-      alert('请填写专辑名和歌手');
+    
+    const validation = validateAlbum(formData);
+    if (!validation.valid) {
+      setErrors(validation.errors);
       return;
     }
-    onAdd(formData);
-    setFormData({
-      name: '',
-      artist: '',
-      year: new Date().getFullYear(),
-      coverUrl: '',
-      genre: GENRES[0]
-    });
-    onClose();
+
+    try {
+      await onAdd(formData);
+      setFormData({
+        name: '',
+        artist: '',
+        year: new Date().getFullYear(),
+        coverUrl: '',
+        genre: GENRES[0]
+      });
+      setErrors([]);
+      onClose();
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrors(error.message.split('\n'));
+      }
+    }
+  };
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors.length > 0) {
+      const validation = validateAlbum({ ...formData, [field]: value });
+      setErrors(validation.errors);
+    }
   };
 
   if (!isOpen) return null;
@@ -154,13 +177,21 @@ function AddAlbumModal({
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
         <form className="add-album-form" onSubmit={handleSubmit}>
+          {errors.length > 0 && (
+            <div className="form-errors">
+              {errors.map((error, index) => (
+                <p key={index} className="error-message">⚠️ {error}</p>
+              ))}
+            </div>
+          )}
           <div className="form-group">
             <label>专辑名 *</label>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleChange('name', e.target.value)}
               placeholder="输入专辑名称"
+              maxLength={100}
             />
           </div>
           <div className="form-group">
@@ -168,8 +199,9 @@ function AddAlbumModal({
             <input
               type="text"
               value={formData.artist}
-              onChange={(e) => setFormData({ ...formData, artist: e.target.value })}
+              onChange={(e) => handleChange('artist', e.target.value)}
               placeholder="输入歌手名称"
+              maxLength={50}
             />
           </div>
           <div className="form-row">
@@ -177,17 +209,18 @@ function AddAlbumModal({
               <label>发行年份</label>
               <input
                 type="number"
-                min="1900"
-                max="2100"
+                min={1900}
+                max={currentYear}
                 value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                onChange={(e) => handleChange('year', parseInt(e.target.value) || currentYear)}
               />
+              <small className="form-hint">范围：1900 - {currentYear}</small>
             </div>
             <div className="form-group">
               <label>音乐风格</label>
               <select
                 value={formData.genre}
-                onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
+                onChange={(e) => handleChange('genre', e.target.value)}
               >
                 {GENRES.map(genre => (
                   <option key={genre} value={genre}>{genre}</option>
@@ -200,7 +233,7 @@ function AddAlbumModal({
             <input
               type="url"
               value={formData.coverUrl}
-              onChange={(e) => setFormData({ ...formData, coverUrl: e.target.value })}
+              onChange={(e) => handleChange('coverUrl', e.target.value)}
               placeholder="https://example.com/cover.jpg"
             />
           </div>
@@ -239,7 +272,8 @@ export default function CollectionPage() {
     setSortBy,
     setSortOrder,
     getFilteredAlbums,
-    getStats
+    getStats,
+    validateAlbum
   } = useMusicStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -302,16 +336,20 @@ export default function CollectionPage() {
           <p className="stats-label">风格分布</p>
           <div className="bar-chart">
             {Object.entries(stats.genreDistribution).length > 0 ? (
-              Object.entries(stats.genreDistribution).map(([genre, count], index) => (
-                <div key={genre} className="bar-wrapper" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <div
-                    className="bar"
-                    style={{ height: `${(count / maxGenreCount) * 100}%` }}
-                    title={`${genre}: ${count}`}
-                  ></div>
-                  <span className="bar-label">{genre}</span>
-                </div>
-              ))
+              Object.entries(stats.genreDistribution).map(([genre, count], index) => {
+                const scale = count / maxGenreCount;
+                return (
+                  <div key={genre} className="bar-wrapper" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <div
+                      className="bar"
+                      style={{ transform: `scaleY(${scale})` }}
+                      title={`${genre}: ${count}`}
+                      data-count={count}
+                    ></div>
+                    <span className="bar-label">{genre}</span>
+                  </div>
+                );
+              })
             ) : (
               <p className="no-data">暂无数据</p>
             )}
@@ -458,6 +496,7 @@ export default function CollectionPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddAlbum}
+        validateAlbum={validateAlbum}
       />
     </div>
   );
