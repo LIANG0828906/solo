@@ -14,8 +14,8 @@ export interface SurveyPoint {
 }
 
 export const TAG_OPTIONS: { value: TagType; label: string; color: string }[] = [
-  { value: 'soil', label: '土壤', color: '#8B4513' },
-  { value: 'vegetation', label: '植被', color: '#6B8E23' },
+  { value: 'soil', label: '土壤', color: '#8B5A2B' },
+  { value: 'vegetation', label: '植被', color: '#228B22' },
   { value: 'water', label: '水体', color: '#4682B4' },
   { value: 'building', label: '建筑', color: '#808080' }
 ];

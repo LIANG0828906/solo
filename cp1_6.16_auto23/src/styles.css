@@ -574,12 +574,12 @@ body,
 .confirm-modal-container {
   max-width: 400px;
   background: linear-gradient(135deg, #F5F5DC 0%, #f0e6c8 100%) !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
 }
 
 .confirm-modal-container .modal-header {
   background: linear-gradient(135deg, #6B8E23 0%, #556B2F 100%);
-  border-radius: 12px 12px 0 0;
+  border-radius: 8px 8px 0 0;
   border-bottom: none;
 }
 
@@ -616,7 +616,7 @@ body,
 .confirm-modal-container .modal-footer {
   background: rgba(107, 142, 35, 0.05);
   border-top: 1px solid rgba(107, 142, 35, 0.15);
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 8px 8px;
 }
 
 .leaflet-popup-content-wrapper {
