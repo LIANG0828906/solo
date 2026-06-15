@@ -4,6 +4,7 @@ import { RecordingState } from '../types';
 interface UseRecorderReturn {
   state: RecordingState;
   duration: number;
+  countdownNumber: number | null;
   blob: Blob | null;
   videoUrl: string | null;
   audioBlob: Blob | null;
@@ -17,6 +18,7 @@ interface UseRecorderReturn {
 export function useRecorder(): UseRecorderReturn {
   const [state, setState] = useState<RecordingState>(RecordingState.IDLE);
   const [duration, setDuration] = useState(0);
+  const [countdownNumber, setCountdownNumber] = useState<number | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -61,12 +63,28 @@ export function useRecorder(): UseRecorderReturn {
     }, 1000);
   }, [state]);
 
+  const countdownIntervalRef = useRef<number | null>(null);
+
   const startRecording = useCallback(async (options?: DisplayMediaStreamOptions) => {
     try {
       setState(RecordingState.COUNTDOWN);
+      setCountdownNumber(3);
+      let count = 3;
 
       const countdownPromise = new Promise<void>((resolve) => {
-        setTimeout(() => resolve(), 3000);
+        countdownIntervalRef.current = window.setInterval(() => {
+          count--;
+          if (count > 0) {
+            setCountdownNumber(count);
+          } else {
+            setCountdownNumber(null);
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            resolve();
+          }
+        }, 1000);
       });
 
       const mediaOptions: DisplayMediaStreamOptions = options || {
@@ -80,10 +98,20 @@ export function useRecorder(): UseRecorderReturn {
         } as MediaTrackConstraints,
       };
 
-      const [videoStream] = await Promise.all([
-        navigator.mediaDevices.getDisplayMedia(mediaOptions),
-        countdownPromise,
-      ]);
+      let videoStream: MediaStream | null = null;
+      try {
+        videoStream = await navigator.mediaDevices.getDisplayMedia(mediaOptions);
+      } catch (mediaError) {
+        setCountdownNumber(null);
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        setState(RecordingState.IDLE);
+        throw mediaError;
+      }
+
+      await countdownPromise;
 
       videoStreamRef.current = videoStream;
       videoChunksRef.current = [];
@@ -151,6 +179,11 @@ export function useRecorder(): UseRecorderReturn {
       startDurationCounter();
     } catch (error) {
       console.error('Failed to start recording:', error);
+      setCountdownNumber(null);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
       setState(RecordingState.IDLE);
       cleanupStreams();
       throw error;
@@ -201,6 +234,11 @@ export function useRecorder(): UseRecorderReturn {
 
   const resetRecording = useCallback(() => {
     cleanupStreams();
+    setCountdownNumber(null);
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
     setBlob(null);
     setVideoUrl(null);
     setAudioBlob(null);
@@ -213,12 +251,16 @@ export function useRecorder(): UseRecorderReturn {
   useEffect(() => {
     return () => {
       cleanupStreams();
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
     };
   }, [cleanupStreams]);
 
   return {
     state,
     duration,
+    countdownNumber,
     blob,
     videoUrl,
     audioBlob,
