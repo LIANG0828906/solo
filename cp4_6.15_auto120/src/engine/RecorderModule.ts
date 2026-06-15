@@ -41,7 +41,7 @@ export class RecorderModule {
 
       this.mediaRecorder.onerror = (event: Event) => {
         this.stopTimer();
-        const errorEvent = event as MediaRecorderErrorEvent;
+        const errorEvent = event as { error?: { message?: string } };
         throw new Error(`Recording error: ${errorEvent.error?.message || 'Unknown error'}`);
       };
 
