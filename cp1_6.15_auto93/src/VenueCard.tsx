@@ -17,9 +17,9 @@ function getParkingStatus(spots: number, total: number): ParkingStatus {
 
 function getParkingColor(status: ParkingStatus): string {
   switch (status) {
-    case 'abundant': return '#4ade80';
-    case 'limited': return '#facc15';
-    case 'full': return '#f87171';
+    case 'abundant': return '#4CAF50';
+    case 'limited': return '#FFC107';
+    case 'full': return '#F44336';
   }
 }
 
@@ -187,7 +187,7 @@ function VenueCardItem({
           <div style={{
             fontSize: 11,
             color: 'rgba(255,255,255,0.45)',
-            marginBottom: 8,
+            marginBottom: 10,
             letterSpacing: 0.3
           }}>
             停车位状态
@@ -195,30 +195,25 @@ function VenueCardItem({
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            marginTop: 4
+            gap: 10,
+            marginTop: 2
           }}>
             <div style={{
               width: 10, height: 10,
               borderRadius: '50%',
               background: getParkingColor(parkingStatus),
-              boxShadow: `0 0 10px ${getParkingColor(parkingStatus)}66`,
-              animation: parkingStatus === 'full' ? 'blink 1.5s ease-in-out infinite' : 'none'
+              boxShadow: `0 0 10px ${getParkingColor(parkingStatus)}99`,
+              animation: parkingStatus === 'full' ? 'blink 1.2s ease-in-out infinite' : 'none',
+              transform: 'translateZ(0)',
+              willChange: 'opacity'
             }} />
             <span style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: getParkingColor(parkingStatus)
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.55)',
+              fontFamily: 'system-ui'
             }}>
-              {getParkingLabel(parkingStatus)}
+              {venue.parkingSpots} / {venue.parkingTotal}
             </span>
-          </div>
-          <div style={{
-            fontSize: 10,
-            color: 'rgba(255,255,255,0.35)',
-            marginTop: 6
-          }}>
-            {venue.parkingSpots} / {venue.parkingTotal}
           </div>
         </div>
       </div>
@@ -416,8 +411,10 @@ export default function VenueCard({ venues }: Props) {
         height: '100%',
         background: 'linear-gradient(180deg, #1e1e3a 0%, #16162a 100%)',
         boxShadow: '-8px 0 40px rgba(0,0,0,0.4)',
-        transform: panelVisible ? 'translateX(0)' : 'translateX(100%)',
+        transform: panelVisible ? 'translateZ(0) translateX(0)' : 'translateZ(0) translateX(100%)',
         transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
         zIndex: 1001,
         overflow: 'auto',
         borderLeft: '1px solid rgba(255,255,255,0.06)'
@@ -627,8 +624,9 @@ export default function VenueCard({ venues }: Props) {
                 }}>
                   {panelVisible && (
                     <ReactECharts
+                      className="echarts"
                       option={getChartOption(selectedVenue)}
-                      style={{ height: '100%', width: '100%' }}
+                      style={{ height: '100%', width: '100%', transform: 'translateZ(0)', willChange: 'transform' }}
                       opts={{ renderer: 'canvas' }}
                     />
                   )}
@@ -657,15 +655,20 @@ export default function VenueCard({ venues }: Props) {
                   overflow: 'hidden',
                   marginBottom: 10
                 }}>
-                  <div style={{
-                    height: '100%',
-                    width: panelVisible
-                      ? `${Math.round((selectedVenue.parkingSpots / Math.max(selectedVenue.parkingTotal, 1)) * 100)}%`
-                      : '0%',
-                    background: `linear-gradient(90deg, ${getParkingColor(getParkingStatus(selectedVenue.parkingSpots, selectedVenue.parkingTotal))}, ${getParkingColor(getParkingStatus(selectedVenue.parkingSpots, selectedVenue.parkingTotal))}aa)`,
-                    borderRadius: 4,
-                    transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                  }} />
+                  <div
+                    className="progress-bar"
+                    style={{
+                      height: '100%',
+                      width: panelVisible
+                        ? `${Math.round((selectedVenue.parkingSpots / Math.max(selectedVenue.parkingTotal, 1)) * 100)}%`
+                        : '0%',
+                      background: `linear-gradient(90deg, ${getParkingColor(getParkingStatus(selectedVenue.parkingSpots, selectedVenue.parkingTotal))}, ${getParkingColor(getParkingStatus(selectedVenue.parkingSpots, selectedVenue.parkingTotal))}aa)`,
+                      borderRadius: 4,
+                      transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      willChange: 'width',
+                      transform: 'translateZ(0)'
+                    }}
+                  />
                 </div>
                 <div style={{
                   display: 'flex',
@@ -736,12 +739,23 @@ export default function VenueCard({ venues }: Props) {
 
       <style>{`
         @keyframes cardIn {
-          from { opacity: 0; transform: translateY(20px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+          from { opacity: 0; transform: translateZ(0) translateY(20px) scale(0.98); }
+          to { opacity: 1; transform: translateZ(0) translateY(0) scale(1); }
         }
         @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
+          0%, 100% { opacity: 1; transform: translateZ(0); }
+          50% { opacity: 0.4; transform: translateZ(0); }
+        }
+        .venue-card, .detail-panel, .echarts {
+          will-change: transform;
+          backface-visibility: hidden;
+          transform: translateZ(0);
+        }
+        .detail-panel {
+          will-change: transform, opacity;
+        }
+        .progress-bar {
+          will-change: width;
         }
       `}</style>
     </div>

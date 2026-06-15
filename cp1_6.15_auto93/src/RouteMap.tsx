@@ -39,18 +39,26 @@ const provinceOutlines: [number, number][][] = [
   [[111, 20], [113, 22], [111, 21]]
 ];
 
+const SEGMENT_DURATION = 500;
+
 export default function RouteMap({ venues, tourDates }: Props) {
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
   const [showMap, setShowMap] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{ distance: number; time: number } | null>(null);
-  const [animateStep, setAnimateStep] = useState(0);
+  const [animProgress, setAnimProgress] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const totalSegmentsRef = useRef<number>(0);
 
   const sortedTourVenues = tourDates
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map(td => venues.find(v => v.id === td.venueId))
     .filter((v): v is Venue => v !== undefined);
+
+  const currentRouteVenues = selectedVenues.length > 0
+    ? selectedVenues.map(id => venues.find(v => v.id === id)).filter((v): v is Venue => v !== undefined)
+    : sortedTourVenues;
 
   const toggleVenue = (venueId: string) => {
     setSelectedVenues(prev =>
@@ -60,10 +68,22 @@ export default function RouteMap({ venues, tourDates }: Props) {
     );
   };
 
+  const animate = (currentTime: number) => {
+    const elapsed = currentTime - startTimeRef.current;
+    const totalDuration = totalSegmentsRef.current * SEGMENT_DURATION;
+    const progress = Math.min(elapsed / totalDuration, 1) * totalSegmentsRef.current;
+
+    setAnimProgress(progress);
+
+    if (progress < totalSegmentsRef.current) {
+      rafRef.current = requestAnimationFrame(animate);
+    } else {
+      rafRef.current = null;
+    }
+  };
+
   const generateRoute = () => {
-    const selected = selectedVenues.length > 0
-      ? selectedVenues.map(id => venues.find(v => v.id === id)).filter((v): v is Venue => v !== undefined)
-      : sortedTourVenues;
+    const selected = [...currentRouteVenues];
 
     if (selected.length < 2) {
       alert('请至少选择 2 个场地');
@@ -82,30 +102,23 @@ export default function RouteMap({ venues, tourDates }: Props) {
       time: Math.round(totalDist / 80 * 10) / 10
     });
 
-    setShowMap(true);
-    setAnimateStep(0);
-
-    if (animationTimerRef.current) {
-      clearInterval(animationTimerRef.current);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
 
-    let step = 0;
-    animationTimerRef.current = setInterval(() => {
-      step++;
-      setAnimateStep(step);
-      if (step >= selected.length) {
-        if (animationTimerRef.current) {
-          clearInterval(animationTimerRef.current);
-          animationTimerRef.current = null;
-        }
-      }
-    }, 500);
+    setShowMap(true);
+    setAnimProgress(0);
+    totalSegmentsRef.current = Math.max(selected.length - 1, 1);
+    startTimeRef.current = performance.now();
+    rafRef.current = requestAnimationFrame(animate);
   };
 
   useEffect(() => {
     return () => {
-      if (animationTimerRef.current) {
-        clearInterval(animationTimerRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, []);
@@ -150,9 +163,7 @@ export default function RouteMap({ venues, tourDates }: Props) {
     });
     ctx.restore();
 
-    const routeVenues = selectedVenues.length > 0
-      ? selectedVenues.map(id => venues.find(v => v.id === id)).filter((v): v is Venue => v !== undefined)
-      : sortedTourVenues;
+    const routeVenues = currentRouteVenues;
 
     const points = routeVenues.map(v => ({
       x: toX(v.lng),
@@ -161,16 +172,31 @@ export default function RouteMap({ venues, tourDates }: Props) {
       name: v.name
     }));
 
-    for (let i = 0; i < Math.min(animateStep, points.length - 1); i++) {
+    const fullSegments = Math.floor(animProgress);
+    const partialProgress = animProgress - fullSegments;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      let segmentProgress: number;
+      if (i < fullSegments) {
+        segmentProgress = 1;
+      } else if (i === fullSegments) {
+        segmentProgress = Math.max(0, Math.min(1, partialProgress));
+      } else {
+        continue;
+      }
+
+      if (segmentProgress <= 0) continue;
+
       const p1 = points[i];
       const p2 = points[i + 1];
-
-      ctx.beginPath();
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
-      const steps = 20;
-      for (let s = 0; s <= steps; s++) {
-        const t = s / steps;
+      const easeOut = 1 - Math.pow(1 - segmentProgress, 3);
+      const totalSteps = Math.max(2, Math.ceil(40 * easeOut));
+
+      ctx.beginPath();
+      for (let s = 0; s <= totalSteps; s++) {
+        const t = (s / totalSteps) * easeOut;
         const x = p1.x + dx * t + Math.sin(t * Math.PI) * (-20);
         const y = p1.y + dy * t;
         if (s === 0) ctx.moveTo(x, y);
@@ -185,28 +211,34 @@ export default function RouteMap({ venues, tourDates }: Props) {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      const arrowAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-      const arrowSize = 8;
-      ctx.beginPath();
-      ctx.moveTo(p2.x, p2.y);
-      ctx.lineTo(
-        p2.x - arrowSize * Math.cos(arrowAngle - Math.PI / 6),
-        p2.y - arrowSize * Math.sin(arrowAngle - Math.PI / 6)
-      );
-      ctx.moveTo(p2.x, p2.y);
-      ctx.lineTo(
-        p2.x - arrowSize * Math.cos(arrowAngle + Math.PI / 6),
-        p2.y - arrowSize * Math.sin(arrowAngle + Math.PI / 6)
-      );
-      ctx.strokeStyle = '#ffbf66';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      if (segmentProgress >= 1) {
+        const arrowAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        const arrowSize = 8;
+        ctx.beginPath();
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(
+          p2.x - arrowSize * Math.cos(arrowAngle - Math.PI / 6),
+          p2.y - arrowSize * Math.sin(arrowAngle - Math.PI / 6)
+        );
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(
+          p2.x - arrowSize * Math.cos(arrowAngle + Math.PI / 6),
+          p2.y - arrowSize * Math.sin(arrowAngle + Math.PI / 6)
+        );
+        ctx.strokeStyle = '#ffbf66';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
 
     points.forEach((p, i) => {
-      if (i < animateStep) {
+      if (i <= fullSegments || (i === fullSegments + 1 && partialProgress > 0.8)) {
+        const nodeProgress = i < fullSegments ? 1 :
+          i === fullSegments && fullSegments < points.length - 1 ? 1 :
+          Math.min(1, Math.max(0, (partialProgress - 0.8) * 5));
+
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 18);
-        grad.addColorStop(0, 'rgba(255, 191, 102, 0.5)');
+        grad.addColorStop(0, `rgba(255, 191, 102, ${0.5 * nodeProgress})`);
         grad.addColorStop(1, 'rgba(255, 191, 102, 0)');
         ctx.beginPath();
         ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
@@ -214,27 +246,32 @@ export default function RouteMap({ venues, tourDates }: Props) {
         ctx.fill();
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 7 * nodeProgress, 0, Math.PI * 2);
         ctx.fillStyle = '#ffbf66';
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#fff';
         ctx.stroke();
 
-        ctx.font = 'bold 11px system-ui, -apple-system';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#fff';
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4;
-        ctx.fillText(p.city, p.x, p.y - 14);
-        ctx.shadowBlur = 0;
+        if (nodeProgress > 0.5) {
+          const alpha = Math.min(1, (nodeProgress - 0.5) * 2);
+          ctx.globalAlpha = alpha;
+          ctx.font = 'bold 11px system-ui, -apple-system';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#fff';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 4;
+          ctx.fillText(p.city, p.x, p.y - 14);
+          ctx.shadowBlur = 0;
 
-        ctx.font = 'bold 9px system-ui';
-        ctx.fillStyle = 'rgba(255, 191, 102, 0.9)';
-        ctx.fillText(`${i + 1}`, p.x, p.y + 3);
+          ctx.font = 'bold 9px system-ui';
+          ctx.fillStyle = 'rgba(255, 191, 102, 0.9)';
+          ctx.fillText(`${i + 1}`, p.x, p.y + 3);
+          ctx.globalAlpha = 1;
+        }
       }
     });
-  }, [showMap, animateStep, selectedVenues, venues, sortedTourVenues]);
+  }, [showMap, animProgress, currentRouteVenues]);
 
   return (
     <div style={{ padding: 28, minHeight: '100%' }}>
@@ -617,7 +654,9 @@ export default function RouteMap({ venues, tourDates }: Props) {
               style={{
                 width: '100%',
                 height: 'auto',
-                display: 'block'
+                display: 'block',
+                transform: 'translateZ(0)',
+                willChange: 'transform'
               }}
             />
           </div>
@@ -626,12 +665,16 @@ export default function RouteMap({ venues, tourDates }: Props) {
 
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateZ(0) translateY(16px); }
+          to { opacity: 1; transform: translateZ(0) translateY(0); }
         }
         @keyframes venueIn {
-          from { opacity: 0; transform: translateX(-8px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateZ(0) translateX(-8px); }
+          to { opacity: 1; transform: translateZ(0) translateX(0); }
+        }
+        .venue-item, .map-container, canvas {
+          will-change: transform;
+          backface-visibility: hidden;
         }
       `}</style>
     </div>

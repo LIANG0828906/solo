@@ -8,9 +8,23 @@ interface Props {
   venues: Venue[];
 }
 
+const slugify = (text: string): string => {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 40);
+};
+
 export default function PosterGenerator({ tourDates, venues }: Props) {
   const sortedDates = tourDates
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const firstDate = sortedDates.length > 0 ? new Date(sortedDates[0].date) : new Date();
+  const lastDate = sortedDates.length > 0 ? new Date(sortedDates[sortedDates.length - 1].date) : new Date();
+  const tourId = `${firstDate.getFullYear()}${String(firstDate.getMonth() + 1).padStart(2, '0')}`;
 
   const [tourName, setTourName] = useState('2026 夏季巡演');
   const [subTitle, setSubTitle] = useState('Summer Tour · 独立乐队全国巡演');
@@ -35,12 +49,23 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
       notes: d.notes
     }));
 
+  const tourShareUrl = useRef('');
+
+  const generateShareUrl = (): string => {
+    const slug = slugify(tourName) || `${tourId}-tour`;
+    const dateRange = `${firstDate.getMonth() + 1}${String(firstDate.getDate()).padStart(2, '0')}-${lastDate.getMonth() + 1}${String(lastDate.getDate()).padStart(2, '0')}`;
+    const cities = posterList.map(p => encodeURIComponent(p.city)).join(',');
+    const base = window.location.origin;
+    return `${base}/tour/${tourId}/${slug}?dates=${dateRange}&stops=${posterList.length}&cities=${cities}`;
+  };
+
   const generateQR = async () => {
     try {
-      const url = `https://tour.example.com/share/2026-summer-tour`;
-      const dataUrl = await QRCode.toDataURL(url, {
+      tourShareUrl.current = generateShareUrl();
+      const dataUrl = await QRCode.toDataURL(tourShareUrl.current, {
         width: 100,
         margin: 1,
+        errorCorrectionLevel: 'M',
         color: {
           dark: '#ffffff',
           light: '#1a1a2e'
@@ -54,7 +79,7 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
 
   useEffect(() => {
     generateQR();
-  }, []);
+  }, [tourName, selectedDates]);
 
   const toggleDate = (id: string) => {
     setSelectedDates(prev =>
@@ -778,7 +803,9 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
                 display: 'block',
                 width: 500,
                 maxWidth: '100%',
-                height: 'auto'
+                height: 'auto',
+                transform: 'translateZ(0)',
+                willChange: 'transform'
               }}
             />
           </div>
@@ -787,8 +814,16 @@ export default function PosterGenerator({ tourDates, venues }: Props) {
 
       <style>{`
         @keyframes dateIn {
-          from { opacity: 0; transform: translateX(-6px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateZ(0) translateX(-6px); }
+          to { opacity: 1; transform: translateZ(0) translateX(0); }
+        }
+        .poster-canvas, .form-panel, .btn, .date-item {
+          will-change: transform;
+          backface-visibility: hidden;
+          transform: translateZ(0);
+        }
+        .poster-canvas {
+          will-change: transform, opacity;
         }
       `}</style>
     </div>

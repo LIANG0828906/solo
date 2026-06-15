@@ -101,12 +101,15 @@ export default function App() {
             border: '3px solid #2d2d44',
             borderTopColor: '#ffbf66',
             borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
+            animation: 'spin 1s linear infinite',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden'
           }} />
           <span>加载中...</span>
           <style>{`
             @keyframes spin {
-              to { transform: rotate(360deg); }
+              to { transform: translateZ(0) rotate(360deg); }
             }
           `}</style>
         </div>
@@ -175,7 +178,10 @@ export default function App() {
               background: 'linear-gradient(180deg, #ffbf66, #ff9a3c)',
               borderRadius: '0 3px 3px 0',
               transition: 'top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              boxShadow: '0 0 10px rgba(255,191,102,0.6)'
+              boxShadow: '0 0 10px rgba(255,191,102,0.6)',
+              willChange: 'top, transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden'
             }}
           />
           {navItems.map((item) => {
@@ -196,7 +202,10 @@ export default function App() {
                   color: isActive ? '#ffbf66' : 'rgba(255,255,255,0.55)',
                   transition: 'color 0.25s ease, padding-left 0.25s ease',
                   position: 'relative',
-                  outline: 'none'
+                  outline: 'none',
+                  willChange: 'transform, color',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
@@ -275,7 +284,12 @@ export default function App() {
         background: '#1a1a2e',
         overflow: 'auto'
       }}>
-        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+        <div style={{
+          animation: 'fadeIn 0.3s ease both',
+          willChange: 'opacity, transform',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden'
+        }}>
           {activePage === 'calendar' && (
             <CalendarView venues={venues} tourDates={tourDates} setTourDates={setTourDates} />
           )}
@@ -291,8 +305,15 @@ export default function App() {
         </div>
         <style>{`
           @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateZ(0) translateY(6px); }
+            to { opacity: 1; transform: translateZ(0) translateY(0); }
+          }
+          *, *::before, *::after {
+            box-sizing: border-box;
+          }
+          .sidebar-indicator, .nav-btn, .page-container {
+            will-change: transform;
+            backface-visibility: hidden;
           }
         `}</style>
       </main>

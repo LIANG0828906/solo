@@ -315,9 +315,11 @@ export default function CalendarView({ venues, tourDates, setTourDates }: Props)
                 zIndex: 100,
                 left: popupPos.x,
                 top: popupPos.y,
-                transform: 'translate(-50%, -100%)',
                 transformOrigin: 'bottom center',
-                pointerEvents: 'auto'
+                pointerEvents: 'auto',
+                willChange: 'transform, opacity',
+                transform: 'translateZ(0) translate(-50%, -100%)',
+                animation: 'popupBounce 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) both'
               }}
             >
               <div style={{
@@ -328,8 +330,9 @@ export default function CalendarView({ venues, tourDates, setTourDates }: Props)
                 width: 12,
                 height: 12,
                 background: '#252542',
-                transform: 'rotate(45deg)',
-                zIndex: 1
+                transform: 'translateZ(0) rotate(45deg)',
+                zIndex: 1,
+                willChange: 'transform'
               }} />
               <div style={{
                 background: 'linear-gradient(135deg, #1e1e3a 0%, #252542 100%)',
@@ -338,9 +341,10 @@ export default function CalendarView({ venues, tourDates, setTourDates }: Props)
                 minWidth: 260,
                 border: '1px solid rgba(255,191,102,0.2)',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-                animation: 'popupIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 position: 'relative',
-                zIndex: 2
+                zIndex: 2,
+                transform: 'translateZ(0)',
+                willChange: 'transform'
               }}>
                 <div style={{
                   display: 'flex',
@@ -624,16 +628,33 @@ export default function CalendarView({ venues, tourDates, setTourDates }: Props)
 
       <style>{`
         @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(0.9); }
+          0%, 100% { opacity: 1; transform: translateZ(0) scale(1); }
+          50% { opacity: 0.7; transform: translateZ(0) scale(0.9); }
         }
-        @keyframes popupIn {
-          from { opacity: 0; transform: translate(-50%, calc(-100% + 10px)) scale(0.9); }
-          to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+        @keyframes popupBounce {
+          0% {
+            opacity: 0;
+            transform: translateZ(0) translate(-50%, calc(-100% + 16px)) scale(0.75) translateY(6px);
+          }
+          55% {
+            opacity: 1;
+            transform: translateZ(0) translate(-50%, -100%) scale(1.06) translateY(-2px);
+          }
+          75% {
+            transform: translateZ(0) translate(-50%, calc(-100% - 3px)) scale(0.97) translateY(1px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateZ(0) translate(-50%, -100%) scale(1) translateY(0);
+          }
         }
         @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(20px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateZ(0) translateX(20px); }
+          to { opacity: 1; transform: translateZ(0) translateX(0); }
+        }
+        .card, .cell, .panel, button {
+          will-change: transform;
+          backface-visibility: hidden;
         }
       `}</style>
     </div>
